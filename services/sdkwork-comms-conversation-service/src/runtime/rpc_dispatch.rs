@@ -2,14 +2,18 @@
 
 use axum::http::{HeaderMap, HeaderValue, header};
 use im_app_context::AppContext;
-use im_domain_core::conversation::{ConversationMember, MembershipRole, member_id};
+use im_domain_core::conversation::{
+    ConversationAgentAssignment, ConversationAgentAssignmentSet, ConversationAgentAssignmentSource,
+    ConversationMember, MembershipRole, member_id,
+};
 use im_domain_core::message::{ContentPart, MessageReplyReference, MessageType};
 use prost::Message;
 use sdkwork_im_rpc_sdk_rust::sdkwork::common::v1::{PageRequest, PageResponse};
 use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::{
     AddConversationMemberRequest, AddConversationMemberResponse, BindDirectChatRequest,
     BindDirectChatResponse, ChangeConversationMemberRoleRequest,
-    ChangeConversationMemberRoleResponse, ConversationMemberView, ConversationView,
+    ChangeConversationMemberRoleResponse, ConversationAgentAssignmentView,
+    ConversationAgentAssignmentsView, ConversationMemberView, ConversationView,
     CreateAgentDialogRequest, CreateAgentDialogResponse, CreateAgentHandoffRequest,
     CreateAgentHandoffResponse, CreateConversationMessageRequest,
     CreateConversationMessageResponse, CreateConversationRequest, CreateConversationResponse,
@@ -27,12 +31,15 @@ use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::{
     PinMessageRequest, PinMessageResponse, PublishSystemChannelMessageRequest,
     PublishSystemChannelMessageResponse, ReadCursorView, RecallMessageRequest,
     RecallMessageResponse, RemoveConversationMemberRequest, RemoveConversationMemberResponse,
+    RetrieveConversationAgentsRequest, RetrieveConversationAgentsResponse,
     RetrieveConversationPreferencesRequest, RetrieveConversationProfileRequest,
     RetrieveConversationRequest, RetrieveConversationResponse,
+    RetrieveCurrentConversationMemberRequest, RetrieveCurrentConversationMemberResponse,
     RetrieveMessageInteractionSummaryRequest, RetrieveMessageInteractionSummaryResponse,
     RetrieveReadCursorRequest, RetrieveReadCursorResponse, RetrieveRoomRequest,
     RetrieveRoomResponse, RoomView, TransferConversationOwnerRequest,
     TransferConversationOwnerResponse, UnpinMessageRequest, UnpinMessageResponse,
+    UpdateConversationAgentsRequest, UpdateConversationAgentsResponse,
     UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
     UpdateReadCursorRequest, UpdateReadCursorResponse,
 };
@@ -128,6 +135,23 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                     let payload =
                         ListConversationMembersRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_list_members(&state, &auth, payload).await
+                }
+                "conversations.members.current.retrieve" => {
+                    let payload = RetrieveCurrentConversationMemberRequest::decode(
+                        request.request_bytes.as_slice(),
+                    )?;
+                    dispatch_retrieve_current_conversation_member(&state, &auth, payload).await
+                }
+                "conversations.agents.retrieve" => {
+                    let payload = RetrieveConversationAgentsRequest::decode(
+                        request.request_bytes.as_slice(),
+                    )?;
+                    dispatch_retrieve_conversation_agents(&state, &auth, payload).await
+                }
+                "conversations.agents.update" => {
+                    let payload =
+                        UpdateConversationAgentsRequest::decode(request.request_bytes.as_slice())?;
+                    dispatch_update_conversation_agents(&state, &auth, payload).await
                 }
                 "conversations.members.add" => {
                     let payload =
@@ -353,20 +377,36 @@ async fn dispatch_create_conversation(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = derive_idempotent_resource_id(metadata, "conversation")?;
     let conversation_type = required_field(request.conversation_type, "conversation_type")?;
-    let member_user_ids = request.member_user_ids;
+    let requested_agent_assignments = request
+        .agent_assignments
+        .into_iter()
+        .map(agent_assignment_from_proto)
+        .collect::<Result<Vec<_>, _>>()?;
+    if !requested_agent_assignments.is_empty() && conversation_type != "group" {
+        return Err(ImRpcError::invalid_argument(
+            "agent_assignments are only supported for group conversations",
+        ));
+    }
+    let raw_member_user_ids = request
+        .member_user_ids
+        .into_iter()
+        .map(|user_id| required_field(user_id, "member_user_ids"))
+        .collect::<Result<Vec<_>, _>>()?;
+    if !raw_member_user_ids.is_empty() && conversation_type != "group" {
+        return Err(ImRpcError::invalid_argument(
+            "member_user_ids are only supported for group conversations",
+        ));
+    }
+    let member_user_ids = super::creation::normalize_initial_member_user_ids(
+        raw_member_user_ids,
+        auth.actor_id.as_str(),
+    )
+    .map_err(map_runtime_error)?;
     let blocking_state = state.clone();
     let blocking_auth = auth.clone();
     let (result, binding) = tokio::task::spawn_blocking(move || -> Result<_, ImRpcError> {
-        let result = blocking_state
-            .rpc_runtime()
-            .create_conversation_from_auth_context(
-                &blocking_auth,
-                conversation_id,
-                conversation_type,
-            )
-            .map_err(map_runtime_error)?;
-        for user_id in member_user_ids {
-            if user_id == blocking_auth.actor_id {
+        for user_id in &member_user_ids {
+            if user_id == &blocking_auth.actor_id {
                 continue;
             }
             http::ensure_active_rpc_principal(
@@ -376,15 +416,28 @@ async fn dispatch_create_conversation(
                 "user",
             )
             .map_err(map_api_error)?;
-            let _ = blocking_state.rpc_runtime().add_member_from_auth_context(
-                &blocking_auth,
-                result.conversation_id.clone(),
-                user_id,
-                "user".into(),
-                MembershipRole::Member,
-                BTreeMap::new(),
-            );
         }
+        let result = if requested_agent_assignments.is_empty() {
+            blocking_state
+                .rpc_runtime()
+                .create_conversation_from_auth_context_with_members(
+                    &blocking_auth,
+                    conversation_id,
+                    conversation_type,
+                    member_user_ids,
+                )
+        } else {
+            blocking_state
+                .rpc_runtime()
+                .create_conversation_from_auth_context_with_members_and_agent_assignments(
+                    &blocking_auth,
+                    conversation_id,
+                    conversation_type,
+                    member_user_ids,
+                    requested_agent_assignments,
+                )
+        }
+        .map_err(map_runtime_error)?;
         let binding = blocking_state
             .rpc_runtime()
             .conversation_business_binding_from_auth_context(
@@ -792,6 +845,99 @@ async fn dispatch_list_members(
         metadata: None,
     };
     ImRpcUnaryResponse::from_message(response)
+}
+
+async fn dispatch_retrieve_current_conversation_member(
+    state: &AppState,
+    auth: &AppContext,
+    request: RetrieveCurrentConversationMemberRequest,
+) -> Result<ImRpcUnaryResponse, ImRpcError> {
+    let conversation_id = required_field(request.conversation_id, "conversation_id")?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let member = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .require_active_member_from_auth_context(&blocking_auth, conversation_id.as_str())
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
+    ImRpcUnaryResponse::from_message(RetrieveCurrentConversationMemberResponse {
+        member: Some(member_view_from_domain(&member)),
+        metadata: None,
+    })
+}
+
+async fn dispatch_retrieve_conversation_agents(
+    state: &AppState,
+    auth: &AppContext,
+    request: RetrieveConversationAgentsRequest,
+) -> Result<ImRpcUnaryResponse, ImRpcError> {
+    let conversation_id = required_field(request.conversation_id, "conversation_id")?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let assignments = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .conversation_agent_assignments_snapshot_from_auth_context(
+                &blocking_auth,
+                conversation_id.as_str(),
+            )
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
+    ImRpcUnaryResponse::from_message(RetrieveConversationAgentsResponse {
+        assignments: Some(agent_assignments_to_proto(&assignments)),
+        metadata: None,
+    })
+}
+
+async fn dispatch_update_conversation_agents(
+    state: &AppState,
+    auth: &AppContext,
+    request: UpdateConversationAgentsRequest,
+) -> Result<ImRpcUnaryResponse, ImRpcError> {
+    let conversation_id = required_field(request.conversation_id, "conversation_id")?;
+    let assignments = request
+        .agent_assignments
+        .into_iter()
+        .map(agent_assignment_from_proto)
+        .collect::<Result<Vec<_>, _>>()?;
+    let expected_generation = request.expected_generation;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let assignments = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .replace_conversation_agents_from_auth_context(
+                &blocking_auth,
+                conversation_id,
+                expected_generation,
+                assignments,
+            )
+            .map(|result| result.assignments)
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
+    ImRpcUnaryResponse::from_message(UpdateConversationAgentsResponse {
+        assignments: Some(agent_assignments_to_proto(&assignments)),
+        metadata: None,
+    })
 }
 
 async fn dispatch_add_member(
@@ -1742,6 +1888,42 @@ fn member_view_from_domain(member: &ConversationMember) -> ConversationMemberVie
         user_id: member.principal_id.clone(),
         role: membership_role_label(member.role.clone()).into(),
         state: membership_state_label(&member.state).into(),
+        principal_kind: member.principal_kind.clone(),
+        member_id: member.member_id.clone(),
+        tenant_id: member.tenant_id.clone(),
+        joined_at: member.joined_at.clone(),
+    }
+}
+
+fn agent_assignment_from_proto(
+    assignment: ConversationAgentAssignmentView,
+) -> Result<ConversationAgentAssignment, ImRpcError> {
+    let agent_id = required_field(assignment.agent_id, "agent_assignments.agent_id")?;
+    Ok(ConversationAgentAssignment::new(
+        agent_id,
+        (!assignment.revision_id.trim().is_empty()).then_some(assignment.revision_id),
+    ))
+}
+
+fn agent_assignments_to_proto(
+    assignments: &ConversationAgentAssignmentSet,
+) -> ConversationAgentAssignmentsView {
+    ConversationAgentAssignmentsView {
+        generation: assignments.generation,
+        source: match assignments.source {
+            ConversationAgentAssignmentSource::DefaultPolicy => "default_policy".into(),
+            ConversationAgentAssignmentSource::ConversationOverride => {
+                "conversation_override".into()
+            }
+        },
+        agents: assignments
+            .agents
+            .iter()
+            .map(|assignment| ConversationAgentAssignmentView {
+                agent_id: assignment.agent_id.clone(),
+                revision_id: assignment.revision_id.clone().unwrap_or_default(),
+            })
+            .collect(),
     }
 }
 

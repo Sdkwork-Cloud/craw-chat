@@ -232,11 +232,11 @@ assert.deepEqual(planning?.activity, {
 assert.deepEqual(planning?.openTarget, {
   kind: 'drive-node',
   appId: 'drive',
-  nodeId: 'doc-planning',
+  resourceType: 'drive-node',
+  resourceId: 'doc-planning',
   spaceId: 'space personal',
-  nodeType: 'file',
-  driveUri: 'drive://spaces/space%20personal/nodes/doc-planning',
-  shortcutTargetNodeId: undefined,
+  section: 'recent',
+  intent: 'preview',
 });
 assert.equal('url' in (planning?.openTarget ?? {}), false, 'untrusted response URLs must not become open targets');
 
@@ -247,7 +247,8 @@ assert.equal(recentDocuments.find((item) => item.id === 'doc-cover')?.kind, 'ima
 assert.equal(recentDocuments.find((item) => item.id === 'folder-projects')?.kind, 'folder');
 const shortcut = recentDocuments.find((item) => item.id === 'shortcut-roadmap');
 assert.equal(shortcut?.kind, 'shortcut');
-assert.equal(shortcut?.openTarget?.shortcutTargetNodeId, 'doc-roadmap');
+assert.equal(shortcut?.node?.shortcutTargetNodeId, 'doc-roadmap');
+assert.equal(shortcut?.openTarget?.resourceId, 'shortcut-roadmap');
 assert.deepEqual(shortcut?.activity, {
   kind: 'unknown',
   occurredAt: null,

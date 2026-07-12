@@ -76,9 +76,9 @@ pub(super) fn legacy_v1_group_agent_default() -> ConversationAgentAssignmentsEve
 pub(super) fn validate_created_group_agent_assignments(
     payload: &ConversationAgentAssignmentsEventPayload,
 ) -> Result<(), RuntimeError> {
-    if payload.generation == 0 {
+    if payload.generation != 1 {
         return Err(RuntimeError::Conflict(
-            "conversation.created.v2 agent assignment generation must be positive".into(),
+            "conversation.created.v2 agent assignment generation must be 1".into(),
         ));
     }
     if payload.source != ConversationAgentAssignmentSource::DefaultPolicy {
@@ -94,6 +94,33 @@ pub(super) fn validate_created_group_agent_assignments(
     {
         return Err(RuntimeError::Conflict(
             "conversation.created.v2 requires a versioned agent assignment policy".into(),
+        ));
+    }
+    let mut aggregate = ConversationAggregateState::new("group");
+    aggregate
+        .restore_agent_assignments(
+            payload.generation,
+            payload.source.clone(),
+            payload.agents.clone(),
+        )
+        .map_err(agent_assignment_error_to_runtime)
+}
+
+pub(super) fn validate_created_group_agent_override_assignments(
+    payload: &ConversationAgentAssignmentsEventPayload,
+) -> Result<(), RuntimeError> {
+    if payload.generation != 1 {
+        return Err(RuntimeError::Conflict(
+            "conversation.created.v3 override assignment generation must be 1".into(),
+        ));
+    }
+    if payload.source != ConversationAgentAssignmentSource::ConversationOverride
+        || payload.policy_id.is_some()
+        || payload.policy_version.is_some()
+    {
+        return Err(RuntimeError::Conflict(
+            "conversation.created.v3 requires a policy-free conversation_override assignment snapshot"
+                .into(),
         ));
     }
     let mut aggregate = ConversationAggregateState::new("group");
@@ -282,54 +309,87 @@ where
         conversation_id: &str,
     ) -> Result<(), RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
-        {
+        let (needs_created_event, last_journal_cursor) = {
             let state = read_runtime_state(
                 &self.state,
                 "conversation-runtime.state.agents.hydration-check",
             );
-            let already_loaded =
-                state
-                    .conversations
-                    .get(scope_key.as_str())
-                    .is_some_and(|conversation| {
-                        conversation.aggregate.conversation_type() == "group"
-                            && conversation.aggregate.agent_assignments().is_some()
-                    });
-            if already_loaded {
-                return Ok(());
-            }
-        }
+            let conversation = state
+                .conversations
+                .get(scope_key.as_str())
+                .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+            (
+                conversation.aggregate.conversation_type().is_empty()
+                    || (conversation.aggregate.conversation_type() == "group"
+                        && conversation.aggregate.agent_assignments().is_none()),
+                conversation.agent_metadata_journal_cursor.clone(),
+            )
+        };
 
         let scope = CommitJournalAggregateScope {
             tenant_id: tenant_id.into(),
             aggregate_id: conversation_id.into(),
         };
-        let mut cursor = None;
+        let mut cursor = last_journal_cursor;
+        let normalized_organization_id =
+            im_domain_events::normalize_commit_organization_id(organization_id);
         loop {
-            let page = self
-                .journal
-                .recorded_page_for_aggregate(
-                    &scope,
-                    cursor.as_ref(),
-                    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT,
-                )
-                .map_err(RuntimeError::from)?;
+            let page = match self.journal.recorded_page_for_aggregate(
+                &scope,
+                cursor.as_ref(),
+                COMMIT_JOURNAL_REPLAY_BATCH_LIMIT,
+            ) {
+                Ok(page) => page,
+                Err(ContractError::UnsupportedCapability(_)) if !needs_created_event => {
+                    // Lightweight in-memory/custom journals may support
+                    // writes without aggregate replay.  An already hydrated
+                    // assignment remains usable there; production durable
+                    // journals provide this paged read and take the freshness
+                    // path above.
+                    return Ok(());
+                }
+                Err(error) => return Err(RuntimeError::from(error)),
+            };
             if page.items.is_empty() {
                 break;
             }
             let batch_len = page.items.len();
             for envelope in &page.items {
-                if matches!(
-                    envelope.event_type.as_str(),
-                    "conversation.created" | "conversation.agents_replaced"
-                ) {
+                if im_domain_events::normalize_commit_organization_id(
+                    envelope.organization_id.as_str(),
+                ) != normalized_organization_id
+                {
+                    return Err(RuntimeError::Conflict(format!(
+                        "conversation agent metadata crossed organization scope for {conversation_id}"
+                    )));
+                }
+                if envelope.event_type == "conversation.agents_replaced"
+                    || (needs_created_event && envelope.event_type == "conversation.created")
+                {
                     self.apply_recovered_envelope(envelope)?;
                 }
             }
-            cursor = page.next_cursor;
+            // `next_cursor` is the authoritative store cursor. In the
+            // PostgreSQL adapter it carries the global commit offset, which
+            // must never be reconstructed from aggregate ordering_seq.
+            if page.next_cursor.is_some() {
+                cursor = page.next_cursor;
+            }
             if batch_len < COMMIT_JOURNAL_REPLAY_BATCH_LIMIT {
                 break;
             }
+        }
+        {
+            let mut state = write_runtime_state(
+                &self.state,
+                "conversation-runtime.state.agents.hydration-watermark",
+            );
+            let conversation = state
+                .conversations
+                .get_mut(scope_key.as_str())
+                .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+            conversation.agent_metadata_journal_cursor = cursor;
+            state.touch_conversation(scope_key.as_str());
         }
         Ok(())
     }
@@ -454,7 +514,8 @@ where
             command.organization_id.as_str(),
             command.conversation_id.as_str(),
         );
-        let result = {
+        let durable_event_writer = self.durable_conversation_event_writer.clone();
+        let (result, realtime_payload, needs_post_commit_delivery) = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.agents.replace");
             let result = {
@@ -526,6 +587,7 @@ where
                     },
                     replaced_at: replaced_at.clone(),
                 };
+                let realtime_payload = runtime_json_string(&payload)?;
                 let event = build_conversation_agents_replaced_envelope(
                     command.tenant_id.as_str(),
                     command.organization_id.as_str(),
@@ -537,18 +599,73 @@ where
                     actor_member.principal_kind.as_str(),
                 )?;
 
-                self.journal.append(event.clone())?;
-                conversation.aggregate = next_aggregate;
-                ReplaceConversationAgentsResult {
-                    event_id: event.event_id,
-                    previous_generation,
-                    assignments,
-                    replaced_at,
+                if let Some(writer) = durable_event_writer.as_ref() {
+                    let outbox = self.build_conversation_event_outbox_record(
+                        command.tenant_id.as_str(),
+                        command.organization_id.as_str(),
+                        command.conversation_id.as_str(),
+                        "conversation.agents_replaced",
+                        event.event_id.as_str(),
+                        realtime_payload.clone(),
+                        replaced_at.as_str(),
+                    )?;
+                    writer
+                        .persist_conversation_event(event.clone(), outbox)
+                        .map_err(RuntimeError::from)?;
+                    // The ConversationCommitJournal wrapper applies the
+                    // projection for ordinary appends. The atomic writer
+                    // bypasses that wrapper, so preserve the same best-effort
+                    // derived-read-model update explicitly.
+                    projection_service::try_apply_commit_envelope(&event);
+                } else {
+                    self.journal.append(event.clone())?;
                 }
+                conversation.aggregate = next_aggregate;
+                (
+                    ReplaceConversationAgentsResult {
+                        event_id: event.event_id,
+                        previous_generation,
+                        assignments,
+                        replaced_at,
+                    },
+                    realtime_payload,
+                    durable_event_writer.is_none(),
+                )
             };
             state.touch_conversation(scope_key.as_str());
             result
         };
+        // The journal append above is the authoritative commit. Persist the
+        // refreshed aggregate projection opportunistically so other runtime
+        // instances can resolve the latest roster/cursor state without a hot
+        // in-memory cache; failures are intentionally non-fatal.
+        self.best_effort_persist_aggregate_state(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
+        // PostgreSQL production wiring persists the outbox in the same
+        // transaction as the journal event; the relay then owns delivery. The
+        // in-memory/test path keeps the low-latency publisher and post-commit
+        // outbox fallback used by the rest of the runtime.
+        if needs_post_commit_delivery {
+            if let Err(error) = self.publish_or_enqueue_conversation_event(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                command.conversation_id.as_str(),
+                "conversation.agents_replaced",
+                result.event_id.as_str(),
+                realtime_payload,
+                result.replaced_at.as_str(),
+            ) {
+                tracing::warn!(
+                    conversation_id = %command.conversation_id,
+                    event_id = %result.event_id,
+                    error = ?error,
+                    "conversation.agents_replaced realtime delivery failed after journal commit"
+                );
+            }
+        }
         self.maybe_evict_after_write();
         Ok(result)
     }

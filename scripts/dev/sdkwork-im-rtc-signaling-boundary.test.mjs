@@ -83,6 +83,10 @@ assert.doesNotMatch(imIndexSource, /rtc-module/u, 'IM SDK public exports must no
 assert.match(imIndexSource, /calls-module/u, 'IM SDK public exports must expose calls-module');
 
 const imCallsModuleSource = read('sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/calls-module.ts');
+const imTransportClientLikeSource = read(
+  'sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/transport-client-like.ts',
+);
+const imOpenApiSource = read('apis/open-api/im/sdkwork-im-im.openapi.yaml');
 assert.doesNotMatch(
   imCallsModuleSource,
   /\bepoch:\s/u,
@@ -92,6 +96,26 @@ assert.doesNotMatch(
   imCallsModuleSource,
   /participantIds:\s*options\.participantIds/u,
   'calls-module invite must not send undeclared InviteRtcSessionRequest.participantIds',
+);
+assert.match(
+  imCallsModuleSource,
+  /listSignals[\s\S]*normalizeAfterSignalSeq[\s\S]*afterSignalSeq/u,
+  'calls-module signal pagination must preserve the server afterSignalSeq cursor option',
+);
+assert.match(
+  imCallsModuleSource,
+  /refreshParticipantCredential[\s\S]*credentials\.refresh/u,
+  'calls-module must expose server-owned RTC participant credential refresh',
+);
+assert.match(
+  imTransportClientLikeSource,
+  /credentials:\s*\{[\s\S]*refresh\(rtcSessionId:/u,
+  'IM transport contract must expose the generated credential refresh operation',
+);
+assert.match(
+  imOpenApiSource,
+  /operationId:\s*calls\.sessions\.signals\.list[\s\S]*name:\s*afterSignalSeq/u,
+  'IM OpenAPI must declare the service-owned afterSignalSeq query parameter',
 );
 
 const rtcIndexPath = path.join(rtcSdkRoot, 'src', 'index.ts');

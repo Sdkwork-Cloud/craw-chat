@@ -2152,6 +2152,95 @@ pub mod conversation_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        pub async fn retrieve_current_conversation_member(
+            &mut self,
+            request: impl tonic::IntoRequest<
+                super::RetrieveCurrentConversationMemberRequest,
+            >,
+        ) -> std::result::Result<
+            tonic::Response<super::RetrieveCurrentConversationMemberResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/sdkwork.communication.app.v3.ConversationService/RetrieveCurrentConversationMember",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "sdkwork.communication.app.v3.ConversationService",
+                        "RetrieveCurrentConversationMember",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn retrieve_conversation_agents(
+            &mut self,
+            request: impl tonic::IntoRequest<super::RetrieveConversationAgentsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RetrieveConversationAgentsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/sdkwork.communication.app.v3.ConversationService/RetrieveConversationAgents",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "sdkwork.communication.app.v3.ConversationService",
+                        "RetrieveConversationAgents",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn update_conversation_agents(
+            &mut self,
+            request: impl tonic::IntoRequest<super::UpdateConversationAgentsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::UpdateConversationAgentsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/sdkwork.communication.app.v3.ConversationService/UpdateConversationAgents",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "sdkwork.communication.app.v3.ConversationService",
+                        "UpdateConversationAgents",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
         pub async fn add_conversation_member(
             &mut self,
             request: impl tonic::IntoRequest<super::AddConversationMemberRequest>,
@@ -2609,6 +2698,27 @@ pub mod conversation_service_server {
             request: tonic::Request<super::ListConversationMembersRequest>,
         ) -> std::result::Result<
             tonic::Response<super::ListConversationMembersResponse>,
+            tonic::Status,
+        >;
+        async fn retrieve_current_conversation_member(
+            &self,
+            request: tonic::Request<super::RetrieveCurrentConversationMemberRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RetrieveCurrentConversationMemberResponse>,
+            tonic::Status,
+        >;
+        async fn retrieve_conversation_agents(
+            &self,
+            request: tonic::Request<super::RetrieveConversationAgentsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RetrieveConversationAgentsResponse>,
+            tonic::Status,
+        >;
+        async fn update_conversation_agents(
+            &self,
+            request: tonic::Request<super::UpdateConversationAgentsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::UpdateConversationAgentsResponse>,
             tonic::Status,
         >;
         async fn add_conversation_member(
@@ -3203,6 +3313,167 @@ pub mod conversation_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = ListConversationMembersSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/sdkwork.communication.app.v3.ConversationService/RetrieveCurrentConversationMember" => {
+                    #[allow(non_camel_case_types)]
+                    struct RetrieveCurrentConversationMemberSvc<T: ConversationService>(
+                        pub Arc<T>,
+                    );
+                    impl<
+                        T: ConversationService,
+                    > tonic::server::UnaryService<
+                        super::RetrieveCurrentConversationMemberRequest,
+                    > for RetrieveCurrentConversationMemberSvc<T> {
+                        type Response = super::RetrieveCurrentConversationMemberResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<
+                                super::RetrieveCurrentConversationMemberRequest,
+                            >,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as ConversationService>::retrieve_current_conversation_member(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = RetrieveCurrentConversationMemberSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/sdkwork.communication.app.v3.ConversationService/RetrieveConversationAgents" => {
+                    #[allow(non_camel_case_types)]
+                    struct RetrieveConversationAgentsSvc<T: ConversationService>(
+                        pub Arc<T>,
+                    );
+                    impl<
+                        T: ConversationService,
+                    > tonic::server::UnaryService<
+                        super::RetrieveConversationAgentsRequest,
+                    > for RetrieveConversationAgentsSvc<T> {
+                        type Response = super::RetrieveConversationAgentsResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<
+                                super::RetrieveConversationAgentsRequest,
+                            >,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as ConversationService>::retrieve_conversation_agents(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = RetrieveConversationAgentsSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/sdkwork.communication.app.v3.ConversationService/UpdateConversationAgents" => {
+                    #[allow(non_camel_case_types)]
+                    struct UpdateConversationAgentsSvc<T: ConversationService>(
+                        pub Arc<T>,
+                    );
+                    impl<
+                        T: ConversationService,
+                    > tonic::server::UnaryService<super::UpdateConversationAgentsRequest>
+                    for UpdateConversationAgentsSvc<T> {
+                        type Response = super::UpdateConversationAgentsResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<
+                                super::UpdateConversationAgentsRequest,
+                            >,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as ConversationService>::update_conversation_agents(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = UpdateConversationAgentsSvc(inner);
                         let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

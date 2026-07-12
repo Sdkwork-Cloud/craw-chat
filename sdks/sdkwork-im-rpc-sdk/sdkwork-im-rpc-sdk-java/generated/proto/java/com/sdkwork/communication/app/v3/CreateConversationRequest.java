@@ -32,6 +32,7 @@ private static final long serialVersionUID = 0L;
     title_ = "";
     memberUserIds_ =
         com.google.protobuf.LazyStringArrayList.emptyList();
+    agentAssignments_ = java.util.Collections.emptyList();
   }
 
   public static final com.google.protobuf.Descriptors.Descriptor
@@ -168,6 +169,47 @@ private static final long serialVersionUID = 0L;
     return memberUserIds_.getByteString(index);
   }
 
+  public static final int AGENT_ASSIGNMENTS_FIELD_NUMBER = 4;
+  @SuppressWarnings("serial")
+  private java.util.List<com.sdkwork.communication.app.v3.ConversationAgentAssignmentView> agentAssignments_;
+  /**
+   * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+   */
+  @java.lang.Override
+  public java.util.List<com.sdkwork.communication.app.v3.ConversationAgentAssignmentView> getAgentAssignmentsList() {
+    return agentAssignments_;
+  }
+  /**
+   * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+   */
+  @java.lang.Override
+  public java.util.List<? extends com.sdkwork.communication.app.v3.ConversationAgentAssignmentViewOrBuilder> 
+      getAgentAssignmentsOrBuilderList() {
+    return agentAssignments_;
+  }
+  /**
+   * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+   */
+  @java.lang.Override
+  public int getAgentAssignmentsCount() {
+    return agentAssignments_.size();
+  }
+  /**
+   * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+   */
+  @java.lang.Override
+  public com.sdkwork.communication.app.v3.ConversationAgentAssignmentView getAgentAssignments(int index) {
+    return agentAssignments_.get(index);
+  }
+  /**
+   * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+   */
+  @java.lang.Override
+  public com.sdkwork.communication.app.v3.ConversationAgentAssignmentViewOrBuilder getAgentAssignmentsOrBuilder(
+      int index) {
+    return agentAssignments_.get(index);
+  }
+
   public static final int METADATA_FIELD_NUMBER = 15;
   private com.sdkwork.common.v1.RequestMetadata metadata_;
   /**
@@ -217,6 +259,9 @@ private static final long serialVersionUID = 0L;
     for (int i = 0; i < memberUserIds_.size(); i++) {
       com.google.protobuf.GeneratedMessage.writeString(output, 3, memberUserIds_.getRaw(i));
     }
+    for (int i = 0; i < agentAssignments_.size(); i++) {
+      output.writeMessage(4, agentAssignments_.get(i));
+    }
     if (((bitField0_ & 0x00000001) != 0)) {
       output.writeMessage(15, getMetadata());
     }
@@ -238,6 +283,15 @@ private static final long serialVersionUID = 0L;
       size += dataSize;
       size += 1 * getMemberUserIdsList().size();
     }
+
+        {
+          final int count = agentAssignments_.size();
+          for (int i = 0; i < count; i++) {
+            size += com.google.protobuf.CodedOutputStream
+              .computeMessageSizeNoTag(agentAssignments_.get(i));
+          }
+          size += 1 * count;
+        }
     if (((bitField0_ & 0x00000001) != 0)) {
       size += com.google.protobuf.CodedOutputStream
         .computeMessageSize(15, getMetadata());
@@ -272,6 +326,8 @@ private static final long serialVersionUID = 0L;
         .equals(other.getTitle())) return false;
     if (!getMemberUserIdsList()
         .equals(other.getMemberUserIdsList())) return false;
+    if (!getAgentAssignmentsList()
+        .equals(other.getAgentAssignmentsList())) return false;
     if (hasMetadata() != other.hasMetadata()) return false;
     if (hasMetadata()) {
       if (!getMetadata()
@@ -295,6 +351,10 @@ private static final long serialVersionUID = 0L;
     if (getMemberUserIdsCount() > 0) {
       hash = (37 * hash) + MEMBER_USER_IDS_FIELD_NUMBER;
       hash = (53 * hash) + getMemberUserIdsList().hashCode();
+    }
+    if (getAgentAssignmentsCount() > 0) {
+      hash = (37 * hash) + AGENT_ASSIGNMENTS_FIELD_NUMBER;
+      hash = (53 * hash) + getAgentAssignmentsList().hashCode();
     }
     if (hasMetadata()) {
       hash = (37 * hash) + METADATA_FIELD_NUMBER;
@@ -430,6 +490,7 @@ private static final long serialVersionUID = 0L;
     private void maybeForceBuilderInitialization() {
       if (com.google.protobuf.GeneratedMessage
               .alwaysUseFieldBuilders) {
+        internalGetAgentAssignmentsFieldBuilder();
         internalGetMetadataFieldBuilder();
       }
     }
@@ -441,6 +502,13 @@ private static final long serialVersionUID = 0L;
       title_ = "";
       memberUserIds_ =
           com.google.protobuf.LazyStringArrayList.emptyList();
+      if (agentAssignmentsBuilder_ == null) {
+        agentAssignments_ = java.util.Collections.emptyList();
+      } else {
+        agentAssignments_ = null;
+        agentAssignmentsBuilder_.clear();
+      }
+      bitField0_ = (bitField0_ & ~0x00000008);
       metadata_ = null;
       if (metadataBuilder_ != null) {
         metadataBuilder_.dispose();
@@ -472,9 +540,22 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public com.sdkwork.communication.app.v3.CreateConversationRequest buildPartial() {
       com.sdkwork.communication.app.v3.CreateConversationRequest result = new com.sdkwork.communication.app.v3.CreateConversationRequest(this);
+      buildPartialRepeatedFields(result);
       if (bitField0_ != 0) { buildPartial0(result); }
       onBuilt();
       return result;
+    }
+
+    private void buildPartialRepeatedFields(com.sdkwork.communication.app.v3.CreateConversationRequest result) {
+      if (agentAssignmentsBuilder_ == null) {
+        if (((bitField0_ & 0x00000008) != 0)) {
+          agentAssignments_ = java.util.Collections.unmodifiableList(agentAssignments_);
+          bitField0_ = (bitField0_ & ~0x00000008);
+        }
+        result.agentAssignments_ = agentAssignments_;
+      } else {
+        result.agentAssignments_ = agentAssignmentsBuilder_.build();
+      }
     }
 
     private void buildPartial0(com.sdkwork.communication.app.v3.CreateConversationRequest result) {
@@ -490,7 +571,7 @@ private static final long serialVersionUID = 0L;
         result.memberUserIds_ = memberUserIds_;
       }
       int to_bitField0_ = 0;
-      if (((from_bitField0_ & 0x00000008) != 0)) {
+      if (((from_bitField0_ & 0x00000010) != 0)) {
         result.metadata_ = metadataBuilder_ == null
             ? metadata_
             : metadataBuilder_.build();
@@ -530,6 +611,32 @@ private static final long serialVersionUID = 0L;
           memberUserIds_.addAll(other.memberUserIds_);
         }
         onChanged();
+      }
+      if (agentAssignmentsBuilder_ == null) {
+        if (!other.agentAssignments_.isEmpty()) {
+          if (agentAssignments_.isEmpty()) {
+            agentAssignments_ = other.agentAssignments_;
+            bitField0_ = (bitField0_ & ~0x00000008);
+          } else {
+            ensureAgentAssignmentsIsMutable();
+            agentAssignments_.addAll(other.agentAssignments_);
+          }
+          onChanged();
+        }
+      } else {
+        if (!other.agentAssignments_.isEmpty()) {
+          if (agentAssignmentsBuilder_.isEmpty()) {
+            agentAssignmentsBuilder_.dispose();
+            agentAssignmentsBuilder_ = null;
+            agentAssignments_ = other.agentAssignments_;
+            bitField0_ = (bitField0_ & ~0x00000008);
+            agentAssignmentsBuilder_ = 
+              com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
+                 internalGetAgentAssignmentsFieldBuilder() : null;
+          } else {
+            agentAssignmentsBuilder_.addAllMessages(other.agentAssignments_);
+          }
+        }
       }
       if (other.hasMetadata()) {
         mergeMetadata(other.getMetadata());
@@ -575,11 +682,24 @@ private static final long serialVersionUID = 0L;
               memberUserIds_.add(input.readStringRequireUtf8());
               break;
             } // case 26
+            case 34: {
+              com.sdkwork.communication.app.v3.ConversationAgentAssignmentView m =
+                  input.readMessage(
+                      com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.parser(),
+                      extensionRegistry);
+              if (agentAssignmentsBuilder_ == null) {
+                ensureAgentAssignmentsIsMutable();
+                agentAssignments_.add(m);
+              } else {
+                agentAssignmentsBuilder_.addMessage(m);
+              }
+              break;
+            } // case 34
             case 122: {
               input.readMessage(
                   internalGetMetadataFieldBuilder().getBuilder(),
                   extensionRegistry);
-              bitField0_ |= 0x00000008;
+              bitField0_ |= 0x00000010;
               break;
             } // case 122
             default: {
@@ -854,6 +974,246 @@ private static final long serialVersionUID = 0L;
       return this;
     }
 
+    private java.util.List<com.sdkwork.communication.app.v3.ConversationAgentAssignmentView> agentAssignments_ =
+      java.util.Collections.emptyList();
+    private void ensureAgentAssignmentsIsMutable() {
+      if (!((bitField0_ & 0x00000008) != 0)) {
+        agentAssignments_ = new java.util.ArrayList<com.sdkwork.communication.app.v3.ConversationAgentAssignmentView>(agentAssignments_);
+        bitField0_ |= 0x00000008;
+       }
+    }
+
+    private com.google.protobuf.RepeatedFieldBuilder<
+        com.sdkwork.communication.app.v3.ConversationAgentAssignmentView, com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.Builder, com.sdkwork.communication.app.v3.ConversationAgentAssignmentViewOrBuilder> agentAssignmentsBuilder_;
+
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public java.util.List<com.sdkwork.communication.app.v3.ConversationAgentAssignmentView> getAgentAssignmentsList() {
+      if (agentAssignmentsBuilder_ == null) {
+        return java.util.Collections.unmodifiableList(agentAssignments_);
+      } else {
+        return agentAssignmentsBuilder_.getMessageList();
+      }
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public int getAgentAssignmentsCount() {
+      if (agentAssignmentsBuilder_ == null) {
+        return agentAssignments_.size();
+      } else {
+        return agentAssignmentsBuilder_.getCount();
+      }
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public com.sdkwork.communication.app.v3.ConversationAgentAssignmentView getAgentAssignments(int index) {
+      if (agentAssignmentsBuilder_ == null) {
+        return agentAssignments_.get(index);
+      } else {
+        return agentAssignmentsBuilder_.getMessage(index);
+      }
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public Builder setAgentAssignments(
+        int index, com.sdkwork.communication.app.v3.ConversationAgentAssignmentView value) {
+      if (agentAssignmentsBuilder_ == null) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureAgentAssignmentsIsMutable();
+        agentAssignments_.set(index, value);
+        onChanged();
+      } else {
+        agentAssignmentsBuilder_.setMessage(index, value);
+      }
+      return this;
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public Builder setAgentAssignments(
+        int index, com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.Builder builderForValue) {
+      if (agentAssignmentsBuilder_ == null) {
+        ensureAgentAssignmentsIsMutable();
+        agentAssignments_.set(index, builderForValue.build());
+        onChanged();
+      } else {
+        agentAssignmentsBuilder_.setMessage(index, builderForValue.build());
+      }
+      return this;
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public Builder addAgentAssignments(com.sdkwork.communication.app.v3.ConversationAgentAssignmentView value) {
+      if (agentAssignmentsBuilder_ == null) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureAgentAssignmentsIsMutable();
+        agentAssignments_.add(value);
+        onChanged();
+      } else {
+        agentAssignmentsBuilder_.addMessage(value);
+      }
+      return this;
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public Builder addAgentAssignments(
+        int index, com.sdkwork.communication.app.v3.ConversationAgentAssignmentView value) {
+      if (agentAssignmentsBuilder_ == null) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureAgentAssignmentsIsMutable();
+        agentAssignments_.add(index, value);
+        onChanged();
+      } else {
+        agentAssignmentsBuilder_.addMessage(index, value);
+      }
+      return this;
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public Builder addAgentAssignments(
+        com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.Builder builderForValue) {
+      if (agentAssignmentsBuilder_ == null) {
+        ensureAgentAssignmentsIsMutable();
+        agentAssignments_.add(builderForValue.build());
+        onChanged();
+      } else {
+        agentAssignmentsBuilder_.addMessage(builderForValue.build());
+      }
+      return this;
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public Builder addAgentAssignments(
+        int index, com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.Builder builderForValue) {
+      if (agentAssignmentsBuilder_ == null) {
+        ensureAgentAssignmentsIsMutable();
+        agentAssignments_.add(index, builderForValue.build());
+        onChanged();
+      } else {
+        agentAssignmentsBuilder_.addMessage(index, builderForValue.build());
+      }
+      return this;
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public Builder addAllAgentAssignments(
+        java.lang.Iterable<? extends com.sdkwork.communication.app.v3.ConversationAgentAssignmentView> values) {
+      if (agentAssignmentsBuilder_ == null) {
+        ensureAgentAssignmentsIsMutable();
+        com.google.protobuf.AbstractMessageLite.Builder.addAll(
+            values, agentAssignments_);
+        onChanged();
+      } else {
+        agentAssignmentsBuilder_.addAllMessages(values);
+      }
+      return this;
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public Builder clearAgentAssignments() {
+      if (agentAssignmentsBuilder_ == null) {
+        agentAssignments_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000008);
+        onChanged();
+      } else {
+        agentAssignmentsBuilder_.clear();
+      }
+      return this;
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public Builder removeAgentAssignments(int index) {
+      if (agentAssignmentsBuilder_ == null) {
+        ensureAgentAssignmentsIsMutable();
+        agentAssignments_.remove(index);
+        onChanged();
+      } else {
+        agentAssignmentsBuilder_.remove(index);
+      }
+      return this;
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.Builder getAgentAssignmentsBuilder(
+        int index) {
+      return internalGetAgentAssignmentsFieldBuilder().getBuilder(index);
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public com.sdkwork.communication.app.v3.ConversationAgentAssignmentViewOrBuilder getAgentAssignmentsOrBuilder(
+        int index) {
+      if (agentAssignmentsBuilder_ == null) {
+        return agentAssignments_.get(index);  } else {
+        return agentAssignmentsBuilder_.getMessageOrBuilder(index);
+      }
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public java.util.List<? extends com.sdkwork.communication.app.v3.ConversationAgentAssignmentViewOrBuilder> 
+         getAgentAssignmentsOrBuilderList() {
+      if (agentAssignmentsBuilder_ != null) {
+        return agentAssignmentsBuilder_.getMessageOrBuilderList();
+      } else {
+        return java.util.Collections.unmodifiableList(agentAssignments_);
+      }
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.Builder addAgentAssignmentsBuilder() {
+      return internalGetAgentAssignmentsFieldBuilder().addBuilder(
+          com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.getDefaultInstance());
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.Builder addAgentAssignmentsBuilder(
+        int index) {
+      return internalGetAgentAssignmentsFieldBuilder().addBuilder(
+          index, com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.getDefaultInstance());
+    }
+    /**
+     * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+     */
+    public java.util.List<com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.Builder> 
+         getAgentAssignmentsBuilderList() {
+      return internalGetAgentAssignmentsFieldBuilder().getBuilderList();
+    }
+    private com.google.protobuf.RepeatedFieldBuilder<
+        com.sdkwork.communication.app.v3.ConversationAgentAssignmentView, com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.Builder, com.sdkwork.communication.app.v3.ConversationAgentAssignmentViewOrBuilder> 
+        internalGetAgentAssignmentsFieldBuilder() {
+      if (agentAssignmentsBuilder_ == null) {
+        agentAssignmentsBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
+            com.sdkwork.communication.app.v3.ConversationAgentAssignmentView, com.sdkwork.communication.app.v3.ConversationAgentAssignmentView.Builder, com.sdkwork.communication.app.v3.ConversationAgentAssignmentViewOrBuilder>(
+                agentAssignments_,
+                ((bitField0_ & 0x00000008) != 0),
+                getParentForChildren(),
+                isClean());
+        agentAssignments_ = null;
+      }
+      return agentAssignmentsBuilder_;
+    }
+
     private com.sdkwork.common.v1.RequestMetadata metadata_;
     private com.google.protobuf.SingleFieldBuilder<
         com.sdkwork.common.v1.RequestMetadata, com.sdkwork.common.v1.RequestMetadata.Builder, com.sdkwork.common.v1.RequestMetadataOrBuilder> metadataBuilder_;
@@ -862,7 +1222,7 @@ private static final long serialVersionUID = 0L;
      * @return Whether the metadata field is set.
      */
     public boolean hasMetadata() {
-      return ((bitField0_ & 0x00000008) != 0);
+      return ((bitField0_ & 0x00000010) != 0);
     }
     /**
      * <code>.sdkwork.common.v1.RequestMetadata metadata = 15 [json_name = "metadata"];</code>
@@ -887,7 +1247,7 @@ private static final long serialVersionUID = 0L;
       } else {
         metadataBuilder_.setMessage(value);
       }
-      bitField0_ |= 0x00000008;
+      bitField0_ |= 0x00000010;
       onChanged();
       return this;
     }
@@ -901,7 +1261,7 @@ private static final long serialVersionUID = 0L;
       } else {
         metadataBuilder_.setMessage(builderForValue.build());
       }
-      bitField0_ |= 0x00000008;
+      bitField0_ |= 0x00000010;
       onChanged();
       return this;
     }
@@ -910,7 +1270,7 @@ private static final long serialVersionUID = 0L;
      */
     public Builder mergeMetadata(com.sdkwork.common.v1.RequestMetadata value) {
       if (metadataBuilder_ == null) {
-        if (((bitField0_ & 0x00000008) != 0) &&
+        if (((bitField0_ & 0x00000010) != 0) &&
           metadata_ != null &&
           metadata_ != com.sdkwork.common.v1.RequestMetadata.getDefaultInstance()) {
           getMetadataBuilder().mergeFrom(value);
@@ -921,7 +1281,7 @@ private static final long serialVersionUID = 0L;
         metadataBuilder_.mergeFrom(value);
       }
       if (metadata_ != null) {
-        bitField0_ |= 0x00000008;
+        bitField0_ |= 0x00000010;
         onChanged();
       }
       return this;
@@ -930,7 +1290,7 @@ private static final long serialVersionUID = 0L;
      * <code>.sdkwork.common.v1.RequestMetadata metadata = 15 [json_name = "metadata"];</code>
      */
     public Builder clearMetadata() {
-      bitField0_ = (bitField0_ & ~0x00000008);
+      bitField0_ = (bitField0_ & ~0x00000010);
       metadata_ = null;
       if (metadataBuilder_ != null) {
         metadataBuilder_.dispose();
@@ -943,7 +1303,7 @@ private static final long serialVersionUID = 0L;
      * <code>.sdkwork.common.v1.RequestMetadata metadata = 15 [json_name = "metadata"];</code>
      */
     public com.sdkwork.common.v1.RequestMetadata.Builder getMetadataBuilder() {
-      bitField0_ |= 0x00000008;
+      bitField0_ |= 0x00000010;
       onChanged();
       return internalGetMetadataFieldBuilder().getBuilder();
     }

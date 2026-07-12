@@ -26,6 +26,13 @@ const manifest = {
       require: './dist/index.cjs',
     },
   },
+  browser: {
+    ws: false,
+    'node:net': false,
+    'node:dgram': false,
+    net: false,
+    dgram: false,
+  },
   files: [
     'dist',
     'src',

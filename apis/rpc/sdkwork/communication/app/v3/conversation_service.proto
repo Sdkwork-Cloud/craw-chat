@@ -18,6 +18,9 @@ service ConversationService {
   rpc RetrieveConversation(RetrieveConversationRequest) returns (RetrieveConversationResponse);
   rpc ListInbox(ListInboxRequest) returns (ListInboxResponse);
   rpc ListConversationMembers(ListConversationMembersRequest) returns (ListConversationMembersResponse);
+  rpc RetrieveCurrentConversationMember(RetrieveCurrentConversationMemberRequest) returns (RetrieveCurrentConversationMemberResponse);
+  rpc RetrieveConversationAgents(RetrieveConversationAgentsRequest) returns (RetrieveConversationAgentsResponse);
+  rpc UpdateConversationAgents(UpdateConversationAgentsRequest) returns (UpdateConversationAgentsResponse);
   rpc AddConversationMember(AddConversationMemberRequest) returns (AddConversationMemberResponse);
   rpc RemoveConversationMember(RemoveConversationMemberRequest) returns (RemoveConversationMemberResponse);
   rpc TransferConversationOwner(TransferConversationOwnerRequest) returns (TransferConversationOwnerResponse);
@@ -57,6 +60,21 @@ message ConversationMemberView {
   string user_id = 2;
   string role = 3;
   string state = 4;
+  string principal_kind = 5;
+  string member_id = 6;
+  string tenant_id = 7;
+  string joined_at = 8;
+}
+
+message ConversationAgentAssignmentView {
+  string agent_id = 1;
+  string revision_id = 2;
+}
+
+message ConversationAgentAssignmentsView {
+  uint64 generation = 1;
+  string source = 2;
+  repeated ConversationAgentAssignmentView agents = 3;
 }
 
 message ConversationPreferencesView {
@@ -101,6 +119,7 @@ message CreateConversationRequest {
   string conversation_type = 1;
   string title = 2;
   repeated string member_user_ids = 3;
+  repeated ConversationAgentAssignmentView agent_assignments = 4;
   sdkwork.common.v1.RequestMetadata metadata = 15;
 }
 
@@ -193,6 +212,38 @@ message ListConversationMembersRequest {
 message ListConversationMembersResponse {
   repeated ConversationMemberView members = 1;
   sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RetrieveCurrentConversationMemberRequest {
+  string conversation_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RetrieveCurrentConversationMemberResponse {
+  ConversationMemberView member = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RetrieveConversationAgentsRequest {
+  string conversation_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RetrieveConversationAgentsResponse {
+  ConversationAgentAssignmentsView assignments = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message UpdateConversationAgentsRequest {
+  string conversation_id = 1;
+  uint64 expected_generation = 2;
+  repeated ConversationAgentAssignmentView agent_assignments = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message UpdateConversationAgentsResponse {
+  ConversationAgentAssignmentsView assignments = 1;
   sdkwork.common.v1.ResponseMetadata metadata = 15;
 }
 

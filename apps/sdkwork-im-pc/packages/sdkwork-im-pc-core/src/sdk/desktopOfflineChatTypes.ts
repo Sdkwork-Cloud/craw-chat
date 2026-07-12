@@ -42,6 +42,8 @@ export interface DesktopOfflineMessage {
   reactions?: DesktopOfflineMessageReaction[];
   replyTo?: DesktopOfflineMessageReplyReference;
   sendState?: 'failed' | 'pending';
+  /** Structured message parts retained so offline/failed sends can retry exactly. */
+  parts?: unknown[];
 }
 
 export interface DesktopOfflineChat {

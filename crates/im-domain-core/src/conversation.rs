@@ -3,7 +3,12 @@ use std::ops::Bound;
 
 use serde::{Deserialize, Serialize};
 
-pub const CONVERSATION_AGENT_ASSIGNMENT_MAX_COUNT: usize = 16;
+/// Maximum number of AI agents that may be assigned to one group.
+///
+/// Agent assignments are fanned out for every @mention, so keeping this cap
+/// explicit at the domain boundary protects both message fanout and the
+/// assignment snapshot size regardless of which API adapter is used.
+pub const CONVERSATION_AGENT_ASSIGNMENT_MAX_COUNT: usize = 10;
 pub const LEGACY_GROUP_AGENT_DEFAULT_POLICY_ID: &str = "policy.im.group.default";
 pub const LEGACY_GROUP_AGENT_DEFAULT_POLICY_VERSION: u32 = 1;
 pub const LEGACY_GROUP_AGENT_DEFAULT_ID: &str = "agent.im.default";

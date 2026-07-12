@@ -32,6 +32,7 @@ use chrono::{DateTime, Utc};
 use im_domain_core::retention::retention_until_from_envelope;
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
+    AGENT_MENTION_DISPATCH_EVENT_TYPE, AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA,
     COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitJournal, CommitJournalAggregateScope,
     CommitJournalReplayCursor, CommitJournalReplayPage, CommitPosition, ContractError,
 };
@@ -57,7 +58,9 @@ mod stream_state_store;
 pub use aggregate_store::PostgresAggregateStore;
 pub use automation_execution_store::PostgresAutomationExecutionStore;
 pub use im_platform_contracts::CommitJournalReplayCursor as JournalReplayCursor;
-pub use message_post_persistence::PostgresDurableMessagePostWriter;
+pub use message_post_persistence::{
+    PostgresDurableConversationEventWriter, PostgresDurableMessagePostWriter,
+};
 pub use message_store::PostgresMessageStore;
 pub use notification_task_store::PostgresNotificationTaskStore;
 pub use outbox_store::PostgresOutboxStore;
@@ -1151,6 +1154,117 @@ fn load_recorded_page_for_aggregate(
     parse_journal_replay_rows(rows, prefix, None)
 }
 
+#[derive(Default)]
+struct ReplayEnvelopeMetadata {
+    event_version: u16,
+    payload_schema: Option<String>,
+    causation_id: Option<String>,
+    correlation_id: Option<String>,
+    actor: Option<EventActor>,
+}
+
+fn replay_envelope_metadata(
+    event_type: &str,
+    payload: &str,
+) -> Result<ReplayEnvelopeMetadata, ContractError> {
+    let mut metadata = ReplayEnvelopeMetadata {
+        event_version: 1,
+        ..ReplayEnvelopeMetadata::default()
+    };
+    let needs_payload = matches!(
+        event_type,
+        "conversation.created"
+            | "conversation.agents_replaced"
+            | "message.posted"
+            | AGENT_MENTION_DISPATCH_EVENT_TYPE
+    );
+    if !needs_payload {
+        return Ok(metadata);
+    }
+    let value: serde_json::Value = serde_json::from_str(payload).map_err(|_| {
+        ContractError::Unavailable("postgres journal replay payload is invalid JSON".into())
+    })?;
+    metadata.payload_schema = Some(match event_type {
+        "conversation.created" => {
+            let assignments = value.get("agentAssignments");
+            let source = assignments
+                .and_then(|value| value.get("source"))
+                .and_then(serde_json::Value::as_str);
+            match source {
+                Some("conversation_override") => {
+                    metadata.event_version = 3;
+                    "conversation.created.v3"
+                }
+                Some("default_policy") => {
+                    metadata.event_version = 2;
+                    "conversation.created.v2"
+                }
+                None if assignments.is_some() => {
+                    metadata.event_version = 2;
+                    "conversation.created.v2"
+                }
+                None => "conversation.created.v1",
+                Some(_) => {
+                    return Err(ContractError::Conflict(
+                        "postgres journal replay contains an unknown conversation agent assignment source"
+                            .into(),
+                    ));
+                }
+            }
+        }
+        "conversation.agents_replaced" => "conversation.agents_replaced.v1",
+        "message.posted" => "message.posted.v1",
+        AGENT_MENTION_DISPATCH_EVENT_TYPE => AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA,
+        _ => unreachable!("payload parsing is gated by needs_payload"),
+    }
+    .into());
+
+    match event_type {
+        AGENT_MENTION_DISPATCH_EVENT_TYPE => {
+            metadata.causation_id = value
+                .get("causationEventId")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned);
+            metadata.correlation_id = metadata.causation_id.clone();
+            metadata.actor = Some(EventActor {
+                actor_id: value
+                    .get("senderPrincipalId")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned(),
+                actor_kind: value
+                    .get("senderPrincipalKind")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned(),
+                actor_session_id: None,
+            });
+        }
+        "message.posted" => {
+            if let Some(sender) = value.get("sender") {
+                metadata.actor = Some(EventActor {
+                    actor_id: sender
+                        .get("id")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or_default()
+                        .to_owned(),
+                    actor_kind: sender
+                        .get("kind")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or_default()
+                        .to_owned(),
+                    actor_session_id: sender
+                        .get("sessionId")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned),
+                });
+            }
+        }
+        _ => {}
+    }
+    Ok(metadata)
+}
+
 fn parse_journal_replay_rows(
     rows: Vec<postgres::Row>,
     prefix: &str,
@@ -1172,6 +1286,7 @@ fn parse_journal_replay_rows(
         let partition_key: String = journal_replay_row_get(&row, 10, "partition_key")?;
         let commit_offset: i64 = journal_replay_row_get(&row, 11, "commit_offset")?;
         let aggregate_type = parse_aggregate_type(aggregate_type_str.as_str());
+        let replay_metadata = replay_envelope_metadata(event_type.as_str(), payload.as_str())?;
         let replay_scope = replay_scope_for_journal_row(
             &aggregate_type,
             tenant_id.as_str(),
@@ -1189,24 +1304,24 @@ fn parse_journal_replay_rows(
                 organization_id.as_str(),
             ),
             event_type,
-            event_version: 1,
+            event_version: replay_metadata.event_version,
             aggregate_type,
             aggregate_id: aggregate_id.clone(),
             scope_type: replay_scope.scope_type,
             scope_id: replay_scope.scope_id,
             ordering_key: replay_scope.ordering_key,
             ordering_seq,
-            causation_id: None,
-            correlation_id: None,
+            causation_id: replay_metadata.causation_id,
+            correlation_id: replay_metadata.correlation_id,
             idempotency_key,
-            actor: EventActor {
+            actor: replay_metadata.actor.unwrap_or(EventActor {
                 actor_id: String::new(),
                 actor_kind: String::new(),
                 actor_session_id: None,
-            },
+            }),
             occurred_at: occurred_at.clone(),
             committed_at: occurred_at,
-            payload_schema: None,
+            payload_schema: replay_metadata.payload_schema,
             payload,
             retention_class: "standard".into(),
             audit_class: "default".into(),
@@ -1437,9 +1552,11 @@ mod tests {
     use im_platform_contracts::ContractError;
 
     use super::{
+        AGENT_MENTION_DISPATCH_EVENT_TYPE, AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA,
         JournalEventFingerprint, ensure_journal_event_replay_matches, journal_aggregate_seq,
         journal_position_conflict, journal_replay_ordering_seq, postgres_bigint_input,
         postgres_bigint_output, postgres_jsonb_payload, postgres_timestamptz, postgres_unavailable,
+        replay_envelope_metadata,
     };
 
     fn replay_envelope() -> CommitEnvelope {
@@ -1618,6 +1735,92 @@ mod tests {
         assert!(matches!(
             postgres_timestamptz("not-a-timestamp", "occurred_at"),
             Err(ContractError::Invalid(_))
+        ));
+    }
+
+    #[test]
+    fn replay_metadata_restores_agent_event_versions_and_dispatch_identity() {
+        let v3 = replay_envelope_metadata(
+            "conversation.created",
+            r#"{
+                "conversationType":"group",
+                "agentAssignments":{
+                    "generation":1,
+                    "source":"conversation_override",
+                    "agents":[{"agentId":"agent.im.writer"}]
+                }
+            }"#,
+        )
+        .expect("v3 payload should infer replay metadata");
+        assert_eq!(v3.event_version, 3);
+        assert_eq!(
+            v3.payload_schema.as_deref(),
+            Some("conversation.created.v3")
+        );
+
+        let v2 = replay_envelope_metadata(
+            "conversation.created",
+            r#"{
+                "conversationType":"group",
+                "agentAssignments":{
+                    "generation":1,
+                    "source":"default_policy",
+                    "agents":[{"agentId":"agent.im.default"}],
+                    "policyId":"policy.im.group.default",
+                    "policyVersion":1
+                }
+            }"#,
+        )
+        .expect("v2 payload should infer replay metadata");
+        assert_eq!(v2.event_version, 2);
+        assert_eq!(
+            v2.payload_schema.as_deref(),
+            Some("conversation.created.v2")
+        );
+
+        let dispatch = replay_envelope_metadata(
+            AGENT_MENTION_DISPATCH_EVENT_TYPE,
+            r#"{
+                "causationEventId":"evt_message_posted",
+                "senderPrincipalId":"user_1",
+                "senderPrincipalKind":"user"
+            }"#,
+        )
+        .expect("dispatch payload should infer replay metadata");
+        assert_eq!(dispatch.event_version, 1);
+        assert_eq!(
+            dispatch.payload_schema.as_deref(),
+            Some(AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA)
+        );
+        assert_eq!(dispatch.causation_id.as_deref(), Some("evt_message_posted"));
+        assert_eq!(
+            dispatch.actor.as_ref().map(|actor| actor.actor_id.as_str()),
+            Some("user_1")
+        );
+        assert_eq!(
+            dispatch
+                .actor
+                .as_ref()
+                .map(|actor| actor.actor_kind.as_str()),
+            Some("user")
+        );
+    }
+
+    #[test]
+    fn replay_metadata_rejects_unknown_created_assignment_source() {
+        assert!(matches!(
+            replay_envelope_metadata(
+                "conversation.created",
+                r#"{
+                    "conversationType":"group",
+                    "agentAssignments":{
+                        "generation":1,
+                        "source":"unknown_policy",
+                        "agents":[]
+                    }
+                }"#
+            ),
+            Err(ContractError::Conflict(_))
         ));
     }
 

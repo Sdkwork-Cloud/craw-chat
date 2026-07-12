@@ -8,9 +8,16 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from './Toast';
 import { cn } from '@sdkwork/im-pc-commons';
 import { EmojiPicker } from './EmojiPicker';
+import type { ChatAgentAssignment } from '@sdkwork/im-pc-types';
+import {
+  buildAgentMentionParts,
+  filterMentionAgents,
+  mentionLabelForAgent,
+  resolveActiveAgentMentionQuery,
+} from '../services/AgentMentionService';
 
 export interface MessageInputProps {
-  onSend?: (content: string, type?: 'text'|'image'|'file'|'voice'|'video', extraInfo?: any) => void;
+  onSend?: (content: string, type?: 'text'|'image'|'file'|'voice'|'video', extraInfo?: any) => void | boolean | Promise<void | boolean>;
   placeholder?: string;
   disabled?: boolean;
   isTyping?: boolean;
@@ -27,6 +34,8 @@ export interface MessageInputProps {
   editingMessage?: { id: string; content: string } | null;
   onEditSubmit?: (messageId: string, text: string) => void;
   onCancelEdit?: () => void;
+  mentionAgents?: readonly ChatAgentAssignment[];
+  mentionAssignmentGeneration?: number;
 }
 
 function resolveFileMessageType(file: File): 'image' | 'file' | 'video' {
@@ -55,7 +64,7 @@ function sendFileMessage(
   type: 'file' | 'image' | 'video' | 'voice' = resolveFileMessageType(file),
   extraInfo: Record<string, unknown> = {},
 ): void {
-  onSend(createLocalPreviewUrl(file), type, {
+  void onSend(createLocalPreviewUrl(file), type, {
     ...extraInfo,
     file,
     fileName: file.name,
@@ -78,6 +87,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   editingMessage,
   onEditSubmit,
   onCancelEdit,
+  mentionAgents = [],
+  mentionAssignmentGeneration,
 }) => {
   const { t } = useTranslation();
   const resolvedPlaceholder = placeholder ?? t('chat.messageInput.defaultPlaceholder');
@@ -85,6 +96,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeEmojiTab, setActiveEmojiTab] = useState('emoji');
   const [isEmpty, setIsEmpty] = useState(true);
+  const [editorText, setEditorText] = useState('');
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0);
+  const mentionListboxId = React.useId();
+  const sendingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isDragging = useRef(false);
   const startY = useRef(0);
@@ -179,8 +194,66 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     },
     onUpdate: ({ editor }) => {
       setIsEmpty(editor.getText().trim().length === 0);
+      setEditorText(editor.getText());
     },
   }, [placeholder, disabled, isTyping, resolvedPlaceholder, t]);
+
+  const activeMention = React.useMemo(() => {
+    if (!editor || mentionAgents.length === 0) {
+      return undefined;
+    }
+    const { from } = editor.state.selection;
+    const textBeforeCursor = editor.state.doc.textBetween(0, from, '\n');
+    const query = resolveActiveAgentMentionQuery(textBeforeCursor);
+    if (!query) {
+      return undefined;
+    }
+    return {
+      ...query,
+      agents: filterMentionAgents(mentionAgents, query.query),
+    };
+  }, [editor, editorText, mentionAgents]);
+
+  useEffect(() => {
+    if (!activeMention || activeMention.agents.length === 0) {
+      setActiveMentionIndex(0);
+      return;
+    }
+    setActiveMentionIndex((current) => Math.min(current, activeMention.agents.length - 1));
+  }, [activeMention]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) {
+      return;
+    }
+    const editorElement = editor.view.dom;
+    const activeAgent = activeMention?.agents[activeMentionIndex];
+    editorElement.setAttribute('aria-autocomplete', 'list');
+    editorElement.setAttribute('aria-haspopup', 'listbox');
+    editorElement.setAttribute('aria-expanded', String(Boolean(activeMention && activeMention.agents.length > 0)));
+    if (activeMention && activeMention.agents.length > 0 && activeAgent) {
+      editorElement.setAttribute('aria-controls', mentionListboxId);
+      editorElement.setAttribute(
+        'aria-activedescendant',
+        `${mentionListboxId}-option-${activeMentionIndex}`,
+      );
+    } else {
+      editorElement.removeAttribute('aria-controls');
+      editorElement.removeAttribute('aria-activedescendant');
+    }
+  }, [activeMention, activeMentionIndex, editor, mentionListboxId]);
+
+  const selectMentionAgent = React.useCallback((agent: ChatAgentAssignment) => {
+    if (!editor || !activeMention) {
+      return;
+    }
+    const cursor = editor.state.selection.from;
+    const textBeforeCursor = editor.state.doc.textBetween(0, cursor, '\n');
+    const from = Math.max(1, cursor - (textBeforeCursor.length - activeMention.fromTextOffset));
+    editor.commands.deleteRange({ from, to: cursor });
+    editor.commands.insertContent(`@${mentionLabelForAgent(agent, mentionAgents)} `);
+    editor.commands.focus();
+  }, [activeMention, editor, mentionAgents]);
 
   useEffect(() => {
     if (!editor) return;
@@ -206,8 +279,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     setShowEmojiPicker(false);
   }, [onSend, t]);
 
-  const handleSend = () => {
-    if (!editor || disabled || isTyping) return;
+  const handleSend = async (): Promise<void> => {
+    if (!editor || disabled || isTyping || sendingRef.current) return;
 
     const content = editor.getText().trim();
     if (!content) return;
@@ -222,12 +295,21 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     }
 
     if (!onSend) return;
-    onSend(content, 'text');
-
-    // Clear editor after sending
-    editor.commands.clearContent();
-    setIsEmpty(true);
-    editor.commands.focus();
+    sendingRef.current = true;
+    try {
+      const mentionParts = buildAgentMentionParts(content, mentionAgents, mentionAssignmentGeneration);
+      const result = await onSend(content, 'text', mentionParts ? { parts: mentionParts } : undefined);
+      // Keep the draft when the parent reports a failed or stale-generation
+      // send so the user can refresh the assignment snapshot and retry.
+      if (result === false) {
+        return;
+      }
+      editor.commands.clearContent();
+      setIsEmpty(true);
+      editor.commands.focus();
+    } finally {
+      sendingRef.current = false;
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -237,10 +319,27 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       onCancelEdit();
       return;
     }
+    if (activeMention && activeMention.agents.length > 0) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        setActiveMentionIndex((current) => {
+          const delta = e.key === 'ArrowDown' ? 1 : -1;
+          return (current + delta + activeMention.agents.length) % activeMention.agents.length;
+        });
+        return;
+      }
+      if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        selectMentionAgent(activeMention.agents[activeMentionIndex] ?? activeMention.agents[0]);
+        return;
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       e.stopPropagation();
-      handleSend();
+      void handleSend();
     }
   };
 
@@ -435,6 +534,33 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             </div>
           )}
           <EditorContent editor={editor} className="h-full" />
+          {activeMention && activeMention.agents.length > 0 && (
+            <div
+              id={mentionListboxId}
+              role="listbox"
+              aria-label={t('chat.messageInput.mentionTitle')}
+              className="absolute bottom-2 left-3 z-40 w-72 overflow-hidden rounded-xl border border-white/10 bg-[#242426] shadow-2xl"
+            >
+              <div role="presentation" className="border-b border-white/5 px-3 py-2 text-[11px] text-gray-500">{t('chat.messageInput.mentionTitle')}</div>
+              {activeMention.agents.map((agent, index) => (
+                <button
+                  key={agent.agentId}
+                  id={`${mentionListboxId}-option-${index}`}
+                  role="option"
+                  aria-selected={index === activeMentionIndex}
+                  type="button"
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-left transition-colors ${index === activeMentionIndex ? 'bg-indigo-500/15 text-gray-100' : 'text-gray-300 hover:bg-white/5'}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => selectMentionAgent(agent)}
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-500/20 text-indigo-300">@</span>
+                  <span className="min-w-0 flex-1 truncate text-xs" title={agent.agentId}>
+                    {mentionLabelForAgent(agent, mentionAgents)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         
         {/* Bottom Actions */}
@@ -584,7 +710,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               title={editingMessage ? t('chat.messageInput.actions.saveEdit') : t('chat.messageInput.actions.send')}
-              onClick={handleSend}
+              onClick={() => void handleSend()}
               disabled={disabled || isEmpty}
               className="w-8 h-8 rounded-full bg-[#00b42a] hover:bg-[#009a24] disabled:bg-white/10 disabled:text-gray-500 flex items-center justify-center text-white transition-colors shadow-sm"
             >

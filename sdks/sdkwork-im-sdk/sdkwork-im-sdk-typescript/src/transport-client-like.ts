@@ -7,6 +7,8 @@ import type {
   ContactPreferencesView,
   ContactRecommendationView,
   ContactTagView,
+  ConversationAgentAssignment,
+  ConversationAgentAssignments,
   CreateAgentDialogRequest,
   CreateAgentHandoffRequest,
   CreateContactRecommendationRequest,
@@ -15,8 +17,10 @@ import type {
   CreateConversationResult,
   CreateSystemChannelRequest,
   CreateThreadConversationRequest,
+  ConversationMember,
   EnterRoomResponse,
   RoomView,
+  UpdateConversationAgentsRequest,
   EditMessageRequest,
   FavoriteMessageRequest,
   OpenApiUserBlockResponse,
@@ -78,6 +82,21 @@ export interface ImCreateRoomRequest {
   roomKind: 'live' | 'chat' | 'game';
 }
 
+export type ImConversationAgentAssignment = ConversationAgentAssignment;
+
+export type ImConversationAgentAssignmentSet = Omit<ConversationAgentAssignments, 'generation'> & {
+  generation: number;
+};
+
+export type ImReplaceConversationAgentAssignmentsRequest = Omit<
+  UpdateConversationAgentsRequest,
+  'expectedGeneration'
+> & {
+  expectedGeneration: number;
+};
+
+export type ImReplaceConversationAgentAssignmentsResult = ImConversationAgentAssignmentSet;
+
 export interface ImTransportClientLike {
   chat: {
     contacts: {
@@ -114,10 +133,20 @@ export interface ImTransportClientLike {
       };
       members: {
         list(conversationId: string, params?: QueryParams): Promise<ListMembersResponse>;
+        current: {
+          retrieve(conversationId: string): Promise<ConversationMember>;
+        };
         add(conversationId: string, body: AddConversationMemberRequest): Promise<unknown>;
         remove(conversationId: string, body: unknown): Promise<unknown>;
         leave(conversationId: string): Promise<unknown>;
         acceptInvitation(conversationId: string): Promise<import('../generated/server-openapi/dist/index.js').ConversationMember>;
+      };
+      agents: {
+        retrieve(conversationId: string): Promise<ConversationAgentAssignments>;
+        update(
+          conversationId: string,
+          body: UpdateConversationAgentsRequest,
+        ): Promise<ConversationAgentAssignments>;
       };
       messages: {
         list(
@@ -175,11 +204,12 @@ export interface ImTransportClientLike {
         create(rtcSessionId: string, body: PostRtcSignalRequest): Promise<RtcSignalEvent>;
         list(
           rtcSessionId: string,
-          query?: { afterSignalSeq?: number; pageSize?: number; cursor?: string },
+          query?: { afterSignalSeq?: string; pageSize?: number; cursor?: string },
         ): Promise<{ items: RtcSignalEvent[]; pageInfo: { mode: string; hasMore?: boolean; nextCursor?: string | null } }>;
       };
       credentials: {
         create(rtcSessionId: string, body: IssueRtcParticipantCredentialRequest): Promise<RtcParticipantCredential>;
+        refresh(rtcSessionId: string, body: IssueRtcParticipantCredentialRequest): Promise<RtcParticipantCredential>;
       };
     };
   };

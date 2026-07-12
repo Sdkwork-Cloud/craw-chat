@@ -37,6 +37,16 @@ public final class ConversationServiceOuterClass extends com.google.protobuf.Gen
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_sdkwork_communication_app_v3_ConversationMemberView_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_sdkwork_communication_app_v3_ConversationAgentAssignmentView_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_sdkwork_communication_app_v3_ConversationAgentAssignmentView_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_sdkwork_communication_app_v3_ConversationAgentAssignmentsView_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_sdkwork_communication_app_v3_ConversationAgentAssignmentsView_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
     internal_static_sdkwork_communication_app_v3_ConversationPreferencesView_descriptor;
   static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
@@ -156,6 +166,36 @@ public final class ConversationServiceOuterClass extends com.google.protobuf.Gen
   static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_sdkwork_communication_app_v3_ListConversationMembersResponse_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_sdkwork_communication_app_v3_RetrieveCurrentConversationMemberRequest_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_sdkwork_communication_app_v3_RetrieveCurrentConversationMemberRequest_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_sdkwork_communication_app_v3_RetrieveCurrentConversationMemberResponse_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_sdkwork_communication_app_v3_RetrieveCurrentConversationMemberResponse_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_sdkwork_communication_app_v3_RetrieveConversationAgentsRequest_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_sdkwork_communication_app_v3_RetrieveConversationAgentsRequest_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_sdkwork_communication_app_v3_RetrieveConversationAgentsResponse_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_sdkwork_communication_app_v3_RetrieveConversationAgentsResponse_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_sdkwork_communication_app_v3_UpdateConversationAgentsRequest_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_sdkwork_communication_app_v3_UpdateConversationAgentsRequest_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_sdkwork_communication_app_v3_UpdateConversationAgentsResponse_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_sdkwork_communication_app_v3_UpdateConversationAgentsResponse_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
     internal_static_sdkwork_communication_app_v3_AddConversationMemberRequest_descriptor;
   static final 
@@ -382,405 +422,460 @@ public final class ConversationServiceOuterClass extends com.google.protobuf.Gen
       "\030\001 \001(\tR\016conversationId\022+\n\021conversation_t" +
       "ype\030\002 \001(\tR\020conversationType\022\024\n\005title\030\003 \001" +
       "(\tR\005title\022\"\n\rowner_user_id\030\004 \001(\tR\013ownerU" +
-      "serId\022\024\n\005state\030\005 \001(\tR\005state\"\204\001\n\026Conversa" +
+      "serId\022\024\n\005state\030\005 \001(\tR\005state\"\202\002\n\026Conversa" +
       "tionMemberView\022\'\n\017conversation_id\030\001 \001(\tR" +
       "\016conversationId\022\027\n\007user_id\030\002 \001(\tR\006userId" +
       "\022\022\n\004role\030\003 \001(\tR\004role\022\024\n\005state\030\004 \001(\tR\005sta" +
-      "te\"t\n\033ConversationPreferencesView\022\'\n\017con" +
-      "versation_id\030\001 \001(\tR\016conversationId\022\024\n\005mu" +
-      "ted\030\002 \001(\010R\005muted\022\026\n\006pinned\030\003 \001(\010R\006pinned" +
-      "\"\231\001\n\027ConversationProfileView\022\'\n\017conversa" +
-      "tion_id\030\001 \001(\tR\016conversationId\022\024\n\005title\030\002" +
-      " \001(\tR\005title\022\035\n\navatar_uri\030\003 \001(\tR\tavatarU" +
-      "ri\022 \n\013description\030\004 \001(\tR\013description\"\224\001\n" +
-      "\016ReadCursorView\022\'\n\017conversation_id\030\001 \001(\t" +
-      "R\016conversationId\022\027\n\007user_id\030\002 \001(\tR\006userI" +
-      "d\022\035\n\nmessage_id\030\003 \001(\tR\tmessageId\022!\n\014even" +
-      "t_cursor\030\004 \001(\tR\013eventCursor\"\217\001\n\013ContactV" +
-      "iew\022\035\n\ncontact_id\030\001 \001(\tR\tcontactId\022\027\n\007us" +
-      "er_id\030\002 \001(\tR\006userId\022!\n\014display_name\030\003 \001(" +
-      "\tR\013displayName\022%\n\016relation_state\030\004 \001(\tR\r" +
-      "relationState\"Q\n\016ContactTagView\022\025\n\006tag_i" +
-      "d\030\001 \001(\tR\005tagId\022\022\n\004name\030\002 \001(\tR\004name\022\024\n\005co" +
-      "lor\030\003 \001(\tR\005color\"\201\001\n\026ContactPreferencesV" +
-      "iew\0223\n\025allow_recommendations\030\001 \001(\010R\024allo" +
-      "wRecommendations\0222\n\025allow_friend_request" +
-      "s\030\002 \001(\010R\023allowFriendRequests\"\306\001\n\031CreateC" +
-      "onversationRequest\022+\n\021conversation_type\030" +
-      "\001 \001(\tR\020conversationType\022\024\n\005title\030\002 \001(\tR\005" +
-      "title\022&\n\017member_user_ids\030\003 \003(\tR\rmemberUs" +
-      "erIds\022>\n\010metadata\030\017 \001(\0132\".sdkwork.common" +
-      ".v1.RequestMetadataR\010metadata\"\261\001\n\032Create" +
-      "ConversationResponse\022R\n\014conversation\030\001 \001" +
-      "(\0132..sdkwork.communication.app.v3.Conver" +
-      "sationViewR\014conversation\022?\n\010metadata\030\017 \001" +
-      "(\0132#.sdkwork.common.v1.ResponseMetadataR" +
-      "\010metadata\"\213\001\n\030CreateAgentDialogRequest\022\031" +
-      "\n\010agent_id\030\001 \001(\tR\007agentId\022\024\n\005title\030\002 \001(\t" +
-      "R\005title\022>\n\010metadata\030\017 \001(\0132\".sdkwork.comm" +
-      "on.v1.RequestMetadataR\010metadata\"\260\001\n\031Crea" +
-      "teAgentDialogResponse\022R\n\014conversation\030\001 " +
-      "\001(\0132..sdkwork.communication.app.v3.Conve" +
-      "rsationViewR\014conversation\022?\n\010metadata\030\017 " +
-      "\001(\0132#.sdkwork.common.v1.ResponseMetadata" +
-      "R\010metadata\"\251\001\n\031CreateAgentHandoffRequest" +
-      "\0224\n\026source_conversation_id\030\001 \001(\tR\024source" +
-      "ConversationId\022\026\n\006reason\030\002 \001(\tR\006reason\022>" +
-      "\n\010metadata\030\017 \001(\0132\".sdkwork.common.v1.Req" +
-      "uestMetadataR\010metadata\"\261\001\n\032CreateAgentHa" +
-      "ndoffResponse\022R\n\014conversation\030\001 \001(\0132..sd" +
+      "te\022%\n\016principal_kind\030\005 \001(\tR\rprincipalKin" +
+      "d\022\033\n\tmember_id\030\006 \001(\tR\010memberId\022\033\n\ttenant" +
+      "_id\030\007 \001(\tR\010tenantId\022\033\n\tjoined_at\030\010 \001(\tR\010" +
+      "joinedAt\"]\n\037ConversationAgentAssignmentV" +
+      "iew\022\031\n\010agent_id\030\001 \001(\tR\007agentId\022\037\n\013revisi" +
+      "on_id\030\002 \001(\tR\nrevisionId\"\261\001\n Conversation" +
+      "AgentAssignmentsView\022\036\n\ngeneration\030\001 \001(\004" +
+      "R\ngeneration\022\026\n\006source\030\002 \001(\tR\006source\022U\n\006" +
+      "agents\030\003 \003(\0132=.sdkwork.communication.app" +
+      ".v3.ConversationAgentAssignmentViewR\006age" +
+      "nts\"t\n\033ConversationPreferencesView\022\'\n\017co" +
+      "nversation_id\030\001 \001(\tR\016conversationId\022\024\n\005m" +
+      "uted\030\002 \001(\010R\005muted\022\026\n\006pinned\030\003 \001(\010R\006pinne" +
+      "d\"\231\001\n\027ConversationProfileView\022\'\n\017convers" +
+      "ation_id\030\001 \001(\tR\016conversationId\022\024\n\005title\030" +
+      "\002 \001(\tR\005title\022\035\n\navatar_uri\030\003 \001(\tR\tavatar" +
+      "Uri\022 \n\013description\030\004 \001(\tR\013description\"\224\001" +
+      "\n\016ReadCursorView\022\'\n\017conversation_id\030\001 \001(" +
+      "\tR\016conversationId\022\027\n\007user_id\030\002 \001(\tR\006user" +
+      "Id\022\035\n\nmessage_id\030\003 \001(\tR\tmessageId\022!\n\014eve" +
+      "nt_cursor\030\004 \001(\tR\013eventCursor\"\217\001\n\013Contact" +
+      "View\022\035\n\ncontact_id\030\001 \001(\tR\tcontactId\022\027\n\007u" +
+      "ser_id\030\002 \001(\tR\006userId\022!\n\014display_name\030\003 \001" +
+      "(\tR\013displayName\022%\n\016relation_state\030\004 \001(\tR" +
+      "\rrelationState\"Q\n\016ContactTagView\022\025\n\006tag_" +
+      "id\030\001 \001(\tR\005tagId\022\022\n\004name\030\002 \001(\tR\004name\022\024\n\005c" +
+      "olor\030\003 \001(\tR\005color\"\201\001\n\026ContactPreferences" +
+      "View\0223\n\025allow_recommendations\030\001 \001(\010R\024all" +
+      "owRecommendations\0222\n\025allow_friend_reques" +
+      "ts\030\002 \001(\010R\023allowFriendRequests\"\262\002\n\031Create" +
+      "ConversationRequest\022+\n\021conversation_type" +
+      "\030\001 \001(\tR\020conversationType\022\024\n\005title\030\002 \001(\tR" +
+      "\005title\022&\n\017member_user_ids\030\003 \003(\tR\rmemberU" +
+      "serIds\022j\n\021agent_assignments\030\004 \003(\0132=.sdkw" +
+      "ork.communication.app.v3.ConversationAge" +
+      "ntAssignmentViewR\020agentAssignments\022>\n\010me" +
+      "tadata\030\017 \001(\0132\".sdkwork.common.v1.Request" +
+      "MetadataR\010metadata\"\261\001\n\032CreateConversatio" +
+      "nResponse\022R\n\014conversation\030\001 \001(\0132..sdkwor" +
+      "k.communication.app.v3.ConversationViewR" +
+      "\014conversation\022?\n\010metadata\030\017 \001(\0132#.sdkwor" +
+      "k.common.v1.ResponseMetadataR\010metadata\"\213" +
+      "\001\n\030CreateAgentDialogRequest\022\031\n\010agent_id\030" +
+      "\001 \001(\tR\007agentId\022\024\n\005title\030\002 \001(\tR\005title\022>\n\010" +
+      "metadata\030\017 \001(\0132\".sdkwork.common.v1.Reque" +
+      "stMetadataR\010metadata\"\260\001\n\031CreateAgentDial" +
+      "ogResponse\022R\n\014conversation\030\001 \001(\0132..sdkwo" +
+      "rk.communication.app.v3.ConversationView" +
+      "R\014conversation\022?\n\010metadata\030\017 \001(\0132#.sdkwo" +
+      "rk.common.v1.ResponseMetadataR\010metadata\"" +
+      "\251\001\n\031CreateAgentHandoffRequest\0224\n\026source_" +
+      "conversation_id\030\001 \001(\tR\024sourceConversatio" +
+      "nId\022\026\n\006reason\030\002 \001(\tR\006reason\022>\n\010metadata\030" +
+      "\017 \001(\0132\".sdkwork.common.v1.RequestMetadat" +
+      "aR\010metadata\"\261\001\n\032CreateAgentHandoffRespon" +
+      "se\022R\n\014conversation\030\001 \001(\0132..sdkwork.commu" +
+      "nication.app.v3.ConversationViewR\014conver" +
+      "sation\022?\n\010metadata\030\017 \001(\0132#.sdkwork.commo" +
+      "n.v1.ResponseMetadataR\010metadata\"\223\001\n\032Crea" +
+      "teSystemChannelRequest\022\037\n\013channel_key\030\001 " +
+      "\001(\tR\nchannelKey\022\024\n\005title\030\002 \001(\tR\005title\022>\n" +
+      "\010metadata\030\017 \001(\0132\".sdkwork.common.v1.Requ" +
+      "estMetadataR\010metadata\"\262\001\n\033CreateSystemCh" +
+      "annelResponse\022R\n\014conversation\030\001 \001(\0132..sd" +
       "kwork.communication.app.v3.ConversationV" +
       "iewR\014conversation\022?\n\010metadata\030\017 \001(\0132#.sd" +
       "kwork.common.v1.ResponseMetadataR\010metada" +
-      "ta\"\223\001\n\032CreateSystemChannelRequest\022\037\n\013cha" +
-      "nnel_key\030\001 \001(\tR\nchannelKey\022\024\n\005title\030\002 \001(" +
-      "\tR\005title\022>\n\010metadata\030\017 \001(\0132\".sdkwork.com" +
-      "mon.v1.RequestMetadataR\010metadata\"\262\001\n\033Cre" +
-      "ateSystemChannelResponse\022R\n\014conversation" +
-      "\030\001 \001(\0132..sdkwork.communication.app.v3.Co" +
-      "nversationViewR\014conversation\022?\n\010metadata" +
-      "\030\017 \001(\0132#.sdkwork.common.v1.ResponseMetad" +
-      "ataR\010metadata\"\263\001\n\023CreateThreadRequest\0224\n" +
-      "\026parent_conversation_id\030\001 \001(\tR\024parentCon" +
-      "versationId\022&\n\017root_message_id\030\002 \001(\tR\rro" +
-      "otMessageId\022>\n\010metadata\030\017 \001(\0132\".sdkwork." +
-      "common.v1.RequestMetadataR\010metadata\"\253\001\n\024" +
-      "CreateThreadResponse\022R\n\014conversation\030\001 \001" +
-      "(\0132..sdkwork.communication.app.v3.Conver" +
-      "sationViewR\014conversation\022?\n\010metadata\030\017 \001" +
+      "ta\"\263\001\n\023CreateThreadRequest\0224\n\026parent_con" +
+      "versation_id\030\001 \001(\tR\024parentConversationId" +
+      "\022&\n\017root_message_id\030\002 \001(\tR\rrootMessageId" +
+      "\022>\n\010metadata\030\017 \001(\0132\".sdkwork.common.v1.R" +
+      "equestMetadataR\010metadata\"\253\001\n\024CreateThrea" +
+      "dResponse\022R\n\014conversation\030\001 \001(\0132..sdkwor" +
+      "k.communication.app.v3.ConversationViewR" +
+      "\014conversation\022?\n\010metadata\030\017 \001(\0132#.sdkwor" +
+      "k.common.v1.ResponseMetadataR\010metadata\"y" +
+      "\n\025BindDirectChatRequest\022 \n\014peer_user_id\030" +
+      "\001 \001(\tR\npeerUserId\022>\n\010metadata\030\017 \001(\0132\".sd" +
+      "kwork.common.v1.RequestMetadataR\010metadat" +
+      "a\"\255\001\n\026BindDirectChatResponse\022R\n\014conversa" +
+      "tion\030\001 \001(\0132..sdkwork.communication.app.v" +
+      "3.ConversationViewR\014conversation\022?\n\010meta" +
+      "data\030\017 \001(\0132#.sdkwork.common.v1.ResponseM" +
+      "etadataR\010metadata\"\206\001\n\033RetrieveConversati" +
+      "onRequest\022\'\n\017conversation_id\030\001 \001(\tR\016conv" +
+      "ersationId\022>\n\010metadata\030\017 \001(\0132\".sdkwork.c" +
+      "ommon.v1.RequestMetadataR\010metadata\"\263\001\n\034R" +
+      "etrieveConversationResponse\022R\n\014conversat" +
+      "ion\030\001 \001(\0132..sdkwork.communication.app.v3" +
+      ".ConversationViewR\014conversation\022?\n\010metad" +
+      "ata\030\017 \001(\0132#.sdkwork.common.v1.ResponseMe" +
+      "tadataR\010metadata\"\206\001\n\020ListInboxRequest\0222\n" +
+      "\004page\030\001 \001(\0132\036.sdkwork.common.v1.PageRequ" +
+      "estR\004page\022>\n\010metadata\030\017 \001(\0132\".sdkwork.co" +
+      "mmon.v1.RequestMetadataR\010metadata\"\337\001\n\021Li" +
+      "stInboxResponse\022T\n\rconversations\030\001 \003(\0132." +
+      ".sdkwork.communication.app.v3.Conversati" +
+      "onViewR\rconversations\0223\n\004page\030\002 \001(\0132\037.sd" +
+      "kwork.common.v1.PageResponseR\004page\022?\n\010me" +
+      "tadata\030\017 \001(\0132#.sdkwork.common.v1.Respons" +
+      "eMetadataR\010metadata\"\275\001\n\036ListConversation" +
+      "MembersRequest\022\'\n\017conversation_id\030\001 \001(\tR" +
+      "\016conversationId\0222\n\004page\030\002 \001(\0132\036.sdkwork." +
+      "common.v1.PageRequestR\004page\022>\n\010metadata\030" +
+      "\017 \001(\0132\".sdkwork.common.v1.RequestMetadat" +
+      "aR\010metadata\"\347\001\n\037ListConversationMembersR" +
+      "esponse\022N\n\007members\030\001 \003(\01324.sdkwork.commu" +
+      "nication.app.v3.ConversationMemberViewR\007" +
+      "members\0223\n\004page\030\002 \001(\0132\037.sdkwork.common.v" +
+      "1.PageResponseR\004page\022?\n\010metadata\030\017 \001(\0132#" +
+      ".sdkwork.common.v1.ResponseMetadataR\010met" +
+      "adata\"\223\001\n(RetrieveCurrentConversationMem" +
+      "berRequest\022\'\n\017conversation_id\030\001 \001(\tR\016con" +
+      "versationId\022>\n\010metadata\030\017 \001(\0132\".sdkwork." +
+      "common.v1.RequestMetadataR\010metadata\"\272\001\n)" +
+      "RetrieveCurrentConversationMemberRespons" +
+      "e\022L\n\006member\030\001 \001(\01324.sdkwork.communicatio" +
+      "n.app.v3.ConversationMemberViewR\006member\022" +
+      "?\n\010metadata\030\017 \001(\0132#.sdkwork.common.v1.Re" +
+      "sponseMetadataR\010metadata\"\214\001\n!RetrieveCon" +
+      "versationAgentsRequest\022\'\n\017conversation_i" +
+      "d\030\001 \001(\tR\016conversationId\022>\n\010metadata\030\017 \001(" +
+      "\0132\".sdkwork.common.v1.RequestMetadataR\010m" +
+      "etadata\"\307\001\n\"RetrieveConversationAgentsRe" +
+      "sponse\022`\n\013assignments\030\001 \001(\0132>.sdkwork.co" +
+      "mmunication.app.v3.ConversationAgentAssi" +
+      "gnmentsViewR\013assignments\022?\n\010metadata\030\017 \001" +
       "(\0132#.sdkwork.common.v1.ResponseMetadataR" +
-      "\010metadata\"y\n\025BindDirectChatRequest\022 \n\014pe" +
-      "er_user_id\030\001 \001(\tR\npeerUserId\022>\n\010metadata" +
-      "\030\017 \001(\0132\".sdkwork.common.v1.RequestMetada" +
-      "taR\010metadata\"\255\001\n\026BindDirectChatResponse\022" +
-      "R\n\014conversation\030\001 \001(\0132..sdkwork.communic" +
-      "ation.app.v3.ConversationViewR\014conversat" +
-      "ion\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common.v" +
-      "1.ResponseMetadataR\010metadata\"\206\001\n\033Retriev" +
-      "eConversationRequest\022\'\n\017conversation_id\030" +
+      "\010metadata\"\247\002\n\037UpdateConversationAgentsRe" +
+      "quest\022\'\n\017conversation_id\030\001 \001(\tR\016conversa" +
+      "tionId\022/\n\023expected_generation\030\002 \001(\004R\022exp" +
+      "ectedGeneration\022j\n\021agent_assignments\030\003 \003" +
+      "(\0132=.sdkwork.communication.app.v3.Conver" +
+      "sationAgentAssignmentViewR\020agentAssignme" +
+      "nts\022>\n\010metadata\030\017 \001(\0132\".sdkwork.common.v" +
+      "1.RequestMetadataR\010metadata\"\305\001\n UpdateCo" +
+      "nversationAgentsResponse\022`\n\013assignments\030" +
+      "\001 \001(\0132>.sdkwork.communication.app.v3.Con" +
+      "versationAgentAssignmentsViewR\013assignmen" +
+      "ts\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common.v1" +
+      ".ResponseMetadataR\010metadata\"\264\001\n\034AddConve" +
+      "rsationMemberRequest\022\'\n\017conversation_id\030" +
+      "\001 \001(\tR\016conversationId\022\027\n\007user_id\030\002 \001(\tR\006" +
+      "userId\022\022\n\004role\030\003 \001(\tR\004role\022>\n\010metadata\030\017" +
+      " \001(\0132\".sdkwork.common.v1.RequestMetadata" +
+      "R\010metadata\"\256\001\n\035AddConversationMemberResp" +
+      "onse\022L\n\006member\030\001 \001(\01324.sdkwork.communica" +
+      "tion.app.v3.ConversationMemberViewR\006memb" +
+      "er\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common.v1" +
+      ".ResponseMetadataR\010metadata\"\243\001\n\037RemoveCo" +
+      "nversationMemberRequest\022\'\n\017conversation_" +
+      "id\030\001 \001(\tR\016conversationId\022\027\n\007user_id\030\002 \001(" +
+      "\tR\006userId\022>\n\010metadata\030\017 \001(\0132\".sdkwork.co" +
+      "mmon.v1.RequestMetadataR\010metadata\"\275\001\n Re" +
+      "moveConversationMemberResponse\022\'\n\017conver" +
+      "sation_id\030\001 \001(\tR\016conversationId\022\027\n\007user_" +
+      "id\030\002 \001(\tR\006userId\022\026\n\006status\030\003 \001(\tR\006status" +
+      "\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common.v1.R" +
+      "esponseMetadataR\010metadata\"\266\001\n TransferCo" +
+      "nversationOwnerRequest\022\'\n\017conversation_i" +
+      "d\030\001 \001(\tR\016conversationId\022)\n\021new_owner_use" +
+      "r_id\030\002 \001(\tR\016newOwnerUserId\022>\n\010metadata\030\017" +
+      " \001(\0132\".sdkwork.common.v1.RequestMetadata" +
+      "R\010metadata\"\270\001\n!TransferConversationOwner" +
+      "Response\022R\n\014conversation\030\001 \001(\0132..sdkwork" +
+      ".communication.app.v3.ConversationViewR\014" +
+      "conversation\022?\n\010metadata\030\017 \001(\0132#.sdkwork" +
+      ".common.v1.ResponseMetadataR\010metadata\"\273\001" +
+      "\n#ChangeConversationMemberRoleRequest\022\'\n" +
+      "\017conversation_id\030\001 \001(\tR\016conversationId\022\027" +
+      "\n\007user_id\030\002 \001(\tR\006userId\022\022\n\004role\030\003 \001(\tR\004r" +
+      "ole\022>\n\010metadata\030\017 \001(\0132\".sdkwork.common.v" +
+      "1.RequestMetadataR\010metadata\"\265\001\n$ChangeCo" +
+      "nversationMemberRoleResponse\022L\n\006member\030\001" +
+      " \001(\01324.sdkwork.communication.app.v3.Conv" +
+      "ersationMemberViewR\006member\022?\n\010metadata\030\017" +
+      " \001(\0132#.sdkwork.common.v1.ResponseMetadat" +
+      "aR\010metadata\"\203\001\n\030LeaveConversationRequest" +
+      "\022\'\n\017conversation_id\030\001 \001(\tR\016conversationI" +
+      "d\022>\n\010metadata\030\017 \001(\0132\".sdkwork.common.v1." +
+      "RequestMetadataR\010metadata\"\235\001\n\031LeaveConve" +
+      "rsationResponse\022\'\n\017conversation_id\030\001 \001(\t" +
+      "R\016conversationId\022\026\n\006status\030\002 \001(\tR\006status" +
+      "\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common.v1.R" +
+      "esponseMetadataR\010metadata\"\221\001\n&RetrieveCo" +
+      "nversationPreferencesRequest\022\'\n\017conversa" +
+      "tion_id\030\001 \001(\tR\016conversationId\022>\n\010metadat" +
+      "a\030\017 \001(\0132\".sdkwork.common.v1.RequestMetad" +
+      "ataR\010metadata\"\307\001\n\'RetrieveConversationPr" +
+      "eferencesResponse\022[\n\013preferences\030\001 \001(\01329" +
+      ".sdkwork.communication.app.v3.Conversati" +
+      "onPreferencesViewR\013preferences\022?\n\010metada" +
+      "ta\030\017 \001(\0132#.sdkwork.common.v1.ResponseMet" +
+      "adataR\010metadata\"\275\001\n$UpdateConversationPr" +
+      "eferencesRequest\022\'\n\017conversation_id\030\001 \001(" +
+      "\tR\016conversationId\022\024\n\005muted\030\002 \001(\010R\005muted\022" +
+      "\026\n\006pinned\030\003 \001(\010R\006pinned\022>\n\010metadata\030\017 \001(" +
+      "\0132\".sdkwork.common.v1.RequestMetadataR\010m" +
+      "etadata\"\305\001\n%UpdateConversationPreference" +
+      "sResponse\022[\n\013preferences\030\001 \001(\01329.sdkwork" +
+      ".communication.app.v3.ConversationPrefer" +
+      "encesViewR\013preferences\022?\n\010metadata\030\017 \001(\013" +
+      "2#.sdkwork.common.v1.ResponseMetadataR\010m" +
+      "etadata\"\215\001\n\"RetrieveConversationProfileR" +
+      "equest\022\'\n\017conversation_id\030\001 \001(\tR\016convers" +
+      "ationId\022>\n\010metadata\030\017 \001(\0132\".sdkwork.comm" +
+      "on.v1.RequestMetadataR\010metadata\"\267\001\n#Retr" +
+      "ieveConversationProfileResponse\022O\n\007profi" +
+      "le\030\001 \001(\01325.sdkwork.communication.app.v3." +
+      "ConversationProfileViewR\007profile\022?\n\010meta" +
+      "data\030\017 \001(\0132#.sdkwork.common.v1.ResponseM" +
+      "etadataR\010metadata\"\342\001\n UpdateConversation" +
+      "ProfileRequest\022\'\n\017conversation_id\030\001 \001(\tR" +
+      "\016conversationId\022\024\n\005title\030\002 \001(\tR\005title\022\035\n" +
+      "\navatar_uri\030\003 \001(\tR\tavatarUri\022 \n\013descript" +
+      "ion\030\004 \001(\tR\013description\022>\n\010metadata\030\017 \001(\013" +
+      "2\".sdkwork.common.v1.RequestMetadataR\010me" +
+      "tadata\"\265\001\n!UpdateConversationProfileResp" +
+      "onse\022O\n\007profile\030\001 \001(\01325.sdkwork.communic" +
+      "ation.app.v3.ConversationProfileViewR\007pr" +
+      "ofile\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common" +
+      ".v1.ResponseMetadataR\010metadata\"\204\001\n\031Retri" +
+      "eveReadCursorRequest\022\'\n\017conversation_id\030" +
       "\001 \001(\tR\016conversationId\022>\n\010metadata\030\017 \001(\0132" +
       "\".sdkwork.common.v1.RequestMetadataR\010met" +
-      "adata\"\263\001\n\034RetrieveConversationResponse\022R" +
-      "\n\014conversation\030\001 \001(\0132..sdkwork.communica" +
-      "tion.app.v3.ConversationViewR\014conversati" +
-      "on\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common.v1" +
-      ".ResponseMetadataR\010metadata\"\206\001\n\020ListInbo" +
-      "xRequest\0222\n\004page\030\001 \001(\0132\036.sdkwork.common." +
-      "v1.PageRequestR\004page\022>\n\010metadata\030\017 \001(\0132\"" +
-      ".sdkwork.common.v1.RequestMetadataR\010meta" +
-      "data\"\337\001\n\021ListInboxResponse\022T\n\rconversati" +
-      "ons\030\001 \003(\0132..sdkwork.communication.app.v3" +
-      ".ConversationViewR\rconversations\0223\n\004page" +
-      "\030\002 \001(\0132\037.sdkwork.common.v1.PageResponseR" +
-      "\004page\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common" +
-      ".v1.ResponseMetadataR\010metadata\"\275\001\n\036ListC" +
-      "onversationMembersRequest\022\'\n\017conversatio" +
-      "n_id\030\001 \001(\tR\016conversationId\0222\n\004page\030\002 \001(\013" +
-      "2\036.sdkwork.common.v1.PageRequestR\004page\022>" +
-      "\n\010metadata\030\017 \001(\0132\".sdkwork.common.v1.Req" +
-      "uestMetadataR\010metadata\"\347\001\n\037ListConversat" +
-      "ionMembersResponse\022N\n\007members\030\001 \003(\01324.sd" +
-      "kwork.communication.app.v3.ConversationM" +
-      "emberViewR\007members\0223\n\004page\030\002 \001(\0132\037.sdkwo" +
-      "rk.common.v1.PageResponseR\004page\022?\n\010metad" +
-      "ata\030\017 \001(\0132#.sdkwork.common.v1.ResponseMe" +
-      "tadataR\010metadata\"\264\001\n\034AddConversationMemb" +
-      "erRequest\022\'\n\017conversation_id\030\001 \001(\tR\016conv" +
-      "ersationId\022\027\n\007user_id\030\002 \001(\tR\006userId\022\022\n\004r" +
-      "ole\030\003 \001(\tR\004role\022>\n\010metadata\030\017 \001(\0132\".sdkw" +
-      "ork.common.v1.RequestMetadataR\010metadata\"" +
-      "\256\001\n\035AddConversationMemberResponse\022L\n\006mem" +
-      "ber\030\001 \001(\01324.sdkwork.communication.app.v3" +
-      ".ConversationMemberViewR\006member\022?\n\010metad" +
-      "ata\030\017 \001(\0132#.sdkwork.common.v1.ResponseMe" +
-      "tadataR\010metadata\"\243\001\n\037RemoveConversationM" +
-      "emberRequest\022\'\n\017conversation_id\030\001 \001(\tR\016c" +
-      "onversationId\022\027\n\007user_id\030\002 \001(\tR\006userId\022>" +
-      "\n\010metadata\030\017 \001(\0132\".sdkwork.common.v1.Req" +
-      "uestMetadataR\010metadata\"\275\001\n RemoveConvers" +
-      "ationMemberResponse\022\'\n\017conversation_id\030\001" +
-      " \001(\tR\016conversationId\022\027\n\007user_id\030\002 \001(\tR\006u" +
-      "serId\022\026\n\006status\030\003 \001(\tR\006status\022?\n\010metadat" +
+      "adata\"\243\001\n\032RetrieveReadCursorResponse\022D\n\006" +
+      "cursor\030\001 \001(\0132,.sdkwork.communication.app" +
+      ".v3.ReadCursorViewR\006cursor\022?\n\010metadata\030\017" +
+      " \001(\0132#.sdkwork.common.v1.ResponseMetadat" +
+      "aR\010metadata\"\304\001\n\027UpdateReadCursorRequest\022" +
+      "\'\n\017conversation_id\030\001 \001(\tR\016conversationId" +
+      "\022\035\n\nmessage_id\030\002 \001(\tR\tmessageId\022!\n\014event" +
+      "_cursor\030\003 \001(\tR\013eventCursor\022>\n\010metadata\030\017" +
+      " \001(\0132\".sdkwork.common.v1.RequestMetadata" +
+      "R\010metadata\"\241\001\n\030UpdateReadCursorResponse\022" +
+      "D\n\006cursor\030\001 \001(\0132,.sdkwork.communication." +
+      "app.v3.ReadCursorViewR\006cursor\022?\n\010metadat" +
       "a\030\017 \001(\0132#.sdkwork.common.v1.ResponseMeta" +
-      "dataR\010metadata\"\266\001\n TransferConversationO" +
-      "wnerRequest\022\'\n\017conversation_id\030\001 \001(\tR\016co" +
-      "nversationId\022)\n\021new_owner_user_id\030\002 \001(\tR" +
-      "\016newOwnerUserId\022>\n\010metadata\030\017 \001(\0132\".sdkw" +
-      "ork.common.v1.RequestMetadataR\010metadata\"" +
-      "\270\001\n!TransferConversationOwnerResponse\022R\n" +
-      "\014conversation\030\001 \001(\0132..sdkwork.communicat" +
-      "ion.app.v3.ConversationViewR\014conversatio" +
-      "n\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common.v1." +
-      "ResponseMetadataR\010metadata\"\273\001\n#ChangeCon" +
-      "versationMemberRoleRequest\022\'\n\017conversati" +
-      "on_id\030\001 \001(\tR\016conversationId\022\027\n\007user_id\030\002" +
-      " \001(\tR\006userId\022\022\n\004role\030\003 \001(\tR\004role\022>\n\010meta" +
-      "data\030\017 \001(\0132\".sdkwork.common.v1.RequestMe" +
-      "tadataR\010metadata\"\265\001\n$ChangeConversationM" +
-      "emberRoleResponse\022L\n\006member\030\001 \001(\01324.sdkw" +
-      "ork.communication.app.v3.ConversationMem" +
-      "berViewR\006member\022?\n\010metadata\030\017 \001(\0132#.sdkw" +
-      "ork.common.v1.ResponseMetadataR\010metadata" +
-      "\"\203\001\n\030LeaveConversationRequest\022\'\n\017convers" +
-      "ation_id\030\001 \001(\tR\016conversationId\022>\n\010metada" +
-      "ta\030\017 \001(\0132\".sdkwork.common.v1.RequestMeta" +
-      "dataR\010metadata\"\235\001\n\031LeaveConversationResp" +
-      "onse\022\'\n\017conversation_id\030\001 \001(\tR\016conversat" +
-      "ionId\022\026\n\006status\030\002 \001(\tR\006status\022?\n\010metadat" +
-      "a\030\017 \001(\0132#.sdkwork.common.v1.ResponseMeta" +
-      "dataR\010metadata\"\221\001\n&RetrieveConversationP" +
-      "referencesRequest\022\'\n\017conversation_id\030\001 \001" +
-      "(\tR\016conversationId\022>\n\010metadata\030\017 \001(\0132\".s" +
-      "dkwork.common.v1.RequestMetadataR\010metada" +
-      "ta\"\307\001\n\'RetrieveConversationPreferencesRe" +
-      "sponse\022[\n\013preferences\030\001 \001(\01329.sdkwork.co" +
-      "mmunication.app.v3.ConversationPreferenc" +
-      "esViewR\013preferences\022?\n\010metadata\030\017 \001(\0132#." +
-      "sdkwork.common.v1.ResponseMetadataR\010meta" +
-      "data\"\275\001\n$UpdateConversationPreferencesRe" +
-      "quest\022\'\n\017conversation_id\030\001 \001(\tR\016conversa" +
-      "tionId\022\024\n\005muted\030\002 \001(\010R\005muted\022\026\n\006pinned\030\003" +
-      " \001(\010R\006pinned\022>\n\010metadata\030\017 \001(\0132\".sdkwork" +
-      ".common.v1.RequestMetadataR\010metadata\"\305\001\n" +
-      "%UpdateConversationPreferencesResponse\022[" +
-      "\n\013preferences\030\001 \001(\01329.sdkwork.communicat" +
-      "ion.app.v3.ConversationPreferencesViewR\013" +
-      "preferences\022?\n\010metadata\030\017 \001(\0132#.sdkwork." +
-      "common.v1.ResponseMetadataR\010metadata\"\215\001\n" +
-      "\"RetrieveConversationProfileRequest\022\'\n\017c" +
-      "onversation_id\030\001 \001(\tR\016conversationId\022>\n\010" +
-      "metadata\030\017 \001(\0132\".sdkwork.common.v1.Reque" +
-      "stMetadataR\010metadata\"\267\001\n#RetrieveConvers" +
-      "ationProfileResponse\022O\n\007profile\030\001 \001(\01325." +
-      "sdkwork.communication.app.v3.Conversatio" +
-      "nProfileViewR\007profile\022?\n\010metadata\030\017 \001(\0132" +
-      "#.sdkwork.common.v1.ResponseMetadataR\010me" +
-      "tadata\"\342\001\n UpdateConversationProfileRequ" +
-      "est\022\'\n\017conversation_id\030\001 \001(\tR\016conversati" +
-      "onId\022\024\n\005title\030\002 \001(\tR\005title\022\035\n\navatar_uri" +
-      "\030\003 \001(\tR\tavatarUri\022 \n\013description\030\004 \001(\tR\013" +
-      "description\022>\n\010metadata\030\017 \001(\0132\".sdkwork." +
-      "common.v1.RequestMetadataR\010metadata\"\265\001\n!" +
-      "UpdateConversationProfileResponse\022O\n\007pro" +
-      "file\030\001 \001(\01325.sdkwork.communication.app.v" +
-      "3.ConversationProfileViewR\007profile\022?\n\010me" +
-      "tadata\030\017 \001(\0132#.sdkwork.common.v1.Respons" +
-      "eMetadataR\010metadata\"\204\001\n\031RetrieveReadCurs" +
-      "orRequest\022\'\n\017conversation_id\030\001 \001(\tR\016conv" +
-      "ersationId\022>\n\010metadata\030\017 \001(\0132\".sdkwork.c" +
-      "ommon.v1.RequestMetadataR\010metadata\"\243\001\n\032R" +
-      "etrieveReadCursorResponse\022D\n\006cursor\030\001 \001(" +
-      "\0132,.sdkwork.communication.app.v3.ReadCur" +
-      "sorViewR\006cursor\022?\n\010metadata\030\017 \001(\0132#.sdkw" +
-      "ork.common.v1.ResponseMetadataR\010metadata" +
-      "\"\304\001\n\027UpdateReadCursorRequest\022\'\n\017conversa" +
-      "tion_id\030\001 \001(\tR\016conversationId\022\035\n\nmessage" +
-      "_id\030\002 \001(\tR\tmessageId\022!\n\014event_cursor\030\003 \001" +
-      "(\tR\013eventCursor\022>\n\010metadata\030\017 \001(\0132\".sdkw" +
-      "ork.common.v1.RequestMetadataR\010metadata\"" +
-      "\241\001\n\030UpdateReadCursorResponse\022D\n\006cursor\030\001" +
-      " \001(\0132,.sdkwork.communication.app.v3.Read" +
-      "CursorViewR\006cursor\022?\n\010metadata\030\017 \001(\0132#.s" +
-      "dkwork.common.v1.ResponseMetadataR\010metad" +
-      "ata\"\333\001\n&ListConversationMemberDirectoryR" +
-      "equest\022\'\n\017conversation_id\030\001 \001(\tR\016convers" +
-      "ationId\022\024\n\005query\030\002 \001(\tR\005query\0222\n\004page\030\003 " +
+      "dataR\010metadata\"\333\001\n&ListConversationMembe" +
+      "rDirectoryRequest\022\'\n\017conversation_id\030\001 \001" +
+      "(\tR\016conversationId\022\024\n\005query\030\002 \001(\tR\005query" +
+      "\0222\n\004page\030\003 \001(\0132\036.sdkwork.common.v1.PageR" +
+      "equestR\004page\022>\n\010metadata\030\017 \001(\0132\".sdkwork" +
+      ".common.v1.RequestMetadataR\010metadata\"\357\001\n" +
+      "\'ListConversationMemberDirectoryResponse" +
+      "\022N\n\007members\030\001 \003(\01324.sdkwork.communicatio" +
+      "n.app.v3.ConversationMemberViewR\007members" +
+      "\0223\n\004page\030\002 \001(\0132\037.sdkwork.common.v1.PageR" +
+      "esponseR\004page\022?\n\010metadata\030\017 \001(\0132#.sdkwor" +
+      "k.common.v1.ResponseMetadataR\010metadata\"\270" +
+      "\001\n\031ListPinnedMessagesRequest\022\'\n\017conversa" +
+      "tion_id\030\001 \001(\tR\016conversationId\0222\n\004page\030\002 " +
       "\001(\0132\036.sdkwork.common.v1.PageRequestR\004pag" +
       "e\022>\n\010metadata\030\017 \001(\0132\".sdkwork.common.v1." +
-      "RequestMetadataR\010metadata\"\357\001\n\'ListConver" +
-      "sationMemberDirectoryResponse\022N\n\007members" +
-      "\030\001 \003(\01324.sdkwork.communication.app.v3.Co" +
-      "nversationMemberViewR\007members\0223\n\004page\030\002 " +
-      "\001(\0132\037.sdkwork.common.v1.PageResponseR\004pa" +
-      "ge\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common.v1" +
-      ".ResponseMetadataR\010metadata\"\270\001\n\031ListPinn" +
-      "edMessagesRequest\022\'\n\017conversation_id\030\001 \001" +
-      "(\tR\016conversationId\0222\n\004page\030\002 \001(\0132\036.sdkwo" +
-      "rk.common.v1.PageRequestR\004page\022>\n\010metada" +
-      "ta\030\017 \001(\0132\".sdkwork.common.v1.RequestMeta" +
-      "dataR\010metadata\"\263\001\n\032ListPinnedMessagesRes" +
-      "ponse\022\037\n\013message_ids\030\001 \003(\tR\nmessageIds\0223" +
+      "RequestMetadataR\010metadata\"\263\001\n\032ListPinned" +
+      "MessagesResponse\022\037\n\013message_ids\030\001 \003(\tR\nm" +
+      "essageIds\0223\n\004page\030\002 \001(\0132\037.sdkwork.common" +
+      ".v1.PageResponseR\004page\022?\n\010metadata\030\017 \001(\013" +
+      "2#.sdkwork.common.v1.ResponseMetadataR\010m" +
+      "etadata\"\211\001\n\023ListContactsRequest\0222\n\004page\030" +
+      "\001 \001(\0132\036.sdkwork.common.v1.PageRequestR\004p" +
+      "age\022>\n\010metadata\030\017 \001(\0132\".sdkwork.common.v" +
+      "1.RequestMetadataR\010metadata\"\323\001\n\024ListCont" +
+      "actsResponse\022E\n\010contacts\030\001 \003(\0132).sdkwork" +
+      ".communication.app.v3.ContactViewR\010conta" +
+      "cts\0223\n\004page\030\002 \001(\0132\037.sdkwork.common.v1.Pa" +
+      "geResponseR\004page\022?\n\010metadata\030\017 \001(\0132#.sdk" +
+      "work.common.v1.ResponseMetadataR\010metadat" +
+      "a\"\214\001\n\026ListContactTagsRequest\0222\n\004page\030\001 \001" +
+      "(\0132\036.sdkwork.common.v1.PageRequestR\004page" +
+      "\022>\n\010metadata\030\017 \001(\0132\".sdkwork.common.v1.R" +
+      "equestMetadataR\010metadata\"\321\001\n\027ListContact" +
+      "TagsResponse\022@\n\004tags\030\001 \003(\0132,.sdkwork.com" +
+      "munication.app.v3.ContactTagViewR\004tags\0223" +
       "\n\004page\030\002 \001(\0132\037.sdkwork.common.v1.PageRes" +
       "ponseR\004page\022?\n\010metadata\030\017 \001(\0132#.sdkwork." +
-      "common.v1.ResponseMetadataR\010metadata\"\211\001\n" +
-      "\023ListContactsRequest\0222\n\004page\030\001 \001(\0132\036.sdk" +
-      "work.common.v1.PageRequestR\004page\022>\n\010meta" +
-      "data\030\017 \001(\0132\".sdkwork.common.v1.RequestMe" +
-      "tadataR\010metadata\"\323\001\n\024ListContactsRespons" +
-      "e\022E\n\010contacts\030\001 \003(\0132).sdkwork.communicat" +
-      "ion.app.v3.ContactViewR\010contacts\0223\n\004page" +
-      "\030\002 \001(\0132\037.sdkwork.common.v1.PageResponseR" +
-      "\004page\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common" +
-      ".v1.ResponseMetadataR\010metadata\"\214\001\n\026ListC" +
-      "ontactTagsRequest\0222\n\004page\030\001 \001(\0132\036.sdkwor" +
-      "k.common.v1.PageRequestR\004page\022>\n\010metadat" +
-      "a\030\017 \001(\0132\".sdkwork.common.v1.RequestMetad" +
-      "ataR\010metadata\"\321\001\n\027ListContactTagsRespons" +
-      "e\022@\n\004tags\030\001 \003(\0132,.sdkwork.communication." +
-      "app.v3.ContactTagViewR\004tags\0223\n\004page\030\002 \001(" +
-      "\0132\037.sdkwork.common.v1.PageResponseR\004page" +
-      "\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common.v1.R" +
-      "esponseMetadataR\010metadata\"\203\001\n\027CreateCont" +
-      "actTagRequest\022\022\n\004name\030\001 \001(\tR\004name\022\024\n\005col" +
-      "or\030\002 \001(\tR\005color\022>\n\010metadata\030\017 \001(\0132\".sdkw" +
-      "ork.common.v1.RequestMetadataR\010metadata\"" +
-      "\233\001\n\030CreateContactTagResponse\022>\n\003tag\030\001 \001(" +
-      "\0132,.sdkwork.communication.app.v3.Contact" +
-      "TagViewR\003tag\022?\n\010metadata\030\017 \001(\0132#.sdkwork" +
-      ".common.v1.ResponseMetadataR\010metadata\"\232\001" +
-      "\n\027UpdateContactTagRequest\022\025\n\006tag_id\030\001 \001(" +
-      "\tR\005tagId\022\022\n\004name\030\002 \001(\tR\004name\022\024\n\005color\030\003 " +
-      "\001(\tR\005color\022>\n\010metadata\030\017 \001(\0132\".sdkwork.c" +
-      "ommon.v1.RequestMetadataR\010metadata\"\233\001\n\030U" +
-      "pdateContactTagResponse\022>\n\003tag\030\001 \001(\0132,.s" +
-      "dkwork.communication.app.v3.ContactTagVi" +
-      "ewR\003tag\022?\n\010metadata\030\017 \001(\0132#.sdkwork.comm" +
-      "on.v1.ResponseMetadataR\010metadata\"p\n\027Dele" +
-      "teContactTagRequest\022\025\n\006tag_id\030\001 \001(\tR\005tag" +
-      "Id\022>\n\010metadata\030\017 \001(\0132\".sdkwork.common.v1" +
-      ".RequestMetadataR\010metadata\"\212\001\n\030DeleteCon" +
-      "tactTagResponse\022\025\n\006tag_id\030\001 \001(\tR\005tagId\022\026" +
-      "\n\006status\030\002 \001(\tR\006status\022?\n\010metadata\030\017 \001(\013" +
-      "2#.sdkwork.common.v1.ResponseMetadataR\010m" +
-      "etadata\"z\n\"CreateContactRecommendationRe" +
-      "quest\022\024\n\005basis\030\001 \001(\tR\005basis\022>\n\010metadata\030" +
-      "\017 \001(\0132\".sdkwork.common.v1.RequestMetadat" +
-      "aR\010metadata\"\255\001\n#CreateContactRecommendat" +
-      "ionResponse\022E\n\010contacts\030\001 \003(\0132).sdkwork." +
-      "communication.app.v3.ContactViewR\010contac" +
-      "ts\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common.v1" +
-      ".ResponseMetadataR\010metadata\"c\n!RetrieveC" +
-      "ontactPreferencesRequest\022>\n\010metadata\030\017 \001" +
-      "(\0132\".sdkwork.common.v1.RequestMetadataR\010" +
-      "metadata\"\275\001\n\"RetrieveContactPreferencesR" +
-      "esponse\022V\n\013preferences\030\001 \001(\01324.sdkwork.c" +
-      "ommunication.app.v3.ContactPreferencesVi" +
-      "ewR\013preferences\022?\n\010metadata\030\017 \001(\0132#.sdkw" +
-      "ork.common.v1.ResponseMetadataR\010metadata" +
-      "\"\312\001\n\037UpdateContactPreferencesRequest\0223\n\025" +
-      "allow_recommendations\030\001 \001(\010R\024allowRecomm" +
-      "endations\0222\n\025allow_friend_requests\030\002 \001(\010" +
-      "R\023allowFriendRequests\022>\n\010metadata\030\017 \001(\0132" +
+      "common.v1.ResponseMetadataR\010metadata\"\203\001\n" +
+      "\027CreateContactTagRequest\022\022\n\004name\030\001 \001(\tR\004" +
+      "name\022\024\n\005color\030\002 \001(\tR\005color\022>\n\010metadata\030\017" +
+      " \001(\0132\".sdkwork.common.v1.RequestMetadata" +
+      "R\010metadata\"\233\001\n\030CreateContactTagResponse\022" +
+      ">\n\003tag\030\001 \001(\0132,.sdkwork.communication.app" +
+      ".v3.ContactTagViewR\003tag\022?\n\010metadata\030\017 \001(" +
+      "\0132#.sdkwork.common.v1.ResponseMetadataR\010" +
+      "metadata\"\232\001\n\027UpdateContactTagRequest\022\025\n\006" +
+      "tag_id\030\001 \001(\tR\005tagId\022\022\n\004name\030\002 \001(\tR\004name\022" +
+      "\024\n\005color\030\003 \001(\tR\005color\022>\n\010metadata\030\017 \001(\0132" +
       "\".sdkwork.common.v1.RequestMetadataR\010met" +
-      "adata\"\273\001\n UpdateContactPreferencesRespon" +
-      "se\022V\n\013preferences\030\001 \001(\01324.sdkwork.commun" +
-      "ication.app.v3.ContactPreferencesViewR\013p" +
-      "references\022?\n\010metadata\030\017 \001(\0132#.sdkwork.c" +
-      "ommon.v1.ResponseMetadataR\010metadata2\256\031\n\023" +
-      "ConversationService\022\207\001\n\022CreateConversati" +
-      "on\0227.sdkwork.communication.app.v3.Create" +
-      "ConversationRequest\0328.sdkwork.communicat" +
-      "ion.app.v3.CreateConversationResponse\022\204\001" +
-      "\n\021CreateAgentDialog\0226.sdkwork.communicat" +
-      "ion.app.v3.CreateAgentDialogRequest\0327.sd" +
-      "kwork.communication.app.v3.CreateAgentDi" +
-      "alogResponse\022\207\001\n\022CreateAgentHandoff\0227.sd" +
-      "kwork.communication.app.v3.CreateAgentHa" +
-      "ndoffRequest\0328.sdkwork.communication.app" +
-      ".v3.CreateAgentHandoffResponse\022\212\001\n\023Creat" +
-      "eSystemChannel\0228.sdkwork.communication.a" +
-      "pp.v3.CreateSystemChannelRequest\0329.sdkwo" +
-      "rk.communication.app.v3.CreateSystemChan" +
-      "nelResponse\022u\n\014CreateThread\0221.sdkwork.co" +
-      "mmunication.app.v3.CreateThreadRequest\0322" +
+      "adata\"\233\001\n\030UpdateContactTagResponse\022>\n\003ta" +
+      "g\030\001 \001(\0132,.sdkwork.communication.app.v3.C" +
+      "ontactTagViewR\003tag\022?\n\010metadata\030\017 \001(\0132#.s" +
+      "dkwork.common.v1.ResponseMetadataR\010metad" +
+      "ata\"p\n\027DeleteContactTagRequest\022\025\n\006tag_id" +
+      "\030\001 \001(\tR\005tagId\022>\n\010metadata\030\017 \001(\0132\".sdkwor" +
+      "k.common.v1.RequestMetadataR\010metadata\"\212\001" +
+      "\n\030DeleteContactTagResponse\022\025\n\006tag_id\030\001 \001" +
+      "(\tR\005tagId\022\026\n\006status\030\002 \001(\tR\006status\022?\n\010met" +
+      "adata\030\017 \001(\0132#.sdkwork.common.v1.Response" +
+      "MetadataR\010metadata\"z\n\"CreateContactRecom" +
+      "mendationRequest\022\024\n\005basis\030\001 \001(\tR\005basis\022>" +
+      "\n\010metadata\030\017 \001(\0132\".sdkwork.common.v1.Req" +
+      "uestMetadataR\010metadata\"\255\001\n#CreateContact" +
+      "RecommendationResponse\022E\n\010contacts\030\001 \003(\013" +
+      "2).sdkwork.communication.app.v3.ContactV" +
+      "iewR\010contacts\022?\n\010metadata\030\017 \001(\0132#.sdkwor" +
+      "k.common.v1.ResponseMetadataR\010metadata\"c" +
+      "\n!RetrieveContactPreferencesRequest\022>\n\010m" +
+      "etadata\030\017 \001(\0132\".sdkwork.common.v1.Reques" +
+      "tMetadataR\010metadata\"\275\001\n\"RetrieveContactP" +
+      "referencesResponse\022V\n\013preferences\030\001 \001(\0132" +
+      "4.sdkwork.communication.app.v3.ContactPr" +
+      "eferencesViewR\013preferences\022?\n\010metadata\030\017" +
+      " \001(\0132#.sdkwork.common.v1.ResponseMetadat" +
+      "aR\010metadata\"\312\001\n\037UpdateContactPreferences" +
+      "Request\0223\n\025allow_recommendations\030\001 \001(\010R\024" +
+      "allowRecommendations\0222\n\025allow_friend_req" +
+      "uests\030\002 \001(\010R\023allowFriendRequests\022>\n\010meta" +
+      "data\030\017 \001(\0132\".sdkwork.common.v1.RequestMe" +
+      "tadataR\010metadata\"\273\001\n UpdateContactPrefer" +
+      "encesResponse\022V\n\013preferences\030\001 \001(\01324.sdk" +
+      "work.communication.app.v3.ContactPrefere" +
+      "ncesViewR\013preferences\022?\n\010metadata\030\017 \001(\0132" +
+      "#.sdkwork.common.v1.ResponseMetadataR\010me" +
+      "tadata2\243\035\n\023ConversationService\022\207\001\n\022Creat" +
+      "eConversation\0227.sdkwork.communication.ap" +
+      "p.v3.CreateConversationRequest\0328.sdkwork" +
+      ".communication.app.v3.CreateConversation" +
+      "Response\022\204\001\n\021CreateAgentDialog\0226.sdkwork" +
+      ".communication.app.v3.CreateAgentDialogR" +
+      "equest\0327.sdkwork.communication.app.v3.Cr" +
+      "eateAgentDialogResponse\022\207\001\n\022CreateAgentH" +
+      "andoff\0227.sdkwork.communication.app.v3.Cr" +
+      "eateAgentHandoffRequest\0328.sdkwork.commun" +
+      "ication.app.v3.CreateAgentHandoffRespons" +
+      "e\022\212\001\n\023CreateSystemChannel\0228.sdkwork.comm" +
+      "unication.app.v3.CreateSystemChannelRequ" +
+      "est\0329.sdkwork.communication.app.v3.Creat" +
+      "eSystemChannelResponse\022u\n\014CreateThread\0221" +
       ".sdkwork.communication.app.v3.CreateThre" +
-      "adResponse\022{\n\016BindDirectChat\0223.sdkwork.c" +
-      "ommunication.app.v3.BindDirectChatReques" +
-      "t\0324.sdkwork.communication.app.v3.BindDir" +
-      "ectChatResponse\022\215\001\n\024RetrieveConversation" +
-      "\0229.sdkwork.communication.app.v3.Retrieve" +
-      "ConversationRequest\032:.sdkwork.communicat" +
-      "ion.app.v3.RetrieveConversationResponse\022" +
-      "l\n\tListInbox\022..sdkwork.communication.app" +
-      ".v3.ListInboxRequest\032/.sdkwork.communica" +
-      "tion.app.v3.ListInboxResponse\022\226\001\n\027ListCo" +
-      "nversationMembers\022<.sdkwork.communicatio" +
-      "n.app.v3.ListConversationMembersRequest\032" +
-      "=.sdkwork.communication.app.v3.ListConve" +
-      "rsationMembersResponse\022\220\001\n\025AddConversati" +
-      "onMember\022:.sdkwork.communication.app.v3." +
-      "AddConversationMemberRequest\032;.sdkwork.c" +
-      "ommunication.app.v3.AddConversationMembe" +
-      "rResponse\022\231\001\n\030RemoveConversationMember\022=" +
-      ".sdkwork.communication.app.v3.RemoveConv" +
-      "ersationMemberRequest\032>.sdkwork.communic" +
-      "ation.app.v3.RemoveConversationMemberRes" +
-      "ponse\022\234\001\n\031TransferConversationOwner\022>.sd" +
-      "kwork.communication.app.v3.TransferConve" +
-      "rsationOwnerRequest\032?.sdkwork.communicat" +
-      "ion.app.v3.TransferConversationOwnerResp" +
-      "onse\022\245\001\n\034ChangeConversationMemberRole\022A." +
-      "sdkwork.communication.app.v3.ChangeConve" +
-      "rsationMemberRoleRequest\032B.sdkwork.commu" +
-      "nication.app.v3.ChangeConversationMember" +
-      "RoleResponse\022\204\001\n\021LeaveConversation\0226.sdk" +
-      "work.communication.app.v3.LeaveConversat" +
-      "ionRequest\0327.sdkwork.communication.app.v" +
-      "3.LeaveConversationResponse\022\256\001\n\037Retrieve" +
-      "ConversationPreferences\022D.sdkwork.commun" +
-      "ication.app.v3.RetrieveConversationPrefe" +
-      "rencesRequest\032E.sdkwork.communication.ap" +
-      "p.v3.RetrieveConversationPreferencesResp" +
-      "onse\022\250\001\n\035UpdateConversationPreferences\022B" +
-      ".sdkwork.communication.app.v3.UpdateConv" +
-      "ersationPreferencesRequest\032C.sdkwork.com" +
-      "munication.app.v3.UpdateConversationPref" +
-      "erencesResponse\022\242\001\n\033RetrieveConversation" +
-      "Profile\022@.sdkwork.communication.app.v3.R" +
-      "etrieveConversationProfileRequest\032A.sdkw" +
-      "ork.communication.app.v3.RetrieveConvers" +
-      "ationProfileResponse\022\234\001\n\031UpdateConversat" +
-      "ionProfile\022>.sdkwork.communication.app.v" +
-      "3.UpdateConversationProfileRequest\032?.sdk" +
-      "work.communication.app.v3.UpdateConversa" +
-      "tionProfileResponse\022\207\001\n\022RetrieveReadCurs" +
-      "or\0227.sdkwork.communication.app.v3.Retrie" +
-      "veReadCursorRequest\0328.sdkwork.communicat" +
-      "ion.app.v3.RetrieveReadCursorResponse\022\201\001" +
-      "\n\020UpdateReadCursor\0225.sdkwork.communicati" +
-      "on.app.v3.UpdateReadCursorRequest\0326.sdkw" +
-      "ork.communication.app.v3.UpdateReadCurso" +
-      "rResponse\022\256\001\n\037ListConversationMemberDire" +
-      "ctory\022D.sdkwork.communication.app.v3.Lis" +
-      "tConversationMemberDirectoryRequest\032E.sd" +
-      "kwork.communication.app.v3.ListConversat" +
-      "ionMemberDirectoryResponse\022\207\001\n\022ListPinne" +
-      "dMessages\0227.sdkwork.communication.app.v3" +
-      ".ListPinnedMessagesRequest\0328.sdkwork.com" +
-      "munication.app.v3.ListPinnedMessagesResp" +
-      "onse2\366\010\n\016ContactService\022u\n\014ListContacts\022" +
-      "1.sdkwork.communication.app.v3.ListConta" +
-      "ctsRequest\0322.sdkwork.communication.app.v" +
-      "3.ListContactsResponse\022~\n\017ListContactTag" +
-      "s\0224.sdkwork.communication.app.v3.ListCon" +
-      "tactTagsRequest\0325.sdkwork.communication." +
-      "app.v3.ListContactTagsResponse\022\201\001\n\020Creat" +
-      "eContactTag\0225.sdkwork.communication.app." +
-      "v3.CreateContactTagRequest\0326.sdkwork.com" +
-      "munication.app.v3.CreateContactTagRespon" +
-      "se\022\201\001\n\020UpdateContactTag\0225.sdkwork.commun" +
-      "ication.app.v3.UpdateContactTagRequest\0326" +
-      ".sdkwork.communication.app.v3.UpdateCont" +
-      "actTagResponse\022\201\001\n\020DeleteContactTag\0225.sd" +
-      "kwork.communication.app.v3.DeleteContact" +
-      "TagRequest\0326.sdkwork.communication.app.v" +
-      "3.DeleteContactTagResponse\022\242\001\n\033CreateCon" +
-      "tactRecommendation\022@.sdkwork.communicati" +
-      "on.app.v3.CreateContactRecommendationReq" +
-      "uest\032A.sdkwork.communication.app.v3.Crea" +
-      "teContactRecommendationResponse\022\237\001\n\032Retr" +
-      "ieveContactPreferences\022?.sdkwork.communi" +
-      "cation.app.v3.RetrieveContactPreferences" +
-      "Request\032@.sdkwork.communication.app.v3.R" +
-      "etrieveContactPreferencesResponse\022\231\001\n\030Up" +
-      "dateContactPreferences\022=.sdkwork.communi" +
-      "cation.app.v3.UpdateContactPreferencesRe",
-      "quest\032>.sdkwork.communication.app.v3.Upd" +
-      "ateContactPreferencesResponseB\206\001\n com.sd" +
-      "kwork.communication.app.v3P\001Z`github.com" +
-      "/sdkwork/im-rpc-sdk-go/generated/proto/s" +
-      "dkwork/communication/app/v3;communicatio" +
-      "nappv3b\006proto3"
+      "adRequest\0322.sdkwork.communication.app.v3" +
+      ".CreateThreadResponse\022{\n\016BindDirectChat\022" +
+      "3.sdkwork.communication.app.v3.BindDirec" +
+      "tChatRequest\0324.sdkwork.communication.app" +
+      ".v3.BindDirectChatResponse\022\215\001\n\024RetrieveC" +
+      "onversation\0229.sdkwork.communication.app." +
+      "v3.RetrieveConversationRequest\032:.sdkwork" +
+      ".communication.app.v3.RetrieveConversati" +
+      "onResponse\022l\n\tListInbox\022..sdkwork.commun" +
+      "ication.app.v3.ListInboxRequest\032/.sdkwor" +
+      "k.communication.app.v3.ListInboxResponse" +
+      "\022\226\001\n\027ListConversationMembers\022<.sdkwork.c" +
+      "ommunication.app.v3.ListConversationMemb" +
+      "ersRequest\032=.sdkwork.communication.app.v" +
+      "3.ListConversationMembersResponse\022\264\001\n!Re" +
+      "trieveCurrentConversationMember\022F.sdkwor" +
+      "k.communication.app.v3.RetrieveCurrentCo" +
+      "nversationMemberRequest\032G.sdkwork.commun" +
+      "ication.app.v3.RetrieveCurrentConversati" +
+      "onMemberResponse\022\237\001\n\032RetrieveConversatio" +
+      "nAgents\022?.sdkwork.communication.app.v3.R" +
+      "etrieveConversationAgentsRequest\032@.sdkwo" +
+      "rk.communication.app.v3.RetrieveConversa" +
+      "tionAgentsResponse\022\231\001\n\030UpdateConversatio" +
+      "nAgents\022=.sdkwork.communication.app.v3.U" +
+      "pdateConversationAgentsRequest\032>.sdkwork" +
+      ".communication.app.v3.UpdateConversation" +
+      "AgentsResponse\022\220\001\n\025AddConversationMember" +
+      "\022:.sdkwork.communication.app.v3.AddConve" +
+      "rsationMemberRequest\032;.sdkwork.communica" +
+      "tion.app.v3.AddConversationMemberRespons" +
+      "e\022\231\001\n\030RemoveConversationMember\022=.sdkwork" +
+      ".communication.app.v3.RemoveConversation" +
+      "MemberRequest\032>.sdkwork.communication.ap" +
+      "p.v3.RemoveConversationMemberResponse\022\234\001" +
+      "\n\031TransferConversationOwner\022>.sdkwork.co" +
+      "mmunication.app.v3.TransferConversationO" +
+      "wnerRequest\032?.sdkwork.communication.app." +
+      "v3.TransferConversationOwnerResponse\022\245\001\n" +
+      "\034ChangeConversationMemberRole\022A.sdkwork." +
+      "communication.app.v3.ChangeConversationM" +
+      "emberRoleRequest\032B.sdkwork.communication" +
+      ".app.v3.ChangeConversationMemberRoleResp" +
+      "onse\022\204\001\n\021LeaveConversation\0226.sdkwork.com" +
+      "munication.app.v3.LeaveConversationReque" +
+      "st\0327.sdkwork.communication.app.v3.LeaveC" +
+      "onversationResponse\022\256\001\n\037RetrieveConversa" +
+      "tionPreferences\022D.sdkwork.communication." +
+      "app.v3.RetrieveConversationPreferencesRe" +
+      "quest\032E.sdkwork.communication.app.v3.Ret",
+      "rieveConversationPreferencesResponse\022\250\001\n" +
+      "\035UpdateConversationPreferences\022B.sdkwork" +
+      ".communication.app.v3.UpdateConversation" +
+      "PreferencesRequest\032C.sdkwork.communicati" +
+      "on.app.v3.UpdateConversationPreferencesR" +
+      "esponse\022\242\001\n\033RetrieveConversationProfile\022" +
+      "@.sdkwork.communication.app.v3.RetrieveC" +
+      "onversationProfileRequest\032A.sdkwork.comm" +
+      "unication.app.v3.RetrieveConversationPro" +
+      "fileResponse\022\234\001\n\031UpdateConversationProfi" +
+      "le\022>.sdkwork.communication.app.v3.Update" +
+      "ConversationProfileRequest\032?.sdkwork.com" +
+      "munication.app.v3.UpdateConversationProf" +
+      "ileResponse\022\207\001\n\022RetrieveReadCursor\0227.sdk" +
+      "work.communication.app.v3.RetrieveReadCu" +
+      "rsorRequest\0328.sdkwork.communication.app." +
+      "v3.RetrieveReadCursorResponse\022\201\001\n\020Update" +
+      "ReadCursor\0225.sdkwork.communication.app.v" +
+      "3.UpdateReadCursorRequest\0326.sdkwork.comm" +
+      "unication.app.v3.UpdateReadCursorRespons" +
+      "e\022\256\001\n\037ListConversationMemberDirectory\022D." +
+      "sdkwork.communication.app.v3.ListConvers" +
+      "ationMemberDirectoryRequest\032E.sdkwork.co" +
+      "mmunication.app.v3.ListConversationMembe" +
+      "rDirectoryResponse\022\207\001\n\022ListPinnedMessage" +
+      "s\0227.sdkwork.communication.app.v3.ListPin" +
+      "nedMessagesRequest\0328.sdkwork.communicati" +
+      "on.app.v3.ListPinnedMessagesResponse2\366\010\n" +
+      "\016ContactService\022u\n\014ListContacts\0221.sdkwor" +
+      "k.communication.app.v3.ListContactsReque" +
+      "st\0322.sdkwork.communication.app.v3.ListCo" +
+      "ntactsResponse\022~\n\017ListContactTags\0224.sdkw" +
+      "ork.communication.app.v3.ListContactTags" +
+      "Request\0325.sdkwork.communication.app.v3.L" +
+      "istContactTagsResponse\022\201\001\n\020CreateContact" +
+      "Tag\0225.sdkwork.communication.app.v3.Creat" +
+      "eContactTagRequest\0326.sdkwork.communicati" +
+      "on.app.v3.CreateContactTagResponse\022\201\001\n\020U" +
+      "pdateContactTag\0225.sdkwork.communication." +
+      "app.v3.UpdateContactTagRequest\0326.sdkwork" +
+      ".communication.app.v3.UpdateContactTagRe" +
+      "sponse\022\201\001\n\020DeleteContactTag\0225.sdkwork.co" +
+      "mmunication.app.v3.DeleteContactTagReque" +
+      "st\0326.sdkwork.communication.app.v3.Delete" +
+      "ContactTagResponse\022\242\001\n\033CreateContactReco" +
+      "mmendation\022@.sdkwork.communication.app.v" +
+      "3.CreateContactRecommendationRequest\032A.s" +
+      "dkwork.communication.app.v3.CreateContac" +
+      "tRecommendationResponse\022\237\001\n\032RetrieveCont" +
+      "actPreferences\022?.sdkwork.communication.a" +
+      "pp.v3.RetrieveContactPreferencesRequest\032" +
+      "@.sdkwork.communication.app.v3.RetrieveC" +
+      "ontactPreferencesResponse\022\231\001\n\030UpdateCont" +
+      "actPreferences\022=.sdkwork.communication.a" +
+      "pp.v3.UpdateContactPreferencesRequest\032>." +
+      "sdkwork.communication.app.v3.UpdateConta" +
+      "ctPreferencesResponseB\206\001\n com.sdkwork.co" +
+      "mmunication.app.v3P\001Z`github.com/sdkwork" +
+      "/im-rpc-sdk-go/generated/proto/sdkwork/c" +
+      "ommunication/app/v3;communicationappv3b\006" +
+      "proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -798,399 +893,447 @@ public final class ConversationServiceOuterClass extends com.google.protobuf.Gen
     internal_static_sdkwork_communication_app_v3_ConversationMemberView_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ConversationMemberView_descriptor,
-        new java.lang.String[] { "ConversationId", "UserId", "Role", "State", });
-    internal_static_sdkwork_communication_app_v3_ConversationPreferencesView_descriptor =
+        new java.lang.String[] { "ConversationId", "UserId", "Role", "State", "PrincipalKind", "MemberId", "TenantId", "JoinedAt", });
+    internal_static_sdkwork_communication_app_v3_ConversationAgentAssignmentView_descriptor =
       getDescriptor().getMessageType(2);
+    internal_static_sdkwork_communication_app_v3_ConversationAgentAssignmentView_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_sdkwork_communication_app_v3_ConversationAgentAssignmentView_descriptor,
+        new java.lang.String[] { "AgentId", "RevisionId", });
+    internal_static_sdkwork_communication_app_v3_ConversationAgentAssignmentsView_descriptor =
+      getDescriptor().getMessageType(3);
+    internal_static_sdkwork_communication_app_v3_ConversationAgentAssignmentsView_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_sdkwork_communication_app_v3_ConversationAgentAssignmentsView_descriptor,
+        new java.lang.String[] { "Generation", "Source", "Agents", });
+    internal_static_sdkwork_communication_app_v3_ConversationPreferencesView_descriptor =
+      getDescriptor().getMessageType(4);
     internal_static_sdkwork_communication_app_v3_ConversationPreferencesView_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ConversationPreferencesView_descriptor,
         new java.lang.String[] { "ConversationId", "Muted", "Pinned", });
     internal_static_sdkwork_communication_app_v3_ConversationProfileView_descriptor =
-      getDescriptor().getMessageType(3);
+      getDescriptor().getMessageType(5);
     internal_static_sdkwork_communication_app_v3_ConversationProfileView_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ConversationProfileView_descriptor,
         new java.lang.String[] { "ConversationId", "Title", "AvatarUri", "Description", });
     internal_static_sdkwork_communication_app_v3_ReadCursorView_descriptor =
-      getDescriptor().getMessageType(4);
+      getDescriptor().getMessageType(6);
     internal_static_sdkwork_communication_app_v3_ReadCursorView_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ReadCursorView_descriptor,
         new java.lang.String[] { "ConversationId", "UserId", "MessageId", "EventCursor", });
     internal_static_sdkwork_communication_app_v3_ContactView_descriptor =
-      getDescriptor().getMessageType(5);
+      getDescriptor().getMessageType(7);
     internal_static_sdkwork_communication_app_v3_ContactView_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ContactView_descriptor,
         new java.lang.String[] { "ContactId", "UserId", "DisplayName", "RelationState", });
     internal_static_sdkwork_communication_app_v3_ContactTagView_descriptor =
-      getDescriptor().getMessageType(6);
+      getDescriptor().getMessageType(8);
     internal_static_sdkwork_communication_app_v3_ContactTagView_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ContactTagView_descriptor,
         new java.lang.String[] { "TagId", "Name", "Color", });
     internal_static_sdkwork_communication_app_v3_ContactPreferencesView_descriptor =
-      getDescriptor().getMessageType(7);
+      getDescriptor().getMessageType(9);
     internal_static_sdkwork_communication_app_v3_ContactPreferencesView_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ContactPreferencesView_descriptor,
         new java.lang.String[] { "AllowRecommendations", "AllowFriendRequests", });
     internal_static_sdkwork_communication_app_v3_CreateConversationRequest_descriptor =
-      getDescriptor().getMessageType(8);
+      getDescriptor().getMessageType(10);
     internal_static_sdkwork_communication_app_v3_CreateConversationRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateConversationRequest_descriptor,
-        new java.lang.String[] { "ConversationType", "Title", "MemberUserIds", "Metadata", });
+        new java.lang.String[] { "ConversationType", "Title", "MemberUserIds", "AgentAssignments", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateConversationResponse_descriptor =
-      getDescriptor().getMessageType(9);
+      getDescriptor().getMessageType(11);
     internal_static_sdkwork_communication_app_v3_CreateConversationResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateConversationResponse_descriptor,
         new java.lang.String[] { "Conversation", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateAgentDialogRequest_descriptor =
-      getDescriptor().getMessageType(10);
+      getDescriptor().getMessageType(12);
     internal_static_sdkwork_communication_app_v3_CreateAgentDialogRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateAgentDialogRequest_descriptor,
         new java.lang.String[] { "AgentId", "Title", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateAgentDialogResponse_descriptor =
-      getDescriptor().getMessageType(11);
+      getDescriptor().getMessageType(13);
     internal_static_sdkwork_communication_app_v3_CreateAgentDialogResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateAgentDialogResponse_descriptor,
         new java.lang.String[] { "Conversation", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateAgentHandoffRequest_descriptor =
-      getDescriptor().getMessageType(12);
+      getDescriptor().getMessageType(14);
     internal_static_sdkwork_communication_app_v3_CreateAgentHandoffRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateAgentHandoffRequest_descriptor,
         new java.lang.String[] { "SourceConversationId", "Reason", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateAgentHandoffResponse_descriptor =
-      getDescriptor().getMessageType(13);
+      getDescriptor().getMessageType(15);
     internal_static_sdkwork_communication_app_v3_CreateAgentHandoffResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateAgentHandoffResponse_descriptor,
         new java.lang.String[] { "Conversation", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateSystemChannelRequest_descriptor =
-      getDescriptor().getMessageType(14);
+      getDescriptor().getMessageType(16);
     internal_static_sdkwork_communication_app_v3_CreateSystemChannelRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateSystemChannelRequest_descriptor,
         new java.lang.String[] { "ChannelKey", "Title", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateSystemChannelResponse_descriptor =
-      getDescriptor().getMessageType(15);
+      getDescriptor().getMessageType(17);
     internal_static_sdkwork_communication_app_v3_CreateSystemChannelResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateSystemChannelResponse_descriptor,
         new java.lang.String[] { "Conversation", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateThreadRequest_descriptor =
-      getDescriptor().getMessageType(16);
+      getDescriptor().getMessageType(18);
     internal_static_sdkwork_communication_app_v3_CreateThreadRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateThreadRequest_descriptor,
         new java.lang.String[] { "ParentConversationId", "RootMessageId", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateThreadResponse_descriptor =
-      getDescriptor().getMessageType(17);
+      getDescriptor().getMessageType(19);
     internal_static_sdkwork_communication_app_v3_CreateThreadResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateThreadResponse_descriptor,
         new java.lang.String[] { "Conversation", "Metadata", });
     internal_static_sdkwork_communication_app_v3_BindDirectChatRequest_descriptor =
-      getDescriptor().getMessageType(18);
+      getDescriptor().getMessageType(20);
     internal_static_sdkwork_communication_app_v3_BindDirectChatRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_BindDirectChatRequest_descriptor,
         new java.lang.String[] { "PeerUserId", "Metadata", });
     internal_static_sdkwork_communication_app_v3_BindDirectChatResponse_descriptor =
-      getDescriptor().getMessageType(19);
+      getDescriptor().getMessageType(21);
     internal_static_sdkwork_communication_app_v3_BindDirectChatResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_BindDirectChatResponse_descriptor,
         new java.lang.String[] { "Conversation", "Metadata", });
     internal_static_sdkwork_communication_app_v3_RetrieveConversationRequest_descriptor =
-      getDescriptor().getMessageType(20);
+      getDescriptor().getMessageType(22);
     internal_static_sdkwork_communication_app_v3_RetrieveConversationRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_RetrieveConversationRequest_descriptor,
         new java.lang.String[] { "ConversationId", "Metadata", });
     internal_static_sdkwork_communication_app_v3_RetrieveConversationResponse_descriptor =
-      getDescriptor().getMessageType(21);
+      getDescriptor().getMessageType(23);
     internal_static_sdkwork_communication_app_v3_RetrieveConversationResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_RetrieveConversationResponse_descriptor,
         new java.lang.String[] { "Conversation", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ListInboxRequest_descriptor =
-      getDescriptor().getMessageType(22);
+      getDescriptor().getMessageType(24);
     internal_static_sdkwork_communication_app_v3_ListInboxRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ListInboxRequest_descriptor,
         new java.lang.String[] { "Page", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ListInboxResponse_descriptor =
-      getDescriptor().getMessageType(23);
+      getDescriptor().getMessageType(25);
     internal_static_sdkwork_communication_app_v3_ListInboxResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ListInboxResponse_descriptor,
         new java.lang.String[] { "Conversations", "Page", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ListConversationMembersRequest_descriptor =
-      getDescriptor().getMessageType(24);
+      getDescriptor().getMessageType(26);
     internal_static_sdkwork_communication_app_v3_ListConversationMembersRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ListConversationMembersRequest_descriptor,
         new java.lang.String[] { "ConversationId", "Page", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ListConversationMembersResponse_descriptor =
-      getDescriptor().getMessageType(25);
+      getDescriptor().getMessageType(27);
     internal_static_sdkwork_communication_app_v3_ListConversationMembersResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ListConversationMembersResponse_descriptor,
         new java.lang.String[] { "Members", "Page", "Metadata", });
+    internal_static_sdkwork_communication_app_v3_RetrieveCurrentConversationMemberRequest_descriptor =
+      getDescriptor().getMessageType(28);
+    internal_static_sdkwork_communication_app_v3_RetrieveCurrentConversationMemberRequest_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_sdkwork_communication_app_v3_RetrieveCurrentConversationMemberRequest_descriptor,
+        new java.lang.String[] { "ConversationId", "Metadata", });
+    internal_static_sdkwork_communication_app_v3_RetrieveCurrentConversationMemberResponse_descriptor =
+      getDescriptor().getMessageType(29);
+    internal_static_sdkwork_communication_app_v3_RetrieveCurrentConversationMemberResponse_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_sdkwork_communication_app_v3_RetrieveCurrentConversationMemberResponse_descriptor,
+        new java.lang.String[] { "Member", "Metadata", });
+    internal_static_sdkwork_communication_app_v3_RetrieveConversationAgentsRequest_descriptor =
+      getDescriptor().getMessageType(30);
+    internal_static_sdkwork_communication_app_v3_RetrieveConversationAgentsRequest_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_sdkwork_communication_app_v3_RetrieveConversationAgentsRequest_descriptor,
+        new java.lang.String[] { "ConversationId", "Metadata", });
+    internal_static_sdkwork_communication_app_v3_RetrieveConversationAgentsResponse_descriptor =
+      getDescriptor().getMessageType(31);
+    internal_static_sdkwork_communication_app_v3_RetrieveConversationAgentsResponse_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_sdkwork_communication_app_v3_RetrieveConversationAgentsResponse_descriptor,
+        new java.lang.String[] { "Assignments", "Metadata", });
+    internal_static_sdkwork_communication_app_v3_UpdateConversationAgentsRequest_descriptor =
+      getDescriptor().getMessageType(32);
+    internal_static_sdkwork_communication_app_v3_UpdateConversationAgentsRequest_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_sdkwork_communication_app_v3_UpdateConversationAgentsRequest_descriptor,
+        new java.lang.String[] { "ConversationId", "ExpectedGeneration", "AgentAssignments", "Metadata", });
+    internal_static_sdkwork_communication_app_v3_UpdateConversationAgentsResponse_descriptor =
+      getDescriptor().getMessageType(33);
+    internal_static_sdkwork_communication_app_v3_UpdateConversationAgentsResponse_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_sdkwork_communication_app_v3_UpdateConversationAgentsResponse_descriptor,
+        new java.lang.String[] { "Assignments", "Metadata", });
     internal_static_sdkwork_communication_app_v3_AddConversationMemberRequest_descriptor =
-      getDescriptor().getMessageType(26);
+      getDescriptor().getMessageType(34);
     internal_static_sdkwork_communication_app_v3_AddConversationMemberRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_AddConversationMemberRequest_descriptor,
         new java.lang.String[] { "ConversationId", "UserId", "Role", "Metadata", });
     internal_static_sdkwork_communication_app_v3_AddConversationMemberResponse_descriptor =
-      getDescriptor().getMessageType(27);
+      getDescriptor().getMessageType(35);
     internal_static_sdkwork_communication_app_v3_AddConversationMemberResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_AddConversationMemberResponse_descriptor,
         new java.lang.String[] { "Member", "Metadata", });
     internal_static_sdkwork_communication_app_v3_RemoveConversationMemberRequest_descriptor =
-      getDescriptor().getMessageType(28);
+      getDescriptor().getMessageType(36);
     internal_static_sdkwork_communication_app_v3_RemoveConversationMemberRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_RemoveConversationMemberRequest_descriptor,
         new java.lang.String[] { "ConversationId", "UserId", "Metadata", });
     internal_static_sdkwork_communication_app_v3_RemoveConversationMemberResponse_descriptor =
-      getDescriptor().getMessageType(29);
+      getDescriptor().getMessageType(37);
     internal_static_sdkwork_communication_app_v3_RemoveConversationMemberResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_RemoveConversationMemberResponse_descriptor,
         new java.lang.String[] { "ConversationId", "UserId", "Status", "Metadata", });
     internal_static_sdkwork_communication_app_v3_TransferConversationOwnerRequest_descriptor =
-      getDescriptor().getMessageType(30);
+      getDescriptor().getMessageType(38);
     internal_static_sdkwork_communication_app_v3_TransferConversationOwnerRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_TransferConversationOwnerRequest_descriptor,
         new java.lang.String[] { "ConversationId", "NewOwnerUserId", "Metadata", });
     internal_static_sdkwork_communication_app_v3_TransferConversationOwnerResponse_descriptor =
-      getDescriptor().getMessageType(31);
+      getDescriptor().getMessageType(39);
     internal_static_sdkwork_communication_app_v3_TransferConversationOwnerResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_TransferConversationOwnerResponse_descriptor,
         new java.lang.String[] { "Conversation", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ChangeConversationMemberRoleRequest_descriptor =
-      getDescriptor().getMessageType(32);
+      getDescriptor().getMessageType(40);
     internal_static_sdkwork_communication_app_v3_ChangeConversationMemberRoleRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ChangeConversationMemberRoleRequest_descriptor,
         new java.lang.String[] { "ConversationId", "UserId", "Role", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ChangeConversationMemberRoleResponse_descriptor =
-      getDescriptor().getMessageType(33);
+      getDescriptor().getMessageType(41);
     internal_static_sdkwork_communication_app_v3_ChangeConversationMemberRoleResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ChangeConversationMemberRoleResponse_descriptor,
         new java.lang.String[] { "Member", "Metadata", });
     internal_static_sdkwork_communication_app_v3_LeaveConversationRequest_descriptor =
-      getDescriptor().getMessageType(34);
+      getDescriptor().getMessageType(42);
     internal_static_sdkwork_communication_app_v3_LeaveConversationRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_LeaveConversationRequest_descriptor,
         new java.lang.String[] { "ConversationId", "Metadata", });
     internal_static_sdkwork_communication_app_v3_LeaveConversationResponse_descriptor =
-      getDescriptor().getMessageType(35);
+      getDescriptor().getMessageType(43);
     internal_static_sdkwork_communication_app_v3_LeaveConversationResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_LeaveConversationResponse_descriptor,
         new java.lang.String[] { "ConversationId", "Status", "Metadata", });
     internal_static_sdkwork_communication_app_v3_RetrieveConversationPreferencesRequest_descriptor =
-      getDescriptor().getMessageType(36);
+      getDescriptor().getMessageType(44);
     internal_static_sdkwork_communication_app_v3_RetrieveConversationPreferencesRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_RetrieveConversationPreferencesRequest_descriptor,
         new java.lang.String[] { "ConversationId", "Metadata", });
     internal_static_sdkwork_communication_app_v3_RetrieveConversationPreferencesResponse_descriptor =
-      getDescriptor().getMessageType(37);
+      getDescriptor().getMessageType(45);
     internal_static_sdkwork_communication_app_v3_RetrieveConversationPreferencesResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_RetrieveConversationPreferencesResponse_descriptor,
         new java.lang.String[] { "Preferences", "Metadata", });
     internal_static_sdkwork_communication_app_v3_UpdateConversationPreferencesRequest_descriptor =
-      getDescriptor().getMessageType(38);
+      getDescriptor().getMessageType(46);
     internal_static_sdkwork_communication_app_v3_UpdateConversationPreferencesRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_UpdateConversationPreferencesRequest_descriptor,
         new java.lang.String[] { "ConversationId", "Muted", "Pinned", "Metadata", });
     internal_static_sdkwork_communication_app_v3_UpdateConversationPreferencesResponse_descriptor =
-      getDescriptor().getMessageType(39);
+      getDescriptor().getMessageType(47);
     internal_static_sdkwork_communication_app_v3_UpdateConversationPreferencesResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_UpdateConversationPreferencesResponse_descriptor,
         new java.lang.String[] { "Preferences", "Metadata", });
     internal_static_sdkwork_communication_app_v3_RetrieveConversationProfileRequest_descriptor =
-      getDescriptor().getMessageType(40);
+      getDescriptor().getMessageType(48);
     internal_static_sdkwork_communication_app_v3_RetrieveConversationProfileRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_RetrieveConversationProfileRequest_descriptor,
         new java.lang.String[] { "ConversationId", "Metadata", });
     internal_static_sdkwork_communication_app_v3_RetrieveConversationProfileResponse_descriptor =
-      getDescriptor().getMessageType(41);
+      getDescriptor().getMessageType(49);
     internal_static_sdkwork_communication_app_v3_RetrieveConversationProfileResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_RetrieveConversationProfileResponse_descriptor,
         new java.lang.String[] { "Profile", "Metadata", });
     internal_static_sdkwork_communication_app_v3_UpdateConversationProfileRequest_descriptor =
-      getDescriptor().getMessageType(42);
+      getDescriptor().getMessageType(50);
     internal_static_sdkwork_communication_app_v3_UpdateConversationProfileRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_UpdateConversationProfileRequest_descriptor,
         new java.lang.String[] { "ConversationId", "Title", "AvatarUri", "Description", "Metadata", });
     internal_static_sdkwork_communication_app_v3_UpdateConversationProfileResponse_descriptor =
-      getDescriptor().getMessageType(43);
+      getDescriptor().getMessageType(51);
     internal_static_sdkwork_communication_app_v3_UpdateConversationProfileResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_UpdateConversationProfileResponse_descriptor,
         new java.lang.String[] { "Profile", "Metadata", });
     internal_static_sdkwork_communication_app_v3_RetrieveReadCursorRequest_descriptor =
-      getDescriptor().getMessageType(44);
+      getDescriptor().getMessageType(52);
     internal_static_sdkwork_communication_app_v3_RetrieveReadCursorRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_RetrieveReadCursorRequest_descriptor,
         new java.lang.String[] { "ConversationId", "Metadata", });
     internal_static_sdkwork_communication_app_v3_RetrieveReadCursorResponse_descriptor =
-      getDescriptor().getMessageType(45);
+      getDescriptor().getMessageType(53);
     internal_static_sdkwork_communication_app_v3_RetrieveReadCursorResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_RetrieveReadCursorResponse_descriptor,
         new java.lang.String[] { "Cursor", "Metadata", });
     internal_static_sdkwork_communication_app_v3_UpdateReadCursorRequest_descriptor =
-      getDescriptor().getMessageType(46);
+      getDescriptor().getMessageType(54);
     internal_static_sdkwork_communication_app_v3_UpdateReadCursorRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_UpdateReadCursorRequest_descriptor,
         new java.lang.String[] { "ConversationId", "MessageId", "EventCursor", "Metadata", });
     internal_static_sdkwork_communication_app_v3_UpdateReadCursorResponse_descriptor =
-      getDescriptor().getMessageType(47);
+      getDescriptor().getMessageType(55);
     internal_static_sdkwork_communication_app_v3_UpdateReadCursorResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_UpdateReadCursorResponse_descriptor,
         new java.lang.String[] { "Cursor", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ListConversationMemberDirectoryRequest_descriptor =
-      getDescriptor().getMessageType(48);
+      getDescriptor().getMessageType(56);
     internal_static_sdkwork_communication_app_v3_ListConversationMemberDirectoryRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ListConversationMemberDirectoryRequest_descriptor,
         new java.lang.String[] { "ConversationId", "Query", "Page", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ListConversationMemberDirectoryResponse_descriptor =
-      getDescriptor().getMessageType(49);
+      getDescriptor().getMessageType(57);
     internal_static_sdkwork_communication_app_v3_ListConversationMemberDirectoryResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ListConversationMemberDirectoryResponse_descriptor,
         new java.lang.String[] { "Members", "Page", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ListPinnedMessagesRequest_descriptor =
-      getDescriptor().getMessageType(50);
+      getDescriptor().getMessageType(58);
     internal_static_sdkwork_communication_app_v3_ListPinnedMessagesRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ListPinnedMessagesRequest_descriptor,
         new java.lang.String[] { "ConversationId", "Page", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ListPinnedMessagesResponse_descriptor =
-      getDescriptor().getMessageType(51);
+      getDescriptor().getMessageType(59);
     internal_static_sdkwork_communication_app_v3_ListPinnedMessagesResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ListPinnedMessagesResponse_descriptor,
         new java.lang.String[] { "MessageIds", "Page", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ListContactsRequest_descriptor =
-      getDescriptor().getMessageType(52);
+      getDescriptor().getMessageType(60);
     internal_static_sdkwork_communication_app_v3_ListContactsRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ListContactsRequest_descriptor,
         new java.lang.String[] { "Page", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ListContactsResponse_descriptor =
-      getDescriptor().getMessageType(53);
+      getDescriptor().getMessageType(61);
     internal_static_sdkwork_communication_app_v3_ListContactsResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ListContactsResponse_descriptor,
         new java.lang.String[] { "Contacts", "Page", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ListContactTagsRequest_descriptor =
-      getDescriptor().getMessageType(54);
+      getDescriptor().getMessageType(62);
     internal_static_sdkwork_communication_app_v3_ListContactTagsRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ListContactTagsRequest_descriptor,
         new java.lang.String[] { "Page", "Metadata", });
     internal_static_sdkwork_communication_app_v3_ListContactTagsResponse_descriptor =
-      getDescriptor().getMessageType(55);
+      getDescriptor().getMessageType(63);
     internal_static_sdkwork_communication_app_v3_ListContactTagsResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_ListContactTagsResponse_descriptor,
         new java.lang.String[] { "Tags", "Page", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateContactTagRequest_descriptor =
-      getDescriptor().getMessageType(56);
+      getDescriptor().getMessageType(64);
     internal_static_sdkwork_communication_app_v3_CreateContactTagRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateContactTagRequest_descriptor,
         new java.lang.String[] { "Name", "Color", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateContactTagResponse_descriptor =
-      getDescriptor().getMessageType(57);
+      getDescriptor().getMessageType(65);
     internal_static_sdkwork_communication_app_v3_CreateContactTagResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateContactTagResponse_descriptor,
         new java.lang.String[] { "Tag", "Metadata", });
     internal_static_sdkwork_communication_app_v3_UpdateContactTagRequest_descriptor =
-      getDescriptor().getMessageType(58);
+      getDescriptor().getMessageType(66);
     internal_static_sdkwork_communication_app_v3_UpdateContactTagRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_UpdateContactTagRequest_descriptor,
         new java.lang.String[] { "TagId", "Name", "Color", "Metadata", });
     internal_static_sdkwork_communication_app_v3_UpdateContactTagResponse_descriptor =
-      getDescriptor().getMessageType(59);
+      getDescriptor().getMessageType(67);
     internal_static_sdkwork_communication_app_v3_UpdateContactTagResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_UpdateContactTagResponse_descriptor,
         new java.lang.String[] { "Tag", "Metadata", });
     internal_static_sdkwork_communication_app_v3_DeleteContactTagRequest_descriptor =
-      getDescriptor().getMessageType(60);
+      getDescriptor().getMessageType(68);
     internal_static_sdkwork_communication_app_v3_DeleteContactTagRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_DeleteContactTagRequest_descriptor,
         new java.lang.String[] { "TagId", "Metadata", });
     internal_static_sdkwork_communication_app_v3_DeleteContactTagResponse_descriptor =
-      getDescriptor().getMessageType(61);
+      getDescriptor().getMessageType(69);
     internal_static_sdkwork_communication_app_v3_DeleteContactTagResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_DeleteContactTagResponse_descriptor,
         new java.lang.String[] { "TagId", "Status", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateContactRecommendationRequest_descriptor =
-      getDescriptor().getMessageType(62);
+      getDescriptor().getMessageType(70);
     internal_static_sdkwork_communication_app_v3_CreateContactRecommendationRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateContactRecommendationRequest_descriptor,
         new java.lang.String[] { "Basis", "Metadata", });
     internal_static_sdkwork_communication_app_v3_CreateContactRecommendationResponse_descriptor =
-      getDescriptor().getMessageType(63);
+      getDescriptor().getMessageType(71);
     internal_static_sdkwork_communication_app_v3_CreateContactRecommendationResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_CreateContactRecommendationResponse_descriptor,
         new java.lang.String[] { "Contacts", "Metadata", });
     internal_static_sdkwork_communication_app_v3_RetrieveContactPreferencesRequest_descriptor =
-      getDescriptor().getMessageType(64);
+      getDescriptor().getMessageType(72);
     internal_static_sdkwork_communication_app_v3_RetrieveContactPreferencesRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_RetrieveContactPreferencesRequest_descriptor,
         new java.lang.String[] { "Metadata", });
     internal_static_sdkwork_communication_app_v3_RetrieveContactPreferencesResponse_descriptor =
-      getDescriptor().getMessageType(65);
+      getDescriptor().getMessageType(73);
     internal_static_sdkwork_communication_app_v3_RetrieveContactPreferencesResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_RetrieveContactPreferencesResponse_descriptor,
         new java.lang.String[] { "Preferences", "Metadata", });
     internal_static_sdkwork_communication_app_v3_UpdateContactPreferencesRequest_descriptor =
-      getDescriptor().getMessageType(66);
+      getDescriptor().getMessageType(74);
     internal_static_sdkwork_communication_app_v3_UpdateContactPreferencesRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_UpdateContactPreferencesRequest_descriptor,
         new java.lang.String[] { "AllowRecommendations", "AllowFriendRequests", "Metadata", });
     internal_static_sdkwork_communication_app_v3_UpdateContactPreferencesResponse_descriptor =
-      getDescriptor().getMessageType(67);
+      getDescriptor().getMessageType(75);
     internal_static_sdkwork_communication_app_v3_UpdateContactPreferencesResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_app_v3_UpdateContactPreferencesResponse_descriptor,

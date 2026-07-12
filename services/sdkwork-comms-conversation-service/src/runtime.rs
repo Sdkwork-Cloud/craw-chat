@@ -32,6 +32,11 @@ use im_domain_core::message::{
     MessageUnpinned, ReactionActorIdentity, Sender,
 };
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
+pub use im_platform_contracts::{
+    AGENT_MENTION_DISPATCH_EVENT_TYPE, AGENT_MENTION_DISPATCH_OUTBOX_AGGREGATE_TYPE,
+    AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA, AGENT_MENTION_DISPATCH_SCHEMA_VERSION,
+    AgentMentionDispatchRequest, AgentMentionDispatchTarget,
+};
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_utils_rust::SdkWorkPageData;
 use sdkwork_utils_rust::sha256_hash;
@@ -39,6 +44,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
 
 mod actor_inbox;
+mod agent_dispatch;
 mod agents;
 mod binding;
 #[cfg(test)]
@@ -46,6 +52,7 @@ mod bounded_soak_tests;
 mod creation;
 mod cursor_signing;
 mod direct_message_access;
+mod durable_conversation_event;
 mod durable_message_post;
 mod governance;
 mod handoff;
@@ -83,6 +90,7 @@ use self::support::{
     upsert_read_cursor, upsert_roster_member,
 };
 pub use direct_message_access::DirectMessageAccessGate;
+pub use durable_conversation_event::DurableConversationEventWriter;
 pub use durable_message_post::DurableMessagePostWriter;
 pub use http::{
     PrincipalDirectory, PrincipalDirectoryError, StaticPrincipalDirectory,
@@ -108,12 +116,14 @@ const MESSAGE_RENDER_HINTS_MAX_BYTES: usize = 64 * 1024;
 const CONVERSATION_MAX_REASON_BYTES: usize = 8 * 1024;
 const CONVERSATION_MAX_REQUEST_KEY_BYTES: usize = 2048;
 const MESSAGE_CLIENT_MSG_ID_MAX_BYTES: usize = 256;
+const MESSAGE_MENTION_DISPLAY_TEXT_MAX_CHARACTERS: usize = 512;
 const MESSAGE_REACTION_KEY_MAX_BYTES: usize = 128;
 const MESSAGE_BODY_MAX_BYTES: usize = 512 * 1024;
 const MESSAGE_HISTORY_DEFAULT_LIMIT: usize = 20;
 const MESSAGE_HISTORY_MAX_LIMIT: usize = 200;
 const CONVERSATION_MEMBER_LIST_DEFAULT_LIMIT: usize = 20;
 pub(super) const CONVERSATION_MEMBER_LIST_MAX_LIMIT: usize = CONVERSATION_AGGREGATE_PAGE_SIZE_MAX;
+const CONVERSATION_MAX_INITIAL_MEMBER_COUNT: usize = 200;
 const CONVERSATION_CREATE_DELIVERY_PROOF_VERSION: &str = "conversation.create.delivery-proof.v1";
 const CONVERSATION_MESSAGE_DELIVERY_PROOF_VERSION: &str = "conversation.message.delivery-proof.v1";
 const CONVERSATION_MAX_IN_MEMORY_DEFAULT: usize = 10_000;
@@ -440,6 +450,8 @@ struct GenericConversationCreateReplayRecord {
     creator_id: String,
     creator_kind: String,
     requested_kind: String,
+    initial_member_user_ids: Vec<String>,
+    initial_agent_assignments: Option<Vec<ConversationAgentAssignment>>,
     event_id: String,
 }
 
@@ -1566,6 +1578,11 @@ struct ConversationState {
     aggregate: ConversationAggregateState,
     roster: ConversationRoster,
     message_log: ConversationMessageLog,
+    /// Keyset cursor of the last journal page examined by the focused agent
+    /// assignment refresher. This is deliberately separate from the domain
+    /// aggregate ordering sequence: PostgreSQL's `commit_offset` and the
+    /// aggregate `ordering_seq` are different coordinates.
+    agent_metadata_journal_cursor: Option<CommitJournalReplayCursor>,
     generic_create_request: Option<GenericConversationCreateReplayRecord>,
     agent_dialog_create_request: Option<AgentDialogCreateReplayRecord>,
     system_channel_create_request: Option<SystemChannelCreateReplayRecord>,
@@ -1966,10 +1983,26 @@ fn validate_message_body_size(body: &MessageBody) -> Result<(), RuntimeError> {
 
 fn validate_message_body_semantics(body: &MessageBody) -> Result<(), RuntimeError> {
     for (index, part) in body.parts.iter().enumerate() {
-        if let ContentPart::Media(media_part) = part {
-            let drive = &media_part.drive;
-            validate_media_drive_reference(index, drive)?;
-            validate_media_resource_drive_snapshot(index, &media_part.resource, drive)?;
+        match part {
+            ContentPart::Media(media_part) => {
+                let drive = &media_part.drive;
+                validate_media_drive_reference(index, drive)?;
+                validate_media_resource_drive_snapshot(index, &media_part.resource, drive)?;
+            }
+            ContentPart::Mention(mention_part) => {
+                if mention_part.display_text.trim().is_empty() {
+                    return Err(RuntimeError::InvalidInput(format!(
+                        "message body parts[{index}].displayText must not be empty"
+                    )));
+                }
+                let character_count = mention_part.display_text.chars().count();
+                if character_count > MESSAGE_MENTION_DISPLAY_TEXT_MAX_CHARACTERS {
+                    return Err(RuntimeError::InvalidInput(format!(
+                        "message body parts[{index}].displayText must not exceed {MESSAGE_MENTION_DISPLAY_TEXT_MAX_CHARACTERS} characters: {character_count}"
+                    )));
+                }
+            }
+            _ => {}
         }
     }
     Ok(())
@@ -2116,10 +2149,14 @@ fn generic_conversation_create_replay_matches(
     existing: &GenericConversationCreateReplayRecord,
     command: &CreateConversationCommand,
     creator_kind: &str,
+    initial_member_user_ids: &[String],
+    initial_agent_assignments: Option<&[ConversationAgentAssignment]>,
 ) -> bool {
-    existing.creator_id == command.creator_id
-        && existing.creator_kind == creator_kind
+    (existing.creator_id.is_empty() || existing.creator_id == command.creator_id)
+        && (existing.creator_kind.is_empty() || existing.creator_kind == creator_kind)
         && existing.requested_kind == command.conversation_type
+        && existing.initial_member_user_ids == initial_member_user_ids
+        && existing.initial_agent_assignments.as_deref() == initial_agent_assignments
 }
 
 fn agent_dialog_create_request_key(
@@ -2291,6 +2328,23 @@ fn posted_message_replay_matches(
         && existing.sender_kind == command.sender.kind
         && existing.message_type == command.message_type
         && existing.body == command.body
+}
+
+fn durable_posted_message_replay_matches(
+    existing: &StoredMessageRecord,
+    command: &PostMessageCommand,
+) -> Result<bool, RuntimeError> {
+    let stored_body = serde_json::from_str::<MessageBody>(existing.payload_json.as_str())
+        .map_err(|_| RuntimeError::Conflict("stored message replay payload is invalid".into()))?;
+    Ok(existing.tenant_id == command.tenant_id
+        && im_domain_events::normalize_commit_organization_id(existing.organization_id.as_str())
+            == im_domain_events::normalize_commit_organization_id(command.organization_id.as_str())
+        && existing.conversation_id == command.conversation_id
+        && existing.sender_principal_kind == command.sender.kind
+        && existing.sender_principal_id == command.sender.id
+        && existing.client_msg_id == command.client_msg_id
+        && existing.message_type == command.message_type.as_wire_value()
+        && stored_body == command.body)
 }
 
 fn rtc_session_id_from_signal_message(command: &PostMessageCommand) -> Option<String> {
@@ -2552,6 +2606,7 @@ pub struct ConversationRuntime<J> {
     direct_message_access_gate: Option<Arc<dyn DirectMessageAccessGate>>,
     /// 可选的原子消息写入器（Postgres journal + message + outbox 单事务）。
     durable_message_post_writer: Option<Arc<dyn DurableMessagePostWriter>>,
+    durable_conversation_event_writer: Option<Arc<dyn DurableConversationEventWriter>>,
 }
 
 impl<J> ConversationRuntime<J>
@@ -2573,6 +2628,7 @@ where
             realtime_publisher: None,
             direct_message_access_gate: None,
             durable_message_post_writer: None,
+            durable_conversation_event_writer: None,
         }
     }
 
@@ -2618,6 +2674,14 @@ where
         writer: Arc<dyn DurableMessagePostWriter>,
     ) -> Self {
         self.durable_message_post_writer = Some(writer);
+        self
+    }
+
+    pub fn with_durable_conversation_event_writer(
+        mut self,
+        writer: Arc<dyn DurableConversationEventWriter>,
+    ) -> Self {
+        self.durable_conversation_event_writer = Some(writer);
         self
     }
 
@@ -2981,21 +3045,10 @@ where
             normalized_organization_id.as_str(),
             conversation_id,
         );
-        {
-            let state = read_runtime_state(&self.state, "runtime.state.ensure_member_loaded.hot");
-            if state
-                .conversations
-                .get(scope_key.as_str())
-                .and_then(|conversation| {
-                    conversation
-                        .roster
-                        .resolve_current_member_with_kind(principal_id, principal_kind)
-                })
-                .is_some()
-            {
-                return Ok(());
-            }
-        }
+        // A durable aggregate store is the authority for permission-sensitive
+        // membership.  Do not short-circuit on the local roster when it is
+        // configured: another runtime instance may have removed or demoted
+        // this principal since the conversation was cached here.
         let Some(aggregate_store) = self.aggregate_store.as_ref() else {
             return Ok(());
         };
@@ -3007,28 +3060,38 @@ where
             principal_id,
         )?
         else {
-            return Ok(());
+            // Once a durable aggregate store is configured, absence is an
+            // authoritative denial.  Falling back to a hot/journal roster
+            // here would let a hard-deleted member retain access until cache
+            // eviction.  Runtimes without an aggregate store continue to use
+            // the in-memory recovery path above.
+            return Err(RuntimeError::PermissionDenied(format!(
+                "principal is not active conversation member: {principal_kind}:{principal_id}"
+            )));
         };
         let member = conversation_member_from_record(&member_record);
-        let mut state = write_runtime_state(
-            &self.state,
-            "conversation-runtime.state.ensure_member_loaded.hydrate",
-        );
-        let conversation = state
-            .conversations
-            .get_mut(scope_key.as_str())
-            .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
-        if conversation
-            .roster
-            .resolve_current_member_with_kind(principal_id, principal_kind)
-            .is_none()
         {
+            let mut state = write_runtime_state(
+                &self.state,
+                "conversation-runtime.state.ensure_member_loaded.authoritative",
+            );
+            let conversation = state
+                .conversations
+                .get_mut(scope_key.as_str())
+                .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+            // Always replace the cached copy.  This updates role/state after
+            // a cross-instance mutation instead of retaining the old roster
+            // entry merely because it already exists in memory.
             conversation.roster.upsert_member(member.clone());
             state.sync_actor_inbox_member(normalized_organization_id.as_str(), &member);
+            state.touch_conversation(scope_key.as_str());
         }
-        state.touch_conversation(scope_key.as_str());
-        drop(state);
         self.maybe_evict_after_write();
+        if !member.is_active() {
+            return Err(RuntimeError::PermissionDenied(format!(
+                "principal is not active conversation member: {principal_kind}:{principal_id}"
+            )));
+        }
         Ok(())
     }
 
@@ -3219,6 +3282,12 @@ where
                                 command.sender.id.as_str(),
                                 client_msg_id,
                             )? {
+                                if !durable_posted_message_replay_matches(&stored, &command)? {
+                                    return Err(RuntimeError::Conflict(
+                                        "message post request conflicts with existing durable client message id"
+                                            .into(),
+                                    ));
+                                }
                                 break 'post_new PostMessageMutation::Replayed(
                                     PostMessageResult::replayed(
                                         stored.message_id.to_string(),
@@ -3260,7 +3329,7 @@ where
                                 )?
                             }
                         }
-                        let _resolved_agent_mentions = agents::resolve_message_agent_mentions(
+                        let resolved_agent_mentions = agents::resolve_message_agent_mentions(
                             conversation,
                             &sender_member,
                             &command.body,
@@ -3325,7 +3394,19 @@ where
                             retention_class.as_str(),
                             message.occurred_at.as_str(),
                         );
-                        let journal_ordering_seq = conversation.aggregate.next_commit_seq();
+                        // Allocate ordering slots without mutating the live
+                        // aggregate. A durable journal/outbox failure must
+                        // not leave a phantom commit sequence in memory.
+                        let journal_ordering_seq = conversation
+                            .aggregate
+                            .commit_seq()
+                            .checked_add(1)
+                            .ok_or_else(|| {
+                                RuntimeError::Conflict(
+                                    "conversation journal ordering sequence overflow".into(),
+                                )
+                            })?;
+                        let mut last_ordering_seq = journal_ordering_seq;
                         let envelope = CommitEnvelope {
                             event_id: event_id.clone(),
                             tenant_id: command.tenant_id.clone(),
@@ -3356,9 +3437,41 @@ where
                                 .unwrap_or_else(|| message.occurred_at.clone()),
                             payload_schema: Some("message.posted.v1".into()),
                             payload: runtime_json_string(&message)?,
-                            retention_class,
+                            retention_class: retention_class.clone(),
                             audit_class: "default".into(),
                         };
+
+                        let mut journal_envelopes = vec![envelope];
+                        let mut outboxes = Vec::new();
+                        if let Some(outbox) = self.build_message_posted_outbox_record(
+                            command.tenant_id.as_str(),
+                            command.organization_id.as_str(),
+                            &message,
+                        )? {
+                            outboxes.push(outbox);
+                        }
+                        if !resolved_agent_mentions.is_empty() {
+                            let dispatch_ordering_seq =
+                                journal_ordering_seq.checked_add(1).ok_or_else(|| {
+                                    RuntimeError::Conflict(
+                                        "conversation journal ordering sequence overflow".into(),
+                                    )
+                                })?;
+                            last_ordering_seq = dispatch_ordering_seq;
+                            if let Some(dispatch) = self.build_agent_mention_dispatch_artifacts(
+                                command.organization_id.as_str(),
+                                &message,
+                                event_id.as_str(),
+                                resolved_agent_mentions.as_slice(),
+                                dispatch_ordering_seq,
+                                retention_class.as_str(),
+                            )? {
+                                if let Some(outbox) = dispatch.outbox {
+                                    outboxes.push(outbox);
+                                }
+                                journal_envelopes.push(dispatch.envelope);
+                            }
+                        }
 
                         let stored_record = StoredMessageRecord {
                             tenant_id: message.tenant_id.clone(),
@@ -3380,23 +3493,38 @@ where
                         };
 
                         if let Some(writer) = &self.durable_message_post_writer {
-                            let outbox = self.build_message_posted_outbox_record(
-                                command.tenant_id.as_str(),
-                                command.organization_id.as_str(),
-                                &message,
-                            )?;
                             writer
-                                .persist_message_post(envelope, stored_record, outbox)
+                                .persist_message_post_batch(
+                                    journal_envelopes,
+                                    stored_record,
+                                    outboxes,
+                                )
                                 .map_err(RuntimeError::from)?;
                         } else {
-                            self.journal.append(envelope)?;
+                            self.journal.append_batch(journal_envelopes)?;
 
                             if let Some(store) = &self.message_store {
                                 store
                                     .insert_message(stored_record)
                                     .map_err(RuntimeError::from)?;
                             }
+                            if let Some(outbox_store) = &self.outbox_store {
+                                for outbox in outboxes {
+                                    if let Err(error) = outbox_store.enqueue(outbox) {
+                                        tracing::warn!(
+                                            conversation_id = %message.conversation_id,
+                                            message_id = %message.message_id,
+                                            error = ?error,
+                                            "agent/message outbox enqueue failed after journal commit; durable dispatch event remains replayable"
+                                        );
+                                    }
+                                }
+                            }
                         }
+
+                        // Publish the in-memory watermark only after the
+                        // journal/message/outbox transaction has committed.
+                        conversation.aggregate.observe_commit_seq(last_ordering_seq);
 
                         let evicted_message_ids =
                             conversation.message_log.store_posted(message.clone());
@@ -4383,7 +4511,13 @@ where
         actor_kind: &str,
         capability: &str,
     ) -> Result<(), RuntimeError> {
-        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
+        self.ensure_member_loaded(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            actor_kind,
+            principal_id,
+        )?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(
             &self.state,
@@ -4654,6 +4788,55 @@ mod tests {
             render_hints: BTreeMap::new(),
             reply_to: None,
         }
+    }
+
+    fn mention_message_body_for_test(display_text: impl Into<String>) -> MessageBody {
+        MessageBody {
+            summary: None,
+            parts: vec![ContentPart::Mention(im_domain_core::message::MentionPart {
+                target_kind: im_domain_core::message::MentionTargetKind::Agent,
+                target_id: "agent.im.default".into(),
+                display_text: display_text.into(),
+                assignment_generation: 1,
+            })],
+            render_hints: BTreeMap::new(),
+            reply_to: None,
+        }
+    }
+
+    #[test]
+    fn test_message_body_rejects_blank_agent_mention_display_text() {
+        let body = mention_message_body_for_test(" \t\r\n ");
+
+        let result = validate_message_body_contract(&body);
+
+        assert!(matches!(
+            result,
+            Err(RuntimeError::InvalidInput(message))
+                if message.contains("parts[0].displayText")
+                    && message.contains("must not be empty")
+        ));
+    }
+
+    #[test]
+    fn test_message_body_limits_agent_mention_display_text_by_characters() {
+        let maximum_length = mention_message_body_for_test(
+            "\u{667a}".repeat(MESSAGE_MENTION_DISPLAY_TEXT_MAX_CHARACTERS),
+        );
+        validate_message_body_contract(&maximum_length)
+            .expect("a 512-character Unicode mention label should remain valid");
+
+        let oversized = mention_message_body_for_test(
+            "\u{667a}".repeat(MESSAGE_MENTION_DISPLAY_TEXT_MAX_CHARACTERS + 1),
+        );
+        let result = validate_message_body_contract(&oversized);
+
+        assert!(matches!(
+            result,
+            Err(RuntimeError::InvalidInput(message))
+                if message.contains("parts[0].displayText")
+                    && message.contains("must not exceed 512 characters")
+        ));
     }
 
     #[test]

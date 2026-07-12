@@ -28,6 +28,7 @@
     "test:pc-realtime-connection": "node ../../scripts/dev/run-tsx-cli.mjs scripts/pc-realtime-connection-contract.test.ts",
     "test:chat-auth-realtime-guard": "node ../../scripts/dev/run-tsx-cli.mjs scripts/chat-auth-realtime-guard-contract.test.ts",
     "test:chat-message-pagination": "node scripts/chat-message-pagination-contract.test.mjs",
+    "test:agent-group-chat": "node ../../scripts/dev/run-tsx-cli.mjs scripts/agent-group-chat-contract.test.ts",
     "test:workspace": "pnpm run test:workspace-workbench && pnpm run test:workspace-service",
     "test:workspace-workbench": "node scripts/workspace-workbench-contract.test.mjs",
     "test:workspace-service": "node ../../scripts/dev/run-tsx-cli.mjs --tsconfig scripts/workspace-service-test.tsconfig.json scripts/workspace-service-contract.test.ts",

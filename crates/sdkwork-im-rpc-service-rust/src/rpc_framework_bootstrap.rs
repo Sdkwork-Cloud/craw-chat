@@ -72,9 +72,13 @@ fn static_endpoint_configured() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rpc_client_bootstrap::RPC_RESOLVER_ENV_LOCK;
 
     #[test]
     fn skips_client_inventory_when_no_resolver_env_is_configured() {
+        let _env_guard = RPC_RESOLVER_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         unsafe {
             std::env::remove_var(IM_RPC_RESOLVER_PROFILE_ENV);
             std::env::remove_var(IM_RPC_STATIC_ENDPOINT_ENV);

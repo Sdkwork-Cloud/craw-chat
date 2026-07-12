@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use crate::helpers::rtc_session_scope_key;
     use crate::state::{CallingRuntime, RuntimeMemoryStateStore};
     use im_domain_core::rtc::SessionState;
     use std::sync::Arc;
@@ -251,14 +252,18 @@ mod tests {
             .invite_session(&auth, "rtc_invite_1", invite)
             .expect("invite should succeed");
         assert_eq!(invited.participants.invited_ids.len(), 2);
-        assert!(invited
-            .participants
-            .invited_ids
-            .contains(&"user-2".to_owned()));
-        assert!(invited
-            .participants
-            .invited_ids
-            .contains(&"user-3".to_owned()));
+        assert!(
+            invited
+                .participants
+                .invited_ids
+                .contains(&"user-2".to_owned())
+        );
+        assert!(
+            invited
+                .participants
+                .invited_ids
+                .contains(&"user-3".to_owned())
+        );
 
         // Idempotent: re-inviting the same participants does not duplicate.
         let invite_again = crate::dto::InviteRtcSessionRequest {
@@ -393,7 +398,7 @@ mod tests {
         {
             let mut session = runtime
                 .sessions
-                .get_mut("100001:rtc_connected_long_call")
+                .get_mut(rtc_session_scope_key("100001", "rtc_connected_long_call").as_str())
                 .expect("session cached");
             session.state = SessionState::Connected;
             session.started_at = "2000-01-01T00:00:00.000Z".into();
@@ -427,7 +432,7 @@ mod tests {
         {
             let mut session = runtime
                 .sessions
-                .get_mut("100001:rtc_stale_ringing")
+                .get_mut(rtc_session_scope_key("100001", "rtc_stale_ringing").as_str())
                 .expect("session cached");
             session.started_at = "2000-01-01T00:00:00.000Z".into();
             session.last_activity_at = Some("2000-01-01T00:00:00.000Z".into());

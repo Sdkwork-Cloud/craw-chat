@@ -1,7 +1,7 @@
 use im_adapters_postgres_journal::{
     PostgresAggregateStore, PostgresCommitJournal, PostgresConversationSeqAllocator,
-    PostgresDurableMessagePostWriter, PostgresJournalConfig, PostgresMessageStore,
-    PostgresOutboxStore, PostgresRetentionScopeStore,
+    PostgresDurableConversationEventWriter, PostgresDurableMessagePostWriter,
+    PostgresJournalConfig, PostgresMessageStore, PostgresOutboxStore, PostgresRetentionScopeStore,
 };
 use im_adapters_redis_cache::RedisSeqAllocator;
 use im_adapters_social_postgres::user_block_store::PostgresUserBlockStore;
@@ -19,7 +19,7 @@ use std::sync::Arc;
 use tracing::info;
 
 use super::{
-    ConversationRuntime, DurableMessagePostWriter, InMemoryJournal,
+    ConversationRuntime, DurableConversationEventWriter, DurableMessagePostWriter, InMemoryJournal,
     postgres_direct_message_gate::PostgresDirectMessageAccessGate,
 };
 
@@ -171,6 +171,10 @@ pub fn build_conversation_runtime_from_env()
             .with_durable_message_post_writer(Arc::new(
                 PostgresDurableMessagePostWriter::from_journal(&postgres_journal),
             ) as Arc<dyn DurableMessagePostWriter>);
+        runtime = runtime.with_durable_conversation_event_writer(Arc::new(
+            PostgresDurableConversationEventWriter::from_journal(&postgres_journal),
+        )
+            as Arc<dyn DurableConversationEventWriter>);
         if let Ok(shared_pool) = sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool() {
             let block_store = Arc::new(PostgresUserBlockStore::new(Arc::new(shared_pool)));
             runtime = runtime.with_direct_message_access_gate(Arc::new(

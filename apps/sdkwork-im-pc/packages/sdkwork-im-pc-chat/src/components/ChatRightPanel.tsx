@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, MoreHorizontal, UserMinus, X } from 'lucide-react';
-import type { Chat, User } from '@sdkwork/im-pc-types';
+import { Search, Plus, MoreHorizontal, UserMinus, X, Bot, Settings2 } from 'lucide-react';
+import type { Chat, ChatAgentAssignment, User } from '@sdkwork/im-pc-types';
 import { Avatar } from '@sdkwork/im-pc-commons';
 
 export interface ChatRightPanelProps {
@@ -10,6 +10,9 @@ export interface ChatRightPanelProps {
   currentUserChatId?: string;
   currentUserId?: string;
   groupMemberProfiles?: User[];
+  groupAgentAssignments?: ChatAgentAssignment[];
+  canManageAgents?: boolean;
+  onManageAgents?: () => void;
   onClose: () => void;
   onSetModal: (modal: 'search'|'editName'|'editNotice'|'addMember'|null, inputVal: string) => void;
   onToggleMute: () => Promise<void>;
@@ -23,12 +26,15 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
   currentUserChatId,
   currentUserId,
   groupMemberProfiles = [],
+  groupAgentAssignments = activeChat.agentAssignments ?? [],
+  canManageAgents = false,
   onClose,
   onSetModal,
   onToggleMute,
   onTogglePin,
   onDeleteChat,
-  onRemoveGroupMember
+  onRemoveGroupMember,
+  onManageAgents,
 }) => {
   const { t } = useTranslation();
   const emptyNotice = t('chat.rightPanel.emptyNotice');
@@ -146,6 +152,41 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                     {t('chat.rightPanel.emptyMembers')}
                   </div>
                 )}
+              </div>
+            )}
+            {activeChat.type === 'group' && (
+              <div className="border-b border-white/5 py-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm text-gray-300">{t('chat.rightPanel.fields.agents')}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">{t('chat.rightPanel.agentCount', { count: groupAgentAssignments.length })}</span>
+                    {canManageAgents && <button
+                      type="button"
+                      className="flex h-7 w-7 items-center justify-center rounded text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-200"
+                      onClick={onManageAgents}
+                      aria-label={t('chat.rightPanel.actions.manageAgents')}
+                      title={t('chat.rightPanel.actions.manageAgents')}
+                    >
+                      <Settings2 size={14} />
+                    </button>}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  {groupAgentAssignments.map((assignment) => (
+                    <div key={`${assignment.agentId}:${assignment.revisionId ?? ''}`} className="flex min-h-[36px] items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5">
+                      <Avatar src={assignment.avatar} alt={assignment.name ?? assignment.agentId} className="h-7 w-7 shrink-0 rounded bg-indigo-500/20" />
+                      <span className="min-w-0 flex-1 truncate text-xs text-gray-300" title={assignment.agentId}>
+                        {assignment.name || assignment.agentId}
+                      </span>
+                      <Bot size={13} className="shrink-0 text-indigo-400" aria-label={t('chat.rightPanel.agentLabel')} />
+                    </div>
+                  ))}
+                  {groupAgentAssignments.length === 0 && canManageAgents && (
+                    <button type="button" onClick={onManageAgents} className="w-full rounded bg-white/5 px-2 py-3 text-center text-xs text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-300">
+                      {t('chat.rightPanel.emptyAgents')}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             <div className="flex items-center justify-between py-3 border-b border-white/5">

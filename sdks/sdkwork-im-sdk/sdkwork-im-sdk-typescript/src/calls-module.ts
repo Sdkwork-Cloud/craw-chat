@@ -30,7 +30,11 @@ export interface ImCallInviteOptions {
 }
 
 export interface ImCallListSignalsOptions {
-  afterSignalSeq?: number;
+  /**
+   * The server cursor is an int64. Strings preserve values above JS's safe
+   * integer range; numbers remain supported for existing callers.
+   */
+  afterSignalSeq?: number | string;
   pageSize?: number;
   cursor?: string;
 }
@@ -70,6 +74,37 @@ interface ParsedCallSignal {
 
 function optionalString(value: string | undefined): string | null {
   return value === undefined ? null : value;
+}
+
+const MAX_INT64 = 9223372036854775807n;
+
+function normalizeAfterSignalSeq(value: number | string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw new RangeError('afterSignalSeq must be a non-negative safe integer');
+    }
+    return String(value);
+  }
+
+  const normalized = value.trim();
+  if (!/^\d+$/u.test(normalized)) {
+    throw new TypeError('afterSignalSeq must be a non-negative integer string');
+  }
+
+  let sequence: bigint;
+  try {
+    sequence = BigInt(normalized);
+  } catch {
+    throw new TypeError('afterSignalSeq must be a non-negative integer string');
+  }
+  if (sequence > MAX_INT64) {
+    throw new RangeError('afterSignalSeq exceeds the signed int64 range');
+  }
+  return sequence.toString();
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -344,7 +379,11 @@ export class ImCallsModule {
   ): Promise<{ items: RtcSignalEvent[]; pageInfo: { mode: string; hasMore?: boolean; nextCursor?: string | null } }> {
     return this.transportClient.calls.sessions.signals.list(
       requireStringIdentifier(rtcSessionId, 'rtcSessionId'),
-      options,
+      {
+        afterSignalSeq: normalizeAfterSignalSeq(options.afterSignalSeq),
+        pageSize: options.pageSize,
+        cursor: options.cursor,
+      },
     );
   }
 
@@ -409,6 +448,18 @@ export class ImCallsModule {
     options: ImCallCredentialOptions,
   ): Promise<RtcParticipantCredential> {
     return this.transportClient.calls.sessions.credentials.create(
+      requireStringIdentifier(rtcSessionId, 'rtcSessionId'),
+      {
+        participantId: options.participantId,
+      },
+    );
+  }
+
+  refreshParticipantCredential(
+    rtcSessionId: string,
+    options: ImCallCredentialOptions,
+  ): Promise<RtcParticipantCredential> {
+    return this.transportClient.calls.sessions.credentials.refresh(
       requireStringIdentifier(rtcSessionId, 'rtcSessionId'),
       {
         participantId: options.participantId,

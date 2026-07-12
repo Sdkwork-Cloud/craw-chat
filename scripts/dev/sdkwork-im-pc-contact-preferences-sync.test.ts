@@ -326,8 +326,8 @@ async function main(): Promise<void> {
 
   assert.deepEqual(
     userBlockCreates,
-    [{ blockedUserId: 'u_alice', scope: 'all' }],
-    'contact blacklist actions must create a durable user block through the generated IM SDK userBlocks API',
+    [],
+    'contact blacklist actions must use the server-coordinated contact preference mutation instead of replaying userBlocks client-side',
   );
 
   assert.deepEqual(

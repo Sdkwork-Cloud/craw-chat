@@ -6,12 +6,14 @@ import type { User } from '@sdkwork/im-pc-types';
 
 export interface ContactMemberPickerPanelProps {
   contacts: User[];
+  disabled?: boolean;
   disabledContactIds?: Set<string>;
   disabledReason?: string;
   emptyText: string;
   hasMoreContacts?: boolean;
   isLoading: boolean;
   isLoadingMoreContacts?: boolean;
+  maxSelectable?: number;
   onLoadMoreContacts?: () => void;
   onSearchQueryChange: (query: string) => void;
   onToggleContact: (contactId: string) => void;
@@ -73,6 +75,7 @@ function getContactSubtitle(contact: User): string | undefined {
 
 export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> = ({
   contacts,
+  disabled: pickerDisabled = false,
   disabledContactIds = new Set<string>(),
   disabledReason,
   emptyText,
@@ -85,6 +88,7 @@ export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> =
   searchPlaceholder,
   searchQuery,
   selectedIds,
+  maxSelectable,
 }) => {
   const { t } = useTranslation();
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -103,6 +107,7 @@ export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> =
   const selectedContacts = useMemo(() => (
     contacts.filter((contact) => selectedIds.has(contact.id) && !disabledContactIds.has(contact.id))
   ), [contacts, disabledContactIds, selectedIds]);
+  const selectionLimitReached = maxSelectable !== undefined && selectedIds.size >= maxSelectable;
 
   const scrollToIndexGroup = (indexKey: string) => {
     groupRefs.current[indexKey]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -116,6 +121,7 @@ export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> =
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               type="text"
+              disabled={pickerDisabled}
               placeholder={searchPlaceholder}
               value={searchQuery}
               onChange={(event) => onSearchQueryChange(event.target.value)}
@@ -145,8 +151,10 @@ export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> =
                     </div>
                     <div className="py-1">
                       {group.contacts.map((contact) => {
-                        const disabled = disabledContactIds.has(contact.id);
-                        const checked = !disabled && selectedIds.has(contact.id);
+                        const unavailable = disabledContactIds.has(contact.id);
+                        const checked = !unavailable && selectedIds.has(contact.id);
+                        const atSelectionLimit = selectionLimitReached && !checked;
+                        const disabled = pickerDisabled || unavailable || atSelectionLimit;
                         const subtitle = getContactSubtitle(contact);
 
                         return (
@@ -191,7 +199,7 @@ export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> =
                 <div className="border-t border-white/5 px-4 py-3">
                   <button
                     type="button"
-                    disabled={isLoadingMoreContacts}
+                    disabled={pickerDisabled || isLoadingMoreContacts}
                     onClick={onLoadMoreContacts}
                     className="flex w-full items-center justify-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                   >
@@ -242,6 +250,7 @@ export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> =
                   </div>
                   <button
                     type="button"
+                    disabled={pickerDisabled}
                     onClick={() => onToggleContact(contact.id)}
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-200"
                     aria-label={t('chat.modal.selection.removeSelected', { name: contact.name })}

@@ -69,7 +69,7 @@ fn test_bind_all_rpc_services_registers_every_manifest_service() {
 
 #[test]
 fn test_rpc_method_manifest_lists_unique_standard_methods() {
-    assert_eq!(RPC_METHOD_BINDINGS.len(), 158);
+    assert_eq!(RPC_METHOD_BINDINGS.len(), 161);
 
     let mut method_keys = HashSet::new();
     for binding in RPC_METHOD_BINDINGS {
@@ -128,6 +128,9 @@ fn test_rpc_method_manifest_lists_unique_standard_methods() {
         "sdkwork.communication.app.v3.PresenceService/CreatePresenceHeartbeat",
         "sdkwork.communication.app.v3.RealtimeService/WatchRealtimeEvents",
         "sdkwork.communication.app.v3.ConversationService/CreateConversation",
+        "sdkwork.communication.app.v3.ConversationService/RetrieveCurrentConversationMember",
+        "sdkwork.communication.app.v3.ConversationService/RetrieveConversationAgents",
+        "sdkwork.communication.app.v3.ConversationService/UpdateConversationAgents",
         "sdkwork.communication.app.v3.MessageService/CreateConversationMessage",
         "sdkwork.communication.app.v3.RoomService/CreateRoom",
         "sdkwork.communication.app.v3.StreamService/WatchStreamFrames",

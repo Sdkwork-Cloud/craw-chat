@@ -5,6 +5,8 @@ use super::*;
 #[serde(rename_all = "camelCase")]
 struct RecoveredConversationCreatedPayload {
     conversation_type: String,
+    #[serde(default)]
+    member_user_ids: Vec<String>,
     agent_assignments: Option<agents::ConversationAgentAssignmentsEventPayload>,
     business_type: Option<String>,
     business_id: Option<String>,
@@ -27,9 +29,42 @@ fn recovered_created_agent_assignments(
         return Ok(None);
     }
     match (envelope.event_version, envelope.payload_schema.as_deref()) {
-        (1, Some("conversation.created.v1")) | (1, None) => {
-            Ok(Some(agents::legacy_v1_group_agent_default()))
+        (1, Some("conversation.created.v1")) => Ok(Some(agents::legacy_v1_group_agent_default())),
+        // The PostgreSQL journal predates event metadata columns and rebuilds
+        // replay envelopes with `(event_version=1, payload_schema=None)`. Use
+        // the self-describing assignment payload when it is present, while
+        // retaining the fixed compatibility default for genuinely legacy rows.
+        (1, None) if !replay_metadata_is_stripped(envelope) => {
+            Err(RuntimeError::Conflict(format!(
+                "conversation.created {} is missing replay metadata",
+                envelope.event_id
+            )))
         }
+        (1, None) => match payload.agent_assignments.as_ref() {
+            Some(assignments)
+                if assignments.source
+                    == ConversationAgentAssignmentSource::ConversationOverride
+                    && assignments.generation == 1
+                    && assignments.policy_id.is_none()
+                    && assignments.policy_version.is_none() =>
+            {
+                agents::validate_created_group_agent_override_assignments(assignments)?;
+                Ok(Some(assignments.clone()))
+            }
+            Some(assignments)
+                if assignments.source == ConversationAgentAssignmentSource::DefaultPolicy
+                    && assignments.policy_id.is_some()
+                    && assignments.policy_version.is_some() =>
+            {
+                agents::validate_created_group_agent_assignments(assignments)?;
+                Ok(Some(assignments.clone()))
+            }
+            Some(_) => Err(RuntimeError::Conflict(format!(
+                "stripped conversation.created {} contains an invalid agent assignment snapshot",
+                envelope.event_id
+            ))),
+            None => Ok(Some(agents::legacy_v1_group_agent_default())),
+        },
         (2, Some("conversation.created.v2")) => {
             let assignments = payload.agent_assignments.clone().ok_or_else(|| {
                 RuntimeError::Conflict(format!(
@@ -38,6 +73,16 @@ fn recovered_created_agent_assignments(
                 ))
             })?;
             agents::validate_created_group_agent_assignments(&assignments)?;
+            Ok(Some(assignments))
+        }
+        (3, Some("conversation.created.v3")) => {
+            let assignments = payload.agent_assignments.clone().ok_or_else(|| {
+                RuntimeError::Conflict(format!(
+                    "conversation.created.v3 {} is missing mandatory agent assignments",
+                    envelope.event_id
+                ))
+            })?;
+            agents::validate_created_group_agent_override_assignments(&assignments)?;
             Ok(Some(assignments))
         }
         (event_version, payload_schema) => Err(RuntimeError::Conflict(format!(
@@ -77,6 +122,18 @@ struct RecoveredConversationHandoffPayload {
     status: String,
 }
 
+fn replay_metadata_is_stripped(envelope: &CommitEnvelope) -> bool {
+    // `adapters/postgres-journal` stores the portable journal columns only.
+    // Older rows therefore come back without event metadata that is not part
+    // of that schema. The payload remains the authority for these events.
+    envelope.event_version == 1
+        && envelope.payload_schema.is_none()
+        && envelope.actor.actor_id.is_empty()
+        && envelope.actor.actor_kind.is_empty()
+        && envelope.causation_id.is_none()
+        && envelope.correlation_id.is_none()
+}
+
 fn generic_create_replay_record_from_recovered_payload(
     payload: &RecoveredConversationCreatedPayload,
     envelope: &CommitEnvelope,
@@ -95,10 +152,52 @@ fn generic_create_replay_record_from_recovered_payload(
             creator_id: envelope.actor.actor_id.clone(),
             creator_kind: envelope.actor.actor_kind.clone(),
             requested_kind: payload.conversation_type.clone(),
+            initial_member_user_ids: payload.member_user_ids.clone(),
+            initial_agent_assignments: payload
+                .agent_assignments
+                .as_ref()
+                .filter(|assignments| {
+                    assignments.source == ConversationAgentAssignmentSource::ConversationOverride
+                })
+                .map(|assignments| assignments.agents.clone()),
             event_id: envelope.event_id.clone(),
         }),
         _ => None,
     }
+}
+
+fn complete_generic_create_actor_from_roster(
+    record: &mut GenericConversationCreateReplayRecord,
+    roster: &ConversationRoster,
+    event_id: &str,
+) -> Result<(), RuntimeError> {
+    let Some(owner) = roster
+        .members()
+        .values()
+        .find(|member| matches!(member.role, MembershipRole::Owner) && member.is_active())
+        .or_else(|| {
+            roster
+                .members()
+                .values()
+                .find(|member| matches!(member.role, MembershipRole::Owner))
+        })
+    else {
+        return Ok(());
+    };
+    if (!record.creator_id.is_empty() && record.creator_id != owner.principal_id)
+        || (!record.creator_kind.is_empty() && record.creator_kind != owner.principal_kind)
+    {
+        return Err(RuntimeError::Conflict(format!(
+            "replayed owner member {event_id} conflicts with conversation create actor"
+        )));
+    }
+    if record.creator_id.is_empty() {
+        record.creator_id = owner.principal_id.clone();
+    }
+    if record.creator_kind.is_empty() {
+        record.creator_kind = owner.principal_kind.clone();
+    }
+    Ok(())
 }
 
 fn agent_dialog_create_replay_record_from_recovered_payload(
@@ -264,6 +363,9 @@ where
                 self.apply_recovered_handoff_status_changed(envelope)
             }
             "message.posted" => self.apply_recovered_message_posted(envelope),
+            AGENT_MENTION_DISPATCH_EVENT_TYPE => {
+                self.apply_recovered_agent_mention_dispatch_requested(envelope)
+            }
             "message.edited" => self.apply_recovered_message_edited(envelope),
             "message.recalled" => self.apply_recovered_message_recalled(envelope),
             "message.reaction_added" => self.apply_recovered_message_reaction_added(envelope),
@@ -358,7 +460,12 @@ where
                         .map_err(agents::agent_assignment_error_to_runtime)?;
                 }
             }
-            if let Some(record) = generic_create_record {
+            if let Some(mut record) = generic_create_record {
+                complete_generic_create_actor_from_roster(
+                    &mut record,
+                    &conversation.roster,
+                    envelope.event_id.as_str(),
+                )?;
                 if let Some(existing) = conversation.generic_create_request.as_ref() {
                     if existing != &record {
                         return Err(RuntimeError::Conflict(format!(
@@ -481,8 +588,9 @@ where
         &self,
         envelope: &CommitEnvelope,
     ) -> Result<(), RuntimeError> {
-        if envelope.event_version != 1
-            || envelope.payload_schema.as_deref() != Some("conversation.agents_replaced.v1")
+        if !replay_metadata_is_stripped(envelope)
+            && (envelope.event_version != 1
+                || envelope.payload_schema.as_deref() != Some("conversation.agents_replaced.v1"))
         {
             return Err(RuntimeError::Conflict(format!(
                 "unsupported conversation.agents_replaced version for {}",
@@ -643,6 +751,26 @@ where
                             envelope.scope_id
                         ))
                     })?;
+            if matches!(member.role, MembershipRole::Owner)
+                && let Some(create_request) = conversation.generic_create_request.as_mut()
+            {
+                if (!create_request.creator_id.is_empty()
+                    && create_request.creator_id != member.principal_id)
+                    || (!create_request.creator_kind.is_empty()
+                        && create_request.creator_kind != member.principal_kind)
+                {
+                    return Err(RuntimeError::Conflict(format!(
+                        "replayed owner member {} conflicts with conversation create actor",
+                        envelope.event_id
+                    )));
+                }
+                if create_request.creator_id.is_empty() {
+                    create_request.creator_id = member.principal_id.clone();
+                }
+                if create_request.creator_kind.is_empty() {
+                    create_request.creator_kind = member.principal_kind.clone();
+                }
+            }
             conversation
                 .aggregate
                 .observe_member_epoch(envelope.ordering_seq);
@@ -881,6 +1009,163 @@ where
                 .remove(message.tenant_id.as_str(), message_id.as_str());
         }
         state.message_locator.register_message(&message);
+        Ok(())
+    }
+
+    fn apply_recovered_agent_mention_dispatch_requested(
+        &self,
+        envelope: &CommitEnvelope,
+    ) -> Result<(), RuntimeError> {
+        let metadata_is_stripped = replay_metadata_is_stripped(envelope);
+        if !metadata_is_stripped
+            && (envelope.event_version != 1
+                || envelope.payload_schema.as_deref()
+                    != Some(AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA))
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "unsupported agent mention dispatch event version for {}",
+                envelope.event_id
+            )));
+        }
+        let request: AgentMentionDispatchRequest = serde_json::from_str(envelope.payload.as_str())
+            .map_err(|error| {
+                RuntimeError::Conflict(format!(
+                    "failed to replay agent mention dispatch {}: {error}",
+                    envelope.event_id
+                ))
+            })?;
+        request.validate().map_err(|_error| {
+            RuntimeError::Conflict(format!(
+                "agent mention dispatch {} failed contract validation",
+                envelope.event_id,
+            ))
+        })?;
+        let actor_matches = if metadata_is_stripped {
+            (envelope.actor.actor_id.is_empty()
+                || request.sender_principal_id == envelope.actor.actor_id)
+                && (envelope.actor.actor_kind.is_empty()
+                    || request.sender_principal_kind == envelope.actor.actor_kind)
+        } else {
+            request.sender_principal_id == envelope.actor.actor_id
+                && request.sender_principal_kind == envelope.actor.actor_kind
+        };
+        let causation_matches = if metadata_is_stripped {
+            envelope
+                .causation_id
+                .as_deref()
+                .is_none_or(|causation_id| causation_id == request.causation_event_id)
+        } else {
+            envelope.causation_id.as_deref() == Some(request.causation_event_id.as_str())
+        };
+        if request.tenant_id != envelope.tenant_id
+            || request.organization_id != envelope.organization_id
+            || request.conversation_id != envelope.scope_id
+            || request.conversation_id != envelope.aggregate_id
+            || envelope.aggregate_type != AggregateType::Conversation
+            || envelope.scope_type != "conversation"
+            || !causation_matches
+            || !actor_matches
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "agent mention dispatch {} has an invalid identity or target set",
+                envelope.event_id
+            )));
+        }
+        let scope_key = conversation_scope_key_for_envelope(envelope);
+        let mut state = write_runtime_state(&self.state, "runtime state");
+        let conversation = state
+            .conversations
+            .get_mut(scope_key.as_str())
+            .ok_or_else(|| {
+                RuntimeError::Conflict(format!(
+                    "cannot replay agent mention dispatch without conversation {}",
+                    envelope.scope_id
+                ))
+            })?;
+        if conversation.aggregate.conversation_type() != "group" {
+            return Err(RuntimeError::Conflict(format!(
+                "agent mention dispatch {} targets a non-group conversation",
+                envelope.event_id
+            )));
+        }
+        let assignments = conversation.aggregate.agent_assignments().ok_or_else(|| {
+            RuntimeError::Conflict(format!(
+                "agent mention dispatch {} targets a group without agent assignments",
+                envelope.event_id
+            ))
+        })?;
+        if assignments.generation != request.assignment_generation
+            || request.targets.iter().any(|target| {
+                assignments
+                    .agents
+                    .iter()
+                    .find(|assignment| assignment.agent_id == target.agent_id)
+                    .is_none_or(|assignment| assignment.revision_id != target.revision_id)
+            })
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "agent mention dispatch {} does not match the current conversation assignment snapshot",
+                envelope.event_id
+            )));
+        }
+        if request.message_seq > conversation.message_log.high_watermark() {
+            return Err(RuntimeError::Conflict(format!(
+                "agent mention dispatch {} precedes its source message",
+                envelope.event_id
+            )));
+        }
+        let stored = conversation
+            .message_log
+            .message(request.message_id.as_str())
+            .ok_or_else(|| {
+                RuntimeError::Conflict(format!(
+                    "agent mention dispatch {} is missing its source message",
+                    envelope.event_id
+                ))
+            })?;
+        let message = &stored.message;
+        if message.tenant_id != request.tenant_id
+            || message.conversation_id != request.conversation_id
+            || message.message_seq != request.message_seq
+            || message.sender.id != request.sender_principal_id
+            || message.sender.kind != request.sender_principal_kind
+            || message.body != request.body
+            || message.occurred_at != request.requested_at
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "agent mention dispatch {} does not match its source message",
+                envelope.event_id
+            )));
+        }
+        let deterministic_identity_matches = envelope.event_id
+            == super::agent_dispatch::deterministic_agent_dispatch_event_id(
+                request.organization_id.as_str(),
+                message,
+            )
+            && request.targets.iter().all(|target| {
+                assignments
+                    .agents
+                    .iter()
+                    .find(|assignment| assignment.agent_id == target.agent_id)
+                    .is_some_and(|assignment| {
+                        target.dispatch_id
+                            == super::agent_dispatch::deterministic_agent_dispatch_id(
+                                request.organization_id.as_str(),
+                                message,
+                                request.assignment_generation,
+                                assignment,
+                            )
+                    })
+            });
+        if !deterministic_identity_matches {
+            return Err(RuntimeError::Conflict(format!(
+                "agent mention dispatch {} has a non-deterministic dispatch identity",
+                envelope.event_id
+            )));
+        }
+        conversation
+            .aggregate
+            .observe_commit_seq(envelope.ordering_seq);
         Ok(())
     }
 
@@ -1158,6 +1443,7 @@ mod tests {
     fn recovered_created_envelope() -> CommitEnvelope {
         let payload = RecoveredConversationCreatedPayload {
             conversation_type: "group".into(),
+            member_user_ids: Vec::new(),
             agent_assignments: None,
             business_type: None,
             business_id: None,

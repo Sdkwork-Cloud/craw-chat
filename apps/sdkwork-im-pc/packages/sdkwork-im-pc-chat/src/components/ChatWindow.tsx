@@ -4,7 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Chat, Message, User } from '@sdkwork/im-pc-types';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
-import { chatService } from '../services/ChatService';
+import { chatService, type ChatMessageExtraInfo } from '../services/ChatService';
+import { groupService } from '../services/GroupService';
+import {
+  buildAgentMentionParts,
+  hasStructuredAgentMentionParts,
+} from '../services/AgentMentionService';
 import { SYSTEM_ASSISTANT_AGENT, systemAssistantService } from '../services/SystemAssistantService';
 import { toast } from './Toast';
 import { ChatHistoryModal } from './ChatHistoryModal';
@@ -77,12 +82,55 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
   const displaySenderProfiles = isSystemAssistantChat ? assistantSenderProfiles : agentSenderProfiles;
   const displayWelcomeMessages = isSystemAssistantChat ? assistantWelcomeMessages : agentWelcomeMessages;
 
-  const handleSend = async (content: string, type: Message['type'] = 'text', extraInfo?: Partial<Message>) => {
+  const handleSend = async (
+    content: string,
+    type: Message['type'] = 'text',
+    extraInfo?: ChatMessageExtraInfo,
+  ): Promise<boolean> => {
     try {
-      await chatService.sendMessage(chat.id, content, type, replyingTo, extraInfo);
+      let resolvedExtraInfo = extraInfo;
+      // Group details hydrate asynchronously when a conversation is opened.
+      // Always resolve the authoritative assignment snapshot for an @ send.
+      // The input may have built parts from an older realtime generation while
+      // an owner was changing the group roster in another client.
+      if (
+        chat.type === 'group'
+        && type === 'text'
+        && /(?:^|[\s([{])@[\p{L}\p{N}_.-]/u.test(content)
+      ) {
+        let assignments: Awaited<ReturnType<typeof groupService.getAgentAssignments>> | undefined;
+        try {
+          assignments = await groupService.getAgentAssignments(chat.id);
+        } catch (error) {
+          // If the input already resolved a structured target, let ChatService
+          // own the send attempt. A transient network failure will then enter
+          // the durable offline queue and be rebased to the latest assignment
+          // generation before reconnect flush. Never downgrade an unresolved
+          // @ token to a plain text message.
+          if (!hasStructuredAgentMentionParts(extraInfo?.parts)) {
+            throw error;
+          }
+          resolvedExtraInfo = extraInfo;
+        }
+        if (assignments) {
+          const mentionParts = buildAgentMentionParts(
+            content,
+            assignments.agents,
+            assignments.generation,
+          );
+          if (mentionParts) {
+            resolvedExtraInfo = { ...extraInfo, parts: mentionParts };
+          } else if (extraInfo?.parts?.some((part) => part.kind === 'mention')) {
+            throw new Error('The mentioned agent is no longer assigned to this group.');
+          }
+        }
+      }
+      await chatService.sendMessage(chat.id, content, type, replyingTo, resolvedExtraInfo);
       setReplyingTo(undefined);
+      return true;
     } catch (error) {
       toast(t('chat.window.toast.sendFailed'), 'error');
+      return false;
     }
   };
 
@@ -132,6 +180,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
       {/* Input Area */}
       <MessageInput
         onSend={handleSend}
+        mentionAgents={chat.type === 'group' ? chat.agentAssignments : undefined}
+        mentionAssignmentGeneration={chat.type === 'group' ? chat.agentAssignmentGeneration : undefined}
         placeholder={isSystemAssistantChat ? t('chat.systemAssistant.inputPlaceholder') : t('chat.window.inputPlaceholder')}
         replyingTo={replyingTo}
         isTyping={isTyping}

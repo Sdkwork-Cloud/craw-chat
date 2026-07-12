@@ -470,6 +470,61 @@ for (const [relativePath, packageName] of [
   }
 }
 
+const conversationMemberProto = firstCapture(
+  'apis/rpc/sdkwork/communication/app/v3/conversation_service.proto',
+  /message\s+ConversationMemberView\s*\{([^}]*)\}/u,
+  'ConversationMemberView',
+);
+assert.match(
+  conversationMemberProto,
+  /string\s+tenant_id\s*=\s*7;/u,
+  'ConversationMemberView must expose tenant_id with additive field number 7.',
+);
+assert.match(
+  conversationMemberProto,
+  /string\s+joined_at\s*=\s*8;/u,
+  'ConversationMemberView must expose joined_at with additive field number 8.',
+);
+
+for (const [relativePath, memberPattern, tenantPattern, joinedPattern] of [
+  [
+    'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-typescript/generated/proto/sdkwork/communication/app/v3/conversation_service_pb.ts',
+    /export type ConversationMemberView[^=]*=\s*Message<[^>]+>\s*&\s*\{([\s\S]*?)\n\};/u,
+    /field:\s+string\s+tenant_id\s*=\s*7;[\s\S]*tenantId:\s+string;/u,
+    /field:\s+string\s+joined_at\s*=\s*8;[\s\S]*joinedAt:\s+string;/u,
+  ],
+  [
+    'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-go/generated/proto/sdkwork/communication/app/v3/conversation_service.pb.go',
+    /type ConversationMemberView struct \{([\s\S]*?)\n\}/u,
+    /TenantId\s+string\s+`protobuf:"bytes,7,[^`]*name=tenant_id/u,
+    /JoinedAt\s+string\s+`protobuf:"bytes,8,[^`]*name=joined_at/u,
+  ],
+  [
+    'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-java/generated/proto/java/com/sdkwork/communication/app/v3/ConversationMemberView.java',
+    null,
+    /TENANT_ID_FIELD_NUMBER\s*=\s*7;[\s\S]*getTenantId\(\)/u,
+    /JOINED_AT_FIELD_NUMBER\s*=\s*8;[\s\S]*getJoinedAt\(\)/u,
+  ],
+  [
+    'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-python/generated/proto/sdkwork/communication/app/v3/conversation_service_pb2.py',
+    null,
+    /tenant_id\\x18\\x07[\s\S]*tenantId/u,
+    /joined_at\\x18\\x08[\s\S]*joinedAt/u,
+  ],
+  [
+    'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust/generated/proto/sdkwork/communication/app/v3/sdkwork.communication.app.v3.rs',
+    /pub struct ConversationMemberView\s*\{([\s\S]*?)\n\}/u,
+    /#\[prost\(string, tag="7"\)\]\s*pub tenant_id:/u,
+    /#\[prost\(string, tag="8"\)\]\s*pub joined_at:/u,
+  ],
+]) {
+  const memberSource = memberPattern
+    ? firstCapture(relativePath, memberPattern, 'ConversationMemberView')
+    : read(relativePath);
+  assert.match(memberSource, tenantPattern, `${relativePath} must expose ConversationMemberView.tenant_id field 7.`);
+  assert.match(memberSource, joinedPattern, `${relativePath} must expose ConversationMemberView.joined_at field 8.`);
+}
+
 for (const requiredOperationId of [
   'presence.heartbeat.create',
   'realtime.subscriptions.sync',

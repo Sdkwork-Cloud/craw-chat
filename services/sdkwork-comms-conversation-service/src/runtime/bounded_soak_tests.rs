@@ -137,8 +137,11 @@ fn bounded_runtime_pressure_soak_keeps_companion_state_within_budget() {
     for index in 0..SOAK_ITERATIONS {
         let conversation_id = format!("c_soak_{index}");
         let message_id = format!("m_soak_{index}");
-        let binding_scope =
-            conversation_business_scope_key("100001", "thread", format!("root_soak_{index}").as_str());
+        let binding_scope = conversation_business_scope_key(
+            "100001",
+            "thread",
+            format!("root_soak_{index}").as_str(),
+        );
         let scope = conversation_scope_key("100001", "0", conversation_id.as_str());
         let (conversation, member) = build_soak_conversation(index);
         {
@@ -154,10 +157,7 @@ fn bounded_runtime_pressure_soak_keeps_companion_state_within_budget() {
                 .register("100001", message_id.as_str(), conversation_id.as_str());
         }
 
-        runtime.evict_idle_conversations_with_limits(
-            SOAK_MAX_CONVERSATIONS,
-            SOAK_BYTE_BUDGET,
-        );
+        runtime.evict_idle_conversations_with_limits(SOAK_MAX_CONVERSATIONS, SOAK_BYTE_BUDGET);
         let snapshot = runtime.runtime_metrics_snapshot();
 
         assert!(

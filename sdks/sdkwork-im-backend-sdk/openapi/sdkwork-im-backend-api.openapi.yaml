@@ -329,6 +329,11 @@ paths:
         - ops
       operationId: ops.providerBindings.list
       summary: List provider bindings
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: OK
@@ -469,6 +474,11 @@ paths:
         - audit
       operationId: records.list
       summary: List audit records
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: OK
@@ -1024,6 +1034,11 @@ paths:
   /backend/v3/api/control/provider_policies:
     get:
       operationId: providerPolicies.list
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           content:
@@ -1101,6 +1116,10 @@ paths:
             pattern: ^[0-9]+$
             x-sdkwork-int64-string: true
             x-sdkwork-rust-type: i64
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           content:
@@ -1382,6 +1401,10 @@ paths:
           required: false
           schema:
             type: string
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           content:
@@ -2665,6 +2688,11 @@ paths:
   /backend/v3/api/control/social/runtime/dead_letter_shared_channel_sync:
     get:
       operationId: social.runtime.deadLetterSharedChannelSync.list
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           content:
@@ -2721,6 +2749,11 @@ paths:
   /backend/v3/api/control/social/runtime/delivered_shared_channel_sync:
     get:
       operationId: social.runtime.deliveredSharedChannelSync.list
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           content:
@@ -2777,6 +2810,11 @@ paths:
   /backend/v3/api/control/social/runtime/delivery_state_shared_channel_sync:
     get:
       operationId: social.runtime.deliveryStateSharedChannelSync.list
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           content:
@@ -2833,6 +2871,11 @@ paths:
   /backend/v3/api/control/social/runtime/pending_shared_channel_sync:
     get:
       operationId: social.runtime.pendingSharedChannelSync.list
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           content:
@@ -3764,6 +3807,11 @@ paths:
       tags:
         - admin
       summary: listApiKeyGroups
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -3948,6 +3996,11 @@ paths:
       tags:
         - admin
       summary: listApiKeys
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -4132,6 +4185,11 @@ paths:
       tags:
         - admin
       summary: listBillingEvents
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -4234,6 +4292,11 @@ paths:
       tags:
         - admin
       summary: listChannelModels
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -4331,6 +4394,11 @@ paths:
       tags:
         - admin
       summary: listChannels
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -4428,6 +4496,11 @@ paths:
       tags:
         - admin
       summary: listCredentials
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -4569,6 +4642,11 @@ paths:
       tags:
         - admin
       summary: listRuntimeStatuses
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -4595,6 +4673,11 @@ paths:
       tags:
         - admin
       summary: listRateLimitPolicies
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -4664,6 +4747,11 @@ paths:
       tags:
         - admin
       summary: listRateLimitWindows
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -4690,6 +4778,11 @@ paths:
       tags:
         - admin
       summary: listMarketingCampaigns
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -4803,6 +4896,11 @@ paths:
       tags:
         - admin
       summary: listModelPrices
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -4900,6 +4998,11 @@ paths:
       tags:
         - admin
       summary: listModels
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -4997,6 +5100,11 @@ paths:
       tags:
         - admin
       summary: listProviders
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -5094,6 +5202,11 @@ paths:
       tags:
         - admin
       summary: listRoutingDecisionLogs
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -5158,6 +5271,11 @@ paths:
       tags:
         - admin
       summary: listRoutingProfiles
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -5227,6 +5345,11 @@ paths:
       tags:
         - admin
       summary: listCompiledRoutingSnapshots
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -5253,6 +5376,11 @@ paths:
       tags:
         - admin
       summary: listStorageAuditTrail
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -5506,6 +5634,11 @@ paths:
       tags:
         - admin
       summary: listStorageProviders
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -5620,6 +5753,11 @@ paths:
       tags:
         - admin
       summary: listUsageRecords
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: Successful response
@@ -5725,6 +5863,38 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetail'
+  parameters:
+    PageSizeQuery:
+      name: page_size
+      in: query
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 200
+        default: 20
+    CursorQuery:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+    PageQuery:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        default: 1
+    QQuery:
+      name: q
+      in: query
+      required: false
+      schema:
+        type: string
   schemas:
     ProblemDetail:
       type: object

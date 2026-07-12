@@ -209,7 +209,9 @@ static TEST_ENV_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
 
 #[cfg(test)]
 pub(crate) fn social_service_test_env_lock() -> std::sync::MutexGuard<'static, ()> {
-    TEST_ENV_LOCK.lock().expect("social service test env lock")
+    TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 #[cfg(test)]

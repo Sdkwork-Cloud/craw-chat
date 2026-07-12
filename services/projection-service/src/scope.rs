@@ -1,6 +1,8 @@
 use im_domain_events::CommitEnvelope;
 
-use im_platform_contracts::normalize_realtime_organization_id;
+use im_platform_contracts::{
+    AGENT_MENTION_DISPATCH_EVENT_TYPE, normalize_realtime_organization_id,
+};
 
 use im_time::utc_now_rfc3339_millis;
 
@@ -185,6 +187,7 @@ pub(super) fn tracked_live_projection_lag_scope_id(event: &CommitEnvelope) -> Op
             | "conversation.agents_replaced"
             | "conversation.policy_applied"
             | "conversation.agent_handoff_status_changed"
+            | AGENT_MENTION_DISPATCH_EVENT_TYPE
             | "message.posted"
             | "message.edited"
             | "message.recalled"

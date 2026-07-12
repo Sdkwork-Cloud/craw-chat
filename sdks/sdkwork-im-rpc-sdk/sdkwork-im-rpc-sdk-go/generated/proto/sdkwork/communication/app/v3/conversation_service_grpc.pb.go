@@ -19,28 +19,31 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ConversationService_CreateConversation_FullMethodName              = "/sdkwork.communication.app.v3.ConversationService/CreateConversation"
-	ConversationService_CreateAgentDialog_FullMethodName               = "/sdkwork.communication.app.v3.ConversationService/CreateAgentDialog"
-	ConversationService_CreateAgentHandoff_FullMethodName              = "/sdkwork.communication.app.v3.ConversationService/CreateAgentHandoff"
-	ConversationService_CreateSystemChannel_FullMethodName             = "/sdkwork.communication.app.v3.ConversationService/CreateSystemChannel"
-	ConversationService_CreateThread_FullMethodName                    = "/sdkwork.communication.app.v3.ConversationService/CreateThread"
-	ConversationService_BindDirectChat_FullMethodName                  = "/sdkwork.communication.app.v3.ConversationService/BindDirectChat"
-	ConversationService_RetrieveConversation_FullMethodName            = "/sdkwork.communication.app.v3.ConversationService/RetrieveConversation"
-	ConversationService_ListInbox_FullMethodName                       = "/sdkwork.communication.app.v3.ConversationService/ListInbox"
-	ConversationService_ListConversationMembers_FullMethodName         = "/sdkwork.communication.app.v3.ConversationService/ListConversationMembers"
-	ConversationService_AddConversationMember_FullMethodName           = "/sdkwork.communication.app.v3.ConversationService/AddConversationMember"
-	ConversationService_RemoveConversationMember_FullMethodName        = "/sdkwork.communication.app.v3.ConversationService/RemoveConversationMember"
-	ConversationService_TransferConversationOwner_FullMethodName       = "/sdkwork.communication.app.v3.ConversationService/TransferConversationOwner"
-	ConversationService_ChangeConversationMemberRole_FullMethodName    = "/sdkwork.communication.app.v3.ConversationService/ChangeConversationMemberRole"
-	ConversationService_LeaveConversation_FullMethodName               = "/sdkwork.communication.app.v3.ConversationService/LeaveConversation"
-	ConversationService_RetrieveConversationPreferences_FullMethodName = "/sdkwork.communication.app.v3.ConversationService/RetrieveConversationPreferences"
-	ConversationService_UpdateConversationPreferences_FullMethodName   = "/sdkwork.communication.app.v3.ConversationService/UpdateConversationPreferences"
-	ConversationService_RetrieveConversationProfile_FullMethodName     = "/sdkwork.communication.app.v3.ConversationService/RetrieveConversationProfile"
-	ConversationService_UpdateConversationProfile_FullMethodName       = "/sdkwork.communication.app.v3.ConversationService/UpdateConversationProfile"
-	ConversationService_RetrieveReadCursor_FullMethodName              = "/sdkwork.communication.app.v3.ConversationService/RetrieveReadCursor"
-	ConversationService_UpdateReadCursor_FullMethodName                = "/sdkwork.communication.app.v3.ConversationService/UpdateReadCursor"
-	ConversationService_ListConversationMemberDirectory_FullMethodName = "/sdkwork.communication.app.v3.ConversationService/ListConversationMemberDirectory"
-	ConversationService_ListPinnedMessages_FullMethodName              = "/sdkwork.communication.app.v3.ConversationService/ListPinnedMessages"
+	ConversationService_CreateConversation_FullMethodName                = "/sdkwork.communication.app.v3.ConversationService/CreateConversation"
+	ConversationService_CreateAgentDialog_FullMethodName                 = "/sdkwork.communication.app.v3.ConversationService/CreateAgentDialog"
+	ConversationService_CreateAgentHandoff_FullMethodName                = "/sdkwork.communication.app.v3.ConversationService/CreateAgentHandoff"
+	ConversationService_CreateSystemChannel_FullMethodName               = "/sdkwork.communication.app.v3.ConversationService/CreateSystemChannel"
+	ConversationService_CreateThread_FullMethodName                      = "/sdkwork.communication.app.v3.ConversationService/CreateThread"
+	ConversationService_BindDirectChat_FullMethodName                    = "/sdkwork.communication.app.v3.ConversationService/BindDirectChat"
+	ConversationService_RetrieveConversation_FullMethodName              = "/sdkwork.communication.app.v3.ConversationService/RetrieveConversation"
+	ConversationService_ListInbox_FullMethodName                         = "/sdkwork.communication.app.v3.ConversationService/ListInbox"
+	ConversationService_ListConversationMembers_FullMethodName           = "/sdkwork.communication.app.v3.ConversationService/ListConversationMembers"
+	ConversationService_RetrieveCurrentConversationMember_FullMethodName = "/sdkwork.communication.app.v3.ConversationService/RetrieveCurrentConversationMember"
+	ConversationService_RetrieveConversationAgents_FullMethodName        = "/sdkwork.communication.app.v3.ConversationService/RetrieveConversationAgents"
+	ConversationService_UpdateConversationAgents_FullMethodName          = "/sdkwork.communication.app.v3.ConversationService/UpdateConversationAgents"
+	ConversationService_AddConversationMember_FullMethodName             = "/sdkwork.communication.app.v3.ConversationService/AddConversationMember"
+	ConversationService_RemoveConversationMember_FullMethodName          = "/sdkwork.communication.app.v3.ConversationService/RemoveConversationMember"
+	ConversationService_TransferConversationOwner_FullMethodName         = "/sdkwork.communication.app.v3.ConversationService/TransferConversationOwner"
+	ConversationService_ChangeConversationMemberRole_FullMethodName      = "/sdkwork.communication.app.v3.ConversationService/ChangeConversationMemberRole"
+	ConversationService_LeaveConversation_FullMethodName                 = "/sdkwork.communication.app.v3.ConversationService/LeaveConversation"
+	ConversationService_RetrieveConversationPreferences_FullMethodName   = "/sdkwork.communication.app.v3.ConversationService/RetrieveConversationPreferences"
+	ConversationService_UpdateConversationPreferences_FullMethodName     = "/sdkwork.communication.app.v3.ConversationService/UpdateConversationPreferences"
+	ConversationService_RetrieveConversationProfile_FullMethodName       = "/sdkwork.communication.app.v3.ConversationService/RetrieveConversationProfile"
+	ConversationService_UpdateConversationProfile_FullMethodName         = "/sdkwork.communication.app.v3.ConversationService/UpdateConversationProfile"
+	ConversationService_RetrieveReadCursor_FullMethodName                = "/sdkwork.communication.app.v3.ConversationService/RetrieveReadCursor"
+	ConversationService_UpdateReadCursor_FullMethodName                  = "/sdkwork.communication.app.v3.ConversationService/UpdateReadCursor"
+	ConversationService_ListConversationMemberDirectory_FullMethodName   = "/sdkwork.communication.app.v3.ConversationService/ListConversationMemberDirectory"
+	ConversationService_ListPinnedMessages_FullMethodName                = "/sdkwork.communication.app.v3.ConversationService/ListPinnedMessages"
 )
 
 // ConversationServiceClient is the client API for ConversationService service.
@@ -56,6 +59,9 @@ type ConversationServiceClient interface {
 	RetrieveConversation(ctx context.Context, in *RetrieveConversationRequest, opts ...grpc.CallOption) (*RetrieveConversationResponse, error)
 	ListInbox(ctx context.Context, in *ListInboxRequest, opts ...grpc.CallOption) (*ListInboxResponse, error)
 	ListConversationMembers(ctx context.Context, in *ListConversationMembersRequest, opts ...grpc.CallOption) (*ListConversationMembersResponse, error)
+	RetrieveCurrentConversationMember(ctx context.Context, in *RetrieveCurrentConversationMemberRequest, opts ...grpc.CallOption) (*RetrieveCurrentConversationMemberResponse, error)
+	RetrieveConversationAgents(ctx context.Context, in *RetrieveConversationAgentsRequest, opts ...grpc.CallOption) (*RetrieveConversationAgentsResponse, error)
+	UpdateConversationAgents(ctx context.Context, in *UpdateConversationAgentsRequest, opts ...grpc.CallOption) (*UpdateConversationAgentsResponse, error)
 	AddConversationMember(ctx context.Context, in *AddConversationMemberRequest, opts ...grpc.CallOption) (*AddConversationMemberResponse, error)
 	RemoveConversationMember(ctx context.Context, in *RemoveConversationMemberRequest, opts ...grpc.CallOption) (*RemoveConversationMemberResponse, error)
 	TransferConversationOwner(ctx context.Context, in *TransferConversationOwnerRequest, opts ...grpc.CallOption) (*TransferConversationOwnerResponse, error)
@@ -163,6 +169,36 @@ func (c *conversationServiceClient) ListConversationMembers(ctx context.Context,
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListConversationMembersResponse)
 	err := c.cc.Invoke(ctx, ConversationService_ListConversationMembers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *conversationServiceClient) RetrieveCurrentConversationMember(ctx context.Context, in *RetrieveCurrentConversationMemberRequest, opts ...grpc.CallOption) (*RetrieveCurrentConversationMemberResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RetrieveCurrentConversationMemberResponse)
+	err := c.cc.Invoke(ctx, ConversationService_RetrieveCurrentConversationMember_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *conversationServiceClient) RetrieveConversationAgents(ctx context.Context, in *RetrieveConversationAgentsRequest, opts ...grpc.CallOption) (*RetrieveConversationAgentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RetrieveConversationAgentsResponse)
+	err := c.cc.Invoke(ctx, ConversationService_RetrieveConversationAgents_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *conversationServiceClient) UpdateConversationAgents(ctx context.Context, in *UpdateConversationAgentsRequest, opts ...grpc.CallOption) (*UpdateConversationAgentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateConversationAgentsResponse)
+	err := c.cc.Invoke(ctx, ConversationService_UpdateConversationAgents_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -312,6 +348,9 @@ type ConversationServiceServer interface {
 	RetrieveConversation(context.Context, *RetrieveConversationRequest) (*RetrieveConversationResponse, error)
 	ListInbox(context.Context, *ListInboxRequest) (*ListInboxResponse, error)
 	ListConversationMembers(context.Context, *ListConversationMembersRequest) (*ListConversationMembersResponse, error)
+	RetrieveCurrentConversationMember(context.Context, *RetrieveCurrentConversationMemberRequest) (*RetrieveCurrentConversationMemberResponse, error)
+	RetrieveConversationAgents(context.Context, *RetrieveConversationAgentsRequest) (*RetrieveConversationAgentsResponse, error)
+	UpdateConversationAgents(context.Context, *UpdateConversationAgentsRequest) (*UpdateConversationAgentsResponse, error)
 	AddConversationMember(context.Context, *AddConversationMemberRequest) (*AddConversationMemberResponse, error)
 	RemoveConversationMember(context.Context, *RemoveConversationMemberRequest) (*RemoveConversationMemberResponse, error)
 	TransferConversationOwner(context.Context, *TransferConversationOwnerRequest) (*TransferConversationOwnerResponse, error)
@@ -360,6 +399,15 @@ func (UnimplementedConversationServiceServer) ListInbox(context.Context, *ListIn
 }
 func (UnimplementedConversationServiceServer) ListConversationMembers(context.Context, *ListConversationMembersRequest) (*ListConversationMembersResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListConversationMembers not implemented")
+}
+func (UnimplementedConversationServiceServer) RetrieveCurrentConversationMember(context.Context, *RetrieveCurrentConversationMemberRequest) (*RetrieveCurrentConversationMemberResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RetrieveCurrentConversationMember not implemented")
+}
+func (UnimplementedConversationServiceServer) RetrieveConversationAgents(context.Context, *RetrieveConversationAgentsRequest) (*RetrieveConversationAgentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RetrieveConversationAgents not implemented")
+}
+func (UnimplementedConversationServiceServer) UpdateConversationAgents(context.Context, *UpdateConversationAgentsRequest) (*UpdateConversationAgentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateConversationAgents not implemented")
 }
 func (UnimplementedConversationServiceServer) AddConversationMember(context.Context, *AddConversationMemberRequest) (*AddConversationMemberResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddConversationMember not implemented")
@@ -578,6 +626,60 @@ func _ConversationService_ListConversationMembers_Handler(srv interface{}, ctx c
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConversationServiceServer).ListConversationMembers(ctx, req.(*ListConversationMembersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ConversationService_RetrieveCurrentConversationMember_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RetrieveCurrentConversationMemberRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConversationServiceServer).RetrieveCurrentConversationMember(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConversationService_RetrieveCurrentConversationMember_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConversationServiceServer).RetrieveCurrentConversationMember(ctx, req.(*RetrieveCurrentConversationMemberRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ConversationService_RetrieveConversationAgents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RetrieveConversationAgentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConversationServiceServer).RetrieveConversationAgents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConversationService_RetrieveConversationAgents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConversationServiceServer).RetrieveConversationAgents(ctx, req.(*RetrieveConversationAgentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ConversationService_UpdateConversationAgents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateConversationAgentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConversationServiceServer).UpdateConversationAgents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConversationService_UpdateConversationAgents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConversationServiceServer).UpdateConversationAgents(ctx, req.(*UpdateConversationAgentsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -858,6 +960,18 @@ var ConversationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListConversationMembers",
 			Handler:    _ConversationService_ListConversationMembers_Handler,
+		},
+		{
+			MethodName: "RetrieveCurrentConversationMember",
+			Handler:    _ConversationService_RetrieveCurrentConversationMember_Handler,
+		},
+		{
+			MethodName: "RetrieveConversationAgents",
+			Handler:    _ConversationService_RetrieveConversationAgents_Handler,
+		},
+		{
+			MethodName: "UpdateConversationAgents",
+			Handler:    _ConversationService_UpdateConversationAgents_Handler,
 		},
 		{
 			MethodName: "AddConversationMember",

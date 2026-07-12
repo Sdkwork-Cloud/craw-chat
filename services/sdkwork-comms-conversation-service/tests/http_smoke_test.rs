@@ -320,6 +320,60 @@ async fn test_create_conversation_and_post_message_over_http() {
 }
 
 #[tokio::test]
+async fn test_current_conversation_member_returns_authoritative_actor_role_over_http() {
+    let app = build_default_test_app();
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_http_current_member")
+            .await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/current"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("current member request should succeed");
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("current member body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("current member response should be valid json");
+    let item = response_item(&value);
+    assert_eq!(item["principalId"], "1");
+    assert_eq!(item["principalKind"], "user");
+    assert_eq!(item["role"], "owner");
+    assert_eq!(item["state"], "joined");
+
+    let forbidden = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/current"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("not-a-member")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("non-member current lookup should return a response");
+    assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
 async fn test_post_media_message_rejects_missing_drive_reference_over_http() {
     let app = build_default_test_app();
 
@@ -632,6 +686,305 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
     let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
         .expect("conflicting create should be valid json");
     assert_eq!(conflicting_retry_json["code"], 40901);
+}
+
+#[tokio::test]
+async fn test_group_agent_assignments_are_atomic_and_generation_checked_over_http() {
+    let app = build_default_test_app();
+    let create_body = serde_json::json!({
+        "conversationType": "group",
+        "groupName": "agent team",
+        "clientRequestKey": "c_group_agents_atomic_http",
+        "memberUserIds": ["3", "2", "2", "1"],
+        "agentAssignments": [
+            {"agentId": "agent.im.reviewer", "revisionId": "revision.reviewer.1"},
+            {"agentId": "agent.im.writer"}
+        ]
+    });
+    let create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(create_body.to_string()))
+                .unwrap(),
+        )
+        .await
+        .expect("group create with agents should return response");
+    assert_eq!(create.status(), StatusCode::CREATED);
+    let create_json: serde_json::Value = serde_json::from_slice(
+        &create
+            .into_body()
+            .collect()
+            .await
+            .expect("create body should collect")
+            .to_bytes(),
+    )
+    .expect("create body should be json");
+    let conversation_id = response_item(&create_json)["conversationId"]
+        .as_str()
+        .expect("create should return conversation id")
+        .to_owned();
+
+    let get = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/agents"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("agent assignment read should return response");
+    assert_eq!(get.status(), StatusCode::OK);
+    let get_json: serde_json::Value = serde_json::from_slice(
+        &get.into_body()
+            .collect()
+            .await
+            .expect("get body should collect")
+            .to_bytes(),
+    )
+    .expect("get body should be json");
+    let assignments = response_item(&get_json);
+    assert_eq!(assignments["generation"], 1);
+    assert_eq!(assignments["source"], "conversation_override");
+    assert_eq!(assignments["agents"].as_array().map(Vec::len), Some(2));
+
+    let members = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("initial member read should return response");
+    assert_eq!(members.status(), StatusCode::OK);
+    let members_json: serde_json::Value = serde_json::from_slice(
+        &members
+            .into_body()
+            .collect()
+            .await
+            .expect("member body should collect")
+            .to_bytes(),
+    )
+    .expect("member body should be json");
+    let mut member_ids = members_json["data"]["items"]
+        .as_array()
+        .expect("member response should contain items")
+        .iter()
+        .filter_map(|member| member["principalId"].as_str())
+        .collect::<Vec<_>>();
+    member_ids.sort_unstable();
+    assert_eq!(member_ids, vec!["1", "2", "3"]);
+
+    let replay = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "conversationType": "group",
+                        "groupName": "agent team",
+                        "clientRequestKey": "c_group_agents_atomic_http",
+                        "memberUserIds": ["2", "1", "3", "2"],
+                        "agentAssignments": [
+                            {"agentId": "agent.im.reviewer", "revisionId": "revision.reviewer.1"},
+                            {"agentId": "agent.im.writer"}
+                        ]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("normalized group create retry should return response");
+    assert_eq!(replay.status(), StatusCode::CREATED);
+    let replay_json: serde_json::Value = serde_json::from_slice(
+        &replay
+            .into_body()
+            .collect()
+            .await
+            .expect("replay body should collect")
+            .to_bytes(),
+    )
+    .expect("replay body should be json");
+    assert_eq!(response_item(&replay_json)["deliveryStatus"], "replayed");
+
+    let conflicting_members = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "conversationType": "group",
+                        "groupName": "agent team",
+                        "clientRequestKey": "c_group_agents_atomic_http",
+                        "memberUserIds": ["2", "4"],
+                        "agentAssignments": [
+                            {"agentId": "agent.im.reviewer", "revisionId": "revision.reviewer.1"},
+                            {"agentId": "agent.im.writer"}
+                        ]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting member create retry should return response");
+    assert_eq!(conflicting_members.status(), StatusCode::CONFLICT);
+
+    let update = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/agents"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "expectedGeneration": 1,
+                        "agentAssignments": [{"agentId": "agent.im.reviewer"}]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("agent assignment update should return response");
+    assert_eq!(update.status(), StatusCode::OK);
+    let update_json: serde_json::Value = serde_json::from_slice(
+        &update
+            .into_body()
+            .collect()
+            .await
+            .expect("update body should collect")
+            .to_bytes(),
+    )
+    .expect("update body should be json");
+    assert_eq!(response_item(&update_json)["generation"], 2);
+
+    let stale = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/agents"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "expectedGeneration": 1,
+                        "agentAssignments": [{"agentId": "agent.im.writer"}]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("stale update should return response");
+    assert_eq!(stale.status(), StatusCode::CONFLICT);
+}
+
+#[tokio::test]
+async fn test_post_message_rejects_invalid_agent_mention_display_text_over_http() {
+    let app = build_default_test_app();
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_http_agent_mention_display_text",
+    )
+    .await;
+
+    for (client_msg_id, display_text) in [
+        ("client_agent_mention_blank_label", "   ".to_owned()),
+        ("client_agent_mention_oversized_label", "x".repeat(513)),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!(
+                        "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                    ))
+                    .with_dual_token_tenant("100001")
+                    .with_dual_token_user("1")
+                    .with_dual_token_actor_kind("user")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "clientMsgId": client_msg_id,
+                            "parts": [{
+                                "kind": "mention",
+                                "targetKind": "agent",
+                                "targetId": "agent.im.default",
+                                "displayText": display_text,
+                                "assignmentGeneration": 1
+                            }]
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .expect("invalid agent mention should return a response");
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("invalid mention response body should collect")
+            .to_bytes();
+        let value: serde_json::Value = serde_json::from_slice(&body)
+            .expect("invalid mention response should be valid problem json");
+        assert_eq!(value["code"], 40001);
+        assert!(
+            value["detail"]
+                .as_str()
+                .is_some_and(|detail| detail.contains("displayText"))
+        );
+    }
 }
 
 #[tokio::test]
@@ -1117,6 +1470,65 @@ async fn test_create_conversation_rejects_unknown_user_creator_over_http() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
     assert_eq!(value["code"], 40001);
+}
+
+#[tokio::test]
+async fn test_group_create_rejects_unknown_initial_member_without_partial_commit_over_http() {
+    let app = build_default_test_app_with_principal_directory(Arc::new(
+        StrictKnownPrincipalDirectory::new(&["1", "2"]),
+    ));
+    let request = || {
+        Request::builder()
+            .method("POST")
+            .uri("/im/v3/api/chat/conversations")
+            .with_dual_token_tenant("100001")
+            .with_dual_token_user("1")
+            .with_dual_token_actor_kind("user")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                serde_json::json!({
+                    "conversationType": "group",
+                    "groupName": "strict initial members",
+                    "clientRequestKey": "c_strict_initial_members",
+                    "memberUserIds": ["2", "missing-user"]
+                })
+                .to_string(),
+            ))
+            .unwrap()
+    };
+
+    let rejected = app.clone().oneshot(request()).await.unwrap();
+    assert_eq!(rejected.status(), StatusCode::BAD_REQUEST);
+    let rejected_json: serde_json::Value =
+        serde_json::from_slice(&rejected.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(rejected_json["code"], 40001);
+
+    let retry = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "conversationType": "group",
+                        "groupName": "strict initial members",
+                        "clientRequestKey": "c_strict_initial_members",
+                        "memberUserIds": ["2"]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(retry.status(), StatusCode::CREATED);
+    let retry_json: serde_json::Value =
+        serde_json::from_slice(&retry.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(response_item(&retry_json)["deliveryStatus"], "applied");
 }
 
 #[tokio::test]

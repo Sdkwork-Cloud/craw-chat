@@ -59,6 +59,21 @@ class ConversationServiceStub:
                 request_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.ListConversationMembersRequest.SerializeToString,
                 response_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.ListConversationMembersResponse.FromString,
                 _registered_method=True)
+        self.RetrieveCurrentConversationMember = channel.unary_unary(
+                '/sdkwork.communication.app.v3.ConversationService/RetrieveCurrentConversationMember',
+                request_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveCurrentConversationMemberRequest.SerializeToString,
+                response_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveCurrentConversationMemberResponse.FromString,
+                _registered_method=True)
+        self.RetrieveConversationAgents = channel.unary_unary(
+                '/sdkwork.communication.app.v3.ConversationService/RetrieveConversationAgents',
+                request_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveConversationAgentsRequest.SerializeToString,
+                response_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveConversationAgentsResponse.FromString,
+                _registered_method=True)
+        self.UpdateConversationAgents = channel.unary_unary(
+                '/sdkwork.communication.app.v3.ConversationService/UpdateConversationAgents',
+                request_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.UpdateConversationAgentsRequest.SerializeToString,
+                response_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.UpdateConversationAgentsResponse.FromString,
+                _registered_method=True)
         self.AddConversationMember = channel.unary_unary(
                 '/sdkwork.communication.app.v3.ConversationService/AddConversationMember',
                 request_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.AddConversationMemberRequest.SerializeToString,
@@ -178,6 +193,24 @@ class ConversationServiceServicer:
         raise NotImplementedError('Method not implemented!')
 
     def ListConversationMembers(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RetrieveCurrentConversationMember(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RetrieveConversationAgents(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateConversationAgents(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -308,6 +341,21 @@ def add_ConversationServiceServicer_to_server(servicer, server):
                     servicer.ListConversationMembers,
                     request_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.ListConversationMembersRequest.FromString,
                     response_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.ListConversationMembersResponse.SerializeToString,
+            ),
+            'RetrieveCurrentConversationMember': grpc.unary_unary_rpc_method_handler(
+                    servicer.RetrieveCurrentConversationMember,
+                    request_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveCurrentConversationMemberRequest.FromString,
+                    response_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveCurrentConversationMemberResponse.SerializeToString,
+            ),
+            'RetrieveConversationAgents': grpc.unary_unary_rpc_method_handler(
+                    servicer.RetrieveConversationAgents,
+                    request_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveConversationAgentsRequest.FromString,
+                    response_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveConversationAgentsResponse.SerializeToString,
+            ),
+            'UpdateConversationAgents': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateConversationAgents,
+                    request_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.UpdateConversationAgentsRequest.FromString,
+                    response_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.UpdateConversationAgentsResponse.SerializeToString,
             ),
             'AddConversationMember': grpc.unary_unary_rpc_method_handler(
                     servicer.AddConversationMember,
@@ -618,6 +666,87 @@ class ConversationService:
             '/sdkwork.communication.app.v3.ConversationService/ListConversationMembers',
             sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.ListConversationMembersRequest.SerializeToString,
             sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.ListConversationMembersResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RetrieveCurrentConversationMember(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sdkwork.communication.app.v3.ConversationService/RetrieveCurrentConversationMember',
+            sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveCurrentConversationMemberRequest.SerializeToString,
+            sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveCurrentConversationMemberResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RetrieveConversationAgents(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sdkwork.communication.app.v3.ConversationService/RetrieveConversationAgents',
+            sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveConversationAgentsRequest.SerializeToString,
+            sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveConversationAgentsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateConversationAgents(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sdkwork.communication.app.v3.ConversationService/UpdateConversationAgents',
+            sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.UpdateConversationAgentsRequest.SerializeToString,
+            sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.UpdateConversationAgentsResponse.FromString,
             options,
             channel_credentials,
             insecure,

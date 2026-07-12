@@ -3753,6 +3753,7 @@ mod control_plane_policy_tests {
 mod friendship_lifecycle_tests {
     use std::sync::Arc;
 
+    use chrono::{Duration, Utc};
     use im_app_context::local_service_app_context;
     use im_domain_core::social::FriendshipStatus;
 
@@ -3760,6 +3761,10 @@ mod friendship_lifecycle_tests {
     use crate::user_directory::PermissiveSocialUserDirectory;
 
     use super::{AcceptFriendRequestRequest, RemoveFriendshipRequest, SubmitFriendRequestRequest};
+
+    fn test_timestamp(offset_seconds: i64) -> String {
+        (Utc::now() + Duration::seconds(offset_seconds)).to_rfc3339()
+    }
 
     fn auth_for(user_id: &str) -> im_app_context::AppContext {
         let mut auth = local_service_app_context("100001", user_id, "user", None, ["*"]);
@@ -3778,7 +3783,7 @@ mod friendship_lifecycle_tests {
             requester_user_id: requester.into(),
             target_user_id: target.into(),
             request_message: None,
-            requested_at: "2026-07-05T00:00:00.000Z".into(),
+            requested_at: test_timestamp(0),
         }
     }
 
@@ -3828,7 +3833,7 @@ mod friendship_lifecycle_tests {
                 AcceptFriendRequestRequest {
                     event_id: "evt_accept_fr_lifecycle_1".into(),
                     accepted_by_user_id: "user_b".into(),
-                    accepted_at: "2026-07-05T00:00:01.000Z".into(),
+                    accepted_at: test_timestamp(1),
                 },
             )
             .expect("accept friend request");
@@ -3864,7 +3869,7 @@ mod friendship_lifecycle_tests {
                 RemoveFriendshipRequest {
                     event_id: "evt_remove_fr_lifecycle_1".into(),
                     removed_by_user_id: "user_a".into(),
-                    removed_at: "2026-07-05T00:00:02.000Z".into(),
+                    removed_at: test_timestamp(2),
                 },
             )
             .expect("remove friendship");
@@ -3918,7 +3923,7 @@ mod friendship_lifecycle_tests {
         let accept_request = AcceptFriendRequestRequest {
             event_id: "evt_accept_fr_idempotent".into(),
             accepted_by_user_id: "user_b".into(),
-            accepted_at: "2026-07-05T00:00:01.000Z".into(),
+            accepted_at: test_timestamp(1),
         };
 
         runtime

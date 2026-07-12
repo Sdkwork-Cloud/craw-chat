@@ -522,10 +522,23 @@ struct CreateConversationRequest {
     /// `conversationType` is `group`; ignored otherwise.
     #[serde(default)]
     client_request_key: Option<String>,
+    /// Optional initial group agent set committed in the same creation batch.
+    #[serde(default)]
+    agent_assignments: Option<Vec<ConversationAgentAssignment>>,
+    /// Optional initial user members committed in the same creation batch.
+    #[serde(default)]
+    member_user_ids: Option<Vec<String>>,
     policy_version: Option<String>,
     capability_flags: Option<Vec<String>>,
     history_visibility: Option<String>,
     retention_policy_ref: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReplaceConversationAgentsRequest {
+    expected_generation: u64,
+    agent_assignments: Vec<ConversationAgentAssignment>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1134,6 +1147,14 @@ pub fn build_domain_api_router(state: AppState) -> Router {
             get(list_members),
         )
         .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/members/current",
+            get(get_current_conversation_member),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/agents",
+            get(get_conversation_agents).put(replace_conversation_agents),
+        )
+        .route(
             "/im/v3/api/chat/conversations/{conversation_id}/binding",
             get(get_conversation_binding),
         )
@@ -1413,6 +1434,8 @@ async fn create_conversation(
         let organization_id = organization_id_from_auth_context(&auth);
         let policy = request.conversation_policy()?;
         let conversation_type = request.conversation_type.trim();
+        let requested_agent_assignments = request.agent_assignments.clone();
+        let requested_member_user_ids = request.member_user_ids.clone().unwrap_or_default();
         if conversation_type.is_empty() {
             return Err(ApiProblem::from(ApiError::bad_request(
                 "conversation_type_required",
@@ -1445,12 +1468,52 @@ async fn create_conversation(
                         "clientRequestKey is required for group conversations",
                     ))
                 })?;
-            state.runtime.create_group_conversation_from_auth_context(
-                &auth,
-                group_name.to_owned(),
-                client_request_key.to_owned(),
-            )?
+            let normalized_member_user_ids = super::creation::normalize_initial_member_user_ids(
+                requested_member_user_ids,
+                auth.actor_id.as_str(),
+            )?;
+            for member_user_id in &normalized_member_user_ids {
+                if member_user_id.as_str() != auth.actor_id.as_str() {
+                    ensure_active_http_principal(
+                        &state,
+                        auth.tenant_id.as_str(),
+                        member_user_id,
+                        "user",
+                    )?;
+                }
+            }
+            match requested_agent_assignments.clone() {
+                Some(agent_assignments) => state
+                    .runtime
+                    .create_group_conversation_from_auth_context_with_members_and_agent_assignments(
+                        &auth,
+                        group_name.to_owned(),
+                        client_request_key.to_owned(),
+                        normalized_member_user_ids,
+                        agent_assignments,
+                    )?,
+                None => state
+                    .runtime
+                    .create_group_conversation_from_auth_context_with_members(
+                        &auth,
+                        group_name.to_owned(),
+                        client_request_key.to_owned(),
+                        normalized_member_user_ids,
+                    )?,
+            }
         } else {
+            if requested_agent_assignments.is_some() {
+                return Err(ApiProblem::from(ApiError::bad_request(
+                    "conversation_agent_assignments_group_only",
+                    "agentAssignments are only supported for group conversations",
+                )));
+            }
+            if !requested_member_user_ids.is_empty() {
+                return Err(ApiProblem::from(ApiError::bad_request(
+                    "conversation_member_user_ids_group_only",
+                    "memberUserIds are only supported for group conversations",
+                )));
+            }
             let conversation_id = request
                 .conversation_id
                 .as_deref()
@@ -1501,6 +1564,46 @@ async fn create_conversation(
         Ok(result)
     })();
     created_resource_response(&ctx, result)
+}
+
+async fn get_conversation_agents(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
+) -> Response {
+    let result: ApiResult<ConversationAgentAssignmentSet> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state
+            .runtime
+            .conversation_agent_assignments_snapshot_from_auth_context(
+                &auth,
+                conversation_id.as_str(),
+            )?)
+    })();
+    resource_response(&ctx, result)
+}
+
+async fn replace_conversation_agents(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
+    AppJson(request): AppJson<ReplaceConversationAgentsRequest>,
+) -> Response {
+    let result: ApiResult<ConversationAgentAssignmentSet> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state
+            .runtime
+            .replace_conversation_agents_from_auth_context(
+                &auth,
+                conversation_id,
+                request.expected_generation,
+                request.agent_assignments,
+            )?
+            .assignments)
+    })();
+    resource_response(&ctx, result)
 }
 
 async fn create_agent_dialog(
@@ -2034,6 +2137,21 @@ async fn list_members(
             })
     })();
     finish_api_json(&ctx, result)
+}
+
+async fn get_current_conversation_member(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
+) -> Response {
+    let result: ApiResult<ConversationMember> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state
+            .runtime
+            .require_active_member_from_auth_context(&auth, conversation_id.as_str())?)
+    })();
+    resource_response(&ctx, result)
 }
 
 async fn add_member(

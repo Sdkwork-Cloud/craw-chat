@@ -164,13 +164,21 @@ function hasSubscriptionDemand(): boolean {
 
 function notifyAuthenticationFailure(reason: string): void {
   for (const listener of authenticationFailureListeners) {
-    listener(reason);
+    try {
+      listener(reason);
+    } catch {
+      // Authentication cleanup must continue even when a UI observer fails.
+    }
   }
 }
 
 function notifyConnectionOpen(connection: ImLiveConnection): void {
   for (const listener of openListeners) {
-    listener(connection);
+    try {
+      listener(connection);
+    } catch {
+      // One observer must not block subscription synchronization or recovery.
+    }
   }
 }
 
@@ -178,6 +186,16 @@ function clearReconnectTimer(): void {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = undefined;
+  }
+}
+
+function recordConnectionFailure(): void {
+  consecutiveFailures += 1;
+  if (consecutiveFailures >= CIRCUIT_BREAKER_FAILURE_THRESHOLD) {
+    circuitOpenUntil = Math.max(
+      circuitOpenUntil,
+      Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS,
+    );
   }
 }
 
@@ -274,7 +292,11 @@ function syncWireSubscriptions(connection: ImLiveConnection): void {
           return;
         }
         for (const handler of registration.handlers) {
-          handler(message, context);
+          try {
+            handler(message, context);
+          } catch {
+            // Isolate independent consumers sharing the same wire subscription.
+          }
         }
       }),
     );
@@ -303,10 +325,18 @@ function syncWireSubscriptions(connection: ImLiveConnection): void {
         }
         const eventType = context.eventType;
         for (const listener of registration.listeners) {
-          if (eventType && !listener.eventTypes.includes(eventType)) {
+          if (
+            eventType
+            && listener.eventTypes.length > 0
+            && !listener.eventTypes.includes(eventType)
+          ) {
             continue;
           }
-          listener.handler(context);
+          try {
+            listener.handler(context);
+          } catch {
+            // Isolate independent consumers sharing the same scope subscription.
+          }
         }
       }),
     );
@@ -329,22 +359,31 @@ function teardownIfIdle(reason = 'no live subscriptions'): void {
   }
   clearReconnectTimer();
   clearWireSubscriptions();
-  sharedConnection?.disconnect(1000, reason);
-  resetConnectionState();
+  const staleConnection = sharedConnection;
+  connectionGeneration += 1;
+  resetConnectionState(reason);
+  staleConnection?.disconnect(1000, reason);
   reconnectAttempt = 0;
   consecutiveFailures = 0;
   circuitOpenUntil = 0;
 }
 
-function handleConnectionLost(triggerReconnect: boolean, closeStaleConnection = false): void {
-  const staleConnection = sharedConnection;
+function handleConnectionLost(
+  connection: ImLiveConnection,
+  generation: number,
+  triggerReconnect: boolean,
+  closeStaleConnection = false,
+): void {
+  if (generation !== connectionGeneration || sharedConnection !== connection) {
+    return;
+  }
   detachConnectionListeners();
   clearWireSubscriptions();
   sharedConnection = null;
   sharedConnectionPromise = null;
   connectionStatus = 'closed';
   if (closeStaleConnection) {
-    staleConnection?.disconnect(1000, 'live connection lost');
+    connection.disconnect(1000, 'live connection lost');
   }
 
   if (!triggerReconnect || !hasSubscriptionDemand()) {
@@ -368,9 +407,16 @@ function scheduleReconnect(): void {
   ) {
     return;
   }
-  if (Date.now() < circuitOpenUntil) {
+
+  const circuitCooldownRemaining = circuitOpenUntil - Date.now();
+  if (circuitCooldownRemaining > 0) {
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = undefined;
+      void ensurePcLiveConnection().catch(() => undefined);
+    }, circuitCooldownRemaining);
     return;
   }
+  circuitOpenUntil = 0;
 
   reconnectAttempt += 1;
   reconnectTimer = setTimeout(() => {
@@ -383,16 +429,25 @@ function bindConnection(connection: ImLiveConnection, generation: number): void 
   detachConnectionListeners();
   sharedConnection = connection;
   connectionStatus = 'connecting';
-  reconnectAttempt = 0;
-  consecutiveFailures = 0;
-  circuitOpenUntil = 0;
+  let failureRecorded = false;
 
-  lifecycleUnsub = connection.lifecycle.onStateChange((state) => {
-    if (generation !== connectionGeneration) {
+  const recordCurrentConnectionFailure = (): void => {
+    if (failureRecorded) {
+      return;
+    }
+    failureRecorded = true;
+    recordConnectionFailure();
+  };
+
+  const nextLifecycleUnsub = connection.lifecycle.onStateChange((state) => {
+    if (generation !== connectionGeneration || sharedConnection !== connection) {
       return;
     }
     if (state.status === 'open') {
       connectionStatus = 'open';
+      reconnectAttempt = 0;
+      consecutiveFailures = 0;
+      circuitOpenUntil = 0;
       syncWireSubscriptions(connection);
       notifyConnectionOpen(connection);
       return;
@@ -408,16 +463,23 @@ function bindConnection(connection: ImLiveConnection, generation: number): void 
         disposePcLiveConnection('websocket authentication failed');
         return;
       }
-      handleConnectionLost(true, true);
+      recordCurrentConnectionFailure();
+      handleConnectionLost(connection, generation, true, true);
       return;
     }
     if (state.status === 'closed') {
-      handleConnectionLost(true);
+      recordCurrentConnectionFailure();
+      handleConnectionLost(connection, generation, true);
     }
   });
+  if (generation === connectionGeneration && sharedConnection === connection) {
+    lifecycleUnsub = nextLifecycleUnsub;
+  } else {
+    nextLifecycleUnsub();
+  }
 
-  errorUnsub = connection.lifecycle.onError((error) => {
-    if (generation !== connectionGeneration) {
+  const nextErrorUnsub = connection.lifecycle.onError((error) => {
+    if (generation !== connectionGeneration || sharedConnection !== connection) {
       return;
     }
     if (isAuthenticationFailure(error)) {
@@ -426,13 +488,15 @@ function bindConnection(connection: ImLiveConnection, generation: number): void 
       return;
     }
     if (isFatalLiveConnectionError(error)) {
-      consecutiveFailures += 1;
-      if (consecutiveFailures >= CIRCUIT_BREAKER_FAILURE_THRESHOLD) {
-        circuitOpenUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
-      }
-      handleConnectionLost(true, true);
+      recordCurrentConnectionFailure();
+      handleConnectionLost(connection, generation, true, true);
     }
   });
+  if (generation === connectionGeneration && sharedConnection === connection) {
+    errorUnsub = nextErrorUnsub;
+  } else {
+    nextErrorUnsub();
+  }
 }
 
 async function connectSharedLiveConnection(): Promise<ImLiveConnection> {
@@ -469,6 +533,9 @@ async function connectSharedLiveConnection(): Promise<ImLiveConnection> {
   }
 
   bindConnection(connection, generation);
+  if (generation !== connectionGeneration || sharedConnection !== connection) {
+    throw new Error('PC live connection closed during setup');
+  }
   return connection;
 }
 
@@ -551,6 +618,10 @@ export async function ensurePcLiveConnection(): Promise<ImLiveConnection> {
     await connectionDrainPromise;
     return ensurePcLiveConnection();
   }
+  if (Date.now() < circuitOpenUntil) {
+    scheduleReconnect();
+    throw new Error('PC live connection circuit breaker is cooling down');
+  }
 
   const attemptGeneration = connectionGeneration + 1;
   let attemptPromise: Promise<ImLiveConnection>;
@@ -568,10 +639,10 @@ export async function ensurePcLiveConnection(): Promise<ImLiveConnection> {
       if (attemptGeneration !== connectionGeneration) {
         throw error;
       }
+      const failureAlreadyRecorded = connectionStatus === 'closed';
       connectionStatus = 'error';
-      consecutiveFailures += 1;
-      if (consecutiveFailures >= CIRCUIT_BREAKER_FAILURE_THRESHOLD) {
-        circuitOpenUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
+      if (!failureAlreadyRecorded) {
+        recordConnectionFailure();
       }
       if (
         hasSubscriptionDemand()

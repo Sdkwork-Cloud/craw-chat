@@ -21,6 +21,9 @@ pub const CONVERSATION_AGENT_HANDOFF_RESOLVE: &str =
 pub const CONVERSATION_AGENT_HANDOFF_CLOSE: &str =
     "/im/v3/api/chat/conversations/{conversationId}/agent_handoff/close";
 pub const CONVERSATION_MEMBERS: &str = "/im/v3/api/chat/conversations/{conversationId}/members";
+pub const CONVERSATION_MEMBERS_CURRENT: &str =
+    "/im/v3/api/chat/conversations/{conversationId}/members/current";
+pub const CONVERSATION_AGENTS: &str = "/im/v3/api/chat/conversations/{conversationId}/agents";
 pub const CONVERSATION_BINDING: &str = "/im/v3/api/chat/conversations/{conversationId}/binding";
 pub const CONVERSATION_MEMBERS_ADD: &str =
     "/im/v3/api/chat/conversations/{conversationId}/members/add";

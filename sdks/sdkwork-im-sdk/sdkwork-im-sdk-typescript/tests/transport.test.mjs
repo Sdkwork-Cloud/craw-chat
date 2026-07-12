@@ -34,9 +34,271 @@ import {
 } from '../dist/transport-selector.js';
 import { createDefaultTransportFactories } from '../dist/transports/index.js';
 import { ImSdkClient } from '../dist/sdk.js';
+import { ImCallsModule } from '../dist/calls-module.js';
+import { ImConversationsModule } from '../dist/conversations-module.js';
+import { GeneratedSdkworkImClient } from '../dist/index.js';
 import { createImLiveConnection } from '../dist/realtime.js';
 
 const TEST_ACCESS_TOKEN = `header.${Buffer.from(JSON.stringify({ user_id: 'user-1' })).toString('base64url')}.signature`;
+
+describe('conversation agent assignment generation boundary', () => {
+  it('normalizes int64 responses and keeps the JSON command generation numeric', async () => {
+    const updates = [];
+    const conversations = new ImConversationsModule({
+      chat: {
+        conversations: {
+          agents: {
+            retrieve: async () => ({
+              generation: '7',
+              source: 'conversation_override',
+              agents: [{ agentId: 'agent.im.writer' }],
+            }),
+            update: async (conversationId, body) => {
+              updates.push({ conversationId, body });
+              return {
+                generation: 8,
+                source: 'conversation_override',
+                agents: body.agentAssignments,
+              };
+            },
+          },
+        },
+      },
+    });
+
+    assert.equal((await conversations.getAgentAssignments(' group-1 ')).generation, 7);
+    const updated = await conversations.replaceAgentAssignments('group-1', {
+      expectedGeneration: 7,
+      agentAssignments: [{ agentId: 'agent.im.reviewer' }],
+    });
+
+    assert.equal(updated.generation, 8);
+    assert.deepEqual(updates, [{
+      conversationId: 'group-1',
+      body: {
+        expectedGeneration: 7,
+        agentAssignments: [{ agentId: 'agent.im.reviewer' }],
+      },
+    }]);
+  });
+
+  it('rejects unsafe command and response generations', async () => {
+    let updateCalled = false;
+    const conversations = new ImConversationsModule({
+      chat: {
+        conversations: {
+          agents: {
+            retrieve: async () => ({
+              generation: '9223372036854775807',
+              source: 'conversation_override',
+              agents: [{ agentId: 'agent.im.writer' }],
+            }),
+            update: async () => {
+              updateCalled = true;
+              return {};
+            },
+          },
+        },
+      },
+    });
+
+    await assert.rejects(
+      conversations.getAgentAssignments('group-1'),
+      /safe integer range/u,
+    );
+    await assert.rejects(
+      conversations.replaceAgentAssignments('group-1', {
+        expectedGeneration: Number.MAX_SAFE_INTEGER + 1,
+        agentAssignments: [{ agentId: 'agent.im.writer' }],
+      }),
+      /positive safe integer/u,
+    );
+    assert.equal(updateCalled, false);
+  });
+});
+
+describe('current conversation member boundary', () => {
+  it('uses the generated current-member singleton with a normalized conversation id', async () => {
+    const requests = [];
+    const conversations = new ImConversationsModule({
+      chat: {
+        conversations: {
+          members: {
+            current: {
+              retrieve: async (conversationId) => {
+                requests.push(conversationId);
+                return {
+                  tenantId: 'tenant-1',
+                  conversationId,
+                  memberId: 'member-1',
+                  principalId: 'user-1',
+                  principalKind: 'user',
+                  role: 'owner',
+                  state: 'joined',
+                  joinedAt: '2026-07-12T00:00:00.000Z',
+                  attributes: {},
+                };
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const member = await conversations.getCurrentMember(' group-1 ');
+
+    assert.deepEqual(requests, ['group-1']);
+    assert.equal(member.role, 'owner');
+    assert.equal(member.principalKind, 'user');
+  });
+});
+
+describe('generated IM client shape compatibility', () => {
+  it('uses the generated nested current API and emits numeric mention generations', async () => {
+    const generatedClient = new GeneratedSdkworkImClient({
+      baseUrl: 'https://im.example.test',
+    });
+    const requests = [];
+    generatedClient.http.request = async (path, options = {}) => {
+      requests.push({ path, options });
+      if (path.endsWith('/members/current')) {
+        return {
+          tenantId: 'tenant-1',
+          conversationId: 'group-1',
+          memberId: 'member-1',
+          principalId: 'user-1',
+          principalKind: 'user',
+          role: 'owner',
+          state: 'joined',
+          joinedAt: '2026-07-12T00:00:00.000Z',
+          attributes: {},
+        };
+      }
+      return {
+        messageId: 'message-1',
+        messageSeq: 1,
+      };
+    };
+
+    assert.equal(typeof generatedClient.chat.conversations.members.current.retrieve, 'function');
+    const conversations = new ImConversationsModule(generatedClient);
+    const member = await conversations.getCurrentMember(' group-1 ');
+    await conversations.postMessage('group-1', {
+      text: 'hello @writer',
+      parts: [{
+        kind: 'mention',
+        targetKind: 'agent',
+        targetId: 'agent.im.writer',
+        displayText: '@writer',
+        assignmentGeneration: 7,
+      }],
+    });
+
+    assert.equal(member.memberId, 'member-1');
+    assert.equal(requests[0].path, '/im/v3/api/chat/conversations/group-1/members/current');
+    assert.equal(requests[1].path, '/im/v3/api/chat/conversations/group-1/messages');
+    assert.equal(requests[1].options.body.parts[0].assignmentGeneration, 7);
+    assert.equal(
+      typeof JSON.parse(JSON.stringify(requests[1].options.body)).parts[0].assignmentGeneration,
+      'number',
+    );
+  });
+
+  it('converts legacy generated int64 strings and rejects unsafe mention generations', async () => {
+    const generatedClient = new GeneratedSdkworkImClient({
+      baseUrl: 'https://im.example.test',
+    });
+    const bodies = [];
+    generatedClient.http.request = async (_path, options = {}) => {
+      bodies.push(options.body);
+      return { messageId: 'message-1', messageSeq: 1 };
+    };
+    const conversations = new ImConversationsModule(generatedClient);
+
+    await conversations.postText('group-1', 'legacy', {
+      parts: [{
+        kind: 'mention',
+        targetKind: 'agent',
+        targetId: 'agent.im.writer',
+        displayText: '@writer',
+        assignmentGeneration: '7',
+      }],
+    });
+    assert.equal(bodies[0].parts[0].assignmentGeneration, 7);
+
+    await assert.rejects(
+      conversations.postMessage('group-1', {
+        parts: [{
+          kind: 'mention',
+          targetKind: 'agent',
+          targetId: 'agent.im.writer',
+          displayText: '@writer',
+          assignmentGeneration: Number.MAX_SAFE_INTEGER + 1,
+        }],
+      }),
+      /safe integer range/u,
+    );
+    assert.equal(bodies.length, 1);
+  });
+});
+
+describe('IM call signal cursor boundary', () => {
+  it('preserves int64 cursors and normalizes numeric cursors before transport', async () => {
+    const requests = [];
+    const calls = new ImCallsModule({
+      calls: {
+        sessions: {
+          signals: {
+            list: async (...args) => {
+              requests.push(args);
+              return { items: [], pageInfo: { mode: 'cursor' } };
+            },
+          },
+        },
+      },
+    });
+
+    await calls.listSignals('  session-1  ', {
+      afterSignalSeq: '0009223372036854775807',
+      pageSize: 20,
+      cursor: 'next-page',
+    });
+    await calls.listSignals('session-1', { afterSignalSeq: 42 });
+
+    assert.deepEqual(requests, [
+      [
+        'session-1',
+        {
+          afterSignalSeq: '9223372036854775807',
+          pageSize: 20,
+          cursor: 'next-page',
+        },
+      ],
+      ['session-1', { afterSignalSeq: '42', pageSize: undefined, cursor: undefined }],
+    ]);
+  });
+
+  it('rejects malformed, unsafe, and out-of-range cursors before transport', () => {
+    const calls = new ImCallsModule({ calls: { sessions: { signals: { list: async () => ({}) } } } });
+
+    assert.throws(
+      () => calls.listSignals('session-1', { afterSignalSeq: -1 }),
+      /non-negative safe integer/u,
+    );
+    assert.throws(
+      () => calls.listSignals('session-1', { afterSignalSeq: Number.MAX_SAFE_INTEGER + 1 }),
+      /non-negative safe integer/u,
+    );
+    assert.throws(
+      () => calls.listSignals('session-1', { afterSignalSeq: '-1' }),
+      /non-negative integer string/u,
+    );
+    assert.throws(
+      () => calls.listSignals('session-1', { afterSignalSeq: '9223372036854775808' }),
+      /signed int64 range/u,
+    );
+  });
+});
 
 function createFakeTransport(kind, initialState = 'connecting') {
   let state = initialState;

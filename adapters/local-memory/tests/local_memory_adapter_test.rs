@@ -577,6 +577,44 @@ fn test_memory_timeline_projection_store_upserts_by_sequence() {
 }
 
 #[test]
+fn test_memory_timeline_projection_store_loads_bounded_keyset_windows() {
+    let projection = MemoryTimelineProjectionStore::default();
+    for sequence in 1..=4 {
+        projection
+            .upsert_timeline_entry(
+                "100001",
+                "c_window",
+                sequence,
+                format!("{{\"sequence\":{sequence}}}").as_str(),
+            )
+            .expect("timeline upsert should succeed");
+    }
+
+    assert_eq!(
+        projection
+            .load_timeline_window("100001", "c_window", 1, 2)
+            .expect("bounded timeline window should load"),
+        im_platform_contracts::TimelineProjectionWindow {
+            items: vec![
+                (2, "{\"sequence\":2}".to_string()),
+                (3, "{\"sequence\":3}".to_string()),
+            ],
+            has_more: true,
+        }
+    );
+    assert_eq!(
+        projection
+            .load_timeline_window("100001", "c_window", 1, 0)
+            .expect("zero-sized timeline window should load"),
+        im_platform_contracts::TimelineProjectionWindow {
+            items: Vec::new(),
+            has_more: true,
+        },
+        "the memory adapter must match the PostgreSQL zero-limit semantics"
+    );
+}
+
+#[test]
 fn test_memory_timeline_projection_store_isolates_same_scope_across_tenants() {
     let projection = MemoryTimelineProjectionStore::default();
 

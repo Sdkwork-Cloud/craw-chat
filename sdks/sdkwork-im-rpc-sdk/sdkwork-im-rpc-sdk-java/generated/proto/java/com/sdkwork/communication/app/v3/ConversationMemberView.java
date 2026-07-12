@@ -32,6 +32,10 @@ private static final long serialVersionUID = 0L;
     userId_ = "";
     role_ = "";
     state_ = "";
+    principalKind_ = "";
+    memberId_ = "";
+    tenantId_ = "";
+    joinedAt_ = "";
   }
 
   public static final com.google.protobuf.Descriptors.Descriptor
@@ -208,6 +212,162 @@ private static final long serialVersionUID = 0L;
     }
   }
 
+  public static final int PRINCIPAL_KIND_FIELD_NUMBER = 5;
+  @SuppressWarnings("serial")
+  private volatile java.lang.Object principalKind_ = "";
+  /**
+   * <code>string principal_kind = 5 [json_name = "principalKind"];</code>
+   * @return The principalKind.
+   */
+  @java.lang.Override
+  public java.lang.String getPrincipalKind() {
+    java.lang.Object ref = principalKind_;
+    if (ref instanceof java.lang.String) {
+      return (java.lang.String) ref;
+    } else {
+      com.google.protobuf.ByteString bs = 
+          (com.google.protobuf.ByteString) ref;
+      java.lang.String s = bs.toStringUtf8();
+      principalKind_ = s;
+      return s;
+    }
+  }
+  /**
+   * <code>string principal_kind = 5 [json_name = "principalKind"];</code>
+   * @return The bytes for principalKind.
+   */
+  @java.lang.Override
+  public com.google.protobuf.ByteString
+      getPrincipalKindBytes() {
+    java.lang.Object ref = principalKind_;
+    if (ref instanceof java.lang.String) {
+      com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString.copyFromUtf8(
+              (java.lang.String) ref);
+      principalKind_ = b;
+      return b;
+    } else {
+      return (com.google.protobuf.ByteString) ref;
+    }
+  }
+
+  public static final int MEMBER_ID_FIELD_NUMBER = 6;
+  @SuppressWarnings("serial")
+  private volatile java.lang.Object memberId_ = "";
+  /**
+   * <code>string member_id = 6 [json_name = "memberId"];</code>
+   * @return The memberId.
+   */
+  @java.lang.Override
+  public java.lang.String getMemberId() {
+    java.lang.Object ref = memberId_;
+    if (ref instanceof java.lang.String) {
+      return (java.lang.String) ref;
+    } else {
+      com.google.protobuf.ByteString bs = 
+          (com.google.protobuf.ByteString) ref;
+      java.lang.String s = bs.toStringUtf8();
+      memberId_ = s;
+      return s;
+    }
+  }
+  /**
+   * <code>string member_id = 6 [json_name = "memberId"];</code>
+   * @return The bytes for memberId.
+   */
+  @java.lang.Override
+  public com.google.protobuf.ByteString
+      getMemberIdBytes() {
+    java.lang.Object ref = memberId_;
+    if (ref instanceof java.lang.String) {
+      com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString.copyFromUtf8(
+              (java.lang.String) ref);
+      memberId_ = b;
+      return b;
+    } else {
+      return (com.google.protobuf.ByteString) ref;
+    }
+  }
+
+  public static final int TENANT_ID_FIELD_NUMBER = 7;
+  @SuppressWarnings("serial")
+  private volatile java.lang.Object tenantId_ = "";
+  /**
+   * <code>string tenant_id = 7 [json_name = "tenantId"];</code>
+   * @return The tenantId.
+   */
+  @java.lang.Override
+  public java.lang.String getTenantId() {
+    java.lang.Object ref = tenantId_;
+    if (ref instanceof java.lang.String) {
+      return (java.lang.String) ref;
+    } else {
+      com.google.protobuf.ByteString bs = 
+          (com.google.protobuf.ByteString) ref;
+      java.lang.String s = bs.toStringUtf8();
+      tenantId_ = s;
+      return s;
+    }
+  }
+  /**
+   * <code>string tenant_id = 7 [json_name = "tenantId"];</code>
+   * @return The bytes for tenantId.
+   */
+  @java.lang.Override
+  public com.google.protobuf.ByteString
+      getTenantIdBytes() {
+    java.lang.Object ref = tenantId_;
+    if (ref instanceof java.lang.String) {
+      com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString.copyFromUtf8(
+              (java.lang.String) ref);
+      tenantId_ = b;
+      return b;
+    } else {
+      return (com.google.protobuf.ByteString) ref;
+    }
+  }
+
+  public static final int JOINED_AT_FIELD_NUMBER = 8;
+  @SuppressWarnings("serial")
+  private volatile java.lang.Object joinedAt_ = "";
+  /**
+   * <code>string joined_at = 8 [json_name = "joinedAt"];</code>
+   * @return The joinedAt.
+   */
+  @java.lang.Override
+  public java.lang.String getJoinedAt() {
+    java.lang.Object ref = joinedAt_;
+    if (ref instanceof java.lang.String) {
+      return (java.lang.String) ref;
+    } else {
+      com.google.protobuf.ByteString bs = 
+          (com.google.protobuf.ByteString) ref;
+      java.lang.String s = bs.toStringUtf8();
+      joinedAt_ = s;
+      return s;
+    }
+  }
+  /**
+   * <code>string joined_at = 8 [json_name = "joinedAt"];</code>
+   * @return The bytes for joinedAt.
+   */
+  @java.lang.Override
+  public com.google.protobuf.ByteString
+      getJoinedAtBytes() {
+    java.lang.Object ref = joinedAt_;
+    if (ref instanceof java.lang.String) {
+      com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString.copyFromUtf8(
+              (java.lang.String) ref);
+      joinedAt_ = b;
+      return b;
+    } else {
+      return (com.google.protobuf.ByteString) ref;
+    }
+  }
+
   private byte memoizedIsInitialized = -1;
   @java.lang.Override
   public final boolean isInitialized() {
@@ -234,6 +394,18 @@ private static final long serialVersionUID = 0L;
     if (!com.google.protobuf.GeneratedMessage.isStringEmpty(state_)) {
       com.google.protobuf.GeneratedMessage.writeString(output, 4, state_);
     }
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(principalKind_)) {
+      com.google.protobuf.GeneratedMessage.writeString(output, 5, principalKind_);
+    }
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(memberId_)) {
+      com.google.protobuf.GeneratedMessage.writeString(output, 6, memberId_);
+    }
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(tenantId_)) {
+      com.google.protobuf.GeneratedMessage.writeString(output, 7, tenantId_);
+    }
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(joinedAt_)) {
+      com.google.protobuf.GeneratedMessage.writeString(output, 8, joinedAt_);
+    }
     getUnknownFields().writeTo(output);
   }
   private int computeSerializedSize_0() {
@@ -249,6 +421,18 @@ private static final long serialVersionUID = 0L;
     }
     if (!com.google.protobuf.GeneratedMessage.isStringEmpty(state_)) {
       size += com.google.protobuf.GeneratedMessage.computeStringSize(4, state_);
+    }
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(principalKind_)) {
+      size += com.google.protobuf.GeneratedMessage.computeStringSize(5, principalKind_);
+    }
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(memberId_)) {
+      size += com.google.protobuf.GeneratedMessage.computeStringSize(6, memberId_);
+    }
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(tenantId_)) {
+      size += com.google.protobuf.GeneratedMessage.computeStringSize(7, tenantId_);
+    }
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(joinedAt_)) {
+      size += com.google.protobuf.GeneratedMessage.computeStringSize(8, joinedAt_);
     }
     return size;
   }
@@ -282,6 +466,14 @@ private static final long serialVersionUID = 0L;
         .equals(other.getRole())) return false;
     if (!getState()
         .equals(other.getState())) return false;
+    if (!getPrincipalKind()
+        .equals(other.getPrincipalKind())) return false;
+    if (!getMemberId()
+        .equals(other.getMemberId())) return false;
+    if (!getTenantId()
+        .equals(other.getTenantId())) return false;
+    if (!getJoinedAt()
+        .equals(other.getJoinedAt())) return false;
     if (!getUnknownFields().equals(other.getUnknownFields())) return false;
     return true;
   }
@@ -301,6 +493,14 @@ private static final long serialVersionUID = 0L;
     hash = (53 * hash) + getRole().hashCode();
     hash = (37 * hash) + STATE_FIELD_NUMBER;
     hash = (53 * hash) + getState().hashCode();
+    hash = (37 * hash) + PRINCIPAL_KIND_FIELD_NUMBER;
+    hash = (53 * hash) + getPrincipalKind().hashCode();
+    hash = (37 * hash) + MEMBER_ID_FIELD_NUMBER;
+    hash = (53 * hash) + getMemberId().hashCode();
+    hash = (37 * hash) + TENANT_ID_FIELD_NUMBER;
+    hash = (53 * hash) + getTenantId().hashCode();
+    hash = (37 * hash) + JOINED_AT_FIELD_NUMBER;
+    hash = (53 * hash) + getJoinedAt().hashCode();
     hash = (29 * hash) + getUnknownFields().hashCode();
     memoizedHashCode = hash;
     return hash;
@@ -436,6 +636,10 @@ private static final long serialVersionUID = 0L;
       userId_ = "";
       role_ = "";
       state_ = "";
+      principalKind_ = "";
+      memberId_ = "";
+      tenantId_ = "";
+      joinedAt_ = "";
       return this;
     }
 
@@ -481,6 +685,18 @@ private static final long serialVersionUID = 0L;
       if (((from_bitField0_ & 0x00000008) != 0)) {
         result.state_ = state_;
       }
+      if (((from_bitField0_ & 0x00000010) != 0)) {
+        result.principalKind_ = principalKind_;
+      }
+      if (((from_bitField0_ & 0x00000020) != 0)) {
+        result.memberId_ = memberId_;
+      }
+      if (((from_bitField0_ & 0x00000040) != 0)) {
+        result.tenantId_ = tenantId_;
+      }
+      if (((from_bitField0_ & 0x00000080) != 0)) {
+        result.joinedAt_ = joinedAt_;
+      }
     }
 
     @java.lang.Override
@@ -513,6 +729,26 @@ private static final long serialVersionUID = 0L;
       if (!other.getState().isEmpty()) {
         state_ = other.state_;
         bitField0_ |= 0x00000008;
+        onChanged();
+      }
+      if (!other.getPrincipalKind().isEmpty()) {
+        principalKind_ = other.principalKind_;
+        bitField0_ |= 0x00000010;
+        onChanged();
+      }
+      if (!other.getMemberId().isEmpty()) {
+        memberId_ = other.memberId_;
+        bitField0_ |= 0x00000020;
+        onChanged();
+      }
+      if (!other.getTenantId().isEmpty()) {
+        tenantId_ = other.tenantId_;
+        bitField0_ |= 0x00000040;
+        onChanged();
+      }
+      if (!other.getJoinedAt().isEmpty()) {
+        joinedAt_ = other.joinedAt_;
+        bitField0_ |= 0x00000080;
         onChanged();
       }
       this.mergeUnknownFields(other.getUnknownFields());
@@ -561,6 +797,26 @@ private static final long serialVersionUID = 0L;
               bitField0_ |= 0x00000008;
               break;
             } // case 34
+            case 42: {
+              principalKind_ = input.readStringRequireUtf8();
+              bitField0_ |= 0x00000010;
+              break;
+            } // case 42
+            case 50: {
+              memberId_ = input.readStringRequireUtf8();
+              bitField0_ |= 0x00000020;
+              break;
+            } // case 50
+            case 58: {
+              tenantId_ = input.readStringRequireUtf8();
+              bitField0_ |= 0x00000040;
+              break;
+            } // case 58
+            case 66: {
+              joinedAt_ = input.readStringRequireUtf8();
+              bitField0_ |= 0x00000080;
+              break;
+            } // case 66
             default: {
               if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                 done = true; // was an endgroup tag
@@ -862,6 +1118,294 @@ private static final long serialVersionUID = 0L;
       checkByteStringIsUtf8(value);
       state_ = value;
       bitField0_ |= 0x00000008;
+      onChanged();
+      return this;
+    }
+
+    private java.lang.Object principalKind_ = "";
+    /**
+     * <code>string principal_kind = 5 [json_name = "principalKind"];</code>
+     * @return The principalKind.
+     */
+    public java.lang.String getPrincipalKind() {
+      java.lang.Object ref = principalKind_;
+      if (!(ref instanceof java.lang.String)) {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        principalKind_ = s;
+        return s;
+      } else {
+        return (java.lang.String) ref;
+      }
+    }
+    /**
+     * <code>string principal_kind = 5 [json_name = "principalKind"];</code>
+     * @return The bytes for principalKind.
+     */
+    public com.google.protobuf.ByteString
+        getPrincipalKindBytes() {
+      java.lang.Object ref = principalKind_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        principalKind_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    /**
+     * <code>string principal_kind = 5 [json_name = "principalKind"];</code>
+     * @param value The principalKind to set.
+     * @return This builder for chaining.
+     */
+    public Builder setPrincipalKind(
+        java.lang.String value) {
+      if (value == null) { throw new NullPointerException(); }
+      principalKind_ = value;
+      bitField0_ |= 0x00000010;
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>string principal_kind = 5 [json_name = "principalKind"];</code>
+     * @return This builder for chaining.
+     */
+    public Builder clearPrincipalKind() {
+      principalKind_ = getDefaultInstance().getPrincipalKind();
+      bitField0_ = (bitField0_ & ~0x00000010);
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>string principal_kind = 5 [json_name = "principalKind"];</code>
+     * @param value The bytes for principalKind to set.
+     * @return This builder for chaining.
+     */
+    public Builder setPrincipalKindBytes(
+        com.google.protobuf.ByteString value) {
+      if (value == null) { throw new NullPointerException(); }
+      checkByteStringIsUtf8(value);
+      principalKind_ = value;
+      bitField0_ |= 0x00000010;
+      onChanged();
+      return this;
+    }
+
+    private java.lang.Object memberId_ = "";
+    /**
+     * <code>string member_id = 6 [json_name = "memberId"];</code>
+     * @return The memberId.
+     */
+    public java.lang.String getMemberId() {
+      java.lang.Object ref = memberId_;
+      if (!(ref instanceof java.lang.String)) {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        memberId_ = s;
+        return s;
+      } else {
+        return (java.lang.String) ref;
+      }
+    }
+    /**
+     * <code>string member_id = 6 [json_name = "memberId"];</code>
+     * @return The bytes for memberId.
+     */
+    public com.google.protobuf.ByteString
+        getMemberIdBytes() {
+      java.lang.Object ref = memberId_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        memberId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    /**
+     * <code>string member_id = 6 [json_name = "memberId"];</code>
+     * @param value The memberId to set.
+     * @return This builder for chaining.
+     */
+    public Builder setMemberId(
+        java.lang.String value) {
+      if (value == null) { throw new NullPointerException(); }
+      memberId_ = value;
+      bitField0_ |= 0x00000020;
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>string member_id = 6 [json_name = "memberId"];</code>
+     * @return This builder for chaining.
+     */
+    public Builder clearMemberId() {
+      memberId_ = getDefaultInstance().getMemberId();
+      bitField0_ = (bitField0_ & ~0x00000020);
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>string member_id = 6 [json_name = "memberId"];</code>
+     * @param value The bytes for memberId to set.
+     * @return This builder for chaining.
+     */
+    public Builder setMemberIdBytes(
+        com.google.protobuf.ByteString value) {
+      if (value == null) { throw new NullPointerException(); }
+      checkByteStringIsUtf8(value);
+      memberId_ = value;
+      bitField0_ |= 0x00000020;
+      onChanged();
+      return this;
+    }
+
+    private java.lang.Object tenantId_ = "";
+    /**
+     * <code>string tenant_id = 7 [json_name = "tenantId"];</code>
+     * @return The tenantId.
+     */
+    public java.lang.String getTenantId() {
+      java.lang.Object ref = tenantId_;
+      if (!(ref instanceof java.lang.String)) {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        tenantId_ = s;
+        return s;
+      } else {
+        return (java.lang.String) ref;
+      }
+    }
+    /**
+     * <code>string tenant_id = 7 [json_name = "tenantId"];</code>
+     * @return The bytes for tenantId.
+     */
+    public com.google.protobuf.ByteString
+        getTenantIdBytes() {
+      java.lang.Object ref = tenantId_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        tenantId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    /**
+     * <code>string tenant_id = 7 [json_name = "tenantId"];</code>
+     * @param value The tenantId to set.
+     * @return This builder for chaining.
+     */
+    public Builder setTenantId(
+        java.lang.String value) {
+      if (value == null) { throw new NullPointerException(); }
+      tenantId_ = value;
+      bitField0_ |= 0x00000040;
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>string tenant_id = 7 [json_name = "tenantId"];</code>
+     * @return This builder for chaining.
+     */
+    public Builder clearTenantId() {
+      tenantId_ = getDefaultInstance().getTenantId();
+      bitField0_ = (bitField0_ & ~0x00000040);
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>string tenant_id = 7 [json_name = "tenantId"];</code>
+     * @param value The bytes for tenantId to set.
+     * @return This builder for chaining.
+     */
+    public Builder setTenantIdBytes(
+        com.google.protobuf.ByteString value) {
+      if (value == null) { throw new NullPointerException(); }
+      checkByteStringIsUtf8(value);
+      tenantId_ = value;
+      bitField0_ |= 0x00000040;
+      onChanged();
+      return this;
+    }
+
+    private java.lang.Object joinedAt_ = "";
+    /**
+     * <code>string joined_at = 8 [json_name = "joinedAt"];</code>
+     * @return The joinedAt.
+     */
+    public java.lang.String getJoinedAt() {
+      java.lang.Object ref = joinedAt_;
+      if (!(ref instanceof java.lang.String)) {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        joinedAt_ = s;
+        return s;
+      } else {
+        return (java.lang.String) ref;
+      }
+    }
+    /**
+     * <code>string joined_at = 8 [json_name = "joinedAt"];</code>
+     * @return The bytes for joinedAt.
+     */
+    public com.google.protobuf.ByteString
+        getJoinedAtBytes() {
+      java.lang.Object ref = joinedAt_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        joinedAt_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    /**
+     * <code>string joined_at = 8 [json_name = "joinedAt"];</code>
+     * @param value The joinedAt to set.
+     * @return This builder for chaining.
+     */
+    public Builder setJoinedAt(
+        java.lang.String value) {
+      if (value == null) { throw new NullPointerException(); }
+      joinedAt_ = value;
+      bitField0_ |= 0x00000080;
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>string joined_at = 8 [json_name = "joinedAt"];</code>
+     * @return This builder for chaining.
+     */
+    public Builder clearJoinedAt() {
+      joinedAt_ = getDefaultInstance().getJoinedAt();
+      bitField0_ = (bitField0_ & ~0x00000080);
+      onChanged();
+      return this;
+    }
+    /**
+     * <code>string joined_at = 8 [json_name = "joinedAt"];</code>
+     * @param value The bytes for joinedAt to set.
+     * @return This builder for chaining.
+     */
+    public Builder setJoinedAtBytes(
+        com.google.protobuf.ByteString value) {
+      if (value == null) { throw new NullPointerException(); }
+      checkByteStringIsUtf8(value);
+      joinedAt_ = value;
+      bitField0_ |= 0x00000080;
       onChanged();
       return this;
     }

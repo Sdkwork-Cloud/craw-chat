@@ -1,14 +1,18 @@
 import type {
   AddConversationMemberRequest,
   BindDirectChatRequest,
+  ContentPart,
+  ConversationMember,
   ConversationProfileView,
   ConversationPreferencesView,
+  ConversationAgentAssignments,
   CreateAgentDialogRequest,
   CreateAgentHandoffRequest,
   CreateConversationRequest,
   CreateConversationResult,
   CreateSystemChannelRequest,
   CreateThreadConversationRequest,
+  MentionContentPart,
   MessageInteractionSummaryView,
   PostMessageResult,
   PostMessageRequest,
@@ -16,6 +20,7 @@ import type {
   ReadCursorView,
   UpdateConversationPreferencesRequest,
   UpdateConversationProfileRequest,
+  UpdateConversationAgentsRequest,
 } from '../generated/server-openapi/dist/index.js';
 import type {
   ConversationMessageListResponse,
@@ -25,8 +30,81 @@ import type {
 } from './openapi-compat-types.js';
 import { requireStringIdentifier } from './identifier-boundary.js';
 import type { ImTransportClientLike, MessageHistoryListParams } from './transport-client-like.js';
+import type {
+  ImConversationAgentAssignmentSet,
+  ImReplaceConversationAgentAssignmentsRequest,
+  ImReplaceConversationAgentAssignmentsResult,
+} from './transport-client-like.js';
 
 export type { MessageHistoryListParams } from './transport-client-like.js';
+
+/**
+ * Composed message types use a JavaScript number for the bounded int64
+ * assignment generation. The generated HTTP client exposes int64 values as
+ * strings for lossless transport, so this boundary owns validation and wire
+ * conversion instead of leaking that mismatch to application callers.
+ */
+export type ImMentionContentPart = Omit<MentionContentPart, 'assignmentGeneration'> & {
+  assignmentGeneration: number;
+};
+
+export type ImContentPart = Exclude<ContentPart, MentionContentPart> | ImMentionContentPart;
+
+export type ImPostMessageRequest = Omit<PostMessageRequest, 'parts'> & {
+  parts?: ImContentPart[];
+};
+
+type CompatiblePostMessageRequest = ImPostMessageRequest | PostMessageRequest;
+type CompatiblePostTextOptions =
+  | Omit<ImPostMessageRequest, 'text'>
+  | Omit<PostMessageRequest, 'text'>;
+
+function normalizePositiveSafeInteger(value: unknown, fieldName: string): number {
+  const numericValue = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && /^[0-9]+$/u.test(value)
+      ? Number(value)
+      : Number.NaN;
+  if (!Number.isSafeInteger(numericValue) || numericValue < 1) {
+    throw new RangeError(`${fieldName} is outside the supported safe integer range.`);
+  }
+  return numericValue;
+}
+
+function normalizeAssignmentGeneration(value: string | number): number {
+  return normalizePositiveSafeInteger(value, 'Conversation agent assignment generation');
+}
+
+function normalizePostMessageRequest(body: CompatiblePostMessageRequest): PostMessageRequest {
+  if (!body.parts) {
+    return body as PostMessageRequest;
+  }
+
+  const parts = body.parts.map((part) => {
+    if (part.kind !== 'mention') {
+      return part;
+    }
+    const assignmentGeneration = normalizePositiveSafeInteger(
+      part.assignmentGeneration,
+      'Agent mention assignment generation',
+    );
+    return { ...part, assignmentGeneration } as unknown as MentionContentPart;
+  });
+
+  // The generated transport models int64 as string, while the server wire
+  // contract is a JSON number. Keep this cast inside the composed boundary so
+  // callers never need to cast a message request themselves.
+  return { ...body, parts } as unknown as PostMessageRequest;
+}
+
+function normalizeAgentAssignmentSet(
+  value: ConversationAgentAssignments,
+): ImConversationAgentAssignmentSet {
+  return {
+    ...value,
+    generation: normalizeAssignmentGeneration(value.generation),
+  };
+}
 
 export class ImConversationsModule {
   constructor(private readonly transportClient: ImTransportClientLike) {}
@@ -69,19 +147,49 @@ export class ImConversationsModule {
     );
   }
 
-  postMessage(conversationId: string, body: PostMessageRequest): Promise<PostMessageResult> {
+  postMessage(conversationId: string, body: ImPostMessageRequest): Promise<PostMessageResult>;
+  postMessage(conversationId: string, body: PostMessageRequest): Promise<PostMessageResult>;
+  postMessage(
+    conversationId: string,
+    body: CompatiblePostMessageRequest,
+  ): Promise<PostMessageResult> {
+    let normalizedBody: PostMessageRequest;
+    try {
+      normalizedBody = normalizePostMessageRequest(body);
+    } catch (error) {
+      return Promise.reject(error);
+    }
     return this.transportClient.chat.conversations.messages.create(
       requireStringIdentifier(conversationId, 'conversationId'),
-      body,
+      normalizedBody,
     );
   }
 
   postText(
     conversationId: string,
     text: string,
-    body: Omit<PostMessageRequest, 'text'> = {},
+    body?: Omit<ImPostMessageRequest, 'text'>,
+  ): Promise<PostMessageResult>;
+  postText(
+    conversationId: string,
+    text: string,
+    body?: Omit<PostMessageRequest, 'text'>,
+  ): Promise<PostMessageResult>;
+  postText(
+    conversationId: string,
+    text: string,
+    body: CompatiblePostTextOptions = {},
   ): Promise<PostMessageResult> {
-    return this.postMessage(conversationId, { ...body, text });
+    let normalizedBody: PostMessageRequest;
+    try {
+      normalizedBody = normalizePostMessageRequest({ ...body, text });
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    return this.transportClient.chat.conversations.messages.create(
+      requireStringIdentifier(conversationId, 'conversationId'),
+      normalizedBody,
+    );
   }
 
   updateReadCursor(conversationId: string, body: { readSeq: number }): Promise<ReadCursorView> {
@@ -144,6 +252,37 @@ export class ImConversationsModule {
       requireStringIdentifier(conversationId, 'conversationId'),
       params,
     );
+  }
+
+  getCurrentMember(conversationId: string): Promise<ConversationMember> {
+    return this.transportClient.chat.conversations.members.current.retrieve(
+      requireStringIdentifier(conversationId, 'conversationId'),
+    );
+  }
+
+  getAgentAssignments(conversationId: string): Promise<ImConversationAgentAssignmentSet> {
+    return this.transportClient.chat.conversations.agents
+      .retrieve(requireStringIdentifier(conversationId, 'conversationId'))
+      .then(normalizeAgentAssignmentSet);
+  }
+
+  replaceAgentAssignments(
+    conversationId: string,
+    body: ImReplaceConversationAgentAssignmentsRequest,
+  ): Promise<ImReplaceConversationAgentAssignmentsResult> {
+    if (!Number.isSafeInteger(body.expectedGeneration) || body.expectedGeneration < 1) {
+      return Promise.reject(new Error('A positive safe integer expectedGeneration is required.'));
+    }
+    // The generator models int64 as string for lossless reads. This request is
+    // JSON integer on the wire, so keep the validated number when invoking the
+    // generated transport and normalize the returned generation explicitly.
+    const request = {
+      ...body,
+      expectedGeneration: body.expectedGeneration,
+    } as unknown as UpdateConversationAgentsRequest;
+    return this.transportClient.chat.conversations.agents
+      .update(requireStringIdentifier(conversationId, 'conversationId'), request)
+      .then(normalizeAgentAssignmentSet);
   }
 
   addMember(conversationId: string, body: AddConversationMemberRequest): Promise<unknown> {

@@ -200,6 +200,27 @@ function toControllerState(state: SdkworkCallState, direction?: 'incoming' | 'ou
   }
 }
 
+const ACTIVE_CALL_STATE_ORDER: Record<Exclude<SdkworkCallState, 'ended' | 'errored' | 'rejected'>, number> = {
+  idle: 0,
+  ringing: 1,
+  connecting: 2,
+  connected: 3,
+};
+
+function isTerminalCallState(state: SdkworkCallState): boolean {
+  return state === 'ended' || state === 'rejected' || state === 'errored';
+}
+
+function canApplyCallState(current: SdkworkCallState, next: SdkworkCallState): boolean {
+  if (isTerminalCallState(current)) {
+    return current === next;
+  }
+  if (isTerminalCallState(next)) {
+    return true;
+  }
+  return ACTIVE_CALL_STATE_ORDER[next] >= ACTIVE_CALL_STATE_ORDER[current];
+}
+
 function resolvePeerUserId(session: ImCallSession, participantId: string | undefined): string | undefined {
   if (!session.initiatorId) {
     return undefined;
@@ -324,7 +345,11 @@ class SdkworkImCallService implements CallService {
 
   subscribe(handler: (snapshot: SdkworkCallSnapshot) => void): () => void {
     this.listeners.add(handler);
-    handler(this.getSnapshot());
+    try {
+      handler(this.getSnapshot());
+    } catch {
+      // Subscription setup must still return a disposer for a failing view.
+    }
     return () => {
       this.listeners.delete(handler);
     };
@@ -368,12 +393,12 @@ class SdkworkImCallService implements CallService {
         rtcSessionId,
       });
       createdRtcSessionId = created.rtcSessionId;
-      if (sequence !== this.sequence) {
+      if (!this.isCurrentCallOperation(sequence, rtcSessionId)) {
         await this.endSessionBestEffort(imClient, created.rtcSessionId);
         return this.getSnapshot();
       }
       const invited = await imClient.calls.invite(created.rtcSessionId, { signalingStreamId });
-      if (sequence !== this.sequence) {
+      if (!this.isCurrentCallOperation(sequence, rtcSessionId)) {
         await this.endSessionBestEffort(imClient, created.rtcSessionId);
         return this.getSnapshot();
       }
@@ -402,7 +427,8 @@ class SdkworkImCallService implements CallService {
   }
 
   async setAudioMuted(muted: boolean): Promise<SdkworkCallSnapshot> {
-    const previousSnapshot = this.snapshot;
+    const rtcSessionId = this.snapshot.rtcSessionId;
+    const previousMuted = this.snapshot.isAudioMuted;
     this.applySnapshot({
       ...this.snapshot,
       isAudioMuted: muted,
@@ -410,14 +436,20 @@ class SdkworkImCallService implements CallService {
     try {
       await this.rtcMediaService.muteAudio(muted);
     } catch (error) {
-      this.applySnapshot(previousSnapshot);
+      if (this.snapshot.rtcSessionId === rtcSessionId && this.snapshot.isAudioMuted === muted) {
+        this.applySnapshot({
+          ...this.snapshot,
+          isAudioMuted: previousMuted,
+        });
+      }
       throw error;
     }
     return this.getSnapshot();
   }
 
   async setVideoMuted(muted: boolean): Promise<SdkworkCallSnapshot> {
-    const previousSnapshot = this.snapshot;
+    const rtcSessionId = this.snapshot.rtcSessionId;
+    const previousMuted = this.snapshot.isVideoMuted;
     this.applySnapshot({
       ...this.snapshot,
       isVideoMuted: muted,
@@ -425,7 +457,12 @@ class SdkworkImCallService implements CallService {
     try {
       await this.rtcMediaService.muteVideo(muted);
     } catch (error) {
-      this.applySnapshot(previousSnapshot);
+      if (this.snapshot.rtcSessionId === rtcSessionId && this.snapshot.isVideoMuted === muted) {
+        this.applySnapshot({
+          ...this.snapshot,
+          isVideoMuted: previousMuted,
+        });
+      }
       throw error;
     }
     return this.getSnapshot();
@@ -478,11 +515,11 @@ class SdkworkImCallService implements CallService {
         // 事件仍需正确投递，否则主叫会永远振铃或媒体无法释放。
         if (this.snapshot.rtcSessionId && this.snapshot.rtcSessionId === callSession.rtcSessionId) {
           const participantId = this.snapshot.participantId ?? resolveParticipantId(this.readSession());
-          this.applySessionSnapshot(callSession, {
+          const applied = this.applySessionSnapshot(callSession, {
             direction: this.snapshot.direction,
             participantId,
           });
-          if (this.snapshot.state === 'connected') {
+          if (applied && this.snapshot.state === 'connected') {
             void this.ensureParticipantCredentialReady(callSession.rtcSessionId, this.readSession())
               .catch((error) => {
                 if (this.snapshot.rtcSessionId !== callSession.rtcSessionId || this.snapshot.state !== 'connected') {
@@ -511,6 +548,9 @@ class SdkworkImCallService implements CallService {
         const incomingState = toRecoveredServiceState(callSession.state);
         if (incomingState !== 'ringing') {
           return;
+        }
+        if (this.snapshot.rtcSessionId !== callSession.rtcSessionId) {
+          this.sequence += 1;
         }
         this.applySessionSnapshot(callSession, {
           direction: 'incoming',
@@ -545,6 +585,9 @@ class SdkworkImCallService implements CallService {
           || normalizedConversationIds.includes(incoming.conversationId ?? '')
         )
       ) {
+        if (this.snapshot.rtcSessionId !== incoming.rtcSessionId) {
+          this.sequence += 1;
+        }
         this.applySessionSnapshot(incoming, {
           direction: 'incoming',
           participantId: resolveParticipantId(session),
@@ -821,11 +864,14 @@ class SdkworkImCallService implements CallService {
       targetName?: string;
       type?: SdkworkCallType;
     } = {},
-  ): void {
+  ): boolean {
     const sameSession = this.snapshot.rtcSessionId === session.rtcSessionId;
     const previous = sameSession ? this.snapshot : createIdleSnapshot();
     const callType = options.type ?? toCallType(session.rtcMode);
     const state = options.state ?? toRecoveredServiceState(session.state);
+    if (sameSession && !canApplyCallState(previous.state, state)) {
+      return false;
+    }
     const direction = options.direction ?? (sameSession ? previous.direction : undefined);
     const participantId = options.participantId ?? (sameSession ? previous.participantId : undefined);
     this.applySnapshot({
@@ -859,10 +905,11 @@ class SdkworkImCallService implements CallService {
     });
     if (state !== 'connected') {
       this.participantCredential = undefined;
-      if (state === 'ended' || state === 'rejected' || state === 'errored') {
+      if (isTerminalCallState(state)) {
         void this.releaseRtcMedia({ rtcSessionId: session.rtcSessionId }).catch(() => undefined);
       }
     }
+    return true;
   }
 
   private hasActiveCall(): boolean {
@@ -877,9 +924,13 @@ class SdkworkImCallService implements CallService {
   }
 
   private isTerminalSnapshot(): boolean {
-    return this.snapshot.state === 'ended'
-      || this.snapshot.state === 'rejected'
-      || this.snapshot.state === 'errored';
+    return isTerminalCallState(this.snapshot.state);
+  }
+
+  private isCurrentCallOperation(sequence: number, rtcSessionId: string): boolean {
+    return sequence === this.sequence
+      && this.snapshot.rtcSessionId === rtcSessionId
+      && !this.isTerminalSnapshot();
   }
 
   private async endSessionBestEffort(client: ImSdkClient, rtcSessionId: string): Promise<void> {
@@ -918,10 +969,6 @@ class SdkworkImCallService implements CallService {
         await inFlight.promise;
         return;
       }
-      await inFlight.promise.catch(() => undefined);
-      if (this.snapshot.rtcSessionId !== rtcSessionId || this.snapshot.state !== 'connected') {
-        return;
-      }
     }
 
     const promise = this.prepareParticipantCredential(rtcSessionId, session);
@@ -954,13 +1001,13 @@ class SdkworkImCallService implements CallService {
     if (this.snapshot.rtcSessionId !== rtcSessionId || this.snapshot.state !== 'connected') {
       return;
     }
+    this.participantCredential = credential;
     this.applySnapshot({
       ...this.snapshot,
       isParticipantCredentialReady: true,
       participantCredentialExpiresAt: credential.expiresAt,
       participantId,
     });
-    this.participantCredential = credential;
     await this.ensureRtcMediaReady(rtcSessionId, credential);
   }
 
@@ -1096,7 +1143,11 @@ class SdkworkImCallService implements CallService {
     };
     this.persistActiveCall();
     for (const listener of this.listeners) {
-      listener(this.getSnapshot());
+      try {
+        listener(this.getSnapshot());
+      } catch {
+        // One observer must not abort signaling state or starve other observers.
+      }
     }
   }
 

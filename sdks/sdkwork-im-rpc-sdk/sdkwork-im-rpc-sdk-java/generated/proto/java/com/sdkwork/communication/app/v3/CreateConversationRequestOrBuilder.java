@@ -60,6 +60,30 @@ public interface CreateConversationRequestOrBuilder extends
       getMemberUserIdsBytes(int index);
 
   /**
+   * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+   */
+  java.util.List<com.sdkwork.communication.app.v3.ConversationAgentAssignmentView> 
+      getAgentAssignmentsList();
+  /**
+   * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+   */
+  com.sdkwork.communication.app.v3.ConversationAgentAssignmentView getAgentAssignments(int index);
+  /**
+   * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+   */
+  int getAgentAssignmentsCount();
+  /**
+   * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+   */
+  java.util.List<? extends com.sdkwork.communication.app.v3.ConversationAgentAssignmentViewOrBuilder> 
+      getAgentAssignmentsOrBuilderList();
+  /**
+   * <code>repeated .sdkwork.communication.app.v3.ConversationAgentAssignmentView agent_assignments = 4 [json_name = "agentAssignments"];</code>
+   */
+  com.sdkwork.communication.app.v3.ConversationAgentAssignmentViewOrBuilder getAgentAssignmentsOrBuilder(
+      int index);
+
+  /**
    * <code>.sdkwork.common.v1.RequestMetadata metadata = 15 [json_name = "metadata"];</code>
    * @return Whether the metadata field is set.
    */

@@ -359,6 +359,30 @@ pub struct ConversationMemberView {
     pub role: ::prost::alloc::string::String,
     #[prost(string, tag="4")]
     pub state: ::prost::alloc::string::String,
+    #[prost(string, tag="5")]
+    pub principal_kind: ::prost::alloc::string::String,
+    #[prost(string, tag="6")]
+    pub member_id: ::prost::alloc::string::String,
+    #[prost(string, tag="7")]
+    pub tenant_id: ::prost::alloc::string::String,
+    #[prost(string, tag="8")]
+    pub joined_at: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ConversationAgentAssignmentView {
+    #[prost(string, tag="1")]
+    pub agent_id: ::prost::alloc::string::String,
+    #[prost(string, tag="2")]
+    pub revision_id: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ConversationAgentAssignmentsView {
+    #[prost(uint64, tag="1")]
+    pub generation: u64,
+    #[prost(string, tag="2")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag="3")]
+    pub agents: ::prost::alloc::vec::Vec<ConversationAgentAssignmentView>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ConversationPreferencesView {
@@ -418,7 +442,7 @@ pub struct ContactPreferencesView {
     #[prost(bool, tag="2")]
     pub allow_friend_requests: bool,
 }
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateConversationRequest {
     #[prost(string, tag="1")]
     pub conversation_type: ::prost::alloc::string::String,
@@ -426,6 +450,8 @@ pub struct CreateConversationRequest {
     pub title: ::prost::alloc::string::String,
     #[prost(string, repeated, tag="3")]
     pub member_user_ids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(message, repeated, tag="4")]
+    pub agent_assignments: ::prost::alloc::vec::Vec<ConversationAgentAssignmentView>,
     #[prost(message, optional, tag="15")]
     pub metadata: ::core::option::Option<super::super::super::common::v1::RequestMetadata>,
 }
@@ -559,6 +585,52 @@ pub struct ListConversationMembersResponse {
     pub members: ::prost::alloc::vec::Vec<ConversationMemberView>,
     #[prost(message, optional, tag="2")]
     pub page: ::core::option::Option<super::super::super::common::v1::PageResponse>,
+    #[prost(message, optional, tag="15")]
+    pub metadata: ::core::option::Option<super::super::super::common::v1::ResponseMetadata>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RetrieveCurrentConversationMemberRequest {
+    #[prost(string, tag="1")]
+    pub conversation_id: ::prost::alloc::string::String,
+    #[prost(message, optional, tag="15")]
+    pub metadata: ::core::option::Option<super::super::super::common::v1::RequestMetadata>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RetrieveCurrentConversationMemberResponse {
+    #[prost(message, optional, tag="1")]
+    pub member: ::core::option::Option<ConversationMemberView>,
+    #[prost(message, optional, tag="15")]
+    pub metadata: ::core::option::Option<super::super::super::common::v1::ResponseMetadata>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RetrieveConversationAgentsRequest {
+    #[prost(string, tag="1")]
+    pub conversation_id: ::prost::alloc::string::String,
+    #[prost(message, optional, tag="15")]
+    pub metadata: ::core::option::Option<super::super::super::common::v1::RequestMetadata>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RetrieveConversationAgentsResponse {
+    #[prost(message, optional, tag="1")]
+    pub assignments: ::core::option::Option<ConversationAgentAssignmentsView>,
+    #[prost(message, optional, tag="15")]
+    pub metadata: ::core::option::Option<super::super::super::common::v1::ResponseMetadata>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct UpdateConversationAgentsRequest {
+    #[prost(string, tag="1")]
+    pub conversation_id: ::prost::alloc::string::String,
+    #[prost(uint64, tag="2")]
+    pub expected_generation: u64,
+    #[prost(message, repeated, tag="3")]
+    pub agent_assignments: ::prost::alloc::vec::Vec<ConversationAgentAssignmentView>,
+    #[prost(message, optional, tag="15")]
+    pub metadata: ::core::option::Option<super::super::super::common::v1::RequestMetadata>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct UpdateConversationAgentsResponse {
+    #[prost(message, optional, tag="1")]
+    pub assignments: ::core::option::Option<ConversationAgentAssignmentsView>,
     #[prost(message, optional, tag="15")]
     pub metadata: ::core::option::Option<super::super::super::common::v1::ResponseMetadata>,
 }

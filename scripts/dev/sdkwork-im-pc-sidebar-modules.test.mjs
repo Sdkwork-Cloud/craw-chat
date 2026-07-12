@@ -47,7 +47,7 @@ const capabilityModuleLoadersSource = read(
 const moduleLayoutSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shell/src/moduleLayout.ts');
 const notaryAccessServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/NotaryAccessService.ts');
 const workspaceServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/services/WorkspaceService.ts');
-const workspaceViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/index.tsx');
+const workspaceViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/WorkspaceView.tsx');
 const localApiSource = read('apps/sdkwork-im-pc/local-api.ts');
 const devServerSource = read('apps/sdkwork-im-pc/server.ts');
 const newFriendsContainerSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/contacts/NewFriendsContainer.tsx');
@@ -379,7 +379,7 @@ assert.match(
 );
 assert.match(
   workspaceServiceSource,
-  /return mergeApps\(buildCatalogApps\(enabledModules\), readStoredApps\(\)\)/u,
+  /items:\s*applyPinnedPreferences\(mergeApps\(buildCatalogApps\(enabledModules\), readStoredApps\(\)\)\)/u,
   'Workspace getApps must merge enabled catalog apps with stored optional entries',
 );
 assert.match(
@@ -394,12 +394,12 @@ assert.match(
 );
 assert.match(
   workspaceServiceSource,
-  /async addApp\(app: AppItem\)[\s\S]*storedApps = readStoredApps\(\)\.filter\([\s\S]*item\.id !== app\.id[\s\S]*storedApps\.push\(app\)/u,
+  /async addApp\(app: AppItem\)[\s\S]*storedApps = readStoredApps\(\)\.filter\([\s\S]*item\.id !== app\.id[\s\S]*storedApps\.push\(\{[\s\S]*id:\s*app\.id[\s\S]*nameKey:\s*app\.nameKey[\s\S]*iconName:\s*app\.iconName[\s\S]*color:\s*app\.color/u,
   'Workspace addApp must persist optional app entries in local storage without duplicating app ids',
 );
 assert.match(
   workspaceViewSource,
-  /onAppSelect\(app\.id\)/u,
+  /const\s+openApp[\s\S]*onAppSelect\(appId\)[\s\S]*onClick=\{\(\)\s*=>\s*openApp\(app\.id,\s*label\)\}/u,
   'Workspace app tiles must pass the selected app id to the shell for direct navigation',
 );
 assert.doesNotMatch(

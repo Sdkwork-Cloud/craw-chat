@@ -320,6 +320,15 @@ mod tests {
     };
 
     use super::*;
+    use im_platform_contracts::AGENT_MENTION_DISPATCH_OUTBOX_AGGREGATE_TYPE;
+
+    #[test]
+    fn conversation_realtime_relay_does_not_claim_agent_dispatch_outbox_rows() {
+        assert_ne!(
+            CONVERSATION_OUTBOX_AGGREGATE_TYPE,
+            AGENT_MENTION_DISPATCH_OUTBOX_AGGREGATE_TYPE
+        );
+    }
 
     struct PagedConversationMembers {
         members: Vec<ConversationMemberRecord>,

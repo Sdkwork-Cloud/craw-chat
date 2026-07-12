@@ -78,6 +78,9 @@ export type { SocialFriendRequestPendingCountResponse } from './social-friend-re
 export type { SocialFriendRequestAcceptanceResponse } from './social-friend-request-acceptance-response';
 export type { SocialFriendshipMutationResponse } from './social-friendship-mutation-response';
 export type { CreateConversationRequest } from './create-conversation-request';
+export type { ConversationAgentAssignment } from './conversation-agent-assignment';
+export type { ConversationAgentAssignments } from './conversation-agent-assignments';
+export type { UpdateConversationAgentsRequest } from './update-conversation-agents-request';
 export type { CreateAgentDialogRequest } from './create-agent-dialog-request';
 export type { CreateAgentHandoffRequest } from './create-agent-handoff-request';
 export type { CreateSystemChannelRequest } from './create-system-channel-request';
@@ -132,6 +135,7 @@ export type { SpaceBanView } from './space-ban-view';
 export type { TextContentPart } from './text-content-part';
 export type { DataContentPart } from './data-content-part';
 export type { MediaContentPart } from './media-content-part';
+export type { MentionContentPart } from './mention-content-part';
 export type { SignalContentPart } from './signal-content-part';
 export type { StreamRefContentPart } from './stream-ref-content-part';
 export type { PresenceHeartbeatResponse } from './presence-heartbeat-response';
@@ -145,8 +149,10 @@ export type { CallsSessionsInviteResponse } from './calls-sessions-invite-respon
 export type { CallsSessionsAcceptResponse } from './calls-sessions-accept-response';
 export type { CallsSessionsRejectResponse } from './calls-sessions-reject-response';
 export type { CallsSessionsEndResponse } from './calls-sessions-end-response';
+export type { CallsSessionsSignalsListResponse } from './calls-sessions-signals-list-response';
 export type { CallsSessionsSignalsCreateResponse201 } from './calls-sessions-signals-create-response201';
 export type { CallsSessionsCredentialsCreateResponse201 } from './calls-sessions-credentials-create-response201';
+export type { CallsSessionsCredentialsRefreshResponse } from './calls-sessions-credentials-refresh-response';
 export type { SocialUsersListResponse } from './social-users-list-response';
 export type { SocialFriendRequestsCreateResponse201 } from './social-friend-requests-create-response201';
 export type { SocialFriendRequestsPendingCountRetrieveResponse } from './social-friend-requests-pending-count-retrieve-response';
@@ -174,6 +180,9 @@ export type { ConversationsAgentHandoffResolveResponse } from './conversations-a
 export type { ConversationsAgentHandoffCloseResponse } from './conversations-agent-handoff-close-response';
 export type { ConversationsRetrieveResponse } from './conversations-retrieve-response';
 export type { ConversationsMembersListResponse } from './conversations-members-list-response';
+export type { ConversationsMembersCurrentRetrieveResponse } from './conversations-members-current-retrieve-response';
+export type { ConversationsAgentsRetrieveResponse } from './conversations-agents-retrieve-response';
+export type { ConversationsAgentsUpdateResponse } from './conversations-agents-update-response';
 export type { ConversationsMembersAddResponse } from './conversations-members-add-response';
 export type { ConversationsMembersRemoveResponse } from './conversations-members-remove-response';
 export type { ConversationsMembersTransferOwnerResponse } from './conversations-members-transfer-owner-response';
