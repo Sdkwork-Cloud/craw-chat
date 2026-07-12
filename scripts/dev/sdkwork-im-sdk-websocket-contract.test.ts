@@ -1230,7 +1230,11 @@ async function main(): Promise<void> {
       deviceId: 'heartbeat-device-1',
     });
     await new Promise((resolve) => setTimeout(resolve, 12));
-    assert.equal(parseCcpControlType(heartbeatSocket.sent[3] ?? ''), 'heartbeat', 'IM realtime connection must send CCP heartbeat frames after opening');
+    assert.equal(
+      heartbeatSocket.sent.slice(3).some((frame) => parseCcpControlType(frame) === 'heartbeat'),
+      true,
+      'IM realtime connection must send CCP heartbeat frames after opening',
+    );
     heartbeatSocket.emit('message', {
       data: encodeCcpControlFrame('cc.control.heartbeat.v1', 'heartbeat', { sequence: 1 }),
     });

@@ -1,6 +1,6 @@
 export interface SignalContentPart {
   kind: 'signal';
-  signalType: string | null;
+  signalType: string;
   schemaRef?: string | null;
-  payload: string | null;
+  payload: string;
 }

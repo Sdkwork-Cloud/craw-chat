@@ -14,8 +14,10 @@ mod seq_allocator;
 pub use provider::*;
 pub use sdkwork_im_contract_admin::{AdminCapabilityProfileRecord, AdminCapabilityProfileStore};
 pub use sdkwork_im_contract_agent::{
-    AgentSubject, AgentSubjectRecord, AgentSubjectStore, AutomationExecutionRecord,
-    AutomationExecutionStore,
+    AGENT_MENTION_DISPATCH_EVENT_TYPE, AGENT_MENTION_DISPATCH_OUTBOX_AGGREGATE_TYPE,
+    AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA, AGENT_MENTION_DISPATCH_SCHEMA_VERSION,
+    AgentMentionDispatchRequest, AgentMentionDispatchTarget, AgentSubject, AgentSubjectRecord,
+    AgentSubjectStore, AutomationExecutionRecord, AutomationExecutionStore,
 };
 pub use sdkwork_im_contract_control::{
     ExpireOnlinePresenceStateCommand, PresenceStateRecord, PresenceStateStore,
@@ -33,7 +35,7 @@ pub use sdkwork_im_contract_core::{
 pub use sdkwork_im_contract_message::{
     COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitEnvelope, CommitJournal, CommitJournalAggregateScope,
     CommitJournalReplayCursor, CommitJournalReplayPage, CommitPosition, TimelineProjectionBatch,
-    TimelineProjectionRecord, TimelineProjectionStore,
+    TimelineProjectionRecord, TimelineProjectionStore, TimelineProjectionWindow,
 };
 pub use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 pub use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};

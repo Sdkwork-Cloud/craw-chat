@@ -57,4 +57,52 @@ public interface ConversationMemberViewOrBuilder extends
    */
   com.google.protobuf.ByteString
       getStateBytes();
+
+  /**
+   * <code>string principal_kind = 5 [json_name = "principalKind"];</code>
+   * @return The principalKind.
+   */
+  java.lang.String getPrincipalKind();
+  /**
+   * <code>string principal_kind = 5 [json_name = "principalKind"];</code>
+   * @return The bytes for principalKind.
+   */
+  com.google.protobuf.ByteString
+      getPrincipalKindBytes();
+
+  /**
+   * <code>string member_id = 6 [json_name = "memberId"];</code>
+   * @return The memberId.
+   */
+  java.lang.String getMemberId();
+  /**
+   * <code>string member_id = 6 [json_name = "memberId"];</code>
+   * @return The bytes for memberId.
+   */
+  com.google.protobuf.ByteString
+      getMemberIdBytes();
+
+  /**
+   * <code>string tenant_id = 7 [json_name = "tenantId"];</code>
+   * @return The tenantId.
+   */
+  java.lang.String getTenantId();
+  /**
+   * <code>string tenant_id = 7 [json_name = "tenantId"];</code>
+   * @return The bytes for tenantId.
+   */
+  com.google.protobuf.ByteString
+      getTenantIdBytes();
+
+  /**
+   * <code>string joined_at = 8 [json_name = "joinedAt"];</code>
+   * @return The joinedAt.
+   */
+  java.lang.String getJoinedAt();
+  /**
+   * <code>string joined_at = 8 [json_name = "joinedAt"];</code>
+   * @return The bytes for joinedAt.
+   */
+  com.google.protobuf.ByteString
+      getJoinedAtBytes();
 }

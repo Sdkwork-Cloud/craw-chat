@@ -2,10 +2,13 @@ import type {
   ConversationInboxEntry,
   ConversationMember,
   ImSdkClient,
+  ImConversationAgentAssignment,
+  ImConversationAgentAssignmentSet,
 } from '@sdkwork/im-sdk';
 import { getImSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/imSdkClient';
 import { forEachCursorPage, SDKWORK_DEFAULT_PAGE_SIZE, SDKWORK_MAX_PAGE_SIZE } from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
 import {
+  SDKWORK_IM_SESSION_CHANGED_EVENT,
   readAppSdkSessionTokens,
   resolveAppSdkUserId,
   type SdkworkChatSession,
@@ -21,6 +24,26 @@ export interface GroupListPage {
   nextCursor?: string;
 }
 
+export interface GroupAgentAssignment {
+  agentId: string;
+  revisionId?: string;
+  name?: string;
+  avatar?: string;
+  enabled?: boolean;
+}
+
+export interface GroupAgentAssignmentSet {
+  generation: number;
+  source: string;
+  agents: GroupAgentAssignment[];
+}
+
+export interface CreateGroupOptions {
+  clientRequestKey?: string;
+}
+
+export const MAX_GROUP_INITIAL_MEMBERS = 200;
+
 function readSdkCursorPageInfo(
   pageInfo: { hasMore?: boolean; nextCursor?: string | null } | undefined,
 ): Pick<GroupListPage, 'hasMore' | 'nextCursor'> {
@@ -32,8 +55,16 @@ function readSdkCursorPageInfo(
 }
 
 export interface GroupService {
-  createGroup(name: string, members: string[]): Promise<Chat>;
+  createGroup(
+    name: string,
+    members: string[],
+    agentAssignments?: GroupAgentAssignment[],
+    options?: CreateGroupOptions,
+  ): Promise<Chat>;
   getGroupById(groupId: string): Promise<Chat | null>;
+  getAgentAssignments(groupId: string): Promise<GroupAgentAssignmentSet>;
+  canManageAgents(groupId: string): Promise<boolean>;
+  replaceAgentAssignments(groupId: string, expectedGeneration: number, assignments: GroupAgentAssignment[]): Promise<GroupAgentAssignmentSet>;
   getGroups(): Promise<Chat[]>;
   listGroupsPage(params?: { cursor?: string; pageSize?: number }): Promise<GroupListPage>;
   updateGroupInfo(groupId: string, updates: Partial<Chat>): Promise<Chat>;
@@ -44,14 +75,17 @@ export interface GroupService {
   syncGroupMembers(): Promise<GroupMemberSyncChange[]>;
 }
 
-type GroupViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'memberCount' | 'members' | 'name' | 'notice'>>;
+type GroupViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'memberCount' | 'members' | 'name' | 'notice' | 'agentAssignments' | 'agentAssignmentGeneration'>>;
 export type GroupMemberSyncChange = Required<Pick<GroupViewState, 'activeCount' | 'memberCount' | 'members'>> & {
   groupId: string;
 };
 type ConversationListEntry = ConversationInboxEntry;
 const GROUP_INBOX_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
-const GROUP_MEMBERS_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
-const MAX_GROUP_MEMBERS_PER_CONVERSATION = SDKWORK_MAX_PAGE_SIZE;
+const GROUP_MEMBERS_PAGE_LIMIT = SDKWORK_MAX_PAGE_SIZE;
+// The API page cap is 200, while a group may contain up to 10,000 active
+// members. Keep the bounded fallback lookup aligned with the domain limit.
+const MAX_GROUP_MEMBER_LOOKUP_SCAN = 10_000;
+const MAX_GROUP_MEMBER_VIEW_SYNC = SDKWORK_MAX_PAGE_SIZE;
 const GROUP_LIST_HYDRATION_CONCURRENCY = 4;
 export const GROUP_INVITE_DESCRIPTOR_PREFIX = 'group-invite:';
 
@@ -178,7 +212,7 @@ export function parseGroupInviteDescriptor(message: Message): GroupInviteDescrip
     : undefined;
 }
 
-function createClientRequestKey(): string {
+export function createGroupClientRequestKey(): string {
   const clientGeneratedId =
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
@@ -192,7 +226,7 @@ function createGroupAvatar(): string {
 
 function normalizeGroupName(name: string, memberCount: number): string {
   const trimmedName = name.trim();
-  return trimmedName || `群聊(${memberCount}人)`;
+  return trimmedName || `Group chat (${memberCount})`;
 }
 
 function uniqueMemberIds(memberIds: string[]): string[] {
@@ -231,6 +265,12 @@ function mergeCachedGroupViewState(group: Chat, state: GroupViewState | undefine
     ...(group.members === undefined && state?.members !== undefined ? { members: state.members } : {}),
     ...(isGeneratedGroupName(group) && state?.name !== undefined ? { name: state.name } : {}),
     ...(group.notice === undefined && state?.notice !== undefined ? { notice: state.notice } : {}),
+    ...(group.agentAssignments === undefined && state?.agentAssignments !== undefined
+      ? { agentAssignments: state.agentAssignments }
+      : {}),
+    ...(group.agentAssignmentGeneration === undefined && state?.agentAssignmentGeneration !== undefined
+      ? { agentAssignmentGeneration: state.agentAssignmentGeneration }
+      : {}),
   };
 }
 
@@ -239,6 +279,10 @@ function mapConversationEntryToGroup(entry: ConversationListEntry): Chat {
   const entryRecord = toRecord(entry);
   const projectedName = pickString(entryRecord.displayName, entryRecord.display_name);
   const projectedAvatar = pickString(entryRecord.avatarUrl, entryRecord.avatar_url);
+  const projectedAgentAssignments = entryRecord.agentAssignments ?? entryRecord.agent_assignments;
+  const agentAssignments = projectedAgentAssignments === undefined
+    ? undefined
+    : normalizeAgentAssignments(projectedAgentAssignments);
   return {
     id: entry.conversationId,
     name: projectedName ?? 'Group chat',
@@ -246,6 +290,7 @@ function mapConversationEntryToGroup(entry: ConversationListEntry): Chat {
     type: 'group',
     unreadCount: entry.unreadCount,
     updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(),
+    ...(agentAssignments ? mapAssignmentSetToChatFields(agentAssignments) : {}),
   };
 }
 
@@ -274,8 +319,126 @@ function normalizeGroupPageSize(pageSize: number | undefined): number {
   return Math.min(normalizedPageSize, SDKWORK_MAX_PAGE_SIZE);
 }
 
+function normalizeAgentId(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+const STANDARD_AGENT_ID_PATTERN = /^agent\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/u;
+const STANDARD_AGENT_REVISION_ID_PATTERN = /^revision\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/u;
+
+function normalizeAgentAssignments(value: unknown): GroupAgentAssignmentSet | undefined {
+  const record = toRecord(value);
+  const rawAgents = Array.isArray(record.agents)
+    ? record.agents
+    : Array.isArray(record.agentAssignments)
+      ? record.agentAssignments
+      : undefined;
+  if (!rawAgents || rawAgents.length < 1 || rawAgents.length > 10) {
+    return undefined;
+  }
+  const seen = new Set<string>();
+  const agents: GroupAgentAssignment[] = [];
+  for (const rawAgent of rawAgents) {
+    const item = toRecord(rawAgent);
+    const agentId = normalizeAgentId(item.agentId ?? item.agent_id ?? item.id);
+    if (!agentId || !STANDARD_AGENT_ID_PATTERN.test(agentId) || seen.has(agentId)) {
+      return undefined;
+    }
+    seen.add(agentId);
+    const revisionId = normalizeAgentId(item.revisionId ?? item.revision_id);
+    if (revisionId && !STANDARD_AGENT_REVISION_ID_PATTERN.test(revisionId)) {
+      return undefined;
+    }
+    agents.push({
+      agentId,
+      ...(revisionId ? { revisionId } : {}),
+      ...(typeof item.name === 'string' && item.name.trim() ? { name: item.name.trim() } : {}),
+      ...(typeof item.displayName === 'string' && item.displayName.trim() ? { name: item.displayName.trim() } : {}),
+      ...(typeof item.avatar === 'string' && item.avatar.trim() ? { avatar: item.avatar.trim() } : {}),
+      ...(typeof item.avatarUrl === 'string' && item.avatarUrl.trim() ? { avatar: item.avatarUrl.trim() } : {}),
+      ...(typeof item.enabled === 'boolean' ? { enabled: item.enabled } : {}),
+    });
+  }
+  const generationValue = Number(record.generation ?? record.assignmentGeneration ?? record.assignment_generation);
+  if (!Number.isSafeInteger(generationValue) || generationValue < 1) {
+    return undefined;
+  }
+  return {
+    generation: generationValue,
+    source: typeof record.source === 'string' ? record.source : 'conversation_override',
+    agents,
+  };
+}
+
+function assignmentsToSdk(
+  assignments: GroupAgentAssignment[],
+): ImConversationAgentAssignment[] {
+  const seen = new Set<string>();
+  return assignments.map((assignment) => {
+    const agentId = assignment.agentId.trim();
+    const revisionId = assignment.revisionId?.trim();
+    if (!STANDARD_AGENT_ID_PATTERN.test(agentId)) {
+      throw new Error(`Invalid group agent id: ${agentId || '(empty)'}`);
+    }
+    if (revisionId && !STANDARD_AGENT_REVISION_ID_PATTERN.test(revisionId)) {
+      throw new Error(`Invalid group agent revision id: ${revisionId}`);
+    }
+    if (!seen.add(agentId)) {
+      throw new Error(`Duplicate group agent id: ${agentId}`);
+    }
+    return {
+      agentId,
+      ...(revisionId ? { revisionId } : {}),
+    };
+  });
+}
+
+function mapAssignmentSetToChatFields(set: GroupAgentAssignmentSet): Pick<Chat, 'agentAssignments' | 'agentAssignmentGeneration'> {
+  return {
+    agentAssignments: set.agents,
+    agentAssignmentGeneration: set.generation,
+  };
+}
+
+function enrichAgentAssignmentSet(
+  set: GroupAgentAssignmentSet,
+  metadata: readonly GroupAgentAssignment[] | undefined,
+): GroupAgentAssignmentSet {
+  const metadataById = new Map(
+    (metadata ?? []).map((assignment) => [assignment.agentId.trim(), assignment]),
+  );
+  return {
+    ...set,
+    agents: set.agents.map((assignment) => {
+      const display = metadataById.get(assignment.agentId);
+      return display
+        ? { ...display, ...assignment, agentId: assignment.agentId }
+        : assignment;
+    }),
+  };
+}
+
+function agentAssignmentSetsEqual(
+  left: GroupAgentAssignmentSet,
+  right: GroupAgentAssignmentSet,
+): boolean {
+  return left.generation === right.generation
+    && left.source === right.source
+    && left.agents.length === right.agents.length
+    && left.agents.every((assignment, index) => {
+      const other = right.agents[index];
+      if (!other) {
+        return false;
+      }
+      return assignment.agentId === other.agentId
+        && (assignment.revisionId ?? '') === (other.revisionId ?? '');
+    });
+}
+
 class SdkworkGroupService implements GroupService {
   private readonly groupViewState = new Map<string, GroupViewState>();
+  private readonly agentAssignmentSnapshots = new Map<string, GroupAgentAssignmentSet>();
+  private sessionGeneration = 0;
   private readonly chatClient: ChatService;
 
   constructor(
@@ -283,6 +446,13 @@ class SdkworkGroupService implements GroupService {
     chatClient?: ChatService,
     private readonly getSession: () => SdkworkChatSession | null = readAppSdkSessionTokens,
   ) {
+    if (typeof window !== 'undefined') {
+      window.addEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, () => {
+        this.sessionGeneration += 1;
+        this.groupViewState.clear();
+        this.agentAssignmentSnapshots.clear();
+      });
+    }
     this.chatClient = chatClient ?? (
       getClient === getImSdkClientWithSession && getSession === readAppSdkSessionTokens
         ? chatService
@@ -294,6 +464,108 @@ class SdkworkGroupService implements GroupService {
     return this.getClient();
   }
 
+  private assertSessionGeneration(expected: number): void {
+    if (this.sessionGeneration !== expected) {
+      throw new Error('Chat session changed while loading group agent assignments.');
+    }
+  }
+
+  private rememberAgentAssignmentSnapshot(
+    groupId: string,
+    snapshot: GroupAgentAssignmentSet,
+    metadata?: readonly GroupAgentAssignment[],
+  ): GroupAgentAssignmentSet {
+    const existingSnapshot = this.agentAssignmentSnapshots.get(groupId);
+    const existingState = this.groupViewState.get(groupId);
+    const existingGeneration = Math.max(
+      existingSnapshot?.generation ?? 0,
+      existingState?.agentAssignmentGeneration ?? 0,
+    );
+
+    if (existingGeneration > snapshot.generation) {
+      if (existingSnapshot?.generation === existingGeneration) {
+        return existingSnapshot;
+      }
+      if (
+        existingState?.agentAssignments
+        && existingState.agentAssignmentGeneration === existingGeneration
+      ) {
+        const recoveredSnapshot: GroupAgentAssignmentSet = {
+          generation: existingGeneration,
+          source: 'conversation_override',
+          agents: existingState.agentAssignments,
+        };
+        this.agentAssignmentSnapshots.set(groupId, recoveredSnapshot);
+        return recoveredSnapshot;
+      }
+      throw new Error(
+        `Stale group agent assignment response: current=${existingGeneration}, received=${snapshot.generation}`,
+      );
+    }
+
+    const enriched = enrichAgentAssignmentSet(snapshot, metadata);
+    if (
+      existingSnapshot
+      && existingSnapshot.generation === enriched.generation
+      && !agentAssignmentSetsEqual(existingSnapshot, enriched)
+    ) {
+      // A generation identifies one immutable assignment snapshot. Preserve
+      // the first accepted value if two concurrent reads disagree.
+      return existingSnapshot;
+    }
+
+    this.agentAssignmentSnapshots.set(groupId, enriched);
+    this.groupViewState.set(groupId, {
+      ...existingState,
+      ...mapAssignmentSetToChatFields(enriched),
+    });
+    return enriched;
+  }
+
+  async getAgentAssignments(groupId: string): Promise<GroupAgentAssignmentSet> {
+    const sessionGeneration = this.sessionGeneration;
+    const normalizedId = groupId.trim();
+    if (!normalizedId) {
+      throw new Error('Group id is required');
+    }
+    const response = await this.client().conversations.getAgentAssignments(normalizedId);
+    this.assertSessionGeneration(sessionGeneration);
+    const normalized = normalizeAgentAssignments(response);
+    if (!normalized) {
+      throw new Error('Conversation agent assignment snapshot is incomplete');
+    }
+    return this.rememberAgentAssignmentSnapshot(normalizedId, normalized);
+  }
+
+  async replaceAgentAssignments(
+    groupId: string,
+    expectedGeneration: number,
+    assignments: GroupAgentAssignment[],
+  ): Promise<GroupAgentAssignmentSet> {
+    const sessionGeneration = this.sessionGeneration;
+    const normalizedId = groupId.trim();
+    if (!normalizedId) {
+      throw new Error('Group id is required');
+    }
+    if (!Number.isSafeInteger(expectedGeneration) || expectedGeneration < 1) {
+      throw new Error('A valid agent assignment generation is required');
+    }
+    const nextAssignments = assignmentsToSdk(assignments);
+    if (nextAssignments.length < 1 || nextAssignments.length > 10) {
+      throw new Error('A group must have between 1 and 10 agents');
+    }
+    const response = await this.client().conversations.replaceAgentAssignments(normalizedId, {
+      expectedGeneration,
+      agentAssignments: nextAssignments,
+    });
+    this.assertSessionGeneration(sessionGeneration);
+    const normalized = normalizeAgentAssignments(response);
+    if (!normalized) {
+      throw new Error('Conversation agent assignment update did not return an authoritative snapshot');
+    }
+    return this.rememberAgentAssignmentSnapshot(normalizedId, normalized, assignments);
+  }
+
   private resolveCurrentUserId(): string {
     return resolveAppSdkUserId(this.getSession())
       ?? contactService.getCurrentUser().id;
@@ -302,11 +574,13 @@ class SdkworkGroupService implements GroupService {
   private async listConversationMembersPage(
     groupId: string,
     cursor?: string,
+    expectedSessionGeneration = this.sessionGeneration,
   ): Promise<{ items: ConversationMember[]; hasMore: boolean; nextCursor?: string }> {
     const response = await this.client().conversations.listMembers(groupId, {
       pageSize: GROUP_MEMBERS_PAGE_LIMIT,
       ...(cursor ? { cursor } : {}),
     });
+    this.assertSessionGeneration(expectedSessionGeneration);
     const page = readSdkCursorPageInfo(response.pageInfo);
     return {
       items: response.items,
@@ -315,20 +589,49 @@ class SdkworkGroupService implements GroupService {
     };
   }
 
-  private async syncActiveMemberIds(groupId: string): Promise<string[]> {
+  async canManageAgents(groupId: string): Promise<boolean> {
+    const sessionGeneration = this.sessionGeneration;
+    const normalizedId = groupId.trim();
+    if (!normalizedId) {
+      return false;
+    }
+    try {
+      // The server resolves the authenticated actor (including principal kind)
+      // and uses the aggregate store's exact member key. Do not infer
+      // authorization by scanning a paginated roster in the browser.
+      const current = await this.client().conversations.getCurrentMember(normalizedId);
+      this.assertSessionGeneration(sessionGeneration);
+      if (String(current.state).toLowerCase() !== 'joined') {
+        return false;
+      }
+      const role = String(current.role ?? '').toLowerCase();
+      return role === 'owner' || role === 'admin';
+    } catch {
+      return false;
+    }
+  }
+
+  private async syncActiveMemberIds(
+    groupId: string,
+    expectedSessionGeneration = this.sessionGeneration,
+  ): Promise<string[]> {
     const members: ConversationMember[] = [];
     await forEachCursorPage(
-      (cursor) => this.listConversationMembersPage(groupId, cursor),
+      (cursor) => this.listConversationMembersPage(groupId, cursor, expectedSessionGeneration),
       (items) => {
         members.push(...items);
       },
-      { maxItems: MAX_GROUP_MEMBERS_PER_CONVERSATION },
+      { maxItems: MAX_GROUP_MEMBER_VIEW_SYNC },
     );
+    this.assertSessionGeneration(expectedSessionGeneration);
     return mapActiveMemberIds(members);
   }
 
-  private async hydrateConversationEntryGroup(entry: ConversationListEntry): Promise<Chat | null> {
-    const group = mergeCachedGroupViewState(
+  private async hydrateConversationEntryGroup(
+    entry: ConversationListEntry,
+    expectedSessionGeneration = this.sessionGeneration,
+  ): Promise<Chat | null> {
+    let group = mergeCachedGroupViewState(
       mapConversationEntryToGroup(entry),
       this.groupViewState.get(entry.conversationId),
     );
@@ -338,44 +641,93 @@ class SdkworkGroupService implements GroupService {
       }
     }
 
+    if (group.agentAssignments !== undefined && group.agentAssignmentGeneration !== undefined) {
+      this.assertSessionGeneration(expectedSessionGeneration);
+      const snapshot = this.rememberAgentAssignmentSnapshot(entry.conversationId, {
+        generation: group.agentAssignmentGeneration,
+        source: 'conversation_override',
+        agents: group.agentAssignments,
+      });
+      group = {
+        ...group,
+        ...mapAssignmentSetToChatFields(snapshot),
+      };
+    }
+
     return group;
   }
 
-  async createGroup(name: string, memberIds: string[]): Promise<Chat> {
+  async createGroup(
+    name: string,
+    memberIds: string[],
+    agentAssignments?: GroupAgentAssignment[],
+    options: CreateGroupOptions = {},
+  ): Promise<Chat> {
+    const sessionGeneration = this.sessionGeneration;
     const currentUserId = this.resolveCurrentUserId().trim();
     if (!currentUserId) {
       throw new Error('Current user id is required');
     }
     const invitedMemberIds = uniqueMemberIds(memberIds).filter((memberId) => memberId !== currentUserId);
+    if (invitedMemberIds.length > MAX_GROUP_INITIAL_MEMBERS) {
+      throw new Error(`A group may include at most ${MAX_GROUP_INITIAL_MEMBERS} invited members at creation time`);
+    }
     const members = [currentUserId, ...invitedMemberIds];
     const groupName = normalizeGroupName(name, members.length);
-    const clientRequestKey = createClientRequestKey();
+    const clientRequestKey = options.clientRequestKey?.trim() || createGroupClientRequestKey();
 
     // Group conversations use a server-derived canonical `g_` id seeded from
     // creator + group name + client request key. We send groupName +
     // clientRequestKey; the server returns the canonical conversationId.
+    const requestedAgentAssignments = agentAssignments ?? [];
+    if (agentAssignments && agentAssignments.length === 0) {
+      throw new Error('A group must have between 1 and 10 agents when agents are explicitly selected');
+    }
+    const normalizedAssignments = assignmentsToSdk(requestedAgentAssignments);
+    if (normalizedAssignments.length > 10) {
+      throw new Error('A group may have at most 10 agents');
+    }
     const result = await this.client().conversations.create({
       conversationType: 'group',
       groupName,
       clientRequestKey,
+      memberUserIds: invitedMemberIds,
+      ...(normalizedAssignments.length > 0
+        ? { agentAssignments: normalizedAssignments }
+        : {}),
     });
+    this.assertSessionGeneration(sessionGeneration);
     const boundGroupId = result.conversationId;
 
     const groupAvatar = createGroupAvatar();
-    await this.client().conversations.updateProfile(boundGroupId, {
-      ...(groupAvatar ? { avatarUrl: groupAvatar } : {}),
-      displayName: groupName,
-    });
-    await this.client().conversations.updatePreferences(boundGroupId, { isHidden: false });
+    // The authoritative name, initial members and agents are committed by the
+    // create command. Avatar/preferences are optional enrichments and must not
+    // turn an already-created group into a false client-side failure.
+    await Promise.allSettled([
+      this.client().conversations.updateProfile(boundGroupId, {
+        ...(groupAvatar ? { avatarUrl: groupAvatar } : {}),
+        displayName: groupName,
+      }),
+      this.client().conversations.updatePreferences(boundGroupId, { isHidden: false }),
+    ]);
+    this.assertSessionGeneration(sessionGeneration);
 
-    for (const memberId of invitedMemberIds) {
-      await this.client().conversations.addMember(boundGroupId, {
-        principalId: memberId,
-        principalKind: 'user',
-        role: 'member',
-      });
+    let initialAgentSet: GroupAgentAssignmentSet | undefined;
+    try {
+      initialAgentSet = await this.getAgentAssignments(boundGroupId);
+      initialAgentSet = this.rememberAgentAssignmentSnapshot(
+        boundGroupId,
+        initialAgentSet,
+        requestedAgentAssignments,
+      );
+    } catch {
+      // Older SDK gateways may create the group before the assignment route is
+      // deployed. Keep the group usable, but do not invent a generation: the
+      // next hydration will obtain the authoritative snapshot.
+      if (requestedAgentAssignments.length === 0) {
+        initialAgentSet = undefined;
+      }
     }
-
     const group: Chat = {
       id: boundGroupId,
       name: groupName,
@@ -386,8 +738,10 @@ class SdkworkGroupService implements GroupService {
       memberCount: members.length,
       members,
       activeCount: members.length,
+      ...(initialAgentSet ? mapAssignmentSetToChatFields(initialAgentSet) : {}),
     };
 
+    this.assertSessionGeneration(sessionGeneration);
     this.groupViewState.set(boundGroupId, {
       activeCount: group.activeCount,
       avatar: group.avatar,
@@ -395,11 +749,14 @@ class SdkworkGroupService implements GroupService {
       members: group.members,
       name: group.name,
       notice: group.notice,
+      agentAssignments: group.agentAssignments,
+      agentAssignmentGeneration: group.agentAssignmentGeneration,
     });
     return group;
   }
 
   async listGroupsPage(params?: { cursor?: string; pageSize?: number }): Promise<GroupListPage> {
+    const sessionGeneration = this.sessionGeneration;
     const pageSize = normalizeGroupPageSize(params?.pageSize);
     const inboxPage = await this.client().chat?.inbox?.list({
       pageSize,
@@ -407,8 +764,10 @@ class SdkworkGroupService implements GroupService {
       ...(params?.cursor ? { cursor: params.cursor } : {}),
     });
     if (!inboxPage) {
+      this.assertSessionGeneration(sessionGeneration);
       return { items: [], hasMore: false };
     }
+    this.assertSessionGeneration(sessionGeneration);
 
     const groupEntries = inboxPage.items.filter(
       (entry) => entry.conversationType.toLowerCase() === 'group',
@@ -416,8 +775,9 @@ class SdkworkGroupService implements GroupService {
     const hydratedGroups = await mapWithConcurrencyLimit(
       groupEntries,
       GROUP_LIST_HYDRATION_CONCURRENCY,
-      async (entry) => this.hydrateConversationEntryGroup(entry),
+      async (entry) => this.hydrateConversationEntryGroup(entry, sessionGeneration),
     );
+    this.assertSessionGeneration(sessionGeneration);
     const items = hydratedGroups
       .filter((group): group is Chat => group != null)
       .sort((left, right) => right.updatedAt - left.updatedAt);
@@ -431,6 +791,7 @@ class SdkworkGroupService implements GroupService {
   }
 
   async getGroupById(groupId: string): Promise<Chat | null> {
+    const sessionGeneration = this.sessionGeneration;
     const normalizedId = groupId.trim();
     if (!normalizedId) {
       return null;
@@ -467,7 +828,19 @@ class SdkworkGroupService implements GroupService {
       // Keep cached projection when profile hydration is temporarily unavailable.
     }
 
-    return this.withMemberState(group);
+    try {
+      const assignments = await this.getAgentAssignments(normalizedId);
+      group = {
+        ...group,
+        ...mapAssignmentSetToChatFields(assignments),
+      };
+    } catch {
+      // Keep group chat usable while an older gateway rolls out agent assignment routes.
+    }
+
+    const hydrated = await this.withMemberState(group, sessionGeneration);
+    this.assertSessionGeneration(sessionGeneration);
+    return hydrated;
   }
 
   async getGroups(): Promise<Chat[]> {
@@ -479,9 +852,12 @@ class SdkworkGroupService implements GroupService {
     return [];
   }
 
-  private async withMemberState(group: Chat): Promise<Chat> {
+  private async withMemberState(
+    group: Chat,
+    expectedSessionGeneration = this.sessionGeneration,
+  ): Promise<Chat> {
     try {
-      const memberState = await this.syncMemberViewState(group.id, false);
+      const memberState = await this.syncMemberViewState(group.id, false, expectedSessionGeneration);
       return {
         ...mergeCachedGroupViewState(group, this.groupViewState.get(group.id)),
         activeCount: memberState.activeCount,
@@ -496,8 +872,10 @@ class SdkworkGroupService implements GroupService {
   private async syncMemberViewState(
     groupId: string,
     _syncChatView = false,
+    expectedSessionGeneration = this.sessionGeneration,
   ): Promise<Required<Pick<GroupViewState, 'activeCount' | 'memberCount' | 'members'>>> {
-    const members = await this.syncActiveMemberIds(groupId);
+    const members = await this.syncActiveMemberIds(groupId, expectedSessionGeneration);
+    this.assertSessionGeneration(expectedSessionGeneration);
     const existingState = this.groupViewState.get(groupId) ?? {};
     const nextState = {
       ...existingState,
@@ -514,6 +892,7 @@ class SdkworkGroupService implements GroupService {
   }
 
   async updateGroupInfo(groupId: string, updates: Partial<Chat>): Promise<Chat> {
+    const sessionGeneration = this.sessionGeneration;
     const profileUpdate = {
       ...(updates.avatar !== undefined ? { avatarUrl: updates.avatar } : {}),
       ...(updates.name !== undefined ? { displayName: updates.name } : {}),
@@ -522,6 +901,7 @@ class SdkworkGroupService implements GroupService {
     const profile = Object.keys(profileUpdate).length > 0
       ? await this.client().conversations.updateProfile(groupId, profileUpdate)
       : undefined;
+    this.assertSessionGeneration(sessionGeneration);
     const updatedGroup: Chat = {
       id: groupId,
       name: pickString(profile?.displayName, updates.name) ?? 'Group chat',
@@ -543,34 +923,43 @@ class SdkworkGroupService implements GroupService {
       members: updatedGroup.members ?? updates.members ?? existingState.members,
       name: updatedGroup.name ?? updates.name ?? existingState.name,
       notice: updatedGroup.notice ?? updates.notice ?? existingState.notice,
+      agentAssignments: updates.agentAssignments ?? existingState.agentAssignments,
+      agentAssignmentGeneration: updates.agentAssignmentGeneration ?? existingState.agentAssignmentGeneration,
     });
     return updatedGroup;
   }
 
   async addMembers(groupId: string, memberIds: string[]): Promise<void> {
-    const existingMembers = await this.syncActiveMemberIds(groupId);
+    const sessionGeneration = this.sessionGeneration;
+    const existingMembers = await this.syncActiveMemberIds(groupId, sessionGeneration);
+    this.assertSessionGeneration(sessionGeneration);
     const activeMemberIds = new Set(existingMembers);
     const membersToAdd = uniqueMemberIds(memberIds).filter((memberId) => !activeMemberIds.has(memberId));
 
     for (const memberId of membersToAdd) {
+      this.assertSessionGeneration(sessionGeneration);
       await this.client().conversations.addMember(groupId, {
         principalId: memberId,
         principalKind: 'user',
         role: 'member',
       });
+      this.assertSessionGeneration(sessionGeneration);
       activeMemberIds.add(memberId);
     }
 
-    await this.syncMemberViewState(groupId);
+    await this.syncMemberViewState(groupId, false, sessionGeneration);
+    this.assertSessionGeneration(sessionGeneration);
   }
 
   async inviteUserToGroup(group: Chat, targetUser: User): Promise<Message> {
+    const sessionGeneration = this.sessionGeneration;
     const targetUserId = targetUser.id.trim();
     if (!targetUserId) {
       throw new Error('Group invite target user id is required');
     }
 
     await this.addMembers(group.id, [targetUserId]);
+    this.assertSessionGeneration(sessionGeneration);
     const directChat = await this.chatClient.startDirectChat({
       avatar: targetUser.avatar,
       conversationId: targetUser.conversationId,
@@ -578,8 +967,9 @@ class SdkworkGroupService implements GroupService {
       id: targetUserId,
       name: targetUser.name,
     });
+    this.assertSessionGeneration(sessionGeneration);
     const currentUserId = this.resolveCurrentUserId().trim();
-    return this.chatClient.sendMessage(
+    const inviteMessage = await this.chatClient.sendMessage(
       directChat.id,
       buildGroupInviteUrl(group.id),
       'card',
@@ -590,41 +980,53 @@ class SdkworkGroupService implements GroupService {
         fileName: '邀请你加入群聊',
       },
     );
+    this.assertSessionGeneration(sessionGeneration);
+    return inviteMessage;
   }
 
   private async findConversationMember(
     groupId: string,
     memberId: string,
   ): Promise<ConversationMember | undefined> {
+    const sessionGeneration = this.sessionGeneration;
     let cursor: string | undefined;
     let scanned = 0;
+    const seenCursors = new Set<string>();
 
-    do {
-      if (scanned >= MAX_GROUP_MEMBERS_PER_CONVERSATION) {
-        break;
-      }
-      const page = await this.listConversationMembersPage(groupId, cursor);
+    while (scanned < MAX_GROUP_MEMBER_LOOKUP_SCAN) {
+      const page = await this.listConversationMembersPage(groupId, cursor, sessionGeneration);
       const targetMember = page.items.find((member) => (
         member.memberId === memberId
-        || member.principalId === memberId
+        || (member.principalKind === 'user' && member.principalId === memberId)
       ));
       if (targetMember) {
         return targetMember;
       }
       scanned += page.items.length;
-      cursor = page.hasMore ? page.nextCursor : undefined;
-    } while (cursor);
+      if (
+        page.items.length === 0
+        || !page.hasMore
+        || !page.nextCursor
+        || seenCursors.has(page.nextCursor)
+      ) {
+        break;
+      }
+      seenCursors.add(page.nextCursor);
+      cursor = page.nextCursor;
+    }
 
     return undefined;
   }
 
   async removeMember(groupId: string, memberId: string): Promise<void> {
+    const sessionGeneration = this.sessionGeneration;
     const normalizedMemberId = memberId.trim();
     if (!normalizedMemberId) {
       throw new Error('Group member id is required');
     }
 
     const targetMember = await this.findConversationMember(groupId, normalizedMemberId);
+    this.assertSessionGeneration(sessionGeneration);
     if (!targetMember) {
       throw new Error('Group member is not available');
     }
@@ -632,13 +1034,19 @@ class SdkworkGroupService implements GroupService {
     await this.client().conversations.removeMember(groupId, {
       memberId: targetMember.memberId,
     });
-    await this.syncMemberViewState(groupId);
+    this.assertSessionGeneration(sessionGeneration);
+    await this.syncMemberViewState(groupId, false, sessionGeneration);
+    this.assertSessionGeneration(sessionGeneration);
   }
 
   async deleteGroup(groupId: string): Promise<void> {
+    const sessionGeneration = this.sessionGeneration;
     await this.client().conversations.leave(groupId);
+    this.assertSessionGeneration(sessionGeneration);
     await this.chatClient.deleteChat(groupId).catch(() => undefined);
+    this.assertSessionGeneration(sessionGeneration);
     this.groupViewState.delete(groupId);
+    this.agentAssignmentSnapshots.delete(groupId);
   }
 
 }

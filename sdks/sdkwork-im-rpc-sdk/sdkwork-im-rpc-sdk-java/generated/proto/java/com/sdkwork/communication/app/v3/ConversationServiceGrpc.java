@@ -291,6 +291,99 @@ public final class ConversationServiceGrpc {
     return getListConversationMembersMethod;
   }
 
+  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest,
+      com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse> getRetrieveCurrentConversationMemberMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "RetrieveCurrentConversationMember",
+      requestType = com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest.class,
+      responseType = com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest,
+      com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse> getRetrieveCurrentConversationMemberMethod() {
+    io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest, com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse> getRetrieveCurrentConversationMemberMethod;
+    if ((getRetrieveCurrentConversationMemberMethod = ConversationServiceGrpc.getRetrieveCurrentConversationMemberMethod) == null) {
+      synchronized (ConversationServiceGrpc.class) {
+        if ((getRetrieveCurrentConversationMemberMethod = ConversationServiceGrpc.getRetrieveCurrentConversationMemberMethod) == null) {
+          ConversationServiceGrpc.getRetrieveCurrentConversationMemberMethod = getRetrieveCurrentConversationMemberMethod =
+              io.grpc.MethodDescriptor.<com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest, com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "RetrieveCurrentConversationMember"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse.getDefaultInstance()))
+              .setSchemaDescriptor(new ConversationServiceMethodDescriptorSupplier("RetrieveCurrentConversationMember"))
+              .build();
+        }
+      }
+    }
+    return getRetrieveCurrentConversationMemberMethod;
+  }
+
+  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest,
+      com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse> getRetrieveConversationAgentsMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "RetrieveConversationAgents",
+      requestType = com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest.class,
+      responseType = com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest,
+      com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse> getRetrieveConversationAgentsMethod() {
+    io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest, com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse> getRetrieveConversationAgentsMethod;
+    if ((getRetrieveConversationAgentsMethod = ConversationServiceGrpc.getRetrieveConversationAgentsMethod) == null) {
+      synchronized (ConversationServiceGrpc.class) {
+        if ((getRetrieveConversationAgentsMethod = ConversationServiceGrpc.getRetrieveConversationAgentsMethod) == null) {
+          ConversationServiceGrpc.getRetrieveConversationAgentsMethod = getRetrieveConversationAgentsMethod =
+              io.grpc.MethodDescriptor.<com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest, com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "RetrieveConversationAgents"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse.getDefaultInstance()))
+              .setSchemaDescriptor(new ConversationServiceMethodDescriptorSupplier("RetrieveConversationAgents"))
+              .build();
+        }
+      }
+    }
+    return getRetrieveConversationAgentsMethod;
+  }
+
+  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest,
+      com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse> getUpdateConversationAgentsMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "UpdateConversationAgents",
+      requestType = com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest.class,
+      responseType = com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest,
+      com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse> getUpdateConversationAgentsMethod() {
+    io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest, com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse> getUpdateConversationAgentsMethod;
+    if ((getUpdateConversationAgentsMethod = ConversationServiceGrpc.getUpdateConversationAgentsMethod) == null) {
+      synchronized (ConversationServiceGrpc.class) {
+        if ((getUpdateConversationAgentsMethod = ConversationServiceGrpc.getUpdateConversationAgentsMethod) == null) {
+          ConversationServiceGrpc.getUpdateConversationAgentsMethod = getUpdateConversationAgentsMethod =
+              io.grpc.MethodDescriptor.<com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest, com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "UpdateConversationAgents"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse.getDefaultInstance()))
+              .setSchemaDescriptor(new ConversationServiceMethodDescriptorSupplier("UpdateConversationAgents"))
+              .build();
+        }
+      }
+    }
+    return getUpdateConversationAgentsMethod;
+  }
+
   private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.AddConversationMemberRequest,
       com.sdkwork.communication.app.v3.AddConversationMemberResponse> getAddConversationMemberMethod;
 
@@ -822,6 +915,27 @@ public final class ConversationServiceGrpc {
 
     /**
      */
+    default void retrieveCurrentConversationMember(com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getRetrieveCurrentConversationMemberMethod(), responseObserver);
+    }
+
+    /**
+     */
+    default void retrieveConversationAgents(com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getRetrieveConversationAgentsMethod(), responseObserver);
+    }
+
+    /**
+     */
+    default void updateConversationAgents(com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getUpdateConversationAgentsMethod(), responseObserver);
+    }
+
+    /**
+     */
     default void addConversationMember(com.sdkwork.communication.app.v3.AddConversationMemberRequest request,
         io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.AddConversationMemberResponse> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getAddConversationMemberMethod(), responseObserver);
@@ -1013,6 +1127,30 @@ public final class ConversationServiceGrpc {
 
     /**
      */
+    public void retrieveCurrentConversationMember(com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getRetrieveCurrentConversationMemberMethod(), getCallOptions()), request, responseObserver);
+    }
+
+    /**
+     */
+    public void retrieveConversationAgents(com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getRetrieveConversationAgentsMethod(), getCallOptions()), request, responseObserver);
+    }
+
+    /**
+     */
+    public void updateConversationAgents(com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getUpdateConversationAgentsMethod(), getCallOptions()), request, responseObserver);
+    }
+
+    /**
+     */
     public void addConversationMember(com.sdkwork.communication.app.v3.AddConversationMemberRequest request,
         io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.AddConversationMemberResponse> responseObserver) {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
@@ -1197,6 +1335,27 @@ public final class ConversationServiceGrpc {
 
     /**
      */
+    public com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse retrieveCurrentConversationMember(com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getRetrieveCurrentConversationMemberMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse retrieveConversationAgents(com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getRetrieveConversationAgentsMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse updateConversationAgents(com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getUpdateConversationAgentsMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
     public com.sdkwork.communication.app.v3.AddConversationMemberResponse addConversationMember(com.sdkwork.communication.app.v3.AddConversationMemberRequest request) throws io.grpc.StatusException {
       return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
           getChannel(), getAddConversationMemberMethod(), getCallOptions(), request);
@@ -1364,6 +1523,27 @@ public final class ConversationServiceGrpc {
     public com.sdkwork.communication.app.v3.ListConversationMembersResponse listConversationMembers(com.sdkwork.communication.app.v3.ListConversationMembersRequest request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getListConversationMembersMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse retrieveCurrentConversationMember(com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getRetrieveCurrentConversationMemberMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse retrieveConversationAgents(com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getRetrieveConversationAgentsMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse updateConversationAgents(com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getUpdateConversationAgentsMethod(), getCallOptions(), request);
     }
 
     /**
@@ -1548,6 +1728,30 @@ public final class ConversationServiceGrpc {
 
     /**
      */
+    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse> retrieveCurrentConversationMember(
+        com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getRetrieveCurrentConversationMemberMethod(), getCallOptions()), request);
+    }
+
+    /**
+     */
+    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse> retrieveConversationAgents(
+        com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getRetrieveConversationAgentsMethod(), getCallOptions()), request);
+    }
+
+    /**
+     */
+    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse> updateConversationAgents(
+        com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getUpdateConversationAgentsMethod(), getCallOptions()), request);
+    }
+
+    /**
+     */
     public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.app.v3.AddConversationMemberResponse> addConversationMember(
         com.sdkwork.communication.app.v3.AddConversationMemberRequest request) {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
@@ -1660,19 +1864,22 @@ public final class ConversationServiceGrpc {
   private static final int METHODID_RETRIEVE_CONVERSATION = 6;
   private static final int METHODID_LIST_INBOX = 7;
   private static final int METHODID_LIST_CONVERSATION_MEMBERS = 8;
-  private static final int METHODID_ADD_CONVERSATION_MEMBER = 9;
-  private static final int METHODID_REMOVE_CONVERSATION_MEMBER = 10;
-  private static final int METHODID_TRANSFER_CONVERSATION_OWNER = 11;
-  private static final int METHODID_CHANGE_CONVERSATION_MEMBER_ROLE = 12;
-  private static final int METHODID_LEAVE_CONVERSATION = 13;
-  private static final int METHODID_RETRIEVE_CONVERSATION_PREFERENCES = 14;
-  private static final int METHODID_UPDATE_CONVERSATION_PREFERENCES = 15;
-  private static final int METHODID_RETRIEVE_CONVERSATION_PROFILE = 16;
-  private static final int METHODID_UPDATE_CONVERSATION_PROFILE = 17;
-  private static final int METHODID_RETRIEVE_READ_CURSOR = 18;
-  private static final int METHODID_UPDATE_READ_CURSOR = 19;
-  private static final int METHODID_LIST_CONVERSATION_MEMBER_DIRECTORY = 20;
-  private static final int METHODID_LIST_PINNED_MESSAGES = 21;
+  private static final int METHODID_RETRIEVE_CURRENT_CONVERSATION_MEMBER = 9;
+  private static final int METHODID_RETRIEVE_CONVERSATION_AGENTS = 10;
+  private static final int METHODID_UPDATE_CONVERSATION_AGENTS = 11;
+  private static final int METHODID_ADD_CONVERSATION_MEMBER = 12;
+  private static final int METHODID_REMOVE_CONVERSATION_MEMBER = 13;
+  private static final int METHODID_TRANSFER_CONVERSATION_OWNER = 14;
+  private static final int METHODID_CHANGE_CONVERSATION_MEMBER_ROLE = 15;
+  private static final int METHODID_LEAVE_CONVERSATION = 16;
+  private static final int METHODID_RETRIEVE_CONVERSATION_PREFERENCES = 17;
+  private static final int METHODID_UPDATE_CONVERSATION_PREFERENCES = 18;
+  private static final int METHODID_RETRIEVE_CONVERSATION_PROFILE = 19;
+  private static final int METHODID_UPDATE_CONVERSATION_PROFILE = 20;
+  private static final int METHODID_RETRIEVE_READ_CURSOR = 21;
+  private static final int METHODID_UPDATE_READ_CURSOR = 22;
+  private static final int METHODID_LIST_CONVERSATION_MEMBER_DIRECTORY = 23;
+  private static final int METHODID_LIST_PINNED_MESSAGES = 24;
 
   private static final class MethodHandlers<Req, Resp> implements
       io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
@@ -1726,6 +1933,18 @@ public final class ConversationServiceGrpc {
         case METHODID_LIST_CONVERSATION_MEMBERS:
           serviceImpl.listConversationMembers((com.sdkwork.communication.app.v3.ListConversationMembersRequest) request,
               (io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.ListConversationMembersResponse>) responseObserver);
+          break;
+        case METHODID_RETRIEVE_CURRENT_CONVERSATION_MEMBER:
+          serviceImpl.retrieveCurrentConversationMember((com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest) request,
+              (io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse>) responseObserver);
+          break;
+        case METHODID_RETRIEVE_CONVERSATION_AGENTS:
+          serviceImpl.retrieveConversationAgents((com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest) request,
+              (io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse>) responseObserver);
+          break;
+        case METHODID_UPDATE_CONVERSATION_AGENTS:
+          serviceImpl.updateConversationAgents((com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest) request,
+              (io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse>) responseObserver);
           break;
         case METHODID_ADD_CONVERSATION_MEMBER:
           serviceImpl.addConversationMember((com.sdkwork.communication.app.v3.AddConversationMemberRequest) request,
@@ -1860,6 +2079,27 @@ public final class ConversationServiceGrpc {
               com.sdkwork.communication.app.v3.ListConversationMembersRequest,
               com.sdkwork.communication.app.v3.ListConversationMembersResponse>(
                 service, METHODID_LIST_CONVERSATION_MEMBERS)))
+        .addMethod(
+          getRetrieveCurrentConversationMemberMethod(),
+          io.grpc.stub.ServerCalls.asyncUnaryCall(
+            new MethodHandlers<
+              com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest,
+              com.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse>(
+                service, METHODID_RETRIEVE_CURRENT_CONVERSATION_MEMBER)))
+        .addMethod(
+          getRetrieveConversationAgentsMethod(),
+          io.grpc.stub.ServerCalls.asyncUnaryCall(
+            new MethodHandlers<
+              com.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest,
+              com.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse>(
+                service, METHODID_RETRIEVE_CONVERSATION_AGENTS)))
+        .addMethod(
+          getUpdateConversationAgentsMethod(),
+          io.grpc.stub.ServerCalls.asyncUnaryCall(
+            new MethodHandlers<
+              com.sdkwork.communication.app.v3.UpdateConversationAgentsRequest,
+              com.sdkwork.communication.app.v3.UpdateConversationAgentsResponse>(
+                service, METHODID_UPDATE_CONVERSATION_AGENTS)))
         .addMethod(
           getAddConversationMemberMethod(),
           io.grpc.stub.ServerCalls.asyncUnaryCall(
@@ -2008,6 +2248,9 @@ public final class ConversationServiceGrpc {
               .addMethod(getRetrieveConversationMethod())
               .addMethod(getListInboxMethod())
               .addMethod(getListConversationMembersMethod())
+              .addMethod(getRetrieveCurrentConversationMemberMethod())
+              .addMethod(getRetrieveConversationAgentsMethod())
+              .addMethod(getUpdateConversationAgentsMethod())
               .addMethod(getAddConversationMemberMethod())
               .addMethod(getRemoveConversationMemberMethod())
               .addMethod(getTransferConversationOwnerMethod())

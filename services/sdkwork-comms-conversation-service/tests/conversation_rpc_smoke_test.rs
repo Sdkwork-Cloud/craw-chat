@@ -13,7 +13,8 @@ use conversation_runtime::rpc_dispatch::{
 use im_app_context::local_service_app_context;
 use im_domain_core::room::game_move_schema_ref;
 use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::{
-    CreateRoomRequest, EnterRoomRequest, room_service_client::RoomServiceClient,
+    CreateRoomRequest, EnterRoomRequest, RetrieveCurrentConversationMemberRequest,
+    conversation_service_client::ConversationServiceClient, room_service_client::RoomServiceClient,
 };
 use sdkwork_im_rpc_sdk_rust::sdkwork::communication::internal::v1::{
     CreateRoomRequest as InternalCreateRoomRequest, DispatchConversationMessageRequest,
@@ -181,6 +182,75 @@ async fn test_app_room_service_create_enter_over_grpc() {
         enter_response.into_inner().member.is_some(),
         "enter room should return membership"
     );
+
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn test_app_conversation_service_retrieves_current_member_over_grpc() {
+    let state = rpc_smoke_app_state();
+    let dispatcher = Arc::new(ConversationRpcDispatcher::from_app_state(state));
+    let (addr, server) =
+        start_in_process_rpc_server(dispatcher, CONVERSATION_RPC_SERVICE_KEYS).await;
+
+    let owner = local_service_app_context("100001", "1", "user", Some("d_owner"), ["*"]);
+    let mut room_client = RoomServiceClient::connect(format!("http://{addr}"))
+        .await
+        .expect("room service client should connect");
+    let mut client = ConversationServiceClient::connect(format!("http://{addr}"))
+        .await
+        .expect("conversation service client should connect");
+
+    let mut create_request = Request::new(CreateRoomRequest {
+        conversation_id: String::new(),
+        room_id: "room_rpc_current_member".into(),
+        room_kind: "game".into(),
+        metadata: None,
+    });
+    apply_rpc_metadata(
+        &mut create_request,
+        &rpc_metadata_from_app_context(
+            &owner,
+            Some("idem-current-member-conversation-create".into()),
+            Some("trace-current-member-conversation-create".into()),
+        ),
+    );
+    let conversation_id = room_client
+        .create_room(create_request)
+        .await
+        .expect("rooms.create should establish the owner membership")
+        .into_inner()
+        .room
+        .expect("create room should return a room")
+        .conversation_id;
+
+    let mut retrieve_request = Request::new(RetrieveCurrentConversationMemberRequest {
+        conversation_id: conversation_id.clone(),
+        metadata: None,
+    });
+    apply_rpc_metadata(
+        &mut retrieve_request,
+        &rpc_metadata_from_app_context(
+            &owner,
+            None,
+            Some("trace-current-conversation-member-retrieve".into()),
+        ),
+    );
+    let member = client
+        .retrieve_current_conversation_member(retrieve_request)
+        .await
+        .expect("current conversation member retrieval should succeed")
+        .into_inner()
+        .member
+        .expect("current conversation member retrieval should return a member");
+    assert_eq!(member.conversation_id, conversation_id);
+    assert_eq!(member.user_id, "1");
+    assert_eq!(member.principal_kind, "user");
+    assert!(!member.member_id.is_empty());
+    assert_eq!(member.tenant_id, "100001");
+    assert!(!member.joined_at.is_empty());
+    assert_eq!(member.role, "owner");
+    assert_eq!(member.state, "joined");
 
     server.shutdown().await;
 }

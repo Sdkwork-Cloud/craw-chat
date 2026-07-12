@@ -25,8 +25,8 @@
 
 use std::collections::BTreeMap;
 use std::ops::Bound::Excluded;
-use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::time::Instant;
 
 use dashmap::DashMap;
@@ -39,9 +39,8 @@ use im_domain_core::rtc::{
     StateRecord, StateStore,
 };
 use im_platform_contracts::{
-    ConversationAggregateStore, ConversationMemberAccessGate, ConversationMemberRecord,
-    IdGenerator, OutboxEventRecord, OutboxPublishStatus, OutboxStore,
-    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
+    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAggregateStore, ConversationMemberAccessGate,
+    ConversationMemberRecord, IdGenerator, OutboxEventRecord, OutboxPublishStatus, OutboxStore,
 };
 use im_time::{rfc3339_add_secs, rfc3339_le, utc_now_rfc3339_millis};
 use sdkwork_communication_rtc_service::{
@@ -1322,7 +1321,6 @@ impl CallingRuntime {
                 .participants
                 .accepted_ids
                 .push(auth.actor_id.clone());
-            newly_accepted = true;
         }
         let session = session_ref.clone();
         drop(session_ref);

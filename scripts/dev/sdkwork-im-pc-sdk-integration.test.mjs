@@ -2651,7 +2651,7 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
-  /addFriendBySearchQuery\s*\([\s\S]*?this\.findAddFriendTarget\s*\(\s*normalizedQuery\s*\)[\s\S]*?this\.assertRelationshipAllowsFriendRequest\s*\([\s\S]*?this\.client\(\)\.social\.friendRequests\.create/u,
+  /addFriendBySearchQuery\s*\([\s\S]*?const\s+client\s*=\s*this\.client\(\)[\s\S]*?this\.findAddFriendTarget\s*\(\s*normalizedQuery\s*\)[\s\S]*?this\.assertRelationshipAllowsFriendRequest\s*\([\s\S]*?client\.social\.friendRequests\.create/u,
   'contact service direct add-by-input must resolve a real searched user before submitting a friend request',
 );
 assert.match(
@@ -2741,8 +2741,8 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
-  /\.social\.userBlocks\.create\s*\(/u,
-  'contact service addToBlacklist must route through social.userBlocks.create',
+  /\.social\.contacts\.preferences\.update\s*\(/u,
+  'contact service blacklist mutations must route through server-coordinated contact preferences',
 );
 assert.match(
   contactServiceSource,
@@ -3078,7 +3078,7 @@ assert.match(
 );
 assert.match(
   createGroupModalSource,
-  /const\s+group\s*=\s*await\s+groupService\.createGroup\s*\(\s*['"][^'"]*['"]\s*,\s*Array\.from\s*\(\s*selected\s*\)\s*\)/u,
+  /const\s+group\s*=\s*await\s+groupService\.createGroup\s*\(\s*(?:['"][^'"]*['"]|[^,\n]+)\s*,\s*memberIds\s*,\s*assignments/u,
   'create group modal must create group conversations through the SDK-backed group service',
 );
 assert.match(
@@ -3278,7 +3278,7 @@ const groupListGroupsPageSource = groupServiceSource.slice(
 );
 assert.match(
   groupListGroupsPageSource,
-  /chat\?\.inbox\?\.list[\s\S]*?hydrateConversationEntryGroup\(entry\)/u,
+  /chat\?\.inbox\?\.list[\s\S]*?hydrateConversationEntryGroup\(entry(?:\s*,\s*sessionGeneration)?\)/u,
   'group service listGroupsPage must hydrate group rows from paginated SDK inbox projections',
 );
 assert.match(
@@ -4526,10 +4526,10 @@ assert.doesNotMatch(
   /groupService\.getGroupById\s*\(/u,
   'chat layout realtime conversation-list refresh must not request group profile/member details until one group is explicitly opened',
 );
-assert.doesNotMatch(
+assert.match(
   subscribeChatsSource,
-  /new\s+Map\s*\(\s*previousChats\.map\(/u,
-  'chat layout realtime conversation-list refresh must not retain stale chats that disappeared from the SDK inbox, such as groups left or removed on another device',
+  /for\s*\(const\s+previousChat\s+of\s+previousChats\)[\s\S]*?systemAssistantService\.isSystemAssistantChat\(previousChat\)[\s\S]*?byId\.set\(previousChat\.id/u,
+  'chat layout realtime conversation-list refresh may retain only the local system assistant when the SDK inbox removes a chat',
 );
 assert.match(
   subscribeChatsSource,
@@ -4538,7 +4538,7 @@ assert.match(
 );
 assert.match(
   subscribeChatsSource,
-  /\?\?\s*systemAssistantService\.selectInitialChat\(/u,
+  /:\s*systemAssistantService\.selectInitialChat\(/u,
   'chat layout realtime conversation-list refresh must clear or reselect active chat when the current group disappears from the SDK inbox',
 );
 assert.doesNotMatch(

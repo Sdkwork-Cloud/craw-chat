@@ -15,6 +15,9 @@ use crate::rpc_discovery::{
 
 pub const IM_RPC_RESOLVER_PROFILE_ENV: &str = "SDKWORK_IM_RPC_RESOLVER_PROFILE";
 pub const IM_RPC_STATIC_ENDPOINT_ENV: &str = "SDKWORK_IM_RPC_STATIC_ENDPOINT";
+
+#[cfg(test)]
+pub(crate) static RPC_RESOLVER_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 pub const IM_RPC_RESOLVER_SUBJECT_ID_ENV: &str = "SDKWORK_IM_RPC_RESOLVER_SUBJECT_ID";
 pub const IM_DEFAULT_RESILIENCE_PROFILE: &str = "rpc-default";
 
@@ -193,6 +196,9 @@ mod tests {
 
     #[test]
     fn static_profile_requires_static_endpoint_env() {
+        let _env_guard = RPC_RESOLVER_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         unsafe {
             std::env::remove_var(IM_RPC_RESOLVER_PROFILE_ENV);
             std::env::remove_var(IM_DISCOVERY_ENDPOINT_ENV);
@@ -210,6 +216,9 @@ mod tests {
 
     #[test]
     fn discovery_profile_requires_discovery_endpoint_env() {
+        let _env_guard = RPC_RESOLVER_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         unsafe {
             std::env::set_var(IM_RPC_RESOLVER_PROFILE_ENV, "discovery");
             std::env::remove_var(IM_DISCOVERY_ENDPOINT_ENV);

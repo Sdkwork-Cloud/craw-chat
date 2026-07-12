@@ -43,6 +43,7 @@ sdkwork-notary-database-host = { workspace = true }
 sdkwork-course-database-host = { workspace = true }
 sdkwork-routes-agents-app-api = { workspace = true }
 sdkwork-intelligence-agents-service = { workspace = true, features = ["http-axum", "postgres-sync"] }
+sdkwork-agents-database-host = { workspace = true }
 sdkwork-account-gateway-assembly = { workspace = true }
 sdkwork-account-service-host = { workspace = true }
 sdkwork-catalog-gateway-assembly = { workspace = true }

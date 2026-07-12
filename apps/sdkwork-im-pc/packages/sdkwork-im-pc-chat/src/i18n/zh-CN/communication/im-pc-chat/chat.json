@@ -255,6 +255,7 @@
       }
     },
     "messageInput": {
+      "mentionTitle": "@ 智能体",
       "defaultPlaceholder": "发送消息...",
       "agentTypingPlaceholder": "智能体正在回复...",
       "replyPrefix": "回复 {{name}}:",
@@ -280,6 +281,31 @@
         "screenshotDenied": "无权限进行截图（或在新标签页中打开应用重试）",
         "screenshotCancelled": "取消截图"
       }
+    },
+    "agentPicker": {
+      "title": "群智能体",
+      "manageTitle": "管理群智能体",
+      "searchPlaceholder": "搜索智能体",
+      "selectedCount": "已选 {{count}}/{{max}}",
+      "selectedTitle": "已选智能体",
+      "noneSelected": "请至少选择一个智能体",
+      "empty": "暂无可用智能体",
+      "loadFailed": "加载智能体失败",
+      "loading": "正在加载智能体...",
+      "loadingMore": "正在加载更多...",
+      "loadMore": "加载更多",
+      "retry": "重试",
+      "maxReached": "每个群最多可配置 {{max}} 个智能体",
+      "invalidCount": "请选择 {{min}} 到 {{max}} 个智能体",
+      "mentionHint": "在群聊输入框中使用 @ 可指定智能体参与对话。",
+      "remove": "移除 {{name}}",
+      "save": "保存智能体",
+      "saving": "正在保存...",
+      "saved": "群智能体已更新",
+      "groupCreated": "群聊已创建，包含 {{memberCount}} 位联系人和 {{agentCount}} 个智能体",
+      "saveFailed": "更新群智能体失败",
+      "conflict": "群智能体配置已发生变化，请刷新后重试。",
+      "permissionDenied": "仅群主和群管理员可以管理智能体。"
     },
     "systemAssistant": {
       "displayName": "系统助手",
@@ -466,8 +492,12 @@
       "memberSubtitle": "资料暂不可用"
     },
     "rightPanel": {
+      "agentCount": "{{count}} 个智能体",
+      "emptyAgents": "暂未配置智能体",
+      "agentLabel": "智能体",
       "title": "聊天信息",
       "actions": {
+        "manageAgents": "管理群智能体",
         "searchChat": "查找聊天",
         "addMember": "添加成员",
         "removeMember": "移除成员",
@@ -476,6 +506,7 @@
         "close": "关闭资料面板"
       },
       "fields": {
+        "agents": "智能体",
         "groupName": "群聊名称",
         "remark": "设置备注",
         "groupNotice": "群公告",

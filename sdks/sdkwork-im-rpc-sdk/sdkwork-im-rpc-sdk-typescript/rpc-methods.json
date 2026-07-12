@@ -21,7 +21,7 @@
       "package": "sdkwork.communication.app.v3",
       "service": "ConversationService",
       "surface": "app",
-      "methodCount": 22
+      "methodCount": 25
     },
     {
       "package": "sdkwork.communication.app.v3",
@@ -343,6 +343,45 @@
       "operationId": "conversations.members.list",
       "auth": "app-session",
       "idempotency": "none",
+      "streaming": "unary",
+      "owner": "im-open-api",
+      "compatibility": "v3"
+    },
+    {
+      "methodKey": "sdkwork.communication.app.v3.ConversationService/RetrieveCurrentConversationMember",
+      "package": "sdkwork.communication.app.v3",
+      "service": "ConversationService",
+      "method": "RetrieveCurrentConversationMember",
+      "surface": "app",
+      "operationId": "conversations.members.current.retrieve",
+      "auth": "app-session",
+      "idempotency": "none",
+      "streaming": "unary",
+      "owner": "im-open-api",
+      "compatibility": "v3"
+    },
+    {
+      "methodKey": "sdkwork.communication.app.v3.ConversationService/RetrieveConversationAgents",
+      "package": "sdkwork.communication.app.v3",
+      "service": "ConversationService",
+      "method": "RetrieveConversationAgents",
+      "surface": "app",
+      "operationId": "conversations.agents.retrieve",
+      "auth": "app-session",
+      "idempotency": "none",
+      "streaming": "unary",
+      "owner": "im-open-api",
+      "compatibility": "v3"
+    },
+    {
+      "methodKey": "sdkwork.communication.app.v3.ConversationService/UpdateConversationAgents",
+      "package": "sdkwork.communication.app.v3",
+      "service": "ConversationService",
+      "method": "UpdateConversationAgents",
+      "surface": "app",
+      "operationId": "conversations.agents.update",
+      "auth": "app-session",
+      "idempotency": "required",
       "streaming": "unary",
       "owner": "im-open-api",
       "compatibility": "v3"

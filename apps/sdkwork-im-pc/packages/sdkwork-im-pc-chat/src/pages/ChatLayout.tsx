@@ -12,6 +12,7 @@ import { WindowControls } from "../components/WindowControls";
 import { CallOverlay, CallType } from "../components/CallOverlay";
 import { CreateGroupModal } from "../components/CreateGroupModal";
 import { AddGroupMembersModal } from "../components/AddGroupMembersModal";
+import { GroupAgentsModal } from "../components/GroupAgentsModal";
 import { AddFriendModal } from "../components/AddFriendModal";
 import { CreateAgentModal } from "@sdkwork/agents-pc-agents";
 import { ScanQrCodeModal } from "../components/ScanQrCodeModal";
@@ -131,9 +132,11 @@ const ChatLayoutComponent: React.FC = () => {
   const [showRHSPanel, setShowRHSPanel] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [groupMemberProfiles, setGroupMemberProfiles] = useState<User[]>([]);
+  const [canManageGroupAgents, setCanManageGroupAgents] = useState(false);
+  const groupAgentPermissionRequestRef = useRef(0);
   const [editAgentId, setEditAgentId] = useState<string | undefined>();
   const [activeModal, setActiveModal] = useState<
-    "search" | "editName" | "editNotice" | "addMember" | null
+    "search" | "editName" | "editNotice" | "addMember" | "manageAgents" | null
   >(null);
   const [modalInput, setModalInput] = useState("");
   const localizedChats = useMemo(
@@ -179,6 +182,27 @@ const ChatLayoutComponent: React.FC = () => {
     () => activeChat?.type === "group" ? (activeChat.members ?? []).join("|") : "",
     [activeChat?.members, activeChat?.type],
   );
+
+  useEffect(() => {
+    groupAgentPermissionRequestRef.current += 1;
+    const requestId = groupAgentPermissionRequestRef.current;
+    if (!activeChat || activeChat.type !== 'group') {
+      setCanManageGroupAgents(false);
+      return;
+    }
+    setCanManageGroupAgents(false);
+    void groupService.canManageAgents(activeChat.id)
+      .then((allowed) => {
+        if (groupAgentPermissionRequestRef.current === requestId) {
+          setCanManageGroupAgents(allowed);
+        }
+      })
+      .catch(() => {
+        if (groupAgentPermissionRequestRef.current === requestId) {
+          setCanManageGroupAgents(false);
+        }
+      });
+  }, [activeChat?.id, activeChat?.type, showRHSPanel]);
   chatsRef.current = chats;
   activeChatIdRef.current = activeChat?.id;
   notificationTextsRef.current = {
@@ -252,12 +276,66 @@ const ChatLayoutComponent: React.FC = () => {
     hasHydratedNotificationBaselineRef.current = true;
   };
 
+  const hasAuthoritativeGroupAgentSnapshot = (chat: Chat | null | undefined): boolean => (
+    chat?.type === "group"
+    && Array.isArray(chat.agentAssignments)
+    && chat.agentAssignments.length > 0
+    && Number.isSafeInteger(chat.agentAssignmentGeneration)
+    && (chat.agentAssignmentGeneration ?? 0) >= 1
+  );
+
+  const preserveGroupAgentSnapshot = (previous: Chat | undefined, next: Chat): Chat => {
+    if (next.type !== "group" || !hasAuthoritativeGroupAgentSnapshot(previous)) {
+      return next;
+    }
+    const nextIsAuthoritative = hasAuthoritativeGroupAgentSnapshot(next);
+    const previousGeneration = previous?.agentAssignmentGeneration ?? 0;
+    const nextGeneration = next.agentAssignmentGeneration ?? 0;
+    if (nextIsAuthoritative && nextGeneration >= previousGeneration) {
+      if (nextGeneration === previousGeneration) {
+        const previousAssignments = previous?.agentAssignments ?? [];
+        const nextAssignments = next.agentAssignments ?? [];
+        const sameSnapshot = previousAssignments.length === nextAssignments.length
+          && !previousAssignments.some((assignment, index) => {
+            const incoming = nextAssignments[index];
+            return !incoming
+              || assignment.agentId !== incoming.agentId
+              || (assignment.revisionId ?? "") !== (incoming.revisionId ?? "");
+          });
+        if (!sameSnapshot) {
+          return {
+            ...next,
+            agentAssignments: previous.agentAssignments,
+            agentAssignmentGeneration: previous.agentAssignmentGeneration,
+          };
+        }
+      }
+      const previousAssignmentsById = new Map(
+        (previous?.agentAssignments ?? []).map((assignment) => [assignment.agentId, assignment]),
+      );
+      return {
+        ...next,
+        agentAssignments: next.agentAssignments?.map((assignment) => ({
+          ...previousAssignmentsById.get(assignment.agentId),
+          ...assignment,
+        })),
+      };
+    }
+    return {
+      ...next,
+      agentAssignments: previous?.agentAssignments,
+      agentAssignmentGeneration: previous?.agentAssignmentGeneration,
+    };
+  };
+
   const mergeChatIntoList = (sourceChats: Chat[], nextChat: Chat | null): Chat[] => {
     if (!nextChat) {
       return sourceChats;
     }
     return sourceChats.some((chat) => chat.id === nextChat.id)
-      ? sourceChats.map((chat) => chat.id === nextChat.id ? { ...chat, ...nextChat } : chat)
+      ? sourceChats.map((chat) => chat.id === nextChat.id
+        ? preserveGroupAgentSnapshot(chat, { ...chat, ...nextChat })
+        : chat)
       : [nextChat, ...sourceChats];
   };
 
@@ -292,6 +370,7 @@ const ChatLayoutComponent: React.FC = () => {
     && (
       chat.members === undefined
       || chat.memberCount === undefined
+      || !hasAuthoritativeGroupAgentSnapshot(chat)
       || needsGroupProjection(chat)
     )
   );
@@ -342,12 +421,14 @@ const ChatLayoutComponent: React.FC = () => {
         }
         setChats((previousChats) =>
           previousChats.map((item) =>
-            item.id === chat.id ? { ...item, ...group } : item,
+            item.id === chat.id
+              ? preserveGroupAgentSnapshot(item, { ...item, ...group })
+              : item,
           ),
         );
         setActiveChat((previousActiveChat) =>
           previousActiveChat?.id === chat.id
-            ? { ...previousActiveChat, ...group }
+            ? preserveGroupAgentSnapshot(previousActiveChat, { ...previousActiveChat, ...group })
             : previousActiveChat,
         );
       })
@@ -381,7 +462,11 @@ const ChatLayoutComponent: React.FC = () => {
       ? [knownAssistantChat, ...data]
       : data;
     const assistantResult = await systemAssistantService.ensureSystemAssistantChat(assistantLookupChats);
-    const nextChats = mergeChatIntoList(data, assistantResult.chat);
+    const unmergedNextChats = mergeChatIntoList(data, assistantResult.chat);
+    const previousChatsById = new Map(chatsRef.current.map((chat) => [chat.id, chat]));
+    const nextChats = unmergedNextChats.map((chat) => (
+      preserveGroupAgentSnapshot(previousChatsById.get(chat.id), chat)
+    ));
     if (!shouldApply()) {
       return nextChats;
     }
@@ -390,8 +475,10 @@ const ChatLayoutComponent: React.FC = () => {
     setIsAssistantAvailable(assistantResult.available);
     setActiveChat((previousActiveChat) => {
       if (previousActiveChat) {
-        return nextChats.find((chat) => chat.id === previousActiveChat.id)
-          ?? systemAssistantService.selectInitialChat(nextChats);
+        const refreshedActiveChat = nextChats.find((chat) => chat.id === previousActiveChat.id);
+        return refreshedActiveChat
+          ? preserveGroupAgentSnapshot(previousActiveChat, refreshedActiveChat)
+          : systemAssistantService.selectInitialChat(nextChats);
       }
       return systemAssistantService.selectInitialChat(nextChats);
     });
@@ -415,7 +502,8 @@ const ChatLayoutComponent: React.FC = () => {
       setChats((previousChats) => {
         const byId = new Map(previousChats.map((chat) => [chat.id, chat]));
         for (const chat of page.items) {
-          byId.set(chat.id, { ...byId.get(chat.id), ...chat });
+          const previous = byId.get(chat.id);
+          byId.set(chat.id, preserveGroupAgentSnapshot(previous, { ...previous, ...chat }));
         }
         return Array.from(byId.values()).sort((left, right) => {
           if (left.isPinned !== right.isPinned) {
@@ -433,7 +521,7 @@ const ChatLayoutComponent: React.FC = () => {
     setChats((previousChats) => mergeChatIntoList(previousChats, chat));
     setActiveChat((previousActiveChat) =>
       previousActiveChat?.id === chat.id
-        ? { ...previousActiveChat, ...chat }
+        ? preserveGroupAgentSnapshot(previousActiveChat, { ...previousActiveChat, ...chat })
         : chat,
     );
     setActiveTab("chat");
@@ -796,14 +884,15 @@ const ChatLayoutComponent: React.FC = () => {
       chatListProjectionRevisionRef.current = projectionRevision;
       const applyChats = (sourceChats: Chat[]) => {
         setChats((previousChats) => {
-          const byId = new Map(sourceChats.map((chat) => [chat.id, chat]));
+          const previousById = new Map(previousChats.map((chat) => [chat.id, chat]));
+          const byId = new Map(sourceChats.map((chat) => [
+            chat.id,
+            preserveGroupAgentSnapshot(previousById.get(chat.id), chat),
+          ]));
           for (const previousChat of previousChats) {
             if (systemAssistantService.isSystemAssistantChat(previousChat) && !byId.has(previousChat.id)) {
               byId.set(previousChat.id, previousChat);
             }
-          }
-          for (const chat of sourceChats) {
-            byId.set(chat.id, { ...byId.get(chat.id), ...chat });
           }
           return Array.from(byId.values()).sort((left, right) => {
             if (left.isPinned !== right.isPinned) {
@@ -816,8 +905,10 @@ const ChatLayoutComponent: React.FC = () => {
           if (!previousActiveChat) {
             return previousActiveChat;
           }
-          return sourceChats.find((chat) => chat.id === previousActiveChat.id)
-            ?? systemAssistantService.selectInitialChat(sourceChats);
+          const nextActiveChat = sourceChats.find((chat) => chat.id === previousActiveChat.id);
+          return nextActiveChat
+            ? preserveGroupAgentSnapshot(previousActiveChat, nextActiveChat)
+            : systemAssistantService.selectInitialChat(sourceChats);
         });
       };
 
@@ -1450,6 +1541,9 @@ const ChatLayoutComponent: React.FC = () => {
                   currentUserChatId={currentUser.chatId}
                   currentUserId={currentUserId}
                   groupMemberProfiles={groupMemberProfiles}
+                  groupAgentAssignments={localizedActiveChat.agentAssignments}
+                  canManageAgents={canManageGroupAgents}
+                  onManageAgents={() => setActiveModal("manageAgents")}
                   onClose={() => setShowRHSPanel(false)}
                   onSetModal={(modal, inputVal) => {
                     setActiveModal(modal);
@@ -1605,6 +1699,29 @@ const ChatLayoutComponent: React.FC = () => {
             );
           }}
         />
+        <GroupAgentsModal
+          chat={activeChat?.type === "group" ? activeChat : null}
+          isOpen={activeModal === "manageAgents" && activeChat?.type === "group"}
+          canManageAgents={canManageGroupAgents}
+          onClose={() => setActiveModal(null)}
+          onSaved={async (assignments, generation) => {
+            if (!activeChat || activeChat.type !== "group") {
+              return;
+            }
+            const next = {
+              agentAssignments: assignments,
+              agentAssignmentGeneration: generation,
+            };
+            setChats((previousChats) => previousChats.map((chat) => (
+              chat.id === activeChat.id ? { ...chat, ...next } : chat
+            )));
+            setActiveChat((previousActiveChat) => (
+              previousActiveChat?.id === activeChat.id
+                ? { ...previousActiveChat, ...next }
+                : previousActiveChat
+            ));
+          }}
+        />
         <AddFriendModal
           isOpen={isAddFriendOpen}
           onClose={() => setIsAddFriendOpen(false)}
@@ -1658,7 +1775,7 @@ const ChatLayoutComponent: React.FC = () => {
         />
         {/* Custom inline Modals */}
         <AnimatePresence>
-          {activeModal && activeModal !== "addMember" && activeModal !== "search" && activeChat && (
+          {activeModal && activeModal !== "addMember" && activeModal !== "manageAgents" && activeModal !== "search" && activeChat && (
             <div className="fixed inset-0 z-50 flex items-center justify-center">
               <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"

@@ -257,6 +257,7 @@
     "messageInput": {
       "defaultPlaceholder": "Send a message...",
       "agentTypingPlaceholder": "Assistant is replying...",
+      "mentionTitle": "Mention an AI agent",
       "replyPrefix": "Reply to {{name}}:",
       "editingPrefix": "Editing message:",
       "dropToSend": "Drop to send file",
@@ -280,6 +281,31 @@
         "screenshotDenied": "Screenshot permission denied. Open the app in a new tab and retry.",
         "screenshotCancelled": "Screenshot cancelled"
       }
+    },
+    "agentPicker": {
+      "title": "Group AI agents",
+      "manageTitle": "Manage group AI agents",
+      "searchPlaceholder": "Search agents",
+      "selectedCount": "{{count}}/{{max}} selected",
+      "selectedTitle": "Selected agents",
+      "noneSelected": "Select at least one agent",
+      "empty": "No available agents",
+      "loadFailed": "Failed to load agents",
+      "loading": "Loading agents...",
+      "loadingMore": "Loading more...",
+      "loadMore": "Load more",
+      "retry": "Retry",
+      "maxReached": "A group can have at most {{max}} agents",
+      "invalidCount": "Select between {{min}} and {{max}} agents",
+      "mentionHint": "Mention an agent with @ in the group composer.",
+      "remove": "Remove {{name}}",
+      "save": "Save agents",
+      "saving": "Saving...",
+      "saved": "Group agents updated",
+      "groupCreated": "Group started with {{memberCount}} contacts and {{agentCount}} agents",
+      "saveFailed": "Failed to update group agents",
+      "conflict": "Group agents changed. Refresh the group and try again.",
+      "permissionDenied": "Only group owners and administrators can manage AI agents."
     },
     "systemAssistant": {
       "displayName": "System Assistant",
@@ -473,18 +499,23 @@
         "removeMember": "Remove member",
         "leaveGroup": "Leave group",
         "deleteChat": "Delete chat",
-        "close": "Close details panel"
+        "close": "Close details panel",
+        "manageAgents": "Manage group AI agents"
       },
       "fields": {
         "groupName": "Group name",
         "remark": "Remark",
         "groupNotice": "Group notice",
         "members": "Members",
+        "agents": "AI agents",
         "mute": "Mute notifications",
         "pin": "Pin chat"
       },
       "memberCount": "{{count}} members",
+      "agentCount": "{{count}} agents",
       "emptyMembers": "No members",
+      "emptyAgents": "No AI agents configured",
+      "agentLabel": "AI agent",
       "emptyNotice": "No notice",
       "toast": {
         "muted": "Notifications muted",
@@ -555,7 +586,7 @@
       },
       "toast": {
         "searching": "Searching: {{query}}",
-        "groupCreated": "Group started with {{count}} contacts invited",
+        "groupCreated": "Group started with {{count}} contacts and {{agentCount}} agents",
         "createGroupFailed": "Failed to start group",
         "invitedMembers": "Invited {{count}} members",
         "contactsLoadFailed": "Failed to load contacts",

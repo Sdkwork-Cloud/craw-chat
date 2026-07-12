@@ -103,6 +103,33 @@ entries:
     rpcSurface: app
     parityStatus: full
     owner: im-open-api
+  - operationId: conversations.members.current.retrieve
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/members/current
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: RetrieveCurrentConversationMember
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: conversations.agents.retrieve
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/agents
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: RetrieveConversationAgents
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: conversations.agents.update
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/agents
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: UpdateConversationAgents
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
   - operationId: conversations.messages.list
     httpSurface: open-api
     httpPath: /im/v3/api/chat/conversations/{conversationId}/messages

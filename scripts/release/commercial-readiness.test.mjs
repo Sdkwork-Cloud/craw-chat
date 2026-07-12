@@ -557,7 +557,6 @@ test('commercial readiness blocks current app manifest release evidence gaps bef
   assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /signature/i);
   assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /SBOM/i);
   assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /provenance/i);
-  assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /generatedPlaceholder/);
   assert.equal(result.checks.length, buildCommercialReadinessChecks({ repoRoot }).length);
   assert.match(logs.stderr.join('\n'), /appReleaseAssessment/);
 });

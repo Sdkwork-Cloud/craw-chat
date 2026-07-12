@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn, sanitizeEnterpriseWebsiteUrl, sanitizeMessageLinkHref, sanitizeMessageUrl } from '@sdkwork/im-pc-commons';
 import type { Message } from '@sdkwork/im-pc-types';
-import { Play, FileText, LayoutTemplate, Volume2, Phone, X, Music } from 'lucide-react';
+import { Play, FileText, LayoutTemplate, Volume2, Phone, X, Music, Bot } from 'lucide-react';
 import { Avatar } from '@sdkwork/im-pc-commons';
 import { musicService, PlayerState } from '../services/MusicService';
 import { DEFAULT_MUSIC_COVER_URL } from '../services/DefaultAvatarService';
@@ -17,34 +17,93 @@ interface BaseProps {
 
 import ReactMarkdown from 'react-markdown';
 
-export const TextMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => (
-  <div className={cn(
-    "text-[14px] leading-relaxed whitespace-pre-wrap break-words px-4 py-2.5 shadow-sm max-w-[500px] xl:max-w-[700px]",
-    isMe ? "bg-[#00b42a] text-white rounded-2xl rounded-tr-sm" : "bg-[#2b2b2d] text-gray-200 rounded-2xl rounded-tl-sm"
-  )}>
-    <div className={cn("prose prose-sm prose-p:leading-snug prose-p:my-1 prose-headings:my-2 prose-ul:my-1", isMe ? "prose-invert prose-p:text-white" : "prose-invert")}>
-      <ReactMarkdown
-        disallowedElements={['script', 'iframe', 'object', 'embed', 'style', 'img']}
-        unwrapDisallowed
-        components={{
-          a: ({ href, children }) => {
-            const safeHref = sanitizeMessageLinkHref(href ?? '');
-            if (!safeHref) {
-              return <span>{children}</span>;
-            }
-            return (
-              <a href={safeHref} target="_blank" rel="noopener noreferrer">
-                {children}
-              </a>
-            );
-          },
-        }}
-      >
-        {msg.content}
-      </ReactMarkdown>
+interface RenderableAgentMention {
+  displayText: string;
+  targetId: string;
+}
+
+function readAgentMentions(parts: readonly unknown[] | undefined): RenderableAgentMention[] {
+  if (!parts) {
+    return [];
+  }
+  return parts
+    .flatMap((part): RenderableAgentMention[] => {
+      if (!part || typeof part !== 'object' || Array.isArray(part)) {
+        return [];
+      }
+      const record = part as Record<string, unknown>;
+      if (record.kind !== 'mention' || record.targetKind !== 'agent') {
+        return [];
+      }
+      const targetId = typeof record.targetId === 'string' ? record.targetId.trim() : '';
+      if (!targetId) {
+        return [];
+      }
+      const displayText = typeof record.displayText === 'string' && record.displayText.trim()
+        ? record.displayText.trim()
+        : `@${targetId.replace(/^agent\./u, '')}`;
+      return [{ displayText, targetId }];
+    })
+    .slice(0, 10);
+}
+
+export const TextMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => {
+  const { t } = useTranslation();
+  const agentMentions = readAgentMentions(msg.parts);
+
+  return (
+    <div className={cn(
+      "text-[14px] leading-relaxed whitespace-pre-wrap break-words px-4 py-2.5 shadow-sm max-w-[500px] xl:max-w-[700px]",
+      isMe ? "bg-[#00b42a] text-white rounded-2xl rounded-tr-sm" : "bg-[#2b2b2d] text-gray-200 rounded-2xl rounded-tl-sm"
+    )}>
+      {agentMentions.length > 0 && (
+        <div
+          role="list"
+          aria-label={t('chat.messageInput.mentionTitle')}
+          className="mb-1.5 flex max-w-full flex-wrap gap-1"
+        >
+          {agentMentions.map((mention, index) => (
+            <span
+              key={`${mention.targetId}:${index}`}
+              role="listitem"
+              title={mention.targetId}
+              className={cn(
+                'inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                isMe
+                  ? 'border-white/25 bg-black/10 text-white'
+                  : 'border-indigo-400/25 bg-indigo-500/15 text-indigo-200',
+              )}
+            >
+              <Bot size={11} className="shrink-0" aria-hidden="true" />
+              <span className="truncate">{mention.displayText}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className={cn("prose prose-sm prose-p:leading-snug prose-p:my-1 prose-headings:my-2 prose-ul:my-1", isMe ? "prose-invert prose-p:text-white" : "prose-invert")}>
+        <ReactMarkdown
+          disallowedElements={['script', 'iframe', 'object', 'embed', 'style', 'img']}
+          unwrapDisallowed
+          components={{
+            a: ({ href, children }) => {
+              const safeHref = sanitizeMessageLinkHref(href ?? '');
+              if (!safeHref) {
+                return <span>{children}</span>;
+              }
+              return (
+                <a href={safeHref} target="_blank" rel="noopener noreferrer">
+                  {children}
+                </a>
+              );
+            },
+          }}
+        >
+          {msg.content}
+        </ReactMarkdown>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const ImageMessageItem: React.FC<BaseProps> = ({ msg, onMediaClick }) => {
   const imageUrl = sanitizeMessageUrl(msg.content);

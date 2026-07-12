@@ -532,18 +532,9 @@ async fn sync_agents_embedded_database() -> Result<(), String> {
         return Ok(());
     }
     ensure_embedded_dependency_app_root("SDKWORK_AGENTS", "sdkwork-agents");
-    tokio::task::spawn_blocking(|| {
-        use sdkwork_intelligence_agents_service::SyncPostgresAdapter;
-        let adapter =
-            SyncPostgresAdapter::connect_from_agents_managed_store_env().map_err(|error| {
-                format!("connect agents managed store postgres adapter failed: {error}")
-            })?;
-        adapter
-            .apply_managed_store_schema()
-            .map_err(|error| format!("apply agents managed store postgres schema failed: {error}"))
-    })
-    .await
-    .map_err(|error| format!("agents database bootstrap worker failed: {error}"))??;
+    sdkwork_agents_database_host::bootstrap_agents_database_from_env()
+        .await
+        .map_err(|error| format!("agents database bootstrap failed: {error}"))?;
     Ok(())
 }
 
@@ -767,9 +758,6 @@ fn build_embedded_agents_http_state()
         SyncPostgresAdapter::connect_from_agents_managed_store_env().map_err(|error| {
             format!("connect agents managed store postgres adapter failed: {error}")
         })?;
-    repository_adapter
-        .apply_managed_store_schema()
-        .map_err(|error| format!("apply agents managed store postgres schema failed: {error}"))?;
 
     let audit_adapter = {
         let audit_pool = repository_adapter.pool().clone();

@@ -1,6 +1,6 @@
 use im_domain_core::conversation::{
-    ConversationAgentHandoffView, ConversationInboxEntry, ConversationMember, MembershipRole,
-    MembershipState,
+    ConversationAgentAssignmentSet, ConversationAgentHandoffView, ConversationInboxEntry,
+    ConversationMember, MembershipRole, MembershipState,
 };
 use im_domain_core::message::{MessageBody, MessageType, Sender};
 use im_domain_core::social::DirectChatStatus;
@@ -381,6 +381,8 @@ pub(super) struct ConversationCatalogEntry {
     pub(super) history_visibility: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) agent_assignments: Option<ConversationAgentAssignmentSet>,
 }
 
 fn default_history_visibility() -> String {

@@ -139,8 +139,7 @@ where
         let message_locator_entries = state.message_locator.len();
         let business_binding_entries = state.business_index.len();
         let actor_inbox_actor_entries = state.actor_inbox.actor_count();
-        let actor_inbox_conversation_entries =
-            state.actor_inbox.conversation_association_count();
+        let actor_inbox_conversation_entries = state.actor_inbox.conversation_association_count();
         drop(state);
         self.metrics.record_metrics_scan(started.elapsed());
 

@@ -86,6 +86,24 @@ pub const ROUTES: &[HttpRoute] = &[
     ),
     HttpRoute::dual_token(
         HttpMethod::Get,
+        paths::CONVERSATION_MEMBERS_CURRENT,
+        "chat",
+        "conversations.members.current.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::CONVERSATION_AGENTS,
+        "chat",
+        "conversations.agents.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Put,
+        paths::CONVERSATION_AGENTS,
+        "chat",
+        "conversations.agents.update",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
         paths::CONVERSATION_BINDING,
         "chat",
         "conversations.binding.retrieve",

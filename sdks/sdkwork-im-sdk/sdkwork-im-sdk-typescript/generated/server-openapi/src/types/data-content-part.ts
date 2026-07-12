@@ -1,6 +1,6 @@
 export interface DataContentPart {
   kind: 'data';
-  schemaRef: string | null;
-  encoding: string | null;
-  payload: string | null;
+  schemaRef: string;
+  encoding: string;
+  payload: string;
 }

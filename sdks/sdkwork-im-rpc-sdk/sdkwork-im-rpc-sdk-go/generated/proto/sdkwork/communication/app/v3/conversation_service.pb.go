@@ -104,6 +104,10 @@ type ConversationMemberView struct {
 	UserId         string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Role           string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
 	State          string                 `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"`
+	PrincipalKind  string                 `protobuf:"bytes,5,opt,name=principal_kind,json=principalKind,proto3" json:"principal_kind,omitempty"`
+	MemberId       string                 `protobuf:"bytes,6,opt,name=member_id,json=memberId,proto3" json:"member_id,omitempty"`
+	TenantId       string                 `protobuf:"bytes,7,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	JoinedAt       string                 `protobuf:"bytes,8,opt,name=joined_at,json=joinedAt,proto3" json:"joined_at,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -166,6 +170,146 @@ func (x *ConversationMemberView) GetState() string {
 	return ""
 }
 
+func (x *ConversationMemberView) GetPrincipalKind() string {
+	if x != nil {
+		return x.PrincipalKind
+	}
+	return ""
+}
+
+func (x *ConversationMemberView) GetMemberId() string {
+	if x != nil {
+		return x.MemberId
+	}
+	return ""
+}
+
+func (x *ConversationMemberView) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *ConversationMemberView) GetJoinedAt() string {
+	if x != nil {
+		return x.JoinedAt
+	}
+	return ""
+}
+
+type ConversationAgentAssignmentView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	RevisionId    string                 `protobuf:"bytes,2,opt,name=revision_id,json=revisionId,proto3" json:"revision_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConversationAgentAssignmentView) Reset() {
+	*x = ConversationAgentAssignmentView{}
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConversationAgentAssignmentView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConversationAgentAssignmentView) ProtoMessage() {}
+
+func (x *ConversationAgentAssignmentView) ProtoReflect() protoreflect.Message {
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConversationAgentAssignmentView.ProtoReflect.Descriptor instead.
+func (*ConversationAgentAssignmentView) Descriptor() ([]byte, []int) {
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ConversationAgentAssignmentView) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *ConversationAgentAssignmentView) GetRevisionId() string {
+	if x != nil {
+		return x.RevisionId
+	}
+	return ""
+}
+
+type ConversationAgentAssignmentsView struct {
+	state         protoimpl.MessageState             `protogen:"open.v1"`
+	Generation    uint64                             `protobuf:"varint,1,opt,name=generation,proto3" json:"generation,omitempty"`
+	Source        string                             `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	Agents        []*ConversationAgentAssignmentView `protobuf:"bytes,3,rep,name=agents,proto3" json:"agents,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConversationAgentAssignmentsView) Reset() {
+	*x = ConversationAgentAssignmentsView{}
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConversationAgentAssignmentsView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConversationAgentAssignmentsView) ProtoMessage() {}
+
+func (x *ConversationAgentAssignmentsView) ProtoReflect() protoreflect.Message {
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConversationAgentAssignmentsView.ProtoReflect.Descriptor instead.
+func (*ConversationAgentAssignmentsView) Descriptor() ([]byte, []int) {
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ConversationAgentAssignmentsView) GetGeneration() uint64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *ConversationAgentAssignmentsView) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *ConversationAgentAssignmentsView) GetAgents() []*ConversationAgentAssignmentView {
+	if x != nil {
+		return x.Agents
+	}
+	return nil
+}
+
 type ConversationPreferencesView struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
@@ -177,7 +321,7 @@ type ConversationPreferencesView struct {
 
 func (x *ConversationPreferencesView) Reset() {
 	*x = ConversationPreferencesView{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[2]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -189,7 +333,7 @@ func (x *ConversationPreferencesView) String() string {
 func (*ConversationPreferencesView) ProtoMessage() {}
 
 func (x *ConversationPreferencesView) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[2]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -202,7 +346,7 @@ func (x *ConversationPreferencesView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConversationPreferencesView.ProtoReflect.Descriptor instead.
 func (*ConversationPreferencesView) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{2}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ConversationPreferencesView) GetConversationId() string {
@@ -238,7 +382,7 @@ type ConversationProfileView struct {
 
 func (x *ConversationProfileView) Reset() {
 	*x = ConversationProfileView{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[3]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -250,7 +394,7 @@ func (x *ConversationProfileView) String() string {
 func (*ConversationProfileView) ProtoMessage() {}
 
 func (x *ConversationProfileView) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[3]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -263,7 +407,7 @@ func (x *ConversationProfileView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConversationProfileView.ProtoReflect.Descriptor instead.
 func (*ConversationProfileView) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{3}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ConversationProfileView) GetConversationId() string {
@@ -306,7 +450,7 @@ type ReadCursorView struct {
 
 func (x *ReadCursorView) Reset() {
 	*x = ReadCursorView{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[4]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -318,7 +462,7 @@ func (x *ReadCursorView) String() string {
 func (*ReadCursorView) ProtoMessage() {}
 
 func (x *ReadCursorView) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[4]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -331,7 +475,7 @@ func (x *ReadCursorView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadCursorView.ProtoReflect.Descriptor instead.
 func (*ReadCursorView) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{4}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ReadCursorView) GetConversationId() string {
@@ -374,7 +518,7 @@ type ContactView struct {
 
 func (x *ContactView) Reset() {
 	*x = ContactView{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[5]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -386,7 +530,7 @@ func (x *ContactView) String() string {
 func (*ContactView) ProtoMessage() {}
 
 func (x *ContactView) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[5]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -399,7 +543,7 @@ func (x *ContactView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContactView.ProtoReflect.Descriptor instead.
 func (*ContactView) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{5}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ContactView) GetContactId() string {
@@ -441,7 +585,7 @@ type ContactTagView struct {
 
 func (x *ContactTagView) Reset() {
 	*x = ContactTagView{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[6]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -453,7 +597,7 @@ func (x *ContactTagView) String() string {
 func (*ContactTagView) ProtoMessage() {}
 
 func (x *ContactTagView) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[6]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -466,7 +610,7 @@ func (x *ContactTagView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContactTagView.ProtoReflect.Descriptor instead.
 func (*ContactTagView) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{6}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ContactTagView) GetTagId() string {
@@ -500,7 +644,7 @@ type ContactPreferencesView struct {
 
 func (x *ContactPreferencesView) Reset() {
 	*x = ContactPreferencesView{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[7]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -512,7 +656,7 @@ func (x *ContactPreferencesView) String() string {
 func (*ContactPreferencesView) ProtoMessage() {}
 
 func (x *ContactPreferencesView) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[7]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -525,7 +669,7 @@ func (x *ContactPreferencesView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContactPreferencesView.ProtoReflect.Descriptor instead.
 func (*ContactPreferencesView) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{7}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ContactPreferencesView) GetAllowRecommendations() bool {
@@ -543,18 +687,19 @@ func (x *ContactPreferencesView) GetAllowFriendRequests() bool {
 }
 
 type CreateConversationRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	ConversationType string                 `protobuf:"bytes,1,opt,name=conversation_type,json=conversationType,proto3" json:"conversation_type,omitempty"`
-	Title            string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	MemberUserIds    []string               `protobuf:"bytes,3,rep,name=member_user_ids,json=memberUserIds,proto3" json:"member_user_ids,omitempty"`
-	Metadata         *v1.RequestMetadata    `protobuf:"bytes,15,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	state            protoimpl.MessageState             `protogen:"open.v1"`
+	ConversationType string                             `protobuf:"bytes,1,opt,name=conversation_type,json=conversationType,proto3" json:"conversation_type,omitempty"`
+	Title            string                             `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	MemberUserIds    []string                           `protobuf:"bytes,3,rep,name=member_user_ids,json=memberUserIds,proto3" json:"member_user_ids,omitempty"`
+	AgentAssignments []*ConversationAgentAssignmentView `protobuf:"bytes,4,rep,name=agent_assignments,json=agentAssignments,proto3" json:"agent_assignments,omitempty"`
+	Metadata         *v1.RequestMetadata                `protobuf:"bytes,15,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CreateConversationRequest) Reset() {
 	*x = CreateConversationRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[8]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -566,7 +711,7 @@ func (x *CreateConversationRequest) String() string {
 func (*CreateConversationRequest) ProtoMessage() {}
 
 func (x *CreateConversationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[8]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -579,7 +724,7 @@ func (x *CreateConversationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateConversationRequest.ProtoReflect.Descriptor instead.
 func (*CreateConversationRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{8}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreateConversationRequest) GetConversationType() string {
@@ -603,6 +748,13 @@ func (x *CreateConversationRequest) GetMemberUserIds() []string {
 	return nil
 }
 
+func (x *CreateConversationRequest) GetAgentAssignments() []*ConversationAgentAssignmentView {
+	if x != nil {
+		return x.AgentAssignments
+	}
+	return nil
+}
+
 func (x *CreateConversationRequest) GetMetadata() *v1.RequestMetadata {
 	if x != nil {
 		return x.Metadata
@@ -620,7 +772,7 @@ type CreateConversationResponse struct {
 
 func (x *CreateConversationResponse) Reset() {
 	*x = CreateConversationResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[9]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -632,7 +784,7 @@ func (x *CreateConversationResponse) String() string {
 func (*CreateConversationResponse) ProtoMessage() {}
 
 func (x *CreateConversationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[9]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -645,7 +797,7 @@ func (x *CreateConversationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateConversationResponse.ProtoReflect.Descriptor instead.
 func (*CreateConversationResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{9}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CreateConversationResponse) GetConversation() *ConversationView {
@@ -673,7 +825,7 @@ type CreateAgentDialogRequest struct {
 
 func (x *CreateAgentDialogRequest) Reset() {
 	*x = CreateAgentDialogRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[10]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -685,7 +837,7 @@ func (x *CreateAgentDialogRequest) String() string {
 func (*CreateAgentDialogRequest) ProtoMessage() {}
 
 func (x *CreateAgentDialogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[10]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -698,7 +850,7 @@ func (x *CreateAgentDialogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAgentDialogRequest.ProtoReflect.Descriptor instead.
 func (*CreateAgentDialogRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{10}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CreateAgentDialogRequest) GetAgentId() string {
@@ -732,7 +884,7 @@ type CreateAgentDialogResponse struct {
 
 func (x *CreateAgentDialogResponse) Reset() {
 	*x = CreateAgentDialogResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[11]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -744,7 +896,7 @@ func (x *CreateAgentDialogResponse) String() string {
 func (*CreateAgentDialogResponse) ProtoMessage() {}
 
 func (x *CreateAgentDialogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[11]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -757,7 +909,7 @@ func (x *CreateAgentDialogResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAgentDialogResponse.ProtoReflect.Descriptor instead.
 func (*CreateAgentDialogResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{11}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CreateAgentDialogResponse) GetConversation() *ConversationView {
@@ -785,7 +937,7 @@ type CreateAgentHandoffRequest struct {
 
 func (x *CreateAgentHandoffRequest) Reset() {
 	*x = CreateAgentHandoffRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[12]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -797,7 +949,7 @@ func (x *CreateAgentHandoffRequest) String() string {
 func (*CreateAgentHandoffRequest) ProtoMessage() {}
 
 func (x *CreateAgentHandoffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[12]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -810,7 +962,7 @@ func (x *CreateAgentHandoffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAgentHandoffRequest.ProtoReflect.Descriptor instead.
 func (*CreateAgentHandoffRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{12}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CreateAgentHandoffRequest) GetSourceConversationId() string {
@@ -844,7 +996,7 @@ type CreateAgentHandoffResponse struct {
 
 func (x *CreateAgentHandoffResponse) Reset() {
 	*x = CreateAgentHandoffResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[13]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -856,7 +1008,7 @@ func (x *CreateAgentHandoffResponse) String() string {
 func (*CreateAgentHandoffResponse) ProtoMessage() {}
 
 func (x *CreateAgentHandoffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[13]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -869,7 +1021,7 @@ func (x *CreateAgentHandoffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAgentHandoffResponse.ProtoReflect.Descriptor instead.
 func (*CreateAgentHandoffResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{13}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CreateAgentHandoffResponse) GetConversation() *ConversationView {
@@ -897,7 +1049,7 @@ type CreateSystemChannelRequest struct {
 
 func (x *CreateSystemChannelRequest) Reset() {
 	*x = CreateSystemChannelRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[14]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -909,7 +1061,7 @@ func (x *CreateSystemChannelRequest) String() string {
 func (*CreateSystemChannelRequest) ProtoMessage() {}
 
 func (x *CreateSystemChannelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[14]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -922,7 +1074,7 @@ func (x *CreateSystemChannelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSystemChannelRequest.ProtoReflect.Descriptor instead.
 func (*CreateSystemChannelRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{14}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreateSystemChannelRequest) GetChannelKey() string {
@@ -956,7 +1108,7 @@ type CreateSystemChannelResponse struct {
 
 func (x *CreateSystemChannelResponse) Reset() {
 	*x = CreateSystemChannelResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[15]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -968,7 +1120,7 @@ func (x *CreateSystemChannelResponse) String() string {
 func (*CreateSystemChannelResponse) ProtoMessage() {}
 
 func (x *CreateSystemChannelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[15]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -981,7 +1133,7 @@ func (x *CreateSystemChannelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSystemChannelResponse.ProtoReflect.Descriptor instead.
 func (*CreateSystemChannelResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{15}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CreateSystemChannelResponse) GetConversation() *ConversationView {
@@ -1009,7 +1161,7 @@ type CreateThreadRequest struct {
 
 func (x *CreateThreadRequest) Reset() {
 	*x = CreateThreadRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[16]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1021,7 +1173,7 @@ func (x *CreateThreadRequest) String() string {
 func (*CreateThreadRequest) ProtoMessage() {}
 
 func (x *CreateThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[16]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1034,7 +1186,7 @@ func (x *CreateThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateThreadRequest.ProtoReflect.Descriptor instead.
 func (*CreateThreadRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{16}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CreateThreadRequest) GetParentConversationId() string {
@@ -1068,7 +1220,7 @@ type CreateThreadResponse struct {
 
 func (x *CreateThreadResponse) Reset() {
 	*x = CreateThreadResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[17]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1080,7 +1232,7 @@ func (x *CreateThreadResponse) String() string {
 func (*CreateThreadResponse) ProtoMessage() {}
 
 func (x *CreateThreadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[17]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1093,7 +1245,7 @@ func (x *CreateThreadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateThreadResponse.ProtoReflect.Descriptor instead.
 func (*CreateThreadResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{17}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CreateThreadResponse) GetConversation() *ConversationView {
@@ -1120,7 +1272,7 @@ type BindDirectChatRequest struct {
 
 func (x *BindDirectChatRequest) Reset() {
 	*x = BindDirectChatRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[18]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1132,7 +1284,7 @@ func (x *BindDirectChatRequest) String() string {
 func (*BindDirectChatRequest) ProtoMessage() {}
 
 func (x *BindDirectChatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[18]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1145,7 +1297,7 @@ func (x *BindDirectChatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BindDirectChatRequest.ProtoReflect.Descriptor instead.
 func (*BindDirectChatRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{18}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *BindDirectChatRequest) GetPeerUserId() string {
@@ -1172,7 +1324,7 @@ type BindDirectChatResponse struct {
 
 func (x *BindDirectChatResponse) Reset() {
 	*x = BindDirectChatResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[19]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1184,7 +1336,7 @@ func (x *BindDirectChatResponse) String() string {
 func (*BindDirectChatResponse) ProtoMessage() {}
 
 func (x *BindDirectChatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[19]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1197,7 +1349,7 @@ func (x *BindDirectChatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BindDirectChatResponse.ProtoReflect.Descriptor instead.
 func (*BindDirectChatResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{19}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *BindDirectChatResponse) GetConversation() *ConversationView {
@@ -1224,7 +1376,7 @@ type RetrieveConversationRequest struct {
 
 func (x *RetrieveConversationRequest) Reset() {
 	*x = RetrieveConversationRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[20]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1236,7 +1388,7 @@ func (x *RetrieveConversationRequest) String() string {
 func (*RetrieveConversationRequest) ProtoMessage() {}
 
 func (x *RetrieveConversationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[20]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1249,7 +1401,7 @@ func (x *RetrieveConversationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetrieveConversationRequest.ProtoReflect.Descriptor instead.
 func (*RetrieveConversationRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{20}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RetrieveConversationRequest) GetConversationId() string {
@@ -1276,7 +1428,7 @@ type RetrieveConversationResponse struct {
 
 func (x *RetrieveConversationResponse) Reset() {
 	*x = RetrieveConversationResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[21]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1288,7 +1440,7 @@ func (x *RetrieveConversationResponse) String() string {
 func (*RetrieveConversationResponse) ProtoMessage() {}
 
 func (x *RetrieveConversationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[21]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1301,7 +1453,7 @@ func (x *RetrieveConversationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetrieveConversationResponse.ProtoReflect.Descriptor instead.
 func (*RetrieveConversationResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{21}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *RetrieveConversationResponse) GetConversation() *ConversationView {
@@ -1328,7 +1480,7 @@ type ListInboxRequest struct {
 
 func (x *ListInboxRequest) Reset() {
 	*x = ListInboxRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[22]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1340,7 +1492,7 @@ func (x *ListInboxRequest) String() string {
 func (*ListInboxRequest) ProtoMessage() {}
 
 func (x *ListInboxRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[22]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1353,7 +1505,7 @@ func (x *ListInboxRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInboxRequest.ProtoReflect.Descriptor instead.
 func (*ListInboxRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{22}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ListInboxRequest) GetPage() *v1.PageRequest {
@@ -1381,7 +1533,7 @@ type ListInboxResponse struct {
 
 func (x *ListInboxResponse) Reset() {
 	*x = ListInboxResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[23]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1393,7 +1545,7 @@ func (x *ListInboxResponse) String() string {
 func (*ListInboxResponse) ProtoMessage() {}
 
 func (x *ListInboxResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[23]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1406,7 +1558,7 @@ func (x *ListInboxResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInboxResponse.ProtoReflect.Descriptor instead.
 func (*ListInboxResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{23}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ListInboxResponse) GetConversations() []*ConversationView {
@@ -1441,7 +1593,7 @@ type ListConversationMembersRequest struct {
 
 func (x *ListConversationMembersRequest) Reset() {
 	*x = ListConversationMembersRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[24]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1453,7 +1605,7 @@ func (x *ListConversationMembersRequest) String() string {
 func (*ListConversationMembersRequest) ProtoMessage() {}
 
 func (x *ListConversationMembersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[24]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1466,7 +1618,7 @@ func (x *ListConversationMembersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConversationMembersRequest.ProtoReflect.Descriptor instead.
 func (*ListConversationMembersRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{24}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ListConversationMembersRequest) GetConversationId() string {
@@ -1501,7 +1653,7 @@ type ListConversationMembersResponse struct {
 
 func (x *ListConversationMembersResponse) Reset() {
 	*x = ListConversationMembersResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[25]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1513,7 +1665,7 @@ func (x *ListConversationMembersResponse) String() string {
 func (*ListConversationMembersResponse) ProtoMessage() {}
 
 func (x *ListConversationMembersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[25]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1526,7 +1678,7 @@ func (x *ListConversationMembersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConversationMembersResponse.ProtoReflect.Descriptor instead.
 func (*ListConversationMembersResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{25}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListConversationMembersResponse) GetMembers() []*ConversationMemberView {
@@ -1550,6 +1702,334 @@ func (x *ListConversationMembersResponse) GetMetadata() *v1.ResponseMetadata {
 	return nil
 }
 
+type RetrieveCurrentConversationMemberRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	Metadata       *v1.RequestMetadata    `protobuf:"bytes,15,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RetrieveCurrentConversationMemberRequest) Reset() {
+	*x = RetrieveCurrentConversationMemberRequest{}
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetrieveCurrentConversationMemberRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetrieveCurrentConversationMemberRequest) ProtoMessage() {}
+
+func (x *RetrieveCurrentConversationMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetrieveCurrentConversationMemberRequest.ProtoReflect.Descriptor instead.
+func (*RetrieveCurrentConversationMemberRequest) Descriptor() ([]byte, []int) {
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *RetrieveCurrentConversationMemberRequest) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *RetrieveCurrentConversationMemberRequest) GetMetadata() *v1.RequestMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type RetrieveCurrentConversationMemberResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Member        *ConversationMemberView `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	Metadata      *v1.ResponseMetadata    `protobuf:"bytes,15,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetrieveCurrentConversationMemberResponse) Reset() {
+	*x = RetrieveCurrentConversationMemberResponse{}
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetrieveCurrentConversationMemberResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetrieveCurrentConversationMemberResponse) ProtoMessage() {}
+
+func (x *RetrieveCurrentConversationMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetrieveCurrentConversationMemberResponse.ProtoReflect.Descriptor instead.
+func (*RetrieveCurrentConversationMemberResponse) Descriptor() ([]byte, []int) {
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *RetrieveCurrentConversationMemberResponse) GetMember() *ConversationMemberView {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+func (x *RetrieveCurrentConversationMemberResponse) GetMetadata() *v1.ResponseMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type RetrieveConversationAgentsRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	Metadata       *v1.RequestMetadata    `protobuf:"bytes,15,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RetrieveConversationAgentsRequest) Reset() {
+	*x = RetrieveConversationAgentsRequest{}
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetrieveConversationAgentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetrieveConversationAgentsRequest) ProtoMessage() {}
+
+func (x *RetrieveConversationAgentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetrieveConversationAgentsRequest.ProtoReflect.Descriptor instead.
+func (*RetrieveConversationAgentsRequest) Descriptor() ([]byte, []int) {
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *RetrieveConversationAgentsRequest) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *RetrieveConversationAgentsRequest) GetMetadata() *v1.RequestMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type RetrieveConversationAgentsResponse struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Assignments   *ConversationAgentAssignmentsView `protobuf:"bytes,1,opt,name=assignments,proto3" json:"assignments,omitempty"`
+	Metadata      *v1.ResponseMetadata              `protobuf:"bytes,15,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetrieveConversationAgentsResponse) Reset() {
+	*x = RetrieveConversationAgentsResponse{}
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetrieveConversationAgentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetrieveConversationAgentsResponse) ProtoMessage() {}
+
+func (x *RetrieveConversationAgentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetrieveConversationAgentsResponse.ProtoReflect.Descriptor instead.
+func (*RetrieveConversationAgentsResponse) Descriptor() ([]byte, []int) {
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *RetrieveConversationAgentsResponse) GetAssignments() *ConversationAgentAssignmentsView {
+	if x != nil {
+		return x.Assignments
+	}
+	return nil
+}
+
+func (x *RetrieveConversationAgentsResponse) GetMetadata() *v1.ResponseMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type UpdateConversationAgentsRequest struct {
+	state              protoimpl.MessageState             `protogen:"open.v1"`
+	ConversationId     string                             `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	ExpectedGeneration uint64                             `protobuf:"varint,2,opt,name=expected_generation,json=expectedGeneration,proto3" json:"expected_generation,omitempty"`
+	AgentAssignments   []*ConversationAgentAssignmentView `protobuf:"bytes,3,rep,name=agent_assignments,json=agentAssignments,proto3" json:"agent_assignments,omitempty"`
+	Metadata           *v1.RequestMetadata                `protobuf:"bytes,15,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *UpdateConversationAgentsRequest) Reset() {
+	*x = UpdateConversationAgentsRequest{}
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateConversationAgentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateConversationAgentsRequest) ProtoMessage() {}
+
+func (x *UpdateConversationAgentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateConversationAgentsRequest.ProtoReflect.Descriptor instead.
+func (*UpdateConversationAgentsRequest) Descriptor() ([]byte, []int) {
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *UpdateConversationAgentsRequest) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *UpdateConversationAgentsRequest) GetExpectedGeneration() uint64 {
+	if x != nil {
+		return x.ExpectedGeneration
+	}
+	return 0
+}
+
+func (x *UpdateConversationAgentsRequest) GetAgentAssignments() []*ConversationAgentAssignmentView {
+	if x != nil {
+		return x.AgentAssignments
+	}
+	return nil
+}
+
+func (x *UpdateConversationAgentsRequest) GetMetadata() *v1.RequestMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type UpdateConversationAgentsResponse struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Assignments   *ConversationAgentAssignmentsView `protobuf:"bytes,1,opt,name=assignments,proto3" json:"assignments,omitempty"`
+	Metadata      *v1.ResponseMetadata              `protobuf:"bytes,15,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateConversationAgentsResponse) Reset() {
+	*x = UpdateConversationAgentsResponse{}
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateConversationAgentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateConversationAgentsResponse) ProtoMessage() {}
+
+func (x *UpdateConversationAgentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateConversationAgentsResponse.ProtoReflect.Descriptor instead.
+func (*UpdateConversationAgentsResponse) Descriptor() ([]byte, []int) {
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *UpdateConversationAgentsResponse) GetAssignments() *ConversationAgentAssignmentsView {
+	if x != nil {
+		return x.Assignments
+	}
+	return nil
+}
+
+func (x *UpdateConversationAgentsResponse) GetMetadata() *v1.ResponseMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 type AddConversationMemberRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
@@ -1562,7 +2042,7 @@ type AddConversationMemberRequest struct {
 
 func (x *AddConversationMemberRequest) Reset() {
 	*x = AddConversationMemberRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[26]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1574,7 +2054,7 @@ func (x *AddConversationMemberRequest) String() string {
 func (*AddConversationMemberRequest) ProtoMessage() {}
 
 func (x *AddConversationMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[26]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1587,7 +2067,7 @@ func (x *AddConversationMemberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddConversationMemberRequest.ProtoReflect.Descriptor instead.
 func (*AddConversationMemberRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{26}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *AddConversationMemberRequest) GetConversationId() string {
@@ -1628,7 +2108,7 @@ type AddConversationMemberResponse struct {
 
 func (x *AddConversationMemberResponse) Reset() {
 	*x = AddConversationMemberResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[27]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1640,7 +2120,7 @@ func (x *AddConversationMemberResponse) String() string {
 func (*AddConversationMemberResponse) ProtoMessage() {}
 
 func (x *AddConversationMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[27]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1653,7 +2133,7 @@ func (x *AddConversationMemberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddConversationMemberResponse.ProtoReflect.Descriptor instead.
 func (*AddConversationMemberResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{27}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *AddConversationMemberResponse) GetMember() *ConversationMemberView {
@@ -1681,7 +2161,7 @@ type RemoveConversationMemberRequest struct {
 
 func (x *RemoveConversationMemberRequest) Reset() {
 	*x = RemoveConversationMemberRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[28]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1693,7 +2173,7 @@ func (x *RemoveConversationMemberRequest) String() string {
 func (*RemoveConversationMemberRequest) ProtoMessage() {}
 
 func (x *RemoveConversationMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[28]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1706,7 +2186,7 @@ func (x *RemoveConversationMemberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveConversationMemberRequest.ProtoReflect.Descriptor instead.
 func (*RemoveConversationMemberRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{28}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *RemoveConversationMemberRequest) GetConversationId() string {
@@ -1742,7 +2222,7 @@ type RemoveConversationMemberResponse struct {
 
 func (x *RemoveConversationMemberResponse) Reset() {
 	*x = RemoveConversationMemberResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[29]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1754,7 +2234,7 @@ func (x *RemoveConversationMemberResponse) String() string {
 func (*RemoveConversationMemberResponse) ProtoMessage() {}
 
 func (x *RemoveConversationMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[29]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1767,7 +2247,7 @@ func (x *RemoveConversationMemberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveConversationMemberResponse.ProtoReflect.Descriptor instead.
 func (*RemoveConversationMemberResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{29}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *RemoveConversationMemberResponse) GetConversationId() string {
@@ -1809,7 +2289,7 @@ type TransferConversationOwnerRequest struct {
 
 func (x *TransferConversationOwnerRequest) Reset() {
 	*x = TransferConversationOwnerRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[30]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1821,7 +2301,7 @@ func (x *TransferConversationOwnerRequest) String() string {
 func (*TransferConversationOwnerRequest) ProtoMessage() {}
 
 func (x *TransferConversationOwnerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[30]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1834,7 +2314,7 @@ func (x *TransferConversationOwnerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferConversationOwnerRequest.ProtoReflect.Descriptor instead.
 func (*TransferConversationOwnerRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{30}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *TransferConversationOwnerRequest) GetConversationId() string {
@@ -1868,7 +2348,7 @@ type TransferConversationOwnerResponse struct {
 
 func (x *TransferConversationOwnerResponse) Reset() {
 	*x = TransferConversationOwnerResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[31]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1880,7 +2360,7 @@ func (x *TransferConversationOwnerResponse) String() string {
 func (*TransferConversationOwnerResponse) ProtoMessage() {}
 
 func (x *TransferConversationOwnerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[31]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1893,7 +2373,7 @@ func (x *TransferConversationOwnerResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use TransferConversationOwnerResponse.ProtoReflect.Descriptor instead.
 func (*TransferConversationOwnerResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{31}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *TransferConversationOwnerResponse) GetConversation() *ConversationView {
@@ -1922,7 +2402,7 @@ type ChangeConversationMemberRoleRequest struct {
 
 func (x *ChangeConversationMemberRoleRequest) Reset() {
 	*x = ChangeConversationMemberRoleRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[32]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1934,7 +2414,7 @@ func (x *ChangeConversationMemberRoleRequest) String() string {
 func (*ChangeConversationMemberRoleRequest) ProtoMessage() {}
 
 func (x *ChangeConversationMemberRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[32]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1947,7 +2427,7 @@ func (x *ChangeConversationMemberRoleRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ChangeConversationMemberRoleRequest.ProtoReflect.Descriptor instead.
 func (*ChangeConversationMemberRoleRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{32}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ChangeConversationMemberRoleRequest) GetConversationId() string {
@@ -1988,7 +2468,7 @@ type ChangeConversationMemberRoleResponse struct {
 
 func (x *ChangeConversationMemberRoleResponse) Reset() {
 	*x = ChangeConversationMemberRoleResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[33]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2000,7 +2480,7 @@ func (x *ChangeConversationMemberRoleResponse) String() string {
 func (*ChangeConversationMemberRoleResponse) ProtoMessage() {}
 
 func (x *ChangeConversationMemberRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[33]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2013,7 +2493,7 @@ func (x *ChangeConversationMemberRoleResponse) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use ChangeConversationMemberRoleResponse.ProtoReflect.Descriptor instead.
 func (*ChangeConversationMemberRoleResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{33}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ChangeConversationMemberRoleResponse) GetMember() *ConversationMemberView {
@@ -2040,7 +2520,7 @@ type LeaveConversationRequest struct {
 
 func (x *LeaveConversationRequest) Reset() {
 	*x = LeaveConversationRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[34]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2052,7 +2532,7 @@ func (x *LeaveConversationRequest) String() string {
 func (*LeaveConversationRequest) ProtoMessage() {}
 
 func (x *LeaveConversationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[34]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2065,7 +2545,7 @@ func (x *LeaveConversationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveConversationRequest.ProtoReflect.Descriptor instead.
 func (*LeaveConversationRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{34}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *LeaveConversationRequest) GetConversationId() string {
@@ -2093,7 +2573,7 @@ type LeaveConversationResponse struct {
 
 func (x *LeaveConversationResponse) Reset() {
 	*x = LeaveConversationResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[35]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2105,7 +2585,7 @@ func (x *LeaveConversationResponse) String() string {
 func (*LeaveConversationResponse) ProtoMessage() {}
 
 func (x *LeaveConversationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[35]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2118,7 +2598,7 @@ func (x *LeaveConversationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveConversationResponse.ProtoReflect.Descriptor instead.
 func (*LeaveConversationResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{35}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *LeaveConversationResponse) GetConversationId() string {
@@ -2152,7 +2632,7 @@ type RetrieveConversationPreferencesRequest struct {
 
 func (x *RetrieveConversationPreferencesRequest) Reset() {
 	*x = RetrieveConversationPreferencesRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[36]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2164,7 +2644,7 @@ func (x *RetrieveConversationPreferencesRequest) String() string {
 func (*RetrieveConversationPreferencesRequest) ProtoMessage() {}
 
 func (x *RetrieveConversationPreferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[36]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2177,7 +2657,7 @@ func (x *RetrieveConversationPreferencesRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use RetrieveConversationPreferencesRequest.ProtoReflect.Descriptor instead.
 func (*RetrieveConversationPreferencesRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{36}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *RetrieveConversationPreferencesRequest) GetConversationId() string {
@@ -2204,7 +2684,7 @@ type RetrieveConversationPreferencesResponse struct {
 
 func (x *RetrieveConversationPreferencesResponse) Reset() {
 	*x = RetrieveConversationPreferencesResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[37]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2216,7 +2696,7 @@ func (x *RetrieveConversationPreferencesResponse) String() string {
 func (*RetrieveConversationPreferencesResponse) ProtoMessage() {}
 
 func (x *RetrieveConversationPreferencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[37]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2229,7 +2709,7 @@ func (x *RetrieveConversationPreferencesResponse) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use RetrieveConversationPreferencesResponse.ProtoReflect.Descriptor instead.
 func (*RetrieveConversationPreferencesResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{37}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *RetrieveConversationPreferencesResponse) GetPreferences() *ConversationPreferencesView {
@@ -2258,7 +2738,7 @@ type UpdateConversationPreferencesRequest struct {
 
 func (x *UpdateConversationPreferencesRequest) Reset() {
 	*x = UpdateConversationPreferencesRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[38]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2270,7 +2750,7 @@ func (x *UpdateConversationPreferencesRequest) String() string {
 func (*UpdateConversationPreferencesRequest) ProtoMessage() {}
 
 func (x *UpdateConversationPreferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[38]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2283,7 +2763,7 @@ func (x *UpdateConversationPreferencesRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use UpdateConversationPreferencesRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConversationPreferencesRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{38}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *UpdateConversationPreferencesRequest) GetConversationId() string {
@@ -2324,7 +2804,7 @@ type UpdateConversationPreferencesResponse struct {
 
 func (x *UpdateConversationPreferencesResponse) Reset() {
 	*x = UpdateConversationPreferencesResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[39]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2336,7 +2816,7 @@ func (x *UpdateConversationPreferencesResponse) String() string {
 func (*UpdateConversationPreferencesResponse) ProtoMessage() {}
 
 func (x *UpdateConversationPreferencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[39]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2349,7 +2829,7 @@ func (x *UpdateConversationPreferencesResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use UpdateConversationPreferencesResponse.ProtoReflect.Descriptor instead.
 func (*UpdateConversationPreferencesResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{39}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *UpdateConversationPreferencesResponse) GetPreferences() *ConversationPreferencesView {
@@ -2376,7 +2856,7 @@ type RetrieveConversationProfileRequest struct {
 
 func (x *RetrieveConversationProfileRequest) Reset() {
 	*x = RetrieveConversationProfileRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[40]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2388,7 +2868,7 @@ func (x *RetrieveConversationProfileRequest) String() string {
 func (*RetrieveConversationProfileRequest) ProtoMessage() {}
 
 func (x *RetrieveConversationProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[40]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2401,7 +2881,7 @@ func (x *RetrieveConversationProfileRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use RetrieveConversationProfileRequest.ProtoReflect.Descriptor instead.
 func (*RetrieveConversationProfileRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{40}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *RetrieveConversationProfileRequest) GetConversationId() string {
@@ -2428,7 +2908,7 @@ type RetrieveConversationProfileResponse struct {
 
 func (x *RetrieveConversationProfileResponse) Reset() {
 	*x = RetrieveConversationProfileResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[41]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2440,7 +2920,7 @@ func (x *RetrieveConversationProfileResponse) String() string {
 func (*RetrieveConversationProfileResponse) ProtoMessage() {}
 
 func (x *RetrieveConversationProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[41]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2453,7 +2933,7 @@ func (x *RetrieveConversationProfileResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use RetrieveConversationProfileResponse.ProtoReflect.Descriptor instead.
 func (*RetrieveConversationProfileResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{41}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *RetrieveConversationProfileResponse) GetProfile() *ConversationProfileView {
@@ -2483,7 +2963,7 @@ type UpdateConversationProfileRequest struct {
 
 func (x *UpdateConversationProfileRequest) Reset() {
 	*x = UpdateConversationProfileRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[42]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2495,7 +2975,7 @@ func (x *UpdateConversationProfileRequest) String() string {
 func (*UpdateConversationProfileRequest) ProtoMessage() {}
 
 func (x *UpdateConversationProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[42]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2508,7 +2988,7 @@ func (x *UpdateConversationProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConversationProfileRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConversationProfileRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{42}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *UpdateConversationProfileRequest) GetConversationId() string {
@@ -2556,7 +3036,7 @@ type UpdateConversationProfileResponse struct {
 
 func (x *UpdateConversationProfileResponse) Reset() {
 	*x = UpdateConversationProfileResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[43]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2568,7 +3048,7 @@ func (x *UpdateConversationProfileResponse) String() string {
 func (*UpdateConversationProfileResponse) ProtoMessage() {}
 
 func (x *UpdateConversationProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[43]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2581,7 +3061,7 @@ func (x *UpdateConversationProfileResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use UpdateConversationProfileResponse.ProtoReflect.Descriptor instead.
 func (*UpdateConversationProfileResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{43}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *UpdateConversationProfileResponse) GetProfile() *ConversationProfileView {
@@ -2608,7 +3088,7 @@ type RetrieveReadCursorRequest struct {
 
 func (x *RetrieveReadCursorRequest) Reset() {
 	*x = RetrieveReadCursorRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[44]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2620,7 +3100,7 @@ func (x *RetrieveReadCursorRequest) String() string {
 func (*RetrieveReadCursorRequest) ProtoMessage() {}
 
 func (x *RetrieveReadCursorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[44]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2633,7 +3113,7 @@ func (x *RetrieveReadCursorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetrieveReadCursorRequest.ProtoReflect.Descriptor instead.
 func (*RetrieveReadCursorRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{44}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *RetrieveReadCursorRequest) GetConversationId() string {
@@ -2660,7 +3140,7 @@ type RetrieveReadCursorResponse struct {
 
 func (x *RetrieveReadCursorResponse) Reset() {
 	*x = RetrieveReadCursorResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[45]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2672,7 +3152,7 @@ func (x *RetrieveReadCursorResponse) String() string {
 func (*RetrieveReadCursorResponse) ProtoMessage() {}
 
 func (x *RetrieveReadCursorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[45]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2685,7 +3165,7 @@ func (x *RetrieveReadCursorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetrieveReadCursorResponse.ProtoReflect.Descriptor instead.
 func (*RetrieveReadCursorResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{45}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *RetrieveReadCursorResponse) GetCursor() *ReadCursorView {
@@ -2714,7 +3194,7 @@ type UpdateReadCursorRequest struct {
 
 func (x *UpdateReadCursorRequest) Reset() {
 	*x = UpdateReadCursorRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[46]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2726,7 +3206,7 @@ func (x *UpdateReadCursorRequest) String() string {
 func (*UpdateReadCursorRequest) ProtoMessage() {}
 
 func (x *UpdateReadCursorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[46]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2739,7 +3219,7 @@ func (x *UpdateReadCursorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateReadCursorRequest.ProtoReflect.Descriptor instead.
 func (*UpdateReadCursorRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{46}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *UpdateReadCursorRequest) GetConversationId() string {
@@ -2780,7 +3260,7 @@ type UpdateReadCursorResponse struct {
 
 func (x *UpdateReadCursorResponse) Reset() {
 	*x = UpdateReadCursorResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[47]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2792,7 +3272,7 @@ func (x *UpdateReadCursorResponse) String() string {
 func (*UpdateReadCursorResponse) ProtoMessage() {}
 
 func (x *UpdateReadCursorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[47]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2805,7 +3285,7 @@ func (x *UpdateReadCursorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateReadCursorResponse.ProtoReflect.Descriptor instead.
 func (*UpdateReadCursorResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{47}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *UpdateReadCursorResponse) GetCursor() *ReadCursorView {
@@ -2834,7 +3314,7 @@ type ListConversationMemberDirectoryRequest struct {
 
 func (x *ListConversationMemberDirectoryRequest) Reset() {
 	*x = ListConversationMemberDirectoryRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[48]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2846,7 +3326,7 @@ func (x *ListConversationMemberDirectoryRequest) String() string {
 func (*ListConversationMemberDirectoryRequest) ProtoMessage() {}
 
 func (x *ListConversationMemberDirectoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[48]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2859,7 +3339,7 @@ func (x *ListConversationMemberDirectoryRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use ListConversationMemberDirectoryRequest.ProtoReflect.Descriptor instead.
 func (*ListConversationMemberDirectoryRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{48}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *ListConversationMemberDirectoryRequest) GetConversationId() string {
@@ -2901,7 +3381,7 @@ type ListConversationMemberDirectoryResponse struct {
 
 func (x *ListConversationMemberDirectoryResponse) Reset() {
 	*x = ListConversationMemberDirectoryResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[49]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2913,7 +3393,7 @@ func (x *ListConversationMemberDirectoryResponse) String() string {
 func (*ListConversationMemberDirectoryResponse) ProtoMessage() {}
 
 func (x *ListConversationMemberDirectoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[49]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2926,7 +3406,7 @@ func (x *ListConversationMemberDirectoryResponse) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use ListConversationMemberDirectoryResponse.ProtoReflect.Descriptor instead.
 func (*ListConversationMemberDirectoryResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{49}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ListConversationMemberDirectoryResponse) GetMembers() []*ConversationMemberView {
@@ -2961,7 +3441,7 @@ type ListPinnedMessagesRequest struct {
 
 func (x *ListPinnedMessagesRequest) Reset() {
 	*x = ListPinnedMessagesRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[50]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2973,7 +3453,7 @@ func (x *ListPinnedMessagesRequest) String() string {
 func (*ListPinnedMessagesRequest) ProtoMessage() {}
 
 func (x *ListPinnedMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[50]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2986,7 +3466,7 @@ func (x *ListPinnedMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPinnedMessagesRequest.ProtoReflect.Descriptor instead.
 func (*ListPinnedMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{50}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ListPinnedMessagesRequest) GetConversationId() string {
@@ -3021,7 +3501,7 @@ type ListPinnedMessagesResponse struct {
 
 func (x *ListPinnedMessagesResponse) Reset() {
 	*x = ListPinnedMessagesResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[51]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3033,7 +3513,7 @@ func (x *ListPinnedMessagesResponse) String() string {
 func (*ListPinnedMessagesResponse) ProtoMessage() {}
 
 func (x *ListPinnedMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[51]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3046,7 +3526,7 @@ func (x *ListPinnedMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPinnedMessagesResponse.ProtoReflect.Descriptor instead.
 func (*ListPinnedMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{51}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ListPinnedMessagesResponse) GetMessageIds() []string {
@@ -3080,7 +3560,7 @@ type ListContactsRequest struct {
 
 func (x *ListContactsRequest) Reset() {
 	*x = ListContactsRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[52]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3092,7 +3572,7 @@ func (x *ListContactsRequest) String() string {
 func (*ListContactsRequest) ProtoMessage() {}
 
 func (x *ListContactsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[52]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3105,7 +3585,7 @@ func (x *ListContactsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListContactsRequest.ProtoReflect.Descriptor instead.
 func (*ListContactsRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{52}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ListContactsRequest) GetPage() *v1.PageRequest {
@@ -3133,7 +3613,7 @@ type ListContactsResponse struct {
 
 func (x *ListContactsResponse) Reset() {
 	*x = ListContactsResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[53]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3145,7 +3625,7 @@ func (x *ListContactsResponse) String() string {
 func (*ListContactsResponse) ProtoMessage() {}
 
 func (x *ListContactsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[53]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3158,7 +3638,7 @@ func (x *ListContactsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListContactsResponse.ProtoReflect.Descriptor instead.
 func (*ListContactsResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{53}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *ListContactsResponse) GetContacts() []*ContactView {
@@ -3192,7 +3672,7 @@ type ListContactTagsRequest struct {
 
 func (x *ListContactTagsRequest) Reset() {
 	*x = ListContactTagsRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[54]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3204,7 +3684,7 @@ func (x *ListContactTagsRequest) String() string {
 func (*ListContactTagsRequest) ProtoMessage() {}
 
 func (x *ListContactTagsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[54]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3217,7 +3697,7 @@ func (x *ListContactTagsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListContactTagsRequest.ProtoReflect.Descriptor instead.
 func (*ListContactTagsRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{54}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *ListContactTagsRequest) GetPage() *v1.PageRequest {
@@ -3245,7 +3725,7 @@ type ListContactTagsResponse struct {
 
 func (x *ListContactTagsResponse) Reset() {
 	*x = ListContactTagsResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[55]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3257,7 +3737,7 @@ func (x *ListContactTagsResponse) String() string {
 func (*ListContactTagsResponse) ProtoMessage() {}
 
 func (x *ListContactTagsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[55]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3270,7 +3750,7 @@ func (x *ListContactTagsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListContactTagsResponse.ProtoReflect.Descriptor instead.
 func (*ListContactTagsResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{55}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ListContactTagsResponse) GetTags() []*ContactTagView {
@@ -3305,7 +3785,7 @@ type CreateContactTagRequest struct {
 
 func (x *CreateContactTagRequest) Reset() {
 	*x = CreateContactTagRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[56]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3317,7 +3797,7 @@ func (x *CreateContactTagRequest) String() string {
 func (*CreateContactTagRequest) ProtoMessage() {}
 
 func (x *CreateContactTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[56]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3330,7 +3810,7 @@ func (x *CreateContactTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateContactTagRequest.ProtoReflect.Descriptor instead.
 func (*CreateContactTagRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{56}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *CreateContactTagRequest) GetName() string {
@@ -3364,7 +3844,7 @@ type CreateContactTagResponse struct {
 
 func (x *CreateContactTagResponse) Reset() {
 	*x = CreateContactTagResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[57]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3376,7 +3856,7 @@ func (x *CreateContactTagResponse) String() string {
 func (*CreateContactTagResponse) ProtoMessage() {}
 
 func (x *CreateContactTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[57]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3389,7 +3869,7 @@ func (x *CreateContactTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateContactTagResponse.ProtoReflect.Descriptor instead.
 func (*CreateContactTagResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{57}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *CreateContactTagResponse) GetTag() *ContactTagView {
@@ -3418,7 +3898,7 @@ type UpdateContactTagRequest struct {
 
 func (x *UpdateContactTagRequest) Reset() {
 	*x = UpdateContactTagRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[58]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3430,7 +3910,7 @@ func (x *UpdateContactTagRequest) String() string {
 func (*UpdateContactTagRequest) ProtoMessage() {}
 
 func (x *UpdateContactTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[58]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3443,7 +3923,7 @@ func (x *UpdateContactTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateContactTagRequest.ProtoReflect.Descriptor instead.
 func (*UpdateContactTagRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{58}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *UpdateContactTagRequest) GetTagId() string {
@@ -3484,7 +3964,7 @@ type UpdateContactTagResponse struct {
 
 func (x *UpdateContactTagResponse) Reset() {
 	*x = UpdateContactTagResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[59]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3496,7 +3976,7 @@ func (x *UpdateContactTagResponse) String() string {
 func (*UpdateContactTagResponse) ProtoMessage() {}
 
 func (x *UpdateContactTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[59]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3509,7 +3989,7 @@ func (x *UpdateContactTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateContactTagResponse.ProtoReflect.Descriptor instead.
 func (*UpdateContactTagResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{59}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *UpdateContactTagResponse) GetTag() *ContactTagView {
@@ -3536,7 +4016,7 @@ type DeleteContactTagRequest struct {
 
 func (x *DeleteContactTagRequest) Reset() {
 	*x = DeleteContactTagRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[60]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3548,7 +4028,7 @@ func (x *DeleteContactTagRequest) String() string {
 func (*DeleteContactTagRequest) ProtoMessage() {}
 
 func (x *DeleteContactTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[60]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3561,7 +4041,7 @@ func (x *DeleteContactTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteContactTagRequest.ProtoReflect.Descriptor instead.
 func (*DeleteContactTagRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{60}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *DeleteContactTagRequest) GetTagId() string {
@@ -3589,7 +4069,7 @@ type DeleteContactTagResponse struct {
 
 func (x *DeleteContactTagResponse) Reset() {
 	*x = DeleteContactTagResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[61]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3601,7 +4081,7 @@ func (x *DeleteContactTagResponse) String() string {
 func (*DeleteContactTagResponse) ProtoMessage() {}
 
 func (x *DeleteContactTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[61]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3614,7 +4094,7 @@ func (x *DeleteContactTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteContactTagResponse.ProtoReflect.Descriptor instead.
 func (*DeleteContactTagResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{61}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *DeleteContactTagResponse) GetTagId() string {
@@ -3648,7 +4128,7 @@ type CreateContactRecommendationRequest struct {
 
 func (x *CreateContactRecommendationRequest) Reset() {
 	*x = CreateContactRecommendationRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[62]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3660,7 +4140,7 @@ func (x *CreateContactRecommendationRequest) String() string {
 func (*CreateContactRecommendationRequest) ProtoMessage() {}
 
 func (x *CreateContactRecommendationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[62]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3673,7 +4153,7 @@ func (x *CreateContactRecommendationRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use CreateContactRecommendationRequest.ProtoReflect.Descriptor instead.
 func (*CreateContactRecommendationRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{62}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *CreateContactRecommendationRequest) GetBasis() string {
@@ -3700,7 +4180,7 @@ type CreateContactRecommendationResponse struct {
 
 func (x *CreateContactRecommendationResponse) Reset() {
 	*x = CreateContactRecommendationResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[63]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3712,7 +4192,7 @@ func (x *CreateContactRecommendationResponse) String() string {
 func (*CreateContactRecommendationResponse) ProtoMessage() {}
 
 func (x *CreateContactRecommendationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[63]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3725,7 +4205,7 @@ func (x *CreateContactRecommendationResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use CreateContactRecommendationResponse.ProtoReflect.Descriptor instead.
 func (*CreateContactRecommendationResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{63}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *CreateContactRecommendationResponse) GetContacts() []*ContactView {
@@ -3751,7 +4231,7 @@ type RetrieveContactPreferencesRequest struct {
 
 func (x *RetrieveContactPreferencesRequest) Reset() {
 	*x = RetrieveContactPreferencesRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[64]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3763,7 +4243,7 @@ func (x *RetrieveContactPreferencesRequest) String() string {
 func (*RetrieveContactPreferencesRequest) ProtoMessage() {}
 
 func (x *RetrieveContactPreferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[64]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3776,7 +4256,7 @@ func (x *RetrieveContactPreferencesRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use RetrieveContactPreferencesRequest.ProtoReflect.Descriptor instead.
 func (*RetrieveContactPreferencesRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{64}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *RetrieveContactPreferencesRequest) GetMetadata() *v1.RequestMetadata {
@@ -3796,7 +4276,7 @@ type RetrieveContactPreferencesResponse struct {
 
 func (x *RetrieveContactPreferencesResponse) Reset() {
 	*x = RetrieveContactPreferencesResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[65]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3808,7 +4288,7 @@ func (x *RetrieveContactPreferencesResponse) String() string {
 func (*RetrieveContactPreferencesResponse) ProtoMessage() {}
 
 func (x *RetrieveContactPreferencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[65]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3821,7 +4301,7 @@ func (x *RetrieveContactPreferencesResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use RetrieveContactPreferencesResponse.ProtoReflect.Descriptor instead.
 func (*RetrieveContactPreferencesResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{65}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *RetrieveContactPreferencesResponse) GetPreferences() *ContactPreferencesView {
@@ -3849,7 +4329,7 @@ type UpdateContactPreferencesRequest struct {
 
 func (x *UpdateContactPreferencesRequest) Reset() {
 	*x = UpdateContactPreferencesRequest{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[66]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3861,7 +4341,7 @@ func (x *UpdateContactPreferencesRequest) String() string {
 func (*UpdateContactPreferencesRequest) ProtoMessage() {}
 
 func (x *UpdateContactPreferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[66]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3874,7 +4354,7 @@ func (x *UpdateContactPreferencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateContactPreferencesRequest.ProtoReflect.Descriptor instead.
 func (*UpdateContactPreferencesRequest) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{66}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *UpdateContactPreferencesRequest) GetAllowRecommendations() bool {
@@ -3908,7 +4388,7 @@ type UpdateContactPreferencesResponse struct {
 
 func (x *UpdateContactPreferencesResponse) Reset() {
 	*x = UpdateContactPreferencesResponse{}
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[67]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3920,7 +4400,7 @@ func (x *UpdateContactPreferencesResponse) String() string {
 func (*UpdateContactPreferencesResponse) ProtoMessage() {}
 
 func (x *UpdateContactPreferencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[67]
+	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3933,7 +4413,7 @@ func (x *UpdateContactPreferencesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateContactPreferencesResponse.ProtoReflect.Descriptor instead.
 func (*UpdateContactPreferencesResponse) Descriptor() ([]byte, []int) {
-	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{67}
+	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *UpdateContactPreferencesResponse) GetPreferences() *ContactPreferencesView {
@@ -3960,12 +4440,26 @@ const file_sdkwork_communication_app_v3_conversation_service_proto_rawDesc = "" 
 	"\x11conversation_type\x18\x02 \x01(\tR\x10conversationType\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12\"\n" +
 	"\rowner_user_id\x18\x04 \x01(\tR\vownerUserId\x12\x14\n" +
-	"\x05state\x18\x05 \x01(\tR\x05state\"\x84\x01\n" +
+	"\x05state\x18\x05 \x01(\tR\x05state\"\x82\x02\n" +
 	"\x16ConversationMemberView\x12'\n" +
 	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
 	"\x04role\x18\x03 \x01(\tR\x04role\x12\x14\n" +
-	"\x05state\x18\x04 \x01(\tR\x05state\"t\n" +
+	"\x05state\x18\x04 \x01(\tR\x05state\x12%\n" +
+	"\x0eprincipal_kind\x18\x05 \x01(\tR\rprincipalKind\x12\x1b\n" +
+	"\tmember_id\x18\x06 \x01(\tR\bmemberId\x12\x1b\n" +
+	"\ttenant_id\x18\a \x01(\tR\btenantId\x12\x1b\n" +
+	"\tjoined_at\x18\b \x01(\tR\bjoinedAt\"]\n" +
+	"\x1fConversationAgentAssignmentView\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x1f\n" +
+	"\vrevision_id\x18\x02 \x01(\tR\n" +
+	"revisionId\"\xb1\x01\n" +
+	" ConversationAgentAssignmentsView\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x01 \x01(\x04R\n" +
+	"generation\x12\x16\n" +
+	"\x06source\x18\x02 \x01(\tR\x06source\x12U\n" +
+	"\x06agents\x18\x03 \x03(\v2=.sdkwork.communication.app.v3.ConversationAgentAssignmentViewR\x06agents\"t\n" +
 	"\x1bConversationPreferencesView\x12'\n" +
 	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x14\n" +
 	"\x05muted\x18\x02 \x01(\bR\x05muted\x12\x16\n" +
@@ -3994,11 +4488,12 @@ const file_sdkwork_communication_app_v3_conversation_service_proto_rawDesc = "" 
 	"\x05color\x18\x03 \x01(\tR\x05color\"\x81\x01\n" +
 	"\x16ContactPreferencesView\x123\n" +
 	"\x15allow_recommendations\x18\x01 \x01(\bR\x14allowRecommendations\x122\n" +
-	"\x15allow_friend_requests\x18\x02 \x01(\bR\x13allowFriendRequests\"\xc6\x01\n" +
+	"\x15allow_friend_requests\x18\x02 \x01(\bR\x13allowFriendRequests\"\xb2\x02\n" +
 	"\x19CreateConversationRequest\x12+\n" +
 	"\x11conversation_type\x18\x01 \x01(\tR\x10conversationType\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12&\n" +
-	"\x0fmember_user_ids\x18\x03 \x03(\tR\rmemberUserIds\x12>\n" +
+	"\x0fmember_user_ids\x18\x03 \x03(\tR\rmemberUserIds\x12j\n" +
+	"\x11agent_assignments\x18\x04 \x03(\v2=.sdkwork.communication.app.v3.ConversationAgentAssignmentViewR\x10agentAssignments\x12>\n" +
 	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xb1\x01\n" +
 	"\x1aCreateConversationResponse\x12R\n" +
 	"\fconversation\x18\x01 \x01(\v2..sdkwork.communication.app.v3.ConversationViewR\fconversation\x12?\n" +
@@ -4059,6 +4554,26 @@ const file_sdkwork_communication_app_v3_conversation_service_proto_rawDesc = "" 
 	"\x1fListConversationMembersResponse\x12N\n" +
 	"\amembers\x18\x01 \x03(\v24.sdkwork.communication.app.v3.ConversationMemberViewR\amembers\x123\n" +
 	"\x04page\x18\x02 \x01(\v2\x1f.sdkwork.common.v1.PageResponseR\x04page\x12?\n" +
+	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\x93\x01\n" +
+	"(RetrieveCurrentConversationMemberRequest\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12>\n" +
+	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xba\x01\n" +
+	")RetrieveCurrentConversationMemberResponse\x12L\n" +
+	"\x06member\x18\x01 \x01(\v24.sdkwork.communication.app.v3.ConversationMemberViewR\x06member\x12?\n" +
+	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\x8c\x01\n" +
+	"!RetrieveConversationAgentsRequest\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12>\n" +
+	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xc7\x01\n" +
+	"\"RetrieveConversationAgentsResponse\x12`\n" +
+	"\vassignments\x18\x01 \x01(\v2>.sdkwork.communication.app.v3.ConversationAgentAssignmentsViewR\vassignments\x12?\n" +
+	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\xa7\x02\n" +
+	"\x1fUpdateConversationAgentsRequest\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12/\n" +
+	"\x13expected_generation\x18\x02 \x01(\x04R\x12expectedGeneration\x12j\n" +
+	"\x11agent_assignments\x18\x03 \x03(\v2=.sdkwork.communication.app.v3.ConversationAgentAssignmentViewR\x10agentAssignments\x12>\n" +
+	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xc5\x01\n" +
+	" UpdateConversationAgentsResponse\x12`\n" +
+	"\vassignments\x18\x01 \x01(\v2>.sdkwork.communication.app.v3.ConversationAgentAssignmentsViewR\vassignments\x12?\n" +
 	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\xb4\x01\n" +
 	"\x1cAddConversationMemberRequest\x12'\n" +
 	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x17\n" +
@@ -4215,7 +4730,7 @@ const file_sdkwork_communication_app_v3_conversation_service_proto_rawDesc = "" 
 	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xbb\x01\n" +
 	" UpdateContactPreferencesResponse\x12V\n" +
 	"\vpreferences\x18\x01 \x01(\v24.sdkwork.communication.app.v3.ContactPreferencesViewR\vpreferences\x12?\n" +
-	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata2\xae\x19\n" +
+	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata2\xa3\x1d\n" +
 	"\x13ConversationService\x12\x87\x01\n" +
 	"\x12CreateConversation\x127.sdkwork.communication.app.v3.CreateConversationRequest\x1a8.sdkwork.communication.app.v3.CreateConversationResponse\x12\x84\x01\n" +
 	"\x11CreateAgentDialog\x126.sdkwork.communication.app.v3.CreateAgentDialogRequest\x1a7.sdkwork.communication.app.v3.CreateAgentDialogResponse\x12\x87\x01\n" +
@@ -4225,7 +4740,10 @@ const file_sdkwork_communication_app_v3_conversation_service_proto_rawDesc = "" 
 	"\x0eBindDirectChat\x123.sdkwork.communication.app.v3.BindDirectChatRequest\x1a4.sdkwork.communication.app.v3.BindDirectChatResponse\x12\x8d\x01\n" +
 	"\x14RetrieveConversation\x129.sdkwork.communication.app.v3.RetrieveConversationRequest\x1a:.sdkwork.communication.app.v3.RetrieveConversationResponse\x12l\n" +
 	"\tListInbox\x12..sdkwork.communication.app.v3.ListInboxRequest\x1a/.sdkwork.communication.app.v3.ListInboxResponse\x12\x96\x01\n" +
-	"\x17ListConversationMembers\x12<.sdkwork.communication.app.v3.ListConversationMembersRequest\x1a=.sdkwork.communication.app.v3.ListConversationMembersResponse\x12\x90\x01\n" +
+	"\x17ListConversationMembers\x12<.sdkwork.communication.app.v3.ListConversationMembersRequest\x1a=.sdkwork.communication.app.v3.ListConversationMembersResponse\x12\xb4\x01\n" +
+	"!RetrieveCurrentConversationMember\x12F.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest\x1aG.sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse\x12\x9f\x01\n" +
+	"\x1aRetrieveConversationAgents\x12?.sdkwork.communication.app.v3.RetrieveConversationAgentsRequest\x1a@.sdkwork.communication.app.v3.RetrieveConversationAgentsResponse\x12\x99\x01\n" +
+	"\x18UpdateConversationAgents\x12=.sdkwork.communication.app.v3.UpdateConversationAgentsRequest\x1a>.sdkwork.communication.app.v3.UpdateConversationAgentsResponse\x12\x90\x01\n" +
 	"\x15AddConversationMember\x12:.sdkwork.communication.app.v3.AddConversationMemberRequest\x1a;.sdkwork.communication.app.v3.AddConversationMemberResponse\x12\x99\x01\n" +
 	"\x18RemoveConversationMember\x12=.sdkwork.communication.app.v3.RemoveConversationMemberRequest\x1a>.sdkwork.communication.app.v3.RemoveConversationMemberResponse\x12\x9c\x01\n" +
 	"\x19TransferConversationOwner\x12>.sdkwork.communication.app.v3.TransferConversationOwnerRequest\x1a?.sdkwork.communication.app.v3.TransferConversationOwnerResponse\x12\xa5\x01\n" +
@@ -4262,245 +4780,271 @@ func file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP() 
 	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescData
 }
 
-var file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes = make([]protoimpl.MessageInfo, 68)
+var file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes = make([]protoimpl.MessageInfo, 76)
 var file_sdkwork_communication_app_v3_conversation_service_proto_goTypes = []any{
-	(*ConversationView)(nil),                        // 0: sdkwork.communication.app.v3.ConversationView
-	(*ConversationMemberView)(nil),                  // 1: sdkwork.communication.app.v3.ConversationMemberView
-	(*ConversationPreferencesView)(nil),             // 2: sdkwork.communication.app.v3.ConversationPreferencesView
-	(*ConversationProfileView)(nil),                 // 3: sdkwork.communication.app.v3.ConversationProfileView
-	(*ReadCursorView)(nil),                          // 4: sdkwork.communication.app.v3.ReadCursorView
-	(*ContactView)(nil),                             // 5: sdkwork.communication.app.v3.ContactView
-	(*ContactTagView)(nil),                          // 6: sdkwork.communication.app.v3.ContactTagView
-	(*ContactPreferencesView)(nil),                  // 7: sdkwork.communication.app.v3.ContactPreferencesView
-	(*CreateConversationRequest)(nil),               // 8: sdkwork.communication.app.v3.CreateConversationRequest
-	(*CreateConversationResponse)(nil),              // 9: sdkwork.communication.app.v3.CreateConversationResponse
-	(*CreateAgentDialogRequest)(nil),                // 10: sdkwork.communication.app.v3.CreateAgentDialogRequest
-	(*CreateAgentDialogResponse)(nil),               // 11: sdkwork.communication.app.v3.CreateAgentDialogResponse
-	(*CreateAgentHandoffRequest)(nil),               // 12: sdkwork.communication.app.v3.CreateAgentHandoffRequest
-	(*CreateAgentHandoffResponse)(nil),              // 13: sdkwork.communication.app.v3.CreateAgentHandoffResponse
-	(*CreateSystemChannelRequest)(nil),              // 14: sdkwork.communication.app.v3.CreateSystemChannelRequest
-	(*CreateSystemChannelResponse)(nil),             // 15: sdkwork.communication.app.v3.CreateSystemChannelResponse
-	(*CreateThreadRequest)(nil),                     // 16: sdkwork.communication.app.v3.CreateThreadRequest
-	(*CreateThreadResponse)(nil),                    // 17: sdkwork.communication.app.v3.CreateThreadResponse
-	(*BindDirectChatRequest)(nil),                   // 18: sdkwork.communication.app.v3.BindDirectChatRequest
-	(*BindDirectChatResponse)(nil),                  // 19: sdkwork.communication.app.v3.BindDirectChatResponse
-	(*RetrieveConversationRequest)(nil),             // 20: sdkwork.communication.app.v3.RetrieveConversationRequest
-	(*RetrieveConversationResponse)(nil),            // 21: sdkwork.communication.app.v3.RetrieveConversationResponse
-	(*ListInboxRequest)(nil),                        // 22: sdkwork.communication.app.v3.ListInboxRequest
-	(*ListInboxResponse)(nil),                       // 23: sdkwork.communication.app.v3.ListInboxResponse
-	(*ListConversationMembersRequest)(nil),          // 24: sdkwork.communication.app.v3.ListConversationMembersRequest
-	(*ListConversationMembersResponse)(nil),         // 25: sdkwork.communication.app.v3.ListConversationMembersResponse
-	(*AddConversationMemberRequest)(nil),            // 26: sdkwork.communication.app.v3.AddConversationMemberRequest
-	(*AddConversationMemberResponse)(nil),           // 27: sdkwork.communication.app.v3.AddConversationMemberResponse
-	(*RemoveConversationMemberRequest)(nil),         // 28: sdkwork.communication.app.v3.RemoveConversationMemberRequest
-	(*RemoveConversationMemberResponse)(nil),        // 29: sdkwork.communication.app.v3.RemoveConversationMemberResponse
-	(*TransferConversationOwnerRequest)(nil),        // 30: sdkwork.communication.app.v3.TransferConversationOwnerRequest
-	(*TransferConversationOwnerResponse)(nil),       // 31: sdkwork.communication.app.v3.TransferConversationOwnerResponse
-	(*ChangeConversationMemberRoleRequest)(nil),     // 32: sdkwork.communication.app.v3.ChangeConversationMemberRoleRequest
-	(*ChangeConversationMemberRoleResponse)(nil),    // 33: sdkwork.communication.app.v3.ChangeConversationMemberRoleResponse
-	(*LeaveConversationRequest)(nil),                // 34: sdkwork.communication.app.v3.LeaveConversationRequest
-	(*LeaveConversationResponse)(nil),               // 35: sdkwork.communication.app.v3.LeaveConversationResponse
-	(*RetrieveConversationPreferencesRequest)(nil),  // 36: sdkwork.communication.app.v3.RetrieveConversationPreferencesRequest
-	(*RetrieveConversationPreferencesResponse)(nil), // 37: sdkwork.communication.app.v3.RetrieveConversationPreferencesResponse
-	(*UpdateConversationPreferencesRequest)(nil),    // 38: sdkwork.communication.app.v3.UpdateConversationPreferencesRequest
-	(*UpdateConversationPreferencesResponse)(nil),   // 39: sdkwork.communication.app.v3.UpdateConversationPreferencesResponse
-	(*RetrieveConversationProfileRequest)(nil),      // 40: sdkwork.communication.app.v3.RetrieveConversationProfileRequest
-	(*RetrieveConversationProfileResponse)(nil),     // 41: sdkwork.communication.app.v3.RetrieveConversationProfileResponse
-	(*UpdateConversationProfileRequest)(nil),        // 42: sdkwork.communication.app.v3.UpdateConversationProfileRequest
-	(*UpdateConversationProfileResponse)(nil),       // 43: sdkwork.communication.app.v3.UpdateConversationProfileResponse
-	(*RetrieveReadCursorRequest)(nil),               // 44: sdkwork.communication.app.v3.RetrieveReadCursorRequest
-	(*RetrieveReadCursorResponse)(nil),              // 45: sdkwork.communication.app.v3.RetrieveReadCursorResponse
-	(*UpdateReadCursorRequest)(nil),                 // 46: sdkwork.communication.app.v3.UpdateReadCursorRequest
-	(*UpdateReadCursorResponse)(nil),                // 47: sdkwork.communication.app.v3.UpdateReadCursorResponse
-	(*ListConversationMemberDirectoryRequest)(nil),  // 48: sdkwork.communication.app.v3.ListConversationMemberDirectoryRequest
-	(*ListConversationMemberDirectoryResponse)(nil), // 49: sdkwork.communication.app.v3.ListConversationMemberDirectoryResponse
-	(*ListPinnedMessagesRequest)(nil),               // 50: sdkwork.communication.app.v3.ListPinnedMessagesRequest
-	(*ListPinnedMessagesResponse)(nil),              // 51: sdkwork.communication.app.v3.ListPinnedMessagesResponse
-	(*ListContactsRequest)(nil),                     // 52: sdkwork.communication.app.v3.ListContactsRequest
-	(*ListContactsResponse)(nil),                    // 53: sdkwork.communication.app.v3.ListContactsResponse
-	(*ListContactTagsRequest)(nil),                  // 54: sdkwork.communication.app.v3.ListContactTagsRequest
-	(*ListContactTagsResponse)(nil),                 // 55: sdkwork.communication.app.v3.ListContactTagsResponse
-	(*CreateContactTagRequest)(nil),                 // 56: sdkwork.communication.app.v3.CreateContactTagRequest
-	(*CreateContactTagResponse)(nil),                // 57: sdkwork.communication.app.v3.CreateContactTagResponse
-	(*UpdateContactTagRequest)(nil),                 // 58: sdkwork.communication.app.v3.UpdateContactTagRequest
-	(*UpdateContactTagResponse)(nil),                // 59: sdkwork.communication.app.v3.UpdateContactTagResponse
-	(*DeleteContactTagRequest)(nil),                 // 60: sdkwork.communication.app.v3.DeleteContactTagRequest
-	(*DeleteContactTagResponse)(nil),                // 61: sdkwork.communication.app.v3.DeleteContactTagResponse
-	(*CreateContactRecommendationRequest)(nil),      // 62: sdkwork.communication.app.v3.CreateContactRecommendationRequest
-	(*CreateContactRecommendationResponse)(nil),     // 63: sdkwork.communication.app.v3.CreateContactRecommendationResponse
-	(*RetrieveContactPreferencesRequest)(nil),       // 64: sdkwork.communication.app.v3.RetrieveContactPreferencesRequest
-	(*RetrieveContactPreferencesResponse)(nil),      // 65: sdkwork.communication.app.v3.RetrieveContactPreferencesResponse
-	(*UpdateContactPreferencesRequest)(nil),         // 66: sdkwork.communication.app.v3.UpdateContactPreferencesRequest
-	(*UpdateContactPreferencesResponse)(nil),        // 67: sdkwork.communication.app.v3.UpdateContactPreferencesResponse
-	(*v1.RequestMetadata)(nil),                      // 68: sdkwork.common.v1.RequestMetadata
-	(*v1.ResponseMetadata)(nil),                     // 69: sdkwork.common.v1.ResponseMetadata
-	(*v1.PageRequest)(nil),                          // 70: sdkwork.common.v1.PageRequest
-	(*v1.PageResponse)(nil),                         // 71: sdkwork.common.v1.PageResponse
+	(*ConversationView)(nil),                          // 0: sdkwork.communication.app.v3.ConversationView
+	(*ConversationMemberView)(nil),                    // 1: sdkwork.communication.app.v3.ConversationMemberView
+	(*ConversationAgentAssignmentView)(nil),           // 2: sdkwork.communication.app.v3.ConversationAgentAssignmentView
+	(*ConversationAgentAssignmentsView)(nil),          // 3: sdkwork.communication.app.v3.ConversationAgentAssignmentsView
+	(*ConversationPreferencesView)(nil),               // 4: sdkwork.communication.app.v3.ConversationPreferencesView
+	(*ConversationProfileView)(nil),                   // 5: sdkwork.communication.app.v3.ConversationProfileView
+	(*ReadCursorView)(nil),                            // 6: sdkwork.communication.app.v3.ReadCursorView
+	(*ContactView)(nil),                               // 7: sdkwork.communication.app.v3.ContactView
+	(*ContactTagView)(nil),                            // 8: sdkwork.communication.app.v3.ContactTagView
+	(*ContactPreferencesView)(nil),                    // 9: sdkwork.communication.app.v3.ContactPreferencesView
+	(*CreateConversationRequest)(nil),                 // 10: sdkwork.communication.app.v3.CreateConversationRequest
+	(*CreateConversationResponse)(nil),                // 11: sdkwork.communication.app.v3.CreateConversationResponse
+	(*CreateAgentDialogRequest)(nil),                  // 12: sdkwork.communication.app.v3.CreateAgentDialogRequest
+	(*CreateAgentDialogResponse)(nil),                 // 13: sdkwork.communication.app.v3.CreateAgentDialogResponse
+	(*CreateAgentHandoffRequest)(nil),                 // 14: sdkwork.communication.app.v3.CreateAgentHandoffRequest
+	(*CreateAgentHandoffResponse)(nil),                // 15: sdkwork.communication.app.v3.CreateAgentHandoffResponse
+	(*CreateSystemChannelRequest)(nil),                // 16: sdkwork.communication.app.v3.CreateSystemChannelRequest
+	(*CreateSystemChannelResponse)(nil),               // 17: sdkwork.communication.app.v3.CreateSystemChannelResponse
+	(*CreateThreadRequest)(nil),                       // 18: sdkwork.communication.app.v3.CreateThreadRequest
+	(*CreateThreadResponse)(nil),                      // 19: sdkwork.communication.app.v3.CreateThreadResponse
+	(*BindDirectChatRequest)(nil),                     // 20: sdkwork.communication.app.v3.BindDirectChatRequest
+	(*BindDirectChatResponse)(nil),                    // 21: sdkwork.communication.app.v3.BindDirectChatResponse
+	(*RetrieveConversationRequest)(nil),               // 22: sdkwork.communication.app.v3.RetrieveConversationRequest
+	(*RetrieveConversationResponse)(nil),              // 23: sdkwork.communication.app.v3.RetrieveConversationResponse
+	(*ListInboxRequest)(nil),                          // 24: sdkwork.communication.app.v3.ListInboxRequest
+	(*ListInboxResponse)(nil),                         // 25: sdkwork.communication.app.v3.ListInboxResponse
+	(*ListConversationMembersRequest)(nil),            // 26: sdkwork.communication.app.v3.ListConversationMembersRequest
+	(*ListConversationMembersResponse)(nil),           // 27: sdkwork.communication.app.v3.ListConversationMembersResponse
+	(*RetrieveCurrentConversationMemberRequest)(nil),  // 28: sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest
+	(*RetrieveCurrentConversationMemberResponse)(nil), // 29: sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse
+	(*RetrieveConversationAgentsRequest)(nil),         // 30: sdkwork.communication.app.v3.RetrieveConversationAgentsRequest
+	(*RetrieveConversationAgentsResponse)(nil),        // 31: sdkwork.communication.app.v3.RetrieveConversationAgentsResponse
+	(*UpdateConversationAgentsRequest)(nil),           // 32: sdkwork.communication.app.v3.UpdateConversationAgentsRequest
+	(*UpdateConversationAgentsResponse)(nil),          // 33: sdkwork.communication.app.v3.UpdateConversationAgentsResponse
+	(*AddConversationMemberRequest)(nil),              // 34: sdkwork.communication.app.v3.AddConversationMemberRequest
+	(*AddConversationMemberResponse)(nil),             // 35: sdkwork.communication.app.v3.AddConversationMemberResponse
+	(*RemoveConversationMemberRequest)(nil),           // 36: sdkwork.communication.app.v3.RemoveConversationMemberRequest
+	(*RemoveConversationMemberResponse)(nil),          // 37: sdkwork.communication.app.v3.RemoveConversationMemberResponse
+	(*TransferConversationOwnerRequest)(nil),          // 38: sdkwork.communication.app.v3.TransferConversationOwnerRequest
+	(*TransferConversationOwnerResponse)(nil),         // 39: sdkwork.communication.app.v3.TransferConversationOwnerResponse
+	(*ChangeConversationMemberRoleRequest)(nil),       // 40: sdkwork.communication.app.v3.ChangeConversationMemberRoleRequest
+	(*ChangeConversationMemberRoleResponse)(nil),      // 41: sdkwork.communication.app.v3.ChangeConversationMemberRoleResponse
+	(*LeaveConversationRequest)(nil),                  // 42: sdkwork.communication.app.v3.LeaveConversationRequest
+	(*LeaveConversationResponse)(nil),                 // 43: sdkwork.communication.app.v3.LeaveConversationResponse
+	(*RetrieveConversationPreferencesRequest)(nil),    // 44: sdkwork.communication.app.v3.RetrieveConversationPreferencesRequest
+	(*RetrieveConversationPreferencesResponse)(nil),   // 45: sdkwork.communication.app.v3.RetrieveConversationPreferencesResponse
+	(*UpdateConversationPreferencesRequest)(nil),      // 46: sdkwork.communication.app.v3.UpdateConversationPreferencesRequest
+	(*UpdateConversationPreferencesResponse)(nil),     // 47: sdkwork.communication.app.v3.UpdateConversationPreferencesResponse
+	(*RetrieveConversationProfileRequest)(nil),        // 48: sdkwork.communication.app.v3.RetrieveConversationProfileRequest
+	(*RetrieveConversationProfileResponse)(nil),       // 49: sdkwork.communication.app.v3.RetrieveConversationProfileResponse
+	(*UpdateConversationProfileRequest)(nil),          // 50: sdkwork.communication.app.v3.UpdateConversationProfileRequest
+	(*UpdateConversationProfileResponse)(nil),         // 51: sdkwork.communication.app.v3.UpdateConversationProfileResponse
+	(*RetrieveReadCursorRequest)(nil),                 // 52: sdkwork.communication.app.v3.RetrieveReadCursorRequest
+	(*RetrieveReadCursorResponse)(nil),                // 53: sdkwork.communication.app.v3.RetrieveReadCursorResponse
+	(*UpdateReadCursorRequest)(nil),                   // 54: sdkwork.communication.app.v3.UpdateReadCursorRequest
+	(*UpdateReadCursorResponse)(nil),                  // 55: sdkwork.communication.app.v3.UpdateReadCursorResponse
+	(*ListConversationMemberDirectoryRequest)(nil),    // 56: sdkwork.communication.app.v3.ListConversationMemberDirectoryRequest
+	(*ListConversationMemberDirectoryResponse)(nil),   // 57: sdkwork.communication.app.v3.ListConversationMemberDirectoryResponse
+	(*ListPinnedMessagesRequest)(nil),                 // 58: sdkwork.communication.app.v3.ListPinnedMessagesRequest
+	(*ListPinnedMessagesResponse)(nil),                // 59: sdkwork.communication.app.v3.ListPinnedMessagesResponse
+	(*ListContactsRequest)(nil),                       // 60: sdkwork.communication.app.v3.ListContactsRequest
+	(*ListContactsResponse)(nil),                      // 61: sdkwork.communication.app.v3.ListContactsResponse
+	(*ListContactTagsRequest)(nil),                    // 62: sdkwork.communication.app.v3.ListContactTagsRequest
+	(*ListContactTagsResponse)(nil),                   // 63: sdkwork.communication.app.v3.ListContactTagsResponse
+	(*CreateContactTagRequest)(nil),                   // 64: sdkwork.communication.app.v3.CreateContactTagRequest
+	(*CreateContactTagResponse)(nil),                  // 65: sdkwork.communication.app.v3.CreateContactTagResponse
+	(*UpdateContactTagRequest)(nil),                   // 66: sdkwork.communication.app.v3.UpdateContactTagRequest
+	(*UpdateContactTagResponse)(nil),                  // 67: sdkwork.communication.app.v3.UpdateContactTagResponse
+	(*DeleteContactTagRequest)(nil),                   // 68: sdkwork.communication.app.v3.DeleteContactTagRequest
+	(*DeleteContactTagResponse)(nil),                  // 69: sdkwork.communication.app.v3.DeleteContactTagResponse
+	(*CreateContactRecommendationRequest)(nil),        // 70: sdkwork.communication.app.v3.CreateContactRecommendationRequest
+	(*CreateContactRecommendationResponse)(nil),       // 71: sdkwork.communication.app.v3.CreateContactRecommendationResponse
+	(*RetrieveContactPreferencesRequest)(nil),         // 72: sdkwork.communication.app.v3.RetrieveContactPreferencesRequest
+	(*RetrieveContactPreferencesResponse)(nil),        // 73: sdkwork.communication.app.v3.RetrieveContactPreferencesResponse
+	(*UpdateContactPreferencesRequest)(nil),           // 74: sdkwork.communication.app.v3.UpdateContactPreferencesRequest
+	(*UpdateContactPreferencesResponse)(nil),          // 75: sdkwork.communication.app.v3.UpdateContactPreferencesResponse
+	(*v1.RequestMetadata)(nil),                        // 76: sdkwork.common.v1.RequestMetadata
+	(*v1.ResponseMetadata)(nil),                       // 77: sdkwork.common.v1.ResponseMetadata
+	(*v1.PageRequest)(nil),                            // 78: sdkwork.common.v1.PageRequest
+	(*v1.PageResponse)(nil),                           // 79: sdkwork.common.v1.PageResponse
 }
 var file_sdkwork_communication_app_v3_conversation_service_proto_depIdxs = []int32{
-	68,  // 0: sdkwork.communication.app.v3.CreateConversationRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	0,   // 1: sdkwork.communication.app.v3.CreateConversationResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
-	69,  // 2: sdkwork.communication.app.v3.CreateConversationResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 3: sdkwork.communication.app.v3.CreateAgentDialogRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	0,   // 4: sdkwork.communication.app.v3.CreateAgentDialogResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
-	69,  // 5: sdkwork.communication.app.v3.CreateAgentDialogResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 6: sdkwork.communication.app.v3.CreateAgentHandoffRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	0,   // 7: sdkwork.communication.app.v3.CreateAgentHandoffResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
-	69,  // 8: sdkwork.communication.app.v3.CreateAgentHandoffResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 9: sdkwork.communication.app.v3.CreateSystemChannelRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	0,   // 10: sdkwork.communication.app.v3.CreateSystemChannelResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
-	69,  // 11: sdkwork.communication.app.v3.CreateSystemChannelResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 12: sdkwork.communication.app.v3.CreateThreadRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	0,   // 13: sdkwork.communication.app.v3.CreateThreadResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
-	69,  // 14: sdkwork.communication.app.v3.CreateThreadResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 15: sdkwork.communication.app.v3.BindDirectChatRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	0,   // 16: sdkwork.communication.app.v3.BindDirectChatResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
-	69,  // 17: sdkwork.communication.app.v3.BindDirectChatResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 18: sdkwork.communication.app.v3.RetrieveConversationRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	0,   // 19: sdkwork.communication.app.v3.RetrieveConversationResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
-	69,  // 20: sdkwork.communication.app.v3.RetrieveConversationResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	70,  // 21: sdkwork.communication.app.v3.ListInboxRequest.page:type_name -> sdkwork.common.v1.PageRequest
-	68,  // 22: sdkwork.communication.app.v3.ListInboxRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	0,   // 23: sdkwork.communication.app.v3.ListInboxResponse.conversations:type_name -> sdkwork.communication.app.v3.ConversationView
-	71,  // 24: sdkwork.communication.app.v3.ListInboxResponse.page:type_name -> sdkwork.common.v1.PageResponse
-	69,  // 25: sdkwork.communication.app.v3.ListInboxResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	70,  // 26: sdkwork.communication.app.v3.ListConversationMembersRequest.page:type_name -> sdkwork.common.v1.PageRequest
-	68,  // 27: sdkwork.communication.app.v3.ListConversationMembersRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	1,   // 28: sdkwork.communication.app.v3.ListConversationMembersResponse.members:type_name -> sdkwork.communication.app.v3.ConversationMemberView
-	71,  // 29: sdkwork.communication.app.v3.ListConversationMembersResponse.page:type_name -> sdkwork.common.v1.PageResponse
-	69,  // 30: sdkwork.communication.app.v3.ListConversationMembersResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 31: sdkwork.communication.app.v3.AddConversationMemberRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	1,   // 32: sdkwork.communication.app.v3.AddConversationMemberResponse.member:type_name -> sdkwork.communication.app.v3.ConversationMemberView
-	69,  // 33: sdkwork.communication.app.v3.AddConversationMemberResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 34: sdkwork.communication.app.v3.RemoveConversationMemberRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	69,  // 35: sdkwork.communication.app.v3.RemoveConversationMemberResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 36: sdkwork.communication.app.v3.TransferConversationOwnerRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	0,   // 37: sdkwork.communication.app.v3.TransferConversationOwnerResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
-	69,  // 38: sdkwork.communication.app.v3.TransferConversationOwnerResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 39: sdkwork.communication.app.v3.ChangeConversationMemberRoleRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	1,   // 40: sdkwork.communication.app.v3.ChangeConversationMemberRoleResponse.member:type_name -> sdkwork.communication.app.v3.ConversationMemberView
-	69,  // 41: sdkwork.communication.app.v3.ChangeConversationMemberRoleResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 42: sdkwork.communication.app.v3.LeaveConversationRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	69,  // 43: sdkwork.communication.app.v3.LeaveConversationResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 44: sdkwork.communication.app.v3.RetrieveConversationPreferencesRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	2,   // 45: sdkwork.communication.app.v3.RetrieveConversationPreferencesResponse.preferences:type_name -> sdkwork.communication.app.v3.ConversationPreferencesView
-	69,  // 46: sdkwork.communication.app.v3.RetrieveConversationPreferencesResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 47: sdkwork.communication.app.v3.UpdateConversationPreferencesRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	2,   // 48: sdkwork.communication.app.v3.UpdateConversationPreferencesResponse.preferences:type_name -> sdkwork.communication.app.v3.ConversationPreferencesView
-	69,  // 49: sdkwork.communication.app.v3.UpdateConversationPreferencesResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 50: sdkwork.communication.app.v3.RetrieveConversationProfileRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	3,   // 51: sdkwork.communication.app.v3.RetrieveConversationProfileResponse.profile:type_name -> sdkwork.communication.app.v3.ConversationProfileView
-	69,  // 52: sdkwork.communication.app.v3.RetrieveConversationProfileResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 53: sdkwork.communication.app.v3.UpdateConversationProfileRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	3,   // 54: sdkwork.communication.app.v3.UpdateConversationProfileResponse.profile:type_name -> sdkwork.communication.app.v3.ConversationProfileView
-	69,  // 55: sdkwork.communication.app.v3.UpdateConversationProfileResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 56: sdkwork.communication.app.v3.RetrieveReadCursorRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	4,   // 57: sdkwork.communication.app.v3.RetrieveReadCursorResponse.cursor:type_name -> sdkwork.communication.app.v3.ReadCursorView
-	69,  // 58: sdkwork.communication.app.v3.RetrieveReadCursorResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 59: sdkwork.communication.app.v3.UpdateReadCursorRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	4,   // 60: sdkwork.communication.app.v3.UpdateReadCursorResponse.cursor:type_name -> sdkwork.communication.app.v3.ReadCursorView
-	69,  // 61: sdkwork.communication.app.v3.UpdateReadCursorResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	70,  // 62: sdkwork.communication.app.v3.ListConversationMemberDirectoryRequest.page:type_name -> sdkwork.common.v1.PageRequest
-	68,  // 63: sdkwork.communication.app.v3.ListConversationMemberDirectoryRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	1,   // 64: sdkwork.communication.app.v3.ListConversationMemberDirectoryResponse.members:type_name -> sdkwork.communication.app.v3.ConversationMemberView
-	71,  // 65: sdkwork.communication.app.v3.ListConversationMemberDirectoryResponse.page:type_name -> sdkwork.common.v1.PageResponse
-	69,  // 66: sdkwork.communication.app.v3.ListConversationMemberDirectoryResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	70,  // 67: sdkwork.communication.app.v3.ListPinnedMessagesRequest.page:type_name -> sdkwork.common.v1.PageRequest
-	68,  // 68: sdkwork.communication.app.v3.ListPinnedMessagesRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	71,  // 69: sdkwork.communication.app.v3.ListPinnedMessagesResponse.page:type_name -> sdkwork.common.v1.PageResponse
-	69,  // 70: sdkwork.communication.app.v3.ListPinnedMessagesResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	70,  // 71: sdkwork.communication.app.v3.ListContactsRequest.page:type_name -> sdkwork.common.v1.PageRequest
-	68,  // 72: sdkwork.communication.app.v3.ListContactsRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	5,   // 73: sdkwork.communication.app.v3.ListContactsResponse.contacts:type_name -> sdkwork.communication.app.v3.ContactView
-	71,  // 74: sdkwork.communication.app.v3.ListContactsResponse.page:type_name -> sdkwork.common.v1.PageResponse
-	69,  // 75: sdkwork.communication.app.v3.ListContactsResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	70,  // 76: sdkwork.communication.app.v3.ListContactTagsRequest.page:type_name -> sdkwork.common.v1.PageRequest
-	68,  // 77: sdkwork.communication.app.v3.ListContactTagsRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	6,   // 78: sdkwork.communication.app.v3.ListContactTagsResponse.tags:type_name -> sdkwork.communication.app.v3.ContactTagView
-	71,  // 79: sdkwork.communication.app.v3.ListContactTagsResponse.page:type_name -> sdkwork.common.v1.PageResponse
-	69,  // 80: sdkwork.communication.app.v3.ListContactTagsResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 81: sdkwork.communication.app.v3.CreateContactTagRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	6,   // 82: sdkwork.communication.app.v3.CreateContactTagResponse.tag:type_name -> sdkwork.communication.app.v3.ContactTagView
-	69,  // 83: sdkwork.communication.app.v3.CreateContactTagResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 84: sdkwork.communication.app.v3.UpdateContactTagRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	6,   // 85: sdkwork.communication.app.v3.UpdateContactTagResponse.tag:type_name -> sdkwork.communication.app.v3.ContactTagView
-	69,  // 86: sdkwork.communication.app.v3.UpdateContactTagResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 87: sdkwork.communication.app.v3.DeleteContactTagRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	69,  // 88: sdkwork.communication.app.v3.DeleteContactTagResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 89: sdkwork.communication.app.v3.CreateContactRecommendationRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	5,   // 90: sdkwork.communication.app.v3.CreateContactRecommendationResponse.contacts:type_name -> sdkwork.communication.app.v3.ContactView
-	69,  // 91: sdkwork.communication.app.v3.CreateContactRecommendationResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 92: sdkwork.communication.app.v3.RetrieveContactPreferencesRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	7,   // 93: sdkwork.communication.app.v3.RetrieveContactPreferencesResponse.preferences:type_name -> sdkwork.communication.app.v3.ContactPreferencesView
-	69,  // 94: sdkwork.communication.app.v3.RetrieveContactPreferencesResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	68,  // 95: sdkwork.communication.app.v3.UpdateContactPreferencesRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	7,   // 96: sdkwork.communication.app.v3.UpdateContactPreferencesResponse.preferences:type_name -> sdkwork.communication.app.v3.ContactPreferencesView
-	69,  // 97: sdkwork.communication.app.v3.UpdateContactPreferencesResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	8,   // 98: sdkwork.communication.app.v3.ConversationService.CreateConversation:input_type -> sdkwork.communication.app.v3.CreateConversationRequest
-	10,  // 99: sdkwork.communication.app.v3.ConversationService.CreateAgentDialog:input_type -> sdkwork.communication.app.v3.CreateAgentDialogRequest
-	12,  // 100: sdkwork.communication.app.v3.ConversationService.CreateAgentHandoff:input_type -> sdkwork.communication.app.v3.CreateAgentHandoffRequest
-	14,  // 101: sdkwork.communication.app.v3.ConversationService.CreateSystemChannel:input_type -> sdkwork.communication.app.v3.CreateSystemChannelRequest
-	16,  // 102: sdkwork.communication.app.v3.ConversationService.CreateThread:input_type -> sdkwork.communication.app.v3.CreateThreadRequest
-	18,  // 103: sdkwork.communication.app.v3.ConversationService.BindDirectChat:input_type -> sdkwork.communication.app.v3.BindDirectChatRequest
-	20,  // 104: sdkwork.communication.app.v3.ConversationService.RetrieveConversation:input_type -> sdkwork.communication.app.v3.RetrieveConversationRequest
-	22,  // 105: sdkwork.communication.app.v3.ConversationService.ListInbox:input_type -> sdkwork.communication.app.v3.ListInboxRequest
-	24,  // 106: sdkwork.communication.app.v3.ConversationService.ListConversationMembers:input_type -> sdkwork.communication.app.v3.ListConversationMembersRequest
-	26,  // 107: sdkwork.communication.app.v3.ConversationService.AddConversationMember:input_type -> sdkwork.communication.app.v3.AddConversationMemberRequest
-	28,  // 108: sdkwork.communication.app.v3.ConversationService.RemoveConversationMember:input_type -> sdkwork.communication.app.v3.RemoveConversationMemberRequest
-	30,  // 109: sdkwork.communication.app.v3.ConversationService.TransferConversationOwner:input_type -> sdkwork.communication.app.v3.TransferConversationOwnerRequest
-	32,  // 110: sdkwork.communication.app.v3.ConversationService.ChangeConversationMemberRole:input_type -> sdkwork.communication.app.v3.ChangeConversationMemberRoleRequest
-	34,  // 111: sdkwork.communication.app.v3.ConversationService.LeaveConversation:input_type -> sdkwork.communication.app.v3.LeaveConversationRequest
-	36,  // 112: sdkwork.communication.app.v3.ConversationService.RetrieveConversationPreferences:input_type -> sdkwork.communication.app.v3.RetrieveConversationPreferencesRequest
-	38,  // 113: sdkwork.communication.app.v3.ConversationService.UpdateConversationPreferences:input_type -> sdkwork.communication.app.v3.UpdateConversationPreferencesRequest
-	40,  // 114: sdkwork.communication.app.v3.ConversationService.RetrieveConversationProfile:input_type -> sdkwork.communication.app.v3.RetrieveConversationProfileRequest
-	42,  // 115: sdkwork.communication.app.v3.ConversationService.UpdateConversationProfile:input_type -> sdkwork.communication.app.v3.UpdateConversationProfileRequest
-	44,  // 116: sdkwork.communication.app.v3.ConversationService.RetrieveReadCursor:input_type -> sdkwork.communication.app.v3.RetrieveReadCursorRequest
-	46,  // 117: sdkwork.communication.app.v3.ConversationService.UpdateReadCursor:input_type -> sdkwork.communication.app.v3.UpdateReadCursorRequest
-	48,  // 118: sdkwork.communication.app.v3.ConversationService.ListConversationMemberDirectory:input_type -> sdkwork.communication.app.v3.ListConversationMemberDirectoryRequest
-	50,  // 119: sdkwork.communication.app.v3.ConversationService.ListPinnedMessages:input_type -> sdkwork.communication.app.v3.ListPinnedMessagesRequest
-	52,  // 120: sdkwork.communication.app.v3.ContactService.ListContacts:input_type -> sdkwork.communication.app.v3.ListContactsRequest
-	54,  // 121: sdkwork.communication.app.v3.ContactService.ListContactTags:input_type -> sdkwork.communication.app.v3.ListContactTagsRequest
-	56,  // 122: sdkwork.communication.app.v3.ContactService.CreateContactTag:input_type -> sdkwork.communication.app.v3.CreateContactTagRequest
-	58,  // 123: sdkwork.communication.app.v3.ContactService.UpdateContactTag:input_type -> sdkwork.communication.app.v3.UpdateContactTagRequest
-	60,  // 124: sdkwork.communication.app.v3.ContactService.DeleteContactTag:input_type -> sdkwork.communication.app.v3.DeleteContactTagRequest
-	62,  // 125: sdkwork.communication.app.v3.ContactService.CreateContactRecommendation:input_type -> sdkwork.communication.app.v3.CreateContactRecommendationRequest
-	64,  // 126: sdkwork.communication.app.v3.ContactService.RetrieveContactPreferences:input_type -> sdkwork.communication.app.v3.RetrieveContactPreferencesRequest
-	66,  // 127: sdkwork.communication.app.v3.ContactService.UpdateContactPreferences:input_type -> sdkwork.communication.app.v3.UpdateContactPreferencesRequest
-	9,   // 128: sdkwork.communication.app.v3.ConversationService.CreateConversation:output_type -> sdkwork.communication.app.v3.CreateConversationResponse
-	11,  // 129: sdkwork.communication.app.v3.ConversationService.CreateAgentDialog:output_type -> sdkwork.communication.app.v3.CreateAgentDialogResponse
-	13,  // 130: sdkwork.communication.app.v3.ConversationService.CreateAgentHandoff:output_type -> sdkwork.communication.app.v3.CreateAgentHandoffResponse
-	15,  // 131: sdkwork.communication.app.v3.ConversationService.CreateSystemChannel:output_type -> sdkwork.communication.app.v3.CreateSystemChannelResponse
-	17,  // 132: sdkwork.communication.app.v3.ConversationService.CreateThread:output_type -> sdkwork.communication.app.v3.CreateThreadResponse
-	19,  // 133: sdkwork.communication.app.v3.ConversationService.BindDirectChat:output_type -> sdkwork.communication.app.v3.BindDirectChatResponse
-	21,  // 134: sdkwork.communication.app.v3.ConversationService.RetrieveConversation:output_type -> sdkwork.communication.app.v3.RetrieveConversationResponse
-	23,  // 135: sdkwork.communication.app.v3.ConversationService.ListInbox:output_type -> sdkwork.communication.app.v3.ListInboxResponse
-	25,  // 136: sdkwork.communication.app.v3.ConversationService.ListConversationMembers:output_type -> sdkwork.communication.app.v3.ListConversationMembersResponse
-	27,  // 137: sdkwork.communication.app.v3.ConversationService.AddConversationMember:output_type -> sdkwork.communication.app.v3.AddConversationMemberResponse
-	29,  // 138: sdkwork.communication.app.v3.ConversationService.RemoveConversationMember:output_type -> sdkwork.communication.app.v3.RemoveConversationMemberResponse
-	31,  // 139: sdkwork.communication.app.v3.ConversationService.TransferConversationOwner:output_type -> sdkwork.communication.app.v3.TransferConversationOwnerResponse
-	33,  // 140: sdkwork.communication.app.v3.ConversationService.ChangeConversationMemberRole:output_type -> sdkwork.communication.app.v3.ChangeConversationMemberRoleResponse
-	35,  // 141: sdkwork.communication.app.v3.ConversationService.LeaveConversation:output_type -> sdkwork.communication.app.v3.LeaveConversationResponse
-	37,  // 142: sdkwork.communication.app.v3.ConversationService.RetrieveConversationPreferences:output_type -> sdkwork.communication.app.v3.RetrieveConversationPreferencesResponse
-	39,  // 143: sdkwork.communication.app.v3.ConversationService.UpdateConversationPreferences:output_type -> sdkwork.communication.app.v3.UpdateConversationPreferencesResponse
-	41,  // 144: sdkwork.communication.app.v3.ConversationService.RetrieveConversationProfile:output_type -> sdkwork.communication.app.v3.RetrieveConversationProfileResponse
-	43,  // 145: sdkwork.communication.app.v3.ConversationService.UpdateConversationProfile:output_type -> sdkwork.communication.app.v3.UpdateConversationProfileResponse
-	45,  // 146: sdkwork.communication.app.v3.ConversationService.RetrieveReadCursor:output_type -> sdkwork.communication.app.v3.RetrieveReadCursorResponse
-	47,  // 147: sdkwork.communication.app.v3.ConversationService.UpdateReadCursor:output_type -> sdkwork.communication.app.v3.UpdateReadCursorResponse
-	49,  // 148: sdkwork.communication.app.v3.ConversationService.ListConversationMemberDirectory:output_type -> sdkwork.communication.app.v3.ListConversationMemberDirectoryResponse
-	51,  // 149: sdkwork.communication.app.v3.ConversationService.ListPinnedMessages:output_type -> sdkwork.communication.app.v3.ListPinnedMessagesResponse
-	53,  // 150: sdkwork.communication.app.v3.ContactService.ListContacts:output_type -> sdkwork.communication.app.v3.ListContactsResponse
-	55,  // 151: sdkwork.communication.app.v3.ContactService.ListContactTags:output_type -> sdkwork.communication.app.v3.ListContactTagsResponse
-	57,  // 152: sdkwork.communication.app.v3.ContactService.CreateContactTag:output_type -> sdkwork.communication.app.v3.CreateContactTagResponse
-	59,  // 153: sdkwork.communication.app.v3.ContactService.UpdateContactTag:output_type -> sdkwork.communication.app.v3.UpdateContactTagResponse
-	61,  // 154: sdkwork.communication.app.v3.ContactService.DeleteContactTag:output_type -> sdkwork.communication.app.v3.DeleteContactTagResponse
-	63,  // 155: sdkwork.communication.app.v3.ContactService.CreateContactRecommendation:output_type -> sdkwork.communication.app.v3.CreateContactRecommendationResponse
-	65,  // 156: sdkwork.communication.app.v3.ContactService.RetrieveContactPreferences:output_type -> sdkwork.communication.app.v3.RetrieveContactPreferencesResponse
-	67,  // 157: sdkwork.communication.app.v3.ContactService.UpdateContactPreferences:output_type -> sdkwork.communication.app.v3.UpdateContactPreferencesResponse
-	128, // [128:158] is the sub-list for method output_type
-	98,  // [98:128] is the sub-list for method input_type
-	98,  // [98:98] is the sub-list for extension type_name
-	98,  // [98:98] is the sub-list for extension extendee
-	0,   // [0:98] is the sub-list for field type_name
+	2,   // 0: sdkwork.communication.app.v3.ConversationAgentAssignmentsView.agents:type_name -> sdkwork.communication.app.v3.ConversationAgentAssignmentView
+	2,   // 1: sdkwork.communication.app.v3.CreateConversationRequest.agent_assignments:type_name -> sdkwork.communication.app.v3.ConversationAgentAssignmentView
+	76,  // 2: sdkwork.communication.app.v3.CreateConversationRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	0,   // 3: sdkwork.communication.app.v3.CreateConversationResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
+	77,  // 4: sdkwork.communication.app.v3.CreateConversationResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 5: sdkwork.communication.app.v3.CreateAgentDialogRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	0,   // 6: sdkwork.communication.app.v3.CreateAgentDialogResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
+	77,  // 7: sdkwork.communication.app.v3.CreateAgentDialogResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 8: sdkwork.communication.app.v3.CreateAgentHandoffRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	0,   // 9: sdkwork.communication.app.v3.CreateAgentHandoffResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
+	77,  // 10: sdkwork.communication.app.v3.CreateAgentHandoffResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 11: sdkwork.communication.app.v3.CreateSystemChannelRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	0,   // 12: sdkwork.communication.app.v3.CreateSystemChannelResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
+	77,  // 13: sdkwork.communication.app.v3.CreateSystemChannelResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 14: sdkwork.communication.app.v3.CreateThreadRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	0,   // 15: sdkwork.communication.app.v3.CreateThreadResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
+	77,  // 16: sdkwork.communication.app.v3.CreateThreadResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 17: sdkwork.communication.app.v3.BindDirectChatRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	0,   // 18: sdkwork.communication.app.v3.BindDirectChatResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
+	77,  // 19: sdkwork.communication.app.v3.BindDirectChatResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 20: sdkwork.communication.app.v3.RetrieveConversationRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	0,   // 21: sdkwork.communication.app.v3.RetrieveConversationResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
+	77,  // 22: sdkwork.communication.app.v3.RetrieveConversationResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	78,  // 23: sdkwork.communication.app.v3.ListInboxRequest.page:type_name -> sdkwork.common.v1.PageRequest
+	76,  // 24: sdkwork.communication.app.v3.ListInboxRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	0,   // 25: sdkwork.communication.app.v3.ListInboxResponse.conversations:type_name -> sdkwork.communication.app.v3.ConversationView
+	79,  // 26: sdkwork.communication.app.v3.ListInboxResponse.page:type_name -> sdkwork.common.v1.PageResponse
+	77,  // 27: sdkwork.communication.app.v3.ListInboxResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	78,  // 28: sdkwork.communication.app.v3.ListConversationMembersRequest.page:type_name -> sdkwork.common.v1.PageRequest
+	76,  // 29: sdkwork.communication.app.v3.ListConversationMembersRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	1,   // 30: sdkwork.communication.app.v3.ListConversationMembersResponse.members:type_name -> sdkwork.communication.app.v3.ConversationMemberView
+	79,  // 31: sdkwork.communication.app.v3.ListConversationMembersResponse.page:type_name -> sdkwork.common.v1.PageResponse
+	77,  // 32: sdkwork.communication.app.v3.ListConversationMembersResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 33: sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	1,   // 34: sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse.member:type_name -> sdkwork.communication.app.v3.ConversationMemberView
+	77,  // 35: sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 36: sdkwork.communication.app.v3.RetrieveConversationAgentsRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	3,   // 37: sdkwork.communication.app.v3.RetrieveConversationAgentsResponse.assignments:type_name -> sdkwork.communication.app.v3.ConversationAgentAssignmentsView
+	77,  // 38: sdkwork.communication.app.v3.RetrieveConversationAgentsResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	2,   // 39: sdkwork.communication.app.v3.UpdateConversationAgentsRequest.agent_assignments:type_name -> sdkwork.communication.app.v3.ConversationAgentAssignmentView
+	76,  // 40: sdkwork.communication.app.v3.UpdateConversationAgentsRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	3,   // 41: sdkwork.communication.app.v3.UpdateConversationAgentsResponse.assignments:type_name -> sdkwork.communication.app.v3.ConversationAgentAssignmentsView
+	77,  // 42: sdkwork.communication.app.v3.UpdateConversationAgentsResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 43: sdkwork.communication.app.v3.AddConversationMemberRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	1,   // 44: sdkwork.communication.app.v3.AddConversationMemberResponse.member:type_name -> sdkwork.communication.app.v3.ConversationMemberView
+	77,  // 45: sdkwork.communication.app.v3.AddConversationMemberResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 46: sdkwork.communication.app.v3.RemoveConversationMemberRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	77,  // 47: sdkwork.communication.app.v3.RemoveConversationMemberResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 48: sdkwork.communication.app.v3.TransferConversationOwnerRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	0,   // 49: sdkwork.communication.app.v3.TransferConversationOwnerResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
+	77,  // 50: sdkwork.communication.app.v3.TransferConversationOwnerResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 51: sdkwork.communication.app.v3.ChangeConversationMemberRoleRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	1,   // 52: sdkwork.communication.app.v3.ChangeConversationMemberRoleResponse.member:type_name -> sdkwork.communication.app.v3.ConversationMemberView
+	77,  // 53: sdkwork.communication.app.v3.ChangeConversationMemberRoleResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 54: sdkwork.communication.app.v3.LeaveConversationRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	77,  // 55: sdkwork.communication.app.v3.LeaveConversationResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 56: sdkwork.communication.app.v3.RetrieveConversationPreferencesRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	4,   // 57: sdkwork.communication.app.v3.RetrieveConversationPreferencesResponse.preferences:type_name -> sdkwork.communication.app.v3.ConversationPreferencesView
+	77,  // 58: sdkwork.communication.app.v3.RetrieveConversationPreferencesResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 59: sdkwork.communication.app.v3.UpdateConversationPreferencesRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	4,   // 60: sdkwork.communication.app.v3.UpdateConversationPreferencesResponse.preferences:type_name -> sdkwork.communication.app.v3.ConversationPreferencesView
+	77,  // 61: sdkwork.communication.app.v3.UpdateConversationPreferencesResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 62: sdkwork.communication.app.v3.RetrieveConversationProfileRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	5,   // 63: sdkwork.communication.app.v3.RetrieveConversationProfileResponse.profile:type_name -> sdkwork.communication.app.v3.ConversationProfileView
+	77,  // 64: sdkwork.communication.app.v3.RetrieveConversationProfileResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 65: sdkwork.communication.app.v3.UpdateConversationProfileRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	5,   // 66: sdkwork.communication.app.v3.UpdateConversationProfileResponse.profile:type_name -> sdkwork.communication.app.v3.ConversationProfileView
+	77,  // 67: sdkwork.communication.app.v3.UpdateConversationProfileResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 68: sdkwork.communication.app.v3.RetrieveReadCursorRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	6,   // 69: sdkwork.communication.app.v3.RetrieveReadCursorResponse.cursor:type_name -> sdkwork.communication.app.v3.ReadCursorView
+	77,  // 70: sdkwork.communication.app.v3.RetrieveReadCursorResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 71: sdkwork.communication.app.v3.UpdateReadCursorRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	6,   // 72: sdkwork.communication.app.v3.UpdateReadCursorResponse.cursor:type_name -> sdkwork.communication.app.v3.ReadCursorView
+	77,  // 73: sdkwork.communication.app.v3.UpdateReadCursorResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	78,  // 74: sdkwork.communication.app.v3.ListConversationMemberDirectoryRequest.page:type_name -> sdkwork.common.v1.PageRequest
+	76,  // 75: sdkwork.communication.app.v3.ListConversationMemberDirectoryRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	1,   // 76: sdkwork.communication.app.v3.ListConversationMemberDirectoryResponse.members:type_name -> sdkwork.communication.app.v3.ConversationMemberView
+	79,  // 77: sdkwork.communication.app.v3.ListConversationMemberDirectoryResponse.page:type_name -> sdkwork.common.v1.PageResponse
+	77,  // 78: sdkwork.communication.app.v3.ListConversationMemberDirectoryResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	78,  // 79: sdkwork.communication.app.v3.ListPinnedMessagesRequest.page:type_name -> sdkwork.common.v1.PageRequest
+	76,  // 80: sdkwork.communication.app.v3.ListPinnedMessagesRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	79,  // 81: sdkwork.communication.app.v3.ListPinnedMessagesResponse.page:type_name -> sdkwork.common.v1.PageResponse
+	77,  // 82: sdkwork.communication.app.v3.ListPinnedMessagesResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	78,  // 83: sdkwork.communication.app.v3.ListContactsRequest.page:type_name -> sdkwork.common.v1.PageRequest
+	76,  // 84: sdkwork.communication.app.v3.ListContactsRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	7,   // 85: sdkwork.communication.app.v3.ListContactsResponse.contacts:type_name -> sdkwork.communication.app.v3.ContactView
+	79,  // 86: sdkwork.communication.app.v3.ListContactsResponse.page:type_name -> sdkwork.common.v1.PageResponse
+	77,  // 87: sdkwork.communication.app.v3.ListContactsResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	78,  // 88: sdkwork.communication.app.v3.ListContactTagsRequest.page:type_name -> sdkwork.common.v1.PageRequest
+	76,  // 89: sdkwork.communication.app.v3.ListContactTagsRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	8,   // 90: sdkwork.communication.app.v3.ListContactTagsResponse.tags:type_name -> sdkwork.communication.app.v3.ContactTagView
+	79,  // 91: sdkwork.communication.app.v3.ListContactTagsResponse.page:type_name -> sdkwork.common.v1.PageResponse
+	77,  // 92: sdkwork.communication.app.v3.ListContactTagsResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 93: sdkwork.communication.app.v3.CreateContactTagRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	8,   // 94: sdkwork.communication.app.v3.CreateContactTagResponse.tag:type_name -> sdkwork.communication.app.v3.ContactTagView
+	77,  // 95: sdkwork.communication.app.v3.CreateContactTagResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 96: sdkwork.communication.app.v3.UpdateContactTagRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	8,   // 97: sdkwork.communication.app.v3.UpdateContactTagResponse.tag:type_name -> sdkwork.communication.app.v3.ContactTagView
+	77,  // 98: sdkwork.communication.app.v3.UpdateContactTagResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 99: sdkwork.communication.app.v3.DeleteContactTagRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	77,  // 100: sdkwork.communication.app.v3.DeleteContactTagResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 101: sdkwork.communication.app.v3.CreateContactRecommendationRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	7,   // 102: sdkwork.communication.app.v3.CreateContactRecommendationResponse.contacts:type_name -> sdkwork.communication.app.v3.ContactView
+	77,  // 103: sdkwork.communication.app.v3.CreateContactRecommendationResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 104: sdkwork.communication.app.v3.RetrieveContactPreferencesRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	9,   // 105: sdkwork.communication.app.v3.RetrieveContactPreferencesResponse.preferences:type_name -> sdkwork.communication.app.v3.ContactPreferencesView
+	77,  // 106: sdkwork.communication.app.v3.RetrieveContactPreferencesResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	76,  // 107: sdkwork.communication.app.v3.UpdateContactPreferencesRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	9,   // 108: sdkwork.communication.app.v3.UpdateContactPreferencesResponse.preferences:type_name -> sdkwork.communication.app.v3.ContactPreferencesView
+	77,  // 109: sdkwork.communication.app.v3.UpdateContactPreferencesResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	10,  // 110: sdkwork.communication.app.v3.ConversationService.CreateConversation:input_type -> sdkwork.communication.app.v3.CreateConversationRequest
+	12,  // 111: sdkwork.communication.app.v3.ConversationService.CreateAgentDialog:input_type -> sdkwork.communication.app.v3.CreateAgentDialogRequest
+	14,  // 112: sdkwork.communication.app.v3.ConversationService.CreateAgentHandoff:input_type -> sdkwork.communication.app.v3.CreateAgentHandoffRequest
+	16,  // 113: sdkwork.communication.app.v3.ConversationService.CreateSystemChannel:input_type -> sdkwork.communication.app.v3.CreateSystemChannelRequest
+	18,  // 114: sdkwork.communication.app.v3.ConversationService.CreateThread:input_type -> sdkwork.communication.app.v3.CreateThreadRequest
+	20,  // 115: sdkwork.communication.app.v3.ConversationService.BindDirectChat:input_type -> sdkwork.communication.app.v3.BindDirectChatRequest
+	22,  // 116: sdkwork.communication.app.v3.ConversationService.RetrieveConversation:input_type -> sdkwork.communication.app.v3.RetrieveConversationRequest
+	24,  // 117: sdkwork.communication.app.v3.ConversationService.ListInbox:input_type -> sdkwork.communication.app.v3.ListInboxRequest
+	26,  // 118: sdkwork.communication.app.v3.ConversationService.ListConversationMembers:input_type -> sdkwork.communication.app.v3.ListConversationMembersRequest
+	28,  // 119: sdkwork.communication.app.v3.ConversationService.RetrieveCurrentConversationMember:input_type -> sdkwork.communication.app.v3.RetrieveCurrentConversationMemberRequest
+	30,  // 120: sdkwork.communication.app.v3.ConversationService.RetrieveConversationAgents:input_type -> sdkwork.communication.app.v3.RetrieveConversationAgentsRequest
+	32,  // 121: sdkwork.communication.app.v3.ConversationService.UpdateConversationAgents:input_type -> sdkwork.communication.app.v3.UpdateConversationAgentsRequest
+	34,  // 122: sdkwork.communication.app.v3.ConversationService.AddConversationMember:input_type -> sdkwork.communication.app.v3.AddConversationMemberRequest
+	36,  // 123: sdkwork.communication.app.v3.ConversationService.RemoveConversationMember:input_type -> sdkwork.communication.app.v3.RemoveConversationMemberRequest
+	38,  // 124: sdkwork.communication.app.v3.ConversationService.TransferConversationOwner:input_type -> sdkwork.communication.app.v3.TransferConversationOwnerRequest
+	40,  // 125: sdkwork.communication.app.v3.ConversationService.ChangeConversationMemberRole:input_type -> sdkwork.communication.app.v3.ChangeConversationMemberRoleRequest
+	42,  // 126: sdkwork.communication.app.v3.ConversationService.LeaveConversation:input_type -> sdkwork.communication.app.v3.LeaveConversationRequest
+	44,  // 127: sdkwork.communication.app.v3.ConversationService.RetrieveConversationPreferences:input_type -> sdkwork.communication.app.v3.RetrieveConversationPreferencesRequest
+	46,  // 128: sdkwork.communication.app.v3.ConversationService.UpdateConversationPreferences:input_type -> sdkwork.communication.app.v3.UpdateConversationPreferencesRequest
+	48,  // 129: sdkwork.communication.app.v3.ConversationService.RetrieveConversationProfile:input_type -> sdkwork.communication.app.v3.RetrieveConversationProfileRequest
+	50,  // 130: sdkwork.communication.app.v3.ConversationService.UpdateConversationProfile:input_type -> sdkwork.communication.app.v3.UpdateConversationProfileRequest
+	52,  // 131: sdkwork.communication.app.v3.ConversationService.RetrieveReadCursor:input_type -> sdkwork.communication.app.v3.RetrieveReadCursorRequest
+	54,  // 132: sdkwork.communication.app.v3.ConversationService.UpdateReadCursor:input_type -> sdkwork.communication.app.v3.UpdateReadCursorRequest
+	56,  // 133: sdkwork.communication.app.v3.ConversationService.ListConversationMemberDirectory:input_type -> sdkwork.communication.app.v3.ListConversationMemberDirectoryRequest
+	58,  // 134: sdkwork.communication.app.v3.ConversationService.ListPinnedMessages:input_type -> sdkwork.communication.app.v3.ListPinnedMessagesRequest
+	60,  // 135: sdkwork.communication.app.v3.ContactService.ListContacts:input_type -> sdkwork.communication.app.v3.ListContactsRequest
+	62,  // 136: sdkwork.communication.app.v3.ContactService.ListContactTags:input_type -> sdkwork.communication.app.v3.ListContactTagsRequest
+	64,  // 137: sdkwork.communication.app.v3.ContactService.CreateContactTag:input_type -> sdkwork.communication.app.v3.CreateContactTagRequest
+	66,  // 138: sdkwork.communication.app.v3.ContactService.UpdateContactTag:input_type -> sdkwork.communication.app.v3.UpdateContactTagRequest
+	68,  // 139: sdkwork.communication.app.v3.ContactService.DeleteContactTag:input_type -> sdkwork.communication.app.v3.DeleteContactTagRequest
+	70,  // 140: sdkwork.communication.app.v3.ContactService.CreateContactRecommendation:input_type -> sdkwork.communication.app.v3.CreateContactRecommendationRequest
+	72,  // 141: sdkwork.communication.app.v3.ContactService.RetrieveContactPreferences:input_type -> sdkwork.communication.app.v3.RetrieveContactPreferencesRequest
+	74,  // 142: sdkwork.communication.app.v3.ContactService.UpdateContactPreferences:input_type -> sdkwork.communication.app.v3.UpdateContactPreferencesRequest
+	11,  // 143: sdkwork.communication.app.v3.ConversationService.CreateConversation:output_type -> sdkwork.communication.app.v3.CreateConversationResponse
+	13,  // 144: sdkwork.communication.app.v3.ConversationService.CreateAgentDialog:output_type -> sdkwork.communication.app.v3.CreateAgentDialogResponse
+	15,  // 145: sdkwork.communication.app.v3.ConversationService.CreateAgentHandoff:output_type -> sdkwork.communication.app.v3.CreateAgentHandoffResponse
+	17,  // 146: sdkwork.communication.app.v3.ConversationService.CreateSystemChannel:output_type -> sdkwork.communication.app.v3.CreateSystemChannelResponse
+	19,  // 147: sdkwork.communication.app.v3.ConversationService.CreateThread:output_type -> sdkwork.communication.app.v3.CreateThreadResponse
+	21,  // 148: sdkwork.communication.app.v3.ConversationService.BindDirectChat:output_type -> sdkwork.communication.app.v3.BindDirectChatResponse
+	23,  // 149: sdkwork.communication.app.v3.ConversationService.RetrieveConversation:output_type -> sdkwork.communication.app.v3.RetrieveConversationResponse
+	25,  // 150: sdkwork.communication.app.v3.ConversationService.ListInbox:output_type -> sdkwork.communication.app.v3.ListInboxResponse
+	27,  // 151: sdkwork.communication.app.v3.ConversationService.ListConversationMembers:output_type -> sdkwork.communication.app.v3.ListConversationMembersResponse
+	29,  // 152: sdkwork.communication.app.v3.ConversationService.RetrieveCurrentConversationMember:output_type -> sdkwork.communication.app.v3.RetrieveCurrentConversationMemberResponse
+	31,  // 153: sdkwork.communication.app.v3.ConversationService.RetrieveConversationAgents:output_type -> sdkwork.communication.app.v3.RetrieveConversationAgentsResponse
+	33,  // 154: sdkwork.communication.app.v3.ConversationService.UpdateConversationAgents:output_type -> sdkwork.communication.app.v3.UpdateConversationAgentsResponse
+	35,  // 155: sdkwork.communication.app.v3.ConversationService.AddConversationMember:output_type -> sdkwork.communication.app.v3.AddConversationMemberResponse
+	37,  // 156: sdkwork.communication.app.v3.ConversationService.RemoveConversationMember:output_type -> sdkwork.communication.app.v3.RemoveConversationMemberResponse
+	39,  // 157: sdkwork.communication.app.v3.ConversationService.TransferConversationOwner:output_type -> sdkwork.communication.app.v3.TransferConversationOwnerResponse
+	41,  // 158: sdkwork.communication.app.v3.ConversationService.ChangeConversationMemberRole:output_type -> sdkwork.communication.app.v3.ChangeConversationMemberRoleResponse
+	43,  // 159: sdkwork.communication.app.v3.ConversationService.LeaveConversation:output_type -> sdkwork.communication.app.v3.LeaveConversationResponse
+	45,  // 160: sdkwork.communication.app.v3.ConversationService.RetrieveConversationPreferences:output_type -> sdkwork.communication.app.v3.RetrieveConversationPreferencesResponse
+	47,  // 161: sdkwork.communication.app.v3.ConversationService.UpdateConversationPreferences:output_type -> sdkwork.communication.app.v3.UpdateConversationPreferencesResponse
+	49,  // 162: sdkwork.communication.app.v3.ConversationService.RetrieveConversationProfile:output_type -> sdkwork.communication.app.v3.RetrieveConversationProfileResponse
+	51,  // 163: sdkwork.communication.app.v3.ConversationService.UpdateConversationProfile:output_type -> sdkwork.communication.app.v3.UpdateConversationProfileResponse
+	53,  // 164: sdkwork.communication.app.v3.ConversationService.RetrieveReadCursor:output_type -> sdkwork.communication.app.v3.RetrieveReadCursorResponse
+	55,  // 165: sdkwork.communication.app.v3.ConversationService.UpdateReadCursor:output_type -> sdkwork.communication.app.v3.UpdateReadCursorResponse
+	57,  // 166: sdkwork.communication.app.v3.ConversationService.ListConversationMemberDirectory:output_type -> sdkwork.communication.app.v3.ListConversationMemberDirectoryResponse
+	59,  // 167: sdkwork.communication.app.v3.ConversationService.ListPinnedMessages:output_type -> sdkwork.communication.app.v3.ListPinnedMessagesResponse
+	61,  // 168: sdkwork.communication.app.v3.ContactService.ListContacts:output_type -> sdkwork.communication.app.v3.ListContactsResponse
+	63,  // 169: sdkwork.communication.app.v3.ContactService.ListContactTags:output_type -> sdkwork.communication.app.v3.ListContactTagsResponse
+	65,  // 170: sdkwork.communication.app.v3.ContactService.CreateContactTag:output_type -> sdkwork.communication.app.v3.CreateContactTagResponse
+	67,  // 171: sdkwork.communication.app.v3.ContactService.UpdateContactTag:output_type -> sdkwork.communication.app.v3.UpdateContactTagResponse
+	69,  // 172: sdkwork.communication.app.v3.ContactService.DeleteContactTag:output_type -> sdkwork.communication.app.v3.DeleteContactTagResponse
+	71,  // 173: sdkwork.communication.app.v3.ContactService.CreateContactRecommendation:output_type -> sdkwork.communication.app.v3.CreateContactRecommendationResponse
+	73,  // 174: sdkwork.communication.app.v3.ContactService.RetrieveContactPreferences:output_type -> sdkwork.communication.app.v3.RetrieveContactPreferencesResponse
+	75,  // 175: sdkwork.communication.app.v3.ContactService.UpdateContactPreferences:output_type -> sdkwork.communication.app.v3.UpdateContactPreferencesResponse
+	143, // [143:176] is the sub-list for method output_type
+	110, // [110:143] is the sub-list for method input_type
+	110, // [110:110] is the sub-list for extension type_name
+	110, // [110:110] is the sub-list for extension extendee
+	0,   // [0:110] is the sub-list for field type_name
 }
 
 func init() { file_sdkwork_communication_app_v3_conversation_service_proto_init() }
@@ -4514,7 +5058,7 @@ func file_sdkwork_communication_app_v3_conversation_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sdkwork_communication_app_v3_conversation_service_proto_rawDesc), len(file_sdkwork_communication_app_v3_conversation_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   68,
+			NumMessages:   76,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

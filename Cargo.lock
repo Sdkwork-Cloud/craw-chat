@@ -5003,6 +5003,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-agents-database-host"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "sdkwork-database-config",
+ "sdkwork-database-lifecycle",
+ "sdkwork-database-spi",
+ "sdkwork-database-sqlx",
+]
+
+[[package]]
 name = "sdkwork-agents-runtime-facade"
 version = "0.1.0"
 dependencies = [
@@ -5327,6 +5338,7 @@ dependencies = [
  "sha2 0.10.9",
  "sqlx",
  "thiserror 2.0.18",
+ "tokio",
 ]
 
 [[package]]
@@ -6149,6 +6161,7 @@ dependencies = [
  "im-adapters-postgres-journal",
  "sdkwork-account-gateway-assembly",
  "sdkwork-account-service-host",
+ "sdkwork-agents-database-host",
  "sdkwork-api-config",
  "sdkwork-api-product-runtime",
  "sdkwork-catalog-gateway-assembly",

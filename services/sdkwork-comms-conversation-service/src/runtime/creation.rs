@@ -8,6 +8,58 @@ use super::support::{
 
 use super::*;
 
+pub(super) fn normalize_initial_member_user_ids(
+    member_user_ids: Vec<String>,
+    creator_id: &str,
+) -> Result<Vec<String>, RuntimeError> {
+    let mut normalized = Vec::with_capacity(
+        member_user_ids
+            .len()
+            .min(CONVERSATION_MAX_INITIAL_MEMBER_COUNT),
+    );
+    let mut seen = HashSet::new();
+    for member_user_id in member_user_ids {
+        let member_user_id = member_user_id.trim();
+        if member_user_id.is_empty() {
+            return Err(RuntimeError::InvalidInput(
+                "initial group member id must not be empty".into(),
+            ));
+        }
+        validate_payload_size("memberUserId", member_user_id, CONVERSATION_MAX_ID_BYTES)?;
+        if member_user_id == creator_id {
+            continue;
+        }
+        if !seen.insert(member_user_id.to_owned()) {
+            continue;
+        }
+        normalized.push(member_user_id.to_owned());
+        if normalized.len() > CONVERSATION_MAX_INITIAL_MEMBER_COUNT {
+            return Err(RuntimeError::InvalidInput(format!(
+                "initial group member count must not exceed {CONVERSATION_MAX_INITIAL_MEMBER_COUNT}"
+            )));
+        }
+    }
+    normalized.sort_unstable();
+    Ok(normalized)
+}
+
+fn validate_initial_agent_assignments(
+    conversation_type: &str,
+    agent_assignments: Option<Vec<ConversationAgentAssignment>>,
+) -> Result<Option<Vec<ConversationAgentAssignment>>, RuntimeError> {
+    let Some(agent_assignments) = agent_assignments else {
+        return Ok(None);
+    };
+    let mut aggregate = ConversationAggregateState::new(conversation_type);
+    aggregate
+        .replace_agent_assignments(
+            ConversationAgentAssignmentSource::ConversationOverride,
+            agent_assignments.clone(),
+        )
+        .map_err(agents::agent_assignment_error_to_runtime)?;
+    Ok(Some(agent_assignments))
+}
+
 impl<J> ConversationRuntime<J>
 where
     J: CommitJournal,
@@ -70,6 +122,8 @@ where
             creator_kind,
             creator_attributes,
             None,
+            None,
+            None,
         )
     }
 
@@ -85,6 +139,59 @@ where
             creator_kind,
             creator_attributes,
             Some(conversation_title),
+            None,
+            None,
+        )
+    }
+
+    pub fn create_conversation_from_auth_context_with_agent_assignments(
+        &self,
+        auth: &AppContext,
+        conversation_id: String,
+        conversation_type: String,
+        agent_assignments: Vec<ConversationAgentAssignment>,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_conversation_from_auth_context_with_members_and_agent_assignments(
+            auth,
+            conversation_id,
+            conversation_type,
+            Vec::new(),
+            agent_assignments,
+        )
+    }
+
+    pub fn create_conversation_from_auth_context_with_members(
+        &self,
+        auth: &AppContext,
+        conversation_id: String,
+        conversation_type: String,
+        member_user_ids: Vec<String>,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_conversation_with_creator_kind_attributes_and_title(
+            CreateConversationCommand::from_auth_context(auth, conversation_id, conversation_type),
+            auth.actor_kind.as_str(),
+            BTreeMap::new(),
+            None,
+            Some(member_user_ids),
+            None,
+        )
+    }
+
+    pub fn create_conversation_from_auth_context_with_members_and_agent_assignments(
+        &self,
+        auth: &AppContext,
+        conversation_id: String,
+        conversation_type: String,
+        member_user_ids: Vec<String>,
+        agent_assignments: Vec<ConversationAgentAssignment>,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_conversation_with_creator_kind_attributes_and_title(
+            CreateConversationCommand::from_auth_context(auth, conversation_id, conversation_type),
+            auth.actor_kind.as_str(),
+            BTreeMap::new(),
+            None,
+            Some(member_user_ids),
+            Some(agent_assignments),
         )
     }
 
@@ -94,6 +201,8 @@ where
         creator_kind: &str,
         creator_attributes: BTreeMap<String, String>,
         conversation_title: Option<String>,
+        initial_member_user_ids: Option<Vec<String>>,
+        initial_agent_assignments: Option<Vec<ConversationAgentAssignment>>,
     ) -> Result<CreateConversationResult, RuntimeError> {
         validate_payload_size(
             "conversationId",
@@ -113,6 +222,19 @@ where
         validate_payload_size("creatorKind", creator_kind, CONVERSATION_MAX_KIND_BYTES)?;
         validate_member_attributes_payload_size("creatorAttributes", &creator_attributes)?;
         policy::ensure_generic_creatable_conversation_type(command.conversation_type.as_str())?;
+        let initial_member_user_ids = normalize_initial_member_user_ids(
+            initial_member_user_ids.unwrap_or_default(),
+            command.creator_id.as_str(),
+        )?;
+        if command.conversation_type != "group" && !initial_member_user_ids.is_empty() {
+            return Err(RuntimeError::ConversationTypeInvalid(
+                "initial members require a group conversation".into(),
+            ));
+        }
+        let initial_agent_assignments = validate_initial_agent_assignments(
+            command.conversation_type.as_str(),
+            initial_agent_assignments,
+        )?;
         let request_key = generic_conversation_create_request_key(
             command.tenant_id.as_str(),
             creator_kind,
@@ -144,7 +266,13 @@ where
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.generic_create_request.as_ref() {
-                if generic_conversation_create_replay_matches(existing, &command, creator_kind) {
+                if generic_conversation_create_replay_matches(
+                    existing,
+                    &command,
+                    creator_kind,
+                    initial_member_user_ids.as_slice(),
+                    initial_agent_assignments.as_deref(),
+                ) {
                     return Ok(CreateConversationResult::replayed_with_request_key(
                         command.conversation_id,
                         existing.event_id.clone(),
@@ -167,33 +295,74 @@ where
                 creator_id: creator_id.clone(),
                 creator_kind: creator_kind.into(),
                 requested_kind: command.conversation_type.clone(),
+                initial_member_user_ids: initial_member_user_ids.clone(),
+                initial_agent_assignments: initial_agent_assignments.clone(),
                 event_id: event_id.clone(),
             }),
             ..ConversationState::default()
         };
         let created_agent_assignments = if command.conversation_type == "group" {
-            Some(agents::apply_current_group_agent_default(
-                &mut conversation.aggregate,
-                &self.group_agent_default_policy,
-            )?)
+            if let Some(initial_agent_assignments) = initial_agent_assignments.as_ref() {
+                let generation = conversation
+                    .aggregate
+                    .replace_agent_assignments(
+                        ConversationAgentAssignmentSource::ConversationOverride,
+                        initial_agent_assignments.clone(),
+                    )
+                    .map_err(agents::agent_assignment_error_to_runtime)?;
+                Some(agents::ConversationAgentAssignmentsEventPayload {
+                    generation,
+                    source: ConversationAgentAssignmentSource::ConversationOverride,
+                    agents: initial_agent_assignments.clone(),
+                    policy_id: None,
+                    policy_version: None,
+                })
+            } else {
+                Some(agents::apply_current_group_agent_default(
+                    &mut conversation.aggregate,
+                    &self.group_agent_default_policy,
+                )?)
+            }
         } else {
+            if initial_agent_assignments.is_some() {
+                return Err(RuntimeError::ConversationTypeInvalid(
+                    "initial agent assignments require a group conversation".into(),
+                ));
+            }
             None
         };
         let creator_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(
-            &mut state.actor_inbox,
-            command.organization_id.as_str(),
-            &mut conversation,
-            creator_member.clone(),
-        );
+        conversation.roster.upsert_member(creator_member.clone());
         upsert_read_cursor(
             &mut conversation,
             build_default_read_cursor(&creator_member),
         );
-        let creation_members = vec![(creator_member.clone(), creator_ordering_seq)];
+        let mut creation_members = vec![(creator_member.clone(), creator_ordering_seq)];
+        for member_user_id in &initial_member_user_ids {
+            let member = build_conversation_member_with_attributes(
+                command.tenant_id.as_str(),
+                command.conversation_id.as_str(),
+                member_id(
+                    command.conversation_id.as_str(),
+                    "user",
+                    member_user_id.as_str(),
+                ),
+                member_user_id.as_str(),
+                "user",
+                MembershipRole::Member,
+                Some(creator_id.clone()),
+                created_at.clone(),
+                BTreeMap::new(),
+            );
+            let ordering_seq = conversation.aggregate.next_member_epoch();
+            conversation.roster.upsert_member(member.clone());
+            upsert_read_cursor(&mut conversation, build_default_read_cursor(&member));
+            creation_members.push((member, ordering_seq));
+        }
         let mut created_payload = json!({
             "conversationId": command.conversation_id.as_str(),
-            "conversationType": command.conversation_type.as_str()
+            "conversationType": command.conversation_type.as_str(),
+            "memberUserIds": initial_member_user_ids.clone(),
         });
         if let Some(title) = conversation_title
             .as_deref()
@@ -213,10 +382,15 @@ where
                     ))
                 })?;
         }
-        let created_event_version = if created_agent_assignments.is_some() {
-            2
-        } else {
-            1
+        let created_event_version = match created_agent_assignments.as_ref() {
+            Some(assignments)
+                if assignments.source
+                    == ConversationAgentAssignmentSource::ConversationOverride =>
+            {
+                3
+            }
+            Some(_) => 2,
+            None => 1,
         };
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
@@ -257,6 +431,14 @@ where
             creator_id.as_str(),
             creator_kind,
         )?;
+        let creation_member_snapshots: Vec<ConversationMember> = creation_members
+            .iter()
+            .map(|(member, _)| member.clone())
+            .collect();
+        state.sync_actor_inbox_members(
+            command.organization_id.as_str(),
+            creation_member_snapshots.as_slice(),
+        );
         state.insert_conversation(scope_key, conversation);
         drop(state);
 
@@ -312,6 +494,55 @@ where
         )
     }
 
+    pub fn create_group_conversation_from_auth_context_with_agent_assignments(
+        &self,
+        auth: &AppContext,
+        group_name: String,
+        client_request_key: String,
+        agent_assignments: Vec<ConversationAgentAssignment>,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_group_conversation_from_auth_context_with_members_and_agent_assignments(
+            auth,
+            group_name,
+            client_request_key,
+            Vec::new(),
+            agent_assignments,
+        )
+    }
+
+    pub fn create_group_conversation_from_auth_context_with_members(
+        &self,
+        auth: &AppContext,
+        group_name: String,
+        client_request_key: String,
+        member_user_ids: Vec<String>,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_group_conversation_with_creator_kind_attributes_and_agent_assignments(
+            CreateGroupConversationCommand::from_auth_context(auth, group_name, client_request_key),
+            auth.actor_kind.as_str(),
+            BTreeMap::new(),
+            member_user_ids,
+            None,
+        )
+    }
+
+    pub fn create_group_conversation_from_auth_context_with_members_and_agent_assignments(
+        &self,
+        auth: &AppContext,
+        group_name: String,
+        client_request_key: String,
+        member_user_ids: Vec<String>,
+        agent_assignments: Vec<ConversationAgentAssignment>,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_group_conversation_with_creator_kind_attributes_and_agent_assignments(
+            CreateGroupConversationCommand::from_auth_context(auth, group_name, client_request_key),
+            auth.actor_kind.as_str(),
+            BTreeMap::new(),
+            member_user_ids,
+            Some(agent_assignments),
+        )
+    }
+
     pub fn create_group_conversation_with_creator_kind(
         &self,
         command: CreateGroupConversationCommand,
@@ -329,6 +560,54 @@ where
         command: CreateGroupConversationCommand,
         creator_kind: &str,
         creator_attributes: BTreeMap<String, String>,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_group_conversation_with_creator_kind_attributes_and_agent_assignments(
+            command,
+            creator_kind,
+            creator_attributes,
+            Vec::new(),
+            None,
+        )
+    }
+
+    pub fn create_group_conversation_with_creator_kind_and_agent_assignments(
+        &self,
+        command: CreateGroupConversationCommand,
+        creator_kind: &str,
+        agent_assignments: Vec<ConversationAgentAssignment>,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_group_conversation_with_creator_kind_attributes_and_agent_assignments(
+            command,
+            creator_kind,
+            BTreeMap::new(),
+            Vec::new(),
+            Some(agent_assignments),
+        )
+    }
+
+    pub fn create_group_conversation_with_creator_kind_members_and_agent_assignments(
+        &self,
+        command: CreateGroupConversationCommand,
+        creator_kind: &str,
+        member_user_ids: Vec<String>,
+        agent_assignments: Vec<ConversationAgentAssignment>,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_group_conversation_with_creator_kind_attributes_and_agent_assignments(
+            command,
+            creator_kind,
+            BTreeMap::new(),
+            member_user_ids,
+            Some(agent_assignments),
+        )
+    }
+
+    fn create_group_conversation_with_creator_kind_attributes_and_agent_assignments(
+        &self,
+        command: CreateGroupConversationCommand,
+        creator_kind: &str,
+        creator_attributes: BTreeMap<String, String>,
+        initial_member_user_ids: Vec<String>,
+        initial_agent_assignments: Option<Vec<ConversationAgentAssignment>>,
     ) -> Result<CreateConversationResult, RuntimeError> {
         validate_payload_size(
             "creatorId",
@@ -383,6 +662,8 @@ where
             creator_kind,
             creator_attributes,
             Some(group_name),
+            Some(initial_member_user_ids),
+            initial_agent_assignments,
         )
     }
 

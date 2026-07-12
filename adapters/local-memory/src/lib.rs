@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use im_domain_events::CommitEnvelope;
@@ -12,7 +13,7 @@ use im_platform_contracts::{
     RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowRecord, RealtimeEventWindowStore,
     RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
     StreamStateRecord, StreamStateStore, TimelineProjectionBatch, TimelineProjectionRecord,
-    TimelineProjectionStore,
+    TimelineProjectionStore, TimelineProjectionWindow,
 };
 use im_storage_contracts::{StorageDomainSnapshot, StorageDomainSnapshotStore};
 use im_time::rfc3339_le;
@@ -1047,6 +1048,29 @@ impl TimelineProjectionStore for MemoryTimelineProjectionStore {
         timeline_scope: &str,
     ) -> Result<Vec<(u64, String)>, ContractError> {
         Ok(self.entries(tenant_id, timeline_scope))
+    }
+
+    fn load_timeline_window(
+        &self,
+        tenant_id: &str,
+        timeline_scope: &str,
+        after_seq: u64,
+        limit: usize,
+    ) -> Result<TimelineProjectionWindow, ContractError> {
+        let entries = lock_memory_mutex(&self.entries, "timeline projection store");
+        let mut items = entries
+            .get(timeline_projection_scope_key(tenant_id, timeline_scope).as_str())
+            .map(|scope_entries| {
+                scope_entries
+                    .range((Excluded(after_seq), Unbounded))
+                    .take(limit.saturating_add(1))
+                    .map(|(message_seq, payload)| (*message_seq, payload.clone()))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let has_more = items.len() > limit;
+        items.truncate(limit);
+        Ok(TimelineProjectionWindow { items, has_more })
     }
 
     fn upsert_timeline_entries(

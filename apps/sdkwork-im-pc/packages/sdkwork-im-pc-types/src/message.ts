@@ -16,6 +16,8 @@ export interface Message {
   isEdited?: boolean;
   /** Local-only delivery state for desktop offline send queue. */
   sendState?: 'pending' | 'failed';
+  /** Structured wire parts retained for local retry (not rendered as raw JSON). */
+  parts?: unknown[];
   replyTo?: {
     id: string;
     senderName: string;

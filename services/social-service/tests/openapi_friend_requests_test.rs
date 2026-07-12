@@ -119,7 +119,7 @@ async fn backend_control_friend_requests_list_rejects_limit_alias() {
 
     let mut request = Request::builder()
         .method("GET")
-        .uri("/backend/v3/api/control/social/friend_requests?userId=30&direction=incoming&status=pending&page_size=7")
+        .uri("/backend/v3/api/control/social/friend_requests?userId=30&direction=incoming&status=pending&limit=7")
         .body(Body::empty())
         .expect("request builder should succeed");
     *request.headers_mut() = backend_control_auth_headers();

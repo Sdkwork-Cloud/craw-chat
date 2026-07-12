@@ -113,6 +113,7 @@ const pathParameters = {
 };
 
 const queryParameters = {
+  AfterSignalSeqQuery: parameter('afterSignalSeq', 'query', intSchema({ minimum: 0 }), { required: false }),
   ConversationTypeQuery: parameter('conversation_type', 'query', stringSchema(), {
     description: 'Optional conversation type filter applied by the inbox projection before pagination.',
     required: false,
@@ -120,7 +121,13 @@ const queryParameters = {
   CursorQuery: parameter('cursor', 'query', stringSchema(), { required: false }),
   DirectionQuery: parameter('direction', 'query', stringSchema({ enum: ['incoming', 'outgoing'] }), { required: false }),
   FavoriteTypeQuery: parameter('favoriteType', 'query', { $ref: '#/components/schemas/MessageFavoriteType' }, { required: false }),
-  PageSizeQuery: parameter('page_size', 'query', { type: 'integer', format: 'int32', minimum: 1, maximum: 200 }, { required: false }),
+  PageSizeQuery: parameter('page_size', 'query', {
+    type: 'integer',
+    format: 'int32',
+    minimum: 1,
+    maximum: 200,
+    default: 20,
+  }, { required: false }),
   QQuery: parameter('q', 'query', stringSchema({ maxLength: 256 }), { required: false }),
   StatusQuery: parameter('status', 'query', stringSchema({ enum: ['pending', 'accepted', 'declined', 'canceled', 'expired', 'all'] }), { required: false }),
 };
@@ -253,6 +260,11 @@ const schemas = {
     signalingStreamId: nullable(stringSchema()),
     occurredAt: stringSchema({ format: 'date-time' }),
   }, ['tenantId', 'rtcSessionId', 'signalSeq', 'rtcMode', 'signalType', 'payload', 'sender', 'occurredAt']),
+  RtcSignalEventsResponse: objectSchema({
+    items: arrayOf(ref('RtcSignalEvent')),
+    nextCursor: nullable(stringSchema()),
+    hasMore: boolSchema(),
+  }, ['items', 'hasMore']),
   RtcParticipantCredential: objectSchema({
     tenantId: stringSchema(),
     rtcSessionId: stringSchema(),
@@ -768,11 +780,49 @@ const schemas = {
     conversationType: stringSchema(),
     groupName: nullable(stringSchema({ maxLength: 256 })),
     clientRequestKey: nullable(stringSchema({ maxLength: 256 })),
+    memberUserIds: nullable({
+      ...arrayOf(stringSchema({ minLength: 1, maxLength: 256 })),
+      maxItems: 200,
+    }),
+    agentAssignments: nullable({
+      ...arrayOf(ref('ConversationAgentAssignment')),
+      minItems: 1,
+      maxItems: 10,
+    }),
     policyVersion: nullable(stringSchema()),
     capabilityFlags: nullable(arrayOf(stringSchema())),
     historyVisibility: nullable(stringSchema()),
     retentionPolicyRef: nullable(stringSchema()),
   }, ['conversationType']),
+  ConversationAgentAssignment: objectSchema({
+    agentId: stringSchema({
+      minLength: 1,
+      maxLength: 128,
+      pattern: '^agent\\.[a-z0-9_-]+(?:\\.[a-z0-9_-]+)*$',
+    }),
+    revisionId: nullable(stringSchema({
+      minLength: 1,
+      maxLength: 128,
+      pattern: '^revision\\.[a-z0-9_-]+(?:\\.[a-z0-9_-]+)*$',
+    })),
+  }, ['agentId']),
+  ConversationAgentAssignments: objectSchema({
+    generation: intSchema({ minimum: 1 }),
+    source: stringSchema({ enum: ['default_policy', 'conversation_override'] }),
+    agents: {
+      ...arrayOf(ref('ConversationAgentAssignment')),
+      minItems: 1,
+      maxItems: 10,
+    },
+  }, ['generation', 'source', 'agents']),
+  UpdateConversationAgentsRequest: objectSchema({
+    expectedGeneration: intSchema({ minimum: 1 }),
+    agentAssignments: {
+      ...arrayOf(ref('ConversationAgentAssignment')),
+      minItems: 1,
+      maxItems: 10,
+    },
+  }, ['expectedGeneration', 'agentAssignments']),
   CreateAgentDialogRequest: objectSchema({
     agentId: stringSchema(),
     conversationId: nullable(stringSchema()),
@@ -943,11 +993,16 @@ const paths = Object.fromEntries([
   }),
   pathItem('/calls/sessions/{rtcSessionId}/signals', {
     parameters: [p('RtcSessionIdPath')],
+    get: operation({ tag: 'calls', operationId: 'calls.sessions.signals.list', summary: 'List IM call signaling events', parameters: [p('RtcSessionIdPath'), p('AfterSignalSeqQuery'), p('CursorQuery'), p('PageSizeQuery')], response: 'RtcSignalEventsResponse' }),
     post: operation({ tag: 'calls', operationId: 'calls.sessions.signals.create', summary: 'Post an IM call signaling event', parameters: [p('RtcSessionIdPath')], request: 'PostRtcSignalRequest', response: 'RtcSignalEvent', successStatus: '201' }),
   }),
   pathItem('/calls/sessions/{rtcSessionId}/credentials', {
     parameters: [p('RtcSessionIdPath')],
     post: operation({ tag: 'calls', operationId: 'calls.sessions.credentials.create', summary: 'Issue an RTC media participant credential for an IM call', parameters: [p('RtcSessionIdPath')], request: 'IssueRtcParticipantCredentialRequest', response: 'RtcParticipantCredential', successStatus: '201' }),
+  }),
+  pathItem('/calls/sessions/{rtcSessionId}/credentials/refresh', {
+    parameters: [p('RtcSessionIdPath')],
+    post: operation({ tag: 'calls', operationId: 'calls.sessions.credentials.refresh', summary: 'Refresh an expiring RTC media participant credential', parameters: [p('RtcSessionIdPath')], request: 'IssueRtcParticipantCredentialRequest', response: 'RtcParticipantCredential' }),
   }),
   pathItem('/social/users', {
     get: operation({ tag: 'social', operationId: 'social.users.list', summary: 'Search social users', parameters: [p('QQuery'), p('PageSizeQuery'), p('CursorQuery')], response: 'SocialUserSearchResponse', statuses: ['400', '401', '403', '503'] }),
@@ -1048,6 +1103,15 @@ const paths = Object.fromEntries([
     parameters: [p('ConversationIdPath')],
     get: operation({ tag: 'chat', operationId: 'conversations.members.list', summary: 'List conversation members', parameters: [p('ConversationIdPath'), p('PageSizeQuery'), p('CursorQuery')], response: 'ListMembersResponse' }),
   }),
+  pathItem('/chat/conversations/{conversationId}/members/current', {
+    parameters: [p('ConversationIdPath')],
+    get: operation({ tag: 'chat', operationId: 'conversations.members.current.retrieve', summary: 'Retrieve the current conversation member', parameters: [p('ConversationIdPath')], response: 'ConversationMember' }),
+  }),
+  pathItem('/chat/conversations/{conversationId}/agents', {
+    parameters: [p('ConversationIdPath')],
+    get: operation({ tag: 'chat', operationId: 'conversations.agents.retrieve', summary: 'Retrieve assigned group agents', parameters: [p('ConversationIdPath')], response: 'ConversationAgentAssignments' }),
+    put: operation({ tag: 'chat', operationId: 'conversations.agents.update', summary: 'Update assigned group agents', parameters: [p('ConversationIdPath')], request: 'UpdateConversationAgentsRequest', response: 'ConversationAgentAssignments', statuses: ['400', '401', '403', '404', '409'] }),
+  }),
   pathItem('/chat/conversations/{conversationId}/members/add', {
     parameters: [p('ConversationIdPath')],
     post: operation({ tag: 'chat', operationId: 'conversations.members.add', summary: 'Add a conversation member', parameters: [p('ConversationIdPath')], request: 'AddConversationMemberRequest', response: 'ConversationMember' }),
@@ -1089,7 +1153,7 @@ const paths = Object.fromEntries([
   }),
   pathItem('/chat/conversations/{conversationId}/member_directory', {
     parameters: [p('ConversationIdPath')],
-    get: operation({ tag: 'chat', operationId: 'conversations.memberDirectory.list', summary: 'List member directory', parameters: [p('ConversationIdPath')], response: 'MemberDirectoryResponse' }),
+    get: operation({ tag: 'chat', operationId: 'conversations.memberDirectory.list', summary: 'List member directory', parameters: [p('ConversationIdPath'), p('CursorQuery'), p('PageSizeQuery')], response: 'MemberDirectoryResponse' }),
   }),
   pathItem('/chat/conversations/{conversationId}/messages', {
     parameters: [p('ConversationIdPath')],
@@ -1109,7 +1173,7 @@ const paths = Object.fromEntries([
   }),
   pathItem('/chat/conversations/{conversationId}/pins', {
     parameters: [p('ConversationIdPath')],
-    get: operation({ tag: 'chat', operationId: 'conversations.pins.list', summary: 'List pinned messages', parameters: [p('ConversationIdPath')], response: 'PinnedMessagesResponse' }),
+    get: operation({ tag: 'chat', operationId: 'conversations.pins.list', summary: 'List pinned messages', parameters: [p('ConversationIdPath'), p('CursorQuery'), p('PageSizeQuery')], response: 'PinnedMessagesResponse' }),
   }),
   pathItem('/chat/conversations/{conversationId}/messages/{messageId}/interaction_summary', {
     parameters: [p('ConversationIdPath'), p('MessageIdPath')],

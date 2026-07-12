@@ -15,7 +15,9 @@ use im_adapters_postgres_journal::{
 };
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
-    ContractError, OutboxEventRecord, OutboxPublishStatus, OutboxStore, StoredMessageRecord,
+    AGENT_MENTION_DISPATCH_EVENT_TYPE, AGENT_MENTION_DISPATCH_OUTBOX_AGGREGATE_TYPE,
+    AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA, ContractError, OutboxEventRecord, OutboxPublishStatus,
+    OutboxStore, StoredMessageRecord,
 };
 use serde_json::json;
 
@@ -70,6 +72,14 @@ struct PersistedImmutableRows {
 }
 
 const SAFE_REPLAY_CONFLICT: &str = "message post replay conflicts with existing durable state";
+
+async fn bootstrap_live_database_pools() {
+    static BOOTSTRAP_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    let _guard = BOOTSTRAP_LOCK.lock().await;
+    sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
+        .await
+        .expect("shared IM database pools should bootstrap");
+}
 
 fn test_suffix() -> String {
     SystemTime::now()
@@ -442,9 +452,7 @@ async fn cleanup_tenant(pool: PostgresJournalPool, tenant_id: String) {
 async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
     let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
         .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
-    sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
-        .await
-        .expect("shared IM database pools should bootstrap");
+    bootstrap_live_database_pools().await;
     let pool = PostgresJournalConfig::new(database_url)
         .connect_pool()
         .expect("postgres journal pool should connect");
@@ -488,6 +496,18 @@ async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
         suffix.as_str(),
         base_message_id + 4,
     );
+    let omitted_outbox_replay_fixture = fixture(
+        tenant_id.as_str(),
+        "omitted_outbox_replay",
+        suffix.as_str(),
+        base_message_id + 5,
+    );
+    let added_outbox_replay_fixture = fixture(
+        tenant_id.as_str(),
+        "added_outbox_replay",
+        suffix.as_str(),
+        base_message_id + 6,
+    );
 
     for fixture in [
         &outbox_id_conflict_fixture,
@@ -495,6 +515,8 @@ async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
         &commit_fixture,
         &missing_message_fixture,
         &missing_outbox_fixture,
+        &omitted_outbox_replay_fixture,
+        &added_outbox_replay_fixture,
     ] {
         assert_ne!(
             fixture.envelope.event_id, fixture.outbox.event_id,
@@ -677,6 +699,43 @@ async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
     let missing_outbox_replay_counts =
         persisted_row_counts(pool.clone(), &missing_outbox_fixture).await;
 
+    writer
+        .persist_message_post(
+            omitted_outbox_replay_fixture.envelope.clone(),
+            omitted_outbox_replay_fixture.message.clone(),
+            Some(omitted_outbox_replay_fixture.outbox.clone()),
+        )
+        .expect("omitted-outbox replay fixture should initially persist with outbox");
+    let omitted_outbox_replay_result = writer.persist_message_post(
+        omitted_outbox_replay_fixture.envelope.clone(),
+        omitted_outbox_replay_fixture.message.clone(),
+        None,
+    );
+    let omitted_outbox_replay_counts =
+        persisted_row_counts(pool.clone(), &omitted_outbox_replay_fixture).await;
+
+    let no_outbox_position = writer
+        .persist_message_post(
+            added_outbox_replay_fixture.envelope.clone(),
+            added_outbox_replay_fixture.message.clone(),
+            None,
+        )
+        .expect("no-outbox fixture should initially persist");
+    let no_outbox_replay_position = writer
+        .persist_message_post(
+            added_outbox_replay_fixture.envelope.clone(),
+            added_outbox_replay_fixture.message.clone(),
+            None,
+        )
+        .expect("matching no-outbox replay should remain idempotent");
+    let added_outbox_replay_result = writer.persist_message_post(
+        added_outbox_replay_fixture.envelope.clone(),
+        added_outbox_replay_fixture.message.clone(),
+        Some(added_outbox_replay_fixture.outbox.clone()),
+    );
+    let added_outbox_replay_counts =
+        persisted_row_counts(pool.clone(), &added_outbox_replay_fixture).await;
+
     cleanup_tenant(pool, tenant_id).await;
 
     assert!(
@@ -792,4 +851,143 @@ async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
         },
         "missing-outbox replay must not repair or duplicate durable rows"
     );
+    assert_safe_replay_conflict(
+        omitted_outbox_replay_result,
+        "replay omitted an originally persisted outbox row",
+    );
+    assert_eq!(
+        omitted_outbox_replay_counts,
+        PersistedRowCounts {
+            journal: 1,
+            message: 1,
+            outbox: 1,
+        },
+        "omitted-outbox replay must preserve the original durable rows"
+    );
+    assert_eq!(
+        no_outbox_replay_position, no_outbox_position,
+        "matching no-outbox replay must return the original commit position"
+    );
+    assert_safe_replay_conflict(
+        added_outbox_replay_result,
+        "replay added an outbox row that was absent from the original write",
+    );
+    assert_eq!(
+        added_outbox_replay_counts,
+        PersistedRowCounts {
+            journal: 1,
+            message: 1,
+            outbox: 0,
+        },
+        "added-outbox replay must not mutate the original no-outbox durable state"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+async fn message_post_dispatch_event_and_two_outboxes_are_atomic_and_idempotent() {
+    let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
+        .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
+    bootstrap_live_database_pools().await;
+    let pool = PostgresJournalConfig::new(database_url)
+        .connect_pool()
+        .expect("postgres journal pool should connect");
+    let writer = PostgresDurableMessagePostWriter::new(pool.clone(), Arc::from(""));
+    let suffix = test_suffix();
+    let tenant_id = format!("message-agent-dispatch-test-{suffix}");
+    let message_id = suffix
+        .parse::<u128>()
+        .expect("test suffix should be numeric")
+        .checked_div(1_000)
+        .and_then(|value| i64::try_from(value).ok())
+        .expect("test message id should fit in i64");
+    let fixture = fixture(
+        tenant_id.as_str(),
+        "agent_dispatch_atomic",
+        suffix.as_str(),
+        message_id,
+    );
+    let mut dispatch_envelope = fixture.envelope.clone();
+    dispatch_envelope.event_id = format!("evt_agent_dispatch_{suffix}");
+    dispatch_envelope.event_type = AGENT_MENTION_DISPATCH_EVENT_TYPE.into();
+    dispatch_envelope.ordering_seq = 1;
+    dispatch_envelope.payload_schema = Some(AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA.into());
+    dispatch_envelope.causation_id = Some(fixture.envelope.event_id.clone());
+    dispatch_envelope.payload = json!({
+        "schemaVersion": 1,
+        "tenantId": tenant_id,
+        "organizationId": "0",
+        "conversationId": fixture.message.conversation_id,
+        "messageId": fixture.message.message_id.to_string(),
+        "messageSeq": fixture.message.message_seq,
+        "causationEventId": fixture.envelope.event_id,
+        "senderPrincipalId": "1",
+        "senderPrincipalKind": "user",
+        "assignmentGeneration": 2,
+        "targets": [{
+            "dispatchId": "amd_live_dispatch",
+            "agentId": "agent.im.writer",
+            "revisionId": "revision.im.writer.1"
+        }],
+        "body": {"summary": "hello", "parts": [], "renderHints": {}},
+        "requestedAt": fixture.message.created_at
+    })
+    .to_string();
+    let mut dispatch_outbox = fixture.outbox.clone();
+    dispatch_outbox.outbox_id = format!("outbox_agent_dispatch_{suffix}");
+    dispatch_outbox.aggregate_type = AGENT_MENTION_DISPATCH_OUTBOX_AGGREGATE_TYPE.into();
+    dispatch_outbox.event_id = format!("agent-dispatch:evt_agent_dispatch_{suffix}");
+    dispatch_outbox.event_type = AGENT_MENTION_DISPATCH_EVENT_TYPE.into();
+    dispatch_outbox.payload_json = dispatch_envelope.payload.clone();
+    dispatch_outbox.payload_hash =
+        sdkwork_utils_rust::sha256_hash(dispatch_outbox.payload_json.as_bytes());
+
+    let outboxes = vec![fixture.outbox.clone(), dispatch_outbox.clone()];
+    let envelopes = vec![fixture.envelope.clone(), dispatch_envelope.clone()];
+    let positions = writer
+        .persist_message_post_batch(envelopes.clone(), fixture.message.clone(), outboxes.clone())
+        .expect("message, dispatch event, and both outboxes should commit atomically");
+    assert_eq!(positions.len(), 2);
+    let replay_positions = writer
+        .persist_message_post_batch(envelopes, fixture.message.clone(), outboxes)
+        .expect("the exact batch should replay idempotently");
+    assert_eq!(replay_positions, positions);
+
+    let tenant_for_query = tenant_id.clone();
+    let conversation_id = fixture.message.conversation_id.clone();
+    let message_id_for_query = fixture.message.message_id;
+    let dispatch_event_id = dispatch_envelope.event_id.clone();
+    let dispatch_outbox_id = dispatch_outbox.outbox_id.clone();
+    let count_pool = pool.clone();
+    let counts = tokio::task::spawn_blocking(move || {
+        let mut client = count_pool
+            .get()
+            .expect("count connection should be available");
+        let row = client
+            .query_one(
+                r#"
+select
+  (select count(*) from im_commit_journal where tenant_id = $1 and organization_id = '0' and event_id in ($2, $3)),
+  (select count(*) from im_conversation_messages where tenant_id = $1 and organization_id = '0' and conversation_id = $4 and message_id = $5),
+  (select count(*) from im_outbox_events where tenant_id = $1 and organization_id = '0' and outbox_id in ($6, $7)),
+  (select count(*) from im_commit_journal where tenant_id = $1 and organization_id = '0' and event_id = $3)
+"#,
+                &[
+                    &tenant_for_query,
+                    &fixture.envelope.event_id,
+                    &dispatch_event_id,
+                    &conversation_id,
+                    &message_id_for_query,
+                    &fixture.outbox.outbox_id,
+                    &dispatch_outbox_id,
+                ],
+            )
+            .expect("batch rows should be countable");
+        (row.get::<_, i64>(0), row.get::<_, i64>(1), row.get::<_, i64>(2), row.get::<_, i64>(3))
+    })
+    .await
+    .expect("count task should not panic");
+    assert_eq!(counts, (2, 1, 2, 1));
+
+    cleanup_tenant(pool, tenant_id).await;
 }

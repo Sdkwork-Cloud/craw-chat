@@ -15,6 +15,7 @@ import { mergeImSpacesOpenApiFragments } from './merge-im-spaces-openapi-fragmen
 import { applyWebFrameworkOpenApiExtensions } from '../scripts/sdkwork-im-web-framework-openapi-extensions.mjs';
 
 const sdkRoot = path.dirname(fileURLToPath(import.meta.url));
+const imRepoRoot = path.join(sdkRoot, '..');
 const imRoot = path.join(sdkRoot, 'sdkwork-im-sdk');
 const backendRoot = path.join(sdkRoot, 'sdkwork-im-backend-sdk');
 const appRoot = path.join(sdkRoot, 'sdkwork-im-app-sdk');
@@ -23,6 +24,13 @@ const imAuthorityPath = path.join(imRoot, 'openapi', 'sdkwork-im-im.openapi.yaml
 const imDerivedPath = path.join(imRoot, 'openapi', 'sdkwork-im-im.sdkgen.yaml');
 const imFlutterDerivedPath = path.join(imRoot, 'openapi', 'sdkwork-im-im.flutter.sdkgen.yaml');
 const backendAuthorityPath = path.join(backendRoot, 'openapi', 'sdkwork-im-backend-api.openapi.yaml');
+const backendRepositoryAuthorityPath = path.join(
+  imRepoRoot,
+  'apis',
+  'backend-api',
+  'communication',
+  'sdkwork-im-backend-api.openapi.yaml',
+);
 const backendDerivedPath = path.join(backendRoot, 'openapi', 'sdkwork-im-backend-api.sdkgen.yaml');
 const appAuthorityPath = path.join(appRoot, 'openapi', 'sdkwork-im-app-api.openapi.yaml');
 const appDerivedPath = path.join(appRoot, 'openapi', 'sdkwork-im-app-api.sdkgen.yaml');
@@ -266,6 +274,12 @@ function constStringSchema(value) {
   };
 }
 
+function requiredContentProperty(schema, fallback) {
+  const normalized = cloneOpenApiJson(schema ?? fallback);
+  delete normalized.nullable;
+  return normalized;
+}
+
 function normalizeContentPartSchema(schemas) {
   if (!schemas.ContentPart?.properties || typeof schemas.ContentPart.properties !== 'object') {
     return;
@@ -276,7 +290,7 @@ function normalizeContentPartSchema(schemas) {
     additionalProperties: false,
     properties: {
       kind: constStringSchema('text'),
-      text: cloneOpenApiJson(baseProperties.text ?? { type: 'string' }),
+      text: requiredContentProperty(baseProperties.text, { type: 'string' }),
     },
     required: ['kind', 'text'],
     type: 'object',
@@ -285,9 +299,9 @@ function normalizeContentPartSchema(schemas) {
     additionalProperties: false,
     properties: {
       kind: constStringSchema('data'),
-      schemaRef: cloneOpenApiJson(baseProperties.schemaRef ?? { type: 'string' }),
-      encoding: cloneOpenApiJson(baseProperties.encoding ?? { type: 'string' }),
-      payload: cloneOpenApiJson(baseProperties.payload ?? { type: 'string' }),
+      schemaRef: requiredContentProperty(baseProperties.schemaRef, { type: 'string' }),
+      encoding: requiredContentProperty(baseProperties.encoding, { type: 'string' }),
+      payload: requiredContentProperty(baseProperties.payload, { type: 'string' }),
     },
     required: ['kind', 'schemaRef', 'encoding', 'payload'],
     type: 'object',
@@ -303,13 +317,41 @@ function normalizeContentPartSchema(schemas) {
     required: ['kind', 'drive', 'resource'],
     type: 'object',
   };
+  const mentionContentPart = {
+    additionalProperties: false,
+    properties: {
+      kind: constStringSchema('mention'),
+      targetKind: {
+        enum: ['agent'],
+        type: 'string',
+      },
+      targetId: {
+        maxLength: 128,
+        minLength: 1,
+        pattern: '^agent\\.[a-z0-9_-]+(?:\\.[a-z0-9_-]+)*$',
+        type: 'string',
+      },
+      displayText: {
+        maxLength: 512,
+        minLength: 1,
+        type: 'string',
+      },
+      assignmentGeneration: {
+        format: 'int64',
+        minimum: 1,
+        type: 'integer',
+      },
+    },
+    required: ['kind', 'targetKind', 'targetId', 'displayText', 'assignmentGeneration'],
+    type: 'object',
+  };
   const signalContentPart = {
     additionalProperties: false,
     properties: {
       kind: constStringSchema('signal'),
-      signalType: cloneOpenApiJson(baseProperties.signalType ?? { type: 'string' }),
+      signalType: requiredContentProperty(baseProperties.signalType, { type: 'string' }),
       schemaRef: cloneOpenApiJson(baseProperties.schemaRef ?? { type: 'string' }),
-      payload: cloneOpenApiJson(baseProperties.payload ?? { type: 'string' }),
+      payload: requiredContentProperty(baseProperties.payload, { type: 'string' }),
     },
     required: ['kind', 'signalType', 'payload'],
     type: 'object',
@@ -318,9 +360,9 @@ function normalizeContentPartSchema(schemas) {
     additionalProperties: false,
     properties: {
       kind: constStringSchema('stream_ref'),
-      streamId: cloneOpenApiJson(baseProperties.streamId ?? { type: 'string' }),
-      streamType: cloneOpenApiJson(baseProperties.streamType ?? { type: 'string' }),
-      state: cloneOpenApiJson(baseProperties.state ?? { type: 'string' }),
+      streamId: requiredContentProperty(baseProperties.streamId, { type: 'string' }),
+      streamType: requiredContentProperty(baseProperties.streamType, { type: 'string' }),
+      state: requiredContentProperty(baseProperties.state, { type: 'string' }),
     },
     required: ['kind', 'streamId', 'streamType', 'state'],
     type: 'object',
@@ -329,6 +371,7 @@ function normalizeContentPartSchema(schemas) {
   schemas.TextContentPart = textContentPart;
   schemas.DataContentPart = dataContentPart;
   schemas.MediaContentPart = mediaContentPart;
+  schemas.MentionContentPart = mentionContentPart;
   schemas.SignalContentPart = signalContentPart;
   schemas.StreamRefContentPart = streamRefContentPart;
   schemas.ContentPart = {
@@ -339,6 +382,7 @@ function normalizeContentPartSchema(schemas) {
       { $ref: '#/components/schemas/TextContentPart' },
       { $ref: '#/components/schemas/DataContentPart' },
       { $ref: '#/components/schemas/MediaContentPart' },
+      { $ref: '#/components/schemas/MentionContentPart' },
       { $ref: '#/components/schemas/SignalContentPart' },
       { $ref: '#/components/schemas/StreamRefContentPart' },
     ],
@@ -636,7 +680,11 @@ function sdkgenDerivedDocument(
 const yaml = await loadGeneratorYaml(sdkRoot);
 const im = loadOpenApiDocument({ prefix: 'sdkwork-im-sdk', filePath: imAuthorityPath, yaml });
 mergeImSpacesOpenApiFragments(im, yaml);
-const backend = loadOpenApiDocument({ prefix: 'sdkwork-im-backend-sdk', filePath: backendAuthorityPath, yaml });
+const backend = loadOpenApiDocument({
+  prefix: 'sdkwork-im-backend-sdk',
+  filePath: backendRepositoryAuthorityPath,
+  yaml,
+});
 const app = loadOpenApiDocument({ prefix: 'sdkwork-im-app-sdk', filePath: appAuthorityPath, yaml });
 const appbaseApp = loadOpenApiDocument({
   prefix: 'sdkwork-iam-app-sdk',
@@ -704,6 +752,19 @@ if (!consolidatedIm.paths['/im/v3/api/spaces']) {
 if (!consolidatedIm.paths['/im/v3/api/chat/conversations']) {
   fail('IM authority is missing /im/v3/api/chat/conversations.');
 }
+if (!consolidatedIm.paths['/im/v3/api/chat/conversations/{conversationId}/agents']) {
+  fail('IM authority is missing the conversation agent assignment route.');
+}
+for (const schemaName of [
+  'ConversationAgentAssignment',
+  'ConversationAgentAssignments',
+  'UpdateConversationAgentsRequest',
+  'MentionContentPart',
+]) {
+  if (!consolidatedIm.components?.schemas?.[schemaName]) {
+    fail(`IM authority is missing the ${schemaName} schema.`);
+  }
+}
 if (!consolidatedIm.paths['/im/v3/api/realtime/ws']) {
   fail('IM authority is missing /im/v3/api/realtime/ws.');
 }
@@ -748,7 +809,6 @@ writeOpenApiYamlDocument({ filePath: appAuthorityPath, document: consolidatedApp
 writeOpenApiYamlDocument({ filePath: appDerivedPath, document: consolidatedAppSdkgen, yaml });
 writeOpenApiYamlDocument({ filePath: appFlutterDerivedPath, document: consolidatedAppFlutter, yaml });
 
-const imRepoRoot = path.join(sdkRoot, '..');
 writeOpenApiYamlDocument({
   filePath: path.join(imRepoRoot, 'apis', 'open-api', 'im', 'sdkwork-im-im.openapi.yaml'),
   document: consolidatedIm,

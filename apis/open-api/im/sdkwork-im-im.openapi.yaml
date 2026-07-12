@@ -788,6 +788,7 @@ paths:
       summary: List IM call signaling events
       parameters:
         - $ref: '#/components/parameters/RtcSessionIdPath'
+        - $ref: '#/components/parameters/AfterSignalSeqQuery'
         - $ref: '#/components/parameters/CursorQuery'
         - $ref: '#/components/parameters/PageSizeQuery'
       responses:
@@ -2958,6 +2959,195 @@ paths:
                 $ref: '#/components/schemas/ProblemDetail'
         '404':
           description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.im
+  /im/v3/api/chat/conversations/{conversationId}/members/current:
+    parameters:
+      - $ref: '#/components/parameters/ConversationIdPath'
+    get:
+      tags:
+        - chat
+      operationId: conversations.members.current.retrieve
+      summary: Retrieve the current conversation member
+      parameters:
+        - $ref: '#/components/parameters/ConversationIdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/ConversationMember'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.im
+  /im/v3/api/chat/conversations/{conversationId}/agents:
+    parameters:
+      - $ref: '#/components/parameters/ConversationIdPath'
+    get:
+      tags:
+        - chat
+      operationId: conversations.agents.retrieve
+      summary: Retrieve assigned group agents
+      parameters:
+        - $ref: '#/components/parameters/ConversationIdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/ConversationAgentAssignments'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.im
+    put:
+      tags:
+        - chat
+      operationId: conversations.agents.update
+      summary: Update assigned group agents
+      parameters:
+        - $ref: '#/components/parameters/ConversationIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConversationAgentsRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/ConversationAgentAssignments'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: HTTP 409 problem
           content:
             application/problem+json:
               schema:
@@ -6692,6 +6882,14 @@ components:
       required: true
       schema:
         type: string
+    AfterSignalSeqQuery:
+      name: afterSignalSeq
+      in: query
+      required: false
+      schema:
+        type: integer
+        format: int64
+        minimum: 0
     ConversationTypeQuery:
       name: conversation_type
       in: query
@@ -7315,6 +7513,7 @@ components:
         - $ref: '#/components/schemas/TextContentPart'
         - $ref: '#/components/schemas/DataContentPart'
         - $ref: '#/components/schemas/MediaContentPart'
+        - $ref: '#/components/schemas/MentionContentPart'
         - $ref: '#/components/schemas/SignalContentPart'
         - $ref: '#/components/schemas/StreamRefContentPart'
     MessageBody:
@@ -8498,6 +8697,21 @@ components:
           type: string
           maxLength: 256
           nullable: true
+        memberUserIds:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 256
+          maxItems: 200
+          nullable: true
+        agentAssignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversationAgentAssignment'
+          minItems: 1
+          maxItems: 10
+          nullable: true
         policyVersion:
           type: string
           nullable: true
@@ -8514,6 +8728,63 @@ components:
           nullable: true
       required:
         - conversationType
+    ConversationAgentAssignment:
+      type: object
+      additionalProperties: false
+      properties:
+        agentId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^agent\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$
+        revisionId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^revision\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$
+          nullable: true
+      required:
+        - agentId
+    ConversationAgentAssignments:
+      type: object
+      additionalProperties: false
+      properties:
+        generation:
+          type: integer
+          format: int64
+          minimum: 1
+        source:
+          type: string
+          enum:
+            - default_policy
+            - conversation_override
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversationAgentAssignment'
+          minItems: 1
+          maxItems: 10
+      required:
+        - generation
+        - source
+        - agents
+    UpdateConversationAgentsRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        expectedGeneration:
+          type: integer
+          format: int64
+          minimum: 1
+        agentAssignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversationAgentAssignment'
+          minItems: 1
+          maxItems: 10
+      required:
+        - expectedGeneration
+        - agentAssignments
     CreateAgentDialogRequest:
       type: object
       additionalProperties: false
@@ -9292,7 +9563,6 @@ components:
           type: string
         text:
           type: string
-          nullable: true
       required:
         - kind
         - text
@@ -9306,13 +9576,10 @@ components:
           type: string
         schemaRef:
           type: string
-          nullable: true
         encoding:
           type: string
-          nullable: true
         payload:
           type: string
-          nullable: true
       required:
         - kind
         - schemaRef
@@ -9338,6 +9605,37 @@ components:
         - drive
         - resource
       type: object
+    MentionContentPart:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+            - mention
+          type: string
+        targetKind:
+          enum:
+            - agent
+          type: string
+        targetId:
+          maxLength: 128
+          minLength: 1
+          pattern: ^agent\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$
+          type: string
+        displayText:
+          maxLength: 512
+          minLength: 1
+          type: string
+        assignmentGeneration:
+          format: int64
+          minimum: 1
+          type: integer
+      required:
+        - kind
+        - targetKind
+        - targetId
+        - displayText
+        - assignmentGeneration
+      type: object
     SignalContentPart:
       additionalProperties: false
       properties:
@@ -9347,13 +9645,11 @@ components:
           type: string
         signalType:
           type: string
-          nullable: true
         schemaRef:
           type: string
           nullable: true
         payload:
           type: string
-          nullable: true
       required:
         - kind
         - signalType
@@ -9368,13 +9664,10 @@ components:
           type: string
         streamId:
           type: string
-          nullable: true
         streamType:
           type: string
-          nullable: true
         state:
           type: string
-          nullable: true
       required:
         - kind
         - streamId

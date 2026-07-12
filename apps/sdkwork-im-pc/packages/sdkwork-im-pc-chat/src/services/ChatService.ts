@@ -1,9 +1,9 @@
 import type {
-  ContentPart,
   ConversationMessageListResponse,
   ConversationInboxEntry,
   ConversationMember,
   DriveReference,
+  ImContentPart,
   ImDecodedMessage,
   ImMessageContext,
   ImRealtimeEventContext,
@@ -58,7 +58,7 @@ import {
   resolveAppSdkUserId,
   type SdkworkChatSession,
 } from '@sdkwork/im-pc-core/sdk/session';
-import type { Chat, Message } from '@sdkwork/im-pc-types';
+import type { Chat, ChatAgentAssignment, Message } from '@sdkwork/im-pc-types';
 import { resolveSdkworkChatPcClientId } from './ClientIdentityService';
 import { contactService } from './ContactService';
 import { createDefaultAvatar } from './DefaultAvatarService';
@@ -71,9 +71,14 @@ type ImSdkClientProvider = () => Promise<ImSdkClient> | ImSdkClient;
 type SendableMediaMessageType = Extract<Message['type'], 'file' | 'image' | 'video' | 'voice'>;
 type SendableStructuredMessageType = Extract<Message['type'], 'applet' | 'card' | 'link' | 'music' | 'system' | 'video_call'>;
 
-type ChatMessageExtraInfo = Partial<Message> & {
+export type ChatContentPart = ImContentPart;
+
+export type ChatMessageExtraInfo = Omit<Partial<Message>, 'parts'> & {
+  /** Internal idempotency key reused when retrying an uncertain send. */
+  clientMsgId?: string;
   file?: DriveUploaderBlobLike;
   mimeType?: string;
+  parts?: ChatContentPart[];
 };
 
 interface ChatMediaUploadResult {
@@ -146,7 +151,7 @@ export interface ChatService {
   setReadFocusContext(context: { activeConversationId?: string; isWindowFocused?: boolean }): void;
 }
 
-type ConversationViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'isMarkedUnread' | 'isMuted' | 'isPinned' | 'memberCount' | 'members' | 'name' | 'notice' | 'type' | 'welcomeMessage'>> & {
+type ConversationViewState = Partial<Pick<Chat, 'activeCount' | 'agentAssignments' | 'agentAssignmentGeneration' | 'avatar' | 'isMarkedUnread' | 'isMuted' | 'isPinned' | 'memberCount' | 'members' | 'name' | 'notice' | 'type' | 'welcomeMessage'>> & {
   isHidden?: boolean;
 };
 const INBOX_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
@@ -187,6 +192,11 @@ const CHAT_LIST_REALTIME_EVENT_TYPES = [
   'conversation.member_removed',
   'conversation.member_left',
   'conversation.owner_transferred',
+  'conversation.agents_replaced',
+];
+const CONVERSATION_ASSIGNMENT_REALTIME_EVENT_TYPES = [
+  'conversation.agents_replaced',
+  'conversation.created',
 ];
 
 function normalizeInboxPageSize(pageSize: number | undefined): number {
@@ -196,6 +206,17 @@ function normalizeInboxPageSize(pageSize: number | undefined): number {
   const normalizedPageSize = Math.floor(pageSize);
   if (!Number.isFinite(normalizedPageSize) || normalizedPageSize <= 0) {
     return INBOX_PAGE_LIMIT;
+  }
+  return Math.min(normalizedPageSize, SDKWORK_MAX_PAGE_SIZE);
+}
+
+function normalizeMessagePageSize(pageSize: number | undefined): number {
+  if (pageSize === undefined) {
+    return MESSAGE_PAGE_LIMIT;
+  }
+  const normalizedPageSize = Math.floor(pageSize);
+  if (!Number.isFinite(normalizedPageSize) || normalizedPageSize <= 0) {
+    return MESSAGE_PAGE_LIMIT;
   }
   return Math.min(normalizedPageSize, SDKWORK_MAX_PAGE_SIZE);
 }
@@ -277,6 +298,22 @@ function toRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function unwrapRealtimeEventPayload(value: unknown): Record<string, unknown> {
+  const record = toRecord(value);
+  const nested = toRecord(record.payload);
+  // Conversation outbox relays carry an event envelope whose business body is
+  // nested under `payload`; direct publishers send that body as-is. Accept
+  // both forms at the client boundary without treating arbitrary message
+  // payload fields as an envelope.
+  if (
+    Object.keys(nested).length > 0
+    && (record.eventType || record.event_type || record.eventId || record.aggregateId || record.aggregate_id)
+  ) {
+    return nested;
+  }
+  return record;
+}
+
 function pickString(...values: unknown[]): string | undefined {
   for (const value of values) {
     if (typeof value === 'string' && value.trim().length > 0) {
@@ -299,6 +336,164 @@ function pickNumber(...values: unknown[]): number | undefined {
     }
   }
   return undefined;
+}
+
+function normalizeRealtimeAgentAssignmentSnapshot(
+  value: unknown,
+): Pick<ConversationViewState, 'agentAssignments' | 'agentAssignmentGeneration'> | undefined {
+  const payload = unwrapRealtimeEventPayload(value);
+  const rawSetValue = payload.agentAssignments ?? payload.agent_assignments;
+  const assignmentSet = rawSetValue === undefined ? payload : toRecord(rawSetValue);
+  const generation = pickNumber(
+    assignmentSet.generation,
+    assignmentSet.assignmentGeneration,
+    assignmentSet.assignment_generation,
+  );
+  if (!Number.isSafeInteger(generation) || (generation ?? 0) < 1) {
+    return undefined;
+  }
+
+  const rawAgents = Array.isArray(assignmentSet.agents)
+    ? assignmentSet.agents
+    : Array.isArray(assignmentSet.agentAssignments)
+      ? assignmentSet.agentAssignments
+      : undefined;
+  if (!rawAgents || rawAgents.length < 1 || rawAgents.length > 10) {
+    return undefined;
+  }
+  const seen = new Set<string>();
+  const agents: ChatAgentAssignment[] = [];
+  for (const rawAgent of rawAgents) {
+    const item = toRecord(rawAgent);
+    const agentId = pickString(item.agentId, item.agent_id, item.id);
+    if (!agentId || !STANDARD_AGENT_ID_PATTERN.test(agentId) || seen.has(agentId)) {
+      return undefined;
+    }
+    seen.add(agentId);
+    const revisionId = pickString(item.revisionId, item.revision_id);
+    if (revisionId && !STANDARD_AGENT_REVISION_ID_PATTERN.test(revisionId)) {
+      return undefined;
+    }
+    agents.push({
+      agentId,
+      ...(revisionId ? { revisionId } : {}),
+      ...(typeof item.name === 'string' && item.name.trim() ? { name: item.name.trim() } : {}),
+      ...(typeof item.displayName === 'string' && item.displayName.trim()
+        ? { name: item.displayName.trim() }
+        : {}),
+      ...(typeof item.avatar === 'string' && item.avatar.trim() ? { avatar: item.avatar.trim() } : {}),
+      ...(typeof item.avatarUrl === 'string' && item.avatarUrl.trim()
+        ? { avatar: item.avatarUrl.trim() }
+        : {}),
+      ...(typeof item.enabled === 'boolean' ? { enabled: item.enabled } : {}),
+    });
+  }
+  return {
+    agentAssignments: agents,
+    agentAssignmentGeneration: generation,
+  };
+}
+
+function refreshAgentMentionGeneration(
+  parts: readonly ChatContentPart[],
+  snapshot: Pick<ConversationViewState, 'agentAssignments' | 'agentAssignmentGeneration'>,
+): ChatContentPart[] {
+  const generation = snapshot.agentAssignmentGeneration;
+  if (!Number.isSafeInteger(generation) || (generation ?? 0) < 1) {
+    throw new Error('The current group agent assignment snapshot is unavailable.');
+  }
+  const currentAgentIds = new Set(
+    (snapshot.agentAssignments ?? [])
+      .filter((assignment) => assignment.enabled !== false)
+      .map((assignment) => assignment.agentId),
+  );
+  return parts.map((part) => {
+    if (part.kind !== 'mention') {
+      return part;
+    }
+    if (!currentAgentIds.has(part.targetId)) {
+      throw new Error(`Mentioned agent is no longer assigned to this group: ${part.targetId}`);
+    }
+    return {
+      ...part,
+      assignmentGeneration: generation as number,
+    };
+  });
+}
+
+function realtimeEventConversationId(context: ImRealtimeEventContext): string | undefined {
+  const payload = unwrapRealtimeEventPayload(context.payload);
+  const rawEvent = toRecord(context.rawEvent);
+  return pickString(
+    payload.conversationId,
+    payload.conversation_id,
+    rawEvent.conversationId,
+    rawEvent.aggregateId,
+    context.scopeType === 'conversation' ? context.scopeId : undefined,
+  );
+}
+
+function mergeRealtimeAgentAssignmentSnapshot(
+  current: ConversationViewState | undefined,
+  next: Pick<ConversationViewState, 'agentAssignments' | 'agentAssignmentGeneration'>,
+): ConversationViewState | undefined {
+  const nextGeneration = next.agentAssignmentGeneration;
+  if (
+    !Number.isSafeInteger(nextGeneration)
+    || (nextGeneration ?? 0) < 1
+    || (current?.agentAssignmentGeneration ?? 0) > (nextGeneration ?? 0)
+  ) {
+    return current;
+  }
+  const currentGeneration = current?.agentAssignmentGeneration;
+  if (currentGeneration === nextGeneration && current?.agentAssignments) {
+    const currentAssignments = current.agentAssignments;
+    const nextAssignments = next.agentAssignments ?? [];
+    if (
+      currentAssignments.length !== nextAssignments.length
+      || currentAssignments.some((assignment, index) => {
+        const incoming = nextAssignments[index];
+        return !incoming
+          || assignment.agentId !== incoming.agentId
+          || (assignment.revisionId ?? '') !== (incoming.revisionId ?? '');
+      })
+    ) {
+      // A generation is a CAS identity. A same-generation, different
+      // snapshot is a conflicting/duplicate event and must never replace the
+      // authoritative local state.
+      return current;
+    }
+  }
+  const metadataById = new Map(
+    (current?.agentAssignments ?? []).map((assignment) => [assignment.agentId, assignment]),
+  );
+  return {
+    ...current,
+    type: 'group',
+    agentAssignments: (next.agentAssignments ?? []).map((assignment) => ({
+      ...metadataById.get(assignment.agentId),
+      ...assignment,
+    })),
+    agentAssignmentGeneration: nextGeneration,
+  };
+}
+
+function applyAgentAssignmentViewState(chat: Chat, viewState: ConversationViewState | undefined): Chat {
+  if (
+    viewState?.agentAssignments === undefined
+    && viewState?.agentAssignmentGeneration === undefined
+  ) {
+    return chat;
+  }
+  return {
+    ...chat,
+    ...(viewState.agentAssignments !== undefined
+      ? { agentAssignments: viewState.agentAssignments }
+      : {}),
+    ...(viewState.agentAssignmentGeneration !== undefined
+      ? { agentAssignmentGeneration: viewState.agentAssignmentGeneration }
+      : {}),
+  };
 }
 
 function parseJsonRecord(value: unknown): Record<string, unknown> | undefined {
@@ -838,6 +1033,7 @@ function normalizeResourceNodeSegment(value: string): string {
 }
 
 const STANDARD_AGENT_ID_PATTERN = /^agent\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/u;
+const STANDARD_AGENT_REVISION_ID_PATTERN = /^revision\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/u;
 
 function requireStandardAgentChatId(value: string): string {
   const agentId = value.trim();
@@ -991,7 +1187,7 @@ function buildDriveMediaResource(
 
 function buildMediaMessageParts(
   upload: ChatMediaUploadResult,
-): ContentPart[] {
+): ChatContentPart[] {
   return [{
     kind: 'media' as const,
     drive: upload.drive,
@@ -1019,7 +1215,7 @@ function buildStructuredMessageParts(
   content: string,
   type: SendableStructuredMessageType,
   extraInfo: ChatMessageExtraInfo | undefined,
-): ContentPart[] {
+): ChatContentPart[] {
   return [{
     kind: 'data' as const,
     schemaRef: STRUCTURED_MESSAGE_SCHEMA_BY_TYPE[type],
@@ -1030,7 +1226,7 @@ function buildStructuredMessageParts(
 
 function buildFallbackTextMessageParts(
   content: string,
-): ContentPart[] {
+): ChatContentPart[] {
   return [{
     kind: 'text' as const,
     text: content,
@@ -1042,7 +1238,7 @@ function buildMessageParts(
   type: Message['type'],
   extraInfo: ChatMessageExtraInfo | undefined,
   mediaUpload?: ChatMediaUploadResult,
-): ContentPart[] | undefined {
+): ChatContentPart[] | undefined {
   if (isMediaMessageType(type)) {
     if (!mediaUpload) {
       throw new Error('Chat media messages require Drive upload result before IM send.');
@@ -1275,7 +1471,7 @@ function buildLastMessage(entry: ConversationInboxEntry, timestamp: number): Mes
 }
 
 function mapLiveEventToMessage(context: ImRealtimeEventContext): Message | undefined {
-  const payload = toRecord(context.payload);
+  const payload = unwrapRealtimeEventPayload(context.payload);
   const rawEvent = toRecord(context.rawEvent);
   const payloadBody = toRecord(payload.body);
   const bodyPartsValue = Array.isArray(payloadBody.parts) ? payloadBody.parts : [];
@@ -1342,6 +1538,8 @@ function mapInboxEntryToChat(entry: ConversationInboxEntry, viewState: Conversat
     unreadCount: entry.unreadCount,
     updatedAt,
     activeCount: viewState?.activeCount,
+    agentAssignments: viewState?.agentAssignments,
+    agentAssignmentGeneration: viewState?.agentAssignmentGeneration,
     memberCount: viewState?.memberCount,
     members: viewState?.members,
     isMarkedUnread: viewState?.isMarkedUnread,
@@ -1360,6 +1558,7 @@ function applyInboxProjectionToViewState(
   const entryRecord = toRecord(entry);
   const peerRecord = toRecord(entryRecord.peer);
   const projectedPreferences = toRecord(entryRecord.preferences);
+  const projectedAgentAssignments = normalizeRealtimeAgentAssignmentSnapshot(entryRecord);
   const projectedName = pickString(entryRecord.displayName, entryRecord.display_name)
     ?? (normalizeConversationType(entry.conversationType) === 'single'
       ? pickString(peerRecord.displayName, peerRecord.display_name)
@@ -1367,13 +1566,17 @@ function applyInboxProjectionToViewState(
   const projectedAvatar = pickString(entryRecord.avatarUrl, entryRecord.avatar_url);
   const hasProjection = projectedName
     || projectedAvatar
-    || Object.keys(projectedPreferences).length > 0;
+    || Object.keys(projectedPreferences).length > 0
+    || projectedAgentAssignments;
   if (!hasProjection) {
     return viewState;
   }
+  const projectedViewState = projectedAgentAssignments
+    ? mergeRealtimeAgentAssignmentSnapshot(viewState, projectedAgentAssignments)
+    : viewState;
 
   return {
-    ...viewState,
+    ...projectedViewState,
     ...(projectedName ? { name: projectedName } : {}),
     ...(projectedAvatar ? { avatar: projectedAvatar } : {}),
     ...(typeof projectedPreferences.isPinned === 'boolean' ? { isPinned: projectedPreferences.isPinned } : {}),
@@ -1400,6 +1603,8 @@ function mapLocalMessageToChat(message: Message, viewState: ConversationViewStat
     unreadCount: viewState?.isMarkedUnread ? 1 : 0,
     updatedAt: message.timestamp,
     activeCount: viewState?.activeCount,
+    agentAssignments: viewState?.agentAssignments,
+    agentAssignmentGeneration: viewState?.agentAssignmentGeneration,
     memberCount: viewState?.memberCount,
     members: viewState?.members,
     isMarkedUnread: viewState?.isMarkedUnread,
@@ -1454,6 +1659,10 @@ function hasProfileUpdate(update: UpdateConversationProfileRequest): boolean {
 function buildLocalConversationViewUpdate(updates: Partial<Chat>): ConversationViewState {
   return {
     ...(updates.activeCount !== undefined ? { activeCount: updates.activeCount } : {}),
+    ...(updates.agentAssignments !== undefined ? { agentAssignments: updates.agentAssignments } : {}),
+    ...(updates.agentAssignmentGeneration !== undefined
+      ? { agentAssignmentGeneration: updates.agentAssignmentGeneration }
+      : {}),
     ...(updates.isMuted !== undefined ? { isMuted: updates.isMuted } : {}),
     ...(updates.isMarkedUnread !== undefined ? { isMarkedUnread: updates.isMarkedUnread } : {}),
     ...(updates.isPinned !== undefined ? { isPinned: updates.isPinned } : {}),
@@ -1471,10 +1680,11 @@ function mapConversationMessageEntryToMessage(
 ): Message {
   const timestamp = parseTimestamp(entry.committedAt ?? entry.occurredAt) || Date.now() - Math.max(total - index, 0) * 1000;
   const senderId = pickString(entry.sender?.id) ?? 'system';
+  const entryParts = bodyParts(entry.body);
   const rtcCallMessage = mapRtcSignalToCallMessage({
     chatId: entry.conversationId,
     fallbackSenderId: senderId,
-    parts: bodyParts(entry.body),
+    parts: entryParts,
     timestamp,
   });
   if (rtcCallMessage) {
@@ -1483,7 +1693,9 @@ function mapConversationMessageEntryToMessage(
       : rtcCallMessage;
   }
   if (cachedMessage) {
-    return cachedMessage;
+    return entryParts.length > 0 && !cachedMessage.parts?.length
+      ? { ...cachedMessage, parts: entryParts }
+      : cachedMessage;
   }
 
   const type = resolveMessageEntryType(entry);
@@ -1513,6 +1725,7 @@ function mapConversationMessageEntryToMessage(
     ...(duration ? { duration } : {}),
     ...(fileName ? { fileName } : {}),
     ...(pickString(renderHints.fileSize, resource.sizeBytes) ? { fileSize: pickString(renderHints.fileSize, resource.sizeBytes) } : {}),
+    ...(entryParts.length > 0 ? { parts: entryParts } : {}),
     ...(replyTo ? { replyTo } : {}),
   };
 }
@@ -1907,7 +2120,10 @@ class SdkworkChatService implements ChatService {
   }
 
   private mergeLiveLocalChats(chats: Chat[]): Chat[] {
-    const byId = new Map(chats.map((chat) => [chat.id, chat]));
+    const byId = new Map(chats.map((chat) => [
+      chat.id,
+      applyAgentAssignmentViewState(chat, this.conversationViewState.get(chat.id)),
+    ]));
     for (const [chatId, localMessages] of this.localMessages.entries()) {
       const viewState = this.conversationViewState.get(chatId);
       if (viewState?.isHidden) {
@@ -1933,7 +2149,11 @@ class SdkworkChatService implements ChatService {
   private notifyChatListHandlers(chats: Chat[]): void {
     this.lastChatListSnapshot = chats;
     for (const handler of this.chatListHandlers) {
-      handler(chats);
+      try {
+        handler(chats);
+      } catch {
+        // A failing view observer must not abort cache refresh for other views.
+      }
     }
   }
 
@@ -1965,6 +2185,8 @@ class SdkworkChatService implements ChatService {
       unreadCount: viewState.isMarkedUnread ? 1 : 0,
       updatedAt: Date.now(),
       activeCount: viewState.activeCount,
+      agentAssignments: viewState.agentAssignments,
+      agentAssignmentGeneration: viewState.agentAssignmentGeneration,
       memberCount: viewState.memberCount,
       members: viewState.members,
       isMarkedUnread: viewState.isMarkedUnread,
@@ -2408,7 +2630,7 @@ class SdkworkChatService implements ChatService {
     options: { pageSize?: number } | undefined,
     cacheToken: ConversationCacheToken,
   ): Promise<Message[]> {
-    const pageSize = options?.pageSize ?? DEFAULT_MESSAGE_INITIAL_LIMIT;
+    const pageSize = normalizeMessagePageSize(options?.pageSize ?? DEFAULT_MESSAGE_INITIAL_LIMIT);
     try {
       const cachedMessages = new Map(
         (this.localMessages.get(chatId) ?? []).map((message) => [message.id, message]),
@@ -2515,7 +2737,7 @@ class SdkworkChatService implements ChatService {
     }
     const response = await (await this.client()).conversations.listMessages(chatId, {
       cursor: state.nextCursor,
-      pageSize: pageSize ?? MESSAGE_PAGE_LIMIT,
+      pageSize: normalizeMessagePageSize(pageSize ?? MESSAGE_PAGE_LIMIT),
     });
     if (!this.isConversationCacheTokenCurrent(chatId, cacheToken)) {
       return [];
@@ -2582,17 +2804,20 @@ class SdkworkChatService implements ChatService {
     const client = await this.client();
     assertCurrentGeneration();
     const currentUser = contactService.getCurrentUser();
-    const clientMsgId = `pc-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const clientMsgId = extraInfo?.clientMsgId?.trim()
+      || `pc-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const replyReference = buildReplyReference(replyTo);
     const {
+      clientMsgId: _clientMsgId,
       file: _file,
       mimeType: _mimeType,
+      parts: explicitParts,
       ...localExtraInfo
     } = extraInfo ?? {};
 
     let mediaUpload: ChatMediaUploadResult | undefined;
     let remoteSummary = content || extraInfo?.fileName || type;
-    let parts: ContentPart[] | undefined;
+    let parts: ChatContentPart[] | undefined;
     let renderHints: ReturnType<typeof buildMessageRenderHints> | undefined;
 
     try {
@@ -2612,11 +2837,13 @@ class SdkworkChatService implements ChatService {
         : undefined;
       assertCurrentGeneration();
       remoteSummary = mediaUpload?.resource.fileName ?? remoteSummary;
-      parts = type === 'text'
-        ? undefined
-        : buildMessageParts(mediaUpload?.content ?? content, type, extraInfo, mediaUpload);
+      parts = explicitParts?.length
+        ? explicitParts
+        : type === 'text'
+          ? undefined
+          : buildMessageParts(mediaUpload?.content ?? content, type, extraInfo, mediaUpload);
       renderHints = type === 'text' ? undefined : buildMessageRenderHints(type, extraInfo);
-      const postResult = type === 'text'
+      const postResult = type === 'text' && !parts
         ? await client.conversations.postText(chatId, content, {
             clientMsgId,
             summary: content,
@@ -2639,6 +2866,7 @@ class SdkworkChatService implements ChatService {
         type,
         timestamp: Date.now(),
         replyTo,
+        ...(parts ? { parts } : {}),
         ...localExtraInfo,
       };
       const storedMessage = this.upsertLocalMessage(chatId, message, true);
@@ -2670,7 +2898,7 @@ class SdkworkChatService implements ChatService {
         clientMsgId,
         replyTo,
         extraInfo: localExtraInfo,
-        ...(type === 'text'
+        ...(type === 'text' && !parts
           ? {}
           : {
               summary: remoteSummary,
@@ -2688,6 +2916,7 @@ class SdkworkChatService implements ChatService {
         timestamp: Date.now(),
         replyTo,
         sendState: 'pending',
+        ...(parts ? { parts } : {}),
         ...localExtraInfo,
       };
       const storedMessage = this.upsertLocalMessage(chatId, pendingMessage, true);
@@ -2722,7 +2951,52 @@ class SdkworkChatService implements ChatService {
     }
   }
 
+  private async refreshAgentMentionParts(
+    chatId: string,
+    parts: readonly ChatContentPart[],
+    expectedGeneration = this.authSessionGeneration,
+  ): Promise<ChatContentPart[]> {
+    this.assertAuthSessionGenerationCurrent(expectedGeneration, 'refreshing agent mentions');
+    if (!parts.some((part) => part.kind === 'mention')) {
+      return [...parts];
+    }
+
+    const cachedSnapshot = this.conversationViewState.get(chatId);
+    let snapshot: Pick<ConversationViewState, 'agentAssignments' | 'agentAssignmentGeneration'> | undefined;
+    let assignmentLoadError: unknown;
+    try {
+      const client = await this.client();
+      this.assertAuthSessionGenerationCurrent(expectedGeneration, 'refreshing agent mentions');
+      snapshot = normalizeRealtimeAgentAssignmentSnapshot(
+        await client.conversations.getAgentAssignments(chatId),
+      );
+      this.assertAuthSessionGenerationCurrent(expectedGeneration, 'refreshing agent mentions');
+    } catch (error) {
+      this.assertAuthSessionGenerationCurrent(expectedGeneration, 'refreshing agent mentions');
+      assignmentLoadError = error;
+      snapshot = cachedSnapshot;
+    }
+    if (
+      !snapshot
+      || !Number.isSafeInteger(snapshot.agentAssignmentGeneration)
+      || (snapshot.agentAssignmentGeneration ?? 0) < 1
+      || !snapshot.agentAssignments?.length
+    ) {
+      if (assignmentLoadError) {
+        throw assignmentLoadError;
+      }
+      throw new Error('The current group agent assignment snapshot is unavailable.');
+    }
+    const effectiveSnapshot = mergeRealtimeAgentAssignmentSnapshot(cachedSnapshot, snapshot)
+      ?? snapshot;
+    const refreshedParts = refreshAgentMentionGeneration(parts, effectiveSnapshot);
+    this.assertAuthSessionGenerationCurrent(expectedGeneration, 'refreshing agent mentions');
+    this.writeConversationViewState(chatId, effectiveSnapshot);
+    return refreshedParts;
+  }
+
   async retryFailedMessage(chatId: string, messageId: string): Promise<Message> {
+    const generation = this.authSessionGeneration;
     const messages = this.localMessages.get(chatId) ?? [];
     const failedMessage = messages.find(
       (message) => message.id === messageId && message.sendState === 'failed',
@@ -2734,17 +3008,35 @@ class SdkworkChatService implements ChatService {
       throw new Error('Only text messages can be retried from the local failed queue.');
     }
 
-    this.setLocalMessages(
-      chatId,
-      messages.filter((message) => message.id !== messageId),
-    );
-
-    return this.sendMessage(
+    const retryParts = Array.isArray(failedMessage.parts)
+      ? await this.refreshAgentMentionParts(
+          chatId,
+          failedMessage.parts as ChatContentPart[],
+          generation,
+        )
+      : undefined;
+    this.assertAuthSessionGenerationCurrent(generation, 'retrying a failed message');
+    const sentMessage = await this.sendMessage(
       chatId,
       failedMessage.content,
       failedMessage.type,
       failedMessage.replyTo,
+      {
+        clientMsgId: failedMessage.id,
+        ...(retryParts ? { parts: retryParts } : {}),
+      },
     );
+    this.assertAuthSessionGenerationCurrent(generation, 'retrying a failed message');
+    // Keep the failed item visible until the replacement is accepted. A
+    // generation conflict, auth failure, or network error must leave the
+    // original structured message retryable instead of losing its draft.
+    this.setLocalMessages(
+      chatId,
+      (this.localMessages.get(chatId) ?? messages).filter((message) => message.id !== messageId),
+    );
+    this.emitLocalChatListSnapshot();
+    void this.emitChatList().catch(() => undefined);
+    return sentMessage;
   }
 
   setReadFocusContext(context: { activeConversationId?: string; isWindowFocused?: boolean }): void {
@@ -3297,13 +3589,29 @@ class SdkworkChatService implements ChatService {
       return;
     }
     const generation = this.authSessionGeneration;
-    const unsubscribe = subscribePcConversationMessages(
+    const unsubscribeMessages = subscribePcConversationMessages(
       conversationId,
       (message, context) => {
         this.handleLiveMessage(conversationId, message, context, generation);
       },
     );
-    this.conversationWireUnsubs.set(conversationId, unsubscribe);
+    // Conversation relays publish durable assignment snapshots on the
+    // conversation scope. Keep this scope subscription paired with the
+    // message subscription so it follows the same auth/session lifecycle.
+    const unsubscribeAssignments = subscribePcRealtimeScope(
+      {
+        scopeId: conversationId,
+        scopeType: 'conversation',
+        eventTypes: CONVERSATION_ASSIGNMENT_REALTIME_EVENT_TYPES,
+      },
+      (context) => {
+        this.handleLiveScopeEvent(context, generation);
+      },
+    );
+    this.conversationWireUnsubs.set(conversationId, () => {
+      unsubscribeAssignments();
+      unsubscribeMessages();
+    });
   }
 
   private releaseConversationWireSubscription(conversationId: string): void {
@@ -3427,6 +3735,7 @@ class SdkworkChatService implements ChatService {
         timestamp: Date.now(),
         replyTo: item.replyTo,
         sendState: 'pending',
+        ...(item.parts ? { parts: item.parts } : {}),
         ...(extraInfo as Partial<Message>),
       };
       this.upsertLocalMessage(item.chatId, pendingMessage, true);
@@ -3470,7 +3779,19 @@ class SdkworkChatService implements ChatService {
             retryableFailure = true;
             break;
           }
-          const postResult = item.type === 'text'
+          const outgoingParts = item.parts
+              ? await this.refreshAgentMentionParts(
+                item.chatId,
+                item.parts as ChatContentPart[],
+                generation,
+              )
+            : undefined;
+          if (!this.isAuthSessionGenerationCurrent(generation)) {
+            await releasePendingClaims(index);
+            retryableFailure = true;
+            break;
+          }
+          const postResult = item.type === 'text' && !outgoingParts
             ? await client.conversations.postText(item.chatId, item.content, {
                 clientMsgId: item.clientMsgId,
                 summary: item.content,
@@ -3480,7 +3801,7 @@ class SdkworkChatService implements ChatService {
                 clientMsgId: item.clientMsgId,
                 summary: item.summary ?? item.content,
                 ...(replyReference ? { replyTo: replyReference } : {}),
-                ...(item.parts ? { parts: item.parts as ContentPart[] } : {}),
+                ...(outgoingParts ? { parts: outgoingParts } : {}),
                 ...(item.renderHints ? { renderHints: item.renderHints } : {}),
               });
           await removeDesktopPendingSend(item);
@@ -3499,6 +3820,7 @@ class SdkworkChatService implements ChatService {
             replacedMessage = {
               ...message,
               id: postResult.messageId,
+              ...(outgoingParts ? { parts: outgoingParts } : {}),
               sendState: undefined,
               timestamp: Date.now(),
             };
@@ -3585,7 +3907,22 @@ class SdkworkChatService implements ChatService {
       context.eventType
       && !CHAT_LIST_REALTIME_EVENT_TYPES.includes(context.eventType)
     ) {
+      void context.ack().catch(() => undefined);
       return;
+    }
+
+    if (context.eventType === 'conversation.agents_replaced'
+      || context.eventType === 'conversation.created') {
+      const conversationId = realtimeEventConversationId(context);
+      const assignmentSnapshot = normalizeRealtimeAgentAssignmentSnapshot(context.payload);
+      if (conversationId && assignmentSnapshot) {
+        const current = this.conversationViewState.get(conversationId);
+        const next = mergeRealtimeAgentAssignmentSnapshot(current, assignmentSnapshot);
+        if (next && next !== current) {
+          this.writeConversationViewState(conversationId, next);
+          this.emitLocalChatListSnapshot();
+        }
+      }
     }
 
     const message = context.eventType === 'message.posted'
@@ -3735,7 +4072,11 @@ class SdkworkChatService implements ChatService {
     subscription.notifiedMessageVersions.set(message.id, nextVersion);
     this.pruneLiveSubscriptionNotificationVersions(subscription.chatId, subscription);
     for (const handler of subscription.handlers) {
-      handler(message);
+      try {
+        handler(message);
+      } catch {
+        // A failing message observer must not prevent the realtime event ACK.
+      }
     }
   }
 

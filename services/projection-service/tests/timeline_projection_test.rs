@@ -717,6 +717,16 @@ fn test_group_agent_projection_rejects_invalid_created_policy_and_future_replace
         .apply(&valid_created)
         .expect("valid created.v2 should project");
 
+    let mut invalid_generation = valid_created.clone();
+    invalid_generation.event_id = "evt_group_agents_invalid_created_generation".into();
+    invalid_generation.payload = valid_created
+        .payload
+        .replace("\"generation\":1", "\"generation\":2");
+    assert!(
+        service.apply(&invalid_generation).is_err(),
+        "created.v2 must start at generation one"
+    );
+
     let mut future_replacement = im_domain_events::CommitEnvelope::minimal(
         "evt_group_agents_future_replacement",
         "100001",

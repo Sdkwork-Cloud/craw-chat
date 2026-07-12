@@ -93,6 +93,7 @@
       "im_adapters_postgres_journal::PostgresAggregateStore",
       "im_adapters_postgres_journal::PostgresCommitJournal",
       "im_adapters_postgres_journal::PostgresConversationSeqAllocator",
+      "im_adapters_postgres_journal::PostgresDurableConversationEventWriter",
       "im_adapters_postgres_journal::PostgresDurableMessagePostWriter",
       "im_adapters_postgres_journal::PostgresJournalConfig",
       "im_adapters_postgres_journal::PostgresJournalPool",

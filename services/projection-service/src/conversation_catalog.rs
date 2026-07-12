@@ -313,7 +313,8 @@ fn projected_created_agent_assignments(
                     "conversation.created.v2 group requires agentAssignments".into(),
                 )
             })?;
-            if event_assignments.source != ConversationAgentAssignmentSource::DefaultPolicy
+            if event_assignments.generation != 1
+                || event_assignments.source != ConversationAgentAssignmentSource::DefaultPolicy
                 || event_assignments
                     .policy_id
                     .as_deref()
@@ -323,7 +324,26 @@ fn projected_created_agent_assignments(
                     .is_none_or(|value| value == 0)
             {
                 return Err(ProjectionError::InvalidEvent(
-                    "conversation.created.v2 requires a versioned default_policy assignment snapshot"
+                    "conversation.created.v2 requires a generation-1 versioned default_policy assignment snapshot"
+                        .into(),
+                ));
+            }
+            event_assignments.assignment_set()
+        }
+        (3, Some("conversation.created.v3")) => {
+            let event_assignments = payload.agent_assignments.as_ref().ok_or_else(|| {
+                ProjectionError::InvalidEvent(
+                    "conversation.created.v3 group requires agentAssignments".into(),
+                )
+            })?;
+            if event_assignments.generation != 1
+                || event_assignments.source
+                    != ConversationAgentAssignmentSource::ConversationOverride
+                || event_assignments.policy_id.is_some()
+                || event_assignments.policy_version.is_some()
+            {
+                return Err(ProjectionError::InvalidEvent(
+                    "conversation.created.v3 requires a generation-1 policy-free conversation_override assignment snapshot"
                         .into(),
                 ));
             }

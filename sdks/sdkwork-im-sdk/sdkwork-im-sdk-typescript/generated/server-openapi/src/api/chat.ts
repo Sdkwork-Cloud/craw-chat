@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactView, ConversationInboxEntry, ConversationMember, ConversationMessageEntry, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, MessageFavoriteType, MessageFavoriteView, MessageInteractionSummaryView, MessageMutationResult, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, PageInfo, PostMessageRequest, PostMessageResult, ReadCursorView, RecallMessageRequest, RemoveConversationMemberRequest, RoomView, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest } from '../types';
+import type { AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactView, ConversationAgentAssignments, ConversationInboxEntry, ConversationMember, ConversationMessageEntry, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, MessageFavoriteType, MessageFavoriteView, MessageInteractionSummaryView, MessageMutationResult, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, PageInfo, PostMessageRequest, PostMessageResult, ReadCursorView, RecallMessageRequest, RemoveConversationMemberRequest, RoomView, TransferConversationOwnerRequest, UpdateConversationAgentsRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest } from '../types';
 
 
 export class ChatRoomsApi {
@@ -138,6 +138,11 @@ export class ChatMessagesApi {
   }
 }
 
+export interface ChatConversationsPinsListParams {
+  cursor?: string;
+  pageSize?: number;
+}
+
 export class ChatConversationsPinsApi {
   private client: HttpClient;
 
@@ -147,8 +152,12 @@ export class ChatConversationsPinsApi {
 
 
 /** List pinned messages */
-  async list(conversationId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/pins`));
+  async list(conversationId: string, params?: ChatConversationsPinsListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/pins`), query));
   }
 }
 
@@ -196,6 +205,11 @@ export class ChatConversationsMessagesApi {
   }
 }
 
+export interface ChatConversationsMemberDirectoryListParams {
+  cursor?: string;
+  pageSize?: number;
+}
+
 export class ChatConversationsMemberDirectoryApi {
   private client: HttpClient;
 
@@ -205,8 +219,12 @@ export class ChatConversationsMemberDirectoryApi {
 
 
 /** List member directory */
-  async list(conversationId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/member_directory`));
+  async list(conversationId: string, params?: ChatConversationsMemberDirectoryListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/member_directory`), query));
   }
 }
 
@@ -267,6 +285,39 @@ export class ChatConversationsPreferencesApi {
   }
 }
 
+export class ChatConversationsAgentsApi {
+  private client: HttpClient;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+
+/** Retrieve assigned group agents */
+  async retrieve(conversationId: string): Promise<ConversationAgentAssignments> {
+    return this.client.get<ConversationAgentAssignments>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agents`));
+  }
+
+/** Update assigned group agents */
+  async update(conversationId: string, body: UpdateConversationAgentsRequest): Promise<ConversationAgentAssignments> {
+    return this.client.put<ConversationAgentAssignments>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agents`), body, undefined, undefined, 'application/json');
+  }
+}
+
+export class ChatConversationsMembersCurrentApi {
+  private client: HttpClient;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+
+/** Retrieve the current conversation member */
+  async retrieve(conversationId: string): Promise<ConversationMember> {
+    return this.client.get<ConversationMember>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/current`));
+  }
+}
+
 export interface ChatConversationsMembersListParams {
   pageSize?: number;
   cursor?: string;
@@ -274,9 +325,11 @@ export interface ChatConversationsMembersListParams {
 
 export class ChatConversationsMembersApi {
   private client: HttpClient;
+  public readonly current: ChatConversationsMembersCurrentApi;
 
   constructor(client: HttpClient) {
     this.client = client;
+    this.current = new ChatConversationsMembersCurrentApi(client);
   }
 
 
@@ -434,6 +487,7 @@ export class ChatConversationsApi {
   public readonly threads: ChatConversationsThreadsApi;
   public readonly directChats: ChatConversationsDirectChatsApi;
   public readonly members: ChatConversationsMembersApi;
+  public readonly agents: ChatConversationsAgentsApi;
   public readonly preferences: ChatConversationsPreferencesApi;
   public readonly profile: ChatConversationsProfileApi;
   public readonly readCursor: ChatConversationsReadCursorApi;
@@ -449,6 +503,7 @@ export class ChatConversationsApi {
     this.threads = new ChatConversationsThreadsApi(client);
     this.directChats = new ChatConversationsDirectChatsApi(client);
     this.members = new ChatConversationsMembersApi(client);
+    this.agents = new ChatConversationsAgentsApi(client);
     this.preferences = new ChatConversationsPreferencesApi(client);
     this.profile = new ChatConversationsProfileApi(client);
     this.readCursor = new ChatConversationsReadCursorApi(client);
