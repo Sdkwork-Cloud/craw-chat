@@ -1,14 +1,15 @@
 //! Open API (`/im/v3/api/social/*`) handlers backed by the social runtime.
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
 use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use im_app_context::AppContext;
+use im_platform_contracts::IdGenerator;
 use im_time::utc_now_rfc3339_millis;
-use sdkwork_im_runtime_id::RuntimeSnowflakeIdGenerator;
+use sdkwork_im_runtime_id::{build_runtime_id_generator, build_runtime_id_generator_blocking};
 use sdkwork_utils_rust::{SdkWorkCursorListQuery, cursor_list_page_data};
 use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
@@ -33,7 +34,7 @@ fn openapi_social_principal(auth: &AppContext) -> Result<&str, SocialServiceErro
         .map_err(|error| SocialServiceError::invalid("social_principal_invalid", error.message()))
 }
 
-static OPEN_API_ID_GENERATOR: OnceLock<RuntimeSnowflakeIdGenerator> = OnceLock::new();
+static OPEN_API_ID_GENERATOR: OnceLock<Arc<dyn IdGenerator>> = OnceLock::new();
 
 /// Initialize the open-api ID generator from the database.
 ///
@@ -43,35 +44,14 @@ pub async fn init_open_api_id_generator() {
     if OPEN_API_ID_GENERATOR.get().is_some() {
         return;
     }
-    let generator = RuntimeSnowflakeIdGenerator::from_database_env("social-service")
-        .await
-        .unwrap_or_else(|error| {
-            tracing::warn!(
-                ?error,
-                "database node_id allocation failed; falling back to env for social open-api"
-            );
-            RuntimeSnowflakeIdGenerator::from_env().unwrap_or_else(|error| {
-                tracing::warn!(
-                    ?error,
-                    "SDKWORK_IM_ID_NODE_ID missing; using snowflake node 0 for social open-api handlers"
-                );
-                RuntimeSnowflakeIdGenerator::with_node_id(0)
-                    .expect("snowflake node 0 must initialize")
-            })
-        });
+    let generator = build_runtime_id_generator("social-service").await;
     let _ = OPEN_API_ID_GENERATOR.set(generator);
 }
 
-fn id_generator() -> &'static RuntimeSnowflakeIdGenerator {
-    OPEN_API_ID_GENERATOR.get_or_init(|| {
-        RuntimeSnowflakeIdGenerator::from_env().unwrap_or_else(|error| {
-            tracing::warn!(
-                ?error,
-                "SDKWORK_IM_ID_NODE_ID missing; using snowflake node 0 for social open-api handlers"
-            );
-            RuntimeSnowflakeIdGenerator::with_node_id(0).expect("snowflake node 0 must initialize")
-        })
-    })
+fn id_generator() -> &'static dyn IdGenerator {
+    OPEN_API_ID_GENERATOR
+        .get_or_init(|| build_runtime_id_generator_blocking("social-service"))
+        .as_ref()
 }
 
 pub(crate) fn next_open_api_id() -> Result<String, SocialServiceError> {
@@ -81,7 +61,7 @@ pub(crate) fn next_open_api_id() -> Result<String, SocialServiceError> {
         .map_err(|error| {
             SocialServiceError::invalid(
                 "id_generation_failed",
-                format!("open-api id generation failed: {error}"),
+                format!("open-api id generation failed: {error:?}"),
             )
         })
 }

@@ -59,7 +59,8 @@ function createSdkworkChatPcDevConfigArgs({
   if (!port) {
     return [];
   }
-  const host = String(env[SDKWORK_IM_PC_DEV_HOST_ENV] ?? '').trim() || '127.0.0.1';
+  const configuredHost = String(env[SDKWORK_IM_PC_DEV_HOST_ENV] ?? '').trim() || '127.0.0.1';
+  const host = configuredHost === '0.0.0.0' ? '127.0.0.1' : configuredHost;
   return [
     '--config',
     JSON.stringify({

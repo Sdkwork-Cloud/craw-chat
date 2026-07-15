@@ -50,14 +50,39 @@
     }
   ],
   "contracts": {
+    "layerRole": "backend-provider",
     "publicExports": [
       "."
     ],
-    "runtimeEntrypoints": [],
+    "providedPorts": [
+      {
+        "name": "runtimeIdGenerator",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "processSnowflakeGenerator",
+        "export": "."
+      }
+    ],
+    "runtimeEntrypoints": [
+      "build_runtime_id_generator",
+      "build_runtime_id_generator_blocking"
+    ],
     "routeManifest": null,
     "sdkClients": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [
+      "SDKWORK_IM_ID_NODE_ID",
+      "SDKWORK_IM_ENVIRONMENT",
+      "SDKWORK_IM_DEPLOYMENT_PROFILE",
+      "SDKWORK_IM_RUNTIME_TARGET",
+      "SDKWORK_IM_ALLOW_UNSAFE_ID_FALLBACK",
+      "SDKWORK_CLAW_ENVIRONMENT",
+      "SDKWORK_CLAW_DEPLOYMENT_PROFILE",
+      "SDKWORK_CLAW_RUNTIME_TARGET"
+    ]
   },
   "verification": {
     "commands": [

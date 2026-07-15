@@ -18,9 +18,10 @@ use crate::model::ContactListCursor;
 use crate::{ContactView, TimelineProjectionService};
 
 use super::projection::ProjectionError;
+use super::lock_projection_mutex;
 use super::scope::{
     ContactOwnerScopeKey, contact_owner_scope_key, encode_projection_key_segments,
-    projection_organization_id_for_event,
+    projection_organization_id_for_event, scope_key,
 };
 
 #[derive(Default)]
@@ -254,10 +255,13 @@ impl TimelineProjectionService {
         owner_user_id: &str,
     ) -> Vec<ContactView> {
         let scope = contact_runtime_scope(tenant_id, organization_id, owner_user_id);
-        self.lock_contact_store("contacts")
+        let mut items = self
+            .lock_contact_store("contacts")
             .get(&scope)
             .map(ContactScopeStore::ordered_items)
-            .unwrap_or_default()
+            .unwrap_or_default();
+        self.enrich_contact_profiles(tenant_id, organization_id, &mut items);
+        items
     }
 
     pub(crate) fn contact_window(
@@ -267,22 +271,74 @@ impl TimelineProjectionService {
         owner_user_id: &str,
         limit: usize,
         cursor: crate::model::ContactListCursor,
+        search_query: Option<&str>,
     ) -> SdkWorkPageData<crate::ContactView> {
         let scope = contact_runtime_scope(tenant_id, organization_id, owner_user_id);
-        let list_cursor = match cursor {
+        let requested_query = search_query
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_lowercase);
+        let scan_batch_size = if requested_query.is_some() {
+            limit.saturating_mul(8).max(limit.saturating_add(1)).min(512)
+        } else {
+            limit.saturating_add(1)
+        };
+        let mut scan_cursor = match cursor {
             crate::model::ContactListCursor::Start => None,
             other => Some(other),
         };
-        let (items, has_more) = self
-            .lock_contact_store("contact_window")
-            .get(&scope)
-            .map(|scope_store| scope_store.ordered_window_with_cursor(list_cursor, limit))
-            .unwrap_or_default();
+        let mut items = Vec::with_capacity(limit.saturating_add(1));
+        let mut last_returned_cursor: Option<(String, String)> = None;
+        let mut exhausted = false;
+
+        while items.len() <= limit && !exhausted {
+            let (mut batch, batch_has_more) = self
+                .lock_contact_store("contact_window")
+                .get(&scope)
+                .map(|scope_store| {
+                    scope_store.ordered_window_with_cursor(scan_cursor.clone(), scan_batch_size)
+                })
+                .unwrap_or_default();
+            exhausted = !batch_has_more;
+            let Some(last_scanned) = batch.last() else {
+                exhausted = true;
+                break;
+            };
+            scan_cursor = Some(crate::model::ContactListCursor::Keyset {
+                last_interaction_at: last_scanned.last_interaction_at.clone(),
+                target_user_id: last_scanned.target_user_id.clone(),
+            });
+            self.enrich_contact_profiles(tenant_id, organization_id, &mut batch);
+            for contact in batch {
+                if requested_query
+                    .as_ref()
+                    .is_some_and(|query| !contact_matches_query(&contact, query))
+                {
+                    continue;
+                }
+                items.push(contact);
+                if items.len() <= limit {
+                    let contact = items.last().expect("contact was just appended");
+                    last_returned_cursor = Some((
+                        contact.last_interaction_at.clone(),
+                        contact.target_user_id.clone(),
+                    ));
+                }
+                if items.len() > limit {
+                    break;
+                }
+            }
+        }
+
+        let has_more = items.len() > limit || !exhausted;
+        if items.len() > limit {
+            items.truncate(limit);
+        }
         let next_cursor = if has_more {
-            items.last().and_then(|contact| {
+            last_returned_cursor.as_ref().and_then(|(last_interaction_at, target_user_id)| {
                 let payload = serde_json::json!({
-                    "lastInteractionAt": contact.last_interaction_at,
-                    "targetUserId": contact.target_user_id,
+                    "lastInteractionAt": last_interaction_at,
+                    "targetUserId": target_user_id,
                 });
                 crate::cursor_auth::encode_signed_projection_cursor(&payload).ok()
             })
@@ -290,6 +346,40 @@ impl TimelineProjectionService {
             None
         };
         super::list_page::cursor_page(items, limit, next_cursor, has_more)
+    }
+
+    fn enrich_contact_profiles(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        contacts: &mut [ContactView],
+    ) {
+        let members = lock_projection_mutex(&self.members, "member store");
+        for contact in contacts {
+            let Some(conversation_id) = contact.conversation_id.as_deref() else {
+                continue;
+            };
+            let scope = scope_key(tenant_id, organization_id, conversation_id);
+            let Some(member) = members.member_for_principal_kind(
+                scope.as_str(),
+                contact.target_user_id.as_str(),
+                "user",
+            ) else {
+                continue;
+            };
+            contact.display_name = contact_member_attribute(
+                &member.attributes,
+                &["displayName", "display_name"],
+            );
+            contact.avatar_url = contact_member_attribute(
+                &member.attributes,
+                &["avatarUrl", "avatar_url", "avatar"],
+            );
+            contact.chat_id = contact_member_attribute(
+                &member.attributes,
+                &["chatId", "chat_id"],
+            );
+        }
     }
 
     pub(super) fn apply_friendship_activated(
@@ -507,6 +597,9 @@ impl TimelineProjectionService {
                 organization_id: normalized_organization_id.clone(),
                 owner_user_id: owner_user_id.to_owned(),
                 target_user_id: target_user_id.to_owned(),
+                display_name: None,
+                avatar_url: None,
+                chat_id: None,
                 contact_type: "friendship".into(),
                 relationship_state: "active".into(),
                 friendship_id: payload.friendship_id.clone(),
@@ -817,6 +910,31 @@ fn contact_entry_after_keyset_cursor(contact: &ContactView, cursor: &(String, St
     }
 }
 
+fn contact_member_attribute(
+    attributes: &std::collections::BTreeMap<String, String>,
+    keys: &[&str],
+) -> Option<String> {
+    keys.iter().find_map(|key| {
+        attributes
+            .get(*key)
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+    })
+}
+
+fn contact_matches_query(contact: &ContactView, query: &str) -> bool {
+    contact.target_user_id.to_lowercase().contains(query)
+        || contact
+            .display_name
+            .as_ref()
+            .is_some_and(|value| value.to_lowercase().contains(query))
+        || contact
+            .chat_id
+            .as_ref()
+            .is_some_and(|value| value.to_lowercase().contains(query))
+}
+
 fn lock_contacts_mutex<'a, T>(
     mutex: &'a Mutex<T>,
     lock_name: &'static str,
@@ -843,6 +961,9 @@ mod tests {
             organization_id: "0".into(),
             owner_user_id: "1".into(),
             target_user_id: target_user_id.into(),
+            display_name: None,
+            avatar_url: None,
+            chat_id: None,
             contact_type: "friendship".into(),
             relationship_state: "active".into(),
             friendship_id: format!("fs_{target_user_id}"),

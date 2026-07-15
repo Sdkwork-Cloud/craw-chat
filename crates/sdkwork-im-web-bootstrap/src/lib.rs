@@ -85,7 +85,7 @@ fn im_service_security_policy(environment: &WebEnvironment) -> SecurityPolicy {
         SecurityPolicy::production()
     };
     if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
-        security_policy.cors.allow_all_origins = true;
+        security_policy.cors = sdkwork_web_core::CorsPolicy::development_private_network();
         security_policy
             .cross_site
             .reject_untrusted_state_changing_origins = false;

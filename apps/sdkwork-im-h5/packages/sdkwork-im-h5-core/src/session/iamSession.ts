@@ -35,7 +35,12 @@ function getStorage(): Storage | undefined {
   if (typeof window === "undefined") {
     return undefined;
   }
-  return window.sessionStorage;
+  const legacyValue = window.sessionStorage.getItem(IM_H5_IAM_SESSION_STORAGE_KEY);
+  if (legacyValue && !window.localStorage.getItem(IM_H5_IAM_SESSION_STORAGE_KEY)) {
+    window.localStorage.setItem(IM_H5_IAM_SESSION_STORAGE_KEY, legacyValue);
+    window.sessionStorage.removeItem(IM_H5_IAM_SESSION_STORAGE_KEY);
+  }
+  return window.localStorage;
 }
 
 function normalizeToken(value: unknown): string | undefined {

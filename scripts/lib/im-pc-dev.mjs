@@ -3,6 +3,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -34,7 +35,7 @@ const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), '..');
 export const SDKWORK_IM_PC_DEV_HOST_ENV = 'SDKWORK_IM_PC_DEV_HOST';
 export const SDKWORK_IM_PC_DEV_PORT_ENV = 'SDKWORK_IM_PC_DEV_PORT';
-export const DEFAULT_SDKWORK_IM_PC_DEV_HOST = '127.0.0.1';
+export const DEFAULT_SDKWORK_IM_PC_DEV_HOST = '0.0.0.0';
 export const DEFAULT_SDKWORK_IM_PC_DEV_PORT = 4176;
 export const DEFAULT_SDKWORK_API_CLOUD_GATEWAY_BIND = '127.0.0.1:3900';
 export const DEFAULT_SDKWORK_API_CLOUD_GATEWAY_BASE_URL = `http://${DEFAULT_SDKWORK_API_CLOUD_GATEWAY_BIND}`;
@@ -443,15 +444,101 @@ export function resolveSdkworkChatPcDevServer({
 
 export function createSdkworkChatBrowserOrigins({
   host = DEFAULT_SDKWORK_IM_PC_DEV_HOST,
+  networkHosts = [],
   port = DEFAULT_SDKWORK_IM_PC_DEV_PORT,
 } = {}) {
   const resolvedPort = normalizePort(port, SDKWORK_IM_PC_DEV_PORT_ENV);
-  const originHosts = [host, 'localhost']
+  const originHosts = [
+    ...(host === '0.0.0.0' ? ['127.0.0.1'] : [host]),
+    'localhost',
+    ...networkHosts,
+  ]
     .map((value) => normalizeText(value))
     .filter((value, index, values) => value && values.indexOf(value) === index);
   return originHosts
     .map((originHost) => `http://${originHost}:${resolvedPort}`)
     .join(',');
+}
+
+function isPrivateIpv4Address(address) {
+  const octets = String(address).split('.').map((value) => Number.parseInt(value, 10));
+  if (octets.length !== 4 || octets.some((value) => !Number.isInteger(value))) {
+    return false;
+  }
+  return octets[0] === 10
+    || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
+    || (octets[0] === 192 && octets[1] === 168);
+}
+
+export function resolveLocalNetworkHosts({
+  networkInterfaces = os.networkInterfaces,
+} = {}) {
+  const interfaces = typeof networkInterfaces === 'function'
+    ? networkInterfaces()
+    : networkInterfaces;
+  return Object.values(interfaces ?? {})
+    .flatMap((entries) => entries ?? [])
+    .filter((entry) => (
+      (entry.family === 'IPv4' || entry.family === 4)
+      && !entry.internal
+      && isPrivateIpv4Address(entry.address)
+    ))
+    .map((entry) => entry.address)
+    .filter((address, index, addresses) => addresses.indexOf(address) === index)
+    .sort();
+}
+
+export function createSdkworkChatPcAccessUrls({
+  networkHosts = resolveLocalNetworkHosts(),
+  port = DEFAULT_SDKWORK_IM_PC_DEV_PORT,
+} = {}) {
+  const resolvedPort = normalizePort(port, SDKWORK_IM_PC_DEV_PORT_ENV);
+  return {
+    localUrl: `http://localhost:${resolvedPort}`,
+    networkUrls: networkHosts.map((host) => `http://${host}:${resolvedPort}`),
+  };
+}
+
+export function formatSdkworkChatPcAccessLinks(accessUrls) {
+  const lines = [
+    '[sdkwork-im] application started successfully',
+    `[sdkwork-im] Local:   ${accessUrls.localUrl}`,
+  ];
+  if (accessUrls.networkUrls.length === 0) {
+    lines.push('[sdkwork-im] Network: no private IPv4 LAN address detected');
+  } else {
+    for (const url of accessUrls.networkUrls) {
+      lines.push(`[sdkwork-im] Network: ${url}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+export async function waitForSdkworkChatApplicationReady({
+  baseUrl,
+  fetchImpl = globalThis.fetch,
+  intervalMs = 500,
+  maxAttempts = 600,
+  wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)),
+} = {}) {
+  if (!baseUrl || typeof fetchImpl !== 'function') {
+    throw new Error('application readiness requires an HTTP base URL and fetch implementation');
+  }
+  const healthUrl = `${baseUrl.replace(/\/+$/u, '')}/healthz`;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      const response = await fetchImpl(healthUrl, { cache: 'no-store' });
+      if (response.ok) {
+        return healthUrl;
+      }
+    } catch {
+      // The gateway may still be compiling or binding its socket.
+    }
+    if (attempt + 1 < maxAttempts) {
+      await wait(intervalMs);
+    }
+  }
+  throw new Error(`application gateway did not become ready at ${healthUrl}`);
 }
 
 export function isTcpPortAvailable(port, host = DEFAULT_SDKWORK_IM_PC_DEV_HOST) {
@@ -907,6 +994,8 @@ export async function runSdkworkChatPcDev({
   spawnImpl = spawn,
   stdout = process.stdout,
   stderr = process.stderr,
+  networkInterfaces = os.networkInterfaces,
+  waitForApplicationReady = waitForSdkworkChatApplicationReady,
 } = {}) {
   const siteDirEnv = await resolveImProductSiteDirEnv({
     buildEnv: env,
@@ -955,13 +1044,26 @@ export async function runSdkworkChatPcDev({
       `[sdkwork-im-pc-dev] 127.0.0.1:18079 is busy; using http://${resolvedServerBind.bindAddr}\n`,
     );
   }
+  const networkHosts = resolveLocalNetworkHosts({ networkInterfaces });
+  const runtimeEnv = {
+    ...envWithSiteDirs,
+    SDKWORK_IM_BROWSER_ORIGINS: envWithSiteDirs.SDKWORK_IM_BROWSER_ORIGINS
+      ?? createSdkworkChatBrowserOrigins({
+        host: initialPlan.devServer.host,
+        networkHosts,
+        port: resolvedDevPort,
+      }),
+  };
   const plan = createSdkworkChatPcDevPlan({
     argv,
     devServerHost: initialPlan.devServer.host,
     devServerPort: resolvedDevPort,
-    env: envWithSiteDirs,
+    env: runtimeEnv,
     repoRoot: resolvedRepoRoot,
-    serverEnv: resolvedServerBind.env,
+    serverEnv: {
+      ...resolvedServerBind.env,
+      SDKWORK_IM_BROWSER_ORIGINS: runtimeEnv.SDKWORK_IM_BROWSER_ORIGINS,
+    },
   });
   if (plan.dryRun) {
     stdout.write(`${formatPlan(plan)}\n`);
@@ -982,6 +1084,19 @@ export async function runSdkworkChatPcDev({
 
   const children = [];
   let shuttingDown = false;
+  let accessLinksPrinted = false;
+  let gatewayReady = !gatewayProcess;
+  let readinessCheckStarted = false;
+  let rendererReady = plan.target !== 'browser';
+  let gatewayOutput = '';
+  let rendererOutput = '';
+  const rendererProcess = plan.processes.find((entry) => entry.label === TARGETS.browser.label);
+  const applicationBaseUrl = rendererProcess?.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL
+    ?? rendererProcess?.env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL;
+  const accessUrls = createSdkworkChatPcAccessUrls({
+    networkHosts,
+    port: resolvedDevPort,
+  });
 
   function shutdown(exceptChild) {
     if (shuttingDown) {
@@ -995,6 +1110,31 @@ export async function runSdkworkChatPcDev({
     }
   }
 
+  function startReadinessCheckIfReady() {
+    if (
+      plan.target !== 'browser'
+      || readinessCheckStarted
+      || !rendererReady
+      || !gatewayReady
+      || shuttingDown
+    ) {
+      return;
+    }
+    readinessCheckStarted = true;
+    void waitForApplicationReady({ baseUrl: applicationBaseUrl })
+      .then(() => {
+        if (!accessLinksPrinted && !shuttingDown) {
+          accessLinksPrinted = true;
+          stdout.write(`${formatSdkworkChatPcAccessLinks(accessUrls)}\n`);
+        }
+      })
+      .catch((error) => {
+        stderr.write(
+          `[sdkwork-im-pc-dev] ${error instanceof Error ? error.message : String(error)}\n`,
+        );
+      });
+  }
+
   for (const entry of plan.processes) {
     const child = spawnImpl(entry.command, entry.args, {
       cwd: entry.cwd,
@@ -1004,7 +1144,22 @@ export async function runSdkworkChatPcDev({
     });
     children.push(child);
 
-    child.stdout?.on('data', (chunk) => prefixOutput(entry.label, stdout, chunk));
+    child.stdout?.on('data', (chunk) => {
+      prefixOutput(entry.label, stdout, chunk);
+      if (entry.label === TARGETS.browser.label && !rendererReady) {
+        rendererOutput = `${rendererOutput}${String(chunk ?? '')}`.slice(-4_096);
+        rendererReady = /Local:\s+http:\/\//u.test(
+          rendererOutput.replaceAll(/\u001b\[[0-9;]*m/gu, ''),
+        );
+      }
+      if (entry === gatewayProcess && !gatewayReady) {
+        gatewayOutput = `${gatewayOutput}${String(chunk ?? '')}`.slice(-4_096);
+        gatewayReady = /Listening on http:\/\//u.test(
+          gatewayOutput.replaceAll(/\u001b\[[0-9;]*m/gu, ''),
+        );
+      }
+      startReadinessCheckIfReady();
+    });
     child.stderr?.on('data', (chunk) => prefixOutput(entry.label, stderr, chunk));
     child.on('error', (error) => {
       stderr.write(`[${entry.label}] ${error instanceof Error ? error.message : String(error)}\n`);

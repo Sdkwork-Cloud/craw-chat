@@ -97,11 +97,15 @@ const sharedDatabaseSource = fs.readFileSync(
   'utf8',
 );
 const {
+  createSdkworkChatPcAccessUrls,
   createSdkworkChatBrowserOrigins,
   createSdkworkChatPcDevPlan,
+  formatSdkworkChatPcAccessLinks,
   resolveNotaryAppApiUpstream,
   resolveCatalogAppApiUpstream,
   resolveAvailableSdkworkChatPcDevPort,
+  resolveLocalNetworkHosts,
+  waitForSdkworkChatApplicationReady,
   runSdkworkChatPcDev,
 } = await import(pathToFileURL(path.join(repoRoot, 'scripts/lib/im-pc-dev.mjs')).href);
 const {
@@ -663,11 +667,11 @@ assert.equal(browserPlan.target, 'browser');
 assert.deepEqual(
   browserPlan.devServer,
   {
-    host: '127.0.0.1',
+    host: '0.0.0.0',
     port: 4176,
-    url: 'http://127.0.0.1:4176',
+    url: 'http://0.0.0.0:4176',
   },
-  'browser dev must default to the Sdkwork IM PC dev port instead of the retired legacy port',
+  'browser dev must listen on every IPv4 interface and use the canonical PC dev port',
 );
 assert.deepEqual(
   browserPlan.processes.map((entry) => entry.label),
@@ -806,6 +810,50 @@ assert.equal(
   createSdkworkChatBrowserOrigins({ port: 4188 }),
   'http://127.0.0.1:4188,http://localhost:4188',
   'browser origin helper must derive CORS origins from the selected dev port',
+);
+assert.equal(
+  createSdkworkChatBrowserOrigins({
+    networkHosts: ['192.168.1.25'],
+    port: 4188,
+  }),
+  'http://127.0.0.1:4188,http://localhost:4188,http://192.168.1.25:4188',
+  'browser origin helper must allow detected LAN access URLs',
+);
+const localNetworkHosts = resolveLocalNetworkHosts({
+  networkInterfaces: () => ({
+    ethernet: [
+      { address: '192.168.1.25', family: 'IPv4', internal: false },
+      { address: '203.0.113.10', family: 'IPv4', internal: false },
+    ],
+    loopback: [{ address: '127.0.0.1', family: 'IPv4', internal: true }],
+    vpn: [{ address: '10.8.0.4', family: 4, internal: false }],
+  }),
+});
+assert.deepEqual(localNetworkHosts, ['10.8.0.4', '192.168.1.25']);
+const accessUrls = createSdkworkChatPcAccessUrls({
+  networkHosts: localNetworkHosts,
+  port: 4188,
+});
+assert.deepEqual(accessUrls, {
+  localUrl: 'http://localhost:4188',
+  networkUrls: ['http://10.8.0.4:4188', 'http://192.168.1.25:4188'],
+});
+assert.match(
+  formatSdkworkChatPcAccessLinks(accessUrls),
+  /application started successfully[\s\S]*Network: http:\/\/192\.168\.1\.25:4188/u,
+  'startup access summary must identify successful startup and list LAN URLs',
+);
+let readinessAttempts = 0;
+assert.equal(
+  await waitForSdkworkChatApplicationReady({
+    baseUrl: 'http://127.0.0.1:18079',
+    fetchImpl: async () => ({ ok: ++readinessAttempts === 2 }),
+    intervalMs: 0,
+    maxAttempts: 2,
+    wait: async () => {},
+  }),
+  'http://127.0.0.1:18079/healthz',
+  'application readiness must wait for a successful gateway health response',
 );
 
 const shiftedDevPort = await resolveAvailableSdkworkChatPcDevPort({
@@ -1108,6 +1156,7 @@ await runSdkworkChatPcDev({
     portChanged: true,
   }),
   repoRoot,
+  networkInterfaces: () => ({}),
   spawnImpl(command, args, options) {
     spawned.push({ command, args, options });
     return createFakeChild();
@@ -1194,6 +1243,54 @@ assert.equal(
   spawned[0].options.cwd,
   repoRoot,
   'standalone gateway must run from the sdkwork-im repository root',
+);
+const browserSpawned = [];
+let browserOutput = '';
+await runSdkworkChatPcDev({
+  argv: ['--target', 'browser'],
+  env: {
+    SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
+  },
+  findAvailableDevPort: async () => 4188,
+  resolveServerBindEnv: async ({ env }) => ({
+    bindAddr: '0.0.0.0:18079',
+    env: {
+      ...env,
+      SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '0.0.0.0:18079',
+      SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'http://127.0.0.1:18079',
+    },
+    portChanged: false,
+  }),
+  repoRoot,
+  networkInterfaces: () => ({
+    ethernet: [{ address: '192.168.1.25', family: 'IPv4', internal: false }],
+  }),
+  waitForApplicationReady: async () => 'http://127.0.0.1:18079/healthz',
+  spawnImpl(command, args, options) {
+    const child = createFakeChild();
+    browserSpawned.push({ child, command, args, options });
+    return child;
+  },
+  stdout: { write(chunk) { browserOutput += String(chunk); } },
+  stderr: { write() {} },
+});
+browserSpawned[1].child.stdout.emit('data', '\u001b[32m  Local: http://localhost:4188/\u001b[0m\n');
+assert.doesNotMatch(
+  browserOutput,
+  /application started successfully/u,
+  'browser readiness alone must not report success before the gateway child starts listening',
+);
+browserSpawned[0].child.stdout.emit('data', 'Listening on http://0.0.0.0:18079\n');
+await new Promise((resolve) => setImmediate(resolve));
+assert.match(
+  browserOutput,
+  /application started successfully[\s\S]*Local:\s+http:\/\/localhost:4188[\s\S]*Network: http:\/\/192\.168\.1\.25:4188/u,
+  'browser dev runner must print local and LAN access links only after Vite reports a ready Local URL',
+);
+assert.equal(
+  browserSpawned[0].options.env.SDKWORK_IM_BROWSER_ORIGINS,
+  'http://127.0.0.1:4188,http://localhost:4188,http://192.168.1.25:4188',
+  'browser dev runner must pass detected LAN origins to the gateway',
 );
 assert.deepEqual(
   spawned.map((entry) => entry.options.shell),

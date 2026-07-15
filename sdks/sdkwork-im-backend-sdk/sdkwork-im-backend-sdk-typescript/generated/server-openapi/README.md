@@ -5,17 +5,17 @@ Generated SDKWork v3 dual-token transport SDK.
 ## Installation
 
 ```bash
-npm install @sdkwork-internal/im-backend-api-generated
+npm install @sdkwork/im-backend-sdk
 # or
-yarn add @sdkwork-internal/im-backend-api-generated
+yarn add @sdkwork/im-backend-sdk
 # or
-pnpm add @sdkwork-internal/im-backend-api-generated
+pnpm add @sdkwork/im-backend-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { SdkworkImBackendClient } from '@sdkwork-internal/im-backend-api-generated';
+import { SdkworkImBackendClient } from '@sdkwork/im-backend-sdk';
 
 const client = new SdkworkImBackendClient({
   baseUrl: 'http://127.0.0.1:18079',
@@ -27,7 +27,7 @@ client.setAuthToken('your-auth-token');
 client.setAccessToken('your-access-token');
 
 // Use the SDK
-const result = await client.admin.apiKeyGroups.list();
+const result = await client.admin.billing.events.summary.retrieve();
 ```
 
 ## Authentication
@@ -41,7 +41,7 @@ Access-Token: <accessToken>
 ## Configuration (Non-Auth)
 
 ```typescript
-import { SdkworkImBackendClient } from '@sdkwork-internal/im-backend-api-generated';
+import { SdkworkImBackendClient } from '@sdkwork/im-backend-sdk';
 
 const client = new SdkworkImBackendClient({
   baseUrl: 'http://127.0.0.1:18079',
@@ -72,8 +72,8 @@ const result = await client.ops.health.retrieve();
 ### audit
 
 ```typescript
-// List audit records
-const result = await client.audit.records.list();
+// Export audit bundle
+const result = await client.audit.export.retrieve();
 ```
 
 ### automation
@@ -93,17 +93,17 @@ const result = await client.control.protocolGovernance.retrieve();
 ### admin
 
 ```typescript
-// listApiKeyGroups
-const result = await client.admin.apiKeyGroups.list();
+// getBillingEventSummary
+const result = await client.admin.billing.events.summary.retrieve();
 ```
 
 ## Error Handling
 
 ```typescript
-import { SdkworkImBackendClient, NetworkError, TimeoutError, AuthenticationError } from '@sdkwork-internal/im-backend-api-generated';
+import { SdkworkImBackendClient, NetworkError, TimeoutError, AuthenticationError } from '@sdkwork/im-backend-sdk';
 
 try {
-  const result = await client.admin.apiKeyGroups.list();
+  const result = await client.admin.billing.events.summary.retrieve();
 } catch (error) {
   if (error instanceof AuthenticationError) {
     console.error('Authentication failed:', error.message);

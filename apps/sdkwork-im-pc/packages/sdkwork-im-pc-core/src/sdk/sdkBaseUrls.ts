@@ -26,9 +26,36 @@ export function hasViteImportMetaEnv(): boolean {
   return typeof import.meta.env !== 'undefined';
 }
 
+export function resolveBrowserBaseUrl(value: string): string {
+  // Browser clients must never send a LAN request to their own loopback host.
+  // Keep server-side and native/desktop resolution unchanged by requiring a window.
+  if (typeof window === 'undefined') {
+    return value;
+  }
+  try {
+    const parsedUrl = new URL(value);
+    const currentHost = window.location.hostname;
+    if (
+      ['127.0.0.1', 'localhost', '0.0.0.0'].includes(parsedUrl.hostname)
+      && currentHost
+      && !['127.0.0.1', 'localhost', '0.0.0.0'].includes(currentHost)
+    ) {
+      parsedUrl.hostname = currentHost;
+      return parsedUrl.toString().replace(/\/$/u, '');
+    }
+  } catch {
+    // Preserve non-URL values for the existing downstream validation path.
+  }
+  return value;
+}
+
 export function readSdkBaseUrlEnvValue(key: string): string | undefined {
   const value = readRuntimeImportMetaEnv()[key];
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined;
+  }
+  const normalized = value.trim();
+  return resolveBrowserBaseUrl(normalized);
 }
 
 function readNodeEnvValue(key: string): string | undefined {

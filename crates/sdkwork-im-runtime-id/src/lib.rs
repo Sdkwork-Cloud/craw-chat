@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use sdkwork_id::{
     NodeAllocatorConfig, NodeAllocatorError, NodeLease, SnowflakeIdError, SnowflakeIdGenerator,
@@ -6,6 +6,8 @@ use sdkwork_id::{
 };
 
 pub const SDKWORK_IM_ID_NODE_ID_ENV: &str = "SDKWORK_IM_ID_NODE_ID";
+
+static PROCESS_FALLBACK_GENERATOR: OnceLock<(SnowflakeIdGenerator, u16)> = OnceLock::new();
 
 /// Build a runtime ID generator, preferring database-backed node_id allocation.
 ///
@@ -19,6 +21,15 @@ pub async fn build_runtime_id_generator(
     match RuntimeSnowflakeIdGenerator::from_database_env(service_name).await {
         Ok(generator) => Arc::new(generator),
         Err(error) => {
+            if runtime_id_fallback_is_forbidden(std::env::vars()) {
+                tracing::error!(
+                    ?error,
+                    "database node allocation failed; refusing unsafe static Snowflake fallback for {service_name}"
+                );
+                return Arc::new(UnavailableIdGenerator {
+                    reason: format!("database Snowflake node allocation failed: {error}"),
+                });
+            }
             tracing::warn!(
                 ?error,
                 "database node_id allocation failed; falling back to env for {service_name}"
@@ -43,12 +54,21 @@ pub fn build_runtime_id_generator_blocking(
     match RuntimeSnowflakeIdGenerator::from_env() {
         Ok(generator) => Arc::new(generator),
         Err(error) => {
+            if runtime_id_fallback_is_forbidden(std::env::vars()) {
+                tracing::error!(
+                    ?error,
+                    "static Snowflake fallback is disabled for {service_name}"
+                );
+                return Arc::new(UnavailableIdGenerator {
+                    reason: format!("static Snowflake node configuration is unavailable: {error}"),
+                });
+            }
             tracing::warn!(
                 ?error,
                 "SDKWORK_IM_ID_NODE_ID missing; using snowflake node 0 for {service_name} bootstrap"
             );
             Arc::new(
-                RuntimeSnowflakeIdGenerator::with_node_id(0)
+                RuntimeSnowflakeIdGenerator::from_process_node_id(0)
                     .expect("snowflake node 0 must initialize"),
             )
         }
@@ -73,8 +93,74 @@ pub fn runtime_id_strategy() -> RuntimeIdStrategy {
         node_conflict: "database_backed_auto_allocation",
         sequence_overflow: "fail_closed",
         restart_recovery: "idempotent_lease_reclaim",
-        failure_handling: "database_first_then_env_fallback",
+        failure_handling: "database_first_then_fail_closed",
         public_id: "uuid_or_business_id",
+    }
+}
+
+/// Returns true when a database allocation failure must not silently become a
+/// process-local static node. Explicit lifecycle/deployment settings always
+/// win over the development escape hatch.
+pub fn runtime_id_fallback_is_forbidden<I, K, V>(pairs: I) -> bool
+where
+    I: IntoIterator<Item = (K, V)>,
+    K: AsRef<str>,
+    V: AsRef<str>,
+{
+    let values: std::collections::HashMap<String, String> = pairs
+        .into_iter()
+        .map(|(key, value)| {
+            (
+                key.as_ref().to_owned(),
+                value.as_ref().trim().to_ascii_lowercase(),
+            )
+        })
+        .collect();
+    let lifecycle = ["SDKWORK_IM_ENVIRONMENT", "SDKWORK_CLAW_ENVIRONMENT"]
+        .into_iter()
+        .find_map(|key| values.get(key).cloned());
+    if let Some(value) = lifecycle {
+        return !matches!(value.as_str(), "development" | "dev" | "test");
+    }
+    let deployment_is_explicit = [
+        "SDKWORK_IM_DEPLOYMENT_PROFILE",
+        "SDKWORK_CLAW_DEPLOYMENT_PROFILE",
+        "SDKWORK_IM_RUNTIME_TARGET",
+        "SDKWORK_CLAW_RUNTIME_TARGET",
+    ]
+    .into_iter()
+    .any(|key| values.contains_key(key));
+    if deployment_is_explicit {
+        return true;
+    }
+    let explicit_override = values
+        .get("SDKWORK_IM_ALLOW_UNSAFE_ID_FALLBACK")
+        .is_some_and(|value| matches!(value.as_str(), "1" | "true"));
+    !explicit_override && !cfg!(debug_assertions)
+}
+
+struct UnavailableIdGenerator {
+    reason: String,
+}
+
+impl im_platform_contracts::IdGenerator for UnavailableIdGenerator {
+    fn next_id(&self) -> Result<i64, im_platform_contracts::ContractError> {
+        Err(im_platform_contracts::ContractError::Unavailable(
+            self.reason.clone(),
+        ))
+    }
+
+    fn node_id(&self) -> u16 {
+        0
+    }
+
+    fn next_id_at(
+        &self,
+        _timestamp_millis: u64,
+    ) -> Result<i64, im_platform_contracts::ContractError> {
+        Err(im_platform_contracts::ContractError::Unavailable(
+            self.reason.clone(),
+        ))
     }
 }
 
@@ -184,7 +270,25 @@ impl RuntimeSnowflakeIdGenerator {
     }
 
     pub fn from_config(config: RuntimeIdConfig) -> Result<Self, RuntimeIdError> {
-        Self::with_node_id(config.node_id)
+        Self::from_process_node_id(config.node_id)
+    }
+
+    fn from_process_node_id(node_id: u16) -> Result<Self, RuntimeIdError> {
+        let generator = SnowflakeIdGenerator::new(node_id)?;
+        let _ = PROCESS_FALLBACK_GENERATOR.set((generator, node_id));
+        let (generator, installed_node_id) = PROCESS_FALLBACK_GENERATOR
+            .get()
+            .expect("process fallback generator must be installed");
+        if *installed_node_id != node_id {
+            return Err(RuntimeIdError::NodeAllocation(format!(
+                "process fallback Snowflake node is already {}, refusing conflicting node {node_id}",
+                installed_node_id
+            )));
+        }
+        Ok(Self {
+            inner: generator.clone(),
+            _lease: None,
+        })
     }
 
     pub fn with_node_id(node_id: u16) -> Result<Self, RuntimeIdError> {
@@ -229,7 +333,8 @@ impl RuntimeSnowflakeIdGenerator {
         service_name: &str,
     ) -> Result<Self, RuntimeIdError> {
         let config = NodeAllocatorConfig::from_service_name(service_name);
-        let (generator, lease) = SnowflakeNodeAllocator::allocate_generator(pool, &config).await?;
+        let (generator, lease) =
+            SnowflakeNodeAllocator::allocate_process_generator(pool, &config).await?;
         Ok(Self {
             inner: generator,
             _lease: Some(lease),

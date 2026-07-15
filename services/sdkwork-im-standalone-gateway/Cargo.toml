@@ -72,6 +72,8 @@ serde_json = { workspace = true }
 tokio = { version = "1.48", features = ["macros", "rt-multi-thread", "net", "signal"] }
 toml = "0.8"
 tower-http = { version = "0.6.6", features = ["cors"] }
+sdkwork_web_axum.workspace = true
+sdkwork_web_core.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]

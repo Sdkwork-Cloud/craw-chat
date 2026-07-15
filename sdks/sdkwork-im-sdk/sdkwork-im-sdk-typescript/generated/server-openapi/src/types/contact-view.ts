@@ -2,6 +2,9 @@ export interface ContactView {
   tenantId: string;
   ownerUserId: string;
   targetUserId: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  chatId?: string | null;
   contactType: string;
   relationshipState: string;
   friendshipId: string;

@@ -676,10 +676,31 @@ where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Result<Router, String>>,
 {
-    let dependency_router = bootstrap().await.map_err(|error| {
-        format!("embedded dependency {dependency} failed readiness and cannot be mounted: {error}")
-    })?;
-    Ok(router.merge(dependency_router))
+    match bootstrap().await {
+        Ok(dependency_router) => Ok(router.merge(dependency_router)),
+        Err(error) if is_development_environment() => {
+            eprintln!(
+                "[sdkwork-im-standalone-gateway] optional dependency {dependency} is unavailable in development; continuing without its routes: {error}"
+            );
+            Ok(router)
+        }
+        Err(error) => Err(format!(
+            "embedded dependency {dependency} failed readiness and cannot be mounted: {error}"
+        )),
+    }
+}
+
+fn is_development_environment() -> bool {
+    std::env::var("SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT")
+        .or_else(|_| std::env::var("SDKWORK_IM_ENVIRONMENT"))
+        .or_else(|_| std::env::var("SDKWORK_ENV"))
+        .map(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "dev" | "development" | "test" | "testing"
+            )
+        })
+        .unwrap_or(false)
 }
 
 async fn bootstrap_embedded_drive_routes() -> Result<Router, String> {
@@ -1415,7 +1436,7 @@ fn sibling_sqlite_database_url(
 mod tests {
     use super::{
         apply_course_runtime_env_from_im_shared_profile,
-        apply_knowledgebase_runtime_env_from_im_shared_profile,
+        apply_knowledgebase_runtime_env_from_im_shared_profile, is_development_environment,
         normalize_knowledgebase_environment, sibling_sqlite_database_url,
     };
 
@@ -1478,5 +1499,17 @@ mod tests {
             sibling_sqlite_database_url("sqlite:///tmp/chat/data/chat.sqlite", "mail.sqlite")
                 .expect("mail sqlite sibling url should resolve");
         assert_eq!(mail, "sqlite:///tmp/chat/data/mail.sqlite");
+    }
+
+    #[test]
+    fn development_environment_allows_optional_dependency_degradation() {
+        unsafe {
+            std::env::set_var("SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT", "development");
+        }
+        assert!(is_development_environment());
+        unsafe {
+            std::env::set_var("SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT", "production");
+        }
+        assert!(!is_development_environment());
     }
 }

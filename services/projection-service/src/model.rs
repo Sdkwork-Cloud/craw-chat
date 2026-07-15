@@ -238,6 +238,12 @@ pub struct ContactView {
     pub organization_id: String,
     pub owner_user_id: String,
     pub target_user_id: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
+    #[serde(default)]
+    pub avatar_url: Option<String>,
+    #[serde(default)]
+    pub chat_id: Option<String>,
     pub contact_type: String,
     pub relationship_state: String,
     pub friendship_id: String,
