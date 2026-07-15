@@ -18,6 +18,13 @@ export class AdminUsageSummaryApi {
   }
 }
 
+export interface AdminUsageRecordsListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class AdminUsageRecordsApi {
   private client: HttpClient;
 
@@ -27,8 +34,14 @@ export class AdminUsageRecordsApi {
 
 
 /** listUsageRecords */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/usage/records`));
+  async list(params?: AdminUsageRecordsListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/usage/records`), query));
   }
 }
 
@@ -75,6 +88,13 @@ export class AdminStorageValidationApi {
   }
 }
 
+export interface AdminStorageProvidersListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class AdminStorageProvidersApi {
   private client: HttpClient;
 
@@ -84,8 +104,14 @@ export class AdminStorageProvidersApi {
 
 
 /** listStorageProviders */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/storage/providers`));
+  async list(params?: AdminStorageProvidersListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/storage/providers`), query));
   }
 }
 
@@ -133,8 +159,8 @@ export class AdminStorageConfigTenantsApi {
   }
 
 /** deleteTenantStorageConfig */
-  async delete(tenantId: string | number): Promise<Record<string, unknown>> {
-    return this.client.delete<Record<string, unknown>>(backendApiPath(`/admin/storage/config/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`));
+  async delete(tenantId: string | number): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/admin/storage/config/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -159,6 +185,13 @@ export class AdminStorageConfigApi {
   }
 }
 
+export interface AdminStorageAuditListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class AdminStorageAuditApi {
   private client: HttpClient;
 
@@ -168,8 +201,14 @@ export class AdminStorageAuditApi {
 
 
 /** listStorageAuditTrail */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/storage/audit`));
+  async list(params?: AdminStorageAuditListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/storage/audit`), query));
   }
 }
 
@@ -192,6 +231,13 @@ export class AdminStorageApi {
 
 }
 
+export interface AdminRoutingSnapshotsListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class AdminRoutingSnapshotsApi {
   private client: HttpClient;
 
@@ -201,9 +247,22 @@ export class AdminRoutingSnapshotsApi {
 
 
 /** listCompiledRoutingSnapshots */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/routing/snapshots`));
+  async list(params?: AdminRoutingSnapshotsListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/routing/snapshots`), query));
   }
+}
+
+export interface AdminRoutingProfilesListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class AdminRoutingProfilesApi {
@@ -215,8 +274,14 @@ export class AdminRoutingProfilesApi {
 
 
 /** listRoutingProfiles */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/routing/profiles`));
+  async list(params?: AdminRoutingProfilesListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/routing/profiles`), query));
   }
 
 /** createRoutingProfile */
@@ -239,6 +304,13 @@ export class AdminRoutingHealthSnapshotsApi {
   }
 }
 
+export interface AdminRoutingDecisionLogsListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class AdminRoutingDecisionLogsApi {
   private client: HttpClient;
 
@@ -248,8 +320,14 @@ export class AdminRoutingDecisionLogsApi {
 
 
 /** listRoutingDecisionLogs */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/routing/decision_logs`));
+  async list(params?: AdminRoutingDecisionLogsListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/routing/decision_logs`), query));
   }
 }
 
@@ -270,6 +348,13 @@ export class AdminRoutingApi {
 
 }
 
+export interface AdminProvidersListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class AdminProvidersApi {
   private client: HttpClient;
 
@@ -279,8 +364,14 @@ export class AdminProvidersApi {
 
 
 /** listProviders */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/providers`));
+  async list(params?: AdminProvidersListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/providers`), query));
   }
 
 /** saveProvider */
@@ -289,8 +380,8 @@ export class AdminProvidersApi {
   }
 
 /** deleteProvider */
-  async delete(providerId: string | number): Promise<Record<string, unknown>> {
-    return this.client.delete<Record<string, unknown>>(backendApiPath(`/admin/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}`));
+  async delete(providerId: string | number): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/admin/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -303,9 +394,16 @@ export class AdminModelsProvidersApi {
 
 
 /** deleteModel */
-  async delete(externalName: string | number, providerId: string | number): Promise<Record<string, unknown>> {
-    return this.client.delete<Record<string, unknown>>(backendApiPath(`/admin/models/${serializePathParameter(externalName, { name: 'externalName', style: 'simple', explode: false })}/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}`));
+  async delete(externalName: string | number, providerId: string | number): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/admin/models/${serializePathParameter(externalName, { name: 'externalName', style: 'simple', explode: false })}/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}`));
   }
+}
+
+export interface AdminModelsListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class AdminModelsApi {
@@ -319,8 +417,14 @@ export class AdminModelsApi {
 
 
 /** listModels */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/models`));
+  async list(params?: AdminModelsListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/models`), query));
   }
 
 /** saveModel */
@@ -338,8 +442,8 @@ export class AdminModelPricesModelsProvidersApi {
 
 
 /** deleteModelPrice */
-  async delete(channelId: string | number, modelId: string | number, proxyProviderId: string | number): Promise<Record<string, unknown>> {
-    return this.client.delete<Record<string, unknown>>(backendApiPath(`/admin/model_prices/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/models/${serializePathParameter(modelId, { name: 'modelId', style: 'simple', explode: false })}/providers/${serializePathParameter(proxyProviderId, { name: 'proxyProviderId', style: 'simple', explode: false })}`));
+  async delete(channelId: string | number, modelId: string | number, proxyProviderId: string | number): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/admin/model_prices/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/models/${serializePathParameter(modelId, { name: 'modelId', style: 'simple', explode: false })}/providers/${serializePathParameter(proxyProviderId, { name: 'proxyProviderId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -354,6 +458,13 @@ export class AdminModelPricesModelsApi {
 
 }
 
+export interface AdminModelPricesListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class AdminModelPricesApi {
   private client: HttpClient;
   public readonly models: AdminModelPricesModelsApi;
@@ -365,14 +476,27 @@ export class AdminModelPricesApi {
 
 
 /** listModelPrices */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/model_prices`));
+  async list(params?: AdminModelPricesListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/model_prices`), query));
   }
 
 /** saveModelPrice */
   async create(body: LooseJsonObject): Promise<LooseJsonValue> {
     return this.client.post<LooseJsonValue>(backendApiPath(`/admin/model_prices`), body, undefined, undefined, 'application/json');
   }
+}
+
+export interface AdminMarketingCampaignsListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class AdminMarketingCampaignsApi {
@@ -384,8 +508,14 @@ export class AdminMarketingCampaignsApi {
 
 
 /** listMarketingCampaigns */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/marketing/campaigns`));
+  async list(params?: AdminMarketingCampaignsListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/marketing/campaigns`), query));
   }
 
 /** saveMarketingCampaign */
@@ -410,6 +540,13 @@ export class AdminMarketingApi {
 
 }
 
+export interface AdminGatewayRateLimitWindowsListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class AdminGatewayRateLimitWindowsApi {
   private client: HttpClient;
 
@@ -419,9 +556,22 @@ export class AdminGatewayRateLimitWindowsApi {
 
 
 /** listRateLimitWindows */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/gateway/rate_limit_windows`));
+  async list(params?: AdminGatewayRateLimitWindowsListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/gateway/rate_limit_windows`), query));
   }
+}
+
+export interface AdminGatewayRateLimitPoliciesListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class AdminGatewayRateLimitPoliciesApi {
@@ -433,8 +583,14 @@ export class AdminGatewayRateLimitPoliciesApi {
 
 
 /** listRateLimitPolicies */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/gateway/rate_limit_policies`));
+  async list(params?: AdminGatewayRateLimitPoliciesListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/gateway/rate_limit_policies`), query));
   }
 
 /** createRateLimitPolicy */
@@ -456,6 +612,13 @@ export class AdminGatewayApi {
 
 }
 
+export interface AdminExtensionsRuntimeStatusesListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class AdminExtensionsRuntimeStatusesApi {
   private client: HttpClient;
 
@@ -465,8 +628,14 @@ export class AdminExtensionsRuntimeStatusesApi {
 
 
 /** listRuntimeStatuses */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/extensions/runtime_statuses`));
+  async list(params?: AdminExtensionsRuntimeStatusesListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/extensions/runtime_statuses`), query));
   }
 }
 
@@ -506,8 +675,8 @@ export class AdminCredentialsProvidersKeysApi {
 
 
 /** deleteCredential */
-  async delete(tenantId: string | number, providerId: string | number, keyReference: string | number): Promise<Record<string, unknown>> {
-    return this.client.delete<Record<string, unknown>>(backendApiPath(`/admin/credentials/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}/keys/${serializePathParameter(keyReference, { name: 'keyReference', style: 'simple', explode: false })}`));
+  async delete(tenantId: string | number, providerId: string | number, keyReference: string | number): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/admin/credentials/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}/keys/${serializePathParameter(keyReference, { name: 'keyReference', style: 'simple', explode: false })}`));
   }
 }
 
@@ -522,6 +691,13 @@ export class AdminCredentialsProvidersApi {
 
 }
 
+export interface AdminCredentialsListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class AdminCredentialsApi {
   private client: HttpClient;
   public readonly providers: AdminCredentialsProvidersApi;
@@ -533,14 +709,27 @@ export class AdminCredentialsApi {
 
 
 /** listCredentials */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/credentials`));
+  async list(params?: AdminCredentialsListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/credentials`), query));
   }
 
 /** saveCredential */
   async create(body: LooseJsonObject): Promise<LooseJsonValue> {
     return this.client.post<LooseJsonValue>(backendApiPath(`/admin/credentials`), body, undefined, undefined, 'application/json');
   }
+}
+
+export interface AdminChannelsListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class AdminChannelsApi {
@@ -552,8 +741,14 @@ export class AdminChannelsApi {
 
 
 /** listChannels */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/channels`));
+  async list(params?: AdminChannelsListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/channels`), query));
   }
 
 /** saveChannel */
@@ -562,8 +757,8 @@ export class AdminChannelsApi {
   }
 
 /** deleteChannel */
-  async delete(channelId: string | number): Promise<Record<string, unknown>> {
-    return this.client.delete<Record<string, unknown>>(backendApiPath(`/admin/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`));
+  async delete(channelId: string | number): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/admin/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -576,9 +771,16 @@ export class AdminChannelModelsModelsApi {
 
 
 /** deleteChannelModel */
-  async delete(channelId: string | number, modelId: string | number): Promise<Record<string, unknown>> {
-    return this.client.delete<Record<string, unknown>>(backendApiPath(`/admin/channel_models/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/models/${serializePathParameter(modelId, { name: 'modelId', style: 'simple', explode: false })}`));
+  async delete(channelId: string | number, modelId: string | number): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/admin/channel_models/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/models/${serializePathParameter(modelId, { name: 'modelId', style: 'simple', explode: false })}`));
   }
+}
+
+export interface AdminChannelModelsListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class AdminChannelModelsApi {
@@ -592,8 +794,14 @@ export class AdminChannelModelsApi {
 
 
 /** listChannelModels */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/channel_models`));
+  async list(params?: AdminChannelModelsListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/channel_models`), query));
   }
 
 /** saveChannelModel */
@@ -630,6 +838,13 @@ export class AdminBillingEventsSummaryApi {
   }
 }
 
+export interface AdminBillingEventsListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class AdminBillingEventsApi {
   private client: HttpClient;
   public readonly summary: AdminBillingEventsSummaryApi;
@@ -641,8 +856,14 @@ export class AdminBillingEventsApi {
 
 
 /** listBillingEvents */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/billing/events`));
+  async list(params?: AdminBillingEventsListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/billing/events`), query));
   }
 }
 
@@ -659,6 +880,13 @@ export class AdminBillingApi {
 
 }
 
+export interface AdminApiKeysListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class AdminApiKeysApi {
   private client: HttpClient;
 
@@ -668,8 +896,14 @@ export class AdminApiKeysApi {
 
 
 /** listApiKeys */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/api_keys`));
+  async list(params?: AdminApiKeysListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/api_keys`), query));
   }
 
 /** createApiKey */
@@ -683,14 +917,21 @@ export class AdminApiKeysApi {
   }
 
 /** deleteApiKey */
-  async delete(hashedKey: string | number): Promise<Record<string, unknown>> {
-    return this.client.delete<Record<string, unknown>>(backendApiPath(`/admin/api_keys/${serializePathParameter(hashedKey, { name: 'hashedKey', style: 'simple', explode: false })}`));
+  async delete(hashedKey: string | number): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/admin/api_keys/${serializePathParameter(hashedKey, { name: 'hashedKey', style: 'simple', explode: false })}`));
   }
 
 /** updateApiKeyStatus */
   async status(hashedKey: string | number, body: LooseJsonObject): Promise<LooseJsonValue> {
     return this.client.post<LooseJsonValue>(backendApiPath(`/admin/api_keys/${serializePathParameter(hashedKey, { name: 'hashedKey', style: 'simple', explode: false })}/status`), body, undefined, undefined, 'application/json');
   }
+}
+
+export interface AdminApiKeyGroupsListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class AdminApiKeyGroupsApi {
@@ -702,8 +943,14 @@ export class AdminApiKeyGroupsApi {
 
 
 /** listApiKeyGroups */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/api_key_groups`));
+  async list(params?: AdminApiKeyGroupsListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/api_key_groups`), query));
   }
 
 /** createApiKeyGroup */
@@ -717,8 +964,8 @@ export class AdminApiKeyGroupsApi {
   }
 
 /** deleteApiKeyGroup */
-  async delete(groupId: string | number): Promise<Record<string, unknown>> {
-    return this.client.delete<Record<string, unknown>>(backendApiPath(`/admin/api_key_groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`));
+  async delete(groupId: string | number): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/admin/api_key_groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`));
   }
 
 /** updateApiKeyGroupStatus */
@@ -848,4 +1095,156 @@ function serializePathPrimitive(value: unknown): string {
     return JSON.stringify(value);
   }
   return String(value);
+}
+interface QueryParameterSpec {
+  name: string;
+  value: unknown;
+  style: string;
+  explode: boolean;
+  allowReserved: boolean;
+  contentType?: string;
+}
+
+function buildQueryString(parameters: QueryParameterSpec[]): string {
+  const pairs: string[] = [];
+  for (const parameter of parameters) {
+    appendSerializedParameter(pairs, parameter);
+  }
+  return pairs.join('&');
+}
+
+function appendSerializedParameter(pairs: string[], parameter: QueryParameterSpec): void {
+  if (parameter.value === undefined || parameter.value === null) {
+    return;
+  }
+
+  if (parameter.contentType) {
+    pairs.push(`${encodeQueryComponent(parameter.name)}=${encodeQueryValue(JSON.stringify(parameter.value), parameter.allowReserved)}`);
+    return;
+  }
+
+  const style = parameter.style || 'form';
+  if (style === 'deepObject') {
+    appendDeepObjectParameter(pairs, parameter.name, parameter.value, parameter.allowReserved);
+    return;
+  }
+
+  if (Array.isArray(parameter.value)) {
+    appendArrayParameter(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+
+  if (typeof parameter.value === 'object') {
+    appendObjectParameter(pairs, parameter.name, parameter.value as Record<string, unknown>, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+
+  pairs.push(`${encodeQueryComponent(parameter.name)}=${encodeQueryValue(serializePrimitive(parameter.value), parameter.allowReserved)}`);
+}
+
+function appendArrayParameter(
+  pairs: string[],
+  name: string,
+  value: unknown[],
+  style: string,
+  explode: boolean,
+  allowReserved: boolean,
+): void {
+  const values = value
+    .filter((item) => item !== undefined && item !== null)
+    .map((item) => serializePrimitive(item));
+  if (values.length === 0) {
+    return;
+  }
+
+  if (style === 'form' && explode) {
+    for (const item of values) {
+      pairs.push(`${encodeQueryComponent(name)}=${encodeQueryValue(item, allowReserved)}`);
+    }
+    return;
+  }
+
+  pairs.push(`${encodeQueryComponent(name)}=${encodeQueryValue(values.join(','), allowReserved)}`);
+}
+
+function appendObjectParameter(
+  pairs: string[],
+  name: string,
+  value: Record<string, unknown>,
+  style: string,
+  explode: boolean,
+  allowReserved: boolean,
+): void {
+  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== undefined && entryValue !== null);
+  if (entries.length === 0) {
+    return;
+  }
+
+  if (style === 'form' && explode) {
+    for (const [key, entryValue] of entries) {
+      pairs.push(`${encodeQueryComponent(key)}=${encodeQueryValue(serializePrimitive(entryValue), allowReserved)}`);
+    }
+    return;
+  }
+
+  const serialized = entries.flatMap(([key, entryValue]) => [key, serializePrimitive(entryValue)]).join(',');
+  pairs.push(`${encodeQueryComponent(name)}=${encodeQueryValue(serialized, allowReserved)}`);
+}
+
+function appendDeepObjectParameter(
+  pairs: string[],
+  name: string,
+  value: unknown,
+  allowReserved: boolean,
+): void {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    pairs.push(`${encodeQueryComponent(name)}=${encodeQueryValue(serializePrimitive(value), allowReserved)}`);
+    return;
+  }
+
+  for (const [key, entryValue] of Object.entries(value as Record<string, unknown>)) {
+    if (entryValue === undefined || entryValue === null) {
+      continue;
+    }
+    pairs.push(`${encodeQueryComponent(`${name}[${key}]`)}=${encodeQueryValue(serializePrimitive(entryValue), allowReserved)}`);
+  }
+}
+
+function serializePrimitive(value: unknown): string {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function encodeQueryComponent(value: string): string {
+  return encodeURIComponent(value);
+}
+
+function encodeQueryValue(value: string, allowReserved: boolean): string {
+  const encoded = encodeURIComponent(value);
+  if (!allowReserved) {
+    return encoded;
+  }
+  return encoded.replace(/%3A/gi, ':')
+    .replace(/%2F/gi, '/')
+    .replace(/%3F/gi, '?')
+    .replace(/%23/gi, '#')
+    .replace(/%5B/gi, '[')
+    .replace(/%5D/gi, ']')
+    .replace(/%40/gi, '@')
+    .replace(/%21/gi, '!')
+    .replace(/%24/gi, '$')
+    .replace(/%26/gi, '&')
+    .replace(/%27/gi, "'")
+    .replace(/%28/gi, '(')
+    .replace(/%29/gi, ')')
+    .replace(/%2A/gi, '*')
+    .replace(/%2B/gi, '+')
+    .replace(/%2C/gi, ',')
+    .replace(/%3B/gi, ';')
+    .replace(/%3D/gi, '=');
 }

@@ -234,6 +234,11 @@ assert.match(
 );
 assert.match(
   runTauriCliSource,
+  /configuredHost === '0\.0\.0\.0' \? '127\.0\.0\.1'/u,
+  'Tauri dev launcher must translate the wildcard listener to a reachable loopback dev URL',
+);
+assert.match(
+  runTauriCliSource,
   /devUrl/u,
   'Tauri dev launcher must be able to merge the selected devUrl into Tauri dev config',
 );
@@ -659,6 +664,22 @@ assert.match(appSdkClientSource, /getAppSdkClientWithSession/u);
 assert.match(appSdkClientSource, /SdkworkImAppClient/u, 'app SDK wrapper must expose product-scoped SdkworkImAppClient naming');
 assert.match(appSdkClientSource, /resolveApplicationOrPlatformHttpBaseUrlOrThrow/u, 'app SDK wrapper must resolve base URLs through the shared topology resolver');
 assert.match(sdkBaseUrlsSource, /window\.location\.origin/u, 'shared topology resolver must support release same-origin domain binding');
+assert.match(
+  sdkBaseUrlsSource,
+  /resolveBrowserBaseUrl/u,
+  'shared topology resolver must rebase loopback dev API URLs for LAN browser clients',
+);
+assert.match(
+  sdkBaseUrlsSource,
+  /typeof window === 'undefined'/u,
+  'shared topology resolver must apply browser host rebasing during SDK initialization regardless of Vite DEV flag',
+);
+const adminBackendSdkSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-admin-core/src/sdk/backendSdkClient.ts');
+assert.match(
+  adminBackendSdkSource,
+  /resolveBrowserBaseUrl/u,
+  'PC admin backend SDK must use the shared LAN-aware development base URL resolver',
+);
 assert.match(sdkBaseUrlsSource, /if\s*\(\s*!import\.meta\.env\.DEV\s*\)/u, 'shared topology resolver must keep localhost defaults in a Vite-prunable dev-only branch');
 assert.match(
   sessionSource,

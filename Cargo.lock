@@ -6264,6 +6264,8 @@ dependencies = [
  "sdkwork-routes-im-realtime-open-api",
  "sdkwork-shop-gateway-assembly",
  "sdkwork-shop-service-host",
+ "sdkwork-web-axum",
+ "sdkwork-web-core",
  "sdkwork-webstore-database-host",
  "serde",
  "serde_json",
@@ -8055,6 +8057,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "tracing",
  "uuid",
 ]
 
@@ -8393,6 +8396,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower 0.5.3",
+ "tower-http",
  "tracing",
 ]
 
@@ -8414,6 +8418,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tokio",
+ "tower-http",
  "tracing",
  "tracing-opentelemetry 0.28.0",
  "tracing-subscriber",

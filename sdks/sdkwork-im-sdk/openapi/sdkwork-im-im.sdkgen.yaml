@@ -8084,6 +8084,15 @@ components:
           type: string
         targetUserId:
           type: string
+        displayName:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        chatId:
+          type: string
+          nullable: true
         contactType:
           type: string
         relationshipState:

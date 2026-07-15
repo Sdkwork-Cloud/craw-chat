@@ -59,6 +59,14 @@ struct InboxQuery {
     q: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+struct ContactsQuery {
+    #[serde(flatten)]
+    paging: SdkWorkCursorListQuery,
+    q: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ConversationProfileItemResponse {
@@ -672,7 +680,7 @@ async fn get_contacts(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
     uri: Uri,
-    query: Result<Query<SdkWorkCursorListQuery>, QueryRejection>,
+    query: Result<Query<ContactsQuery>, QueryRejection>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
     if let Some(response) = reject_non_standard_list_query(&ctx, &uri) {
@@ -682,15 +690,21 @@ async fn get_contacts(
         Ok(value) => value,
         Err(rejection) => return finish_query_rejection(&ctx, rejection),
     };
-    let page_size = match resolve_list_page_size(query.page_size) {
+    let page_size = match resolve_list_page_size(query.paging.page_size) {
         Ok(value) => value,
         Err(_) => {
             return invalid_parameter_response(&ctx, "list pagination parameters are invalid");
         }
     };
-    let cursor = query.cursor.clone();
+    let cursor = query.paging.cursor.clone();
+    let search_query = query.q.clone();
     let result = run_blocking_projection(service, auth, move |service, auth| {
-        Ok(service.contact_window_from_auth_context(&auth, page_size, cursor.as_deref())?)
+        Ok(service.contact_window_from_auth_context(
+            &auth,
+            page_size,
+            cursor.as_deref(),
+            search_query.as_deref(),
+        )?)
     })
     .await;
     finish_api_json(&ctx, result)

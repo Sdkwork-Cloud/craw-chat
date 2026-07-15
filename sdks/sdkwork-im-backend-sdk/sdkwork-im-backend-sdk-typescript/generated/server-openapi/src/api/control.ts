@@ -154,6 +154,13 @@ export class ControlSocialRuntimeReclaimStalePendingSharedChannelSyncApi {
   }
 }
 
+export interface ControlSocialRuntimePendingSharedChannelSyncListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
+}
+
 export class ControlSocialRuntimePendingSharedChannelSyncApi {
   private client: HttpClient;
 
@@ -163,9 +170,22 @@ export class ControlSocialRuntimePendingSharedChannelSyncApi {
 
 
 /** Read the pending shared-channel sync queue. */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/control/social/runtime/pending_shared_channel_sync`));
+  async list(params?: ControlSocialRuntimePendingSharedChannelSyncListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/social/runtime/pending_shared_channel_sync`), query));
   }
+}
+
+export interface ControlSocialRuntimeDeliveryStateSharedChannelSyncListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class ControlSocialRuntimeDeliveryStateSharedChannelSyncApi {
@@ -177,9 +197,22 @@ export class ControlSocialRuntimeDeliveryStateSharedChannelSyncApi {
 
 
 /** Read merged shared-channel sync delivery state. */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/control/social/runtime/delivery_state_shared_channel_sync`));
+  async list(params?: ControlSocialRuntimeDeliveryStateSharedChannelSyncListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/social/runtime/delivery_state_shared_channel_sync`), query));
   }
+}
+
+export interface ControlSocialRuntimeDeliveredSharedChannelSyncListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class ControlSocialRuntimeDeliveredSharedChannelSyncApi {
@@ -191,9 +224,22 @@ export class ControlSocialRuntimeDeliveredSharedChannelSyncApi {
 
 
 /** Read the delivered shared-channel sync ledger. */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/control/social/runtime/delivered_shared_channel_sync`));
+  async list(params?: ControlSocialRuntimeDeliveredSharedChannelSyncListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/social/runtime/delivered_shared_channel_sync`), query));
   }
+}
+
+export interface ControlSocialRuntimeDeadLetterSharedChannelSyncListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class ControlSocialRuntimeDeadLetterSharedChannelSyncApi {
@@ -205,8 +251,14 @@ export class ControlSocialRuntimeDeadLetterSharedChannelSyncApi {
 
 
 /** Read the dead-letter shared-channel sync queue. */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/control/social/runtime/dead_letter_shared_channel_sync`));
+  async list(params?: ControlSocialRuntimeDeadLetterSharedChannelSyncListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/social/runtime/dead_letter_shared_channel_sync`), query));
   }
 }
 
@@ -412,6 +464,10 @@ export class ControlSocialApi {
 
 export interface ControlProviderBindingsListParams {
   tenantId?: string;
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class ControlProviderBindingsApi {
@@ -426,6 +482,10 @@ export class ControlProviderBindingsApi {
   async list(params?: ControlProviderBindingsListParams): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'tenantId', value: params?.tenantId, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/provider_bindings`), query));
   }
@@ -453,6 +513,10 @@ export class ControlProviderRegistryApi {
 export interface ControlProviderPoliciesDiffListParams {
   fromVersion: string;
   toVersion: string;
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class ControlProviderPoliciesDiffApi {
@@ -468,9 +532,20 @@ export class ControlProviderPoliciesDiffApi {
     const query = buildQueryString([
       { name: 'fromVersion', value: params.fromVersion, style: 'form', explode: true, allowReserved: false },
       { name: 'toVersion', value: params.toVersion, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params.q, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/provider_policies/diff`), query));
   }
+}
+
+export interface ControlProviderPoliciesListParams {
+  pageSize?: number;
+  cursor?: string;
+  page?: number;
+  q?: string;
 }
 
 export class ControlProviderPoliciesApi {
@@ -484,8 +559,14 @@ export class ControlProviderPoliciesApi {
 
 
 /** Read provider policy history. */
-  async list(): Promise<SdkWorkPageData> {
-    return this.client.get<SdkWorkPageData>(backendApiPath(`/control/provider_policies`));
+  async list(params?: ControlProviderPoliciesListParams): Promise<SdkWorkPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/provider_policies`), query));
   }
 
 /** Preview the effective provider policy result before commit. */

@@ -6,6 +6,7 @@ import process from 'node:process';
 import { terminateStaleDevGatewayProcesses } from './terminate-stale-dev-gateway-processes.mjs';
 import {
   resolveStandaloneGatewayDevExecutable,
+  resolveStandaloneGatewayDevTargetDir,
   waitForDevGatewayExecutableUnlock,
 } from './wait-for-dev-gateway-exe-unlock.mjs';
 
@@ -33,8 +34,16 @@ async function main() {
   const { configPath, release } = parseArgs(process.argv.slice(2));
   const repoRoot = process.cwd();
   const profile = release ? 'release' : 'debug';
-  const executablePath = resolveStandaloneGatewayDevExecutable({
+  const targetDir = resolveStandaloneGatewayDevTargetDir({
     env: process.env,
+    repoRoot,
+  });
+  const gatewayEnv = {
+    ...process.env,
+    CARGO_TARGET_DIR: targetDir,
+  };
+  const executablePath = resolveStandaloneGatewayDevExecutable({
+    env: gatewayEnv,
     repoRoot,
     profile,
   });
@@ -60,7 +69,7 @@ async function main() {
 
   const build = spawnSync(cargoCommand(), cargoArgs, {
     cwd: repoRoot,
-    env: process.env,
+    env: gatewayEnv,
     stdio: 'inherit',
     shell: false,
   });
@@ -70,7 +79,7 @@ async function main() {
 
   const gateway = spawn(executablePath, ['--config', configPath], {
     cwd: repoRoot,
-    env: process.env,
+    env: gatewayEnv,
     stdio: 'inherit',
     shell: false,
   });

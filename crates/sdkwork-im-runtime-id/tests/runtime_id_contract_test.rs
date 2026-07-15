@@ -1,7 +1,7 @@
 use sdkwork_id::{SnowflakeIdError, default_snowflake_epoch_millis, max_snowflake_node_id};
 use sdkwork_im_runtime_id::{
     RuntimeIdConfig, RuntimeIdError, RuntimeIdStrategy, RuntimeSnowflakeIdGenerator,
-    SDKWORK_IM_ID_NODE_ID_ENV, runtime_id_strategy,
+    SDKWORK_IM_ID_NODE_ID_ENV, runtime_id_fallback_is_forbidden, runtime_id_strategy,
 };
 
 #[test]
@@ -14,10 +14,30 @@ fn runtime_id_strategy_declares_database_spec_failure_policies() {
             node_conflict: "database_backed_auto_allocation",
             sequence_overflow: "fail_closed",
             restart_recovery: "idempotent_lease_reclaim",
-            failure_handling: "database_first_then_env_fallback",
+            failure_handling: "database_first_then_fail_closed",
             public_id: "uuid_or_business_id",
         }
     );
+}
+
+#[test]
+fn runtime_fallback_policy_is_lifecycle_first_and_fail_closed() {
+    assert!(!runtime_id_fallback_is_forbidden(
+        [("SDKWORK_IM_ENVIRONMENT", "dev")].into_iter()
+    ));
+    assert!(runtime_id_fallback_is_forbidden(
+        [
+            ("SDKWORK_IM_ENVIRONMENT", "production"),
+            ("SDKWORK_IM_ALLOW_UNSAFE_ID_FALLBACK", "true"),
+        ]
+        .into_iter()
+    ));
+    assert!(runtime_id_fallback_is_forbidden(
+        [("SDKWORK_IM_ENVIRONMENT", "unknown")].into_iter()
+    ));
+    assert!(runtime_id_fallback_is_forbidden(
+        [("SDKWORK_IM_RUNTIME_TARGET", "container")].into_iter()
+    ));
 }
 
 #[test]
@@ -39,17 +59,21 @@ fn runtime_snowflake_generator_uses_native_i64_and_preserves_monotonic_order() {
 }
 
 #[test]
-fn runtime_snowflake_generator_rejects_clock_rollback_without_fallback() {
+fn runtime_snowflake_generator_pins_small_rollback_and_rejects_large_rollback() {
     let generator = RuntimeSnowflakeIdGenerator::with_node_id(7)
         .expect("node id inside appbase snowflake range should be accepted");
-    let baseline = default_snowflake_epoch_millis() + 10;
-    generator
+    let baseline = default_snowflake_epoch_millis() + 1_000;
+    let first = generator
         .next_id_at(baseline)
         .expect("baseline id should be generated");
+    let pinned = generator
+        .next_id_at(baseline - 1)
+        .expect("small clock rollback should use the last logical millisecond");
+    assert!(pinned > first);
 
     let error = generator
-        .next_id_at(baseline - 1)
-        .expect_err("clock rollback must reject instead of falling back");
+        .next_id_at(baseline - 101)
+        .expect_err("large clock rollback must reject instead of falling back");
 
     assert!(matches!(
         error,
@@ -80,4 +104,21 @@ fn runtime_id_config_requires_explicit_distributed_node_id() {
     let config = RuntimeIdConfig::from_env_pairs([(SDKWORK_IM_ID_NODE_ID_ENV, "42")])
         .expect("valid node id should resolve");
     assert_eq!(config.node_id, 42);
+}
+
+#[test]
+fn static_fallback_reuses_one_process_sequence_and_rejects_node_changes() {
+    let first = RuntimeSnowflakeIdGenerator::from_config(RuntimeIdConfig { node_id: 42 })
+        .expect("first process fallback should initialize");
+    let second = RuntimeSnowflakeIdGenerator::from_config(RuntimeIdConfig { node_id: 42 })
+        .expect("same process fallback should be shared");
+    let timestamp = default_snowflake_epoch_millis() + 5_000;
+    let first_id = first.next_id_at(timestamp).unwrap();
+    let second_id = second.next_id_at(timestamp).unwrap();
+    assert!(second_id > first_id);
+
+    assert!(matches!(
+        RuntimeSnowflakeIdGenerator::from_config(RuntimeIdConfig { node_id: 43 }),
+        Err(RuntimeIdError::NodeAllocation(_))
+    ));
 }

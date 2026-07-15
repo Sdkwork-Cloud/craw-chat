@@ -55,12 +55,22 @@ export function resolveStandaloneGatewayDevExecutable({
   repoRoot,
   profile = 'debug',
 } = {}) {
-  const targetDir = String(
-    env.CARGO_TARGET_DIR
-      ?? path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-im-standalone-gateway-dev'),
-  ).trim();
+  const targetDir = resolveStandaloneGatewayDevTargetDir({ env, repoRoot });
   const executableName = process.platform === 'win32'
     ? 'sdkwork-im-standalone-gateway.exe'
     : 'sdkwork-im-standalone-gateway';
   return path.join(targetDir, profile, executableName);
+}
+
+export function resolveStandaloneGatewayDevTargetDir({
+  env = process.env,
+  repoRoot,
+} = {}) {
+  if (!repoRoot) {
+    throw new Error('repoRoot is required for standalone gateway target resolution');
+  }
+  const configuredTargetDir = String(env.CARGO_TARGET_DIR ?? '').trim();
+  return configuredTargetDir
+    ? path.resolve(repoRoot, configuredTargetDir)
+    : path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-im-standalone-gateway-dev');
 }

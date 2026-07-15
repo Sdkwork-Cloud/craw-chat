@@ -12,7 +12,10 @@ import {
   resolveAppSdkAuthToken,
   type SdkworkChatSession,
 } from '@sdkwork/im-pc-core';
-import { stripSdkOwnedPathSuffix } from '@sdkwork/im-pc-core/sdk/sdkBaseUrls';
+import {
+  resolveBrowserBaseUrl,
+  stripSdkOwnedPathSuffix,
+} from '@sdkwork/im-pc-core/sdk/sdkBaseUrls';
 
 export type { SdkworkImBackendClient };
 export type SdkworkImBackendClientConfig = SdkworkBackendConfig & {
@@ -26,7 +29,9 @@ const SDKWORK_IM_API_PREFIX = '/im/v3/api';
 
 function readEnvValue(key: string): string | undefined {
   const value = import.meta.env?.[key];
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+  return typeof value === 'string' && value.trim().length > 0
+    ? resolveBrowserBaseUrl(value.trim())
+    : undefined;
 }
 
 function normalizeBackendSdkBaseUrl(value: string): string {
@@ -50,7 +55,7 @@ function resolveLocalDevBackendApiBaseUrl(): string | undefined {
   if (!import.meta.env.DEV) {
     return undefined;
   }
-  return 'http://127.0.0.1:18079';
+  return resolveBrowserBaseUrl('http://127.0.0.1:18079');
 }
 
 function resolveSameOriginHttpBaseUrl(): string | undefined {

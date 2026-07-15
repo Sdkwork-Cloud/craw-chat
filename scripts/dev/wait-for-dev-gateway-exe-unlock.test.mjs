@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   resolveStandaloneGatewayDevExecutable,
+  resolveStandaloneGatewayDevTargetDir,
   waitForDevGatewayExecutableUnlock,
 } from './wait-for-dev-gateway-exe-unlock.mjs';
 
@@ -22,6 +23,23 @@ assert.equal(missing.unlocked, true);
 
 const unlocked = await waitForDevGatewayExecutableUnlock({ executablePath });
 assert.equal(unlocked.unlocked, true);
+
+const defaultTargetDir = resolveStandaloneGatewayDevTargetDir({ env: {}, repoRoot });
+assert.equal(
+  defaultTargetDir,
+  path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-im-standalone-gateway-dev'),
+  'the default build target must contain the executable selected by the launcher',
+);
+
+const relativeTargetDir = resolveStandaloneGatewayDevTargetDir({
+  env: { CARGO_TARGET_DIR: 'custom-target' },
+  repoRoot,
+});
+assert.equal(
+  relativeTargetDir,
+  path.join(repoRoot, 'custom-target'),
+  'relative Cargo targets must resolve from the gateway workspace root',
+);
 
 const resolved = resolveStandaloneGatewayDevExecutable({
   env: {

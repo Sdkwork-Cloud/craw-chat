@@ -687,16 +687,32 @@ impl TimelineProjectionService {
         auth: &AppContext,
         limit: Option<usize>,
         cursor: Option<&str>,
+        search_query: Option<&str>,
     ) -> Result<ContactWindowView, ProjectionAccessError> {
         ensure_user_contact_owner(auth)?;
         let limit = validate_list_limit(limit)?;
         let list_cursor = parse_contact_list_cursor(cursor)?;
+        let requested_search_query = search_query
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_lowercase);
+        let search_query_char_count = requested_search_query
+            .as_ref()
+            .map_or(0, |query| query.chars().count());
+        if search_query_char_count > 256 {
+            return Err(ProjectionAccessError::payload_too_large(
+                "q",
+                256,
+                search_query_char_count,
+            ));
+        }
         Ok(self.contact_window(
             auth.tenant_id.as_str(),
             Self::auth_organization_id(auth).as_str(),
             projection_social_principal(auth)?,
             limit,
             list_cursor,
+            requested_search_query.as_deref(),
         ))
     }
 
