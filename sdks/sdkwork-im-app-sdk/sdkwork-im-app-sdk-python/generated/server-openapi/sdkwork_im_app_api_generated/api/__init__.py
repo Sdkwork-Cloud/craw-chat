@@ -1,6 +1,7 @@
 from .automation import AutomationApi
-from .notification import NotificationApi
+from .notifications import NotificationsApi
 from .portal import PortalApi
 from .provider import ProviderApi
+from .chat import ChatApi
 
-__all__ = ['AutomationApi', 'NotificationApi', 'PortalApi', 'ProviderApi']
+__all__ = ['AutomationApi', 'NotificationsApi', 'PortalApi', 'ProviderApi', 'ChatApi']

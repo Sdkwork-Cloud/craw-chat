@@ -1052,6 +1052,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "block-padding"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8894febbff9f758034a5b8e12d87918f56dfc64a8e1fe757d65e29041538d93"
+dependencies = [
+ "generic-array",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1110,6 +1119,15 @@ dependencies = [
  "tower 0.5.3",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "cbc"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26b52a9543ae338f279b96b0b9fed9c8093744685043739079ce85cd58f289a6"
+dependencies = [
+ "cipher",
 ]
 
 [[package]]
@@ -2851,6 +2869,7 @@ version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879f10e63c20629ecabbb64a8010319738c66a5cd0c29b02d63d272b03751d01"
 dependencies = [
+ "block-padding",
  "generic-array",
 ]
 
@@ -4186,6 +4205,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-xml"
+version = "0.37.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "331e97a1af0bf59823e6eadffe373d7b27f485be8748f71471c662c1f269b7fb"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "quinn"
 version = "0.11.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4936,6 +4964,10 @@ version = "0.2.0"
 dependencies = [
  "sdkwork-agent-kernel",
  "sdkwork-agent-plugin-core",
+ "sdkwork-agent-provider-core",
+ "sdkwork-agent-provider-spi",
+ "sdkwork-agent-provider-transport-core",
+ "sdkwork-agent-provider-transport-rust",
 ]
 
 [[package]]
@@ -5106,6 +5138,7 @@ dependencies = [
  "sdkwork-comms-conversation-service",
  "sdkwork-im-rpc-service-rust",
  "sdkwork-im-service-readiness",
+ "sdkwork-rpc-core",
  "sdkwork-rpc-server",
  "tokio",
  "tracing",
@@ -5127,6 +5160,7 @@ dependencies = [
 name = "sdkwork-comms-conversation-service"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "axum 0.8.9",
  "chrono",
  "getrandom 0.3.4",
@@ -5139,9 +5173,13 @@ dependencies = [
  "im-domain-events",
  "im-platform-contracts",
  "im-time",
+ "postgres",
  "projection-service",
  "prost 0.14.4",
+ "r2d2",
+ "rcgen",
  "redis 0.27.6",
+ "rustls 0.23.41",
  "sdkwork-database-config",
  "sdkwork-im-api-registry",
  "sdkwork-im-contract-core",
@@ -5153,18 +5191,24 @@ dependencies = [
  "sdkwork-im-runtime-id",
  "sdkwork-im-service-readiness",
  "sdkwork-im-web-bootstrap",
+ "sdkwork-knowledgebase-rpc-sdk-rust",
  "sdkwork-routes-im-chat-open-api",
  "sdkwork-routes-web-framework-backend-api",
+ "sdkwork-rpc-client",
+ "sdkwork-rpc-core",
+ "sdkwork-rpc-server",
  "sdkwork-utils-rust",
  "sdkwork-web-core",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tokio-stream",
  "tonic 0.14.6",
  "tower 0.5.3",
  "tracing",
  "tracing-subscriber",
+ "url",
 ]
 
 [[package]]
@@ -5671,6 +5715,7 @@ dependencies = [
  "sdkwork-web-bootstrap",
  "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -5689,14 +5734,17 @@ dependencies = [
 name = "sdkwork-iam-web-adapter"
 version = "0.1.0"
 dependencies = [
+ "aes",
  "aes-gcm",
  "argon2",
  "async-trait",
  "axum 0.8.9",
  "base64",
+ "cbc",
  "chrono",
  "hmac 0.12.1",
  "password-hash",
+ "quick-xml",
  "rand_core 0.6.4",
  "reqwest",
  "sdkwork-database-config",
@@ -5896,6 +5944,7 @@ dependencies = [
  "sdkwork-web-store-sqlx",
  "serde",
  "serde_json",
+ "serde_yaml",
  "session-gateway",
  "tokio",
  "tokio-tungstenite 0.28.0",
@@ -5990,6 +6039,9 @@ dependencies = [
  "sdkwork-database-lifecycle",
  "sdkwork-database-spi",
  "sdkwork-database-sqlx",
+ "sqlx",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]
@@ -6029,6 +6081,7 @@ dependencies = [
  "sdkwork-routes-im-calls-open-api",
  "sdkwork-routes-im-chat-open-api",
  "sdkwork-routes-im-governance-backend-api",
+ "sdkwork-routes-im-knowledgebase-app-api",
  "sdkwork-routes-im-media-app-api",
  "sdkwork-routes-im-notification-app-api",
  "sdkwork-routes-im-ops-backend-api",
@@ -6656,6 +6709,16 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "sdkwork-knowledgebase-rpc-sdk-rust"
+version = "0.1.0"
+dependencies = [
+ "prost 0.14.4",
+ "tokio-stream",
+ "tonic 0.14.6",
+ "tonic-prost",
 ]
 
 [[package]]
@@ -7532,6 +7595,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-routes-im-knowledgebase-app-api"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "sdkwork-comms-conversation-service",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-web-contract",
+ "sdkwork-web-core",
+]
+
+[[package]]
 name = "sdkwork-routes-im-media-app-api"
 version = "0.1.0"
 dependencies = [
@@ -7750,6 +7824,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tokio",
+ "tracing",
  "url",
  "uuid",
 ]
@@ -8171,7 +8246,12 @@ name = "sdkwork-rpc-core"
 version = "0.1.0"
 dependencies = [
  "sdkwork-rpc-core-rust",
+ "sdkwork-utils-rust",
+ "serde",
+ "serde_json",
  "thiserror 2.0.18",
+ "uuid",
+ "x509-parser",
 ]
 
 [[package]]
@@ -8203,6 +8283,7 @@ dependencies = [
 name = "sdkwork-rpc-server"
 version = "0.1.0"
 dependencies = [
+ "sdkwork-rpc-core",
  "sdkwork-rpc-discovery",
  "tokio",
  "tokio-stream",
@@ -9585,6 +9666,7 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+ "webpki-roots 1.0.8",
 ]
 
 [[package]]

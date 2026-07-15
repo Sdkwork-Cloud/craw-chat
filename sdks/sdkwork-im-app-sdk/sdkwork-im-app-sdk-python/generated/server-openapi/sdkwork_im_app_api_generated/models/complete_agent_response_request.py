@@ -5,5 +5,5 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 
 @dataclass
 class CompleteAgentResponseRequest:
-    frame_seq: int
+    frame_seq: str
     result_message_id: Optional[str] = None

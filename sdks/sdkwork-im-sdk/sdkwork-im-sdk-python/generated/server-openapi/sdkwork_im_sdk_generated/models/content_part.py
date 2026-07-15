@@ -4,11 +4,12 @@ from typing import Any, Dict, Union
 from .text_content_part import TextContentPart
 from .data_content_part import DataContentPart
 from .media_content_part import MediaContentPart
+from .mention_content_part import MentionContentPart
 from .signal_content_part import SignalContentPart
 from .stream_ref_content_part import StreamRefContentPart
 
 
-ContentPart = Union[TextContentPart, DataContentPart, MediaContentPart, SignalContentPart, StreamRefContentPart]
+ContentPart = Union[TextContentPart, DataContentPart, MediaContentPart, MentionContentPart, SignalContentPart, StreamRefContentPart]
 
 
 def content_part_from_dict(value: Dict[str, Any]) -> ContentPart:
@@ -19,6 +20,8 @@ def content_part_from_dict(value: Dict[str, Any]) -> ContentPart:
         return DataContentPart(**value)
     if kind == 'media':
         return MediaContentPart(**value)
+    if kind == 'mention':
+        return MentionContentPart(**value)
     if kind == 'signal':
         return SignalContentPart(**value)
     if kind == 'stream_ref':

@@ -234,14 +234,15 @@ impl TimelineProjectionService {
         update: UpdateConversationProfileRequest,
     ) -> Result<ConversationProfileView, ProjectionAccessError> {
         self.ensure_conversation_profile_mutation_allowed(auth, conversation_id)?;
-        Ok(self.update_conversation_profile(
+        self.update_conversation_profile_durable(
             auth.tenant_id.as_str(),
             Self::auth_organization_id(auth).as_str(),
             conversation_id,
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             update,
-        ))
+        )
+        .map_err(ProjectionAccessError::from)
     }
 
     fn ensure_conversation_profile_mutation_allowed(
@@ -600,7 +601,7 @@ impl TimelineProjectionService {
         limit: Option<usize>,
         cursor: Option<&str>,
     ) -> Result<super::InboxWindowView, ProjectionAccessError> {
-        self.inbox_window_from_auth_context_filtered(auth, limit, cursor, None)
+        self.inbox_window_from_auth_context_filtered(auth, limit, cursor, None, None)
     }
 
     pub fn inbox_window_from_auth_context_filtered(
@@ -609,6 +610,7 @@ impl TimelineProjectionService {
         limit: Option<usize>,
         cursor: Option<&str>,
         conversation_type: Option<&str>,
+        search_query: Option<&str>,
     ) -> Result<super::InboxWindowView, ProjectionAccessError> {
         let limit = validate_list_limit(limit)?;
         let list_cursor = parse_inbox_list_cursor(cursor)?;
@@ -617,6 +619,20 @@ impl TimelineProjectionService {
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .map(str::to_ascii_lowercase);
+        let requested_search_query = search_query
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_lowercase);
+        let search_query_char_count = requested_search_query
+            .as_ref()
+            .map_or(0, |query| query.chars().count());
+        if search_query_char_count > 256 {
+            return Err(ProjectionAccessError::payload_too_large(
+                "q",
+                256,
+                search_query_char_count,
+            ));
+        }
         self.inbox_window_for_principal_kind_filtered(
             InboxWindowQuery {
                 tenant_id: auth.tenant_id.as_str(),
@@ -637,6 +653,17 @@ impl TimelineProjectionService {
                         entry
                             .conversation_type
                             .eq_ignore_ascii_case(conversation_type.as_str())
+                    })
+                    && requested_search_query.as_ref().is_none_or(|query| {
+                        entry.conversation_id.to_lowercase().contains(query)
+                            || entry.display_name.as_ref().is_some_and(|display_name| {
+                                display_name.to_lowercase().contains(query)
+                            })
+                            || entry.peer.as_ref().is_some_and(|peer| {
+                                peer.display_name.as_ref().is_some_and(|display_name| {
+                                    display_name.to_lowercase().contains(query)
+                                })
+                            })
                     })
             },
         )

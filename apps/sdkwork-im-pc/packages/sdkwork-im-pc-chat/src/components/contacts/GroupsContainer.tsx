@@ -38,28 +38,33 @@ export const GroupsContainer: React.FC<{
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
-    groupService.listGroupsPage()
-      .then((page) => {
-        if (mounted) {
-          applyGroupsPage(page, false);
-        }
-      })
-      .catch(() => {
-        if (mounted) {
-          setGroups([]);
-          toast(t('contacts.groups.toast.loadFailed'), 'error');
-        }
-      })
-      .finally(() => {
-        if (mounted) {
-          setLoading(false);
-        }
-      });
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      groupService.listGroupsPage({ q: searchQuery.trim() || undefined })
+        .then((page) => {
+          if (mounted) {
+            applyGroupsPage(page, false);
+          }
+        })
+        .catch(() => {
+          if (mounted) {
+            setGroups([]);
+            setHasMore(false);
+            setNextCursor(undefined);
+            toast(t('contacts.groups.toast.loadFailed'), 'error');
+          }
+        })
+        .finally(() => {
+          if (mounted) {
+            setLoading(false);
+          }
+        });
+    }, 250);
     return () => {
       mounted = false;
+      window.clearTimeout(timer);
     };
-  }, [applyGroupsPage, t]);
+  }, [applyGroupsPage, searchQuery, t]);
 
   const loadMoreGroups = async () => {
     if (!hasMore || !nextCursor || loadingMore) {
@@ -67,7 +72,10 @@ export const GroupsContainer: React.FC<{
     }
     setLoadingMore(true);
     try {
-      const page = await groupService.listGroupsPage({ cursor: nextCursor });
+      const page = await groupService.listGroupsPage({
+        cursor: nextCursor,
+        q: searchQuery.trim() || undefined,
+      });
       applyGroupsPage(page, true);
     } catch {
       toast(t('contacts.groups.toast.loadFailed'), 'error');
@@ -76,11 +84,6 @@ export const GroupsContainer: React.FC<{
     }
   };
 
-  const filteredGroups = groups.filter(group => {
-    if (!searchQuery.trim()) return true;
-    return group.name.toLowerCase().includes(searchQuery.toLowerCase());
-  });
-
   return (
     <div className="flex-1 flex flex-col bg-[#1e1e1e] min-w-0 h-full">
       <div className="px-8 py-6 border-b border-white/5 shrink-0 flex items-center justify-between">
@@ -88,7 +91,7 @@ export const GroupsContainer: React.FC<{
           <h2 className="text-xl font-medium text-gray-200">{t('contacts.groups.title')}</h2>
           <p className="text-sm text-gray-500 mt-1">{t('contacts.groups.description')}</p>
         </div>
-        <button 
+        <button
           onClick={() => {
             setIsCreateGroupOpen(true);
           }}
@@ -101,7 +104,7 @@ export const GroupsContainer: React.FC<{
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {loading ? (
             <div className="text-sm text-gray-500 col-span-full">{t('contacts.groups.loading')}</div>
-          ) : filteredGroups.map(group => (
+          ) : groups.map((group) => (
             <div
               key={group.id}
               className="p-5 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5 cursor-pointer flex flex-col gap-4"
@@ -120,7 +123,7 @@ export const GroupsContainer: React.FC<{
                   <p className="text-xs text-gray-500 mt-1">
                     {t('contacts.groups.memberStats', {
                       activeCount: group.activeCount || 0,
-                      count: group.memberCount || 0,
+                      count: `${group.memberCount || 0}${group.memberCountIsLowerBound ? '+' : ''}`,
                     })}
                   </p>
                 </div>

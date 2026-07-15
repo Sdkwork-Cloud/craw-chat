@@ -6,8 +6,10 @@ type ProblemDetail struct {
 	Title string `json:"title"`
 	Status int `json:"status"`
 	Detail string `json:"detail"`
-	Code string `json:"code"`
-	Message string `json:"message"`
+	Instance string `json:"instance"`
+	Code SdkWorkPlatformErrorCode `json:"code"`
 	TraceId string `json:"traceId"`
-	Retryable bool `json:"retryable"`
+	I18nKey string `json:"i18nKey"`
+	Locale string `json:"locale"`
+	Errors []FieldError `json:"errors"`
 }

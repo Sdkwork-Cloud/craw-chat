@@ -146,7 +146,8 @@
         "sdkwork-community-app-api",
         "sdkwork-course-app-api",
         "sdkwork-knowledgebase-app-api",
-        "sdkwork-voice-app-api"
+        "sdkwork-voice-app-api",
+        "sdkwork-agents-app-api"
       ],
       "explicitExternalUpstreamEnvKeys": {
         "sdkwork-iam-app-api": [
@@ -237,6 +238,11 @@
           "SDKWORK_IM_VOICE_APP_API_UPSTREAM",
           "SDKWORK_VOICE_APP_API_UPSTREAM",
           "SDKWORK_VOICE_APP_API_BASE_URL"
+        ],
+        "sdkwork-agents-app-api": [
+          "SDKWORK_IM_AGENTS_APP_API_UPSTREAM",
+          "SDKWORK_AGENTS_APP_API_UPSTREAM",
+          "SDKWORK_AGENTS_APP_API_BASE_URL"
         ]
       },
       "catalogPolicy": "no-dedicated-gateway-catalog"

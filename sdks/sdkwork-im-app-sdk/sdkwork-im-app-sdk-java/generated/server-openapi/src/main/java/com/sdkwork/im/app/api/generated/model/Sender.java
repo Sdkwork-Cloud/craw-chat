@@ -13,7 +13,7 @@ public class Sender {
     public String getId() {
         return this.id;
     }
-    
+
     public void setId(String id) {
         this.id = id;
     }
@@ -21,7 +21,7 @@ public class Sender {
     public String getKind() {
         return this.kind;
     }
-    
+
     public void setKind(String kind) {
         this.kind = kind;
     }
@@ -29,7 +29,7 @@ public class Sender {
     public String getMemberId() {
         return this.memberId;
     }
-    
+
     public void setMemberId(String memberId) {
         this.memberId = memberId;
     }
@@ -37,7 +37,7 @@ public class Sender {
     public String getDeviceId() {
         return this.deviceId;
     }
-    
+
     public void setDeviceId(String deviceId) {
         this.deviceId = deviceId;
     }
@@ -45,7 +45,7 @@ public class Sender {
     public String getSessionId() {
         return this.sessionId;
     }
-    
+
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
     }
@@ -53,7 +53,7 @@ public class Sender {
     public Map<String, String> getMetadata() {
         return this.metadata;
     }
-    
+
     public void setMetadata(Map<String, String> metadata) {
         this.metadata = metadata;
     }

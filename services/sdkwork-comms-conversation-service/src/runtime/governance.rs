@@ -134,16 +134,16 @@ where
 
         let retention_class =
             super::support::retention_class_from_policy_ref(payload.retention_policy_ref.as_str());
-        if im_domain_core::retention::retention_is_indefinite(retention_class.as_str()) {
-            if let Some(store) = &self.retention_scope_store {
-                store
-                    .clear_conversation_retention_until(
-                        command.tenant_id.as_str(),
-                        command.organization_id.as_str(),
-                        command.conversation_id.as_str(),
-                    )
-                    .map_err(RuntimeError::from)?;
-            }
+        if im_domain_core::retention::retention_is_indefinite(retention_class.as_str())
+            && let Some(store) = &self.retention_scope_store
+        {
+            store
+                .clear_conversation_retention_until(
+                    command.tenant_id.as_str(),
+                    command.organization_id.as_str(),
+                    command.conversation_id.as_str(),
+                )
+                .map_err(RuntimeError::from)?;
         }
 
         Ok(payload.into_policy())

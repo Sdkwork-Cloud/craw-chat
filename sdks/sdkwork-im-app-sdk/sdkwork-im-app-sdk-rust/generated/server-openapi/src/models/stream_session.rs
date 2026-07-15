@@ -30,11 +30,11 @@ pub struct StreamSession {
     pub state: String,
 
     #[serde(rename = "lastFrameSeq")]
-    pub last_frame_seq: i64,
+    pub last_frame_seq: String,
 
     #[serde(rename = "lastCheckpointSeq")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_checkpoint_seq: Option<i64>,
+    pub last_checkpoint_seq: Option<String>,
 
     #[serde(rename = "resultMessageId")]
     #[serde(default, skip_serializing_if = "Option::is_none")]

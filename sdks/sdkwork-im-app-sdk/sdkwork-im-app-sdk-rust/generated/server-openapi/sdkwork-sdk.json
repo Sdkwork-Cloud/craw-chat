@@ -5,6 +5,8 @@
   "language": "rust",
   "sdkType": "app",
   "packageName": "sdkwork-im-app-api-generated",
+  "transportPackageName": "sdkwork-im-app-api-generated",
+  "consumerPackageName": "sdkwork-im-app-api-generated",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

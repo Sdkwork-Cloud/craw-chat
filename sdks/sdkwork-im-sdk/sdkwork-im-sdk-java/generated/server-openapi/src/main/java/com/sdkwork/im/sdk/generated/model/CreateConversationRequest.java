@@ -7,6 +7,9 @@ public class CreateConversationRequest {
     private String conversationType;
     private String groupName;
     private String clientRequestKey;
+    private Boolean initializeKnowledgebase;
+    private List<String> memberUserIds;
+    private List<ConversationAgentAssignment> agentAssignments;
     private String policyVersion;
     private List<String> capabilityFlags;
     private String historyVisibility;
@@ -42,6 +45,30 @@ public class CreateConversationRequest {
 
     public void setClientRequestKey(String clientRequestKey) {
         this.clientRequestKey = clientRequestKey;
+    }
+
+    public Boolean getInitializeKnowledgebase() {
+        return this.initializeKnowledgebase;
+    }
+
+    public void setInitializeKnowledgebase(Boolean initializeKnowledgebase) {
+        this.initializeKnowledgebase = initializeKnowledgebase;
+    }
+
+    public List<String> getMemberUserIds() {
+        return this.memberUserIds;
+    }
+
+    public void setMemberUserIds(List<String> memberUserIds) {
+        this.memberUserIds = memberUserIds;
+    }
+
+    public List<ConversationAgentAssignment> getAgentAssignments() {
+        return this.agentAssignments;
+    }
+
+    public void setAgentAssignments(List<ConversationAgentAssignment> agentAssignments) {
+        this.agentAssignments = agentAssignments;
     }
 
     public String getPolicyVersion() {

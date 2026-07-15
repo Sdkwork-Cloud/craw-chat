@@ -28,6 +28,12 @@ import { chatService, resolveIncomingCallWatchConversationIds } from "../service
 import { callService } from "../services/CallService";
 import { contactService, SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT } from "../services/ContactService";
 import { groupService } from "../services/GroupService";
+import type { GroupMemberListItem, GroupMemberRole } from "../services/GroupService";
+import {
+  groupKnowledgebaseLaunchService,
+  resolveGroupKnowledgebaseAccessMode,
+  type GroupKnowledgebaseLifecycleState,
+} from "../services/GroupKnowledgebaseLaunchService";
 import { imSyncCoordinatorService } from "../services/ImSyncCoordinatorService";
 import {
   buildIncomingCallNotification,
@@ -42,7 +48,12 @@ import {
 } from "../services/NotificationService";
 import { settingsService, type AppSettings } from "../services/SettingsService";
 import { systemAssistantService } from "../services/SystemAssistantService";
-import { appAuthService, isAppSdkSessionAuthenticated, SDKWORK_IM_SESSION_CHANGED_EVENT, readAppSdkSessionTokens } from "@sdkwork/im-pc-core";
+import {
+  appAuthService,
+  isAppSdkSessionAuthenticated,
+  readAppSdkSessionTokens,
+  SDKWORK_IM_SESSION_CHANGED_EVENT,
+} from "@sdkwork/im-pc-core";
 import {
   AppShellFrame,
   ModuleRenderHost,
@@ -58,10 +69,13 @@ import {
   Phone,
   Video,
   MoreHorizontal,
+  BookOpen,
   MessageSquarePlus,
   UserPlus,
   Bot,
   ScanLine,
+  LoaderCircle,
+  RefreshCw,
   X,
 } from "lucide-react";
 import { ToastContainer, toast } from "../components/Toast";
@@ -86,11 +100,30 @@ const ChatLayoutComponent: React.FC = () => {
   const [isAssistantAvailable, setIsAssistantAvailable] = useState(false);
   const [friendRequestUnreadCount, setFriendRequestUnreadCount] = useState(0);
   const [runtimeReady, setRuntimeReady] = useState(false);
+  const [isOpeningGroupKnowledgebase, setIsOpeningGroupKnowledgebase] = useState(false);
+  const [groupKnowledgebaseLifecycleState, setGroupKnowledgebaseLifecycleState] = useState<
+    GroupKnowledgebaseLifecycleState | null
+  >(null);
+  const [isGroupKnowledgebaseAccessLoading, setIsGroupKnowledgebaseAccessLoading] = useState(false);
+  const [isGroupKnowledgebaseMemberAccessLoadError, setIsGroupKnowledgebaseMemberAccessLoadError] = useState(false);
+  const [isGroupKnowledgebaseUnavailable, setIsGroupKnowledgebaseUnavailable] = useState(false);
+  const [isGroupKnowledgebaseLifecycleLoadError, setIsGroupKnowledgebaseLifecycleLoadError] = useState(false);
+  const [isCurrentUserGroupOwner, setIsCurrentUserGroupOwner] = useState(false);
+  const [canCurrentUserOpenGroupKnowledgebase, setCanCurrentUserOpenGroupKnowledgebase] = useState(false);
+  const [groupKnowledgebaseAccessConversationId, setGroupKnowledgebaseAccessConversationId] = useState<string | null>(null);
+  const [groupKnowledgebaseAccessSessionEpoch, setGroupKnowledgebaseAccessSessionEpoch] = useState<number | null>(null);
+  const [groupKnowledgebaseAccessReloadEpoch, setGroupKnowledgebaseAccessReloadEpoch] = useState(0);
+  const [groupKnowledgebaseSessionEpoch, setGroupKnowledgebaseSessionEpoch] = useState(0);
   const [driveOpenRequest, setDriveOpenRequest] = useState<DriveOpenRequest>();
   const chatListProjectionRevisionRef = useRef(0);
   const driveOpenRequestSequenceRef = useRef(0);
   const groupDetailHydrationIdsRef = useRef(new Set<string>());
   const pendingReadCursorChatIdsRef = useRef(new Set<string>());
+  const groupKnowledgebaseLaunchAbortRef = useRef<{
+    controller: AbortController;
+    conversationId: string;
+  } | null>(null);
+  const groupKnowledgebaseAccessRequestRef = useRef(0);
   const chatsRef = useRef<Chat[]>([]);
   const activeChatIdRef = useRef<string | undefined>(undefined);
   const currentSettingsRef = useRef<AppSettings | null>(null);
@@ -131,7 +164,14 @@ const ChatLayoutComponent: React.FC = () => {
   const [pendingCommunityId, setPendingCommunityId] = useState<string | null>(null);
   const [showRHSPanel, setShowRHSPanel] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [groupMemberRoster, setGroupMemberRoster] = useState<GroupMemberListItem[]>([]);
   const [groupMemberProfiles, setGroupMemberProfiles] = useState<User[]>([]);
+  const [currentUserGroupRole, setCurrentUserGroupRole] = useState<GroupMemberRole | null>(null);
+  const [groupMemberNextCursor, setGroupMemberNextCursor] = useState<string | undefined>();
+  const [groupMemberHasMore, setGroupMemberHasMore] = useState(false);
+  const [isGroupMemberListLoading, setIsGroupMemberListLoading] = useState(false);
+  const [groupMemberListError, setGroupMemberListError] = useState(false);
+  const groupMemberListRequestRef = useRef(0);
   const [canManageGroupAgents, setCanManageGroupAgents] = useState(false);
   const groupAgentPermissionRequestRef = useRef(0);
   const [editAgentId, setEditAgentId] = useState<string | undefined>();
@@ -139,11 +179,20 @@ const ChatLayoutComponent: React.FC = () => {
     "search" | "editName" | "editNotice" | "addMember" | "manageAgents" | null
   >(null);
   const [modalInput, setModalInput] = useState("");
+  const isTechnicalConversationName = (chat: Chat): boolean => (
+    chat.name.trim().length === 0
+    || chat.name.trim() === chat.id
+    || chat.name.trim() === 'Group chat'
+    || chat.name.trim() === 'Direct chat'
+    || (chat.type === 'group' && /^(?:Group\s+c_|c_group|pc-group-|conversation[-_:])/iu.test(chat.name.trim()))
+  );
   const localizedChats = useMemo(
     () => chats.map((chat) => (
       systemAssistantService.isSystemAssistantChat(chat)
         ? { ...chat, name: t("chat.systemAssistant.displayName") }
-        : chat
+        : isTechnicalConversationName(chat)
+          ? { ...chat, name: chat.type === 'group' ? t('chat.fallback.groupName') : t('chat.fallback.directName') }
+          : chat
     )),
     [chats, t],
   );
@@ -152,8 +201,11 @@ const ChatLayoutComponent: React.FC = () => {
       return null;
     }
 
-    return systemAssistantService.isSystemAssistantChat(activeChat)
-      ? { ...activeChat, name: t("chat.systemAssistant.displayName") }
+    if (systemAssistantService.isSystemAssistantChat(activeChat)) {
+      return { ...activeChat, name: t("chat.systemAssistant.displayName") };
+    }
+    return isTechnicalConversationName(activeChat)
+      ? { ...activeChat, name: activeChat.type === 'group' ? t('chat.fallback.groupName') : t('chat.fallback.directName') }
       : activeChat;
   }, [activeChat, t]);
   const currentUser = useMemo(() => contactService.getCurrentUser(), []);
@@ -178,10 +230,270 @@ const ChatLayoutComponent: React.FC = () => {
     ));
   };
   const currentUserId = currentUser.id;
-  const activeGroupMemberSignature = useMemo(
-    () => activeChat?.type === "group" ? (activeChat.members ?? []).join("|") : "",
-    [activeChat?.members, activeChat?.type],
+  const hasGroupKnowledgebaseAuthenticatedSession = isAppSdkSessionAuthenticated(
+    readAppSdkSessionTokens(),
   );
+  const activeGroupKnowledgebaseConversationId = activeChat?.type === 'group'
+    ? activeChat.id
+    : null;
+  const hasCurrentGroupKnowledgebaseAccess = activeGroupKnowledgebaseConversationId !== null
+    && groupKnowledgebaseAccessConversationId === activeGroupKnowledgebaseConversationId
+    && groupKnowledgebaseAccessSessionEpoch === groupKnowledgebaseSessionEpoch;
+  const groupKnowledgebaseAccessMode = resolveGroupKnowledgebaseAccessMode(
+    groupKnowledgebaseLifecycleState,
+    {
+      canInitialize: isCurrentUserGroupOwner,
+      canOpen: canCurrentUserOpenGroupKnowledgebase,
+      hasAuthenticatedSession: hasGroupKnowledgebaseAuthenticatedSession,
+      hasMemberAccessLoadError: hasCurrentGroupKnowledgebaseAccess
+        && isGroupKnowledgebaseMemberAccessLoadError,
+      hasLifecycleUnavailable: hasCurrentGroupKnowledgebaseAccess
+        && isGroupKnowledgebaseUnavailable,
+      hasLifecycleLoadError: hasCurrentGroupKnowledgebaseAccess
+        && isGroupKnowledgebaseLifecycleLoadError,
+      isLoading: isGroupKnowledgebaseAccessLoading || !hasCurrentGroupKnowledgebaseAccess,
+    },
+  );
+  const canLaunchGroupKnowledgebase = groupKnowledgebaseAccessMode === 'initialize'
+    || groupKnowledgebaseAccessMode === 'open';
+  const canRetryGroupKnowledgebaseAccess = groupKnowledgebaseAccessMode === 'retry'
+    && !isGroupKnowledgebaseAccessLoading;
+  const shouldShowGroupKnowledgebaseHeaderAction = localizedActiveChat?.type === 'group';
+  const canManageGroupKnowledgebase = localizedActiveChat?.type === 'group'
+    && (isCurrentUserGroupOwner || groupKnowledgebaseAccessMode === 'retry')
+    && (
+      groupKnowledgebaseAccessMode === 'initialize'
+      || groupKnowledgebaseAccessMode === 'retry'
+      || groupKnowledgebaseAccessMode === 'open'
+      || groupKnowledgebaseAccessMode === 'provisioning'
+    );
+  const groupKnowledgebaseManagementActionLabel = groupKnowledgebaseAccessMode === 'initialize'
+    ? t('chat.rightPanel.actions.initializeKnowledgebase')
+    : groupKnowledgebaseAccessMode === 'retry'
+      ? t('chat.rightPanel.actions.retryKnowledgebaseCheck')
+    : groupKnowledgebaseAccessMode === 'provisioning'
+      ? t('chat.rightPanel.actions.knowledgebaseInitializing')
+    : groupKnowledgebaseAccessMode === 'contact-owner'
+      ? t('chat.rightPanel.actions.knowledgebaseContactOwner')
+      : t('chat.rightPanel.actions.manageKnowledgebase');
+  const groupKnowledgebaseHeaderActionLabel = groupKnowledgebaseAccessMode === 'initialize'
+    ? t('chat.header.knowledgebaseInitialize')
+    : groupKnowledgebaseAccessMode === 'retry'
+      ? t('chat.header.knowledgebaseRetry')
+    : groupKnowledgebaseAccessMode === 'provisioning'
+      ? t('chat.header.knowledgebaseInitializing')
+      : groupKnowledgebaseAccessMode === 'contact-owner'
+        ? t('chat.header.knowledgebaseContactOwner')
+      : groupKnowledgebaseAccessMode === 'loading'
+          ? t('chat.header.knowledgebaseChecking')
+          : t('chat.header.knowledgebase');
+  const activeGroupMemberSignature = useMemo(
+    () => activeChat?.type === "group" ? groupMemberRoster.map((member) => member.id).join("|") : "",
+    [activeChat?.type, groupMemberRoster],
+  );
+
+  const applyGroupMemberRoster = (
+    conversationId: string,
+    members: GroupMemberListItem[],
+    hasMore: boolean,
+  ): void => {
+    const memberIds = members.map((member) => member.id);
+    const updates = {
+      members: memberIds,
+      memberCount: memberIds.length,
+      memberCountIsLowerBound: hasMore,
+    };
+    setGroupMemberRoster(members);
+    setChats((previousChats) => previousChats.map((chat) => (
+      chat.id === conversationId ? { ...chat, ...updates } : chat
+    )));
+    setActiveChat((previousChat) => previousChat?.id === conversationId
+      ? { ...previousChat, ...updates }
+      : previousChat);
+  };
+
+  const loadGroupMemberPage = (conversationId: string, cursor?: string, append = false): void => {
+    const requestId = ++groupMemberListRequestRef.current;
+    setIsGroupMemberListLoading(true);
+    setGroupMemberListError(false);
+    void groupService.listGroupMembersPage(conversationId, { cursor })
+      .then((page) => {
+        if (requestId !== groupMemberListRequestRef.current || activeChatIdRef.current !== conversationId) {
+          return;
+        }
+        const next = append ? [...groupMemberRoster, ...page.items] : page.items;
+        const byId = new Map(next.map((member) => [member.id, member]));
+        const deduped = Array.from(byId.values());
+        applyGroupMemberRoster(conversationId, deduped, page.hasMore);
+        setGroupMemberHasMore(page.hasMore);
+        setGroupMemberNextCursor(page.nextCursor);
+      })
+      .catch(() => {
+        if (requestId === groupMemberListRequestRef.current && activeChatIdRef.current === conversationId) {
+          setGroupMemberListError(true);
+        }
+      })
+      .finally(() => {
+        if (requestId === groupMemberListRequestRef.current && activeChatIdRef.current === conversationId) {
+          setIsGroupMemberListLoading(false);
+        }
+      });
+  };
+
+  const handleOpenGroupKnowledgebase = async (): Promise<void> => {
+    if (
+      !localizedActiveChat
+      || localizedActiveChat.type !== 'group'
+      || !hasGroupKnowledgebaseAuthenticatedSession
+      || !canLaunchGroupKnowledgebase
+      || isOpeningGroupKnowledgebase
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+    groupKnowledgebaseLaunchAbortRef.current?.controller.abort();
+    groupKnowledgebaseLaunchAbortRef.current = {
+      controller,
+      conversationId: localizedActiveChat.id,
+    };
+    setIsOpeningGroupKnowledgebase(true);
+    try {
+      const outcome = await groupKnowledgebaseLaunchService.open(localizedActiveChat.id, {
+        signal: controller.signal,
+      });
+      if (groupKnowledgebaseLaunchAbortRef.current?.controller === controller
+        && outcome.kind === 'provisioning') {
+        setGroupKnowledgebaseLifecycleState('provisioning');
+        toast(t('chat.header.knowledgebaseProvisioning'), 'info');
+      } else if (groupKnowledgebaseLaunchAbortRef.current?.controller === controller
+        && outcome.kind === 'opened') {
+        setGroupKnowledgebaseLifecycleState('active');
+      } else if (outcome.kind === 'unavailable') {
+        toast(t('chat.header.knowledgebaseUnavailable'), 'error');
+      } else if (outcome.kind === 'failed') {
+        toast(t('chat.header.knowledgebaseOpenFailed'), 'error');
+      }
+    } finally {
+      if (groupKnowledgebaseLaunchAbortRef.current?.controller === controller) {
+        groupKnowledgebaseLaunchAbortRef.current = null;
+        setIsOpeningGroupKnowledgebase(false);
+      }
+    }
+  };
+
+  const handleRetryGroupKnowledgebaseAccess = (): void => {
+    if (
+      !activeGroupKnowledgebaseConversationId
+      || !hasGroupKnowledgebaseAuthenticatedSession
+      || !canRetryGroupKnowledgebaseAccess
+    ) {
+      return;
+    }
+
+    setIsGroupKnowledgebaseLifecycleLoadError(false);
+    setIsGroupKnowledgebaseUnavailable(false);
+    setIsGroupKnowledgebaseMemberAccessLoadError(false);
+    setIsGroupKnowledgebaseAccessLoading(true);
+    setGroupKnowledgebaseAccessReloadEpoch((epoch) => epoch + 1);
+  };
+
+  const handleGroupKnowledgebaseAction = (): void => {
+    if (groupKnowledgebaseAccessMode === 'contact-owner') {
+      toast(t('chat.header.knowledgebaseContactOwner'), 'info');
+      return;
+    }
+    if (groupKnowledgebaseAccessMode === 'unavailable') {
+      toast(t('chat.header.knowledgebaseUnavailable'), 'error');
+      return;
+    }
+    if (groupKnowledgebaseAccessMode === 'retry') {
+      handleRetryGroupKnowledgebaseAccess();
+      return;
+    }
+    if (groupKnowledgebaseAccessMode === 'provisioning') {
+      toast(t('chat.header.knowledgebaseProvisioning'), 'info');
+      return;
+    }
+    void handleOpenGroupKnowledgebase();
+  };
+
+  useEffect(() => {
+    const pendingLaunch = groupKnowledgebaseLaunchAbortRef.current;
+    if (pendingLaunch && pendingLaunch.conversationId !== activeChat?.id) {
+      groupKnowledgebaseLaunchAbortRef.current = null;
+      pendingLaunch.controller.abort();
+      setIsOpeningGroupKnowledgebase(false);
+    }
+  }, [activeChat?.id]);
+
+  useEffect(() => () => {
+    groupKnowledgebaseLaunchAbortRef.current?.controller.abort();
+    groupKnowledgebaseLaunchAbortRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    groupKnowledgebaseAccessRequestRef.current += 1;
+    const requestId = groupKnowledgebaseAccessRequestRef.current;
+    const activeGroupId = activeChat?.type === 'group' ? activeChat.id : undefined;
+    if (!activeGroupId) {
+      setGroupKnowledgebaseLifecycleState(null);
+      setIsGroupKnowledgebaseMemberAccessLoadError(false);
+      setIsGroupKnowledgebaseUnavailable(false);
+      setIsGroupKnowledgebaseLifecycleLoadError(false);
+      setIsCurrentUserGroupOwner(false);
+      setCanCurrentUserOpenGroupKnowledgebase(false);
+      setGroupKnowledgebaseAccessConversationId(null);
+      setGroupKnowledgebaseAccessSessionEpoch(null);
+      setIsGroupKnowledgebaseAccessLoading(false);
+      return;
+    }
+
+    setGroupKnowledgebaseLifecycleState(null);
+    setIsGroupKnowledgebaseMemberAccessLoadError(false);
+    setIsGroupKnowledgebaseUnavailable(false);
+    setIsGroupKnowledgebaseLifecycleLoadError(false);
+    setIsCurrentUserGroupOwner(false);
+    setCanCurrentUserOpenGroupKnowledgebase(false);
+    setGroupKnowledgebaseAccessConversationId(null);
+    setGroupKnowledgebaseAccessSessionEpoch(null);
+    if (!hasGroupKnowledgebaseAuthenticatedSession) {
+      setGroupKnowledgebaseAccessConversationId(activeGroupId);
+      setGroupKnowledgebaseAccessSessionEpoch(groupKnowledgebaseSessionEpoch);
+      setIsGroupKnowledgebaseAccessLoading(false);
+      return;
+    }
+    setIsGroupKnowledgebaseAccessLoading(true);
+    void Promise.all([
+      groupService.retrieveCurrentUserGroupKnowledgebaseAccess(activeGroupId),
+      groupKnowledgebaseLaunchService.retrieveLifecycle(activeGroupId),
+    ]).then(([memberAccessLookup, lifecycleLookup]) => {
+      if (groupKnowledgebaseAccessRequestRef.current !== requestId) {
+        return;
+      }
+      const memberAccess = memberAccessLookup.kind === 'resolved'
+        ? memberAccessLookup.access
+        : { canInitialize: false, canOpen: false };
+      setIsCurrentUserGroupOwner(memberAccess.canInitialize);
+      setCanCurrentUserOpenGroupKnowledgebase(memberAccess.canOpen);
+      setGroupKnowledgebaseLifecycleState(
+        lifecycleLookup.kind === 'resolved' ? lifecycleLookup.lifecycleState : null,
+      );
+      setIsGroupKnowledgebaseMemberAccessLoadError(memberAccessLookup.kind === 'failed');
+      setIsGroupKnowledgebaseUnavailable(lifecycleLookup.kind === 'unavailable');
+      setIsGroupKnowledgebaseLifecycleLoadError(lifecycleLookup.kind === 'failed');
+      setGroupKnowledgebaseAccessConversationId(activeGroupId);
+      setGroupKnowledgebaseAccessSessionEpoch(groupKnowledgebaseSessionEpoch);
+      setIsGroupKnowledgebaseAccessLoading(false);
+    });
+  }, [
+    activeChat?.id,
+    activeChat?.type,
+    groupKnowledgebaseAccessReloadEpoch,
+    groupKnowledgebaseSessionEpoch,
+    hasGroupKnowledgebaseAuthenticatedSession,
+    showRHSPanel,
+  ]);
 
   useEffect(() => {
     groupAgentPermissionRequestRef.current += 1;
@@ -203,6 +515,66 @@ const ChatLayoutComponent: React.FC = () => {
         }
       });
   }, [activeChat?.id, activeChat?.type, showRHSPanel]);
+
+  useEffect(() => {
+    groupMemberListRequestRef.current += 1;
+    const requestId = groupMemberListRequestRef.current;
+    if (!runtimeReady || !showRHSPanel || !activeChat || activeChat.type !== "group") {
+      setGroupMemberRoster([]);
+      setGroupMemberHasMore(false);
+      setGroupMemberNextCursor(undefined);
+      setGroupMemberListError(false);
+      setIsGroupMemberListLoading(false);
+      return;
+    }
+    setGroupMemberRoster([]);
+    setGroupMemberHasMore(false);
+    setGroupMemberNextCursor(undefined);
+    setGroupMemberListError(false);
+    setIsGroupMemberListLoading(true);
+    void groupService.listGroupMembersPage(activeChat.id)
+      .then((page) => {
+        if (requestId !== groupMemberListRequestRef.current || activeChatIdRef.current !== activeChat.id) {
+          return;
+        }
+        applyGroupMemberRoster(activeChat.id, page.items, page.hasMore);
+        setGroupMemberHasMore(page.hasMore);
+        setGroupMemberNextCursor(page.nextCursor);
+      })
+      .catch(() => {
+        if (requestId === groupMemberListRequestRef.current && activeChatIdRef.current === activeChat.id) {
+          setGroupMemberListError(true);
+        }
+      })
+      .finally(() => {
+        if (requestId === groupMemberListRequestRef.current && activeChatIdRef.current === activeChat.id) {
+          setIsGroupMemberListLoading(false);
+        }
+      });
+  }, [activeChat?.id, activeChat?.type, runtimeReady, showRHSPanel]);
+
+  useEffect(() => {
+    if (!activeChat || activeChat.type !== "group") {
+      setCurrentUserGroupRole(null);
+      return undefined;
+    }
+    let mounted = true;
+    void groupService.getCurrentUserGroupRole(activeChat.id)
+      .then((role) => {
+        if (mounted) {
+          setCurrentUserGroupRole(role);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setCurrentUserGroupRole(null);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [activeChat?.id, activeChat?.type, showRHSPanel]);
+
   chatsRef.current = chats;
   activeChatIdRef.current = activeChat?.id;
   notificationTextsRef.current = {
@@ -752,6 +1124,21 @@ const ChatLayoutComponent: React.FC = () => {
         return;
       }
 
+      const pendingKnowledgebaseLaunch = groupKnowledgebaseLaunchAbortRef.current;
+      groupKnowledgebaseLaunchAbortRef.current = null;
+      pendingKnowledgebaseLaunch?.controller.abort();
+      groupKnowledgebaseAccessRequestRef.current += 1;
+      setIsOpeningGroupKnowledgebase(false);
+      setGroupKnowledgebaseLifecycleState(null);
+      setIsGroupKnowledgebaseMemberAccessLoadError(false);
+      setIsGroupKnowledgebaseUnavailable(false);
+      setIsGroupKnowledgebaseLifecycleLoadError(false);
+      setIsCurrentUserGroupOwner(false);
+      setCanCurrentUserOpenGroupKnowledgebase(false);
+      setGroupKnowledgebaseAccessConversationId(null);
+      setGroupKnowledgebaseAccessSessionEpoch(null);
+      setIsGroupKnowledgebaseAccessLoading(false);
+      setGroupKnowledgebaseSessionEpoch((epoch) => epoch + 1);
       if (!isAppSdkSessionAuthenticated(readAppSdkSessionTokens())) {
         setRuntimeReady(false);
         setIsChatStartupLoading(false);
@@ -840,7 +1227,7 @@ const ChatLayoutComponent: React.FC = () => {
       };
     }
 
-    const memberIds = new Set(activeChat.members ?? []);
+    const memberIds = new Set(groupMemberRoster.map((member) => member.id));
     const isGroupMemberProfile = (user: User): boolean => (
       memberIds.has(user.id) || (Boolean(user.chatId) && memberIds.has(user.chatId ?? ""))
     );
@@ -872,7 +1259,7 @@ const ChatLayoutComponent: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [activeChat?.id, activeChat?.type, activeGroupMemberSignature, currentUser, runtimeReady]);
+  }, [activeChat?.id, activeChat?.type, activeGroupMemberSignature, currentUser, groupMemberRoster, runtimeReady]);
 
   useEffect(() => {
     if (!runtimeReady) {
@@ -914,6 +1301,20 @@ const ChatLayoutComponent: React.FC = () => {
 
       applyChats(nextChats);
     });
+  }, [runtimeReady]);
+
+  useEffect(() => {
+    if (!runtimeReady) {
+      return undefined;
+    }
+    // Profile updates are also reconciled on a short background interval so a
+    // temporarily unavailable realtime publisher cannot leave stale titles.
+    const intervalId = window.setInterval(() => {
+      void refreshChats().catch(() => undefined);
+    }, 15_000);
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, [runtimeReady]);
 
   useEffect(() => {
@@ -1217,6 +1618,20 @@ const ChatLayoutComponent: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    const pendingKnowledgebaseLaunch = groupKnowledgebaseLaunchAbortRef.current;
+    groupKnowledgebaseLaunchAbortRef.current = null;
+    pendingKnowledgebaseLaunch?.controller.abort();
+    groupKnowledgebaseAccessRequestRef.current += 1;
+    setIsOpeningGroupKnowledgebase(false);
+    setGroupKnowledgebaseLifecycleState(null);
+    setIsGroupKnowledgebaseMemberAccessLoadError(false);
+    setIsGroupKnowledgebaseUnavailable(false);
+    setIsGroupKnowledgebaseLifecycleLoadError(false);
+    setIsCurrentUserGroupOwner(false);
+    setCanCurrentUserOpenGroupKnowledgebase(false);
+    setGroupKnowledgebaseAccessConversationId(null);
+    setGroupKnowledgebaseAccessSessionEpoch(null);
+    setIsGroupKnowledgebaseAccessLoading(false);
     try {
       await appAuthService.logout();
       toast(t("chat.toast.signedOut"), "success");
@@ -1340,6 +1755,27 @@ const ChatLayoutComponent: React.FC = () => {
                 >
                   <Search size={18} />
                 </IconButton>
+                {shouldShowGroupKnowledgebaseHeaderAction ? (
+                  <IconButton
+                    title={groupKnowledgebaseHeaderActionLabel}
+                    aria-label={groupKnowledgebaseHeaderActionLabel}
+                    aria-busy={isOpeningGroupKnowledgebase
+                      || groupKnowledgebaseAccessMode === 'loading'
+                      || groupKnowledgebaseAccessMode === 'provisioning'}
+                    className="w-[32px] h-[32px] hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={groupKnowledgebaseAccessMode === 'loading'
+                      || groupKnowledgebaseAccessMode === 'provisioning'
+                      || isOpeningGroupKnowledgebase}
+                    onClick={handleGroupKnowledgebaseAction}
+                  >
+                    {isOpeningGroupKnowledgebase
+                      || groupKnowledgebaseAccessMode === 'loading'
+                      ? <LoaderCircle size={18} className="animate-spin" />
+                      : groupKnowledgebaseAccessMode === 'retry'
+                        ? <RefreshCw size={18} />
+                      : <BookOpen size={18} />}
+                  </IconButton>
+                ) : null}
                 <IconButton
                   title={t("chat.header.voiceCall")}
                   className="w-[32px] h-[32px] hover:bg-white/5"
@@ -1540,10 +1976,29 @@ const ChatLayoutComponent: React.FC = () => {
                   activeChat={localizedActiveChat}
                   currentUserChatId={currentUser.chatId}
                   currentUserId={currentUserId}
+                  groupMembers={groupMemberRoster}
                   groupMemberProfiles={groupMemberProfiles}
+                  currentUserGroupRole={currentUserGroupRole}
+                  canManageGroupMembers={currentUserGroupRole === 'owner' || currentUserGroupRole === 'admin'}
+                  hasMoreGroupMembers={groupMemberHasMore}
+                  isGroupMemberListLoading={isGroupMemberListLoading}
+                  groupMemberListError={groupMemberListError}
+                  onLoadMoreGroupMembers={() => {
+                    if (groupMemberListError) {
+                      loadGroupMemberPage(localizedActiveChat.id);
+                    } else if (groupMemberNextCursor) {
+                      loadGroupMemberPage(localizedActiveChat.id, groupMemberNextCursor, true);
+                    }
+                  }}
                   groupAgentAssignments={localizedActiveChat.agentAssignments}
                   canManageAgents={canManageGroupAgents}
                   onManageAgents={() => setActiveModal("manageAgents")}
+                  canManageKnowledgebase={canManageGroupKnowledgebase}
+                  isKnowledgebaseActionPending={isOpeningGroupKnowledgebase
+                    || groupKnowledgebaseAccessMode === 'loading'
+                    || groupKnowledgebaseAccessMode === 'provisioning'}
+                  knowledgebaseActionLabel={groupKnowledgebaseManagementActionLabel}
+                  onManageKnowledgebase={handleGroupKnowledgebaseAction}
                   onClose={() => setShowRHSPanel(false)}
                   onSetModal={(modal, inputVal) => {
                     setActiveModal(modal);
@@ -1616,6 +2071,9 @@ const ChatLayoutComponent: React.FC = () => {
                     if (activeChat.type !== "group") {
                       return;
                     }
+                    if (currentUserGroupRole !== 'owner' && currentUserGroupRole !== 'admin') {
+                      return;
+                    }
 
                     try {
                       await groupService.removeMember(activeChat.id, memberId);
@@ -1642,6 +2100,7 @@ const ChatLayoutComponent: React.FC = () => {
                           : previousActiveChat,
                       );
                       toast(t("chat.rightPanel.toast.memberRemoved"), "success");
+                      loadGroupMemberPage(activeChat.id);
                     } catch {
                       toast(t("chat.rightPanel.toast.removeMemberFailed"), "error");
                     }

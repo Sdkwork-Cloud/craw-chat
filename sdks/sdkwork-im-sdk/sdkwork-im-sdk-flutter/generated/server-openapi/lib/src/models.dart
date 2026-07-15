@@ -1278,6 +1278,8 @@ abstract class ContentPart {
         return DataContentPart.fromJson(json);
       case 'media':
         return MediaContentPart.fromJson(json);
+      case 'mention':
+        return MentionContentPart.fromJson(json);
       case 'signal':
         return SignalContentPart.fromJson(json);
       case 'stream_ref':
@@ -4241,6 +4243,62 @@ class DirectChat {
   }
 }
 
+class SocialFriendRequestAcceptedConversation {
+  final String tenantId;
+  final String conversationId;
+  final String kind;
+  final String createdAt;
+
+  SocialFriendRequestAcceptedConversation({
+    required this.tenantId,
+    required this.conversationId,
+    required this.kind,
+    required this.createdAt
+  });
+
+  factory SocialFriendRequestAcceptedConversation.fromJson(Map<String, dynamic> json) {
+    return SocialFriendRequestAcceptedConversation(
+      tenantId: (() {
+        final value = json['tenantId']?.toString();
+        if (value == null) {
+          throw FormatException('SocialFriendRequestAcceptedConversation.tenantId is required');
+        }
+        return value;
+      })(),
+      conversationId: (() {
+        final value = json['conversationId']?.toString();
+        if (value == null) {
+          throw FormatException('SocialFriendRequestAcceptedConversation.conversationId is required');
+        }
+        return value;
+      })(),
+      kind: (() {
+        final value = json['kind']?.toString();
+        if (value == null) {
+          throw FormatException('SocialFriendRequestAcceptedConversation.kind is required');
+        }
+        return value;
+      })(),
+      createdAt: (() {
+        final value = json['createdAt']?.toString();
+        if (value == null) {
+          throw FormatException('SocialFriendRequestAcceptedConversation.createdAt is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'tenantId': tenantId,
+      'conversationId': conversationId,
+      'kind': kind,
+      'createdAt': createdAt,
+    };
+  }
+}
+
 class SocialFriendRequestMutationResponse {
   final FriendRequest friendRequest;
 
@@ -4297,7 +4355,7 @@ class SocialFriendRequestAcceptanceResponse {
   final FriendRequest friendRequest;
   final Friendship friendship;
   final DirectChat directChat;
-  final CreateConversationResult conversation;
+  final SocialFriendRequestAcceptedConversation conversation;
 
   SocialFriendRequestAcceptanceResponse({
     required this.friendRequest,
@@ -4334,7 +4392,7 @@ class SocialFriendRequestAcceptanceResponse {
         if (map == null) {
           throw FormatException('SocialFriendRequestAcceptanceResponse.conversation is required');
         }
-        return CreateConversationResult.fromJson(map);
+        return SocialFriendRequestAcceptedConversation.fromJson(map);
       })()
     );
   }
@@ -4380,6 +4438,9 @@ class CreateConversationRequest {
   final String conversationType;
   final String? groupName;
   final String? clientRequestKey;
+  final bool? initializeKnowledgebase;
+  final List<String>? memberUserIds;
+  final List<ConversationAgentAssignment>? agentAssignments;
   final String? policyVersion;
   final List<String>? capabilityFlags;
   final String? historyVisibility;
@@ -4390,6 +4451,9 @@ class CreateConversationRequest {
     required this.conversationType,
     this.groupName,
     this.clientRequestKey,
+    this.initializeKnowledgebase,
+    this.memberUserIds,
+    this.agentAssignments,
     this.policyVersion,
     this.capabilityFlags,
     this.historyVisibility,
@@ -4408,6 +4472,30 @@ class CreateConversationRequest {
       })(),
       groupName: json['groupName']?.toString(),
       clientRequestKey: json['clientRequestKey']?.toString(),
+      initializeKnowledgebase: json['initializeKnowledgebase'] is bool ? json['initializeKnowledgebase'] : null,
+      memberUserIds: (() {
+        final list = _sdkworkAsList(json['memberUserIds']);
+        if (list == null) {
+          return null;
+        }
+        return list
+            .map((item) => item?.toString())
+            .whereType<String>()
+            .toList();
+      })(),
+      agentAssignments: (() {
+        final list = _sdkworkAsList(json['agentAssignments']);
+        if (list == null) {
+          return null;
+        }
+        return list
+            .map((item) => (() {
+        final map = _sdkworkAsMap(item);
+        return map == null ? null : ConversationAgentAssignment.fromJson(map);
+      })())
+            .whereType<ConversationAgentAssignment>()
+            .toList();
+      })(),
       policyVersion: json['policyVersion']?.toString(),
       capabilityFlags: (() {
         final list = _sdkworkAsList(json['capabilityFlags']);
@@ -4430,10 +4518,137 @@ class CreateConversationRequest {
       'conversationType': conversationType,
       'groupName': groupName,
       'clientRequestKey': clientRequestKey,
+      'initializeKnowledgebase': initializeKnowledgebase,
+      'memberUserIds': memberUserIds?.map((item) => item).toList(),
+      'agentAssignments': agentAssignments?.map((item) => item.toJson()).toList(),
       'policyVersion': policyVersion,
       'capabilityFlags': capabilityFlags?.map((item) => item).toList(),
       'historyVisibility': historyVisibility,
       'retentionPolicyRef': retentionPolicyRef,
+    };
+  }
+}
+
+class ConversationAgentAssignment {
+  final String agentId;
+  final String? revisionId;
+
+  ConversationAgentAssignment({
+    required this.agentId,
+    this.revisionId
+  });
+
+  factory ConversationAgentAssignment.fromJson(Map<String, dynamic> json) {
+    return ConversationAgentAssignment(
+      agentId: (() {
+        final value = json['agentId']?.toString();
+        if (value == null) {
+          throw FormatException('ConversationAgentAssignment.agentId is required');
+        }
+        return value;
+      })(),
+      revisionId: json['revisionId']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'agentId': agentId,
+      'revisionId': revisionId,
+    };
+  }
+}
+
+class ConversationAgentAssignments {
+  final int generation;
+  final String source;
+  final List<ConversationAgentAssignment> agents;
+
+  ConversationAgentAssignments({
+    required this.generation,
+    required this.source,
+    required this.agents
+  });
+
+  factory ConversationAgentAssignments.fromJson(Map<String, dynamic> json) {
+    return ConversationAgentAssignments(
+      generation: (() {
+        final value = json['generation'];
+        if (value is! int) {
+          throw FormatException('ConversationAgentAssignments.generation is required');
+        }
+        return value;
+      })(),
+      source: (() {
+        final value = json['source']?.toString();
+        if (value == null) {
+          throw FormatException('ConversationAgentAssignments.source is required');
+        }
+        return value;
+      })(),
+      agents: (() {
+        final list = _sdkworkAsList(json['agents']);
+        if (list == null) {
+          throw FormatException('ConversationAgentAssignments.agents is required');
+        }
+        return list
+            .map((item) => (() {
+        final map = _sdkworkAsMap(item);
+        return map == null ? null : ConversationAgentAssignment.fromJson(map);
+      })())
+            .whereType<ConversationAgentAssignment>()
+            .toList();
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'generation': generation,
+      'source': source,
+      'agents': agents.map((item) => item.toJson()).toList(),
+    };
+  }
+}
+
+class UpdateConversationAgentsRequest {
+  final int expectedGeneration;
+  final List<ConversationAgentAssignment> agentAssignments;
+
+  UpdateConversationAgentsRequest({
+    required this.expectedGeneration,
+    required this.agentAssignments
+  });
+
+  factory UpdateConversationAgentsRequest.fromJson(Map<String, dynamic> json) {
+    return UpdateConversationAgentsRequest(
+      expectedGeneration: (() {
+        final value = json['expectedGeneration'];
+        if (value is! int) {
+          throw FormatException('UpdateConversationAgentsRequest.expectedGeneration is required');
+        }
+        return value;
+      })(),
+      agentAssignments: (() {
+        final list = _sdkworkAsList(json['agentAssignments']);
+        if (list == null) {
+          throw FormatException('UpdateConversationAgentsRequest.agentAssignments is required');
+        }
+        return list
+            .map((item) => (() {
+        final map = _sdkworkAsMap(item);
+        return map == null ? null : ConversationAgentAssignment.fromJson(map);
+      })())
+            .whereType<ConversationAgentAssignment>()
+            .toList();
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'expectedGeneration': expectedGeneration,
+      'agentAssignments': agentAssignments.map((item) => item.toJson()).toList(),
     };
   }
 }
@@ -4675,27 +4890,24 @@ class BindDirectChatRequest {
 }
 
 class CreateConversationResult {
-  final String tenantId;
   final String conversationId;
-  final String kind;
-  final String createdAt;
+  final String eventId;
+  final String? requestKey;
+  final String? deliveryStatus;
+  final String? proofVersion;
+  final String? knowledgebaseInitialization;
 
   CreateConversationResult({
-    required this.tenantId,
     required this.conversationId,
-    required this.kind,
-    required this.createdAt
+    required this.eventId,
+    this.requestKey,
+    this.deliveryStatus,
+    this.proofVersion,
+    this.knowledgebaseInitialization
   });
 
   factory CreateConversationResult.fromJson(Map<String, dynamic> json) {
     return CreateConversationResult(
-      tenantId: (() {
-        final value = json['tenantId']?.toString();
-        if (value == null) {
-          throw FormatException('CreateConversationResult.tenantId is required');
-        }
-        return value;
-      })(),
       conversationId: (() {
         final value = json['conversationId']?.toString();
         if (value == null) {
@@ -4703,29 +4915,28 @@ class CreateConversationResult {
         }
         return value;
       })(),
-      kind: (() {
-        final value = json['kind']?.toString();
+      eventId: (() {
+        final value = json['eventId']?.toString();
         if (value == null) {
-          throw FormatException('CreateConversationResult.kind is required');
+          throw FormatException('CreateConversationResult.eventId is required');
         }
         return value;
       })(),
-      createdAt: (() {
-        final value = json['createdAt']?.toString();
-        if (value == null) {
-          throw FormatException('CreateConversationResult.createdAt is required');
-        }
-        return value;
-      })()
+      requestKey: json['requestKey']?.toString(),
+      deliveryStatus: json['deliveryStatus']?.toString(),
+      proofVersion: json['proofVersion']?.toString(),
+      knowledgebaseInitialization: json['knowledgebaseInitialization']?.toString()
     );
   }
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'tenantId': tenantId,
       'conversationId': conversationId,
-      'kind': kind,
-      'createdAt': createdAt,
+      'eventId': eventId,
+      'requestKey': requestKey,
+      'deliveryStatus': deliveryStatus,
+      'proofVersion': proofVersion,
+      'knowledgebaseInitialization': knowledgebaseInitialization,
     };
   }
 }
@@ -6664,6 +6875,72 @@ class MediaContentPart implements ContentPart {
   }
 }
 
+class MentionContentPart implements ContentPart {
+  final String kind;
+  final String targetKind;
+  final String targetId;
+  final String displayText;
+  final int assignmentGeneration;
+
+  MentionContentPart({
+    required this.kind,
+    required this.targetKind,
+    required this.targetId,
+    required this.displayText,
+    required this.assignmentGeneration
+  });
+
+  factory MentionContentPart.fromJson(Map<String, dynamic> json) {
+    return MentionContentPart(
+      kind: (() {
+        final value = json['kind']?.toString();
+        if (value == null) {
+          throw FormatException('MentionContentPart.kind is required');
+        }
+        return value;
+      })(),
+      targetKind: (() {
+        final value = json['targetKind']?.toString();
+        if (value == null) {
+          throw FormatException('MentionContentPart.targetKind is required');
+        }
+        return value;
+      })(),
+      targetId: (() {
+        final value = json['targetId']?.toString();
+        if (value == null) {
+          throw FormatException('MentionContentPart.targetId is required');
+        }
+        return value;
+      })(),
+      displayText: (() {
+        final value = json['displayText']?.toString();
+        if (value == null) {
+          throw FormatException('MentionContentPart.displayText is required');
+        }
+        return value;
+      })(),
+      assignmentGeneration: (() {
+        final value = json['assignmentGeneration'];
+        if (value is! int) {
+          throw FormatException('MentionContentPart.assignmentGeneration is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'kind': kind,
+      'targetKind': targetKind,
+      'targetId': targetId,
+      'displayText': displayText,
+      'assignmentGeneration': assignmentGeneration,
+    };
+  }
+}
+
 class SignalContentPart implements ContentPart {
   final String kind;
   final String signalType;
@@ -7276,6 +7553,52 @@ class CallsSessionsEndResponse {
   }
 }
 
+class CallsSessionsSignalsListResponse {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  CallsSessionsSignalsListResponse({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory CallsSessionsSignalsListResponse.fromJson(Map<String, dynamic> json) {
+    return CallsSessionsSignalsListResponse(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('CallsSessionsSignalsListResponse.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('CallsSessionsSignalsListResponse.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('CallsSessionsSignalsListResponse.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
 class CallsSessionsSignalsCreateResponse201 {
   final int code;
   final dynamic data;
@@ -7353,6 +7676,52 @@ class CallsSessionsCredentialsCreateResponse201 {
         final value = json['traceId']?.toString();
         if (value == null) {
           throw FormatException('CallsSessionsCredentialsCreateResponse201.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class CallsSessionsCredentialsRefreshResponse {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  CallsSessionsCredentialsRefreshResponse({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory CallsSessionsCredentialsRefreshResponse.fromJson(Map<String, dynamic> json) {
+    return CallsSessionsCredentialsRefreshResponse(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('CallsSessionsCredentialsRefreshResponse.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('CallsSessionsCredentialsRefreshResponse.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('CallsSessionsCredentialsRefreshResponse.traceId is required');
         }
         return value;
       })()
@@ -8595,6 +8964,144 @@ class ConversationsMembersListResponse {
         final value = json['traceId']?.toString();
         if (value == null) {
           throw FormatException('ConversationsMembersListResponse.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class ConversationsMembersCurrentRetrieveResponse {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  ConversationsMembersCurrentRetrieveResponse({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory ConversationsMembersCurrentRetrieveResponse.fromJson(Map<String, dynamic> json) {
+    return ConversationsMembersCurrentRetrieveResponse(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('ConversationsMembersCurrentRetrieveResponse.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('ConversationsMembersCurrentRetrieveResponse.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('ConversationsMembersCurrentRetrieveResponse.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class ConversationsAgentsRetrieveResponse {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  ConversationsAgentsRetrieveResponse({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory ConversationsAgentsRetrieveResponse.fromJson(Map<String, dynamic> json) {
+    return ConversationsAgentsRetrieveResponse(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('ConversationsAgentsRetrieveResponse.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('ConversationsAgentsRetrieveResponse.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('ConversationsAgentsRetrieveResponse.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class ConversationsAgentsUpdateResponse {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  ConversationsAgentsUpdateResponse({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory ConversationsAgentsUpdateResponse.fromJson(Map<String, dynamic> json) {
+    return ConversationsAgentsUpdateResponse(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('ConversationsAgentsUpdateResponse.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('ConversationsAgentsUpdateResponse.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('ConversationsAgentsUpdateResponse.traceId is required');
         }
         return value;
       })()

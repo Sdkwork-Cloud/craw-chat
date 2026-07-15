@@ -72,87 +72,101 @@ async fn run() -> Result<(), String> {
     let StartupMode::Run(config) = resolve_startup_mode()? else {
         return Ok(());
     };
-    let listener = tokio::net::TcpListener::bind(config.bind_addr.as_str())
-        .await
-        .map_err(|error| format!("sdkwork-im-cloud-gateway failed to bind listener: {error}"))?;
-    let local_addr = listener.local_addr().map_err(|error| {
-        format!("sdkwork-im-cloud-gateway failed to resolve listener addr: {error}")
-    })?;
-    let base_url = format!("http://{}", display_listener_addr(local_addr));
-    let registry = web_gateway::build_gateway_registry()?;
-    sdkwork_im_service_readiness::bootstrap_im_service_database_from_env()
-        .await
-        .map_err(|error| format!("failed to bootstrap IM process database pools: {error}"))?;
-    let embedded_application = sdkwork_im_gateway_assembly::assemble_application_router()
-        .await
-        .map_err(|error| format!("failed to assemble IM application router: {error}"))?;
-    let product_runtime_router = build_gateway_product_runtime_router(base_url.as_str()).await?;
-    let runtime_fallback_router = embedded_application
-        .router
-        .clone()
-        .merge(product_runtime_router);
-    let mut embedded_runtime = if should_embed_session_gateway(&config) {
-        sdkwork_iam_database_host::bootstrap_iam_database_from_env()
-            .await
-            .map_err(|error| format!("failed to bootstrap IAM database lifecycle: {error}"))?;
-        sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env().await;
-        let iam_environment = match im_app_context::resolve_web_environment_from_process_env() {
-            sdkwork_web_core::WebEnvironment::Dev => "development",
-            sdkwork_web_core::WebEnvironment::Test => "test",
-            sdkwork_web_core::WebEnvironment::Prod => "production",
-        };
-        sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env(
-            iam_environment,
+    let base_url = resolve_gateway_base_url(&config)?;
+    let ((app, startup_summary, embedded_runtime), listener) =
+        sdkwork_im_service_readiness::complete_preflight_then_bind_tcp_listener(
+            config.bind_addr.as_str(),
+            "sdkwork-im-cloud-gateway",
+            async {
+                let registry = web_gateway::build_gateway_registry()?;
+                sdkwork_im_service_readiness::bootstrap_im_service_database_from_env()
+                    .await
+                    .map_err(|error| {
+                        format!("failed to bootstrap IM process database pools: {error}")
+                    })?;
+                let embedded_application = sdkwork_im_gateway_assembly::assemble_application_router()
+                    .await
+                    .map_err(|error| format!("failed to assemble IM application router: {error}"))?;
+                let product_runtime_router =
+                    build_gateway_product_runtime_router(base_url.as_str()).await?;
+                let runtime_fallback_router = embedded_application
+                    .router
+                    .clone()
+                    .merge(product_runtime_router);
+                let mut embedded_runtime = if should_embed_session_gateway(&config) {
+                    sdkwork_iam_database_host::bootstrap_iam_database_from_env()
+                        .await
+                        .map_err(|error| {
+                            format!("failed to bootstrap IAM database lifecycle: {error}")
+                        })?;
+                    sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env()
+                        .await;
+                    let iam_environment =
+                        match im_app_context::resolve_web_environment_from_process_env() {
+                            sdkwork_web_core::WebEnvironment::Dev => "development",
+                            sdkwork_web_core::WebEnvironment::Test => "test",
+                            sdkwork_web_core::WebEnvironment::Prod => "production",
+                        };
+                    sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env(
+                        iam_environment,
+                    )
+                    .await
+                    .map_err(|error| {
+                        format!("failed to ensure IM IAM tenant application: {error}")
+                    })?;
+                    let retention_scheduler =
+                        im_adapters_postgres_journal::spawn_retention_purge_scheduler_from_env();
+                    let embedded =
+                        web_gateway::bootstrap_embedded_session_gateway_runtime(&config).await?;
+                    EmbeddedStartup {
+                        runtime: embedded,
+                        retention_scheduler,
+                        realtime_relays: EmbeddedRealtimeRelayHandles::default(),
+                        _application_assembly: embedded_application,
+                    }
+                } else {
+                    EmbeddedStartup {
+                        runtime: web_gateway::EmbeddedSessionGatewayRuntime::empty(),
+                        retention_scheduler: None,
+                        realtime_relays: EmbeddedRealtimeRelayHandles::default(),
+                        _application_assembly: embedded_application,
+                    }
+                };
+                if let Some(session_state) = embedded_runtime
+                    .runtime
+                    .embedded_realtime_app_state
+                    .as_ref()
+                {
+                    embedded_runtime.realtime_relays = wire_embedded_realtime_plane(
+                        session_state,
+                        &embedded_runtime._application_assembly,
+                    );
+                }
+                let session_router = embedded_runtime.runtime.session_router.take();
+                let embedded_realtime_app_state =
+                    embedded_runtime.runtime.embedded_realtime_app_state.take();
+                let startup_summary = format_startup_summary(&build_startup_summary_with_registry(
+                    &config,
+                    &registry,
+                    base_url.clone(),
+                ));
+                let app = web_gateway::build_app_with_registry_product_runtime_and_embedded_services_from_env(
+                    config.clone(),
+                    registry,
+                    Some(runtime_fallback_router),
+                    session_router,
+                    embedded_realtime_app_state,
+                )
+                .await;
+                Ok((app, startup_summary, embedded_runtime))
+            },
         )
-        .await
-        .map_err(|error| format!("failed to ensure IM IAM tenant application: {error}"))?;
-        let retention_scheduler =
-            im_adapters_postgres_journal::spawn_retention_purge_scheduler_from_env();
-        let embedded = web_gateway::bootstrap_embedded_session_gateway_runtime(&config).await?;
-        EmbeddedStartup {
-            runtime: embedded,
-            retention_scheduler,
-            realtime_relays: EmbeddedRealtimeRelayHandles::default(),
-            _application_assembly: embedded_application,
-        }
-    } else {
-        EmbeddedStartup {
-            runtime: web_gateway::EmbeddedSessionGatewayRuntime::empty(),
-            retention_scheduler: None,
-            realtime_relays: EmbeddedRealtimeRelayHandles::default(),
-            _application_assembly: embedded_application,
-        }
-    };
-    if let Some(session_state) = embedded_runtime
-        .runtime
-        .embedded_realtime_app_state
-        .as_ref()
-    {
-        embedded_runtime.realtime_relays =
-            wire_embedded_realtime_plane(session_state, &embedded_runtime._application_assembly);
-    }
-    let session_router = embedded_runtime.runtime.session_router.take();
-    let embedded_realtime_app_state = embedded_runtime.runtime.embedded_realtime_app_state.take();
-    println!(
-        "{}",
-        format_startup_summary(&build_startup_summary_with_registry(
-            &config,
-            &registry,
-            base_url.clone(),
-        ))
-    );
+        .await?;
+    println!("{startup_summary}");
 
     axum::serve(
         listener,
-        web_gateway::build_app_with_registry_product_runtime_and_embedded_services_from_env(
-            config,
-            registry,
-            Some(runtime_fallback_router),
-            session_router,
-            embedded_realtime_app_state,
-        )
-        .await
-        .into_make_service_with_connect_info::<SocketAddr>(),
+        app.into_make_service_with_connect_info::<SocketAddr>(),
     )
     .with_graceful_shutdown(async move {
         sdkwork_im_service_readiness::shutdown_signal().await;
@@ -200,6 +214,28 @@ async fn build_gateway_product_runtime_router(base_url: &str) -> Result<axum::Ro
     )
     .await
     .map_err(|error| error.to_string())
+}
+
+fn resolve_gateway_base_url(config: &WebGatewayConfig) -> Result<String, String> {
+    if has_explicit_portal_api_base_url() {
+        let (_loader, standalone_config) =
+            StandaloneConfigLoader::from_env().map_err(|error| error.to_string())?;
+        return Ok(standalone_config.portal_api_base_url);
+    }
+
+    let bind_addr = config.bind_addr.parse::<SocketAddr>().map_err(|error| {
+        format!(
+            "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL is required when cloud gateway bind address `{}` is not a socket address: {error}",
+            config.bind_addr
+        )
+    })?;
+    if bind_addr.port() == 0 {
+        return Err(
+            "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL is required when cloud gateway bind port is 0"
+                .to_owned(),
+        );
+    }
+    Ok(format!("http://{}", display_listener_addr(bind_addr)))
 }
 
 fn has_explicit_portal_api_base_url() -> bool {
@@ -263,15 +299,22 @@ fn resolve_startup_mode() -> Result<StartupMode, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::has_explicit_portal_api_base_url;
-    use std::sync::{Mutex, OnceLock};
+    use super::{has_explicit_portal_api_base_url, resolve_gateway_base_url};
+    use sdkwork_im_cloud_gateway_config::{GatewayRuntimeMode, WebGatewayConfig};
+    use std::sync::OnceLock;
+    use tokio::sync::{Mutex, MutexGuard};
 
-    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+    fn global_env_guard() -> &'static Mutex<()> {
         static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
-        GUARD
-            .get_or_init(|| Mutex::new(()))
-            .lock()
-            .expect("web gateway main env guard should not be poisoned")
+        GUARD.get_or_init(|| Mutex::new(()))
+    }
+
+    fn env_guard() -> MutexGuard<'static, ()> {
+        global_env_guard().blocking_lock()
+    }
+
+    async fn env_guard_async() -> MutexGuard<'static, ()> {
+        global_env_guard().lock().await
     }
 
     struct ScopedEnvVar {
@@ -322,5 +365,123 @@ mod tests {
         let _bind = ScopedEnvVar::remove("SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND");
 
         assert!(has_explicit_portal_api_base_url());
+    }
+
+    #[test]
+    fn gateway_base_url_uses_configured_nonzero_bind_without_claiming_a_listener() {
+        let _guard = env_guard();
+        let _portal = ScopedEnvVar::remove("SDKWORK_IM_PORTAL_API_BASE_URL");
+        let _sdkwork_portal = ScopedEnvVar::remove("SDKWORK_PORTAL_API_BASE_URL");
+        let _application_public_http =
+            ScopedEnvVar::remove("SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL");
+        let _bind = ScopedEnvVar::remove("SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND");
+        let config = WebGatewayConfig {
+            bind_addr: "0.0.0.0:18079".to_owned(),
+            runtime_mode: GatewayRuntimeMode::SingleIngress,
+            strict_startup: false,
+            upstreams: Vec::new(),
+        };
+
+        assert_eq!(
+            resolve_gateway_base_url(&config).expect("configured bind should derive base url"),
+            "http://127.0.0.1:18079"
+        );
+    }
+
+    #[test]
+    fn gateway_base_url_rejects_ephemeral_bind_without_explicit_public_url() {
+        let _guard = env_guard();
+        let _portal = ScopedEnvVar::remove("SDKWORK_IM_PORTAL_API_BASE_URL");
+        let _sdkwork_portal = ScopedEnvVar::remove("SDKWORK_PORTAL_API_BASE_URL");
+        let _application_public_http =
+            ScopedEnvVar::remove("SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL");
+        let _bind = ScopedEnvVar::remove("SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND");
+        let config = WebGatewayConfig {
+            bind_addr: "127.0.0.1:0".to_owned(),
+            runtime_mode: GatewayRuntimeMode::SingleIngress,
+            strict_startup: false,
+            upstreams: Vec::new(),
+        };
+
+        let error = resolve_gateway_base_url(&config)
+            .expect_err("ephemeral bind needs an explicit browser-reachable URL");
+        assert!(error.contains("SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL"));
+    }
+
+    #[tokio::test]
+    async fn missing_group_knowledgebase_rpc_client_preflight_does_not_bind_gateway_listener() {
+        let _guard = env_guard_async().await;
+        let _environment = ScopedEnvVar::set("SDKWORK_IM_ENVIRONMENT", "production");
+        let _allow_all_principals = ScopedEnvVar::remove("SDKWORK_IM_ALLOW_ALL_PRINCIPALS");
+        let _knowledgebase_rpc_endpoint =
+            ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_ENDPOINT");
+        let _knowledgebase_rpc_ca =
+            ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CA_CERT_PATH");
+        let _knowledgebase_rpc_certificate =
+            ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CERT_PATH");
+        let _knowledgebase_rpc_key =
+            ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_KEY_PATH");
+        let _knowledgebase_rpc_tls_domain =
+            ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_TLS_DOMAIN");
+        let _knowledgebase_rpc_signing_key =
+            ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CALLER_CONTEXT_SIGNING_KEY");
+        let _knowledgebase_rpc_signing_key_file = ScopedEnvVar::remove(
+            "SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CALLER_CONTEXT_SIGNING_KEY_FILE",
+        );
+        let _knowledgebase_rpc_credential_ttl =
+            ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CREDENTIAL_TTL_SECONDS");
+        let _knowledgebase_rpc_timeout =
+            ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_TIMEOUT_MS");
+        let catalog_path = std::env::temp_dir().join(format!(
+            "sdkwork-im-group-knowledgebase-preflight-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("system clock should be after the Unix epoch")
+                .as_nanos(),
+        ));
+        std::fs::write(catalog_path.as_path(), r#"{"principals":[]}"#)
+            .expect("write a temporary production principal directory catalog");
+        let catalog_path_env = catalog_path
+            .to_str()
+            .expect("temporary catalog path should be valid Unicode");
+        let _catalog = ScopedEnvVar::set(
+            "SDKWORK_IM_PRINCIPAL_DIRECTORY_CATALOG_PATH",
+            catalog_path_env,
+        );
+        let reservation = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("reserve a gateway listener address for the preflight regression");
+        let bind_addr = reservation
+            .local_addr()
+            .expect("resolve the reserved gateway listener address")
+            .to_string();
+        drop(reservation);
+
+        let result = sdkwork_im_service_readiness::complete_preflight_then_bind_tcp_listener(
+            bind_addr.as_str(),
+            "sdkwork-im-cloud-gateway",
+            async {
+                sdkwork_im_gateway_assembly::assemble_application_router()
+                    .await
+                    .map(|_| ())
+                    .map_err(|error| format!("failed to assemble IM application router: {error}"))
+            },
+        )
+        .await;
+        let _ = std::fs::remove_file(catalog_path.as_path());
+
+        let error = match result {
+            Ok(_) => panic!("missing group knowledgebase RPC client must fail preflight"),
+            Err(error) => error,
+        };
+        assert!(error.contains("Knowledgebase RPC client is not configured"));
+
+        let rebound = tokio::net::TcpListener::bind(bind_addr.as_str())
+            .await
+            .expect(
+                "a failed group knowledgebase RPC preflight must leave the gateway port unbound",
+            );
+        drop(rebound);
     }
 }

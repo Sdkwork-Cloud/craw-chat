@@ -7,6 +7,8 @@ import {
 import type { MembershipAppSdkClient } from '@sdkwork/membership-sdk-ports';
 import type { Interceptors } from '@sdkwork/sdk-common';
 import {
+  bootstrapSdkworkOrderAppService,
+  configureSdkworkOrderAppServiceProvider,
   configureSdkworkMembershipAppServiceProvider,
   configureSdkworkMembershipSessionTokenProvider,
   createSdkworkMembershipAppService,
@@ -77,6 +79,12 @@ export function resetMembershipAppSdkClient(): void {
 }
 
 export function bootstrapMembershipPcIntegrationForIm(): SdkworkMembershipAppService {
+  const tokenManager = getSdkworkChatGlobalTokenManager();
+  bootstrapSdkworkOrderAppService({
+    baseUrl: resolveAppSdkBaseUrl(),
+    platform: 'pc',
+    tokenManager,
+  });
   configureSdkworkMembershipSessionTokenProvider(() => readAppSdkSessionTokens() ?? {});
   configureSdkworkMembershipAppServiceProvider(() => createSdkworkMembershipAppService({
     appClient: getMembershipAppSdkClient(),
@@ -97,8 +105,11 @@ export function isMembershipPcIntegrationBootstrapped(): boolean {
 }
 
 export function resetMembershipPcIntegration(): void {
+  configureSdkworkOrderAppServiceProvider(null);
   configureSdkworkMembershipAppServiceProvider(null);
   configureSdkworkMembershipSessionTokenProvider(null);
   resetMembershipAppSdkClient();
   membershipServiceBootstrapped = false;
 }
+
+export { hasSdkworkMembershipSession } from '@sdkwork/membership-service';

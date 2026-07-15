@@ -27,6 +27,7 @@ rand.workspace = true
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml = "0.9.34"
 sdkwork-api-config = { path = "../../crates/sdkwork-api-config" }
 sdkwork-api-product-runtime = { path = "../../crates/sdkwork-api-product-runtime" }
 tokio.workspace = true

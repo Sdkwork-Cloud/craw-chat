@@ -1,16 +1,13 @@
-import type { ConversationInboxEntry } from '@sdkwork/im-sdk';
+import type { ConversationInboxEntry, ConversationProfileView } from '@sdkwork/im-sdk';
 import { getImSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/imSdkClient';
 
-const GROUP_INBOX_PAGE_LIMIT = 50;
+const GROUP_INBOX_PAGE_LIMIT = 200;
 
 export interface Group {
   id: string;
   name: string;
-  type: 'public' | 'private';
-  owner: string;
-  members: number;
-  messagesToDay: number;
-  status: 'active' | 'muted' | 'dissolved';
+  lastActivityAt?: string;
+  unreadCount: number;
 }
 
 export interface GroupListPage {
@@ -29,43 +26,39 @@ function readSdkCursorPageInfo(
   };
 }
 
-function mapInboxEntryToGroup(entry: ConversationInboxEntry): Group {
+function mapInboxEntryToGroup(entry: ConversationInboxEntry, profile?: ConversationProfileView): Group {
   return {
     id: entry.conversationId,
-    name: entry.displayName ?? entry.conversationId,
-    type: 'private',
-    owner: entry.lastSenderId ?? 'unknown',
-    members: entry.messageCount ?? 0,
-    messagesToDay: entry.unreadCount ?? 0,
-    status: 'active',
+    name: profile?.displayName?.trim() || entry.displayName?.trim() || entry.conversationId,
+    lastActivityAt: entry.lastActivityAt,
+    unreadCount: entry.unreadCount ?? 0,
   };
-}
-
-function matchesGroupSearch(group: Group, search?: string): boolean {
-  const normalizedSearch = search?.trim().toLowerCase();
-  if (!normalizedSearch) {
-    return true;
-  }
-  const haystack = `${group.name} ${group.owner} ${group.id}`.toLowerCase();
-  return haystack.includes(normalizedSearch);
 }
 
 class GroupService {
   async listGroupsPage(params: {
     pageSize: number;
     cursor?: string;
-    search?: string;
+    q?: string;
   }): Promise<GroupListPage> {
     const client = getImSdkClientWithSession();
+    const q = params.q?.trim();
     const response = await client.chat.inbox.list({
       pageSize: Math.min(params.pageSize, GROUP_INBOX_PAGE_LIMIT),
       conversationType: 'group',
       ...(params.cursor ? { cursor: params.cursor } : {}),
+      ...(q ? { q } : {}),
     });
-    const data = response.items
-      .filter((entry) => entry.conversationType.toLowerCase() === 'group')
-      .map(mapInboxEntryToGroup)
-      .filter((group) => matchesGroupSearch(group, params.search));
+    const groupEntries = response.items.filter((entry) => entry.conversationType.toLowerCase() === 'group');
+    const data = await Promise.all(groupEntries.map(async (entry) => {
+      let profile: ConversationProfileView | undefined;
+      try {
+        profile = await client.conversations.getProfile(entry.conversationId);
+      } catch {
+        // The inbox projection remains the fallback when profile hydration is unavailable.
+      }
+      return mapInboxEntryToGroup(entry, profile);
+    }));
     const page = readSdkCursorPageInfo(response.pageInfo);
 
     return {

@@ -1,0 +1,6 @@
+"$schema" = "schemas/schema.json"
+
+[[permission]]
+identifier = "allow-sdkwork-im-pc-group-knowledgebase"
+description = "Allows Sdkwork IM PC to hand an opaque group knowledge base launch ticket to the independently installed Knowledgebase application."
+commands.allow = ["sdkwork_chat_pc_open_group_knowledgebase"]

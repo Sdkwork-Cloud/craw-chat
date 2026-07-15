@@ -50,10 +50,10 @@ for (const required of [
   'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
   'SDKWORK_IM_DATABASE_ENGINE=postgresql',
   'SDKWORK_IM_DATABASE_SSL_MODE=disable',
-  'SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev',
+  'SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_dev',
   'SDKWORK_IM_REDIS_HOST=127.0.0.1',
   'SDKWORK_IM_REDIS_PORT=6379',
-  'SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD',
+  'SDKWORK_IM_DATABASE_ADMIN_PASSWORD',
   'pnpm db:postgres:plan',
   'pnpm db:postgres:init',
   'pnpm db:postgres:migrate',
@@ -71,6 +71,12 @@ for (const required of [
 ]) {
   assert.ok(guide.includes(required), `Ubuntu/WSL PostgreSQL guide must include: ${required}`);
 }
+
+assert.doesNotMatch(
+  guide,
+  /SDKWORK_CLAW_DATABASE_/u,
+  'Ubuntu/WSL PostgreSQL guide must not document legacy SDKWORK_CLAW database aliases',
+);
 
 assert.ok(
   guide.includes('scram-sha-256') || guide.includes('md5'),

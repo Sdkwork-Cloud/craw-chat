@@ -1,8 +1,10 @@
 package com.sdkwork.im.sdk.generated
 
 data class CreateConversationResult(
-    val tenantId: String? = null,
     val conversationId: String? = null,
-    val kind: String? = null,
-    val createdAt: String? = null
+    val eventId: String? = null,
+    val requestKey: String? = null,
+    val deliveryStatus: String? = null,
+    val proofVersion: String? = null,
+    val knowledgebaseInitialization: String? = null
 )

@@ -25,10 +25,11 @@ class ChatApi {
   }
 
   /// List current inbox window
-  Future<InboxListResponse?> inboxList([int? pageSize, String? cursor]) async {
+  Future<InboxListResponse?> inboxList([int? pageSize, String? cursor, String? conversationType]) async {
     final query = buildQueryString([
       QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
-      QueryParameterSpec('cursor', cursor, 'form', true, false, null)
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('conversation_type', conversationType, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/chat/inbox'), query));
     return (() {
@@ -155,6 +156,34 @@ class ChatApi {
     })();
   }
 
+  /// Retrieve the current conversation member
+  Future<ConversationsMembersCurrentRetrieveResponse?> conversationsMembersCurrentRetrieve(String conversationId) async {
+    final response = await _client.get(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/members/current'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ConversationsMembersCurrentRetrieveResponse.fromJson(map);
+    })();
+  }
+
+  /// Retrieve assigned group agents
+  Future<ConversationsAgentsRetrieveResponse?> conversationsAgentsRetrieve(String conversationId) async {
+    final response = await _client.get(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/agents'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ConversationsAgentsRetrieveResponse.fromJson(map);
+    })();
+  }
+
+  /// Update assigned group agents
+  Future<ConversationsAgentsUpdateResponse?> conversationsAgentsUpdate(String conversationId, UpdateConversationAgentsRequest body) async {
+    final payload = body.toJson();
+    final response = await _client.put(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/agents'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ConversationsAgentsUpdateResponse.fromJson(map);
+    })();
+  }
+
   /// Add a conversation member
   Future<ConversationsMembersAddResponse?> conversationsMembersAdd(String conversationId, AddConversationMemberRequest body) async {
     final payload = body.toJson();
@@ -271,8 +300,12 @@ class ChatApi {
   }
 
   /// List member directory
-  Future<ConversationsMemberDirectoryListResponse?> conversationsMemberDirectoryList(String conversationId) async {
-    final response = await _client.get(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/member_directory'));
+  Future<ConversationsMemberDirectoryListResponse?> conversationsMemberDirectoryList(String conversationId, [String? cursor, int? pageSize]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/member_directory'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : ConversationsMemberDirectoryListResponse.fromJson(map);
@@ -280,9 +313,9 @@ class ChatApi {
   }
 
   /// List conversation message history
-  Future<ConversationMessageListResponse?> conversationsMessagesList(String conversationId, [int? afterSeq, int? pageSize]) async {
+  Future<ConversationMessageListResponse?> conversationsMessagesList(String conversationId, [String? cursor, int? pageSize]) async {
     final query = buildQueryString([
-      QueryParameterSpec('afterSeq', afterSeq, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
       QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/messages'), query));
@@ -313,8 +346,12 @@ class ChatApi {
   }
 
   /// List pinned messages
-  Future<ConversationsPinsListResponse?> conversationsPinsList(String conversationId) async {
-    final response = await _client.get(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/pins'));
+  Future<ConversationsPinsListResponse?> conversationsPinsList(String conversationId, [String? cursor, int? pageSize]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/pins'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : ConversationsPinsListResponse.fromJson(map);

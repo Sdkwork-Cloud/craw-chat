@@ -45,11 +45,11 @@ pnpm test:contract:database
 
 ## Initialization state
 
-This module is in **initialization state** for greenfield deployments:
+This module is in **pre-GA migration state** for greenfield deployments:
 
 1. **Baseline** — `database/ddl/baseline/postgres/0001_im_baseline.sql` is the **runtime authority** for IM core (journal, projection, social materializer, search).
-2. **SQLite baseline** — `database/ddl/baseline/sqlite/0001_im_baseline.sql` exists only for lifecycle checker parity and desktop gateway co-location checks. **IM services do not persist to SQLite**; `SDKWORK_IM_DATABASE_ENGINE=sqlite` uses in-memory ephemeral IM state in dev/test. Desktop `chat.sqlite` hosts gateway webstore and sibling module databases (Drive, Commerce, etc.), not the IM event log.
-3. **Migrations** — `database/migrations/{engine}/` is reserved for post-GA incremental schema changes only. It is intentionally empty at initialization.
+2. **SQLite compatibility baseline** — `database/ddl/baseline/sqlite/0001_im_baseline.sql` exists only for lifecycle validation and desktop gateway co-location checks. It is not engine parity. **IM services do not persist to SQLite**; `SDKWORK_IM_DATABASE_ENGINE=sqlite` uses in-memory ephemeral IM state in dev/test. Desktop `chat.sqlite` hosts gateway webstore and sibling module databases, not the IM event log.
+3. **Migrations** — `database/migrations/{engine}/` contains the pre-GA conversation-id rewrite and managed group Knowledgebase binding migrations. PostgreSQL is the runtime authority; SQLite migration files validate the explicitly limited compatibility surface.
 4. **Drift** — run `pnpm db:drift:check` before release.
 
 The PostgreSQL baseline is tenant-and-organization isolated: primary keys, unique
@@ -71,4 +71,4 @@ pnpm run db:status
 pnpm run db:drift:check
 ```
 
-`db:materialize:contract` materializes the PostgreSQL runtime authority only. SQLite parity assets are maintained under `database/ddl/baseline/sqlite/` for checker coverage and desktop co-location validation; they are not a production IM persistence profile.
+`db:materialize:contract` materializes the PostgreSQL runtime authority only. SQLite compatibility assets are maintained under `database/ddl/baseline/sqlite/` for checker coverage and desktop co-location validation; they are not a production IM persistence profile and must not be presented as PostgreSQL-equivalent support.

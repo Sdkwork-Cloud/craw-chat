@@ -1,3 +1,4 @@
+mod group_knowledgebase;
 mod notification;
 mod offline_store;
 mod qr_code;
@@ -21,6 +22,7 @@ pub fn run() {
             notification::sdkwork_chat_pc_show_notification,
             qr_code::sdkwork_chat_pc_decode_qr_code_image,
             qr_code::sdkwork_chat_pc_decode_qr_code_rgba,
+            group_knowledgebase::sdkwork_chat_pc_open_group_knowledgebase,
             session_store::sdkwork_im_pc_session_read,
             session_store::sdkwork_im_pc_session_write,
             session_store::sdkwork_im_pc_session_clear,

@@ -33,8 +33,9 @@ use im_domain_core::retention::retention_until_from_envelope;
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
     AGENT_MENTION_DISPATCH_EVENT_TYPE, AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA,
-    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitJournal, CommitJournalAggregateScope,
-    CommitJournalReplayCursor, CommitJournalReplayPage, CommitPosition, ContractError,
+    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitJournal, CommitJournalAggregateEventTypeQuery,
+    CommitJournalAggregateScope, CommitJournalReplayCursor, CommitJournalReplayPage,
+    CommitPosition, ContractError,
 };
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
@@ -290,15 +291,12 @@ fn verify_production_sslmode(database_url: &str) -> Result<(), ContractError> {
         || lowered.contains("sslmode=verifyca")
         || lowered.contains("sslmode=verifyfull");
     if !requires_tls {
-        return Err(ContractError::Unavailable(
-            format!(
-                "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain \
+        return Err(ContractError::Unavailable(format!(
+            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain \
                  sslmode=require or sslmode=verify-full in production \
                  (current environment={environment}). Refusing to start with a \
                  plaintext database connection."
-            )
-            .into(),
-        ));
+        )));
     }
     Ok(())
 }
@@ -419,6 +417,30 @@ impl CommitJournal for PostgresCommitJournal {
         run_postgres_io(move || {
             let (items, next_cursor) =
                 load_recorded_page_for_aggregate(&pool, &prefix, &scope, cursor.as_ref(), limit)?;
+            Ok(CommitJournalReplayPage { items, next_cursor })
+        })
+    }
+
+    fn recorded_page_for_aggregate_event_types(
+        &self,
+        query: &CommitJournalAggregateEventTypeQuery,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        validate_aggregate_event_type_query(query)?;
+        let pool = self.pool.clone();
+        let prefix = self.partition_prefix.clone();
+        let query = query.clone();
+        let cursor = cursor.cloned();
+        let limit = i64::try_from(limit.max(1)).unwrap_or(COMMIT_JOURNAL_REPLAY_BATCH_LIMIT as i64);
+        run_postgres_io(move || {
+            let (items, next_cursor) = load_recorded_page_for_aggregate_event_types(
+                &pool,
+                &prefix,
+                &query,
+                cursor.as_ref(),
+                limit,
+            )?;
             Ok(CommitJournalReplayPage { items, next_cursor })
         })
     }
@@ -570,6 +592,57 @@ where partition_key like $1 || '%'
   and commit_offset > $4
 order by commit_offset asc
 limit $5
+"#;
+
+const LOAD_RECORDED_AGGREGATE_EVENT_TYPES_SQL: &str = r#"
+select
+    event_id,
+    tenant_id,
+    organization_id,
+    event_type,
+    aggregate_type,
+    aggregate_id,
+    aggregate_seq,
+    occurred_at::text,
+    payload_json::text,
+    idempotency_key,
+    partition_key,
+    commit_offset
+from im_commit_journal
+where partition_key like $1 || '%'
+  and tenant_id = $2
+  and organization_id = $3
+  and aggregate_type = $4
+  and aggregate_id = $5
+  and event_type = any($6)
+order by commit_offset asc
+limit $7
+"#;
+
+const LOAD_RECORDED_AGGREGATE_EVENT_TYPES_AFTER_SQL: &str = r#"
+select
+    event_id,
+    tenant_id,
+    organization_id,
+    event_type,
+    aggregate_type,
+    aggregate_id,
+    aggregate_seq,
+    occurred_at::text,
+    payload_json::text,
+    idempotency_key,
+    partition_key,
+    commit_offset
+from im_commit_journal
+where partition_key like $1 || '%'
+  and tenant_id = $2
+  and organization_id = $3
+  and aggregate_type = $4
+  and aggregate_id = $5
+  and event_type = any($6)
+  and commit_offset > $7
+order by commit_offset asc
+limit $8
 "#;
 
 // ---------------------------------------------------------------------------
@@ -1152,6 +1225,75 @@ fn load_recorded_page_for_aggregate(
             .map_err(|error| postgres_unavailable("journal aggregate recorded select", error))?
     };
     parse_journal_replay_rows(rows, prefix, None)
+}
+
+fn load_recorded_page_for_aggregate_event_types(
+    pool: &PostgresJournalPool,
+    prefix: &str,
+    query: &CommitJournalAggregateEventTypeQuery,
+    cursor: Option<&JournalReplayCursor>,
+    limit: i64,
+) -> Result<(Vec<CommitEnvelope>, Option<JournalReplayCursor>), ContractError> {
+    let mut client = postgres_pool_client(pool, "journal aggregate event-type replay")?;
+    let pattern = format!("{prefix}%");
+    let rows = if let Some(cursor) = cursor {
+        let commit_offset = postgres_bigint_input(cursor.commit_offset, "replay cursor")?;
+        client
+            .query(
+                LOAD_RECORDED_AGGREGATE_EVENT_TYPES_AFTER_SQL,
+                &[
+                    &pattern,
+                    &query.tenant_id,
+                    &query.organization_id,
+                    &query.aggregate_type,
+                    &query.aggregate_id,
+                    &query.event_types,
+                    &commit_offset,
+                    &limit,
+                ],
+            )
+            .map_err(|error| {
+                postgres_unavailable("journal aggregate event-type replay after select", error)
+            })?
+    } else {
+        client
+            .query(
+                LOAD_RECORDED_AGGREGATE_EVENT_TYPES_SQL,
+                &[
+                    &pattern,
+                    &query.tenant_id,
+                    &query.organization_id,
+                    &query.aggregate_type,
+                    &query.aggregate_id,
+                    &query.event_types,
+                    &limit,
+                ],
+            )
+            .map_err(|error| {
+                postgres_unavailable("journal aggregate event-type replay select", error)
+            })?
+    };
+    parse_journal_replay_rows(rows, prefix, cursor)
+}
+
+fn validate_aggregate_event_type_query(
+    query: &CommitJournalAggregateEventTypeQuery,
+) -> Result<(), ContractError> {
+    if query.tenant_id.trim().is_empty()
+        || query.organization_id.trim().is_empty()
+        || query.aggregate_type.trim().is_empty()
+        || query.aggregate_id.trim().is_empty()
+        || query.event_types.is_empty()
+        || query
+            .event_types
+            .iter()
+            .any(|event_type| event_type.trim().is_empty())
+    {
+        return Err(ContractError::Invalid(
+            "journal aggregate event-type query contains an empty scope or event type".into(),
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Default)]

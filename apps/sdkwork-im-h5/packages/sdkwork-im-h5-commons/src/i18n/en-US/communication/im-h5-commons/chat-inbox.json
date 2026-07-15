@@ -12,4 +12,7 @@
   "chat.inbox.aria": "Chat inbox",
   "chat.inbox.conversationFallback": "Conversation {{id}}",
   "chat.inbox.unreadCount": "{{count}} unread messages"
+  ,"chat.inbox.searchPlaceholder": "Search conversations",
+  "chat.inbox.searchAria": "Search conversations",
+  "chat.inbox.searchEmpty": "No matching conversations"
 }

@@ -17,9 +17,32 @@ import type { Chat, Message, User } from '@sdkwork/im-pc-types';
 import { chatService, createSdkworkChatService, type ChatService } from './ChatService';
 import { contactService } from './ContactService';
 import { createDefaultAvatar } from './DefaultAvatarService';
+import {
+  isCurrentGroupOwnerMember,
+  resolveCurrentGroupKnowledgebaseMemberAccess,
+} from './GroupKnowledgebaseAccessPolicy';
+
+export {
+  isCurrentGroupOwnerMember,
+  resolveCurrentGroupKnowledgebaseMemberAccess,
+} from './GroupKnowledgebaseAccessPolicy';
 
 export interface GroupListPage {
   items: Chat[];
+  hasMore: boolean;
+  nextCursor?: string;
+}
+
+export type GroupMemberRole = 'owner' | 'admin' | 'member' | 'guest' | 'unknown';
+
+export interface GroupMemberListItem {
+  id: string;
+  memberId: string;
+  role: GroupMemberRole;
+}
+
+export interface GroupMemberListPage {
+  items: GroupMemberListItem[];
   hasMore: boolean;
   nextCursor?: string;
 }
@@ -38,8 +61,22 @@ export interface GroupAgentAssignmentSet {
   agents: GroupAgentAssignment[];
 }
 
+export interface GroupKnowledgebaseMemberAccess {
+  canInitialize: boolean;
+  canOpen: boolean;
+}
+
+export type GroupKnowledgebaseMemberAccessLookup =
+  | { kind: 'resolved'; access: GroupKnowledgebaseMemberAccess }
+  | { kind: 'failed' };
+
 export interface CreateGroupOptions {
   clientRequestKey?: string;
+  /**
+   * Explicitly request one post-create Knowledgebase provisioning attempt.
+   * Omission preserves the default lazy lifecycle and is the normal path.
+   */
+  initializeKnowledgebase?: boolean;
 }
 
 export const MAX_GROUP_INITIAL_MEMBERS = 200;
@@ -64,24 +101,29 @@ export interface GroupService {
   getGroupById(groupId: string): Promise<Chat | null>;
   getAgentAssignments(groupId: string): Promise<GroupAgentAssignmentSet>;
   canManageAgents(groupId: string): Promise<boolean>;
+  isCurrentUserGroupOwner(groupId: string): Promise<boolean>;
+  getCurrentUserGroupKnowledgebaseAccess(groupId: string): Promise<GroupKnowledgebaseMemberAccess>;
+  retrieveCurrentUserGroupKnowledgebaseAccess(groupId: string): Promise<GroupKnowledgebaseMemberAccessLookup>;
   replaceAgentAssignments(groupId: string, expectedGeneration: number, assignments: GroupAgentAssignment[]): Promise<GroupAgentAssignmentSet>;
   getGroups(): Promise<Chat[]>;
-  listGroupsPage(params?: { cursor?: string; pageSize?: number }): Promise<GroupListPage>;
+  listGroupsPage(params?: { cursor?: string; pageSize?: number; q?: string }): Promise<GroupListPage>;
+  listGroupMembersPage(
+    groupId: string,
+    params?: { cursor?: string; pageSize?: number },
+  ): Promise<GroupMemberListPage>;
+  getCurrentUserGroupRole(groupId: string): Promise<GroupMemberRole | null>;
   updateGroupInfo(groupId: string, updates: Partial<Chat>): Promise<Chat>;
   addMembers(groupId: string, memberIds: string[]): Promise<void>;
   inviteUserToGroup(group: Chat, targetUser: User): Promise<Message>;
   removeMember(groupId: string, memberId: string): Promise<void>;
   deleteGroup(groupId: string): Promise<void>;
-  syncGroupMembers(): Promise<GroupMemberSyncChange[]>;
 }
 
-type GroupViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'memberCount' | 'members' | 'name' | 'notice' | 'agentAssignments' | 'agentAssignmentGeneration'>>;
-export type GroupMemberSyncChange = Required<Pick<GroupViewState, 'activeCount' | 'memberCount' | 'members'>> & {
-  groupId: string;
-};
+type GroupViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'memberCount' | 'memberCountIsLowerBound' | 'members' | 'name' | 'notice' | 'agentAssignments' | 'agentAssignmentGeneration'>>;
 type ConversationListEntry = ConversationInboxEntry;
 const GROUP_INBOX_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 const GROUP_MEMBERS_PAGE_LIMIT = SDKWORK_MAX_PAGE_SIZE;
+const GROUP_MEMBER_LIST_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 // The API page cap is 200, while a group may contain up to 10,000 active
 // members. Keep the bounded fallback lookup aligned with the domain limit.
 const MAX_GROUP_MEMBER_LOOKUP_SCAN = 10_000;
@@ -249,6 +291,40 @@ function mapActiveMemberIds(members: ConversationMember[]): string[] {
     .map((member) => member.principalId);
 }
 
+function normalizeGroupMemberRole(role: unknown): GroupMemberRole {
+  switch (String(role ?? '').trim().toLowerCase()) {
+    case 'owner':
+      return 'owner';
+    case 'admin':
+      return 'admin';
+    case 'member':
+      return 'member';
+    case 'guest':
+      return 'guest';
+    default:
+      return 'unknown';
+  }
+}
+
+function mapActiveGroupMembers(members: ConversationMember[]): GroupMemberListItem[] {
+  const mapped = new Map<string, GroupMemberListItem>();
+  for (const member of members) {
+    if (member.state !== 'joined' && member.state !== 'invited') {
+      continue;
+    }
+    const id = member.principalId.trim();
+    if (!id || mapped.has(id)) {
+      continue;
+    }
+    mapped.set(id, {
+      id,
+      memberId: member.memberId,
+      role: normalizeGroupMemberRole(member.role),
+    });
+  }
+  return Array.from(mapped.values());
+}
+
 function isGeneratedGroupName(group: Chat): boolean {
   return group.name === 'Group chat'
     || group.name === `Group ${group.id}`
@@ -262,6 +338,9 @@ function mergeCachedGroupViewState(group: Chat, state: GroupViewState | undefine
     ...(group.activeCount === undefined && state?.activeCount !== undefined ? { activeCount: state.activeCount } : {}),
     ...(group.avatar === undefined && state?.avatar !== undefined ? { avatar: state.avatar } : {}),
     ...(group.memberCount === undefined && state?.memberCount !== undefined ? { memberCount: state.memberCount } : {}),
+    ...(group.memberCountIsLowerBound === undefined && state?.memberCountIsLowerBound !== undefined
+      ? { memberCountIsLowerBound: state.memberCountIsLowerBound }
+      : {}),
     ...(group.members === undefined && state?.members !== undefined ? { members: state.members } : {}),
     ...(isGeneratedGroupName(group) && state?.name !== undefined ? { name: state.name } : {}),
     ...(group.notice === undefined && state?.notice !== undefined ? { notice: state.notice } : {}),
@@ -574,10 +653,11 @@ class SdkworkGroupService implements GroupService {
   private async listConversationMembersPage(
     groupId: string,
     cursor?: string,
+    pageSize = GROUP_MEMBERS_PAGE_LIMIT,
     expectedSessionGeneration = this.sessionGeneration,
   ): Promise<{ items: ConversationMember[]; hasMore: boolean; nextCursor?: string }> {
     const response = await this.client().conversations.listMembers(groupId, {
-      pageSize: GROUP_MEMBERS_PAGE_LIMIT,
+      pageSize: normalizeGroupPageSize(pageSize),
       ...(cursor ? { cursor } : {}),
     });
     this.assertSessionGeneration(expectedSessionGeneration);
@@ -611,13 +691,70 @@ class SdkworkGroupService implements GroupService {
     }
   }
 
+  async getCurrentUserGroupRole(groupId: string): Promise<GroupMemberRole | null> {
+    const sessionGeneration = this.sessionGeneration;
+    const normalizedId = groupId.trim();
+    if (!normalizedId) {
+      return null;
+    }
+    try {
+      const current = await this.client().conversations.getCurrentMember(normalizedId);
+      this.assertSessionGeneration(sessionGeneration);
+      if (String(current.state).toLowerCase() !== 'joined') {
+        return null;
+      }
+      return normalizeGroupMemberRole(current.role);
+    } catch {
+      return null;
+    }
+  }
+
+  async isCurrentUserGroupOwner(groupId: string): Promise<boolean> {
+    const access = await this.getCurrentUserGroupKnowledgebaseAccess(groupId);
+    return access.canInitialize;
+  }
+
+  async getCurrentUserGroupKnowledgebaseAccess(
+    groupId: string,
+  ): Promise<GroupKnowledgebaseMemberAccess> {
+    const lookup = await this.retrieveCurrentUserGroupKnowledgebaseAccess(groupId);
+    return lookup.kind === 'resolved'
+      ? lookup.access
+      : { canInitialize: false, canOpen: false };
+  }
+
+  async retrieveCurrentUserGroupKnowledgebaseAccess(
+    groupId: string,
+  ): Promise<GroupKnowledgebaseMemberAccessLookup> {
+    const sessionGeneration = this.sessionGeneration;
+    const normalizedId = groupId.trim();
+    if (!normalizedId) {
+      return { kind: 'failed' };
+    }
+    try {
+      const current = await this.client().conversations.getCurrentMember(normalizedId);
+      this.assertSessionGeneration(sessionGeneration);
+      return {
+        kind: 'resolved',
+        access: resolveCurrentGroupKnowledgebaseMemberAccess(current),
+      };
+    } catch {
+      return { kind: 'failed' };
+    }
+  }
+
   private async syncActiveMemberIds(
     groupId: string,
     expectedSessionGeneration = this.sessionGeneration,
   ): Promise<string[]> {
     const members: ConversationMember[] = [];
     await forEachCursorPage(
-      (cursor) => this.listConversationMembersPage(groupId, cursor, expectedSessionGeneration),
+      (cursor) => this.listConversationMembersPage(
+        groupId,
+        cursor,
+        GROUP_MEMBERS_PAGE_LIMIT,
+        expectedSessionGeneration,
+      ),
       (items) => {
         members.push(...items);
       },
@@ -639,6 +776,30 @@ class SdkworkGroupService implements GroupService {
       if (isGroupHiddenByProjection(entry)) {
         return null;
       }
+    }
+
+    // Inbox projections may omit the profile name. Hydrate the authoritative
+    // profile before returning the page so the conversation list does not
+    // expose a technical conversation id as the visible title.
+    try {
+      const profile = await this.client().conversations.getProfile(entry.conversationId);
+      this.assertSessionGeneration(expectedSessionGeneration);
+      if (profile.displayName?.trim()) {
+        group = {
+          ...group,
+          name: profile.displayName.trim(),
+          ...(profile.avatarUrl?.trim() ? { avatar: profile.avatarUrl.trim() } : {}),
+          ...(profile.notice !== undefined ? { notice: profile.notice } : {}),
+        };
+        this.groupViewState.set(entry.conversationId, {
+          ...this.groupViewState.get(entry.conversationId),
+          name: group.name,
+          avatar: group.avatar,
+          notice: group.notice,
+        });
+      }
+    } catch {
+      // Keep the inbox projection fallback when profile hydration is unavailable.
     }
 
     if (group.agentAssignments !== undefined && group.agentAssignmentGeneration !== undefined) {
@@ -675,6 +836,7 @@ class SdkworkGroupService implements GroupService {
     const members = [currentUserId, ...invitedMemberIds];
     const groupName = normalizeGroupName(name, members.length);
     const clientRequestKey = options.clientRequestKey?.trim() || createGroupClientRequestKey();
+    const initializeKnowledgebase = options.initializeKnowledgebase === true;
 
     // Group conversations use a server-derived canonical `g_` id seeded from
     // creator + group name + client request key. We send groupName +
@@ -695,6 +857,7 @@ class SdkworkGroupService implements GroupService {
       ...(normalizedAssignments.length > 0
         ? { agentAssignments: normalizedAssignments }
         : {}),
+      ...(initializeKnowledgebase ? { initializeKnowledgebase: true } : {}),
     });
     this.assertSessionGeneration(sessionGeneration);
     const boundGroupId = result.conversationId;
@@ -736,8 +899,12 @@ class SdkworkGroupService implements GroupService {
       unreadCount: 0,
       updatedAt: Date.now(),
       memberCount: members.length,
+      memberCountIsLowerBound: false,
       members,
       activeCount: members.length,
+      ...(result.knowledgebaseInitialization
+        ? { knowledgebaseInitialization: result.knowledgebaseInitialization }
+        : {}),
       ...(initialAgentSet ? mapAssignmentSetToChatFields(initialAgentSet) : {}),
     };
 
@@ -746,6 +913,7 @@ class SdkworkGroupService implements GroupService {
       activeCount: group.activeCount,
       avatar: group.avatar,
       memberCount: group.memberCount,
+      memberCountIsLowerBound: group.memberCountIsLowerBound,
       members: group.members,
       name: group.name,
       notice: group.notice,
@@ -755,13 +923,15 @@ class SdkworkGroupService implements GroupService {
     return group;
   }
 
-  async listGroupsPage(params?: { cursor?: string; pageSize?: number }): Promise<GroupListPage> {
+  async listGroupsPage(params?: { cursor?: string; pageSize?: number; q?: string }): Promise<GroupListPage> {
     const sessionGeneration = this.sessionGeneration;
     const pageSize = normalizeGroupPageSize(params?.pageSize);
+    const q = params?.q?.trim();
     const inboxPage = await this.client().chat?.inbox?.list({
       pageSize,
       conversationType: 'group',
       ...(params?.cursor ? { cursor: params.cursor } : {}),
+      ...(q ? { q } : {}),
     });
     if (!inboxPage) {
       this.assertSessionGeneration(sessionGeneration);
@@ -848,10 +1018,6 @@ class SdkworkGroupService implements GroupService {
     return page.items;
   }
 
-  async syncGroupMembers(): Promise<GroupMemberSyncChange[]> {
-    return [];
-  }
-
   private async withMemberState(
     group: Chat,
     expectedSessionGeneration = this.sessionGeneration,
@@ -862,6 +1028,7 @@ class SdkworkGroupService implements GroupService {
         ...mergeCachedGroupViewState(group, this.groupViewState.get(group.id)),
         activeCount: memberState.activeCount,
         memberCount: memberState.memberCount,
+        memberCountIsLowerBound: memberState.memberCountIsLowerBound,
         members: memberState.members,
       };
     } catch {
@@ -869,24 +1036,52 @@ class SdkworkGroupService implements GroupService {
     }
   }
 
+  async listGroupMembersPage(
+    groupId: string,
+    params?: { cursor?: string; pageSize?: number },
+  ): Promise<GroupMemberListPage> {
+    const sessionGeneration = this.sessionGeneration;
+    const normalizedId = groupId.trim();
+    if (!normalizedId) {
+      return { items: [], hasMore: false };
+    }
+    const page = await this.listConversationMembersPage(
+      normalizedId,
+      params?.cursor,
+      normalizeGroupPageSize(params?.pageSize ?? GROUP_MEMBER_LIST_PAGE_LIMIT),
+      sessionGeneration,
+    );
+    this.assertSessionGeneration(sessionGeneration);
+    return {
+      items: mapActiveGroupMembers(page.items),
+      hasMore: page.hasMore,
+      nextCursor: page.nextCursor,
+    };
+  }
+
   private async syncMemberViewState(
     groupId: string,
     _syncChatView = false,
     expectedSessionGeneration = this.sessionGeneration,
-  ): Promise<Required<Pick<GroupViewState, 'activeCount' | 'memberCount' | 'members'>>> {
-    const members = await this.syncActiveMemberIds(groupId, expectedSessionGeneration);
+  ): Promise<Required<Pick<GroupViewState, 'activeCount' | 'memberCount' | 'memberCountIsLowerBound' | 'members'>>> {
+    const page = await this.listGroupMembersPage(groupId, {
+      pageSize: GROUP_MEMBER_LIST_PAGE_LIMIT,
+    });
     this.assertSessionGeneration(expectedSessionGeneration);
+    const members = page.items.map((member) => member.id);
     const existingState = this.groupViewState.get(groupId) ?? {};
     const nextState = {
       ...existingState,
       activeCount: members.length,
       memberCount: members.length,
+      memberCountIsLowerBound: page.hasMore,
       members,
     };
     this.groupViewState.set(groupId, nextState);
     return {
       activeCount: nextState.activeCount,
       memberCount: nextState.memberCount,
+      memberCountIsLowerBound: nextState.memberCountIsLowerBound,
       members: nextState.members,
     };
   }
@@ -911,6 +1106,7 @@ class SdkworkGroupService implements GroupService {
       updatedAt: Date.now(),
       activeCount: updates.activeCount,
       memberCount: updates.memberCount,
+      memberCountIsLowerBound: updates.memberCountIsLowerBound,
       members: updates.members,
       notice: profile?.notice ?? updates.notice,
     };
@@ -920,6 +1116,9 @@ class SdkworkGroupService implements GroupService {
       activeCount: updatedGroup.activeCount ?? updates.activeCount ?? existingState.activeCount,
       avatar: updatedGroup.avatar ?? updates.avatar ?? existingState.avatar,
       memberCount: updatedGroup.memberCount ?? updates.memberCount ?? existingState.memberCount,
+      memberCountIsLowerBound: updatedGroup.memberCountIsLowerBound
+        ?? updates.memberCountIsLowerBound
+        ?? existingState.memberCountIsLowerBound,
       members: updatedGroup.members ?? updates.members ?? existingState.members,
       name: updatedGroup.name ?? updates.name ?? existingState.name,
       notice: updatedGroup.notice ?? updates.notice ?? existingState.notice,
@@ -994,7 +1193,12 @@ class SdkworkGroupService implements GroupService {
     const seenCursors = new Set<string>();
 
     while (scanned < MAX_GROUP_MEMBER_LOOKUP_SCAN) {
-      const page = await this.listConversationMembersPage(groupId, cursor, sessionGeneration);
+      const page = await this.listConversationMembersPage(
+        groupId,
+        cursor,
+        GROUP_MEMBERS_PAGE_LIMIT,
+        sessionGeneration,
+      );
       const targetMember = page.items.find((member) => (
         member.memberId === memberId
         || (member.principalKind === 'user' && member.principalId === memberId)

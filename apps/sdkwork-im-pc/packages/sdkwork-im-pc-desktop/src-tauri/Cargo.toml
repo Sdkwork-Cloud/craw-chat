@@ -17,6 +17,7 @@ tauri = { version = "~2.11.0", features = ["tray-icon"] }
 tauri-plugin-notification = "2.3.3"
 tauri-plugin-shell = "2"
 keyring = "2"
+open = "5"
 
 [lib]
 name = "sdkwork_chat_pc_lib"

@@ -17,7 +17,6 @@ pub use conversation_outbox_relay::{
 pub use rtc_outbox_relay::{RtcOutboxRelayHandle, spawn_rtc_outbox_relay_from_env};
 pub use social_outbox_relay::{SocialOutboxRelayHandle, spawn_social_outbox_relay_from_env};
 pub use social_realtime_wiring::wire_social_runtime_embedded_plane;
-pub use space_conversation_wiring::wire_space_conversation_binders;
 
 pub fn assembly_route_count() -> usize {
     generated::ROUTE_CRATE_COUNT

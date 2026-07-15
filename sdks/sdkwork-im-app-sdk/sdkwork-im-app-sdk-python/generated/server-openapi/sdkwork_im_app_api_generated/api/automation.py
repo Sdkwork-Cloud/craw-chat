@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import AgentToolCall, AppendAgentResponseDeltaRequest, AutomationExecution, AutomationExecutionRequestResponse, CompleteAgentResponseRequest, CompleteAgentToolCallRequest, RequestAgentToolCallRequest, RequestAutomationExecution, StartAgentResponseRequest, StreamFrame, StreamSession
+from ..models import AppendAgentResponseDeltaRequest, AutomationAgentResponsesCompleteResponse, AutomationAgentResponsesCreateResponse201, AutomationAgentResponsesFramesCreateResponse201, AutomationAgentToolCallsCompleteResponse, AutomationAgentToolCallsCreateResponse201, AutomationExecutionsCreateResponse201, AutomationExecutionsRetrieveResponse, CompleteAgentResponseRequest, CompleteAgentToolCallRequest, RequestAgentToolCallRequest, RequestAutomationExecution, StartAgentResponseRequest
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -92,11 +92,11 @@ class AutomationAgentResponsesApi:
         self.frames = AutomationAgentResponsesFramesApi(client)
 
 
-    def create(self, body: StartAgentResponseRequest) -> StreamSession:
+    def create(self, body: StartAgentResponseRequest) -> AutomationAgentResponsesCreateResponse201:
         """Start an agent response stream"""
         return self._client.post(f"/app/v3/api/automation/agent_responses", json=body)
 
-    def complete(self, stream_id: str, body: CompleteAgentResponseRequest) -> StreamSession:
+    def complete(self, stream_id: str, body: CompleteAgentResponseRequest) -> AutomationAgentResponsesCompleteResponse:
         """Complete an agent response stream"""
         return self._client.post(f"/app/v3/api/automation/agent_responses/{serialize_path_parameter(stream_id, {'name': 'streamId', 'style': 'simple', 'explode': False})}/complete", json=body)
 
@@ -107,7 +107,7 @@ class AutomationAgentResponsesFramesApi:
         self._client = client
 
 
-    def create(self, stream_id: str, body: AppendAgentResponseDeltaRequest) -> StreamFrame:
+    def create(self, stream_id: str, body: AppendAgentResponseDeltaRequest) -> AutomationAgentResponsesFramesCreateResponse201:
         """Append a frame to an agent response stream"""
         return self._client.post(f"/app/v3/api/automation/agent_responses/{serialize_path_parameter(stream_id, {'name': 'streamId', 'style': 'simple', 'explode': False})}/frames", json=body)
 
@@ -118,11 +118,11 @@ class AutomationAgentToolCallsApi:
         self._client = client
 
 
-    def create(self, body: RequestAgentToolCallRequest) -> AgentToolCall:
+    def create(self, body: RequestAgentToolCallRequest) -> AutomationAgentToolCallsCreateResponse201:
         """Request an agent tool call"""
         return self._client.post(f"/app/v3/api/automation/agent_tool_calls", json=body)
 
-    def complete(self, execution_id: str, tool_call_id: str, body: CompleteAgentToolCallRequest) -> AgentToolCall:
+    def complete(self, execution_id: str, tool_call_id: str, body: CompleteAgentToolCallRequest) -> AutomationAgentToolCallsCompleteResponse:
         """Complete an agent tool call"""
         return self._client.post(f"/app/v3/api/automation/executions/{serialize_path_parameter(execution_id, {'name': 'executionId', 'style': 'simple', 'explode': False})}/agent_tool_calls/{serialize_path_parameter(tool_call_id, {'name': 'toolCallId', 'style': 'simple', 'explode': False})}/complete", json=body)
 
@@ -133,10 +133,10 @@ class AutomationExecutionsApi:
         self._client = client
 
 
-    def create(self, body: RequestAutomationExecution) -> AutomationExecutionRequestResponse:
+    def create(self, body: RequestAutomationExecution) -> AutomationExecutionsCreateResponse201:
         """Request an automation execution"""
         return self._client.post(f"/app/v3/api/automation/executions", json=body)
 
-    def retrieve(self, execution_id: str) -> AutomationExecution:
+    def retrieve(self, execution_id: str) -> AutomationExecutionsRetrieveResponse:
         """Get an automation execution"""
         return self._client.get(f"/app/v3/api/automation/executions/{serialize_path_parameter(execution_id, {'name': 'executionId', 'style': 'simple', 'explode': False})}")

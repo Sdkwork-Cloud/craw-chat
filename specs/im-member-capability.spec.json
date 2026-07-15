@@ -97,8 +97,22 @@
   "embeddedRuntimeDefaults": {
     "knowledgebaseTenantId": "100001",
     "knowledgebaseOrganizationId": "0",
-    "notes": "Knowledgebase 403 tenant_id_mismatch indicates JWT tenant_id differs from SDKWORK_KNOWLEDGEBASE_TENANT_ID — not missing RBAC when app-api routes omit x-sdkwork-permission."
+    "notes": "The root IAM bootstrap session is tenant-scoped (organizationId 0). Organization-bound capabilities must negotiate an ORGANIZATION session before calling their API."
   },
+  "capabilityScopeRequirements": [
+    {
+      "capability": "group-knowledgebase",
+      "requiredLoginScope": "ORGANIZATION",
+      "organizationId": {
+        "format": "canonical-positive-signed-64-bit-decimal",
+        "minimum": "1",
+        "maximum": "9223372036854775807"
+      },
+      "clientPreflight": "server-derived-capability-status",
+      "serverEnforcement": "required",
+      "scopeMismatchBehavior": "capability-unavailable-and-select-organization"
+    }
+  ],
   "gatewayAssembly": {
     "embeddedIamMustWinOverRegistryProxy": true,
     "mergeOrderComment": "application_router.merge(iam_router) so embedded IAM handlers win over cloud-gateway IAM proxy catch-alls."

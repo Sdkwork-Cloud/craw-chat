@@ -40,6 +40,13 @@ pub async fn assemble_application_router() -> Result<ApplicationAssembly, String
         _projection_journal_consumer: None,
     };
 
+    let conversation_state =
+        conversation_runtime::http::bootstrap_conversation_app_state_from_env()?;
+    conversation_state
+        .ensure_group_knowledgebase_outbox_relay_started()
+        .await
+        .map_err(|error| format!("group knowledgebase outbox relay readiness failed: {error}"))?;
+
     let social_runtime = build_social_runtime()?;
     background._social_shared_channel_sync =
         social_service::spawn_shared_channel_sync_stale_reclaim_scheduler_from_env(
@@ -51,7 +58,14 @@ pub async fn assemble_application_router() -> Result<ApplicationAssembly, String
     router = router.merge(sdkwork_routes_im_audit_backend_api::gateway_mount());
     router = router.merge(sdkwork_routes_im_automation_app_api::gateway_mount());
     router = router.merge(sdkwork_routes_im_calls_open_api::gateway_mount());
-    router = router.merge(sdkwork_routes_im_chat_open_api::gateway_mount().await);
+    router = router.merge(
+        sdkwork_routes_im_chat_open_api::gateway_mount_with_state(conversation_state.clone())
+            .await?,
+    );
+    router = router.merge(
+        sdkwork_routes_im_knowledgebase_app_api::gateway_mount_with_state(conversation_state)
+            .await?,
+    );
     router = router.merge(sdkwork_routes_im_governance_backend_api::gateway_mount());
     router = router.merge(sdkwork_routes_im_media_app_api::gateway_mount());
     router = router.merge(sdkwork_routes_im_notification_app_api::gateway_mount());
@@ -106,9 +120,9 @@ fn build_social_runtime() -> Result<Arc<SocialRuntime>, String> {
                 "social runtime env bootstrap failed; falling back to file or in-memory runtime (development/test only)"
             );
             match std::env::var(SOCIAL_RUNTIME_DIR_ENV) {
-                Ok(runtime_dir) if !runtime_dir.trim().is_empty() => {
-                    Ok(Arc::new(SocialRuntime::from_runtime_dir(runtime_dir.as_str())))
-                }
+                Ok(runtime_dir) if !runtime_dir.trim().is_empty() => Ok(Arc::new(
+                    SocialRuntime::from_runtime_dir(runtime_dir.as_str()),
+                )),
                 _ => Ok(Arc::new(SocialRuntime::default())),
             }
         }

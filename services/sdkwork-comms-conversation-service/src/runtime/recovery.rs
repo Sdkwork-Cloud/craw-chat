@@ -8,6 +8,8 @@ struct RecoveredConversationCreatedPayload {
     #[serde(default)]
     member_user_ids: Vec<String>,
     agent_assignments: Option<agents::ConversationAgentAssignmentsEventPayload>,
+    #[serde(default)]
+    knowledgebase_initialization_requested: bool,
     business_type: Option<String>,
     business_id: Option<String>,
     room_kind: Option<String>,
@@ -160,6 +162,7 @@ fn generic_create_replay_record_from_recovered_payload(
                     assignments.source == ConversationAgentAssignmentSource::ConversationOverride
                 })
                 .map(|assignments| assignments.agents.clone()),
+            knowledgebase_initialization_requested: payload.knowledgebase_initialization_requested,
             event_id: envelope.event_id.clone(),
         }),
         _ => None,
@@ -347,6 +350,7 @@ where
             "conversation.policy_applied" => {
                 self.apply_recovered_conversation_policy_applied(envelope)
             }
+            "conversation.group_archived" => self.apply_recovered_group_archived(envelope),
             "conversation.member_joined" => self.apply_recovered_member_joined(envelope),
             "conversation.member_invitation_accepted" => {
                 self.apply_recovered_member_joined(envelope)
@@ -581,6 +585,75 @@ where
                 .business_index
                 .insert(business_scope_key, envelope.scope_id.clone());
         }
+        Ok(())
+    }
+
+    fn apply_recovered_group_archived(
+        &self,
+        envelope: &CommitEnvelope,
+    ) -> Result<(), RuntimeError> {
+        if !replay_metadata_is_stripped(envelope)
+            && (envelope.event_version != 1
+                || envelope.payload_schema.as_deref() != Some("conversation.group_archived.v1"))
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "unsupported conversation.group_archived version for {}",
+                envelope.event_id
+            )));
+        }
+        let payload: ConversationGroupArchivedPayload =
+            serde_json::from_str(envelope.payload.as_str()).map_err(|error| {
+                RuntimeError::Conflict(format!(
+                    "failed to replay conversation.group_archived {}: {error}",
+                    envelope.event_id
+                ))
+            })?;
+        let actor_matches = replay_metadata_is_stripped(envelope)
+            || (payload.archived_by == envelope.actor.actor_id
+                && payload.archived_by_kind == envelope.actor.actor_kind);
+        if payload.tenant_id != envelope.tenant_id
+            || payload.organization_id != envelope.organization_id
+            || payload.conversation_id != envelope.scope_id
+            || payload.conversation_id != envelope.aggregate_id
+            || envelope.aggregate_type != AggregateType::Conversation
+            || envelope.scope_type != "conversation"
+            || !actor_matches
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "conversation.group_archived {} has an invalid identity",
+                envelope.event_id
+            )));
+        }
+        let scope_key = conversation_scope_key_for_envelope(envelope);
+        let mut state = write_runtime_state(&self.state, "runtime state");
+        let conversation = state
+            .conversations
+            .get_mut(scope_key.as_str())
+            .ok_or_else(|| {
+                RuntimeError::Conflict(format!(
+                    "cannot replay group archive without conversation {}",
+                    envelope.scope_id
+                ))
+            })?;
+        if conversation.aggregate.conversation_type() != "group" {
+            return Err(RuntimeError::Conflict(format!(
+                "conversation.group_archived {} targets a non-group conversation",
+                envelope.event_id
+            )));
+        }
+        if let Some(existing_event_id) = conversation.aggregate.archive_event_id()
+            && existing_event_id != envelope.event_id
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "conversation.group_archived {} conflicts with existing archive event {existing_event_id}",
+                envelope.event_id
+            )));
+        }
+        conversation.aggregate.apply_archive(
+            payload.archived_at,
+            envelope.event_id.clone(),
+            envelope.ordering_seq,
+        );
         Ok(())
     }
 
@@ -1440,11 +1513,14 @@ mod tests {
         }));
     }
 
-    fn recovered_created_envelope() -> CommitEnvelope {
+    fn recovered_created_envelope_with_knowledgebase_initialization(
+        knowledgebase_initialization_requested: bool,
+    ) -> CommitEnvelope {
         let payload = RecoveredConversationCreatedPayload {
             conversation_type: "group".into(),
             member_user_ids: Vec::new(),
             agent_assignments: None,
+            knowledgebase_initialization_requested,
             business_type: None,
             business_id: None,
             room_kind: None,
@@ -1486,6 +1562,10 @@ mod tests {
         }
     }
 
+    fn recovered_created_envelope() -> CommitEnvelope {
+        recovered_created_envelope_with_knowledgebase_initialization(false)
+    }
+
     #[test]
     fn test_v1_group_recovery_does_not_consult_the_current_default_policy() {
         let runtime = ConversationRuntime::new(InMemoryJournal::default())
@@ -1511,6 +1591,33 @@ mod tests {
             assignments.agents[0].revision_id.as_deref(),
             Some("revision.im.default.1")
         );
+    }
+
+    #[test]
+    fn test_recovery_retains_group_knowledgebase_initialization_intent() {
+        for knowledgebase_initialization_requested in [false, true] {
+            let runtime = ConversationRuntime::new(InMemoryJournal::default());
+            let envelope = recovered_created_envelope_with_knowledgebase_initialization(
+                knowledgebase_initialization_requested,
+            );
+
+            runtime
+                .apply_recovered_envelope(&envelope)
+                .expect("group creation should replay");
+
+            let scope_key = conversation_scope_key("100001", "0", "c_demo");
+            let state = read_runtime_state(&runtime.state, "recovery intent test state");
+            let replay_record = state
+                .conversations
+                .get(scope_key.as_str())
+                .and_then(|conversation| conversation.generic_create_request.as_ref())
+                .expect("recovered group creation should restore a generic replay record");
+            assert_eq!(
+                replay_record.knowledgebase_initialization_requested,
+                knowledgebase_initialization_requested,
+                "recovery must preserve the original group Knowledgebase initialization intent"
+            );
+        }
     }
 
     #[test]

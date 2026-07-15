@@ -558,6 +558,7 @@ function assessStep11TierEvidenceIndex(indexJson, options) {
   const pendingSlots = normalizePendingSlots(indexJson?.collectionSummary?.pendingSlots);
   const collectedSlots = normalizePendingSlots(indexJson?.collectionSummary?.collectedSlots);
   const requiredSlots = normalizePendingSlots(indexJson?.collectionSummary?.requiredSlots);
+  const boundary = typeof indexJson?.boundary === 'string' ? indexJson.boundary.trim() : '';
   const pendingEvidenceIds = Array.isArray(indexJson?.evidenceSlots)
     ? indexJson.evidenceSlots
       .filter((slot) => slot?.status === 'pending_collection')
@@ -580,6 +581,17 @@ function assessStep11TierEvidenceIndex(indexJson, options) {
       ok: false,
       summary: `${tier} remains ${state} with ${pendingSlots} pending slots.`,
       blockers: pendingEvidenceIds.map((slotId) => `${slotId} is still pending collection.`),
+    };
+  }
+
+  const nonSignoffEvidencePattern = /doc-captur|backfill|partial collection|not (?:full )?[^.]*sign-off|rather than (?:a )?(?:dedicated|full)|still gate/iu;
+  if (boundary && nonSignoffEvidencePattern.test(boundary)) {
+    return {
+      ok: false,
+      summary: `${tier} evidence is collected but is not eligible for sign-off.`,
+      blockers: [
+        `${tier} boundary declares non-signoff evidence: ${boundary}`,
+      ],
     };
   }
 

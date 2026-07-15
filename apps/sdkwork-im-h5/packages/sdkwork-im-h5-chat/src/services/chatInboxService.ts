@@ -5,17 +5,23 @@ import { readCursorPageInfo } from "./chatMessageHistoryUtils";
 
 const INBOX_PAGE_SIZE = 20;
 
-export async function fetchChatInbox(pageSize = INBOX_PAGE_SIZE): Promise<ConversationInboxPage> {
-  return fetchChatInboxPage({ pageSize });
+export async function fetchChatInbox(
+  pageSize = INBOX_PAGE_SIZE,
+  q?: string,
+): Promise<ConversationInboxPage> {
+  return fetchChatInboxPage({ pageSize, q });
 }
 
 export async function fetchChatInboxPage(options?: {
   pageSize?: number;
   cursor?: string;
+  q?: string;
 }): Promise<ConversationInboxPage> {
+  const q = options?.q?.trim();
   return getImSdkClient().conversations.list({
     pageSize: options?.pageSize ?? INBOX_PAGE_SIZE,
     ...(options?.cursor ? { cursor: options.cursor } : {}),
+    ...(q ? { q } : {}),
   });
 }
 

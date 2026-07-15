@@ -13,10 +13,10 @@ class StreamSession:
     durability_class: str
     ordering_scope: str
     state: str
-    last_frame_seq: int
+    last_frame_seq: str
     opened_at: str
     schema_ref: Optional[str] = None
-    last_checkpoint_seq: Optional[int] = None
+    last_checkpoint_seq: Optional[str] = None
     result_message_id: Optional[str] = None
     closed_at: Optional[str] = None
     expires_at: Optional[str] = None

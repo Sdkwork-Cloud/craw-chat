@@ -99,7 +99,9 @@
     ],
     "sdkClients": [],
     "events": [],
-    "configKeys": [],
+    "configKeys": [
+      "SDKWORK_IM_SESSION_GATEWAY_WS_RATE_MAX_BUCKETS"
+    ],
     "routeManifest": null
   },
   "integration": {
@@ -110,7 +112,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/sdkwork-im/services/session-gateway/Cargo.toml"
+      "cargo test -p session-gateway"
     ]
   },
   "metadata": {

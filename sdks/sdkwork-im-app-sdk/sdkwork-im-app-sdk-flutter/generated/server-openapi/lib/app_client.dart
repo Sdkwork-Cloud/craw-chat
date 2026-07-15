@@ -4,6 +4,7 @@ import 'src/api/automation.dart';
 import 'src/api/notifications.dart';
 import 'src/api/portal.dart';
 import 'src/api/provider.dart';
+import 'src/api/chat.dart';
 
 class SdkworkImAppClient {
   final HttpClient _httpClient;
@@ -12,6 +13,7 @@ class SdkworkImAppClient {
   late final NotificationsApi notifications;
   late final PortalApi portal;
   late final ProviderApi provider;
+  late final ChatApi chat;
 
   SdkworkImAppClient({
     required SdkConfig config,
@@ -20,6 +22,7 @@ class SdkworkImAppClient {
     notifications = NotificationsApi(_httpClient);
     portal = PortalApi(_httpClient);
     provider = ProviderApi(_httpClient);
+    chat = ChatApi(_httpClient);
   }
 
   factory SdkworkImAppClient.withBaseUrl({

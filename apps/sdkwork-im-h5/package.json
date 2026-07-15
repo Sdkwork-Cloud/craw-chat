@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "lint": "tsc --noEmit -p tsconfig.app.json",
     "test:drive-app-sdk-integration": "node scripts/drive-app-sdk-integration-contract.test.mjs",
-    "test:chat-conversation-title": "tsx --tsconfig tsconfig.app.json scripts/chat-conversation-title-contract.test.ts"
+    "test:chat-conversation-title": "tsx --tsconfig tsconfig.app.json scripts/chat-conversation-title-contract.test.ts",
+    "test:chat-inbox-search": "node scripts/chat-inbox-search-contract.test.mjs"
   },
   "dependencies": {
     "@sdkwork/auth-pc-react": "workspace:*",

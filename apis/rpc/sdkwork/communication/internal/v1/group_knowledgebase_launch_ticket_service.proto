@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package sdkwork.communication.internal.v1;
+
+import "sdkwork/common/v1/context.proto";
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.communication.internal.v1";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/internal/v1;communicationinternalv1";
+
+// Internal capability-ticket exchange for sdkwork-knowledgebase. The IM
+// service resolves tenant, organization, delegated user/session, conversation,
+// and space from framework-verified mTLS identity, a signed caller context,
+// and the ticket ledger; callers must never provide those authority selectors
+// in request metadata or the protobuf payload.
+service GroupKnowledgebaseLaunchTicketService {
+  rpc ConsumeGroupKnowledgebaseLaunchTicket(ConsumeGroupKnowledgebaseLaunchTicketRequest) returns (ConsumeGroupKnowledgebaseLaunchTicketResponse);
+}
+
+message ConsumeGroupKnowledgebaseLaunchTicketRequest {
+  // Sensitive, opaque, one-time capability. It is never echoed by this API,
+  // persisted in plaintext, or recorded in logs/audit payloads.
+  string ticket = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ConsumeGroupKnowledgebaseLaunchTicketResponse {
+  string conversation_id = 1;
+  string space_id = 2;
+  string space_uuid = 3;
+  string lifecycle_state = 4;
+  string membership_role = 5;
+  // Decimal strings preserve int64 precision for non-Rust generated clients.
+  string membership_epoch = 6;
+  // IM-owned link generation. This is deliberately distinct from the
+  // mutable Knowledgebase binding version.
+  string upstream_link_generation = 7;
+  string expires_at = 8;
+  string knowledgebase_binding_id = 9;
+  string knowledgebase_binding_uuid = 10;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}

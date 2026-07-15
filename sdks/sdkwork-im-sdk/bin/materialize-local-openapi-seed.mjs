@@ -760,6 +760,12 @@ const schemas = {
     conversationId: stringSchema(),
     status: stringSchema(),
   }, ['tenantId', 'directChatId', 'conversationId', 'status']),
+  SocialFriendRequestAcceptedConversation: objectSchema({
+    tenantId: stringSchema(),
+    conversationId: stringSchema(),
+    kind: stringSchema(),
+    createdAt: stringSchema({ format: 'date-time' }),
+  }, ['tenantId', 'conversationId', 'kind', 'createdAt']),
   SocialFriendRequestMutationResponse: objectSchema({
     friendRequest: ref('FriendRequest'),
   }, ['friendRequest']),
@@ -770,7 +776,7 @@ const schemas = {
     friendRequest: ref('FriendRequest'),
     friendship: ref('Friendship'),
     directChat: ref('DirectChat'),
-    conversation: ref('CreateConversationResult'),
+    conversation: ref('SocialFriendRequestAcceptedConversation'),
   }, ['friendRequest', 'friendship', 'directChat', 'conversation']),
   SocialFriendshipMutationResponse: objectSchema({
     friendship: ref('Friendship'),
@@ -780,6 +786,11 @@ const schemas = {
     conversationType: stringSchema(),
     groupName: nullable(stringSchema({ maxLength: 256 })),
     clientRequestKey: nullable(stringSchema({ maxLength: 256 })),
+    initializeKnowledgebase: {
+      type: 'boolean',
+      default: false,
+      description: 'For group conversations only. When true, requests one Knowledgebase provisioning attempt after the group is durably created. Omitted or false never reserves, provisions, or validates a group Knowledgebase scope.',
+    },
     memberUserIds: nullable({
       ...arrayOf(stringSchema({ minLength: 1, maxLength: 256 })),
       maxItems: 200,
@@ -852,11 +863,16 @@ const schemas = {
     rightActorKind: stringSchema(),
   }, ['leftActorId', 'leftActorKind', 'rightActorId', 'rightActorKind']),
   CreateConversationResult: objectSchema({
-    tenantId: stringSchema(),
     conversationId: stringSchema(),
-    kind: stringSchema(),
-    createdAt: stringSchema({ format: 'date-time' }),
-  }, ['tenantId', 'conversationId', 'kind', 'createdAt']),
+    eventId: stringSchema(),
+    requestKey: stringSchema(),
+    deliveryStatus: stringSchema({ enum: ['applied', 'replayed'] }),
+    proofVersion: stringSchema(),
+    knowledgebaseInitialization: stringSchema({
+      enum: ['active', 'provisioning', 'failed'],
+      description: 'Present only when initializeKnowledgebase was true. A failed value means group creation succeeded but the optional remote Knowledgebase provisioning attempt did not complete; the group owner can retry from the Knowledgebase action.',
+    }),
+  }, ['conversationId', 'eventId']),
   CreateRoomRequest: objectSchema({
     conversationId: stringSchema(),
     roomId: stringSchema(),
@@ -1059,10 +1075,10 @@ const paths = Object.fromEntries([
     get: operation({ tag: 'chat', operationId: 'contacts.list', summary: 'List IM contacts', parameters: [p('PageSizeQuery'), p('CursorQuery')], response: 'ContactsResponse' }),
   }),
   pathItem('/chat/inbox', {
-    get: operation({ tag: 'chat', operationId: 'inbox.list', summary: 'List current inbox window', parameters: [p('PageSizeQuery'), p('CursorQuery'), p('ConversationTypeQuery')], response: 'ConversationInboxPage' }),
+    get: operation({ tag: 'chat', operationId: 'inbox.list', summary: 'List current inbox window', parameters: [p('PageSizeQuery'), p('CursorQuery'), p('ConversationTypeQuery'), p('QQuery')], response: 'ConversationInboxPage' }),
   }),
   pathItem('/chat/conversations', {
-    post: operation({ tag: 'chat', operationId: 'conversations.create', summary: 'Create a conversation', request: 'CreateConversationRequest', response: 'CreateConversationResult', successStatus: '201' }),
+    post: operation({ tag: 'chat', operationId: 'conversations.create', summary: 'Create a conversation', request: 'CreateConversationRequest', response: 'CreateConversationResult', successStatus: '201', statuses: ['400', '401', '403', '404', '409'] }),
   }),
   pathItem('/chat/conversations/agent_dialogs', {
     post: operation({ tag: 'chat', operationId: 'conversations.agentDialogs.create', summary: 'Create an agent dialog', request: 'CreateAgentDialogRequest', response: 'CreateConversationResult', successStatus: '201' }),

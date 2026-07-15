@@ -48,6 +48,7 @@ client.setHeader('X-Custom-Header', 'value');
 - `client.notifications` - notifications API
 - `client.portal` - portal API
 - `client.provider` - provider API
+- `client.chat` - chat API
 
 ## Usage Examples
 
@@ -89,6 +90,14 @@ print(result);
 ```dart
 // Retrieve media provider health
 final result = await client.provider.mediaHealthRetrieve();
+print(result);
+```
+
+### chat
+```dart
+// Retrieve the group knowledgebase link
+final conversationId = '1';
+final result = await client.chat.conversationsKnowledgebaseRetrieve(conversationId);
 print(result);
 ```
 

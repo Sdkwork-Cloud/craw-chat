@@ -69,6 +69,46 @@ void main() {
     expect(item?.messageId, 'm_1');
     expect(item?.messageSeq, 7);
   });
+
+  test('resolves inbox titles without exposing technical conversation ids', () {
+    expect(
+      resolveConversationInboxTitle(
+          _inboxEntry('g_1', displayName: '  Product Team  ')),
+      'Product Team',
+    );
+    expect(
+      resolveConversationInboxTitle(
+        _inboxEntry(
+          'c_direct_1',
+          displayName: ' ',
+          peerDisplayName: '  Ada  ',
+        ),
+      ),
+      'Ada',
+    );
+    final fallback = resolveConversationInboxTitle(
+      _inboxEntry('g_internal_technical_id', displayName: null),
+    );
+    expect(fallback, 'Conversation');
+    expect(fallback, isNot(contains('g_internal_technical_id')));
+  });
+
+  test('merges inbox cursor pages without duplicate conversations', () {
+    final merged = mergeConversationInboxEntries(
+      <ConversationInboxEntry>[
+        _inboxEntry('c_1', displayName: 'Old title'),
+      ],
+      <ConversationInboxEntry>[
+        _inboxEntry('c_1', displayName: 'Latest title'),
+        _inboxEntry('c_2', displayName: 'Second conversation'),
+      ],
+    );
+
+    expect(merged, hasLength(2));
+    expect(merged.first.conversationId, 'c_1');
+    expect(merged.first.displayName, 'Latest title');
+    expect(merged.last.conversationId, 'c_2');
+  });
 }
 
 ConversationMessageEntry _messageEntry(int messageSeq) {
@@ -85,12 +125,23 @@ ConversationMessageEntry _messageEntry(int messageSeq) {
   );
 }
 
-ConversationInboxEntry _inboxEntry(String conversationId) {
+ConversationInboxEntry _inboxEntry(
+  String conversationId, {
+  String? displayName = 'Ada',
+  String? peerDisplayName,
+}) {
   return ConversationInboxEntry(
     tenantId: 'tenant-1',
     conversationId: conversationId,
     conversationType: 'direct',
-    displayName: 'Ada',
+    displayName: displayName,
+    peer: peerDisplayName == null
+        ? null
+        : ConversationInboxPeerView(
+            principalKind: 'user',
+            principalId: 'user-2',
+            displayName: peerDisplayName,
+          ),
     lastActivityAt: '2026-07-07T00:00:00Z',
     messageCount: 1,
     lastMessageSeq: 7,

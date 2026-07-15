@@ -15,7 +15,8 @@ use sdkwork_utils_rust::trusted_proxy::TrustedProxyConfig;
 
 use crate::ApiError;
 use crate::http_limits::{
-    resolve_websocket_upgrade_rate_burst, resolve_websocket_upgrade_rate_rpm,
+    resolve_websocket_rate_max_buckets, resolve_websocket_upgrade_rate_burst,
+    resolve_websocket_upgrade_rate_rpm,
 };
 
 const WS_UPGRADE_RATE_SCOPE: &str = "session.ws_upgrade";
@@ -40,10 +41,11 @@ impl WebsocketUpgradeRateLimiter {
         });
         Self {
             rpm,
-            local: Arc::new(Mutex::new(DomainRateLimiter::with_burst(
+            local: Arc::new(Mutex::new(DomainRateLimiter::with_burst_and_capacity(
                 rpm,
                 refill_per_sec,
                 burst,
+                resolve_websocket_rate_max_buckets(),
             ))),
             redis,
             redis_fail_closed: gateway_rate_limit_redis_fail_closed_from_env(),

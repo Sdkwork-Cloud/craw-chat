@@ -1,10 +1,12 @@
 use std::sync::{Arc, OnceLock};
 
 use im_adapters_local_memory::{MemoryMetadataStore, MemoryTimelineProjectionStore};
-use im_adapters_postgres_journal::{PostgresJournalConfig, PostgresSearchProvider};
+use im_adapters_postgres_journal::{
+    PostgresJournalConfig, PostgresJournalPool, PostgresOutboxStore, PostgresSearchProvider,
+};
 use im_adapters_postgres_projection::{PostgresProjectionConfig, PostgresProjectionStores};
 use im_app_context::resolve_web_environment_from_process_env;
-use im_platform_contracts::{MetadataStore, TimelineProjectionStore};
+use im_platform_contracts::{MetadataStore, OutboxStore, TimelineProjectionStore};
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_web_core::WebEnvironment;
 use tracing::info;
@@ -286,6 +288,10 @@ fn assemble_projection_runtime(
         let durable_metadata: Arc<dyn MetadataStore + Send + Sync> =
             Arc::new(stores.metadata.clone());
         service.configure_durable_metadata(durable_metadata);
+        let conversation_event_outbox: Arc<dyn OutboxStore> = Arc::new(
+            PostgresOutboxStore::from_pool(PostgresJournalPool::from_pool(stores.pool().clone())),
+        );
+        service.configure_conversation_event_outbox(conversation_event_outbox);
         info!(
             memory_timeline_cap = memory_cap,
             "projection-service configured tiered timeline (postgres durable + in-memory hot cache)"

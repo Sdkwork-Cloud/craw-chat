@@ -51,6 +51,22 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     ));
     entries.extend(exact_routes(
         "comms-conversation-service",
+        vec![HttpMethod::Get, HttpMethod::Post],
+        &["/app/v3/api/chat/conversations/{conversationId}/knowledgebase"],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkImAppSdk],
+        "group-knowledgebase",
+    ));
+    entries.extend(exact_routes(
+        "comms-conversation-service",
+        vec![HttpMethod::Post],
+        &["/app/v3/api/chat/conversations/{conversationId}/knowledgebase/launch"],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkImAppSdk],
+        "group-knowledgebase",
+    ));
+    entries.extend(exact_routes(
+        "comms-conversation-service",
         vec![HttpMethod::Post],
         &["/im/v3/api/chat/conversations", "/im/v3/api/chat/rooms"],
         RouteVisibility::Public,
@@ -262,6 +278,14 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         RouteVisibility::Public,
         vec![SdkTarget::SdkworkVoiceAppSdk],
         "voice",
+    ));
+    entries.extend(prefix_routes(
+        "sdkwork-agents-app-api",
+        all_http_methods(),
+        &["/app/v3/api/ai/{*path}"],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkAgentsAppSdk],
+        "agents",
     ));
     entries.extend(prefix_routes(
         "media-service",

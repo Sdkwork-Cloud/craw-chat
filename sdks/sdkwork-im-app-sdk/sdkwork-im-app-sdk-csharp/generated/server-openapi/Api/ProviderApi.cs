@@ -18,17 +18,17 @@ namespace Sdkwork.Im.AppApi.Generated.Api
         /// <summary>
         /// Retrieve media provider health
         /// </summary>
-        public async Task<Dictionary<string, object>?> MediaHealthRetrieveAsync()
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.MediaHealthRetrieveResponse?> MediaHealthRetrieveAsync()
         {
-            return await _client.GetAsync<Dictionary<string, object>>(ApiPaths.AppPath("/media/provider_health"));
+            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.MediaHealthRetrieveResponse>(ApiPaths.AppPath("/media/provider_health"));
         }
 
         /// <summary>
         /// Retrieve principal-profile provider health
         /// </summary>
-        public async Task<Dictionary<string, object>?> PrincipalProfileHealthRetrieveAsync()
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.PrincipalProfileHealthRetrieveResponse?> PrincipalProfileHealthRetrieveAsync()
         {
-            return await _client.GetAsync<Dictionary<string, object>>(ApiPaths.AppPath("/principal/profiles/provider_health"));
+            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.PrincipalProfileHealthRetrieveResponse>(ApiPaths.AppPath("/principal/profiles/provider_health"));
         }
 
 

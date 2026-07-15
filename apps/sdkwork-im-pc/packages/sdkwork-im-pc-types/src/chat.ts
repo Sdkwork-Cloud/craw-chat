@@ -19,6 +19,8 @@ export interface Chat {
   unreadCount: number;
   updatedAt: number;
   memberCount?: number;
+  /** True when the API only proves that at least `memberCount` members exist. */
+  memberCountIsLowerBound?: boolean;
   activeCount?: number;
   isPinned?: boolean;
   isMuted?: boolean;
@@ -30,4 +32,6 @@ export interface Chat {
   agentAssignments?: ChatAgentAssignment[];
   /** Optimistic version required by structured agent mentions and assignment replacement. */
   agentAssignmentGeneration?: number;
+  /** Present only for an explicit create-time Knowledgebase initialization attempt. */
+  knowledgebaseInitialization?: 'active' | 'provisioning' | 'failed';
 }

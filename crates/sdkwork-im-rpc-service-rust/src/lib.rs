@@ -31,8 +31,11 @@ pub use dispatcher::{
 pub use error::{ImRpcError, map_rpc_error_to_status};
 pub use health::{ImRpcHealthService, build_im_rpc_health_server};
 pub use internal_context::{
-    InternalOrchestrationContext, assert_body_scope_matches_authoritative_context,
-    orchestration_headers_from_rpc_metadata, resolve_internal_orchestration_context,
+    GROUP_KNOWLEDGEBASE_LAUNCH_TICKET_CONSUME_OPERATION_ID, InternalOrchestrationContext,
+    VerifiedDelegatedUserContext, VerifiedInternalRpcContext,
+    assert_body_scope_matches_authoritative_context, orchestration_headers_from_rpc_metadata,
+    requires_verified_delegated_user_context, resolve_internal_orchestration_context,
+    resolve_verified_delegated_user_context,
 };
 pub use metadata::{
     METADATA_ACCESS_TOKEN, METADATA_AUTHORIZATION, METADATA_CLIENT_VERSION,
@@ -59,6 +62,6 @@ pub use service_manifest::{RPC_SDK_FAMILY, RPC_SERVICE_BINDINGS};
 pub use tonic_service_adapters::*;
 pub use tonic_service_adapters::{
     GENERATED_TONIC_SERVICE_ADAPTER_COUNT, IM_RPC_SERVICE_KEYS, PresenceServiceAdapter,
-    build_im_rpc_service_router, build_im_rpc_service_router_with_config,
-    build_im_rpc_service_router_with_config_for_services,
+    build_im_rpc_mtls_service_router_with_config_for_services, build_im_rpc_service_router,
+    build_im_rpc_service_router_with_config, build_im_rpc_service_router_with_config_for_services,
 };

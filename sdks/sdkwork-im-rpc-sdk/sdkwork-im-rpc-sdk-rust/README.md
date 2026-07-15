@@ -193,6 +193,8 @@ SdkworkImRpc is an SDKWork RPC SDK scaffold generated from proto packages and an
   - LeaveRoom: internal.rooms.leave, unary, auth=service-mtls, idempotency=required
 - sdkwork.communication.internal.v1.MessageDispatchService (internal)
   - DispatchConversationMessage: internal.messages.dispatch, unary, auth=service-mtls, idempotency=required
+- sdkwork.communication.internal.v1.GroupKnowledgebaseLaunchTicketService (internal)
+  - ConsumeGroupKnowledgebaseLaunchTicket: internal.groupKnowledgebaseLaunchTickets.consume, unary, auth=service-mtls, idempotency=required
 
 ## Endpoint and TLS/mTLS
 

@@ -6,6 +6,6 @@ namespace Sdkwork.Im.AppApi.Generated.Models
 {
     public class CompleteAgentToolCallRequest
     {
-        public string? ResultPayload { get; set; }
+        public string ResultPayload { get; set; }
     }
 }

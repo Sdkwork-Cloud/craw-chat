@@ -20,7 +20,7 @@ pub struct StreamFrame {
     pub scope_id: String,
 
     #[serde(rename = "frameSeq")]
-    pub frame_seq: i64,
+    pub frame_seq: String,
 
     #[serde(rename = "frameType")]
     pub frame_type: String,

@@ -545,6 +545,26 @@
       "systemOfRecord": true,
       "writeOwner": "social-service",
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
+    },
+    {
+      "tableName": "im_conversation_knowledge_space_link",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "relation_entity",
+      "systemOfRecord": false,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql",
+      "notes": "IM-owned saga/projection state for exactly one Conversation group to one sdkwork-knowledgebase space. The immutable space and KB binding id/uuid quartet is the remote target fence; KB remains the resource authority."
+    },
+    {
+      "tableName": "im_group_knowledge_launch_tickets",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "operational_state",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql",
+      "notes": "Short-lived one-time launch ticket hashes fenced by the immutable space/binding target and IM upstream link generation. Raw tickets are never persisted or included in IM audit payloads."
     }
   ]
 }

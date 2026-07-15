@@ -2,8 +2,10 @@ package types
 
 
 type CreateConversationResult struct {
-	TenantId string `json:"tenantId"`
 	ConversationId string `json:"conversationId"`
-	Kind string `json:"kind"`
-	CreatedAt string `json:"createdAt"`
+	EventId string `json:"eventId"`
+	RequestKey string `json:"requestKey"`
+	DeliveryStatus string `json:"deliveryStatus"`
+	ProofVersion string `json:"proofVersion"`
+	KnowledgebaseInitialization string `json:"knowledgebaseInitialization"`
 }

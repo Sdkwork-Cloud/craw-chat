@@ -7,13 +7,18 @@ export const ConsoleMessages = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [messages, setMessages] = useState<AuditMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const fetchMessages = async () => {
       setLoading(true);
+      setLoadError(false);
       try {
         const res = await messageAuditService.getMessages({ page: 1, pageSize: 10, search: searchTerm });
         setMessages(res.data);
+      } catch {
+        setMessages([]);
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -150,6 +155,8 @@ export const ConsoleMessages = () => {
             <tbody className="divide-y divide-console-border text-sm">
               {loading ? (
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-console-text-muted">查询中...</td></tr>
+              ) : loadError ? (
+                <tr><td colSpan={5} className="px-6 py-8 text-center text-console-text-muted">消息审计能力当前不可用</td></tr>
               ) : messages.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-console-text-muted">暂无符合条件的记录</td></tr>
               ) : messages.map(msg => (

@@ -85,7 +85,7 @@ for (const entry of IM_ROUTE_CRATES) {
   }
   assert.match(
     lib,
-    new RegExp(`pub fn ${entry.buildFn}`, 'u'),
+    new RegExp(`pub (?:async )?fn ${entry.buildFn}`, 'u'),
     `${entry.crateDir} must export ${entry.buildFn}`,
   );
 }

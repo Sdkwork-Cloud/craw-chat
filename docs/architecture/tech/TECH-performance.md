@@ -55,7 +55,7 @@
 5. 如果还没有真实结果，先使用 `tools/perf/step-11-pre-release-tier-gate.json` 与 `tools/perf/step-11-capacity-tier-gate.json` 冻结所需证据字段，不把模板误写成结果。
 6. 高阶 gate 的证据口径以 tier evidence index 为准，不再使用 `template_only_pending_execution` 作为当前状态描述：
    - Pre-Release：`artifacts/perf/step-11/pre-release/pre-release-tier-evidence-index.json` → `evidence_collected_gate_blocked`
-   - Capacity：`artifacts/perf/step-11/capacity/capacity-tier-evidence-index.json` → `evidence_collected_gate_passed`
+   - Capacity：`artifacts/perf/step-11/capacity/capacity-tier-evidence-index.json` → `evidence_collected_gate_blocked`
    - gate template（`step-11-pre-release-tier-gate.json` / `step-11-capacity-tier-gate.json`）仍用于字段冻结；真实专用拓扑补采前不得把 doc-captured 回填误写成 sign-off
 7. 如果只读取 `tools/perf/step-11-scenario-catalog.json`，当前也必须能直接拿到高等 tier 的目录入口：
    - `Pre-Release Tier -> artifacts/perf/step-11/pre-release`
@@ -106,7 +106,7 @@
 - 当前 `CP11-2` 的本地量化基线只覆盖 `CI Smoke Tier`，用于先产出一轮连接、消息、流的真实数量化结果。
 - 当前 `CP11-3` 的本地演练基线只覆盖 `CI Smoke Tier`，用于先产出一轮 `drain-rebalance / restore-recovery / failover / upgrade-rollback` 的真实演练结果。
 - 当前 `Pre-Release Tier` 与 `Capacity Tier` 已进入“索引已回填、专用拓扑待补采”状态：
-  - Capacity Tier：`evidence_collected_gate_passed`（见 `artifacts/perf/step-11/capacity/capacity-tier-evidence-index.json`）
+  - Capacity Tier：`evidence_collected_gate_blocked`（见 `artifacts/perf/step-11/capacity/capacity-tier-evidence-index.json`）
   - Pre-Release Tier：`evidence_collected_gate_blocked`（见 `artifacts/perf/step-11/pre-release/pre-release-tier-evidence-index.json`）
   - `standalone.split-services.development` 与 `self-hosted.split-services.development` 作为当前本地/预发布 profile
   - `capacity-dedicated` 作为容量门禁模板的目标环境名；专用容量环境压测仍待执行
@@ -122,4 +122,3 @@
   - kill switch 能阻断高风险 binding / capability，同时保留安全降级路径
 - 当前 `standalone.split-services.development` 仍沿用 `Step 10` 冻结的兼容运行合同，不额外引入新的本地拓扑。
 - Git Bash 独立命令帮助在当前宿主环境可能存在兼容问题，因此 Step 11 的主要放行证据仍以仓库内测试与 PowerShell/CMD 入口为主。
-

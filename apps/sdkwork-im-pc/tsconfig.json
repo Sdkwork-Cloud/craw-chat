@@ -159,6 +159,18 @@
       "@sdkwork/membership-app-sdk": [
         "../../../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts"
       ],
+      "@sdkwork/membership-pc-membership": [
+        "../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-membership/src/index.ts"
+      ],
+      "@sdkwork/membership-pc-subscription": [
+        "../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription/src/index.ts"
+      ],
+      "@sdkwork/membership-pc-subscription/*": [
+        "../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription/src/*"
+      ],
+      "@sdkwork/order-pc-checkout": [
+        "../../../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-checkout/src/index.ts"
+      ],
       "@sdkwork/mail-app-sdk": [
         "../../../sdkwork-mail/sdks/sdkwork-mail-app-sdk/sdkwork-mail-app-sdk-typescript/src/index.ts"
       ],
@@ -272,6 +284,12 @@
       ],
       "@sdkwork/im-pc-chat": [
         "./packages/sdkwork-im-pc-chat/src/index.ts"
+      ],
+      "@sdkwork/im-pc-token-plan/*": [
+        "./packages/sdkwork-im-pc-token-plan/src/*"
+      ],
+      "@sdkwork/im-pc-token-plan": [
+        "./packages/sdkwork-im-pc-token-plan/src/index.ts"
       ],
       "@sdkwork/im-pc-shell/*": [
         "./packages/sdkwork-im-pc-shell/src/*"

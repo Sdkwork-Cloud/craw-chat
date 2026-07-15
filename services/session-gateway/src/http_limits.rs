@@ -25,10 +25,14 @@ pub const SESSION_GATEWAY_WS_UPGRADE_RATE_BURST_ENV: &str =
 const SESSION_GATEWAY_WS_FRAME_RATE_RPM_ENV: &str = "SDKWORK_IM_SESSION_GATEWAY_WS_FRAME_RATE_RPM";
 const SESSION_GATEWAY_WS_FRAME_RATE_BURST_ENV: &str =
     "SDKWORK_IM_SESSION_GATEWAY_WS_FRAME_RATE_BURST";
+pub const SESSION_GATEWAY_WS_RATE_MAX_BUCKETS_ENV: &str =
+    "SDKWORK_IM_SESSION_GATEWAY_WS_RATE_MAX_BUCKETS";
 const SESSION_GATEWAY_WS_UPGRADE_RATE_RPM_DEFAULT: u32 = 120;
 const SESSION_GATEWAY_WS_UPGRADE_RATE_BURST_DEFAULT: u32 = 20;
 const SESSION_GATEWAY_WS_FRAME_RATE_RPM_DEFAULT: u32 = 600;
 const SESSION_GATEWAY_WS_FRAME_RATE_BURST_DEFAULT: u32 = 60;
+const SESSION_GATEWAY_WS_RATE_MAX_BUCKETS_DEFAULT: usize = 50_000;
+const SESSION_GATEWAY_WS_RATE_MAX_BUCKETS_MAX: usize = 500_000;
 
 pub fn resolve_realtime_node_id_from_env() -> String {
     std::env::var(REALTIME_NODE_ID_ENV)
@@ -123,4 +127,13 @@ pub fn resolve_websocket_frame_rate_burst() -> u32 {
         .and_then(|value| value.trim().parse::<u32>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(SESSION_GATEWAY_WS_FRAME_RATE_BURST_DEFAULT)
+}
+
+pub fn resolve_websocket_rate_max_buckets() -> usize {
+    std::env::var(SESSION_GATEWAY_WS_RATE_MAX_BUCKETS_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(SESSION_GATEWAY_WS_RATE_MAX_BUCKETS_DEFAULT)
+        .min(SESSION_GATEWAY_WS_RATE_MAX_BUCKETS_MAX)
 }

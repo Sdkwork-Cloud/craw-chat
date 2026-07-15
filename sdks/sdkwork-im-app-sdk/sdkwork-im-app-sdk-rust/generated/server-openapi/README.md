@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client.set_auth_token("your-auth-token");
 client.set_access_token("your-access-token");
 
-    let result = client.notification().notifications_list().await?;
+    let result = client.portal().access_retrieve().await?;
     println!("{result:?}");
     Ok(())
 }
@@ -44,9 +44,10 @@ client.set_header("X-Custom-Header", "value");
 ## API Modules
 
 - `client.automation()` - automation API
-- `client.notification()` - notification API
+- `client.notifications()` - notifications API
 - `client.portal()` - portal API
 - `client.provider()` - provider API
+- `client.chat()` - chat API
 
 ## Usage Examples
 
@@ -69,11 +70,15 @@ let result = client.automation().agent_responses_create(&body).await?;
 println!("{result:?}");
 ```
 
-### notification
+### notifications
 
 ```rust
+use std::collections::HashMap;
 // List notifications for the current principal
-let result = client.notification().notifications_list().await?;
+let mut query = HashMap::new();
+query.insert("page_size".to_string(), serde_json::json!(1));
+query.insert("cursor".to_string(), serde_json::json!("cursor"));
+let result = client.notifications().list(Some(&query)).await?;
 println!("{result:?}");
 ```
 
@@ -93,6 +98,15 @@ let result = client.provider().media_health_retrieve().await?;
 println!("{result:?}");
 ```
 
+### chat
+
+```rust
+// Retrieve the group knowledgebase link
+let conversation_id = "1";
+let result = client.chat().conversations_knowledgebase_retrieve(conversation_id).await?;
+println!("{result:?}");
+```
+
 ## Error Handling
 
 ```rust
@@ -102,7 +116,7 @@ use sdkwork_im_app_api_generated::{SdkworkImAppClient, SdkworkConfig};
 let client = SdkworkImAppClient::new(SdkworkConfig::new("http://127.0.0.1:18079"))?;
 
 let outcome: Result<(), _> = async {
-    client.notification().notifications_list().await?;
+    client.portal().access_retrieve().await?;
     Ok(())
 }.await;
 
@@ -143,10 +157,12 @@ MIT
 
 ## Regeneration Contract
 
-- Generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
-- Each run also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
-- Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
+- HTTP/OpenAPI generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
+- HTTP/OpenAPI generation also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- HTTP/OpenAPI apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
 - CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
-- Put hand-written wrappers, adapters, and orchestration in `custom/`.
-- Files scaffolded under `custom/` are created once and preserved across regenerations.
-- If a generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.
+- Put HTTP/OpenAPI hand-written wrappers, adapters, and orchestration in `custom/`.
+- Files scaffolded under `custom/` are created once and preserved across HTTP/OpenAPI regenerations.
+- If an HTTP/OpenAPI generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.
+- RPC SDK source workspaces use convention-first evidence by default: RPC SDK family naming, language workspace naming, `rpc/*.manifest.json`, proto source references, generated client source, and native package manifests.
+- Use `sdkgen inspect --protocol rpc` to verify RPC convention evidence. Request persisted generator evidence only with `--emit-control-plane` for release, CI, audit, or migration workflows; evidence paths are derived by generator convention.

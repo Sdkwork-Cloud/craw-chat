@@ -89,12 +89,12 @@ async fn async_main(
         .await
         .map_err(|error| format!("failed to build embedded IAM router: {error}"))?;
 
-    let embedded_application =
-        embedded_application_routes::bootstrap_embedded_application_routes()
-            .await
-            .map_err(|error| format!("failed to assemble IM application router: {error}"))?;
-    let embedded_dependencies =
-        embedded_dependency_routes::bootstrap_embedded_dependency_routes().await;
+    let embedded_application = embedded_application_routes::bootstrap_embedded_application_routes()
+        .await
+        .map_err(|error| format!("failed to assemble IM application router: {error}"))?;
+    let embedded_dependencies = embedded_dependency_routes::bootstrap_embedded_dependency_routes()
+        .await
+        .map_err(|error| format!("failed to assemble embedded dependency routers: {error}"))?;
 
     let web_config = WebGatewayConfig::from_env();
     let registry = build_gateway_registry()?;

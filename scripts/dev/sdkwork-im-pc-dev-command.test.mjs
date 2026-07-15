@@ -156,6 +156,11 @@ assert.ok(
   unifiedWebSource.includes('resolveImProductSiteDirEnv'),
   'root pnpm dev:server must create local dev site fallbacks when admin or portal sources are absent',
 );
+assert.match(
+  unifiedWebSource,
+  /import \{ resolveImProductSiteDirEnv \} from '\.\/lib\/im-product-site-dirs\.mjs';/u,
+  'root pnpm dev:server must import product site directory resolution from its owning module',
+);
 assert.ok(
   unifiedWebSource.includes('createManagedSdkworkApiGatewayProcess')
     && unifiedWebSource.includes('SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL')
@@ -930,9 +935,9 @@ for (const requiredName of [
   'SDKWORK_IM_DATABASE_ENGINE=postgresql',
   'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
   'SDKWORK_IM_DATABASE_PORT=5432',
-  'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
-  'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
-  'SDKWORK_CLAW_DATABASE_PASSWORD=sdkworkdev123',
+  'SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev',
+  'SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_dev',
+  'SDKWORK_IM_DATABASE_PASSWORD=sdkworkdev123',
   'SDKWORK_IM_DATABASE_SSL_MODE=disable',
   'SDKWORK_IM_DATABASE_MAX_CONNECTIONS=10',
 ]) {

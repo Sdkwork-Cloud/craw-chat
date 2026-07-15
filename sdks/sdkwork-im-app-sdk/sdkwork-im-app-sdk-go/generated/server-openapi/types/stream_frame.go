@@ -7,7 +7,7 @@ type StreamFrame struct {
 	StreamType string `json:"streamType"`
 	ScopeKind string `json:"scopeKind"`
 	ScopeId string `json:"scopeId"`
-	FrameSeq int `json:"frameSeq"`
+	FrameSeq string `json:"frameSeq"`
 	FrameType string `json:"frameType"`
 	SchemaRef string `json:"schemaRef"`
 	Encoding string `json:"encoding"`

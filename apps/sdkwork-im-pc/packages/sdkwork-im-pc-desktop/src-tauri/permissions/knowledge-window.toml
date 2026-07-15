@@ -1,6 +1,0 @@
-"$schema" = "schemas/schema.json"
-
-[[permission]]
-identifier = "allow-sdkwork-im-pc-knowledge-window"
-description = "Allows Sdkwork IM PC to open host-managed knowledge base windows from group chat and capability surfaces."
-commands.allow = ["sdkwork_chat_pc_open_knowledge_window"]

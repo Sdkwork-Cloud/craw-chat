@@ -5,7 +5,7 @@
   "tier": "Capacity Tier",
   "profile": "capacity-dedicated",
   "artifact": "step-11-tier-evidence-index",
-  "state": "evidence_collected_gate_passed",
+  "state": "evidence_collected_gate_blocked",
   "gateTemplate": "tools/perf/step-11-capacity-tier-gate.json",
   "operatorDocPath": "docs/部署/性能与灾备演练场景.md",
   "scenarioCatalogPath": "tools/perf/step-11-scenario-catalog.json",
@@ -216,5 +216,5 @@
     "docs/架构/09AR-pre-release-capacity-tier-gates-implementation-plan-2026-04-09.md",
     "docs/架构/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md"
   ],
-  "boundary": "This index now carries all seven truthful local Capacity Tier artifacts after doc-captured backfill from published CI Smoke Tier / self-hosted.split-services.development evidence. Capacity Tier is evidence_collected_gate_passed for commercial readiness, while dedicated capacity-dedicated topology runs still gate full density conclusions."
+  "boundary": "All seven artifact slots are populated only by doc-captured backfill from published CI Smoke Tier / self-hosted.split-services.development evidence. Capacity Tier remains evidence_collected_gate_blocked until a dedicated capacity-dedicated topology run produces direct evidence."
 }

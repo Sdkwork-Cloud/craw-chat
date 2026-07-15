@@ -590,9 +590,21 @@ mod tests {
 
     #[test]
     fn build_optional_returns_none_for_empty_url() {
-        assert!(build_postgres_rtc_state_store_optional(None).unwrap().is_none());
-        assert!(build_postgres_rtc_state_store_optional(Some("")).unwrap().is_none());
-        assert!(build_postgres_rtc_state_store_optional(Some("   ")).unwrap().is_none());
+        assert!(
+            build_postgres_rtc_state_store_optional(None)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            build_postgres_rtc_state_store_optional(Some(""))
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            build_postgres_rtc_state_store_optional(Some("   "))
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]

@@ -5,6 +5,8 @@
   "language": "kotlin",
   "sdkType": "app",
   "packageName": "com.sdkwork:im-app-api-generated",
+  "transportPackageName": "com.sdkwork:im-app-api-generated",
+  "consumerPackageName": "com.sdkwork:im-app-api-generated",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

@@ -8,7 +8,13 @@ engines:
   - postgres
 table_prefix: im_
 tables:
-  - name: im_commit_journal
+  - name: im_conversation_messages
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_conversation_seq_counters
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_message_media_refs
     lifecycle_status: active
     owner: im-platform
   - name: im_outbox_events
@@ -17,13 +23,10 @@ tables:
   - name: im_inbox_events
     lifecycle_status: active
     owner: im-platform
+  - name: im_commit_journal
+    lifecycle_status: active
+    owner: im-platform
   - name: im_idempotency_keys
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_conversation_messages
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_message_media_refs
     lifecycle_status: active
     owner: im-platform
   - name: im_realtime_device_events
@@ -93,9 +96,6 @@ tables:
     lifecycle_status: active
     owner: im-platform
   - name: im_stream_frames
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_conversation_seq_counters
     lifecycle_status: active
     owner: im-platform
   - name: im_friend_requests
@@ -183,5 +183,11 @@ tables:
     lifecycle_status: active
     owner: im-platform
   - name: im_rtc_participant_credentials
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_conversation_knowledge_space_link
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_group_knowledge_launch_tickets
     lifecycle_status: active
     owner: im-platform

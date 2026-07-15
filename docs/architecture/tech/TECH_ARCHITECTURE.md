@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-07
+Updated: 2026-07-14
 Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md, SECURITY_SPEC.md, OPERATIONS_SPEC.md
 
 ## 1. System Overview
@@ -82,6 +82,7 @@ Manages WebSocket lifecycle, presence, and cluster routing:
 - **Route Epoch Change Grace**: 250ms grace window gives clients time to handle route migrations without missing state changes.
 - **Graceful Drain**: SIGINT/SIGTERM first flips shared readiness to not-ready and marks the route node draining. HTTP shutdown is triggered, link listeners and maintenance jobs stop, every owned route is fenced before conditional release, and the Redis subscriber is cancelled. `SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT_SECS` is one total deadline (default 45 seconds, valid 5-300); Kubernetes grants 75 seconds before forced termination.
 - **Maintenance Interval**: `spawn_realtime_maintenance_jobs` runs every 60 seconds (`REALTIME_MAINTENANCE_INTERVAL_SECS`) to reclaim stale route-epoch notifiers, in-memory disconnect-fence cache entries, and expired online presence devices, preventing unbounded growth from long-offline devices.
+- **Rate-limit cardinality**: WebSocket upgrade and authenticated-frame local token buckets are capped by `SDKWORK_IM_SESSION_GATEWAY_WS_RATE_MAX_BUCKETS` (default 50,000, hard maximum 500,000). New keys fail closed at capacity; successful Redis-backed checks bypass the local bucket map.
 
 ### 2.3 Comms Conversation Service
 
@@ -91,6 +92,57 @@ Event-sourced conversation engine:
 - **Message History Read Path**: `sdkwork-comms-conversation-service` owns `GET /im/v3/api/chat/conversations/{conversationId}/messages` and reads durable message windows from `PostgresMessageStore` / `im_conversation_messages` with `(tenant_id, organization_id, conversation_id, message_seq)` scoping.
 - **Projection Read Path**: `projection-service` serves inbox, conversation summaries, read cursors, message search, pins, visibility, and interaction summaries from maintained projection stores; it does not own the public conversation message-history route.
 - **Recovery**: On startup, replays journal from last checkpoint to rebuild in-memory state. Checkpoint store is Redis-backed in HA.
+
+### 2.3a Managed Group Knowledgebase
+
+Conversation groups can lazily provision one managed SDKWork Knowledgebase space. The scope key is
+`(tenant_id, organization_id, conversation_id)`; the Conversation aggregate remains authoritative
+for current group membership and roles, while Knowledgebase owns the managed group-space binding,
+documents, and content lifecycle. IM records an integration projection only for provisioning,
+remote-reference, retry, and UI state, without cross-database foreign keys.
+
+The group Header and group-information management entry use the generated IM SDK facade and an
+authoritative `getCurrentMember` read rather than a cached member-list inference. Ordinary group
+creation is lazy: omitted or `false` `initializeKnowledgebase` does not validate Knowledgebase
+scope, reserve a binding, or invoke Knowledgebase. The initial Owner may explicitly opt in from the
+create dialog; IM first durably creates the group, then reports the one provisioning attempt as
+`active`, `provisioning`, or `failed` without rolling back the group. Only the current group Owner
+can initialize the binding or retry failed provisioning. After the binding is active, joined
+non-Guest Owners, Admins, and Members may request a launch ticket, while Guests, former members,
+and non-members are denied. The Header supplies the launch affordance for group conversations and
+group information exposes a Knowledgebase status/action row to every member; Owners receive the
+initialize, retry, and management actions while non-owners receive open or contact-owner guidance.
+If the current-member or lifecycle read
+fails, the client is fail-closed: it may re-read status but does not launch, reserve a popup, or
+initialize a binding.
+
+Every group member sees the Header Knowledgebase icon, including before the group Knowledgebase is
+created. A non-owner click while lifecycle state is `absent`, `failed`, or `provisioning` shows the
+contact-owner guidance and never attempts initialization. An Owner click in `absent` or `failed`
+uses the idempotent launch command to initialize immediately; an `active` state requests a launch
+ticket and opens the standalone Knowledgebase surface directly.
+
+IM invokes the typed generated Knowledgebase RPC SDK, never raw HTTP, manual credentials, or a
+local SDK fork. The RPC client requires complete mTLS settings and exactly one signed
+caller-context key source; a partial configuration fails closed. The Knowledgebase host accepts
+only framework-verified mTLS and signed IM caller context, and runs database, Drive-storage, and
+runtime readiness preflight before accepting lifecycle work.
+
+The server stores only an opaque, one-time, short-lived ticket hash. On consumption it rechecks the
+session actor, tenant and organization scope, active membership, membership epoch, link generation,
+and immutable Knowledgebase target quartet: knowledge-space id/UUID plus binding id/UUID. IM's
+version-aware outbox/inbox membership projection synchronizes ACL changes; leave, removal, role
+reduction, and dissolution revoke or archive access without cross-database foreign keys.
+
+The browser reserves a standalone Knowledgebase tab synchronously and navigates it only after a
+ticket is issued, with the ticket in the URL fragment rather than a query string, storage, or log.
+The IM desktop host can invoke only the registered
+`sdkwork-knowledgebase://group-launch/<opaque-ticket>` deep-link protocol; it does not create a
+Knowledgebase Webview inside the IM process. The standalone Knowledgebase Tauri application
+consumes the ticket after normal session authentication, resolves the exact active group space,
+removes the ticket from history, and focuses or creates its independent full-window desktop
+surface. See
+[ADR-20260713-group-knowledgebase-binding-and-launch.md](../decisions/ADR-20260713-group-knowledgebase-binding-and-launch.md).
 
 ### 2.4 Social Service
 
@@ -326,15 +378,33 @@ Conversation preferences and message favorites are hot-path in-memory projection
 
 Static topology configuration in `configs/topology/` maps upstream service URLs. In Phase 2, this will be replaced by `sdkwork-discovery` service discovery.
 
+#### Managed Group Knowledgebase Preconditions
+
+The IM repository configures only its outbound lifecycle RPC client. Staging and production need a
+separately deployed sibling Knowledgebase RPC host with a reachable endpoint, issued mTLS CA/client
+material and TLS domain, signed caller-context key, durable database, and persistent Drive storage
+that has passed host preflight. The nine IM client configuration variables are all-or-nothing,
+except that direct and file-based caller-context signing keys are mutually exclusive; partial
+configuration is rejected. This repository does not manufacture a Knowledgebase image, Service,
+DNS name, certificate, Secret, NetworkPolicy, or persistent-volume claim. Those deployment inputs
+must be supplied by the owning environment before activation.
+
 ### 6.3 Database
 
 - **PostgreSQL**: Production, staging, and default development IM persistence authority (schema in `database/ddl/baseline/postgres/`)
-- **Server SQLite baseline**: Lifecycle parity and standalone gateway/sibling-module co-location checks only (schema in `database/ddl/baseline/sqlite/`); IM journal, projections, social materializer, and message search do not use SQLite as production persistence
+- **Server SQLite compatibility baseline**: Lifecycle validation and standalone gateway/sibling-module co-location checks only (schema in `database/ddl/baseline/sqlite/`); it is not PostgreSQL parity, and IM journal, projections, social materializer, and message search do not use SQLite as production persistence
 - **PC desktop SQLite**: A separate application-data database owned by the Tauri host is a bounded offline cache and pending-send queue, never a server source of truth. Schema v3 scopes every row by tenant, organization, principal kind, and principal id. Conversation, message, and cursor cache rows have TTL, row-count, and logical-byte budgets; pending sends have separate row/byte limits, a 60-second claim lease, claim-token fenced acknowledge/release/quarantine transitions, and a bounded 30-day corrupt-payload quarantine.
 - Desktop SQLite work runs on the Tauri blocking pool behind one serialized connection with WAL, `synchronous=NORMAL`, foreign keys, a bounded busy timeout, and WAL autocheckpointing. Logout/account switch purges cache rows after awaiting completion while preserving unsent rows; an opaque server history cursor is never persisted or parsed as sequence arithmetic by the PC UI.
+- PC startup synchronization is deliberately bounded to the offline message window. There is no
+  global group-member enumeration API; selected-group member hydration uses generated SDK cursor
+  pagination and the existing bounded member lookup limits. This keeps startup latency and memory
+  usage independent of tenant group count.
+- The current PC production build succeeds but reports static/dynamic import overlap and several
+  1MB+ chunks. Chunk-boundary and dependency-loading optimization remains a pre-GA performance
+  task; build success is not capacity evidence.
 - Both DDL files are consolidated baselines with `organization_id` dual isolation from Migration 010+
 - SQLite DDL uses SQLite-compatible syntax: `TEXT` for JSONB/TIMESTAMPTZ, `json_valid()` CHECK constraints, no `DO $$`/`pg_constraint`/`USING GIN`
-- Migrations in `database/migrations/postgres/` (0001–0005)
+- Pre-GA migrations in `database/migrations/{postgres,sqlite}/` currently cover conversation-id rewriting and managed group Knowledgebase binding; baseline DDL remains the greenfield authority
 - All migrations are idempotent and safe to re-execute
 
 ## 7. Observability
@@ -381,6 +451,7 @@ Static topology configuration in `configs/topology/` maps upstream service URLs.
 | `SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET_FILE` | _(empty)_ | Path to file containing JWT signing secret |
 | `SDKWORK_IM_WEBSOCKET_HEARTBEAT_INTERVAL_SECS` | `30` | WebSocket heartbeat interval |
 | `SDKWORK_IM_WEBSOCKET_IDLE_TIMEOUT_SECS` | `90` | WebSocket idle timeout before disconnect |
+| `SDKWORK_IM_SESSION_GATEWAY_WS_RATE_MAX_BUCKETS` | `50000` | Hard cap for local WebSocket upgrade/frame limiter keys; values above `500000` are clamped |
 | `SDKWORK_IM_GATEWAY_POOL_MAX_IDLE_PER_HOST` | `50` | HTTP connection pool max idle per host |
 | `SDKWORK_IM_GATEWAY_POOL_IDLE_TIMEOUT_SECS` | `90` | HTTP connection pool idle timeout |
 
@@ -414,7 +485,7 @@ The `im-domain-core` crate provides foundational domain logic with full test cov
 |--------|---------|-----------|
 | `security` | Tenant isolation, permission validation, signal replay protection | `TenantIsolationValidator`, `SecurityContext`, `SignalReplayProtector` |
 | `audit` | Security event logging | `AuditEvent`, `AuditEventBuilder` |
-| `rate_limiter` | Token bucket rate limiting with tenant isolation | `DomainRateLimiter`, `TokenBucket`, `RateLimitError` |
+| `rate_limiter` | Token bucket rate limiting with tenant isolation, idle expiry, and hard key-cardinality limits | `DomainRateLimiter`, `TokenBucket`, `RateLimitError` |
 | `idempotency` | Exactly-once processing semantics | `IdempotencyGuard`, `IdempotencyKey`, `IdempotencyState` |
 
 ### 11.2 Observability & Operations
@@ -492,7 +563,8 @@ test result: ok. 73 passed; 0 failed; 0 ignored
 
 | Migration | Purpose | Status |
 |-----------|---------|--------|
-| 0001-0005 | Baseline schema (DDL in `database/ddl/baseline/postgres/0001_im_baseline.sql`) | Applied |
+| Baseline 0001 | Greenfield PostgreSQL authority in `database/ddl/baseline/postgres/0001_im_baseline.sql` | Active |
+| Migrations 0002-0003 | Conversation-id rewrite and managed group Knowledgebase binding for PostgreSQL/SQLite compatibility assets | Pre-GA validation |
 
 Index optimization is performed inline during baseline schema creation. Run `pnpm db:postgres:plan` and `pnpm db:postgres:migrate` to apply pending migrations from `database/` lifecycle.
 

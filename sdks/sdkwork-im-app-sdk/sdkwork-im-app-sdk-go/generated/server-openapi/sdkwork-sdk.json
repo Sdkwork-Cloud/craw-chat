@@ -5,6 +5,8 @@
   "language": "go",
   "sdkType": "app",
   "packageName": "github.com/sdkwork/im-app-api-generated",
+  "transportPackageName": "github.com/sdkwork/im-app-api-generated",
+  "consumerPackageName": "github.com/sdkwork/im-app-api-generated",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

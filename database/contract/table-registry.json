@@ -3,7 +3,19 @@
   "kind": "sdkwork.database.table-registry",
   "tables": [
     {
-      "table_name": "im_commit_journal",
+      "table_name": "im_conversation_messages",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_conversation_seq_counters",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_message_media_refs",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"
@@ -21,19 +33,13 @@
       "lifecycle_status": "active"
     },
     {
+      "table_name": "im_commit_journal",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
       "table_name": "im_idempotency_keys",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active"
-    },
-    {
-      "table_name": "im_conversation_messages",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active"
-    },
-    {
-      "table_name": "im_message_media_refs",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"
@@ -172,12 +178,6 @@
     },
     {
       "table_name": "im_stream_frames",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active"
-    },
-    {
-      "table_name": "im_conversation_seq_counters",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"
@@ -352,6 +352,18 @@
     },
     {
       "table_name": "im_rtc_participant_credentials",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_conversation_knowledge_space_link",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_group_knowledge_launch_tickets",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"

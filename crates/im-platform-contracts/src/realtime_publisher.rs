@@ -89,4 +89,36 @@ pub trait RealtimeEventPublisher: Send + Sync {
         let _ = command;
         Ok(0)
     }
+
+    /// Publish one durable inbox event on each recipient's own user scope.
+    ///
+    /// Conversation lists subscribe to `user/<principal_id>` instead of every
+    /// conversation scope. The default implementation preserves compatibility
+    /// for publishers by delegating one recipient at a time to the existing
+    /// durable scope method.
+    fn publish_durable_user_scope_event_to_recipients(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        event_type: &str,
+        payload: String,
+        recipients: Vec<RealtimeEventRecipient>,
+    ) -> Result<usize, ContractError> {
+        let mut delivered = 0usize;
+        for recipient in recipients {
+            let scope_id = recipient.principal_id.clone();
+            delivered = delivered.saturating_add(self.publish_durable_scope_event_to_recipients(
+                RealtimeScopeEventPublishCommand {
+                    tenant_id,
+                    organization_id,
+                    scope_type: "user",
+                    scope_id: scope_id.as_str(),
+                    event_type,
+                    payload: payload.clone(),
+                    recipients: vec![recipient],
+                },
+            )?);
+        }
+        Ok(delivered)
+    }
 }

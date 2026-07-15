@@ -54,6 +54,56 @@ fn response_item(value: &serde_json::Value) -> &serde_json::Value {
         .expect("response should use standard data.item envelope")
 }
 
+fn assert_applied_create_conversation_response_shape(
+    response: &serde_json::Value,
+    expects_knowledgebase_initialization: bool,
+) {
+    let item = response_item(response);
+    let mut field_names: Vec<String> = item
+        .as_object()
+        .expect("create response item should be an object")
+        .keys()
+        .cloned()
+        .collect();
+    field_names.sort_unstable();
+    let expected_field_names = if expects_knowledgebase_initialization {
+        vec![
+            "conversationId",
+            "deliveryStatus",
+            "eventId",
+            "knowledgebaseInitialization",
+            "proofVersion",
+            "requestKey",
+        ]
+    } else {
+        vec![
+            "conversationId",
+            "deliveryStatus",
+            "eventId",
+            "proofVersion",
+            "requestKey",
+        ]
+    };
+    assert_eq!(
+        field_names,
+        expected_field_names
+            .into_iter()
+            .map(str::to_owned)
+            .collect::<Vec<_>>(),
+        "create response item must match the published SDK contract"
+    );
+    assert!(item["conversationId"].is_string());
+    assert!(item["eventId"].is_string());
+    assert!(item["requestKey"].is_string());
+    assert_eq!(item["deliveryStatus"], "applied");
+    assert!(item["proofVersion"].is_string());
+    if expects_knowledgebase_initialization {
+        assert!(item["knowledgebaseInitialization"].is_string());
+    } else {
+        assert!(item.get("knowledgebaseInitialization").is_none());
+    }
+}
+
 async fn create_test_group_conversation(
     app: axum::Router,
     tenant_id: &str,
@@ -284,7 +334,7 @@ async fn test_create_conversation_and_post_message_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(&format!(
+                .uri(format!(
                     "/im/v3/api/chat/conversations/{}/messages",
                     conversation_id
                 ))
@@ -390,7 +440,7 @@ async fn test_post_media_message_rejects_missing_drive_reference_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(&format!(
+                .uri(format!(
                     "/im/v3/api/chat/conversations/{}/messages",
                     conversation_id
                 ))
@@ -455,7 +505,7 @@ async fn test_post_media_message_rejects_noncanonical_drive_reference_over_http(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(&format!(
+                .uri(format!(
                     "/im/v3/api/chat/conversations/{}/messages",
                     conversation_id
                 ))
@@ -525,7 +575,7 @@ async fn test_post_media_message_rejects_external_url_source_with_drive_referenc
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(&format!(
+                .uri(format!(
                     "/im/v3/api/chat/conversations/{}/messages",
                     conversation_id
                 ))
@@ -686,6 +736,177 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
     let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
         .expect("conflicting create should be valid json");
     assert_eq!(conflicting_retry_json["code"], 40901);
+}
+
+#[tokio::test]
+async fn test_group_creation_keeps_knowledgebase_lazy_unless_explicitly_requested() {
+    let app = build_default_test_app();
+
+    let lazy_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_organization("0")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"conversationType":"group","groupName":"lazy group","clientRequestKey":"c_lazy_group_no_knowledgebase"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("lazy group creation should return a response");
+    assert_eq!(lazy_create.status(), StatusCode::CREATED);
+    let lazy_body = lazy_create
+        .into_body()
+        .collect()
+        .await
+        .expect("lazy group response body should collect")
+        .to_bytes();
+    let lazy_json: serde_json::Value =
+        serde_json::from_slice(&lazy_body).expect("lazy group response should be valid json");
+    assert_applied_create_conversation_response_shape(&lazy_json, false);
+
+    let explicit_lazy_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_organization("0")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"conversationType":"group","groupName":"explicit lazy group","clientRequestKey":"c_lazy_group_explicit_false","initializeKnowledgebase":false}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("explicit lazy group creation should return a response");
+    assert_eq!(explicit_lazy_create.status(), StatusCode::CREATED);
+    let explicit_lazy_body = explicit_lazy_create
+        .into_body()
+        .collect()
+        .await
+        .expect("explicit lazy group response body should collect")
+        .to_bytes();
+    let explicit_lazy_json: serde_json::Value = serde_json::from_slice(&explicit_lazy_body)
+        .expect("explicit lazy group response should be valid json");
+    assert_applied_create_conversation_response_shape(&explicit_lazy_json, false);
+
+    let tenant_wide_initialization = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_organization("0")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"conversationType":"group","groupName":"tenant group","clientRequestKey":"c_tenant_group_knowledgebase","initializeKnowledgebase":true}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("explicit tenant-wide initialization should return a response");
+    assert_eq!(tenant_wide_initialization.status(), StatusCode::FORBIDDEN);
+
+    let non_group_initialization = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_organization("200001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"conversationId":"c_direct_knowledgebase_rejected","conversationType":"direct","initializeKnowledgebase":true}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("non-group initialization should return a response");
+    assert_eq!(non_group_initialization.status(), StatusCode::BAD_REQUEST);
+
+    let explicit_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_organization("200001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"conversationType":"group","groupName":"explicit group","clientRequestKey":"c_explicit_group_knowledgebase","initializeKnowledgebase":true}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("explicit group initialization should return a response");
+    assert_eq!(explicit_create.status(), StatusCode::CREATED);
+    let explicit_body = explicit_create
+        .into_body()
+        .collect()
+        .await
+        .expect("explicit group response body should collect")
+        .to_bytes();
+    let explicit_json: serde_json::Value = serde_json::from_slice(&explicit_body)
+        .expect("explicit group response should be valid json");
+    assert_applied_create_conversation_response_shape(&explicit_json, true);
+
+    let first_idempotent_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_organization("200001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"conversationType":"group","groupName":"idempotent group","clientRequestKey":"c_group_knowledgebase_intent"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("first idempotent group create should return a response");
+    assert_eq!(first_idempotent_create.status(), StatusCode::CREATED);
+
+    let conflicting_intent_retry = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_organization("200001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"conversationType":"group","groupName":"idempotent group","clientRequestKey":"c_group_knowledgebase_intent","initializeKnowledgebase":true}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("conflicting initialization intent should return a response");
+    assert_eq!(conflicting_intent_retry.status(), StatusCode::CONFLICT);
 }
 
 #[tokio::test]
@@ -1001,7 +1222,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(&format!(
+                .uri(format!(
                     "/im/v3/api/chat/conversations/{}/messages",
                     conversation_id
                 ))
@@ -1041,7 +1262,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(&format!(
+                .uri(format!(
                     "/im/v3/api/chat/conversations/{}/messages",
                     conversation_id
                 ))
@@ -1089,7 +1310,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .clone()
         .oneshot(
             Request::builder()
-                .uri(&format!(
+                .uri(format!(
                     "/im/v3/api/chat/conversations/{}/messages",
                     conversation_id
                 ))
@@ -1117,7 +1338,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(&format!(
+                .uri(format!(
                     "/im/v3/api/chat/conversations/{}/messages",
                     conversation_id
                 ))
@@ -1161,7 +1382,7 @@ async fn test_post_message_http_and_message_history_get_are_served() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(&format!(
+                .uri(format!(
                     "/im/v3/api/chat/conversations/{}/messages",
                     conversation_id
                 ))
@@ -1194,7 +1415,7 @@ async fn test_post_message_http_and_message_history_get_are_served() {
     let message_history_response = app
         .oneshot(
             Request::builder()
-                .uri(&format!(
+                .uri(format!(
                     "/im/v3/api/chat/conversations/{}/messages?page_size=1",
                     conversation_id
                 ))

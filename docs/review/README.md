@@ -16,7 +16,7 @@
 - [continuous-optimization-pre-release-capacity-tier-gates-2026-04-09](./continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md)
   - 对应 `Step 11`
   - 覆盖 `Pre-Release Tier` / `Capacity Tier` 模板门禁的公开索引与回写收口
-  - 当前状态：`evidence_collected_gate_passed`（Capacity Tier）与 `evidence_collected_gate_blocked`（Pre-Release Tier）；权威索引见 `artifacts/perf/step-11/capacity/capacity-tier-evidence-index.json` 与 `artifacts/perf/step-11/pre-release/pre-release-tier-evidence-index.json`
+  - 当前状态：Capacity Tier 与 Pre-Release Tier 均为 `evidence_collected_gate_blocked`；权威索引见 `artifacts/perf/step-11/capacity/capacity-tier-evidence-index.json` 与 `artifacts/perf/step-11/pre-release/pre-release-tier-evidence-index.json`
 - [continuous-optimization-chat-cli-token-only-contract-2026-04-09](./continuous-optimization-chat-cli-token-only-contract-2026-04-09.md)
   - 对应 `Step 12`
   - 收敛 `sdkwork-im-cli token --token-only` 的裸 token 边界与 `generatedBearerToken / providedBearerToken` 来源语义
@@ -103,7 +103,7 @@
   - 对应 schema：`tools/perf/schemas/step-11-scenario-catalog.schema.json`、`tools/perf/schemas/step-11-tier-gate.schema.json`
   - 同时冻结 `collectionSummary`、`evidenceSlots`、`pending_collection`、`checksumSha256` 等 evidence-slot 契约字段，当前仍待真实采集
   - `collectionSummary` 公开 `totalSlots`、`requiredSlots`、`optionalSlots`、`collectedSlots`、`pendingSlots`、`skippedOptionalSlots` 六个统计字段
-  - Capacity Tier 当前索引状态：`evidence_collected_gate_passed`（7/7 collected，见 `artifacts/perf/step-11/capacity/capacity-tier-evidence-index.json`）
+  - Capacity Tier 当前索引状态：`evidence_collected_gate_blocked`（7/7 slots 仅为 doc-captured backfill，见权威索引）
   - Pre-Release Tier 当前索引状态：`evidence_collected_gate_blocked`（7/7 collected，见 `artifacts/perf/step-11/pre-release/pre-release-tier-evidence-index.json`）
   - evidence slot 元数据还包含 `artifactPath`、`suggestedRelativePath`、`collectedAt`、`sizeBytes` 等回填字段
   - evidence slot 语义字段还包含 `scenarioFamily`、`required`、`reportId`，用于区分场景槽位与报告槽位
@@ -119,7 +119,7 @@
   - Pre-Release Tier collected slot examples now include `message_metrics` and `stream_metrics`
   - Pre-Release Tier collected path examples now include `message/metrics.json` and `stream/metrics.json`
   - Pre-Release Tier current state is now `evidence_collected_gate_blocked`
-  - Capacity Tier current state is now `evidence_collected_gate_passed`
+  - Capacity Tier current state is `evidence_collected_gate_blocked`
   - Both Step 11 tier artifact roots now carry truthful local evidence; dedicated topology runs still gate full commercial sign-off.
   - evidence slot 还公开 `artifactKind`，代表值包括 `metrics_json`、`drill_json`、`capacity_json`、`recovery_json`、`report_markdown`
   - 机器契约还冻结 `requiredFields` / `requiredSections`，示例值包括 `runId`、`connectP95Ms`、`input_scale`、`operator_follow_up`

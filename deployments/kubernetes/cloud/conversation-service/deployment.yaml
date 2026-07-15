@@ -54,6 +54,10 @@ spec:
               value: sdkwork-im-conversation-service
             - name: TMPDIR
               value: /tmp
+            - name: SDKWORK_IM_MESSAGE_HISTORY_CURSOR_HS256_SECRET_FILE
+              value: /var/run/secrets/sdkwork/conversation-service/SDKWORK_IM_MESSAGE_HISTORY_CURSOR_HS256_SECRET
+            - name: SDKWORK_IM_GROUP_KNOWLEDGEBASE_LAUNCH_TICKET_SECRET_FILE
+              value: /var/run/secrets/sdkwork/conversation-service/SDKWORK_IM_GROUP_KNOWLEDGEBASE_LAUNCH_TICKET_SECRET
           readinessProbe:
             httpGet:
               path: /readyz
@@ -80,9 +84,17 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: conversation-service-secrets
+              mountPath: /var/run/secrets/sdkwork/conversation-service
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: {}
+        - name: conversation-service-secrets
+          secret:
+            secretName: conversation-service-secrets
+            optional: false
+            defaultMode: 0440
 ---
 apiVersion: v1
 kind: Service

@@ -158,7 +158,7 @@ fn non_empty_env(name: &str) -> Option<String> {
 }
 
 fn validate_message_history_cursor_secret(secret: &str, source: &str) -> Result<String, String> {
-    if secret.as_bytes().len() < MESSAGE_HISTORY_CURSOR_MIN_SECRET_BYTES {
+    if secret.len() < MESSAGE_HISTORY_CURSOR_MIN_SECRET_BYTES {
         return Err(format!(
             "{source} must contain at least {MESSAGE_HISTORY_CURSOR_MIN_SECRET_BYTES} bytes"
         ));

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::im_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsListResponse, ConversationMessageListResponse, ConversationsAgentDialogsCreateResponse201, ConversationsAgentHandoffAcceptResponse, ConversationsAgentHandoffCloseResponse, ConversationsAgentHandoffResolveResponse, ConversationsAgentHandoffRetrieveResponse, ConversationsAgentHandoffsCreateResponse201, ConversationsCreateResponse201, ConversationsDirectChatsBindingsCreateResponse201, ConversationsMemberDirectoryListResponse, ConversationsMembersAcceptInvitationResponse, ConversationsMembersAddResponse, ConversationsMembersChangeRoleResponse, ConversationsMembersLeaveResponse, ConversationsMembersListResponse, ConversationsMembersRemoveResponse, ConversationsMembersTransferOwnerResponse, ConversationsMessagesCreateResponse201, ConversationsMessagesInteractionSummaryRetrieveResponse, ConversationsPinsListResponse, ConversationsPreferencesRetrieveResponse, ConversationsPreferencesUpdateResponse, ConversationsProfileRetrieveResponse, ConversationsProfileUpdateResponse, ConversationsReadCursorRetrieveResponse, ConversationsReadCursorUpdateResponse, ConversationsRetrieveResponse, ConversationsSystemChannelPublishResponse, ConversationsSystemChannelsCreateResponse201, ConversationsThreadsCreateResponse201, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, FavoriteMessageRequest, InboxListResponse, MessageReactionRequest, MessagesEditResponse, MessagesFavoritesCreateResponse201, MessagesFavoritesListResponse, MessagesPinResponse, MessagesReactionsCreateResponse201, MessagesReactionsRemoveResponse, MessagesRecallResponse, MessagesUnpinResponse, PostMessageRequest, RecallMessageRequest, RemoveConversationMemberRequest, RoomsCreateResponse201, RoomsEnterResponse, RoomsLeaveResponse, RoomsRetrieveResponse, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest};
+use crate::models::{AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsListResponse, ConversationMessageListResponse, ConversationsAgentDialogsCreateResponse201, ConversationsAgentHandoffAcceptResponse, ConversationsAgentHandoffCloseResponse, ConversationsAgentHandoffResolveResponse, ConversationsAgentHandoffRetrieveResponse, ConversationsAgentHandoffsCreateResponse201, ConversationsAgentsRetrieveResponse, ConversationsAgentsUpdateResponse, ConversationsCreateResponse201, ConversationsDirectChatsBindingsCreateResponse201, ConversationsMemberDirectoryListResponse, ConversationsMembersAcceptInvitationResponse, ConversationsMembersAddResponse, ConversationsMembersChangeRoleResponse, ConversationsMembersCurrentRetrieveResponse, ConversationsMembersLeaveResponse, ConversationsMembersListResponse, ConversationsMembersRemoveResponse, ConversationsMembersTransferOwnerResponse, ConversationsMessagesCreateResponse201, ConversationsMessagesInteractionSummaryRetrieveResponse, ConversationsPinsListResponse, ConversationsPreferencesRetrieveResponse, ConversationsPreferencesUpdateResponse, ConversationsProfileRetrieveResponse, ConversationsProfileUpdateResponse, ConversationsReadCursorRetrieveResponse, ConversationsReadCursorUpdateResponse, ConversationsRetrieveResponse, ConversationsSystemChannelPublishResponse, ConversationsSystemChannelsCreateResponse201, ConversationsThreadsCreateResponse201, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, FavoriteMessageRequest, InboxListResponse, MessageReactionRequest, MessagesEditResponse, MessagesFavoritesCreateResponse201, MessagesFavoritesListResponse, MessagesPinResponse, MessagesReactionsCreateResponse201, MessagesReactionsRemoveResponse, MessagesRecallResponse, MessagesUnpinResponse, PostMessageRequest, RecallMessageRequest, RemoveConversationMemberRequest, RoomsCreateResponse201, RoomsEnterResponse, RoomsLeaveResponse, RoomsRetrieveResponse, TransferConversationOwnerRequest, UpdateConversationAgentsRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest};
 
 #[derive(Clone)]
 pub struct ChatApi {
@@ -26,10 +26,11 @@ impl ChatApi {
     }
 
     /// List current inbox window
-    pub async fn inbox_list(&self, page_size: Option<i64>, cursor: Option<&str>) -> Result<InboxListResponse, SdkworkError> {
+    pub async fn inbox_list(&self, page_size: Option<i64>, cursor: Option<&str>, conversation_type: Option<&str>) -> Result<InboxListResponse, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("conversation_type", conversation_type, "form", true, false, None),
         ]);
         let path = append_query_string(im_path(&"/chat/inbox".to_string()), &query);
         self.client.get(&path, None, None).await
@@ -111,6 +112,24 @@ impl ChatApi {
         self.client.get(&path, None, None).await
     }
 
+    /// Retrieve the current conversation member
+    pub async fn conversations_members_current_retrieve(&self, conversation_id: &str) -> Result<ConversationsMembersCurrentRetrieveResponse, SdkworkError> {
+        let path = im_path(&format!("/chat/conversations/{}/members/current", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
+        self.client.get(&path, None, None).await
+    }
+
+    /// Retrieve assigned group agents
+    pub async fn conversations_agents_retrieve(&self, conversation_id: &str) -> Result<ConversationsAgentsRetrieveResponse, SdkworkError> {
+        let path = im_path(&format!("/chat/conversations/{}/agents", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
+        self.client.get(&path, None, None).await
+    }
+
+    /// Update assigned group agents
+    pub async fn conversations_agents_update(&self, conversation_id: &str, body: &UpdateConversationAgentsRequest) -> Result<ConversationsAgentsUpdateResponse, SdkworkError> {
+        let path = im_path(&format!("/chat/conversations/{}/agents", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
+        self.client.put(&path, Some(body), None, None, Some("application/json")).await
+    }
+
     /// Add a conversation member
     pub async fn conversations_members_add(&self, conversation_id: &str, body: &AddConversationMemberRequest) -> Result<ConversationsMembersAddResponse, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/members/add", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
@@ -184,15 +203,19 @@ impl ChatApi {
     }
 
     /// List member directory
-    pub async fn conversations_member_directory_list(&self, conversation_id: &str) -> Result<ConversationsMemberDirectoryListResponse, SdkworkError> {
-        let path = im_path(&format!("/chat/conversations/{}/member_directory", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
+    pub async fn conversations_member_directory_list(&self, conversation_id: &str, cursor: Option<&str>, page_size: Option<i64>) -> Result<ConversationsMemberDirectoryListResponse, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+        ]);
+        let path = append_query_string(im_path(&format!("/chat/conversations/{}/member_directory", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false)))), &query);
         self.client.get(&path, None, None).await
     }
 
     /// List conversation message history
-    pub async fn conversations_messages_list(&self, conversation_id: &str, after_seq: Option<i64>, page_size: Option<i64>) -> Result<ConversationMessageListResponse, SdkworkError> {
+    pub async fn conversations_messages_list(&self, conversation_id: &str, cursor: Option<&str>, page_size: Option<i64>) -> Result<ConversationMessageListResponse, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("afterSeq", after_seq, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(im_path(&format!("/chat/conversations/{}/messages", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false)))), &query);
@@ -212,8 +235,12 @@ impl ChatApi {
     }
 
     /// List pinned messages
-    pub async fn conversations_pins_list(&self, conversation_id: &str) -> Result<ConversationsPinsListResponse, SdkworkError> {
-        let path = im_path(&format!("/chat/conversations/{}/pins", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
+    pub async fn conversations_pins_list(&self, conversation_id: &str, cursor: Option<&str>, page_size: Option<i64>) -> Result<ConversationsPinsListResponse, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+        ]);
+        let path = append_query_string(im_path(&format!("/chat/conversations/{}/pins", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false)))), &query);
         self.client.get(&path, None, None).await
     }
 

@@ -5,6 +5,7 @@ use im_domain_core::message::{ContentPart, MessageBody, MessageType, Sender};
 use prost::Message;
 use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::MessageView;
 use sdkwork_im_rpc_sdk_rust::sdkwork::communication::internal::v1::{
+    ConsumeGroupKnowledgebaseLaunchTicketRequest, ConsumeGroupKnowledgebaseLaunchTicketResponse,
     CreateRoomRequest, CreateRoomResponse, DispatchConversationMessageRequest,
     DispatchConversationMessageResponse, EnterRoomRequest, EnterRoomResponse, LeaveRoomRequest,
     LeaveRoomResponse, OrchestratedRoomView, RetrieveRoomRequest, RetrieveRoomResponse,
@@ -12,7 +13,8 @@ use sdkwork_im_rpc_sdk_rust::sdkwork::communication::internal::v1::{
 use sdkwork_im_rpc_service_rust::{
     ImRpcBoxFuture, ImRpcBoxStream, ImRpcError, ImRpcRuntimeDispatcher, ImRpcStreamRequest,
     ImRpcStreamResponse, ImRpcUnaryRequest, ImRpcUnaryResponse, RpcMetadata,
-    admit_internal_unary_request,
+    VerifiedInternalRpcContext, admit_internal_unary_request,
+    requires_verified_delegated_user_context, resolve_verified_delegated_user_context,
 };
 use sdkwork_utils_rust::sha256_hash;
 
@@ -22,6 +24,7 @@ use crate::{CreateRoomCommand, EnterRoomCommand, PostMessageCommand, RoomView, R
 pub const CONVERSATION_INTERNAL_RPC_SERVICE_KEYS: &[&str] = &[
     "sdkwork.communication.internal.v1.RoomOrchestrationService",
     "sdkwork.communication.internal.v1.MessageDispatchService",
+    "sdkwork.communication.internal.v1.GroupKnowledgebaseLaunchTicketService",
 ];
 
 #[derive(Clone)]
@@ -32,6 +35,14 @@ pub struct ConversationInternalRpcDispatcher {
 impl ConversationInternalRpcDispatcher {
     pub async fn bootstrap_from_env() -> Result<Self, String> {
         let state = super::rpc_dispatch::bootstrap_conversation_app_state_from_env()?;
+        state
+            .ensure_group_knowledgebase_outbox_relay_started()
+            .await
+            .map_err(|error| {
+                format!(
+                    "conversation internal RPC group knowledgebase relay readiness failed: {error}"
+                )
+            })?;
         Ok(Self { state })
     }
 
@@ -47,7 +58,9 @@ impl ImRpcRuntimeDispatcher for ConversationInternalRpcDispatcher {
     ) -> ImRpcBoxFuture<Result<ImRpcUnaryResponse, ImRpcError>> {
         let state = self.state.clone();
         Box::pin(async move {
-            admit_internal_unary_request(request.binding, &request.metadata)?;
+            if !requires_verified_delegated_user_context(request.binding) {
+                admit_internal_unary_request(request.binding, &request.metadata)?;
+            }
             match request.binding.operation_id {
                 "internal.rooms.create" => {
                     let payload = CreateRoomRequest::decode(request.request_bytes.as_slice())?;
@@ -70,6 +83,17 @@ impl ImRpcRuntimeDispatcher for ConversationInternalRpcDispatcher {
                         request.request_bytes.as_slice(),
                     )?;
                     dispatch_internal_conversation_message(&state, &request.metadata, payload).await
+                }
+                "internal.groupKnowledgebaseLaunchTickets.consume" => {
+                    let payload = ConsumeGroupKnowledgebaseLaunchTicketRequest::decode(
+                        request.request_bytes.as_slice(),
+                    )?;
+                    dispatch_internal_group_knowledgebase_launch_ticket(
+                        &state,
+                        request.verified_internal_context.as_ref(),
+                        payload,
+                    )
+                    .await
                 }
                 other => Err(ImRpcError::unimplemented(format!(
                     "conversation internal rpc host does not implement unary operation `{other}`"
@@ -341,6 +365,58 @@ async fn dispatch_internal_conversation_message(
     ImRpcUnaryResponse::from_message(response)
 }
 
+async fn dispatch_internal_group_knowledgebase_launch_ticket(
+    state: &AppState,
+    verified_context: Option<&VerifiedInternalRpcContext>,
+    request: ConsumeGroupKnowledgebaseLaunchTicketRequest,
+) -> Result<ImRpcUnaryResponse, ImRpcError> {
+    let verified_context = verified_context.ok_or_else(|| {
+        ImRpcError::unauthenticated(
+            "group knowledgebase launch ticket consumption requires verified mTLS and caller context",
+        )
+    })?;
+    let authoritative = resolve_verified_delegated_user_context(verified_context)?;
+    if authoritative.service_identity != super::knowledgebase::KNOWLEDGEBASE_SERVICE_IDENTITY {
+        return Err(ImRpcError::permission_denied(
+            "only sdkwork-knowledgebase may consume group knowledgebase launch tickets",
+        ));
+    }
+    let ticket = required_field(request.ticket, "ticket")?;
+    let consumed_trace_id = authoritative.trace_id;
+    let app_context = authoritative.app_context;
+    let blocking_state = state.clone();
+    let consumed = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .group_knowledgebase()
+            .consume_launch_ticket_from_trusted_knowledgebase(
+                blocking_state.rpc_runtime(),
+                &app_context,
+                ticket.as_str(),
+                consumed_trace_id.as_str(),
+            )
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "group knowledgebase ticket RPC blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
+    ImRpcUnaryResponse::from_message(ConsumeGroupKnowledgebaseLaunchTicketResponse {
+        conversation_id: consumed.conversation_id,
+        space_id: consumed.space_id,
+        space_uuid: consumed.space_uuid,
+        lifecycle_state: consumed.lifecycle_state.as_str().into(),
+        membership_role: membership_role_label(&consumed.membership_role).into(),
+        membership_epoch: consumed.membership_epoch.to_string(),
+        upstream_link_generation: consumed.upstream_link_generation.to_string(),
+        expires_at: consumed.expires_at,
+        knowledgebase_binding_id: consumed.knowledgebase_binding_id,
+        knowledgebase_binding_uuid: consumed.knowledgebase_binding_uuid,
+        metadata: None,
+    })
+}
+
 fn internal_actor_context(
     tenant_id: &str,
     organization_id: &str,
@@ -439,6 +515,15 @@ fn membership_state_label(state: &im_domain_core::conversation::MembershipState)
     }
 }
 
+fn membership_role_label(role: &im_domain_core::conversation::MembershipRole) -> &'static str {
+    match role {
+        im_domain_core::conversation::MembershipRole::Owner => "owner",
+        im_domain_core::conversation::MembershipRole::Admin => "admin",
+        im_domain_core::conversation::MembershipRole::Member => "member",
+        im_domain_core::conversation::MembershipRole::Guest => "guest",
+    }
+}
+
 fn derive_idempotent_resource_id(
     metadata: &RpcMetadata,
     namespace: &str,
@@ -486,7 +571,7 @@ mod tests {
 
     #[test]
     fn internal_rpc_service_keys_cover_orchestration_and_dispatch() {
-        assert_eq!(CONVERSATION_INTERNAL_RPC_SERVICE_KEYS.len(), 2);
+        assert_eq!(CONVERSATION_INTERNAL_RPC_SERVICE_KEYS.len(), 3);
         assert!(
             CONVERSATION_INTERNAL_RPC_SERVICE_KEYS
                 .iter()
@@ -496,6 +581,11 @@ mod tests {
             CONVERSATION_INTERNAL_RPC_SERVICE_KEYS
                 .iter()
                 .any(|key| key.ends_with("MessageDispatchService"))
+        );
+        assert!(
+            CONVERSATION_INTERNAL_RPC_SERVICE_KEYS
+                .iter()
+                .any(|key| key.ends_with("GroupKnowledgebaseLaunchTicketService"))
         );
     }
 }

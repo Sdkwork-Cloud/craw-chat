@@ -17,6 +17,7 @@ tags:
   - name: automation
   - name: notifications
   - name: principal
+  - name: chat
 paths:
   /app/v3/api/automation/agent_responses:
     post:
@@ -1237,6 +1238,298 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+  /app/v3/api/chat/conversations/{conversationId}/knowledgebase:
+    get:
+      tags:
+        - chat
+      operationId: conversations.knowledgebase.retrieve
+      summary: Retrieve the group knowledgebase link
+      parameters:
+        - $ref: '#/components/parameters/ConversationIdPath'
+      responses:
+        '200':
+          description: Group knowledgebase link
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/GroupKnowledgebaseLinkView'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+    post:
+      tags:
+        - chat
+      operationId: conversations.knowledgebase.create
+      summary: Lazily create the group knowledgebase
+      parameters:
+        - $ref: '#/components/parameters/ConversationIdPath'
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGroupKnowledgebaseRequest'
+      responses:
+        '200':
+          description: Existing or in-progress group knowledgebase link
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/GroupKnowledgebaseLinkView'
+        '201':
+          description: Group knowledgebase link created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/GroupKnowledgebaseLinkView'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+      x-sdkwork-rate-limit-tier: sensitive-command
+  /app/v3/api/chat/conversations/{conversationId}/knowledgebase/launch:
+    post:
+      tags:
+        - chat
+      operationId: conversations.knowledgebase.launch
+      summary: Issue a one-time group knowledgebase launch ticket
+      parameters:
+        - $ref: '#/components/parameters/ConversationIdPath'
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LaunchGroupKnowledgebaseRequest'
+      responses:
+        '200':
+          description: Group knowledgebase launch response
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/GroupKnowledgebaseLaunchResponse'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '429':
+          description: Launch command rate limit exceeded
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+      x-sdkwork-rate-limit-tier: sensitive-command
+  /app/v3/api/chat/conversations/{conversationId}/archive:
+    post:
+      tags:
+        - chat
+      operationId: conversations.archive
+      summary: Archive a group conversation and schedule its knowledgebase archive
+      parameters:
+        - $ref: '#/components/parameters/ConversationIdPath'
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveGroupConversationRequest'
+      responses:
+        '200':
+          description: Group conversation archived
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ArchiveGroupConversationResponse'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+      x-sdkwork-rate-limit-tier: sensitive-command
 components:
   securitySchemes:
     AuthToken:
@@ -1272,6 +1565,22 @@ components:
       required: true
       schema:
         type: string
+    ConversationIdPath:
+      in: path
+      name: conversationId
+      required: true
+      schema:
+        type: string
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client retry key scoped by the authenticated tenant, principal, method, and conversation path.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+        pattern: ^[A-Za-z0-9._:-]+$
   responses:
     BadRequestError:
       description: Request validation failed
@@ -1310,6 +1619,141 @@ components:
           schema:
             $ref: '#/components/schemas/ProblemDetail'
   schemas:
+    CreateGroupKnowledgebaseRequest:
+      type: object
+      additionalProperties: false
+      description: >-
+        Explicit command input. Group identity, tenancy, membership, and initial space metadata are authoritative IM
+        state and are never client supplied.
+    LaunchGroupKnowledgebaseRequest:
+      type: object
+      additionalProperties: false
+      description: >-
+        Explicit command input. The response ticket is scoped to the authenticated group member and is consumed once by
+        sdkwork-knowledgebase.
+    ArchiveGroupConversationRequest:
+      type: object
+      additionalProperties: false
+      description: >-
+        Explicit command input. The group target and archive actor are derived from the authenticated request context
+        and path and cannot be supplied by the caller.
+    GroupKnowledgebaseLinkView:
+      type: object
+      additionalProperties: false
+      required:
+        - conversationId
+        - lifecycleState
+        - membershipEpoch
+        - upstreamLinkGeneration
+      properties:
+        conversationId:
+          type: string
+        spaceId:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        spaceUuid:
+          type: string
+        lifecycleState:
+          type: string
+          enum:
+            - absent
+            - provisioning
+            - active
+            - failed
+            - archived
+            - deleted
+        provisioningOperationId:
+          type: string
+        membershipEpoch:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        upstreamLinkGeneration:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        lastErrorCode:
+          type: string
+    GroupKnowledgebaseLaunchResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - conversationId
+        - lifecycleState
+        - membershipEpoch
+        - upstreamLinkGeneration
+      properties:
+        conversationId:
+          type: string
+        lifecycleState:
+          type: string
+          enum:
+            - absent
+            - provisioning
+            - active
+            - failed
+            - archived
+            - deleted
+        spaceId:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        spaceUuid:
+          type: string
+        launchTicket:
+          type: string
+          description: Opaque one-time ticket consumed only by sdkwork-knowledgebase through IM internal RPC.
+          x-sdkwork-sensitive: true
+        expiresAt:
+          type: string
+          format: date-time
+        membershipEpoch:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        upstreamLinkGeneration:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        provisioningOperationId:
+          type: string
+    ArchiveGroupConversationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - accepted
+        - resourceId
+        - status
+        - archiveEventId
+        - archivedAt
+        - knowledgebaseArchiveScheduled
+      properties:
+        accepted:
+          type: boolean
+        resourceId:
+          type: string
+        status:
+          type: string
+        archiveEventId:
+          type: string
+        archivedAt:
+          type: string
+          format: date-time
+        knowledgebaseArchiveScheduled:
+          type: boolean
     PortalWorkspaceView:
       type: object
       required:

@@ -196,6 +196,43 @@ pub struct WatchDomainEventsResponse {
     pub metadata: ::core::option::Option<super::super::super::common::v1::ResponseMetadata>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ConsumeGroupKnowledgebaseLaunchTicketRequest {
+    /// Sensitive, opaque, one-time capability. It is never echoed by this API,
+    /// persisted in plaintext, or recorded in logs/audit payloads.
+    #[prost(string, tag="1")]
+    pub ticket: ::prost::alloc::string::String,
+    #[prost(message, optional, tag="15")]
+    pub metadata: ::core::option::Option<super::super::super::common::v1::RequestMetadata>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ConsumeGroupKnowledgebaseLaunchTicketResponse {
+    #[prost(string, tag="1")]
+    pub conversation_id: ::prost::alloc::string::String,
+    #[prost(string, tag="2")]
+    pub space_id: ::prost::alloc::string::String,
+    #[prost(string, tag="3")]
+    pub space_uuid: ::prost::alloc::string::String,
+    #[prost(string, tag="4")]
+    pub lifecycle_state: ::prost::alloc::string::String,
+    #[prost(string, tag="5")]
+    pub membership_role: ::prost::alloc::string::String,
+    /// Decimal strings preserve int64 precision for non-Rust generated clients.
+    #[prost(string, tag="6")]
+    pub membership_epoch: ::prost::alloc::string::String,
+    /// IM-owned link generation. This is deliberately distinct from the
+    /// mutable Knowledgebase binding version.
+    #[prost(string, tag="7")]
+    pub upstream_link_generation: ::prost::alloc::string::String,
+    #[prost(string, tag="8")]
+    pub expires_at: ::prost::alloc::string::String,
+    #[prost(string, tag="9")]
+    pub knowledgebase_binding_id: ::prost::alloc::string::String,
+    #[prost(string, tag="10")]
+    pub knowledgebase_binding_uuid: ::prost::alloc::string::String,
+    #[prost(message, optional, tag="15")]
+    pub metadata: ::core::option::Option<super::super::super::common::v1::ResponseMetadata>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DispatchConversationMessageRequest {
     #[prost(string, tag="1")]
     pub tenant_id: ::prost::alloc::string::String,

@@ -2,6 +2,6 @@ package types
 
 
 type CompleteAgentResponseRequest struct {
-	FrameSeq int `json:"frameSeq"`
+	FrameSeq string `json:"frameSeq"`
 	ResultMessageId string `json:"resultMessageId"`
 }

@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "language": "rust",
   "sdkType": "im",
-  "packageName": "sdkwork-im-sdk-generated-typescript",
-  "transportPackageName": "sdkwork-im-sdk-generated-typescript",
-  "consumerPackageName": "@sdkwork/im-sdk",
+  "packageName": "im-sdk-generated",
+  "transportPackageName": "im-sdk-generated",
+  "consumerPackageName": "im-sdk-generated",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

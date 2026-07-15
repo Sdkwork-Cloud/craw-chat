@@ -16,6 +16,7 @@ type ContentPartValue interface {
 func (v TextContentPart) isContentPart() {}
 func (v DataContentPart) isContentPart() {}
 func (v MediaContentPart) isContentPart() {}
+func (v MentionContentPart) isContentPart() {}
 func (v SignalContentPart) isContentPart() {}
 func (v StreamRefContentPart) isContentPart() {}
 
@@ -44,6 +45,13 @@ func (v *ContentPart) UnmarshalJSON(data []byte) error {
 		return nil
 	case "media":
 		var value MediaContentPart
+		if err := json.Unmarshal(data, &value); err != nil {
+			return err
+		}
+		v.Value = value
+		return nil
+	case "mention":
+		var value MentionContentPart
 		if err := json.Unmarshal(data, &value); err != nil {
 			return err
 		}

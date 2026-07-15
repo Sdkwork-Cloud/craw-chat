@@ -33,9 +33,10 @@ pub use sdkwork_im_contract_core::{
     ObjectPutRequest, ObjectStore,
 };
 pub use sdkwork_im_contract_message::{
-    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitEnvelope, CommitJournal, CommitJournalAggregateScope,
-    CommitJournalReplayCursor, CommitJournalReplayPage, CommitPosition, TimelineProjectionBatch,
-    TimelineProjectionRecord, TimelineProjectionStore, TimelineProjectionWindow,
+    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitEnvelope, CommitJournal,
+    CommitJournalAggregateEventTypeQuery, CommitJournalAggregateScope, CommitJournalReplayCursor,
+    CommitJournalReplayPage, CommitPosition, TimelineProjectionBatch, TimelineProjectionRecord,
+    TimelineProjectionStore, TimelineProjectionWindow,
 };
 pub use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 pub use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};

@@ -12,7 +12,9 @@ use im_platform_contracts::{
 };
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_im_contract_core::ContractError;
-use sdkwork_im_contract_message::{CommitEnvelope, CommitJournal, CommitPosition};
+use sdkwork_im_contract_message::{
+    CommitEnvelope, CommitJournal, CommitJournalAggregateEventTypeQuery, CommitPosition,
+};
 use sdkwork_im_runtime_id::build_runtime_id_generator_blocking;
 use sdkwork_web_core::WebEnvironment;
 use std::sync::Arc;
@@ -95,6 +97,22 @@ impl CommitJournal for ConversationCommitJournal {
             Self::Postgres(journal) => {
                 CommitJournal::recorded_page_for_aggregate(journal, scope, cursor, limit)
             }
+        }
+    }
+
+    fn recorded_page_for_aggregate_event_types(
+        &self,
+        query: &CommitJournalAggregateEventTypeQuery,
+        cursor: Option<&sdkwork_im_contract_message::CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<sdkwork_im_contract_message::CommitJournalReplayPage, ContractError> {
+        match self {
+            Self::Memory(journal) => CommitJournal::recorded_page_for_aggregate_event_types(
+                journal, query, cursor, limit,
+            ),
+            Self::Postgres(journal) => CommitJournal::recorded_page_for_aggregate_event_types(
+                journal, query, cursor, limit,
+            ),
         }
     }
 }

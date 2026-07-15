@@ -47,12 +47,35 @@ fn resolve_gateway_request_timeout() -> std::time::Duration {
     std::time::Duration::from_secs(secs)
 }
 
-const GATEWAY_PUBLIC_ROUTES: &[HttpRoute] = &[HttpRoute::public(
-    HttpMethod::Get,
-    REALTIME_WS,
-    "realtime",
-    "realtime.websocket.upgrade",
-)];
+const GATEWAY_PUBLIC_ROUTES: &[HttpRoute] = &[
+    HttpRoute::public(
+        HttpMethod::Get,
+        REALTIME_WS,
+        "realtime",
+        "realtime.websocket.upgrade",
+    ),
+    // These are the canonical SDK schema URLs advertised by the gateway's
+    // public OpenAPI index. Keep them as exact public GET routes so schema
+    // discovery does not weaken authentication for either API prefix.
+    HttpRoute::public(
+        HttpMethod::Get,
+        "/im/v3/openapi.json",
+        "gatewayDiscovery",
+        "gateway.schemas.imOpenApi.retrieve",
+    ),
+    HttpRoute::public(
+        HttpMethod::Get,
+        "/app/v3/openapi.json",
+        "gatewayDiscovery",
+        "gateway.schemas.imAppApi.retrieve",
+    ),
+    HttpRoute::public(
+        HttpMethod::Get,
+        "/backend/v3/openapi.json",
+        "gatewayDiscovery",
+        "gateway.schemas.imBackendApi.retrieve",
+    ),
+];
 
 fn gateway_security_policy(environment: &WebEnvironment) -> SecurityPolicy {
     let mut security_policy = if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
@@ -230,49 +253,6 @@ pub fn wrap_gateway_router(router: Router) -> Router {
     )
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::body::Body;
-    use axum::http::Request;
-    use conversation_runtime::{
-        ConversationCommitJournal, ConversationRuntime, InMemoryJournal,
-        register_embedded_conversation_runtime,
-    };
-    use http_body_util::BodyExt;
-    use tower::ServiceExt;
-
-    #[tokio::test]
-    async fn metrics_endpoint_includes_http_and_conversation_runtime_metrics() {
-        register_embedded_conversation_runtime(Arc::new(ConversationRuntime::new(
-            ConversationCommitJournal::Memory(InMemoryJournal::default()),
-        )));
-
-        let response = wrap_gateway_router(Router::new())
-            .oneshot(
-                Request::builder()
-                    .uri("/metrics")
-                    .body(Body::empty())
-                    .expect("metrics request should build"),
-            )
-            .await
-            .expect("metrics request should complete");
-        assert_eq!(response.status(), axum::http::StatusCode::OK);
-        let body = response
-            .into_body()
-            .collect()
-            .await
-            .expect("metrics body should collect")
-            .to_bytes();
-        let body = String::from_utf8(body.to_vec()).expect("metrics body should be UTF-8");
-
-        assert!(body.contains("sdkwork_http_requests_total"));
-        assert!(body.contains("im_conversation_runtime_entries"));
-        assert!(body.contains("deployment_profile=\"standalone\""));
-        assert!(body.contains("runtime_target=\"server\""));
-    }
-}
-
 async fn im_gateway_metrics_handler(metrics: Arc<HttpMetricsRegistry>) -> impl IntoResponse {
     let mut output = metrics.render_prometheus();
     if let Some(runtime) = conversation_runtime::resolve_embedded_conversation_runtime() {
@@ -316,4 +296,90 @@ pub async fn wrap_gateway_router_from_env(router: Router) -> Router {
     let resolver = shared_iam_web_request_context_resolver_from_env().await;
     let readiness = sdkwork_im_service_readiness::resolve_gateway_readiness_check().await;
     wrap_gateway_router_with_resolver_from_env(router, resolver, readiness).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use conversation_runtime::{
+        ConversationCommitJournal, ConversationRuntime, InMemoryJournal,
+        register_embedded_conversation_runtime,
+    };
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn metrics_endpoint_includes_http_and_conversation_runtime_metrics() {
+        register_embedded_conversation_runtime(Arc::new(ConversationRuntime::new(
+            ConversationCommitJournal::Memory(InMemoryJournal::default()),
+        )));
+
+        let response = wrap_gateway_router(Router::new())
+            .oneshot(
+                Request::builder()
+                    .uri("/metrics")
+                    .body(Body::empty())
+                    .expect("metrics request should build"),
+            )
+            .await
+            .expect("metrics request should complete");
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("metrics body should collect")
+            .to_bytes();
+        let body = String::from_utf8(body.to_vec()).expect("metrics body should be UTF-8");
+
+        assert!(body.contains("sdkwork_http_requests_total"));
+        assert!(body.contains("im_conversation_runtime_entries"));
+        assert!(body.contains("deployment_profile=\"standalone\""));
+        assert!(body.contains("runtime_target=\"server\""));
+    }
+
+    #[tokio::test]
+    async fn advertised_sdk_schema_routes_are_public_only_for_get() {
+        let app = wrap_gateway_router(
+            Router::new()
+                .route("/im/v3/openapi.json", get(|| async { "im schema" }))
+                .route("/app/v3/openapi.json", get(|| async { "app schema" }))
+                .route(
+                    "/backend/v3/openapi.json",
+                    get(|| async { "backend schema" }),
+                ),
+        );
+
+        for path in [
+            "/im/v3/openapi.json",
+            "/app/v3/openapi.json",
+            "/backend/v3/openapi.json",
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(path)
+                        .body(Body::empty())
+                        .expect("schema request should build"),
+                )
+                .await
+                .expect("schema request should complete");
+            assert_eq!(response.status(), axum::http::StatusCode::OK, "{path}");
+        }
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/im/v3/openapi.json")
+                    .body(Body::empty())
+                    .expect("non-GET schema request should build"),
+            )
+            .await
+            .expect("non-GET schema request should complete");
+        assert_ne!(response.status(), axum::http::StatusCode::OK);
+    }
 }

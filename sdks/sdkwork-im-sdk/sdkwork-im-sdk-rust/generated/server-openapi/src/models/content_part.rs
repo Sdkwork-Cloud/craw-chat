@@ -1,12 +1,13 @@
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::models::{DataContentPart, MediaContentPart, SignalContentPart, StreamRefContentPart, TextContentPart};
+use crate::models::{DataContentPart, MediaContentPart, MentionContentPart, SignalContentPart, StreamRefContentPart, TextContentPart};
 
 #[derive(Debug, Clone)]
 pub enum ContentPart {
     Text(TextContentPart),
     Data(DataContentPart),
     Media(MediaContentPart),
+    Mention(MentionContentPart),
     Signal(SignalContentPart),
     StreamRef(StreamRefContentPart),
 }
@@ -20,6 +21,7 @@ impl Serialize for ContentPart {
             Self::Text(value) => value.serialize(serializer),
             Self::Data(value) => value.serialize(serializer),
             Self::Media(value) => value.serialize(serializer),
+            Self::Mention(value) => value.serialize(serializer),
             Self::Signal(value) => value.serialize(serializer),
             Self::StreamRef(value) => value.serialize(serializer),
         }
@@ -31,7 +33,7 @@ impl<'de> Deserialize<'de> for ContentPart {
     where
         D: Deserializer<'de>,
     {
-        const VARIANTS: &[&str] = &["text", "data", "media", "signal", "stream_ref"];
+        const VARIANTS: &[&str] = &["text", "data", "media", "mention", "signal", "stream_ref"];
         let value = serde_json::Value::deserialize(deserializer)?;
         let kind = value
             .get("kind")
@@ -43,6 +45,7 @@ impl<'de> Deserialize<'de> for ContentPart {
             "text" => Ok(Self::Text(serde_json::from_value(value).map_err(de::Error::custom)?)),
             "data" => Ok(Self::Data(serde_json::from_value(value).map_err(de::Error::custom)?)),
             "media" => Ok(Self::Media(serde_json::from_value(value).map_err(de::Error::custom)?)),
+            "mention" => Ok(Self::Mention(serde_json::from_value(value).map_err(de::Error::custom)?)),
             "signal" => Ok(Self::Signal(serde_json::from_value(value).map_err(de::Error::custom)?)),
             "stream_ref" => Ok(Self::StreamRef(serde_json::from_value(value).map_err(de::Error::custom)?)),
             other => Err(de::Error::unknown_variant(other, VARIANTS)),

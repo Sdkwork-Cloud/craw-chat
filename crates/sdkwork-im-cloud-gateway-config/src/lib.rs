@@ -298,6 +298,7 @@ fn explicit_dependency_app_api_upstreams() -> Vec<ServiceUpstreamConfig> {
         "sdkwork-course-app-api",
         "sdkwork-knowledgebase-app-api",
         "sdkwork-voice-app-api",
+        "sdkwork-agents-app-api",
     ] {
         if let Some(base_url) = explicit_app_api_upstream(service_id) {
             upstreams.push(service_upstream(service_id, base_url.as_str()));
@@ -369,6 +370,9 @@ mod tests {
         "SDKWORK_IM_VOICE_APP_API_UPSTREAM",
         "SDKWORK_VOICE_APP_API_UPSTREAM",
         "SDKWORK_VOICE_APP_API_BASE_URL",
+        "SDKWORK_IM_AGENTS_APP_API_UPSTREAM",
+        "SDKWORK_AGENTS_APP_API_UPSTREAM",
+        "SDKWORK_AGENTS_APP_API_BASE_URL",
         "SDKWORK_IM_ACCOUNT_APP_API_UPSTREAM",
         "SDKWORK_ACCOUNT_APP_API_UPSTREAM",
         "SDKWORK_ACCOUNT_APP_API_BASE_URL",
@@ -606,6 +610,7 @@ bind_address = "127.0.0.1:38080"
             "sdkwork-course-app-api",
             "sdkwork-knowledgebase-app-api",
             "sdkwork-voice-app-api",
+            "sdkwork-agents-app-api",
         ] {
             assert_eq!(
                 config.upstream_base_url(service_id),
@@ -633,6 +638,9 @@ bind_address = "127.0.0.1:38080"
         ));
         assert!(super::is_standalone_embedded_dependency_service(
             "sdkwork-catalog-app-api"
+        ));
+        assert!(super::is_standalone_embedded_dependency_service(
+            "sdkwork-agents-app-api"
         ));
     }
 
@@ -737,6 +745,10 @@ bind_address = "127.0.0.1:38080"
             "SDKWORK_IM_VOICE_APP_API_UPSTREAM",
             "http://127.0.0.1:28103/",
         );
+        let _agents_upstream = ScopedEnvVar::set(
+            "SDKWORK_IM_AGENTS_APP_API_UPSTREAM",
+            "http://127.0.0.1:28104/",
+        );
 
         let config = WebGatewayConfig::from_env();
 
@@ -776,6 +788,10 @@ bind_address = "127.0.0.1:38080"
         assert_eq!(
             config.upstream_base_url("sdkwork-voice-app-api"),
             Some("http://127.0.0.1:28103")
+        );
+        assert_eq!(
+            config.upstream_base_url("sdkwork-agents-app-api"),
+            Some("http://127.0.0.1:28104")
         );
     }
 

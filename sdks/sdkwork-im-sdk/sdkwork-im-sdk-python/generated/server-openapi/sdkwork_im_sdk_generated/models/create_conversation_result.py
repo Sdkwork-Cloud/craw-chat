@@ -5,7 +5,9 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 
 @dataclass
 class CreateConversationResult:
-    tenant_id: str
     conversation_id: str
-    kind: str
-    created_at: str
+    event_id: str
+    request_key: Optional[str] = None
+    delivery_status: Optional[str] = None
+    proof_version: Optional[str] = None
+    knowledgebase_initialization: Optional[str] = None

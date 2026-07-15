@@ -7,7 +7,8 @@ import com.sdkwork.im.app.api.generated.http.HttpClient
  */
 class Api(private val client: HttpClient) {
     val automation: AutomationApi = AutomationApi(client)
-    val notification: NotificationApi = NotificationApi(client)
+    val notifications: NotificationsApi = NotificationsApi(client)
     val portal: PortalApi = PortalApi(client)
     val provider: ProviderApi = ProviderApi(client)
+    val chat: ChatApi = ChatApi(client)
 }

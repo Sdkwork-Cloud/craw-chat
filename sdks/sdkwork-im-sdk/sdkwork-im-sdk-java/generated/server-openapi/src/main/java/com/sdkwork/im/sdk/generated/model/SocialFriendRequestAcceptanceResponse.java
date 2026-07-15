@@ -5,7 +5,7 @@ public class SocialFriendRequestAcceptanceResponse {
     private FriendRequest friendRequest;
     private Friendship friendship;
     private DirectChat directChat;
-    private CreateConversationResult conversation;
+    private SocialFriendRequestAcceptedConversation conversation;
 
     public FriendRequest getFriendRequest() {
         return this.friendRequest;
@@ -31,11 +31,11 @@ public class SocialFriendRequestAcceptanceResponse {
         this.directChat = directChat;
     }
 
-    public CreateConversationResult getConversation() {
+    public SocialFriendRequestAcceptedConversation getConversation() {
         return this.conversation;
     }
 
-    public void setConversation(CreateConversationResult conversation) {
+    public void setConversation(SocialFriendRequestAcceptedConversation conversation) {
         this.conversation = conversation;
     }
 }

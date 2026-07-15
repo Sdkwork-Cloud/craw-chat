@@ -40,6 +40,15 @@ export const IM_ROUTE_CRATES = [
     buildFn: 'build_public_app',
   },
   {
+    crateDir: 'crates/sdkwork-routes-im-knowledgebase-app-api',
+    packageName: 'sdkwork-routes-im-knowledgebase-app-api',
+    libName: 'sdkwork_routes_im_knowledgebase_app_api',
+    apiSurface: 'app-api',
+    pathPrefix: '/app/v3/api/chat/conversations',
+    serviceCrate: 'sdkwork-comms-conversation-service',
+    buildFn: 'build_public_app',
+  },
+  {
     crateDir: 'crates/sdkwork-routes-im-realtime-open-api',
     packageName: 'sdkwork-routes-im-realtime-open-api',
     libName: 'sdkwork_routes_im_realtime_open_api',

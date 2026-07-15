@@ -16,7 +16,7 @@ public class RequestNotification {
     public String getNotificationId() {
         return this.notificationId;
     }
-    
+
     public void setNotificationId(String notificationId) {
         this.notificationId = notificationId;
     }
@@ -24,7 +24,7 @@ public class RequestNotification {
     public String getSourceEventId() {
         return this.sourceEventId;
     }
-    
+
     public void setSourceEventId(String sourceEventId) {
         this.sourceEventId = sourceEventId;
     }
@@ -32,7 +32,7 @@ public class RequestNotification {
     public String getSourceEventType() {
         return this.sourceEventType;
     }
-    
+
     public void setSourceEventType(String sourceEventType) {
         this.sourceEventType = sourceEventType;
     }
@@ -40,7 +40,7 @@ public class RequestNotification {
     public String getCategory() {
         return this.category;
     }
-    
+
     public void setCategory(String category) {
         this.category = category;
     }
@@ -48,7 +48,7 @@ public class RequestNotification {
     public String getChannel() {
         return this.channel;
     }
-    
+
     public void setChannel(String channel) {
         this.channel = channel;
     }
@@ -56,7 +56,7 @@ public class RequestNotification {
     public String getRecipientId() {
         return this.recipientId;
     }
-    
+
     public void setRecipientId(String recipientId) {
         this.recipientId = recipientId;
     }
@@ -64,7 +64,7 @@ public class RequestNotification {
     public String getRecipientKind() {
         return this.recipientKind;
     }
-    
+
     public void setRecipientKind(String recipientKind) {
         this.recipientKind = recipientKind;
     }
@@ -72,7 +72,7 @@ public class RequestNotification {
     public String getTitle() {
         return this.title;
     }
-    
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -80,7 +80,7 @@ public class RequestNotification {
     public String getBody() {
         return this.body;
     }
-    
+
     public void setBody(String body) {
         this.body = body;
     }
@@ -88,7 +88,7 @@ public class RequestNotification {
     public String getPayload() {
         return this.payload;
     }
-    
+
     public void setPayload(String payload) {
         this.payload = payload;
     }

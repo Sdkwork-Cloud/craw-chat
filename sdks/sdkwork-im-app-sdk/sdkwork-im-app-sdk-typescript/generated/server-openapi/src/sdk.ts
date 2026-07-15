@@ -6,6 +6,7 @@ import { AutomationApi, createAutomationApi } from './api/automation';
 import { NotificationsApi, createNotificationsApi } from './api/notifications';
 import { PortalApi, createPortalApi } from './api/portal';
 import { ProviderApi, createProviderApi } from './api/provider';
+import { ChatApi, createChatApi } from './api/chat';
 
 export class SdkworkImAppClient {
   private httpClient: HttpClient;
@@ -14,6 +15,7 @@ export class SdkworkImAppClient {
   public readonly notifications: NotificationsApi;
   public readonly portal: PortalApi;
   public readonly provider: ProviderApi;
+  public readonly chat: ChatApi;
 
   constructor(config: SdkworkAppConfig) {
     this.httpClient = createHttpClient(config);
@@ -24,6 +26,8 @@ export class SdkworkImAppClient {
     this.portal = createPortalApi(this.httpClient);
 
     this.provider = createProviderApi(this.httpClient);
+
+    this.chat = createChatApi(this.httpClient);
   }
   setAuthToken(token: string): this {
     this.httpClient.setAuthToken(token);

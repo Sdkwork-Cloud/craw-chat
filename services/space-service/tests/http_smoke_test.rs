@@ -4,8 +4,9 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use im_adapters_social_postgres::governance_store::{
-    BanRecord, BanStore, ChannelAccessRuleRecord, ChannelAccessRuleStore, InvitationRecord,
-    InvitationStore, InvitationTargetListQuery, SpaceMemberRecord, SpaceMemberStore,
+    BanRecord, BanStore, BanTargetListQuery, ChannelAccessRuleRecord, ChannelAccessRuleStore,
+    InvitationRecord, InvitationStore, InvitationTargetListQuery, SpaceMemberRecord,
+    SpaceMemberStore,
 };
 use im_adapters_social_postgres::organization_store::{
     ChannelRecord, ChannelStore, GroupMemberRecord, GroupMemberStore, GroupRecord, GroupStore,
@@ -326,13 +327,7 @@ impl BanStore for NoopBanStore {
 
     fn list_active_by_target(
         &self,
-        _tenant_id: &str,
-        _org_id: &str,
-        _target_type: &str,
-        _target_id: i64,
-        _cursor_created_at: Option<&str>,
-        _cursor_ban_id: Option<i64>,
-        _limit: i64,
+        _query: BanTargetListQuery<'_>,
     ) -> Result<Vec<BanRecord>, ContractError> {
         Ok(Vec::new())
     }

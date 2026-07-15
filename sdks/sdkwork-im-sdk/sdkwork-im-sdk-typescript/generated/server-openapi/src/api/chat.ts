@@ -528,6 +528,7 @@ export interface ChatInboxListParams {
   pageSize?: number;
   cursor?: string;
   conversationType?: string;
+  q?: string;
 }
 
 export class ChatInboxApi {
@@ -544,6 +545,7 @@ export class ChatInboxApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'conversation_type', value: params?.conversationType, style: 'form', explode: true, allowReserved: false },
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/inbox`), query));
   }

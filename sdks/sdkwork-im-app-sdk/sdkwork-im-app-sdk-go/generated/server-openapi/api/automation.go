@@ -17,73 +17,73 @@ func NewAutomationApi(client *sdkhttp.Client) *AutomationApi {
 }
 
 // Start an agent response stream
-func (a *AutomationApi) AgentResponsesCreate(body sdktypes.StartAgentResponseRequest) (sdktypes.StreamSession, error) {
+func (a *AutomationApi) AgentResponsesCreate(body sdktypes.StartAgentResponseRequest) (sdktypes.AutomationAgentResponsesCreateResponse201, error) {
     raw, err := a.client.Post(AppApiPath("/automation/agent_responses"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.StreamSession
+        var zero sdktypes.AutomationAgentResponsesCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.StreamSession](raw)
+    return decodeResult[sdktypes.AutomationAgentResponsesCreateResponse201](raw)
 }
 
 // Complete an agent response stream
-func (a *AutomationApi) AgentResponsesComplete(streamId string, body sdktypes.CompleteAgentResponseRequest) (sdktypes.StreamSession, error) {
+func (a *AutomationApi) AgentResponsesComplete(streamId string, body sdktypes.CompleteAgentResponseRequest) (sdktypes.AutomationAgentResponsesCompleteResponse, error) {
     raw, err := a.client.Post(AppApiPath(fmt.Sprintf("/automation/agent_responses/%s/complete", SerializePathParameter(streamId, PathParameterSpec{Name: "streamId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.StreamSession
+        var zero sdktypes.AutomationAgentResponsesCompleteResponse
         return zero, err
     }
-    return decodeResult[sdktypes.StreamSession](raw)
+    return decodeResult[sdktypes.AutomationAgentResponsesCompleteResponse](raw)
 }
 
 // Append a frame to an agent response stream
-func (a *AutomationApi) AgentResponsesFramesCreate(streamId string, body sdktypes.AppendAgentResponseDeltaRequest) (sdktypes.StreamFrame, error) {
+func (a *AutomationApi) AgentResponsesFramesCreate(streamId string, body sdktypes.AppendAgentResponseDeltaRequest) (sdktypes.AutomationAgentResponsesFramesCreateResponse201, error) {
     raw, err := a.client.Post(AppApiPath(fmt.Sprintf("/automation/agent_responses/%s/frames", SerializePathParameter(streamId, PathParameterSpec{Name: "streamId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.StreamFrame
+        var zero sdktypes.AutomationAgentResponsesFramesCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.StreamFrame](raw)
+    return decodeResult[sdktypes.AutomationAgentResponsesFramesCreateResponse201](raw)
 }
 
 // Request an agent tool call
-func (a *AutomationApi) AgentToolCallsCreate(body sdktypes.RequestAgentToolCallRequest) (sdktypes.AgentToolCall, error) {
+func (a *AutomationApi) AgentToolCallsCreate(body sdktypes.RequestAgentToolCallRequest) (sdktypes.AutomationAgentToolCallsCreateResponse201, error) {
     raw, err := a.client.Post(AppApiPath("/automation/agent_tool_calls"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.AgentToolCall
+        var zero sdktypes.AutomationAgentToolCallsCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.AgentToolCall](raw)
+    return decodeResult[sdktypes.AutomationAgentToolCallsCreateResponse201](raw)
 }
 
 // Request an automation execution
-func (a *AutomationApi) ExecutionsCreate(body sdktypes.RequestAutomationExecution) (sdktypes.AutomationExecutionRequestResponse, error) {
+func (a *AutomationApi) ExecutionsCreate(body sdktypes.RequestAutomationExecution) (sdktypes.AutomationExecutionsCreateResponse201, error) {
     raw, err := a.client.Post(AppApiPath("/automation/executions"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.AutomationExecutionRequestResponse
+        var zero sdktypes.AutomationExecutionsCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.AutomationExecutionRequestResponse](raw)
+    return decodeResult[sdktypes.AutomationExecutionsCreateResponse201](raw)
 }
 
 // Get an automation execution
-func (a *AutomationApi) ExecutionsRetrieve(executionId string) (sdktypes.AutomationExecution, error) {
+func (a *AutomationApi) ExecutionsRetrieve(executionId string) (sdktypes.AutomationExecutionsRetrieveResponse, error) {
     raw, err := a.client.Get(AppApiPath(fmt.Sprintf("/automation/executions/%s", SerializePathParameter(executionId, PathParameterSpec{Name: "executionId", Style: "simple", Explode: false}))), nil, nil)
     if err != nil {
-        var zero sdktypes.AutomationExecution
+        var zero sdktypes.AutomationExecutionsRetrieveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.AutomationExecution](raw)
+    return decodeResult[sdktypes.AutomationExecutionsRetrieveResponse](raw)
 }
 
 // Complete an agent tool call
-func (a *AutomationApi) AgentToolCallsComplete(executionId string, toolCallId string, body sdktypes.CompleteAgentToolCallRequest) (sdktypes.AgentToolCall, error) {
+func (a *AutomationApi) AgentToolCallsComplete(executionId string, toolCallId string, body sdktypes.CompleteAgentToolCallRequest) (sdktypes.AutomationAgentToolCallsCompleteResponse, error) {
     raw, err := a.client.Post(AppApiPath(fmt.Sprintf("/automation/executions/%s/agent_tool_calls/%s/complete", SerializePathParameter(executionId, PathParameterSpec{Name: "executionId", Style: "simple", Explode: false}), SerializePathParameter(toolCallId, PathParameterSpec{Name: "toolCallId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.AgentToolCall
+        var zero sdktypes.AutomationAgentToolCallsCompleteResponse
         return zero, err
     }
-    return decodeResult[sdktypes.AgentToolCall](raw)
+    return decodeResult[sdktypes.AutomationAgentToolCallsCompleteResponse](raw)
 }
 
 type PathParameterSpec struct {

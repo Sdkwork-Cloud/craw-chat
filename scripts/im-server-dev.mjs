@@ -16,7 +16,8 @@ import {
   resolveSdkworkApiGatewayBind,
   resolveSdkworkChatPcDevServer,
 } from './lib/im-pc-dev.mjs';
-import { IAM_APPLICATION_BOOTSTRAP_ENV, resolveIamDevEnv, resolveImProductSiteDirEnv } from './lib/im-topology.mjs';
+import { IAM_APPLICATION_BOOTSTRAP_ENV, resolveIamDevEnv } from './lib/im-topology.mjs';
+import { resolveImProductSiteDirEnv } from './lib/im-product-site-dirs.mjs';
 import {
   createSdkworkImServerCargoEnv,
   resolveSdkworkImServerBindEnv,

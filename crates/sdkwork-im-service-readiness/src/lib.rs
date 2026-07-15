@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::sync::Arc;
 
 use im_app_context::resolve_web_environment_from_process_env;
@@ -241,6 +242,27 @@ pub async fn bootstrap_im_service_database_from_env() -> Result<(), String> {
         .map(|_| ())
 }
 
+/// Runs all required startup work before a process claims its TCP address.
+///
+/// A failed dependency preflight must leave the configured port available for
+/// a corrected process invocation. Hosts use this for database/bootstrap,
+/// generated dependency SDK validation, and durable relay readiness before
+/// accepting any network traffic.
+pub async fn complete_preflight_then_bind_tcp_listener<T, F>(
+    bind_addr: &str,
+    service_name: &str,
+    preflight: F,
+) -> Result<(T, tokio::net::TcpListener), String>
+where
+    F: Future<Output = Result<T, String>>,
+{
+    let prepared = preflight.await?;
+    let listener = tokio::net::TcpListener::bind(bind_addr)
+        .await
+        .map_err(|error| format!("{service_name} failed to bind listener: {error}"))?;
+    Ok((prepared, listener))
+}
+
 pub async fn resolve_im_service_readiness_check() -> Arc<dyn ReadinessCheck> {
     let environment = resolve_web_environment_from_process_env();
     let mut checks: Vec<Arc<dyn ReadinessCheck>> = Vec::new();
@@ -355,5 +377,30 @@ mod identity_tests {
                 None => std::env::remove_var("OTEL_SERVICE_NAME"),
             }
         }
+    }
+
+    #[tokio::test]
+    async fn failed_preflight_does_not_claim_the_configured_listener_port() {
+        let reservation = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("reserve test port");
+        let bind_addr = reservation
+            .local_addr()
+            .expect("resolve reserved test port")
+            .to_string();
+        drop(reservation);
+
+        let failure = complete_preflight_then_bind_tcp_listener(
+            bind_addr.as_str(),
+            "readiness-test",
+            async { Err::<(), _>("knowledgebase lifecycle preflight failed".to_owned()) },
+        )
+        .await;
+
+        assert!(failure.is_err());
+        let rebound = tokio::net::TcpListener::bind(bind_addr.as_str())
+            .await
+            .expect("failed preflight must leave the configured port unclaimed");
+        drop(rebound);
     }
 }

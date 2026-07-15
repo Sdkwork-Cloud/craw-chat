@@ -11,7 +11,7 @@ use im_app_context::{
     AppContext, build_dual_token_headers_for_context, local_service_app_context,
     resolve_app_context,
 };
-use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_im_api_registry::{HttpMethod, SdkTarget};
 use sdkwork_im_cloud_gateway_config::{WebGatewayConfig, service_upstream};
 use serde_json::json;
 use std::sync::Arc;
@@ -522,6 +522,12 @@ async fn gateway_derives_proxied_chat_data_context_from_appbase_dual_tokens_not_
             "/im/v3/api/chat/conversations/{id}/messages",
         ),
         (
+            "comms-conversation-service",
+            Method::POST,
+            "/app/v3/api/chat/conversations/c_demo/knowledgebase/launch",
+            "/app/v3/api/chat/conversations/{conversationId}/knowledgebase/launch",
+        ),
+        (
             "streaming-service",
             Method::POST,
             "/im/v3/api/streams",
@@ -592,6 +598,12 @@ async fn gateway_derives_proxied_chat_data_context_from_appbase_dual_tokens_not_
             Method::GET,
             "/app/v3/api/voice/audio_assets",
             "/app/v3/api/voice/{*path}",
+        ),
+        (
+            "sdkwork-agents-app-api",
+            Method::POST,
+            "/app/v3/api/ai/agents",
+            "/app/v3/api/ai/{*path}",
         ),
     ] {
         assert_gateway_derives_context_for_configured_upstream(
@@ -721,6 +733,12 @@ async fn gateway_derives_context_for_protected_routes_without_appbase_session_lo
             "/app/v3/api/voice/audio_assets",
             "/app/v3/api/voice/{*path}",
         ),
+        (
+            "sdkwork-agents-app-api",
+            Method::POST,
+            "/app/v3/api/ai/agents",
+            "/app/v3/api/ai/{*path}",
+        ),
     ] {
         assert_gateway_derives_context_without_appbase_session_lookup(
             service_id,
@@ -746,6 +764,61 @@ fn gateway_registry_resolves_course_collection_paths() {
         courses.expect("courses route").service_id,
         "sdkwork-course-app-api"
     );
+}
+
+#[test]
+fn gateway_registry_routes_ai_agents_to_agents_app_api() {
+    let registry = web_gateway::build_gateway_registry().expect("registry should build");
+
+    let create_route = registry
+        .resolve(HttpMethod::Post, "/app/v3/api/ai/agents")
+        .expect("agents create route should resolve");
+    assert_eq!(create_route.service_id, "sdkwork-agents-app-api");
+    assert_eq!(
+        create_route.sdk_targets,
+        vec![SdkTarget::SdkworkAgentsAppSdk]
+    );
+    assert_eq!(create_route.operation_group, "agents");
+
+    let list_route = registry
+        .resolve(HttpMethod::Get, "/app/v3/api/ai/agents")
+        .expect("agents list route should resolve");
+    assert_eq!(list_route.service_id, "sdkwork-agents-app-api");
+
+    let nested_route = registry
+        .resolve(
+            HttpMethod::Post,
+            "/app/v3/api/ai/agents/agent_1/provider_bindings",
+        )
+        .expect("nested agents route should resolve");
+    assert_eq!(nested_route.service_id, "sdkwork-agents-app-api");
+}
+
+#[test]
+fn gateway_registry_routes_group_knowledgebase_app_api_to_conversation_runtime() {
+    let registry = web_gateway::build_gateway_registry().expect("registry should build");
+
+    for (method, path) in [
+        (
+            HttpMethod::Get,
+            "/app/v3/api/chat/conversations/c_demo/knowledgebase",
+        ),
+        (
+            HttpMethod::Post,
+            "/app/v3/api/chat/conversations/c_demo/knowledgebase",
+        ),
+        (
+            HttpMethod::Post,
+            "/app/v3/api/chat/conversations/c_demo/knowledgebase/launch",
+        ),
+    ] {
+        let route = registry
+            .resolve(method, path)
+            .unwrap_or_else(|| panic!("group knowledgebase route should resolve for {path}"));
+        assert_eq!(route.service_id, "comms-conversation-service");
+        assert_eq!(route.sdk_targets, vec![SdkTarget::SdkworkImAppSdk]);
+        assert_eq!(route.operation_group, "group-knowledgebase");
+    }
 }
 
 #[test]

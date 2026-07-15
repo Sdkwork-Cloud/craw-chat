@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::{CreateConversationResult, DirectChat, FriendRequest, Friendship};
+use crate::models::{DirectChat, FriendRequest, Friendship, SocialFriendRequestAcceptedConversation};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct SocialFriendRequestAcceptanceResponse {
@@ -12,5 +12,5 @@ pub struct SocialFriendRequestAcceptanceResponse {
     #[serde(rename = "directChat")]
     pub direct_chat: DirectChat,
 
-    pub conversation: CreateConversationResult,
+    pub conversation: SocialFriendRequestAcceptedConversation,
 }

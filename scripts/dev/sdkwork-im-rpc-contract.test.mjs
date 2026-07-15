@@ -408,6 +408,7 @@ const expectedServices = {
     'DomainEventRelayService',
     'RoomOrchestrationService',
     'MessageDispatchService',
+    'GroupKnowledgebaseLaunchTicketService',
   ],
 };
 
@@ -772,15 +773,28 @@ for (const [relativeRoot, minimumFiles] of generatedChecks) {
 }
 
 const serviceManifestSource = read('crates/sdkwork-im-rpc-service-rust/src/service_manifest.rs');
-assert.match(serviceManifestSource, /RPC_SERVICE_BINDINGS/u, 'Rust RPC service scaffold must expose RPC_SERVICE_BINDINGS.');
-assert.match(serviceManifestSource, /sdkwork-im-rpc-sdk/u, 'Rust RPC service scaffold must name sdkwork-im-rpc-sdk.');
+assert.match(
+  serviceManifestSource,
+  /include!\(concat!\(env!\("OUT_DIR"\),\s*"\/rpc_service_bindings\.rs"\)\)/u,
+  'Rust RPC service scaffold must include generated RPC_SERVICE_BINDINGS.',
+);
+const rpcServiceBuildScriptForManifest = read('crates/sdkwork-im-rpc-service-rust/build.rs');
+assert.match(
+  rpcServiceBuildScriptForManifest,
+  /sdkwork-im-rpc\.manifest\.json/u,
+  'Rust RPC service build script must load the sdkwork-im-rpc-sdk manifest.',
+);
 
-for (const service of manifest.services) {
-  const serviceKey = `${service.package}.${service.service}`;
+for (const requiredBuildStep of [
+  'required_string(service, "package")',
+  'required_string(service, "service")',
+  'RPC_SERVICE_BINDINGS',
+  'rpc_service_bindings.rs',
+]) {
   assert.match(
-    serviceManifestSource,
-    new RegExp(escapeRegex(serviceKey), 'u'),
-    `Rust RPC service scaffold must bind ${serviceKey}.`,
+    rpcServiceBuildScriptForManifest,
+    new RegExp(escapeRegex(requiredBuildStep), 'u'),
+    `Rust RPC service build script must generate bindings through ${requiredBuildStep}.`,
   );
 }
 

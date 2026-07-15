@@ -33,6 +33,13 @@ const backendRepositoryAuthorityPath = path.join(
 );
 const backendDerivedPath = path.join(backendRoot, 'openapi', 'sdkwork-im-backend-api.sdkgen.yaml');
 const appAuthorityPath = path.join(appRoot, 'openapi', 'sdkwork-im-app-api.openapi.yaml');
+const appRepositoryAuthorityPath = path.join(
+  imRepoRoot,
+  'apis',
+  'app-api',
+  'communication',
+  'sdkwork-im-app-api.openapi.yaml',
+);
 const appDerivedPath = path.join(appRoot, 'openapi', 'sdkwork-im-app-api.sdkgen.yaml');
 const appFlutterDerivedPath = path.join(appRoot, 'openapi', 'sdkwork-im-app-api.flutter.sdkgen.yaml');
 const appbaseAppAuthorityPath = path.resolve(
@@ -59,6 +66,11 @@ const appbaseBackendAuthorityPath = path.resolve(
 const backendPrefix = '/backend/v3/api';
 const appPrefix = '/app/v3/api';
 const imPrefix = '/im/v3/api';
+const groupConversationAppRoutes = new Set([
+  'chat/conversations/{}/knowledgebase',
+  'chat/conversations/{}/knowledgebase/launch',
+  'chat/conversations/{}/archive',
+]);
 const backendManagementGroups = new Set(['admin', 'audit', 'control', 'ops']);
 const appForbiddenManagementGroups = new Set(['admin', 'audit', 'control', 'ops']);
 
@@ -113,6 +125,10 @@ function isImStandardPath(pathKey, prefix) {
     || route === 'spaces'
     || route.startsWith('streams')
   );
+}
+
+function isGroupConversationAppPath(pathKey) {
+  return groupConversationAppRoutes.has(pathWithoutPrefix(pathKey, appPrefix));
 }
 
 function isDeviceCapabilityPath(pathKey, prefix) {
@@ -602,7 +618,7 @@ function normalizeAppAuthority(app, im, dependencyAppRouteSet) {
       !isAppManagementPath(pathKey)
       && !isDeviceCapabilityPath(pathKey, appPrefix)
       && !isAiotOwnedPath(pathKey, appPrefix)
-      && !isImStandardPath(pathKey, appPrefix)
+      && (!isImStandardPath(pathKey, appPrefix) || isGroupConversationAppPath(pathKey))
       && !isRtcPath(pathKey, appPrefix)
       && !isDriveOwnedMediaLifecyclePath(pathKey, appPrefix)
       && !dependencyAppRouteSet.has(pathWithoutPrefix(pathKey, appPrefix)),
@@ -685,7 +701,11 @@ const backend = loadOpenApiDocument({
   filePath: backendRepositoryAuthorityPath,
   yaml,
 });
-const app = loadOpenApiDocument({ prefix: 'sdkwork-im-app-sdk', filePath: appAuthorityPath, yaml });
+const app = loadOpenApiDocument({
+  prefix: 'sdkwork-im-app-sdk',
+  filePath: appRepositoryAuthorityPath,
+  yaml,
+});
 const appbaseApp = loadOpenApiDocument({
   prefix: 'sdkwork-iam-app-sdk',
   filePath: appbaseAppAuthorityPath,
@@ -798,6 +818,20 @@ for (const appPath of Object.keys(consolidatedApp.paths)) {
 }
 if (consolidatedApp.paths['/app/v3/api/chat/conversations']) {
   fail('App authority must not contain /app/v3/api/chat/conversations.');
+}
+for (const groupConversationRoute of groupConversationAppRoutes) {
+  const pathKey = `${appPrefix}/${groupConversationRoute.replaceAll('{}', '{conversationId}')}`;
+  if (!consolidatedApp.paths[pathKey]) {
+    fail(`App authority is missing required group conversation route ${pathKey}.`);
+  }
+}
+for (const appPath of Object.keys(consolidatedApp.paths)) {
+  if (
+    appPath.startsWith('/app/v3/api/chat/conversations/')
+    && !isGroupConversationAppPath(appPath)
+  ) {
+    fail(`App authority contains unsupported IM chat route: ${appPath}`);
+  }
 }
 
 writeOpenApiYamlDocument({ filePath: imAuthorityPath, document: consolidatedIm, yaml });

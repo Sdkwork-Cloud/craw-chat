@@ -5,6 +5,8 @@ export interface CreateConversationRequest {
   conversationType: string;
   groupName?: string | null;
   clientRequestKey?: string | null;
+  /** For group conversations only. When true, requests one Knowledgebase provisioning attempt after the group is durably created. Omitted or false never reserves, provisions, or validates a group Knowledgebase scope. */
+  initializeKnowledgebase?: boolean;
   memberUserIds?: string[] | null;
   agentAssignments?: ConversationAgentAssignment[] | null;
   policyVersion?: string | null;

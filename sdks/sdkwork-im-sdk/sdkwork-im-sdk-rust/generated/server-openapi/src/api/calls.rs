@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use crate::api::paths::im_path;
+use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{CallsSessionsAcceptResponse, CallsSessionsCreateResponse201, CallsSessionsCredentialsCreateResponse201, CallsSessionsEndResponse, CallsSessionsInviteResponse, CallsSessionsRejectResponse, CallsSessionsRetrieveResponse, CallsSessionsSignalsCreateResponse201, CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, PostRtcSignalRequest, UpdateRtcSessionRequest};
+use crate::models::{CallsSessionsAcceptResponse, CallsSessionsCreateResponse201, CallsSessionsCredentialsCreateResponse201, CallsSessionsCredentialsRefreshResponse, CallsSessionsEndResponse, CallsSessionsInviteResponse, CallsSessionsRejectResponse, CallsSessionsRetrieveResponse, CallsSessionsSignalsCreateResponse201, CallsSessionsSignalsListResponse, CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, PostRtcSignalRequest, UpdateRtcSessionRequest};
 
 #[derive(Clone)]
 pub struct CallsApi {
@@ -50,6 +51,17 @@ impl CallsApi {
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
+    /// List IM call signaling events
+    pub async fn sessions_signals_list(&self, rtc_session_id: &str, after_signal_seq: Option<i64>, cursor: Option<&str>, page_size: Option<i64>) -> Result<CallsSessionsSignalsListResponse, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("afterSignalSeq", after_signal_seq, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+        ]);
+        let path = append_query_string(im_path(&format!("/calls/sessions/{}/signals", serialize_path_parameter(rtc_session_id, PathParameterSpec::new("rtcSessionId", "simple", false)))), &query);
+        self.client.get(&path, None, None).await
+    }
+
     /// Post an IM call signaling event
     pub async fn sessions_signals_create(&self, rtc_session_id: &str, body: &PostRtcSignalRequest) -> Result<CallsSessionsSignalsCreateResponse201, SdkworkError> {
         let path = im_path(&format!("/calls/sessions/{}/signals", serialize_path_parameter(rtc_session_id, PathParameterSpec::new("rtcSessionId", "simple", false))));
@@ -59,6 +71,12 @@ impl CallsApi {
     /// Issue an RTC media participant credential for an IM call
     pub async fn sessions_credentials_create(&self, rtc_session_id: &str, body: &IssueRtcParticipantCredentialRequest) -> Result<CallsSessionsCredentialsCreateResponse201, SdkworkError> {
         let path = im_path(&format!("/calls/sessions/{}/credentials", serialize_path_parameter(rtc_session_id, PathParameterSpec::new("rtcSessionId", "simple", false))));
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+    }
+
+    /// Refresh an expiring RTC media participant credential
+    pub async fn sessions_credentials_refresh(&self, rtc_session_id: &str, body: &IssueRtcParticipantCredentialRequest) -> Result<CallsSessionsCredentialsRefreshResponse, SdkworkError> {
+        let path = im_path(&format!("/calls/sessions/{}/credentials/refresh", serialize_path_parameter(rtc_session_id, PathParameterSpec::new("rtcSessionId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
@@ -163,6 +181,140 @@ fn path_primitive_prefix(name: &str, style: &str) -> String {
 }
 
 
+struct QueryParameterSpec<'a> {
+    name: &'a str,
+    value: serde_json::Value,
+    style: &'a str,
+    explode: bool,
+    allow_reserved: bool,
+    content_type: Option<&'a str>,
+}
+
+impl<'a> QueryParameterSpec<'a> {
+    fn new<T: serde::Serialize>(
+        name: &'a str,
+        value: T,
+        style: &'a str,
+        explode: bool,
+        allow_reserved: bool,
+        content_type: Option<&'a str>,
+    ) -> Self {
+        Self {
+            name,
+            value: serde_json::to_value(value).unwrap_or(serde_json::Value::Null),
+            style,
+            explode,
+            allow_reserved,
+            content_type,
+        }
+    }
+}
+
+fn build_query_string(parameters: &[QueryParameterSpec<'_>]) -> String {
+    let mut pairs = Vec::new();
+    for parameter in parameters {
+        append_serialized_parameter(&mut pairs, parameter);
+    }
+    pairs.join("&")
+}
+
+fn append_serialized_parameter(pairs: &mut Vec<String>, parameter: &QueryParameterSpec<'_>) {
+    if parameter.value.is_null() {
+        return;
+    }
+    if parameter.content_type.is_some() {
+        pairs.push(format!(
+            "{}={}",
+            percent_encode(parameter.name),
+            encode_query_value(&parameter.value.to_string(), parameter.allow_reserved)
+        ));
+        return;
+    }
+
+    let style = if parameter.style.is_empty() { "form" } else { parameter.style };
+    match &parameter.value {
+        serde_json::Value::Array(values) => append_array_parameter(pairs, parameter.name, values, style, parameter.explode, parameter.allow_reserved),
+        serde_json::Value::Object(values) if style == "deepObject" => append_deep_object_parameter(pairs, parameter.name, values, parameter.allow_reserved),
+        serde_json::Value::Object(values) => append_object_parameter(pairs, parameter.name, values, style, parameter.explode, parameter.allow_reserved),
+        value => pairs.push(format!("{}={}", percent_encode(parameter.name), encode_query_value(&primitive_to_string(value), parameter.allow_reserved))),
+    }
+}
+
+fn append_array_parameter(
+    pairs: &mut Vec<String>,
+    name: &str,
+    values: &[serde_json::Value],
+    style: &str,
+    explode: bool,
+    allow_reserved: bool,
+) {
+    let serialized = values.iter().filter(|value| !value.is_null()).map(primitive_to_string).collect::<Vec<_>>();
+    if serialized.is_empty() {
+        return;
+    }
+    if style == "form" && explode {
+        for item in serialized {
+            pairs.push(format!("{}={}", percent_encode(name), encode_query_value(&item, allow_reserved)));
+        }
+        return;
+    }
+    pairs.push(format!("{}={}", percent_encode(name), encode_query_value(&serialized.join(","), allow_reserved)));
+}
+
+fn append_object_parameter(
+    pairs: &mut Vec<String>,
+    name: &str,
+    values: &serde_json::Map<String, serde_json::Value>,
+    style: &str,
+    explode: bool,
+    allow_reserved: bool,
+) {
+    let mut serialized = Vec::new();
+    for (key, value) in values {
+        if value.is_null() {
+            continue;
+        }
+        if style == "form" && explode {
+            pairs.push(format!("{}={}", percent_encode(key), encode_query_value(&primitive_to_string(value), allow_reserved)));
+        } else {
+            serialized.push(key.clone());
+            serialized.push(primitive_to_string(value));
+        }
+    }
+    if !serialized.is_empty() {
+        pairs.push(format!("{}={}", percent_encode(name), encode_query_value(&serialized.join(","), allow_reserved)));
+    }
+}
+
+fn append_deep_object_parameter(
+    pairs: &mut Vec<String>,
+    name: &str,
+    values: &serde_json::Map<String, serde_json::Value>,
+    allow_reserved: bool,
+) {
+    for (key, value) in values {
+        if !value.is_null() {
+            pairs.push(format!("{}={}", percent_encode(&format!("{}[{}]", name, key)), encode_query_value(&primitive_to_string(value), allow_reserved)));
+        }
+    }
+}
+
+fn encode_query_value(value: &str, allow_reserved: bool) -> String {
+    let mut encoded = percent_encode(value);
+    if !allow_reserved {
+        return encoded;
+    }
+    for (escaped, reserved) in [
+        ("%3A", ":"), ("%2F", "/"), ("%3F", "?"), ("%23", "#"),
+        ("%5B", "["), ("%5D", "]"), ("%40", "@"), ("%21", "!"),
+        ("%24", "$"), ("%26", "&"), ("%27", "'"), ("%28", "("),
+        ("%29", ")"), ("%2A", "*"), ("%2B", "+"), ("%2C", ","),
+        ("%3B", ";"), ("%3D", "="),
+    ] {
+        encoded = encoded.replace(escaped, reserved);
+    }
+    encoded
+}
 
 fn primitive_to_string(value: &serde_json::Value) -> String {
     match value {

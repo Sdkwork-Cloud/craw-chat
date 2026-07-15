@@ -340,6 +340,7 @@ fn format_sdk_target(sdk_target: SdkTarget) -> &'static str {
         SdkTarget::SdkworkCourseAppSdk => "sdkworkCourseAppSdk",
         SdkTarget::SdkworkKnowledgebaseAppSdk => "sdkworkKnowledgebaseAppSdk",
         SdkTarget::SdkworkVoiceAppSdk => "sdkworkVoiceAppSdk",
+        SdkTarget::SdkworkAgentsAppSdk => "sdkworkAgentsAppSdk",
         SdkTarget::None => "none",
     }
 }

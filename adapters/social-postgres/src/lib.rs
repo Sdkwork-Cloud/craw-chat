@@ -182,15 +182,12 @@ fn verify_production_sslmode(
         || lowered.contains("sslmode=verifyca")
         || lowered.contains("sslmode=verifyfull");
     if !requires_tls {
-        return Err(im_platform_contracts::ContractError::Unavailable(
-            format!(
-                "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain \
+        return Err(im_platform_contracts::ContractError::Unavailable(format!(
+            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain \
                  sslmode=require or sslmode=verify-full in production \
                  (current environment={environment}). Refusing to start with a \
                  plaintext database connection."
-            )
-            .into(),
-        ));
+        )));
     }
     Ok(())
 }

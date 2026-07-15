@@ -4,7 +4,10 @@ use super::model::{
     ConversationPreferencesView, ConversationProfileView, UpdateConversationPreferencesRequest,
     UpdateConversationProfileRequest,
 };
-use super::{TimelineProjectionService, lock_projection_mutex, scope::scope_key, snapshot};
+use super::{
+    TimelineProjectionService, lock_projection_mutex, projection::ProjectionError,
+    scope::scope_key, snapshot,
+};
 
 pub(super) fn conversation_preferences_key(
     tenant_id: &str,
@@ -178,6 +181,35 @@ impl TimelineProjectionService {
         profile
     }
 
+    pub fn update_conversation_profile_durable(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+        update: UpdateConversationProfileRequest,
+    ) -> Result<ConversationProfileView, ProjectionError> {
+        let profile = self.update_conversation_profile(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_kind,
+            principal_id,
+            update,
+        );
+        if let Some(store) = self.durable_metadata_store() {
+            let scope = scope_key(tenant_id, organization_id, conversation_id);
+            snapshot::persist_metadata_snapshot(
+                store.as_ref(),
+                scope.as_str(),
+                snapshot::CONVERSATION_PROFILE_KEY,
+                &profile,
+            )?;
+        }
+        Ok(profile)
+    }
+
     pub fn conversation_preferences(
         &self,
         tenant_id: &str,
@@ -260,6 +292,8 @@ impl TimelineProjectionService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use im_adapters_local_memory::MemoryMetadataStore;
+    use std::sync::Arc;
 
     #[test]
     fn conversation_profile_and_preferences_round_trip_in_memory_store() {
@@ -298,5 +332,38 @@ mod tests {
         );
         assert!(preferences.is_pinned);
         assert!(!preferences.is_hidden);
+    }
+
+    #[test]
+    fn authenticated_profile_updates_are_persisted_to_durable_metadata() {
+        let service = TimelineProjectionService::default();
+        let metadata = Arc::new(MemoryMetadataStore::default());
+        service.configure_durable_metadata(metadata.clone());
+
+        let profile = service
+            .update_conversation_profile_durable(
+                "100001",
+                "default",
+                "c_profile_durable",
+                "user",
+                "owner-1",
+                UpdateConversationProfileRequest {
+                    display_name: Some("Durable group name".into()),
+                    avatar_url: None,
+                    notice: None,
+                },
+            )
+            .expect("profile update should persist");
+        let scope = scope_key("100001", "default", "c_profile_durable");
+        let persisted = snapshot::load_metadata_snapshot::<ConversationProfileView>(
+            metadata.as_ref(),
+            scope.as_str(),
+            snapshot::CONVERSATION_PROFILE_KEY,
+        )
+        .expect("profile snapshot should load")
+        .expect("profile snapshot should exist");
+
+        assert_eq!(profile, persisted);
+        assert_eq!(persisted.display_name, "Durable group name");
     }
 }

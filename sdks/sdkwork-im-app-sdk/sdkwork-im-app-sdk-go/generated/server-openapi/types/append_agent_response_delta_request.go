@@ -2,7 +2,7 @@ package types
 
 
 type AppendAgentResponseDeltaRequest struct {
-	FrameSeq int `json:"frameSeq"`
+	FrameSeq string `json:"frameSeq"`
 	FrameType string `json:"frameType"`
 	SchemaRef string `json:"schemaRef"`
 	Encoding string `json:"encoding"`

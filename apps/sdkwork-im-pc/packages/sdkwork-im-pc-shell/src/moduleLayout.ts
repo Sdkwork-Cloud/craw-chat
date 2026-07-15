@@ -23,6 +23,7 @@ export const FULLSCREEN_MODULE_TABS = new Set<string>([
   'voicegen',
   'musicgen',
   'writing',
+  'token-plan',
 ]);
 
 export function isChatModule(activeTab: string): boolean {

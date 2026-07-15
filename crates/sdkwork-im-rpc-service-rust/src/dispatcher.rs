@@ -6,7 +6,10 @@ use prost::Message;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status};
 
-use crate::{ImRpcError, RpcMetadata, RpcMethodBinding, map_rpc_error_to_status};
+use crate::{
+    ImRpcError, RpcMetadata, RpcMethodBinding, VerifiedInternalRpcContext, map_rpc_error_to_status,
+    requires_verified_delegated_user_context,
+};
 
 pub type ImRpcBoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
 pub type ImRpcBoxStream<T> = Pin<Box<dyn Stream<Item = T> + Send + 'static>>;
@@ -16,6 +19,10 @@ pub type ImRpcResponseStream<T> = ReceiverStream<Result<T, Status>>;
 pub struct ImRpcUnaryRequest {
     pub binding: &'static RpcMethodBinding,
     pub metadata: RpcMetadata,
+    /// Present only for operations whose adapter extracted framework-verified
+    /// mTLS identity and signed caller context before consuming Tonic request
+    /// extensions. It is never reconstructed from metadata or payload bytes.
+    pub verified_internal_context: Option<VerifiedInternalRpcContext>,
     pub request_bytes: Vec<u8>,
 }
 
@@ -87,6 +94,11 @@ where
     Req: Message,
     Res: Message + Default,
 {
+    let verified_internal_context = if requires_verified_delegated_user_context(binding) {
+        Some(VerifiedInternalRpcContext::from_tonic_request(&request)?)
+    } else {
+        None
+    };
     let metadata =
         RpcMetadata::from_metadata_map(request.metadata()).map_err(map_rpc_error_to_status)?;
     let request_message = request.into_inner();
@@ -100,6 +112,7 @@ where
         .dispatch_unary(ImRpcUnaryRequest {
             binding,
             metadata,
+            verified_internal_context,
             request_bytes,
         })
         .await

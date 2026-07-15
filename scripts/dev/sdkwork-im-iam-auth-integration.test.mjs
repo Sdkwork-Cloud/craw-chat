@@ -15,6 +15,7 @@ const iamAdapterLib = read('../sdkwork-iam/crates/sdkwork-iam-web-adapter/src/li
 const iamDatabaseEnv = read('../sdkwork-iam/crates/sdkwork-iam-web-adapter/src/iam_database_env.rs');
 const imWebBootstrap = read('crates/sdkwork-im-web-bootstrap/src/lib.rs');
 const embeddedGateway = read('services/sdkwork-im-cloud-gateway/src/embedded_session_gateway.rs');
+const embeddedDependencyRoutes = read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs');
 const realtimeBootstrap = read('crates/sdkwork-routes-im-realtime-open-api/src/web_bootstrap.rs');
 
 const embeddedDispatch = gatewayRuntime.match(
@@ -147,6 +148,21 @@ assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
   /sdkwork_notary_gateway_assembly::assemble_application_business_router/,
   'standalone dependency bootstrap must mount notary business routes through sibling gateway assembly library',
+);
+assert.match(
+  embeddedDependencyRoutes,
+  /bootstrap_embedded_dependency_routes\(\)\s*->\s*Result<EmbeddedDependencyRoutes, String>/u,
+  'standalone dependency bootstrap must fail readiness instead of returning a partially mounted router',
+);
+assert.match(
+  embeddedDependencyRoutes,
+  /merge_embedded_dependency\([\s\S]*?\.await\?/u,
+  'declared dependency route assembly failures must propagate to standalone gateway startup',
+);
+assert.doesNotMatch(
+  embeddedDependencyRoutes,
+  /dependency_bootstrap_skipped|embedded dependency bootstrap skipped/u,
+  'standalone gateway must not hide dependency bootstrap failures and degrade missing SDK routes into 404 responses',
 );
 assert.match(
   read('crates/sdkwork-im-cloud-gateway-config/src/lib.rs'),

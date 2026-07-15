@@ -46,6 +46,16 @@ struct MessageRecalledRealtimePayload {
     summary: String,
 }
 
+pub(crate) struct ConversationRealtimeEvent<'a> {
+    pub(crate) tenant_id: &'a str,
+    pub(crate) organization_id: &'a str,
+    pub(crate) conversation_id: &'a str,
+    pub(crate) event_type: &'a str,
+    pub(crate) journal_event_id: &'a str,
+    pub(crate) payload_json: String,
+    pub(crate) occurred_at: &'a str,
+}
+
 impl<J> ConversationRuntime<J>
 where
     J: CommitJournal,
@@ -75,35 +85,32 @@ where
     /// remains authoritative: this method only handles the post-commit fanout.
     pub(crate) fn publish_or_enqueue_conversation_event(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-        event_type: &str,
-        journal_event_id: &str,
-        payload_json: String,
-        occurred_at: &str,
+        event: ConversationRealtimeEvent<'_>,
     ) -> Result<(), RuntimeError> {
-        serde_json::from_str::<serde_json::Value>(payload_json.as_str()).map_err(|error| {
-            RuntimeError::InvalidInput(format!(
-                "{event_type} realtime payload encode failed: {error}"
-            ))
-        })?;
+        serde_json::from_str::<serde_json::Value>(event.payload_json.as_str()).map_err(
+            |error| {
+                RuntimeError::InvalidInput(format!(
+                    "{} realtime payload encode failed: {error}",
+                    event.event_type
+                ))
+            },
+        )?;
 
         let mut publisher_error = None;
         if let Some(publisher) = self.resolve_realtime_publisher() {
             match self.publish_durable_scope_event_to_active_members_in_batches(
                 publisher.as_ref(),
-                tenant_id,
-                organization_id,
-                conversation_id,
-                event_type,
-                payload_json.clone(),
+                event.tenant_id,
+                event.organization_id,
+                event.conversation_id,
+                event.event_type,
+                event.payload_json.clone(),
             ) {
                 Ok(()) => return Ok(()),
                 Err(error) => {
                     tracing::warn!(
-                        conversation_id = %conversation_id,
-                        event_type = %event_type,
+                        conversation_id = %event.conversation_id,
+                        event_type = %event.event_type,
                         error = ?error,
                         "conversation realtime publish failed; falling back to outbox"
                     );
@@ -128,15 +135,7 @@ where
             return Ok(());
         }
 
-        let record = self.build_conversation_event_outbox_record(
-            tenant_id,
-            organization_id,
-            conversation_id,
-            event_type,
-            journal_event_id,
-            payload_json,
-            occurred_at,
-        )?;
+        let record = self.build_conversation_event_outbox_record(event)?;
         let outbox = self
             .outbox_store
             .as_ref()
@@ -145,7 +144,11 @@ where
             Ok(()) => Ok(()),
             Err(ContractError::Conflict(_)) => {
                 let existing = outbox
-                    .read_by_event_id(tenant_id, organization_id, record.event_id.as_str())?
+                    .read_by_event_id(
+                        record.tenant_id.as_str(),
+                        record.organization_id.as_str(),
+                        record.event_id.as_str(),
+                    )?
                     .ok_or_else(|| {
                         RuntimeError::Conflict(format!(
                             "outbox event conflict without an existing record: {}",
@@ -167,40 +170,37 @@ where
 
     pub(crate) fn build_conversation_event_outbox_record(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-        event_type: &str,
-        journal_event_id: &str,
-        payload_json: String,
-        occurred_at: &str,
+        event: ConversationRealtimeEvent<'_>,
     ) -> Result<OutboxEventRecord, RuntimeError> {
-        let payload_hash = sha256_hash(payload_json.as_bytes());
+        let payload_hash = sha256_hash(event.payload_json.as_bytes());
         let identity_seed = super::encode_conversation_key_segments([
-            tenant_id,
-            organization_id,
-            conversation_id,
-            event_type,
-            journal_event_id,
+            event.tenant_id,
+            event.organization_id,
+            event.conversation_id,
+            event.event_type,
+            event.journal_event_id,
         ]);
         let outbox_id = format!("conv_ob_{}", &sha256_hash(identity_seed.as_bytes())[..32]);
-        let event_id = format!("conversation:{event_type}:{journal_event_id}");
+        let event_id = format!(
+            "conversation:{}:{}",
+            event.event_type, event.journal_event_id
+        );
         // `available_at` is a delivery time, not the domain occurrence time.
         // A client/replay envelope may legitimately carry a historical or
         // slightly future timestamp; using it for scheduling could strand a
         // pending row until that timestamp arrives. Keep the original event
         // time out of the scheduling path and enqueue immediately.
         let now = utc_now_rfc3339_millis();
-        let _ = occurred_at;
+        let _ = event.occurred_at;
         Ok(OutboxEventRecord {
-            tenant_id: tenant_id.to_owned(),
-            organization_id: organization_id.to_owned(),
+            tenant_id: event.tenant_id.to_owned(),
+            organization_id: event.organization_id.to_owned(),
             outbox_id,
             aggregate_type: CONVERSATION_OUTBOX_AGGREGATE_TYPE.into(),
-            aggregate_id: conversation_id.to_owned(),
+            aggregate_id: event.conversation_id.to_owned(),
             event_id,
-            event_type: event_type.to_owned(),
-            payload_json,
+            event_type: event.event_type.to_owned(),
+            payload_json: event.payload_json,
             payload_hash,
             publish_status: OutboxPublishStatus::Pending,
             attempt_count: 0,
@@ -366,9 +366,20 @@ where
                         scope_id: conversation_id,
                         event_type,
                         payload: payload_json.clone(),
-                        recipients,
+                        recipients: recipients.clone(),
                     })
                     .map_err(RuntimeError::from)?;
+                if event_type == "conversation.updated" {
+                    publisher
+                        .publish_durable_user_scope_event_to_recipients(
+                            tenant_id,
+                            organization_id,
+                            event_type,
+                            payload_json.clone(),
+                            recipients,
+                        )
+                        .map_err(RuntimeError::from)?;
+                }
             }
             if window.page_info.has_more != Some(true) {
                 break;
@@ -945,7 +956,7 @@ mod tests {
         runtime
             .create_conversation(CreateConversationCommand {
                 tenant_id: "100001".into(),
-                organization_id: "0".into(),
+                organization_id: "200001".into(),
                 conversation_id: "c_scope_only_outbox".into(),
                 creator_id: "user_000".into(),
                 conversation_type: "group".into(),
@@ -955,7 +966,7 @@ mod tests {
             runtime
                 .add_member(AddConversationMemberCommand {
                     tenant_id: "100001".into(),
-                    organization_id: "0".into(),
+                    organization_id: "200001".into(),
                     conversation_id: "c_scope_only_outbox".into(),
                     principal_id: format!("user_{index:03}"),
                     principal_kind: "user".into(),
@@ -968,7 +979,7 @@ mod tests {
         let record = runtime
             .build_message_mutation_outbox_record(
                 "100001",
-                "0",
+                "200001",
                 "c_scope_only_outbox",
                 "message.edited",
                 "evt_message_edited",
@@ -996,7 +1007,7 @@ mod tests {
         runtime
             .create_conversation(CreateConversationCommand {
                 tenant_id: "100001".into(),
-                organization_id: "0".into(),
+                organization_id: "200001".into(),
                 conversation_id: "c_agents_outbox".into(),
                 creator_id: "user.owner".into(),
                 conversation_type: "group".into(),
@@ -1006,7 +1017,7 @@ mod tests {
         let replaced = runtime
             .replace_conversation_agents(ReplaceConversationAgentsCommand {
                 tenant_id: "100001".into(),
-                organization_id: "0".into(),
+                organization_id: "200001".into(),
                 conversation_id: "c_agents_outbox".into(),
                 replaced_by: "user.owner".into(),
                 expected_generation: 1,
@@ -1024,7 +1035,7 @@ mod tests {
         assert_eq!(records.len(), 1);
         let record = &records[0];
         assert_eq!(record.tenant_id, "100001");
-        assert_eq!(record.organization_id, "0");
+        assert_eq!(record.organization_id, "200001");
         assert_eq!(record.aggregate_type, "conversation");
         assert_eq!(record.aggregate_id, "c_agents_outbox");
         assert_eq!(record.event_type, "conversation.agents_replaced");
@@ -1037,7 +1048,7 @@ mod tests {
         );
         let identity_seed = super::super::encode_conversation_key_segments([
             "100001",
-            "0",
+            "200001",
             "c_agents_outbox",
             "conversation.agents_replaced",
             replaced.event_id.as_str(),
@@ -1070,15 +1081,15 @@ mod tests {
         assert!(payload.get("recipientPrincipalIds").is_none());
 
         runtime
-            .publish_or_enqueue_conversation_event(
-                "100001",
-                "0",
-                "c_agents_outbox",
-                "conversation.agents_replaced",
-                replaced.event_id.as_str(),
-                record.payload_json.clone(),
-                replaced.replaced_at.as_str(),
-            )
+            .publish_or_enqueue_conversation_event(ConversationRealtimeEvent {
+                tenant_id: "100001",
+                organization_id: "200001",
+                conversation_id: "c_agents_outbox",
+                event_type: "conversation.agents_replaced",
+                journal_event_id: replaced.event_id.as_str(),
+                payload_json: record.payload_json.clone(),
+                occurred_at: replaced.replaced_at.as_str(),
+            })
             .expect("retrying the same committed event should be idempotent");
         assert_eq!(
             outbox.recorded().len(),
@@ -1099,7 +1110,7 @@ mod tests {
         runtime
             .create_conversation(CreateConversationCommand {
                 tenant_id: "100001".into(),
-                organization_id: "0".into(),
+                organization_id: "200001".into(),
                 conversation_id: "c_agents_atomic_writer".into(),
                 creator_id: "user.owner".into(),
                 conversation_type: "group".into(),
@@ -1109,7 +1120,7 @@ mod tests {
         let replaced = runtime
             .replace_conversation_agents(ReplaceConversationAgentsCommand {
                 tenant_id: "100001".into(),
-                organization_id: "0".into(),
+                organization_id: "200001".into(),
                 conversation_id: "c_agents_atomic_writer".into(),
                 replaced_by: "user.owner".into(),
                 expected_generation: 1,
@@ -1148,7 +1159,7 @@ mod tests {
         runtime
             .create_conversation(CreateConversationCommand {
                 tenant_id: "100001".into(),
-                organization_id: "0".into(),
+                organization_id: "200001".into(),
                 conversation_id: "c_agents_atomic_failure".into(),
                 creator_id: "user.owner".into(),
                 conversation_type: "group".into(),
@@ -1157,7 +1168,7 @@ mod tests {
 
         let result = runtime.replace_conversation_agents(ReplaceConversationAgentsCommand {
             tenant_id: "100001".into(),
-            organization_id: "0".into(),
+            organization_id: "200001".into(),
             conversation_id: "c_agents_atomic_failure".into(),
             replaced_by: "user.owner".into(),
             expected_generation: 1,
@@ -1166,7 +1177,7 @@ mod tests {
 
         assert!(matches!(result, Err(RuntimeError::Contract(_))));
         let snapshot = runtime
-            .conversation_agent_assignments_snapshot("100001", "0", "c_agents_atomic_failure")
+            .conversation_agent_assignments_snapshot("100001", "200001", "c_agents_atomic_failure")
             .expect("failed atomic write must retain the committed assignment snapshot");
         assert_eq!(snapshot.generation, 1);
         assert_eq!(snapshot.agents.len(), 1);
@@ -1181,7 +1192,7 @@ mod tests {
         runtime
             .create_conversation(CreateConversationCommand {
                 tenant_id: "100001".into(),
-                organization_id: "0".into(),
+                organization_id: "200001".into(),
                 conversation_id: "c_agents_realtime".into(),
                 creator_id: "user.owner".into(),
                 conversation_type: "group".into(),
@@ -1190,7 +1201,7 @@ mod tests {
         runtime
             .add_member(AddConversationMemberCommand {
                 tenant_id: "100001".into(),
-                organization_id: "0".into(),
+                organization_id: "200001".into(),
                 conversation_id: "c_agents_realtime".into(),
                 principal_id: "user.member".into(),
                 principal_kind: "user".into(),
@@ -1202,7 +1213,7 @@ mod tests {
         runtime
             .replace_conversation_agents(ReplaceConversationAgentsCommand {
                 tenant_id: "100001".into(),
-                organization_id: "0".into(),
+                organization_id: "200001".into(),
                 conversation_id: "c_agents_realtime".into(),
                 replaced_by: "user.owner".into(),
                 expected_generation: 1,
@@ -1217,7 +1228,7 @@ mod tests {
         assert_eq!(published.len(), 1);
         let event = &published[0];
         assert_eq!(event.tenant_id, "100001");
-        assert_eq!(event.organization_id, "0");
+        assert_eq!(event.organization_id, "200001");
         assert_eq!(event.scope_type, "conversation");
         assert_eq!(event.scope_id, "c_agents_realtime");
         assert_eq!(event.event_type, "conversation.agents_replaced");
@@ -1249,6 +1260,69 @@ mod tests {
                 .as_array()
                 .map(Vec::len),
             Some(2)
+        );
+    }
+
+    #[test]
+    fn conversation_profile_updates_reach_each_member_inbox_scope() {
+        let publisher = RecordingRealtimePublisher::default();
+        let runtime = ConversationRuntime::new(RealtimeTestJournal::default())
+            .with_realtime_publisher(Arc::new(publisher.clone()));
+        runtime
+            .create_conversation(CreateConversationCommand {
+                tenant_id: "100001".into(),
+                organization_id: "200001".into(),
+                conversation_id: "c_profile_realtime".into(),
+                creator_id: "user.owner".into(),
+                conversation_type: "group".into(),
+            })
+            .expect("profile realtime group should be created");
+        runtime
+            .add_member(AddConversationMemberCommand {
+                tenant_id: "100001".into(),
+                organization_id: "200001".into(),
+                conversation_id: "c_profile_realtime".into(),
+                principal_id: "user.member".into(),
+                principal_kind: "user".into(),
+                role: MembershipRole::Member,
+                invited_by: "user.owner".into(),
+            })
+            .expect("profile realtime member should be added");
+
+        runtime
+            .publish_or_enqueue_conversation_event(ConversationRealtimeEvent {
+                tenant_id: "100001",
+                organization_id: "200001",
+                conversation_id: "c_profile_realtime",
+                event_type: "conversation.updated",
+                journal_event_id: "profile-updated-1",
+                payload_json: serde_json::json!({
+                    "conversationId": "c_profile_realtime",
+                    "displayName": "Renamed group",
+                })
+                .to_string(),
+                occurred_at: "2026-07-14T10:00:00.000Z",
+            })
+            .expect("profile update should publish");
+
+        let published = publisher.recorded();
+        assert_eq!(published.len(), 3);
+        assert!(published.iter().any(|event| {
+            event.scope_type == "conversation"
+                && event.scope_id == "c_profile_realtime"
+                && event.recipients.len() == 2
+        }));
+        let mut inbox_scopes = published
+            .iter()
+            .filter(|event| event.scope_type == "user")
+            .map(|event| event.scope_id.as_str())
+            .collect::<Vec<_>>();
+        inbox_scopes.sort_unstable();
+        assert_eq!(inbox_scopes, vec!["user.member", "user.owner"]);
+        assert!(
+            published
+                .iter()
+                .all(|event| event.event_type == "conversation.updated")
         );
     }
 }

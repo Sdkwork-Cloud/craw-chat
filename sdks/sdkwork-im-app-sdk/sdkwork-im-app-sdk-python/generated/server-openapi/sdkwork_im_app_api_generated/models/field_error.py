@@ -8,3 +8,5 @@ class FieldError:
     field: str
     message: str
     code: Optional[int] = None
+    i18n_key: Optional[str] = None
+    params: Optional[Dict[str, str]] = None

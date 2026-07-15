@@ -9,57 +9,57 @@ import com.sdkwork.im.app.api.generated.http.HttpClient
 class PortalApi(private val client: HttpClient) {
 
     /** Read the tenant portal sign-in snapshot */
-    suspend fun accessRetrieve(): Map<String, Any>? {
+    suspend fun accessRetrieve(): AccessRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/portal/access"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<AccessRetrieveResponse>() {})
     }
 
     /** Read the tenant automation snapshot */
-    suspend fun automationRetrieve(): Map<String, Any>? {
+    suspend fun automationRetrieve(): AutomationRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/portal/automation"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<AutomationRetrieveResponse>() {})
     }
 
     /** Read the tenant conversations snapshot */
-    suspend fun conversationSnapshotRetrieve(): Map<String, Any>? {
+    suspend fun conversationSnapshotRetrieve(): ConversationSnapshotRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/portal/conversations"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<ConversationSnapshotRetrieveResponse>() {})
     }
 
     /** Read the tenant dashboard snapshot */
-    suspend fun dashboardRetrieve(): Map<String, Any>? {
+    suspend fun dashboardRetrieve(): DashboardRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/portal/dashboard"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<DashboardRetrieveResponse>() {})
     }
 
     /** Read the tenant governance snapshot */
-    suspend fun governanceRetrieve(): Map<String, Any>? {
+    suspend fun governanceRetrieve(): GovernanceRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/portal/governance"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<GovernanceRetrieveResponse>() {})
     }
 
     /** Read the tenant portal home snapshot */
-    suspend fun homeRetrieve(): Map<String, Any>? {
+    suspend fun homeRetrieve(): HomeRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/portal/home"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<HomeRetrieveResponse>() {})
     }
 
     /** Read the tenant media snapshot */
-    suspend fun mediaRetrieve(): Map<String, Any>? {
+    suspend fun mediaRetrieve(): MediaRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/portal/media"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<MediaRetrieveResponse>() {})
     }
 
     /** Read the tenant realtime snapshot */
-    suspend fun realtimeRetrieve(): Map<String, Any>? {
+    suspend fun realtimeRetrieve(): RealtimeRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/portal/realtime"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<RealtimeRetrieveResponse>() {})
     }
 
     /** Read the current tenant workspace snapshot */
-    suspend fun workspaceRetrieve(): PortalWorkspaceView? {
+    suspend fun workspaceRetrieve(): WorkspaceRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/portal/workspace"))
-        return client.convertValue(raw, object : TypeReference<PortalWorkspaceView>() {})
+        return client.convertValue(raw, object : TypeReference<WorkspaceRetrieveResponse>() {})
     }
 
 

@@ -292,10 +292,21 @@ fn publish_conversation_event_to_member_pages(
                         scope_id: event.aggregate_id.as_str(),
                         event_type: event.event_type.as_str(),
                         payload: payload.clone(),
-                        recipients,
+                        recipients: recipients.clone(),
                     },
                 )?,
             );
+            if event.event_type == "conversation.updated" {
+                delivered = delivered.saturating_add(
+                    realtime_publisher.publish_durable_user_scope_event_to_recipients(
+                        event.tenant_id.as_str(),
+                        event.organization_id.as_str(),
+                        event.event_type.as_str(),
+                        payload.clone(),
+                        recipients,
+                    )?,
+                );
+            }
         }
         if !page.has_more {
             break;
@@ -497,6 +508,7 @@ mod tests {
     #[derive(Default)]
     struct RecordingPublisher {
         durable_batch_sizes: Mutex<Vec<usize>>,
+        durable_scopes: Mutex<Vec<(String, String)>>,
     }
 
     impl RealtimeEventPublisher for RecordingPublisher {
@@ -516,6 +528,10 @@ mod tests {
                 .lock()
                 .expect("durable batch sizes should lock")
                 .push(batch_size);
+            self.durable_scopes
+                .lock()
+                .expect("durable scopes should lock")
+                .push((command.scope_type.into(), command.scope_id.into()));
             Ok(batch_size)
         }
     }
@@ -577,6 +593,87 @@ mod tests {
                 .lock()
                 .expect("durable batch sizes should lock"),
             vec![200, 200, 1]
+        );
+    }
+
+    #[test]
+    fn conversation_updated_outbox_relay_reaches_member_inbox_scopes() {
+        let members = vec![
+            ConversationMemberRecord {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_profile_updated".into(),
+                principal_kind: "user".into(),
+                principal_id: "user.owner".into(),
+                member_id: 1,
+                membership_role: "owner".into(),
+                membership_state: "joined".into(),
+                invited_by: None,
+                joined_at: "2026-07-10T00:00:00.000Z".into(),
+                removed_at: None,
+                attributes_json: "{}".into(),
+            },
+            ConversationMemberRecord {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_profile_updated".into(),
+                principal_kind: "user".into(),
+                principal_id: "user.member".into(),
+                member_id: 2,
+                membership_role: "member".into(),
+                membership_state: "joined".into(),
+                invited_by: Some("user.owner".into()),
+                joined_at: "2026-07-10T00:00:00.000Z".into(),
+                removed_at: None,
+                attributes_json: "{}".into(),
+            },
+        ];
+        let member_store = PagedConversationMembers { members };
+        let publisher = RecordingPublisher::default();
+        let event = OutboxEventRecord {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            outbox_id: "profile-1".into(),
+            aggregate_type: "conversation".into(),
+            aggregate_id: "c_profile_updated".into(),
+            event_id: "conversation:conversation.updated:profile-1".into(),
+            event_type: "conversation.updated".into(),
+            payload_json: serde_json::json!({
+                "conversationId": "c_profile_updated",
+                "displayName": "Renamed group",
+            })
+            .to_string(),
+            payload_hash: "hash".into(),
+            publish_status: im_platform_contracts::OutboxPublishStatus::Pending,
+            attempt_count: 0,
+            available_at: "2026-07-10T00:00:00.000Z".into(),
+            published_at: None,
+            created_at: "2026-07-10T00:00:00.000Z".into(),
+            updated_at: "2026-07-10T00:00:00.000Z".into(),
+        };
+
+        let delivered = publish_conversation_event_to_member_pages(
+            &publisher,
+            &member_store,
+            &event,
+            build_realtime_payload(&event),
+        )
+        .expect("profile event should publish to conversation and inbox scopes");
+
+        assert_eq!(delivered, 4);
+        let mut scopes = publisher
+            .durable_scopes
+            .lock()
+            .expect("durable scopes should lock")
+            .clone();
+        scopes.sort_unstable();
+        assert_eq!(
+            scopes,
+            vec![
+                ("conversation".into(), "c_profile_updated".into()),
+                ("user".into(), "user.member".into()),
+                ("user".into(), "user.owner".into()),
+            ]
         );
     }
 }

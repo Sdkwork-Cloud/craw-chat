@@ -70,6 +70,12 @@ Canonical console/admin package naming in this app root:
 
 Historical `sdkwork-clawchat-*` names were retired and must not be reintroduced.
 
+## Group Knowledgebase Boundary
+
+- The chat surface reads authoritative current membership through the generated IM SDK. Only the current group Owner can initialize or retry a group Knowledgebase; after activation, joined non-Guest Owners, Admins, and Members can open it.
+- The Header is the launch affordance and group information exposes the Owner management entry. Browser launch uses only an opaque ticket in the standalone Knowledgebase route fragment; desktop launch sends only that ticket to the registered deep link for the independent Knowledgebase Tauri process.
+- Feature packages use generated SDKs or approved composed facades only. They must not construct raw Knowledgebase HTTP requests, manual credentials, space identifiers, destination URLs, or embedded Knowledgebase Webviews.
+
 ## Code Style Rules
 
 Read `../../../sdkwork-specs/CODE_STYLE_SPEC.md` and `../../../sdkwork-specs/NAMING_SPEC.md` before code changes. Root `src/` must stay thin; business pages, services, i18n, state, and route contributions belong in packages. Feature packages use generated SDK clients or approved composed wrappers, not raw HTTP or manual credential headers.

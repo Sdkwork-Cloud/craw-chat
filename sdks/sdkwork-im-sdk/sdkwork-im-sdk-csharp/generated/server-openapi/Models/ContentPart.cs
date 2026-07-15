@@ -8,6 +8,7 @@ namespace Sdkwork.Im.Sdk.Generated.Models
     [JsonDerivedType(typeof(TextContentPart), "text")]
     [JsonDerivedType(typeof(DataContentPart), "data")]
     [JsonDerivedType(typeof(MediaContentPart), "media")]
+    [JsonDerivedType(typeof(MentionContentPart), "mention")]
     [JsonDerivedType(typeof(SignalContentPart), "signal")]
     [JsonDerivedType(typeof(StreamRefContentPart), "stream_ref")]
     public abstract class ContentPart

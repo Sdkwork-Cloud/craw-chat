@@ -22,12 +22,6 @@ async function main(): Promise<void> {
         throw new Error('startup must not enumerate contact pages');
       },
     },
-    groupService: {
-      async syncGroupMembers() {
-        calls.push({ method: 'group.syncGroupMembers' });
-        throw new Error('startup must not enumerate every group member');
-      },
-    },
   });
 
   const result = await service.syncStartup();
@@ -44,7 +38,6 @@ async function main(): Promise<void> {
     refreshedChats: 1,
   });
   assert.equal(result.contacts, undefined);
-  assert.deepEqual(result.groups, []);
   assert.deepEqual(result.recoveredRtcSessions, []);
   assert.equal(result.errors.length, 0);
 

@@ -24,7 +24,7 @@ client.setAuthToken("your-auth-token")
 client.setAccessToken("your-access-token")
 
 // Use the SDK
-let result = try await client.notification.notificationsList()
+let result = try await client.portal.accessRetrieve()
 print(result)
 ```
 
@@ -49,9 +49,10 @@ client.setHeader("X-Custom-Header", value: "value")
 ## API Modules
 
 - `client.automation` - automation API
-- `client.notification` - notification API
+- `client.notifications` - notifications API
 - `client.portal` - portal API
 - `client.provider` - provider API
+- `client.chat` - chat API
 
 ## Usage Examples
 
@@ -72,11 +73,15 @@ let result = try await client.automation.agentResponsesCreate(body: body)
 print(result)
 ```
 
-### notification
+### notifications
 
 ```swift
 // List notifications for the current principal
-let result = try await client.notification.notificationsList()
+let params: [String: Any] = [
+    "page_size": 1,
+    "cursor": "cursor"
+]
+let result = try await client.notifications.list(params: params)
 print(result)
 ```
 
@@ -96,11 +101,20 @@ let result = try await client.provider.mediaHealthRetrieve()
 print(result)
 ```
 
+### chat
+
+```swift
+// Retrieve the group knowledgebase link
+let conversationId = "1"
+let result = try await client.chat.conversationsKnowledgebaseRetrieve(conversationId: conversationId)
+print(result)
+```
+
 ## Error Handling
 
 ```swift
 do {
-    try await client.notification.notificationsList()
+    try await client.portal.accessRetrieve()
 } catch {
     print("Error: \(error)")
 }
@@ -137,10 +151,12 @@ MIT
 
 ## Regeneration Contract
 
-- Generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
-- Each run also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
-- Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
+- HTTP/OpenAPI generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
+- HTTP/OpenAPI generation also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- HTTP/OpenAPI apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
 - CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
-- Put hand-written wrappers, adapters, and orchestration in `custom/`.
-- Files scaffolded under `custom/` are created once and preserved across regenerations.
-- If a generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.
+- Put HTTP/OpenAPI hand-written wrappers, adapters, and orchestration in `custom/`.
+- Files scaffolded under `custom/` are created once and preserved across HTTP/OpenAPI regenerations.
+- If an HTTP/OpenAPI generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.
+- RPC SDK source workspaces use convention-first evidence by default: RPC SDK family naming, language workspace naming, `rpc/*.manifest.json`, proto source references, generated client source, and native package manifests.
+- Use `sdkgen inspect --protocol rpc` to verify RPC convention evidence. Request persisted generator evidence only with `--emit-control-plane` for release, CI, audit, or migration workflows; evidence paths are derived by generator convention.

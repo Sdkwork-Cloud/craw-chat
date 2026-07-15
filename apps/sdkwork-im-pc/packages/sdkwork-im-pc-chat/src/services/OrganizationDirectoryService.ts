@@ -1057,16 +1057,29 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
 
   private async fetchDepartments(organizationId?: string): Promise<OrgDepartment[]> {
     const explicitOrganizationId = pickString(organizationId);
-    const params = {
-      ...(explicitOrganizationId ? { organizationId: explicitOrganizationId } : {}),
-    };
     const client = this.client();
-    const response = client.iam?.departments?.list
-      ? await client.iam.departments.list(params)
-      : await client.listDepartments?.(explicitOrganizationId, params);
-    const departments = extractRecordArray(response)
-      .map(mapDepartmentRecord)
-      .filter(Boolean) as OrgDepartment[];
+    const departments: OrgDepartment[] = [];
+    await forEachCursorPage(async (cursor) => {
+      const params = {
+        pageSize: SDKWORK_MAX_PAGE_SIZE,
+        ...(cursor ? { cursor } : {}),
+        ...(explicitOrganizationId ? { organizationId: explicitOrganizationId } : {}),
+      };
+      const response = await safeDirectoryRequest(() => client.iam?.departments?.list
+        ? client.iam.departments.list(params)
+        : client.listDepartments?.(explicitOrganizationId, params));
+      if (!response) {
+        return { items: [], hasMore: false };
+      }
+      const page = mapAppSdkCursorPage(response, mapDepartmentRecord);
+      return {
+        items: page.items.filter(Boolean) as OrgDepartment[],
+        hasMore: page.hasMore,
+        nextCursor: page.nextCursor,
+      };
+    }, (pageItems) => {
+      departments.push(...pageItems);
+    }, { maxItems: SDKWORK_MAX_PAGE_SIZE * 50 });
     const scopedDepartments = explicitOrganizationId
       ? departments.map((department) => ({
           ...department,
@@ -1166,16 +1179,34 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
       ...(explicitOrganizationId ? { organizationId: explicitOrganizationId } : {}),
     };
     const client = this.client();
-    const response = client.iam?.departmentAssignments?.list
-      ? await client.iam.departmentAssignments.list(params)
-      : await client.listDepartmentAssignments?.(normalizedDepartmentId, params);
-    const assignmentUsers = uniqueUsersByAssignment(
-      extractRecordArray(response)
-        .map((record) => mapAssignmentRecord(record, normalizedDepartmentId))
-        .filter(Boolean) as User[],
-    );
-
-    const users = await Promise.all(assignmentUsers.map(async (user) => this.enrichAssignmentUser(user)));
+    const users: User[] = [];
+    await forEachCursorPage(async (cursor) => {
+      const pageParams = {
+        pageSize: SDKWORK_MAX_PAGE_SIZE,
+        ...(cursor ? { cursor } : {}),
+        ...params,
+      };
+      const response = await safeDirectoryRequest(() => client.iam?.departmentAssignments?.list
+        ? client.iam.departmentAssignments.list(pageParams)
+        : client.listDepartmentAssignments?.(normalizedDepartmentId, pageParams));
+      if (!response) {
+        return { items: [], hasMore: false };
+      }
+      const page = mapAppSdkCursorPage(
+        response,
+        (record) => mapAssignmentRecord(record, normalizedDepartmentId),
+      );
+      const assignmentUsers = uniqueUsersByAssignment(
+        page.items.filter(Boolean) as User[],
+      );
+      return {
+        items: await Promise.all(assignmentUsers.map((user) => this.enrichAssignmentUser(user))),
+        hasMore: page.hasMore,
+        nextCursor: page.nextCursor,
+      };
+    }, (pageItems) => {
+      users.push(...pageItems);
+    }, { maxItems: SDKWORK_MAX_PAGE_SIZE * 50 });
     return users.sort((left, right) => left.name.localeCompare(right.name));
   }
 

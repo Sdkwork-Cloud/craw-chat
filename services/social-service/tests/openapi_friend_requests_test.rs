@@ -9,7 +9,12 @@ use std::sync::Arc;
 use tower::ServiceExt;
 
 fn auth_headers() -> axum::http::HeaderMap {
-    let mut context = local_service_app_context("100001", "30", "user", Some("device_test"), ["*"]);
+    auth_headers_for_user("30")
+}
+
+fn auth_headers_for_user(user_id: &str) -> axum::http::HeaderMap {
+    let mut context =
+        local_service_app_context("100001", user_id, "user", Some("device_test"), ["*"]);
     context.organization_id = "0".into();
     build_dual_token_headers_for_context(&context, context.permission_scope.iter())
 }
@@ -305,6 +310,91 @@ async fn open_api_friend_request_create_uses_friend_request_id_wire_field() {
         friend_request.get("requestId").is_none(),
         "HTTP responses must not expose forbidden requestId fields"
     );
+}
+
+#[tokio::test]
+async fn open_api_friend_request_accept_keeps_its_direct_conversation_wire_shape() {
+    let app = wrapped_open_api_app(AppState {
+        social_runtime: Arc::new(SocialRuntime::default()),
+    });
+
+    let mut create_request = Request::builder()
+        .method("POST")
+        .uri("/im/v3/api/social/friend_requests")
+        .header(axum::http::header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            serde_json::json!({
+                "targetUserId": "31",
+                "requestMessage": "please add me"
+            })
+            .to_string(),
+        ))
+        .expect("friend request creation should build");
+    *create_request.headers_mut() = auth_headers();
+    create_request.headers_mut().insert(
+        axum::http::header::CONTENT_TYPE,
+        axum::http::HeaderValue::from_static("application/json"),
+    );
+
+    let create_response = app
+        .clone()
+        .oneshot(create_request)
+        .await
+        .expect("friend request creation should respond");
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request creation body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value = serde_json::from_slice(create_body.as_ref())
+        .expect("friend request creation should return JSON");
+    let friend_request_id = create_json
+        .pointer("/data/item/friendRequest/friendRequestId")
+        .and_then(serde_json::Value::as_str)
+        .expect("friend request creation should return friendRequestId");
+
+    let mut accept_request = Request::builder()
+        .method("POST")
+        .uri(format!(
+            "/im/v3/api/social/friend_requests/{friend_request_id}/accept"
+        ))
+        .body(Body::empty())
+        .expect("friend request acceptance should build");
+    *accept_request.headers_mut() = auth_headers_for_user("31");
+
+    let accept_response = app
+        .oneshot(accept_request)
+        .await
+        .expect("friend request acceptance should respond");
+    assert_eq!(accept_response.status(), StatusCode::OK);
+    let accept_body = accept_response
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request acceptance body should collect")
+        .to_bytes();
+    let accept_json: serde_json::Value = serde_json::from_slice(accept_body.as_ref())
+        .expect("friend request acceptance should return JSON");
+    let conversation = accept_json
+        .pointer("/data/item/conversation")
+        .expect("friend request acceptance should return a direct conversation");
+    let mut field_names: Vec<String> = conversation
+        .as_object()
+        .expect("accepted conversation should be an object")
+        .keys()
+        .cloned()
+        .collect();
+    field_names.sort_unstable();
+    assert_eq!(
+        field_names,
+        ["conversationId", "createdAt", "kind", "tenantId"].map(str::to_owned)
+    );
+    assert_eq!(conversation["tenantId"], "100001");
+    assert_eq!(conversation["kind"], "direct");
+    assert!(conversation["conversationId"].is_string());
+    assert!(conversation["createdAt"].is_string());
 }
 
 #[tokio::test]

@@ -384,6 +384,16 @@ function isImStandardRoute(route) {
   );
 }
 
+const appOwnedGroupConversationRoutes = new Set([
+  'chat/conversations/{}/knowledgebase',
+  'chat/conversations/{}/knowledgebase/launch',
+  'chat/conversations/{}/archive',
+]);
+
+function isAppOwnedGroupConversationRoute(route) {
+  return appOwnedGroupConversationRoutes.has(route);
+}
+
 function assertDocumentHasOnlyImStandardRoutes(label, document, prefix) {
   for (const pathKey of pathKeys(document)) {
     const route = routeWithoutPrefix(pathKey, prefix);
@@ -398,7 +408,7 @@ function assertDocumentHasNoImStandardRoutes(label, document, prefix) {
   for (const pathKey of pathKeys(document)) {
     const route = routeWithoutPrefix(pathKey, prefix);
     assert.ok(
-      !isImStandardRoute(route),
+      !isImStandardRoute(route) || isAppOwnedGroupConversationRoute(route),
       `${label} route ${pathKey} duplicates the IM standardized development API and must not be exposed by app-api.`,
     );
   }
@@ -982,6 +992,17 @@ for (const appRequiredPath of [
     `app SDK config must require non-management API path ${appRequiredPath}.`,
   );
 }
+for (const groupConversationAppPath of [
+  '/app/v3/api/chat/conversations/{conversationId}/knowledgebase',
+  '/app/v3/api/chat/conversations/{conversationId}/knowledgebase/launch',
+  '/app/v3/api/chat/conversations/{conversationId}/archive',
+]) {
+  assert.match(
+    appConfigSource,
+    new RegExp(groupConversationAppPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `app SDK config must require the allowed group conversation app-api path ${groupConversationAppPath}.`,
+  );
+}
 for (const imStandardPath of [
   '/app/v3/api/device/sessions/resume',
   '/app/v3/api/devices/{deviceId}/twin',
@@ -989,7 +1010,6 @@ for (const imStandardPath of [
   '/app/v3/api/iot/devices/{deviceId}/commands',
   '/app/v3/api/iot/devices/{deviceId}/events',
   '/app/v3/api/iot/protocol/uplink',
-  '/app/v3/api/chat/conversations',
   '/app/v3/api/chat/messages/{messageId}/edit',
   '/app/v3/api/social/friend_requests',
   '/app/v3/api/media/uploads',
@@ -1469,11 +1489,32 @@ for (const [label, document] of [
       'conversationType',
       'groupName',
       'historyVisibility',
+      'initializeKnowledgebase',
       'memberUserIds',
       'policyVersion',
       'retentionPolicyRef',
     ],
     ['conversationType'],
+  );
+  const initializeKnowledgebase = document.components.schemas.CreateConversationRequest.properties.initializeKnowledgebase;
+  assert.equal(
+    initializeKnowledgebase?.type,
+    'boolean',
+    `${label} CreateConversationRequest.initializeKnowledgebase must be a boolean.`,
+  );
+  assert.equal(
+    initializeKnowledgebase?.default,
+    false,
+    `${label} CreateConversationRequest.initializeKnowledgebase must default to false.`,
+  );
+  assert.ok(
+    !(document.components.schemas.CreateConversationRequest.required ?? []).includes('initializeKnowledgebase'),
+    `${label} CreateConversationRequest.initializeKnowledgebase must remain optional.`,
+  );
+  assert.match(
+    String(initializeKnowledgebase?.description ?? ''),
+    /Omitted or false never reserves, provisions, or validates a group Knowledgebase scope\./u,
+    `${label} CreateConversationRequest.initializeKnowledgebase must document lazy provisioning semantics.`,
   );
   assertObjectSchemaShape(
     document,

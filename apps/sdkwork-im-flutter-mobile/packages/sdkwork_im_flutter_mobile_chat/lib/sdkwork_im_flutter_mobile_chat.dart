@@ -3,6 +3,7 @@ export 'package:sdkwork_im_flutter_mobile_core/sdkwork_im_flutter_mobile_core.da
         ContentPart,
         ConversationMessageEntry,
         ConversationMessageListResponse,
+        ConversationInboxPeerView,
         ConversationInboxEntry,
         ConversationsMessagesCreateResponse201,
         InboxListResponse,

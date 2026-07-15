@@ -194,6 +194,16 @@ entries:
     parityStatus: rpc-only
     owner: communication-internal
     rpcOnlyReason: game custom-schema fanout for service-to-service message dispatch
+  - operationId: internal.groupKnowledgebaseLaunchTickets.consume
+    httpSurface: null
+    httpPath: null
+    rpcPackage: sdkwork.communication.internal.v1
+    rpcService: GroupKnowledgebaseLaunchTicketService
+    rpcMethod: ConsumeGroupKnowledgebaseLaunchTicket
+    rpcSurface: internal
+    parityStatus: rpc-only
+    owner: communication-internal
+    rpcOnlyReason: sdkwork-knowledgebase capability-ticket consumption through mutually authenticated internal RPC
   - operationId: internal.rooms.create
     httpSurface: null
     httpPath: null

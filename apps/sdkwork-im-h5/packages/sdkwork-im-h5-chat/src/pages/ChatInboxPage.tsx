@@ -21,6 +21,7 @@ export function ChatInboxPage() {
   const [liveConnected, setLiveConnected] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const loadInboxRef = useRef<(options?: { silent?: boolean }) => void>(() => undefined);
   const requestGenerationRef = useRef(0);
   const loadingMoreRef = useRef(false);
@@ -34,14 +35,14 @@ export function ChatInboxPage() {
     }
     setError(null);
 
-    fetchChatInboxPage()
+    fetchChatInboxPage({ q: searchQuery.trim() || undefined })
       .then((response) => {
         if (requestGeneration !== requestGenerationRef.current) {
           return;
         }
         const responseItems = response.items ?? [];
         const pageState = readInboxPageState(response);
-        if (options?.silent && loadedAdditionalPagesRef.current) {
+        if (options?.silent && loadedAdditionalPagesRef.current && !searchQuery.trim()) {
           setEntries((previous) => mergeLatestInboxEntries(previous, responseItems));
         } else {
           loadedAdditionalPagesRef.current = false;
@@ -62,7 +63,7 @@ export function ChatInboxPage() {
           setLoading(false);
         }
       });
-  }, [t]);
+  }, [searchQuery, t]);
 
   const loadMoreInbox = useCallback(() => {
     if (!hasMore || !nextCursor || loadingMoreRef.current) {
@@ -75,7 +76,10 @@ export function ChatInboxPage() {
     setLoadingMore(true);
     setError(null);
 
-    fetchChatInboxPage({ cursor: requestCursor })
+    fetchChatInboxPage({
+      cursor: requestCursor,
+      q: searchQuery.trim() || undefined,
+    })
       .then((response) => {
         if (requestGeneration !== requestGenerationRef.current) {
           return;
@@ -103,12 +107,15 @@ export function ChatInboxPage() {
           }
         }
       });
-  }, [hasMore, nextCursor, t]);
+  }, [hasMore, nextCursor, searchQuery, t]);
 
   loadInboxRef.current = loadInbox;
 
   useEffect(() => {
-    loadInbox();
+    const timer = window.setTimeout(() => {
+      loadInbox();
+    }, searchQuery.trim() ? 250 : 0);
+    return () => window.clearTimeout(timer);
   }, [loadInbox]);
 
   useEffect(() => {
@@ -164,7 +171,25 @@ export function ChatInboxPage() {
   }
 
   if (entries.length === 0) {
-    return <p className="im-h5-chat-status">{t("chat.inbox.empty")}</p>;
+    return (
+      <div className="im-h5-chat-inbox-empty">
+        <label className="im-h5-chat-search-field">
+          <span className="im-h5-visually-hidden">{t("chat.inbox.searchAria")}</span>
+          <input
+            type="search"
+            value={searchQuery}
+            maxLength={256}
+            autoComplete="off"
+            placeholder={t("chat.inbox.searchPlaceholder")}
+            aria-label={t("chat.inbox.searchAria")}
+            onChange={(event) => setSearchQuery(event.target.value)}
+          />
+        </label>
+        <p className="im-h5-chat-status">
+          {searchQuery.trim() ? t("chat.inbox.searchEmpty") : t("chat.inbox.empty")}
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -177,6 +202,18 @@ export function ChatInboxPage() {
           </span>
         ) : null}
       </div>
+      <label className="im-h5-chat-search-field">
+        <span className="im-h5-visually-hidden">{t("chat.inbox.searchAria")}</span>
+        <input
+          type="search"
+          value={searchQuery}
+          maxLength={256}
+          autoComplete="off"
+          placeholder={t("chat.inbox.searchPlaceholder")}
+          aria-label={t("chat.inbox.searchAria")}
+          onChange={(event) => setSearchQuery(event.target.value)}
+        />
+      </label>
       {error ? (
         <div className="im-h5-chat-error" role="alert">
           <p>{error}</p>

@@ -5,9 +5,25 @@ metadata:
   namespace: sdkwork-im
 data:
   SDKWORK_IM_CONVERSATION_RUNTIME_BIND_ADDR: 0.0.0.0:28082
+  SDKWORK_IM_CONVERSATION_MAX_IN_MEMORY: "10000"
+  SDKWORK_IM_CONVERSATION_CACHE_MAX_BYTES: "536870912"
   SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
 
-# The required `conversation-service-secrets` Secret must provide
-# SDKWORK_IM_MESSAGE_HISTORY_CURSOR_HS256_SECRET or its `_FILE` variant with
-# one shared random value across every conversation-service replica.
+# The Deployment mounts these two values and uses their `_FILE` variables.
+# Supply distinct high-entropy values of at least 32 bytes. Each value must be
+# identical across every conversation-service replica and must never be moved
+# into a ConfigMap.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: conversation-service-secrets
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: conversation-service
+    app.kubernetes.io/part-of: sdkwork-im
+type: Opaque
+stringData:
+  SDKWORK_IM_MESSAGE_HISTORY_CURSOR_HS256_SECRET: <REPLACE_WITH_ACTUAL_VALUE>
+  SDKWORK_IM_GROUP_KNOWLEDGEBASE_LAUNCH_TICKET_SECRET: <REPLACE_WITH_ACTUAL_VALUE>

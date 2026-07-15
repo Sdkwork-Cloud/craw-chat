@@ -28,3 +28,4 @@ export * from './sdk/desktopOfflineStore';
 export * from './sdk/desktopOfflineChatCache';
 export * from './sdk/desktopOfflineSendQueue';
 export * from './runtime/desktopEnvironment';
+export * from './runtime/groupKnowledgebaseBrowserDestination';

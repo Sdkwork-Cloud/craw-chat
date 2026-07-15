@@ -28,6 +28,26 @@ for (const forbidden of capabilitySpec.bootstrapAccessTokenScope.forbiddenCodes)
     `bootstrap accessTokenPermissionScope must not include admin-only code ${forbidden}`,
   );
 }
+
+const groupKnowledgebaseScope = capabilitySpec.capabilityScopeRequirements?.find(
+  (entry) => entry.capability === 'group-knowledgebase',
+);
+assert.deepEqual(
+  groupKnowledgebaseScope,
+  {
+    capability: 'group-knowledgebase',
+    requiredLoginScope: 'ORGANIZATION',
+    organizationId: {
+      format: 'canonical-positive-signed-64-bit-decimal',
+      minimum: '1',
+      maximum: '9223372036854775807',
+    },
+    clientPreflight: 'server-derived-capability-status',
+    serverEnforcement: 'required',
+    scopeMismatchBehavior: 'capability-unavailable-and-select-organization',
+  },
+  'group knowledgebase must declare its organization-scoped session contract',
+);
 for (const allowed of capabilitySpec.bootstrapAccessTokenScope.allowedCodes) {
   assert.ok(
     bootstrapScope.includes(allowed),

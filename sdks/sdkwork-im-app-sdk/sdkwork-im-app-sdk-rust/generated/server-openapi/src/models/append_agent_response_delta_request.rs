@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AppendAgentResponseDeltaRequest {
     #[serde(rename = "frameSeq")]
-    pub frame_seq: i64,
+    pub frame_seq: String,
 
     #[serde(rename = "frameType")]
     pub frame_type: String,

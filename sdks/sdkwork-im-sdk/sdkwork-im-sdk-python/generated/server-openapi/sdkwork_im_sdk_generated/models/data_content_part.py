@@ -6,6 +6,6 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 @dataclass
 class DataContentPart:
     kind: str
-    schema_ref: Optional[str]
-    encoding: Optional[str]
-    payload: Optional[str]
+    schema_ref: str
+    encoding: str
+    payload: str
