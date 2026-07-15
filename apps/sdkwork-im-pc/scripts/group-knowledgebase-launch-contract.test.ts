@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   buildGroupKnowledgebaseBrowserUrlForBaseUrl,
+  createGroupKnowledgebaseInitializationIdempotencyKey,
   createGroupKnowledgebaseLaunchIdempotencyKey,
   createGroupKnowledgebaseLaunchService,
   resolveGroupKnowledgebaseAccessMode,
@@ -19,6 +20,8 @@ const VALID_TICKET = `gklt_${'a'.repeat(43)}`;
 type GroupKnowledgebaseLaunchOperation = GroupKnowledgebaseLaunchClient['chat']['conversations']['knowledgebase']['launch'];
 type GroupKnowledgebaseLaunchArguments = Parameters<GroupKnowledgebaseLaunchOperation>;
 type GroupKnowledgebaseLaunchResponse = Awaited<ReturnType<GroupKnowledgebaseLaunchOperation>>;
+type GroupKnowledgebaseCreateOperation = GroupKnowledgebaseLaunchClient['chat']['conversations']['knowledgebase']['create'];
+type GroupKnowledgebaseCreateArguments = Parameters<GroupKnowledgebaseCreateOperation>;
 type GroupKnowledgebaseRetrieveOperation = GroupKnowledgebaseLaunchClient['chat']['conversations']['knowledgebase']['retrieve'];
 type GroupKnowledgebaseRetrieveResponse = Awaited<ReturnType<GroupKnowledgebaseRetrieveOperation>>;
 
@@ -47,17 +50,22 @@ function lifecycleResponse(
 function createLaunchClient(
   launch: GroupKnowledgebaseLaunchOperation,
   retrieve: GroupKnowledgebaseRetrieveOperation = async () => lifecycleResponse('absent'),
+  create: GroupKnowledgebaseCreateOperation = async () => lifecycleResponse('active'),
 ): GroupKnowledgebaseLaunchClient {
   return {
     chat: {
       conversations: {
-        knowledgebase: { launch, retrieve },
+        knowledgebase: { create, launch, retrieve },
       },
     },
   };
 }
 
 {
+  assert.match(
+    createGroupKnowledgebaseInitializationIdempotencyKey(),
+    /^pc-group-knowledgebase-initialize-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+  );
   assert.match(
     createGroupKnowledgebaseLaunchIdempotencyKey(),
     /^pc-group-knowledgebase-launch-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
@@ -198,6 +206,11 @@ function createLaunchClient(
 
   assert.match(chatLayoutSource, /groupService\.retrieveCurrentUserGroupKnowledgebaseAccess\(activeGroupId\)/u);
   assert.match(chatLayoutSource, /groupKnowledgebaseLaunchService\.retrieveLifecycle\(activeGroupId\)/u);
+  assert.match(
+    chatLayoutSource,
+    /groupKnowledgebaseAccessMode\s*===\s*['"]initialize['"][\s\S]*groupKnowledgebaseLaunchService\.initialize\(localizedActiveChat\.id/u,
+    'the Owner initialize action must call the generated knowledgebase create workflow before launch',
+  );
   assert.doesNotMatch(
     chatLayoutSource,
     /resolveAppSdkOrganizationId|isCanonicalGroupKnowledgebaseOrganizationId/u,
@@ -229,6 +242,11 @@ function createLaunchClient(
   assert.match(chatLayoutSource, /groupKnowledgebaseAccessReloadEpoch/u);
   assert.match(
     chatLayoutSource,
+    /groupKnowledgebaseLifecycleState\s*!==\s*['"]provisioning['"][\s\S]*setGroupKnowledgebaseAccessReloadEpoch[\s\S]*GROUP_KNOWLEDGEBASE_PROVISIONING_POLL_INTERVAL_MS/u,
+    'provisioning must be re-read until the lifecycle becomes active or retryable',
+  );
+  assert.match(
+    chatLayoutSource,
     /chat\.name\.trim\(\) === ['"]Group chat['"][\s\S]*chat\.name\.trim\(\) === ['"]Direct chat['"]/u,
     'technical fallback conversation names must be localized before rendering',
   );
@@ -252,6 +270,59 @@ function createLaunchClient(
     /chat\.rightPanel\.actions\.knowledgebaseContactOwner/u,
     'group details must explain the owner contact requirement when the knowledgebase is not initialized',
   );
+}
+
+{
+  const createCalls: GroupKnowledgebaseCreateArguments[] = [];
+  let launchCalls = 0;
+  const service = createGroupKnowledgebaseLaunchService({
+    createInitializationIdempotencyKey: () => 'pc-group-knowledgebase-initialize-test',
+    getClient: () => createLaunchClient(
+      async () => {
+        launchCalls += 1;
+        return activeLaunchResponse();
+      },
+      undefined,
+      async (...args) => {
+        createCalls.push(args);
+        return lifecycleResponse('active');
+      },
+    ),
+  });
+
+  assert.deepEqual(await service.initialize('conversation-1'), { kind: 'active' });
+  assert.deepEqual(createCalls, [[
+    'conversation-1',
+    {},
+    { idempotencyKey: 'pc-group-knowledgebase-initialize-test' },
+  ]]);
+  assert.equal(launchCalls, 0);
+}
+
+{
+  const service = createGroupKnowledgebaseLaunchService({
+    getClient: () => createLaunchClient(
+      async () => activeLaunchResponse(),
+      undefined,
+      async () => lifecycleResponse('provisioning'),
+    ),
+  });
+
+  assert.deepEqual(await service.initialize('conversation-1'), { kind: 'provisioning' });
+}
+
+{
+  const service = createGroupKnowledgebaseLaunchService({
+    getClient: () => createLaunchClient(
+      async () => activeLaunchResponse(),
+      undefined,
+      async () => {
+        throw Object.assign(new Error('only the group owner can initialize'), { httpStatus: 403 });
+      },
+    ),
+  });
+
+  assert.deepEqual(await service.initialize('conversation-1'), { kind: 'unavailable' });
 }
 
 function createBrowserWindow() {

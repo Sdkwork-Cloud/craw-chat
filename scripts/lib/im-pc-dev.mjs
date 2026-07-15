@@ -449,15 +449,20 @@ export function createSdkworkChatBrowserOrigins({
 } = {}) {
   const resolvedPort = normalizePort(port, SDKWORK_IM_PC_DEV_PORT_ENV);
   const originHosts = [
-    ...(host === '0.0.0.0' ? ['127.0.0.1'] : [host]),
+    ...(host === '0.0.0.0' ? ['127.0.0.1'] : host === '::' ? ['::1'] : [host]),
     'localhost',
     ...networkHosts,
   ]
     .map((value) => normalizeText(value))
     .filter((value, index, values) => value && values.indexOf(value) === index);
   return originHosts
-    .map((originHost) => `http://${originHost}:${resolvedPort}`)
+    .map((originHost) => `http://${formatBrowserOriginHost(originHost)}:${resolvedPort}`)
     .join(',');
+}
+
+function formatBrowserOriginHost(host) {
+  const normalized = String(host).trim().replace(/^\[|\]$/gu, '');
+  return normalized.includes(':') ? `[${normalized}]` : normalized;
 }
 
 function isPrivateIpv4Address(address) {
@@ -470,6 +475,11 @@ function isPrivateIpv4Address(address) {
     || (octets[0] === 192 && octets[1] === 168);
 }
 
+function isPrivateIpv6Address(address) {
+  const normalized = String(address).split('%', 1)[0].toLowerCase();
+  return normalized.startsWith('fc') || normalized.startsWith('fd');
+}
+
 export function resolveLocalNetworkHosts({
   networkInterfaces = os.networkInterfaces,
 } = {}) {
@@ -479,9 +489,9 @@ export function resolveLocalNetworkHosts({
   return Object.values(interfaces ?? {})
     .flatMap((entries) => entries ?? [])
     .filter((entry) => (
-      (entry.family === 'IPv4' || entry.family === 4)
+      (entry.family === 'IPv4' || entry.family === 4 || entry.family === 'IPv6' || entry.family === 6)
       && !entry.internal
-      && isPrivateIpv4Address(entry.address)
+      && (isPrivateIpv4Address(entry.address) || isPrivateIpv6Address(entry.address))
     ))
     .map((entry) => entry.address)
     .filter((address, index, addresses) => addresses.indexOf(address) === index)
@@ -495,7 +505,7 @@ export function createSdkworkChatPcAccessUrls({
   const resolvedPort = normalizePort(port, SDKWORK_IM_PC_DEV_PORT_ENV);
   return {
     localUrl: `http://localhost:${resolvedPort}`,
-    networkUrls: networkHosts.map((host) => `http://${host}:${resolvedPort}`),
+    networkUrls: networkHosts.map((host) => `http://${formatBrowserOriginHost(host)}:${resolvedPort}`),
   };
 }
 

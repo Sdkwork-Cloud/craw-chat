@@ -471,6 +471,8 @@
       "search": "Search",
       "knowledgebase": "Open group knowledge base",
       "knowledgebaseInitialize": "Initialize group knowledge base",
+      "knowledgebaseInitialized": "Group knowledge base initialized.",
+      "knowledgebaseInitializationFailed": "Unable to initialize the group knowledge base. Try again.",
       "knowledgebaseInitializing": "Group knowledge base is initializing",
       "knowledgebaseChecking": "Checking group knowledge base",
       "knowledgebaseRetry": "Retry group knowledge base check",

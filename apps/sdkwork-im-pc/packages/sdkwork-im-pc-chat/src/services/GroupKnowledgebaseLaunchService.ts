@@ -22,6 +22,17 @@ export type GroupKnowledgebaseLaunchOutcome =
   | { kind: 'cancelled' }
   | { kind: 'failed' };
 
+export type GroupKnowledgebaseInitializationOutcome =
+  | { kind: 'active' }
+  | { kind: 'provisioning' }
+  | { kind: 'unavailable' }
+  | { kind: 'cancelled' }
+  | { kind: 'failed' };
+
+type GroupKnowledgebaseCreateOperation = SdkworkImAppClient['chat']['conversations']['knowledgebase']['create'];
+type GroupKnowledgebaseCreateArguments = Parameters<GroupKnowledgebaseCreateOperation>;
+type GroupKnowledgebaseCreateRequest = GroupKnowledgebaseCreateArguments[1];
+type GroupKnowledgebaseCreateParams = GroupKnowledgebaseCreateArguments[2];
 type GroupKnowledgebaseLaunchOperation = SdkworkImAppClient['chat']['conversations']['knowledgebase']['launch'];
 type GroupKnowledgebaseLaunchArguments = Parameters<GroupKnowledgebaseLaunchOperation>;
 type GroupKnowledgebaseLaunchRequest = GroupKnowledgebaseLaunchArguments[1];
@@ -32,6 +43,7 @@ export interface GroupKnowledgebaseLaunchClient {
   readonly chat: {
     readonly conversations: {
       readonly knowledgebase: {
+        create: GroupKnowledgebaseCreateOperation;
         launch: GroupKnowledgebaseLaunchOperation;
         retrieve: GroupKnowledgebaseRetrieveOperation;
       };
@@ -39,6 +51,9 @@ export interface GroupKnowledgebaseLaunchClient {
   };
 }
 
+type GroupKnowledgebaseCreateResponse = Awaited<ReturnType<
+  GroupKnowledgebaseLaunchClient['chat']['conversations']['knowledgebase']['create']
+>>;
 type GroupKnowledgebaseLaunchResponse = Awaited<ReturnType<
   GroupKnowledgebaseLaunchClient['chat']['conversations']['knowledgebase']['launch']
 >>;
@@ -103,6 +118,7 @@ export function resolveGroupKnowledgebaseAccessMode(
 }
 
 export interface GroupKnowledgebaseLaunchServiceDependencies {
+  createInitializationIdempotencyKey?: () => string;
   createIdempotencyKey?: () => string;
   getClient?: () => GroupKnowledgebaseLaunchClient;
   isBrowserDestinationConfigured?: () => boolean;
@@ -119,6 +135,10 @@ export interface GroupKnowledgebaseLaunchOptions {
 
 export function createGroupKnowledgebaseLaunchIdempotencyKey(): string {
   return `pc-group-knowledgebase-launch-${uuid()}`;
+}
+
+export function createGroupKnowledgebaseInitializationIdempotencyKey(): string {
+  return `pc-group-knowledgebase-initialize-${uuid()}`;
 }
 
 export interface GroupKnowledgebaseBrowserWindow {
@@ -274,6 +294,7 @@ function readHttpStatus(error: unknown): number | undefined {
 }
 
 class SdkworkGroupKnowledgebaseLaunchService {
+  private readonly createInitializationIdempotencyKey: () => string;
   private readonly createIdempotencyKey: () => string;
   private readonly getClient: () => GroupKnowledgebaseLaunchClient;
   private readonly isBrowserDestinationConfigured: () => boolean;
@@ -284,6 +305,8 @@ class SdkworkGroupKnowledgebaseLaunchService {
   private readonly resolveBrowserUrl: (launchTicket: string) => string | null;
 
   constructor(dependencies: GroupKnowledgebaseLaunchServiceDependencies = {}) {
+    this.createInitializationIdempotencyKey = dependencies.createInitializationIdempotencyKey
+      ?? createGroupKnowledgebaseInitializationIdempotencyKey;
     this.createIdempotencyKey = dependencies.createIdempotencyKey
       ?? createGroupKnowledgebaseLaunchIdempotencyKey;
     this.getClient = dependencies.getClient ?? getAppSdkClientWithSession;
@@ -296,6 +319,64 @@ class SdkworkGroupKnowledgebaseLaunchService {
     this.reserveBrowserWindow = dependencies.reserveBrowserWindow
       ?? reserveGroupKnowledgebaseBrowserWindow;
     this.resolveBrowserUrl = dependencies.resolveBrowserUrl ?? buildGroupKnowledgebaseBrowserUrl;
+  }
+
+  async initialize(
+    conversationId: string,
+    options: GroupKnowledgebaseLaunchOptions = {},
+  ): Promise<GroupKnowledgebaseInitializationOutcome> {
+    const signal = options.signal;
+    if (signal?.aborted) {
+      return { kind: 'cancelled' };
+    }
+
+    const normalizedConversationId = conversationId.trim();
+    if (!normalizedConversationId) {
+      return { kind: 'unavailable' };
+    }
+
+    try {
+      throwIfGroupKnowledgebaseLaunchCancelled(signal);
+      const idempotencyKey = this.createInitializationIdempotencyKey();
+      if (typeof idempotencyKey !== 'string' || idempotencyKey.trim().length === 0) {
+        throw new Error('A non-empty group knowledgebase initialization idempotency key is required.');
+      }
+      const request: GroupKnowledgebaseCreateRequest = {};
+      const params: GroupKnowledgebaseCreateParams = { idempotencyKey };
+      const response: GroupKnowledgebaseCreateResponse = await awaitGroupKnowledgebaseAbortable(
+        this.getClient().chat.conversations.knowledgebase.create(
+          normalizedConversationId,
+          request,
+          params,
+        ),
+        signal,
+      );
+      throwIfGroupKnowledgebaseLaunchCancelled(signal);
+      if (response.conversationId !== normalizedConversationId) {
+        return { kind: 'failed' };
+      }
+      switch (readGroupKnowledgebaseLifecycleState(response.lifecycleState)) {
+        case 'active':
+          return { kind: 'active' };
+        case 'provisioning':
+          return { kind: 'provisioning' };
+        case 'archived':
+        case 'deleted':
+          return { kind: 'unavailable' };
+        case 'absent':
+        case 'failed':
+        default:
+          return { kind: 'failed' };
+      }
+    } catch (error) {
+      if (signal?.aborted || error instanceof GroupKnowledgebaseLaunchCancelledError) {
+        return { kind: 'cancelled' };
+      }
+      const status = readHttpStatus(error);
+      return status === 403 || status === 404
+        ? { kind: 'unavailable' }
+        : { kind: 'failed' };
+    }
   }
 
   async open(

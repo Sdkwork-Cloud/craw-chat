@@ -84,6 +84,8 @@ import { MusicPlayer } from "../components/MusicPlayer";
 import i18n from '../i18n';
 import { I18nextProvider } from "react-i18next";
 
+const GROUP_KNOWLEDGEBASE_PROVISIONING_POLL_INTERVAL_MS = 2_000;
+
 const ChatLayoutComponent: React.FC = () => {
   const { t } = useTranslation();
   const tRef = useRef(t);
@@ -254,8 +256,7 @@ const ChatLayoutComponent: React.FC = () => {
       isLoading: isGroupKnowledgebaseAccessLoading || !hasCurrentGroupKnowledgebaseAccess,
     },
   );
-  const canLaunchGroupKnowledgebase = groupKnowledgebaseAccessMode === 'initialize'
-    || groupKnowledgebaseAccessMode === 'open';
+  const canLaunchGroupKnowledgebase = groupKnowledgebaseAccessMode === 'open';
   const canRetryGroupKnowledgebaseAccess = groupKnowledgebaseAccessMode === 'retry'
     && !isGroupKnowledgebaseAccessLoading;
   const shouldShowGroupKnowledgebaseHeaderAction = localizedActiveChat?.type === 'group';
@@ -382,6 +383,51 @@ const ChatLayoutComponent: React.FC = () => {
     }
   };
 
+  const handleInitializeGroupKnowledgebase = async (): Promise<void> => {
+    if (
+      !localizedActiveChat
+      || localizedActiveChat.type !== 'group'
+      || !hasGroupKnowledgebaseAuthenticatedSession
+      || groupKnowledgebaseAccessMode !== 'initialize'
+      || isOpeningGroupKnowledgebase
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+    groupKnowledgebaseLaunchAbortRef.current?.controller.abort();
+    groupKnowledgebaseLaunchAbortRef.current = {
+      controller,
+      conversationId: localizedActiveChat.id,
+    };
+    setIsOpeningGroupKnowledgebase(true);
+    try {
+      const outcome = await groupKnowledgebaseLaunchService.initialize(localizedActiveChat.id, {
+        signal: controller.signal,
+      });
+      if (groupKnowledgebaseLaunchAbortRef.current?.controller !== controller) {
+        return;
+      }
+      if (outcome.kind === 'active') {
+        setGroupKnowledgebaseLifecycleState('active');
+        toast(t('chat.header.knowledgebaseInitialized'), 'success');
+      } else if (outcome.kind === 'provisioning') {
+        setGroupKnowledgebaseLifecycleState('provisioning');
+        toast(t('chat.header.knowledgebaseProvisioning'), 'info');
+      } else if (outcome.kind === 'unavailable') {
+        toast(t('chat.header.knowledgebaseUnavailable'), 'error');
+      } else if (outcome.kind === 'failed') {
+        setGroupKnowledgebaseLifecycleState('failed');
+        toast(t('chat.header.knowledgebaseInitializationFailed'), 'error');
+      }
+    } finally {
+      if (groupKnowledgebaseLaunchAbortRef.current?.controller === controller) {
+        groupKnowledgebaseLaunchAbortRef.current = null;
+        setIsOpeningGroupKnowledgebase(false);
+      }
+    }
+  };
+
   const handleRetryGroupKnowledgebaseAccess = (): void => {
     if (
       !activeGroupKnowledgebaseConversationId
@@ -399,6 +445,10 @@ const ChatLayoutComponent: React.FC = () => {
   };
 
   const handleGroupKnowledgebaseAction = (): void => {
+    if (groupKnowledgebaseAccessMode === 'initialize') {
+      void handleInitializeGroupKnowledgebase();
+      return;
+    }
     if (groupKnowledgebaseAccessMode === 'contact-owner') {
       toast(t('chat.header.knowledgebaseContactOwner'), 'info');
       return;
@@ -415,7 +465,9 @@ const ChatLayoutComponent: React.FC = () => {
       toast(t('chat.header.knowledgebaseProvisioning'), 'info');
       return;
     }
-    void handleOpenGroupKnowledgebase();
+    if (groupKnowledgebaseAccessMode === 'open') {
+      void handleOpenGroupKnowledgebase();
+    }
   };
 
   useEffect(() => {
@@ -493,6 +545,31 @@ const ChatLayoutComponent: React.FC = () => {
     groupKnowledgebaseSessionEpoch,
     hasGroupKnowledgebaseAuthenticatedSession,
     showRHSPanel,
+  ]);
+
+  useEffect(() => {
+    if (
+      groupKnowledgebaseLifecycleState !== 'provisioning'
+      || !activeGroupKnowledgebaseConversationId
+      || !hasGroupKnowledgebaseAuthenticatedSession
+      || isGroupKnowledgebaseAccessLoading
+    ) {
+      return undefined;
+    }
+
+    const timeoutId = globalThis.setTimeout(() => {
+      setIsGroupKnowledgebaseLifecycleLoadError(false);
+      setIsGroupKnowledgebaseUnavailable(false);
+      setIsGroupKnowledgebaseMemberAccessLoadError(false);
+      setIsGroupKnowledgebaseAccessLoading(true);
+      setGroupKnowledgebaseAccessReloadEpoch((epoch) => epoch + 1);
+    }, GROUP_KNOWLEDGEBASE_PROVISIONING_POLL_INTERVAL_MS);
+    return () => globalThis.clearTimeout(timeoutId);
+  }, [
+    activeGroupKnowledgebaseConversationId,
+    groupKnowledgebaseLifecycleState,
+    hasGroupKnowledgebaseAuthenticatedSession,
+    isGroupKnowledgebaseAccessLoading,
   ]);
 
   useEffect(() => {
