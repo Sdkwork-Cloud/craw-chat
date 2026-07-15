@@ -472,6 +472,8 @@
       "search": "搜索",
       "knowledgebase": "打开群组知识库",
       "knowledgebaseInitialize": "初始化群组知识库",
+      "knowledgebaseInitialized": "群组知识库已初始化。",
+      "knowledgebaseInitializationFailed": "无法初始化群组知识库，请重试。",
       "knowledgebaseInitializing": "正在初始化群组知识库",
       "knowledgebaseChecking": "正在检查群组知识库",
       "knowledgebaseRetry": "重新检查群组知识库",

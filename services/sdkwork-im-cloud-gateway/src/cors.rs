@@ -1,7 +1,7 @@
 //! Browser CORS layer assembly driven by the `SDKWORK_IM_BROWSER_ORIGINS` env var.
 
-use axum::http::{Method, header};
-use tower_http::cors::{AllowHeaders, AllowMethods, CorsLayer};
+use axum::http::Method;
+use tower_http::cors::{AllowMethods, CorsLayer};
 
 use crate::constants::BROWSER_ORIGINS_ENV;
 
@@ -16,9 +16,18 @@ pub(crate) fn build_browser_cors_layer() -> CorsLayer {
         environment,
         sdkwork_web_core::WebEnvironment::Dev | sdkwork_web_core::WebEnvironment::Test
     ) {
-        configured.push("tauri://localhost".to_owned());
+        configured.extend([
+            "tauri://localhost".to_owned(),
+            "http://tauri.localhost".to_owned(),
+            "https://tauri.localhost".to_owned(),
+        ]);
     }
-    let policy = sdkwork_web_bootstrap::security_policy_for_environment(&environment, configured);
+    let mut policy = sdkwork_web_bootstrap::security_policy_for_environment(&environment, configured);
+    for header_name in browser_request_headers() {
+        if !policy.cors.allowed_headers.iter().any(|allowed| allowed.eq_ignore_ascii_case(&header_name)) {
+            policy.cors.allowed_headers.push(header_name);
+        }
+    }
     sdkwork_web_axum::cors_layer_from_policy(policy.cors)
         .allow_methods(AllowMethods::list([
             Method::DELETE,
@@ -29,7 +38,6 @@ pub(crate) fn build_browser_cors_layer() -> CorsLayer {
             Method::POST,
             Method::PUT,
         ]))
-        .allow_headers(AllowHeaders::list(resolve_browser_headers()))
 }
 
 fn resolve_browser_origins() -> Vec<String> {
@@ -62,18 +70,34 @@ fn default_browser_origins() -> Vec<String> {
     Vec::new()
 }
 
-fn resolve_browser_headers() -> Vec<header::HeaderName> {
-    let mut headers = Vec::new();
-    for header_name in [
-        header::AUTHORIZATION.as_str(),
-        header::CONTENT_TYPE.as_str(),
+fn browser_request_headers() -> Vec<String> {
+    [
+        "authorization",
         "access-token",
-    ] {
-        if let Ok(parsed) = header_name.parse::<header::HeaderName>()
-            && !headers.contains(&parsed)
-        {
-            headers.push(parsed);
-        }
-    }
-    headers
+        "content-type",
+        "idempotency-key",
+        "x-api-key",
+        "x-request-id",
+        "x-trace-id",
+        "x-sdkwork-trace-id",
+        "x-sdkwork-client-version",
+        "x-device-id",
+        "x-sdkwork-app-id",
+        "x-sdkwork-tenant-id",
+        "x-sdkwork-organization-id",
+        "x-sdkwork-user-id",
+        "x-sdkwork-session-id",
+        "x-sdkwork-environment",
+        "x-sdkwork-deployment-mode",
+        "x-sdkwork-auth-level",
+        "x-sdkwork-data-scope",
+        "x-sdkwork-permission-scope",
+        "x-sdkwork-actor-id",
+        "x-sdkwork-actor-kind",
+        "x-sdkwork-device-id",
+        "x-sdkwork-context-signature",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect()
 }

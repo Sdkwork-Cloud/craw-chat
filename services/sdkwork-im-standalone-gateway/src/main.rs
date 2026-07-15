@@ -293,6 +293,50 @@ fn build_cors_layer(config: &ResolvedGatewayConfig) -> CorsLayer {
     } else {
         sdkwork_web_core::CorsPolicy::default()
     };
+    if matches!(
+        config.environment.trim().to_ascii_lowercase().as_str(),
+        "dev" | "development" | "test" | "testing" | "local"
+    ) {
+        policy.allowed_origins.extend([
+            "tauri://localhost".to_owned(),
+            "http://tauri.localhost".to_owned(),
+            "https://tauri.localhost".to_owned(),
+        ]);
+    }
+    for header_name in [
+        "authorization",
+        "access-token",
+        "content-type",
+        "idempotency-key",
+        "x-api-key",
+        "x-request-id",
+        "x-trace-id",
+        "x-sdkwork-trace-id",
+        "x-sdkwork-client-version",
+        "x-device-id",
+        "x-sdkwork-app-id",
+        "x-sdkwork-tenant-id",
+        "x-sdkwork-organization-id",
+        "x-sdkwork-user-id",
+        "x-sdkwork-session-id",
+        "x-sdkwork-environment",
+        "x-sdkwork-deployment-mode",
+        "x-sdkwork-auth-level",
+        "x-sdkwork-data-scope",
+        "x-sdkwork-permission-scope",
+        "x-sdkwork-actor-id",
+        "x-sdkwork-actor-kind",
+        "x-sdkwork-device-id",
+        "x-sdkwork-context-signature",
+    ] {
+        if !policy
+            .allowed_headers
+            .iter()
+            .any(|allowed| allowed.eq_ignore_ascii_case(header_name))
+        {
+            policy.allowed_headers.push(header_name.to_owned());
+        }
+    }
     for origin in &config.allowed_origins {
         if !policy.allowed_origins.contains(origin) {
             policy.allowed_origins.push(origin.clone());

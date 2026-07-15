@@ -59,6 +59,12 @@ pub fn resolve_gateway_config(
 ) -> Result<ResolvedGatewayConfig, String> {
     let environment = file_config.service.environment.trim().to_ascii_lowercase();
     let is_production = environment == "production" || environment == "prod";
+    let mut configured_origins = file_config.cors.allowed_origins;
+    for origin in browser_origins_from_env() {
+        if !configured_origins.contains(&origin) {
+            configured_origins.push(origin);
+        }
+    }
 
     // Fail-closed: reject allow_any_origin in production to prevent CSRF attacks.
     // If no explicit origins are configured in production, fall back to a safe
@@ -76,7 +82,7 @@ pub fn resolve_gateway_config(
     };
 
     let allowed_origins = if is_production
-        && file_config.cors.allowed_origins.is_empty()
+        && configured_origins.is_empty()
         && !allow_any_origin
     {
         tracing::warn!(
@@ -91,7 +97,7 @@ pub fn resolve_gateway_config(
             "https://api-dev.sdkwork.com".to_owned(),
         ]
     } else {
-        file_config.cors.allowed_origins
+        configured_origins
     };
 
     Ok(ResolvedGatewayConfig {
@@ -103,6 +109,27 @@ pub fn resolve_gateway_config(
         allow_any_origin,
         allowed_origins,
     })
+}
+
+fn browser_origins_from_env() -> Vec<String> {
+    ["SDKWORK_IM_BROWSER_ORIGINS", "SDKWORK_IM_CORS_ALLOWED_ORIGINS"]
+        .into_iter()
+        .find_map(|key| std::env::var(key).ok())
+        .map(|value| {
+            value
+                .split(',')
+                .map(str::trim)
+                .filter(|origin| !origin.is_empty())
+                .map(|origin| origin.trim_end_matches('/').to_owned())
+                .filter(|origin| !origin.is_empty())
+                .fold(Vec::new(), |mut origins, origin| {
+                    if !origins.contains(&origin) {
+                        origins.push(origin);
+                    }
+                    origins
+                })
+        })
+        .unwrap_or_default()
 }
 
 fn read_env_override(key: &str) -> Option<String> {
