@@ -23,7 +23,7 @@ public class AutomationExecutionRequestResponse {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -31,7 +31,7 @@ public class AutomationExecutionRequestResponse {
     public String getPrincipalId() {
         return this.principalId;
     }
-    
+
     public void setPrincipalId(String principalId) {
         this.principalId = principalId;
     }
@@ -39,7 +39,7 @@ public class AutomationExecutionRequestResponse {
     public String getPrincipalKind() {
         return this.principalKind;
     }
-    
+
     public void setPrincipalKind(String principalKind) {
         this.principalKind = principalKind;
     }
@@ -47,7 +47,7 @@ public class AutomationExecutionRequestResponse {
     public String getExecutionId() {
         return this.executionId;
     }
-    
+
     public void setExecutionId(String executionId) {
         this.executionId = executionId;
     }
@@ -55,7 +55,7 @@ public class AutomationExecutionRequestResponse {
     public String getTriggerType() {
         return this.triggerType;
     }
-    
+
     public void setTriggerType(String triggerType) {
         this.triggerType = triggerType;
     }
@@ -63,7 +63,7 @@ public class AutomationExecutionRequestResponse {
     public String getTargetKind() {
         return this.targetKind;
     }
-    
+
     public void setTargetKind(String targetKind) {
         this.targetKind = targetKind;
     }
@@ -71,7 +71,7 @@ public class AutomationExecutionRequestResponse {
     public String getTargetRef() {
         return this.targetRef;
     }
-    
+
     public void setTargetRef(String targetRef) {
         this.targetRef = targetRef;
     }
@@ -79,7 +79,7 @@ public class AutomationExecutionRequestResponse {
     public String getInputPayload() {
         return this.inputPayload;
     }
-    
+
     public void setInputPayload(String inputPayload) {
         this.inputPayload = inputPayload;
     }
@@ -87,7 +87,7 @@ public class AutomationExecutionRequestResponse {
     public String getOutputPayload() {
         return this.outputPayload;
     }
-    
+
     public void setOutputPayload(String outputPayload) {
         this.outputPayload = outputPayload;
     }
@@ -95,7 +95,7 @@ public class AutomationExecutionRequestResponse {
     public String getState() {
         return this.state;
     }
-    
+
     public void setState(String state) {
         this.state = state;
     }
@@ -103,7 +103,7 @@ public class AutomationExecutionRequestResponse {
     public Integer getRetryCount() {
         return this.retryCount;
     }
-    
+
     public void setRetryCount(Integer retryCount) {
         this.retryCount = retryCount;
     }
@@ -111,7 +111,7 @@ public class AutomationExecutionRequestResponse {
     public String getRequestedAt() {
         return this.requestedAt;
     }
-    
+
     public void setRequestedAt(String requestedAt) {
         this.requestedAt = requestedAt;
     }
@@ -119,7 +119,7 @@ public class AutomationExecutionRequestResponse {
     public String getCompletedAt() {
         return this.completedAt;
     }
-    
+
     public void setCompletedAt(String completedAt) {
         this.completedAt = completedAt;
     }
@@ -127,7 +127,7 @@ public class AutomationExecutionRequestResponse {
     public String getFailureReason() {
         return this.failureReason;
     }
-    
+
     public void setFailureReason(String failureReason) {
         this.failureReason = failureReason;
     }
@@ -135,7 +135,7 @@ public class AutomationExecutionRequestResponse {
     public String getRequestKey() {
         return this.requestKey;
     }
-    
+
     public void setRequestKey(String requestKey) {
         this.requestKey = requestKey;
     }
@@ -143,7 +143,7 @@ public class AutomationExecutionRequestResponse {
     public String getDeliveryStatus() {
         return this.deliveryStatus;
     }
-    
+
     public void setDeliveryStatus(String deliveryStatus) {
         this.deliveryStatus = deliveryStatus;
     }
@@ -151,7 +151,7 @@ public class AutomationExecutionRequestResponse {
     public String getProofVersion() {
         return this.proofVersion;
     }
-    
+
     public void setProofVersion(String proofVersion) {
         this.proofVersion = proofVersion;
     }

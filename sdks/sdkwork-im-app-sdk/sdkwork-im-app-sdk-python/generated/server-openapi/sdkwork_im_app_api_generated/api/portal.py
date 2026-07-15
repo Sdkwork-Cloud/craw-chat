@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import PortalWorkspaceView
+from ..models import AccessRetrieveResponse, AutomationRetrieveResponse, ConversationSnapshotRetrieveResponse, DashboardRetrieveResponse, GovernanceRetrieveResponse, HomeRetrieveResponse, MediaRetrieveResponse, RealtimeRetrieveResponse, WorkspaceRetrieveResponse
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -36,7 +36,7 @@ class PortalAccessApi:
         self._client = client
 
 
-    def retrieve(self) -> Dict[str, Any]:
+    def retrieve(self) -> AccessRetrieveResponse:
         """Read the tenant portal sign-in snapshot"""
         return self._client.get(f"/app/v3/api/portal/access")
 
@@ -47,7 +47,7 @@ class PortalAutomationApi:
         self._client = client
 
 
-    def retrieve(self) -> Dict[str, Any]:
+    def retrieve(self) -> AutomationRetrieveResponse:
         """Read the tenant automation snapshot"""
         return self._client.get(f"/app/v3/api/portal/automation")
 
@@ -58,7 +58,7 @@ class PortalConversationSnapshotApi:
         self._client = client
 
 
-    def retrieve(self) -> Dict[str, Any]:
+    def retrieve(self) -> ConversationSnapshotRetrieveResponse:
         """Read the tenant conversations snapshot"""
         return self._client.get(f"/app/v3/api/portal/conversations")
 
@@ -69,7 +69,7 @@ class PortalDashboardApi:
         self._client = client
 
 
-    def retrieve(self) -> Dict[str, Any]:
+    def retrieve(self) -> DashboardRetrieveResponse:
         """Read the tenant dashboard snapshot"""
         return self._client.get(f"/app/v3/api/portal/dashboard")
 
@@ -80,7 +80,7 @@ class PortalGovernanceApi:
         self._client = client
 
 
-    def retrieve(self) -> Dict[str, Any]:
+    def retrieve(self) -> GovernanceRetrieveResponse:
         """Read the tenant governance snapshot"""
         return self._client.get(f"/app/v3/api/portal/governance")
 
@@ -91,7 +91,7 @@ class PortalHomeApi:
         self._client = client
 
 
-    def retrieve(self) -> Dict[str, Any]:
+    def retrieve(self) -> HomeRetrieveResponse:
         """Read the tenant portal home snapshot"""
         return self._client.get(f"/app/v3/api/portal/home")
 
@@ -102,7 +102,7 @@ class PortalMediaApi:
         self._client = client
 
 
-    def retrieve(self) -> Dict[str, Any]:
+    def retrieve(self) -> MediaRetrieveResponse:
         """Read the tenant media snapshot"""
         return self._client.get(f"/app/v3/api/portal/media")
 
@@ -113,7 +113,7 @@ class PortalRealtimeApi:
         self._client = client
 
 
-    def retrieve(self) -> Dict[str, Any]:
+    def retrieve(self) -> RealtimeRetrieveResponse:
         """Read the tenant realtime snapshot"""
         return self._client.get(f"/app/v3/api/portal/realtime")
 
@@ -124,6 +124,6 @@ class PortalWorkspaceApi:
         self._client = client
 
 
-    def retrieve(self) -> PortalWorkspaceView:
+    def retrieve(self) -> WorkspaceRetrieveResponse:
         """Read the current tenant workspace snapshot"""
         return self._client.get(f"/app/v3/api/portal/workspace")

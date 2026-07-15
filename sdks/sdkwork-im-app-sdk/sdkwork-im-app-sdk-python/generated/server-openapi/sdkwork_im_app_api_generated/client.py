@@ -1,8 +1,9 @@
 from .http_client import HttpClient, SdkConfig
 from .api.automation import AutomationApi
-from .api.notification import NotificationApi
+from .api.notifications import NotificationsApi
 from .api.portal import PortalApi
 from .api.provider import ProviderApi
+from .api.chat import ChatApi
 
 
 class SdkworkImAppClient:
@@ -11,15 +12,17 @@ class SdkworkImAppClient:
     def __init__(self, config: SdkConfig):
         self._client = HttpClient(config)
         self.automation: AutomationApi
-        self.notification: NotificationApi
+        self.notifications: NotificationsApi
         self.portal: PortalApi
         self.provider: ProviderApi
+        self.chat: ChatApi
 
         # Initialize API modules
         self.automation = AutomationApi(self._client)
-        self.notification = NotificationApi(self._client)
+        self.notifications = NotificationsApi(self._client)
         self.portal = PortalApi(self._client)
         self.provider = ProviderApi(self._client)
+        self.chat = ChatApi(self._client)
     def set_auth_token(self, token: str) -> 'SdkworkImAppClient':
         """Set auth token for authentication."""
         self._client.set_auth_token(token)

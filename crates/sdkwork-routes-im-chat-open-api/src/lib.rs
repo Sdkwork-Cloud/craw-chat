@@ -55,11 +55,29 @@ pub fn gateway_route_manifest() -> sdkwork_web_core::HttpRouteManifest {
     route_manifest()
 }
 
-pub async fn gateway_mount() -> axum::Router {
-    let state = conversation_runtime::http::bootstrap_conversation_app_state_from_env()
-        .expect("conversation chat open-api app state bootstrap failed");
-    web_bootstrap::wrap_router_from_env(apply_public_http_guardrails(routes::build_api_router(
-        state,
-    )))
-    .await
+pub async fn gateway_mount() -> Result<axum::Router, String> {
+    let state = conversation_runtime::http::bootstrap_conversation_app_state_from_env()?;
+    gateway_mount_with_state(state).await
+}
+
+/// Mount with the state created by the application assembly. This avoids
+/// split in-memory Conversation state when another route crate exposes a
+/// companion capability for the same aggregate.
+pub async fn gateway_mount_with_state(
+    state: conversation_runtime::http::AppState,
+) -> Result<axum::Router, String> {
+    state
+        .ensure_group_knowledgebase_outbox_relay_started()
+        .await
+        .map_err(|error| {
+            format!(
+                "conversation chat open-api group knowledgebase relay readiness failed: {error}"
+            )
+        })?;
+    Ok(
+        web_bootstrap::wrap_router_from_env(apply_public_http_guardrails(
+            routes::build_api_router(state),
+        ))
+        .await,
+    )
 }

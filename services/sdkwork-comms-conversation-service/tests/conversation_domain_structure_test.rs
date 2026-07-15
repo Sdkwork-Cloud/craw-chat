@@ -364,11 +364,12 @@ fn test_production_message_history_runtime_requires_postgres_message_store() {
     );
     assert!(
         membership_source.contains(".read_history_window(")
-            && membership_source.contains("message_history_window_from_store(window, limit)"),
+            && membership_source.contains("message_history_window_from_store(")
+            && membership_source.contains("if let Some(store) = &self.message_store"),
         "message history reads must use the configured MessageStore backward history path when the store is present"
     );
     assert!(
-        membership_source.contains(".message_window_before(before_seq, limit)")
+        membership_source.contains(".message_window_before(")
             && journal_bootstrap_source
                 .contains("conversation-runtime using in-memory commit journal (development only)"),
         "the in-memory message-log fallback must remain limited to the explicit dev/test in-memory runtime"

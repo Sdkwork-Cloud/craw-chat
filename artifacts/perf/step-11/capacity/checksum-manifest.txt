@@ -1,5 +1,5 @@
 # Step 11 Capacity Tier checksum manifest
-# state: evidence_collected_gate_passed
+# state: evidence_collected_gate_blocked
 sha256:9fa5be4a5a7a8dc3eff4d598d0119b3a09e90217266def796d1fee83ae27ca58  connection/capacity.json
 sha256:23ee3b3120e0438f3f6111e19722727abca31efd08ae66aaaf913493803496e5  message/capacity.json
 sha256:bc631c18594caa4d613c6ba2f6f88d4db6b7337f4cc632a5ea2b8efb65b1a768  stream/capacity.json

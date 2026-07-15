@@ -151,7 +151,7 @@ export interface ChatService {
   setReadFocusContext(context: { activeConversationId?: string; isWindowFocused?: boolean }): void;
 }
 
-type ConversationViewState = Partial<Pick<Chat, 'activeCount' | 'agentAssignments' | 'agentAssignmentGeneration' | 'avatar' | 'isMarkedUnread' | 'isMuted' | 'isPinned' | 'memberCount' | 'members' | 'name' | 'notice' | 'type' | 'welcomeMessage'>> & {
+type ConversationViewState = Partial<Pick<Chat, 'activeCount' | 'agentAssignments' | 'agentAssignmentGeneration' | 'avatar' | 'isMarkedUnread' | 'isMuted' | 'isPinned' | 'memberCount' | 'memberCountIsLowerBound' | 'members' | 'name' | 'notice' | 'type' | 'welcomeMessage'>> & {
   isHidden?: boolean;
 };
 const INBOX_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
@@ -1541,6 +1541,7 @@ function mapInboxEntryToChat(entry: ConversationInboxEntry, viewState: Conversat
     agentAssignments: viewState?.agentAssignments,
     agentAssignmentGeneration: viewState?.agentAssignmentGeneration,
     memberCount: viewState?.memberCount,
+    memberCountIsLowerBound: viewState?.memberCountIsLowerBound,
     members: viewState?.members,
     isMarkedUnread: viewState?.isMarkedUnread,
     isMuted: viewState?.isMuted,
@@ -1606,6 +1607,7 @@ function mapLocalMessageToChat(message: Message, viewState: ConversationViewStat
     agentAssignments: viewState?.agentAssignments,
     agentAssignmentGeneration: viewState?.agentAssignmentGeneration,
     memberCount: viewState?.memberCount,
+    memberCountIsLowerBound: viewState?.memberCountIsLowerBound,
     members: viewState?.members,
     isMarkedUnread: viewState?.isMarkedUnread,
     isMuted: viewState?.isMuted,
@@ -1667,6 +1669,9 @@ function buildLocalConversationViewUpdate(updates: Partial<Chat>): ConversationV
     ...(updates.isMarkedUnread !== undefined ? { isMarkedUnread: updates.isMarkedUnread } : {}),
     ...(updates.isPinned !== undefined ? { isPinned: updates.isPinned } : {}),
     ...(updates.memberCount !== undefined ? { memberCount: updates.memberCount } : {}),
+    ...(updates.memberCountIsLowerBound !== undefined
+      ? { memberCountIsLowerBound: updates.memberCountIsLowerBound }
+      : {}),
     ...(updates.members !== undefined ? { members: updates.members } : {}),
     ...(updates.type !== undefined ? { type: updates.type } : {}),
   };
@@ -2188,6 +2193,7 @@ class SdkworkChatService implements ChatService {
       agentAssignments: viewState.agentAssignments,
       agentAssignmentGeneration: viewState.agentAssignmentGeneration,
       memberCount: viewState.memberCount,
+      memberCountIsLowerBound: viewState.memberCountIsLowerBound,
       members: viewState.members,
       isMarkedUnread: viewState.isMarkedUnread,
       isMuted: viewState.isMuted,
@@ -3370,6 +3376,7 @@ class SdkworkChatService implements ChatService {
       avatar: chat.avatar,
       isHidden: false,
       memberCount: chat.memberCount,
+      memberCountIsLowerBound: chat.memberCountIsLowerBound,
       name: chat.name,
       notice: chat.notice,
       type: chat.type,

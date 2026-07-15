@@ -24,10 +24,11 @@ public class ChatApi {
     }
 
     /** List current inbox window */
-    public InboxListResponse inboxList(Integer pageSize, String cursor) throws Exception {
+    public InboxListResponse inboxList(Integer pageSize, String cursor, String conversationType) throws Exception {
         String query = buildQueryString(List.of(
             new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
-            new QueryParameterSpec("cursor", cursor, "form", true, false, null)
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            new QueryParameterSpec("conversation_type", conversationType, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/inbox"), query));
         return client.convertValue(raw, new TypeReference<InboxListResponse>() {});
@@ -109,6 +110,24 @@ public class ChatApi {
         return client.convertValue(raw, new TypeReference<ConversationsMembersListResponse>() {});
     }
 
+    /** Retrieve the current conversation member */
+    public ConversationsMembersCurrentRetrieveResponse conversationsMembersCurrentRetrieve(String conversationId) throws Exception {
+        Object raw = client.get(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/members/current"));
+        return client.convertValue(raw, new TypeReference<ConversationsMembersCurrentRetrieveResponse>() {});
+    }
+
+    /** Retrieve assigned group agents */
+    public ConversationsAgentsRetrieveResponse conversationsAgentsRetrieve(String conversationId) throws Exception {
+        Object raw = client.get(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/agents"));
+        return client.convertValue(raw, new TypeReference<ConversationsAgentsRetrieveResponse>() {});
+    }
+
+    /** Update assigned group agents */
+    public ConversationsAgentsUpdateResponse conversationsAgentsUpdate(String conversationId, UpdateConversationAgentsRequest body) throws Exception {
+        Object raw = client.put(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/agents"), body, null, null, "application/json");
+        return client.convertValue(raw, new TypeReference<ConversationsAgentsUpdateResponse>() {});
+    }
+
     /** Add a conversation member */
     public ConversationsMembersAddResponse conversationsMembersAdd(String conversationId, AddConversationMemberRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/members/add"), body, null, null, "application/json");
@@ -182,15 +201,19 @@ public class ChatApi {
     }
 
     /** List member directory */
-    public ConversationsMemberDirectoryListResponse conversationsMemberDirectoryList(String conversationId) throws Exception {
-        Object raw = client.get(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/member_directory"));
+    public ConversationsMemberDirectoryListResponse conversationsMemberDirectoryList(String conversationId, String cursor, Integer pageSize) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/member_directory"), query));
         return client.convertValue(raw, new TypeReference<ConversationsMemberDirectoryListResponse>() {});
     }
 
     /** List conversation message history */
-    public ConversationMessageListResponse conversationsMessagesList(String conversationId, Integer afterSeq, Integer pageSize) throws Exception {
+    public ConversationMessageListResponse conversationsMessagesList(String conversationId, String cursor, Integer pageSize) throws Exception {
         String query = buildQueryString(List.of(
-            new QueryParameterSpec("afterSeq", afterSeq, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null),
             new QueryParameterSpec("page_size", pageSize, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/messages"), query));
@@ -210,8 +233,12 @@ public class ChatApi {
     }
 
     /** List pinned messages */
-    public ConversationsPinsListResponse conversationsPinsList(String conversationId) throws Exception {
-        Object raw = client.get(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/pins"));
+    public ConversationsPinsListResponse conversationsPinsList(String conversationId, String cursor, Integer pageSize) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/pins"), query));
         return client.convertValue(raw, new TypeReference<ConversationsPinsListResponse>() {});
     }
 

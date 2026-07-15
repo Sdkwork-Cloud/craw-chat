@@ -8,63 +8,63 @@ import java.util.Map;
 
 public class PortalApi {
     private final HttpClient client;
-    
+
     public PortalApi(HttpClient client) {
         this.client = client;
     }
 
     /** Read the tenant portal sign-in snapshot */
-    public Map<String, Object> accessRetrieve() throws Exception {
+    public AccessRetrieveResponse accessRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.appPath("/portal/access"));
-        return client.convertValue(raw, new TypeReference<Map<String, Object>>() {});
+        return client.convertValue(raw, new TypeReference<AccessRetrieveResponse>() {});
     }
 
     /** Read the tenant automation snapshot */
-    public Map<String, Object> automationRetrieve() throws Exception {
+    public AutomationRetrieveResponse automationRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.appPath("/portal/automation"));
-        return client.convertValue(raw, new TypeReference<Map<String, Object>>() {});
+        return client.convertValue(raw, new TypeReference<AutomationRetrieveResponse>() {});
     }
 
     /** Read the tenant conversations snapshot */
-    public Map<String, Object> conversationSnapshotRetrieve() throws Exception {
+    public ConversationSnapshotRetrieveResponse conversationSnapshotRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.appPath("/portal/conversations"));
-        return client.convertValue(raw, new TypeReference<Map<String, Object>>() {});
+        return client.convertValue(raw, new TypeReference<ConversationSnapshotRetrieveResponse>() {});
     }
 
     /** Read the tenant dashboard snapshot */
-    public Map<String, Object> dashboardRetrieve() throws Exception {
+    public DashboardRetrieveResponse dashboardRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.appPath("/portal/dashboard"));
-        return client.convertValue(raw, new TypeReference<Map<String, Object>>() {});
+        return client.convertValue(raw, new TypeReference<DashboardRetrieveResponse>() {});
     }
 
     /** Read the tenant governance snapshot */
-    public Map<String, Object> governanceRetrieve() throws Exception {
+    public GovernanceRetrieveResponse governanceRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.appPath("/portal/governance"));
-        return client.convertValue(raw, new TypeReference<Map<String, Object>>() {});
+        return client.convertValue(raw, new TypeReference<GovernanceRetrieveResponse>() {});
     }
 
     /** Read the tenant portal home snapshot */
-    public Map<String, Object> homeRetrieve() throws Exception {
+    public HomeRetrieveResponse homeRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.appPath("/portal/home"));
-        return client.convertValue(raw, new TypeReference<Map<String, Object>>() {});
+        return client.convertValue(raw, new TypeReference<HomeRetrieveResponse>() {});
     }
 
     /** Read the tenant media snapshot */
-    public Map<String, Object> mediaRetrieve() throws Exception {
+    public MediaRetrieveResponse mediaRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.appPath("/portal/media"));
-        return client.convertValue(raw, new TypeReference<Map<String, Object>>() {});
+        return client.convertValue(raw, new TypeReference<MediaRetrieveResponse>() {});
     }
 
     /** Read the tenant realtime snapshot */
-    public Map<String, Object> realtimeRetrieve() throws Exception {
+    public RealtimeRetrieveResponse realtimeRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.appPath("/portal/realtime"));
-        return client.convertValue(raw, new TypeReference<Map<String, Object>>() {});
+        return client.convertValue(raw, new TypeReference<RealtimeRetrieveResponse>() {});
     }
 
     /** Read the current tenant workspace snapshot */
-    public PortalWorkspaceView workspaceRetrieve() throws Exception {
+    public WorkspaceRetrieveResponse workspaceRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.appPath("/portal/workspace"));
-        return client.convertValue(raw, new TypeReference<PortalWorkspaceView>() {});
+        return client.convertValue(raw, new TypeReference<WorkspaceRetrieveResponse>() {});
     }
 
 

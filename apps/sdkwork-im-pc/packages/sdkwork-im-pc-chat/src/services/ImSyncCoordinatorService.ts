@@ -1,6 +1,5 @@
 import { chatService, type ChatOfflineSyncResult, type ChatService } from './ChatService';
 import type { ContactService, ContactSyncResult } from './ContactService';
-import type { GroupMemberSyncChange, GroupService } from './GroupService';
 
 export interface ImStartupSyncOptions {}
 
@@ -18,7 +17,6 @@ export interface ImStartupSyncResult {
   chat?: ChatOfflineSyncResult;
   contacts?: ContactSyncResult;
   errors: ImStartupSyncError[];
-  groups?: GroupMemberSyncChange[];
   recoveredRtcSessions: RecoveredRtcSessionResult[];
 }
 
@@ -29,7 +27,6 @@ export interface ImSyncCoordinatorService {
 export interface ImSyncCoordinatorServiceDependencies {
   chatService?: Pick<ChatService, 'syncOfflineMessages'>;
   contactService?: Pick<ContactService, 'syncContacts'>;
-  groupService?: Pick<GroupService, 'syncGroupMembers'>;
 }
 
 function toErrorMessage(error: unknown): string {
@@ -49,7 +46,6 @@ class SdkworkImSyncCoordinatorService implements ImSyncCoordinatorService {
   async syncStartup(_options: ImStartupSyncOptions = {}): Promise<ImStartupSyncResult> {
     const result: ImStartupSyncResult = {
       errors: [],
-      groups: [],
       recoveredRtcSessions: [],
     };
 

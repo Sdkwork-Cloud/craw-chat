@@ -15,6 +15,34 @@ class ChatInboxResult {
   final PageInfo pageInfo;
 }
 
+String resolveConversationInboxTitle(
+  ConversationInboxEntry entry, {
+  String fallback = 'Conversation',
+}) {
+  final displayName = entry.displayName?.trim();
+  if (displayName != null && displayName.isNotEmpty) {
+    return displayName;
+  }
+  final peerDisplayName = entry.peer?.displayName?.trim();
+  if (peerDisplayName != null && peerDisplayName.isNotEmpty) {
+    return peerDisplayName;
+  }
+  return fallback;
+}
+
+List<ConversationInboxEntry> mergeConversationInboxEntries(
+  Iterable<ConversationInboxEntry> current,
+  Iterable<ConversationInboxEntry> incoming,
+) {
+  final byId = <String, ConversationInboxEntry>{
+    for (final entry in current) entry.conversationId: entry,
+  };
+  for (final entry in incoming) {
+    byId[entry.conversationId] = entry;
+  }
+  return byId.values.toList(growable: false);
+}
+
 class ChatInboxService {
   ChatInboxService(this._client);
 

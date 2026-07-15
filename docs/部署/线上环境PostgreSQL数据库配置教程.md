@@ -1,4 +1,4 @@
-﻿# 绾夸笂鐜 PostgreSQL 鏁版嵁搴撻厤缃暀绋?
+# 绾夸笂鐜 PostgreSQL 鏁版嵁搴撻厤缃暀绋?
 鏈枃璇存槑 SDKWork Chat server 鍦ㄧ嚎涓婄幆澧冨浣曢厤缃?PostgreSQL銆傜嚎涓婄幆澧冧笉瑕佷娇鐢ㄤ粨搴撴牴鐩綍 `.env.postgres`锛屼笉瑕佹妸鏁版嵁搴撳瘑鐮佹彁浜ゅ埌 Git銆佸畨瑁呭寘銆佽繘绋嬪懡浠よ鎴栨棩蹇椼€?
 ## 搴旂敤鏍囪瘑
 
@@ -127,9 +127,9 @@ SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com
 SDKWORK_IM_DATABASE_ENGINE=postgresql
 SDKWORK_IM_DATABASE_HOST=postgres.internal.example.com
 SDKWORK_IM_DATABASE_PORT=5432
-SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_prod
-SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_prod
-SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_prod
+SDKWORK_IM_DATABASE_NAME=sdkwork_ai_prod
+SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_prod
+SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_prod
 SDKWORK_IM_DATABASE_PASSWORD_FILE=/etc/sdkwork/chat/database.secret
 SDKWORK_IM_DATABASE_SSL_MODE=require
 SDKWORK_IM_DATABASE_MAX_CONNECTIONS=20

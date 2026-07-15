@@ -5,6 +5,16 @@ canon:
   prd: docs/product/prd/PRD.md
   techArchitecture: docs/architecture/tech/TECH_ARCHITECTURE.md
 entries:
+  - id: REQ-2026-0713
+    path: docs/product/requirements/REQ-2026-0713-group-knowledgebase.md
+    layer: work
+    audience: [product, engineering, operations]
+    status: ready
+  - id: ADR-20260713
+    path: docs/architecture/decisions/ADR-20260713-group-knowledgebase-binding-and-launch.md
+    layer: work
+    audience: [engineering, operations]
+    status: accepted
   - path: docs/engineering/reviews/REVIEW-2026-0710-im-commercial-readiness.md
     type: review
     title: SDKWork IM Commercial Readiness Review

@@ -846,6 +846,7 @@ fn resolve_app_context_for_request_inner(
         client_kind: None,
         operation: None,
         trace_id: Some(server_trace_id),
+        idempotency_key: None,
     };
 
     Ok(ResolvedAppContext {

@@ -14,7 +14,10 @@ use im_adapters_redis_cache::{
 use im_domain_core::rate_limiter::DomainRateLimiter;
 
 use crate::ApiError;
-use crate::http_limits::{resolve_websocket_frame_rate_burst, resolve_websocket_frame_rate_rpm};
+use crate::http_limits::{
+    resolve_websocket_frame_rate_burst, resolve_websocket_frame_rate_rpm,
+    resolve_websocket_rate_max_buckets,
+};
 
 const WS_FRAME_RATE_SCOPE: &str = "session.ws_frame";
 const WS_FRAME_RATE_WINDOW_SECS: u64 = 60;
@@ -38,10 +41,11 @@ impl WebsocketFrameRateLimiter {
         });
         Self {
             rpm,
-            local: Arc::new(Mutex::new(DomainRateLimiter::with_burst(
+            local: Arc::new(Mutex::new(DomainRateLimiter::with_burst_and_capacity(
                 rpm,
                 refill_per_sec,
                 burst,
+                resolve_websocket_rate_max_buckets(),
             ))),
             redis,
             redis_fail_closed: gateway_rate_limit_redis_fail_closed_from_env(),

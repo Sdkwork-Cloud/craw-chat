@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 
 use im_domain_core::conversation::{
     ClientRouteSyncFeedEntry, ConversationActorView, ConversationAgentHandoffView,
-    ConversationInboxEntry, ConversationInboxPeerView, ConversationInboxPreferencesView,
-    ConversationMember, ConversationReadCursor, MembershipRole, MembershipState,
+    ConversationAggregateState, ConversationInboxEntry, ConversationInboxPeerView,
+    ConversationInboxPreferencesView, ConversationMember, ConversationReadCursor, MembershipRole,
+    MembershipState,
 };
 use im_domain_core::media::{DriveReference, MediaKind, MediaResource, MediaSource};
 use im_domain_core::message::{
@@ -30,6 +31,17 @@ use im_domain_core::stream::{
     StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
 };
 use serde_json::{Value, json};
+
+#[test]
+fn test_member_epoch_advances_with_allocated_membership_sequence() {
+    let mut aggregate = ConversationAggregateState::new("group");
+
+    assert_eq!(aggregate.next_member_epoch(), 1);
+    assert_eq!(aggregate.member_epoch(), 1);
+    assert_eq!(aggregate.next_member_epoch(), 2);
+    assert_eq!(aggregate.member_epoch(), 2);
+    assert_eq!(aggregate.commit_seq(), 2);
+}
 
 #[test]
 fn test_message_body_serializes_content_parts_with_expected_shape() {

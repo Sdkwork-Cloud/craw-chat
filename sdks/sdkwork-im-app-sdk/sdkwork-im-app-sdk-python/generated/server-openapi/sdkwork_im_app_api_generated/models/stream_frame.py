@@ -13,7 +13,7 @@ class StreamFrame:
     stream_type: str
     scope_kind: str
     scope_id: str
-    frame_seq: int
+    frame_seq: str
     frame_type: str
     encoding: str
     payload: str

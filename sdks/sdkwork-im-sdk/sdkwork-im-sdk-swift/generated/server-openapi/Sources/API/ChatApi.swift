@@ -17,10 +17,11 @@ public class ChatApi {
     }
 
     /// List current inbox window
-    public func inboxList(pageSize: Int? = nil, cursor: String? = nil) async throws -> InboxListResponse? {
+    public func inboxList(pageSize: Int? = nil, cursor: String? = nil, conversationType: String? = nil) async throws -> InboxListResponse? {
         let query = buildQueryString([
             QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil),
-            QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil)
+            QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil),
+            QueryParameterSpec(name: "conversation_type", value: conversationType, style: "form", explode: true, allowReserved: false, contentType: nil)
         ])
         return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/inbox"), query), responseType: InboxListResponse.self)
     }
@@ -89,6 +90,21 @@ public class ChatApi {
         return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members"), query), responseType: ConversationsMembersListResponse.self)
     }
 
+    /// Retrieve the current conversation member
+    public func conversationsMembersCurrentRetrieve(conversationId: String) async throws -> ConversationsMembersCurrentRetrieveResponse? {
+        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/current"), responseType: ConversationsMembersCurrentRetrieveResponse.self)
+    }
+
+    /// Retrieve assigned group agents
+    public func conversationsAgentsRetrieve(conversationId: String) async throws -> ConversationsAgentsRetrieveResponse? {
+        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/agents"), responseType: ConversationsAgentsRetrieveResponse.self)
+    }
+
+    /// Update assigned group agents
+    public func conversationsAgentsUpdate(conversationId: String, body: UpdateConversationAgentsRequest) async throws -> ConversationsAgentsUpdateResponse? {
+        return try await client.put(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/agents"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsAgentsUpdateResponse.self)
+    }
+
     /// Add a conversation member
     public func conversationsMembersAdd(conversationId: String, body: AddConversationMemberRequest) async throws -> ConversationsMembersAddResponse? {
         return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/add"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsMembersAddResponse.self)
@@ -150,14 +166,18 @@ public class ChatApi {
     }
 
     /// List member directory
-    public func conversationsMemberDirectoryList(conversationId: String) async throws -> ConversationsMemberDirectoryListResponse? {
-        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/member_directory"), responseType: ConversationsMemberDirectoryListResponse.self)
+    public func conversationsMemberDirectoryList(conversationId: String, cursor: String? = nil, pageSize: Int? = nil) async throws -> ConversationsMemberDirectoryListResponse? {
+        let query = buildQueryString([
+            QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil),
+            QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil)
+        ])
+        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/member_directory"), query), responseType: ConversationsMemberDirectoryListResponse.self)
     }
 
     /// List conversation message history
-    public func conversationsMessagesList(conversationId: String, afterSeq: Int? = nil, pageSize: Int? = nil) async throws -> ConversationMessageListResponse? {
+    public func conversationsMessagesList(conversationId: String, cursor: String? = nil, pageSize: Int? = nil) async throws -> ConversationMessageListResponse? {
         let query = buildQueryString([
-            QueryParameterSpec(name: "afterSeq", value: afterSeq, style: "form", explode: true, allowReserved: false, contentType: nil),
+            QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil),
             QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil)
         ])
         return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/messages"), query), responseType: ConversationMessageListResponse.self)
@@ -174,8 +194,12 @@ public class ChatApi {
     }
 
     /// List pinned messages
-    public func conversationsPinsList(conversationId: String) async throws -> ConversationsPinsListResponse? {
-        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/pins"), responseType: ConversationsPinsListResponse.self)
+    public func conversationsPinsList(conversationId: String, cursor: String? = nil, pageSize: Int? = nil) async throws -> ConversationsPinsListResponse? {
+        let query = buildQueryString([
+            QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil),
+            QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil)
+        ])
+        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/pins"), query), responseType: ConversationsPinsListResponse.self)
     }
 
     /// Retrieve message interaction summary

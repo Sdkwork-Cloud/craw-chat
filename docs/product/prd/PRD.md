@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: chat
-Updated: 2026-07-10
+Updated: 2026-07-14
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md
 
 ## Document Map
@@ -50,6 +50,13 @@ Product detail lives in the linked PRD shards below.
 - **Agent dialog**: AI assistant conversations with standard agent ID format.
 - **Enterprise chat**: Official enterprise communication channels.
 - **Conversation preferences**: Pin, mute, mark unread, hide per user per conversation.
+- **Managed group knowledge base**: Each Conversation group can lazily initialize one managed
+  SDKWork Knowledgebase space. Group creation leaves it absent by default; the initial Owner can
+  explicitly request one post-create initialization attempt from the create dialog, or initialize
+  it later and retry from the Header or group-information entry. Once active, joined non-Guest
+  Owners, Admins, and Members open the complete standalone Knowledgebase application with
+  role-derived access; Guests and former members are denied. See
+  [REQ-2026-0713-group-knowledgebase.md](../requirements/REQ-2026-0713-group-knowledgebase.md).
 
 ### 3.3 Realtime Infrastructure
 
@@ -86,7 +93,7 @@ Product detail lives in the linked PRD shards below.
 
 | Channel | Version | Status |
 | --- | --- | --- |
-| STABLE | 0.1.0 | Security hardening, K8s compliance, frontend performance, RBAC, memory safety, pagination alignment |
+| STABLE | 0.1.0 | Reserved release metadata only; not published while commercial gates remain blocked |
 
 ## 6. Dependencies
 
@@ -109,7 +116,11 @@ Product detail lives in the linked PRD shards below.
 
 ## 8. Commercial Readiness Status
 
-As of 2026-07-10:
+As of 2026-07-14:
+
+Overall status: **pre-GA release candidate, commercial sign-off blocked**. The application has not
+launched. Direct distribution remains prohibited until real pre-release/capacity runs and complete
+checksum, signature, SBOM, provenance, staging E2E, HA, and recovery evidence pass the release gate.
 
 ### Backend, API, and Admin
 
@@ -136,12 +147,20 @@ As of 2026-07-10:
 - K8s deployments enforce Restricted Pod Security Standards with `securityContext`, `imagePullSecrets`, and `readOnlyRootFilesystem`.
 - Network policies enforce default-deny egress with explicit CIDR allowlists.
 - Release artifacts require SHA-256 checksums and Cosign/Sigstore code signing.
+- Managed group Knowledgebase production activation additionally requires the independently
+  deployed Knowledgebase RPC host, durable database and Drive storage, approved network route,
+  issued mTLS material, and runtime preflight. Endpoint, certificate, Secret, and storage-claim
+  values are deployment-owned inputs and are not fabricated in IM source control.
+- PC startup synchronization is intentionally bounded: it refreshes the offline message window
+  only; it does not expose a fake global group-member sync or enumerate every group. Selected-group
+  member state is loaded through the generated SDK with bounded cursor pagination when the group is
+  opened or mutated.
 
 ### Client Delivery Matrix
 
 | Surface | Root | Status | Notes |
 | --- | --- | --- | --- |
-| PC web/desktop | `apps/sdkwork-im-pc` | **Production release-candidate remediation in progress** | Core chat uses generated/composed SDKs and server pagination. The Tauri offline store is principal-scoped and bounded, uses lease-fenced multi-batch sends, quarantines corrupt payloads, and never replaces PostgreSQL as the production source of truth. Route-level RBAC is implemented (`RequirePermission` gates `/console/*` and `/admin/*`), realtime HashMap entries are capped (`RTC_SESSIONS_MAX_ENTRIES` / `RTC_SIGNALS_MAX_PER_SESSION`), and supply-chain placeholder media is cleaned up. Signed release artifacts (checksum/signature/SBOM via CI) remain the release blocker. |
+| PC web/desktop | `apps/sdkwork-im-pc` | **Production release-candidate remediation in progress** | Core chat uses generated/composed SDKs and server pagination. Startup sync is bounded to the offline message window; selected-group member hydration uses bounded SDK cursor pages. The Tauri offline store is principal-scoped and bounded, uses lease-fenced multi-batch sends, quarantines corrupt payloads, and never replaces PostgreSQL as the production source of truth. Route-level RBAC is implemented (`RequirePermission` gates `/console/*` and `/admin/*`), realtime HashMap entries are capped (`RTC_SESSIONS_MAX_ENTRIES` / `RTC_SIGNALS_MAX_PER_SESSION`), and supply-chain placeholder media is cleaned up. Signed release artifacts (checksum/signature/SBOM via CI) remain the release blocker. |
 | Console/admin | `apps/sdkwork-im-pc` (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) | **Production release-candidate remediation in progress** | Reachable SDK-backed operations are enabled. Route-level RBAC and secret-redaction are implemented. Signed release artifacts remain release blockers. |
 | H5 mobile | `apps/sdkwork-im-h5` | **Production pilot ready** | IAM `platform: "h5"`, inbox pagination (memory cap 200) + virtualized message history window (cap 500), incremental WebSocket message sync, offline text send queue (IndexedDB + claim/lease, cap 100), Drive via `@sdkwork/drive-app-sdk`, user-visible retry on load failures |
 | Flutter mobile | `apps/sdkwork-im-flutter-mobile` | **Production pilot ready** | Inbox + conversation REST, incremental WebSocket message sync (cap 500), explicit message-history pagination, offline text send queue (`shared_preferences` v2 + claim/lease, cap 100), Drive upload facade; tokens in `flutter_secure_storage`; inbox error/retry UX |
@@ -158,7 +177,7 @@ As of 2026-07-10:
 ### Operations and Evidence
 
 - CI `im-commercial-gates.yml` runs `pnpm verify`, `pnpm check:commercial-readiness`, Playwright Chromium install, and cloud-service tests on `main`.
-- Pre-Release and Capacity tier evidence indexes both require `evidence_collected_gate_passed`; doc-captured backfill boundaries are declared in each index `boundary` field.
+- Pre-Release and Capacity tier indexes are both `evidence_collected_gate_blocked`. Populated doc-captured slots are retained only as historical engineering evidence; commercial sign-off requires direct runs in the declared pre-release and `capacity-dedicated` profiles.
 - Push delivery supports FCM HTTP v1 OAuth (`SDKWORK_IM_FCM_CREDENTIALS_PATH`) with legacy server-key fallback, and APNs HTTP/2 JWT (`SDKWORK_IM_APNS_*`) for iOS device tokens.
 - Kubernetes reference manifests cover gateway, realtime, conversation, governance, notification, projection, media, streaming, audit, automation, social, space, and ops services with Ingress, PDB, HPA, ConfigMap, Secret, and NetworkPolicy templates. (`contact-service` / `interaction-service` are retired; use `social-service` + `projection-service`.)
 - Staging topology profile: `cloud.staging`.
@@ -173,6 +192,9 @@ As of 2026-07-10:
 - Desktop-parity offline cache for H5/Flutter (PC desktop has a bounded principal-scoped SQLite cache; mobile clients queue text sends only).
 - H5/Flutter RTC calls, reactions, threads, and rich media beyond image attachments.
 - Implement or formally defer `distributed_runtime_service.proto` streaming RPC hosts (Phase 2).
+- PC production build currently succeeds but reports static/dynamic import overlap and several
+  1MB+ chunks; chunk-boundary and dependency-loading optimization remains a pre-GA performance task
+  and is not represented as a completed capacity claim.
 - Voice market: `@sdkwork/voice-pc-market` lists `audio_assets` via SDK in production; pilot preview via `VITE_SDKWORK_VOICE_MARKET_PILOT` (clone UI pilot-only).
 - Voice speech: `@sdkwork/voice-pc-speech` submits TTS through `voice.speech.create` with configurable defaults (`VITE_SDKWORK_VOICE_SPEECH_DEFAULT_MODEL` / `_VOICE`).
 

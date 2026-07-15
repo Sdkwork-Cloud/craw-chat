@@ -18,6 +18,9 @@
 @source "../../../../sdkwork-notary/apps/sdkwork-notary-pc/packages/sdkwork-notary-pc-commons/src";
 @source "../../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src";
 @source "../../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-commons/src";
+@source "../../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-membership/src";
+@source "../../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription/src";
+@source "../../../../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-coupon/src";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

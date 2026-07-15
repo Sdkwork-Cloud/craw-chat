@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Hash, ChevronRight, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Hash, ChevronRight, Plus, Edit2, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@sdkwork/im-pc-commons';
@@ -161,27 +161,6 @@ export const TagsContainer: React.FC<{ searchQuery?: string }> = ({ searchQuery 
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
-                          customPrompt(t('contacts.tags.prompt.addMemberIds'), '', async (userIds) => {
-                            try {
-                              if (userIds && userIds.trim()) {
-                                const countAdded = userIds.split(',').filter(Boolean).length;
-                                const updatedTag = await contactService.updateTag(tag.id, { count: tag.count + countAdded });
-                                setTags(tags.map((entry) => entry.id === tag.id ? updatedTag : entry));
-                                toast(t('contacts.tags.toast.addMembersSucceeded', { count: countAdded }), 'success');
-                              }
-                            } catch {
-                              toast(t('contacts.tags.toast.addMembersFailed'), 'error');
-                            } finally {
-                              closePrompt();
-                            }
-                          });
-                        }}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 text-sm font-medium rounded-lg transition-colors border border-white/10"
-                      >
-                        <Plus size={14} /> {t('contacts.tags.addMembers')}
-                      </button>
-                      <button
-                        onClick={() => {
                           customPrompt(t('contacts.tags.prompt.renameName'), tag.name, async (name) => {
                             try {
                               if (name && name.trim() && name !== tag.name) {
@@ -217,10 +196,10 @@ export const TagsContainer: React.FC<{ searchQuery?: string }> = ({ searchQuery 
                       </button>
                     </div>
                   </div>
-                  <div className="flex-1 flex items-center justify-center">
+                  <div className="flex flex-1 items-center justify-center">
                     <div className="text-center text-gray-500">
-                      <Users size={48} className="mx-auto mb-4 opacity-50" />
-                      <p>{t('contacts.tags.emptyMembers', { name: tag.name })}</p>
+                      <Hash size={48} className="mx-auto mb-4 opacity-50" />
+                      <p>{t('contacts.tags.contactCount', { count: tag.count })}</p>
                     </div>
                   </div>
                 </>

@@ -8,13 +8,13 @@ public class ProviderApi {
     }
 
     /// Retrieve media provider health
-    public func mediaHealthRetrieve() async throws -> [String: Any]? {
-        return try await client.get(ApiPaths.appPath("/media/provider_health"), responseType: [String: Any].self)
+    public func mediaHealthRetrieve() async throws -> MediaHealthRetrieveResponse? {
+        return try await client.get(ApiPaths.appPath("/media/provider_health"), responseType: MediaHealthRetrieveResponse.self)
     }
 
     /// Retrieve principal-profile provider health
-    public func principalProfileHealthRetrieve() async throws -> [String: Any]? {
-        return try await client.get(ApiPaths.appPath("/principal/profiles/provider_health"), responseType: [String: Any].self)
+    public func principalProfileHealthRetrieve() async throws -> PrincipalProfileHealthRetrieveResponse? {
+        return try await client.get(ApiPaths.appPath("/principal/profiles/provider_health"), responseType: PrincipalProfileHealthRetrieveResponse.self)
     }
 
 

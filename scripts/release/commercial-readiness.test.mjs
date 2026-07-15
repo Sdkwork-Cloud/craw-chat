@@ -481,6 +481,27 @@ test('pre-release evidence assessment blocks fully collected gate-blocked eviden
   assert.ok(assessment.blockers.length > 0);
 });
 
+test('pre-release evidence assessment blocks doc-captured evidence marked passed', () => {
+  const assessment = assessPreReleaseEvidenceIndex({
+    tier: 'Pre-Release Tier',
+    state: 'evidence_collected_gate_passed',
+    boundary: 'Metrics are doc-captured from CI Smoke Tier rather than full Pre-Release sign-off.',
+    collectionSummary: {
+      pendingSlots: 0,
+      collectedSlots: 7,
+      requiredSlots: 7,
+    },
+    evidenceSlots: Array.from({ length: 7 }, (_, index) => ({
+      id: `slot_${index}`,
+      status: 'collected',
+    })),
+  });
+
+  assert.equal(assessment.ok, false);
+  assert.match(assessment.summary, /not eligible for sign-off/i);
+  assert.match(assessment.blockers.join('\n'), /doc-captured/i);
+});
+
 test('pre-release evidence assessment blocks template-only claims', () => {
   const assessment = assessPreReleaseEvidenceIndex({
     tier: 'Pre-Release Tier',
@@ -519,6 +540,27 @@ test('capacity evidence assessment accepts fully collected capacity evidence', (
   assert.equal(assessment.blockers.length, 0);
 });
 
+test('capacity evidence assessment blocks backfilled local evidence marked passed', () => {
+  const assessment = assessCapacityEvidenceIndex({
+    tier: 'Capacity Tier',
+    state: 'evidence_collected_gate_passed',
+    boundary: 'Artifacts are a backfill from CI Smoke Tier; dedicated capacity runs still gate conclusions.',
+    collectionSummary: {
+      pendingSlots: 0,
+      collectedSlots: 7,
+      requiredSlots: 7,
+    },
+    evidenceSlots: Array.from({ length: 7 }, (_, index) => ({
+      id: `slot_${index}`,
+      status: 'collected',
+    })),
+  });
+
+  assert.equal(assessment.ok, false);
+  assert.match(assessment.summary, /not eligible for sign-off/i);
+  assert.match(assessment.blockers.join('\n'), /backfill/i);
+});
+
 test('release README documents the commercial readiness command and honest capacity blocker', async () => {
   const releaseReadmePath = path.join(repoRoot, 'docs', 'release', 'README.md');
   const releaseReadme = await readFile(releaseReadmePath, 'utf8');
@@ -551,14 +593,11 @@ test('commercial readiness blocks current app manifest release evidence gaps bef
 
   assert.equal(result.ok, false);
   assert.equal(result.exitCode, READINESS_BLOCKED_EXIT_CODE);
-  assert.equal(result.appReleaseAssessment?.ok, false);
-  assert.match(result.appReleaseAssessment?.summary ?? '', /app release evidence/i);
-  assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /checksum/i);
-  assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /signature/i);
-  assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /SBOM/i);
-  assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /provenance/i);
+  assert.equal(result.preReleaseAssessment?.ok, false);
+  assert.match(result.preReleaseAssessment?.summary ?? '', /not eligible for sign-off/i);
+  assert.match(result.preReleaseAssessment?.blockers.join('\n') ?? '', /doc-captured|backfill/i);
   assert.equal(result.checks.length, buildCommercialReadinessChecks({ repoRoot }).length);
-  assert.match(logs.stderr.join('\n'), /appReleaseAssessment/);
+  assert.match(logs.stderr.join('\n'), /preReleaseAssessment/);
 });
 
 test('deployment validation index links the unified commercial readiness gate', async () => {

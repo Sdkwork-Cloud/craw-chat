@@ -18,6 +18,7 @@ fn poison_rwlock_write<T>(lock: &RwLock<T>) {
 fn recovered_created_envelope() -> CommitEnvelope {
     let payload = RecoveredConversationCreatedPayload {
         conversation_type: "group".into(),
+        knowledgebase_initialization_requested: false,
         business_type: None,
         business_id: None,
         parent_conversation_id: None,

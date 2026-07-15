@@ -393,10 +393,10 @@
           "markdownDescription": "Allows the SDKWork Chat PC renderer to drive the tray unread badge, taskbar attention state, and dock badge label from the aggregated unread message count."
         },
         {
-          "description": "Allows Sdkwork IM PC to open host-managed knowledge base windows from group chat and capability surfaces.",
+          "description": "Allows Sdkwork IM PC to hand an opaque group knowledge base launch ticket to the independently installed Knowledgebase application.",
           "type": "string",
-          "const": "allow-sdkwork-im-pc-knowledge-window",
-          "markdownDescription": "Allows Sdkwork IM PC to open host-managed knowledge base windows from group chat and capability surfaces."
+          "const": "allow-sdkwork-im-pc-group-knowledgebase",
+          "markdownDescription": "Allows Sdkwork IM PC to hand an opaque group knowledge base launch ticket to the independently installed Knowledgebase application."
         },
         {
           "description": "Allows Sdkwork IM PC to request native notification permission and show local message notifications through the native desktop shell.",

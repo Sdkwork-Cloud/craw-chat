@@ -102,6 +102,24 @@ test('refreshStep11CapacityEvidenceIndex leaves missing capacity artifacts pendi
   assert.equal(refreshedIndex.evidenceSlots.find((slot) => slot.id === 'message_capacity').status, 'pending_collection');
 });
 
+test('refreshStep11CapacityEvidenceIndex rejects doc-captured evidence from another profile', async () => {
+  const tempRoot = await createCapacityFixtureRoot('doc-captured');
+  await writeCapacityArtifact(tempRoot, 'connection/capacity.json', {
+    runId: 'cap-connection-doc-capture',
+    sourceProfile: 'local-smoke',
+    boundary: 'Backfill from smoke evidence rather than a dedicated capacity run.',
+    peakActiveConnections: 32,
+    connectP95Ms: 15,
+    connectP99Ms: 17,
+  });
+
+  const result = await refreshStep11CapacityEvidenceIndex({ repoRoot: tempRoot, collectedAt: '2026-06-12' });
+
+  assert.equal(result.ok, false);
+  assert.match(result.blockers.join('\n'), /sourceProfile must equal capacity-dedicated/);
+  assert.match(result.blockers.join('\n'), /doc-captured, backfilled, or non-signoff/);
+});
+
 test('repository exposes the capacity evidence refresh command and schema accepts readiness pass state', async () => {
   const packageJson = JSON.parse(await readFile(path.join(repoRoot, 'package.json'), 'utf8'));
   const schemaJson = JSON.parse(await readFile(
@@ -164,7 +182,11 @@ async function createCapacityFixtureRoot(name) {
 async function writeCapacityArtifact(repoRoot, relativePath, value) {
   const filePath = path.join(repoRoot, 'artifacts', 'perf', 'step-11', 'capacity', relativePath);
   await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+  await writeFile(filePath, `${JSON.stringify({
+    profile: 'capacity-dedicated',
+    collectedAt: '2026-06-12',
+    ...value,
+  }, null, 2)}\n`, 'utf8');
 }
 
 async function writeReportArtifact(repoRoot, relativePath, sections) {

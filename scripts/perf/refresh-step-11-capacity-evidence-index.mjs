@@ -27,6 +27,7 @@ export async function refreshStep11CapacityEvidenceIndex({
   for (const slot of indexJson.evidenceSlots ?? []) {
     const refreshedSlot = await refreshEvidenceSlot({
       slot,
+      expectedProfile: indexJson.profile,
       repoRoot: normalizedRepoRoot,
       artifactRoot,
       artifactRootRelative,
@@ -67,7 +68,7 @@ export async function refreshStep11CapacityEvidenceIndex({
   };
 }
 
-async function refreshEvidenceSlot({ slot, repoRoot, artifactRoot, artifactRootRelative, collectedAt, blockers }) {
+async function refreshEvidenceSlot({ slot, expectedProfile, repoRoot, artifactRoot, artifactRootRelative, collectedAt, blockers }) {
   const suggestedRelativePath = toPosixPath(slot.suggestedRelativePath);
   const artifactPath = path.resolve(artifactRoot, suggestedRelativePath);
   assertInsideRoot({ root: artifactRoot, target: artifactPath, label: slot.id });
@@ -77,7 +78,7 @@ async function refreshEvidenceSlot({ slot, repoRoot, artifactRoot, artifactRootR
     return pendingSlot(slot);
   }
 
-  const validation = await validateSlotArtifact(slot, artifactPath);
+  const validation = await validateSlotArtifact(slot, artifactPath, expectedProfile);
   if (!validation.ok) {
     blockers.push(`${slot.id} failed validation: ${validation.errors.join('; ')}.`);
     return pendingSlot(slot);
@@ -96,9 +97,9 @@ async function refreshEvidenceSlot({ slot, repoRoot, artifactRoot, artifactRootR
   };
 }
 
-async function validateSlotArtifact(slot, artifactPath) {
+async function validateSlotArtifact(slot, artifactPath, expectedProfile) {
   if (Array.isArray(slot.requiredFields) && slot.requiredFields.length > 0) {
-    return validateJsonFields(slot, artifactPath);
+    return validateJsonFields(slot, artifactPath, expectedProfile);
   }
   if (Array.isArray(slot.requiredSections) && slot.requiredSections.length > 0) {
     return validateMarkdownSections(slot, artifactPath);
@@ -107,7 +108,7 @@ async function validateSlotArtifact(slot, artifactPath) {
   return { ok: true, errors: [] };
 }
 
-async function validateJsonFields(slot, artifactPath) {
+async function validateJsonFields(slot, artifactPath, expectedProfile) {
   const errors = [];
   let parsed;
   try {
@@ -120,6 +121,22 @@ async function validateJsonFields(slot, artifactPath) {
     if (!Object.hasOwn(parsed, field) || parsed[field] === null) {
       errors.push(`missing required field ${field}`);
     }
+  }
+
+  if (typeof parsed.profile !== 'string' || parsed.profile !== expectedProfile) {
+    errors.push(`profile must equal ${expectedProfile}`);
+  }
+  if (typeof parsed.collectedAt !== 'string' || parsed.collectedAt.trim() === '') {
+    errors.push('missing required field collectedAt');
+  }
+  if (typeof parsed.sourceProfile === 'string' && parsed.sourceProfile !== expectedProfile) {
+    errors.push(`sourceProfile must equal ${expectedProfile}`);
+  }
+  const authenticityText = [parsed.runId, parsed.boundary]
+    .filter((value) => typeof value === 'string')
+    .join(' ');
+  if (/doc-captur|backfill|rather than (?:a )?dedicated|not (?:full )?[^.]*sign-off/iu.test(authenticityText)) {
+    errors.push('artifact declares doc-captured, backfilled, or non-signoff evidence');
   }
 
   return { ok: errors.length === 0, errors };

@@ -15,6 +15,7 @@ mod client_route_sync;
 mod contacts;
 mod conversation_catalog;
 mod conversation_personalization;
+mod conversation_profile_events;
 mod cursor_auth;
 pub mod embedded_bridge;
 pub mod http;
@@ -143,6 +144,8 @@ pub struct TimelineProjectionService {
     observability: Mutex<ProjectionObservabilityState>,
     timeline_tier: timeline_tier::TimelineTierConfig,
     metadata_tier: metadata_tier::MetadataTierConfig,
+    conversation_event_outbox:
+        std::sync::OnceLock<std::sync::Arc<dyn im_platform_contracts::OutboxStore>>,
 }
 
 impl TimelineProjectionService {
@@ -176,6 +179,13 @@ impl TimelineProjectionService {
         &self,
     ) -> Option<std::sync::Arc<dyn im_platform_contracts::MetadataStore + Send + Sync>> {
         self.metadata_tier.durable_metadata_store()
+    }
+
+    pub fn configure_conversation_event_outbox(
+        &self,
+        store: std::sync::Arc<dyn im_platform_contracts::OutboxStore>,
+    ) {
+        let _ = self.conversation_event_outbox.set(store);
     }
 }
 

@@ -2,18 +2,12 @@ package com.sdkwork.im.sdk.generated.model;
 
 
 public class CreateConversationResult {
-    private String tenantId;
     private String conversationId;
-    private String kind;
-    private String createdAt;
-
-    public String getTenantId() {
-        return this.tenantId;
-    }
-
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
-    }
+    private String eventId;
+    private String requestKey;
+    private String deliveryStatus;
+    private String proofVersion;
+    private String knowledgebaseInitialization;
 
     public String getConversationId() {
         return this.conversationId;
@@ -23,19 +17,43 @@ public class CreateConversationResult {
         this.conversationId = conversationId;
     }
 
-    public String getKind() {
-        return this.kind;
+    public String getEventId() {
+        return this.eventId;
     }
 
-    public void setKind(String kind) {
-        this.kind = kind;
+    public void setEventId(String eventId) {
+        this.eventId = eventId;
     }
 
-    public String getCreatedAt() {
-        return this.createdAt;
+    public String getRequestKey() {
+        return this.requestKey;
     }
 
-    public void setCreatedAt(String createdAt) {
-        this.createdAt = createdAt;
+    public void setRequestKey(String requestKey) {
+        this.requestKey = requestKey;
+    }
+
+    public String getDeliveryStatus() {
+        return this.deliveryStatus;
+    }
+
+    public void setDeliveryStatus(String deliveryStatus) {
+        this.deliveryStatus = deliveryStatus;
+    }
+
+    public String getProofVersion() {
+        return this.proofVersion;
+    }
+
+    public void setProofVersion(String proofVersion) {
+        this.proofVersion = proofVersion;
+    }
+
+    public String getKnowledgebaseInitialization() {
+        return this.knowledgebaseInitialization;
+    }
+
+    public void setKnowledgebaseInitialization(String knowledgebaseInitialization) {
+        this.knowledgebaseInitialization = knowledgebaseInitialization;
     }
 }

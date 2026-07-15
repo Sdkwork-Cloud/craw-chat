@@ -12,4 +12,7 @@
   "chat.inbox.aria": "聊天收件箱",
   "chat.inbox.conversationFallback": "会话 {{id}}",
   "chat.inbox.unreadCount": "{{count}} 条未读消息"
+  ,"chat.inbox.searchPlaceholder": "\u641c\u7d22\u4f1a\u8bdd\u540d\u79f0\u6216\u7f16\u53f7",
+  "chat.inbox.searchAria": "\u641c\u7d22\u4f1a\u8bdd",
+  "chat.inbox.searchEmpty": "\u672a\u627e\u5230\u5339\u914d\u7684\u4f1a\u8bdd"
 }

@@ -56,6 +56,22 @@ const generatedMembershipAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-membership'),
   'sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts',
 );
+const membershipPcPackageRoot = path.resolve(
+  dependencyRoot('sdkwork-membership'),
+  'apps/sdkwork-membership-pc/packages',
+);
+const orderPcPackageRoot = path.resolve(
+  dependencyRoot('sdkwork-order'),
+  'apps/sdkwork-order-pc/packages',
+);
+const promotionPcPackageRoot = path.resolve(
+  dependencyRoot('sdkwork-promotion'),
+  'apps/sdkwork-promotion-pc/packages',
+);
+const promotionCommonPackageRoot = path.resolve(
+  dependencyRoot('sdkwork-promotion'),
+  'apps/sdkwork-promotion-common/packages',
+);
 
 const mailAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-mail'),
@@ -282,6 +298,13 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/shop-app-sdk', replacement: shopAppSdkEntry },
         { find: '@sdkwork/order-app-sdk', replacement: orderAppSdkEntry },
         { find: '@sdkwork/membership-app-sdk', replacement: generatedMembershipAppSdkEntry },
+        { find: '@sdkwork/membership-pc-membership', replacement: path.resolve(membershipPcPackageRoot, 'sdkwork-membership-pc-membership/src/index.ts') },
+        { find: /^@sdkwork\/membership-pc-subscription\/(.+)$/, replacement: `${path.resolve(membershipPcPackageRoot, 'sdkwork-membership-pc-subscription/src')}/$1` },
+        { find: '@sdkwork/membership-pc-subscription', replacement: path.resolve(membershipPcPackageRoot, 'sdkwork-membership-pc-subscription/src/index.ts') },
+        { find: '@sdkwork/order-pc-checkout', replacement: path.resolve(orderPcPackageRoot, 'sdkwork-order-pc-checkout/src/index.ts') },
+        { find: '@sdkwork/promotion-pc-core', replacement: path.resolve(promotionPcPackageRoot, 'sdkwork-promotion-pc-core/src/index.ts') },
+        { find: '@sdkwork/promotion-pc-coupon', replacement: path.resolve(promotionPcPackageRoot, 'sdkwork-promotion-pc-coupon/src/index.ts') },
+        { find: '@sdkwork/promotion-service', replacement: path.resolve(promotionCommonPackageRoot, 'sdkwork-promotion-service/src/index.ts') },
         { find: '@sdkwork/mail-app-sdk', replacement: mailAppSdkEntry },
         { find: '@sdkwork/course-app-sdk', replacement: generatedCourseAppSdkEntry },
         { find: '@sdkwork/course-backend-sdk', replacement: generatedCourseBackendSdkEntry },
@@ -313,6 +336,7 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/im-pc-shell', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-shell/src') },
         { find: '@sdkwork/im-pc-core', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-core/src') },
         { find: '@sdkwork/im-pc-chat', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-chat/src') },
+        { find: '@sdkwork/im-pc-token-plan', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-token-plan/src') },
         { find: '@sdkwork/im-pc-agent', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-agent/src') },
         { find: '@sdkwork/im-pc-workspace', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-workspace/src') },
         { find: '@sdkwork/im-pc-orders', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-orders/src') },
@@ -427,6 +451,12 @@ export default defineConfig(({mode}) => {
         '@sdkwork/shop-app-sdk',
         '@sdkwork/order-app-sdk',
         '@sdkwork/membership-app-sdk',
+        '@sdkwork/membership-pc-membership',
+        '@sdkwork/membership-pc-subscription',
+        '@sdkwork/order-pc-checkout',
+        '@sdkwork/promotion-pc-core',
+        '@sdkwork/promotion-pc-coupon',
+        '@sdkwork/promotion-service',
         '@sdkwork/mail-app-sdk',
         '@sdkwork/course-app-sdk',
         '@sdkwork/course-backend-sdk',
@@ -446,6 +476,7 @@ export default defineConfig(({mode}) => {
         '@sdkwork/core-pc-react',
         '@sdkwork/ui-pc-react',
         '@sdkwork/im-pc-admin-sdk',
+        '@sdkwork/im-pc-token-plan',
       ],
     },
     build: {

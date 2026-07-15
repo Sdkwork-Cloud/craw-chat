@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/im-pc-token-plan",
+    "displayName": "Sdkwork IM Pc Token Plan",
+    "version": "1.0.0",
+    "type": "react-package",
+    "root": "sdkwork-im/apps/sdkwork-im-pc/packages/sdkwork-im-pc-token-plan",
+    "domain": "commerce",
+    "capability": "im-pc-token-plan",
+    "languages": [
+      "typescript",
+      "react"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "package.json"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable module and package boundary rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Verification and contract testing expectations."
+    },
+    {
+      "file": "TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "TypeScript and Node package rules."
+    },
+    {
+      "file": "FRONTEND_CODE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
+      "purpose": "Frontend authored source structure."
+    },
+    {
+      "file": "FRONTEND_SPEC.md",
+      "path": "../../../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "purpose": "Frontend service, state, SDK, and UI boundary rules."
+    },
+    {
+      "file": "UI_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
+      "purpose": "UI architecture selection rules."
+    },
+    {
+      "file": "APP_PC_REACT_UI_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md",
+      "purpose": "PC React package rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "frontend-feature",
+    "publicExports": [
+      "."
+    ],
+    "providedPorts": [
+      {
+        "name": "tokenPlanFeature",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "membershipFeature",
+        "export": ".",
+        "package": "@sdkwork/membership-pc-membership"
+      },
+      {
+        "name": "subscriptionCatalog",
+        "export": ".",
+        "package": "@sdkwork/membership-pc-subscription"
+      }
+    ],
+    "runtimeEntrypoints": [],
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": [],
+    "routeManifest": null
+  },
+  "verification": {
+    "commands": [
+      "powershell -NoProfile -Command \"Get-Content specs/component.spec.json -Raw | ConvertFrom-Json | Out-Null\""
+    ]
+  }
+}

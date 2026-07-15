@@ -10,7 +10,7 @@ public class AgentSubject {
     public String getAgentId() {
         return this.agentId;
     }
-    
+
     public void setAgentId(String agentId) {
         this.agentId = agentId;
     }
@@ -18,7 +18,7 @@ public class AgentSubject {
     public String getSessionId() {
         return this.sessionId;
     }
-    
+
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
     }
@@ -26,7 +26,7 @@ public class AgentSubject {
     public Map<String, String> getMetadata() {
         return this.metadata;
     }
-    
+
     public void setMetadata(Map<String, String> metadata) {
         this.metadata = metadata;
     }

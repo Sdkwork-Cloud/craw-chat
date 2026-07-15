@@ -64,3 +64,5 @@ Specs: <the SDKWork specs that own the technical rules cited>
 | [ADR-20260615-craw-chat-to-sdkwork-im-rebrand](./ADR-20260615-craw-chat-to-sdkwork-im-rebrand.md) | Craw Chat to SDKWork IM rebrand, product token `im`, naming authority | accepted |
 | [ADR-20260617-comms-service-naming-boundaries](./ADR-20260617-comms-service-naming-boundaries.md) | Communication service naming boundaries (`sdkwork-comms-*`) | accepted |
 | [ADR-20260619-im-rpc-discovery-integration-deferred](./ADR-20260619-im-rpc-discovery-integration-deferred.md) | IM RPC discovery integration deferred to Phase 2 | accepted |
+| [ADR-20260713-group-knowledgebase-binding-and-launch](./ADR-20260713-group-knowledgebase-binding-and-launch.md) | Managed Conversation group Knowledgebase binding and launch | accepted |
+| [ADR-20260715-auth-context-capability-composition](./ADR-20260715-auth-context-capability-composition.md) | Auth context requirements for composed capabilities | accepted |

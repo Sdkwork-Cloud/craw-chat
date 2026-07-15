@@ -76,6 +76,12 @@ pub struct ConversationRpcDispatcher {
 impl ConversationRpcDispatcher {
     pub async fn bootstrap_from_env() -> Result<Self, String> {
         let state = bootstrap_conversation_app_state_from_env()?;
+        state
+            .ensure_group_knowledgebase_outbox_relay_started()
+            .await
+            .map_err(|error| {
+                format!("conversation RPC group knowledgebase relay readiness failed: {error}")
+            })?;
         Ok(Self { state })
     }
 
@@ -210,7 +216,7 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                     let payload =
                         UpdateConversationProfileRequest::decode(request.request_bytes.as_slice())?;
                     super::rpc_projection_dispatch::dispatch_update_conversation_profile(
-                        &auth, payload,
+                        &state, &auth, payload,
                     )
                     .await
                 }
@@ -343,11 +349,12 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
         request: ImRpcStreamRequest,
     ) -> ImRpcBoxFuture<Result<ImRpcBoxStream<Result<ImRpcStreamResponse, ImRpcError>>, ImRpcError>>
     {
+        let state = self.state.clone();
         let operation_id = request.binding.operation_id;
         let method_key = request.binding.method_key;
         Box::pin(async move {
             require_app_session_auth(request.binding, &request.metadata)?;
-            let _auth = resolve_auth_placeholder(&request.metadata)?;
+            resolve_auth(&state, &request.metadata)?;
             Err(ImRpcError::unimplemented(format!(
                 "conversation rpc host does not implement stream `{operation_id}` ({method_key})"
             )))
@@ -358,15 +365,6 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
 fn resolve_auth(state: &AppState, metadata: &RpcMetadata) -> Result<AppContext, ImRpcError> {
     let headers = metadata_to_axum_headers(metadata);
     http::resolve_active_rpc_auth_context(state, &headers).map_err(map_api_error)
-}
-
-fn resolve_auth_placeholder(metadata: &RpcMetadata) -> Result<(), ImRpcError> {
-    if metadata.authorization.as_deref().is_none() && metadata.access_token.as_deref().is_none() {
-        return Err(ImRpcError::unauthenticated(
-            "app-session RPC requires authorization or access-token metadata",
-        ));
-    }
-    Ok(())
 }
 
 async fn dispatch_create_conversation(
@@ -664,14 +662,16 @@ async fn dispatch_bind_direct_chat(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let peer_user_id = required_field(request.peer_user_id, "peer_user_id")?;
     let (conversation_id, direct_chat_id) = super::support::resolve_direct_chat_binding_ids(
-        auth.tenant_id.as_str(),
-        super::organization_id_from_auth_context(auth).as_str(),
-        auth.actor_kind.as_str(),
-        auth.actor_id.as_str(),
-        "user",
-        peer_user_id.as_str(),
-        "",
-        "",
+        super::support::DirectChatBindingIdsRequest {
+            tenant_id: auth.tenant_id.as_str(),
+            organization_id: super::organization_id_from_auth_context(auth).as_str(),
+            left_actor_kind: auth.actor_kind.as_str(),
+            left_actor_id: auth.actor_id.as_str(),
+            right_actor_kind: "user",
+            right_actor_id: peer_user_id.as_str(),
+            requested_conversation_id: "",
+            requested_direct_chat_id: "",
+        },
     )
     .map_err(map_runtime_error)?;
     let left_actor_id = auth.actor_id.clone();
@@ -2130,42 +2130,42 @@ fn proto_parts_to_message_body(
             continue;
         }
         if kind == "media" {
-            if let Some(media) = part.media {
-                if let Some(drive) = media.drive {
-                    content_parts.push(ContentPart::media(im_domain_core::message::MediaPart {
-                        resource: im_domain_core::media::MediaResource {
-                            id: optional_string(media.media_id),
-                            kind: im_domain_core::media::MediaKind::Other,
-                            source: im_domain_core::media::MediaSource::Drive,
-                            url: None,
-                            public_url: None,
-                            uri: None,
-                            object_blob_id: None,
-                            file_name: optional_string(media.filename),
-                            mime_type: optional_string(media.content_type),
-                            size_bytes: Some(media.file_size_bytes.to_string()),
-                            checksum: None,
-                            width: Some(media.width.max(0) as u32),
-                            height: Some(media.height.max(0) as u32),
-                            duration_seconds: Some((media.duration_ms.max(0) as u32) / 1000),
-                            alt_text: None,
-                            title: None,
-                            poster: None,
-                            thumbnails: None,
-                            variants: None,
-                            access: None,
-                            ai: None,
-                            metadata: None,
-                        },
-                        drive: im_domain_core::media::DriveReference {
-                            drive_uri: drive.drive_uri,
-                            space_id: drive.space_id,
-                            node_id: drive.node_id,
-                            node_version: None,
-                        },
-                        media_role: Some("attachment".into()),
-                    }));
-                }
+            if let Some(media) = part.media
+                && let Some(drive) = media.drive
+            {
+                content_parts.push(ContentPart::media(im_domain_core::message::MediaPart {
+                    resource: im_domain_core::media::MediaResource {
+                        id: optional_string(media.media_id),
+                        kind: im_domain_core::media::MediaKind::Other,
+                        source: im_domain_core::media::MediaSource::Drive,
+                        url: None,
+                        public_url: None,
+                        uri: None,
+                        object_blob_id: None,
+                        file_name: optional_string(media.filename),
+                        mime_type: optional_string(media.content_type),
+                        size_bytes: Some(media.file_size_bytes.to_string()),
+                        checksum: None,
+                        width: Some(media.width.max(0) as u32),
+                        height: Some(media.height.max(0) as u32),
+                        duration_seconds: Some((media.duration_ms.max(0) as u32) / 1000),
+                        alt_text: None,
+                        title: None,
+                        poster: None,
+                        thumbnails: None,
+                        variants: None,
+                        access: None,
+                        ai: None,
+                        metadata: None,
+                    },
+                    drive: im_domain_core::media::DriveReference {
+                        drive_uri: drive.drive_uri,
+                        space_id: drive.space_id,
+                        node_id: drive.node_id,
+                        node_version: None,
+                    },
+                    media_role: Some("attachment".into()),
+                }));
             }
             continue;
         }
@@ -2188,7 +2188,7 @@ pub(crate) fn page_request(
     let page_size = page.as_ref().map(|value| value.page_size).unwrap_or(0);
     let limit = match page_size {
         0 => DEFAULT_LIST_PAGE_SIZE as usize,
-        value if value < 0 || value > MAX_LIST_PAGE_SIZE => {
+        value if !(0..=MAX_LIST_PAGE_SIZE).contains(&value) => {
             return Err(ImRpcError::invalid_argument(format!(
                 "page_size must be between 1 and {MAX_LIST_PAGE_SIZE}: {value}"
             )));
@@ -2265,30 +2265,30 @@ pub fn rpc_metadata_from_app_context(
 
 fn metadata_to_axum_headers(metadata: &RpcMetadata) -> HeaderMap {
     let mut headers = HeaderMap::new();
-    if let Some(value) = &metadata.authorization {
-        if let Ok(parsed) = HeaderValue::from_str(value) {
-            headers.insert(header::AUTHORIZATION, parsed);
-        }
+    if let Some(value) = &metadata.authorization
+        && let Ok(parsed) = HeaderValue::from_str(value)
+    {
+        headers.insert(header::AUTHORIZATION, parsed);
     }
-    if let Some(value) = &metadata.access_token {
-        if let Ok(parsed) = HeaderValue::from_str(value) {
-            headers.insert("access-token", parsed);
-        }
+    if let Some(value) = &metadata.access_token
+        && let Ok(parsed) = HeaderValue::from_str(value)
+    {
+        headers.insert("access-token", parsed);
     }
-    if let Some(value) = &metadata.trace_id {
-        if let Ok(parsed) = HeaderValue::from_str(value) {
-            headers.insert("x-sdkwork-trace-id", parsed);
-        }
+    if let Some(value) = &metadata.trace_id
+        && let Ok(parsed) = HeaderValue::from_str(value)
+    {
+        headers.insert("x-sdkwork-trace-id", parsed);
     }
-    if let Some(value) = &metadata.traceparent {
-        if let Ok(parsed) = HeaderValue::from_str(value) {
-            headers.insert("traceparent", parsed);
-        }
+    if let Some(value) = &metadata.traceparent
+        && let Ok(parsed) = HeaderValue::from_str(value)
+    {
+        headers.insert("traceparent", parsed);
     }
-    if let Some(value) = &metadata.idempotency_key {
-        if let Ok(parsed) = HeaderValue::from_str(value) {
-            headers.insert("idempotency-key", parsed);
-        }
+    if let Some(value) = &metadata.idempotency_key
+        && let Ok(parsed) = HeaderValue::from_str(value)
+    {
+        headers.insert("idempotency-key", parsed);
     }
     headers
 }

@@ -2088,6 +2088,7 @@ paths:
         - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
         - $ref: '#/components/parameters/ConversationTypeQuery'
+        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: OK
@@ -2210,6 +2211,12 @@ paths:
                 $ref: '#/components/schemas/ProblemDetail'
         '404':
           description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: HTTP 409 problem
           content:
             application/problem+json:
               schema:
@@ -8570,6 +8577,24 @@ components:
         - directChatId
         - conversationId
         - status
+    SocialFriendRequestAcceptedConversation:
+      type: object
+      additionalProperties: false
+      properties:
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        kind:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - tenantId
+        - conversationId
+        - kind
+        - createdAt
     SocialFriendRequestMutationResponse:
       type: object
       additionalProperties: false
@@ -8599,7 +8624,7 @@ components:
         directChat:
           $ref: '#/components/schemas/DirectChat'
         conversation:
-          $ref: '#/components/schemas/CreateConversationResult'
+          $ref: '#/components/schemas/SocialFriendRequestAcceptedConversation'
       required:
         - friendRequest
         - friendship
@@ -8630,6 +8655,12 @@ components:
           type: string
           maxLength: 256
           nullable: true
+        initializeKnowledgebase:
+          type: boolean
+          default: false
+          description: >-
+            For group conversations only. When true, requests one Knowledgebase provisioning attempt after the group is
+            durably created. Omitted or false never reserves, provisions, or validates a group Knowledgebase scope.
         memberUserIds:
           type: array
           items:
@@ -8801,20 +8832,32 @@ components:
       type: object
       additionalProperties: false
       properties:
-        tenantId:
-          type: string
         conversationId:
           type: string
-        kind:
+        eventId:
           type: string
-        createdAt:
+        requestKey:
           type: string
-          format: date-time
+        deliveryStatus:
+          type: string
+          enum:
+            - applied
+            - replayed
+        proofVersion:
+          type: string
+        knowledgebaseInitialization:
+          type: string
+          enum:
+            - active
+            - provisioning
+            - failed
+          description: >-
+            Present only when initializeKnowledgebase was true. A failed value means group creation succeeded but the
+            optional remote Knowledgebase provisioning attempt did not complete; the group owner can retry from the
+            Knowledgebase action.
       required:
-        - tenantId
         - conversationId
-        - kind
-        - createdAt
+        - eventId
     CreateRoomRequest:
       type: object
       additionalProperties: false

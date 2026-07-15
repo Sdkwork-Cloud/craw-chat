@@ -5,17 +5,17 @@ Generated SDKWork v3 dual-token transport SDK.
 ## Installation
 
 ```bash
-npm install @sdkwork-internal/im-app-api-generated
+npm install @sdkwork/im-app-sdk
 # or
-yarn add @sdkwork-internal/im-app-api-generated
+yarn add @sdkwork/im-app-sdk
 # or
-pnpm add @sdkwork-internal/im-app-api-generated
+pnpm add @sdkwork/im-app-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { SdkworkImAppClient } from '@sdkwork-internal/im-app-api-generated';
+import { SdkworkImAppClient } from '@sdkwork/im-app-sdk';
 
 const client = new SdkworkImAppClient({
   baseUrl: 'http://127.0.0.1:18079',
@@ -41,7 +41,7 @@ Access-Token: <accessToken>
 ## Configuration (Non-Auth)
 
 ```typescript
-import { SdkworkImAppClient } from '@sdkwork-internal/im-app-api-generated';
+import { SdkworkImAppClient } from '@sdkwork/im-app-sdk';
 
 const client = new SdkworkImAppClient({
   baseUrl: 'http://127.0.0.1:18079',
@@ -58,6 +58,7 @@ const client = new SdkworkImAppClient({
 - `client.notifications` - notifications API
 - `client.portal` - portal API
 - `client.provider` - provider API
+- `client.chat` - chat API
 
 ## Usage Examples
 
@@ -106,10 +107,18 @@ const result = await client.portal.access.retrieve();
 const result = await client.provider.mediaHealth.retrieve();
 ```
 
+### chat
+
+```typescript
+// Retrieve the group knowledgebase link
+const conversationId = '1';
+const result = await client.chat.conversations.knowledgebase.retrieve(conversationId);
+```
+
 ## Error Handling
 
 ```typescript
-import { SdkworkImAppClient, NetworkError, TimeoutError, AuthenticationError } from '@sdkwork-internal/im-app-api-generated';
+import { SdkworkImAppClient, NetworkError, TimeoutError, AuthenticationError } from '@sdkwork/im-app-sdk';
 
 try {
   const result = await client.portal.access.retrieve();

@@ -31,12 +31,13 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// List current inbox window
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.InboxListResponse?> InboxListAsync(int? pageSize = null, string? cursor = null)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.InboxListResponse?> InboxListAsync(int? pageSize = null, string? cursor = null, string? conversationType = null)
         {
             var queryString = BuildQueryString(new[]
             {
                 new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
                 new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+                new QueryParameterSpec("conversation_type", conversationType, "form", true, false, null),
             });
             return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.InboxListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/chat/inbox"), queryString));
         }
@@ -143,6 +144,30 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         }
 
         /// <summary>
+        /// Retrieve the current conversation member
+        /// </summary>
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsMembersCurrentRetrieveResponse?> ConversationsMembersCurrentRetrieveAsync(string conversationId)
+        {
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationsMembersCurrentRetrieveResponse>(ApiPaths.ImPath($"/chat/conversations/{SerializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false))}/members/current"));
+        }
+
+        /// <summary>
+        /// Retrieve assigned group agents
+        /// </summary>
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsAgentsRetrieveResponse?> ConversationsAgentsRetrieveAsync(string conversationId)
+        {
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationsAgentsRetrieveResponse>(ApiPaths.ImPath($"/chat/conversations/{SerializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false))}/agents"));
+        }
+
+        /// <summary>
+        /// Update assigned group agents
+        /// </summary>
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsAgentsUpdateResponse?> ConversationsAgentsUpdateAsync(string conversationId, Sdkwork.Im.Sdk.Generated.Models.UpdateConversationAgentsRequest body)
+        {
+            return await _client.PutAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationsAgentsUpdateResponse>(ApiPaths.ImPath($"/chat/conversations/{SerializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false))}/agents"), body, null, null, "application/json");
+        }
+
+        /// <summary>
         /// Add a conversation member
         /// </summary>
         public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsMembersAddResponse?> ConversationsMembersAddAsync(string conversationId, Sdkwork.Im.Sdk.Generated.Models.AddConversationMemberRequest body)
@@ -241,19 +266,24 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// List member directory
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsMemberDirectoryListResponse?> ConversationsMemberDirectoryListAsync(string conversationId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsMemberDirectoryListResponse?> ConversationsMemberDirectoryListAsync(string conversationId, string? cursor = null, int? pageSize = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationsMemberDirectoryListResponse>(ApiPaths.ImPath($"/chat/conversations/{SerializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false))}/member_directory"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationsMemberDirectoryListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/chat/conversations/{SerializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false))}/member_directory"), queryString));
         }
 
         /// <summary>
         /// List conversation message history
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationMessageListResponse?> ConversationsMessagesListAsync(string conversationId, int? afterSeq = null, int? pageSize = null)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationMessageListResponse?> ConversationsMessagesListAsync(string conversationId, string? cursor = null, int? pageSize = null)
         {
             var queryString = BuildQueryString(new[]
             {
-                new QueryParameterSpec("afterSeq", afterSeq, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
                 new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             });
             return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationMessageListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/chat/conversations/{SerializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false))}/messages"), queryString));
@@ -278,9 +308,14 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// List pinned messages
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsPinsListResponse?> ConversationsPinsListAsync(string conversationId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsPinsListResponse?> ConversationsPinsListAsync(string conversationId, string? cursor = null, int? pageSize = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationsPinsListResponse>(ApiPaths.ImPath($"/chat/conversations/{SerializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false))}/pins"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationsPinsListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/chat/conversations/{SerializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false))}/pins"), queryString));
         }
 
         /// <summary>

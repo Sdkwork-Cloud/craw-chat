@@ -54,6 +54,44 @@ Load order: `scripts/im-dev.mjs` and `scripts/im-server-dev.mjs` merge the selec
 | comms-conversation-rpc (gRPC Phase 1) | `SDKWORK_IM_COMMS_CONVERSATION_RPC_BIND_ADDR` | `127.0.0.1:50052` |
 | comms-conversation-internal-rpc (gRPC Phase 1.5) | `SDKWORK_IM_COMMS_CONVERSATION_INTERNAL_RPC_BIND_ADDR` | `127.0.0.1:50053` |
 
+## Managed Group Knowledgebase Lifecycle RPC
+
+The Conversation service reaches the sibling `sdkwork-knowledgebase` lifecycle host only through
+the generated Knowledgebase RPC SDK. The trusted path uses mTLS and framework-verified signed
+caller context from the `sdkwork-im` service identity; raw HTTP and manually assembled
+authorization headers are not a supported fallback.
+
+The IM outbound client configuration is complete only when every non-secret setting below and
+exactly one caller-context signing-key source are present. A fully absent client is permitted only
+in development/test where the runtime permits it; partial configuration is rejected in every
+environment, and staging/production require the complete client.
+
+| Env key | Purpose |
+| --- | --- |
+| `SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_ENDPOINT` | Knowledgebase lifecycle RPC endpoint |
+| `SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CA_CERT_PATH` | CA certificate file for server verification |
+| `SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CERT_PATH` | IM client certificate file for mTLS |
+| `SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_KEY_PATH` | IM client private-key file for mTLS |
+| `SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_TLS_DOMAIN` | Expected Knowledgebase TLS server name |
+| `SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CALLER_CONTEXT_SIGNING_KEY` | Direct base64url caller-context signing key |
+| `SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CALLER_CONTEXT_SIGNING_KEY_FILE` | File containing the caller-context signing key |
+| `SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CREDENTIAL_TTL_SECONDS` | Positive lifetime for signed caller credentials |
+| `SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_TIMEOUT_MS` | Positive lifecycle RPC timeout |
+
+`SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CALLER_CONTEXT_SIGNING_KEY` and
+`SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CALLER_CONTEXT_SIGNING_KEY_FILE` are mutually exclusive;
+both absent and both present are invalid in a configured client. Do not place concrete values for
+these keys in source-controlled profiles.
+
+The Knowledgebase lifecycle host is deployed and operated in the sibling Knowledgebase product. A
+staging/production rollout requires its image, Service, network policy, issued CA/server/client
+certificates, and persistent database and Drive storage. The host rejects unverified callers and
+checks database, runtime, and Drive readiness before accepting lifecycle work; its
+`SDKWORK_KNOWLEDGEBASE_DRIVE_STORAGE_ROOT` must be an explicit absolute persistent path in staging
+and production. This repository cannot provide or guess the cross-namespace DNS name, Secret
+names, certificate paths, image, or volume claim. Supply those environment-owned values through
+the deployment process before activating group Knowledgebase initialization.
+
 ### session-gateway HA (optional)
 
 | Env key | Purpose |

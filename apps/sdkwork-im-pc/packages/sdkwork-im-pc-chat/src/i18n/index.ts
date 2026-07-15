@@ -4,6 +4,7 @@ import {
   SDKWORK_IM_PC_LANGUAGE_CHANGED_EVENT,
   resolvePersistedLanguage,
 } from '@sdkwork/im-pc-commons';
+import { sdkworkSubscriptionCheckoutResources } from '@sdkwork/membership-pc-subscription/catalog';
 import enUSAgent from './en-US/communication/im-pc-chat/agent.json';
 import enUSChat from './en-US/communication/im-pc-chat/chat.json';
 import enUSContacts from './en-US/communication/im-pc-chat/contacts.json';
@@ -12,6 +13,7 @@ import enUSProfile from './en-US/communication/im-pc-chat/profile.json';
 import enUSScanQr from './en-US/communication/im-pc-chat/scan-qr.json';
 import enUSSettingsModal from './en-US/communication/im-pc-chat/settings-modal.json';
 import enUSSidebar from './en-US/communication/im-pc-chat/sidebar.json';
+import enUSTokenPlan from './en-US/communication/im-pc-chat/token-plan.json';
 import zhCNAgent from './zh-CN/communication/im-pc-chat/agent.json';
 import zhCNChat from './zh-CN/communication/im-pc-chat/chat.json';
 import zhCNContacts from './zh-CN/communication/im-pc-chat/contacts.json';
@@ -20,9 +22,12 @@ import zhCNProfile from './zh-CN/communication/im-pc-chat/profile.json';
 import zhCNScanQr from './zh-CN/communication/im-pc-chat/scan-qr.json';
 import zhCNSettingsModal from './zh-CN/communication/im-pc-chat/settings-modal.json';
 import zhCNSidebar from './zh-CN/communication/im-pc-chat/sidebar.json';
+import zhCNTokenPlan from './zh-CN/communication/im-pc-chat/token-plan.json';
 
 const zhCN = {
+  ...sdkworkSubscriptionCheckoutResources['zh-CN'],
   ...zhCNSidebar,
+  ...zhCNTokenPlan,
   ...zhCNAgent,
   ...zhCNProfile,
   ...zhCNContacts,
@@ -33,7 +38,9 @@ const zhCN = {
 };
 
 const enUS = {
+  ...sdkworkSubscriptionCheckoutResources['en-US'],
   ...enUSSidebar,
+  ...enUSTokenPlan,
   ...enUSAgent,
   ...enUSProfile,
   ...enUSContacts,

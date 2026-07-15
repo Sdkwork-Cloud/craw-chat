@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BookOpen, Bot, X } from 'lucide-react';
+import { Avatar } from '@sdkwork/im-pc-commons';
 import type { Chat, User } from '@sdkwork/im-pc-types';
 import type { AgentConfig } from '@sdkwork/agents-pc-agents';
 import { toast } from './Toast';
@@ -29,6 +31,8 @@ export const CreateGroupModal: React.FC<{
   const [loading, setLoading] = useState(false);
   const [loadingMoreContacts, setLoadingMoreContacts] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [initializeKnowledgebase, setInitializeKnowledgebase] = useState(false);
   const [agents, setAgents] = useState<AgentConfig[]>([]);
   const [selectedAgentIds, setSelectedAgentIds] = useState<Set<string>>(new Set());
   const [selectedAgents, setSelectedAgents] = useState<Map<string, GroupAgentAssignment>>(new Map());
@@ -92,6 +96,8 @@ export const CreateGroupModal: React.FC<{
       setSelected(new Set());
       setSearchQuery('');
       setCreating(false);
+      setGroupName('');
+      setInitializeKnowledgebase(false);
       setLoadingMoreContacts(false);
       setAgents([]);
       setSelectedAgentIds(new Set());
@@ -208,6 +214,25 @@ export const CreateGroupModal: React.FC<{
     });
   };
 
+  const removeSelectedAgent = (agentId: string): void => {
+    setSelectedAgentIds((previous) => {
+      if (!previous.has(agentId)) {
+        return previous;
+      }
+      const next = new Set(previous);
+      next.delete(agentId);
+      return next;
+    });
+    setSelectedAgents((previous) => {
+      if (!previous.has(agentId)) {
+        return previous;
+      }
+      const next = new Map(previous);
+      next.delete(agentId);
+      return next;
+    });
+  };
+
   const loadMoreAgents = (): void => {
     if (!hasMoreAgents || loadingMoreAgents) {
       return;
@@ -253,8 +278,10 @@ export const CreateGroupModal: React.FC<{
     const sessionId = modalSessionRef.current;
     setCreating(true);
     try {
+      const shouldInitializeKnowledgebase = initializeKnowledgebase;
       const selectedCount = selected.size;
       const memberIds = [...selected].sort();
+      const resolvedGroupName = groupName.trim() || t('chat.fallback.groupName');
       // Omit the optional field when no agent was explicitly selected so the
       // server can apply the configured default assignment. An empty array is
       // an explicit invalid replacement, not the default-selection signal.
@@ -263,6 +290,8 @@ export const CreateGroupModal: React.FC<{
         : undefined;
       const fingerprint = JSON.stringify({
         agentAssignments: assignments?.map(({ agentId, revisionId }) => ({ agentId, revisionId })) ?? null,
+        groupName: resolvedGroupName,
+        initializeKnowledgebase: shouldInitializeKnowledgebase,
         memberIds,
       });
       if (createAttemptRef.current?.fingerprint !== fingerprint) {
@@ -272,11 +301,12 @@ export const CreateGroupModal: React.FC<{
         };
       }
       const group = await groupService.createGroup(
-        t('chat.fallback.groupName'),
+        resolvedGroupName,
         memberIds,
         assignments,
         {
           clientRequestKey: createAttemptRef.current.requestKey,
+          initializeKnowledgebase: shouldInitializeKnowledgebase,
         },
       );
       if (modalSessionRef.current !== sessionId) {
@@ -292,11 +322,19 @@ export const CreateGroupModal: React.FC<{
         return;
       }
       createAttemptRef.current = undefined;
+      const knowledgebaseInitializationToast = shouldInitializeKnowledgebase
+        ? group.knowledgebaseInitialization === 'active'
+          ? { message: t('chat.modal.toast.groupAndKnowledgebaseCreated'), type: 'success' as const }
+          : group.knowledgebaseInitialization === 'provisioning'
+            ? { message: t('chat.modal.toast.groupCreatedKnowledgebaseProvisioning'), type: 'info' as const }
+            : { message: t('chat.modal.toast.groupCreatedKnowledgebaseFailed'), type: 'error' as const }
+        : undefined;
       toast(
         openFailed
           ? t('chat.messageList.toast.openGroupFailed')
-          : t('chat.agentPicker.groupCreated', { memberCount: selectedCount, agentCount: selectedAgentIds.size }),
-        openFailed ? 'error' : 'success',
+          : knowledgebaseInitializationToast?.message
+            ?? t('chat.agentPicker.groupCreated', { memberCount: selectedCount, agentCount: selectedAgentIds.size }),
+        openFailed ? 'error' : knowledgebaseInitializationToast?.type ?? 'success',
       );
       closeModal();
     } catch {
@@ -343,13 +381,16 @@ export const CreateGroupModal: React.FC<{
       });
   }, [agentSearchQuery, isOpen, loadingAgents]);
 
+  const selectedAgentList = [...selectedAgentIds].map((agentId) => (
+    selectedAgents.get(agentId) ?? { agentId }
+  ));
   return (
     <ModalWrapper
       isOpen={isOpen}
       onClose={closeModal}
       title={t('chat.modal.title.createGroup')}
-      width="w-[760px]"
-      height="h-[700px]"
+      width="w-[1040px]"
+      height="h-[740px]"
       footer={
         <>
           <button onClick={closeModal} className="rounded bg-white/5 px-4 py-2 text-sm text-gray-300 transition-colors hover:bg-white/10">
@@ -367,39 +408,122 @@ export const CreateGroupModal: React.FC<{
         </>
       }
     >
-      <div className="flex h-full min-h-0">
-        <ContactMemberPickerPanel
-          contacts={contacts}
-          disabled={creating}
-          emptyText={t('chat.modal.state.noContactsToCreate')}
-          hasMoreContacts={hasMoreContacts}
-          isLoading={loading}
-          isLoadingMoreContacts={loadingMoreContacts}
-          maxSelectable={MAX_GROUP_INITIAL_MEMBERS}
-          onLoadMoreContacts={loadMoreContacts}
-          searchPlaceholder={t('chat.modal.placeholder.memberSearch')}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          selectedIds={selected}
-          onToggleContact={toggleSelect}
-        />
-        <AgentPickerPanel
-          agents={agents}
-          disabled={creating}
-          selectedIds={selectedAgentIds}
-          onToggle={toggleAgent}
-          searchQuery={agentSearchQuery}
-          onSearchQueryChange={setAgentSearchQuery}
-          isLoading={loadingAgents}
-          isLoadingMore={loadingMoreAgents}
-          hasMore={hasMoreAgents}
-          onLoadMore={loadMoreAgents}
-          maxSelected={MAX_GROUP_AGENTS}
-          emptyText={t('chat.agentPicker.empty')}
-          errorText={agentLoadError && agents.length === 0 ? t('chat.agentPicker.loadFailed') : undefined}
-          onRetry={retryAgentCatalog}
-          retryText={t('chat.agentPicker.retry')}
-        />
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-white/5 bg-[#242426] px-4 py-3">
+          <label className="min-w-0">
+            <span className="mb-1.5 block text-xs font-medium text-gray-300">
+              {t('chat.rightPanel.fields.groupName')}
+            </span>
+            <input
+              type="text"
+              value={groupName}
+              onChange={(event) => setGroupName(event.target.value)}
+              placeholder={t('chat.modal.placeholder.groupName')}
+              aria-label={t('chat.rightPanel.fields.groupName')}
+              disabled={creating}
+              maxLength={256}
+              className="h-9 w-full rounded-md border border-white/10 bg-[#171719] px-3 text-sm text-gray-100 outline-none transition-colors placeholder:text-gray-600 focus:border-[#00b42a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </label>
+          <div className="max-w-[280px] self-end">
+            <label
+              className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-white/10 bg-[#1b1b1d] px-3 text-xs text-gray-300 transition-colors hover:border-[#00b42a]/40 hover:bg-white/[0.03] has-[:checked]:border-[#00b42a]/55 has-[:checked]:bg-[#00b42a]/10 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
+            >
+              <input
+                type="checkbox"
+                checked={initializeKnowledgebase}
+                onChange={(event) => setInitializeKnowledgebase(event.target.checked)}
+                disabled={creating}
+                className="h-4 w-4 accent-[#00b42a]"
+              />
+              <BookOpen size={15} className="shrink-0 text-[#6be38b]" aria-hidden="true" />
+              <span>{t('chat.header.knowledgebaseInitialize')}</span>
+            </label>
+          </div>
+        </div>
+        <div className="flex min-h-0 flex-1 gap-4">
+          <div className="min-h-0 min-w-0 flex-[1.15]">
+            <ContactMemberPickerPanel
+              contacts={contacts}
+              disabled={creating}
+              emptyText={t('chat.modal.state.noContactsToCreate')}
+              hasMoreContacts={hasMoreContacts}
+              isLoading={loading}
+              isLoadingMoreContacts={loadingMoreContacts}
+              maxSelectable={MAX_GROUP_INITIAL_MEMBERS}
+              onLoadMoreContacts={loadMoreContacts}
+              searchPlaceholder={t('chat.modal.placeholder.memberSearch')}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              selectedIds={selected}
+              onToggleContact={toggleSelect}
+            />
+          </div>
+          <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border border-white/5 bg-[#1b1b1d] [&>section]:min-w-0">
+            <AgentPickerPanel
+              agents={agents}
+              disabled={creating}
+              selectedIds={selectedAgentIds}
+              onToggle={toggleAgent}
+              searchQuery={agentSearchQuery}
+              onSearchQueryChange={setAgentSearchQuery}
+              isLoading={loadingAgents}
+              isLoadingMore={loadingMoreAgents}
+              hasMore={hasMoreAgents}
+              onLoadMore={loadMoreAgents}
+              maxSelected={MAX_GROUP_AGENTS}
+              emptyText={t('chat.agentPicker.empty')}
+              errorText={agentLoadError && agents.length === 0 ? t('chat.agentPicker.loadFailed') : undefined}
+              onRetry={retryAgentCatalog}
+              retryText={t('chat.agentPicker.retry')}
+            />
+            {selectedAgentList.length > 0 && (
+              <aside
+                aria-label={t('chat.agentPicker.selectedTitle')}
+                className="flex w-[200px] shrink-0 flex-col border-l border-white/5 bg-[#171719] p-4 max-[1100px]:hidden"
+              >
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Bot size={15} className="shrink-0 text-indigo-400" aria-hidden="true" />
+                    <span className="truncate text-xs font-medium text-gray-300">
+                      {t('chat.agentPicker.selectedTitle')}
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-[11px] text-gray-500">
+                    {selectedAgentIds.size}/{MAX_GROUP_AGENTS}
+                  </span>
+                </div>
+                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto custom-scrollbar">
+                  {selectedAgentList.map((agent) => {
+                    const label = agent.name?.trim() || agent.agentId;
+                    return (
+                      <div key={agent.agentId} className="flex items-center gap-2 rounded-md bg-white/[0.035] px-2 py-2">
+                        <Avatar
+                          src={agent.avatar}
+                          alt={label}
+                          className="h-7 w-7 shrink-0 rounded-md bg-[#2b2b2d]"
+                        />
+                        <span className="min-w-0 flex-1 truncate text-xs text-gray-300" title={label}>
+                          {label}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeSelectedAgent(agent.agentId)}
+                          disabled={creating}
+                          aria-label={t('chat.agentPicker.remove', { name: label })}
+                          title={t('chat.agentPicker.remove', { name: label })}
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </aside>
+            )}
+          </div>
+        </div>
       </div>
     </ModalWrapper>
   );

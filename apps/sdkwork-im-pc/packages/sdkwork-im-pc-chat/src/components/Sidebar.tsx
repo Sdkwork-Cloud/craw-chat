@@ -21,6 +21,7 @@ import {
   Mic,
   Building2,
   Cloud,
+  Crown,
 } from "lucide-react";
 import { toast } from "./Toast";
 import { SDKWORK_IM_SESSION_CHANGED_EVENT } from "@sdkwork/im-pc-core";
@@ -501,6 +502,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className="flex flex-col items-center gap-4 py-4 shrink-0">
+        <IconButton
+          active={activeTab === "token-plan"}
+          aria-label={t("sidebar.tokenPlan")}
+          onClick={() => onTabChange("token-plan")}
+          title={t("sidebar.tokenPlan")}
+        >
+          <Crown
+            size={22}
+            className={activeTab === "token-plan" ? "fill-amber-400 text-amber-400" : "text-amber-400"}
+          />
+        </IconButton>
         <IconButton title={t('sidebar.mobile')} onClick={() => setShowLinkMobile(true)}>
           <Smartphone size={22} />
         </IconButton>

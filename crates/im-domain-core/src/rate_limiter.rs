@@ -45,6 +45,9 @@ pub enum RateLimitError {
 
     #[error("tenant quota exceeded: tenant={tenant}, quota={quota}")]
     TenantQuotaExceeded { tenant: String, quota: u32 },
+
+    #[error("rate limiter key capacity exceeded: max_buckets={max_buckets}")]
+    CapacityExceeded { max_buckets: usize },
 }
 
 /// Token bucket state for a single rate limit key.
@@ -54,6 +57,7 @@ struct TokenBucket {
     max_tokens: u32,
     refill_rate: u32, // tokens per second
     last_refill: Instant,
+    last_accessed: Instant,
     burst_tokens: u32,
     max_burst: u32,
     burst_window_start: Instant,
@@ -62,11 +66,13 @@ struct TokenBucket {
 
 impl TokenBucket {
     fn new(max_tokens: u32, refill_rate: u32, max_burst: u32) -> Self {
+        let now = Instant::now();
         Self {
             tokens: max_tokens,
             max_tokens,
             refill_rate,
-            last_refill: Instant::now(),
+            last_refill: now,
+            last_accessed: now,
             burst_tokens: max_burst,
             max_burst,
             burst_window_start: Instant::now(),
@@ -92,6 +98,7 @@ impl TokenBucket {
     }
 
     fn try_consume(&mut self, tokens: u32) -> Result<(), RateLimitError> {
+        self.last_accessed = Instant::now();
         self.refill();
 
         // Check burst limit first
@@ -130,11 +137,14 @@ pub struct DomainRateLimiter {
     default_refill_rate: u32,
     default_max_burst: u32,
     tenant_quotas: HashMap<String, u32>, // Per-tenant overrides
+    max_buckets: usize,
     cleanup_interval: Duration,
     last_cleanup: Instant,
 }
 
 impl DomainRateLimiter {
+    pub const DEFAULT_MAX_BUCKETS: usize = 50_000;
+
     /// Create a new rate limiter with default limits.
     ///
     /// # Arguments
@@ -150,6 +160,7 @@ impl DomainRateLimiter {
             default_refill_rate: refill_rate,
             default_max_burst: burst,
             tenant_quotas: HashMap::new(),
+            max_buckets: Self::DEFAULT_MAX_BUCKETS,
             cleanup_interval: Duration::from_secs(60),
             last_cleanup: Instant::now(),
         }
@@ -157,12 +168,28 @@ impl DomainRateLimiter {
 
     /// Create with custom burst configuration.
     pub fn with_burst(max_tokens: u32, refill_rate: u32, max_burst: u32) -> Self {
+        Self::with_burst_and_capacity(
+            max_tokens,
+            refill_rate,
+            max_burst,
+            Self::DEFAULT_MAX_BUCKETS,
+        )
+    }
+
+    /// Create with custom burst and key-cardinality limits.
+    pub fn with_burst_and_capacity(
+        max_tokens: u32,
+        refill_rate: u32,
+        max_burst: u32,
+        max_buckets: usize,
+    ) -> Self {
         Self {
             buckets: HashMap::new(),
             default_max_tokens: max_tokens,
             default_refill_rate: refill_rate,
             default_max_burst: max_burst,
             tenant_quotas: HashMap::new(),
+            max_buckets: max_buckets.max(1),
             cleanup_interval: Duration::from_secs(60),
             last_cleanup: Instant::now(),
         }
@@ -182,6 +209,7 @@ impl DomainRateLimiter {
         // Check tenant quota first
         if let Some(&quota) = self.tenant_quotas.get(tenant_id) {
             let tenant_key = format!("{}:__tenant_quota__", tenant_id);
+            self.ensure_bucket_capacity(tenant_key.as_str())?;
             let bucket = self.buckets.entry(tenant_key).or_insert_with(|| {
                 // For tenant quota bucket, burst = quota (allow full quota usage in burst window)
                 TokenBucket::new(quota, quota / 10, quota)
@@ -191,6 +219,7 @@ impl DomainRateLimiter {
 
         // Check operation-specific rate
         let key = format!("{}:{}", tenant_id, operation);
+        self.ensure_bucket_capacity(key.as_str())?;
         let bucket = self.buckets.entry(key).or_insert_with(|| {
             TokenBucket::new(
                 self.default_max_tokens,
@@ -213,6 +242,7 @@ impl DomainRateLimiter {
         // Check tenant quota
         if let Some(&quota) = self.tenant_quotas.get(tenant_id) {
             let tenant_key = format!("{}:__tenant_quota__", tenant_id);
+            self.ensure_bucket_capacity(tenant_key.as_str())?;
             let bucket = self
                 .buckets
                 .entry(tenant_key)
@@ -222,6 +252,7 @@ impl DomainRateLimiter {
 
         // Check operation-specific rate
         let key = format!("{}:{}", tenant_id, operation);
+        self.ensure_bucket_capacity(key.as_str())?;
         let bucket = self.buckets.entry(key).or_insert_with(|| {
             TokenBucket::new(
                 self.default_max_tokens,
@@ -249,10 +280,22 @@ impl DomainRateLimiter {
         if now.duration_since(self.last_cleanup) > self.cleanup_interval {
             // Remove buckets that haven't been used for 5 minutes
             self.buckets.retain(|_, bucket| {
-                now.duration_since(bucket.last_refill) < Duration::from_secs(300)
+                now.duration_since(bucket.last_accessed) < Duration::from_secs(300)
             });
             self.last_cleanup = now;
         }
+    }
+
+    fn ensure_bucket_capacity(&mut self, key: &str) -> Result<(), RateLimitError> {
+        if self.buckets.len() >= self.max_buckets {
+            self.cleanup_expired_buckets();
+        }
+        if self.buckets.contains_key(key) || self.buckets.len() < self.max_buckets {
+            return Ok(());
+        }
+        Err(RateLimitError::CapacityExceeded {
+            max_buckets: self.max_buckets,
+        })
     }
 
     /// Reset rate limit for a specific key (admin operation).
@@ -365,5 +408,19 @@ mod tests {
 
         // Should work again
         assert!(limiter.check_rate("t1", "op1").is_ok());
+    }
+
+    #[test]
+    fn rate_limiter_rejects_new_keys_at_capacity_without_breaking_existing_keys() {
+        let mut limiter = DomainRateLimiter::with_burst_and_capacity(10, 10, 10, 2);
+
+        assert!(limiter.check_rate("t1", "op1").is_ok());
+        assert!(limiter.check_rate("t2", "op1").is_ok());
+        assert!(matches!(
+            limiter.check_rate("t3", "op1"),
+            Err(RateLimitError::CapacityExceeded { max_buckets: 2 })
+        ));
+        assert!(limiter.check_rate("t1", "op1").is_ok());
+        assert_eq!(limiter.buckets.len(), 2);
     }
 }

@@ -19,10 +19,11 @@ class ChatApi(private val client: HttpClient) {
     }
 
     /** List current inbox window */
-    suspend fun inboxList(pageSize: Int? = null, cursor: String? = null): InboxListResponse? {
+    suspend fun inboxList(pageSize: Int? = null, cursor: String? = null, conversationType: String? = null): InboxListResponse? {
         val query = buildQueryString(listOf(
             QueryParameterSpec("page_size", pageSize, "form", true, false, null),
-            QueryParameterSpec("cursor", cursor, "form", true, false, null)
+            QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            QueryParameterSpec("conversation_type", conversationType, "form", true, false, null)
         ))
         val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/inbox"), query))
         return client.convertValue(raw, object : TypeReference<InboxListResponse>() {})
@@ -104,6 +105,24 @@ class ChatApi(private val client: HttpClient) {
         return client.convertValue(raw, object : TypeReference<ConversationsMembersListResponse>() {})
     }
 
+    /** Retrieve the current conversation member */
+    suspend fun conversationsMembersCurrentRetrieve(conversationId: String): ConversationsMembersCurrentRetrieveResponse? {
+        val raw = client.get(ApiPaths.imPath("/chat/conversations/${serializePathParameter(conversationId, PathParameterSpec("conversationId", "simple", false))}/members/current"))
+        return client.convertValue(raw, object : TypeReference<ConversationsMembersCurrentRetrieveResponse>() {})
+    }
+
+    /** Retrieve assigned group agents */
+    suspend fun conversationsAgentsRetrieve(conversationId: String): ConversationsAgentsRetrieveResponse? {
+        val raw = client.get(ApiPaths.imPath("/chat/conversations/${serializePathParameter(conversationId, PathParameterSpec("conversationId", "simple", false))}/agents"))
+        return client.convertValue(raw, object : TypeReference<ConversationsAgentsRetrieveResponse>() {})
+    }
+
+    /** Update assigned group agents */
+    suspend fun conversationsAgentsUpdate(conversationId: String, body: UpdateConversationAgentsRequest): ConversationsAgentsUpdateResponse? {
+        val raw = client.put(ApiPaths.imPath("/chat/conversations/${serializePathParameter(conversationId, PathParameterSpec("conversationId", "simple", false))}/agents"), body, null, null, "application/json")
+        return client.convertValue(raw, object : TypeReference<ConversationsAgentsUpdateResponse>() {})
+    }
+
     /** Add a conversation member */
     suspend fun conversationsMembersAdd(conversationId: String, body: AddConversationMemberRequest): ConversationsMembersAddResponse? {
         val raw = client.post(ApiPaths.imPath("/chat/conversations/${serializePathParameter(conversationId, PathParameterSpec("conversationId", "simple", false))}/members/add"), body, null, null, "application/json")
@@ -177,15 +196,19 @@ class ChatApi(private val client: HttpClient) {
     }
 
     /** List member directory */
-    suspend fun conversationsMemberDirectoryList(conversationId: String): ConversationsMemberDirectoryListResponse? {
-        val raw = client.get(ApiPaths.imPath("/chat/conversations/${serializePathParameter(conversationId, PathParameterSpec("conversationId", "simple", false))}/member_directory"))
+    suspend fun conversationsMemberDirectoryList(conversationId: String, cursor: String? = null, pageSize: Int? = null): ConversationsMemberDirectoryListResponse? {
+        val query = buildQueryString(listOf(
+            QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null)
+        ))
+        val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/${serializePathParameter(conversationId, PathParameterSpec("conversationId", "simple", false))}/member_directory"), query))
         return client.convertValue(raw, object : TypeReference<ConversationsMemberDirectoryListResponse>() {})
     }
 
     /** List conversation message history */
-    suspend fun conversationsMessagesList(conversationId: String, afterSeq: Int? = null, pageSize: Int? = null): ConversationMessageListResponse? {
+    suspend fun conversationsMessagesList(conversationId: String, cursor: String? = null, pageSize: Int? = null): ConversationMessageListResponse? {
         val query = buildQueryString(listOf(
-            QueryParameterSpec("afterSeq", afterSeq, "form", true, false, null),
+            QueryParameterSpec("cursor", cursor, "form", true, false, null),
             QueryParameterSpec("page_size", pageSize, "form", true, false, null)
         ))
         val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/${serializePathParameter(conversationId, PathParameterSpec("conversationId", "simple", false))}/messages"), query))
@@ -205,8 +228,12 @@ class ChatApi(private val client: HttpClient) {
     }
 
     /** List pinned messages */
-    suspend fun conversationsPinsList(conversationId: String): ConversationsPinsListResponse? {
-        val raw = client.get(ApiPaths.imPath("/chat/conversations/${serializePathParameter(conversationId, PathParameterSpec("conversationId", "simple", false))}/pins"))
+    suspend fun conversationsPinsList(conversationId: String, cursor: String? = null, pageSize: Int? = null): ConversationsPinsListResponse? {
+        val query = buildQueryString(listOf(
+            QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null)
+        ))
+        val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/${serializePathParameter(conversationId, PathParameterSpec("conversationId", "simple", false))}/pins"), query))
         return client.convertValue(raw, object : TypeReference<ConversationsPinsListResponse>() {})
     }
 

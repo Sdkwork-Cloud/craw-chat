@@ -38,6 +38,12 @@ Read `sdkwork.app.config.json` only when changing IM application behavior, runti
 - The `sdkwork-discovery` product control plane remains deferred until Phase 2. Phased adoption plan: `docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md`.
 - Until Phase 2 discovery ships, cloud internal routing continues to use static topology env vars in `configs/topology/` and gateway upstream URLs as the primary fallback.
 
+## Group Knowledgebase Boundary
+
+- IM owns Conversation membership, current-Owner initialization authorization, lifecycle status, and opaque launch-ticket issuance. Knowledgebase owns the one-to-one group-space binding, content, and final ACL enforcement.
+- Browser launch carries only the opaque ticket in the standalone Knowledgebase route fragment. Desktop launch carries only that ticket through the registered deep link to the independent Knowledgebase Tauri process; space identifiers, destinations, session tokens, and caller context are never passed by IM.
+- Use generated IM SDKs and the generated Knowledgebase RPC SDK or approved composed facades only. Raw HTTP, manual credential headers, and local SDK forks are forbidden; the trusted RPC path requires mTLS, signed caller context, and deployment readiness described in `configs/topology/README.md`.
+
 ## Local Dictionary Structure
 
 - `AGENTS.md`: repository agent entrypoint and relative SDKWork spec index.

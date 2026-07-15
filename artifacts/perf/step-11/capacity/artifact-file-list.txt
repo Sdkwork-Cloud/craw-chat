@@ -1,5 +1,5 @@
 # Step 11 Capacity Tier artifact file list
-# state: evidence_collected_gate_passed
+# state: evidence_collected_gate_blocked
 capacity-tier-evidence-index.json
 checksum-manifest.txt
 artifact-file-list.txt

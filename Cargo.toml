@@ -19,6 +19,7 @@ members = [
     "crates/sdkwork-routes-im-social-backend-api",
     "crates/sdkwork-routes-im-space-open-api",
     "crates/sdkwork-routes-im-chat-open-api",
+    "crates/sdkwork-routes-im-knowledgebase-app-api",
     "crates/sdkwork-routes-im-realtime-open-api",
     "crates/sdkwork-routes-im-media-app-api",
     "crates/sdkwork-routes-im-automation-app-api",
@@ -127,6 +128,7 @@ sdkwork-rpc-server = { path = "../sdkwork-rpc-framework/crates/sdkwork-rpc-serve
 sdkwork-rpc-discovery = { path = "../sdkwork-rpc-framework/crates/sdkwork-rpc-discovery" }
 sdkwork-rpc-core = { path = "../sdkwork-rpc-framework/crates/sdkwork-rpc-core" }
 sdkwork-rpc-client = { path = "../sdkwork-rpc-framework/crates/sdkwork-rpc-client" }
+sdkwork-knowledgebase-rpc-sdk-rust = { path = "../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-rpc-sdk/sdkwork-knowledgebase-rpc-sdk-rust" }
 axum = { version = "0.8.8", features = ["ws"] }
 futures-util = { version = "0.3.32", features = ["sink"] }
 http-body-util = "0.1.3"
@@ -142,6 +144,8 @@ regex = "1.11"
 dashmap = "6.1"
 # Random number generation for jitter/backoff algorithms
 rand = "0.8"
+postgres = { version = "0.19.13", features = ["with-chrono-0_4", "with-serde_json-1"] }
+r2d2 = "0.8.10"
 # Internal SDKWork workspace members - declared once at workspace root
 im-adapters-local-disk = { path = "adapters/local-disk" }
 im-adapters-postgres-journal = { path = "adapters/postgres-journal" }
@@ -228,6 +232,7 @@ sdkwork_routes_im_audit_backend_api = { path = "crates/sdkwork-routes-im-audit-b
 sdkwork_routes_im_automation_app_api = { path = "crates/sdkwork-routes-im-automation-app-api", package = "sdkwork-routes-im-automation-app-api" }
 sdkwork_routes_im_calls_open_api = { path = "crates/sdkwork-routes-im-calls-open-api", package = "sdkwork-routes-im-calls-open-api" }
 sdkwork_routes_im_chat_open_api = { path = "crates/sdkwork-routes-im-chat-open-api", package = "sdkwork-routes-im-chat-open-api" }
+sdkwork_routes_im_knowledgebase_app_api = { path = "crates/sdkwork-routes-im-knowledgebase-app-api", package = "sdkwork-routes-im-knowledgebase-app-api" }
 sdkwork_routes_im_governance_backend_api = { path = "crates/sdkwork-routes-im-governance-backend-api", package = "sdkwork-routes-im-governance-backend-api" }
 sdkwork_routes_im_media_app_api = { path = "crates/sdkwork-routes-im-media-app-api", package = "sdkwork-routes-im-media-app-api" }
 sdkwork_routes_im_notification_app_api = { path = "crates/sdkwork-routes-im-notification-app-api", package = "sdkwork-routes-im-notification-app-api" }

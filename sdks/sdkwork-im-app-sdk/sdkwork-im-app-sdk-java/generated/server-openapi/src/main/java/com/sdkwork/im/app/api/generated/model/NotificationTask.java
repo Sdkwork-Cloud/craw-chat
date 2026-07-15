@@ -21,7 +21,7 @@ public class NotificationTask {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -29,7 +29,7 @@ public class NotificationTask {
     public String getNotificationId() {
         return this.notificationId;
     }
-    
+
     public void setNotificationId(String notificationId) {
         this.notificationId = notificationId;
     }
@@ -37,7 +37,7 @@ public class NotificationTask {
     public String getSourceEventId() {
         return this.sourceEventId;
     }
-    
+
     public void setSourceEventId(String sourceEventId) {
         this.sourceEventId = sourceEventId;
     }
@@ -45,7 +45,7 @@ public class NotificationTask {
     public String getSourceEventType() {
         return this.sourceEventType;
     }
-    
+
     public void setSourceEventType(String sourceEventType) {
         this.sourceEventType = sourceEventType;
     }
@@ -53,7 +53,7 @@ public class NotificationTask {
     public String getCategory() {
         return this.category;
     }
-    
+
     public void setCategory(String category) {
         this.category = category;
     }
@@ -61,7 +61,7 @@ public class NotificationTask {
     public String getChannel() {
         return this.channel;
     }
-    
+
     public void setChannel(String channel) {
         this.channel = channel;
     }
@@ -69,7 +69,7 @@ public class NotificationTask {
     public String getRecipientId() {
         return this.recipientId;
     }
-    
+
     public void setRecipientId(String recipientId) {
         this.recipientId = recipientId;
     }
@@ -77,7 +77,7 @@ public class NotificationTask {
     public String getRecipientKind() {
         return this.recipientKind;
     }
-    
+
     public void setRecipientKind(String recipientKind) {
         this.recipientKind = recipientKind;
     }
@@ -85,7 +85,7 @@ public class NotificationTask {
     public String getStatus() {
         return this.status;
     }
-    
+
     public void setStatus(String status) {
         this.status = status;
     }
@@ -93,7 +93,7 @@ public class NotificationTask {
     public String getTitle() {
         return this.title;
     }
-    
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -101,7 +101,7 @@ public class NotificationTask {
     public String getBody() {
         return this.body;
     }
-    
+
     public void setBody(String body) {
         this.body = body;
     }
@@ -109,7 +109,7 @@ public class NotificationTask {
     public String getPayload() {
         return this.payload;
     }
-    
+
     public void setPayload(String payload) {
         this.payload = payload;
     }
@@ -117,7 +117,7 @@ public class NotificationTask {
     public String getRequestedAt() {
         return this.requestedAt;
     }
-    
+
     public void setRequestedAt(String requestedAt) {
         this.requestedAt = requestedAt;
     }
@@ -125,7 +125,7 @@ public class NotificationTask {
     public String getDispatchedAt() {
         return this.dispatchedAt;
     }
-    
+
     public void setDispatchedAt(String dispatchedAt) {
         this.dispatchedAt = dispatchedAt;
     }
@@ -133,7 +133,7 @@ public class NotificationTask {
     public String getFailureReason() {
         return this.failureReason;
     }
-    
+
     public void setFailureReason(String failureReason) {
         this.failureReason = failureReason;
     }

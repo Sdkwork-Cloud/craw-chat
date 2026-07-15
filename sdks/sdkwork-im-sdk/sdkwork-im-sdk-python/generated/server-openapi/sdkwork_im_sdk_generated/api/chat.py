@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsListResponse, ConversationMessageListResponse, ConversationsAgentDialogsCreateResponse201, ConversationsAgentHandoffAcceptResponse, ConversationsAgentHandoffCloseResponse, ConversationsAgentHandoffResolveResponse, ConversationsAgentHandoffRetrieveResponse, ConversationsAgentHandoffsCreateResponse201, ConversationsCreateResponse201, ConversationsDirectChatsBindingsCreateResponse201, ConversationsMemberDirectoryListResponse, ConversationsMembersAcceptInvitationResponse, ConversationsMembersAddResponse, ConversationsMembersChangeRoleResponse, ConversationsMembersLeaveResponse, ConversationsMembersListResponse, ConversationsMembersRemoveResponse, ConversationsMembersTransferOwnerResponse, ConversationsMessagesCreateResponse201, ConversationsMessagesInteractionSummaryRetrieveResponse, ConversationsPinsListResponse, ConversationsPreferencesRetrieveResponse, ConversationsPreferencesUpdateResponse, ConversationsProfileRetrieveResponse, ConversationsProfileUpdateResponse, ConversationsReadCursorRetrieveResponse, ConversationsReadCursorUpdateResponse, ConversationsRetrieveResponse, ConversationsSystemChannelPublishResponse, ConversationsSystemChannelsCreateResponse201, ConversationsThreadsCreateResponse201, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, FavoriteMessageRequest, InboxListResponse, MessageReactionRequest, MessagesEditResponse, MessagesFavoritesCreateResponse201, MessagesFavoritesListResponse, MessagesPinResponse, MessagesReactionsCreateResponse201, MessagesReactionsRemoveResponse, MessagesRecallResponse, MessagesUnpinResponse, PostMessageRequest, RecallMessageRequest, RemoveConversationMemberRequest, RoomsCreateResponse201, RoomsEnterResponse, RoomsLeaveResponse, RoomsRetrieveResponse, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest
+from ..models import AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsListResponse, ConversationMessageListResponse, ConversationsAgentDialogsCreateResponse201, ConversationsAgentHandoffAcceptResponse, ConversationsAgentHandoffCloseResponse, ConversationsAgentHandoffResolveResponse, ConversationsAgentHandoffRetrieveResponse, ConversationsAgentHandoffsCreateResponse201, ConversationsAgentsRetrieveResponse, ConversationsAgentsUpdateResponse, ConversationsCreateResponse201, ConversationsDirectChatsBindingsCreateResponse201, ConversationsMemberDirectoryListResponse, ConversationsMembersAcceptInvitationResponse, ConversationsMembersAddResponse, ConversationsMembersChangeRoleResponse, ConversationsMembersCurrentRetrieveResponse, ConversationsMembersLeaveResponse, ConversationsMembersListResponse, ConversationsMembersRemoveResponse, ConversationsMembersTransferOwnerResponse, ConversationsMessagesCreateResponse201, ConversationsMessagesInteractionSummaryRetrieveResponse, ConversationsPinsListResponse, ConversationsPreferencesRetrieveResponse, ConversationsPreferencesUpdateResponse, ConversationsProfileRetrieveResponse, ConversationsProfileUpdateResponse, ConversationsReadCursorRetrieveResponse, ConversationsReadCursorUpdateResponse, ConversationsRetrieveResponse, ConversationsSystemChannelPublishResponse, ConversationsSystemChannelsCreateResponse201, ConversationsThreadsCreateResponse201, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, FavoriteMessageRequest, InboxListResponse, MessageReactionRequest, MessagesEditResponse, MessagesFavoritesCreateResponse201, MessagesFavoritesListResponse, MessagesPinResponse, MessagesReactionsCreateResponse201, MessagesReactionsRemoveResponse, MessagesRecallResponse, MessagesUnpinResponse, PostMessageRequest, RecallMessageRequest, RemoveConversationMemberRequest, RoomsCreateResponse201, RoomsEnterResponse, RoomsLeaveResponse, RoomsRetrieveResponse, TransferConversationOwnerRequest, UpdateConversationAgentsRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -218,11 +218,12 @@ class ChatInboxApi:
         self._client = client
 
 
-    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None) -> InboxListResponse:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, conversation_type: Optional[str] = None) -> InboxListResponse:
         """List current inbox window"""
         query = build_query_string([
             {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'conversation_type', 'value': conversation_type, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/chat/inbox", query))
 
@@ -237,6 +238,7 @@ class ChatConversationsApi:
         self.threads = ChatConversationsThreadsApi(client)
         self.direct_chats = ChatConversationsDirectChatsApi(client)
         self.members = ChatConversationsMembersApi(client)
+        self.agents = ChatConversationsAgentsApi(client)
         self.preferences = ChatConversationsPreferencesApi(client)
         self.profile = ChatConversationsProfileApi(client)
         self.read_cursor = ChatConversationsReadCursorApi(client)
@@ -341,6 +343,7 @@ class ChatConversationsMembersApi:
 
     def __init__(self, client: HttpClient):
         self._client = client
+        self.current = ChatConversationsMembersCurrentApi(client)
 
 
     def list(self, conversation_id: str, page_size: Optional[int] = None, cursor: Optional[str] = None) -> ConversationsMembersListResponse:
@@ -374,6 +377,32 @@ class ChatConversationsMembersApi:
     def accept_invitation(self, conversation_id: str) -> ConversationsMembersAcceptInvitationResponse:
         """Accept a conversation invitation"""
         return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/members/accept_invitation")
+
+class ChatConversationsMembersCurrentApi:
+    """chat chat.conversations.members.current API client."""
+
+    def __init__(self, client: HttpClient):
+        self._client = client
+
+
+    def retrieve(self, conversation_id: str) -> ConversationsMembersCurrentRetrieveResponse:
+        """Retrieve the current conversation member"""
+        return self._client.get(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/members/current")
+
+class ChatConversationsAgentsApi:
+    """chat chat.conversations.agents API client."""
+
+    def __init__(self, client: HttpClient):
+        self._client = client
+
+
+    def retrieve(self, conversation_id: str) -> ConversationsAgentsRetrieveResponse:
+        """Retrieve assigned group agents"""
+        return self._client.get(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/agents")
+
+    def update(self, conversation_id: str, body: UpdateConversationAgentsRequest) -> ConversationsAgentsUpdateResponse:
+        """Update assigned group agents"""
+        return self._client.put(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/agents", json=body)
 
 class ChatConversationsPreferencesApi:
     """chat chat.conversations.preferences API client."""
@@ -427,9 +456,13 @@ class ChatConversationsMemberDirectoryApi:
         self._client = client
 
 
-    def list(self, conversation_id: str) -> ConversationsMemberDirectoryListResponse:
+    def list(self, conversation_id: str, cursor: Optional[str] = None, page_size: Optional[int] = None) -> ConversationsMemberDirectoryListResponse:
         """List member directory"""
-        return self._client.get(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/member_directory")
+        query = build_query_string([
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/member_directory", query))
 
 class ChatConversationsMessagesApi:
     """chat chat.conversations.messages API client."""
@@ -439,10 +472,10 @@ class ChatConversationsMessagesApi:
         self.interaction_summary = ChatConversationsMessagesInteractionSummaryApi(client)
 
 
-    def list(self, conversation_id: str, after_seq: Optional[int] = None, page_size: Optional[int] = None) -> ConversationMessageListResponse:
+    def list(self, conversation_id: str, cursor: Optional[str] = None, page_size: Optional[int] = None) -> ConversationMessageListResponse:
         """List conversation message history"""
         query = build_query_string([
-            {'name': 'afterSeq', 'value': after_seq, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/messages", query))
@@ -469,9 +502,13 @@ class ChatConversationsPinsApi:
         self._client = client
 
 
-    def list(self, conversation_id: str) -> ConversationsPinsListResponse:
+    def list(self, conversation_id: str, cursor: Optional[str] = None, page_size: Optional[int] = None) -> ConversationsPinsListResponse:
         """List pinned messages"""
-        return self._client.get(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/pins")
+        query = build_query_string([
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/pins", query))
 
 class ChatMessagesApi:
     """chat chat.messages API client."""

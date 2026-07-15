@@ -32,10 +32,11 @@ func (a *ChatApi) ContactsList(pageSize *int, cursor *string) (sdktypes.Contacts
 }
 
 // List current inbox window
-func (a *ChatApi) InboxList(pageSize *int, cursor *string) (sdktypes.InboxListResponse, error) {
+func (a *ChatApi) InboxList(pageSize *int, cursor *string, conversationType *string) (sdktypes.InboxListResponse, error) {
     query := BuildQueryString([]QueryParameterSpec{
         {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
         {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "conversation_type", Value: func() interface{} { if conversationType == nil { return nil }; return *conversationType }(), Style: "form", Explode: true, AllowReserved: false},
     })
     raw, err := a.client.Get(AppendQueryString(ImApiPath("/chat/inbox"), query), nil, nil)
     if err != nil {
@@ -169,6 +170,36 @@ func (a *ChatApi) ConversationsMembersList(conversationId string, pageSize *int,
     return decodeResult[sdktypes.ConversationsMembersListResponse](raw)
 }
 
+// Retrieve the current conversation member
+func (a *ChatApi) ConversationsMembersCurrentRetrieve(conversationId string) (sdktypes.ConversationsMembersCurrentRetrieveResponse, error) {
+    raw, err := a.client.Get(ImApiPath(fmt.Sprintf("/chat/conversations/%s/members/current", SerializePathParameter(conversationId, PathParameterSpec{Name: "conversationId", Style: "simple", Explode: false}))), nil, nil)
+    if err != nil {
+        var zero sdktypes.ConversationsMembersCurrentRetrieveResponse
+        return zero, err
+    }
+    return decodeResult[sdktypes.ConversationsMembersCurrentRetrieveResponse](raw)
+}
+
+// Retrieve assigned group agents
+func (a *ChatApi) ConversationsAgentsRetrieve(conversationId string) (sdktypes.ConversationsAgentsRetrieveResponse, error) {
+    raw, err := a.client.Get(ImApiPath(fmt.Sprintf("/chat/conversations/%s/agents", SerializePathParameter(conversationId, PathParameterSpec{Name: "conversationId", Style: "simple", Explode: false}))), nil, nil)
+    if err != nil {
+        var zero sdktypes.ConversationsAgentsRetrieveResponse
+        return zero, err
+    }
+    return decodeResult[sdktypes.ConversationsAgentsRetrieveResponse](raw)
+}
+
+// Update assigned group agents
+func (a *ChatApi) ConversationsAgentsUpdate(conversationId string, body sdktypes.UpdateConversationAgentsRequest) (sdktypes.ConversationsAgentsUpdateResponse, error) {
+    raw, err := a.client.Put(ImApiPath(fmt.Sprintf("/chat/conversations/%s/agents", SerializePathParameter(conversationId, PathParameterSpec{Name: "conversationId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
+    if err != nil {
+        var zero sdktypes.ConversationsAgentsUpdateResponse
+        return zero, err
+    }
+    return decodeResult[sdktypes.ConversationsAgentsUpdateResponse](raw)
+}
+
 // Add a conversation member
 func (a *ChatApi) ConversationsMembersAdd(conversationId string, body sdktypes.AddConversationMemberRequest) (sdktypes.ConversationsMembersAddResponse, error) {
     raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/chat/conversations/%s/members/add", SerializePathParameter(conversationId, PathParameterSpec{Name: "conversationId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
@@ -290,8 +321,12 @@ func (a *ChatApi) ConversationsReadCursorUpdate(conversationId string, body sdkt
 }
 
 // List member directory
-func (a *ChatApi) ConversationsMemberDirectoryList(conversationId string) (sdktypes.ConversationsMemberDirectoryListResponse, error) {
-    raw, err := a.client.Get(ImApiPath(fmt.Sprintf("/chat/conversations/%s/member_directory", SerializePathParameter(conversationId, PathParameterSpec{Name: "conversationId", Style: "simple", Explode: false}))), nil, nil)
+func (a *ChatApi) ConversationsMemberDirectoryList(conversationId string, cursor *string, pageSize *int) (sdktypes.ConversationsMemberDirectoryListResponse, error) {
+    query := BuildQueryString([]QueryParameterSpec{
+        {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
+    })
+    raw, err := a.client.Get(AppendQueryString(ImApiPath(fmt.Sprintf("/chat/conversations/%s/member_directory", SerializePathParameter(conversationId, PathParameterSpec{Name: "conversationId", Style: "simple", Explode: false}))), query), nil, nil)
     if err != nil {
         var zero sdktypes.ConversationsMemberDirectoryListResponse
         return zero, err
@@ -300,9 +335,9 @@ func (a *ChatApi) ConversationsMemberDirectoryList(conversationId string) (sdkty
 }
 
 // List conversation message history
-func (a *ChatApi) ConversationsMessagesList(conversationId string, afterSeq *int, pageSize *int) (sdktypes.ConversationMessageListResponse, error) {
+func (a *ChatApi) ConversationsMessagesList(conversationId string, cursor *string, pageSize *int) (sdktypes.ConversationMessageListResponse, error) {
     query := BuildQueryString([]QueryParameterSpec{
-        {Name: "afterSeq", Value: func() interface{} { if afterSeq == nil { return nil }; return *afterSeq }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
         {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
     })
     raw, err := a.client.Get(AppendQueryString(ImApiPath(fmt.Sprintf("/chat/conversations/%s/messages", SerializePathParameter(conversationId, PathParameterSpec{Name: "conversationId", Style: "simple", Explode: false}))), query), nil, nil)
@@ -334,8 +369,12 @@ func (a *ChatApi) ConversationsSystemChannelPublish(conversationId string, body 
 }
 
 // List pinned messages
-func (a *ChatApi) ConversationsPinsList(conversationId string) (sdktypes.ConversationsPinsListResponse, error) {
-    raw, err := a.client.Get(ImApiPath(fmt.Sprintf("/chat/conversations/%s/pins", SerializePathParameter(conversationId, PathParameterSpec{Name: "conversationId", Style: "simple", Explode: false}))), nil, nil)
+func (a *ChatApi) ConversationsPinsList(conversationId string, cursor *string, pageSize *int) (sdktypes.ConversationsPinsListResponse, error) {
+    query := BuildQueryString([]QueryParameterSpec{
+        {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
+    })
+    raw, err := a.client.Get(AppendQueryString(ImApiPath(fmt.Sprintf("/chat/conversations/%s/pins", SerializePathParameter(conversationId, PathParameterSpec{Name: "conversationId", Style: "simple", Explode: false}))), query), nil, nil)
     if err != nil {
         var zero sdktypes.ConversationsPinsListResponse
         return zero, err

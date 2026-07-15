@@ -142,13 +142,12 @@ where
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.room.create");
         if let Some(existing_conversation_id) =
             state.business_index.get(business_scope_key.as_str())
+            && existing_conversation_id != &command.conversation_id
         {
-            if existing_conversation_id != &command.conversation_id {
-                return Err(RuntimeError::Conflict(format!(
-                    "room id {} already mapped to conversation {existing_conversation_id}",
-                    command.room_id
-                )));
-            }
+            return Err(RuntimeError::Conflict(format!(
+                "room id {} already mapped to conversation {existing_conversation_id}",
+                command.room_id
+            )));
         }
 
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
@@ -185,11 +184,12 @@ where
         conversation
             .aggregate
             .replace_business_binding(Some(business_binding.clone()));
-        conversation.aggregate.replace_policy(Some({
-            let mut policy = ConversationPolicy::default();
-            policy.history_visibility = room_kind.default_history_visibility().into();
-            policy
-        }));
+        conversation
+            .aggregate
+            .replace_policy(Some(ConversationPolicy {
+                history_visibility: room_kind.default_history_visibility().into(),
+                ..ConversationPolicy::default()
+            }));
         let created_agent_assignments = agents::apply_current_group_agent_default(
             &mut conversation.aggregate,
             &self.group_agent_default_policy,
@@ -337,10 +337,9 @@ where
                 if let Some(existing) = conversation.roster.resolve_current_member_with_kind(
                     command.principal_id.as_str(),
                     command.principal_kind.as_str(),
-                ) {
-                    if existing.is_active() {
-                        return Ok(existing);
-                    }
+                ) && existing.is_active()
+                {
+                    return Ok(existing);
                 }
 
                 let invited_by = conversation

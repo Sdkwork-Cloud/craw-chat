@@ -943,6 +943,15 @@ impl AgentHandoffStateView {
 #[serde(rename_all = "camelCase")]
 pub struct ConversationAggregateState {
     conversation_type: String,
+    /// A group archive is a durable aggregate transition, not a client-side
+    /// hide/delete preference. Older snapshots omit this field and therefore
+    /// retain the safe backwards-compatible active state.
+    #[serde(default)]
+    lifecycle_state: ConversationLifecycleState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    archived_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    archive_event_id: Option<String>,
     /// Monotonic journal ordering sequence for all commit envelopes in this conversation.
     commit_seq: u64,
     member_epoch: u64,
@@ -967,6 +976,17 @@ pub enum ConversationScenario {
     AgentHandoff,
     SystemChannel,
     Unknown,
+}
+
+/// Durable lifecycle of a Conversation aggregate. Only group conversations
+/// currently support archival, but the state belongs to the aggregate so all
+/// mutation paths can consistently reject an archived group.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConversationLifecycleState {
+    #[default]
+    Active,
+    Archived,
 }
 
 impl ConversationScenario {
@@ -1007,6 +1027,40 @@ impl ConversationAggregateState {
         ConversationScenario::from_conversation_type(self.conversation_type.as_str())
     }
 
+    pub fn lifecycle_state(&self) -> ConversationLifecycleState {
+        self.lifecycle_state
+    }
+
+    pub fn is_archived(&self) -> bool {
+        matches!(self.lifecycle_state, ConversationLifecycleState::Archived)
+    }
+
+    pub fn archived_at(&self) -> Option<&str> {
+        self.archived_at.as_deref()
+    }
+
+    pub fn archive_event_id(&self) -> Option<&str> {
+        self.archive_event_id.as_deref()
+    }
+
+    /// Applies the durable archive transition after its journal envelope has
+    /// committed. Reapplying the same event during recovery is idempotent.
+    pub fn apply_archive(
+        &mut self,
+        archived_at: String,
+        archive_event_id: String,
+        ordering_seq: u64,
+    ) -> bool {
+        self.observe_commit_seq(ordering_seq);
+        if self.is_archived() {
+            return false;
+        }
+        self.lifecycle_state = ConversationLifecycleState::Archived;
+        self.archived_at = Some(archived_at);
+        self.archive_event_id = Some(archive_event_id);
+        true
+    }
+
     pub fn commit_seq(&self) -> u64 {
         self.commit_seq
     }
@@ -1026,7 +1080,9 @@ impl ConversationAggregateState {
     }
 
     pub fn next_member_epoch(&mut self) -> u64 {
-        self.next_commit_seq()
+        let ordering_seq = self.next_commit_seq();
+        self.member_epoch = ordering_seq;
+        ordering_seq
     }
 
     pub fn observe_member_epoch(&mut self, ordering_seq: u64) {

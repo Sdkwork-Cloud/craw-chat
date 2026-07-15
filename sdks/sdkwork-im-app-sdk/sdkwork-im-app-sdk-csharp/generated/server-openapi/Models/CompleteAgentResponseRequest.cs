@@ -6,7 +6,7 @@ namespace Sdkwork.Im.AppApi.Generated.Models
 {
     public class CompleteAgentResponseRequest
     {
-        public int? FrameSeq { get; set; }
+        public string FrameSeq { get; set; }
         public string? ResultMessageId { get; set; }
     }
 }

@@ -2,8 +2,9 @@ use im_domain_core::conversation::ConversationScenario;
 use im_domain_core::social::normalize_actor_pair;
 
 use super::support::{
-    canonical_agent_dialog_business_id, resolve_agent_dialog_conversation_id,
-    resolve_direct_chat_binding_ids, resolve_group_conversation_id,
+    DirectChatBindingIdsRequest, canonical_agent_dialog_business_id,
+    resolve_agent_dialog_conversation_id, resolve_direct_chat_binding_ids,
+    resolve_group_conversation_id,
 };
 
 use super::*;
@@ -58,6 +59,14 @@ fn validate_initial_agent_assignments(
         )
         .map_err(agents::agent_assignment_error_to_runtime)?;
     Ok(Some(agent_assignments))
+}
+
+#[derive(Default)]
+struct ConversationCreationRequestOptions {
+    conversation_title: Option<String>,
+    initial_member_user_ids: Option<Vec<String>>,
+    initial_agent_assignments: Option<Vec<ConversationAgentAssignment>>,
+    knowledgebase_initialization_requested: bool,
 }
 
 impl<J> ConversationRuntime<J>
@@ -121,9 +130,7 @@ where
             command,
             creator_kind,
             creator_attributes,
-            None,
-            None,
-            None,
+            ConversationCreationRequestOptions::default(),
         )
     }
 
@@ -138,9 +145,10 @@ where
             command,
             creator_kind,
             creator_attributes,
-            Some(conversation_title),
-            None,
-            None,
+            ConversationCreationRequestOptions {
+                conversation_title: Some(conversation_title),
+                ..ConversationCreationRequestOptions::default()
+            },
         )
     }
 
@@ -171,9 +179,10 @@ where
             CreateConversationCommand::from_auth_context(auth, conversation_id, conversation_type),
             auth.actor_kind.as_str(),
             BTreeMap::new(),
-            None,
-            Some(member_user_ids),
-            None,
+            ConversationCreationRequestOptions {
+                initial_member_user_ids: Some(member_user_ids),
+                ..ConversationCreationRequestOptions::default()
+            },
         )
     }
 
@@ -189,9 +198,11 @@ where
             CreateConversationCommand::from_auth_context(auth, conversation_id, conversation_type),
             auth.actor_kind.as_str(),
             BTreeMap::new(),
-            None,
-            Some(member_user_ids),
-            Some(agent_assignments),
+            ConversationCreationRequestOptions {
+                initial_member_user_ids: Some(member_user_ids),
+                initial_agent_assignments: Some(agent_assignments),
+                ..ConversationCreationRequestOptions::default()
+            },
         )
     }
 
@@ -200,10 +211,14 @@ where
         command: CreateConversationCommand,
         creator_kind: &str,
         creator_attributes: BTreeMap<String, String>,
-        conversation_title: Option<String>,
-        initial_member_user_ids: Option<Vec<String>>,
-        initial_agent_assignments: Option<Vec<ConversationAgentAssignment>>,
+        options: ConversationCreationRequestOptions,
     ) -> Result<CreateConversationResult, RuntimeError> {
+        let ConversationCreationRequestOptions {
+            conversation_title,
+            initial_member_user_ids,
+            initial_agent_assignments,
+            knowledgebase_initialization_requested,
+        } = options;
         validate_payload_size(
             "conversationId",
             command.conversation_id.as_str(),
@@ -272,6 +287,7 @@ where
                     creator_kind,
                     initial_member_user_ids.as_slice(),
                     initial_agent_assignments.as_deref(),
+                    knowledgebase_initialization_requested,
                 ) {
                     return Ok(CreateConversationResult::replayed_with_request_key(
                         command.conversation_id,
@@ -297,6 +313,7 @@ where
                 requested_kind: command.conversation_type.clone(),
                 initial_member_user_ids: initial_member_user_ids.clone(),
                 initial_agent_assignments: initial_agent_assignments.clone(),
+                knowledgebase_initialization_requested,
                 event_id: event_id.clone(),
             }),
             ..ConversationState::default()
@@ -362,6 +379,7 @@ where
         let mut created_payload = json!({
             "conversationId": command.conversation_id.as_str(),
             "conversationType": command.conversation_type.as_str(),
+            "knowledgebaseInitializationRequested": knowledgebase_initialization_requested,
             "memberUserIds": initial_member_user_ids.clone(),
         });
         if let Some(title) = conversation_title
@@ -517,12 +535,30 @@ where
         client_request_key: String,
         member_user_ids: Vec<String>,
     ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_group_conversation_from_auth_context_with_members_and_knowledgebase_initialization(
+            auth,
+            group_name,
+            client_request_key,
+            member_user_ids,
+            false,
+        )
+    }
+
+    pub fn create_group_conversation_from_auth_context_with_members_and_knowledgebase_initialization(
+        &self,
+        auth: &AppContext,
+        group_name: String,
+        client_request_key: String,
+        member_user_ids: Vec<String>,
+        knowledgebase_initialization_requested: bool,
+    ) -> Result<CreateConversationResult, RuntimeError> {
         self.create_group_conversation_with_creator_kind_attributes_and_agent_assignments(
             CreateGroupConversationCommand::from_auth_context(auth, group_name, client_request_key),
             auth.actor_kind.as_str(),
             BTreeMap::new(),
             member_user_ids,
             None,
+            knowledgebase_initialization_requested,
         )
     }
 
@@ -534,12 +570,32 @@ where
         member_user_ids: Vec<String>,
         agent_assignments: Vec<ConversationAgentAssignment>,
     ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_group_conversation_from_auth_context_with_members_and_agent_assignments_and_knowledgebase_initialization(
+            auth,
+            group_name,
+            client_request_key,
+            member_user_ids,
+            agent_assignments,
+            false,
+        )
+    }
+
+    pub fn create_group_conversation_from_auth_context_with_members_and_agent_assignments_and_knowledgebase_initialization(
+        &self,
+        auth: &AppContext,
+        group_name: String,
+        client_request_key: String,
+        member_user_ids: Vec<String>,
+        agent_assignments: Vec<ConversationAgentAssignment>,
+        knowledgebase_initialization_requested: bool,
+    ) -> Result<CreateConversationResult, RuntimeError> {
         self.create_group_conversation_with_creator_kind_attributes_and_agent_assignments(
             CreateGroupConversationCommand::from_auth_context(auth, group_name, client_request_key),
             auth.actor_kind.as_str(),
             BTreeMap::new(),
             member_user_ids,
             Some(agent_assignments),
+            knowledgebase_initialization_requested,
         )
     }
 
@@ -567,6 +623,7 @@ where
             creator_attributes,
             Vec::new(),
             None,
+            false,
         )
     }
 
@@ -582,6 +639,7 @@ where
             BTreeMap::new(),
             Vec::new(),
             Some(agent_assignments),
+            false,
         )
     }
 
@@ -598,6 +656,7 @@ where
             BTreeMap::new(),
             member_user_ids,
             Some(agent_assignments),
+            false,
         )
     }
 
@@ -608,6 +667,7 @@ where
         creator_attributes: BTreeMap<String, String>,
         initial_member_user_ids: Vec<String>,
         initial_agent_assignments: Option<Vec<ConversationAgentAssignment>>,
+        knowledgebase_initialization_requested: bool,
     ) -> Result<CreateConversationResult, RuntimeError> {
         validate_payload_size(
             "creatorId",
@@ -661,9 +721,12 @@ where
             generic_command,
             creator_kind,
             creator_attributes,
-            Some(group_name),
-            Some(initial_member_user_ids),
-            initial_agent_assignments,
+            ConversationCreationRequestOptions {
+                conversation_title: Some(group_name),
+                initial_member_user_ids: Some(initial_member_user_ids),
+                initial_agent_assignments,
+                knowledgebase_initialization_requested,
+            },
         )
     }
 
@@ -1099,16 +1162,17 @@ where
                 "direct chat binding requires actor kinds for both participants".into(),
             ));
         }
-        let (conversation_id, direct_chat_id) = resolve_direct_chat_binding_ids(
-            command.tenant_id.as_str(),
-            command.organization_id.as_str(),
-            command.left_actor_kind.as_str(),
-            command.left_actor_id.as_str(),
-            command.right_actor_kind.as_str(),
-            command.right_actor_id.as_str(),
-            command.conversation_id.as_str(),
-            command.direct_chat_id.as_str(),
-        )?;
+        let (conversation_id, direct_chat_id) =
+            resolve_direct_chat_binding_ids(DirectChatBindingIdsRequest {
+                tenant_id: command.tenant_id.as_str(),
+                organization_id: command.organization_id.as_str(),
+                left_actor_kind: command.left_actor_kind.as_str(),
+                left_actor_id: command.left_actor_id.as_str(),
+                right_actor_kind: command.right_actor_kind.as_str(),
+                right_actor_id: command.right_actor_id.as_str(),
+                requested_conversation_id: command.conversation_id.as_str(),
+                requested_direct_chat_id: command.direct_chat_id.as_str(),
+            })?;
         let request_key = direct_chat_binding_request_key(
             command.tenant_id.as_str(),
             binder_kind,
@@ -1228,15 +1292,14 @@ where
         }
         if let Some(existing_conversation_id) =
             state.business_index.get(business_scope_key.as_str())
+            && existing_conversation_id != &conversation_id
         {
-            if existing_conversation_id != &conversation_id {
-                return Err(RuntimeError::Conflict(format!(
-                    "business binding {}/{} already mapped to conversation {}",
-                    business_binding.business_type,
-                    business_binding.business_id,
-                    existing_conversation_id
-                )));
-            }
+            return Err(RuntimeError::Conflict(format!(
+                "business binding {}/{} already mapped to conversation {}",
+                business_binding.business_type,
+                business_binding.business_id,
+                existing_conversation_id
+            )));
         }
 
         let mut conversation = ConversationState {
@@ -1499,12 +1562,11 @@ where
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation_id) =
             state.business_index.get(business_scope_key.as_str())
+            && existing_conversation_id != &conversation_id
         {
-            if existing_conversation_id != &conversation_id {
-                return Err(RuntimeError::Conflict(format!(
-                    "agent dialog binding already mapped to conversation {existing_conversation_id}"
-                )));
-            }
+            return Err(RuntimeError::Conflict(format!(
+                "agent dialog binding already mapped to conversation {existing_conversation_id}"
+            )));
         }
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.agent_dialog_create_request.as_ref() {

@@ -18,6 +18,11 @@ struct InboxMemberContext {
     scope_member_views: Vec<ConversationMember>,
 }
 
+fn non_empty_owned(value: &str) -> Option<String> {
+    let value = value.trim();
+    (!value.is_empty()).then(|| value.to_owned())
+}
+
 pub(crate) struct InboxWindowQuery<'a> {
     pub tenant_id: &'a str,
     pub organization_id: &'a str,
@@ -265,16 +270,42 @@ impl TimelineProjectionService {
             .as_ref()
             .map(|entry| entry.conversation_type.clone())
             .unwrap_or_else(|| "unknown".into());
+        let conversation_profile = if conversation_type.eq_ignore_ascii_case("group") {
+            lock_projection_mutex(&self.conversation_profiles, "conversation profile store")
+                .get(scope)
+                .cloned()
+        } else {
+            None
+        };
         let peer = direct_inbox_peer_for_member(
             conversation_type.as_str(),
             scope_member_views.iter(),
             &member,
         );
-        let display_name = peer.as_ref().and_then(|view| view.display_name.clone());
-        let avatar_url = peer.as_ref().and_then(|view| view.avatar_url.clone());
-        let display_source = display_name
+        let profile_display_name = conversation_profile
             .as_ref()
-            .map(|_| "member_projection".to_owned());
+            .and_then(|profile| non_empty_owned(profile.display_name.as_str()));
+        let catalog_display_name = conversation
+            .as_ref()
+            .and_then(|entry| entry.title.as_deref())
+            .and_then(non_empty_owned);
+        let peer_display_name = peer.as_ref().and_then(|view| view.display_name.clone());
+        let (display_name, display_source) = if let Some(display_name) = profile_display_name {
+            (Some(display_name), Some("conversation_profile".to_owned()))
+        } else if conversation_type.eq_ignore_ascii_case("group") {
+            catalog_display_name.map_or((None, None), |display_name| {
+                (Some(display_name), Some("conversation_catalog".to_owned()))
+            })
+        } else {
+            let display_source = peer_display_name
+                .as_ref()
+                .map(|_| "member_projection".to_owned());
+            (peer_display_name, display_source)
+        };
+        let avatar_url = conversation_profile
+            .as_ref()
+            .and_then(|profile| non_empty_owned(profile.avatar_url.as_str()))
+            .or_else(|| peer.as_ref().and_then(|view| view.avatar_url.clone()));
         let conversation_preferences = self.conversation_preferences(
             member.tenant_id.as_str(),
             organization_id,
@@ -426,6 +457,36 @@ mod deadlock_regression_tests {
 
     use super::*;
 
+    const TEST_CURSOR_SECRET_ENV: &str = "SDKWORK_IM_PROJECTION_CURSOR_HS256_SECRET";
+
+    struct TestEnvGuard {
+        previous: Option<String>,
+    }
+
+    impl TestEnvGuard {
+        fn set_cursor_secret() -> Self {
+            let previous = std::env::var(TEST_CURSOR_SECRET_ENV).ok();
+            unsafe {
+                std::env::set_var(
+                    TEST_CURSOR_SECRET_ENV,
+                    "projection-service-inbox-test-cursor-secret-32-bytes",
+                );
+            }
+            Self { previous }
+        }
+    }
+
+    impl Drop for TestEnvGuard {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.previous {
+                    Some(value) => std::env::set_var(TEST_CURSOR_SECRET_ENV, value),
+                    None => std::env::remove_var(TEST_CURSOR_SECRET_ENV),
+                }
+            }
+        }
+    }
+
     fn seed_inbox_scope(service: &TimelineProjectionService) {
         service
             .apply(
@@ -569,6 +630,204 @@ mod deadlock_regression_tests {
         assert_eq!(window.items.len(), 1);
         assert_eq!(window.items[0].conversation_id, "g_filtered_after_directs");
         assert_eq!(window.page_info.has_more, Some(false));
+    }
+
+    #[test]
+    fn inbox_search_uses_latest_group_profile_and_scans_past_newer_nonmatches() {
+        let service = TimelineProjectionService::default();
+        for index in 0..10 {
+            seed_filtered_inbox_scope(
+                &service,
+                format!("c_direct_search_{index}").as_str(),
+                "direct",
+                format!("2026-07-08T00:00:{index:02}Z").as_str(),
+                index * 2,
+            );
+        }
+        seed_filtered_inbox_scope(
+            &service,
+            "g_search_by_profile",
+            "group",
+            "2026-07-01T00:00:00Z",
+            100,
+        );
+        service.update_conversation_profile(
+            "100001",
+            "0",
+            "g_search_by_profile",
+            "user",
+            "group_owner",
+            crate::UpdateConversationProfileRequest {
+                display_name: Some("Commercial Launch Team".into()),
+                avatar_url: None,
+                notice: None,
+            },
+        );
+        let auth = im_app_context::local_service_app_context(
+            "100001",
+            "user_filtered_inbox",
+            "user",
+            None,
+            ["*"],
+        );
+
+        let window = service
+            .inbox_window_from_auth_context_filtered(
+                &auth,
+                Some(1),
+                None,
+                Some("group"),
+                Some("launch team"),
+            )
+            .expect("search latest group profile");
+
+        assert_eq!(window.items.len(), 1);
+        assert_eq!(window.items[0].conversation_id, "g_search_by_profile");
+        assert_eq!(
+            window.items[0].display_name.as_deref(),
+            Some("Commercial Launch Team")
+        );
+        assert_eq!(window.page_info.has_more, Some(false));
+    }
+
+    #[test]
+    fn inbox_search_cursor_pages_matching_groups_without_duplicates() {
+        let _cursor_secret = TestEnvGuard::set_cursor_secret();
+        let service = TimelineProjectionService::default();
+        for (index, conversation_id) in ["g_search_cursor_new", "g_search_cursor_old"]
+            .into_iter()
+            .enumerate()
+        {
+            seed_filtered_inbox_scope(
+                &service,
+                conversation_id,
+                "group",
+                format!("2026-07-0{}T00:00:00Z", 8 - index).as_str(),
+                index as u64 * 2,
+            );
+            service.update_conversation_profile(
+                "100001",
+                "0",
+                conversation_id,
+                "user",
+                "group_owner",
+                crate::UpdateConversationProfileRequest {
+                    display_name: Some(format!("Search Cursor Result {index}")),
+                    avatar_url: None,
+                    notice: None,
+                },
+            );
+        }
+        let auth = im_app_context::local_service_app_context(
+            "100001",
+            "user_filtered_inbox",
+            "user",
+            None,
+            ["*"],
+        );
+
+        let first = service
+            .inbox_window_from_auth_context_filtered(
+                &auth,
+                Some(1),
+                None,
+                Some("group"),
+                Some("search cursor result"),
+            )
+            .expect("first search page");
+        let next_cursor = first
+            .page_info
+            .next_cursor
+            .as_deref()
+            .expect("first search page cursor");
+        let second = service
+            .inbox_window_from_auth_context_filtered(
+                &auth,
+                Some(1),
+                Some(next_cursor),
+                Some("group"),
+                Some("search cursor result"),
+            )
+            .expect("second search page");
+
+        assert_eq!(first.items.len(), 1);
+        assert_eq!(first.page_info.has_more, Some(true));
+        assert_eq!(second.items.len(), 1);
+        assert_ne!(
+            first.items[0].conversation_id,
+            second.items[0].conversation_id
+        );
+        assert_eq!(second.page_info.has_more, Some(false));
+    }
+
+    #[test]
+    fn inbox_search_rejects_queries_longer_than_256_characters() {
+        let service = TimelineProjectionService::default();
+        let auth = im_app_context::local_service_app_context(
+            "100001",
+            "user_filtered_inbox",
+            "user",
+            None,
+            ["*"],
+        );
+        let query = "q".repeat(257);
+
+        let error = service
+            .inbox_window_from_auth_context_filtered(
+                &auth,
+                Some(20),
+                None,
+                Some("group"),
+                Some(query.as_str()),
+            )
+            .expect_err("oversized inbox search query must be rejected");
+
+        assert_eq!(error.status(), axum::http::StatusCode::PAYLOAD_TOO_LARGE);
+        assert_eq!(error.code(), "payload_too_large");
+    }
+
+    #[test]
+    fn group_inbox_uses_latest_conversation_profile_for_every_member() {
+        let service = TimelineProjectionService::default();
+        seed_inbox_scope(&service);
+
+        service.update_conversation_profile(
+            "100001",
+            "0",
+            "c_inbox_deadlock",
+            "user",
+            "group_owner",
+            crate::UpdateConversationProfileRequest {
+                display_name: Some("Renamed by owner".into()),
+                avatar_url: Some("https://cdn.example.test/renamed-group.png".into()),
+                notice: None,
+            },
+        );
+
+        let window = service
+            .inbox_window_for_principal_kind_filtered(
+                InboxWindowQuery {
+                    tenant_id: "100001",
+                    organization_id: "0",
+                    principal_id: "user_inbox_deadlock",
+                    principal_kind: "user",
+                    limit: 20,
+                    cursor: crate::model::InboxListCursor::Start,
+                },
+                |_| true,
+            )
+            .expect("member inbox window");
+
+        let entry = window.items.first().expect("group inbox entry");
+        assert_eq!(entry.display_name.as_deref(), Some("Renamed by owner"));
+        assert_eq!(
+            entry.avatar_url.as_deref(),
+            Some("https://cdn.example.test/renamed-group.png")
+        );
+        assert_eq!(
+            entry.display_source.as_deref(),
+            Some("conversation_profile")
+        );
     }
 
     #[test]

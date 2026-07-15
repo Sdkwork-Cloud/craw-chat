@@ -9,15 +9,15 @@ import com.sdkwork.im.app.api.generated.http.HttpClient
 class ProviderApi(private val client: HttpClient) {
 
     /** Retrieve media provider health */
-    suspend fun mediaHealthRetrieve(): Map<String, Any>? {
+    suspend fun mediaHealthRetrieve(): MediaHealthRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/media/provider_health"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<MediaHealthRetrieveResponse>() {})
     }
 
     /** Retrieve principal-profile provider health */
-    suspend fun principalProfileHealthRetrieve(): Map<String, Any>? {
+    suspend fun principalProfileHealthRetrieve(): PrincipalProfileHealthRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/principal/profiles/provider_health"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<PrincipalProfileHealthRetrieveResponse>() {})
     }
 
 

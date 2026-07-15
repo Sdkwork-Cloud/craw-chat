@@ -1,3 +1,4 @@
+use super::message_realtime::ConversationRealtimeEvent;
 use super::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -234,48 +235,52 @@ pub(super) fn resolve_message_agent_mentions(
     Ok(resolved)
 }
 
-fn build_conversation_agents_replaced_envelope(
-    tenant_id: &str,
-    organization_id: &str,
-    conversation_id: &str,
-    payload: &ConversationAgentsReplacedPayload,
+struct ConversationAgentsReplacedEnvelopeInput<'a> {
+    tenant_id: &'a str,
+    organization_id: &'a str,
+    conversation_id: &'a str,
+    payload: &'a ConversationAgentsReplacedPayload,
     ordering_seq: u64,
-    retention_class: &str,
-    actor_id: &str,
-    actor_kind: &str,
+    retention_class: &'a str,
+    actor_id: &'a str,
+    actor_kind: &'a str,
+}
+
+fn build_conversation_agents_replaced_envelope(
+    input: ConversationAgentsReplacedEnvelopeInput<'_>,
 ) -> Result<CommitEnvelope, RuntimeError> {
-    let payload_json = runtime_json_string(payload)?;
+    let payload_json = runtime_json_string(input.payload)?;
     let payload_hash = sha256_hash(payload_json.as_bytes());
     Ok(CommitEnvelope {
         event_id: format!(
             "evt_{}_agents_{}_{}",
-            event_id_component(conversation_id),
-            payload.agent_assignments.generation,
+            event_id_component(input.conversation_id),
+            input.payload.agent_assignments.generation,
             &payload_hash[..16]
         ),
-        tenant_id: tenant_id.into(),
-        organization_id: organization_id.into(),
+        tenant_id: input.tenant_id.into(),
+        organization_id: input.organization_id.into(),
         event_type: "conversation.agents_replaced".into(),
         event_version: 1,
         aggregate_type: AggregateType::Conversation,
-        aggregate_id: conversation_id.into(),
+        aggregate_id: input.conversation_id.into(),
         scope_type: "conversation".into(),
-        scope_id: conversation_id.into(),
-        ordering_key: CommitEnvelope::ordering_key(tenant_id, conversation_id),
-        ordering_seq,
+        scope_id: input.conversation_id.into(),
+        ordering_key: CommitEnvelope::ordering_key(input.tenant_id, input.conversation_id),
+        ordering_seq: input.ordering_seq,
         causation_id: None,
         correlation_id: None,
         idempotency_key: None,
         actor: EventActor {
-            actor_id: actor_id.into(),
-            actor_kind: actor_kind.into(),
+            actor_id: input.actor_id.into(),
+            actor_kind: input.actor_kind.into(),
             actor_session_id: None,
         },
-        occurred_at: payload.replaced_at.clone(),
-        committed_at: payload.replaced_at.clone(),
+        occurred_at: input.payload.replaced_at.clone(),
+        committed_at: input.payload.replaced_at.clone(),
         payload_schema: Some("conversation.agents_replaced.v1".into()),
         payload: payload_json,
-        retention_class: retention_class.into(),
+        retention_class: input.retention_class.into(),
         audit_class: "default".into(),
     })
 }
@@ -589,26 +594,29 @@ where
                 };
                 let realtime_payload = runtime_json_string(&payload)?;
                 let event = build_conversation_agents_replaced_envelope(
-                    command.tenant_id.as_str(),
-                    command.organization_id.as_str(),
-                    command.conversation_id.as_str(),
-                    &payload,
-                    ordering_seq,
-                    conversation_retention_class(conversation).as_str(),
-                    command.replaced_by.as_str(),
-                    actor_member.principal_kind.as_str(),
+                    ConversationAgentsReplacedEnvelopeInput {
+                        tenant_id: command.tenant_id.as_str(),
+                        organization_id: command.organization_id.as_str(),
+                        conversation_id: command.conversation_id.as_str(),
+                        payload: &payload,
+                        ordering_seq,
+                        retention_class: conversation_retention_class(conversation).as_str(),
+                        actor_id: command.replaced_by.as_str(),
+                        actor_kind: actor_member.principal_kind.as_str(),
+                    },
                 )?;
 
                 if let Some(writer) = durable_event_writer.as_ref() {
-                    let outbox = self.build_conversation_event_outbox_record(
-                        command.tenant_id.as_str(),
-                        command.organization_id.as_str(),
-                        command.conversation_id.as_str(),
-                        "conversation.agents_replaced",
-                        event.event_id.as_str(),
-                        realtime_payload.clone(),
-                        replaced_at.as_str(),
-                    )?;
+                    let outbox =
+                        self.build_conversation_event_outbox_record(ConversationRealtimeEvent {
+                            tenant_id: command.tenant_id.as_str(),
+                            organization_id: command.organization_id.as_str(),
+                            conversation_id: command.conversation_id.as_str(),
+                            event_type: "conversation.agents_replaced",
+                            journal_event_id: event.event_id.as_str(),
+                            payload_json: realtime_payload.clone(),
+                            occurred_at: replaced_at.as_str(),
+                        })?;
                     writer
                         .persist_conversation_event(event.clone(), outbox)
                         .map_err(RuntimeError::from)?;
@@ -648,23 +656,24 @@ where
         // transaction as the journal event; the relay then owns delivery. The
         // in-memory/test path keeps the low-latency publisher and post-commit
         // outbox fallback used by the rest of the runtime.
-        if needs_post_commit_delivery {
-            if let Err(error) = self.publish_or_enqueue_conversation_event(
-                command.tenant_id.as_str(),
-                command.organization_id.as_str(),
-                command.conversation_id.as_str(),
-                "conversation.agents_replaced",
-                result.event_id.as_str(),
-                realtime_payload,
-                result.replaced_at.as_str(),
-            ) {
-                tracing::warn!(
-                    conversation_id = %command.conversation_id,
-                    event_id = %result.event_id,
-                    error = ?error,
-                    "conversation.agents_replaced realtime delivery failed after journal commit"
-                );
-            }
+        if needs_post_commit_delivery
+            && let Err(error) =
+                self.publish_or_enqueue_conversation_event(ConversationRealtimeEvent {
+                    tenant_id: command.tenant_id.as_str(),
+                    organization_id: command.organization_id.as_str(),
+                    conversation_id: command.conversation_id.as_str(),
+                    event_type: "conversation.agents_replaced",
+                    journal_event_id: result.event_id.as_str(),
+                    payload_json: realtime_payload,
+                    occurred_at: result.replaced_at.as_str(),
+                })
+        {
+            tracing::warn!(
+                conversation_id = %command.conversation_id,
+                event_id = %result.event_id,
+                error = ?error,
+                "conversation.agents_replaced realtime delivery failed after journal commit"
+            );
         }
         self.maybe_evict_after_write();
         Ok(result)

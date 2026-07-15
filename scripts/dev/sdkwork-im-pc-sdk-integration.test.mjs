@@ -3153,8 +3153,8 @@ assert.match(
 );
 assert.match(
   createGroupModalSource,
-  /width=["']w-\[760px\]["'][\s\S]*height=["']h-\[700px\]["']/u,
-  'create group modal must use a taller fixed height for equal-width two-column contact selection',
+  /width=["']w-\[1040px\]["'][\s\S]*height=["']h-\[740px\]["']/u,
+  'create group modal must use the fixed dimensions required by the equal-width two-column contact selection',
 );
 assert.match(
   createGroupModalSource,
@@ -3298,7 +3298,7 @@ assert.doesNotMatch(
 );
 const groupGetGroupsSource = groupServiceSource.slice(
   groupServiceSource.indexOf('  async getGroups('),
-  groupServiceSource.indexOf('  async syncGroupMembers(', groupServiceSource.indexOf('  async getGroups(')),
+  groupServiceSource.indexOf('  private async withMemberState(', groupServiceSource.indexOf('  async getGroups(')),
 );
 assert.doesNotMatch(
   groupGetGroupsSource,
@@ -3337,6 +3337,11 @@ assert.match(
 assert.doesNotMatch(groupServiceSource, /class\s+MockGroupService/u, 'group service must not be mock-backed');
 assert.doesNotMatch(groupServiceSource, /mockGroups|setTimeout|console\.log/u, 'group service must not keep mock group branches');
 assert.doesNotMatch(groupServiceSource, /group-\$\{Date\.now\(\)\}-\$\{Math\.random/u, 'group service must not generate mock group ids with Date.now and Math.random');
+assert.doesNotMatch(
+  groupServiceSource,
+  /syncGroupMembers/u,
+  'group service must not expose a fake global member sync; selected groups hydrate members through bounded SDK pagination',
+);
 assert.doesNotMatch(createGroupSource, /chatService\.updateChat\s*\(/u, 'group service createGroup must not mask backend group creation with local updateChat fallbacks');
 assert.doesNotMatch(groupServiceSource, /addMembersBySearchQuery|social\.users\.list/u, 'group service must not resolve arbitrary text through social user search for group membership');
 assert.doesNotMatch(groupServiceSource, /\bfetch\s*\(/u, 'group service must not use raw fetch');
@@ -4268,7 +4273,7 @@ assert.match(
 );
 assert.match(
   chatRightPanelSource,
-  /activeChat\.type\s*===\s*['"]group['"][\s\S]*activeChat\.members\?\.map/u,
+  /activeChat\.type\s*===\s*['"]group['"][\s\S]*(?:activeChat\.members\?\.map|renderedGroupMembers\.map)/u,
   'chat right panel group management must render the backend-projected member list',
 );
 assert.match(

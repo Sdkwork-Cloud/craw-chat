@@ -5,6 +5,8 @@
   "language": "csharp",
   "sdkType": "app",
   "packageName": "Sdkwork.Im.AppApi.Generated",
+  "transportPackageName": "Sdkwork.Im.AppApi.Generated",
+  "consumerPackageName": "Sdkwork.Im.AppApi.Generated",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

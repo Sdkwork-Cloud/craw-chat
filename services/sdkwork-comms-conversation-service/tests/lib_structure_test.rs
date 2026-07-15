@@ -27,6 +27,24 @@ fn test_conversation_runtime_http_surface_moves_out_of_runtime_impl() {
 }
 
 #[test]
+fn test_conversation_profile_rpc_update_fans_out_realtime_refresh() {
+    let source = include_str!("../src/runtime/rpc_projection_dispatch.rs");
+
+    assert!(
+        source.contains("event_type: \"conversation.updated\""),
+        "profile updates must notify subscribed conversation members"
+    );
+    assert!(
+        source.contains("publish_or_enqueue_conversation_event"),
+        "profile update fanout must use the durable conversation realtime boundary"
+    );
+    assert!(
+        source.contains("\"displayName\": profile.display_name.clone()"),
+        "profile refresh payload must carry the authoritative display name"
+    );
+}
+
+#[test]
 fn test_static_principal_directory_requires_explicit_principal_kind() {
     let http_source = include_str!("../src/runtime/http.rs").replace("\r\n", "\n");
 

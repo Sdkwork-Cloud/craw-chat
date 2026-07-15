@@ -18,57 +18,57 @@ namespace Sdkwork.Im.AppApi.Generated.Api
         /// <summary>
         /// Start an agent response stream
         /// </summary>
-        public async Task<Sdkwork.Im.AppApi.Generated.Models.StreamSession?> AgentResponsesCreateAsync(Sdkwork.Im.AppApi.Generated.Models.StartAgentResponseRequest body)
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.AutomationAgentResponsesCreateResponse201?> AgentResponsesCreateAsync(Sdkwork.Im.AppApi.Generated.Models.StartAgentResponseRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.AppApi.Generated.Models.StreamSession>(ApiPaths.AppPath("/automation/agent_responses"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.AppApi.Generated.Models.AutomationAgentResponsesCreateResponse201>(ApiPaths.AppPath("/automation/agent_responses"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Complete an agent response stream
         /// </summary>
-        public async Task<Sdkwork.Im.AppApi.Generated.Models.StreamSession?> AgentResponsesCompleteAsync(string streamId, Sdkwork.Im.AppApi.Generated.Models.CompleteAgentResponseRequest body)
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.AutomationAgentResponsesCompleteResponse?> AgentResponsesCompleteAsync(string streamId, Sdkwork.Im.AppApi.Generated.Models.CompleteAgentResponseRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.AppApi.Generated.Models.StreamSession>(ApiPaths.AppPath($"/automation/agent_responses/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/complete"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.AppApi.Generated.Models.AutomationAgentResponsesCompleteResponse>(ApiPaths.AppPath($"/automation/agent_responses/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/complete"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Append a frame to an agent response stream
         /// </summary>
-        public async Task<Sdkwork.Im.AppApi.Generated.Models.StreamFrame?> AgentResponsesFramesCreateAsync(string streamId, Sdkwork.Im.AppApi.Generated.Models.AppendAgentResponseDeltaRequest body)
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.AutomationAgentResponsesFramesCreateResponse201?> AgentResponsesFramesCreateAsync(string streamId, Sdkwork.Im.AppApi.Generated.Models.AppendAgentResponseDeltaRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.AppApi.Generated.Models.StreamFrame>(ApiPaths.AppPath($"/automation/agent_responses/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/frames"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.AppApi.Generated.Models.AutomationAgentResponsesFramesCreateResponse201>(ApiPaths.AppPath($"/automation/agent_responses/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/frames"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Request an agent tool call
         /// </summary>
-        public async Task<Sdkwork.Im.AppApi.Generated.Models.AgentToolCall?> AgentToolCallsCreateAsync(Sdkwork.Im.AppApi.Generated.Models.RequestAgentToolCallRequest body)
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.AutomationAgentToolCallsCreateResponse201?> AgentToolCallsCreateAsync(Sdkwork.Im.AppApi.Generated.Models.RequestAgentToolCallRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.AppApi.Generated.Models.AgentToolCall>(ApiPaths.AppPath("/automation/agent_tool_calls"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.AppApi.Generated.Models.AutomationAgentToolCallsCreateResponse201>(ApiPaths.AppPath("/automation/agent_tool_calls"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Request an automation execution
         /// </summary>
-        public async Task<Sdkwork.Im.AppApi.Generated.Models.AutomationExecutionRequestResponse?> ExecutionsCreateAsync(Sdkwork.Im.AppApi.Generated.Models.RequestAutomationExecution body)
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.AutomationExecutionsCreateResponse201?> ExecutionsCreateAsync(Sdkwork.Im.AppApi.Generated.Models.RequestAutomationExecution body)
         {
-            return await _client.PostAsync<Sdkwork.Im.AppApi.Generated.Models.AutomationExecutionRequestResponse>(ApiPaths.AppPath("/automation/executions"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.AppApi.Generated.Models.AutomationExecutionsCreateResponse201>(ApiPaths.AppPath("/automation/executions"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Get an automation execution
         /// </summary>
-        public async Task<Sdkwork.Im.AppApi.Generated.Models.AutomationExecution?> ExecutionsRetrieveAsync(string executionId)
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.AutomationExecutionsRetrieveResponse?> ExecutionsRetrieveAsync(string executionId)
         {
-            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.AutomationExecution>(ApiPaths.AppPath($"/automation/executions/{SerializePathParameter(executionId, new PathParameterSpec("executionId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.AutomationExecutionsRetrieveResponse>(ApiPaths.AppPath($"/automation/executions/{SerializePathParameter(executionId, new PathParameterSpec("executionId", "simple", false))}"));
         }
 
         /// <summary>
         /// Complete an agent tool call
         /// </summary>
-        public async Task<Sdkwork.Im.AppApi.Generated.Models.AgentToolCall?> AgentToolCallsCompleteAsync(string executionId, string toolCallId, Sdkwork.Im.AppApi.Generated.Models.CompleteAgentToolCallRequest body)
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.AutomationAgentToolCallsCompleteResponse?> AgentToolCallsCompleteAsync(string executionId, string toolCallId, Sdkwork.Im.AppApi.Generated.Models.CompleteAgentToolCallRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.AppApi.Generated.Models.AgentToolCall>(ApiPaths.AppPath($"/automation/executions/{SerializePathParameter(executionId, new PathParameterSpec("executionId", "simple", false))}/agent_tool_calls/{SerializePathParameter(toolCallId, new PathParameterSpec("toolCallId", "simple", false))}/complete"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.AppApi.Generated.Models.AutomationAgentToolCallsCompleteResponse>(ApiPaths.AppPath($"/automation/executions/{SerializePathParameter(executionId, new PathParameterSpec("executionId", "simple", false))}/agent_tool_calls/{SerializePathParameter(toolCallId, new PathParameterSpec("toolCallId", "simple", false))}/complete"), body, null, null, "application/json");
         }
 
         private sealed record PathParameterSpec(string Name, string Style, bool Explode);

@@ -14,7 +14,7 @@ fn test_rpc_service_manifest_declares_im_rpc_sdk_family() {
 
 #[test]
 fn test_rpc_service_manifest_lists_unique_standard_services() {
-    assert_eq!(RPC_SERVICE_BINDINGS.len(), 22);
+    assert_eq!(RPC_SERVICE_BINDINGS.len(), 23);
 
     let mut service_keys = HashSet::new();
     for binding in RPC_SERVICE_BINDINGS {
@@ -30,6 +30,11 @@ fn test_rpc_service_manifest_lists_unique_standard_services() {
             binding.service_key,
         );
     }
+    assert!(
+        service_keys
+            .contains("sdkwork.communication.internal.v1.GroupKnowledgebaseLaunchTicketService"),
+        "RPC service manifest must bind the group knowledgebase launch ticket service",
+    );
 }
 
 #[test]
@@ -69,7 +74,7 @@ fn test_bind_all_rpc_services_registers_every_manifest_service() {
 
 #[test]
 fn test_rpc_method_manifest_lists_unique_standard_methods() {
-    assert_eq!(RPC_METHOD_BINDINGS.len(), 161);
+    assert_eq!(RPC_METHOD_BINDINGS.len(), 162);
 
     let mut method_keys = HashSet::new();
     for binding in RPC_METHOD_BINDINGS {
@@ -139,6 +144,7 @@ fn test_rpc_method_manifest_lists_unique_standard_methods() {
         "sdkwork.communication.backend.v3.SocialRuntimeAdminService/RepairSharedChannelSync",
         "sdkwork.communication.internal.v1.RouteLeaseService/ClaimRouteLease",
         "sdkwork.communication.internal.v1.DomainEventRelayService/WatchDomainEvents",
+        "sdkwork.communication.internal.v1.GroupKnowledgebaseLaunchTicketService/ConsumeGroupKnowledgebaseLaunchTicket",
     ] {
         assert!(
             method_keys.contains(required_method_key),

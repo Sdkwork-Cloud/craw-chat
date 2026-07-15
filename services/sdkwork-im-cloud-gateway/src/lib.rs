@@ -30,6 +30,7 @@
 //! - `"sdkwork-knowledgebase-app-api"` -> `/app/v3/api/knowledge/{*path}` ->
 //!   `SdkworkKnowledgebaseAppSdk`
 //! - `"sdkwork-voice-app-api"` -> `/app/v3/api/voice/{*path}` -> `SdkworkVoiceAppSdk`
+//! - `"sdkwork-agents-app-api"` -> `/app/v3/api/ai/{*path}` -> `SdkworkAgentsAppSdk`
 //! - `"sdkwork-mail-app-api"` -> `/app/v3/api/mail/{*path}` -> `SdkworkMailAppSdk`
 //! - `"sdkwork-community-app-api"` -> `/app/v3/api/community/{*path}` -> `SdkworkCommunityAppSdk`
 //!

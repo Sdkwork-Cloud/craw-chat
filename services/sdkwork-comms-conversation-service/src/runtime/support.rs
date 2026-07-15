@@ -251,34 +251,37 @@ pub(super) fn build_member_envelope(
     }
 }
 
-pub(super) fn build_read_cursor_envelope(
-    tenant_id: &str,
-    organization_id: &str,
-    conversation_id: &str,
-    cursor: ConversationReadCursor,
-    ordering_seq: u64,
-    retention_class: &str,
-    actor_id: &str,
-    actor_kind: &str,
-) -> CommitEnvelope {
+pub(super) struct ReadCursorEnvelopeInput<'a> {
+    pub(super) tenant_id: &'a str,
+    pub(super) organization_id: &'a str,
+    pub(super) conversation_id: &'a str,
+    pub(super) cursor: ConversationReadCursor,
+    pub(super) ordering_seq: u64,
+    pub(super) retention_class: &'a str,
+    pub(super) actor_id: &'a str,
+    pub(super) actor_kind: &'a str,
+}
+
+pub(super) fn build_read_cursor_envelope(input: ReadCursorEnvelopeInput<'_>) -> CommitEnvelope {
+    let cursor = input.cursor;
     CommitEnvelope {
-        event_id: format!("evt_{}_cursor_{}", cursor.member_id, ordering_seq),
-        tenant_id: tenant_id.into(),
-        organization_id: normalize_commit_organization_id(organization_id),
+        event_id: format!("evt_{}_cursor_{}", cursor.member_id, input.ordering_seq),
+        tenant_id: input.tenant_id.into(),
+        organization_id: normalize_commit_organization_id(input.organization_id),
         event_type: "conversation.read_cursor_updated".into(),
         event_version: 1,
         aggregate_type: AggregateType::Conversation,
-        aggregate_id: conversation_id.into(),
+        aggregate_id: input.conversation_id.into(),
         scope_type: "conversation".into(),
-        scope_id: conversation_id.into(),
-        ordering_key: CommitEnvelope::ordering_key(tenant_id, conversation_id),
-        ordering_seq,
+        scope_id: input.conversation_id.into(),
+        ordering_key: CommitEnvelope::ordering_key(input.tenant_id, input.conversation_id),
+        ordering_seq: input.ordering_seq,
         causation_id: None,
         correlation_id: None,
         idempotency_key: None,
         actor: EventActor {
-            actor_id: actor_id.into(),
-            actor_kind: actor_kind.into(),
+            actor_id: input.actor_id.into(),
+            actor_kind: input.actor_kind.into(),
             actor_session_id: None,
         },
         occurred_at: cursor.updated_at.clone(),
@@ -286,7 +289,7 @@ pub(super) fn build_read_cursor_envelope(
         payload_schema: Some("conversation.read_cursor.v1".into()),
         payload: serde_json::to_string(&cursor)
             .expect("read cursor payload should serialize into commit envelope"),
-        retention_class: retention_class.into(),
+        retention_class: input.retention_class.into(),
         audit_class: "default".into(),
     }
 }
@@ -901,26 +904,33 @@ pub(in crate::runtime) fn resolve_room_create_conversation_id(
     )))
 }
 
+pub(in crate::runtime) struct DirectChatBindingIdsRequest<'a> {
+    pub(in crate::runtime) tenant_id: &'a str,
+    pub(in crate::runtime) organization_id: &'a str,
+    pub(in crate::runtime) left_actor_kind: &'a str,
+    pub(in crate::runtime) left_actor_id: &'a str,
+    pub(in crate::runtime) right_actor_kind: &'a str,
+    pub(in crate::runtime) right_actor_id: &'a str,
+    pub(in crate::runtime) requested_conversation_id: &'a str,
+    pub(in crate::runtime) requested_direct_chat_id: &'a str,
+}
+
 pub(in crate::runtime) fn resolve_direct_chat_binding_ids(
-    tenant_id: &str,
-    organization_id: &str,
-    left_actor_kind: &str,
-    left_actor_id: &str,
-    right_actor_kind: &str,
-    right_actor_id: &str,
-    requested_conversation_id: &str,
-    requested_direct_chat_id: &str,
+    request: DirectChatBindingIdsRequest<'_>,
 ) -> Result<(String, String), RuntimeError> {
     let direct_chat_id = canonical_direct_chat_business_id(
-        left_actor_kind,
-        left_actor_id,
-        right_actor_kind,
-        right_actor_id,
+        request.left_actor_kind,
+        request.left_actor_id,
+        request.right_actor_kind,
+        request.right_actor_id,
     )?;
-    let conversation_id =
-        canonical_direct_chat_conversation_id(tenant_id, organization_id, direct_chat_id.as_str());
-    let requested_conversation_id = requested_conversation_id.trim();
-    let requested_direct_chat_id = requested_direct_chat_id.trim();
+    let conversation_id = canonical_direct_chat_conversation_id(
+        request.tenant_id,
+        request.organization_id,
+        direct_chat_id.as_str(),
+    );
+    let requested_conversation_id = request.requested_conversation_id.trim();
+    let requested_direct_chat_id = request.requested_direct_chat_id.trim();
     if !requested_direct_chat_id.is_empty() && requested_direct_chat_id != direct_chat_id {
         return Err(RuntimeError::InvalidInput(format!(
             "directChatId must be omitted or match the canonical direct chat id; expected {direct_chat_id}"
@@ -948,10 +958,10 @@ pub(super) fn conversation_timestamp() -> String {
 #[cfg(test)]
 mod canonical_id_tests {
     use super::{
-        canonical_agent_dialog_conversation_id, canonical_direct_chat_business_id,
-        canonical_direct_chat_conversation_id, canonical_group_conversation_id,
-        resolve_agent_dialog_conversation_id, resolve_direct_chat_binding_ids,
-        resolve_group_conversation_id,
+        DirectChatBindingIdsRequest, canonical_agent_dialog_conversation_id,
+        canonical_direct_chat_business_id, canonical_direct_chat_conversation_id,
+        canonical_group_conversation_id, resolve_agent_dialog_conversation_id,
+        resolve_direct_chat_binding_ids, resolve_group_conversation_id,
     };
 
     #[test]
@@ -1088,17 +1098,32 @@ mod canonical_id_tests {
 
     #[test]
     fn resolve_direct_chat_binding_ids_derives_stable_pair_scoped_ids() {
-        let (conversation_id, direct_chat_id) = resolve_direct_chat_binding_ids(
-            "100001", "default", "user", "u_alice", "user", "u_bob", "", "",
-        )
-        .expect("direct chat ids should resolve");
+        let (conversation_id, direct_chat_id) =
+            resolve_direct_chat_binding_ids(DirectChatBindingIdsRequest {
+                tenant_id: "100001",
+                organization_id: "default",
+                left_actor_kind: "user",
+                left_actor_id: "u_alice",
+                right_actor_kind: "user",
+                right_actor_id: "u_bob",
+                requested_conversation_id: "",
+                requested_direct_chat_id: "",
+            })
+            .expect("direct chat ids should resolve");
         assert!(conversation_id.starts_with("c_"));
         assert!(!conversation_id.starts_with("c_direct_"));
         assert!(!direct_chat_id.starts_with("pc-dc-"));
         assert_eq!(
-            resolve_direct_chat_binding_ids(
-                "100001", "default", "user", "u_bob", "user", "u_alice", "", "",
-            )
+            resolve_direct_chat_binding_ids(DirectChatBindingIdsRequest {
+                tenant_id: "100001",
+                organization_id: "default",
+                left_actor_kind: "user",
+                left_actor_id: "u_bob",
+                right_actor_kind: "user",
+                right_actor_id: "u_alice",
+                requested_conversation_id: "",
+                requested_direct_chat_id: "",
+            })
             .expect("participant order should not change canonical ids"),
             (conversation_id.clone(), direct_chat_id.clone())
         );

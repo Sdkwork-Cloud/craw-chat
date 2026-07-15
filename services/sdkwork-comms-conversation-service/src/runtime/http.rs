@@ -27,8 +27,8 @@ use sdkwork_routes_web_framework_backend_api::response::{
     ApiProblem, ApiResult, created_json, finish_api_json, finish_api_response,
 };
 use sdkwork_utils_rust::{
-    SDKWORK_TRACE_ID_HEADER, SdkWorkCursorListQuery, SdkWorkPageData, SdkWorkProblemDetail,
-    SdkWorkResourceData, SdkWorkResultCode,
+    SDKWORK_TRACE_ID_HEADER, SdkWorkCommandData, SdkWorkCursorListQuery, SdkWorkPageData,
+    SdkWorkProblemDetail, SdkWorkResourceData, SdkWorkResultCode,
 };
 use sdkwork_web_core::{
     ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, WebRequestContext,
@@ -56,7 +56,57 @@ pub const ALLOW_ALL_PRINCIPALS_ENV: &str = "SDKWORK_IM_ALLOW_ALL_PRINCIPALS";
 pub struct AppState {
     runtime: Arc<ConversationRuntime<ConversationCommitJournal>>,
     principal_directory: Arc<dyn PrincipalDirectory>,
+    group_knowledgebase: Arc<GroupKnowledgebaseCoordinator>,
+    group_knowledgebase_outbox_relay_owner: Arc<GroupKnowledgebaseOutboxRelayOwner>,
+    group_knowledgebase_launch_rate_limiter: GroupKnowledgebaseLaunchRateLimiter,
     shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter,
+}
+
+/// Owns the one group-Knowledgebase relay for an authoritative Conversation
+/// state. Clones of [`AppState`] share this owner, while separate production
+/// processes coordinate through the PostgreSQL outbox claim lease and the
+/// stable remote idempotency keys.
+struct GroupKnowledgebaseOutboxRelayOwner {
+    startup_gate: tokio::sync::Mutex<()>,
+    handle: Mutex<Option<GroupKnowledgebaseOutboxRelayHandle>>,
+}
+
+impl GroupKnowledgebaseOutboxRelayOwner {
+    fn new() -> Self {
+        Self {
+            startup_gate: tokio::sync::Mutex::new(()),
+            handle: Mutex::new(None),
+        }
+    }
+
+    async fn ensure_started(
+        &self,
+        coordinator: Arc<GroupKnowledgebaseCoordinator>,
+        runtime: Arc<ConversationRuntime<ConversationCommitJournal>>,
+    ) -> Result<bool, RuntimeError> {
+        let _startup_guard = self.startup_gate.lock().await;
+        if self
+            .handle
+            .lock()
+            .map_err(|_| {
+                RuntimeError::Contract(im_platform_contracts::ContractError::Unavailable(
+                    "group knowledgebase outbox relay owner lock is unavailable".into(),
+                ))
+            })?
+            .is_some()
+        {
+            return Ok(false);
+        }
+
+        let handle = spawn_group_knowledgebase_outbox_relay(coordinator, runtime).await?;
+        let mut retained_handle = self.handle.lock().map_err(|_| {
+            RuntimeError::Contract(im_platform_contracts::ContractError::Unavailable(
+                "group knowledgebase outbox relay owner lock is unavailable".into(),
+            ))
+        })?;
+        *retained_handle = Some(handle);
+        Ok(true)
+    }
 }
 
 impl AppState {
@@ -66,6 +116,40 @@ impl AppState {
 
     pub(crate) fn rpc_runtime(&self) -> &ConversationRuntime<ConversationCommitJournal> {
         self.runtime.as_ref()
+    }
+
+    pub(crate) fn group_knowledgebase(&self) -> Arc<GroupKnowledgebaseCoordinator> {
+        self.group_knowledgebase.clone()
+    }
+
+    /// Verifies delivery dependencies and starts the single durable
+    /// Knowledgebase relay retained by this authoritative state. Production
+    /// callers must invoke this before they listen for group mutations.
+    pub async fn ensure_group_knowledgebase_outbox_relay_started(
+        &self,
+    ) -> Result<(), RuntimeError> {
+        match self
+            .group_knowledgebase_outbox_relay_owner
+            .ensure_started(self.group_knowledgebase.clone(), self.runtime.clone())
+            .await
+        {
+            Ok(started) => {
+                if started {
+                    tracing::info!(
+                        "group knowledgebase outbox relay readiness completed for conversation runtime"
+                    );
+                }
+                Ok(())
+            }
+            Err(error) if im_app_context::allows_header_only_app_context_fallback() => {
+                tracing::warn!(
+                    error = ?error,
+                    "group knowledgebase outbox relay is unavailable in development/test"
+                );
+                Ok(())
+            }
+            Err(error) => Err(error),
+        }
     }
 
     fn register_for_embedded_wiring(&self) {
@@ -226,6 +310,18 @@ const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_MAX_REQUESTS: u32 = 10_000;
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_WINDOW_SECONDS: u64 = 3_600;
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_BUCKETS: usize = 200_000;
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_SWEEP_THRESHOLD: usize = 1024;
+const GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_MAX_REQUESTS_ENV: &str =
+    "SDKWORK_IM_GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_MAX_REQUESTS";
+const GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_WINDOW_SECONDS_ENV: &str =
+    "SDKWORK_IM_GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_WINDOW_SECONDS";
+const GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_MAX_BUCKETS_ENV: &str =
+    "SDKWORK_IM_GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_MAX_BUCKETS";
+const GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_DEFAULT_MAX_REQUESTS: u32 = 12;
+const GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_DEFAULT_WINDOW_SECONDS: u64 = 60;
+const GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_DEFAULT_MAX_BUCKETS: usize = 100_000;
+const GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_MAX_ALLOWED_MAX_REQUESTS: u32 = 600;
+const GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_MAX_ALLOWED_WINDOW_SECONDS: u64 = 3_600;
+const GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_MAX_ALLOWED_BUCKETS: usize = 200_000;
 #[derive(Clone)]
 struct SharedChannelSyncRateLimiter {
     max_requests: u32,
@@ -238,6 +334,28 @@ struct SharedChannelSyncRateLimiter {
 struct SharedChannelSyncRateLimitBucket {
     window_started_at_millis: u128,
     request_count: u32,
+}
+
+#[derive(Clone, Copy)]
+struct RateLimiterEnvironmentConfig<'a> {
+    max_requests_env: &'a str,
+    default_max_requests: u32,
+    max_allowed_max_requests: u32,
+    window_seconds_env: &'a str,
+    default_window_seconds: u64,
+    max_allowed_window_seconds: u64,
+    max_buckets_env: &'a str,
+    default_max_buckets: usize,
+    max_allowed_max_buckets: usize,
+}
+
+/// Launch tickets are capability credentials, so their issuance has an
+/// independent, per-principal rate limit. The fixed-window implementation is
+/// shared with the existing control-plane sync limiter to keep its memory
+/// bounds and poisoned-lock recovery behavior consistent.
+#[derive(Clone)]
+struct GroupKnowledgebaseLaunchRateLimiter {
+    inner: SharedChannelSyncRateLimiter,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -336,22 +454,47 @@ fn resource_response<T: Serialize>(ctx: &WebRequestContext, result: ApiResult<T>
     finish_api_json(ctx, result.map(|item| SdkWorkResourceData { item }))
 }
 
+fn no_store_resource_response<T: Serialize>(
+    ctx: &WebRequestContext,
+    result: ApiResult<T>,
+) -> Response {
+    let mut response = resource_response(ctx, result);
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
+}
+
 impl SharedChannelSyncRateLimiter {
     fn from_env() -> Self {
+        Self::from_env_config(RateLimiterEnvironmentConfig {
+            max_requests_env: SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS_ENV,
+            default_max_requests: SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_MAX_REQUESTS,
+            max_allowed_max_requests: SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_MAX_REQUESTS,
+            window_seconds_env: SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS_ENV,
+            default_window_seconds: SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_WINDOW_SECONDS,
+            max_allowed_window_seconds: SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_WINDOW_SECONDS,
+            max_buckets_env: SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS_ENV,
+            default_max_buckets: SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_MAX_BUCKETS,
+            max_allowed_max_buckets: SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_BUCKETS,
+        })
+    }
+
+    fn from_env_config(config: RateLimiterEnvironmentConfig<'_>) -> Self {
         let max_requests = resolve_positive_env_u32_with_upper_bound(
-            SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS_ENV,
-            SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_MAX_REQUESTS,
-            SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_MAX_REQUESTS,
+            config.max_requests_env,
+            config.default_max_requests,
+            config.max_allowed_max_requests,
         );
         let window_seconds = resolve_positive_env_u64_with_upper_bound(
-            SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS_ENV,
-            SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_WINDOW_SECONDS,
-            SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_WINDOW_SECONDS,
+            config.window_seconds_env,
+            config.default_window_seconds,
+            config.max_allowed_window_seconds,
         );
         let max_buckets = resolve_positive_env_usize_with_upper_bound(
-            SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS_ENV,
-            SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_MAX_BUCKETS,
-            SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_ALLOWED_BUCKETS,
+            config.max_buckets_env,
+            config.default_max_buckets,
+            config.max_allowed_max_buckets,
         );
         Self {
             max_requests,
@@ -397,6 +540,38 @@ impl SharedChannelSyncRateLimiter {
 
         bucket.request_count = bucket.request_count.saturating_add(1);
         true
+    }
+}
+
+impl GroupKnowledgebaseLaunchRateLimiter {
+    fn from_env() -> Self {
+        Self {
+            inner: SharedChannelSyncRateLimiter::from_env_config(RateLimiterEnvironmentConfig {
+                max_requests_env: GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_MAX_REQUESTS_ENV,
+                default_max_requests: GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_DEFAULT_MAX_REQUESTS,
+                max_allowed_max_requests:
+                    GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_MAX_ALLOWED_MAX_REQUESTS,
+                window_seconds_env: GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_WINDOW_SECONDS_ENV,
+                default_window_seconds:
+                    GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_DEFAULT_WINDOW_SECONDS,
+                max_allowed_window_seconds:
+                    GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_MAX_ALLOWED_WINDOW_SECONDS,
+                max_buckets_env: GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_MAX_BUCKETS_ENV,
+                default_max_buckets: GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_DEFAULT_MAX_BUCKETS,
+                max_allowed_max_buckets: GROUP_KNOWLEDGEBASE_LAUNCH_RATE_LIMIT_MAX_ALLOWED_BUCKETS,
+            }),
+        }
+    }
+
+    fn try_acquire(&self, auth: &AppContext) -> bool {
+        let scope = format!(
+            "{}:{}:{}:{}",
+            auth.tenant_id,
+            organization_id_from_auth_context(auth),
+            auth.actor_kind,
+            auth.actor_id,
+        );
+        self.inner.try_acquire(scope.as_str())
     }
 }
 
@@ -498,6 +673,58 @@ struct RecallMessageRequest {
     idempotency_key: Option<String>,
 }
 
+/// The command has no caller-controlled business fields. Group scope,
+/// membership, and initial space metadata remain authoritative Conversation
+/// state; retaining an explicit empty object prevents undocumented empty POST
+/// semantics from leaking into generated SDKs.
+#[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct CreateGroupKnowledgebaseCommandRequest {}
+
+/// Ticket issuance is deliberately parameterless: the authenticated member,
+/// active group binding, and synchronized membership epoch are all resolved
+/// server-side before a capability ticket is minted.
+#[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct LaunchGroupKnowledgebaseCommandRequest {}
+
+/// The group archive command has no caller-controlled business fields. Its
+/// target, owner, and lifecycle source event are derived from the trusted
+/// request context and path.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ArchiveGroupConversationCommandRequest {}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ArchiveGroupConversationResponse {
+    #[serde(flatten)]
+    command: SdkWorkCommandData,
+    archive_event_id: String,
+    archived_at: String,
+    knowledgebase_archive_scheduled: bool,
+}
+
+impl ArchiveGroupConversationResponse {
+    fn accepted(
+        resource_id: String,
+        archive_event_id: String,
+        archived_at: String,
+        knowledgebase_archive_scheduled: bool,
+    ) -> Self {
+        Self {
+            command: SdkWorkCommandData {
+                accepted: true,
+                resource_id: Some(resource_id),
+                status: Some("archived".into()),
+            },
+            archive_event_id,
+            archived_at,
+            knowledgebase_archive_scheduled,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct MessageReactionRequest {
@@ -522,6 +749,11 @@ struct CreateConversationRequest {
     /// `conversationType` is `group`; ignored otherwise.
     #[serde(default)]
     client_request_key: Option<String>,
+    /// Explicit opt-in for one post-create group Knowledgebase provisioning
+    /// attempt. Omitted or false must leave the Knowledgebase lifecycle
+    /// absent, which keeps ordinary group creation lazy.
+    #[serde(default)]
+    initialize_knowledgebase: bool,
     /// Optional initial group agent set committed in the same creation batch.
     #[serde(default)]
     agent_assignments: Option<Vec<ConversationAgentAssignment>>,
@@ -970,6 +1202,29 @@ fn build_runtime_for_app_state() -> ConversationRuntime<ConversationCommitJourna
     })
 }
 
+fn build_group_knowledgebase_for_app_state()
+-> Result<Arc<GroupKnowledgebaseCoordinator>, RuntimeError> {
+    let configured_port =
+        super::knowledgebase_rpc_config::resolve_group_knowledgebase_rpc_port_from_env()?;
+    let id_generator =
+        sdkwork_im_runtime_id::build_runtime_id_generator_blocking("conversation-knowledgebase");
+
+    let coordinator = if im_app_context::allows_header_only_app_context_fallback() {
+        let port = configured_port.unwrap_or_else(|| Arc::new(UnavailableGroupKnowledgebasePort));
+        GroupKnowledgebaseCoordinator::with_development_memory_store(port, id_generator)?
+    } else {
+        let port = configured_port.ok_or_else(|| {
+            RuntimeError::Contract(im_platform_contracts::ContractError::Unavailable(
+                "production group knowledgebase runtime requires a complete generated \
+                 sdkwork-knowledgebase-rpc-sdk client configuration"
+                    .into(),
+            ))
+        })?;
+        GroupKnowledgebaseCoordinator::with_production_store(port, id_generator)?
+    };
+    Ok(Arc::new(coordinator))
+}
+
 pub fn default_app_state() -> AppState {
     if !im_app_context::allows_header_only_app_context_fallback() {
         panic!(
@@ -980,22 +1235,36 @@ pub fn default_app_state() -> AppState {
     let state = AppState {
         runtime: Arc::new(build_runtime_for_app_state()),
         principal_directory: Arc::new(AllowAllPrincipalDirectory),
+        group_knowledgebase: build_group_knowledgebase_for_app_state()
+            .expect("development group knowledgebase coordinator should initialize"),
+        group_knowledgebase_outbox_relay_owner: Arc::new(GroupKnowledgebaseOutboxRelayOwner::new()),
+        group_knowledgebase_launch_rate_limiter: GroupKnowledgebaseLaunchRateLimiter::from_env(),
         shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
     };
     state.register_for_embedded_wiring();
     state
 }
 
-pub fn app_state_with_principal_directory(
+fn try_app_state_with_principal_directory(
     principal_directory: Arc<dyn PrincipalDirectory>,
-) -> AppState {
+) -> Result<AppState, RuntimeError> {
     let state = AppState {
+        group_knowledgebase: build_group_knowledgebase_for_app_state()?,
         runtime: Arc::new(build_runtime_for_app_state()),
         principal_directory,
+        group_knowledgebase_outbox_relay_owner: Arc::new(GroupKnowledgebaseOutboxRelayOwner::new()),
+        group_knowledgebase_launch_rate_limiter: GroupKnowledgebaseLaunchRateLimiter::from_env(),
         shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
     };
     state.register_for_embedded_wiring();
-    state
+    Ok(state)
+}
+
+pub fn app_state_with_principal_directory(
+    principal_directory: Arc<dyn PrincipalDirectory>,
+) -> AppState {
+    try_app_state_with_principal_directory(principal_directory)
+        .expect("conversation app state should initialize in development/test")
 }
 
 /// Resolve conversation HTTP [`AppState`] from process environment.
@@ -1010,7 +1279,8 @@ pub fn bootstrap_conversation_app_state_from_env() -> Result<AppState, String> {
     {
         let directory =
             StaticPrincipalDirectory::from_json_file(FsPath::new(catalog_path.as_str()))?;
-        return Ok(app_state_with_principal_directory(Arc::new(directory)));
+        return try_app_state_with_principal_directory(Arc::new(directory))
+            .map_err(|error| error.to_string());
     }
 
     let allow_all_explicit = std::env::var(ALLOW_ALL_PRINCIPALS_ENV)
@@ -1221,11 +1491,32 @@ pub fn build_domain_api_router(state: AppState) -> Router {
         .with_state(state)
 }
 
+/// App-API surface for the group knowledgebase capability. The caller-facing
+/// app SDK owns these routes; IM's open API remains free of app-business
+/// launch-ticket semantics.
+pub fn build_group_knowledgebase_app_api_router(state: AppState) -> Router {
+    Router::new()
+        .route(
+            "/app/v3/api/chat/conversations/{conversation_id}/knowledgebase",
+            get(get_group_knowledgebase).post(ensure_group_knowledgebase),
+        )
+        .route(
+            "/app/v3/api/chat/conversations/{conversation_id}/knowledgebase/launch",
+            post(launch_group_knowledgebase),
+        )
+        .route(
+            "/app/v3/api/chat/conversations/{conversation_id}/archive",
+            post(archive_group_conversation),
+        )
+        .with_state(state)
+}
+
 fn build_business_router(state: AppState) -> Router {
     Router::new()
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .merge(build_domain_api_router(state))
+        .merge(build_domain_api_router(state.clone()))
+        .merge(build_group_knowledgebase_app_api_router(state))
 }
 
 fn build_app(state: AppState) -> Router {
@@ -1429,6 +1720,7 @@ async fn create_conversation(
     State(state): State<AppState>,
     AppJson(request): AppJson<CreateConversationRequest>,
 ) -> Response {
+    let initialize_knowledgebase = request.initialize_knowledgebase;
     let result: ApiResult<CreateConversationResult> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
         let organization_id = organization_id_from_auth_context(&auth);
@@ -1441,6 +1733,19 @@ async fn create_conversation(
                 "conversation_type_required",
                 "conversationType is required",
             )));
+        }
+        if initialize_knowledgebase && !conversation_type.eq_ignore_ascii_case("group") {
+            return Err(ApiProblem::from(ApiError::bad_request(
+                "conversation_initialize_knowledgebase_group_only",
+                "initializeKnowledgebase is only supported for group conversations",
+            )));
+        }
+        // A normal group creation must never inspect Knowledgebase scope. The
+        // opt-in path validates it before the durable group write so an
+        // explicitly requested initialization cannot leave an unexpected
+        // tenant-wide group behind when Knowledgebase has no legal scope.
+        if initialize_knowledgebase {
+            require_group_knowledgebase_http_organization(&auth)?;
         }
         // Group conversations use a server-derived canonical `g_` id seeded
         // from creator + group name + client request key. Direct and other
@@ -1485,20 +1790,22 @@ async fn create_conversation(
             match requested_agent_assignments.clone() {
                 Some(agent_assignments) => state
                     .runtime
-                    .create_group_conversation_from_auth_context_with_members_and_agent_assignments(
+                    .create_group_conversation_from_auth_context_with_members_and_agent_assignments_and_knowledgebase_initialization(
                         &auth,
                         group_name.to_owned(),
                         client_request_key.to_owned(),
                         normalized_member_user_ids,
                         agent_assignments,
+                        initialize_knowledgebase,
                     )?,
                 None => state
                     .runtime
-                    .create_group_conversation_from_auth_context_with_members(
+                    .create_group_conversation_from_auth_context_with_members_and_knowledgebase_initialization(
                         &auth,
                         group_name.to_owned(),
                         client_request_key.to_owned(),
                         normalized_member_user_ids,
+                        initialize_knowledgebase,
                     )?,
             }
         } else {
@@ -1563,6 +1870,35 @@ async fn create_conversation(
         }
         Ok(result)
     })();
+    let result = match result {
+        Ok(mut created) if initialize_knowledgebase => {
+            let conversation_id = created.conversation_id.clone();
+            let initialization_status = match state
+                .group_knowledgebase
+                .ensure(state.runtime(), auth.clone(), conversation_id.clone())
+                .await
+            {
+                Ok(GroupKnowledgebaseEnsureResult::Created(_))
+                | Ok(GroupKnowledgebaseEnsureResult::Existing(_)) => {
+                    GroupKnowledgebaseInitializationStatus::Active
+                }
+                Ok(GroupKnowledgebaseEnsureResult::Provisioning(_)) => {
+                    GroupKnowledgebaseInitializationStatus::Provisioning
+                }
+                Err(error) => {
+                    tracing::warn!(
+                        conversation_id,
+                        error = ?error,
+                        "group was created but explicit knowledgebase initialization did not complete"
+                    );
+                    GroupKnowledgebaseInitializationStatus::Failed
+                }
+            };
+            created.knowledgebase_initialization = Some(initialization_status);
+            Ok(created)
+        }
+        result => result,
+    };
     created_resource_response(&ctx, result)
 }
 
@@ -1762,6 +2098,56 @@ fn ensure_active_http_auth_principal(state: &AppState, auth: &AppContext) -> Res
     )
 }
 
+/// The browser-facing group-KB endpoints fail before any conversation or
+/// provider work when the authenticated request is tenant-wide. Knowledgebase
+/// owns organization-scoped spaces only; it has no tenant-wide ACL model.
+fn require_group_knowledgebase_http_organization(auth: &AppContext) -> Result<(), ApiError> {
+    super::knowledgebase::resolve_group_knowledgebase_organization_id(auth)
+        .map(|_| ())
+        .map_err(ApiError::from)
+}
+
+fn require_normalized_idempotency_key(ctx: &WebRequestContext) -> Result<String, ApiError> {
+    let value = ctx
+        .idempotency_key()
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            ApiError::bad_request(
+                "idempotency_key_required",
+                "a framework-normalized Idempotency-Key is required",
+            )
+        })?;
+    let valid = (8..=128).contains(&value.len())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'));
+    if !valid {
+        return Err(ApiError::bad_request(
+            "idempotency_key_invalid",
+            "Idempotency-Key must contain 8 to 128 ASCII letters, digits, dots, underscores, colons, or hyphens",
+        ));
+    }
+    Ok(value.to_owned())
+}
+
+fn record_group_knowledgebase_membership_change(
+    state: &AppState,
+    auth: &AppContext,
+    conversation_id: &str,
+    source_event_id: &str,
+) -> Result<(), ApiError> {
+    state
+        .group_knowledgebase
+        .record_membership_change(
+            state.runtime.as_ref(),
+            auth,
+            conversation_id,
+            source_event_id,
+        )
+        .map(|_| ())
+        .map_err(ApiError::from)
+}
+
 fn map_blocking_join_error(error: tokio::task::JoinError) -> ApiProblem {
     ApiProblem::internal_server_error(format!(
         "conversation_runtime_blocking_join_failed: {error}"
@@ -1869,9 +2255,7 @@ fn query_key(raw_pair: &str) -> &str {
 }
 
 fn invalid_message_history_query(uri: &Uri) -> Option<String> {
-    let Some(query) = uri.query() else {
-        return None;
-    };
+    let query = uri.query()?;
     let mut seen = std::collections::BTreeSet::new();
     for raw_pair in query.split('&').filter(|pair| !pair.is_empty()) {
         let key = query_key(raw_pair);
@@ -2054,6 +2438,133 @@ async fn get_conversation_binding(
     finish_api_json(&ctx, result)
 }
 
+async fn get_group_knowledgebase(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
+) -> Response {
+    let result = run_blocking_conversation(state, auth, move |state, auth| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        require_group_knowledgebase_http_organization(&auth)?;
+        state
+            .group_knowledgebase
+            .retrieve(state.rpc_runtime(), &auth, conversation_id.as_str())
+            .map_err(ApiProblem::from)
+    })
+    .await;
+    resource_response(&ctx, result)
+}
+
+async fn ensure_group_knowledgebase(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
+    AppJson(_request): AppJson<CreateGroupKnowledgebaseCommandRequest>,
+) -> Response {
+    if let Err(error) = ensure_active_http_auth_principal(&state, &auth)
+        .and_then(|_| require_group_knowledgebase_http_organization(&auth))
+        .and_then(|_| require_normalized_idempotency_key(&ctx).map(|_| ()))
+    {
+        return resource_response::<GroupKnowledgebaseLinkView>(&ctx, Err(error.into()));
+    }
+    let result = state
+        .group_knowledgebase
+        .ensure(state.runtime(), auth, conversation_id)
+        .await
+        .map_err(ApiProblem::from);
+    match result {
+        Ok(GroupKnowledgebaseEnsureResult::Created(view)) => {
+            created_resource_response(&ctx, Ok(view))
+        }
+        Ok(GroupKnowledgebaseEnsureResult::Existing(view))
+        | Ok(GroupKnowledgebaseEnsureResult::Provisioning(view)) => {
+            resource_response(&ctx, Ok(view))
+        }
+        Err(error) => resource_response::<GroupKnowledgebaseLinkView>(&ctx, Err(error)),
+    }
+}
+
+async fn launch_group_knowledgebase(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
+    AppJson(_request): AppJson<LaunchGroupKnowledgebaseCommandRequest>,
+) -> Response {
+    let idempotency_key = match ensure_active_http_auth_principal(&state, &auth)
+        .and_then(|_| require_group_knowledgebase_http_organization(&auth))
+        .and_then(|_| require_normalized_idempotency_key(&ctx))
+        .and_then(|idempotency_key| {
+            if state
+                .group_knowledgebase_launch_rate_limiter
+                .try_acquire(&auth)
+            {
+                Ok(idempotency_key)
+            } else {
+                Err(ApiError::too_many_requests(
+                    "group_knowledgebase_launch_rate_limited",
+                    "group knowledgebase launch exceeded the per-principal rate limit",
+                ))
+            }
+        }) {
+        Ok(idempotency_key) => idempotency_key,
+        Err(error) => {
+            return no_store_resource_response::<GroupKnowledgebaseLaunchResponse>(
+                &ctx,
+                Err(error.into()),
+            );
+        }
+    };
+    let result = state
+        .group_knowledgebase
+        .launch(state.runtime(), auth, conversation_id, idempotency_key)
+        .await
+        .map(GroupKnowledgebaseLaunchResponse::from)
+        .map_err(ApiProblem::from);
+    no_store_resource_response(&ctx, result)
+}
+
+async fn archive_group_conversation(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
+    AppJson(_request): AppJson<ArchiveGroupConversationCommandRequest>,
+) -> Response {
+    let idempotency_key = match ensure_active_http_auth_principal(&state, &auth)
+        .and_then(|_| require_normalized_idempotency_key(&ctx))
+    {
+        Ok(value) => value,
+        Err(error) => {
+            return finish_api_json::<ArchiveGroupConversationResponse>(&ctx, Err(error.into()));
+        }
+    };
+    let result = run_blocking_conversation(state, auth, move |state, auth| {
+        let archived = state.runtime.archive_group_conversation_from_auth_context(
+            &auth,
+            conversation_id.clone(),
+            idempotency_key,
+        )?;
+        let knowledgebase_archive_scheduled = state
+            .group_knowledgebase
+            .archive_after_group_conversation_archive(
+                &auth,
+                archived.conversation_id.as_str(),
+                archived.event_id.as_str(),
+            )?;
+        Ok(ArchiveGroupConversationResponse::accepted(
+            archived.conversation_id,
+            archived.event_id,
+            archived.archived_at,
+            knowledgebase_archive_scheduled,
+        ))
+    })
+    .await;
+    finish_api_json(&ctx, result)
+}
+
 async fn accept_agent_handoff(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
@@ -2169,14 +2680,25 @@ async fn add_member(
             request.principal_id.as_str(),
             request.principal_kind.as_str(),
         )?;
-        Ok(state.runtime.add_member_from_auth_context(
+        let member = state.runtime.add_member_from_auth_context(
             &auth,
-            conversation_id,
+            conversation_id.clone(),
             request.principal_id,
             request.principal_kind,
             request.role,
             request.attributes,
-        )?)
+        )?;
+        record_group_knowledgebase_membership_change(
+            &state,
+            &auth,
+            conversation_id.as_str(),
+            format!(
+                "conversation.member.add:{}:{}",
+                member.member_id, member.joined_at
+            )
+            .as_str(),
+        )?;
+        Ok(member)
     })();
     finish_api_json(&ctx, result)
 }
@@ -2190,11 +2712,23 @@ async fn remove_member(
 ) -> Response {
     let result: ApiResult<ConversationMember> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state.runtime.remove_member_from_auth_context(
+        let member = state.runtime.remove_member_from_auth_context(
             &auth,
-            conversation_id,
+            conversation_id.clone(),
             request.member_id,
-        )?)
+        )?;
+        record_group_knowledgebase_membership_change(
+            &state,
+            &auth,
+            conversation_id.as_str(),
+            format!(
+                "conversation.member.remove:{}:{}",
+                member.member_id,
+                member.removed_at.as_deref().unwrap_or_default()
+            )
+            .as_str(),
+        )?;
+        Ok(member)
     })();
     finish_api_json(&ctx, result)
 }
@@ -2208,13 +2742,20 @@ async fn transfer_conversation_owner(
 ) -> Response {
     let result: ApiResult<TransferConversationOwnerResult> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state
+        let transfer = state
             .runtime
             .transfer_conversation_owner_from_auth_context(
                 &auth,
-                conversation_id,
+                conversation_id.clone(),
                 request.member_id,
-            )?)
+            )?;
+        record_group_knowledgebase_membership_change(
+            &state,
+            &auth,
+            conversation_id.as_str(),
+            format!("conversation.member.transfer-owner:{}", transfer.event_id).as_str(),
+        )?;
+        Ok(transfer)
     })();
     finish_api_json(&ctx, result)
 }
@@ -2228,14 +2769,21 @@ async fn change_conversation_member_role(
 ) -> Response {
     let result: ApiResult<ChangeConversationMemberRoleResult> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state
+        let change = state
             .runtime
             .change_conversation_member_role_from_auth_context(
                 &auth,
-                conversation_id,
+                conversation_id.clone(),
                 request.member_id,
                 request.role,
-            )?)
+            )?;
+        record_group_knowledgebase_membership_change(
+            &state,
+            &auth,
+            conversation_id.as_str(),
+            format!("conversation.member.change-role:{}", change.event_id).as_str(),
+        )?;
+        Ok(change)
     })();
     finish_api_json(&ctx, result)
 }
@@ -2248,9 +2796,21 @@ async fn leave_conversation(
 ) -> Response {
     let result: ApiResult<ConversationMember> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state
+        let member = state
             .runtime
-            .leave_conversation_from_auth_context(&auth, conversation_id)?)
+            .leave_conversation_from_auth_context(&auth, conversation_id.clone())?;
+        record_group_knowledgebase_membership_change(
+            &state,
+            &auth,
+            conversation_id.as_str(),
+            format!(
+                "conversation.member.leave:{}:{}",
+                member.member_id,
+                member.removed_at.as_deref().unwrap_or_default()
+            )
+            .as_str(),
+        )?;
+        Ok(member)
     })();
     finish_api_json(&ctx, result)
 }
@@ -2263,9 +2823,20 @@ async fn accept_conversation_invitation(
 ) -> Response {
     let result: ApiResult<ConversationMember> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state
+        let member = state
             .runtime
-            .accept_conversation_invitation_from_auth_context(&auth, conversation_id)?)
+            .accept_conversation_invitation_from_auth_context(&auth, conversation_id.clone())?;
+        record_group_knowledgebase_membership_change(
+            &state,
+            &auth,
+            conversation_id.as_str(),
+            format!(
+                "conversation.member.accept-invitation:{}:{}",
+                member.member_id, member.joined_at
+            )
+            .as_str(),
+        )?;
+        Ok(member)
     })();
     finish_api_json(&ctx, result)
 }
@@ -2635,6 +3206,7 @@ mod tests {
     use axum::http::{Request, StatusCode};
     use http_body_util::BodyExt;
     use im_app_context::DualTokenRequestBuilderExt;
+    use sdkwork_web_core::{ServerRequestId, WebApiSurface, WebAuthMode, WebTransportFacts};
     use std::collections::BTreeSet;
     use std::sync::{Mutex, OnceLock};
     use std::time::Duration;
@@ -2712,6 +3284,69 @@ mod tests {
             .expect("env lock")
     }
 
+    fn request_context_with_normalized_idempotency_key(
+        idempotency_key: Option<&str>,
+    ) -> WebRequestContext {
+        WebRequestContext {
+            request_id: ServerRequestId("00000000-0000-4000-8000-000000000001".into()),
+            api_surface: WebApiSurface::AppApi,
+            auth_mode: WebAuthMode::DualToken,
+            transport: WebTransportFacts {
+                path: "/app/v3/api/chat/conversations/g-1/knowledgebase/launch".into(),
+                method: "POST".into(),
+                auth_token_present: true,
+                access_token_present: true,
+                api_key_present: false,
+                oauth_bearer_present: false,
+                agent_token_present: false,
+            },
+            principal: None,
+            locale: None,
+            client_kind: None,
+            operation: None,
+            trace_id: None,
+            idempotency_key: idempotency_key.map(ToOwned::to_owned),
+        }
+    }
+
+    #[tokio::test]
+    async fn archive_group_response_uses_command_data_without_resource_item_wrapper() {
+        let response = finish_api_json(
+            &request_context_with_normalized_idempotency_key(Some("archive-command-1")),
+            Ok(ArchiveGroupConversationResponse::accepted(
+                "g-archive-1".into(),
+                "evt_group_archived_1".into(),
+                "2026-07-13T00:00:00Z".into(),
+                true,
+            )),
+        );
+
+        let status = response.status();
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("archive command response should be readable")
+            .to_bytes();
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "archive command response: {}",
+            String::from_utf8_lossy(&body)
+        );
+        let value: serde_json::Value =
+            serde_json::from_slice(&body).expect("archive command response should be valid json");
+
+        assert_eq!(value["code"], 0);
+        assert_eq!(value["data"]["accepted"], true);
+        assert_eq!(value["data"]["resourceId"], "g-archive-1");
+        assert_eq!(value["data"]["status"], "archived");
+        assert_eq!(value["data"]["archiveEventId"], "evt_group_archived_1");
+        assert_eq!(value["data"]["archivedAt"], "2026-07-13T00:00:00Z");
+        assert_eq!(value["data"]["knowledgebaseArchiveScheduled"], true);
+        assert!(value["data"]["item"].is_null());
+    }
+
     fn build_test_app_with_runtime_and_directory(
         runtime: Arc<ConversationRuntime<ConversationCommitJournal>>,
         principal_directory: Arc<dyn PrincipalDirectory>,
@@ -2727,10 +3362,14 @@ mod tests {
                 path.as_str(),
                 method.as_str(),
             ) {
+                let mut request_context = resolved.app_request_context;
+                request_context.idempotency_key = request
+                    .headers()
+                    .get("idempotency-key")
+                    .and_then(|value| value.to_str().ok())
+                    .map(ToOwned::to_owned);
                 let mut request = request;
-                request
-                    .extensions_mut()
-                    .insert(resolved.app_request_context);
+                request.extensions_mut().insert(request_context);
                 request.extensions_mut().insert(resolved.app_context);
                 return next.run(request).await;
             }
@@ -2740,6 +3379,16 @@ mod tests {
         let state = AppState {
             runtime,
             principal_directory,
+            // Tests opt into the in-memory projection explicitly. Production
+            // composition remains PostgreSQL-backed and fail-closed.
+            group_knowledgebase: Arc::new(GroupKnowledgebaseCoordinator::with_memory_store(
+                Arc::new(UnavailableGroupKnowledgebasePort),
+            )),
+            group_knowledgebase_outbox_relay_owner: Arc::new(
+                GroupKnowledgebaseOutboxRelayOwner::new(),
+            ),
+            group_knowledgebase_launch_rate_limiter: GroupKnowledgebaseLaunchRateLimiter::from_env(
+            ),
             shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
         };
         build_app(state).layer(from_fn(inject_test_auth_context))
@@ -2751,7 +3400,7 @@ mod tests {
     ) -> String {
         let owner_auth = AppContext {
             tenant_id: "100001".into(),
-            organization_id: "0".to_owned(),
+            organization_id: "200001".to_owned(),
             user_id: "1".into(),
             actor_id: "1".into(),
             actor_kind: "user".into(),
@@ -2767,7 +3416,7 @@ mod tests {
         runtime
             .create_conversation(CreateConversationCommand {
                 tenant_id: "100001".into(),
-                organization_id: "0".into(),
+                organization_id: "200001".into(),
                 conversation_id: conversation_id.into(),
                 creator_id: "1".into(),
                 conversation_type: "group".into(),
@@ -2776,7 +3425,7 @@ mod tests {
         runtime
             .add_member(AddConversationMemberCommand {
                 tenant_id: "100001".into(),
-                organization_id: "0".into(),
+                organization_id: "200001".into(),
                 conversation_id: conversation_id.into(),
                 principal_id: "1044".into(),
                 principal_kind: "user".into(),
@@ -2804,12 +3453,116 @@ mod tests {
             .message_id
     }
 
+    #[tokio::test]
+    async fn archive_group_conversation_returns_a_command_envelope_over_app_api() {
+        let runtime = Arc::new(ConversationRuntime::new(ConversationCommitJournal::Memory(
+            InMemoryJournal::default(),
+        )));
+        let conversation_id = "g_archive_command_http";
+        seed_group_conversation_with_ghost_member(runtime.as_ref(), conversation_id);
+        let app = build_test_app_with_runtime_and_directory(
+            runtime,
+            Arc::new(StrictKnownPrincipalDirectory::new(&["1"])),
+        );
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!(
+                        "/app/v3/api/chat/conversations/{conversation_id}/archive"
+                    ))
+                    .header("content-type", "application/json")
+                    .header("idempotency-key", "archive-command-http-1")
+                    .with_dual_token_context("100001", "1", "user", None, ["*"])
+                    .with_dual_token_organization("200001")
+                    .body(Body::from("{}"))
+                    .unwrap(),
+            )
+            .await
+            .expect("archive command request should return a response");
+
+        let status = response.status();
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("archive command response should be readable")
+            .to_bytes();
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "archive command response: {}",
+            String::from_utf8_lossy(&body)
+        );
+        let value: serde_json::Value =
+            serde_json::from_slice(&body).expect("archive command response should be valid json");
+
+        assert_eq!(value["code"], 0);
+        assert_eq!(value["data"]["accepted"], true);
+        assert_eq!(value["data"]["resourceId"], conversation_id);
+        assert_eq!(value["data"]["status"], "archived");
+        assert!(value["data"]["archiveEventId"].as_str().is_some());
+        assert_eq!(value["data"]["knowledgebaseArchiveScheduled"], false);
+        assert!(value["data"]["item"].is_null());
+    }
+
     #[test]
     fn test_unix_epoch_millis_clamps_pre_epoch_time_to_zero() {
         let before_epoch = UNIX_EPOCH
             .checked_sub(Duration::from_millis(1))
             .expect("test pre-epoch timestamp should construct");
         assert_eq!(unix_epoch_millis(before_epoch), 0);
+    }
+
+    #[test]
+    fn group_knowledgebase_uses_only_the_framework_normalized_idempotency_key() {
+        let context =
+            request_context_with_normalized_idempotency_key(Some("normalized-launch-key-1"));
+        let mut ambiguous_headers = HeaderMap::new();
+        ambiguous_headers.append("idempotency-key", HeaderValue::from_static("raw-key-a"));
+        ambiguous_headers.append("idempotency-key", HeaderValue::from_static("raw-key-b"));
+
+        assert_eq!(
+            require_normalized_idempotency_key(&context).expect("normalized key"),
+            "normalized-launch-key-1"
+        );
+        assert_eq!(
+            ambiguous_headers.get_all("idempotency-key").iter().count(),
+            2,
+            "the test deliberately carries ambiguous raw headers, which the handler cannot read"
+        );
+    }
+
+    #[test]
+    fn group_knowledgebase_rejects_missing_or_malformed_normalized_idempotency_key() {
+        assert!(
+            require_normalized_idempotency_key(&request_context_with_normalized_idempotency_key(
+                None,
+            ))
+            .is_err()
+        );
+        assert!(
+            require_normalized_idempotency_key(&request_context_with_normalized_idempotency_key(
+                Some("invalid key with spaces"),
+            ))
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn group_knowledgebase_http_rejects_a_tenant_wide_organization() {
+        let mut auth =
+            im_app_context::local_service_app_context("100001", "42", "user", None, ["*"]);
+        let error = require_group_knowledgebase_http_organization(&auth)
+            .expect_err("tenant-wide group knowledgebase HTTP access must be rejected");
+        assert_eq!(error.status, StatusCode::FORBIDDEN);
+
+        auth.organization_id = "200001".into();
+        assert!(require_group_knowledgebase_http_organization(&auth).is_ok());
+
+        auth.organization_id = "org-200001".into();
+        assert!(require_group_knowledgebase_http_organization(&auth).is_err());
     }
 
     #[test]

@@ -31,7 +31,7 @@ fun main() = runBlocking {
 client.setAccessToken("your-access-token")
 
     // Use the SDK
-    val result = client.notification.notificationsList()
+    val result = client.portal.accessRetrieve()
     println(result)
 }
 ```
@@ -54,9 +54,10 @@ val client = SdkworkImAppClient(config)
 ## API Modules
 
 - `client.automation` - automation API
-- `client.notification` - notification API
+- `client.notifications` - notifications API
 - `client.portal` - portal API
 - `client.provider` - provider API
+- `client.chat` - chat API
 
 ## Usage Examples
 
@@ -77,11 +78,15 @@ val result = client.automation.agentResponsesCreate(body)
 println(result)
 ```
 
-### notification
+### notifications
 
 ```kotlin
 // List notifications for the current principal
-val result = client.notification.notificationsList()
+val params = linkedMapOf<String, Any>(
+    "page_size" to 1,
+    "cursor" to "cursor"
+)
+val result = client.notifications.list(params)
 println(result)
 ```
 
@@ -101,6 +106,15 @@ val result = client.provider.mediaHealthRetrieve()
 println(result)
 ```
 
+### chat
+
+```kotlin
+// Retrieve the group knowledgebase link
+val conversationId = "1"
+val result = client.chat.conversationsKnowledgebaseRetrieve(conversationId)
+println(result)
+```
+
 ## Error Handling
 
 ```kotlin
@@ -108,7 +122,7 @@ import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
     try {
-        val result = client.notification.notificationsList()
+        val result = client.portal.accessRetrieve()
         println(result)
     } catch (e: Exception) {
         println("Error: ${e.message}")
@@ -147,10 +161,12 @@ MIT
 
 ## Regeneration Contract
 
-- Generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
-- Each run also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
-- Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
+- HTTP/OpenAPI generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
+- HTTP/OpenAPI generation also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- HTTP/OpenAPI apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
 - CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
-- Put hand-written wrappers, adapters, and orchestration in `custom/`.
-- Files scaffolded under `custom/` are created once and preserved across regenerations.
-- If a generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.
+- Put HTTP/OpenAPI hand-written wrappers, adapters, and orchestration in `custom/`.
+- Files scaffolded under `custom/` are created once and preserved across HTTP/OpenAPI regenerations.
+- If an HTTP/OpenAPI generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.
+- RPC SDK source workspaces use convention-first evidence by default: RPC SDK family naming, language workspace naming, `rpc/*.manifest.json`, proto source references, generated client source, and native package manifests.
+- Use `sdkgen inspect --protocol rpc` to verify RPC convention evidence. Request persisted generator evidence only with `--emit-control-plane` for release, CI, audit, or migration workflows; evidence paths are derived by generator convention.

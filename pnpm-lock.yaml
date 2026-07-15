@@ -2398,6 +2398,12 @@ importers:
       '@sdkwork/im-sdk':
         specifier: workspace:*
         version: link:../../../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript
+      '@sdkwork/membership-pc-subscription':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       '@sdkwork/notary-pc-core':
         specifier: workspace:*
         version: link:../../../../../sdkwork-notary/apps/sdkwork-notary-pc/packages/sdkwork-notary-pc-core
@@ -2787,6 +2793,21 @@ importers:
       '@sdkwork/voice-pc-speech':
         specifier: workspace:*
         version: link:../../../../../sdkwork-voice/apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-speech
+      react:
+        specifier: 'catalog:'
+        version: 19.2.4
+
+  apps/sdkwork-im-pc/packages/sdkwork-im-pc-token-plan:
+    dependencies:
+      '@sdkwork/im-pc-core':
+        specifier: workspace:*
+        version: link:../sdkwork-im-pc-core
+      '@sdkwork/membership-pc-membership':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-membership
+      '@sdkwork/membership-pc-subscription':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription
       react:
         specifier: 'catalog:'
         version: 19.2.4

@@ -1104,8 +1104,7 @@ fn client_route_sync_snapshot_scope(scope: &ClientRouteFeedScopeKey) -> String {
     ])
 }
 
-#[cfg(test)]
-fn persist_metadata_snapshot<T: Serialize>(
+pub(crate) fn persist_metadata_snapshot<T: Serialize>(
     metadata_store: &dyn MetadataStore,
     scope: &str,
     key: &str,

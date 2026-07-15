@@ -40,7 +40,7 @@ impl RpcMetadata {
             request_hash: optional_ascii_metadata(metadata, METADATA_REQUEST_HASH)?,
             client_version: optional_ascii_metadata(metadata, METADATA_CLIENT_VERSION)?,
             service_identity: optional_ascii_metadata(metadata, METADATA_SERVICE_IDENTITY)?,
-            orchestration_headers: Vec::new(),
+            orchestration_headers: signed_orchestration_headers_from_metadata(metadata)?,
         })
     }
 
@@ -66,6 +66,14 @@ impl RpcMetadata {
         insert_if_valid!(&self.request_hash, METADATA_REQUEST_HASH);
         insert_if_valid!(&self.client_version, METADATA_CLIENT_VERSION);
         insert_if_valid!(&self.service_identity, METADATA_SERVICE_IDENTITY);
+        for (name, value) in &self.orchestration_headers {
+            if let Ok(parsed) = MetadataValue::try_from(value.as_str())
+                && let Ok(key) =
+                    name.parse::<tonic::metadata::MetadataKey<tonic::metadata::Ascii>>()
+            {
+                headers.insert(key, parsed);
+            }
+        }
 
         headers
     }
@@ -110,14 +118,30 @@ impl RpcMetadata {
         insert_axum_header(&mut headers, METADATA_TRACE_ID, &self.trace_id);
         insert_axum_header(&mut headers, METADATA_TRACEPARENT, &self.traceparent);
         for (name, value) in &self.orchestration_headers {
-            if let Ok(name) = HeaderName::from_bytes(name.as_bytes()) {
-                if let Ok(value) = HeaderValue::from_str(value) {
-                    headers.insert(name, value);
-                }
+            if let Ok(name) = HeaderName::from_bytes(name.as_bytes())
+                && let Ok(value) = HeaderValue::from_str(value)
+            {
+                headers.insert(name, value);
             }
         }
         headers
     }
+}
+
+fn signed_orchestration_headers_from_metadata(
+    metadata: &MetadataMap,
+) -> Result<Vec<(String, String)>, ImRpcError> {
+    let mut headers = Vec::new();
+    for name in signed_app_context_projection_header_names()
+        .iter()
+        .copied()
+        .chain(std::iter::once(app_context_signature_header_name()))
+    {
+        if let Some(value) = optional_ascii_metadata(metadata, name)? {
+            headers.push((name.to_owned(), value));
+        }
+    }
+    Ok(headers)
 }
 
 fn optional_ascii_metadata(
@@ -145,9 +169,9 @@ fn header_value(headers: &HeaderMap, key: &'static str) -> Option<String> {
 }
 
 fn insert_axum_header(headers: &mut HeaderMap, key: &'static str, value: &Option<String>) {
-    if let Some(value) = value {
-        if let Ok(parsed) = HeaderValue::from_str(value) {
-            headers.insert(key, parsed);
-        }
+    if let Some(value) = value
+        && let Ok(parsed) = HeaderValue::from_str(value)
+    {
+        headers.insert(key, parsed);
     }
 }

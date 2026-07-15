@@ -15,3 +15,8 @@ sdkwork_database_config = { workspace = true }
 sdkwork_database_lifecycle = { workspace = true }
 sdkwork_database_spi = { workspace = true }
 sdkwork_database_sqlx = { workspace = true }
+
+[dev-dependencies]
+sqlx = { workspace = true, features = ["sqlite"] }
+tempfile = "3"
+tokio = { workspace = true }

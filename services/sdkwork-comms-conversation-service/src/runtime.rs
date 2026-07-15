@@ -7,8 +7,9 @@ use im_platform_contracts::{
 };
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{
-    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitJournal, CommitJournalAggregateScope,
-    CommitJournalReplayCursor, CommitJournalReplayPage, CommitPosition,
+    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitJournal, CommitJournalAggregateEventTypeQuery,
+    CommitJournalAggregateScope, CommitJournalReplayCursor, CommitJournalReplayPage,
+    CommitPosition,
 };
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::io::Write;
@@ -55,10 +56,15 @@ mod direct_message_access;
 mod durable_conversation_event;
 mod durable_message_post;
 mod governance;
+mod group_knowledgebase_outbox_relay;
+mod group_lifecycle;
 mod handoff;
 pub mod http;
 pub mod internal_rpc_dispatch;
 mod journal_bootstrap;
+mod knowledgebase;
+mod knowledgebase_rpc_adapter;
+mod knowledgebase_rpc_config;
 mod member_list_cursor;
 mod membership;
 mod message_history_cursor;
@@ -73,6 +79,7 @@ mod runtime_metrics;
 mod support;
 
 use self::governance::ConversationPolicyAppliedPayload;
+use self::group_lifecycle::ensure_conversation_write_allowed;
 use self::policy::MessagePostPolicy;
 use self::runtime_metrics::ConversationRuntimeMetrics;
 pub use self::runtime_metrics::ConversationRuntimeMetricsSnapshot;
@@ -92,6 +99,13 @@ use self::support::{
 pub use direct_message_access::DirectMessageAccessGate;
 pub use durable_conversation_event::DurableConversationEventWriter;
 pub use durable_message_post::DurableMessagePostWriter;
+pub use group_knowledgebase_outbox_relay::{
+    GroupKnowledgebaseOutboxRelayHandle, spawn_group_knowledgebase_outbox_relay,
+};
+pub use group_lifecycle::{
+    ArchiveGroupConversationCommand, ArchiveGroupConversationResult,
+    ConversationGroupArchivedPayload,
+};
 pub use http::{
     PrincipalDirectory, PrincipalDirectoryError, StaticPrincipalDirectory,
     bootstrap_conversation_app_state_from_env, build_default_app,
@@ -102,6 +116,19 @@ pub use journal_bootstrap::{
     ConversationCommitJournal, build_conversation_runtime_from_env,
     resolve_conversation_commit_journal_from_env,
 };
+pub use knowledgebase::{
+    ArchiveGroupKnowledgebaseRequest, ConsumedGroupKnowledgebaseLaunchTicket,
+    EnsureGroupKnowledgebaseRequest, EnsuredGroupKnowledgebase,
+    GROUP_KNOWLEDGEBASE_ARCHIVE_EVENT_TYPE, GROUP_KNOWLEDGEBASE_MEMBERSHIP_SYNC_EVENT_TYPE,
+    GROUP_KNOWLEDGEBASE_OUTBOX_AGGREGATE_TYPE, GroupKnowledgebaseCoordinator,
+    GroupKnowledgebaseEnsureResult, GroupKnowledgebaseLaunchResponse,
+    GroupKnowledgebaseLaunchResult, GroupKnowledgebaseLaunchView, GroupKnowledgebaseLinkView,
+    GroupKnowledgebaseMembership, GroupKnowledgebaseOutboxOperation,
+    GroupKnowledgebaseOutboxPayload, GroupKnowledgebasePort, GroupKnowledgebasePortError,
+    GroupKnowledgebaseScope, SynchronizeGroupKnowledgebaseMembersRequest,
+    UnavailableGroupKnowledgebasePort,
+};
+pub use membership::MessageHistoryReadRequest;
 
 const CONVERSATION_MAX_ID_BYTES: usize = 256;
 const CONVERSATION_MAX_KIND_BYTES: usize = 64;
@@ -385,6 +412,20 @@ impl CreateConversationDeliveryStatus {
     }
 }
 
+/// The outcome of an explicitly requested group Knowledgebase initialization.
+///
+/// This field is intentionally absent from ordinary conversation creation
+/// responses. A group is durably created before an optional remote
+/// Knowledgebase provisioning attempt, so a transient provider failure must
+/// not turn the successful group creation into a misleading HTTP error.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GroupKnowledgebaseInitializationStatus {
+    Active,
+    Provisioning,
+    Failed,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateConversationResult {
@@ -396,6 +437,8 @@ pub struct CreateConversationResult {
     pub delivery_status: Option<CreateConversationDeliveryStatus>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub proof_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub knowledgebase_initialization: Option<GroupKnowledgebaseInitializationStatus>,
 }
 
 impl CreateConversationResult {
@@ -406,6 +449,7 @@ impl CreateConversationResult {
             request_key: None,
             delivery_status: None,
             proof_version: None,
+            knowledgebase_initialization: None,
         }
     }
 
@@ -420,6 +464,7 @@ impl CreateConversationResult {
             request_key: Some(request_key),
             delivery_status: Some(CreateConversationDeliveryStatus::Applied),
             proof_version: Some(CONVERSATION_CREATE_DELIVERY_PROOF_VERSION.into()),
+            knowledgebase_initialization: None,
         }
     }
 
@@ -434,6 +479,7 @@ impl CreateConversationResult {
             request_key: Some(request_key),
             delivery_status: Some(CreateConversationDeliveryStatus::Replayed),
             proof_version: Some(CONVERSATION_CREATE_DELIVERY_PROOF_VERSION.into()),
+            knowledgebase_initialization: None,
         }
     }
 
@@ -452,6 +498,7 @@ struct GenericConversationCreateReplayRecord {
     requested_kind: String,
     initial_member_user_ids: Vec<String>,
     initial_agent_assignments: Option<Vec<ConversationAgentAssignment>>,
+    knowledgebase_initialization_requested: bool,
     event_id: String,
 }
 
@@ -2151,12 +2198,14 @@ fn generic_conversation_create_replay_matches(
     creator_kind: &str,
     initial_member_user_ids: &[String],
     initial_agent_assignments: Option<&[ConversationAgentAssignment]>,
+    knowledgebase_initialization_requested: bool,
 ) -> bool {
     (existing.creator_id.is_empty() || existing.creator_id == command.creator_id)
         && (existing.creator_kind.is_empty() || existing.creator_kind == creator_kind)
         && existing.requested_kind == command.conversation_type
         && existing.initial_member_user_ids == initial_member_user_ids
         && existing.initial_agent_assignments.as_deref() == initial_agent_assignments
+        && existing.knowledgebase_initialization_requested == knowledgebase_initialization_requested
 }
 
 fn agent_dialog_create_request_key(
@@ -2553,6 +2602,55 @@ impl CommitJournal for InMemoryJournal {
                 envelope.tenant_id == scope.tenant_id
                     && (envelope.aggregate_id == scope.aggregate_id
                         || envelope.scope_id == scope.aggregate_id)
+            })
+            .collect();
+        let limit = limit.max(1);
+        let start_index = cursor
+            .and_then(|cursor| {
+                filtered.iter().position(|envelope| {
+                    envelope.ordering_key == cursor.partition_key
+                        && envelope.ordering_seq == cursor.commit_offset
+                })
+            })
+            .map(|index| index.saturating_add(1))
+            .unwrap_or(0);
+        let page_items: Vec<_> = filtered.into_iter().skip(start_index).take(limit).collect();
+        let next_cursor = if page_items.len() == limit {
+            page_items.last().map(|envelope| CommitJournalReplayCursor {
+                partition_key: envelope.ordering_key.clone(),
+                commit_offset: envelope.ordering_seq,
+            })
+        } else {
+            None
+        };
+        Ok(CommitJournalReplayPage {
+            items: page_items,
+            next_cursor,
+        })
+    }
+
+    fn recorded_page_for_aggregate_event_types(
+        &self,
+        query: &CommitJournalAggregateEventTypeQuery,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        if query.event_types.is_empty() {
+            return Err(ContractError::Invalid(
+                "journal aggregate event-type query requires at least one event type".into(),
+            ));
+        }
+        let filtered: Vec<CommitEnvelope> = InMemoryJournal::recorded(self)
+            .into_iter()
+            .filter(|envelope| {
+                envelope.tenant_id == query.tenant_id
+                    && envelope.organization_id == query.organization_id
+                    && envelope.aggregate_type.as_wire_value() == query.aggregate_type
+                    && envelope.aggregate_id == query.aggregate_id
+                    && query
+                        .event_types
+                        .iter()
+                        .any(|event_type| event_type == &envelope.event_type)
             })
             .collect();
         let limit = limit.max(1);
@@ -3137,18 +3235,17 @@ where
         organization_id: &str,
         conversation_id: &str,
     ) {
-        if self.aggregate_store.is_some() {
-            if let Err(error) =
+        if self.aggregate_store.is_some()
+            && let Err(error) =
                 self.persist_aggregate_state(tenant_id, organization_id, conversation_id)
-            {
-                tracing::warn!(
-                    tenant_id,
-                    organization_id,
-                    conversation_id,
-                    error = ?error,
-                    "failed to persist conversation aggregate state"
-                );
-            }
+        {
+            tracing::warn!(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                error = ?error,
+                "failed to persist conversation aggregate state"
+            );
         }
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         write_runtime_state(&self.state, "runtime.state.aggregate_persisted")
@@ -3273,31 +3370,30 @@ where
                                 .client_msg_id
                                 .as_deref()
                                 .filter(|value| !value.trim().is_empty()),
-                        ) {
-                            if let Some(stored) = store.read_message_by_client_id(
-                                command.tenant_id.as_str(),
-                                command.organization_id.as_str(),
-                                command.conversation_id.as_str(),
-                                command.sender.kind.as_str(),
-                                command.sender.id.as_str(),
-                                client_msg_id,
-                            )? {
-                                if !durable_posted_message_replay_matches(&stored, &command)? {
-                                    return Err(RuntimeError::Conflict(
-                                        "message post request conflicts with existing durable client message id"
-                                            .into(),
-                                    ));
-                                }
-                                break 'post_new PostMessageMutation::Replayed(
-                                    PostMessageResult::replayed(
-                                        stored.message_id.to_string(),
-                                        stored.message_seq,
-                                        format!("evt_{}_posted", stored.message_id),
-                                        request_key.clone(),
-                                    ),
-                                );
+                        ) && let Some(stored) = store.read_message_by_client_id(
+                            command.tenant_id.as_str(),
+                            command.organization_id.as_str(),
+                            command.conversation_id.as_str(),
+                            command.sender.kind.as_str(),
+                            command.sender.id.as_str(),
+                            client_msg_id,
+                        )? {
+                            if !durable_posted_message_replay_matches(&stored, &command)? {
+                                return Err(RuntimeError::Conflict(
+                                    "message post request conflicts with existing durable client message id"
+                                        .into(),
+                                ));
                             }
+                            break 'post_new PostMessageMutation::Replayed(
+                                PostMessageResult::replayed(
+                                    stored.message_id.to_string(),
+                                    stored.message_seq,
+                                    format!("evt_{}_posted", stored.message_id),
+                                    request_key.clone(),
+                                ),
+                            );
                         }
+                        ensure_conversation_write_allowed(conversation)?;
                         let sender_member = resolve_active_member_with_kind(
                             conversation,
                             command.sender.id.as_str(),

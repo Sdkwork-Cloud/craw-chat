@@ -54,6 +54,32 @@ assert.match(chatLayout, /groupService\.getGroupById/u);
 const groupsContainer = readPc('packages', 'sdkwork-im-pc-chat', 'src', 'components', 'contacts', 'GroupsContainer.tsx');
 assert.match(groupsContainer, /groupService\.listGroupsPage/u);
 
+const consoleGroupsService = readPc(
+  'packages',
+  'sdkwork-im-console-communications',
+  'src',
+  'services',
+  'GroupService.ts',
+);
+assert.match(consoleGroupsService, /q\?: string/u);
+assert.match(consoleGroupsService, /\.\.\.\(q \? \{ q \} : \{\}\)/u);
+assert.doesNotMatch(consoleGroupsService, /matchesGroupSearch|search\?: string/u);
+const consoleGroups = readPc(
+  'packages',
+  'sdkwork-im-console-communications',
+  'src',
+  'ConsoleGroups.tsx',
+);
+assert.match(consoleGroups, /window\.setTimeout\([\s\S]*?, 250\)/u);
+assert.match(consoleGroups, /requestSequenceRef/u);
+const tagsContainer = readPc('packages', 'sdkwork-im-pc-chat', 'src', 'components', 'contacts', 'TagsContainer.tsx');
+assert.doesNotMatch(tagsContainer, /addMemberIds|countAdded|contacts\.tags\.addMembers/u);
+assert.doesNotMatch(
+  tagsContainer,
+  /updateTag\(tag\.id,\s*\{\s*count:/u,
+  'contact tags must not fake member relationships by incrementing a server count',
+);
+
 const contactService = readPc('packages', 'sdkwork-im-pc-chat', 'src', 'services', 'ContactService.ts');
 assert.match(contactService, /forEachCursorPage/u);
 assert.match(contactService, /listContactsPage/u);
@@ -66,6 +92,8 @@ assert.doesNotMatch(contactService, /listAllContacts/u);
 const groupService = readPc('packages', 'sdkwork-im-pc-chat', 'src', 'services', 'GroupService.ts');
 assert.match(groupService, /forEachCursorPage/u);
 assert.match(groupService, /listGroupsPage/u);
+assert.match(groupService, /listGroupMembersPage/u);
+assert.match(groupService, /memberCountIsLowerBound:\s*page\.hasMore/u);
 assert.match(groupService, /getGroupById/u);
 assert.doesNotMatch(groupService, /listAllConversationMembers/u);
 
@@ -78,6 +106,14 @@ const organizationDirectoryService = readPc(
 );
 assert.match(organizationDirectoryService, /forEachCursorPage/u);
 assert.match(organizationDirectoryService, /SDKWORK_MAX_PAGE_SIZE/u);
+assert.match(
+  organizationDirectoryService.match(/private async fetchDepartments[\s\S]*?private registerDepartment/u)?.[0] ?? '',
+  /pageSize:\s*SDKWORK_MAX_PAGE_SIZE/u,
+);
+assert.match(
+  organizationDirectoryService.match(/async getUsersByDepartment[\s\S]*?async addOrganizationMember/u)?.[0] ?? '',
+  /pageSize:\s*SDKWORK_MAX_PAGE_SIZE/u,
+);
 assert.doesNotMatch(organizationDirectoryService, /collectCursorPages/u);
 
 const roleService = readPc('packages', 'sdkwork-im-console-roles', 'src', 'services', 'RoleService.ts');

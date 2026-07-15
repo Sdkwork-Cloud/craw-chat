@@ -649,46 +649,37 @@ fn normalize_postgres_database_env(prefix: &str) {
     }
 }
 
-pub async fn bootstrap_embedded_dependency_routes() -> EmbeddedDependencyRoutes {
+pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependencyRoutes, String> {
     let mut router = Router::new();
-    router = merge_embedded_dependency(router, "drive", bootstrap_embedded_drive_routes).await;
+    router = merge_embedded_dependency(router, "drive", bootstrap_embedded_drive_routes).await?;
     router = merge_embedded_dependency(
         router,
         "knowledgebase",
         bootstrap_embedded_knowledgebase_routes,
     )
-    .await;
+    .await?;
     router =
-        merge_embedded_dependency(router, "commerce", bootstrap_embedded_commerce_routes).await;
-    router = merge_embedded_dependency(router, "mail", bootstrap_embedded_mail_routes).await;
-    router = merge_embedded_dependency(router, "notary", bootstrap_embedded_notary_routes).await;
-    router = merge_embedded_dependency(router, "course", bootstrap_embedded_course_routes).await;
-    router = merge_embedded_dependency(router, "agents", bootstrap_embedded_agents_routes).await;
-    EmbeddedDependencyRoutes { router }
+        merge_embedded_dependency(router, "commerce", bootstrap_embedded_commerce_routes).await?;
+    router = merge_embedded_dependency(router, "mail", bootstrap_embedded_mail_routes).await?;
+    router = merge_embedded_dependency(router, "notary", bootstrap_embedded_notary_routes).await?;
+    router = merge_embedded_dependency(router, "course", bootstrap_embedded_course_routes).await?;
+    router = merge_embedded_dependency(router, "agents", bootstrap_embedded_agents_routes).await?;
+    Ok(EmbeddedDependencyRoutes { router })
 }
 
 async fn merge_embedded_dependency<F, Fut>(
     router: Router,
     dependency: &'static str,
     bootstrap: F,
-) -> Router
+) -> Result<Router, String>
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Result<Router, String>>,
 {
-    match bootstrap().await {
-        Ok(dependency_router) => router.merge(dependency_router),
-        Err(error) => {
-            tracing::warn!(
-                target: "sdkwork.im",
-                event = "im.standalone_gateway.dependency_bootstrap_skipped",
-                dependency,
-                error = %error,
-                "embedded dependency bootstrap skipped"
-            );
-            router
-        }
-    }
+    let dependency_router = bootstrap().await.map_err(|error| {
+        format!("embedded dependency {dependency} failed readiness and cannot be mounted: {error}")
+    })?;
+    Ok(router.merge(dependency_router))
 }
 
 async fn bootstrap_embedded_drive_routes() -> Result<Router, String> {
@@ -751,7 +742,7 @@ fn build_embedded_agents_http_state()
 -> Result<sdkwork_intelligence_agents_service::AgentHttpState, String> {
     use sdkwork_intelligence_agents_service::{
         AUDIT_SINK_NODE_ID, AgentBusinessIdGenerator, AgentHttpState, IamGatedPolicyProvider,
-        PostgresAgentAuditSink, PostgresAgentRepository, SyncPostgresAdapter,
+        SqlAgentAuditSink, SqlAgentRepository, SyncPostgresAdapter,
     };
 
     let repository_adapter =
@@ -769,29 +760,33 @@ fn build_embedded_agents_http_state()
     };
 
     Ok(AgentHttpState::new(
-        PostgresAgentRepository::new(repository_adapter),
-        PostgresAgentAuditSink::new_global(audit_adapter),
+        SqlAgentRepository::new(repository_adapter),
+        SqlAgentAuditSink::new_global(audit_adapter),
         IamGatedPolicyProvider::default(),
     ))
 }
 
 async fn bootstrap_embedded_commerce_routes() -> Result<Router, String> {
     let mut router = Router::new();
-    router = merge_embedded_dependency(router, "account", bootstrap_embedded_account_routes).await;
-    router = merge_embedded_dependency(router, "catalog", bootstrap_embedded_catalog_routes).await;
     router =
-        merge_embedded_dependency(router, "inventory", bootstrap_embedded_inventory_routes).await;
-    router = merge_embedded_dependency(router, "invoice", bootstrap_embedded_invoice_routes).await;
+        merge_embedded_dependency(router, "account", bootstrap_embedded_account_routes).await?;
     router =
-        merge_embedded_dependency(router, "membership", bootstrap_embedded_membership_routes).await;
+        merge_embedded_dependency(router, "catalog", bootstrap_embedded_catalog_routes).await?;
+    router =
+        merge_embedded_dependency(router, "inventory", bootstrap_embedded_inventory_routes).await?;
+    router =
+        merge_embedded_dependency(router, "invoice", bootstrap_embedded_invoice_routes).await?;
+    router = merge_embedded_dependency(router, "membership", bootstrap_embedded_membership_routes)
+        .await?;
     router =
         merge_embedded_dependency(router, "merchandise", bootstrap_embedded_merchandise_routes)
-            .await;
-    router = merge_embedded_dependency(router, "order", bootstrap_embedded_order_routes).await;
-    router = merge_embedded_dependency(router, "payment", bootstrap_embedded_payment_routes).await;
+            .await?;
+    router = merge_embedded_dependency(router, "order", bootstrap_embedded_order_routes).await?;
     router =
-        merge_embedded_dependency(router, "promotion", bootstrap_embedded_promotion_routes).await;
-    router = merge_embedded_dependency(router, "shop", bootstrap_embedded_shop_routes).await;
+        merge_embedded_dependency(router, "payment", bootstrap_embedded_payment_routes).await?;
+    router =
+        merge_embedded_dependency(router, "promotion", bootstrap_embedded_promotion_routes).await?;
+    router = merge_embedded_dependency(router, "shop", bootstrap_embedded_shop_routes).await?;
     Ok(router)
 }
 

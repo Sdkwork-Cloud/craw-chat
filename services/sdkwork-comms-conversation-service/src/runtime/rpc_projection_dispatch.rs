@@ -20,6 +20,7 @@ use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::{
 };
 use sdkwork_im_rpc_service_rust::{ImRpcError, ImRpcUnaryResponse};
 
+use super::message_realtime::ConversationRealtimeEvent;
 use super::rpc_dispatch::{map_api_error, page_request, page_response, required_field};
 
 fn projection_service() -> std::sync::Arc<projection_service::TimelineProjectionService> {
@@ -120,6 +121,7 @@ pub(crate) async fn dispatch_retrieve_conversation_profile(
 }
 
 pub(crate) async fn dispatch_update_conversation_profile(
+    state: &super::http::AppState,
     auth: &AppContext,
     request: UpdateConversationProfileRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
@@ -132,6 +134,37 @@ pub(crate) async fn dispatch_update_conversation_profile(
     let profile = projection_service()
         .update_conversation_profile_from_auth_context(auth, conversation_id.as_str(), update)
         .map_err(map_projection_error)?;
+    let realtime_payload = serde_json::json!({
+        "conversationId": conversation_id,
+        "displayName": profile.display_name.clone(),
+        "avatarUrl": profile.avatar_url.clone(),
+        "notice": profile.notice.clone(),
+        "updatedAt": profile.updated_at.clone(),
+    })
+    .to_string();
+    let event_id = format!(
+        "conversation:profile.updated:{}:{}",
+        conversation_id, profile.updated_at
+    );
+    if let Err(error) =
+        state
+            .rpc_runtime()
+            .publish_or_enqueue_conversation_event(ConversationRealtimeEvent {
+                tenant_id: auth.tenant_id.as_str(),
+                organization_id: auth.organization_id.as_str(),
+                conversation_id: conversation_id.as_str(),
+                event_type: "conversation.updated",
+                journal_event_id: event_id.as_str(),
+                payload_json: realtime_payload,
+                occurred_at: profile.updated_at.as_str(),
+            })
+    {
+        tracing::warn!(
+            conversation_id = %conversation_id,
+            error = ?error,
+            "conversation.updated realtime delivery failed after profile commit"
+        );
+    }
     let response = UpdateConversationProfileResponse {
         profile: Some(rpc_profile_view(profile)),
         metadata: None,

@@ -4,8 +4,133 @@ use axum::http::HeaderMap;
 use im_app_context::{
     AppContext, AppContextError, resolve_orchestration_app_context_from_projection_headers,
 };
+use sdkwork_rpc_framework_core::{
+    RpcCallerActorKind, VerifiedRpcCallerContext, VerifiedRpcServiceIdentity,
+};
+use sdkwork_rpc_server::{
+    require_verified_rpc_caller_context, require_verified_rpc_service_identity,
+};
+use tonic::{Request, Status};
 
-use crate::{ImRpcError, RpcMetadata, resolve_service_identity};
+use crate::{ImRpcError, RpcMetadata, RpcMethodBinding, resolve_service_identity};
+
+/// The one internal operation that exchanges a user-scoped capability and
+/// therefore requires a caller context that is cryptographically bound to the
+/// mTLS peer. Other legacy internal operations remain on their existing
+/// migration path and must not accidentally opt into this strict profile.
+pub const GROUP_KNOWLEDGEBASE_LAUNCH_TICKET_CONSUME_OPERATION_ID: &str =
+    "internal.groupKnowledgebaseLaunchTickets.consume";
+
+/// Framework-verified request data retained before `tonic::Request::into_inner`
+/// consumes extensions. The fields are private so a runtime dispatcher cannot
+/// manufacture a trusted caller from request metadata or protobuf payloads.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerifiedInternalRpcContext {
+    service_identity: VerifiedRpcServiceIdentity,
+    caller_context: VerifiedRpcCallerContext,
+}
+
+impl VerifiedInternalRpcContext {
+    pub fn from_tonic_request<T>(request: &Request<T>) -> Result<Self, Status> {
+        Ok(Self {
+            service_identity: require_verified_rpc_service_identity(request)?.clone(),
+            caller_context: require_verified_rpc_caller_context(request)?.clone(),
+        })
+    }
+
+    pub fn service_identity(&self) -> &VerifiedRpcServiceIdentity {
+        &self.service_identity
+    }
+
+    pub fn caller_context(&self) -> &VerifiedRpcCallerContext {
+        &self.caller_context
+    }
+}
+
+/// User principal context derived only from [`VerifiedInternalRpcContext`].
+/// It deliberately does not preserve arbitrary app-context projection fields:
+/// ticket consumption needs only the delegated identity that was signed by the
+/// verified Knowledgebase mTLS peer.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VerifiedDelegatedUserContext {
+    pub service_identity: String,
+    pub app_context: AppContext,
+    pub request_id: String,
+    pub trace_id: String,
+    pub idempotency_key: String,
+}
+
+pub fn requires_verified_delegated_user_context(binding: &RpcMethodBinding) -> bool {
+    binding.operation_id == GROUP_KNOWLEDGEBASE_LAUNCH_TICKET_CONSUME_OPERATION_ID
+}
+
+pub fn resolve_verified_delegated_user_context(
+    verified: &VerifiedInternalRpcContext,
+) -> Result<VerifiedDelegatedUserContext, ImRpcError> {
+    let caller = verified.caller_context();
+    if !matches!(caller.actor_kind, RpcCallerActorKind::User) {
+        return Err(ImRpcError::permission_denied(
+            "group knowledgebase launch ticket consumption requires a delegated user caller",
+        ));
+    }
+    let session_id = caller
+        .session_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .filter(|value| value.len() <= 256)
+        .filter(|value| value.bytes().all(|byte| byte.is_ascii_graphic()))
+        .ok_or_else(|| {
+            ImRpcError::unauthenticated(
+                "group knowledgebase launch ticket consumption requires a verified user session",
+            )
+        })?
+        .to_owned();
+    let trace_id = caller
+        .trace_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            ImRpcError::invalid_argument(
+                "group knowledgebase launch ticket consumption requires a signed trace id",
+            )
+        })?
+        .to_owned();
+    let idempotency_key = caller
+        .idempotency_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            ImRpcError::invalid_argument(
+                "group knowledgebase launch ticket consumption requires a signed idempotency key",
+            )
+        })?
+        .to_owned();
+    let actor_id = caller.actor_id.clone();
+    Ok(VerifiedDelegatedUserContext {
+        service_identity: verified.service_identity().service_id.clone(),
+        app_context: AppContext {
+            tenant_id: caller.tenant_id.clone(),
+            organization_id: caller.organization_id.clone(),
+            user_id: actor_id.clone(),
+            session_id: Some(session_id),
+            app_id: None,
+            environment: None,
+            deployment_mode: None,
+            auth_level: None,
+            data_scope: Default::default(),
+            permission_scope: Default::default(),
+            actor_id,
+            actor_kind: "user".into(),
+            device_id: None,
+        },
+        request_id: caller.request_id.clone(),
+        trace_id,
+        idempotency_key,
+    })
+}
 
 /// Server-resolved tenant scope for internal orchestration RPC.
 #[derive(Clone, Debug, PartialEq, Eq)]

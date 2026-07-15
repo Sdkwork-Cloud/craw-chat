@@ -11,12 +11,12 @@ use conversation_runtime::{
     ConversationBusinessBinding, ConversationRuntime, CreateAgentDialogCommand,
     CreateAgentHandoffCommand, CreateConversationCommand, CreateGroupConversationCommand,
     CreateRoomCommand, CreateSystemChannelCommand, CreateThreadConversationCommand,
-    DirectMessageAccessGate, EditMessageCommand, LeaveConversationCommand, PinMessageCommand,
-    PostMessageCommand, PostMessageDeliveryStatus, PublishSystemChannelMessageCommand,
-    RecallMessageCommand, RemoveConversationMemberCommand, RemoveMessageReactionCommand,
-    ReplaceConversationAgentsCommand, ResolveAgentHandoffCommand, RuntimeError,
-    SyncSharedChannelLinkedMemberCommand, TransferConversationOwnerCommand, UnpinMessageCommand,
-    UpdateReadCursorCommand,
+    DirectMessageAccessGate, EditMessageCommand, LeaveConversationCommand,
+    MessageHistoryReadRequest, PinMessageCommand, PostMessageCommand, PostMessageDeliveryStatus,
+    PublishSystemChannelMessageCommand, RecallMessageCommand, RemoveConversationMemberCommand,
+    RemoveMessageReactionCommand, ReplaceConversationAgentsCommand, ResolveAgentHandoffCommand,
+    RuntimeError, SyncSharedChannelLinkedMemberCommand, TransferConversationOwnerCommand,
+    UnpinMessageCommand, UpdateReadCursorCommand,
 };
 use im_domain_core::conversation::{
     ConversationAgentAssignment, ConversationAgentAssignmentSource, ConversationMember,
@@ -1067,7 +1067,7 @@ fn test_message_history_uses_member_projection_and_message_store_without_full_ag
         ])));
 
     let history = runtime
-        .list_messages_with_actor_kind(
+        .list_messages_with_actor_kind(MessageHistoryReadRequest::new(
             tenant_id,
             organization_id,
             conversation_id,
@@ -1075,7 +1075,7 @@ fn test_message_history_uses_member_projection_and_message_store_without_full_ag
             "user",
             None,
             20,
-        )
+        ))
         .expect(
             "message history should read through the message store after member projection auth",
         );
@@ -1314,7 +1314,7 @@ fn test_hot_message_history_uses_loaded_conversation_when_member_projection_is_u
         .expect("conversation creation should keep a hot runtime conversation");
 
     let history = runtime
-        .list_messages_with_actor_kind(
+        .list_messages_with_actor_kind(MessageHistoryReadRequest::new(
             tenant_id,
             organization_id,
             conversation_id,
@@ -1322,7 +1322,7 @@ fn test_hot_message_history_uses_loaded_conversation_when_member_projection_is_u
             "user",
             None,
             20,
-        )
+        ))
         .expect("hot message history should not require the member projection dependency");
 
     assert_eq!(history.page.items.len(), 1);
@@ -1362,7 +1362,7 @@ fn test_message_history_page_info_preserves_requested_page_size_for_partial_stor
         ])));
 
     let history = runtime
-        .list_messages_with_actor_kind(
+        .list_messages_with_actor_kind(MessageHistoryReadRequest::new(
             tenant_id,
             organization_id,
             conversation_id,
@@ -1370,7 +1370,7 @@ fn test_message_history_page_info_preserves_requested_page_size_for_partial_stor
             "user",
             None,
             20,
-        )
+        ))
         .expect("store-backed partial message history should succeed");
 
     assert_eq!(history.page.items.len(), 1);
@@ -1425,7 +1425,7 @@ fn test_message_history_store_window_uses_cursor_page_contract() {
         ])));
 
     let first = runtime
-        .list_messages_with_actor_kind(
+        .list_messages_with_actor_kind(MessageHistoryReadRequest::new(
             tenant_id,
             organization_id,
             conversation_id,
@@ -1433,7 +1433,7 @@ fn test_message_history_store_window_uses_cursor_page_contract() {
             "user",
             None,
             2,
-        )
+        ))
         .expect("first cursor page should succeed");
 
     assert_eq!(first.page.items.len(), 2);
@@ -1445,7 +1445,7 @@ fn test_message_history_store_window_uses_cursor_page_contract() {
     assert_eq!(first.high_watermark, 3);
 
     let second = runtime
-        .list_messages_with_actor_kind(
+        .list_messages_with_actor_kind(MessageHistoryReadRequest::new(
             tenant_id,
             organization_id,
             conversation_id,
@@ -1453,7 +1453,7 @@ fn test_message_history_store_window_uses_cursor_page_contract() {
             "user",
             Some(2),
             2,
-        )
+        ))
         .expect("second cursor page should succeed");
 
     assert_eq!(second.page.items.len(), 1);
@@ -1494,7 +1494,7 @@ fn test_message_history_store_window_rejects_invalid_stored_payload() {
         .with_message_store(Arc::new(TestMessageStore::new(vec![bad_message])));
 
     let error = runtime
-        .list_messages_with_actor_kind(
+        .list_messages_with_actor_kind(MessageHistoryReadRequest::new(
             tenant_id,
             organization_id,
             conversation_id,
@@ -1502,7 +1502,7 @@ fn test_message_history_store_window_rejects_invalid_stored_payload() {
             "user",
             None,
             20,
-        )
+        ))
         .expect_err("invalid stored payload must not be silently omitted from history");
 
     assert!(
@@ -10840,6 +10840,34 @@ fn test_create_conversation_persists_creator_member() {
     assert_eq!(members[0].principal_id, "creator_user");
     assert_eq!(members[0].principal_kind, "user");
     assert_eq!(members[0].membership_state, "joined");
+}
+
+#[test]
+fn test_group_creation_remains_lazy_when_knowledgebase_scope_is_unavailable() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+
+    let created = runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "g_tenant_wide_group_without_knowledgebase".into(),
+            creator_id: "creator_user".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("group creation must not require lazy knowledgebase provisioning scope");
+
+    assert!(created.is_applied());
+    assert!(
+        runtime
+            .require_active_member(
+                "100001",
+                "0",
+                "g_tenant_wide_group_without_knowledgebase",
+                "creator_user",
+            )
+            .is_ok(),
+        "the group creator must be joined even when no Knowledgebase scope exists"
+    );
 }
 
 #[test]

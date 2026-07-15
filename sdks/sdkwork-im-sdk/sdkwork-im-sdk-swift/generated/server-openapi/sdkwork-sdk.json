@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "language": "swift",
   "sdkType": "im",
-  "packageName": "sdkwork-im-sdk-generated-typescript",
-  "transportPackageName": "sdkwork-im-sdk-generated-typescript",
-  "consumerPackageName": "@sdkwork/im-sdk",
+  "packageName": "ImSdkGenerated",
+  "transportPackageName": "ImSdkGenerated",
+  "consumerPackageName": "ImSdkGenerated",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

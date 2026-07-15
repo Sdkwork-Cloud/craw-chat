@@ -677,6 +677,17 @@ pub struct BanRecord {
     pub updated_at: String,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct BanTargetListQuery<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub target_type: &'a str,
+    pub target_id: i64,
+    pub cursor_created_at: Option<&'a str>,
+    pub cursor_ban_id: Option<i64>,
+    pub limit: i64,
+}
+
 pub trait BanStore: Send + Sync {
     fn insert(&self, record: &BanRecord) -> Result<(), ContractError>;
     fn get_active_by_user(
@@ -689,13 +700,7 @@ pub trait BanStore: Send + Sync {
     ) -> Result<Option<BanRecord>, ContractError>;
     fn list_active_by_target(
         &self,
-        tenant_id: &str,
-        org_id: &str,
-        target_type: &str,
-        target_id: i64,
-        cursor_created_at: Option<&str>,
-        cursor_ban_id: Option<i64>,
-        limit: i64,
+        query: BanTargetListQuery<'_>,
     ) -> Result<Vec<BanRecord>, ContractError>;
     fn update(&self, record: &BanRecord) -> Result<(), ContractError>;
 }
@@ -835,19 +840,16 @@ impl BanStore for PostgresBanStore {
 
     fn list_active_by_target(
         &self,
-        tenant_id: &str,
-        org_id: &str,
-        target_type: &str,
-        target_id: i64,
-        cursor_created_at: Option<&str>,
-        cursor_ban_id: Option<i64>,
-        limit: i64,
+        query: BanTargetListQuery<'_>,
     ) -> Result<Vec<BanRecord>, ContractError> {
         let pool = self.pool.clone();
-        let tenant_id = tenant_id.to_owned();
-        let org_id = org_id.to_owned();
-        let target_type = target_type.to_owned();
-        let cursor_created_at = cursor_created_at.map(str::to_owned);
+        let tenant_id = query.tenant_id.to_owned();
+        let organization_id = query.organization_id.to_owned();
+        let target_type = query.target_type.to_owned();
+        let target_id = query.target_id;
+        let cursor_created_at = query.cursor_created_at.map(str::to_owned);
+        let cursor_ban_id = query.cursor_ban_id;
+        let limit = query.limit;
         let cursor_ts_parsed = match &cursor_created_at {
             Some(ts) => Some(optional_postgres_timestamptz(
                 Some(ts.as_str()),
@@ -862,7 +864,7 @@ impl BanStore for PostgresBanStore {
                     BAN_LIST_ACTIVE_SQL,
                     &[
                         &tenant_id,
-                        &org_id,
+                        &organization_id,
                         &target_type,
                         &target_id,
                         &cursor_ts_parsed,

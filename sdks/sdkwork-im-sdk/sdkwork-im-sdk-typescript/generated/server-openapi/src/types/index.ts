@@ -73,6 +73,7 @@ export type { SubmitFriendRequestRequest } from './submit-friend-request-request
 export type { FriendRequest } from './friend-request';
 export type { Friendship } from './friendship';
 export type { DirectChat } from './direct-chat';
+export type { SocialFriendRequestAcceptedConversation } from './social-friend-request-accepted-conversation';
 export type { SocialFriendRequestMutationResponse } from './social-friend-request-mutation-response';
 export type { SocialFriendRequestPendingCountResponse } from './social-friend-request-pending-count-response';
 export type { SocialFriendRequestAcceptanceResponse } from './social-friend-request-acceptance-response';

@@ -24,7 +24,7 @@ public class NotificationRequestResponse {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -32,7 +32,7 @@ public class NotificationRequestResponse {
     public String getNotificationId() {
         return this.notificationId;
     }
-    
+
     public void setNotificationId(String notificationId) {
         this.notificationId = notificationId;
     }
@@ -40,7 +40,7 @@ public class NotificationRequestResponse {
     public String getSourceEventId() {
         return this.sourceEventId;
     }
-    
+
     public void setSourceEventId(String sourceEventId) {
         this.sourceEventId = sourceEventId;
     }
@@ -48,7 +48,7 @@ public class NotificationRequestResponse {
     public String getSourceEventType() {
         return this.sourceEventType;
     }
-    
+
     public void setSourceEventType(String sourceEventType) {
         this.sourceEventType = sourceEventType;
     }
@@ -56,7 +56,7 @@ public class NotificationRequestResponse {
     public String getCategory() {
         return this.category;
     }
-    
+
     public void setCategory(String category) {
         this.category = category;
     }
@@ -64,7 +64,7 @@ public class NotificationRequestResponse {
     public String getChannel() {
         return this.channel;
     }
-    
+
     public void setChannel(String channel) {
         this.channel = channel;
     }
@@ -72,7 +72,7 @@ public class NotificationRequestResponse {
     public String getRecipientId() {
         return this.recipientId;
     }
-    
+
     public void setRecipientId(String recipientId) {
         this.recipientId = recipientId;
     }
@@ -80,7 +80,7 @@ public class NotificationRequestResponse {
     public String getRecipientKind() {
         return this.recipientKind;
     }
-    
+
     public void setRecipientKind(String recipientKind) {
         this.recipientKind = recipientKind;
     }
@@ -88,7 +88,7 @@ public class NotificationRequestResponse {
     public String getStatus() {
         return this.status;
     }
-    
+
     public void setStatus(String status) {
         this.status = status;
     }
@@ -96,7 +96,7 @@ public class NotificationRequestResponse {
     public String getTitle() {
         return this.title;
     }
-    
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -104,7 +104,7 @@ public class NotificationRequestResponse {
     public String getBody() {
         return this.body;
     }
-    
+
     public void setBody(String body) {
         this.body = body;
     }
@@ -112,7 +112,7 @@ public class NotificationRequestResponse {
     public String getPayload() {
         return this.payload;
     }
-    
+
     public void setPayload(String payload) {
         this.payload = payload;
     }
@@ -120,7 +120,7 @@ public class NotificationRequestResponse {
     public String getRequestedAt() {
         return this.requestedAt;
     }
-    
+
     public void setRequestedAt(String requestedAt) {
         this.requestedAt = requestedAt;
     }
@@ -128,7 +128,7 @@ public class NotificationRequestResponse {
     public String getDispatchedAt() {
         return this.dispatchedAt;
     }
-    
+
     public void setDispatchedAt(String dispatchedAt) {
         this.dispatchedAt = dispatchedAt;
     }
@@ -136,7 +136,7 @@ public class NotificationRequestResponse {
     public String getFailureReason() {
         return this.failureReason;
     }
-    
+
     public void setFailureReason(String failureReason) {
         this.failureReason = failureReason;
     }
@@ -144,7 +144,7 @@ public class NotificationRequestResponse {
     public String getRequestKey() {
         return this.requestKey;
     }
-    
+
     public void setRequestKey(String requestKey) {
         this.requestKey = requestKey;
     }
@@ -152,7 +152,7 @@ public class NotificationRequestResponse {
     public String getDeliveryStatus() {
         return this.deliveryStatus;
     }
-    
+
     public void setDeliveryStatus(String deliveryStatus) {
         this.deliveryStatus = deliveryStatus;
     }
@@ -160,7 +160,7 @@ public class NotificationRequestResponse {
     public String getProofVersion() {
         return this.proofVersion;
     }
-    
+
     public void setProofVersion(String proofVersion) {
         this.proofVersion = proofVersion;
     }

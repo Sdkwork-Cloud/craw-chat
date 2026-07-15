@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 
 @dataclass
 class AppendAgentResponseDeltaRequest:
-    frame_seq: int
+    frame_seq: str
     frame_type: str
     encoding: str
     payload: str

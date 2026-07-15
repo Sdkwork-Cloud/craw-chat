@@ -2,6 +2,7 @@
 
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use conversation_runtime::http::{AppState, bootstrap_conversation_app_state_from_env};
 use conversation_runtime::internal_rpc_dispatch::{
@@ -10,25 +11,49 @@ use conversation_runtime::internal_rpc_dispatch::{
 use conversation_runtime::rpc_dispatch::{
     CONVERSATION_RPC_SERVICE_KEYS, ConversationRpcDispatcher, rpc_metadata_from_app_context,
 };
-use im_app_context::local_service_app_context;
+use im_app_context::{build_signed_orchestration_projection_headers, local_service_app_context};
 use im_domain_core::room::game_move_schema_ref;
 use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::{
     CreateRoomRequest, EnterRoomRequest, RetrieveCurrentConversationMemberRequest,
     conversation_service_client::ConversationServiceClient, room_service_client::RoomServiceClient,
 };
 use sdkwork_im_rpc_sdk_rust::sdkwork::communication::internal::v1::{
-    CreateRoomRequest as InternalCreateRoomRequest, DispatchConversationMessageRequest,
-    EnterRoomRequest as InternalEnterRoomRequest,
+    ConsumeGroupKnowledgebaseLaunchTicketRequest, CreateRoomRequest as InternalCreateRoomRequest,
+    DispatchConversationMessageRequest, EnterRoomRequest as InternalEnterRoomRequest,
+    group_knowledgebase_launch_ticket_service_client::GroupKnowledgebaseLaunchTicketServiceClient,
     message_dispatch_service_client::MessageDispatchServiceClient,
     room_orchestration_service_client::RoomOrchestrationServiceClient,
 };
 use sdkwork_im_rpc_service_rust::{
     ImRpcRuntimeDispatcher, ImRpcServerConfig, RpcMetadata,
+    build_im_rpc_mtls_service_router_with_config_for_services,
     build_im_rpc_service_router_with_config_for_services,
 };
+use sdkwork_rpc_framework_core::{
+    RpcCallerContextSigningKey, RpcCallerContextVerifier, RpcServiceIdentityPolicy,
+};
+use sdkwork_rpc_server::{RpcInternalServiceSecurity, RpcServerTlsConfig};
 use tonic::Code;
 use tonic::Request;
 use tonic::metadata::MetadataValue;
+use tonic::transport::{Certificate, ClientTlsConfig, Endpoint, Identity};
+
+const KNOWLEDGEBASE_CALLER_CONTEXT_TEST_KEY: [u8; 32] = [41; 32];
+
+fn ensure_test_rustls_provider() {
+    static PROVIDER: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+    PROVIDER.get_or_init(|| {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    });
+}
+
+struct MtlsTestCertificates {
+    _temp_dir: tempfile::TempDir,
+    server_tls: RpcServerTlsConfig,
+    ca_pem: String,
+    knowledgebase_client_cert_pem: String,
+    knowledgebase_client_key_pem: String,
+}
 
 struct RpcServerHandle {
     shutdown: tokio::sync::oneshot::Sender<()>,
@@ -101,12 +126,176 @@ where
     )
 }
 
+fn issue_mtls_test_certificates() -> MtlsTestCertificates {
+    use rcgen::{
+        BasicConstraints, CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer, KeyPair,
+        KeyUsagePurpose, SanType,
+    };
+
+    ensure_test_rustls_provider();
+    let mut ca_params = CertificateParams::new(Vec::<String>::new()).expect("CA parameters");
+    ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+    ca_params.key_usages = vec![
+        KeyUsagePurpose::DigitalSignature,
+        KeyUsagePurpose::KeyCertSign,
+    ];
+    let ca_key = KeyPair::generate().expect("CA key");
+    let ca_certificate = ca_params.self_signed(&ca_key).expect("CA certificate");
+    let ca_pem = ca_certificate.pem();
+    let issuer = Issuer::new(ca_params, ca_key);
+
+    let server_key = KeyPair::generate().expect("server key");
+    let mut server_params =
+        CertificateParams::new(vec!["localhost".to_owned()]).expect("server parameters");
+    server_params
+        .extended_key_usages
+        .push(ExtendedKeyUsagePurpose::ServerAuth);
+    let server_certificate = server_params
+        .signed_by(&server_key, &issuer)
+        .expect("server certificate");
+
+    let knowledgebase_key = KeyPair::generate().expect("Knowledgebase client key");
+    let mut knowledgebase_params =
+        CertificateParams::new(Vec::<String>::new()).expect("Knowledgebase client parameters");
+    knowledgebase_params.subject_alt_names = vec![SanType::URI(
+        "spiffe://sdkwork.internal/sdkwork/service/sdkwork-knowledgebase"
+            .try_into()
+            .expect("Knowledgebase SPIFFE URI"),
+    )];
+    knowledgebase_params
+        .extended_key_usages
+        .push(ExtendedKeyUsagePurpose::ClientAuth);
+    let knowledgebase_certificate = knowledgebase_params
+        .signed_by(&knowledgebase_key, &issuer)
+        .expect("Knowledgebase client certificate");
+
+    let temp_dir = tempfile::TempDir::new().expect("test TLS directory");
+    let server_cert_path = temp_dir.path().join("server.crt");
+    let server_key_path = temp_dir.path().join("server.key");
+    let ca_path = temp_dir.path().join("ca.crt");
+    std::fs::write(&server_cert_path, server_certificate.pem()).expect("server certificate file");
+    std::fs::write(&server_key_path, server_key.serialize_pem()).expect("server key file");
+    std::fs::write(&ca_path, &ca_pem).expect("CA certificate file");
+
+    MtlsTestCertificates {
+        _temp_dir: temp_dir,
+        server_tls: RpcServerTlsConfig {
+            server_cert_path,
+            server_key_path,
+            client_ca_certificate_path: Some(ca_path),
+            client_auth_optional: false,
+        },
+        ca_pem,
+        knowledgebase_client_cert_pem: knowledgebase_certificate.pem(),
+        knowledgebase_client_key_pem: knowledgebase_key.serialize_pem(),
+    }
+}
+
+fn knowledgebase_mtls_security() -> RpcInternalServiceSecurity {
+    let signing_key =
+        RpcCallerContextSigningKey::from_secret_bytes(KNOWLEDGEBASE_CALLER_CONTEXT_TEST_KEY)
+            .expect("caller-context signing key");
+    RpcInternalServiceSecurity::new(
+        RpcServiceIdentityPolicy::new("sdkwork.internal", ["sdkwork-knowledgebase"])
+            .expect("Knowledgebase service identity policy"),
+        Some(
+            RpcCallerContextVerifier::new("sdkwork-im", [("sdkwork-knowledgebase", signing_key)])
+                .expect("Knowledgebase caller-context verifier"),
+        ),
+    )
+}
+
+async fn start_mtls_conversation_internal_rpc_server(
+    dispatcher: Arc<ConversationInternalRpcDispatcher>,
+    certificates: &MtlsTestCertificates,
+) -> (SocketAddr, RpcServerHandle) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("mTLS test TCP listener should bind");
+    let addr = listener
+        .local_addr()
+        .expect("mTLS test listener should expose local address");
+    let incoming = tokio_stream::wrappers::TcpListenerStream::new(listener);
+    let config = ImRpcServerConfig {
+        bind_addr: addr.to_string(),
+        enable_health: false,
+        require_tls: true,
+        require_mtls: true,
+        ..ImRpcServerConfig::local_default()
+    };
+    let router = build_im_rpc_mtls_service_router_with_config_for_services(
+        &config,
+        dispatcher,
+        CONVERSATION_INTERNAL_RPC_SERVICE_KEYS,
+        &certificates.server_tls,
+        &knowledgebase_mtls_security(),
+    )
+    .expect("mTLS conversation internal RPC router should build");
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+    let join = tokio::spawn(async move {
+        router
+            .serve_with_incoming_shutdown(incoming, async {
+                let _ = shutdown_rx.await;
+            })
+            .await
+            .expect("mTLS conversation internal RPC server should run");
+    });
+    (
+        addr,
+        RpcServerHandle {
+            shutdown: shutdown_tx,
+            join,
+        },
+    )
+}
+
+async fn knowledgebase_mtls_ticket_client(
+    addr: SocketAddr,
+    certificates: &MtlsTestCertificates,
+) -> GroupKnowledgebaseLaunchTicketServiceClient<tonic::transport::Channel> {
+    let endpoint = Endpoint::from_shared(format!("https://{addr}"))
+        .expect("mTLS endpoint")
+        .tls_config(
+            ClientTlsConfig::new()
+                .domain_name("localhost")
+                .ca_certificate(Certificate::from_pem(certificates.ca_pem.as_bytes()))
+                .identity(Identity::from_pem(
+                    certificates.knowledgebase_client_cert_pem.as_bytes(),
+                    certificates.knowledgebase_client_key_pem.as_bytes(),
+                )),
+        )
+        .expect("mTLS client configuration");
+    let channel = tokio::time::timeout(Duration::from_secs(5), endpoint.connect())
+        .await
+        .expect("mTLS client connect timeout")
+        .expect("mTLS client connection");
+    GroupKnowledgebaseLaunchTicketServiceClient::new(channel)
+}
+
 fn apply_rpc_metadata<T>(request: &mut Request<T>, metadata: &RpcMetadata) {
     let header_map = metadata.to_header_map();
     for key_and_value in header_map.iter() {
         if let tonic::metadata::KeyAndValueRef::Ascii(key, value) = key_and_value {
             request.metadata_mut().insert(key, value.clone());
         }
+    }
+}
+
+fn apply_header_map_to_rpc_metadata<T>(request: &mut Request<T>, headers: &axum::http::HeaderMap) {
+    for (name, value) in headers {
+        let Ok(value) = value.to_str() else {
+            continue;
+        };
+        let Ok(key) = name
+            .as_str()
+            .parse::<tonic::metadata::MetadataKey<tonic::metadata::Ascii>>()
+        else {
+            continue;
+        };
+        let Ok(value) = MetadataValue::try_from(value) else {
+            continue;
+        };
+        request.metadata_mut().insert(key, value);
     }
 }
 
@@ -407,6 +596,83 @@ async fn test_internal_rpc_host_rejects_app_session_without_service_identity() {
         .create_room(request)
         .await
         .expect_err("internal RPC host should reject app-session metadata");
+    assert_eq!(error.code(), Code::Unauthenticated);
+
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn group_knowledgebase_ticket_rpc_rejects_spoofed_headers_without_verified_extensions() {
+    let state = rpc_smoke_app_state();
+    let dispatcher = Arc::new(ConversationInternalRpcDispatcher::from_app_state(state));
+    let (addr, server) =
+        start_in_process_rpc_server(dispatcher, CONVERSATION_INTERNAL_RPC_SERVICE_KEYS).await;
+    let mut client = GroupKnowledgebaseLaunchTicketServiceClient::connect(format!("http://{addr}"))
+        .await
+        .expect("ticket RPC client should connect");
+    let mut request = Request::new(ConsumeGroupKnowledgebaseLaunchTicketRequest {
+        ticket: "gklt_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+        metadata: None,
+    });
+    request.metadata_mut().insert(
+        "x-sdkwork-service",
+        MetadataValue::from_static("sdkwork-knowledgebase"),
+    );
+    request.metadata_mut().insert(
+        "idempotency-key",
+        MetadataValue::from_static("idem-spoofed-ticket-consume"),
+    );
+    request.metadata_mut().insert(
+        "x-sdkwork-trace-id",
+        MetadataValue::from_static("trace-spoofed-ticket-consume"),
+    );
+    let projected_headers =
+        build_signed_orchestration_projection_headers("100001", "0", "1", "user")
+            .expect("test projection headers should build");
+    apply_header_map_to_rpc_metadata(&mut request, &projected_headers);
+
+    let error = client
+        .consume_group_knowledgebase_launch_ticket(request)
+        .await
+        .expect_err(
+            "x-sdkwork-service and signed app-context projection headers must not substitute for verified mTLS extensions",
+        );
+    assert_eq!(error.code(), Code::Unauthenticated);
+
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn group_knowledgebase_ticket_rpc_requires_signed_context_after_valid_mtls() {
+    let state = rpc_smoke_app_state();
+    let dispatcher = Arc::new(ConversationInternalRpcDispatcher::from_app_state(state));
+    let certificates = issue_mtls_test_certificates();
+    let (addr, server) =
+        start_mtls_conversation_internal_rpc_server(dispatcher, &certificates).await;
+    let mut client = knowledgebase_mtls_ticket_client(addr, &certificates).await;
+    let mut request = Request::new(ConsumeGroupKnowledgebaseLaunchTicketRequest {
+        ticket: "gklt_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+        metadata: None,
+    });
+    request.metadata_mut().insert(
+        "x-sdkwork-service",
+        MetadataValue::from_static("sdkwork-knowledgebase"),
+    );
+    request.metadata_mut().insert(
+        "idempotency-key",
+        MetadataValue::from_static("idem-mtls-missing-signed-context"),
+    );
+    let projected_headers =
+        build_signed_orchestration_projection_headers("100001", "0", "1", "user")
+            .expect("test projection headers should build");
+    apply_header_map_to_rpc_metadata(&mut request, &projected_headers);
+
+    let error = client
+        .consume_group_knowledgebase_launch_ticket(request)
+        .await
+        .expect_err(
+            "valid mTLS alone cannot consume a delegated user ticket without a signed caller context",
+        );
     assert_eq!(error.code(), Code::Unauthenticated);
 
     server.shutdown().await;

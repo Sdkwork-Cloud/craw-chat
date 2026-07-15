@@ -42,6 +42,18 @@ pub struct CommitJournalAggregateScope {
     pub aggregate_id: String,
 }
 
+/// A bounded, organization-scoped event-type projection query for one
+/// aggregate. Consumers use this when rebuilding a narrow durable projection
+/// and must not scan unrelated messages in process memory.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CommitJournalAggregateEventTypeQuery {
+    pub tenant_id: String,
+    pub organization_id: String,
+    pub aggregate_type: String,
+    pub aggregate_id: String,
+    pub event_types: Vec<String>,
+}
+
 pub trait CommitJournal {
     fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError>;
 
@@ -82,6 +94,21 @@ pub trait CommitJournal {
     ) -> Result<CommitJournalReplayPage, ContractError> {
         Err(ContractError::UnsupportedCapability(
             "journal recorded_page_for_aggregate requires an explicit store-level pagination implementation"
+                .into(),
+        ))
+    }
+
+    /// Load one keyset page for only the requested event types in one
+    /// organization-scoped aggregate. Implementations must filter and page at
+    /// the authoritative journal store.
+    fn recorded_page_for_aggregate_event_types(
+        &self,
+        _query: &CommitJournalAggregateEventTypeQuery,
+        _cursor: Option<&CommitJournalReplayCursor>,
+        _limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        Err(ContractError::UnsupportedCapability(
+            "journal recorded_page_for_aggregate_event_types requires an explicit store-level pagination implementation"
                 .into(),
         ))
     }

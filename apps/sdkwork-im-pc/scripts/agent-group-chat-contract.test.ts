@@ -94,6 +94,10 @@ const createGroupSource = readFileSync(
   './packages/sdkwork-im-pc-chat/src/components/CreateGroupModal.tsx',
   'utf8',
 );
+const groupsContainerSource = readFileSync(
+  './packages/sdkwork-im-pc-chat/src/components/contacts/GroupsContainer.tsx',
+  'utf8',
+);
 const profileSource = readFileSync(
   './packages/sdkwork-im-pc-chat/src/components/ChatRightPanel.tsx',
   'utf8',
@@ -132,6 +136,9 @@ assert.match(groupServiceSource, /getAgentAssignments/u);
 assert.match(groupServiceSource, /getCurrentMember/u);
 assert.match(groupServiceSource, /MAX_GROUP_MEMBER_LOOKUP_SCAN\s*=\s*10_000/u);
 assert.match(groupServiceSource, /MAX_GROUP_INITIAL_MEMBERS\s*=\s*200/u);
+assert.match(groupServiceSource, /listGroupMembersPage\(/u);
+assert.match(groupServiceSource, /memberCountIsLowerBound/u);
+assert.match(groupServiceSource, /getCurrentUserGroupRole\(/u);
 assert.match(groupServiceSource, /between 1 and 10 agents/u);
 assert.match(
   groupServiceSource,
@@ -173,6 +180,18 @@ const inboxMethod = groupServiceSource.slice(
 assert.match(inboxMethod, /const sessionGeneration = this\.sessionGeneration/u);
 assert.match(inboxMethod, /this\.assertSessionGeneration\(sessionGeneration\)/u);
 assert.match(inboxMethod, /hydrateConversationEntryGroup\(entry, sessionGeneration\)/u);
+assert.match(inboxMethod, /const q = params\?\.q\?\.trim\(\)/u);
+assert.match(inboxMethod, /\.\.\.\(q \? \{ q \} : \{\}\)/u);
+assert.match(
+  groupsContainerSource,
+  /listGroupsPage\(\{ q: searchQuery\.trim\(\) \|\| undefined \}\)/u,
+);
+assert.match(groupsContainerSource, /window\.setTimeout\([\s\S]*?, 250\)/u);
+assert.match(
+  groupsContainerSource,
+  /listGroupsPage\(\{[\s\S]*?cursor: nextCursor,[\s\S]*?q: searchQuery\.trim\(\) \|\| undefined/u,
+);
+assert.doesNotMatch(groupsContainerSource, /filteredGroups/u);
 const getGroupMethod = groupServiceSource.slice(
   groupServiceSource.indexOf('async getGroupById('),
   groupServiceSource.indexOf('async getGroups('),
@@ -190,6 +209,17 @@ const deleteGroupMethod = groupServiceSource.slice(
 assert.match(deleteGroupMethod, /await this\.chatClient\.deleteChat\(groupId\)/u);
 assert.match(deleteGroupMethod, /this\.assertSessionGeneration\(sessionGeneration\)/u);
 assert.match(groupServiceSource, /memberUserIds:\s*invitedMemberIds/u);
+assert.match(groupServiceSource, /initializeKnowledgebase\?: boolean/u);
+assert.match(
+  groupServiceSource,
+  /const initializeKnowledgebase = options\.initializeKnowledgebase === true/u,
+  'group creation must keep Knowledgebase initialization opt-in',
+);
+assert.match(
+  groupServiceSource,
+  /initializeKnowledgebase \? \{ initializeKnowledgebase: true \} : \{\}/u,
+  'the lazy default must omit initializeKnowledgebase from the SDK request',
+);
 assert.doesNotMatch(
   groupServiceSource.match(/async createGroup[\s\S]*?async listGroupsPage/u)?.[0] ?? '',
   /conversations\.addMember/u,
@@ -263,6 +293,25 @@ assert.doesNotMatch(
 assert.match(createGroupSource, /selectedAgentIds/u);
 assert.match(createGroupSource, /maxSelectable=\{MAX_GROUP_INITIAL_MEMBERS\}/u);
 assert.match(createGroupSource, /t\('chat\.fallback\.groupName'\)/u);
+assert.match(createGroupSource, /const \[initializeKnowledgebase, setInitializeKnowledgebase\] = useState\(false\)/u);
+assert.match(createGroupSource, /setInitializeKnowledgebase\(false\)/u);
+assert.doesNotMatch(
+  createGroupSource,
+  /isCanonicalGroupKnowledgebaseOrganizationId|resolveAppSdkOrganizationId|knowledgebaseOrganizationScopeRequired/u,
+  'group creation must leave organization scope authorization to the IM service',
+);
+assert.match(createGroupSource, /const shouldInitializeKnowledgebase = initializeKnowledgebase/u);
+assert.match(createGroupSource, /type="checkbox"[\s\S]{0,350}checked=\{initializeKnowledgebase\}/u);
+assert.match(createGroupSource, /checked=\{initializeKnowledgebase\}[\s\S]{0,180}disabled=\{creating\}/u);
+assert.match(createGroupSource, /initializeKnowledgebase: shouldInitializeKnowledgebase,\s*memberIds/u);
+assert.match(createGroupSource, /group\.knowledgebaseInitialization\s*===\s*['"]active['"]/u);
+assert.match(createGroupSource, /groupCreatedKnowledgebaseProvisioning/u);
+assert.match(createGroupSource, /groupCreatedKnowledgebaseFailed/u);
+assert.match(createGroupSource, /selectedAgentList/u);
+assert.match(createGroupSource, /removeSelectedAgent/u);
+assert.match(createGroupSource, /chat\.agentPicker\.selectedTitle/u);
+assert.match(createGroupSource, /selectedAgentList\.length > 0/u);
+assert.match(createGroupSource, /max-\[1100px\]:hidden/u);
 assert.match(
   createGroupSource,
   /selectedAgentIds\.size\s*>\s*0[\s\S]{0,220}assignments\?\.map/u,
@@ -299,6 +348,10 @@ assert.match(
   'full inbox refresh must preserve a newer authoritative active-chat assignment snapshot',
 );
 assert.match(chatLayoutSource, /canManageAgents=\{canManageGroupAgents\}/u);
+assert.match(chatLayoutSource, /canManageGroupMembers=\{/u);
+assert.match(chatLayoutSource, /onLoadMoreGroupMembers=\{/u);
+assert.match(profileSource, /canRemoveMember\s*=\s*canManageGroupMembers/u);
+assert.match(profileSource, /memberCountAtLeast/u);
 
 const createGroupMethod = groupServiceSource.slice(
   groupServiceSource.indexOf('async createGroup('),

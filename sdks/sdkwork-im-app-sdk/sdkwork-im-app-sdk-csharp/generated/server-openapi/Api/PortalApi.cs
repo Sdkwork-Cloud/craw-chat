@@ -18,73 +18,73 @@ namespace Sdkwork.Im.AppApi.Generated.Api
         /// <summary>
         /// Read the tenant portal sign-in snapshot
         /// </summary>
-        public async Task<Dictionary<string, object>?> AccessRetrieveAsync()
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.AccessRetrieveResponse?> AccessRetrieveAsync()
         {
-            return await _client.GetAsync<Dictionary<string, object>>(ApiPaths.AppPath("/portal/access"));
+            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.AccessRetrieveResponse>(ApiPaths.AppPath("/portal/access"));
         }
 
         /// <summary>
         /// Read the tenant automation snapshot
         /// </summary>
-        public async Task<Dictionary<string, object>?> AutomationRetrieveAsync()
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.AutomationRetrieveResponse?> AutomationRetrieveAsync()
         {
-            return await _client.GetAsync<Dictionary<string, object>>(ApiPaths.AppPath("/portal/automation"));
+            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.AutomationRetrieveResponse>(ApiPaths.AppPath("/portal/automation"));
         }
 
         /// <summary>
         /// Read the tenant conversations snapshot
         /// </summary>
-        public async Task<Dictionary<string, object>?> ConversationSnapshotRetrieveAsync()
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.ConversationSnapshotRetrieveResponse?> ConversationSnapshotRetrieveAsync()
         {
-            return await _client.GetAsync<Dictionary<string, object>>(ApiPaths.AppPath("/portal/conversations"));
+            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.ConversationSnapshotRetrieveResponse>(ApiPaths.AppPath("/portal/conversations"));
         }
 
         /// <summary>
         /// Read the tenant dashboard snapshot
         /// </summary>
-        public async Task<Dictionary<string, object>?> DashboardRetrieveAsync()
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.DashboardRetrieveResponse?> DashboardRetrieveAsync()
         {
-            return await _client.GetAsync<Dictionary<string, object>>(ApiPaths.AppPath("/portal/dashboard"));
+            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.DashboardRetrieveResponse>(ApiPaths.AppPath("/portal/dashboard"));
         }
 
         /// <summary>
         /// Read the tenant governance snapshot
         /// </summary>
-        public async Task<Dictionary<string, object>?> GovernanceRetrieveAsync()
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.GovernanceRetrieveResponse?> GovernanceRetrieveAsync()
         {
-            return await _client.GetAsync<Dictionary<string, object>>(ApiPaths.AppPath("/portal/governance"));
+            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.GovernanceRetrieveResponse>(ApiPaths.AppPath("/portal/governance"));
         }
 
         /// <summary>
         /// Read the tenant portal home snapshot
         /// </summary>
-        public async Task<Dictionary<string, object>?> HomeRetrieveAsync()
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.HomeRetrieveResponse?> HomeRetrieveAsync()
         {
-            return await _client.GetAsync<Dictionary<string, object>>(ApiPaths.AppPath("/portal/home"));
+            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.HomeRetrieveResponse>(ApiPaths.AppPath("/portal/home"));
         }
 
         /// <summary>
         /// Read the tenant media snapshot
         /// </summary>
-        public async Task<Dictionary<string, object>?> MediaRetrieveAsync()
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.MediaRetrieveResponse?> MediaRetrieveAsync()
         {
-            return await _client.GetAsync<Dictionary<string, object>>(ApiPaths.AppPath("/portal/media"));
+            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.MediaRetrieveResponse>(ApiPaths.AppPath("/portal/media"));
         }
 
         /// <summary>
         /// Read the tenant realtime snapshot
         /// </summary>
-        public async Task<Dictionary<string, object>?> RealtimeRetrieveAsync()
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.RealtimeRetrieveResponse?> RealtimeRetrieveAsync()
         {
-            return await _client.GetAsync<Dictionary<string, object>>(ApiPaths.AppPath("/portal/realtime"));
+            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.RealtimeRetrieveResponse>(ApiPaths.AppPath("/portal/realtime"));
         }
 
         /// <summary>
         /// Read the current tenant workspace snapshot
         /// </summary>
-        public async Task<Sdkwork.Im.AppApi.Generated.Models.PortalWorkspaceView?> WorkspaceRetrieveAsync()
+        public async Task<Sdkwork.Im.AppApi.Generated.Models.WorkspaceRetrieveResponse?> WorkspaceRetrieveAsync()
         {
-            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.PortalWorkspaceView>(ApiPaths.AppPath("/portal/workspace"));
+            return await _client.GetAsync<Sdkwork.Im.AppApi.Generated.Models.WorkspaceRetrieveResponse>(ApiPaths.AppPath("/portal/workspace"));
         }
 
 

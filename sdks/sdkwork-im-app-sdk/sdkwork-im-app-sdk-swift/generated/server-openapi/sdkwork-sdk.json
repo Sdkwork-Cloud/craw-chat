@@ -5,6 +5,8 @@
   "language": "swift",
   "sdkType": "app",
   "packageName": "ImAppApiGenerated",
+  "transportPackageName": "ImAppApiGenerated",
+  "consumerPackageName": "ImAppApiGenerated",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

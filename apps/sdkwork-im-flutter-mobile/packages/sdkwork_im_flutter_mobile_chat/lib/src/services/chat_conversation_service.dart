@@ -14,7 +14,7 @@ class ChatConversationService {
   }) async {
     final response = await _client.chat.conversationsMessagesList(
       conversationId,
-      afterSeq,
+      afterSeq > 0 ? afterSeq.toString() : null,
       pageSize,
     );
     return readMessageHistoryPageFromSdkResponse(response);
@@ -102,6 +102,7 @@ class ChatConversationService {
   }
 }
 
-ChatConversationService createChatConversationService(ImSdkClientBundle bundle) {
+ChatConversationService createChatConversationService(
+    ImSdkClientBundle bundle) {
   return ChatConversationService(bundle.imSdk);
 }

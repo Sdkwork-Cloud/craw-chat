@@ -13,7 +13,7 @@ public class StartAgentResponseRequest {
     public String getExecutionId() {
         return this.executionId;
     }
-    
+
     public void setExecutionId(String executionId) {
         this.executionId = executionId;
     }
@@ -21,7 +21,7 @@ public class StartAgentResponseRequest {
     public String getStreamId() {
         return this.streamId;
     }
-    
+
     public void setStreamId(String streamId) {
         this.streamId = streamId;
     }
@@ -29,7 +29,7 @@ public class StartAgentResponseRequest {
     public String getStreamType() {
         return this.streamType;
     }
-    
+
     public void setStreamType(String streamType) {
         this.streamType = streamType;
     }
@@ -37,7 +37,7 @@ public class StartAgentResponseRequest {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -45,7 +45,7 @@ public class StartAgentResponseRequest {
     public String getSchemaRef() {
         return this.schemaRef;
     }
-    
+
     public void setSchemaRef(String schemaRef) {
         this.schemaRef = schemaRef;
     }
@@ -53,7 +53,7 @@ public class StartAgentResponseRequest {
     public String getMemberId() {
         return this.memberId;
     }
-    
+
     public void setMemberId(String memberId) {
         this.memberId = memberId;
     }
@@ -61,7 +61,7 @@ public class StartAgentResponseRequest {
     public AgentSubject getAgent() {
         return this.agent;
     }
-    
+
     public void setAgent(AgentSubject agent) {
         this.agent = agent;
     }

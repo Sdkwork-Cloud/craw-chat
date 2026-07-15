@@ -7,9 +7,32 @@ import { officialLanguages } from '../../workspace-im-v3-sdk-family.mjs';
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifestPath = path.join(workspaceRoot, 'sdk-manifest.json');
+const assemblyPath = path.join(workspaceRoot, '.sdkwork-assembly.json');
 const authorityPath = path.join(workspaceRoot, 'openapi', 'sdkwork-im-im.openapi.yaml');
 const yaml = await loadGeneratorYaml(workspaceRoot);
 const authority = yaml.load(readFileSync(authorityPath, 'utf8'));
+
+const operationMethods = new Set([
+  'delete',
+  'get',
+  'head',
+  'options',
+  'patch',
+  'post',
+  'put',
+  'trace',
+]);
+
+function countOperations(document) {
+  return Object.values(document?.paths ?? {}).reduce((total, pathItem) => {
+    if (!pathItem || typeof pathItem !== 'object') {
+      return total;
+    }
+    return total + Object.keys(pathItem)
+      .filter((key) => operationMethods.has(key.toLowerCase()))
+      .length;
+  }, 0);
+}
 
 const languageManifests = {
   typescript: 'package.json',
@@ -117,4 +140,32 @@ const manifest = {
 const next = `${JSON.stringify(manifest, null, 2)}\n`;
 if (!existsSync(manifestPath) || readFileSync(manifestPath, 'utf8') !== next) {
   writeFileSync(manifestPath, next, 'utf8');
+}
+
+const generationInputPath = path.join(workspaceRoot, manifest.generationInputSpec);
+const generationInput = existsSync(generationInputPath)
+  ? yaml.load(readFileSync(generationInputPath, 'utf8'))
+  : authority;
+const assembly = {
+  workspace: manifest.workspace,
+  title: manifest.title,
+  apiVersion: manifest.apiVersion,
+  openapiVersion: manifest.openapiVersion,
+  authoritySpec: manifest.authoritySpec,
+  generationInputSpec: manifest.generationInputSpec,
+  derivedSpecs: manifest.derivedSpecs,
+  apiAuthority: manifest.apiAuthority,
+  discoverySurface: manifest.discoverySurface,
+  languages: manifest.languages,
+  sdkOwner: manifest.sdkOwner,
+  sdkDependencies: manifest.sdkDependencies,
+  metadata: {
+    managedBy: 'sdks/sdkwork-im-sdk/bin/assemble-sdk.mjs',
+    standardVersion: '2026-07-14',
+    ownerOnlyOperationCount: countOperations(generationInput),
+  },
+};
+const nextAssembly = `${JSON.stringify(assembly, null, 2)}\n`;
+if (!existsSync(assemblyPath) || readFileSync(assemblyPath, 'utf8') !== nextAssembly) {
+  writeFileSync(assemblyPath, nextAssembly, 'utf8');
 }

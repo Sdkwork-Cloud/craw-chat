@@ -12,6 +12,10 @@
       "types": "./src/runtime/desktopEnvironment.ts",
       "default": "./src/runtime/desktopEnvironment.ts"
     },
+    "./runtime/groupKnowledgebaseBrowserDestination": {
+      "types": "./src/runtime/groupKnowledgebaseBrowserDestination.ts",
+      "default": "./src/runtime/groupKnowledgebaseBrowserDestination.ts"
+    },
     "./sdk/agentAppSdkClient": {
       "types": "./src/sdk/agentAppSdkClient.ts",
       "default": "./src/sdk/agentAppSdkClient.ts"

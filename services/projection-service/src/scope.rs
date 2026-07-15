@@ -236,7 +236,6 @@ pub(crate) fn decode_projection_key_segments(encoded: &str) -> Option<Vec<String
 }
 
 #[cfg(test)]
-
 mod tests {
 
     use super::*;

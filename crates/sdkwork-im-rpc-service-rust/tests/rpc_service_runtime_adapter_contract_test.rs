@@ -14,11 +14,11 @@ use sdkwork_im_rpc_sdk_rust::sdkwork::communication::internal::v1::{
     runtime_topology_service_client::RuntimeTopologyServiceClient,
 };
 use sdkwork_im_rpc_service_rust::{
-    GENERATED_TONIC_SERVICE_ADAPTER_COUNT, ImRpcClientConfig, ImRpcError, ImRpcRuntimeDispatcher,
-    ImRpcServerConfig, ImRpcStreamRequest, ImRpcStreamResponse, ImRpcUnaryRequest,
-    ImRpcUnaryResponse, PresenceServiceAdapter, RPC_METHOD_BINDINGS, RPC_SERVICE_BINDINGS,
-    RpcDeadline, RpcMetadata, build_im_rpc_service_router, build_im_rpc_service_router_with_config,
-    map_rpc_error_to_status,
+    GENERATED_TONIC_SERVICE_ADAPTER_COUNT, GROUP_KNOWLEDGEBASE_LAUNCH_TICKET_CONSUME_OPERATION_ID,
+    ImRpcClientConfig, ImRpcError, ImRpcRuntimeDispatcher, ImRpcServerConfig, ImRpcStreamRequest,
+    ImRpcStreamResponse, ImRpcUnaryRequest, ImRpcUnaryResponse, PresenceServiceAdapter,
+    RPC_METHOD_BINDINGS, RPC_SERVICE_BINDINGS, RpcDeadline, RpcMetadata,
+    build_im_rpc_service_router, build_im_rpc_service_router_with_config, map_rpc_error_to_status,
 };
 use tonic::Code;
 use tonic::metadata::MetadataMap;
@@ -509,6 +509,18 @@ async fn test_generated_grpc_server_routes_every_manifest_method_path() {
             .await
             .unwrap_or_else(|error| panic!("RPC client should be ready: {error}"));
 
+        if binding.operation_id == GROUP_KNOWLEDGEBASE_LAUNCH_TICKET_CONSUME_OPERATION_ID {
+            assert_eq!(binding.streaming, "unary");
+            let error = client
+                .unary(tonic::Request::new(EmptyMessage::default()), path, codec)
+                .await
+                .expect_err(
+                    "group knowledgebase ticket consumption must require verified mTLS context",
+                );
+            assert_eq!(error.code(), Code::Unauthenticated);
+            continue;
+        }
+
         match binding.streaming {
             "unary" => {
                 client
@@ -557,7 +569,11 @@ async fn test_generated_grpc_server_routes_every_manifest_method_path() {
         unary_requests,
         RPC_METHOD_BINDINGS
             .iter()
-            .filter(|binding| binding.streaming == "unary")
+            .filter(|binding| {
+                binding.streaming == "unary"
+                    && binding.operation_id
+                        != GROUP_KNOWLEDGEBASE_LAUNCH_TICKET_CONSUME_OPERATION_ID
+            })
             .map(|binding| binding.method_key)
             .collect::<Vec<_>>()
     );

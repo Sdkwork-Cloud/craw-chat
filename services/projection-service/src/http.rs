@@ -56,6 +56,7 @@ struct InboxQuery {
     #[serde(flatten)]
     paging: SdkWorkCursorListQuery,
     conversation_type: Option<String>,
+    q: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -213,10 +214,10 @@ fn invalid_parameter_response(ctx: &WebRequestContext, detail: impl Into<String>
         header::CONTENT_TYPE,
         HeaderValue::from_static("application/problem+json"),
     );
-    if let Ok(value) = HeaderValue::from_str(trace_id.as_str()) {
-        if let Ok(header_name) = HeaderName::from_bytes(SDKWORK_TRACE_ID_HEADER.as_bytes()) {
-            response.headers_mut().insert(header_name, value);
-        }
+    if let Ok(value) = HeaderValue::from_str(trace_id.as_str())
+        && let Ok(header_name) = HeaderName::from_bytes(SDKWORK_TRACE_ID_HEADER.as_bytes())
+    {
+        response.headers_mut().insert(header_name, value);
     }
     response
 }
@@ -226,11 +227,10 @@ fn finish_api_no_content(ctx: &WebRequestContext, result: ApiResult<()>) -> Resp
         Ok(()) => {
             let trace_id = ctx.resolved_trace_id();
             let mut response = StatusCode::NO_CONTENT.into_response();
-            if let Ok(value) = HeaderValue::from_str(trace_id.as_str()) {
-                if let Ok(header_name) = HeaderName::from_bytes(SDKWORK_TRACE_ID_HEADER.as_bytes())
-                {
-                    response.headers_mut().insert(header_name, value);
-                }
+            if let Ok(value) = HeaderValue::from_str(trace_id.as_str())
+                && let Ok(header_name) = HeaderName::from_bytes(SDKWORK_TRACE_ID_HEADER.as_bytes())
+            {
+                response.headers_mut().insert(header_name, value);
             }
             response
         }
@@ -587,12 +587,8 @@ fn validate_list_page_size(page_size: Option<i32>) -> Result<Option<usize>, SdkW
     }
 }
 
-fn resolve_list_page_size(
-    ctx: &WebRequestContext,
-    page_size: Option<i32>,
-) -> Result<Option<usize>, Response> {
+fn resolve_list_page_size(page_size: Option<i32>) -> Result<Option<usize>, SdkWorkResultCode> {
     validate_list_page_size(page_size)
-        .map_err(|_| invalid_parameter_response(ctx, "list pagination parameters are invalid"))
 }
 
 async fn search_messages(
@@ -616,9 +612,11 @@ async fn search_messages(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_owned);
-    let page_size = match resolve_list_page_size(&ctx, query.paging.page_size) {
+    let page_size = match resolve_list_page_size(query.paging.page_size) {
         Ok(value) => value,
-        Err(response) => return response,
+        Err(_) => {
+            return invalid_parameter_response(&ctx, "list pagination parameters are invalid");
+        }
     };
     let cursor = query.paging.cursor.clone();
     let result = run_blocking_projection(service, auth, move |service, auth| {
@@ -648,18 +646,22 @@ async fn get_inbox(
         Ok(value) => value,
         Err(rejection) => return finish_query_rejection(&ctx, rejection),
     };
-    let page_size = match resolve_list_page_size(&ctx, query.paging.page_size) {
+    let page_size = match resolve_list_page_size(query.paging.page_size) {
         Ok(value) => value,
-        Err(response) => return response,
+        Err(_) => {
+            return invalid_parameter_response(&ctx, "list pagination parameters are invalid");
+        }
     };
     let cursor = query.paging.cursor.clone();
     let conversation_type = query.conversation_type.clone();
+    let search_query = query.q.clone();
     let result = run_blocking_projection(service, auth, move |service, auth| {
         Ok(service.inbox_window_from_auth_context_filtered(
             &auth,
             page_size,
             cursor.as_deref(),
             conversation_type.as_deref(),
+            search_query.as_deref(),
         )?)
     })
     .await;
@@ -680,9 +682,11 @@ async fn get_contacts(
         Ok(value) => value,
         Err(rejection) => return finish_query_rejection(&ctx, rejection),
     };
-    let page_size = match resolve_list_page_size(&ctx, query.page_size) {
+    let page_size = match resolve_list_page_size(query.page_size) {
         Ok(value) => value,
-        Err(response) => return response,
+        Err(_) => {
+            return invalid_parameter_response(&ctx, "list pagination parameters are invalid");
+        }
     };
     let cursor = query.cursor.clone();
     let result = run_blocking_projection(service, auth, move |service, auth| {
@@ -751,9 +755,11 @@ async fn get_member_directory(
         Ok(value) => value,
         Err(rejection) => return finish_query_rejection(&ctx, rejection),
     };
-    let page_size = match resolve_list_page_size(&ctx, query.page_size) {
+    let page_size = match resolve_list_page_size(query.page_size) {
         Ok(value) => value,
-        Err(response) => return response,
+        Err(_) => {
+            return invalid_parameter_response(&ctx, "list pagination parameters are invalid");
+        }
     };
     let cursor = query.cursor.clone();
     let result = run_blocking_projection(service, auth, move |service, auth| {
@@ -783,9 +789,11 @@ async fn get_pinned_messages(
         Ok(value) => value,
         Err(rejection) => return finish_query_rejection(&ctx, rejection),
     };
-    let page_size = match resolve_list_page_size(&ctx, query.page_size) {
+    let page_size = match resolve_list_page_size(query.page_size) {
         Ok(value) => value,
-        Err(response) => return response,
+        Err(_) => {
+            return invalid_parameter_response(&ctx, "list pagination parameters are invalid");
+        }
     };
     let cursor = query.cursor.clone();
     let result = run_blocking_projection(service, auth, move |service, auth| {
@@ -852,13 +860,22 @@ async fn patch_conversation_profile(
     Json(body): Json<UpdateConversationProfileRequest>,
 ) -> Response {
     let result = run_blocking_projection(service, auth, move |service, auth| {
-        Ok(ConversationProfileItemResponse {
-            item: service.update_conversation_profile_from_auth_context(
-                &auth,
-                conversation_id.as_str(),
-                body,
-            )?,
-        })
+        let profile = service.update_conversation_profile_from_auth_context(
+            &auth,
+            conversation_id.as_str(),
+            body,
+        )?;
+        let organization_id = im_platform_contracts::normalize_realtime_organization_id(
+            auth.organization_id.as_str(),
+        );
+        service
+            .enqueue_conversation_profile_updated(
+                auth.tenant_id.as_str(),
+                organization_id.as_str(),
+                &profile,
+            )
+            .map_err(ProjectionAccessError::from)?;
+        Ok(ConversationProfileItemResponse { item: profile })
     })
     .await;
     finish_api_json(&ctx, result)

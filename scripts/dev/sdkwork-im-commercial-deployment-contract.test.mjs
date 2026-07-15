@@ -154,6 +154,45 @@ for (const profile of [
   }
 }
 
+for (const profile of ['standalone.production', 'cloud.staging', 'cloud.production']) {
+  const topology = fs.readFileSync(
+    path.join(repoRoot, 'configs', 'topology', profile + '.env'),
+    'utf8',
+  );
+  for (const key of [
+    'ENGINE',
+    'HOST',
+    'PORT',
+    'NAME',
+    'SCHEMA',
+    'USERNAME',
+    'PASSWORD_FILE',
+    'SSL_MODE',
+    'MAX_CONNECTIONS',
+  ]) {
+    assert.match(
+      topology,
+      new RegExp('^SDKWORK_IM_DATABASE_' + key + '=', 'mu'),
+      profile + ' must declare canonical SDKWORK_IM_DATABASE_' + key,
+    );
+  }
+  assert.doesNotMatch(
+    topology,
+    /^SDKWORK_CLAW_DATABASE_/mu,
+    profile + ' must not depend on legacy SDKWORK_CLAW database aliases',
+  );
+}
+
+const releaseStageSource = fs.readFileSync(
+  path.join(repoRoot, 'scripts', 'release', 'stage-sdkwork-im-release-package.mjs'),
+  'utf8',
+);
+assert.doesNotMatch(
+  releaseStageSource,
+  /SDKWORK_CLAW_DATABASE_(?:NAME|SCHEMA|USERNAME)/u,
+  'release server environment must use canonical SDKWORK_IM database keys',
+);
+
 assert.match(
   conversationDeployment,
   /limits:[\s\S]*memory:\s*2Gi/u,

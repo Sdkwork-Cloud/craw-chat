@@ -136,6 +136,12 @@
       "service": "MessageDispatchService",
       "surface": "internal",
       "methodCount": 1
+    },
+    {
+      "package": "sdkwork.communication.internal.v1",
+      "service": "GroupKnowledgebaseLaunchTicketService",
+      "surface": "internal",
+      "methodCount": 1
     }
   ],
   "methods": [
@@ -2226,6 +2232,19 @@
       "method": "DispatchConversationMessage",
       "surface": "internal",
       "operationId": "internal.messages.dispatch",
+      "auth": "service-mtls",
+      "idempotency": "required",
+      "streaming": "unary",
+      "owner": "communication-internal",
+      "compatibility": "v1"
+    },
+    {
+      "methodKey": "sdkwork.communication.internal.v1.GroupKnowledgebaseLaunchTicketService/ConsumeGroupKnowledgebaseLaunchTicket",
+      "package": "sdkwork.communication.internal.v1",
+      "service": "GroupKnowledgebaseLaunchTicketService",
+      "method": "ConsumeGroupKnowledgebaseLaunchTicket",
+      "surface": "internal",
+      "operationId": "internal.groupKnowledgebaseLaunchTickets.consume",
       "auth": "service-mtls",
       "idempotency": "required",
       "streaming": "unary",

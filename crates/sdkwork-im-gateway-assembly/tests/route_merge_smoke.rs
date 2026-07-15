@@ -14,7 +14,11 @@ async fn chat_and_projection_supplemental_routers_merge_without_duplicate_routes
     ensure_route_merge_test_environment();
 
     let _router = axum::Router::<()>::new()
-        .merge(sdkwork_routes_im_chat_open_api::gateway_mount().await)
+        .merge(
+            sdkwork_routes_im_chat_open_api::gateway_mount()
+                .await
+                .expect("chat gateway mount should complete in test"),
+        )
         .merge(sdkwork_routes_im_projection_open_api::build_supplemental_public_app());
 }
 
@@ -26,7 +30,11 @@ async fn gateway_pre_projection_routers_merge_projection_without_duplicate_route
         .merge(sdkwork_routes_im_audit_backend_api::gateway_mount())
         .merge(sdkwork_routes_im_automation_app_api::gateway_mount())
         .merge(sdkwork_routes_im_calls_open_api::gateway_mount())
-        .merge(sdkwork_routes_im_chat_open_api::gateway_mount().await)
+        .merge(
+            sdkwork_routes_im_chat_open_api::gateway_mount()
+                .await
+                .expect("chat gateway mount should complete in test"),
+        )
         .merge(sdkwork_routes_im_governance_backend_api::gateway_mount())
         .merge(sdkwork_routes_im_media_app_api::gateway_mount())
         .merge(sdkwork_routes_im_notification_app_api::gateway_mount())

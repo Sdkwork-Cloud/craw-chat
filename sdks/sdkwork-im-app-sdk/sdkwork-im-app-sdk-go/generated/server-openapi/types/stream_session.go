@@ -11,8 +11,8 @@ type StreamSession struct {
 	OrderingScope string `json:"orderingScope"`
 	SchemaRef string `json:"schemaRef"`
 	State StreamSessionState `json:"state"`
-	LastFrameSeq int `json:"lastFrameSeq"`
-	LastCheckpointSeq int `json:"lastCheckpointSeq"`
+	LastFrameSeq string `json:"lastFrameSeq"`
+	LastCheckpointSeq string `json:"lastCheckpointSeq"`
 	ResultMessageId string `json:"resultMessageId"`
 	OpenedAt string `json:"openedAt"`
 	ClosedAt string `json:"closedAt"`

@@ -25,12 +25,12 @@ class NotificationsApi {
   }
 
   /// Request a notification task
-  Future<NotificationsRequestsCreateResponse?> requestsCreate(RequestNotification body) async {
+  Future<NotificationsRequestsCreateResponse201?> requestsCreate(RequestNotification body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.appPath('/notifications/requests'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : NotificationsRequestsCreateResponse.fromJson(map);
+      return map == null ? null : NotificationsRequestsCreateResponse201.fromJson(map);
     })();
   }
 

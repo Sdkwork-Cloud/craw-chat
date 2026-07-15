@@ -19,6 +19,10 @@ import { FavoritesView } from "../pages/FavoritesView";
 import type { CallType } from "../components/CallOverlay";
 import { AgentsPcEmbedSurface } from "./AgentsPcEmbedSurface";
 
+const ImTokenPlanPage = React.lazy(() => import("@sdkwork/im-pc-token-plan").then((module) => ({
+  default: module.ImTokenPlanPage,
+})));
+
 export interface CapabilityModuleSurfaceProps {
   activeTab: string;
   driveOpenRequest?: DriveOpenRequest;
@@ -138,6 +142,14 @@ export const CapabilityModuleSurface: React.FC<CapabilityModuleSurfaceProps> = (
   }
 
   switch (activeTab) {
+    case "token-plan":
+      return (
+        <React.Suspense
+          fallback={<div aria-label={t("tokenPlan.loading", "Loading Token Plan")} className="h-full w-full" role="status" />}
+        >
+          <ImTokenPlanPage onNotify={showToast} />
+        </React.Suspense>
+      );
     case "agent":
       if (resolveAgentsPcEmbedMode() === "iframe") {
         return <AgentsPcEmbedSurface />;

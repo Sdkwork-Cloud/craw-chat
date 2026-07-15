@@ -1,8 +1,5 @@
 use std::process::ExitCode;
-use std::sync::Arc;
 
-const PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV: &str = "SDKWORK_IM_PRINCIPAL_DIRECTORY_CATALOG_PATH";
-const ALLOW_ALL_PRINCIPALS_ENV: &str = "SDKWORK_IM_ALLOW_ALL_PRINCIPALS";
 const BIND_ADDR_ENV: &str = "SDKWORK_IM_CONVERSATION_RUNTIME_BIND_ADDR";
 const DEFAULT_BIND_ADDR: &str = "127.0.0.1:28082";
 
@@ -23,53 +20,28 @@ async fn main() -> ExitCode {
 }
 
 async fn run() -> Result<(), String> {
-    sdkwork_im_service_readiness::bootstrap_im_service_database_from_env().await?;
     let bind_addr = std::env::var(BIND_ADDR_ENV).unwrap_or_else(|_| DEFAULT_BIND_ADDR.to_owned());
-    let listener = tokio::net::TcpListener::bind(bind_addr.as_str())
-        .await
-        .map_err(|error| format!("conversation-runtime failed to bind local listener: {error}"))?;
-
-    let app = match std::env::var(PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV)
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
-    {
-        Some(catalog_path) => {
-            let directory = conversation_runtime::StaticPrincipalDirectory::from_json_file(
-                std::path::Path::new(catalog_path.as_str()),
-            )?;
-            sdkwork_routes_im_chat_open_api::build_public_app_with_principal_directory_from_env(
-                Arc::new(directory),
-            )
-            .await
-        }
-        None => {
-            let allow_all = std::env::var(ALLOW_ALL_PRINCIPALS_ENV)
-                .ok()
-                .is_some_and(|value| {
-                    matches!(
-                        value.trim().to_ascii_lowercase().as_str(),
-                        "1" | "true" | "yes" | "on"
-                    )
-                });
-            if allow_all {
-                tracing::warn!(
-                    "{} is enabled - all principals are allowed without verification; \
-                     this must never be used in production",
-                    ALLOW_ALL_PRINCIPALS_ENV
-                );
-                sdkwork_routes_im_chat_open_api::build_public_app_with_allow_all_principals_from_env(
-                )
-                .await
-            } else {
-                return Err(format!(
-                    "principal directory is required: set {} to a JSON catalog file path, \
-                     or set {}=true for development-only mode",
-                    PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV, ALLOW_ALL_PRINCIPALS_ENV
-                ));
-            }
-        }
-    };
+    let ((app, _state), listener) =
+        sdkwork_im_service_readiness::complete_preflight_then_bind_tcp_listener(
+            bind_addr.as_str(),
+            "conversation-runtime",
+            async {
+                sdkwork_im_service_readiness::bootstrap_im_service_database_from_env().await?;
+                let state = conversation_runtime::http::bootstrap_conversation_app_state_from_env()?;
+                state
+                    .ensure_group_knowledgebase_outbox_relay_started()
+                    .await
+                    .map_err(|error| {
+                        format!(
+                            "conversation runtime group knowledgebase relay readiness failed: {error}"
+                        )
+                    })?;
+                let app = sdkwork_routes_im_chat_open_api::gateway_mount_with_state(state.clone())
+                    .await?;
+                Ok((app, state))
+            },
+        )
+        .await?;
 
     tracing::info!(
         "conversation-runtime starting on {}",

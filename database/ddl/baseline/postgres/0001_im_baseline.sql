@@ -2681,3 +2681,213 @@ COMMENT ON COLUMN im_audit_records.retention_class IS
 -- This migration only adds the schema; role-based enforcement is deployment-time.
 
 -- ============================================================
+-- 32. Group knowledgebase orchestration
+-- ============================================================
+-- IM owns only the conversation-to-space projection and launch-ticket state.
+-- The knowledge-space resource and its documents remain owned by
+-- sdkwork-knowledgebase.  `conversation_id`, not `im_chat_groups.group_id`,
+-- is the group authority because every PC/H5 group conversation has it while
+-- space-group rows may not.
+
+CREATE TABLE IF NOT EXISTS im_conversation_knowledge_space_link (
+    id BIGINT NOT NULL,
+    link_uuid TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    organization_id TEXT NOT NULL,
+    conversation_id TEXT NOT NULL,
+    knowledge_space_id BIGINT,
+    knowledge_space_uuid TEXT,
+    knowledgebase_binding_id BIGINT,
+    knowledgebase_binding_uuid TEXT,
+    lifecycle_state TEXT NOT NULL DEFAULT 'provisioning',
+    provisioning_operation_id TEXT,
+    creation_idempotency_key TEXT NOT NULL,
+    last_source_event_id TEXT,
+    membership_epoch BIGINT NOT NULL DEFAULT 0 CHECK (membership_epoch >= 0),
+    last_synchronized_membership_epoch BIGINT NOT NULL DEFAULT 0
+        CHECK (last_synchronized_membership_epoch >= 0),
+    last_error_code TEXT,
+    last_error_at TIMESTAMPTZ,
+    created_by TEXT NOT NULL,
+    updated_by TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    archived_at TIMESTAMPTZ,
+    deleted_at TIMESTAMPTZ,
+    version BIGINT NOT NULL DEFAULT 1 CHECK (version > 0),
+    CONSTRAINT pk_im_conversation_knowledge_space_link
+        PRIMARY KEY (tenant_id, organization_id, conversation_id),
+    CONSTRAINT uk_im_conversation_knowledge_space_link_id UNIQUE (id),
+    CONSTRAINT uk_im_conversation_knowledge_space_link_uuid UNIQUE (link_uuid),
+    CONSTRAINT chk_im_conversation_knowledge_space_link_tenant_id CHECK (
+        tenant_id ~ '^[1-9][0-9]*$'
+        AND (
+            char_length(tenant_id) < 19
+            OR (
+                char_length(tenant_id) = 19
+                AND tenant_id <= '9223372036854775807'
+            )
+        )
+    ),
+    CONSTRAINT chk_im_conversation_knowledge_space_link_organization_id CHECK (
+        organization_id ~ '^[1-9][0-9]*$'
+        AND (
+            char_length(organization_id) < 19
+            OR (
+                char_length(organization_id) = 19
+                AND organization_id <= '9223372036854775807'
+            )
+        )
+    ),
+    CONSTRAINT chk_im_conversation_knowledge_space_link_state CHECK (
+        lifecycle_state IN ('provisioning', 'active', 'failed', 'archived', 'deleted')
+    ),
+    CONSTRAINT chk_im_conversation_knowledge_space_link_active_reference CHECK (
+        lifecycle_state <> 'active'
+        OR (
+            knowledge_space_id > 0
+            AND NULLIF(BTRIM(knowledge_space_uuid), '') IS NOT NULL
+            AND OCTET_LENGTH(knowledge_space_uuid) <= 256
+            AND knowledgebase_binding_id > 0
+            AND NULLIF(BTRIM(knowledgebase_binding_uuid), '') IS NOT NULL
+            AND OCTET_LENGTH(knowledgebase_binding_uuid) <= 256
+        )
+    ),
+    CONSTRAINT chk_im_conversation_knowledge_space_link_target_reference CHECK (
+        (
+            knowledge_space_id IS NULL
+            AND knowledge_space_uuid IS NULL
+            AND knowledgebase_binding_id IS NULL
+            AND knowledgebase_binding_uuid IS NULL
+        )
+        OR (
+            knowledge_space_id > 0
+            AND NULLIF(BTRIM(knowledge_space_uuid), '') IS NOT NULL
+            AND OCTET_LENGTH(knowledge_space_uuid) <= 256
+            AND knowledgebase_binding_id > 0
+            AND NULLIF(BTRIM(knowledgebase_binding_uuid), '') IS NOT NULL
+            AND OCTET_LENGTH(knowledgebase_binding_uuid) <= 256
+        )
+    ),
+    CONSTRAINT chk_im_conversation_knowledge_space_link_archived_at CHECK (
+        (lifecycle_state = 'archived') = (archived_at IS NOT NULL)
+    ),
+    CONSTRAINT chk_im_conversation_knowledge_space_link_deleted_at CHECK (
+        (lifecycle_state = 'deleted') = (deleted_at IS NOT NULL)
+    ),
+    CONSTRAINT chk_im_conversation_knowledge_space_link_membership_sync_epoch CHECK (
+        last_synchronized_membership_epoch <= membership_epoch
+    )
+);
+
+-- IM-side protection against a KB space being accidentally projected onto two
+-- group conversations.  The KB binding has the corresponding authoritative
+-- uniqueness constraint; this is a defensive local invariant only.
+CREATE UNIQUE INDEX IF NOT EXISTS uk_im_conversation_knowledge_space_link_space
+    ON im_conversation_knowledge_space_link (knowledge_space_id)
+    WHERE knowledge_space_id IS NOT NULL
+      AND lifecycle_state IN ('provisioning', 'active', 'archived');
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_im_conversation_knowledge_space_link_binding
+    ON im_conversation_knowledge_space_link (knowledgebase_binding_id)
+    WHERE knowledgebase_binding_id IS NOT NULL
+      AND lifecycle_state IN ('provisioning', 'active', 'archived');
+
+CREATE INDEX IF NOT EXISTS idx_im_conversation_knowledge_space_link_state
+    ON im_conversation_knowledge_space_link (
+        tenant_id, organization_id, lifecycle_state, updated_at, conversation_id
+    );
+
+CREATE TABLE IF NOT EXISTS im_group_knowledge_launch_tickets (
+    id BIGINT NOT NULL,
+    ticket_hash TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    organization_id TEXT NOT NULL,
+    conversation_id TEXT NOT NULL,
+    knowledge_space_id BIGINT NOT NULL,
+    knowledge_space_uuid TEXT NOT NULL,
+    knowledgebase_binding_id BIGINT NOT NULL,
+    knowledgebase_binding_uuid TEXT NOT NULL,
+    upstream_link_generation BIGINT NOT NULL,
+    membership_epoch BIGINT NOT NULL CHECK (membership_epoch >= 0),
+    actor_kind TEXT NOT NULL,
+    actor_id TEXT NOT NULL,
+    principal_kind TEXT NOT NULL,
+    principal_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    issuing_app_id TEXT,
+    issued_by TEXT NOT NULL,
+    idempotency_key_hash TEXT NOT NULL,
+    request_fingerprint_hash TEXT NOT NULL,
+    ticket_ciphertext TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    consumed_at TIMESTAMPTZ,
+    consumed_by_service TEXT,
+    consumed_trace_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT pk_im_group_knowledge_launch_tickets PRIMARY KEY (id),
+    CONSTRAINT uk_im_group_knowledge_launch_tickets_hash UNIQUE (ticket_hash),
+    CONSTRAINT uk_im_group_knowledge_launch_tickets_idempotency UNIQUE (
+        tenant_id, organization_id, conversation_id, actor_kind, actor_id,
+        principal_kind, principal_id, session_id, idempotency_key_hash
+    ),
+    CONSTRAINT chk_im_group_knowledge_launch_tickets_tenant_id CHECK (
+        tenant_id ~ '^[1-9][0-9]*$'
+        AND (
+            char_length(tenant_id) < 19
+            OR (
+                char_length(tenant_id) = 19
+                AND tenant_id <= '9223372036854775807'
+            )
+        )
+    ),
+    CONSTRAINT chk_im_group_knowledge_launch_tickets_organization_id CHECK (
+        organization_id ~ '^[1-9][0-9]*$'
+        AND (
+            char_length(organization_id) < 19
+            OR (
+                char_length(organization_id) = 19
+                AND organization_id <= '9223372036854775807'
+            )
+        )
+    ),
+    CONSTRAINT chk_im_group_knowledge_launch_tickets_delegated_user CHECK (
+        actor_kind = 'user'
+        AND principal_kind = 'user'
+        AND actor_id = principal_id
+    ),
+    CONSTRAINT chk_im_group_knowledge_launch_tickets_binding_id CHECK (
+        knowledgebase_binding_id > 0
+    ),
+    CONSTRAINT chk_im_group_knowledge_launch_tickets_upstream_link_generation CHECK (
+        upstream_link_generation > 0
+    ),
+    CONSTRAINT chk_im_group_knowledge_launch_tickets_target_reference CHECK (
+        knowledge_space_id > 0
+        AND NULLIF(BTRIM(knowledge_space_uuid), '') IS NOT NULL
+        AND OCTET_LENGTH(knowledge_space_uuid) <= 256
+        AND knowledgebase_binding_id > 0
+        AND NULLIF(BTRIM(knowledgebase_binding_uuid), '') IS NOT NULL
+        AND OCTET_LENGTH(knowledgebase_binding_uuid) <= 256
+    ),
+    CONSTRAINT chk_im_group_knowledge_launch_tickets_expiry CHECK (expires_at > created_at),
+    CONSTRAINT chk_im_group_knowledge_launch_tickets_consumer CHECK (
+        (consumed_at IS NULL AND consumed_by_service IS NULL AND consumed_trace_id IS NULL)
+        OR (consumed_at IS NOT NULL AND consumed_by_service IS NOT NULL AND consumed_trace_id IS NOT NULL)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_im_group_knowledge_launch_tickets_expiry
+    ON im_group_knowledge_launch_tickets (tenant_id, organization_id, expires_at)
+    WHERE consumed_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_im_group_knowledge_launch_tickets_actor
+    ON im_group_knowledge_launch_tickets (
+        tenant_id, organization_id, actor_kind, actor_id, principal_kind,
+        principal_id, session_id, created_at DESC
+    );
+
+COMMENT ON TABLE im_conversation_knowledge_space_link IS
+    'IM projection/saga state for one group Conversation to one sdkwork-knowledgebase space. KB binding is the external resource authority.';
+COMMENT ON TABLE im_group_knowledge_launch_tickets IS
+    'One-time short-lived opaque group knowledgebase launch tickets bound to a delegated user principal and authenticated session. A SHA-256 verifier and encrypted replay ciphertext support exactly-once Idempotency-Key replay; plaintext tickets are never persisted.';

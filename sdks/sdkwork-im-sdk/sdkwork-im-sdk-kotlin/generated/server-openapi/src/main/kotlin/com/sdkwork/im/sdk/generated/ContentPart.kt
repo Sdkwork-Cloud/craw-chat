@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
     @JsonSubTypes.Type(value = TextContentPart::class, name = "text"),
     @JsonSubTypes.Type(value = DataContentPart::class, name = "data"),
     @JsonSubTypes.Type(value = MediaContentPart::class, name = "media"),
+    @JsonSubTypes.Type(value = MentionContentPart::class, name = "mention"),
     @JsonSubTypes.Type(value = SignalContentPart::class, name = "signal"),
     @JsonSubTypes.Type(value = StreamRefContentPart::class, name = "stream_ref")
 )

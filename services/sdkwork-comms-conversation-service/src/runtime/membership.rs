@@ -1,8 +1,9 @@
+use super::group_lifecycle::ensure_conversation_write_allowed;
 use super::member_list_cursor::{
     MemberListCursorError, MemberListCursorScope, decode_member_list_cursor,
     encode_member_list_cursor,
 };
-use super::support::{deactivate_roster_member, upsert_roster_member};
+use super::support::{ReadCursorEnvelopeInput, deactivate_roster_member, upsert_roster_member};
 use super::*;
 use im_platform_contracts::ConversationMemberPageCursor;
 use sdkwork_utils_rust::{PageInfo, PageMode, cursor_list_page_data};
@@ -15,6 +16,58 @@ const SHARED_HISTORY_LINK_ATTRIBUTE_KEYS: [&str; 3] = [
 ];
 const SHARED_CHANNEL_SYNC_REQUEST_KEY_ATTRIBUTE: &str = "sharedChannelSyncRequestKey";
 const READ_CURSOR_JOURNAL_APPEND_MAX_ATTEMPTS: usize = 3;
+
+#[derive(Clone, Copy, Debug)]
+pub struct MessageHistoryReadRequest<'a> {
+    tenant_id: &'a str,
+    organization_id: &'a str,
+    conversation_id: &'a str,
+    principal_id: &'a str,
+    principal_kind: Option<&'a str>,
+    before_seq: Option<u64>,
+    limit: usize,
+}
+
+impl<'a> MessageHistoryReadRequest<'a> {
+    pub fn new(
+        tenant_id: &'a str,
+        organization_id: &'a str,
+        conversation_id: &'a str,
+        principal_id: &'a str,
+        principal_kind: &'a str,
+        before_seq: Option<u64>,
+        limit: usize,
+    ) -> Self {
+        Self {
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_id,
+            principal_kind: Some(principal_kind),
+            before_seq,
+            limit,
+        }
+    }
+
+    fn without_actor_kind(
+        tenant_id: &'a str,
+        organization_id: &'a str,
+        conversation_id: &'a str,
+        principal_id: &'a str,
+        before_seq: Option<u64>,
+        limit: usize,
+    ) -> Self {
+        Self {
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_id,
+            principal_kind: None,
+            before_seq,
+            limit,
+        }
+    }
+}
 
 fn is_journal_position_conflict(error: &RuntimeError) -> bool {
     let message = match error {
@@ -192,7 +245,7 @@ where
         before_seq: Option<u64>,
         limit: usize,
     ) -> Result<MessageHistoryResult, RuntimeError> {
-        self.list_messages_with_actor_kind(
+        self.list_messages_with_actor_kind(MessageHistoryReadRequest::new(
             auth.tenant_id.as_str(),
             organization_id_from_auth_context(auth).as_str(),
             conversation_id,
@@ -200,7 +253,7 @@ where
             auth.actor_kind.as_str(),
             before_seq,
             limit,
-        )
+        ))
     }
 
     pub fn read_cursor_view_from_auth_context(
@@ -264,6 +317,7 @@ where
                     .conversations
                     .get_mut(scope_key.as_str())
                     .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.clone()))?;
+                ensure_conversation_write_allowed(conversation)?;
                 let mut invited_member = conversation
                     .roster
                     .resolve_current_member_with_kind(
@@ -516,6 +570,7 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
+                ensure_conversation_write_allowed(conversation)?;
                 let history_visibility = conversation
                     .aggregate
                     .policy()
@@ -658,6 +713,7 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
+                ensure_conversation_write_allowed(conversation)?;
                 let invited_by_member = resolve_active_member_with_kind(
                     conversation,
                     command.invited_by.as_str(),
@@ -813,6 +869,7 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
+                ensure_conversation_write_allowed(conversation)?;
                 let removed_by_member = resolve_active_member_with_kind(
                     conversation,
                     command.removed_by.as_str(),
@@ -921,6 +978,7 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
+                ensure_conversation_write_allowed(conversation)?;
                 let leaving_member = resolve_active_member_with_kind(
                     conversation,
                     command.principal_id.as_str(),
@@ -1034,6 +1092,7 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
+                ensure_conversation_write_allowed(conversation)?;
                 let owner_member = resolve_active_member_with_kind(
                     conversation,
                     command.transferred_by.as_str(),
@@ -1175,6 +1234,7 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
+                ensure_conversation_write_allowed(conversation)?;
                 let actor_member = resolve_active_member_with_kind(
                     conversation,
                     command.changed_by.as_str(),
@@ -1513,16 +1573,16 @@ where
                     // in this conversation.
                     let journal_ordering_seq = conversation.aggregate.next_commit_seq();
                     self.journal
-                        .append(build_read_cursor_envelope(
-                            command.tenant_id.as_str(),
-                            command.organization_id.as_str(),
-                            command.conversation_id.as_str(),
-                            updated_cursor.clone(),
-                            journal_ordering_seq,
-                            retention_class.as_str(),
-                            command.principal_id.as_str(),
-                            principal_kind.as_str(),
-                        ))
+                        .append(build_read_cursor_envelope(ReadCursorEnvelopeInput {
+                            tenant_id: command.tenant_id.as_str(),
+                            organization_id: command.organization_id.as_str(),
+                            conversation_id: command.conversation_id.as_str(),
+                            cursor: updated_cursor.clone(),
+                            ordering_seq: journal_ordering_seq,
+                            retention_class: retention_class.as_str(),
+                            actor_id: command.principal_id.as_str(),
+                            actor_kind: principal_kind.as_str(),
+                        }))
                         .map_err(RuntimeError::from)?;
                     conversation
                         .roster
@@ -1662,103 +1722,81 @@ where
         limit: usize,
     ) -> Result<MessageHistoryResult, RuntimeError> {
         let limit = validate_message_history_limit(limit)?;
-        self.list_messages_history_window(
+        self.list_messages_history_window(MessageHistoryReadRequest::without_actor_kind(
             tenant_id,
             organization_id,
             conversation_id,
             principal_id,
-            None,
             before_seq,
             limit,
-        )
+        ))
     }
 
     pub fn list_messages_with_actor_kind(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-        principal_id: &str,
-        principal_kind: &str,
-        before_seq: Option<u64>,
-        limit: usize,
+        request: MessageHistoryReadRequest<'_>,
     ) -> Result<MessageHistoryResult, RuntimeError> {
-        let limit = validate_message_history_limit(limit)?;
-        self.list_messages_history_window(
-            tenant_id,
-            organization_id,
-            conversation_id,
-            principal_id,
-            Some(principal_kind),
-            before_seq,
-            limit,
-        )
+        self.list_messages_history_window(MessageHistoryReadRequest {
+            limit: validate_message_history_limit(request.limit)?,
+            ..request
+        })
     }
 
     fn list_messages_history_window(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-        principal_id: &str,
-        principal_kind: Option<&str>,
-        before_seq: Option<u64>,
-        limit: usize,
+        request: MessageHistoryReadRequest<'_>,
     ) -> Result<MessageHistoryResult, RuntimeError> {
-        if let Some(history) = self.list_messages_history_window_from_loaded_conversation(
-            tenant_id,
-            organization_id,
-            conversation_id,
-            principal_id,
-            principal_kind,
-            before_seq,
-            limit,
-        )? {
+        if let Some(history) =
+            self.list_messages_history_window_from_loaded_conversation(request)?
+        {
             return Ok(history);
         }
 
         if let Some(history) = self
-            .list_messages_history_window_from_store_if_joined_member_projection_allows(
-                tenant_id,
-                organization_id,
-                conversation_id,
-                principal_id,
-                principal_kind,
-                before_seq,
-                limit,
-            )?
+            .list_messages_history_window_from_store_if_joined_member_projection_allows(request)?
         {
             return Ok(history);
         }
 
-        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
-        let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
+        self.ensure_conversation_loaded(
+            request.tenant_id,
+            request.organization_id,
+            request.conversation_id,
+        )?;
+        let scope_key = conversation_scope_key(
+            request.tenant_id,
+            request.organization_id,
+            request.conversation_id,
+        );
         {
             let state = read_runtime_state(&self.state, "conversation-runtime.state.list_messages");
-            let conversation = state
-                .conversations
-                .get(scope_key.as_str())
-                .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
-            if let Some(kind) = principal_kind {
-                policy::ensure_history_read_allowed_with_kind(conversation, principal_id, kind)?;
+            let conversation = state.conversations.get(scope_key.as_str()).ok_or_else(|| {
+                RuntimeError::ConversationNotFound(request.conversation_id.into())
+            })?;
+            if let Some(kind) = request.principal_kind {
+                policy::ensure_history_read_allowed_with_kind(
+                    conversation,
+                    request.principal_id,
+                    kind,
+                )?;
             } else {
-                policy::ensure_history_read_allowed(conversation, principal_id)?;
+                policy::ensure_history_read_allowed(conversation, request.principal_id)?;
             }
         }
 
         if let Some(store) = &self.message_store {
             let normalized_organization_id =
-                im_domain_events::normalize_commit_organization_id(organization_id);
+                im_domain_events::normalize_commit_organization_id(request.organization_id);
             let window = store
                 .read_history_window(
-                    tenant_id,
+                    request.tenant_id,
                     normalized_organization_id.as_str(),
-                    conversation_id,
-                    before_seq,
-                    limit,
+                    request.conversation_id,
+                    request.before_seq,
+                    request.limit,
                 )
                 .map_err(RuntimeError::from)?;
-            return message_history_window_from_store(window, limit);
+            return message_history_window_from_store(window, request.limit);
         }
 
         let in_memory = {
@@ -1766,45 +1804,46 @@ where
                 &self.state,
                 "conversation-runtime.state.list_messages.cache",
             );
-            let conversation = state
-                .conversations
-                .get(scope_key.as_str())
-                .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+            let conversation = state.conversations.get(scope_key.as_str()).ok_or_else(|| {
+                RuntimeError::ConversationNotFound(request.conversation_id.into())
+            })?;
             conversation
                 .message_log
-                .message_window_before(before_seq, limit)
+                .message_window_before(request.before_seq, request.limit)
         };
-        Ok(message_history_window(in_memory, limit))
+        Ok(message_history_window(in_memory, request.limit))
     }
 
     fn list_messages_history_window_from_loaded_conversation(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-        principal_id: &str,
-        principal_kind: Option<&str>,
-        before_seq: Option<u64>,
-        limit: usize,
+        request: MessageHistoryReadRequest<'_>,
     ) -> Result<Option<MessageHistoryResult>, RuntimeError> {
-        let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
+        let scope_key = conversation_scope_key(
+            request.tenant_id,
+            request.organization_id,
+            request.conversation_id,
+        );
         {
             let state =
                 read_runtime_state(&self.state, "conversation-runtime.state.list_messages.hot");
             let Some(conversation) = state.conversations.get(scope_key.as_str()) else {
                 return Ok(None);
             };
-            if let Some(kind) = principal_kind {
-                policy::ensure_history_read_allowed_with_kind(conversation, principal_id, kind)?;
+            if let Some(kind) = request.principal_kind {
+                policy::ensure_history_read_allowed_with_kind(
+                    conversation,
+                    request.principal_id,
+                    kind,
+                )?;
             } else {
-                policy::ensure_history_read_allowed(conversation, principal_id)?;
+                policy::ensure_history_read_allowed(conversation, request.principal_id)?;
             }
             if self.message_store.is_none() {
                 return Ok(Some(message_history_window(
                     conversation
                         .message_log
-                        .message_window_before(before_seq, limit),
-                    limit,
+                        .message_window_before(request.before_seq, request.limit),
+                    request.limit,
                 )));
             }
         }
@@ -1813,28 +1852,25 @@ where
             return Ok(None);
         };
         let normalized_organization_id =
-            im_domain_events::normalize_commit_organization_id(organization_id);
+            im_domain_events::normalize_commit_organization_id(request.organization_id);
         let window = store
             .read_history_window(
-                tenant_id,
+                request.tenant_id,
                 normalized_organization_id.as_str(),
-                conversation_id,
-                before_seq,
-                limit,
+                request.conversation_id,
+                request.before_seq,
+                request.limit,
             )
             .map_err(RuntimeError::from)?;
-        Ok(Some(message_history_window_from_store(window, limit)?))
+        Ok(Some(message_history_window_from_store(
+            window,
+            request.limit,
+        )?))
     }
 
     fn list_messages_history_window_from_store_if_joined_member_projection_allows(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-        principal_id: &str,
-        principal_kind: Option<&str>,
-        before_seq: Option<u64>,
-        limit: usize,
+        request: MessageHistoryReadRequest<'_>,
     ) -> Result<Option<MessageHistoryResult>, RuntimeError> {
         let Some(store) = self.message_store.as_ref() else {
             return Ok(None);
@@ -1842,18 +1878,18 @@ where
         let Some(aggregate_store) = self.aggregate_store.as_ref() else {
             return Ok(None);
         };
-        let Some(principal_kind) = principal_kind else {
+        let Some(principal_kind) = request.principal_kind else {
             return Ok(None);
         };
         let normalized_organization_id =
-            im_domain_events::normalize_commit_organization_id(organization_id);
+            im_domain_events::normalize_commit_organization_id(request.organization_id);
         let member = aggregate_store
             .load_member(
-                tenant_id,
+                request.tenant_id,
                 normalized_organization_id.as_str(),
-                conversation_id,
+                request.conversation_id,
                 principal_kind,
-                principal_id,
+                request.principal_id,
             )
             .map_err(RuntimeError::from)?;
         let Some(member) = member else {
@@ -1865,14 +1901,17 @@ where
 
         let window = store
             .read_history_window(
-                tenant_id,
+                request.tenant_id,
                 normalized_organization_id.as_str(),
-                conversation_id,
-                before_seq,
-                limit,
+                request.conversation_id,
+                request.before_seq,
+                request.limit,
             )
             .map_err(RuntimeError::from)?;
-        Ok(Some(message_history_window_from_store(window, limit)?))
+        Ok(Some(message_history_window_from_store(
+            window,
+            request.limit,
+        )?))
     }
 
     pub fn stored_message_from_auth_context(

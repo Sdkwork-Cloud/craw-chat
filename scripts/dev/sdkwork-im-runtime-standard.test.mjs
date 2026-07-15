@@ -65,20 +65,20 @@ const envExample = read('.env.postgres.example');
 for (const required of [
   'SDKWORK_IM_DATABASE_ENGINE=postgresql',
   'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
-  'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
-  'SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev',
-  'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
-  'SDKWORK_CLAW_DATABASE_PASSWORD=sdkworkdev123',
+  'SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev',
+  'SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_dev',
+  'SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_dev',
+  'SDKWORK_IM_DATABASE_PASSWORD=sdkworkdev123',
   'SDKWORK_IM_DATABASE_SSL_MODE=disable',
-  'SDKWORK_CLAW_DATABASE_ADMIN_USERNAME=postgres',
-  'SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
-  'SDKWORK_CLAW_DATABASE_ADMIN_DATABASE=postgres',
-  'SDKWORK_CLAW_DATABASE_ADMIN_SSL_MODE=disable',
+  'SDKWORK_IM_DATABASE_ADMIN_USERNAME=postgres',
+  'SDKWORK_IM_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
+  'SDKWORK_IM_DATABASE_ADMIN_DATABASE=postgres',
+  'SDKWORK_IM_DATABASE_ADMIN_SSL_MODE=disable',
 ]) {
   assert.ok(envExample.includes(required), `.env.postgres.example must document ${required}`);
 }
 for (const required of [
-  'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
+  'SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev',
   'SDKWORK_IM_REDIS_ENABLED=true',
   'SDKWORK_IM_REDIS_HOST=127.0.0.1',
   'SDKWORK_IM_REDIS_PORT=6379',
@@ -89,7 +89,7 @@ for (const required of [
 ]) {
   assert.ok(envExample.includes(required), `.env.postgres.example must document ${required}`);
 }
-assert.doesNotMatch(envExample, /SDKWORK_CLAW_DATABASE_PROVIDER|SDKWORK_CLAW_DATABASE_SSLMODE/u);
+assert.doesNotMatch(envExample, /SDKWORK_CLAW_DATABASE_/u);
 
 const sharedDbModule = await import(
   pathToFileURL(path.join(repoRoot, 'scripts/dev/sdkwork-im-shared-database.mjs')).href

@@ -320,6 +320,14 @@
       "methods": [
         { "method": "DispatchConversationMessage", "operationId": "internal.messages.dispatch", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" }
       ]
+    },
+    {
+      "package": "sdkwork.communication.internal.v1",
+      "service": "GroupKnowledgebaseLaunchTicketService",
+      "surface": "internal",
+      "methods": [
+        { "method": "ConsumeGroupKnowledgebaseLaunchTicket", "operationId": "internal.groupKnowledgebaseLaunchTickets.consume", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" }
+      ]
     }
   ]
 }

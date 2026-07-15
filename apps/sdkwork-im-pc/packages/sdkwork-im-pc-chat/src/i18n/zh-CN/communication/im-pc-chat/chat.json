@@ -468,7 +468,16 @@
       }
     },
     "header": {
+      "knowledgebaseContactOwner": "\u77e5\u8bc6\u5e93\u5c1a\u672a\u521d\u59cb\u5316\uff0c\u8bf7\u8054\u7cfb\u7fa4\u4e3b",
       "search": "搜索",
+      "knowledgebase": "打开群组知识库",
+      "knowledgebaseInitialize": "初始化群组知识库",
+      "knowledgebaseInitializing": "正在初始化群组知识库",
+      "knowledgebaseChecking": "正在检查群组知识库",
+      "knowledgebaseRetry": "重新检查群组知识库",
+      "knowledgebaseProvisioning": "正在准备群组知识库。",
+      "knowledgebaseUnavailable": "此群组的知识库暂不可用。",
+      "knowledgebaseOpenFailed": "无法打开群组知识库，请重试。",
       "voiceCall": "语音通话",
       "videoCall": "视频通话",
       "more": "更多"
@@ -488,6 +497,7 @@
     },
     "fallback": {
       "groupName": "群聊",
+      "directName": "会话",
       "memberName": "群成员",
       "memberSubtitle": "资料暂不可用"
     },
@@ -498,6 +508,13 @@
       "title": "聊天信息",
       "actions": {
         "manageAgents": "管理群智能体",
+        "initializeKnowledgebase": "初始化知识库",
+        "knowledgebaseInitializing": "正在初始化",
+        "knowledgebaseContactOwner": "尚未初始化，请联系群主",
+        "retryKnowledgebaseCheck": "重新检查",
+        "manageKnowledgebase": "管理知识库",
+        "loadMoreMembers": "加载更多成员",
+        "retryMemberList": "重试加载成员",
         "searchChat": "查找聊天",
         "addMember": "添加成员",
         "removeMember": "移除成员",
@@ -507,6 +524,7 @@
       },
       "fields": {
         "agents": "智能体",
+        "knowledgebase": "知识库",
         "groupName": "群聊名称",
         "remark": "设置备注",
         "groupNotice": "群公告",
@@ -515,7 +533,10 @@
         "pin": "置顶聊天"
       },
       "memberCount": "{{count}} 名成员",
+      "memberCountAtLeast": "{{count}}+ 名成员",
       "emptyMembers": "暂无成员",
+      "loadingMembers": "正在加载成员...",
+      "memberLoadFailed": "成员加载失败",
       "emptyNotice": "暂无公告",
       "toast": {
         "muted": "已开启免打扰",
@@ -587,6 +608,9 @@
       "toast": {
         "searching": "正在搜索：{{query}}",
         "groupCreated": "已发起群聊，邀请 {{count}} 名联系人",
+        "groupAndKnowledgebaseCreated": "群聊和群组知识库已创建。",
+        "groupCreatedKnowledgebaseProvisioning": "群聊已创建，知识库正在初始化。",
+        "groupCreatedKnowledgebaseFailed": "群聊已创建，但知识库初始化失败。请在群聊中重试。",
         "createGroupFailed": "发起群聊失败",
         "invitedMembers": "已邀请 {{count}} 名成员",
         "contactsLoadFailed": "加载联系人失败",

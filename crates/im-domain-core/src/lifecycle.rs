@@ -334,7 +334,10 @@ impl GracefulShutdown {
     /// Request shutdown.
     pub fn request_shutdown(&self) {
         self.shutdown_requested.store(true, Ordering::SeqCst);
-        *self.shutdown_started.lock().unwrap() = Some(Instant::now());
+        *self
+            .shutdown_started
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(Instant::now());
     }
 
     /// Check if shutdown has been requested.
@@ -344,17 +347,27 @@ impl GracefulShutdown {
 
     /// Start tracking a request.
     pub fn track_request(&self, request_id: &str) {
-        self.in_flight_requests.fetch_add(1, Ordering::SeqCst);
-        self.request_tracker
+        let previous = self
+            .request_tracker
             .lock()
-            .unwrap()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .insert(request_id.to_string(), Instant::now());
+        if previous.is_none() {
+            self.in_flight_requests.fetch_add(1, Ordering::SeqCst);
+        }
     }
 
     /// Finish tracking a request.
     pub fn finish_request(&self, request_id: &str) {
-        self.in_flight_requests.fetch_sub(1, Ordering::SeqCst);
-        self.request_tracker.lock().unwrap().remove(request_id);
+        let removed = self
+            .request_tracker
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .remove(request_id)
+            .is_some();
+        if removed {
+            self.in_flight_requests.fetch_sub(1, Ordering::SeqCst);
+        }
     }
 
     /// Get number of in-flight requests.
@@ -367,8 +380,11 @@ impl GracefulShutdown {
     /// Returns Ok if all requests completed within timeout.
     /// Returns Err if timeout exceeded.
     pub fn wait_for_completion(&self) -> Result<(), LifecycleError> {
-        let start = self.shutdown_started.lock().unwrap();
-        let deadline = start.unwrap_or(Instant::now()) + self.timeout;
+        let started_at = *self
+            .shutdown_started
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let deadline = started_at.unwrap_or_else(Instant::now) + self.timeout;
 
         while self.in_flight_requests.load(Ordering::SeqCst) > 0 {
             if Instant::now() > deadline {
@@ -385,7 +401,10 @@ impl GracefulShutdown {
 
     /// Force shutdown after timeout (cancel remaining requests).
     pub fn force_shutdown(&self) {
-        self.request_tracker.lock().unwrap().clear();
+        self.request_tracker
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clear();
         self.in_flight_requests.store(0, Ordering::SeqCst);
     }
 
@@ -394,7 +413,7 @@ impl GracefulShutdown {
         let now = Instant::now();
         self.request_tracker
             .lock()
-            .unwrap()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .iter()
             .filter(|(_, start)| now.duration_since(**start) > max_age)
             .map(|(id, _)| id.clone())
@@ -510,6 +529,22 @@ mod tests {
         assert_eq!(shutdown.get_in_flight_count(), 1);
 
         shutdown.finish_request("req-2");
+        assert_eq!(shutdown.get_in_flight_count(), 0);
+    }
+
+    #[test]
+    fn graceful_shutdown_tracking_is_idempotent_by_request_id() {
+        let shutdown = GracefulShutdown::new(Duration::from_secs(30));
+
+        shutdown.track_request("req-1");
+        shutdown.track_request("req-1");
+        assert_eq!(shutdown.get_in_flight_count(), 1);
+
+        shutdown.finish_request("unknown");
+        assert_eq!(shutdown.get_in_flight_count(), 1);
+
+        shutdown.finish_request("req-1");
+        shutdown.finish_request("req-1");
         assert_eq!(shutdown.get_in_flight_count(), 0);
     }
 

@@ -7,7 +7,7 @@ public class CompleteAgentToolCallRequest {
     public String getResultPayload() {
         return this.resultPayload;
     }
-    
+
     public void setResultPayload(String resultPayload) {
         this.resultPayload = resultPayload;
     }

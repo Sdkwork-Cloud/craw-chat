@@ -9,45 +9,45 @@ import com.sdkwork.im.app.api.generated.http.HttpClient
 class AutomationApi(private val client: HttpClient) {
 
     /** Start an agent response stream */
-    suspend fun agentResponsesCreate(body: StartAgentResponseRequest): StreamSession? {
+    suspend fun agentResponsesCreate(body: StartAgentResponseRequest): AutomationAgentResponsesCreateResponse201? {
         val raw = client.post(ApiPaths.appPath("/automation/agent_responses"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<StreamSession>() {})
+        return client.convertValue(raw, object : TypeReference<AutomationAgentResponsesCreateResponse201>() {})
     }
 
     /** Complete an agent response stream */
-    suspend fun agentResponsesComplete(streamId: String, body: CompleteAgentResponseRequest): StreamSession? {
+    suspend fun agentResponsesComplete(streamId: String, body: CompleteAgentResponseRequest): AutomationAgentResponsesCompleteResponse? {
         val raw = client.post(ApiPaths.appPath("/automation/agent_responses/${serializePathParameter(streamId, PathParameterSpec("streamId", "simple", false))}/complete"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<StreamSession>() {})
+        return client.convertValue(raw, object : TypeReference<AutomationAgentResponsesCompleteResponse>() {})
     }
 
     /** Append a frame to an agent response stream */
-    suspend fun agentResponsesFramesCreate(streamId: String, body: AppendAgentResponseDeltaRequest): StreamFrame? {
+    suspend fun agentResponsesFramesCreate(streamId: String, body: AppendAgentResponseDeltaRequest): AutomationAgentResponsesFramesCreateResponse201? {
         val raw = client.post(ApiPaths.appPath("/automation/agent_responses/${serializePathParameter(streamId, PathParameterSpec("streamId", "simple", false))}/frames"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<StreamFrame>() {})
+        return client.convertValue(raw, object : TypeReference<AutomationAgentResponsesFramesCreateResponse201>() {})
     }
 
     /** Request an agent tool call */
-    suspend fun agentToolCallsCreate(body: RequestAgentToolCallRequest): AgentToolCall? {
+    suspend fun agentToolCallsCreate(body: RequestAgentToolCallRequest): AutomationAgentToolCallsCreateResponse201? {
         val raw = client.post(ApiPaths.appPath("/automation/agent_tool_calls"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<AgentToolCall>() {})
+        return client.convertValue(raw, object : TypeReference<AutomationAgentToolCallsCreateResponse201>() {})
     }
 
     /** Request an automation execution */
-    suspend fun executionsCreate(body: RequestAutomationExecution): AutomationExecutionRequestResponse? {
+    suspend fun executionsCreate(body: RequestAutomationExecution): AutomationExecutionsCreateResponse201? {
         val raw = client.post(ApiPaths.appPath("/automation/executions"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<AutomationExecutionRequestResponse>() {})
+        return client.convertValue(raw, object : TypeReference<AutomationExecutionsCreateResponse201>() {})
     }
 
     /** Get an automation execution */
-    suspend fun executionsRetrieve(executionId: String): AutomationExecution? {
+    suspend fun executionsRetrieve(executionId: String): AutomationExecutionsRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/automation/executions/${serializePathParameter(executionId, PathParameterSpec("executionId", "simple", false))}"))
-        return client.convertValue(raw, object : TypeReference<AutomationExecution>() {})
+        return client.convertValue(raw, object : TypeReference<AutomationExecutionsRetrieveResponse>() {})
     }
 
     /** Complete an agent tool call */
-    suspend fun agentToolCallsComplete(executionId: String, toolCallId: String, body: CompleteAgentToolCallRequest): AgentToolCall? {
+    suspend fun agentToolCallsComplete(executionId: String, toolCallId: String, body: CompleteAgentToolCallRequest): AutomationAgentToolCallsCompleteResponse? {
         val raw = client.post(ApiPaths.appPath("/automation/executions/${serializePathParameter(executionId, PathParameterSpec("executionId", "simple", false))}/agent_tool_calls/${serializePathParameter(toolCallId, PathParameterSpec("toolCallId", "simple", false))}/complete"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<AgentToolCall>() {})
+        return client.convertValue(raw, object : TypeReference<AutomationAgentToolCallsCompleteResponse>() {})
     }
 
     private data class PathParameterSpec(val name: String, val style: String, val explode: Boolean)

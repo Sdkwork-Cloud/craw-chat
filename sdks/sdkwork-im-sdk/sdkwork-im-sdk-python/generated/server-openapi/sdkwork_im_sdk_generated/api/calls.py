@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import CallsSessionsAcceptResponse, CallsSessionsCreateResponse201, CallsSessionsCredentialsCreateResponse201, CallsSessionsEndResponse, CallsSessionsInviteResponse, CallsSessionsRejectResponse, CallsSessionsRetrieveResponse, CallsSessionsSignalsCreateResponse201, CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, PostRtcSignalRequest, UpdateRtcSessionRequest
+from ..models import CallsSessionsAcceptResponse, CallsSessionsCreateResponse201, CallsSessionsCredentialsCreateResponse201, CallsSessionsCredentialsRefreshResponse, CallsSessionsEndResponse, CallsSessionsInviteResponse, CallsSessionsRejectResponse, CallsSessionsRetrieveResponse, CallsSessionsSignalsCreateResponse201, CallsSessionsSignalsListResponse, CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, PostRtcSignalRequest, UpdateRtcSessionRequest
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -71,6 +71,116 @@ def serialize_path_primitive(value: Any) -> str:
     return str(value)
 
 
+def build_query_string(parameters: List[Dict[str, Any]]) -> str:
+    pairs: List[str] = []
+    for parameter in parameters:
+        append_serialized_parameter(pairs, parameter)
+    return '&'.join(pairs)
+
+
+def append_serialized_parameter(pairs: List[str], parameter: Dict[str, Any]) -> None:
+    value = parameter.get('value')
+    if value is None:
+        return
+
+    name = str(parameter.get('name') or '')
+    allow_reserved = bool(parameter.get('allow_reserved'))
+    content_type = parameter.get('content_type')
+    if content_type:
+        import json
+
+        pairs.append(f"{encode_query_component(name)}={encode_query_value(json.dumps(value, separators=(',', ':')), allow_reserved)}")
+        return
+
+    style = str(parameter.get('style') or 'form')
+    explode = bool(parameter.get('explode'))
+    if style == 'deepObject':
+        append_deep_object_parameter(pairs, name, value, allow_reserved)
+        return
+    if isinstance(value, (list, tuple)):
+        append_array_parameter(pairs, name, value, style, explode, allow_reserved)
+        return
+    if isinstance(value, dict):
+        append_object_parameter(pairs, name, value, style, explode, allow_reserved)
+        return
+
+    pairs.append(f"{encode_query_component(name)}={encode_query_value(serialize_primitive(value), allow_reserved)}")
+
+
+def append_array_parameter(
+    pairs: List[str],
+    name: str,
+    value: Any,
+    style: str,
+    explode: bool,
+    allow_reserved: bool,
+) -> None:
+    values = [serialize_primitive(item) for item in value if item is not None]
+    if not values:
+        return
+
+    if style == 'form' and explode:
+        for item in values:
+            pairs.append(f"{encode_query_component(name)}={encode_query_value(item, allow_reserved)}")
+        return
+
+    pairs.append(f"{encode_query_component(name)}={encode_query_value(','.join(values), allow_reserved)}")
+
+
+def append_object_parameter(
+    pairs: List[str],
+    name: str,
+    value: Dict[str, Any],
+    style: str,
+    explode: bool,
+    allow_reserved: bool,
+) -> None:
+    entries = [(key, entry_value) for key, entry_value in value.items() if entry_value is not None]
+    if not entries:
+        return
+
+    if style == 'form' and explode:
+        for key, entry_value in entries:
+            pairs.append(f"{encode_query_component(str(key))}={encode_query_value(serialize_primitive(entry_value), allow_reserved)}")
+        return
+
+    serialized = ','.join(
+        item
+        for key, entry_value in entries
+        for item in (str(key), serialize_primitive(entry_value))
+    )
+    pairs.append(f"{encode_query_component(name)}={encode_query_value(serialized, allow_reserved)}")
+
+
+def append_deep_object_parameter(pairs: List[str], name: str, value: Any, allow_reserved: bool) -> None:
+    if not isinstance(value, dict):
+        pairs.append(f"{encode_query_component(name)}={encode_query_value(serialize_primitive(value), allow_reserved)}")
+        return
+
+    for key, entry_value in value.items():
+        if entry_value is None:
+            continue
+        pairs.append(f"{encode_query_component(f'{name}[{key}]')}={encode_query_value(serialize_primitive(entry_value), allow_reserved)}")
+
+
+def serialize_primitive(value: Any) -> str:
+    if isinstance(value, dict):
+        import json
+
+        return json.dumps(value, separators=(',', ':'))
+    return str(value)
+
+
+def encode_query_component(value: str) -> str:
+    from urllib.parse import quote
+
+    return quote(value, safe='')
+
+
+def encode_query_value(value: str, allow_reserved: bool) -> str:
+    from urllib.parse import quote
+
+    return quote(value, safe=':/?#[]@!$&\'()*+,;=' if allow_reserved else '')
 
 
 
@@ -122,6 +232,15 @@ class CallsSessionsSignalsApi:
         self._client = client
 
 
+    def list(self, rtc_session_id: str, after_signal_seq: Optional[int] = None, cursor: Optional[str] = None, page_size: Optional[int] = None) -> CallsSessionsSignalsListResponse:
+        """List IM call signaling events"""
+        query = build_query_string([
+            {'name': 'afterSignalSeq', 'value': after_signal_seq, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/im/v3/api/calls/sessions/{serialize_path_parameter(rtc_session_id, {'name': 'rtcSessionId', 'style': 'simple', 'explode': False})}/signals", query))
+
     def create(self, rtc_session_id: str, body: PostRtcSignalRequest) -> CallsSessionsSignalsCreateResponse201:
         """Post an IM call signaling event"""
         return self._client.post(f"/im/v3/api/calls/sessions/{serialize_path_parameter(rtc_session_id, {'name': 'rtcSessionId', 'style': 'simple', 'explode': False})}/signals", json=body)
@@ -136,3 +255,7 @@ class CallsSessionsCredentialsApi:
     def create(self, rtc_session_id: str, body: IssueRtcParticipantCredentialRequest) -> CallsSessionsCredentialsCreateResponse201:
         """Issue an RTC media participant credential for an IM call"""
         return self._client.post(f"/im/v3/api/calls/sessions/{serialize_path_parameter(rtc_session_id, {'name': 'rtcSessionId', 'style': 'simple', 'explode': False})}/credentials", json=body)
+
+    def create_refresh(self, rtc_session_id: str, body: IssueRtcParticipantCredentialRequest) -> CallsSessionsCredentialsRefreshResponse:
+        """Refresh an expiring RTC media participant credential"""
+        return self._client.post(f"/im/v3/api/calls/sessions/{serialize_path_parameter(rtc_session_id, {'name': 'rtcSessionId', 'style': 'simple', 'explode': False})}/credentials/refresh", json=body)

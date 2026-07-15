@@ -3,7 +3,7 @@
 use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
-use im_adapters_social_postgres::governance_store::BanRecord;
+use im_adapters_social_postgres::governance_store::{BanRecord, BanTargetListQuery};
 use im_app_context::AppContext;
 use sdkwork_routes_web_framework_backend_api::response::{
     ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
@@ -132,15 +132,15 @@ pub async fn list_bans(
 
         let records = state
             .ban_store
-            .list_active_by_target(
-                auth.tenant_id.as_str(),
-                auth.organization_id.as_str(),
-                "space",
-                space_id,
-                paging.cursor_sort_value.as_deref(),
+            .list_active_by_target(BanTargetListQuery {
+                tenant_id: auth.tenant_id.as_str(),
+                organization_id: auth.organization_id.as_str(),
+                target_type: "space",
+                target_id: space_id,
+                cursor_created_at: paging.cursor_sort_value.as_deref(),
                 cursor_ban_id,
-                paging.fetch_limit(),
-            )
+                limit: paging.fetch_limit(),
+            })
             .map_err(|error| {
                 tracing::error!(error = ?error, "failed to list bans");
                 ApiProblem::internal_server_error("failed to list bans")

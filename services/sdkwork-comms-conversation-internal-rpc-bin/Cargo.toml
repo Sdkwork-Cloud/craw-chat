@@ -12,7 +12,8 @@ path = "src/main.rs"
 [dependencies]
 conversation-runtime = { package = "sdkwork-comms-conversation-service", path = "../sdkwork-comms-conversation-service" }
 sdkwork-im-rpc-service-rust = { path = "../../crates/sdkwork-im-rpc-service-rust" }
-sdkwork-rpc-server = { workspace = true }
+sdkwork-rpc-core.workspace = true
+sdkwork-rpc-server = { workspace = true, features = ["tls"] }
 sdkwork_im_service_readiness = { workspace = true }
 tokio.workspace = true
 tracing.workspace = true

@@ -8,6 +8,7 @@ version.workspace = true
 name = "conversation_runtime"
 
 [dependencies]
+async-trait = "0.1"
 axum.workspace = true
 chrono = "0.4.44"
 getrandom = "0.3.4"
@@ -39,8 +40,15 @@ sdkwork_web_core.workspace = true
 sdkwork_routes_web_framework_backend_api.workspace = true
 sdkwork-im-rpc-service-rust = { path = "../../crates/sdkwork-im-rpc-service-rust" }
 sdkwork-im-rpc-sdk-rust = { path = "../../sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust" }
+sdkwork-knowledgebase-rpc-sdk-rust.workspace = true
+sdkwork-rpc-client = { workspace = true, features = ["tls"] }
+sdkwork-rpc-core.workspace = true
 projection-service = { path = "../../services/projection-service" }
 prost = "0.14"
+postgres.workspace = true
+r2d2.workspace = true
+tonic = { version = "0.14", features = ["transport"] }
+url = "2"
 
 [dev-dependencies]
 http-body-util.workspace = true
@@ -48,3 +56,7 @@ tower.workspace = true
 sdkwork-routes-im-chat-open-api = { path = "../../crates/sdkwork-routes-im-chat-open-api" }
 tonic = { version = "0.14", features = ["transport"] }
 tokio-stream = { version = "0.1", features = ["net"] }
+sdkwork-rpc-server = { workspace = true, features = ["tls"] }
+rcgen = { version = "0.14", features = ["pem"] }
+tempfile = "3"
+rustls = { version = "0.23", features = ["ring"] }

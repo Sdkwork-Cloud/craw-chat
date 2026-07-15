@@ -21,7 +21,8 @@ use tokio::sync::Semaphore;
 use crate::client::build_gateway_upstream_client;
 use crate::cors::build_browser_cors_layer;
 use crate::openapi::{
-    OpenApiAggregateCache, docs, openapi_index_json, openapi_json, openapi_runtime_summary_json,
+    OpenApiAggregateCache, docs, im_app_sdk_openapi_json, im_backend_sdk_openapi_json,
+    im_sdk_openapi_json, openapi_index_json, openapi_json, openapi_runtime_summary_json,
     service_docs, service_openapi_json,
 };
 use crate::registry::build_gateway_registry;
@@ -159,6 +160,9 @@ async fn finish_gateway_app_from_env(
             "/openapi/services/{service_schema}",
             get(service_openapi_json),
         )
+        .route("/im/v3/openapi.json", get(im_sdk_openapi_json))
+        .route("/app/v3/openapi.json", get(im_app_sdk_openapi_json))
+        .route("/backend/v3/openapi.json", get(im_backend_sdk_openapi_json))
         .route("/docs", get(docs))
         .route("/docs/services/{service_id}", get(service_docs))
         .route("/", gateway_proxy_routes())
@@ -207,6 +211,9 @@ fn finish_gateway_app_sync(
             "/openapi/services/{service_schema}",
             get(service_openapi_json),
         )
+        .route("/im/v3/openapi.json", get(im_sdk_openapi_json))
+        .route("/app/v3/openapi.json", get(im_app_sdk_openapi_json))
+        .route("/backend/v3/openapi.json", get(im_backend_sdk_openapi_json))
         .route("/docs", get(docs))
         .route("/docs/services/{service_id}", get(service_docs))
         .route("/", gateway_proxy_routes())

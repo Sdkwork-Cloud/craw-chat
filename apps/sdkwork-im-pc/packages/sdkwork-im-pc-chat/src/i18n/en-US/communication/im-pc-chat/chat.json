@@ -469,6 +469,15 @@
     },
     "header": {
       "search": "Search",
+      "knowledgebase": "Open group knowledge base",
+      "knowledgebaseInitialize": "Initialize group knowledge base",
+      "knowledgebaseInitializing": "Group knowledge base is initializing",
+      "knowledgebaseChecking": "Checking group knowledge base",
+      "knowledgebaseRetry": "Retry group knowledge base check",
+      "knowledgebaseContactOwner": "The knowledge base is not initialized. Please contact the group owner.",
+      "knowledgebaseProvisioning": "The group knowledge base is being prepared.",
+      "knowledgebaseUnavailable": "The group knowledge base is not available for this conversation.",
+      "knowledgebaseOpenFailed": "Could not open the group knowledge base. Please try again.",
       "voiceCall": "Voice call",
       "videoCall": "Video call",
       "more": "More"
@@ -488,6 +497,7 @@
     },
     "fallback": {
       "groupName": "Group chat",
+      "directName": "Conversation",
       "memberName": "Member",
       "memberSubtitle": "Profile unavailable"
     },
@@ -500,7 +510,14 @@
         "leaveGroup": "Leave group",
         "deleteChat": "Delete chat",
         "close": "Close details panel",
-        "manageAgents": "Manage group AI agents"
+        "manageAgents": "Manage group AI agents",
+        "initializeKnowledgebase": "Initialize knowledge base",
+        "knowledgebaseInitializing": "Initializing",
+        "knowledgebaseContactOwner": "Not initialized; contact the group owner",
+        "retryKnowledgebaseCheck": "Retry check",
+        "manageKnowledgebase": "Manage knowledge base",
+        "loadMoreMembers": "Load more members",
+        "retryMemberList": "Retry member list"
       },
       "fields": {
         "groupName": "Group name",
@@ -508,12 +525,16 @@
         "groupNotice": "Group notice",
         "members": "Members",
         "agents": "AI agents",
+        "knowledgebase": "Knowledge base",
         "mute": "Mute notifications",
         "pin": "Pin chat"
       },
       "memberCount": "{{count}} members",
+      "memberCountAtLeast": "{{count}}+ members",
       "agentCount": "{{count}} agents",
       "emptyMembers": "No members",
+      "loadingMembers": "Loading members...",
+      "memberLoadFailed": "Failed to load members",
       "emptyAgents": "No AI agents configured",
       "agentLabel": "AI agent",
       "emptyNotice": "No notice",
@@ -587,6 +608,9 @@
       "toast": {
         "searching": "Searching: {{query}}",
         "groupCreated": "Group started with {{count}} contacts and {{agentCount}} agents",
+        "groupAndKnowledgebaseCreated": "The group and its knowledge base were created.",
+        "groupCreatedKnowledgebaseProvisioning": "The group was created and its knowledge base is being initialized.",
+        "groupCreatedKnowledgebaseFailed": "The group was created, but knowledge base initialization failed. Retry from the group conversation.",
         "createGroupFailed": "Failed to start group",
         "invitedMembers": "Invited {{count}} members",
         "contactsLoadFailed": "Failed to load contacts",

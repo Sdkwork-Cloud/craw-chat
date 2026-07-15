@@ -128,7 +128,8 @@ limit $3
 
 const RETRY_FAILED_SQL: &str = r#"
 update im_outbox_events
-set publish_status = 'pending', available_at = $4, published_at = null, updated_at = $4
+set publish_status = 'pending', attempt_count = 0, available_at = $4,
+    published_at = null, updated_at = $4
 where tenant_id = $1 and organization_id = $2 and outbox_id = $3
     and publish_status = 'failed'
 "#;
@@ -454,6 +455,7 @@ mod tests {
 
         assert!(sql.contains("available_at = $4"));
         assert!(sql.contains("published_at = null"));
+        assert!(sql.contains("attempt_count = 0"));
         assert!(sql.contains("publish_status = 'failed'"));
     }
 }

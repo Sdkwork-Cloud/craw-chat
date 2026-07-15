@@ -21,6 +21,7 @@ const authorityPairs = [
     sdkMirrorPath: 'sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml',
     manifestPath: 'sdks/sdkwork-im-sdk/sdk-manifest.json',
     legacyAssemblyPath: 'sdks/sdkwork-im-sdk/.sdkwork-assembly.json',
+    assemblyRequired: true,
     componentSpecPath: 'sdks/sdkwork-im-sdk/specs/component.spec.json',
     expectedAuthoritySpec: '../../apis/open-api/im/sdkwork-im-im.openapi.yaml',
   },
@@ -54,10 +55,23 @@ for (const entry of authorityPairs) {
     `${entry.apisPath} must match ${entry.sdkMirrorPath} until SDK mirrors are retired`,
   );
 
-  assert.ok(
-    !fs.existsSync(path.join(repoRoot, entry.legacyAssemblyPath)),
-    `${entry.legacyAssemblyPath} must not be restored; sdk-manifest.json is the SDK family metadata SSOT`,
-  );
+  if (entry.assemblyRequired) {
+    assert.ok(
+      fs.existsSync(path.join(repoRoot, entry.legacyAssemblyPath)),
+      `${entry.legacyAssemblyPath} must exist for an authored IM SDK family`,
+    );
+    const assembly = JSON.parse(read(entry.legacyAssemblyPath));
+    assert.equal(assembly.sdkOwner, 'sdkwork-im');
+    assert.equal(assembly.apiAuthority, 'sdkwork-im.im');
+    assert.equal(assembly.generationInputSpec, 'openapi/sdkwork-im-im.sdkgen.yaml');
+    assert.equal(assembly.metadata?.ownerOnlyOperationCount, 124);
+    assert.deepEqual(assembly.sdkDependencies, []);
+  } else {
+    assert.ok(
+      !fs.existsSync(path.join(repoRoot, entry.legacyAssemblyPath)),
+      `${entry.legacyAssemblyPath} must not be restored; sdk-manifest.json is the SDK family metadata SSOT`,
+    );
+  }
 
   const sdkManifest = JSON.parse(read(entry.manifestPath));
   assert.equal(sdkManifest.authoritySpec, entry.expectedAuthoritySpec);

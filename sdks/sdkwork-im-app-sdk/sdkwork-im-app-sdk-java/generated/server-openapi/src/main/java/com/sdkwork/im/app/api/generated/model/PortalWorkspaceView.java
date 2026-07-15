@@ -14,7 +14,7 @@ public class PortalWorkspaceView {
     public String getName() {
         return this.name;
     }
-    
+
     public void setName(String name) {
         this.name = name;
     }
@@ -22,7 +22,7 @@ public class PortalWorkspaceView {
     public String getSlug() {
         return this.slug;
     }
-    
+
     public void setSlug(String slug) {
         this.slug = slug;
     }
@@ -30,7 +30,7 @@ public class PortalWorkspaceView {
     public String getTier() {
         return this.tier;
     }
-    
+
     public void setTier(String tier) {
         this.tier = tier;
     }
@@ -38,7 +38,7 @@ public class PortalWorkspaceView {
     public String getRegion() {
         return this.region;
     }
-    
+
     public void setRegion(String region) {
         this.region = region;
     }
@@ -46,7 +46,7 @@ public class PortalWorkspaceView {
     public String getSupportPlan() {
         return this.supportPlan;
     }
-    
+
     public void setSupportPlan(String supportPlan) {
         this.supportPlan = supportPlan;
     }
@@ -54,7 +54,7 @@ public class PortalWorkspaceView {
     public Integer getSeats() {
         return this.seats;
     }
-    
+
     public void setSeats(Integer seats) {
         this.seats = seats;
     }
@@ -62,7 +62,7 @@ public class PortalWorkspaceView {
     public Integer getActiveBrands() {
         return this.activeBrands;
     }
-    
+
     public void setActiveBrands(Integer activeBrands) {
         this.activeBrands = activeBrands;
     }
@@ -70,7 +70,7 @@ public class PortalWorkspaceView {
     public String getUptime() {
         return this.uptime;
     }
-    
+
     public void setUptime(String uptime) {
         this.uptime = uptime;
     }

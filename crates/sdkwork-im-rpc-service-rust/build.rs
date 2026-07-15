@@ -35,9 +35,15 @@ fn main() {
         .get("services")
         .and_then(Value::as_array)
         .expect("sdkwork-im-rpc RPC manifest must declare services");
+    let sdk_family = required_string(&manifest, "sdkFamily");
     let proto_catalog = parse_proto_catalog(&proto_root);
 
     let mut method_bindings = String::from("&[\n");
+    let mut service_bindings = String::new();
+    service_bindings.push_str(&format!(
+        "pub const RPC_SDK_FAMILY: &str = \"{sdk_family}\";\n\n"
+    ));
+    service_bindings.push_str("pub const RPC_SERVICE_BINDINGS: &[RpcServiceBinding] = &[\n");
     let mut tonic_adapters = String::new();
     let mut method_index = 0usize;
 
@@ -45,7 +51,7 @@ fn main() {
     tonic_adapters.push_str(&services.len().to_string());
     tonic_adapters.push_str(";\n\n");
 
-    let mut router_services: Vec<(String, String)> = Vec::new();
+    let mut router_services: Vec<(String, String, String)> = Vec::new();
 
     for service in services {
         let package = required_string(service, "package");
@@ -56,6 +62,12 @@ fn main() {
             .and_then(Value::as_array)
             .expect("RPC manifest service must declare methods");
         let service_key = format!("{package}.{service_name}");
+        service_bindings.push_str("    RpcServiceBinding {\n");
+        service_bindings.push_str(&format!("        service_key: \"{service_key}\",\n"));
+        service_bindings.push_str(&format!("        package: \"{package}\",\n"));
+        service_bindings.push_str(&format!("        service: \"{service_name}\",\n"));
+        service_bindings.push_str(&format!("        surface: \"{surface}\",\n"));
+        service_bindings.push_str("    },\n");
         let proto_service = proto_catalog
             .iter()
             .find(|candidate| candidate.service_key == service_key)
@@ -167,12 +179,16 @@ fn main() {
             format!(
                 ".add_service({sdk_module}::{service_module}::{service_name}Server::new({adapter_name}::new(dispatcher.clone())))"
             ),
+            format!(
+                ".add_service({sdk_module}::{service_module}::{service_name}Server::with_interceptor({adapter_name}::new(dispatcher.clone()), security.interceptor()))"
+            ),
         ));
     }
     method_bindings.push_str("]\n");
+    service_bindings.push_str("];\n");
 
     tonic_adapters.push_str("pub const IM_RPC_SERVICE_KEYS: &[&str] = &[\n");
-    for (service_key, _) in &router_services {
+    for (service_key, _, _) in &router_services {
         tonic_adapters.push_str(&format!("    \"{service_key}\",\n"));
     }
     tonic_adapters.push_str("];\n\n");
@@ -202,6 +218,40 @@ fn main() {
     tonic_adapters.push_str("        router.add_service(crate::build_im_rpc_health_server())\n");
     tonic_adapters.push_str("    } else {\n");
     tonic_adapters.push_str("        router\n");
+    tonic_adapters.push_str("    }\n");
+    tonic_adapters.push_str("}\n\n");
+
+    tonic_adapters.push_str(
+        "/// Builds a strict mTLS internal RPC router. Every selected service is wrapped\n",
+    );
+    tonic_adapters
+        .push_str("/// by the framework interceptor before generated adapters can dispatch.\n");
+    tonic_adapters
+        .push_str("pub fn build_im_rpc_mtls_service_router_with_config_for_services<D>(\n");
+    tonic_adapters.push_str("    config: &crate::ImRpcServerConfig,\n");
+    tonic_adapters.push_str("    dispatcher: ::std::sync::Arc<D>,\n");
+    tonic_adapters.push_str("    service_keys: &[&str],\n");
+    tonic_adapters.push_str("    tls_config: &sdkwork_rpc_server::RpcServerTlsConfig,\n");
+    tonic_adapters.push_str("    security: &sdkwork_rpc_server::RpcInternalServiceSecurity,\n");
+    tonic_adapters.push_str(") -> ::std::result::Result<tonic::transport::server::Router, sdkwork_rpc_server::ServeError>\n");
+    tonic_adapters.push_str("where\n");
+    tonic_adapters.push_str("    D: crate::ImRpcRuntimeDispatcher,\n");
+    tonic_adapters.push_str("{\n");
+    tonic_adapters.push_str("    security.validate_mtls_listener(tls_config)?;\n");
+    tonic_adapters.push_str("    let mut server = sdkwork_rpc_server::apply_server_tls(\n");
+    tonic_adapters.push_str("        tonic::transport::Server::builder().timeout(config.default_deadline.as_duration()),\n");
+    tonic_adapters.push_str("        tls_config,\n");
+    tonic_adapters.push_str("    )?;\n");
+    tonic_adapters.push_str("    let router = add_im_rpc_services_with_security(&mut server, dispatcher, service_keys, security);\n");
+    tonic_adapters.push_str("    if config.enable_health {\n");
+    tonic_adapters.push_str(
+        "        Ok(router.add_service(tonic::service::interceptor::InterceptedService::new(\n",
+    );
+    tonic_adapters.push_str("            crate::build_im_rpc_health_server(),\n");
+    tonic_adapters.push_str("            security.interceptor(),\n");
+    tonic_adapters.push_str("        )))\n");
+    tonic_adapters.push_str("    } else {\n");
+    tonic_adapters.push_str("        Ok(router)\n");
     tonic_adapters.push_str("    }\n");
     tonic_adapters.push_str("}\n\n");
 
@@ -249,7 +299,7 @@ fn main() {
     tonic_adapters.push_str("    assert!(!selected.is_empty(), \"at least one IM RPC service key must be selected\");\n");
     tonic_adapters
         .push_str("    let mut router: Option<tonic::transport::server::Router> = None;\n");
-    for (service_key, service_registration) in &router_services {
+    for (service_key, service_registration, _) in &router_services {
         tonic_adapters.push_str(&format!("    if selected.contains(\"{service_key}\") {{\n"));
         tonic_adapters.push_str("        router = Some(match router {\n");
         tonic_adapters.push_str("            None => server");
@@ -264,9 +314,41 @@ fn main() {
     tonic_adapters.push_str("    router.expect(\"filtered IM RPC router must register at least one selected service\")\n");
     tonic_adapters.push_str("}\n");
 
+    tonic_adapters.push_str("\n\npub fn add_im_rpc_services_with_security<D>(\n");
+    tonic_adapters.push_str("    server: &mut tonic::transport::Server,\n");
+    tonic_adapters.push_str("    dispatcher: ::std::sync::Arc<D>,\n");
+    tonic_adapters.push_str("    service_keys: &[&str],\n");
+    tonic_adapters.push_str("    security: &sdkwork_rpc_server::RpcInternalServiceSecurity,\n");
+    tonic_adapters.push_str(") -> tonic::transport::server::Router\n");
+    tonic_adapters.push_str("where\n");
+    tonic_adapters.push_str("    D: crate::ImRpcRuntimeDispatcher,\n");
+    tonic_adapters.push_str("{\n");
+    tonic_adapters.push_str("    use ::std::collections::HashSet;\n");
+    tonic_adapters
+        .push_str("    let selected: HashSet<&str> = service_keys.iter().copied().collect();\n");
+    tonic_adapters.push_str("    assert!(!selected.is_empty(), \"at least one IM RPC service key must be selected\");\n");
+    tonic_adapters
+        .push_str("    let mut router: Option<tonic::transport::server::Router> = None;\n");
+    for (service_key, _, secured_registration) in &router_services {
+        tonic_adapters.push_str(&format!("    if selected.contains(\"{service_key}\") {{\n"));
+        tonic_adapters.push_str("        router = Some(match router {\n");
+        tonic_adapters.push_str("            None => server");
+        tonic_adapters.push_str(secured_registration);
+        tonic_adapters.push_str(",\n");
+        tonic_adapters.push_str("            Some(existing) => existing");
+        tonic_adapters.push_str(secured_registration);
+        tonic_adapters.push_str(",\n");
+        tonic_adapters.push_str("        });\n");
+        tonic_adapters.push_str("    }\n");
+    }
+    tonic_adapters.push_str("    router.expect(\"filtered IM RPC router must register at least one selected service\")\n");
+    tonic_adapters.push_str("}\n");
+
     let output_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is set"));
     fs::write(output_dir.join("rpc_method_bindings.rs"), method_bindings)
         .expect("generated RPC method bindings must be writable");
+    fs::write(output_dir.join("rpc_service_bindings.rs"), service_bindings)
+        .expect("generated RPC service bindings must be writable");
     fs::write(
         output_dir.join("rpc_tonic_service_adapters.rs"),
         tonic_adapters,

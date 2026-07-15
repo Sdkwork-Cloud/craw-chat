@@ -87,7 +87,9 @@
     "routeManifest": null,
     "sdkClients": [],
     "events": [],
-    "configKeys": [],
+    "configKeys": [
+      "VITE_SDKWORK_KNOWLEDGEBASE_APP_URL"
+    ],
     "sdkDependencies": [
       {
         "workspace": "sdkwork-agents-app-sdk",
