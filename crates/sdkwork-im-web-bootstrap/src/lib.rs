@@ -21,7 +21,8 @@ pub fn im_service_router_config() -> ServiceRouterConfig {
         .with_metrics(im_service_http_metrics())
 }
 use im_app_context::{
-    app_context_from_web_request, resolve_app_context, resolve_web_environment_from_process_env,
+    AppContext, app_context_from_web_request, resolve_app_context,
+    resolve_web_environment_from_process_env,
 };
 use sdkwork_iam_web_adapter::{
     IamAuthorizationPolicy, IamWebRequestContextResolver, iam_web_request_context_resolver_from_env,
@@ -31,7 +32,7 @@ use sdkwork_web_axum::{WebFrameworkLayer, with_web_request_context};
 use sdkwork_web_bootstrap::SecurityPolicy;
 use sdkwork_web_core::{
     DomainContextInjector, EnforcePrincipalTenantIsolationPolicy, HttpMetricsDimensions,
-    HttpMetricsRegistry, HttpRouteManifest, WebEnvironment, WebRequestContext,
+    HttpMetricsRegistry, HttpRouteManifest, WebApiSurface, WebEnvironment, WebRequestContext,
     WebRequestContextProfile,
 };
 
@@ -68,13 +69,49 @@ pub fn im_service_http_metrics() -> Arc<HttpMetricsRegistry> {
 impl DomainContextInjector for ImAppContextInjector {
     fn inject(&self, request: &mut axum::extract::Request, context: &WebRequestContext) {
         request.extensions_mut().insert(context.clone());
-        if let Ok(app_context) = resolve_app_context(request.headers()) {
-            request.extensions_mut().insert(app_context);
-            return;
-        }
-        if let Some(app_context) = app_context_from_web_request(context) {
+        if let Some(app_context) = im_app_context_from_framework_request(request, context) {
             request.extensions_mut().insert(app_context);
         }
+    }
+}
+
+fn im_app_context_from_framework_request(
+    request: &axum::extract::Request,
+    context: &WebRequestContext,
+) -> Option<AppContext> {
+    let mut projected = app_context_from_web_request(context)?;
+    if !matches!(context.api_surface, WebApiSurface::OpenApi) {
+        return Some(projected);
+    }
+
+    // The standard principal does not yet model IM's delegated `agent` actor
+    // kind. Preserve that open-api domain claim only after the dual-token
+    // parser has verified it and every standard identity dimension agrees with
+    // WebRequestContext. Tenant, organization, user, session, app, and scopes
+    // always remain framework-owned. App-api/backend-api never enter this
+    // compatibility projection.
+    let Ok(delegated) = resolve_app_context(request.headers()) else {
+        return Some(projected);
+    };
+    let principal = context.principal()?;
+    let same_standard_identity = delegated.tenant_id == principal.tenant_id()
+        && active_organization_id(Some(delegated.organization_id.as_str()))
+            == active_organization_id(principal.organization_id())
+        && delegated.user_id == principal.user_id()
+        && delegated.session_id.as_deref() == principal.session_id()
+        && delegated.app_id.as_deref() == Some(principal.app_id());
+    if same_standard_identity {
+        projected.actor_id = delegated.actor_id;
+        projected.actor_kind = delegated.actor_kind;
+        projected.device_id = delegated.device_id;
+    }
+    Some(projected)
+}
+
+fn active_organization_id(value: Option<&str>) -> Option<&str> {
+    match value.map(str::trim) {
+        None | Some("") | Some("0") => None,
+        Some(value) => Some(value),
     }
 }
 
@@ -220,4 +257,83 @@ pub async fn wrap_im_open_api_service_router_from_env(
 ) -> Router {
     let resolver = shared_iam_web_request_context_resolver_from_env().await;
     wrap_im_open_api_service_router_inner(resolver, route_manifest, router)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use sdkwork_web_core::{
+        ServerRequestId, WebApiSurface, WebAuthLevel, WebAuthMode, WebDeploymentMode,
+        WebEnvironment, WebLoginScope, WebRequestPrincipal, WebSubjectType, WebTransportFacts,
+    };
+
+    fn organization_web_request_context() -> WebRequestContext {
+        WebRequestContext {
+            request_id: ServerRequestId("request-web-context-authority".into()),
+            api_surface: WebApiSurface::AppApi,
+            auth_mode: WebAuthMode::DualToken,
+            principal: Some(
+                WebRequestPrincipal::builder()
+                    .tenant_id("100001")
+                    .organization_id(Some("200001".to_owned()))
+                    .login_scope(WebLoginScope::Organization)
+                    .user_id("42")
+                    .session_id(Some("session-42".to_owned()))
+                    .app_id("sdkwork-im-pc")
+                    .environment(WebEnvironment::Test)
+                    .deployment_mode(WebDeploymentMode::Saas)
+                    .auth_level(WebAuthLevel::Password)
+                    .data_scope(vec!["organization".to_owned()])
+                    .permission_scope(vec!["conversation.read".to_owned()])
+                    .subject_type(WebSubjectType::User)
+                    .build(),
+            ),
+            transport: WebTransportFacts {
+                path: "/app/v3/api/chat/conversations/1/knowledgebase".into(),
+                method: "GET".into(),
+                auth_token_present: true,
+                access_token_present: true,
+                api_key_present: false,
+                oauth_bearer_present: false,
+                agent_token_present: false,
+            },
+            locale: None,
+            client_kind: None,
+            operation: None,
+            trace_id: Some("trace-web-context-authority".into()),
+            idempotency_key: None,
+        }
+    }
+
+    #[test]
+    fn domain_injection_uses_only_the_framework_resolved_principal() {
+        let context = organization_web_request_context();
+        let tenant_wide_headers = im_app_context::build_dual_token_headers_for_context(
+            &im_app_context::local_service_app_context(
+                "100001",
+                "42",
+                "user",
+                None,
+                ["conversation.read"],
+            ),
+            ["conversation.read"],
+        );
+        let mut request = axum::extract::Request::builder()
+            .uri("/app/v3/api/chat/conversations/1/knowledgebase")
+            .body(Body::empty())
+            .expect("test request");
+        *request.headers_mut() = tenant_wide_headers;
+
+        ImAppContextInjector.inject(&mut request, &context);
+
+        let projected = request
+            .extensions()
+            .get::<im_app_context::AppContext>()
+            .expect("framework principal should project into IM AppContext");
+        assert_eq!(projected.tenant_id, "100001");
+        assert_eq!(projected.organization_id, "200001");
+        assert_eq!(projected.user_id, "42");
+        assert_eq!(projected.session_id.as_deref(), Some("session-42"));
+    }
 }

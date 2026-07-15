@@ -24,7 +24,7 @@ const libSource = fs.readFileSync(path.join(srcRoot, 'lib.rs'), 'utf8');
 
 for (const symbol of [
   'pub fn resolve_app_context',
-  'pub async fn inject_app_request_context_middleware',
+  'pub fn resolve_web_request_context',
   'pub fn allows_header_only_app_context_fallback',
   'DEV_JWT_SIGNING_SECRET_FALLBACK',
 ]) {
@@ -32,6 +32,19 @@ for (const symbol of [
     libSource,
     new RegExp(symbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'),
     `im-app-context lib.rs must export or enforce ${symbol}.`,
+  );
+}
+
+for (const legacySymbol of [
+  'inject_app_request_context_middleware',
+  'resolve_app_request_context',
+  'resolve_handler_app_context',
+  'require_handler_request_scope',
+]) {
+  assert.doesNotMatch(
+    libSource,
+    new RegExp(legacySymbol, 'u'),
+    `im-app-context must not retain legacy HTTP request-context symbol ${legacySymbol}.`,
   );
 }
 

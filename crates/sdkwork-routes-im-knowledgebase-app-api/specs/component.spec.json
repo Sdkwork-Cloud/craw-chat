@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-routes-im-knowledgebase-app-api",
+    "displayName": "SDKWork IM Knowledgebase App API Routes",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-im/crates/sdkwork-routes-im-knowledgebase-app-api",
+    "domain": "communication",
+    "capability": "knowledgebase",
+    "status": "active",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": false,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored Rust source and generated boundary rules."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical route crate and operation naming."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate and module rules."
+    },
+    {
+      "file": "API_SPEC.md",
+      "path": "../../../sdkwork-specs/API_SPEC.md",
+      "purpose": "App API response, error, and operation contracts."
+    },
+    {
+      "file": "WEB_FRAMEWORK_SPEC.md",
+      "path": "../../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
+      "purpose": "Canonical WebRequestContext and dual-token route integration."
+    },
+    {
+      "file": "WEB_BACKEND_SPEC.md",
+      "path": "../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
+      "purpose": "Handler, service, and domain-context boundaries."
+    },
+    {
+      "file": "IAM_SPEC.md",
+      "path": "../../../sdkwork-specs/IAM_SPEC.md",
+      "purpose": "Organization login context and dual-token authority."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Protected route and organization isolation rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Contract and security regression verification."
+    }
+  ],
+  "contracts": {
+    "publicExports": [
+      "gateway_route_manifest",
+      "gateway_mount",
+      "gateway_mount_with_state"
+    ],
+    "runtimeEntrypoints": [
+      "Cargo.toml"
+    ],
+    "routeManifest": "src/manifest.rs",
+    "sdkClients": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "The authored App API OpenAPI contract and route manifest own the public HTTP surface.",
+    "dependencyPolicy": "The route crate mounts Conversation service handlers and the standard IM web bootstrap only.",
+    "sdkPolicy": "The route crate never imports its own generated SDK family.",
+    "languagePolicy": "Protected handlers consume framework-injected WebRequestContext; tenant and organization never come from business input."
+  },
+  "verification": {
+    "commands": [
+      "cargo test -p sdkwork-routes-im-knowledgebase-app-api",
+      "node scripts/dev/sdkwork-im-web-backend-standard.test.mjs",
+      "node scripts/dev/sdkwork-im-web-framework-standard.test.mjs"
+    ]
+  }
+}

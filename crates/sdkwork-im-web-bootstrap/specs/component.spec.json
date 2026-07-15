@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-im-web-bootstrap",
+    "displayName": "SDKWork IM Web Bootstrap",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-im/crates/sdkwork-im-web-bootstrap",
+    "domain": "communication",
+    "capability": "web-bootstrap",
+    "status": "active",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": false,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored Rust source and request-context boundary rules."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate and module rules."
+    },
+    {
+      "file": "WEB_FRAMEWORK_SPEC.md",
+      "path": "../../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
+      "purpose": "Canonical WebRequestContext and framework pipeline integration."
+    },
+    {
+      "file": "WEB_BACKEND_SPEC.md",
+      "path": "../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
+      "purpose": "HTTP handler and domain-context projection boundaries."
+    },
+    {
+      "file": "IAM_SPEC.md",
+      "path": "../../../sdkwork-specs/IAM_SPEC.md",
+      "purpose": "Dual-token principal and organization login-scope semantics."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Credential validation and fail-closed context rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Security and integration regression verification."
+    }
+  ],
+  "contracts": {
+    "publicExports": [
+      "mount_im_infra_routes",
+      "wrap_im_service_router_with_manifest",
+      "wrap_im_open_api_service_router_with_resolver",
+      "wrap_im_open_api_service_router_from_env"
+    ],
+    "runtimeEntrypoints": [
+      "Cargo.toml"
+    ],
+    "routeManifest": null,
+    "sdkClients": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "WebRequestContext resolved by sdkwork-web-framework and sdkwork-iam-web-adapter is the sole HTTP request identity authority.",
+    "dependencyPolicy": "Route crates consume this crate through its public bootstrap functions only.",
+    "sdkPolicy": "This infrastructure crate does not consume generated business SDKs.",
+    "languagePolicy": "Domain AppContext projection derives only from the injected WebRequestContext and never reparses credential headers."
+  },
+  "verification": {
+    "commands": [
+      "cargo test -p sdkwork-im-web-bootstrap",
+      "pnpm test:web-framework-standard"
+    ]
+  }
+}

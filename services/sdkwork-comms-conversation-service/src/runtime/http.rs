@@ -13,7 +13,7 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use im_app_context::{AppContext, resolve_app_context};
+use im_app_context::{AppContext, app_context_from_web_request, resolve_app_context};
 use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursorView, MembershipRole,
 };
@@ -31,7 +31,7 @@ use sdkwork_utils_rust::{
     SdkWorkProblemDetail, SdkWorkResourceData, SdkWorkResultCode,
 };
 use sdkwork_web_core::{
-    ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, WebRequestContext,
+    ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, WebLoginScope, WebRequestContext,
     problem_response,
 };
 use serde::de::DeserializeOwned;
@@ -980,6 +980,13 @@ impl ApiError {
     fn bad_request(_code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::BAD_REQUEST,
+            message: message.into(),
+        }
+    }
+
+    fn unauthorized(_code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::UNAUTHORIZED,
             message: message.into(),
         }
     }
@@ -2098,13 +2105,36 @@ fn ensure_active_http_auth_principal(state: &AppState, auth: &AppContext) -> Res
     )
 }
 
-/// The browser-facing group-KB endpoints fail before any conversation or
-/// provider work when the authenticated request is tenant-wide. Knowledgebase
-/// owns organization-scoped spaces only; it has no tenant-wide ACL model.
+fn require_im_app_context(ctx: &WebRequestContext) -> Result<AppContext, ApiError> {
+    app_context_from_web_request(ctx).ok_or_else(|| {
+        ApiError::unauthorized(
+            "web_request_principal_required",
+            "an authenticated WebRequestContext principal is required",
+        )
+    })
+}
+
 fn require_group_knowledgebase_http_organization(auth: &AppContext) -> Result<(), ApiError> {
     super::knowledgebase::resolve_group_knowledgebase_organization_id(auth)
         .map(|_| ())
         .map_err(ApiError::from)
+}
+
+/// The browser-facing group-KB endpoints fail before any conversation or
+/// provider work when the authenticated request is tenant-wide. Knowledgebase
+/// owns organization-scoped spaces only; it has no tenant-wide ACL model.
+fn require_group_knowledgebase_http_context(
+    ctx: &WebRequestContext,
+) -> Result<AppContext, ApiError> {
+    if ctx.login_scope() != Some(WebLoginScope::Organization) {
+        return Err(ApiError::forbidden(
+            "group_knowledgebase_organization_login_required",
+            "group knowledgebase requires an active organization login context",
+        ));
+    }
+    let auth = require_im_app_context(ctx)?;
+    require_group_knowledgebase_http_organization(&auth)?;
+    Ok(auth)
 }
 
 fn require_normalized_idempotency_key(ctx: &WebRequestContext) -> Result<String, ApiError> {
@@ -2439,14 +2469,18 @@ async fn get_conversation_binding(
 }
 
 async fn get_group_knowledgebase(
-    Extension(ctx): Extension<WebRequestContext>,
-    Extension(auth): Extension<AppContext>,
+    ctx: WebRequestContext,
     State(state): State<AppState>,
     Path(conversation_id): Path<String>,
 ) -> Response {
+    let auth = match require_group_knowledgebase_http_context(&ctx) {
+        Ok(auth) => auth,
+        Err(error) => {
+            return resource_response::<GroupKnowledgebaseLinkView>(&ctx, Err(error.into()));
+        }
+    };
     let result = run_blocking_conversation(state, auth, move |state, auth| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        require_group_knowledgebase_http_organization(&auth)?;
         state
             .group_knowledgebase
             .retrieve(state.rpc_runtime(), &auth, conversation_id.as_str())
@@ -2457,14 +2491,18 @@ async fn get_group_knowledgebase(
 }
 
 async fn ensure_group_knowledgebase(
-    Extension(ctx): Extension<WebRequestContext>,
-    Extension(auth): Extension<AppContext>,
+    ctx: WebRequestContext,
     State(state): State<AppState>,
     Path(conversation_id): Path<String>,
     AppJson(_request): AppJson<CreateGroupKnowledgebaseCommandRequest>,
 ) -> Response {
+    let auth = match require_group_knowledgebase_http_context(&ctx) {
+        Ok(auth) => auth,
+        Err(error) => {
+            return resource_response::<GroupKnowledgebaseLinkView>(&ctx, Err(error.into()));
+        }
+    };
     if let Err(error) = ensure_active_http_auth_principal(&state, &auth)
-        .and_then(|_| require_group_knowledgebase_http_organization(&auth))
         .and_then(|_| require_normalized_idempotency_key(&ctx).map(|_| ()))
     {
         return resource_response::<GroupKnowledgebaseLinkView>(&ctx, Err(error.into()));
@@ -2487,14 +2525,21 @@ async fn ensure_group_knowledgebase(
 }
 
 async fn launch_group_knowledgebase(
-    Extension(ctx): Extension<WebRequestContext>,
-    Extension(auth): Extension<AppContext>,
+    ctx: WebRequestContext,
     State(state): State<AppState>,
     Path(conversation_id): Path<String>,
     AppJson(_request): AppJson<LaunchGroupKnowledgebaseCommandRequest>,
 ) -> Response {
+    let auth = match require_group_knowledgebase_http_context(&ctx) {
+        Ok(auth) => auth,
+        Err(error) => {
+            return no_store_resource_response::<GroupKnowledgebaseLaunchResponse>(
+                &ctx,
+                Err(error.into()),
+            );
+        }
+    };
     let idempotency_key = match ensure_active_http_auth_principal(&state, &auth)
-        .and_then(|_| require_group_knowledgebase_http_organization(&auth))
         .and_then(|_| require_normalized_idempotency_key(&ctx))
         .and_then(|idempotency_key| {
             if state
@@ -2527,12 +2572,17 @@ async fn launch_group_knowledgebase(
 }
 
 async fn archive_group_conversation(
-    Extension(ctx): Extension<WebRequestContext>,
-    Extension(auth): Extension<AppContext>,
+    ctx: WebRequestContext,
     State(state): State<AppState>,
     Path(conversation_id): Path<String>,
     AppJson(_request): AppJson<ArchiveGroupConversationCommandRequest>,
 ) -> Response {
+    let auth = match require_im_app_context(&ctx) {
+        Ok(auth) => auth,
+        Err(error) => {
+            return finish_api_json::<ArchiveGroupConversationResponse>(&ctx, Err(error.into()));
+        }
+    };
     let idempotency_key = match ensure_active_http_auth_principal(&state, &auth)
         .and_then(|_| require_normalized_idempotency_key(&ctx))
     {
@@ -3206,7 +3256,10 @@ mod tests {
     use axum::http::{Request, StatusCode};
     use http_body_util::BodyExt;
     use im_app_context::DualTokenRequestBuilderExt;
-    use sdkwork_web_core::{ServerRequestId, WebApiSurface, WebAuthMode, WebTransportFacts};
+    use sdkwork_web_core::{
+        ServerRequestId, WebApiSurface, WebAuthLevel, WebAuthMode, WebDeploymentMode,
+        WebEnvironment, WebRequestPrincipal, WebSubjectType, WebTransportFacts,
+    };
     use std::collections::BTreeSet;
     use std::sync::{Mutex, OnceLock};
     use std::time::Duration;
@@ -3309,6 +3362,31 @@ mod tests {
         }
     }
 
+    fn organization_request_context(organization_id: Option<&str>) -> WebRequestContext {
+        let mut context = request_context_with_normalized_idempotency_key(None);
+        context.principal = Some(
+            WebRequestPrincipal::builder()
+                .tenant_id("100001")
+                .organization_id(organization_id.map(ToOwned::to_owned))
+                .login_scope(if organization_id.is_some_and(|value| value != "0") {
+                    WebLoginScope::Organization
+                } else {
+                    WebLoginScope::Tenant
+                })
+                .user_id("42")
+                .session_id(Some("session-42".to_owned()))
+                .app_id("sdkwork-im-pc")
+                .environment(WebEnvironment::Test)
+                .deployment_mode(WebDeploymentMode::Saas)
+                .auth_level(WebAuthLevel::Password)
+                .data_scope(vec!["organization".to_owned()])
+                .permission_scope(vec!["conversation.read".to_owned()])
+                .subject_type(WebSubjectType::User)
+                .build(),
+        );
+        context
+    }
+
     #[tokio::test]
     async fn archive_group_response_uses_command_data_without_resource_item_wrapper() {
         let response = finish_api_json(
@@ -3362,7 +3440,7 @@ mod tests {
                 path.as_str(),
                 method.as_str(),
             ) {
-                let mut request_context = resolved.app_request_context;
+                let mut request_context = resolved.web_request_context;
                 request_context.idempotency_key = request
                     .headers()
                     .get("idempotency-key")
@@ -3551,18 +3629,23 @@ mod tests {
     }
 
     #[test]
-    fn group_knowledgebase_http_rejects_a_tenant_wide_organization() {
-        let mut auth =
-            im_app_context::local_service_app_context("100001", "42", "user", None, ["*"]);
-        let error = require_group_knowledgebase_http_organization(&auth)
-            .expect_err("tenant-wide group knowledgebase HTTP access must be rejected");
+    fn group_knowledgebase_http_requires_framework_organization_login_context() {
+        let error =
+            require_group_knowledgebase_http_context(&organization_request_context(Some("0")))
+                .expect_err("tenant-wide group knowledgebase HTTP access must be rejected");
         assert_eq!(error.status, StatusCode::FORBIDDEN);
 
-        auth.organization_id = "200001".into();
-        assert!(require_group_knowledgebase_http_organization(&auth).is_ok());
+        let auth =
+            require_group_knowledgebase_http_context(&organization_request_context(Some("200001")))
+                .expect("organization login context should project into AppContext");
+        assert_eq!(auth.organization_id, "200001");
 
-        auth.organization_id = "org-200001".into();
-        assert!(require_group_knowledgebase_http_organization(&auth).is_err());
+        assert!(
+            require_group_knowledgebase_http_context(&organization_request_context(Some(
+                "org-200001",
+            )))
+            .is_err()
+        );
     }
 
     #[test]

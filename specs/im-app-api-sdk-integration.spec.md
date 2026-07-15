@@ -67,7 +67,7 @@ Rules:
 - A successful login must persist `authToken`, `accessToken`, optional `refreshToken`, `context`, `sessionId`, and normalized user data.
 - `@sdkwork/im-sdk` construction must receive the same auth token manager, `accessToken`, and platform identity derived from the persisted IAM session. Current `tenantId`, `organizationId`, `userId`, and `sessionId` are server-resolved request context from `Authorization` plus `Access-Token`; PC business services must not pass them as SDK method parameters, query fields, request bodies, or custom headers.
 - After login, chat and RTC code must be able to call IM SDK methods without a second login or manually assembled auth headers.
-- Drive, Notary, Agent, and other foundation SDK integrations must follow the same rule: only business fields belong in service-layer SDK calls. Tenant and organization scope belong to token validation and backend `AppRequestContext` resolution.
+- Drive, Notary, Agent, and other foundation SDK integrations must follow the same rule: only business fields belong in service-layer SDK calls. Tenant and organization scope belong to dual-token validation and backend `WebRequestContext` resolution.
 - AIoT app SDK calls use token-scoped generated methods such as `client.iot.devicesList()` and `client.iot.devicesCommandsCreate(...)`; IM PC services must not pass `tenantId`, `organizationId`, or `X-Sdkwork-*` scope headers.
 - Notary composed Drive helpers must not pass `tenantId` into Drive download/delete calls.
 
