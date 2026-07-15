@@ -195,6 +195,21 @@ assert.match(bootstrapLib, /WebFrameworkLayer::new/u);
 assert.match(bootstrapLib, /with_web_request_context/u);
 
 assert.match(bootstrapLib, /ImAppContextInjector/u);
+assert.match(
+  bootstrapLib,
+  /app_context_from_web_request\(context\)/u,
+  'IM domain injection must project AppContext from the canonical WebRequestContext',
+);
+assert.match(
+  bootstrapLib,
+  /if !matches!\(context\.api_surface, WebApiSurface::OpenApi\) \{[\s\S]*?return Some\(projected\);/u,
+  'app-api and backend-api domain context must use only the framework WebRequestContext projection',
+);
+assert.match(
+  bootstrapLib,
+  /same_standard_identity[\s\S]*?delegated\.tenant_id == principal\.tenant_id\(\)[\s\S]*?active_organization_id\(Some\(delegated\.organization_id\.as_str\(\)\)\)[\s\S]*?active_organization_id\(principal\.organization_id\(\)\)/u,
+  'legacy open-api actor delegation must not override framework tenant or organization authority',
+);
 
 assert.match(bootstrapLib, /\/im\/v3\/api/u);
 assert.match(bootstrapLib, /IamWebRequestContextResolver/u);
@@ -351,6 +366,49 @@ assert.match(
 
   'im-app-context must verify production JWT signatures through tenant-bound verifier',
 
+);
+
+const conversationHttpSource = read('services/sdkwork-comms-conversation-service/src/runtime/http.rs');
+for (const handlerName of [
+  'get_group_knowledgebase',
+  'ensure_group_knowledgebase',
+  'launch_group_knowledgebase',
+  'archive_group_conversation',
+]) {
+  assert.match(
+    conversationHttpSource,
+    new RegExp(`async fn ${handlerName}\\(\\s*ctx: WebRequestContext`, 'u'),
+    `${handlerName} must extract the canonical WebRequestContext directly`,
+  );
+}
+
+const legacyRequestContextName = ['App', 'Request', 'Context'].join('');
+const legacyRequestContextFiles = [];
+const sourceExtensions = new Set(['.json', '.md', '.mjs', '.rs', '.toml', '.ts', '.tsx', '.yaml', '.yml']);
+const ignoredDirectories = new Set(['.git', '.runtime', 'dist', 'generated', 'node_modules', 'target']);
+const pendingDirectories = [repoRoot];
+while (pendingDirectories.length > 0) {
+  const directory = pendingDirectories.pop();
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (!ignoredDirectories.has(entry.name)) {
+        pendingDirectories.push(path.join(directory, entry.name));
+      }
+      continue;
+    }
+    const absolutePath = path.join(directory, entry.name);
+    if (
+      sourceExtensions.has(path.extname(entry.name))
+      && fs.readFileSync(absolutePath, 'utf8').includes(legacyRequestContextName)
+    ) {
+      legacyRequestContextFiles.push(path.relative(repoRoot, absolutePath));
+    }
+  }
+}
+assert.deepEqual(
+  legacyRequestContextFiles,
+  [],
+  'sdkwork-im authored sources must not retain the migration-only request-context alias',
 );
 
 assert.match(

@@ -5,13 +5,15 @@ Capability: im
 Package type: rust-crate  
 Status: active
 
-Single-source Rust crate for dual-token AppContext resolution, JWT validation, and Axum request middleware used across IM services and gateways.
+Single-source Rust crate for IM domain `AppContext` projection, internal dual-token utilities,
+JWT validation, and trusted orchestration context used across IM services and gateways. HTTP
+routers resolve credentials once through `sdkwork-web-framework`; this crate must not install a
+parallel request-context middleware.
 
 ## Public API (`src/lib.rs`)
 
-- `resolve_app_context`, `resolve_app_context_for_request`, `resolve_handler_app_context`
+- `app_context_from_web_request`, `resolve_web_request_context`, `resolve_app_context_for_request`
 - `build_dual_token_headers_for_context`, `DualTokenRequestBuilderExt`
-- `inject_app_request_context_middleware`
 - `allows_header_only_app_context_fallback`, `resolve_web_environment_from_process_env`
 - `AppContext`, `AppContextError`, `ResolvedAppContext`, `AppContextSignatureConfig`
 

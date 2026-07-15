@@ -339,14 +339,14 @@ fn test_resolve_app_context_for_request_exposes_appbase_context() {
         resolve_app_context_for_request(&headers, "/app/v3/api/messages", "POST").expect("context");
 
     assert_eq!(
-        resolved.app_request_context.transport.path,
+        resolved.web_request_context.transport.path,
         "/app/v3/api/messages"
     );
-    assert_eq!(resolved.app_request_context.transport.method, "POST");
-    assert!(resolved.app_request_context.transport.auth_token_present);
-    assert!(resolved.app_request_context.transport.access_token_present);
+    assert_eq!(resolved.web_request_context.transport.method, "POST");
+    assert!(resolved.web_request_context.transport.auth_token_present);
+    assert!(resolved.web_request_context.transport.access_token_present);
     let principal = resolved
-        .app_request_context
+        .web_request_context
         .principal
         .as_ref()
         .expect("principal");

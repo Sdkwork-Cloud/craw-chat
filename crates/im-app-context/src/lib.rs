@@ -2,13 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use axum::{
-    body::Body,
-    extract::Request,
-    http::{HeaderMap, HeaderValue, StatusCode, header},
-    middleware::Next,
-    response::{IntoResponse, Response},
-};
+use axum::http::{HeaderMap, HeaderValue, header};
 use im_adapters_redis_cache::RedisJwtReplayStore;
 use sdkwork_im_ccp_core::{CcpActor, CcpAuthority, CcpSender};
 use sdkwork_utils_rust::{
@@ -82,7 +76,7 @@ pub struct AppContextError {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResolvedAppContext {
-    pub app_request_context: WebRequestContext,
+    pub web_request_context: WebRequestContext,
     pub app_context: AppContext,
 }
 
@@ -520,25 +514,6 @@ impl From<AppContext> for AppRequestScope {
     }
 }
 
-/// Resolve `AppContext` from middleware-injected extensions or request headers.
-pub fn resolve_handler_app_context(
-    auth: Option<axum::extract::Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppContext, AppContextError> {
-    match auth {
-        Some(axum::extract::Extension(context)) => Ok(context),
-        None => resolve_app_context(headers),
-    }
-}
-
-/// Require authenticated request scope for HTTP handlers.
-pub fn require_handler_request_scope(
-    auth: Option<axum::extract::Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppRequestScope, AppContextError> {
-    resolve_handler_app_context(auth, headers).map(Into::into)
-}
-
 pub fn resolve_app_context_with_signature_config(
     headers: &HeaderMap,
     signature_config: AppContextSignatureConfig,
@@ -796,13 +771,13 @@ where
     headers
 }
 
-pub fn resolve_app_request_context(
+pub fn resolve_web_request_context(
     headers: &HeaderMap,
     path: &str,
     method: &str,
 ) -> Result<WebRequestContext, AppContextError> {
     resolve_app_context_for_request(headers, path, method)
-        .map(|resolved| resolved.app_request_context)
+        .map(|resolved| resolved.web_request_context)
 }
 
 pub fn resolve_app_context_for_request(
@@ -850,7 +825,7 @@ fn resolve_app_context_for_request_inner(
     };
 
     Ok(ResolvedAppContext {
-        app_request_context: request_context,
+        web_request_context: request_context,
         app_context,
     })
 }
@@ -878,33 +853,6 @@ fn new_server_trace_id() -> String {
         bytes[14],
         bytes[15],
     )
-}
-
-pub async fn inject_app_request_context_middleware(
-    mut request: Request<Body>,
-    next: Next,
-) -> Response {
-    if request.method() == axum::http::Method::OPTIONS {
-        return next.run(request).await;
-    }
-
-    if has_any_dual_token_header(request.headers()) {
-        match resolve_app_context_for_request(
-            request.headers(),
-            request.uri().path(),
-            request.method().as_str(),
-        ) {
-            Ok(resolved) => {
-                request
-                    .extensions_mut()
-                    .insert(resolved.app_request_context);
-                request.extensions_mut().insert(resolved.app_context);
-            }
-            Err(error) => return app_context_error_response(error),
-        }
-    }
-
-    next.run(request).await
 }
 
 fn resolve_principal(
@@ -1154,10 +1102,6 @@ pub fn coalesce_websocket_device_id(
         .or(query_device_id)
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())
-}
-
-fn has_any_dual_token_header(headers: &HeaderMap) -> bool {
-    has_websocket_upgrade_auth_headers(headers)
 }
 
 impl TokenClaims {
@@ -1821,15 +1765,4 @@ fn format_auth_level(value: &WebAuthLevel) -> &'static str {
         WebAuthLevel::System => "system",
         WebAuthLevel::ApiKey => "api_key",
     }
-}
-
-fn app_context_error_response(error: AppContextError) -> Response {
-    (
-        StatusCode::UNAUTHORIZED,
-        axum::Json(json!({
-            "code": error.code(),
-            "message": error.message(),
-        })),
-    )
-        .into_response()
 }

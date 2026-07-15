@@ -453,7 +453,7 @@ pub fn build_integration_test_app(service: Arc<TimelineProjectionService>) -> Ro
             let mut request = request;
             request
                 .extensions_mut()
-                .insert(resolved.app_request_context);
+                .insert(resolved.web_request_context);
             request.extensions_mut().insert(resolved.app_context);
             return next.run(request).await;
         }
