@@ -43,7 +43,7 @@ This round does not cover:
 - Realtime boundary: generated SDKs continue to cover HTTP coordination only. WebSocket transport remains documented but not implemented as a handwritten adapter in this round.
 - TypeScript and Flutter architecture: keep the existing layered shape of `generated/server-openapi + composed`.
 - Rust architecture: add a new workspace following the same generated/manual split, using a generated Rust HTTP crate plus a thin manual composed crate.
-- Assembly model: `.sdkwork-assembly.json` becomes the machine-readable catalog for all three language workspaces and their generated and composed packages.
+- Assembly model: `sdk-manifest.json` becomes the machine-readable catalog for all three language workspaces and their generated and composed packages.
 
 ## Workspace Architecture
 
@@ -203,7 +203,7 @@ Required behavior:
 4. Generate TypeScript, Flutter, and Rust `generated/server-openapi` outputs.
 5. Apply language-appropriate normalization for public auth semantics and packaging boundaries.
 6. Run per-language verification.
-7. Refresh `.sdkwork-assembly.json`.
+7. Refresh `sdk-manifest.json`.
 
 Rust becomes a first-class language in:
 
@@ -214,7 +214,7 @@ Rust becomes a first-class language in:
 
 ## Assembly Contract
 
-`.sdkwork-assembly.json` must describe all generated and composed packages for the workspace.
+`sdk-manifest.json` must describe all generated and composed packages for the workspace.
 
 For each language, record:
 

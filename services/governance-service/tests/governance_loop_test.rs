@@ -25,7 +25,7 @@ fn audit_app_context() -> AppContext {
         deployment_mode: None,
         auth_level: None,
         data_scope: BTreeSet::new(),
-        permission_scope: BTreeSet::new(),
+        permission_scope: BTreeSet::from(["audit.read".to_owned()]),
         actor_id: "1080".into(),
         actor_kind: "admin".into(),
         device_id: None,

@@ -82,6 +82,29 @@ impl ProjectionRuntime {
             .persist_all_durable_snapshots(self.backend.metadata(), self.backend.timeline())
     }
 
+    pub fn persist_durable_state_for_events(
+        &self,
+        events: &[im_platform_contracts::CommitEnvelope],
+    ) -> Result<(), ProjectionError> {
+        if !self.backend.is_postgres() || events.is_empty() {
+            return Ok(());
+        }
+        self.service.persist_durable_snapshots_for_events(
+            self.backend.metadata(),
+            self.backend.timeline(),
+            events,
+        )
+    }
+
+    pub fn persist_message_visibility_state(&self) -> Result<(), ProjectionError> {
+        if !self.backend.is_postgres() {
+            return Ok(());
+        }
+        self.service
+            .persist_message_visibility_snapshot(self.backend.metadata())
+            .map(|_| ())
+    }
+
     /// Returns true when visibility and other durable snapshots must persist successfully.
     pub fn requires_durable_persist(&self) -> bool {
         self.backend.is_postgres() && !allows_in_memory_projection_fallback()
@@ -378,6 +401,7 @@ mod tests {
 
     #[test]
     fn production_requires_database_url_for_projection_stores() {
+        let _env_lock = crate::lock_projection_test_environment();
         let database_url = std::env::var(IM_DATABASE_URL_ENV).ok();
         let im_env = std::env::var("SDKWORK_IM_ENVIRONMENT").ok();
         unsafe {
@@ -412,16 +436,21 @@ mod tests {
     #[test]
     fn production_env_disallows_in_memory_projection_fallback_outside_tests() {
         struct ScopedImEnvironment {
+            _lock: std::sync::MutexGuard<'static, ()>,
             previous: Option<String>,
         }
 
         impl ScopedImEnvironment {
             fn set(value: &str) -> Self {
+                let lock = crate::lock_projection_test_environment();
                 let previous = std::env::var("SDKWORK_IM_ENVIRONMENT").ok();
                 unsafe {
                     std::env::set_var("SDKWORK_IM_ENVIRONMENT", value);
                 }
-                Self { previous }
+                Self {
+                    _lock: lock,
+                    previous,
+                }
             }
         }
 

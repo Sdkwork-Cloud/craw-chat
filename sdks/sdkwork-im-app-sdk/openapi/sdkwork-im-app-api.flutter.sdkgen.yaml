@@ -765,11 +765,10 @@ paths:
       tags:
         - portal
       operationId: access.retrieve
-      summary: Read the tenant portal sign-in snapshot
-      security: []
+      summary: Read the tenant portal access snapshot
       responses:
         '200':
-          description: Tenant portal sign-in snapshot
+          description: Tenant portal access snapshot
           content:
             application/json:
               schema:
@@ -785,8 +784,32 @@ paths:
                           - item
                         properties:
                           item:
-                            type: object
-                            additionalProperties: true
+                            $ref: '#/components/schemas/PortalAccessSnapshot'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-auth-mode: dual-token
+      x-sdkwork-permission: audit.read
+      x-sdkwork-tenant-scope: tenant
+      x-sdkwork-data-scope: organization
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
@@ -815,8 +838,7 @@ paths:
                           - item
                         properties:
                           item:
-                            type: object
-                            additionalProperties: true
+                            $ref: '#/components/schemas/PortalModuleSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -832,6 +854,7 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-auth-mode: dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
@@ -860,8 +883,7 @@ paths:
                           - item
                         properties:
                           item:
-                            type: object
-                            additionalProperties: true
+                            $ref: '#/components/schemas/PortalConversationSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -877,6 +899,7 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-auth-mode: dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
@@ -905,8 +928,7 @@ paths:
                           - item
                         properties:
                           item:
-                            type: object
-                            additionalProperties: true
+                            $ref: '#/components/schemas/PortalDashboardSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -922,6 +944,7 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-auth-mode: dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
@@ -950,8 +973,7 @@ paths:
                           - item
                         properties:
                           item:
-                            type: object
-                            additionalProperties: true
+                            $ref: '#/components/schemas/PortalGovernanceSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -967,6 +989,10 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-auth-mode: dual-token
+      x-sdkwork-permission: audit.read
+      x-sdkwork-tenant-scope: tenant
+      x-sdkwork-data-scope: organization
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
@@ -977,7 +1003,6 @@ paths:
         - portal
       operationId: home.retrieve
       summary: Read the tenant portal home snapshot
-      security: []
       responses:
         '200':
           description: Tenant portal home snapshot
@@ -996,8 +1021,23 @@ paths:
                           - item
                         properties:
                           item:
-                            type: object
-                            additionalProperties: true
+                            $ref: '#/components/schemas/PortalModuleSnapshot'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-auth-mode: dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
@@ -1026,8 +1066,7 @@ paths:
                           - item
                         properties:
                           item:
-                            type: object
-                            additionalProperties: true
+                            $ref: '#/components/schemas/PortalModuleSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -1043,6 +1082,7 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-auth-mode: dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
@@ -1071,8 +1111,7 @@ paths:
                           - item
                         properties:
                           item:
-                            type: object
-                            additionalProperties: true
+                            $ref: '#/components/schemas/PortalRealtimeSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -1088,6 +1127,7 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-auth-mode: dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
@@ -1132,6 +1172,7 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-auth-mode: dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
@@ -1754,21 +1795,368 @@ components:
           format: date-time
         knowledgebaseArchiveScheduled:
           type: boolean
+    PortalSnapshotMeta:
+      type: object
+      additionalProperties: false
+      required:
+        - section
+        - generatedAt
+        - opsStatus
+      properties:
+        section:
+          type: string
+          enum:
+            - access
+            - automation
+            - conversations
+            - dashboard
+            - governance
+            - home
+            - media
+            - realtime
+        generatedAt:
+          type: string
+          format: date-time
+        opsStatus:
+          type: string
+          enum:
+            - ok
+            - idle
+            - degraded
+            - unavailable
+            - critical
+            - unknown
+    PortalDataAvailability:
+      type: object
+      additionalProperties: false
+      required:
+        - state
+        - source
+        - complete
+      properties:
+        state:
+          type: string
+          enum:
+            - available
+            - partial
+            - unavailable
+        source:
+          type: string
+        complete:
+          type: boolean
+        reason:
+          type: string
+    PortalModuleSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - meta
+        - availability
+      properties:
+        meta:
+          $ref: '#/components/schemas/PortalSnapshotMeta'
+        availability:
+          $ref: '#/components/schemas/PortalDataAvailability'
+    PortalOperationalMetrics:
+      type: object
+      additionalProperties: false
+      required:
+        - clientRouteWindowCount
+        - pendingRealtimeEventCount
+        - conversationSnapshotPersistSuccessCount
+        - conversationSnapshotPersistFailureCount
+        - projectionReplayBacklogSize
+        - projectionReplayedEventCount
+      properties:
+        clientRouteWindowCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        pendingRealtimeEventCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        conversationSnapshotPersistSuccessCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        conversationSnapshotPersistFailureCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        projectionReplayBacklogSize:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        projectionReplayedEventCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+    PortalDashboardSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - meta
+        - availability
+      properties:
+        meta:
+          $ref: '#/components/schemas/PortalSnapshotMeta'
+        availability:
+          $ref: '#/components/schemas/PortalDataAvailability'
+        metrics:
+          $ref: '#/components/schemas/PortalOperationalMetrics'
+    PortalConversationProjectionMetrics:
+      type: object
+      additionalProperties: false
+      required:
+        - persistSuccessCount
+        - persistFailureCount
+        - restoreSuccessCount
+        - replayBacklogSize
+        - replayedEventCount
+      properties:
+        persistSuccessCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        persistFailureCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        restoreSuccessCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        replayBacklogSize:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        replayedEventCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+    PortalConversationSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - meta
+        - availability
+      properties:
+        meta:
+          $ref: '#/components/schemas/PortalSnapshotMeta'
+        availability:
+          $ref: '#/components/schemas/PortalDataAvailability'
+        projection:
+          $ref: '#/components/schemas/PortalConversationProjectionMetrics'
+    PortalAuditRecordView:
+      type: object
+      additionalProperties: false
+      required:
+        - recordId
+        - action
+        - actorId
+        - recordedAt
+        - severity
+      properties:
+        recordId:
+          type: string
+        action:
+          type: string
+        actorId:
+          type: string
+        recordedAt:
+          type: string
+          format: date-time
+        severity:
+          type: string
+          enum:
+            - critical
+            - high
+            - warning
+            - informational
+    PortalAccessSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - meta
+        - availability
+        - recentItems
+        - hasMore
+      properties:
+        meta:
+          $ref: '#/components/schemas/PortalSnapshotMeta'
+        availability:
+          $ref: '#/components/schemas/PortalDataAvailability'
+        tenantId:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        principalId:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        recentItems:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/PortalAuditRecordView'
+        hasMore:
+          type: boolean
+    PortalGovernanceRiskSample:
+      type: object
+      additionalProperties: false
+      required:
+        - criticalCount
+        - highCount
+        - warningCount
+        - informationalCount
+      properties:
+        criticalCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        highCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        warningCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        informationalCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+    PortalGovernanceSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - meta
+        - availability
+        - sampledEventCount
+        - riskSample
+      properties:
+        meta:
+          $ref: '#/components/schemas/PortalSnapshotMeta'
+        availability:
+          $ref: '#/components/schemas/PortalDataAvailability'
+        sampledEventCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        riskSample:
+          $ref: '#/components/schemas/PortalGovernanceRiskSample'
+    PortalRealtimeMetrics:
+      type: object
+      additionalProperties: false
+      required:
+        - clientRouteWindowCount
+        - pendingEventCount
+        - maxClientRouteWindowEventCount
+        - clientRouteWindowCapacity
+        - maxClientRouteWindowUsagePermille
+        - capacityTrimmedEventCount
+      properties:
+        clientRouteWindowCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        pendingEventCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        maxClientRouteWindowEventCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        clientRouteWindowCapacity:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        maxClientRouteWindowUsagePermille:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000
+        capacityTrimmedEventCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        oldestPendingOccurredAt:
+          type: string
+          format: date-time
+    PortalRealtimeSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - meta
+        - availability
+      properties:
+        meta:
+          $ref: '#/components/schemas/PortalSnapshotMeta'
+        availability:
+          $ref: '#/components/schemas/PortalDataAvailability'
+        metrics:
+          $ref: '#/components/schemas/PortalRealtimeMetrics'
     PortalWorkspaceView:
       type: object
+      additionalProperties: false
       required:
         - name
         - slug
-        - tier
-        - region
-        - supportPlan
-        - seats
-        - activeBrands
-        - uptime
+        - environment
       properties:
         name:
           type: string
         slug:
+          type: string
+        environment:
           type: string
         tier:
           type: string
@@ -1777,13 +2165,17 @@ components:
         supportPlan:
           type: string
         seats:
-          type: integer
-          format: int32
-        activeBrands:
-          type: integer
-          format: int32
-        uptime:
           type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        activeBrands:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
     Sender:
       type: object
       required:

@@ -1129,33 +1129,32 @@ backup_strategy:
 #!/bin/bash
 # 鏂囦欢: scripts/backup.sh
 
-set -e
+set -euo pipefail
 
-BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
 S3_BUCKET="s3://backup-sdkwork-im"
 
-echo "=== Starting Backup ==="
+# The only supported implementation is scripts/backup.sh. Do not copy this
+# runbook block into a separate job or use a hand-written object-removal pipeline.
+# Safe cleanup requires strict backup names, LastModified validation, a
+# protected database recovery point, a deletion cap, and fail-closed errors.
+# The recovery point is the newest valid database archive plus strict companion
+# objects with the same timestamp; the newest config and Redis objects also remain.
+# Scheduled backup command:
+# ./scripts/backup.sh --target "${S3_BUCKET}" --retention-days 30 --delete-limit 100
 
 # 1. 搴旂敤閰嶇疆澶囦唤
-echo "Backing up application config..."
-tar -czf /tmp/config_${BACKUP_DATE}.tar.gz configs/
-aws s3 cp /tmp/config_${BACKUP_DATE}.tar.gz ${S3_BUCKET}/config/
+# Configuration archive and upload are owned by scripts/backup.sh.
 
 # 2. 鏁版嵁搴撳叏閲忓浠?
-echo "Backing up database..."
-pg_dump -Fc -Z9 $SDKWORK_IM_DATABASE_URL > /tmp/db_${BACKUP_DATE}.dump
-aws s3 cp /tmp/db_${BACKUP_DATE}.dump ${S3_BUCKET}/db-full/
+# PostgreSQL archive and upload are owned by scripts/backup.sh.
 
 # 3. Redis澶囦唤
-echo "Backing up Redis..."
-redis-cli BGSAVE
-sleep 10
-redis-cli --rdb /tmp/redis_${BACKUP_DATE}.rdb
-aws s3 cp /tmp/redis_${BACKUP_DATE}.rdb ${S3_BUCKET}/redis/
+# Redis snapshot and upload are owned by scripts/backup.sh.
 
 # 4. 娓呯悊杩囨湡澶囦唤
-echo "Cleaning old backups..."
-aws s3 ls ${S3_BUCKET}/db-full/ | awk '{print $4}' | head -n -30 | xargs -I {} aws s3 rm ${S3_BUCKET}/db-full/{}
+# Preview cleanup before changing a retention policy. This does not suppress
+# backup uploads when supplied to scripts/backup.sh; it only disables deletion.
+./scripts/backup.sh --target "${S3_BUCKET}" --retention-days 30 --delete-limit 100 --dry-run
 
 echo "鉁?Backup completed successfully"
 ```

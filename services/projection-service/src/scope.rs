@@ -1,10 +1,12 @@
-use im_domain_events::CommitEnvelope;
+use im_domain_events::{AggregateType, CommitEnvelope};
 
 use im_platform_contracts::{
     AGENT_MENTION_DISPATCH_EVENT_TYPE, normalize_realtime_organization_id,
 };
 
 use im_time::utc_now_rfc3339_millis;
+
+use crate::projection::ProjectionError;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 
@@ -205,6 +207,68 @@ pub(super) fn tracked_live_projection_lag_scope_id(event: &CommitEnvelope) -> Op
     } else {
         None
     }
+}
+
+pub(super) fn is_conversation_projection_event_type(event_type: &str) -> bool {
+    matches!(
+        event_type,
+        "conversation.created"
+            | "conversation.agents_replaced"
+            | "conversation.policy_applied"
+            | "conversation.agent_handoff_status_changed"
+            | "conversation.member_joined"
+            | "conversation.member_invitation_accepted"
+            | "conversation.member_role_changed"
+            | "conversation.member_removed"
+            | "conversation.member_left"
+            | "conversation.read_cursor_updated"
+            | "message.posted"
+            | "message.edited"
+            | "message.recalled"
+            | "message.reaction_added"
+            | "message.reaction_removed"
+            | "message.pin_added"
+            | "message.pin_removed"
+    )
+}
+
+pub(super) fn validate_conversation_projection_envelope(
+    event: &CommitEnvelope,
+) -> Result<(), ProjectionError> {
+    let tenant_id = event.tenant_id.trim();
+    let aggregate_id = event.aggregate_id.trim();
+    if tenant_id.is_empty()
+        || aggregate_id.is_empty()
+        || event.tenant_id != tenant_id
+        || event.aggregate_id != aggregate_id
+        || event.aggregate_type != AggregateType::Conversation
+        || event.scope_type != "conversation"
+        || event.scope_id != event.aggregate_id
+    {
+        return Err(ProjectionError::InvalidEvent(format!(
+            "{} requires canonical conversation envelope scope",
+            event.event_type
+        )));
+    }
+    Ok(())
+}
+
+pub(super) fn validate_conversation_projection_payload_scope(
+    event: &CommitEnvelope,
+    payload_tenant_id: &str,
+    payload_conversation_id: &str,
+) -> Result<(), ProjectionError> {
+    if payload_tenant_id != event.tenant_id || payload_conversation_id != event.aggregate_id {
+        return Err(ProjectionError::InvalidEvent(format!(
+            "{} payload scope tenant={} conversation={} does not match envelope tenant={} conversation={}",
+            event.event_type,
+            payload_tenant_id,
+            payload_conversation_id,
+            event.tenant_id,
+            event.aggregate_id
+        )));
+    }
+    Ok(())
 }
 
 pub(super) fn encode_projection_key_segments<'a>(

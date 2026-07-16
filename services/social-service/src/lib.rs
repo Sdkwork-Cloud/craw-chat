@@ -16,6 +16,7 @@ pub mod journal_bootstrap;
 mod openapi;
 mod openapi_contacts;
 pub mod postgres;
+mod postgres_write_authority;
 pub mod projection_bridge;
 mod runtime;
 mod runtime_control;
@@ -63,10 +64,8 @@ pub use shared_channel_sync_scheduler::{
     spawn_shared_channel_sync_stale_reclaim_scheduler_from_env,
 };
 pub use social_materializer_metrics::{
-    postgres_journal_append_failure_after_materialize_count,
-    postgres_materialization_failure_count,
-    record_postgres_journal_append_failures_after_materialize,
-    record_postgres_materialization_failures,
+    postgres_atomic_write_failure_count, postgres_materialization_failure_count,
+    record_postgres_atomic_write_failures, record_postgres_materialization_failures,
     render_prometheus as render_social_materializer_prometheus,
 };
 pub use social_realtime::{

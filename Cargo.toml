@@ -150,6 +150,7 @@ r2d2 = "0.8.10"
 im-adapters-local-disk = { path = "adapters/local-disk" }
 im-adapters-postgres-journal = { path = "adapters/postgres-journal" }
 im-adapters-postgres-projection = { path = "adapters/postgres-projection" }
+im-app-context = { path = "crates/im-app-context" }
 im-storage-contracts = { path = "crates/im-storage-contracts" }
 im-storage-runtime = { path = "crates/im-storage-runtime" }
 sdkwork-api-config = { path = "crates/sdkwork-api-config" }

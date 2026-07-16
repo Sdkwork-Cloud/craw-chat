@@ -204,7 +204,7 @@ Four SDK families, each generated from its OpenAPI authority across nine languag
 | `sdkwork-im-sdk` | `openapi/sdkwork-im-im.openapi.yaml` | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python |
 | `sdkwork-im-app-sdk` | `openapi/sdkwork-im-app-api.openapi.yaml` | same 9 languages |
 | `sdkwork-im-backend-sdk` | `openapi/sdkwork-im-backend-api.openapi.yaml` | same 9 languages |
-| `sdkwork-rtc-sdk` | `.sdkwork-assembly.json` (in `../sdkwork-rtc`) | provider-neutral RTC runtime + provider packages |
+| `sdkwork-rtc-sdk` | `sdk-manifest.json` (in `../sdkwork-rtc`) | provider-neutral RTC runtime + provider packages |
 
 Boundary rules: IM SDK must not absorb backend/admin APIs; App SDK must not expose `/backend/*` or `/im/*`; Backend SDK owns all admin/control APIs; RTC SDK is independent of OpenAPI-generated families and lives in `../sdkwork-rtc`.
 

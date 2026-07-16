@@ -1,6 +1,7 @@
 import { getBackendSdkClientWithSession } from '@sdkwork/im-pc-admin-sdk';
 
 export interface BillingStatItem {
+  available: boolean;
   title: string;
   value: string;
   trend: string;
@@ -9,8 +10,8 @@ export interface BillingStatItem {
 
 export interface PlanDistribution {
   name: string;
-  percent: number;
-  users: number;
+  percent: number | null;
+  users: number | null;
 }
 
 export interface TransactionInfo {
@@ -19,7 +20,7 @@ export interface TransactionInfo {
   tenantId: string;
   plan: string;
   amount: string;
-  status: 'paid' | 'failed' | 'pending';
+  status: 'paid' | 'failed' | 'pending' | 'unknown';
   date: string;
 }
 
@@ -30,6 +31,13 @@ export interface AdminBillingData {
 }
 
 type UnknownRecord = Record<string, unknown>;
+
+/**
+ * Billing events are an interactive list. Keep the initial dashboard request
+ * within the SDKWork default page size instead of materializing the complete
+ * event history in the renderer process.
+ */
+export const BILLING_EVENTS_PAGE_SIZE = 20;
 
 function asRecord(value: unknown): UnknownRecord {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : {};
@@ -88,9 +96,9 @@ function readNumber(record: UnknownRecord, keys: string[], fallback = 0): number
   return fallback;
 }
 
-function formatCurrency(value: number, fallback = '$0'): string {
-  if (!Number.isFinite(value) || value <= 0) {
-    return fallback;
+function formatCurrency(value: number): string {
+  if (!Number.isFinite(value)) {
+    return '—';
   }
   return new Intl.NumberFormat('en-US', {
     currency: 'USD',
@@ -109,7 +117,7 @@ function formatCount(value: number): string {
   return String(Math.max(0, Math.round(value)));
 }
 
-function formatPercent(value: number, fallback = '0%'): string {
+function formatPercent(value: number, fallback = '—'): string {
   if (!Number.isFinite(value)) {
     return fallback;
   }
@@ -152,73 +160,107 @@ function normalizeStatus(value: unknown): TransactionInfo['status'] {
   if (status === 'pending' || status === 'processing' || status === 'open') {
     return 'pending';
   }
-  return 'paid';
+  if (status === 'paid' || status === 'completed' || status === 'settled' || status === 'success') {
+    return 'paid';
+  }
+  return 'unknown';
 }
 
 function buildStats(summary: UnknownRecord, eventsSummary: UnknownRecord): Record<string, BillingStatItem> {
   const subscriptionSummary = readRecord(summary, ['subscriptions', 'subscriptionSummary']);
-  const mrr = readNumber(summary, ['mrr', 'monthlyRecurringRevenue', 'monthlyRevenue'], 0);
-  const active = readNumber(subscriptionSummary, ['active', 'activeSubscriptions', 'count'], readNumber(summary, ['activeSubscriptions', 'subscriptions'], 0));
+  const mrr = readNumber(summary, ['mrr', 'monthlyRecurringRevenue', 'monthlyRevenue'], Number.NaN);
+  const active = readNumber(
+    subscriptionSummary,
+    ['active', 'activeSubscriptions', 'count'],
+    readNumber(summary, ['activeSubscriptions', 'subscriptions'], Number.NaN),
+  );
   const retention = readNumber(summary, ['netRevenueRetention', 'retentionRate', 'nrr'], Number.NaN);
   const churn = readNumber(summary, ['churnRate', 'mrrChurnRate', 'churn'], Number.NaN);
   const mrrTrend = resolveTrend(summary, ['mrrTrend', 'monthlyRecurringRevenueTrend', 'revenueTrend']);
   const activeTrend = resolveTrend(subscriptionSummary, ['activeTrend', 'trend']);
   const retentionTrend = resolveTrend(summary, ['retentionTrend', 'netRevenueRetentionTrend', 'nrrTrend']);
   const churnTrend = resolveTrend(summary, ['churnTrend', 'mrrChurnTrend']);
-  const fallbackRevenue = readNumber(eventsSummary, ['paidAmount', 'totalPaidAmount', 'totalAmount'], 0);
+  const fallbackRevenue = readNumber(eventsSummary, ['paidAmount', 'totalPaidAmount', 'totalAmount'], Number.NaN);
+  const mrrValue = Number.isFinite(mrr) ? mrr : fallbackRevenue;
+  const mrrAvailable = Number.isFinite(mrrValue);
+  const activeAvailable = Number.isFinite(active);
+  const retentionAvailable = Number.isFinite(retention);
+  const churnAvailable = Number.isFinite(churn);
 
   return {
     active: {
+      available: activeAvailable,
       isUp: isPositiveTrend(activeTrend),
       title: 'Active Subscriptions',
       trend: activeTrend,
-      value: formatCount(active),
+      value: activeAvailable ? formatCount(active) : '—',
     },
     churn: {
+      available: churnAvailable,
       isUp: churnTrend ? !isPositiveTrend(churnTrend) : churn <= 2,
       title: 'Churn Rate (MRR)',
       trend: churnTrend,
-      value: Number.isFinite(churn) ? formatPercent(churn) : '0%',
+      value: churnAvailable ? formatPercent(churn) : '—',
     },
     mrr: {
+      available: mrrAvailable,
       isUp: isPositiveTrend(mrrTrend),
       title: 'Monthly Recurring Revenue',
       trend: mrrTrend,
-      value: formatCurrency(mrr || fallbackRevenue),
+      value: mrrAvailable ? formatCurrency(mrrValue) : '—',
     },
     net: {
+      available: retentionAvailable,
       isUp: isPositiveTrend(retentionTrend),
       title: 'Net Revenue Retention',
       trend: retentionTrend,
-      value: Number.isFinite(retention) ? formatPercent(retention) : '0%',
+      value: retentionAvailable ? formatPercent(retention) : '—',
     },
   };
 }
 
 function buildPlans(summary: UnknownRecord): PlanDistribution[] {
   const planRecords = readRecords(summary, ['plans', 'planDistribution', 'subscriptionPlans']);
-  const totalUsers = planRecords.reduce((total, plan) => total + readNumber(plan, ['users', 'tenants', 'count', 'subscriptions'], 0), 0);
-  return planRecords.map((plan) => {
-    const users = readNumber(plan, ['users', 'tenants', 'count', 'subscriptions'], 0);
-    const percent = readNumber(plan, ['percent', 'percentage', 'share'], totalUsers > 0 ? (users / totalUsers) * 100 : 0);
+  const userCounts = planRecords.map((plan) => readNumber(
+    plan,
+    ['users', 'tenants', 'count', 'subscriptions'],
+    Number.NaN,
+  ));
+  const totalUsers = userCounts.reduce(
+    (total, users) => Number.isFinite(users) ? total + users : total,
+    0,
+  );
+
+  return planRecords.map((plan, index) => {
+    const users = userCounts[index] ?? Number.NaN;
+    const explicitPercent = readNumber(plan, ['percent', 'percentage', 'share'], Number.NaN);
+    let percent = Number.NaN;
+    if (Number.isFinite(explicitPercent)) {
+      percent = explicitPercent;
+    } else if (totalUsers > 0 && Number.isFinite(users)) {
+      percent = (users / totalUsers) * 100;
+    }
+
     return {
       name: readString(plan, ['name', 'plan', 'planName', 'tier'], 'Unassigned'),
-      percent: Math.max(0, Math.min(100, Math.round(percent))),
-      users: Math.max(0, Math.round(users)),
+      percent: Number.isFinite(percent) ? Math.max(0, Math.min(100, Math.round(percent))) : null,
+      users: Number.isFinite(users) ? Math.max(0, Math.round(users)) : null,
     };
   });
 }
 
 function buildTransactions(events: UnknownRecord): TransactionInfo[] {
   return readRecords(events, ['items', 'data', 'events', 'records', 'transactions']).map((event, index) => {
-    const amount = readNumber(event, ['amount', 'paidAmount', 'total', 'value'], 0);
+    const amount = readNumber(event, ['amount', 'paidAmount', 'total', 'value'], Number.NaN);
     return {
-      amount: amount > 0 ? formatCurrency(amount) : readString(event, ['amountText', 'formattedAmount'], '$0'),
-      date: readString(event, ['createdAt', 'paidAt', 'eventTime', 'date', 'time'], ''),
+      amount: Number.isFinite(amount)
+        ? formatCurrency(amount)
+        : readString(event, ['amountText', 'formattedAmount'], 'Unavailable'),
+      date: readString(event, ['createdAt', 'paidAt', 'eventTime', 'date', 'time'], 'Unavailable'),
       id: readString(event, ['id', 'eventId', 'transactionId', 'recordId'], `billing-event-${index + 1}`),
-      plan: readString(event, ['plan', 'planName', 'tier'], 'Unassigned'),
-      status: normalizeStatus(readString(event, ['status', 'paymentStatus', 'state'], 'paid')),
-      tenant: readString(event, ['tenantName', 'tenant', 'organizationName', 'accountName'], 'Unknown tenant'),
+      plan: readString(event, ['plan', 'planName', 'tier'], 'Unavailable'),
+      status: normalizeStatus(readString(event, ['status', 'paymentStatus', 'state'])),
+      tenant: readString(event, ['tenantName', 'tenant', 'organizationName', 'accountName'], 'Unavailable'),
       tenantId: readString(event, ['tenantId', 'organizationId', 'accountId'], ''),
     };
   });
@@ -230,7 +272,7 @@ class AdminBillingService {
     const [summary, eventsSummary, events] = await Promise.all([
       backend.admin.billing.summary.retrieve(),
       backend.admin.billing.events.summary.retrieve(),
-      backend.admin.billing.events.list(),
+      backend.admin.billing.events.list({ pageSize: BILLING_EVENTS_PAGE_SIZE }),
     ]);
     const normalizedSummary = asRecord(summary);
     const normalizedEventsSummary = asRecord(eventsSummary);

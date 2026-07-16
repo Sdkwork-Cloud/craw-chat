@@ -65,4 +65,5 @@ Specs: <the SDKWork specs that own the technical rules cited>
 | [ADR-20260617-comms-service-naming-boundaries](./ADR-20260617-comms-service-naming-boundaries.md) | Communication service naming boundaries (`sdkwork-comms-*`) | accepted |
 | [ADR-20260619-im-rpc-discovery-integration-deferred](./ADR-20260619-im-rpc-discovery-integration-deferred.md) | IM RPC discovery integration deferred to Phase 2 | accepted |
 | [ADR-20260713-group-knowledgebase-binding-and-launch](./ADR-20260713-group-knowledgebase-binding-and-launch.md) | Managed Conversation group Knowledgebase binding and launch | accepted |
-| [ADR-20260715-auth-context-capability-composition](./ADR-20260715-auth-context-capability-composition.md) | Auth context requirements for composed capabilities | accepted |
+| [ADR-20260715-auth-context-capability-composition](./ADR-20260715-auth-context-capability-composition.md) | Auth context requirements for composed capabilities | superseded |
+| [ADR-20260716-group-knowledgebase-authentication-boundary](./ADR-20260716-group-knowledgebase-authentication-boundary.md) | Group Knowledgebase uses authenticated Conversation membership rather than organization login | accepted |

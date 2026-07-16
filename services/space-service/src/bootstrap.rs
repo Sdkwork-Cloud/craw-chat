@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use axum::Router;
+use im_adapters_postgres_journal::{PostgresCommitJournal, PostgresJournalPool};
 use im_adapters_social_postgres::governance_store::{
     PostgresBanStore, PostgresChannelAccessRuleStore, PostgresInvitationStore,
     PostgresSpaceMemberStore,
@@ -16,9 +17,7 @@ use im_adapters_social_postgres::{
 
 use crate::http::{AppState, build_embedded_app, build_public_app};
 use crate::id::build_runtime_id_generator_for_space;
-use crate::journal_bootstrap::{
-    replay_space_journal_to_read_model, resolve_space_commit_journal_from_env,
-};
+use crate::journal_bootstrap::{SpaceCommitJournal, replay_space_journal_to_read_model};
 use crate::write_authority::SpaceWriteAuthority;
 
 /// Environment variable name for database connection URL.
@@ -29,24 +28,14 @@ pub const DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 pub async fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> AppState {
     let pool_arc = Arc::new(pool.inner().clone());
     let materializer = Arc::new(SpacePostgresMaterializer::from_pool(pool.clone()));
-    let write_authority = match resolve_space_commit_journal_from_env() {
-        Ok(journal) => {
-            if journal.uses_postgres_authority() {
-                replay_space_journal_to_read_model(&journal, materializer.as_ref());
-            }
-            Some(Arc::new(SpaceWriteAuthority::new(
-                journal,
-                Some(materializer.clone()),
-            )))
-        }
-        Err(error) => {
-            tracing::warn!(
-                error = %error,
-                "space write authority disabled; falling back to direct postgres store writes"
-            );
-            None
-        }
-    };
+    let journal = SpaceCommitJournal::Postgres(PostgresCommitJournal::from_pool(
+        PostgresJournalPool::from_pool(pool.inner().clone()),
+    ));
+    replay_space_journal_to_read_model(&journal, materializer.as_ref());
+    let write_authority = Some(Arc::new(SpaceWriteAuthority::new(
+        journal,
+        Some(materializer.clone()),
+    )));
     AppState {
         postgres_pool: Some(pool),
         space_store: Arc::new(PostgresSpaceStore::new(pool_arc.clone())),

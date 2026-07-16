@@ -128,18 +128,18 @@ pub fn build_social_runtime_from_env() -> Result<Arc<SocialRuntime>, String> {
             true,
         );
         if let SocialCommitJournal::Postgres(postgres_journal) = &journal {
+            let pool = im_adapters_social_postgres::SocialPostgresPool::new(
+                postgres_journal.pool().inner().clone(),
+            );
             runtime = runtime
                 .with_outbox_store(Arc::new(PostgresOutboxStore::from_pool(
                     postgres_journal.pool().clone(),
                 )) as Arc<dyn OutboxStore>)
-                .with_id_generator(id_generator);
-        }
-        if let Some(pool) = resolve_social_postgres_pool_from_env() {
-            runtime = runtime
-                .with_postgres_materializer(pool.clone())
+                .with_postgres_write_authority(postgres_journal.clone(), pool.clone())
                 .with_user_directory(
                     crate::user_directory::resolve_social_user_directory_from_pool(Some(pool)),
-                );
+                )
+                .with_id_generator(id_generator);
         }
         replay_social_journal_to_projection(&runtime);
         if let Some(materializer) = runtime.postgres_materializer() {

@@ -96,7 +96,7 @@ const result = await client.notifications.list(params);
 ### portal
 
 ```typescript
-// Read the tenant portal sign-in snapshot
+// Read the tenant portal access snapshot
 const result = await client.portal.access.retrieve();
 ```
 

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::model::ConversationCatalogEntry;
 use crate::projection::ProjectionError;
 use crate::scope::{group_scope_key, projection_organization_id_for_event, scope_key};
+use crate::snapshot::ProjectionSnapshotWritePlan;
 use crate::{TimelineProjectionService, lock_projection_mutex, snapshot};
 
 const GROUP_CONVERSATION_BINDINGS_SCOPE: &str = "projection-group-conversation-bindings";
@@ -64,6 +65,7 @@ impl TimelineProjectionService {
     ) -> Result<(), ProjectionError> {
         let payload: GroupCreatedProjectionPayload =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_group_aggregate_id(event, payload.group_id.as_str())?;
         let Some(conversation_id) = trimmed_owned(payload.conversation_id.as_deref())
             .or_else(|| infer_group_conversation_id_from_group_id(payload.group_id.as_str()))
         else {
@@ -110,6 +112,7 @@ impl TimelineProjectionService {
     ) -> Result<(), ProjectionError> {
         let payload: GroupUpdatedProjectionPayload =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_group_aggregate_id(event, payload.group_id.as_str())?;
         let organization_id = projection_organization_id_for_event(event);
         let conversation_id = trimmed_owned(payload.conversation_id.as_deref())
             .or_else(|| {
@@ -161,6 +164,15 @@ impl TimelineProjectionService {
         &self,
         metadata_store: &dyn MetadataStore,
     ) -> Result<(), ProjectionError> {
+        let mut write_plan = ProjectionSnapshotWritePlan::default();
+        self.collect_group_conversation_binding_snapshot_write(&mut write_plan)?;
+        write_plan.commit_metadata_only(metadata_store)
+    }
+
+    pub(crate) fn collect_group_conversation_binding_snapshot_write(
+        &self,
+        write_plan: &mut ProjectionSnapshotWritePlan,
+    ) -> Result<(), ProjectionError> {
         let mut bindings = lock_projection_mutex(
             &self.group_conversation_bindings,
             "group conversation binding store",
@@ -174,14 +186,11 @@ impl TimelineProjectionService {
                 .then_with(|| left.organization_id.cmp(&right.organization_id))
                 .then_with(|| left.group_id.cmp(&right.group_id))
         });
-        let value = serde_json::to_string(&bindings).map_err(ProjectionError::InvalidSnapshot)?;
-        metadata_store
-            .put_snapshot(
-                GROUP_CONVERSATION_BINDINGS_SCOPE,
-                GROUP_CONVERSATION_BINDINGS_KEY,
-                value.as_str(),
-            )
-            .map_err(ProjectionError::StoreFailure)
+        write_plan.push_metadata(
+            GROUP_CONVERSATION_BINDINGS_SCOPE,
+            GROUP_CONVERSATION_BINDINGS_KEY,
+            &bindings,
+        )
     }
 
     pub(crate) fn restore_group_conversation_binding_snapshot(
@@ -241,7 +250,7 @@ impl TimelineProjectionService {
         .insert(key, binding);
     }
 
-    fn group_conversation_id(
+    pub(crate) fn group_conversation_id(
         &self,
         tenant_id: &str,
         organization_id: &str,
@@ -254,6 +263,27 @@ impl TimelineProjectionService {
         )
         .get(&key)
         .map(|binding| binding.conversation_id.clone())
+    }
+
+    pub(crate) fn group_conversation_id_for_event(&self, event: &CommitEnvelope) -> Option<String> {
+        let group_id = match event.event_type.as_str() {
+            "group.created" => {
+                serde_json::from_str::<GroupCreatedProjectionPayload>(&event.payload)
+                    .ok()?
+                    .group_id
+            }
+            "group.updated" => {
+                serde_json::from_str::<GroupUpdatedProjectionPayload>(&event.payload)
+                    .ok()?
+                    .group_id
+            }
+            _ => return None,
+        };
+        self.group_conversation_id(
+            event.tenant_id.as_str(),
+            projection_organization_id_for_event(event).as_str(),
+            group_id.as_str(),
+        )
     }
 
     fn apply_group_profile_metadata(
@@ -348,6 +378,26 @@ fn non_empty(value: &str) -> Option<&str> {
 
 fn first_non_empty<'a>(values: impl IntoIterator<Item = &'a str>) -> Option<&'a str> {
     values.into_iter().find_map(non_empty)
+}
+
+fn validate_group_aggregate_id(
+    event: &CommitEnvelope,
+    payload_group_id: &str,
+) -> Result<(), ProjectionError> {
+    let aggregate_id = event.aggregate_id.trim();
+    let normalized_payload_group_id = payload_group_id.trim();
+    if aggregate_id.is_empty()
+        || normalized_payload_group_id.is_empty()
+        || event.aggregate_id != aggregate_id
+        || payload_group_id != normalized_payload_group_id
+        || aggregate_id != normalized_payload_group_id
+    {
+        return Err(ProjectionError::InvalidEvent(format!(
+            "{} groupId {} does not match aggregate {}",
+            event.event_type, normalized_payload_group_id, aggregate_id
+        )));
+    }
+    Ok(())
 }
 
 fn infer_group_conversation_id_from_group_id(group_id: &str) -> Option<String> {

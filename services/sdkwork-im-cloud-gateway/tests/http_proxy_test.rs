@@ -1,11 +1,12 @@
 use axum::{
     Json, Router,
-    body::Body,
+    body::{Body, Bytes},
     extract::State,
     http::{HeaderMap, Method, Request, StatusCode, header},
     response::{IntoResponse, Response},
     routing::{any, get},
 };
+use futures_util::stream;
 use http_body_util::BodyExt;
 use im_app_context::{
     AppContext, build_dual_token_headers_for_context, local_service_app_context,
@@ -14,7 +15,8 @@ use im_app_context::{
 use sdkwork_im_api_registry::{HttpMethod, SdkTarget};
 use sdkwork_im_cloud_gateway_config::{WebGatewayConfig, service_upstream};
 use serde_json::json;
-use std::sync::Arc;
+use std::{convert::Infallible, sync::Arc, time::Duration};
+use tokio::sync::Notify;
 use tower::ServiceExt;
 
 fn ensure_gateway_test_web_environment() {
@@ -28,6 +30,11 @@ fn ensure_gateway_test_web_environment() {
 #[derive(Clone)]
 struct UpstreamState {
     service_id: Arc<str>,
+}
+
+#[derive(Clone)]
+struct StreamingAuditState {
+    release_final_chunk: Arc<Notify>,
 }
 
 fn gateway_test_app_context() -> AppContext {
@@ -158,6 +165,87 @@ async fn gateway_routes_control_requests_to_control_plane_api() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response body should be valid json");
     assert_eq!(value["serviceId"], "governance-service");
+}
+
+#[tokio::test]
+async fn gateway_streams_external_audit_export_without_buffering_the_complete_body() {
+    let release_final_chunk = Arc::new(Notify::new());
+    let audit_upstream = spawn_app_upstream(
+        Router::new()
+            .route("/backend/v3/api/audit/export", get(streaming_audit_export))
+            .with_state(StreamingAuditState {
+                release_final_chunk: release_final_chunk.clone(),
+            }),
+    )
+    .await;
+    let app = web_gateway::build_app(test_gateway_config(vec![service_upstream(
+        "audit-service",
+        audit_upstream.base_url.as_str(),
+    )]));
+    let auth_headers = gateway_numeric_auth_headers();
+    let mut request_task = tokio::spawn(
+        app.oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/backend/v3/api/audit/export")
+                .header(
+                    header::AUTHORIZATION,
+                    auth_headers
+                        .get(header::AUTHORIZATION)
+                        .expect("auth header"),
+                )
+                .header(
+                    "Access-Token",
+                    auth_headers
+                        .get("access-token")
+                        .expect("access token header"),
+                )
+                .body(Body::empty())
+                .unwrap(),
+        ),
+    );
+
+    let response = tokio::time::timeout(Duration::from_secs(2), &mut request_task)
+        .await
+        .expect("gateway should return response headers before the upstream body completes")
+        .expect("gateway request task should not panic")
+        .expect("gateway request should succeed");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get("x-sdkwork-im-upstream-service")
+            .and_then(|value| value.to_str().ok()),
+        Some("audit-service")
+    );
+
+    let mut body = response.into_body();
+    let first_frame = tokio::time::timeout(Duration::from_secs(2), body.frame())
+        .await
+        .expect("gateway should forward the first export chunk immediately")
+        .expect("stream should contain a first frame")
+        .expect("first stream frame should succeed");
+    let first_chunk = first_frame
+        .data_ref()
+        .expect("first frame should contain data")
+        .clone();
+    assert_eq!(
+        first_chunk,
+        Bytes::from_static(br#"{"code":0,"data":{"tenantId":"100001","items":["#)
+    );
+
+    release_final_chunk.notify_one();
+    let remaining = body
+        .collect()
+        .await
+        .expect("remaining export body should collect")
+        .to_bytes();
+    let mut payload = first_chunk.to_vec();
+    payload.extend_from_slice(&remaining);
+    let json: serde_json::Value =
+        serde_json::from_slice(&payload).expect("proxied export should remain valid json");
+    assert_eq!(json["data"]["total"], 0);
+    assert_eq!(json["data"]["chainValid"], true);
 }
 
 #[tokio::test]
@@ -1210,6 +1298,37 @@ async fn echo_upstream(
         "method": method.as_str(),
         "path": request.uri().path(),
     }))
+}
+
+async fn streaming_audit_export(State(state): State<StreamingAuditState>) -> Response {
+    let stream = stream::unfold(
+        (0u8, state.release_final_chunk),
+        |(step, release_final_chunk)| async move {
+            match step {
+                0 => Some((
+                    Ok::<Bytes, Infallible>(Bytes::from_static(
+                        br#"{"code":0,"data":{"tenantId":"100001","items":["#,
+                    )),
+                    (1, release_final_chunk),
+                )),
+                1 => {
+                    release_final_chunk.notified().await;
+                    Some((
+                        Ok(Bytes::from_static(
+                            br#"],"total":0,"chainHeadHash":null,"chainValid":true},"traceId":"trace-upstream"}"#,
+                        )),
+                        (2, release_final_chunk),
+                    ))
+                }
+                _ => None,
+            }
+        },
+    );
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
+        .body(Body::from_stream(stream))
+        .expect("streaming audit response should build")
 }
 
 async fn appbase_current_session(headers: HeaderMap) -> Response {

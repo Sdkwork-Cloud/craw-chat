@@ -21,9 +21,14 @@ pub mod user_profile_store;
 pub mod user_settings_store;
 pub mod wire_id;
 
-pub use materialize_writes::materialize_commits_in_transaction;
+pub use materialize_writes::{
+    materialize_commits_in_transaction, materialize_commits_on_transaction,
+};
 pub use member_capacity::MemberInsertOutcome;
-pub use space_materialize_writes::materialize_space_commits_in_transaction;
+pub use space_materialize_writes::{
+    SpaceMaterializationError, materialize_space_commits_in_transaction,
+    materialize_space_commits_on_transaction,
+};
 pub use space_materializer::SpacePostgresMaterializer;
 
 pub use config::SocialPostgresConfig;

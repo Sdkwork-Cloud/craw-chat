@@ -52,7 +52,7 @@ The IM family keeps route authority and derived generator inputs under the SDK f
 - `sdks\sdkwork-im-backend-sdk\openapi\sdkwork-im-backend-api.sdkgen.yaml`
 
 Each SDK family has one metadata source of truth at family-root `sdk-manifest.json`.
-Per-family `.sdkwork-assembly.json` is retired and must not be restored. The manifest records
+Per-family `sdk-manifest.json` is retired and must not be restored. The manifest records
 `manifestPath`, `transportPackageName`, `consumerPackageName`, language workspaces, generated
 transport paths, dependencies, and release state.
 

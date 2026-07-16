@@ -1,19 +1,12 @@
-export interface AdminSettingsData {
-  platformName: string;
-  supportContact: string;
-  allowSelfService: boolean;
-}
+/**
+ * The generated backend SDK has no platform-settings operation. A backend-admin
+ * page must not present configuration or maintenance controls without a
+ * server-authoritative contract.
+ */
+export const ADMIN_SETTINGS_CONTRACT_UNAVAILABLE =
+  'Platform settings are unavailable because the required backend API contract has not been published.';
 
-const BACKEND_SETTINGS_CONTRACT_UNAVAILABLE = 'backend settings contract is not available';
-
-class AdminSettingsService {
-  async getSettings(): Promise<AdminSettingsData> {
-    throw new Error(BACKEND_SETTINGS_CONTRACT_UNAVAILABLE);
-  }
-
-  async updateSettings(_updates: Partial<AdminSettingsData>): Promise<void> {
-    throw new Error(BACKEND_SETTINGS_CONTRACT_UNAVAILABLE);
-  }
-}
-
-export const adminSettingsService = new AdminSettingsService();
+export const adminSettingsCapability = {
+  available: false as const,
+  reason: ADMIN_SETTINGS_CONTRACT_UNAVAILABLE,
+};

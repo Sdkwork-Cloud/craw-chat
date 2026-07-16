@@ -120,6 +120,36 @@
           "architecture": "universal",
           "deploymentProfile": "cloud",
           "runtimeTarget": "android"
+        },
+        {
+          "id": "app-android-universal-aab",
+          "name": "SDKWork IM Mobile Android App Bundle",
+          "sourceType": "DIRECT_DOWNLOAD",
+          "packageFormat": "AAB",
+          "platform": "APP_ANDROID",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-flutter-mobile/STABLE/0.1.0/app-android-universal.aab",
+          "enabled": true,
+          "metadata": {},
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "architecture": "universal",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "flutter-android"
+        },
+        {
+          "id": "app-ios-universal-ipa",
+          "name": "SDKWork IM Mobile iOS IPA",
+          "sourceType": "DIRECT_DOWNLOAD",
+          "packageFormat": "IPA",
+          "platform": "APP_IOS",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-flutter-mobile/STABLE/0.1.0/app-ios-universal.ipa",
+          "enabled": true,
+          "metadata": {},
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "architecture": "universal",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "flutter-ios"
         }
       ],
       "metadata": {
@@ -146,7 +176,11 @@
           "Appbase IAM deep-link auth",
           "Inbox and conversation REST baseline"
         ],
-        "packageIds": ["app-android-universal-apk"],
+        "packageIds": [
+          "app-android-universal-apk",
+          "app-android-universal-aab",
+          "app-ios-universal-ipa"
+        ],
         "publishedAt": "2026-06-25T00:00:00Z",
         "current": true,
         "forceUpdate": false,

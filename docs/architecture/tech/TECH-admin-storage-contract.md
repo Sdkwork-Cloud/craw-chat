@@ -33,7 +33,7 @@ workspace admin runtimes rather than a published control-plane service.
 | Write permission | `admin.storage.write` |
 | Secret reads | Responses expose `StorageSecretSummaryRecord`, never raw `encryptedSecretPayload` |
 | Tenant semantics | Tenant config is a whole-record override; if absent, reads fall back to the global default |
-| Sandbox persistence | In-memory by default, or file-backed when `SDKWORK_ADMIN_SANDBOX_STORAGE_FILE` is set |
+| Sandbox persistence | Development/test only; in-memory by default, or file-backed when `SDKWORK_ADMIN_SANDBOX_STORAGE_FILE` is set |
 
 ## Route Catalog
 
@@ -232,11 +232,13 @@ The current repository supports two verified execution modes for the admin stora
 
 | Mode | Current behavior |
 | --- | --- |
-| In-memory sandbox | `SDKWORK_ADMIN_SANDBOX=1` gives a fast, reset-on-restart contract surface |
-| File-backed sandbox | `SDKWORK_ADMIN_SANDBOX=1` plus `SDKWORK_ADMIN_SANDBOX_STORAGE_FILE=/absolute/path/storage-snapshots.json` persists global writes, tenant overrides, and override deletes across restarts |
+| In-memory sandbox | In development/test, `SDKWORK_ADMIN_SANDBOX=1` gives a fast, reset-on-restart contract surface |
+| File-backed sandbox | In development/test, `SDKWORK_ADMIN_SANDBOX=1` plus `SDKWORK_ADMIN_SANDBOX_STORAGE_FILE=/absolute/path/storage-snapshots.json` persists global writes, tenant overrides, and override deletes across restarts |
 
-The file-backed mode is useful for operator walkthroughs and contract testing, but it still does
-not promote the route set into a production control-plane API.
+The file-backed mode is useful for operator walkthroughs and contract testing, but it does not
+promote the route set into a production control-plane API. Production-like environments reject
+runtime startup when the sandbox flag is enabled. They must configure a real admin backend through
+`SDKWORK_ADMIN_PROXY_TARGET` instead of falling back to seeded state.
 
 ## Integration Guidance
 
@@ -249,4 +251,3 @@ If you are extending this contract:
    orchestration instead of rebuilding provider logic in each backend.
 5. Only add a public OpenAPI reference page for storage routes after the same contract is served by
    a non-sandbox backend with a checked-in authority file.
-

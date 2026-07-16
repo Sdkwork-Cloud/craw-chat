@@ -14,7 +14,7 @@ use im_adapters_local_memory::{MemoryMetadataStore, MemoryTimelineProjectionStor
 use im_domain_core::conversation::{MembershipRole, build_conversation_member};
 use im_platform_contracts::{
     ContractError, MetadataSnapshotRecord, MetadataStore, TimelineProjectionBatch,
-    TimelineProjectionRecord, TimelineProjectionStore,
+    TimelineProjectionRecord, TimelineProjectionScope, TimelineProjectionStore,
 };
 
 use super::*;
@@ -72,7 +72,8 @@ impl MetadataStore for CountingMetadataStore {
     }
 }
 
-type TimelineProjectionTestEntries = Arc<Mutex<HashMap<(String, String), BTreeMap<u64, String>>>>;
+type TimelineProjectionTestEntries =
+    Arc<Mutex<HashMap<(String, String, String), BTreeMap<u64, String>>>>;
 
 #[derive(Clone, Default)]
 struct CountingTimelineProjectionStore {
@@ -92,13 +93,16 @@ impl CountingTimelineProjectionStore {
 
     fn upsert_records(
         &self,
-        tenant_id: &str,
-        timeline_scope: &str,
+        scope: &TimelineProjectionScope,
         records: &[TimelineProjectionRecord],
     ) {
         let mut stored = self.entries.lock().expect("timeline store should lock");
         let scope_entries = stored
-            .entry((tenant_id.to_owned(), timeline_scope.to_owned()))
+            .entry((
+                scope.tenant_id().to_owned(),
+                scope.organization_id().to_owned(),
+                scope.timeline_scope().to_owned(),
+            ))
             .or_default();
         for record in records {
             scope_entries.insert(record.message_seq, record.payload.clone());
@@ -109,8 +113,7 @@ impl CountingTimelineProjectionStore {
 impl TimelineProjectionStore for CountingTimelineProjectionStore {
     fn upsert_timeline_entry(
         &self,
-        tenant_id: &str,
-        timeline_scope: &str,
+        scope: &TimelineProjectionScope,
         message_seq: u64,
         payload: &str,
     ) -> Result<(), ContractError> {
@@ -118,7 +121,11 @@ impl TimelineProjectionStore for CountingTimelineProjectionStore {
         self.entries
             .lock()
             .expect("timeline store should lock")
-            .entry((tenant_id.to_owned(), timeline_scope.to_owned()))
+            .entry((
+                scope.tenant_id().to_owned(),
+                scope.organization_id().to_owned(),
+                scope.timeline_scope().to_owned(),
+            ))
             .or_default()
             .insert(message_seq, payload.to_owned());
         Ok(())
@@ -126,14 +133,17 @@ impl TimelineProjectionStore for CountingTimelineProjectionStore {
 
     fn load_timeline(
         &self,
-        tenant_id: &str,
-        timeline_scope: &str,
+        scope: &TimelineProjectionScope,
     ) -> Result<Vec<(u64, String)>, ContractError> {
         Ok(self
             .entries
             .lock()
             .expect("timeline store should lock")
-            .get(&(tenant_id.to_owned(), timeline_scope.to_owned()))
+            .get(&(
+                scope.tenant_id().to_owned(),
+                scope.organization_id().to_owned(),
+                scope.timeline_scope().to_owned(),
+            ))
             .map(|items| {
                 items
                     .iter()
@@ -149,11 +159,7 @@ impl TimelineProjectionStore for CountingTimelineProjectionStore {
     ) -> Result<(), ContractError> {
         self.batch_upsert_calls.fetch_add(1, Ordering::Relaxed);
         for batch in batches {
-            self.upsert_records(
-                batch.tenant_id.as_str(),
-                batch.timeline_scope.as_str(),
-                &batch.records,
-            );
+            self.upsert_records(&batch.scope, &batch.records);
         }
         Ok(())
     }
@@ -346,7 +352,10 @@ fn test_persist_conversation_snapshot_batches_projection_store_flushes() {
     );
     assert_eq!(
         timeline_store
-            .load_timeline("100001", "c_batch")
+            .load_timeline(
+                &TimelineProjectionScope::new("100001", "default", "c_batch")
+                    .expect("conversation timeline scope should be valid"),
+            )
             .expect("conversation timeline should load")
             .len(),
         1,
@@ -355,11 +364,14 @@ fn test_persist_conversation_snapshot_batches_projection_store_flushes() {
     assert_eq!(
         timeline_store
             .load_timeline(
-                "100001",
-                client_route_sync_snapshot_scope(&client_route_feed_scope_key(
-                    "100001", "default", "user", "1014", "d_phone"
-                ))
-                .as_str(),
+                &TimelineProjectionScope::new(
+                    "100001",
+                    "default",
+                    client_route_sync_snapshot_scope(&client_route_feed_scope_key(
+                        "100001", "default", "user", "1014", "d_phone"
+                    )),
+                )
+                .expect("client route sync timeline scope should be valid"),
             )
             .expect("client route sync timeline should load")
             .len(),

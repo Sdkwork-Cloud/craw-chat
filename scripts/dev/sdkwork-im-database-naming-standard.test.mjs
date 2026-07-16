@@ -306,8 +306,18 @@ assert.match(
 );
 assert.match(
   runtimeIdCrate,
-  /failure_handling:\s*"database_first_then_env_fallback"/u,
-  'sdkwork-im runtime ID strategy must prefer database-backed allocation with env fallback',
+  /failure_handling:\s*"database_first_then_fail_closed"/u,
+  'sdkwork-im runtime ID strategy must fail closed when database-backed allocation is unavailable',
+);
+assert.match(
+  runtimeIdCrate,
+  /pub fn runtime_id_fallback_is_forbidden[\s\S]*if deployment_is_explicit\s*\{\s*return true;/u,
+  'sdkwork-im runtime ID generation must forbid static Snowflake fallback for explicit deployment profiles',
+);
+assert.match(
+  runtimeIdCrate,
+  /return Arc::new\(UnavailableIdGenerator/u,
+  'sdkwork-im runtime ID generation must surface an unavailable generator instead of reusing a static production node',
 );
 
 const appbaseReleaseDependency = sdkworkWorkflow.dependencies.find(

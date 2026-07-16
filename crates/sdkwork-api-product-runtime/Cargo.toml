@@ -9,6 +9,7 @@ axum = "0.8.6"
 bytes = "1"
 mime_guess = "2"
 rand = "0.8"
+im-app-context.workspace = true
 im-adapters-local-disk.workspace = true
 im-portal-snapshots = { path = "../im-portal-snapshots" }
 im-storage-contracts.workspace = true

@@ -192,12 +192,12 @@ powershell -ExecutionPolicy Bypass -File sdks/sdkwork-im-sdk/bin/generate-sdk.ps
 node sdks/sdkwork-im-sdk/bin/assemble-sdk.mjs --language rust
 ```
 
-Expected: PASS, and `.sdkwork-assembly.json` now includes a Rust language entry.
+Expected: PASS, and `sdk-manifest.json` now includes a Rust language entry.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-im-sdk/bin/generate-sdk.ps1 sdks/sdkwork-im-sdk/bin/generate-sdk.sh sdks/sdkwork-im-sdk/bin/normalize-generated-auth-surface.mjs sdks/sdkwork-im-sdk/bin/assemble-sdk.mjs sdks/sdkwork-im-sdk/bin/verify-auth-surface-alignment.mjs sdks/sdkwork-im-sdk/.sdkwork-assembly.json
+git add sdks/sdkwork-im-sdk/bin/generate-sdk.ps1 sdks/sdkwork-im-sdk/bin/generate-sdk.sh sdks/sdkwork-im-sdk/bin/normalize-generated-auth-surface.mjs sdks/sdkwork-im-sdk/bin/assemble-sdk.mjs sdks/sdkwork-im-sdk/bin/verify-auth-surface-alignment.mjs sdks/sdkwork-im-sdk/sdk-manifest.json
 git commit -m "feat(sdk): add rust generation and assembly flow"
 ```
 
@@ -453,7 +453,7 @@ git commit -m "feat(sdk): add rust workspace verification"
 
 **Files:**
 - Modify: `sdks/sdkwork-im-sdk/README.md`
-- Modify: `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
+- Modify: `sdks/sdkwork-im-sdk/sdk-manifest.json`
 - Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md`
 - Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md`
 - Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/README.md`
@@ -491,7 +491,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-im-sdk/README.md sdks/sdkwork-im-sdk/.sdkwork-assembly.json sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/README.md sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/README.md
+git add sdks/sdkwork-im-sdk/README.md sdks/sdkwork-im-sdk/sdk-manifest.json sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/README.md sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/README.md
 git commit -m "docs(sdk): align trilanguage workspace documentation"
 ```
 

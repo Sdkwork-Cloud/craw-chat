@@ -559,6 +559,60 @@ fn test_projection_service_restores_tenant_scoped_conversation_snapshots_from_sh
 }
 
 #[test]
+fn test_projection_service_restores_same_conversation_per_organization_from_shared_stores() {
+    let metadata_store = MemoryMetadataStore::default();
+    let timeline_store = MemoryTimelineProjectionStore::default();
+    let service = TimelineProjectionService::default();
+    let tenant_id = "t_shared";
+    let conversation_id = "c_shared";
+
+    for (organization_id, message_id, summary) in [
+        ("org_a", "msg_org_a", "organization A summary"),
+        ("org_b", "msg_org_b", "organization B summary"),
+    ] {
+        service
+            .apply(
+                &message_posted_event(tenant_id, conversation_id, message_id, 1, "1014", summary)
+                    .with_organization_id(organization_id),
+            )
+            .expect("organization projection should succeed");
+        assert!(
+            service
+                .persist_conversation_snapshot(
+                    tenant_id,
+                    organization_id,
+                    conversation_id,
+                    &metadata_store,
+                    &timeline_store,
+                )
+                .expect("organization snapshot should persist")
+        );
+    }
+
+    let restored = TimelineProjectionService::default();
+    for (organization_id, expected_message_id, expected_summary) in [
+        ("org_a", "msg_org_a", "organization A summary"),
+        ("org_b", "msg_org_b", "organization B summary"),
+    ] {
+        assert!(
+            restored
+                .restore_conversation_snapshot(
+                    tenant_id,
+                    organization_id,
+                    conversation_id,
+                    &metadata_store,
+                    &timeline_store,
+                )
+                .expect("organization snapshot should restore")
+        );
+        let timeline = restored.timeline(tenant_id, organization_id, conversation_id);
+        assert_eq!(timeline.len(), 1);
+        assert_eq!(timeline[0].message_id, expected_message_id);
+        assert_eq!(timeline[0].summary.as_deref(), Some(expected_summary));
+    }
+}
+
+#[test]
 fn test_cold_projection_catalog_reads_through_before_agent_replacement() {
     let metadata_store = MemoryMetadataStore::default();
     let timeline_store = MemoryTimelineProjectionStore::default();

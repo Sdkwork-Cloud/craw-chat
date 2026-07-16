@@ -15,8 +15,8 @@
     "appType": "APP_REACT",
     "versionSource": "package.json",
     "identifiers": {
-      "packageName": null,
-      "bundleId": null,
+      "packageName": "com.sdkwork.im.h5",
+      "bundleId": "com.sdkwork.im.h5",
       "desktopAppId": null,
       "containerImage": "registry.sdkwork.com/apps/sdkwork-im-h5"
     }
@@ -32,9 +32,9 @@
   },
   "runtime": {
     "family": "mobile",
-    "framework": "react-h5",
-    "runtimes": ["H5"],
-    "deliveryModes": ["WEB_URL"],
+    "framework": "react-capacitor",
+    "runtimes": ["H5", "CAPACITOR_IOS", "CAPACITOR_ANDROID"],
+    "deliveryModes": ["WEB_URL", "DIRECT_DOWNLOAD"],
     "defaultPlatform": "H5",
     "defaultArchitecture": "universal",
     "supportedDeploymentProfiles": ["cloud", "standalone"],
@@ -71,14 +71,14 @@
   "publish": {
     "status": "ACTIVE",
     "installSkill": { "name": "sdkwork-skills-app" },
-    "platforms": ["H5"],
-    "installPlatforms": ["H5"],
+    "platforms": ["H5", "APP_IOS", "APP_ANDROID"],
+    "installPlatforms": ["H5", "APP_IOS", "APP_ANDROID"],
     "defaultPackageId": "h5-universal-cloud-browser-zip",
     "storeUrl": "https://sdkwork.com/apps/sdkwork-im-h5",
     "stores": [],
     "config": {
       "workspaceRoot": "apps/sdkwork-im-h5",
-      "framework": "react-h5",
+      "framework": "react-capacitor",
       "managedBy": "sdkwork-im-manifest-v3"
     }
   },
@@ -120,11 +120,45 @@
           "architecture": "universal",
           "deploymentProfile": "cloud",
           "runtimeTarget": "browser"
+        },
+        {
+          "id": "app-ios-universal-ipa",
+          "name": "SDKWork IM H5 Capacitor iOS IPA",
+          "sourceType": "DIRECT_DOWNLOAD",
+          "packageFormat": "IPA",
+          "platform": "APP_IOS",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.1.0/app-ios-universal.ipa",
+          "enabled": true,
+          "metadata": {
+            "hostFramework": "capacitor"
+          },
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "architecture": "universal",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "capacitor-ios"
+        },
+        {
+          "id": "app-android-universal-aab",
+          "name": "SDKWork IM H5 Capacitor Android AAB",
+          "sourceType": "DIRECT_DOWNLOAD",
+          "packageFormat": "AAB",
+          "platform": "APP_ANDROID",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.1.0/app-android-universal.aab",
+          "enabled": true,
+          "metadata": {
+            "hostFramework": "capacitor"
+          },
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "architecture": "universal",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "capacitor-android"
         }
       ],
       "metadata": {
         "workspaceRoot": "apps/sdkwork-im-h5",
-        "framework": "react-h5",
+        "framework": "react-capacitor",
         "packageManager": "pnpm",
         "migratedFromLegacyConfig": true
       }
@@ -146,7 +180,11 @@
           "IAM auth route alignment",
           "Inbox and conversation REST baseline"
         ],
-        "packageIds": ["h5-universal-cloud-browser-zip"],
+        "packageIds": [
+          "h5-universal-cloud-browser-zip",
+          "app-ios-universal-ipa",
+          "app-android-universal-aab"
+        ],
         "publishedAt": "2026-06-25T00:00:00Z",
         "current": true,
         "forceUpdate": false,

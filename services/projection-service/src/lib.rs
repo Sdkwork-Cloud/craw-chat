@@ -56,8 +56,9 @@ use projection::{
 use received_message_index::ReceivedMessageIndex;
 use scope::{
     ClientRouteFeedScopeKey, ClientRoutePrincipalScopeKey, ContactOwnerScopeKey, GroupScopeKey,
-    projection_organization_id_for_event, scope_key, scope_key_for_event_conversation,
-    tracked_live_projection_lag_scope_id,
+    is_conversation_projection_event_type, projection_organization_id_for_event, scope_key,
+    scope_key_for_event_conversation, tracked_live_projection_lag_scope_id,
+    validate_conversation_projection_envelope, validate_conversation_projection_payload_scope,
 };
 
 pub use access::{ClientRouteSyncStateSnapshot, ProjectionAccessError};
@@ -98,6 +99,16 @@ pub const PROJECTION_TIMELINE_MAX_LIMIT: usize = 1000;
 pub const PROJECTION_LIST_DEFAULT_LIMIT: usize = 100;
 pub const PROJECTION_LIST_MAX_LIMIT: usize =
     sdkwork_utils_rust::http_api::MAX_LIST_PAGE_SIZE as usize;
+
+#[cfg(test)]
+static PROJECTION_TEST_ENV_LOCK: Mutex<()> = Mutex::new(());
+
+#[cfg(test)]
+pub(crate) fn lock_projection_test_environment() -> MutexGuard<'static, ()> {
+    PROJECTION_TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 pub const PROJECTION_CLIENT_ROUTE_SYNC_FEED_DEFAULT_LIMIT: usize = 100;
 pub const PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT: usize = 1000;
 pub const PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_RETAINED_EVENTS: usize =
@@ -273,6 +284,9 @@ impl TimelineProjectionService {
     }
 
     pub fn apply(&self, event: &CommitEnvelope) -> Result<(), ProjectionError> {
+        if is_conversation_projection_event_type(event.event_type.as_str()) {
+            validate_conversation_projection_envelope(event)?;
+        }
         let live_lag_scope_id = tracked_live_projection_lag_scope_id(event);
         if let Some(scope_id) = live_lag_scope_id.as_deref() {
             self.record_projection_live_lag_observed(scope_id, event.ordering_seq);
@@ -338,6 +352,11 @@ impl TimelineProjectionService {
     ) -> Result<(), ProjectionError> {
         let payload: AgentHandoffStatusChangedProjectionPayload =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_conversation_projection_payload_scope(
+            event,
+            event.tenant_id.as_str(),
+            payload.state.conversation_id.as_str(),
+        )?;
         let handoff_view = handoff_view_from_state_payload(&payload.state);
         let key = scope_key_for_event_conversation(event, payload.state.conversation_id.as_str());
         let mut summaries = lock_projection_mutex(&self.summaries, "summary store");
@@ -365,6 +384,11 @@ impl TimelineProjectionService {
     fn apply_message_posted(&self, event: &CommitEnvelope) -> Result<(), ProjectionError> {
         let message: Message =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_conversation_projection_payload_scope(
+            event,
+            message.tenant_id.as_str(),
+            message.conversation_id.as_str(),
+        )?;
         let tenant_id = message.tenant_id.clone();
         let conversation_id = message.conversation_id.clone();
         let message_id = message.message_id.clone();
@@ -484,6 +508,11 @@ impl TimelineProjectionService {
     fn apply_message_edited(&self, event: &CommitEnvelope) -> Result<(), ProjectionError> {
         let message: MessageEdited =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_conversation_projection_payload_scope(
+            event,
+            message.tenant_id.as_str(),
+            message.conversation_id.as_str(),
+        )?;
         let organization_id = projection_organization_id_for_event(event);
         self.update_timeline_summary(
             message.tenant_id.as_str(),
@@ -522,6 +551,11 @@ impl TimelineProjectionService {
     fn apply_message_recalled(&self, event: &CommitEnvelope) -> Result<(), ProjectionError> {
         let message: MessageRecalled =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_conversation_projection_payload_scope(
+            event,
+            message.tenant_id.as_str(),
+            message.conversation_id.as_str(),
+        )?;
         let recalled_summary = Some("[recalled]".into());
         let organization_id = projection_organization_id_for_event(event);
         self.update_timeline_summary(
@@ -561,6 +595,11 @@ impl TimelineProjectionService {
     fn apply_member_joined(&self, event: &CommitEnvelope) -> Result<(), ProjectionError> {
         let member: ConversationMember =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_conversation_projection_payload_scope(
+            event,
+            member.tenant_id.as_str(),
+            member.conversation_id.as_str(),
+        )?;
         let key = scope_key_for_event_conversation(event, member.conversation_id.as_str());
         lock_projection_mutex(&self.members, "member store")
             .insert_member(key.clone(), member.clone());
@@ -604,6 +643,11 @@ impl TimelineProjectionService {
         let payload: ConversationMemberRoleChangedPayload =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let member = payload.updated_member;
+        validate_conversation_projection_payload_scope(
+            event,
+            member.tenant_id.as_str(),
+            member.conversation_id.as_str(),
+        )?;
         let key = scope_key_for_event_conversation(event, member.conversation_id.as_str());
         lock_projection_mutex(&self.members, "member store").insert_member(key, member.clone());
 
@@ -623,6 +667,11 @@ impl TimelineProjectionService {
     fn apply_member_removed(&self, event: &CommitEnvelope) -> Result<(), ProjectionError> {
         let member: ConversationMember =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_conversation_projection_payload_scope(
+            event,
+            member.tenant_id.as_str(),
+            member.conversation_id.as_str(),
+        )?;
         let key = scope_key_for_event_conversation(event, member.conversation_id.as_str());
         lock_projection_mutex(&self.members, "member store").remove_member(
             key.as_str(),
@@ -649,6 +698,11 @@ impl TimelineProjectionService {
     fn apply_member_left(&self, event: &CommitEnvelope) -> Result<(), ProjectionError> {
         let member: ConversationMember =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_conversation_projection_payload_scope(
+            event,
+            member.tenant_id.as_str(),
+            member.conversation_id.as_str(),
+        )?;
         let key = scope_key_for_event_conversation(event, member.conversation_id.as_str());
         lock_projection_mutex(&self.members, "member store").remove_member(
             key.as_str(),
@@ -675,6 +729,11 @@ impl TimelineProjectionService {
     fn apply_read_cursor_updated(&self, event: &CommitEnvelope) -> Result<(), ProjectionError> {
         let cursor: ConversationReadCursor =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_conversation_projection_payload_scope(
+            event,
+            cursor.tenant_id.as_str(),
+            cursor.conversation_id.as_str(),
+        )?;
         let key = scope_key_for_event_conversation(event, cursor.conversation_id.as_str());
         let storage_key =
             read_cursor_storage_key(cursor.member_id.as_str(), cursor.device_id.as_deref());
@@ -718,6 +777,7 @@ impl TimelineProjectionService {
             &self.timeline_tier,
             memory_timeline.as_ref(),
             tenant_id,
+            organization_id,
             conversation_id,
             after_seq,
             limit,

@@ -460,11 +460,13 @@ mod deadlock_regression_tests {
     const TEST_CURSOR_SECRET_ENV: &str = "SDKWORK_IM_PROJECTION_CURSOR_HS256_SECRET";
 
     struct TestEnvGuard {
+        _lock: std::sync::MutexGuard<'static, ()>,
         previous: Option<String>,
     }
 
     impl TestEnvGuard {
         fn set_cursor_secret() -> Self {
+            let lock = crate::lock_projection_test_environment();
             let previous = std::env::var(TEST_CURSOR_SECRET_ENV).ok();
             unsafe {
                 std::env::set_var(
@@ -472,7 +474,10 @@ mod deadlock_regression_tests {
                     "projection-service-inbox-test-cursor-secret-32-bytes",
                 );
             }
-            Self { previous }
+            Self {
+                _lock: lock,
+                previous,
+            }
         }
     }
 

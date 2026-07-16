@@ -32,21 +32,25 @@ for (const forbidden of capabilitySpec.bootstrapAccessTokenScope.forbiddenCodes)
 const groupKnowledgebaseScope = capabilitySpec.capabilityScopeRequirements?.find(
   (entry) => entry.capability === 'group-knowledgebase',
 );
-assert.deepEqual(
+assert.equal(
   groupKnowledgebaseScope,
+  undefined,
+  'group knowledgebase must not require an organization login scope',
+);
+const groupKnowledgebaseAccess = capabilitySpec.capabilityAccessRequirements?.find(
+  (entry) => entry.capability === 'group-knowledgebase',
+);
+assert.deepEqual(
+  groupKnowledgebaseAccess,
   {
     capability: 'group-knowledgebase',
-    requiredLoginScope: 'ORGANIZATION',
-    organizationId: {
-      format: 'canonical-positive-signed-64-bit-decimal',
-      minimum: '1',
-      maximum: '9223372036854775807',
-    },
-    clientPreflight: 'server-derived-capability-status',
-    serverEnforcement: 'required',
-    scopeMismatchBehavior: 'capability-unavailable-and-select-organization',
+    requiredAuthentication: 'framework-verified-dual-token-session',
+    authorizationAuthority: 'conversation-membership',
+    organizationLoginRequired: false,
+    initializerRole: 'owner',
+    activeAccessRoles: ['owner', 'admin', 'member'],
   },
-  'group knowledgebase must declare its organization-scoped session contract',
+  'group knowledgebase must declare its authenticated group-membership contract',
 );
 for (const allowed of capabilitySpec.bootstrapAccessTokenScope.allowedCodes) {
   assert.ok(

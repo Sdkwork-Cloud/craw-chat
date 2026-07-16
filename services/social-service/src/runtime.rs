@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::time::UNIX_EPOCH;
 
 use getrandom::fill as fill_random;
-use im_adapters_local_disk::{FileCommitJournal, read_commit_journal_file};
+use im_adapters_local_disk::FileCommitJournal;
 use im_adapters_local_memory::MemoryCommitJournal;
 use im_domain_core::social::{
     BlockScope, DirectChat, DirectChatStatus, ExternalConnection, ExternalConnectionKind,
@@ -18,7 +18,10 @@ use im_domain_core::social::{
     normalize_user_pair,
 };
 use im_domain_events::normalize_commit_organization_id;
-use im_platform_contracts::{CommitEnvelope, CommitJournal, ContractError};
+use im_platform_contracts::{
+    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitEnvelope, CommitJournal, ContractError,
+    replay_commit_journal_pages,
+};
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_utils_rust::sha256_hash;
 use serde::{Deserialize, Serialize};
@@ -985,22 +988,27 @@ impl SocialControlState {
         &mut self,
         journal_path: &StdPath,
     ) -> Result<bool, String> {
-        let commits = read_commit_journal_file(journal_path).map_err(|error| {
+        let journal = FileCommitJournal::new(SOCIAL_COMMIT_PARTITION, journal_path);
+        let mut known_event_keys = self.committed_event_keys();
+        let mut changed = false;
+        replay_commit_journal_pages(&journal, COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, |commits| {
+            for commit in commits.iter().cloned() {
+                if !known_event_keys.insert((commit.tenant_id.clone(), commit.event_id.clone())) {
+                    continue;
+                }
+                self.apply_social_commit(commit)
+                    .map_err(ContractError::Invalid)?;
+                changed = true;
+            }
+            Ok(())
+        })
+        .map_err(|error| {
             format!(
-                "failed to read social commit journal {}: {}",
+                "failed to replay social commit journal {}: {}",
                 journal_path.display(),
                 contract_error_message(error)
             )
         })?;
-        let mut known_event_keys = self.committed_event_keys();
-        let mut changed = false;
-        for commit in commits {
-            if !known_event_keys.insert((commit.tenant_id.clone(), commit.event_id.clone())) {
-                continue;
-            }
-            self.apply_social_commit(commit)?;
-            changed = true;
-        }
         Ok(changed)
     }
 
@@ -2133,6 +2141,8 @@ pub struct SocialRuntime {
     snapshot_failpoint_path: Option<Arc<PathBuf>>,
     journal_authority: bool,
     postgres_materializer: Option<Arc<crate::commit_materializer::SocialPostgresMaterializer>>,
+    postgres_atomic_write_authority:
+        Option<Arc<dyn crate::postgres_write_authority::SocialAtomicWriteAuthority>>,
     outbox_store: Option<Arc<dyn im_platform_contracts::OutboxStore>>,
     id_generator: Option<Arc<dyn im_platform_contracts::IdGenerator>>,
     realtime_fanout: RwLock<Option<Arc<dyn crate::social_realtime::SocialRealtimeFanout>>>,
@@ -2191,6 +2201,7 @@ impl SocialRuntime {
             snapshot_failpoint_path: snapshot_failpoint_path.map(Arc::new),
             journal_authority,
             postgres_materializer: None,
+            postgres_atomic_write_authority: None,
             outbox_store: None,
             id_generator: None,
             realtime_fanout: RwLock::new(None),
@@ -2220,6 +2231,24 @@ impl SocialRuntime {
         self.postgres_materializer = Some(Arc::new(
             crate::commit_materializer::SocialPostgresMaterializer::from_pool(pool),
         ));
+        self
+    }
+
+    pub fn with_postgres_write_authority(
+        mut self,
+        journal: im_adapters_postgres_journal::PostgresCommitJournal,
+        pool: im_adapters_social_postgres::SocialPostgresPool,
+    ) -> Self {
+        let materializer = Arc::new(
+            crate::commit_materializer::SocialPostgresMaterializer::from_pool(pool),
+        );
+        self.postgres_atomic_write_authority = Some(Arc::new(
+            crate::postgres_write_authority::SocialPostgresAtomicWriteAuthority::new(
+                journal,
+                materializer.clone(),
+            ),
+        ));
+        self.postgres_materializer = Some(materializer);
         self
     }
 
@@ -2267,10 +2296,19 @@ impl SocialRuntime {
         self.postgres_materializer.clone()
     }
 
-    pub fn recorded_commits(&self) -> Result<Vec<CommitEnvelope>, String> {
-        self.commit_journal
-            .recorded()
-            .map_err(contract_error_message)
+    pub fn replay_recorded_commit_pages(
+        &self,
+        mut consume: impl FnMut(&[CommitEnvelope]),
+    ) -> Result<usize, String> {
+        replay_commit_journal_pages(
+            self.commit_journal.as_ref(),
+            COMMIT_JOURNAL_REPLAY_BATCH_LIMIT,
+            |commits| {
+                consume(commits);
+                Ok(())
+            },
+        )
+        .map_err(contract_error_message)
     }
 
     pub fn set_realtime_fanout(
@@ -2323,54 +2361,63 @@ impl SocialRuntime {
         crate::social_realtime::ensure_realtime_delivery_configured(has_fanout, has_outbox, commits)
     }
 
-    fn materialize_postgres_before_journal(
+    fn persist_commits_to_authority(
         &self,
         commits: &[CommitEnvelope],
-    ) -> Result<bool, String> {
-        let Some(materializer) = self.postgres_materializer.as_ref() else {
-            return Ok(false);
-        };
-        materializer.materialize_commits(commits).map_err(|error| {
-            crate::social_materializer_metrics::record_postgres_materialization_failures(
+    ) -> Result<(Vec<CommitEnvelope>, bool), String> {
+        if let Some(authority) = self.postgres_atomic_write_authority.as_ref() {
+            let inserted = authority
+                .append_and_materialize(commits.to_vec())
+                .map_err(|error| {
+                    crate::social_materializer_metrics::record_postgres_atomic_write_failures(
+                        commits.len() as u64,
+                    );
+                    tracing::error!(
+                        error = ?error,
+                        commit_count = commits.len(),
+                        "atomic social postgres write rolled back"
+                    );
+                    format!(
+                        "atomic social postgres write failed: {}",
+                        contract_error_message(error)
+                    )
+                })?;
+            crate::projection_bridge::try_apply_social_commits_to_projection(&inserted);
+            return Ok((inserted, true));
+        }
+
+        if self.postgres_materializer.is_some() {
+            crate::social_materializer_metrics::record_postgres_atomic_write_failures(
                 commits.len() as u64,
             );
             tracing::error!(
-                error = %error,
                 commit_count = commits.len(),
-                "social postgres materialization failed before journal append"
+                "social postgres materializer has no coordinated journal authority"
             );
-            error
-        })?;
-        Ok(true)
-    }
-
-    fn compensate_postgres_after_journal_failure(
-        &self,
-        commits: &[CommitEnvelope],
-        materialized: bool,
-    ) {
-        if !materialized {
-            return;
-        }
-        crate::social_materializer_metrics::record_postgres_journal_append_failures_after_materialize(
-            commits.len() as u64,
-        );
-        if let Some(materializer) = self.postgres_materializer.as_ref()
-            && let Err(error) = materializer.compensate_commits(commits)
-        {
-            tracing::error!(
-                error = %error,
-                commit_count = commits.len(),
-                "social postgres compensation failed after journal append failure"
+            return Err(
+                "social postgres writes require a coordinated postgres journal authority".into(),
             );
         }
+
+        let append_result = if commits.len() == 1 {
+            self.commit_journal
+                .append(commits[0].clone())
+                .map(|_| ())
+        } else {
+            self.commit_journal
+                .append_batch(commits.to_vec())
+                .map(|_| ())
+        };
+        if let Err(error) = append_result {
+            return Err(format!(
+                "failed to append social commit journal before state write: {}",
+                contract_error_message(error)
+            ));
+        }
+        Ok((commits.to_vec(), false))
     }
 
-    fn finalize_persisted_commits(
-        &self,
-        commits: &[CommitEnvelope],
-        postgres_already_materialized: bool,
-    ) {
+    fn finalize_persisted_commits(&self, commits: &[CommitEnvelope]) {
         if commits.is_empty() {
             return;
         }
@@ -2411,21 +2458,6 @@ impl SocialRuntime {
                 }
             }
         }
-        if !postgres_already_materialized
-            && let Some(materializer) = self.postgres_materializer.as_ref()
-        {
-            let failures = materializer.try_materialize_commits(commits);
-            if failures > 0 {
-                crate::social_materializer_metrics::record_postgres_materialization_failures(
-                    failures as u64,
-                );
-                tracing::error!(
-                    failure_count = failures,
-                    commit_count = commits.len(),
-                    "social postgres materialization completed with failures during replay finalize"
-                );
-            }
-        }
     }
 
     pub fn from_runtime_dir(runtime_dir: impl AsRef<StdPath>) -> Self {
@@ -2455,6 +2487,7 @@ impl SocialRuntime {
             snapshot_failpoint_path: Some(Arc::new(state_dir.join("social-failpoints.json"))),
             journal_authority: true,
             postgres_materializer: None,
+            postgres_atomic_write_authority: None,
             outbox_store: None,
             id_generator: None,
             realtime_fanout: RwLock::new(None),
@@ -2978,19 +3011,9 @@ impl SocialRuntime {
         commit: &CommitEnvelope,
     ) -> Result<SocialWritePersistence, String> {
         self.ensure_social_realtime_delivery(std::slice::from_ref(commit))?;
-        let materialized =
-            self.materialize_postgres_before_journal(std::slice::from_ref(commit))?;
-        if let Err(error) = self.commit_journal.append(commit.clone()) {
-            self.compensate_postgres_after_journal_failure(
-                std::slice::from_ref(commit),
-                materialized,
-            );
-            return Err(format!(
-                "failed to append social commit journal before state write: {}",
-                contract_error_message(error)
-            ));
-        }
-        self.finalize_persisted_commits(std::slice::from_ref(commit), materialized);
+        let (inserted_commits, _postgres_materialized) =
+            self.persist_commits_to_authority(std::slice::from_ref(commit))?;
+        self.finalize_persisted_commits(&inserted_commits);
         self.write_pending_tx_marker(commit.event_id.as_str())?;
         if self.consume_fail_next_snapshot_save()? {
             return Ok(self.repair_required_persistence());
@@ -3013,15 +3036,9 @@ impl SocialRuntime {
             return Ok(self.current_persistence());
         };
         self.ensure_social_realtime_delivery(commits)?;
-        let materialized = self.materialize_postgres_before_journal(commits)?;
-        if let Err(error) = self.commit_journal.append_batch(commits.to_vec()) {
-            self.compensate_postgres_after_journal_failure(commits, materialized);
-            return Err(format!(
-                "failed to append social commit journal batch before state write: {}",
-                contract_error_message(error)
-            ));
-        }
-        self.finalize_persisted_commits(commits, materialized);
+        let (inserted_commits, _postgres_materialized) =
+            self.persist_commits_to_authority(commits)?;
+        self.finalize_persisted_commits(&inserted_commits);
         self.write_pending_tx_marker(marker_event_id)?;
         if self.consume_fail_next_snapshot_save()? {
             return Ok(self.repair_required_persistence());
@@ -4649,6 +4666,122 @@ fn timestamp_newer_for_recency(candidate: &str, existing: &str) -> bool {
         compare_canonical_rfc3339_millis_utc(candidate, existing),
         Some(CmpOrdering::Greater)
     )
+}
+
+#[cfg(test)]
+mod postgres_write_authority_tests {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use im_adapters_local_memory::MemoryCommitJournal;
+    use im_platform_contracts::{CommitEnvelope, ContractError};
+
+    use super::{SocialRuntime, SocialStateStore};
+    use crate::postgres_write_authority::SocialAtomicWriteAuthority;
+
+    struct InjectedAtomicWriteAuthority {
+        calls: AtomicUsize,
+        fail: bool,
+    }
+
+    impl InjectedAtomicWriteAuthority {
+        fn new(fail: bool) -> Self {
+            Self {
+                calls: AtomicUsize::new(0),
+                fail,
+            }
+        }
+    }
+
+    impl SocialAtomicWriteAuthority for InjectedAtomicWriteAuthority {
+        fn append_and_materialize(
+            &self,
+            mut commits: Vec<CommitEnvelope>,
+        ) -> Result<Vec<CommitEnvelope>, ContractError> {
+            self.calls.fetch_add(1, Ordering::Relaxed);
+            if self.fail {
+                return Err(ContractError::Unavailable(
+                    "injected atomic transaction failure".into(),
+                ));
+            }
+            for commit in &mut commits {
+                commit.ordering_seq = 41;
+            }
+            Ok(commits)
+        }
+    }
+
+    fn sample_commit(event_id: &str) -> CommitEnvelope {
+        CommitEnvelope::minimal(
+            event_id,
+            "tenant-social-atomic",
+            "social.atomicity_tested",
+            "social_test",
+            "aggregate-social-atomic",
+            3,
+        )
+    }
+
+    #[test]
+    fn atomic_failure_never_falls_back_to_the_non_postgres_journal() {
+        let fallback_journal = MemoryCommitJournal::default();
+        let authority = Arc::new(InjectedAtomicWriteAuthority::new(true));
+        let mut runtime = SocialRuntime::new(
+            SocialStateStore::memory(),
+            Arc::new(fallback_journal.clone()),
+        );
+        runtime.postgres_atomic_write_authority = Some(authority.clone());
+
+        let result = runtime.persist_commits_to_authority(&[sample_commit("evt-atomic-fail")]);
+
+        assert!(result.is_err());
+        assert_eq!(authority.calls.load(Ordering::Relaxed), 1);
+        assert!(
+            fallback_journal.recorded().is_empty(),
+            "an atomic PostgreSQL failure must not append to a fallback authority"
+        );
+    }
+
+    #[test]
+    fn atomic_success_returns_database_allocated_commit_metadata() {
+        let fallback_journal = MemoryCommitJournal::default();
+        let authority = Arc::new(InjectedAtomicWriteAuthority::new(false));
+        let mut runtime = SocialRuntime::new(
+            SocialStateStore::memory(),
+            Arc::new(fallback_journal.clone()),
+        );
+        runtime.postgres_atomic_write_authority = Some(authority.clone());
+
+        let (inserted, postgres_materialized) = runtime
+            .persist_commits_to_authority(&[sample_commit("evt-atomic-success")])
+            .expect("injected atomic authority should succeed");
+
+        assert!(postgres_materialized);
+        assert_eq!(inserted.len(), 1);
+        assert_eq!(inserted[0].ordering_seq, 41);
+        assert_eq!(authority.calls.load(Ordering::Relaxed), 1);
+        assert!(
+            fallback_journal.recorded().is_empty()
+        );
+    }
+
+    #[test]
+    fn memory_development_authority_keeps_its_bounded_local_behavior() {
+        let journal = MemoryCommitJournal::default();
+        let runtime = SocialRuntime::new(SocialStateStore::memory(), Arc::new(journal.clone()));
+        let commit = sample_commit("evt-memory-authority");
+
+        let (inserted, postgres_materialized) = runtime
+            .persist_commits_to_authority(std::slice::from_ref(&commit))
+            .expect("memory authority should append without a postgres materializer");
+
+        assert!(!postgres_materialized);
+        assert_eq!(inserted, vec![commit.clone()]);
+        assert_eq!(
+            journal.recorded(),
+            vec![commit]
+        );
+    }
 }
 
 #[cfg(test)]

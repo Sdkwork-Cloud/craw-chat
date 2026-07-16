@@ -8,6 +8,7 @@ use axum::{
     response::Response,
     routing::get,
 };
+use futures_util::TryStreamExt;
 use sdkwork_im_api_registry::{HttpMethod, RouteDescriptor};
 use sdkwork_web_core::{ProblemCorrelation, WebFrameworkError, problem_response};
 
@@ -27,9 +28,26 @@ pub(crate) async fn build_proxy_response(
     service_id: &str,
     upstream_response: reqwest::Response,
     correlation: ProblemCorrelation<'_>,
+    stream_response: bool,
 ) -> Response {
     let status = upstream_response.status();
     let headers = upstream_response.headers().clone();
+    if stream_response {
+        let service_id_for_error = service_id.to_owned();
+        let body = Body::from_stream(upstream_response.bytes_stream().map_err(move |error| {
+            tracing::warn!(
+                service = %service_id_for_error,
+                error = %error,
+                "gateway upstream response stream failed"
+            );
+            std::io::Error::other("gateway upstream response stream failed")
+        }));
+        return attach_upstream_service_header(
+            build_raw_response(status, &headers, body),
+            service_id,
+        );
+    }
+
     let max_body_bytes = resolve_max_upstream_response_body_bytes();
     let body = match upstream_response.bytes().await {
         Ok(body) if body.len() <= max_body_bytes => body,
@@ -53,7 +71,13 @@ pub(crate) async fn build_proxy_response(
             );
         }
     };
-    let mut response = build_raw_response(status, &headers, Body::from(body));
+    attach_upstream_service_header(
+        build_raw_response(status, &headers, Body::from(body)),
+        service_id,
+    )
+}
+
+fn attach_upstream_service_header(mut response: Response, service_id: &str) -> Response {
     response.headers_mut().insert(
         "x-sdkwork-im-upstream-service",
         axum::http::HeaderValue::from_str(service_id)

@@ -298,7 +298,7 @@ Use it when you need to trace package ownership instead of inferring from folder
 - language workspace entries map each Flutter package layer to its checked-in path
 - Flutter records the `generated` `im_sdk_generated` layer and the `composed` `im_sdk_composed` layer
 
-Per-family `.sdkwork-assembly.json` is retired and must not be restored. Keep package and release
+Per-family `sdk-manifest.json` is retired and must not be restored. Keep package and release
 metadata in `sdk-manifest.json`.
 
 ## Local Workspace Workflow

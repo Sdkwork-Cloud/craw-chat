@@ -253,30 +253,3 @@ fn redact_postgres_url(database_url: &str) -> String {
     let host = &database_url[after_scheme + at_offset..];
     format!("{scheme}<redacted>{host}")
 }
-
-/// Resolve the projection organization scope for the active request.
-///
-/// P0-12 multi-tenancy isolation: the `TimelineProjectionStore` trait does not
-/// carry `organization_id` from the request context (no `AppContext` is
-/// threaded through the trait signature). Rather than silently degrading to a
-/// hardcoded `"default"` organization scope — which would leak timeline data
-/// across organizations — this fails closed. When the trait is upgraded to
-/// thread `organization_id` from `AppContext`, this should return the
-/// request-scoped value instead of erroring.
-pub(crate) fn require_projection_organization_id() -> Result<String, ContractError> {
-    Err(ContractError::Conflict(
-        "postgres projection organization_id scope is required but unavailable; \
-         refusing to degrade to hardcoded \"default\" organization scope"
-            .into(),
-    ))
-}
-
-#[deprecated(
-    since = "0.1.0",
-    note = "hardcoded \"default\" organization_id breaks multi-tenancy isolation; \
-            use request-scoped organization_id via require_projection_organization_id instead"
-)]
-#[allow(dead_code)]
-pub(crate) fn default_projection_organization_id() -> &'static str {
-    "default"
-}

@@ -137,7 +137,7 @@ The root workspace should converge on this structure:
 ```text
 sdkwork-rtc-sdk/
   README.md
-  .sdkwork-assembly.json
+  sdk-manifest.json
   docs/
     README.md
     package-standards.md
@@ -438,7 +438,7 @@ Required stable code families:
 The root workspace must verify:
 
 - required docs exist
-- `.sdkwork-assembly.json` remains aligned with materialized language workspaces
+- `sdk-manifest.json` remains aligned with materialized language workspaces
 - TypeScript package metadata and public exports remain stable
 - built-in provider adapters exist for `volcengine`, `aliyun`, and `tencent`
 - docs and assembly stay aligned on provider and language matrices

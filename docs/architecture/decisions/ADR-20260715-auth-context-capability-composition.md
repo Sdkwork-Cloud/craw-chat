@@ -1,9 +1,14 @@
 # ADR-20260715-auth-context-capability-composition
 
-Status: accepted
+Status: superseded
 Owner: sdkwork-im
 Date: 2026-07-15
 Specs: `IAM_LOGIN_INTEGRATION_SPEC.md`, `APP_COMPOSITION_SPEC.md`, `APP_SDK_INTEGRATION_SPEC.md`, `SECURITY_SPEC.md`
+
+Superseded by: `ADR-20260716-group-knowledgebase-authentication-boundary.md`. The organization-only
+classification in this decision was based on an incorrect product assumption: group Knowledgebase
+authorization belongs to the IM Conversation membership model and applies to tenant-scoped groups
+as well as organization-scoped groups.
 
 ## Context
 

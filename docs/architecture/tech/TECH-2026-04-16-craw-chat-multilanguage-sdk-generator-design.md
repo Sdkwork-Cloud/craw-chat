@@ -158,7 +158,7 @@ sdkwork-im-sdk/
   sdkwork-im-sdk-kotlin/
   sdkwork-im-sdk-go/
   sdkwork-im-sdk-python/
-  .sdkwork-assembly.json
+  sdk-manifest.json
   README.md
 ```
 
@@ -421,7 +421,7 @@ The workspace must maintain a machine-readable and human-readable capability mat
 
 Assembly and capability metadata should continue to live in:
 
-- `.sdkwork-assembly.json`
+- `sdk-manifest.json`
 
 It must be extended so every language entry records at least:
 

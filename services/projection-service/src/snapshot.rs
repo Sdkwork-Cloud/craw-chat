@@ -7,7 +7,7 @@ use im_domain_core::conversation::{
 };
 use im_platform_contracts::{
     MetadataSnapshotRecord, MetadataStore, TimelineProjectionBatch, TimelineProjectionRecord,
-    TimelineProjectionStore,
+    TimelineProjectionScope, TimelineProjectionStore,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -21,6 +21,7 @@ use crate::projection::ProjectionError;
 use crate::scope::{
     ClientRouteFeedScopeKey, ClientRoutePrincipalScopeKey, client_route_feed_scope_key,
     client_route_principal_scope_key, encode_projection_key_segments,
+    is_conversation_projection_event_type,
 };
 use crate::{
     ContactView, ConversationSummaryView, TimelineProjectionService, TimelineViewEntry,
@@ -50,6 +51,16 @@ const MESSAGE_VISIBILITY_CATALOG_SCOPE: &str = "projection-message-visibilities"
 const MESSAGE_VISIBILITY_SCOPES_KEY: &str = "message-visibility-scopes";
 pub(crate) const MESSAGE_VISIBILITY_STATE_KEY: &str = "message-visibilities";
 
+type ConversationSnapshotScope = (String, String, String);
+
+#[derive(Debug, Default, PartialEq, Eq)]
+struct DurableSnapshotDirtyPlan {
+    conversation_scopes: BTreeSet<ConversationSnapshotScope>,
+    persist_contacts: bool,
+    persist_client_routes: bool,
+    persist_group_bindings: bool,
+}
+
 #[derive(Default)]
 pub(crate) struct ProjectionSnapshotWritePlan {
     metadata_snapshots: Vec<MetadataSnapshotRecord>,
@@ -74,6 +85,7 @@ impl ProjectionSnapshotWritePlan {
     fn push_timeline_batch<T>(
         &mut self,
         tenant_id: &str,
+        organization_id: &str,
         timeline_scope: &str,
         entries: impl IntoIterator<Item = T>,
     ) -> Result<(), ProjectionError>
@@ -92,8 +104,8 @@ impl ProjectionSnapshotWritePlan {
             .collect::<Result<Vec<_>, ProjectionError>>()?;
         if !records.is_empty() {
             self.timeline_batches.push(TimelineProjectionBatch {
-                tenant_id: tenant_id.to_owned(),
-                timeline_scope: timeline_scope.to_owned(),
+                scope: TimelineProjectionScope::new(tenant_id, organization_id, timeline_scope)
+                    .map_err(ProjectionError::StoreFailure)?,
                 records,
             });
         }
@@ -296,39 +308,45 @@ impl TimelineProjectionService {
                 );
             }
             let memory_cap = self.memory_timeline_cap();
-            let timeline =
-                if memory_cap < crate::timeline_tier::PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED {
-                    let message_count = summary
-                        .as_ref()
-                        .map(|summary| summary.message_count)
-                        .unwrap_or(0);
-                    if message_count == 0 {
-                        crate::timeline_tier::load_full_timeline_for_restore(
-                            timeline_store,
-                            tenant_id,
-                            conversation_id,
-                        )?
-                    } else {
-                        crate::timeline_tier::load_timeline_tail_for_restore(
-                            timeline_store,
-                            tenant_id,
-                            conversation_id,
-                            message_count,
-                            memory_cap,
-                        )?
-                    }
+            let timeline = if memory_cap
+                < crate::timeline_tier::PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED
+            {
+                let message_count = summary
+                    .as_ref()
+                    .map(|summary| summary.message_count)
+                    .unwrap_or(0);
+                if message_count == 0 {
+                    crate::timeline_tier::load_full_timeline_for_restore(
+                        timeline_store,
+                        tenant_id,
+                        organization_id,
+                        conversation_id,
+                    )?
                 } else {
-                    timeline_store
-                        .load_timeline(tenant_id, conversation_id)
-                        .map_err(ProjectionError::StoreFailure)?
-                        .into_iter()
-                        .map(|(_, payload)| {
-                            serde_json::from_str::<TimelineViewEntry>(&payload)
-                                .map_err(ProjectionError::InvalidSnapshot)
-                        })
-                        .map(|entry| entry.map(|entry| (entry.message_seq, entry)))
-                        .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?
-                };
+                    crate::timeline_tier::load_timeline_tail_for_restore(
+                        timeline_store,
+                        tenant_id,
+                        organization_id,
+                        conversation_id,
+                        message_count,
+                        memory_cap,
+                    )?
+                }
+            } else {
+                timeline_store
+                    .load_timeline(
+                        &TimelineProjectionScope::new(tenant_id, organization_id, conversation_id)
+                            .map_err(ProjectionError::StoreFailure)?,
+                    )
+                    .map_err(ProjectionError::StoreFailure)?
+                    .into_iter()
+                    .map(|(_, payload)| {
+                        serde_json::from_str::<TimelineViewEntry>(&payload)
+                            .map_err(ProjectionError::InvalidSnapshot)
+                    })
+                    .map(|entry| entry.map(|entry| (entry.message_seq, entry)))
+                    .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?
+            };
             let conversation = load_metadata_snapshot::<ConversationCatalogEntry>(
                 metadata_store,
                 scope.as_str(),
@@ -542,6 +560,7 @@ impl TimelineProjectionService {
         write_plan.push_metadata(scope.as_str(), MESSAGE_INTERACTIONS_KEY, &interaction_items)?;
         write_plan.push_timeline_batch(
             tenant_id,
+            organization_id,
             conversation_id,
             self.timeline(tenant_id, organization_id, conversation_id),
         )?;
@@ -655,6 +674,7 @@ impl TimelineProjectionService {
             )?;
             write_plan.push_timeline_batch(
                 runtime_scope.tenant_id.as_str(),
+                runtime_scope.organization_id.as_str(),
                 snapshot_scope.as_str(),
                 feed_entries,
             )?;
@@ -831,7 +851,14 @@ impl TimelineProjectionService {
             for runtime_scope in restored_client_route_scopes {
                 let snapshot_scope = client_route_sync_snapshot_scope(&runtime_scope);
                 let mut feed_entries = timeline_store
-                    .load_timeline(runtime_scope.tenant_id.as_str(), snapshot_scope.as_str())
+                    .load_timeline(
+                        &TimelineProjectionScope::new(
+                            runtime_scope.tenant_id.as_str(),
+                            runtime_scope.organization_id.as_str(),
+                            snapshot_scope.as_str(),
+                        )
+                        .map_err(ProjectionError::StoreFailure)?,
+                    )
                     .map_err(ProjectionError::StoreFailure)?
                     .into_iter()
                     .map(|(_, payload)| {
@@ -1037,6 +1064,157 @@ impl TimelineProjectionService {
         }
         Ok(())
     }
+
+    pub fn persist_durable_snapshots_for_events(
+        &self,
+        metadata_store: &dyn MetadataStore,
+        timeline_store: &dyn TimelineProjectionStore,
+        events: &[im_platform_contracts::CommitEnvelope],
+    ) -> Result<(), ProjectionError> {
+        let dirty = self.durable_snapshot_dirty_plan_for_events(events);
+        let mut write_plan = ProjectionSnapshotWritePlan::default();
+        let mut persisted_client_routes = false;
+        let mut persisted_conversations = Vec::with_capacity(dirty.conversation_scopes.len());
+        if dirty.persist_contacts {
+            self.collect_contact_snapshot_writes(&mut write_plan)?;
+        }
+        if dirty.persist_client_routes {
+            persisted_client_routes =
+                self.collect_client_route_sync_snapshot_writes(&mut write_plan)?;
+        }
+        if dirty.persist_group_bindings {
+            self.collect_group_conversation_binding_snapshot_write(&mut write_plan)?;
+        }
+        for (tenant_id, organization_id, conversation_id) in dirty.conversation_scopes {
+            if self.collect_conversation_snapshot_writes(
+                tenant_id.as_str(),
+                organization_id.as_str(),
+                conversation_id.as_str(),
+                &mut write_plan,
+            )? {
+                persisted_conversations.push((tenant_id, organization_id, conversation_id));
+            }
+        }
+        let result = write_plan.commit(metadata_store, timeline_store);
+        match &result {
+            Ok(()) => {
+                if persisted_client_routes {
+                    self.record_projection_snapshot_success(
+                        ProjectionSnapshotOperation::ClientRouteSyncSnapshotPersist,
+                        "client-route-sync",
+                        CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
+                        "persisted client route sync projection snapshot catalog".to_owned(),
+                    );
+                }
+                for (tenant_id, organization_id, conversation_id) in &persisted_conversations {
+                    let scope = conversation_snapshot_scope(
+                        tenant_id.as_str(),
+                        organization_id.as_str(),
+                        conversation_id.as_str(),
+                    );
+                    self.record_projection_snapshot_success(
+                        ProjectionSnapshotOperation::ConversationSnapshotPersist,
+                        "conversation",
+                        scope.as_str(),
+                        format!("persisted conversation projection snapshot for {scope}"),
+                    );
+                }
+            }
+            Err(error) => {
+                if persisted_client_routes {
+                    self.record_projection_snapshot_failure(
+                        ProjectionSnapshotOperation::ClientRouteSyncSnapshotPersist,
+                        "client-route-sync",
+                        CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
+                        error,
+                    );
+                }
+                for (tenant_id, organization_id, conversation_id) in &persisted_conversations {
+                    let scope = conversation_snapshot_scope(
+                        tenant_id.as_str(),
+                        organization_id.as_str(),
+                        conversation_id.as_str(),
+                    );
+                    self.record_projection_snapshot_failure(
+                        ProjectionSnapshotOperation::ConversationSnapshotPersist,
+                        "conversation",
+                        scope.as_str(),
+                        error,
+                    );
+                }
+            }
+        }
+        result
+    }
+
+    fn durable_snapshot_dirty_plan_for_events(
+        &self,
+        events: &[im_platform_contracts::CommitEnvelope],
+    ) -> DurableSnapshotDirtyPlan {
+        let mut dirty = DurableSnapshotDirtyPlan::default();
+        for event in events {
+            let organization_id =
+                im_domain_events::normalize_commit_organization_id(event.organization_id.as_str());
+            let event_type = event.event_type.as_str();
+            if is_conversation_projection_event_type(event_type) {
+                dirty.conversation_scopes.insert((
+                    event.tenant_id.clone(),
+                    organization_id,
+                    event.aggregate_id.clone(),
+                ));
+            } else if matches!(event_type, "group.created" | "group.updated") {
+                if let Some(conversation_id) = self.group_conversation_id_for_event(event) {
+                    dirty.conversation_scopes.insert((
+                        event.tenant_id.clone(),
+                        organization_id,
+                        conversation_id,
+                    ));
+                }
+                dirty.persist_group_bindings = true;
+            }
+
+            if event_updates_contact_snapshot(event_type) {
+                dirty.persist_contacts = true;
+            }
+            if event_updates_client_route_snapshot(event_type) {
+                dirty.persist_client_routes = true;
+            }
+        }
+        dirty
+    }
+}
+
+fn event_updates_contact_snapshot(event_type: &str) -> bool {
+    matches!(
+        event_type,
+        "friendship.activated"
+            | "friendship.removed"
+            | "user_block.blocked"
+            | "user_block.released"
+            | "direct_chat.bound"
+    )
+}
+
+fn event_updates_client_route_snapshot(event_type: &str) -> bool {
+    matches!(
+        event_type,
+        "conversation.agent_handoff_status_changed"
+            | "conversation.member_joined"
+            | "conversation.member_invitation_accepted"
+            | "conversation.member_role_changed"
+            | "conversation.member_removed"
+            | "conversation.member_left"
+            | "conversation.read_cursor_updated"
+            | "message.posted"
+            | "message.edited"
+            | "message.recalled"
+            | "message.reaction_added"
+            | "message.reaction_removed"
+            | "message.pin_added"
+            | "message.pin_removed"
+            | "friendship.activated"
+            | "friendship.removed"
+    )
 }
 
 fn conversation_snapshot_scope(
@@ -1139,7 +1317,7 @@ mod tests {
     use im_domain_core::conversation::{MembershipRole, build_conversation_member};
     use im_platform_contracts::{
         ContractError, MetadataSnapshotRecord, MetadataStore, TimelineProjectionBatch,
-        TimelineProjectionRecord, TimelineProjectionStore,
+        TimelineProjectionRecord, TimelineProjectionScope, TimelineProjectionStore,
     };
 
     use super::*;
@@ -1198,7 +1376,7 @@ mod tests {
     }
 
     type TimelineProjectionTestEntries =
-        Arc<Mutex<HashMap<(String, String), BTreeMap<u64, String>>>>;
+        Arc<Mutex<HashMap<(String, String, String), BTreeMap<u64, String>>>>;
 
     #[derive(Clone, Default)]
     struct CountingTimelineProjectionStore {
@@ -1218,13 +1396,16 @@ mod tests {
 
         fn upsert_records(
             &self,
-            tenant_id: &str,
-            timeline_scope: &str,
+            scope: &TimelineProjectionScope,
             records: &[TimelineProjectionRecord],
         ) {
             let mut stored = self.entries.lock().expect("timeline store should lock");
             let scope_entries = stored
-                .entry((tenant_id.to_owned(), timeline_scope.to_owned()))
+                .entry((
+                    scope.tenant_id().to_owned(),
+                    scope.organization_id().to_owned(),
+                    scope.timeline_scope().to_owned(),
+                ))
                 .or_default();
             for record in records {
                 scope_entries.insert(record.message_seq, record.payload.clone());
@@ -1235,8 +1416,7 @@ mod tests {
     impl TimelineProjectionStore for CountingTimelineProjectionStore {
         fn upsert_timeline_entry(
             &self,
-            tenant_id: &str,
-            timeline_scope: &str,
+            scope: &TimelineProjectionScope,
             message_seq: u64,
             payload: &str,
         ) -> Result<(), ContractError> {
@@ -1244,7 +1424,11 @@ mod tests {
             self.entries
                 .lock()
                 .expect("timeline store should lock")
-                .entry((tenant_id.to_owned(), timeline_scope.to_owned()))
+                .entry((
+                    scope.tenant_id().to_owned(),
+                    scope.organization_id().to_owned(),
+                    scope.timeline_scope().to_owned(),
+                ))
                 .or_default()
                 .insert(message_seq, payload.to_owned());
             Ok(())
@@ -1252,14 +1436,17 @@ mod tests {
 
         fn load_timeline(
             &self,
-            tenant_id: &str,
-            timeline_scope: &str,
+            scope: &TimelineProjectionScope,
         ) -> Result<Vec<(u64, String)>, ContractError> {
             Ok(self
                 .entries
                 .lock()
                 .expect("timeline store should lock")
-                .get(&(tenant_id.to_owned(), timeline_scope.to_owned()))
+                .get(&(
+                    scope.tenant_id().to_owned(),
+                    scope.organization_id().to_owned(),
+                    scope.timeline_scope().to_owned(),
+                ))
                 .map(|items| {
                     items
                         .iter()
@@ -1275,11 +1462,7 @@ mod tests {
         ) -> Result<(), ContractError> {
             self.batch_upsert_calls.fetch_add(1, Ordering::Relaxed);
             for batch in batches {
-                self.upsert_records(
-                    batch.tenant_id.as_str(),
-                    batch.timeline_scope.as_str(),
-                    &batch.records,
-                );
+                self.upsert_records(&batch.scope, &batch.records);
             }
             Ok(())
         }
@@ -1336,6 +1519,266 @@ mod tests {
             "conversation.member_joined.v1",
             &serde_json::to_string(&member).expect("member should serialize"),
         )
+    }
+
+    fn group_created_event(
+        tenant_id: &str,
+        organization_id: &str,
+        aggregate_group_id: &str,
+        payload_group_id: &str,
+        conversation_id: &str,
+    ) -> im_domain_events::CommitEnvelope {
+        im_domain_events::CommitEnvelope::minimal(
+            &format!("evt_{tenant_id}_{organization_id}_{aggregate_group_id}_created"),
+            tenant_id,
+            "group.created",
+            "chat_group",
+            aggregate_group_id,
+            1,
+        )
+        .with_organization_id(organization_id)
+        .with_payload(
+            "space.group.created.v1",
+            &serde_json::json!({
+                "groupId": payload_group_id,
+                "spaceId": null,
+                "groupName": format!("Group {conversation_id}"),
+                "groupType": "normal",
+                "ownerUserId": "owner-1",
+                "conversationId": conversation_id,
+                "maxMembers": 200,
+                "description": null,
+                "avatarUrl": null,
+                "announcement": null,
+                "settingsJson": "{}",
+                "createdAt": "2026-07-16T00:00:00Z",
+                "updatedAt": "2026-07-16T00:00:00Z"
+            })
+            .to_string(),
+        )
+    }
+
+    #[test]
+    fn journal_dirty_plan_isolates_same_conversation_id_by_tenant_and_organization() {
+        let projection = TimelineProjectionService::default();
+        let tenant_a_org_a = conversation_created_event("tenant-a", "conversation-shared", "group")
+            .with_organization_id("org-a");
+        let tenant_a_org_b = conversation_created_event("tenant-a", "conversation-shared", "group")
+            .with_organization_id("org-b");
+        let tenant_b_org_a = conversation_created_event("tenant-b", "conversation-shared", "group")
+            .with_organization_id("org-a");
+
+        let dirty = projection.durable_snapshot_dirty_plan_for_events(&[
+            tenant_a_org_a,
+            tenant_a_org_b,
+            tenant_b_org_a,
+        ]);
+
+        assert_eq!(dirty.conversation_scopes.len(), 3);
+        assert!(dirty.conversation_scopes.contains(&(
+            "tenant-a".into(),
+            "org-a".into(),
+            "conversation-shared".into(),
+        )));
+        assert!(dirty.conversation_scopes.contains(&(
+            "tenant-a".into(),
+            "org-b".into(),
+            "conversation-shared".into(),
+        )));
+        assert!(dirty.conversation_scopes.contains(&(
+            "tenant-b".into(),
+            "org-a".into(),
+            "conversation-shared".into(),
+        )));
+    }
+
+    #[test]
+    fn journal_dirty_plan_resolves_group_binding_from_payload_scope() {
+        let projection = TimelineProjectionService::default();
+        let org_a = group_created_event(
+            "tenant-a",
+            "org-a",
+            "group-shared",
+            "group-shared",
+            "conversation-org-a",
+        );
+        let org_b = group_created_event(
+            "tenant-a",
+            "org-b",
+            "group-shared",
+            "group-shared",
+            "conversation-org-b",
+        );
+        projection.apply(&org_a).expect("org-a group should apply");
+        projection.apply(&org_b).expect("org-b group should apply");
+
+        let dirty = projection.durable_snapshot_dirty_plan_for_events(&[org_a]);
+
+        assert_eq!(dirty.conversation_scopes.len(), 1);
+        assert!(dirty.conversation_scopes.contains(&(
+            "tenant-a".into(),
+            "org-a".into(),
+            "conversation-org-a".into(),
+        )));
+        assert!(dirty.persist_group_bindings);
+        assert!(!dirty.persist_client_routes);
+    }
+
+    #[test]
+    fn group_projection_rejects_payload_aggregate_identity_mismatch() {
+        let projection = TimelineProjectionService::default();
+        let mismatched = group_created_event(
+            "tenant-a",
+            "org-a",
+            "aggregate-group",
+            "payload-group",
+            "conversation-a",
+        );
+
+        assert!(matches!(
+            projection.apply(&mismatched),
+            Err(ProjectionError::InvalidEvent(_))
+        ));
+        assert_eq!(
+            projection.group_conversation_id("tenant-a", "org-a", "aggregate-group"),
+            None
+        );
+        assert_eq!(
+            projection.group_conversation_id("tenant-a", "org-a", "payload-group"),
+            None
+        );
+    }
+
+    #[test]
+    fn journal_dirty_plan_persists_friendship_client_route_fanout() {
+        let projection = TimelineProjectionService::default();
+        let friendship = im_domain_events::CommitEnvelope::minimal(
+            "evt-friendship",
+            "tenant-a",
+            "friendship.activated",
+            "friendship",
+            "friendship-a",
+            1,
+        )
+        .with_organization_id("org-a");
+
+        let dirty = projection.durable_snapshot_dirty_plan_for_events(&[friendship]);
+
+        assert!(dirty.persist_contacts);
+        assert!(dirty.persist_client_routes);
+        assert!(dirty.conversation_scopes.is_empty());
+    }
+
+    #[test]
+    fn journal_dirty_plan_ignores_unknown_event_prefixes() {
+        let projection = TimelineProjectionService::default();
+        let unknown = im_domain_events::CommitEnvelope::minimal(
+            "evt-unknown",
+            "tenant-a",
+            "conversation.future_event",
+            "conversation",
+            "conversation-a",
+            1,
+        );
+
+        assert_eq!(
+            projection.durable_snapshot_dirty_plan_for_events(&[unknown]),
+            DurableSnapshotDirtyPlan::default()
+        );
+    }
+
+    #[test]
+    fn projection_rejects_conversation_envelope_scope_mismatch_before_mutation() {
+        let projection = TimelineProjectionService::default();
+        let mut event = conversation_created_event("tenant-a", "conversation-a", "group")
+            .with_organization_id("org-a");
+        event.scope_id = "conversation-b".into();
+
+        assert!(matches!(
+            projection.apply(&event),
+            Err(ProjectionError::InvalidEvent(_))
+        ));
+        assert!(
+            projection
+                .conversation_summary("tenant-a", "org-a", "conversation-a")
+                .is_none()
+        );
+        assert!(
+            projection
+                .conversation_summary("tenant-a", "org-a", "conversation-b")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn projection_rejects_cross_tenant_message_payload_before_mutation() {
+        let projection = TimelineProjectionService::default();
+        let mut event = message_posted_event(
+            "tenant-a",
+            "conversation-a",
+            "message-a",
+            1,
+            "sender-a",
+            "hello",
+        )
+        .with_organization_id("org-a");
+        let mut payload: serde_json::Value =
+            serde_json::from_str(&event.payload).expect("message payload should parse");
+        payload["tenantId"] = serde_json::Value::String("tenant-b".into());
+        event.payload = payload.to_string();
+
+        assert!(matches!(
+            projection.apply(&event),
+            Err(ProjectionError::InvalidEvent(_))
+        ));
+        assert!(
+            projection
+                .timeline("tenant-a", "org-a", "conversation-a")
+                .is_empty()
+        );
+        assert!(
+            projection
+                .timeline("tenant-b", "org-a", "conversation-a")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn journal_dirty_conversations_commit_in_one_store_batch() {
+        let projection = TimelineProjectionService::default();
+        let metadata_store = CountingMetadataStore::default();
+        let timeline_store = CountingTimelineProjectionStore::default();
+        let first = conversation_created_event("tenant-a", "conversation-a", "group")
+            .with_organization_id("org-a");
+        let second = conversation_created_event("tenant-a", "conversation-b", "group")
+            .with_organization_id("org-a");
+        projection
+            .apply(&first)
+            .expect("first conversation should apply");
+        projection
+            .apply(&second)
+            .expect("second conversation should apply");
+
+        projection
+            .persist_durable_snapshots_for_events(
+                &metadata_store,
+                &timeline_store,
+                &[first, second],
+            )
+            .expect("dirty conversations should persist");
+
+        assert_eq!(metadata_store.single_put_calls(), 0);
+        assert_eq!(metadata_store.batch_put_calls(), 1);
+        assert_eq!(timeline_store.single_upsert_calls(), 0);
+        assert_eq!(timeline_store.batch_upsert_calls(), 0);
+        assert_eq!(
+            projection
+                .projection_plane_observability()
+                .metrics
+                .conversation_snapshot_persist
+                .success_count,
+            2
+        );
     }
 
     fn message_posted_event(
@@ -1478,7 +1921,10 @@ mod tests {
         );
         assert_eq!(
             timeline_store
-                .load_timeline("100001", "c_batch")
+                .load_timeline(
+                    &TimelineProjectionScope::new("100001", "default", "c_batch")
+                        .expect("conversation timeline scope should be valid"),
+                )
                 .expect("conversation timeline should load")
                 .len(),
             1,
@@ -1487,11 +1933,14 @@ mod tests {
         assert_eq!(
             timeline_store
                 .load_timeline(
-                    "100001",
-                    client_route_sync_snapshot_scope(&client_route_feed_scope_key(
-                        "100001", "default", "user", "1014", "d_phone"
-                    ))
-                    .as_str(),
+                    &TimelineProjectionScope::new(
+                        "100001",
+                        "default",
+                        client_route_sync_snapshot_scope(&client_route_feed_scope_key(
+                            "100001", "default", "user", "1014", "d_phone"
+                        )),
+                    )
+                    .expect("client route sync timeline scope should be valid"),
                 )
                 .expect("client route sync timeline should load")
                 .len(),

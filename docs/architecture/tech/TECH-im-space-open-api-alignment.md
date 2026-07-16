@@ -5,120 +5,122 @@
 
 ## Authority Model
 
-Space and group **mutations** are event-sourced through the IM commit journal (`im_commit_journal`); supplemental PostgreSQL tables (`im_spaces`, `im_chat_groups`, `im_space_members`, `im_group_members`, …) are **read models** materialized by `SpacePostgresMaterializer`.
+Space and group mutations are event-sourced through `im_commit_journal`. PostgreSQL tables such as `im_spaces`, `im_chat_groups`, `im_space_members`, and `im_group_members` are query read models materialized from the same commit envelopes.
 
 | Layer | Responsibility |
 | --- | --- |
 | `space-service` | Open API handlers for `/im/v3/api/spaces/*` |
-| `im-domain-events::space` | `space.*` / `group.*` commit envelope types |
-| `SpaceCommitJournal` | Postgres (production), file (`SDKWORK_IM_RUNTIME_DIR`), or memory (dev/test) |
-| `SpacePostgresMaterializer` | Maps journal events → supplemental `im_*` tables (failures increment `im_space_postgres_materialization_failures_total`; journal remains authoritative) |
-| `organization_store` | Durable read model for spaces, groups, channels |
-| `governance_store` | Durable read model for space members, invitations, bans, channel access rules |
-| `conversation-runtime` | Group + system-channel conversation bind (unified-process when Postgres + conversation runtime are both available) |
+| `im-domain-events::space` | Versioned `space.*` and `group.*` commit envelopes |
+| `SpaceCommitJournal` | PostgreSQL authority built from the same process-wide pool as the Space read model |
+| `SpacePostgresMaterializer` | Maps commit envelopes to supplemental `im_*` read-model tables |
+| `organization_store` | Durable query model for spaces, groups, and channels |
+| `governance_store` | Durable query model for space members, invitations, bans, and channel access rules |
+| `conversation-runtime` | Group and system-channel conversation binding when the conversation service is available |
 
-Write path (space/group core mutations):
+The PostgreSQL write path for Space and Group core mutations is:
 
+```text
+handler -> SpaceWriteAuthority
+  -> acquire deterministic per-partition PostgreSQL advisory locks
+  -> allocate contiguous aggregate sequences
+  -> append one or more rows to im_commit_journal
+  -> validate member capacity and materialize read-model rows
+  -> commit Journal and read model in one PostgreSQL transaction
 ```
-handler → SpacePostgresMaterializer (materialize-before-append)
-  → single-commit: per-store writes
-  → multi-commit batch (e.g. space create): one PostgreSQL transaction across supplemental tables
-  → append journal
-  → compensate supplemental writes when journal append fails
-```
 
-Startup replay: when Postgres journal is active, `replay_space_journal_to_read_model()` idempotently rebuilds supplemental stores from `journal.recorded()`.
+Any Journal insert, payload validation, capacity check, read-model mutation, or final commit failure rolls back the entire transaction. There is no materialize-first compensation path. Failed atomic transactions increment `im_space_postgres_atomic_write_failures_total`.
 
-Channel, invitation, ban, and channel-access-rule mutations remain direct supplemental writes (phase 2 for journal coverage).
+The runtime constructs both adapters from the same process-wide PostgreSQL pool in `space_service::app_state_from_postgres_pool()`. It does not disable the Journal and fall back to direct read-model writes when a second Journal pool cannot be created.
 
-Bootstrap entrypoint: `space_service::app_state_from_postgres_pool()`.
+Startup replay uses bounded keyset pages through `replay_space_journal_to_read_model()` and `recorded_page()`. It never loads the complete Journal into one in-process collection. Replay-only materialization failures increment `im_space_postgres_materialization_failures_total`.
 
-Unified-process wiring: `sdkwork_im_gateway_assembly::wire_space_conversation_binders()`.
+Channel, invitation, ban, and channel-access-rule mutations remain direct supplemental writes until their event contracts are implemented.
+
+## Concurrency And Capacity
+
+All partitions in a coordinated batch are locked in lexical order with transaction-scoped PostgreSQL advisory locks. This gives same-aggregate commands one serialization point and prevents lock-order cycles for future multi-aggregate batches.
+
+Aggregate sequence allocation occurs after the locks are held. A new aggregate starts at stored sequence `1`; subsequent events receive contiguous values. Exact event-ID replay retains its stored sequence so immutable fingerprint validation remains idempotent.
+
+Space and group member insertion performs the parent-row capacity check and member insert inside the same transaction as the Journal append. Concurrent commands for the same aggregate cannot both pass the capacity decision against a stale pre-commit state.
 
 ## Authorization
 
 | Surface | Rule |
 | --- | --- |
 | Space create | Authenticated actor becomes owner |
-| Space list | Owned spaces + member spaces for actor |
-| Space get | `require_space_member` |
-| Space update | `require_space_manager` (owner/admin) |
-| Space delete | `require_space_owner` |
-| Group CRUD | `require_space_member` / `require_space_manager` / `require_group_member` / `require_group_manager` |
-| Group member remove | Self-leave when `userId == actor` (owner must transfer first); managers may remove non-owner members |
-| Group owner transfer | `POST .../groups/{groupId}/transfer_owner` — current owner only; PG + conversation roster stay aligned |
-| Channel list/get | `require_space_member` |
-| Channel create/update/delete | `require_space_manager` |
-| Channel access rules | `require_space_manager` + channel belongs to space |
-| Invites / bans | `require_space_manager` / `require_space_member` as applicable |
+| Space list | Owned spaces plus member spaces for the actor |
+| Space get | Space membership required |
+| Space update | Space owner or admin required |
+| Space delete | Space owner required |
+| Group CRUD | Space/group membership and manager checks according to the command |
+| Group member remove | Self-leave is allowed except for the owner; managers may remove non-owner members |
+| Group owner transfer | Current group owner only; target must already be a member |
+| Channel list/get | Space membership required |
+| Channel create/update/delete | Space owner or admin required |
+| Channel access rules | Space manager required and the channel must belong to the space |
+| Invitations and bans | Space manager/member checks according to the operation |
 
-Banned users are rejected by `require_space_member` via `ban_store.is_user_banned`.
+Banned users are rejected by the Space membership access checks through `ban_store.is_user_banned`.
 
 ## Conversation Binding
 
 ### Groups
 
-1. `group_id` snowflake is allocated.
-2. `conversation_id = group_id` (matches PC client convention).
-3. Binder creates a `group` conversation before PG insert.
-4. Group row and owner member row insert in a single Postgres transaction (`GroupStore::insert_with_owner_member`).
-5. Member add/remove syncs non-owner roster into conversation-service.
-6. Owner transfer updates `im_chat_groups.owner_user_id`, demotes/promotes member roles in one transaction (`GroupStore::transfer_owner`), then syncs conversation ownership via binder.
+1. Independent `group_id` and `conversation_id` Snowflake values are allocated.
+2. The `group.created` Journal row, group read-model row, and owner member row commit atomically.
+3. The binder creates the corresponding `group` conversation after the database transaction commits.
+4. A binder failure triggers a Journal-backed `group.deleted` compensation command. Failure of that command is logged and returned as an error rather than reported as success.
+5. Member add/remove and owner transfer synchronize the conversation-service roster through the configured binder.
 
-### Self-leave
+The conversation binder is a cross-service boundary and is not part of the PostgreSQL transaction. Durable outbox or saga delivery is still required before group conversation creation, roster changes, and ownership transfer can claim atomic cross-service delivery.
 
-Members may `DELETE .../groups/{groupId}/members/{userId}` when `userId` matches the authenticated actor. The group owner cannot self-leave until ownership is transferred.
+### Self-Leave
 
-### Owner transfer
+Members may call `DELETE .../groups/{groupId}/members/{userId}` when `userId` matches the authenticated actor. The owner must transfer ownership before leaving.
 
-`POST /im/v3/api/spaces/{spaceId}/groups/{groupId}/transfer_owner` with `{ "newOwnerUserId": "<userId>" }` returns the updated group in `data.item`. The target user must already be a group member.
+### Owner Transfer
+
+`POST /im/v3/api/spaces/{spaceId}/groups/{groupId}/transfer_owner` accepts `{ "newOwnerUserId": "<userId>" }`. The target user must already be a group member.
 
 ### Channels
 
-1. `channel_id` snowflake is allocated.
-2. `conversation_id = channel_id`.
-3. Binder creates a `system_channel` conversation (`CreateSystemChannelCommand`) before PG insert.
-
-When Postgres is configured but conversation binders are missing, group/channel create **fail fast** instead of leaving orphan rows.
+Channel and system-channel conversation IDs are allocated independently. When PostgreSQL is configured but a required production conversation binder is missing, group/channel creation fails closed instead of reporting a synthetic bind.
 
 ## Response Envelope
 
-All Open API handlers return `SdkWorkApiResponse` via `finish_api_json`:
+Open API handlers serialize through the SDKWork response helpers:
 
-- Single resource: `data.item` via `api_payload::resource_item` (`SdkWorkResourceData`)
-- Lists: `data.items` + `data.pageInfo` (`SdkWorkPageData`, cursor mode with `pageInfo.mode`)
-  - SQL-backed lists use keyset predicates and bounded `LIMIT page_size + 1` reads.
-  - `list_spaces` uses store/index-backed keyset pagination; it must not rebuild owned/member scopes into an unbounded in-memory vector and then slice.
-  - Query wire: `SdkWorkCursorListQuery` (`page_size` + opaque `cursor` only). Historical aliases such as `pageSize` and `limit` are rejected for this pre-launch application.
+- Single resource: `data.item` through `SdkWorkResourceData`.
+- Lists: `data.items` plus cursor-mode `data.pageInfo` through `SdkWorkPageData`.
+- SQL-backed lists: keyset predicates and bounded `LIMIT page_size + 1` reads.
+- List input: `page_size` plus an opaque `cursor`; pre-launch compatibility aliases are not accepted.
 
-Wire view types (`SpaceView`, `SpaceGroupView`, `SpaceChannelView`, `SpaceChannelAccessRuleView`, …) match `sdkwork-im-im.openapi.yaml` schemas.
+The wire view types must remain aligned with `apis/open-api/im/sdkwork-im-im.openapi.yaml` and the generated SDK authority.
 
-## Channel Access Rules
+## Deferred Work
 
-Persisted in `im_channel_access_rules` via `PostgresChannelAccessRuleStore`.
+- Journal coverage for channel, invitation, ban, and channel-access-rule mutations.
+- Channel roster synchronization beyond system-channel bootstrap.
+- Durable outbox or saga delivery for group conversation creation, roster changes, and owner transfer.
+- Live PostgreSQL concurrency certification in CI using `SDKWORK_IM_DATABASE_URL`.
 
-- `ruleType`: `allow` | `deny`
-- `permission`: `view` | `send` | `manage`
-
-## Supplemental Postgres Routes
-
-Read-only supplemental handlers (`sdkwork-routes-im-social-open-api`) expose list/get/search/profile/settings surfaces backed by `im_*` tables materialized from the commit journal. **Mutations are fail-closed** on supplemental handlers; clients must use event-sourced `/im/v3/api/social/*` (open API) or `/backend/v3/api/control/social/*` (control plane).
-
-## Deferred
-
-- Channel/invitation/ban event sourcing (journal coverage for governance tables).
-- Channel roster sync beyond system-channel bootstrap (e.g. auto-subscribe space members).
-
-List endpoints use cursor-mode `page_size` with opaque cursor continuation. `PAGINATION-DEBT-REGISTER.md` records the closed migration from old offset/in-memory pagination to keyset pagination; no compatibility alias remains.
-
-SDK generation merges `sdks/sdkwork-im-sdk/openapi/im-spaces-paths.fragment.yaml` into the IM OpenAPI mirror; list pagination parameters must be kept in sync with `apis/open-api/im/sdkwork-im-im.openapi.yaml`.
+SQLite remains a local/development compatibility profile. PostgreSQL is the production authority for the atomic Space/Group write path described here.
 
 ## Verification
 
 ```bash
-cargo check -p im-domain-events -p im-adapters-social-postgres -p space-service -p sdkwork-im-gateway-assembly
-cargo test -p space-service --test http_smoke_test
-cargo test -p im-adapters-social-postgres space_created_event_materializes
-cargo test -p space-service journal_bootstrap
-node ../sdkwork-specs/tools/check-api-response-envelope.mjs --workspace .
+cargo test -p im-adapters-postgres-journal --lib
+cargo test -p im-adapters-social-postgres --lib
+cargo test -p space-service
+cargo test -p im-adapters-postgres-journal --test append_live_integration_test --no-run
+cargo clippy -p im-adapters-postgres-journal -p im-adapters-social-postgres -p space-service --all-targets -- -D warnings
+node ../sdkwork-specs/tools/check-application-layering.mjs --root .
+node ../sdkwork-specs/tools/check-rust-backend-composition.mjs --root .
+```
+
+The ignored live transaction test can be executed against a migrated disposable PostgreSQL database:
+
+```bash
+SDKWORK_IM_DATABASE_URL=postgresql://... cargo test -p im-adapters-postgres-journal --test append_live_integration_test coordinated_append_allocates_sequences_and_rolls_back_callback_failures -- --ignored --nocapture
 ```

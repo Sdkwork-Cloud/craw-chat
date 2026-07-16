@@ -10,7 +10,7 @@ class PortalApi {
 
   PortalApi(this._client);
 
-  /// Read the tenant portal sign-in snapshot
+  /// Read the tenant portal access snapshot
   Future<AccessRetrieveResponse?> accessRetrieve() async {
     final response = await _client.get(ApiPaths.appPath('/portal/access'));
     return (() {

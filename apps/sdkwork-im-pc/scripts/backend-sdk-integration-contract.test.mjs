@@ -39,13 +39,13 @@ const messageAuditServiceSource = read(
 
 assert.match(
   backendSdkClientSource,
-  /from ['"]@sdkwork-internal\/im-backend-api-generated['"]/u,
-  'Admin core backend SDK wrapper must import the generated IM backend SDK package.',
+  /from ['"]@sdkwork\/im-backend-sdk['"]/u,
+  'Admin SDK facade must import the generated IM backend SDK package.',
 );
 assert.match(
   backendSdkClientSource,
   /SdkworkImBackendClient/u,
-  'Admin core backend SDK wrapper must expose the product-scoped SdkworkImBackendClient.',
+  'Admin SDK facade must expose the product-scoped SdkworkImBackendClient.',
 );
 assert.match(
   backendSdkClientSource,

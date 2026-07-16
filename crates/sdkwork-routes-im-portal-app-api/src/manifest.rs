@@ -11,19 +11,57 @@ pub const ROUTES: &[HttpRoute] = &[
         HttpMethod::Get,
         paths::PORTAL_ACCESS,
         "portal",
-        "portal.access.retrieve",
+        "access.retrieve",
+    )
+    .with_required_permission("audit.read"),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PORTAL_AUTOMATION,
+        "portal",
+        "automation.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PORTAL_CONVERSATIONS,
+        "portal",
+        "conversationSnapshot.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PORTAL_DASHBOARD,
+        "portal",
+        "dashboard.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PORTAL_GOVERNANCE,
+        "portal",
+        "governance.retrieve",
+    )
+    .with_required_permission("audit.read"),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PORTAL_HOME,
+        "portal",
+        "home.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PORTAL_MEDIA,
+        "portal",
+        "media.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PORTAL_REALTIME,
+        "portal",
+        "realtime.retrieve",
     ),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PORTAL_WORKSPACE,
         "portal",
-        "portal.workspace.retrieve",
-    ),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::PORTAL_SECTION,
-        "portal",
-        "portal.snapshot.retrieve",
+        "workspace.retrieve",
     ),
 ];
 

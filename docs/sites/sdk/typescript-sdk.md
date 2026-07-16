@@ -728,8 +728,8 @@ names:
 - the internal generated layer is assembled from `generated/server-openapi` and emitted under `src/generated/**`
 - the public consumer layer is the root `@sdkwork/im-sdk` package
 
-Per-family `.sdkwork-assembly.json` is retired and must not be restored. Keep package and release
-metadata in `sdk-manifest.json`; use the repo-level `sdks/.sdkwork-assembly.json` only as a
+Per-family `sdk-manifest.json` is retired and must not be restored. Keep package and release
+metadata in `sdk-manifest.json`; use the repo-level `sdks/sdk-manifest.json` only as a
 multi-surface generation registry when required.
 
 ## Local Workspace Workflow

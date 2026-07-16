@@ -29,6 +29,24 @@ const adminSettingsServiceSource = read(
 const sysSettingsServiceSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-console-settings/src/services/SysSettingsService.ts',
 );
+const adminAnnouncementsPageSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-admin-operations/src/AdminAnnouncements.tsx',
+);
+const adminSettingsPageSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-admin-operations/src/AdminSettings.tsx',
+);
+const consoleIntegrationsPageSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-console-integrations/src/ConsoleIntegrations.tsx',
+);
+const consoleSettingsPageSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-console-settings/src/ConsoleSettings.tsx',
+);
+const adminLayoutSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-admin-core/src/AdminLayout.tsx',
+);
+const consoleLayoutSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-console-core/src/ConsoleLayout.tsx',
+);
 
 assert.match(
   groupServiceSource,
@@ -61,20 +79,105 @@ for (const [label, source] of [
   );
 }
 
-assert.match(
+function assertUnavailableCapability(source, constantName, label) {
+  assert.match(
+    source,
+    new RegExp(`export\\s+const\\s+${constantName}\\s*=`, 'u'),
+    `${label} must export its contract-unavailable reason.`,
+  );
+  assert.match(
+    source,
+    /available:\s*false\s+as\s+const/u,
+    `${label} must expose an explicit unavailable capability instead of a throwing pseudo-service.`,
+  );
+  assert.match(
+    source,
+    new RegExp(`reason:\\s*${constantName}`, 'u'),
+    `${label} capability must refer to the published unavailable reason.`,
+  );
+  assert.doesNotMatch(
+    source,
+    /throw\s+new\s+Error/u,
+    `${label} must not use a throwing pseudo-service for a reachable UI surface.`,
+  );
+}
+
+function assertUnavailablePage(source, constantName, label) {
+  assert.match(
+    source,
+    /ConsoleContractEmptyState/u,
+    `${label} must render an explicit contract-unavailable state.`,
+  );
+  assert.match(
+    source,
+    new RegExp(`description=\\{${constantName}\\}`, 'u'),
+    `${label} must show the service's explicit unavailable reason.`,
+  );
+  assert.doesNotMatch(
+    source,
+    /<(?:button|input|select|textarea)\b/u,
+    `${label} must not present editable or actionable controls without a generated SDK contract.`,
+  );
+}
+
+assertUnavailableCapability(
+  adminAnnouncementServiceSource,
+  'ADMIN_ANNOUNCEMENT_CONTRACT_UNAVAILABLE',
+  'Admin announcements',
+);
+assertUnavailableCapability(
   adminSettingsServiceSource,
-  /backend settings contract is not available/u,
-  'Admin settings writes must fail closed until the backend settings SDK contract exists.',
+  'ADMIN_SETTINGS_CONTRACT_UNAVAILABLE',
+  'Admin settings',
 );
-assert.match(
+assertUnavailableCapability(
   sysSettingsServiceSource,
-  /console settings contract is not available/u,
-  'Console settings writes must fail closed until the console settings SDK contract exists.',
+  'CONSOLE_SETTINGS_CONTRACT_UNAVAILABLE',
+  'Console settings',
 );
-assert.match(
+assertUnavailableCapability(
   integrationServiceSource,
-  /console integration contract is not available/u,
-  'Console integration reads must fail closed until the integration SDK contract exists.',
+  'CONSOLE_INTEGRATION_CONTRACT_UNAVAILABLE',
+  'Console integrations',
 );
+
+assertUnavailablePage(
+  adminAnnouncementsPageSource,
+  'ADMIN_ANNOUNCEMENT_CONTRACT_UNAVAILABLE',
+  'Admin announcements page',
+);
+assertUnavailablePage(
+  adminSettingsPageSource,
+  'ADMIN_SETTINGS_CONTRACT_UNAVAILABLE',
+  'Admin settings page',
+);
+assertUnavailablePage(
+  consoleIntegrationsPageSource,
+  'CONSOLE_INTEGRATION_CONTRACT_UNAVAILABLE',
+  'Console integrations page',
+);
+assertUnavailablePage(
+  consoleSettingsPageSource,
+  'CONSOLE_SETTINGS_CONTRACT_UNAVAILABLE',
+  'Console settings page',
+);
+
+for (const [label, layoutSource, navId, routePath] of [
+  ['console integrations', consoleLayoutSource, 'integrations', 'integrations'],
+  ['console settings', consoleLayoutSource, 'settings', 'settings'],
+  ['admin announcements', adminLayoutSource, 'announcements', 'announcements'],
+  ['admin settings', adminLayoutSource, 'settings', 'settings'],
+]) {
+  assert.doesNotMatch(
+    layoutSource,
+    new RegExp(`\\{\\s*id:\\s*['\"]${navId}['\"]\\s*,\\s*icon:`, 'u'),
+    `${label} must be hidden from navigation until an authoritative SDK capability exists.`,
+  );
+  assert.match(
+    layoutSource,
+    new RegExp(`<Route\\s+path=[\"']${routePath}[\"']`, 'u'),
+    `${label} must preserve its legacy direct route so bookmarked URLs fail closed explicitly.`,
+  );
+}
 
 console.log('sdkwork im pc communication and settings SDK boundary contract passed.');

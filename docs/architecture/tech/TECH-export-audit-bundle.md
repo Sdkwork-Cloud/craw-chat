@@ -19,7 +19,9 @@
   <span class="api-op-id">operationId: exportAuditBundle</span>
 </div>
 
-Exports an audit bundle containing the visible records at the time of the request.
+Streams an audit bundle containing records through the audit-sequence high watermark captured at
+the start of the request. Storage reads use bounded keyset pages and response writes use a bounded,
+backpressured channel, so service memory does not grow with tenant audit-history cardinality.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
@@ -35,6 +37,13 @@ Exports an audit bundle containing the visible records at the time of the reques
 The export payload includes `chainHeadHash` and `chainValid` so offline verifiers can detect
 tampering before import.
 
+The trailing `total`, `chainHeadHash`, and `chainValid` fields are authoritative only after the
+entire JSON response completes. Storage or transport failure during streaming produces an
+incomplete body that consumers must reject. Per-instance concurrent export work is limited by
+the shared `SDKWORK_IM_AUDIT_MAX_CONCURRENT_SCANS` gate (default `4`, maximum `32`).
+The cloud gateway preserves streaming for this exact route when audit-service is configured as an
+external upstream; other proxied JSON operations retain the normal bounded buffering policy.
+
 
 ### Error Responses
 
@@ -42,6 +51,6 @@ tampering before import.
 | --- | --- | --- |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `audit.read`. |
+| `503` | `dependency_unavailable` | Export concurrency is saturated or storage is unavailable before streaming starts. |
 
 </section>
-

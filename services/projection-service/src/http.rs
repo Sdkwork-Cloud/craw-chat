@@ -1015,7 +1015,7 @@ async fn delete_message_visibility(
     let runtime = default_projection_runtime();
     let result = run_blocking_projection(service, auth, move |service, auth| {
         service.delete_message_visibility_from_auth_context(&auth, message_id.as_str())?;
-        if let Err(error) = runtime.persist_durable_state() {
+        if let Err(error) = runtime.persist_message_visibility_state() {
             if runtime.requires_durable_persist() {
                 return Err(ProjectionApiError::internal(
                     "message_visibility_persist_failed",

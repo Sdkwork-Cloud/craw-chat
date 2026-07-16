@@ -13,6 +13,7 @@ use crate::client_route_sync::ClientRouteSyncEntryDraft;
 use crate::model::{InteractionActorView, MessagePinView, MessageReadReceiptSummaryView};
 use crate::scope::{
     projection_organization_id_for_event, scope_key, scope_key_for_event_conversation,
+    validate_conversation_projection_payload_scope,
 };
 use crate::{
     MessageInteractionSummaryView, MessageReactionCountView, RealtimeFanoutTarget,
@@ -370,6 +371,11 @@ impl TimelineProjectionService {
     ) -> Result<(), ProjectionError> {
         let reaction: MessageReactionAdded =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_conversation_projection_payload_scope(
+            event,
+            reaction.tenant_id.as_str(),
+            reaction.conversation_id.as_str(),
+        )?;
         let organization_id = projection_organization_id_for_event(event);
         let changed = self.upsert_message_interaction(
             reaction.tenant_id.as_str(),
@@ -419,6 +425,11 @@ impl TimelineProjectionService {
     ) -> Result<(), ProjectionError> {
         let reaction: MessageReactionRemoved =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_conversation_projection_payload_scope(
+            event,
+            reaction.tenant_id.as_str(),
+            reaction.conversation_id.as_str(),
+        )?;
         let organization_id = projection_organization_id_for_event(event);
         let changed = self.mutate_existing_message_interaction(
             reaction.tenant_id.as_str(),
@@ -472,6 +483,11 @@ impl TimelineProjectionService {
     ) -> Result<(), ProjectionError> {
         let pin: MessagePinned =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_conversation_projection_payload_scope(
+            event,
+            pin.tenant_id.as_str(),
+            pin.conversation_id.as_str(),
+        )?;
         let organization_id = projection_organization_id_for_event(event);
         let changed = self.upsert_message_interaction(
             pin.tenant_id.as_str(),
@@ -539,6 +555,11 @@ impl TimelineProjectionService {
     ) -> Result<(), ProjectionError> {
         let pin: MessageUnpinned =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        validate_conversation_projection_payload_scope(
+            event,
+            pin.tenant_id.as_str(),
+            pin.conversation_id.as_str(),
+        )?;
         let organization_id = projection_organization_id_for_event(event);
         let scope = scope_key(
             pin.tenant_id.as_str(),

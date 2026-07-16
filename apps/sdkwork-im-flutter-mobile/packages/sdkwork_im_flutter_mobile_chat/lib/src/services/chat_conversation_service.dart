@@ -2,6 +2,16 @@ import 'package:sdkwork_im_flutter_mobile_core/sdkwork_im_flutter_mobile_core.da
 
 import 'chat_message_history_utils.dart';
 
+const int _defaultMessagePageSize = 50;
+const int _maxMessagePageSize = 200;
+
+int _normalizeMessagePageSize(int pageSize) {
+  if (pageSize <= 0) {
+    return _defaultMessagePageSize;
+  }
+  return pageSize > _maxMessagePageSize ? _maxMessagePageSize : pageSize;
+}
+
 class ChatConversationService {
   ChatConversationService(this._client);
 
@@ -9,26 +19,24 @@ class ChatConversationService {
 
   Future<ChatMessageHistoryResult> fetchMessageHistory(
     String conversationId, {
-    int pageSize = 50,
-    int afterSeq = 0,
+    int pageSize = _defaultMessagePageSize,
+    String? cursor,
   }) async {
     final response = await _client.chat.conversationsMessagesList(
       conversationId,
-      afterSeq > 0 ? afterSeq.toString() : null,
-      pageSize,
+      cursor,
+      _normalizeMessagePageSize(pageSize),
     );
     return readMessageHistoryPageFromSdkResponse(response);
   }
 
   Future<ChatMessageHistoryResult> fetchMessageHistoryDelta(
-    String conversationId,
-    int afterSeq, {
-    int pageSize = 50,
+    String conversationId, {
+    int pageSize = _defaultMessagePageSize,
   }) {
     return fetchMessageHistory(
       conversationId,
       pageSize: pageSize,
-      afterSeq: afterSeq,
     );
   }
 

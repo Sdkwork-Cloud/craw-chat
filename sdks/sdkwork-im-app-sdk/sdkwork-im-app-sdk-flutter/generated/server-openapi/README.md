@@ -81,7 +81,7 @@ print(result);
 
 ### portal
 ```dart
-// Read the tenant portal sign-in snapshot
+// Read the tenant portal access snapshot
 final result = await client.portal.accessRetrieve();
 print(result);
 ```

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "environment": "development",
+  "runtimeTargets": ["capacitor-ios", "capacitor-android"],
+  "appId": "com.sdkwork.im.h5",
+  "appName": "SDKWork IM",
+  "signingReferences": {
+    "ios": null,
+    "android": null
+  }
+}

@@ -53,8 +53,8 @@ names, generated package paths, dependencies, and release state. This family is 
 first; do not invent a composed public layer inside generated output just to hide a missing OpenAPI
 operation.
 
-Per-family `.sdkwork-assembly.json` is retired and must not be restored. The only allowed assembly
-exception is the repo-level `sdks/.sdkwork-assembly.json` generation registry when it does not
+Per-family `sdk-manifest.json` is retired and must not be restored. The only allowed assembly
+exception is the repo-level `sdks/sdk-manifest.json` generation registry when it does not
 duplicate per-family manifest fields.
 
 ## Verification

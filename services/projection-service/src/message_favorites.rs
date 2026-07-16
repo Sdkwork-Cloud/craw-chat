@@ -313,17 +313,23 @@ mod tests {
     const TEST_CURSOR_SECRET_ENV: &str = "SDKWORK_IM_PROJECTION_CURSOR_HS256_SECRET";
 
     struct TestEnvGuard {
+        _lock: std::sync::MutexGuard<'static, ()>,
         name: &'static str,
         previous: Option<String>,
     }
 
     impl TestEnvGuard {
         fn set(name: &'static str, value: &str) -> Self {
+            let lock = crate::lock_projection_test_environment();
             let previous = std::env::var(name).ok();
             unsafe {
                 std::env::set_var(name, value);
             }
-            Self { name, previous }
+            Self {
+                _lock: lock,
+                name,
+                previous,
+            }
         }
     }
 

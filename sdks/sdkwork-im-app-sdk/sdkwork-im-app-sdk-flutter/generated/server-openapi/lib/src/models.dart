@@ -278,25 +278,756 @@ class ArchiveGroupConversationResponse {
   }
 }
 
+class PortalSnapshotMeta {
+  final String section;
+  final String generatedAt;
+  final String opsStatus;
+
+  PortalSnapshotMeta({
+    required this.section,
+    required this.generatedAt,
+    required this.opsStatus
+  });
+
+  factory PortalSnapshotMeta.fromJson(Map<String, dynamic> json) {
+    return PortalSnapshotMeta(
+      section: (() {
+        final value = json['section']?.toString();
+        if (value == null) {
+          throw FormatException('PortalSnapshotMeta.section is required');
+        }
+        return value;
+      })(),
+      generatedAt: (() {
+        final value = json['generatedAt']?.toString();
+        if (value == null) {
+          throw FormatException('PortalSnapshotMeta.generatedAt is required');
+        }
+        return value;
+      })(),
+      opsStatus: (() {
+        final value = json['opsStatus']?.toString();
+        if (value == null) {
+          throw FormatException('PortalSnapshotMeta.opsStatus is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'section': section,
+      'generatedAt': generatedAt,
+      'opsStatus': opsStatus,
+    };
+  }
+}
+
+class PortalDataAvailability {
+  final String state;
+  final String source;
+  final bool complete;
+  final String? reason;
+
+  PortalDataAvailability({
+    required this.state,
+    required this.source,
+    required this.complete,
+    this.reason
+  });
+
+  factory PortalDataAvailability.fromJson(Map<String, dynamic> json) {
+    return PortalDataAvailability(
+      state: (() {
+        final value = json['state']?.toString();
+        if (value == null) {
+          throw FormatException('PortalDataAvailability.state is required');
+        }
+        return value;
+      })(),
+      source: (() {
+        final value = json['source']?.toString();
+        if (value == null) {
+          throw FormatException('PortalDataAvailability.source is required');
+        }
+        return value;
+      })(),
+      complete: (() {
+        final value = json['complete'];
+        if (value is! bool) {
+          throw FormatException('PortalDataAvailability.complete is required');
+        }
+        return value;
+      })(),
+      reason: json['reason']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'state': state,
+      'source': source,
+      'complete': complete,
+      'reason': reason,
+    };
+  }
+}
+
+class PortalModuleSnapshot {
+  final PortalSnapshotMeta meta;
+  final PortalDataAvailability availability;
+
+  PortalModuleSnapshot({
+    required this.meta,
+    required this.availability
+  });
+
+  factory PortalModuleSnapshot.fromJson(Map<String, dynamic> json) {
+    return PortalModuleSnapshot(
+      meta: (() {
+        final map = _sdkworkAsMap(json['meta']);
+        if (map == null) {
+          throw FormatException('PortalModuleSnapshot.meta is required');
+        }
+        return PortalSnapshotMeta.fromJson(map);
+      })(),
+      availability: (() {
+        final map = _sdkworkAsMap(json['availability']);
+        if (map == null) {
+          throw FormatException('PortalModuleSnapshot.availability is required');
+        }
+        return PortalDataAvailability.fromJson(map);
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'meta': meta.toJson(),
+      'availability': availability.toJson(),
+    };
+  }
+}
+
+class PortalOperationalMetrics {
+  final String clientRouteWindowCount;
+  final String pendingRealtimeEventCount;
+  final String conversationSnapshotPersistSuccessCount;
+  final String conversationSnapshotPersistFailureCount;
+  final String projectionReplayBacklogSize;
+  final String projectionReplayedEventCount;
+
+  PortalOperationalMetrics({
+    required this.clientRouteWindowCount,
+    required this.pendingRealtimeEventCount,
+    required this.conversationSnapshotPersistSuccessCount,
+    required this.conversationSnapshotPersistFailureCount,
+    required this.projectionReplayBacklogSize,
+    required this.projectionReplayedEventCount
+  });
+
+  factory PortalOperationalMetrics.fromJson(Map<String, dynamic> json) {
+    return PortalOperationalMetrics(
+      clientRouteWindowCount: (() {
+        final value = json['clientRouteWindowCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalOperationalMetrics.clientRouteWindowCount is required');
+        }
+        return value;
+      })(),
+      pendingRealtimeEventCount: (() {
+        final value = json['pendingRealtimeEventCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalOperationalMetrics.pendingRealtimeEventCount is required');
+        }
+        return value;
+      })(),
+      conversationSnapshotPersistSuccessCount: (() {
+        final value = json['conversationSnapshotPersistSuccessCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalOperationalMetrics.conversationSnapshotPersistSuccessCount is required');
+        }
+        return value;
+      })(),
+      conversationSnapshotPersistFailureCount: (() {
+        final value = json['conversationSnapshotPersistFailureCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalOperationalMetrics.conversationSnapshotPersistFailureCount is required');
+        }
+        return value;
+      })(),
+      projectionReplayBacklogSize: (() {
+        final value = json['projectionReplayBacklogSize']?.toString();
+        if (value == null) {
+          throw FormatException('PortalOperationalMetrics.projectionReplayBacklogSize is required');
+        }
+        return value;
+      })(),
+      projectionReplayedEventCount: (() {
+        final value = json['projectionReplayedEventCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalOperationalMetrics.projectionReplayedEventCount is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'clientRouteWindowCount': clientRouteWindowCount,
+      'pendingRealtimeEventCount': pendingRealtimeEventCount,
+      'conversationSnapshotPersistSuccessCount': conversationSnapshotPersistSuccessCount,
+      'conversationSnapshotPersistFailureCount': conversationSnapshotPersistFailureCount,
+      'projectionReplayBacklogSize': projectionReplayBacklogSize,
+      'projectionReplayedEventCount': projectionReplayedEventCount,
+    };
+  }
+}
+
+class PortalDashboardSnapshot {
+  final PortalSnapshotMeta meta;
+  final PortalDataAvailability availability;
+  final PortalOperationalMetrics? metrics;
+
+  PortalDashboardSnapshot({
+    required this.meta,
+    required this.availability,
+    this.metrics
+  });
+
+  factory PortalDashboardSnapshot.fromJson(Map<String, dynamic> json) {
+    return PortalDashboardSnapshot(
+      meta: (() {
+        final map = _sdkworkAsMap(json['meta']);
+        if (map == null) {
+          throw FormatException('PortalDashboardSnapshot.meta is required');
+        }
+        return PortalSnapshotMeta.fromJson(map);
+      })(),
+      availability: (() {
+        final map = _sdkworkAsMap(json['availability']);
+        if (map == null) {
+          throw FormatException('PortalDashboardSnapshot.availability is required');
+        }
+        return PortalDataAvailability.fromJson(map);
+      })(),
+      metrics: (() {
+        final map = _sdkworkAsMap(json['metrics']);
+        return map == null ? null : PortalOperationalMetrics.fromJson(map);
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'meta': meta.toJson(),
+      'availability': availability.toJson(),
+      'metrics': metrics?.toJson(),
+    };
+  }
+}
+
+class PortalConversationProjectionMetrics {
+  final String persistSuccessCount;
+  final String persistFailureCount;
+  final String restoreSuccessCount;
+  final String replayBacklogSize;
+  final String replayedEventCount;
+
+  PortalConversationProjectionMetrics({
+    required this.persistSuccessCount,
+    required this.persistFailureCount,
+    required this.restoreSuccessCount,
+    required this.replayBacklogSize,
+    required this.replayedEventCount
+  });
+
+  factory PortalConversationProjectionMetrics.fromJson(Map<String, dynamic> json) {
+    return PortalConversationProjectionMetrics(
+      persistSuccessCount: (() {
+        final value = json['persistSuccessCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalConversationProjectionMetrics.persistSuccessCount is required');
+        }
+        return value;
+      })(),
+      persistFailureCount: (() {
+        final value = json['persistFailureCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalConversationProjectionMetrics.persistFailureCount is required');
+        }
+        return value;
+      })(),
+      restoreSuccessCount: (() {
+        final value = json['restoreSuccessCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalConversationProjectionMetrics.restoreSuccessCount is required');
+        }
+        return value;
+      })(),
+      replayBacklogSize: (() {
+        final value = json['replayBacklogSize']?.toString();
+        if (value == null) {
+          throw FormatException('PortalConversationProjectionMetrics.replayBacklogSize is required');
+        }
+        return value;
+      })(),
+      replayedEventCount: (() {
+        final value = json['replayedEventCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalConversationProjectionMetrics.replayedEventCount is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'persistSuccessCount': persistSuccessCount,
+      'persistFailureCount': persistFailureCount,
+      'restoreSuccessCount': restoreSuccessCount,
+      'replayBacklogSize': replayBacklogSize,
+      'replayedEventCount': replayedEventCount,
+    };
+  }
+}
+
+class PortalConversationSnapshot {
+  final PortalSnapshotMeta meta;
+  final PortalDataAvailability availability;
+  final PortalConversationProjectionMetrics? projection;
+
+  PortalConversationSnapshot({
+    required this.meta,
+    required this.availability,
+    this.projection
+  });
+
+  factory PortalConversationSnapshot.fromJson(Map<String, dynamic> json) {
+    return PortalConversationSnapshot(
+      meta: (() {
+        final map = _sdkworkAsMap(json['meta']);
+        if (map == null) {
+          throw FormatException('PortalConversationSnapshot.meta is required');
+        }
+        return PortalSnapshotMeta.fromJson(map);
+      })(),
+      availability: (() {
+        final map = _sdkworkAsMap(json['availability']);
+        if (map == null) {
+          throw FormatException('PortalConversationSnapshot.availability is required');
+        }
+        return PortalDataAvailability.fromJson(map);
+      })(),
+      projection: (() {
+        final map = _sdkworkAsMap(json['projection']);
+        return map == null ? null : PortalConversationProjectionMetrics.fromJson(map);
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'meta': meta.toJson(),
+      'availability': availability.toJson(),
+      'projection': projection?.toJson(),
+    };
+  }
+}
+
+class PortalAuditRecordView {
+  final String recordId;
+  final String action;
+  final String actorId;
+  final String recordedAt;
+  final String severity;
+
+  PortalAuditRecordView({
+    required this.recordId,
+    required this.action,
+    required this.actorId,
+    required this.recordedAt,
+    required this.severity
+  });
+
+  factory PortalAuditRecordView.fromJson(Map<String, dynamic> json) {
+    return PortalAuditRecordView(
+      recordId: (() {
+        final value = json['recordId']?.toString();
+        if (value == null) {
+          throw FormatException('PortalAuditRecordView.recordId is required');
+        }
+        return value;
+      })(),
+      action: (() {
+        final value = json['action']?.toString();
+        if (value == null) {
+          throw FormatException('PortalAuditRecordView.action is required');
+        }
+        return value;
+      })(),
+      actorId: (() {
+        final value = json['actorId']?.toString();
+        if (value == null) {
+          throw FormatException('PortalAuditRecordView.actorId is required');
+        }
+        return value;
+      })(),
+      recordedAt: (() {
+        final value = json['recordedAt']?.toString();
+        if (value == null) {
+          throw FormatException('PortalAuditRecordView.recordedAt is required');
+        }
+        return value;
+      })(),
+      severity: (() {
+        final value = json['severity']?.toString();
+        if (value == null) {
+          throw FormatException('PortalAuditRecordView.severity is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'recordId': recordId,
+      'action': action,
+      'actorId': actorId,
+      'recordedAt': recordedAt,
+      'severity': severity,
+    };
+  }
+}
+
+class PortalAccessSnapshot {
+  final PortalSnapshotMeta meta;
+  final PortalDataAvailability availability;
+  final String? tenantId;
+  final String? principalId;
+  final List<PortalAuditRecordView> recentItems;
+  final bool hasMore;
+
+  PortalAccessSnapshot({
+    required this.meta,
+    required this.availability,
+    this.tenantId,
+    this.principalId,
+    required this.recentItems,
+    required this.hasMore
+  });
+
+  factory PortalAccessSnapshot.fromJson(Map<String, dynamic> json) {
+    return PortalAccessSnapshot(
+      meta: (() {
+        final map = _sdkworkAsMap(json['meta']);
+        if (map == null) {
+          throw FormatException('PortalAccessSnapshot.meta is required');
+        }
+        return PortalSnapshotMeta.fromJson(map);
+      })(),
+      availability: (() {
+        final map = _sdkworkAsMap(json['availability']);
+        if (map == null) {
+          throw FormatException('PortalAccessSnapshot.availability is required');
+        }
+        return PortalDataAvailability.fromJson(map);
+      })(),
+      tenantId: json['tenantId']?.toString(),
+      principalId: json['principalId']?.toString(),
+      recentItems: (() {
+        final list = _sdkworkAsList(json['recentItems']);
+        if (list == null) {
+          throw FormatException('PortalAccessSnapshot.recentItems is required');
+        }
+        return list
+            .map((item) => (() {
+        final map = _sdkworkAsMap(item);
+        return map == null ? null : PortalAuditRecordView.fromJson(map);
+      })())
+            .whereType<PortalAuditRecordView>()
+            .toList();
+      })(),
+      hasMore: (() {
+        final value = json['hasMore'];
+        if (value is! bool) {
+          throw FormatException('PortalAccessSnapshot.hasMore is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'meta': meta.toJson(),
+      'availability': availability.toJson(),
+      'tenantId': tenantId,
+      'principalId': principalId,
+      'recentItems': recentItems.map((item) => item.toJson()).toList(),
+      'hasMore': hasMore,
+    };
+  }
+}
+
+class PortalGovernanceRiskSample {
+  final String criticalCount;
+  final String highCount;
+  final String warningCount;
+  final String informationalCount;
+
+  PortalGovernanceRiskSample({
+    required this.criticalCount,
+    required this.highCount,
+    required this.warningCount,
+    required this.informationalCount
+  });
+
+  factory PortalGovernanceRiskSample.fromJson(Map<String, dynamic> json) {
+    return PortalGovernanceRiskSample(
+      criticalCount: (() {
+        final value = json['criticalCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalGovernanceRiskSample.criticalCount is required');
+        }
+        return value;
+      })(),
+      highCount: (() {
+        final value = json['highCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalGovernanceRiskSample.highCount is required');
+        }
+        return value;
+      })(),
+      warningCount: (() {
+        final value = json['warningCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalGovernanceRiskSample.warningCount is required');
+        }
+        return value;
+      })(),
+      informationalCount: (() {
+        final value = json['informationalCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalGovernanceRiskSample.informationalCount is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'criticalCount': criticalCount,
+      'highCount': highCount,
+      'warningCount': warningCount,
+      'informationalCount': informationalCount,
+    };
+  }
+}
+
+class PortalGovernanceSnapshot {
+  final PortalSnapshotMeta meta;
+  final PortalDataAvailability availability;
+  final String sampledEventCount;
+  final PortalGovernanceRiskSample riskSample;
+
+  PortalGovernanceSnapshot({
+    required this.meta,
+    required this.availability,
+    required this.sampledEventCount,
+    required this.riskSample
+  });
+
+  factory PortalGovernanceSnapshot.fromJson(Map<String, dynamic> json) {
+    return PortalGovernanceSnapshot(
+      meta: (() {
+        final map = _sdkworkAsMap(json['meta']);
+        if (map == null) {
+          throw FormatException('PortalGovernanceSnapshot.meta is required');
+        }
+        return PortalSnapshotMeta.fromJson(map);
+      })(),
+      availability: (() {
+        final map = _sdkworkAsMap(json['availability']);
+        if (map == null) {
+          throw FormatException('PortalGovernanceSnapshot.availability is required');
+        }
+        return PortalDataAvailability.fromJson(map);
+      })(),
+      sampledEventCount: (() {
+        final value = json['sampledEventCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalGovernanceSnapshot.sampledEventCount is required');
+        }
+        return value;
+      })(),
+      riskSample: (() {
+        final map = _sdkworkAsMap(json['riskSample']);
+        if (map == null) {
+          throw FormatException('PortalGovernanceSnapshot.riskSample is required');
+        }
+        return PortalGovernanceRiskSample.fromJson(map);
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'meta': meta.toJson(),
+      'availability': availability.toJson(),
+      'sampledEventCount': sampledEventCount,
+      'riskSample': riskSample.toJson(),
+    };
+  }
+}
+
+class PortalRealtimeMetrics {
+  final String clientRouteWindowCount;
+  final String pendingEventCount;
+  final String maxClientRouteWindowEventCount;
+  final String clientRouteWindowCapacity;
+  final int maxClientRouteWindowUsagePermille;
+  final String capacityTrimmedEventCount;
+  final String? oldestPendingOccurredAt;
+
+  PortalRealtimeMetrics({
+    required this.clientRouteWindowCount,
+    required this.pendingEventCount,
+    required this.maxClientRouteWindowEventCount,
+    required this.clientRouteWindowCapacity,
+    required this.maxClientRouteWindowUsagePermille,
+    required this.capacityTrimmedEventCount,
+    this.oldestPendingOccurredAt
+  });
+
+  factory PortalRealtimeMetrics.fromJson(Map<String, dynamic> json) {
+    return PortalRealtimeMetrics(
+      clientRouteWindowCount: (() {
+        final value = json['clientRouteWindowCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalRealtimeMetrics.clientRouteWindowCount is required');
+        }
+        return value;
+      })(),
+      pendingEventCount: (() {
+        final value = json['pendingEventCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalRealtimeMetrics.pendingEventCount is required');
+        }
+        return value;
+      })(),
+      maxClientRouteWindowEventCount: (() {
+        final value = json['maxClientRouteWindowEventCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalRealtimeMetrics.maxClientRouteWindowEventCount is required');
+        }
+        return value;
+      })(),
+      clientRouteWindowCapacity: (() {
+        final value = json['clientRouteWindowCapacity']?.toString();
+        if (value == null) {
+          throw FormatException('PortalRealtimeMetrics.clientRouteWindowCapacity is required');
+        }
+        return value;
+      })(),
+      maxClientRouteWindowUsagePermille: (() {
+        final value = json['maxClientRouteWindowUsagePermille'];
+        if (value is! int) {
+          throw FormatException('PortalRealtimeMetrics.maxClientRouteWindowUsagePermille is required');
+        }
+        return value;
+      })(),
+      capacityTrimmedEventCount: (() {
+        final value = json['capacityTrimmedEventCount']?.toString();
+        if (value == null) {
+          throw FormatException('PortalRealtimeMetrics.capacityTrimmedEventCount is required');
+        }
+        return value;
+      })(),
+      oldestPendingOccurredAt: json['oldestPendingOccurredAt']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'clientRouteWindowCount': clientRouteWindowCount,
+      'pendingEventCount': pendingEventCount,
+      'maxClientRouteWindowEventCount': maxClientRouteWindowEventCount,
+      'clientRouteWindowCapacity': clientRouteWindowCapacity,
+      'maxClientRouteWindowUsagePermille': maxClientRouteWindowUsagePermille,
+      'capacityTrimmedEventCount': capacityTrimmedEventCount,
+      'oldestPendingOccurredAt': oldestPendingOccurredAt,
+    };
+  }
+}
+
+class PortalRealtimeSnapshot {
+  final PortalSnapshotMeta meta;
+  final PortalDataAvailability availability;
+  final PortalRealtimeMetrics? metrics;
+
+  PortalRealtimeSnapshot({
+    required this.meta,
+    required this.availability,
+    this.metrics
+  });
+
+  factory PortalRealtimeSnapshot.fromJson(Map<String, dynamic> json) {
+    return PortalRealtimeSnapshot(
+      meta: (() {
+        final map = _sdkworkAsMap(json['meta']);
+        if (map == null) {
+          throw FormatException('PortalRealtimeSnapshot.meta is required');
+        }
+        return PortalSnapshotMeta.fromJson(map);
+      })(),
+      availability: (() {
+        final map = _sdkworkAsMap(json['availability']);
+        if (map == null) {
+          throw FormatException('PortalRealtimeSnapshot.availability is required');
+        }
+        return PortalDataAvailability.fromJson(map);
+      })(),
+      metrics: (() {
+        final map = _sdkworkAsMap(json['metrics']);
+        return map == null ? null : PortalRealtimeMetrics.fromJson(map);
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'meta': meta.toJson(),
+      'availability': availability.toJson(),
+      'metrics': metrics?.toJson(),
+    };
+  }
+}
+
 class PortalWorkspaceView {
   final String name;
   final String slug;
-  final String tier;
-  final String region;
-  final String supportPlan;
-  final int seats;
-  final int activeBrands;
-  final String uptime;
+  final String environment;
+  final String? tier;
+  final String? region;
+  final String? supportPlan;
+  final String? seats;
+  final String? activeBrands;
 
   PortalWorkspaceView({
     required this.name,
     required this.slug,
-    required this.tier,
-    required this.region,
-    required this.supportPlan,
-    required this.seats,
-    required this.activeBrands,
-    required this.uptime
+    required this.environment,
+    this.tier,
+    this.region,
+    this.supportPlan,
+    this.seats,
+    this.activeBrands
   });
 
   factory PortalWorkspaceView.fromJson(Map<String, dynamic> json) {
@@ -315,48 +1046,18 @@ class PortalWorkspaceView {
         }
         return value;
       })(),
-      tier: (() {
-        final value = json['tier']?.toString();
+      environment: (() {
+        final value = json['environment']?.toString();
         if (value == null) {
-          throw FormatException('PortalWorkspaceView.tier is required');
+          throw FormatException('PortalWorkspaceView.environment is required');
         }
         return value;
       })(),
-      region: (() {
-        final value = json['region']?.toString();
-        if (value == null) {
-          throw FormatException('PortalWorkspaceView.region is required');
-        }
-        return value;
-      })(),
-      supportPlan: (() {
-        final value = json['supportPlan']?.toString();
-        if (value == null) {
-          throw FormatException('PortalWorkspaceView.supportPlan is required');
-        }
-        return value;
-      })(),
-      seats: (() {
-        final value = json['seats'];
-        if (value is! int) {
-          throw FormatException('PortalWorkspaceView.seats is required');
-        }
-        return value;
-      })(),
-      activeBrands: (() {
-        final value = json['activeBrands'];
-        if (value is! int) {
-          throw FormatException('PortalWorkspaceView.activeBrands is required');
-        }
-        return value;
-      })(),
-      uptime: (() {
-        final value = json['uptime']?.toString();
-        if (value == null) {
-          throw FormatException('PortalWorkspaceView.uptime is required');
-        }
-        return value;
-      })()
+      tier: json['tier']?.toString(),
+      region: json['region']?.toString(),
+      supportPlan: json['supportPlan']?.toString(),
+      seats: json['seats']?.toString(),
+      activeBrands: json['activeBrands']?.toString()
     );
   }
 
@@ -364,12 +1065,12 @@ class PortalWorkspaceView {
     return <String, dynamic>{
       'name': name,
       'slug': slug,
+      'environment': environment,
       'tier': tier,
       'region': region,
       'supportPlan': supportPlan,
       'seats': seats,
       'activeBrands': activeBrands,
-      'uptime': uptime,
     };
   }
 }

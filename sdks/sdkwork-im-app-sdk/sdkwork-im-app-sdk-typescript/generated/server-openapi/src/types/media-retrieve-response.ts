@@ -1,4 +1,4 @@
-import type { PortalSnapshot } from './portal-snapshot';
+import type { PortalModuleSnapshot } from './portal-module-snapshot';
 
 export interface MediaRetrieveResponse {
   code: 0;

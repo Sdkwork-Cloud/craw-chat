@@ -52,12 +52,12 @@ for (const [label, source] of [
 assert.match(
   appbaseBackendSdkClientSource,
   /from ['"]@sdkwork\/iam-backend-sdk['"]/u,
-  'Admin core appbase backend wrapper must import the generated appbase backend SDK package.',
+  'Admin SDK facade must import the generated appbase backend SDK package.',
 );
 assert.match(
   appbaseBackendSdkClientSource,
   /SdkworkBackendClient/u,
-  'Admin core appbase backend wrapper must expose the generated SdkworkBackendClient.',
+  'Admin SDK facade must expose the generated SdkworkBackendClient.',
 );
 assert.match(
   appbaseBackendSdkClientSource,

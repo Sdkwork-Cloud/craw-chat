@@ -2062,21 +2062,12 @@ importers:
 
   apps/sdkwork-im-pc/packages/sdkwork-im-admin-core:
     dependencies:
-      '@sdkwork/iam-backend-sdk':
-        specifier: workspace:*
-        version: link:../../../../../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript
-      '@sdkwork/im-backend-sdk':
-        specifier: workspace:*
-        version: link:../../../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript
       '@sdkwork/im-pc-commons':
         specifier: workspace:*
         version: link:../sdkwork-im-pc-commons
-      '@sdkwork/im-pc-core':
+      '@sdkwork/im-pc-admin-sdk':
         specifier: workspace:*
-        version: link:../sdkwork-im-pc-core
-      '@sdkwork/sdk-common':
-        specifier: 'catalog:'
-        version: 1.0.2
+        version: link:../sdkwork-im-pc-admin-sdk
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
@@ -2326,9 +2317,18 @@ importers:
 
   apps/sdkwork-im-pc/packages/sdkwork-im-pc-admin-sdk:
     dependencies:
-      '@sdkwork/im-admin-core':
+      '@sdkwork/iam-backend-sdk':
         specifier: workspace:*
-        version: link:../sdkwork-im-admin-core
+        version: link:../../../../../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript
+      '@sdkwork/im-backend-sdk':
+        specifier: workspace:*
+        version: link:../../../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript
+      '@sdkwork/im-pc-core':
+        specifier: workspace:*
+        version: link:../sdkwork-im-pc-core
+      '@sdkwork/sdk-common':
+        specifier: 'catalog:'
+        version: 1.0.2
 
   apps/sdkwork-im-pc/packages/sdkwork-im-pc-approvals:
     dependencies:
