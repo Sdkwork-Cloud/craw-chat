@@ -22,7 +22,7 @@ import {
 } from "../services/offlineSendQueue";
 import { subscribeConversationLiveMessages } from "../services/chatRealtimeService";
 import {
-  mergeConversationMessageEntries,
+  mergeConversationMessagePage,
   pickMessageHistoryPagination,
   resolveLatestMessageSeq,
   type MessageHistoryPaginationState,
@@ -37,6 +37,8 @@ interface ChatConversationPageProps {
   conversationId: string;
   title?: string;
 }
+
+type MessageHistoryUpdateMode = "replace" | "older" | "newer";
 
 export function ChatConversationPage({ conversationId, title }: ChatConversationPageProps) {
   const { t } = useI18n();
@@ -55,6 +57,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
     title ?? readRememberedConversationTitle(conversationId)
   ));
   const latestSeqRef = useRef(0);
+  const entriesRef = useRef<ConversationMessageEntry[]>([]);
   const messageHistoryRef = useRef<HTMLDivElement>(null);
   const loadingOlderRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,19 +76,27 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
     overscan: 10,
   });
 
-  const applyConversationMessagePage = useCallback((items: ConversationMessageEntry[], responsePagination: MessageHistoryPaginationState, mode: "replace" | "append" | "merge") => {
-    setEntries((previous) => {
-      const next = mode === "replace"
-        ? items
-        : mode === "append"
-          ? mergeConversationMessageEntries(previous, items)
-          : mergeConversationMessageEntries(previous, items);
-      latestSeqRef.current = resolveLatestMessageSeq(next);
-      return next;
-    });
-    if (mode !== "merge") {
+  const applyConversationMessagePage = useCallback((
+    items: ConversationMessageEntry[],
+    responsePagination: MessageHistoryPaginationState,
+    mode: MessageHistoryUpdateMode,
+  ): boolean => {
+    const page = mergeConversationMessagePage(
+      mode === "replace" ? [] : entriesRef.current,
+      items,
+      mode === "older" ? "older" : "newer",
+    );
+    if (mode !== "newer" && !page.incomingPageRetained) {
+      return false;
+    }
+
+    entriesRef.current = page.entries;
+    latestSeqRef.current = resolveLatestMessageSeq(page.entries);
+    setEntries(page.entries);
+    if (mode !== "newer") {
       setPagination(responsePagination);
     }
+    return true;
   }, []);
 
   const loadMessageHistory = useCallback((options?: { silent?: boolean }) => {
@@ -104,11 +115,14 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
         ) {
           return;
         }
-        applyConversationMessagePage(
+        const applied = applyConversationMessagePage(
           response.items ?? [],
           pickMessageHistoryPagination(response),
           "replace",
         );
+        if (!applied) {
+          setError(t("chat.conversation.loadError"));
+        }
       })
       .catch((cause: unknown) => {
         if (
@@ -146,7 +160,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
             return;
           }
           if ((response.items ?? []).length > 0) {
-            applyConversationMessagePage(response.items, pickMessageHistoryPagination(response), "merge");
+            applyConversationMessagePage(response.items, pickMessageHistoryPagination(response), "newer");
           }
         } catch {
           // Keep existing messages visible when incremental sync fails.
@@ -184,7 +198,15 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
       ) {
         return;
       }
-      applyConversationMessagePage(response.items ?? [], pickMessageHistoryPagination(response), "append");
+      const applied = applyConversationMessagePage(
+        response.items ?? [],
+        pickMessageHistoryPagination(response),
+        "older",
+      );
+      if (!applied) {
+        setError(t("chat.conversation.loadEarlierError"));
+        return;
+      }
       requestAnimationFrame(() => {
         if (listElement) {
           listElement.scrollTop = listElement.scrollHeight - previousHeight;
@@ -215,6 +237,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
     loadingOlderRef.current = false;
     latestMessageRefreshRef.current = null;
     latestMessageRefreshPendingRef.current = false;
+    entriesRef.current = [];
     setEntries([]);
     setPagination({ hasMore: false });
     latestSeqRef.current = 0;

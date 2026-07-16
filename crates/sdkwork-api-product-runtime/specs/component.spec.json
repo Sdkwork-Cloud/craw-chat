@@ -99,7 +99,23 @@
     ],
     "sdkClients": [],
     "events": [],
-    "configKeys": [],
+    "configKeys": [
+      "SDKWORK_IM_ENVIRONMENT",
+      "SDKWORK_ADMIN_PROXY_TARGET",
+      "SDKWORK_ADMIN_BIND",
+      "SDKWORK_ADMIN_SANDBOX",
+      "SDKWORK_ADMIN_SANDBOX_MODE",
+      "SDKWORK_ADMIN_SANDBOX_STORAGE_FILE",
+      "SDKWORK_IM_PC_API_UPSTREAM",
+      "SDKWORK_IM_PORTAL_API_BASE_URL",
+      "SDKWORK_PORTAL_API_BASE_URL",
+      "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+      "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
+      "SDKWORK_IM_ADMIN_SITE_DIR",
+      "SDKWORK_ADMIN_SITE_DIR",
+      "SDKWORK_IM_PORTAL_SITE_DIR",
+      "SDKWORK_PORTAL_SITE_DIR"
+    ],
     "routeManifest": null
   },
   "integration": {

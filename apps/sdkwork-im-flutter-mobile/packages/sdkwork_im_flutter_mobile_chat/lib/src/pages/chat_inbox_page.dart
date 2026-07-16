@@ -53,7 +53,8 @@ class _ChatInboxPageState extends State<ChatInboxPage> {
     if (_loading) {
       return;
     }
-    if (!reset && !_hasMore) {
+    final cursor = _nextCursor;
+    if (!reset && (!_hasMore || cursor == null || cursor.isEmpty)) {
       return;
     }
     setState(() {
@@ -64,25 +65,38 @@ class _ChatInboxPageState extends State<ChatInboxPage> {
     });
     try {
       final response = await widget.inboxService
-          .fetchInboxPage(cursor: reset ? null : _nextCursor);
+          .fetchInboxPage(cursor: reset ? null : cursor);
       final pageItems = response.items;
       final pageInfo = response.pageInfo;
       if (!mounted) {
         return;
       }
       setState(() {
+        final page = mergeConversationInboxPage(
+          reset ? const <ConversationInboxEntry>[] : _entries,
+          pageItems,
+          direction:
+              reset ? InboxWindowDirection.newer : InboxWindowDirection.older,
+        );
+        if (!page.incomingPageRetained) {
+          _loadError = 'Unable to retain the requested conversation page.';
+          _initialLoadComplete = true;
+          return;
+        }
         if (reset) {
           _entries
             ..clear()
-            ..addAll(pageItems);
+            ..addAll(page.items);
         } else {
-          final merged = mergeConversationInboxEntries(_entries, pageItems);
           _entries
             ..clear()
-            ..addAll(merged);
+            ..addAll(page.items);
         }
-        _hasMore = pageInfo.hasMore ?? false;
-        _nextCursor = pageInfo.nextCursor;
+        final nextCursor = pageInfo.nextCursor;
+        _hasMore = pageInfo.hasMore == true &&
+            nextCursor != null &&
+            nextCursor.isNotEmpty;
+        _nextCursor = _hasMore ? nextCursor : null;
         _initialLoadComplete = true;
         _loadError = null;
       });

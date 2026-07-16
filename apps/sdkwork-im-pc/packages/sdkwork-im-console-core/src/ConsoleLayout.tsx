@@ -2,8 +2,8 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   LayoutDashboard, Users, MessageSquare, Shield, 
-  Settings, Search, Bell, LogOut, ChartBar,
-  ShieldCheck, FileText, Store, Package, Blocks
+  Search, Bell, LogOut, ChartBar,
+  ShieldCheck, FileText, Store, Package
 } from 'lucide-react';
 import { cn, ConsoleContractEmptyState } from '@sdkwork/im-pc-commons';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -54,10 +54,8 @@ export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({ onSwitchToClient, 
     { id: 'stores', icon: Store, labelKey: 'nav.stores', path: '/console/stores' },
     { id: 'products', icon: Package, labelKey: 'nav.products', path: '/console/products' },
     { id: 'announcements', icon: Bell, labelKey: 'nav.announcements', path: '/console/announcements' },
-    { id: 'integrations', icon: Blocks, labelKey: 'nav.integrations', path: '/console/integrations' },
     { id: 'security', icon: Shield, labelKey: 'nav.security', path: '/console/security' },
     { id: 'analytics', icon: ChartBar, labelKey: 'nav.analytics', path: '/console/analytics' },
-    { id: 'settings', icon: Settings, labelKey: 'nav.settings', path: '/console/settings' },
   ] as const), []);
 
   const currentPath = location.pathname.replace(/\/$/, '');

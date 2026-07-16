@@ -17,15 +17,23 @@ This README is the SDKWork module entrypoint for `sdkwork-api-product-runtime`. 
 
 ## Configuration
 
-Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
+Configuration keys, runtime entrypoints, and integration contracts are declared in
+`specs/component.spec.json`. `SDKWORK_ADMIN_PROXY_TARGET` selects the real backend-admin upstream.
+`SDKWORK_ADMIN_SANDBOX` and `SDKWORK_ADMIN_SANDBOX_STORAGE_FILE` are explicit development/test
+tools, not production storage configuration.
 
-## SaaS/Private/Local Behavior
+## Deployment Profile And Runtime Target Behavior
 
-This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.
+Standalone desktop development may opt into the admin sandbox. Production-like standalone and cloud
+runtimes fail startup when the sandbox is enabled and require a configured admin upstream. The
+sandbox never serves as billing, metering, audit, tenant, or storage source of truth for a production
+deployment.
 
 ## Security
 
-Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module. Protected API and SDK access must use the generated SDK or approved service boundary declared in the component contract.
+Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this
+module. Protected API and SDK access must use the generated SDK or approved service boundary declared
+in the component contract. File-backed sandbox state must contain development-only data.
 
 ## Extension Points
 

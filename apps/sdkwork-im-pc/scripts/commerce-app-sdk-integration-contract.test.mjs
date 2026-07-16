@@ -221,15 +221,10 @@ for (const repoId of ['sdkwork-catalog', 'sdkwork-shop', 'sdkwork-order']) {
   const capability = repoId.replace(/^sdkwork-/u, '');
   const sdkFamily = `${repoId}-app-sdk`;
   const familyRoot = path.join(workspaceRoot, repoId, 'sdks', sdkFamily);
-  const legacyAssemblyPath = path.join(familyRoot, '.sdkwork-assembly.json');
   const manifestPath = path.join(familyRoot, 'sdk-manifest.json');
   const componentSpecPath = path.join(familyRoot, 'specs', 'component.spec.json');
 
   assert.ok(fs.existsSync(manifestPath), `T1 repo ${repoId} must publish sdk-manifest.json for its app SDK family.`);
-  assert.ok(
-    !fs.existsSync(legacyAssemblyPath),
-    `T1 repo ${repoId} must not restore retired per-family .sdkwork-assembly.json; sdk-manifest.json is the SDK family SSOT.`,
-  );
   assert.ok(
     fs.existsSync(componentSpecPath),
     `T1 repo ${repoId} must publish specs/component.spec.json for its app SDK family.`,

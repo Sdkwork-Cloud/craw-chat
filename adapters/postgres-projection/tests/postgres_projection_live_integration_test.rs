@@ -1,7 +1,7 @@
 use im_adapters_postgres_projection::PostgresProjectionConfig;
 use im_platform_contracts::{MetadataStore, TimelineProjectionStore};
 use r2d2_postgres::postgres::{Client, NoTls};
-use sdkwork_im_contract_message::TimelineProjectionRecord;
+use sdkwork_im_contract_message::{TimelineProjectionRecord, TimelineProjectionScope};
 
 const POSTGRES_TEST_DATABASE_URL_ENV: &str = "SDKWORK_IM_POSTGRES_TEST_DATABASE_URL";
 const CORE_SCHEMA_SQL: &str =
@@ -34,18 +34,32 @@ fn test_postgres_projection_live_store_roundtrip_when_database_is_configured() {
 
     apply_schema(database_url.as_str());
 
-    let stores = PostgresProjectionConfig::new(database_url)
+    let stores = PostgresProjectionConfig::new(database_url.as_str())
         .connect_stores()
         .expect("live PostgreSQL projection stores should connect");
 
     let suffix = unique_suffix();
     let tenant_id = format!("t_proj_{suffix}");
     let conversation_id = format!("c_proj_{suffix}");
+    let organization_a = format!("org_a_{suffix}");
+    let organization_b = format!("org_b_{suffix}");
+    let scope_a = TimelineProjectionScope::new(
+        tenant_id.as_str(),
+        organization_a.as_str(),
+        conversation_id.as_str(),
+    )
+    .expect("organization A timeline scope should be valid");
+    let scope_b = TimelineProjectionScope::new(
+        tenant_id.as_str(),
+        organization_b.as_str(),
+        conversation_id.as_str(),
+    )
+    .expect("organization B timeline scope should be valid");
     let snapshot_scope = format!("{tenant_id}|default|{conversation_id}");
     let snapshot_key = "conversation-summary";
     let snapshot_payload = r#"{"conversationId":"conv-1","title":"live projection"}"#;
-    let timeline_payload =
-        r#"{"messageId":"99","messageSeq":1,"summary":"hello from live projection"}"#;
+    let timeline_payload_a = r#"{"messageId":"99","messageSeq":1,"summary":"organization A"}"#;
+    let timeline_payload_b = r#"{"messageId":"100","messageSeq":1,"summary":"organization B"}"#;
 
     stores
         .metadata
@@ -61,27 +75,29 @@ fn test_postgres_projection_live_store_roundtrip_when_database_is_configured() {
 
     stores
         .timeline
-        .upsert_timeline_entry(
-            tenant_id.as_str(),
-            conversation_id.as_str(),
-            1,
-            timeline_payload,
-        )
-        .expect("timeline entry should persist");
+        .upsert_timeline_entry(&scope_a, 1, timeline_payload_a)
+        .expect("organization A timeline entry should persist");
 
-    let loaded_timeline = stores
+    stores
         .timeline
-        .load_timeline(tenant_id.as_str(), conversation_id.as_str())
-        .expect("timeline should load");
-    assert_eq!(loaded_timeline.len(), 1);
-    assert_eq!(loaded_timeline[0].0, 1);
-    assert_eq!(loaded_timeline[0].1, timeline_payload);
+        .upsert_timeline_entry(&scope_b, 1, timeline_payload_b)
+        .expect("organization B timeline entry should persist");
+
+    let loaded_timeline_a = stores
+        .timeline
+        .load_timeline(&scope_a)
+        .expect("organization A timeline should load");
+    assert_eq!(loaded_timeline_a, vec![(1, timeline_payload_a.to_owned())]);
+    let loaded_timeline_b = stores
+        .timeline
+        .load_timeline(&scope_b)
+        .expect("organization B timeline should load");
+    assert_eq!(loaded_timeline_b, vec![(1, timeline_payload_b.to_owned())]);
 
     stores
         .timeline
         .upsert_timeline_entries(
-            tenant_id.as_str(),
-            conversation_id.as_str(),
+            &scope_a,
             &[TimelineProjectionRecord {
                 message_seq: 2,
                 payload: r#"{"messageId":"100","messageSeq":2,"summary":"batch"}"#.into(),
@@ -89,11 +105,26 @@ fn test_postgres_projection_live_store_roundtrip_when_database_is_configured() {
         )
         .expect("timeline batch should persist");
 
-    let loaded_timeline = stores
+    drop(stores);
+    let restarted_stores = PostgresProjectionConfig::new(database_url.as_str())
+        .connect_stores()
+        .expect("restarted PostgreSQL projection stores should connect");
+    let loaded_timeline_a = restarted_stores
         .timeline
-        .load_timeline(tenant_id.as_str(), conversation_id.as_str())
-        .expect("timeline should load after batch");
-    assert_eq!(loaded_timeline.len(), 2);
+        .load_timeline(&scope_a)
+        .expect("organization A timeline should load after restart");
+    assert_eq!(loaded_timeline_a.len(), 2);
+    assert_eq!(loaded_timeline_a[0].1, timeline_payload_a);
+    let loaded_timeline_b = restarted_stores
+        .timeline
+        .load_timeline(&scope_b)
+        .expect("organization B timeline should remain isolated after restart");
+    assert_eq!(loaded_timeline_b, vec![(1, timeline_payload_b.to_owned())]);
+}
+
+#[test]
+fn test_postgres_projection_timeline_scope_rejects_missing_organization() {
+    assert!(TimelineProjectionScope::new("tenant", "", "conversation").is_err());
 }
 
 fn apply_schema(database_url: &str) {

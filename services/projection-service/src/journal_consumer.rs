@@ -43,6 +43,13 @@ impl ProjectionJournalConsumerHandle {
     }
 }
 
+impl Drop for ProjectionJournalConsumerHandle {
+    fn drop(&mut self) {
+        let _ = self.shutdown.send(());
+        self.task.abort();
+    }
+}
+
 pub fn spawn_projection_journal_consumer_from_env(
     runtime: Arc<ProjectionRuntime>,
 ) -> Option<ProjectionJournalConsumerHandle> {
@@ -148,12 +155,24 @@ async fn run_projection_journal_consumer(
 
         match journal.recorded_after(replay_cursor.as_ref()) {
             Ok((events, next_cursor)) if !events.is_empty() => {
-                let applied_new =
-                    apply_journal_events(&events, service.as_ref(), &mut applied_event_ids);
-                if applied_new {
-                    persist_durable_state_with_retry(runtime.as_ref()).await;
+                if let Ok(applied_events) =
+                    apply_journal_events(&events, service.as_ref(), &mut applied_event_ids)
+                {
+                    match persist_durable_state_with_retry(runtime.as_ref(), &applied_events).await
+                    {
+                        Ok(()) => replay_cursor = next_cursor,
+                        Err(error) => {
+                            for event in &applied_events {
+                                applied_event_ids.remove(event.event_id.as_str());
+                            }
+                            warn!(
+                                error = %error,
+                                event_count = applied_events.len(),
+                                "projection journal consumer durable persist failed; replay cursor remains unchanged"
+                            );
+                        }
+                    }
                 }
-                replay_cursor = next_cursor;
             }
             Ok(_) => {}
             Err(error) => {
@@ -172,8 +191,8 @@ fn apply_journal_events(
     events: &[CommitEnvelope],
     service: &TimelineProjectionService,
     applied_event_ids: &mut BoundedAppliedEventDedup,
-) -> bool {
-    let mut applied_new = false;
+) -> Result<Vec<CommitEnvelope>, ()> {
+    let mut applied_events: Vec<CommitEnvelope> = Vec::with_capacity(events.len());
     for event in events {
         if !applied_event_ids.insert(event.event_id.clone()) {
             continue;
@@ -184,29 +203,27 @@ fn apply_journal_events(
                 event_id = %event.event_id,
                 event_type = %event.event_type,
                 error = %error,
-                "projection journal consumer failed to apply event"
+                "projection journal consumer failed to apply event; replay cursor remains unchanged"
             );
-            continue;
+            for applied_event in &applied_events {
+                applied_event_ids.remove(applied_event.event_id.as_str());
+            }
+            return Err(());
         }
-        applied_new = true;
+        applied_events.push((*event).clone());
     }
-    applied_new
+    Ok(applied_events)
 }
 
-/// Persist durable projection state with a bounded retry loop.
-///
-/// Transient Postgres hiccups (brief pool exhaustion, momentary network
-/// blips) used to be swallowed by a single best-effort `warn!`, which let
-/// memory and durable snapshots drift apart indefinitely. We now retry up to
-/// [`PROJECTION_PERSIST_RETRY_ATTEMPTS`] times with escalating backoff. Because
-/// `persist_durable_state` writes the current memory state (not deltas),
-/// re-attempts are idempotent. When every attempt fails, the consumer keeps
-/// advancing — the next cycle re-attempts the full accumulated state — but the
-/// failure is logged with the attempt count so operators can spot drift.
-async fn persist_durable_state_with_retry(runtime: &ProjectionRuntime) {
+/// Persist only dirty scopes from one journal batch with bounded retries.
+/// The caller advances its cursor only after this function succeeds.
+async fn persist_durable_state_with_retry(
+    runtime: &ProjectionRuntime,
+    events: &[CommitEnvelope],
+) -> Result<(), ProjectionError> {
     let mut last_error: Option<ProjectionError> = None;
     for attempt in 1..=PROJECTION_PERSIST_RETRY_ATTEMPTS {
-        match runtime.persist_durable_state() {
+        match runtime.persist_durable_state_for_events(events) {
             Ok(()) => {
                 if attempt > 1 {
                     info!(
@@ -214,7 +231,7 @@ async fn persist_durable_state_with_retry(runtime: &ProjectionRuntime) {
                         "projection journal consumer durable persist recovered after retry"
                     );
                 }
-                return;
+                return Ok(());
             }
             Err(error) => {
                 last_error = Some(error);
@@ -228,23 +245,70 @@ async fn persist_durable_state_with_retry(runtime: &ProjectionRuntime) {
             }
         }
     }
-    if let Some(error) = last_error {
-        warn!(
-            error = %error,
-            attempts = PROJECTION_PERSIST_RETRY_ATTEMPTS,
-            "projection journal consumer durable persist failed after retries; \
-             memory state advanced, durable snapshot will be retried next cycle"
-        );
-    }
+    Err(last_error.unwrap_or_else(|| {
+        ProjectionError::InvalidEvent(
+            "projection durable persist retry attempts must be greater than zero".into(),
+        )
+    }))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use im_domain_events::CommitEnvelope;
 
     #[test]
     fn projection_journal_consumer_poll_interval_has_default() {
         let interval = resolve_projection_journal_consumer_poll_interval();
         assert_eq!(interval, Duration::from_millis(250));
+    }
+
+    #[test]
+    fn failed_batch_releases_all_dedup_entries_for_retry() {
+        let service = TimelineProjectionService::default();
+        let mut dedup = BoundedAppliedEventDedup::new();
+        let accepted = CommitEnvelope::minimal(
+            "event-accepted",
+            "tenant-1",
+            "projection.noop",
+            "conversation",
+            "conversation-1",
+            1,
+        );
+        let mut rejected = CommitEnvelope::minimal(
+            "event-rejected",
+            "tenant-1",
+            "message.posted",
+            "conversation",
+            "conversation-1",
+            2,
+        );
+        rejected.payload = "not-json".into();
+
+        assert!(apply_journal_events(&[accepted, rejected], &service, &mut dedup).is_err());
+        assert!(dedup.insert("event-accepted".into()));
+        assert!(dedup.insert("event-rejected".into()));
+    }
+
+    #[test]
+    fn successful_batch_returns_only_newly_applied_events() {
+        let service = TimelineProjectionService::default();
+        let mut dedup = BoundedAppliedEventDedup::new();
+        let event = CommitEnvelope::minimal(
+            "event-1",
+            "tenant-1",
+            "projection.noop",
+            "conversation",
+            "conversation-1",
+            1,
+        );
+
+        let first = apply_journal_events(std::slice::from_ref(&event), &service, &mut dedup)
+            .expect("first apply should succeed");
+        let duplicate = apply_journal_events(&[event], &service, &mut dedup)
+            .expect("duplicate apply should succeed without work");
+
+        assert_eq!(first.len(), 1);
+        assert!(duplicate.is_empty());
     }
 }

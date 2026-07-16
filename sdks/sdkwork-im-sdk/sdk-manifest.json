@@ -142,5 +142,10 @@
       "version": "0.1.0",
       "description": "Generator-owned Python transport SDK for the Sdkwork IM IM standardized development API."
     }
-  ]
+  ],
+  "metadata": {
+    "managedBy": "sdks/sdkwork-im-sdk/bin/assemble-sdk.mjs",
+    "standardVersion": "2026-07-14",
+    "ownerOnlyOperationCount": 125
+  }
 }

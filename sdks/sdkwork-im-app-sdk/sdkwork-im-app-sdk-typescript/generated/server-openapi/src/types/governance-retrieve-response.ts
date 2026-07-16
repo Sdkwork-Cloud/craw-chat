@@ -1,4 +1,4 @@
-import type { PortalSnapshot } from './portal-snapshot';
+import type { PortalGovernanceSnapshot } from './portal-governance-snapshot';
 
 export interface GovernanceRetrieveResponse {
   code: 0;

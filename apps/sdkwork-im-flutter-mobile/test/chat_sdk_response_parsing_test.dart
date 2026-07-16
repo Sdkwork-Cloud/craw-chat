@@ -12,7 +12,7 @@ void main() {
         ],
         'pageInfo': PageInfo(
           mode: 'cursor',
-          nextCursor: '42',
+          nextCursor: 'eyJzZWVrIjoibWVzc2FnZS00MiJ9',
           hasMore: true,
         ).toJson(),
       },
@@ -23,7 +23,7 @@ void main() {
 
     expect(page.items.map((entry) => entry.messageSeq), <int>[41, 42]);
     expect(page.pagination.hasMore, isTrue);
-    expect(page.pagination.nextAfterSeq, 42);
+    expect(page.pagination.nextCursor, 'eyJzZWVrIjoibWVzc2FnZS00MiJ9');
   });
 
   test('reads inbox data and cursor page info from SDK response data', () {

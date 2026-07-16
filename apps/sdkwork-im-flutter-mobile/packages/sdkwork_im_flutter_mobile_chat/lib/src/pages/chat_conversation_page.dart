@@ -10,6 +10,8 @@ import '../services/chat_realtime_service.dart';
 import '../services/chat_message_history_utils.dart';
 import '../services/offline_send_queue.dart';
 
+enum _MessageHistoryUpdateMode { replace, older, newer }
+
 class ChatConversationPage extends StatefulWidget {
   const ChatConversationPage({
     super.key,
@@ -37,9 +39,10 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
   final _composerController = TextEditingController();
 
   List<ConversationMessageEntry> _entries = const [];
-  MessageHistoryPaginationState _pagination = const MessageHistoryPaginationState(
+  MessageHistoryPaginationState _pagination =
+      const MessageHistoryPaginationState(
     hasMore: false,
-    nextAfterSeq: 0,
+    nextCursor: null,
   );
 
   bool _loading = true;
@@ -69,18 +72,31 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
     super.dispose();
   }
 
-  void _applyConversationMessagePage(
+  bool _applyConversationMessagePage(
     List<ConversationMessageEntry> items,
     MessageHistoryPaginationState pagination, {
-    required String mode,
+    required _MessageHistoryUpdateMode mode,
   }) {
+    final page = mergeConversationMessagePage(
+      mode == _MessageHistoryUpdateMode.replace
+          ? const <ConversationMessageEntry>[]
+          : _entries,
+      items,
+      direction: mode == _MessageHistoryUpdateMode.older
+          ? MessageHistoryWindowDirection.older
+          : MessageHistoryWindowDirection.newer,
+    );
+    if (mode != _MessageHistoryUpdateMode.newer && !page.incomingPageRetained) {
+      return false;
+    }
     setState(() {
-      _entries = mode == 'replace'
-          ? items
-          : mergeConversationMessageEntries(_entries, items);
-      _pagination = pagination;
+      _entries = page.items;
+      if (mode != _MessageHistoryUpdateMode.newer) {
+        _pagination = pagination;
+      }
       _latestSeq = resolveLatestMessageSeq(_entries);
     });
+    return true;
   }
 
   Future<void> _loadMessageHistory({bool silent = false}) async {
@@ -98,11 +114,14 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
       if (!mounted) {
         return;
       }
-      _applyConversationMessagePage(
+      final applied = _applyConversationMessagePage(
         response.items,
         pickMessageHistoryPagination(response),
-        mode: 'replace',
+        mode: _MessageHistoryUpdateMode.replace,
       );
+      if (!applied && mounted) {
+        setState(() => _error = 'Unable to retain the requested message page.');
+      }
     } catch (error) {
       if (mounted) {
         setState(() => _error = 'Failed to load messages: $error');
@@ -119,9 +138,9 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
       return;
     }
     try {
-      final response = await widget.conversationService.fetchMessageHistoryDelta(
+      final response =
+          await widget.conversationService.fetchMessageHistoryDelta(
         widget.conversationId,
-        _latestSeq,
       );
       final items = response.items;
       if (items.isEmpty || !mounted) {
@@ -130,7 +149,7 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
       _applyConversationMessagePage(
         items,
         pickMessageHistoryPagination(response),
-        mode: 'merge',
+        mode: _MessageHistoryUpdateMode.newer,
       );
     } catch (_) {
       // Keep existing message history visible when incremental sync fails.
@@ -138,7 +157,11 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
   }
 
   Future<void> _loadOlderMessages() async {
-    if (_loadingOlderGuard || !_pagination.hasMore) {
+    final cursor = _pagination.nextCursor;
+    if (_loadingOlderGuard ||
+        !_pagination.hasMore ||
+        cursor == null ||
+        cursor.isEmpty) {
       return;
     }
     _loadingOlderGuard = true;
@@ -148,17 +171,21 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
     try {
       final response = await widget.conversationService.fetchMessageHistory(
         widget.conversationId,
-        afterSeq: _pagination.nextAfterSeq,
+        cursor: cursor,
         pageSize: 50,
       );
       if (!mounted) {
         return;
       }
-      _applyConversationMessagePage(
+      final applied = _applyConversationMessagePage(
         response.items,
         pickMessageHistoryPagination(response),
-        mode: 'append',
+        mode: _MessageHistoryUpdateMode.older,
       );
+      if (!applied) {
+        setState(() => _error = 'Unable to retain the earlier message page.');
+        return;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!_scrollController.hasClients) {
           return;
@@ -179,7 +206,11 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
   }
 
   void _handleScroll() {
-    if (!_scrollController.hasClients || _loadingOlderGuard || !_pagination.hasMore) {
+    if (!_scrollController.hasClients ||
+        _loadingOlderGuard ||
+        !_pagination.hasMore ||
+        _pagination.nextCursor == null ||
+        _pagination.nextCursor!.isEmpty) {
       return;
     }
     if (_scrollController.position.pixels <= 48) {
@@ -307,10 +338,12 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
         accessToken: widget.session.accessToken,
         authToken: widget.session.authToken,
         originalFileName: file?.name,
-        contentType: file?.extension == null ? 'image/jpeg' : 'image/${file!.extension}',
+        contentType:
+            file?.extension == null ? 'image/jpeg' : 'image/${file!.extension}',
       );
       final fileName = file?.name ?? 'image';
-      final mimeType = file?.extension == null ? 'image/jpeg' : 'image/${file!.extension}';
+      final mimeType =
+          file?.extension == null ? 'image/jpeg' : 'image/${file!.extension}';
       await widget.conversationService.sendImageMessage(
         conversationId: widget.conversationId,
         driveUri: upload.driveUri,
@@ -371,18 +404,22 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
                         : ListView.separated(
                             controller: _scrollController,
                             padding: const EdgeInsets.all(16),
-                            itemCount: _entries.length + (_loadingOlder ? 1 : 0),
-                            separatorBuilder: (_, __) => const SizedBox(height: 8),
+                            itemCount:
+                                _entries.length + (_loadingOlder ? 1 : 0),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 8),
                             itemBuilder: (context, index) {
                               if (_loadingOlder && index == 0) {
                                 return const Center(
                                   child: Padding(
                                     padding: EdgeInsets.symmetric(vertical: 8),
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
                                   ),
                                 );
                               }
-                              final entryIndex = _loadingOlder ? index - 1 : index;
+                              final entryIndex =
+                                  _loadingOlder ? index - 1 : index;
                               final entry = _entries[entryIndex];
                               return Card(
                                 child: ListTile(
@@ -390,7 +427,8 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
                                   subtitle: Text(_entryText(entry)),
                                   trailing: Text(
                                     entry.occurredAt,
-                                    style: Theme.of(context).textTheme.bodySmall,
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
                                   ),
                                 ),
                               );

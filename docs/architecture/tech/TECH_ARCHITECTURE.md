@@ -2,21 +2,33 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-14
-Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md, SECURITY_SPEC.md, OPERATIONS_SPEC.md
+Updated: 2026-07-16
+Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md, SECURITY_SPEC.md, DEPLOYMENT_SPEC.md, OBSERVABILITY_SPEC.md
 
 ## 1. System Overview
 
 SDKWork IM is a multi-tenant, event-sourced instant messaging platform built on Rust microservices with Axum, featuring real-time WebSocket delivery, event journal persistence, and CQRS-style projection reads.
 
+Commercial readiness is **blocked**. The architecture below describes implemented runtime
+capabilities and target production boundaries; it is not GA evidence. Release remains prohibited
+until immutable container digests, production admin authorities, cluster deployment resilience,
+durable telemetry export, direct capacity/DR evidence, and all commercial release gates are green.
+
 ### Core Principles
 
-- **Event Sourcing**: All state mutations flow through `im_commit_journal`; projections are derived read models.
+- **Event Sourcing**: IM domain write authorities use `im_commit_journal`; materialized read models
+  are coordinated transactionally or rebuilt by durable projection consumers. External admin
+  authorities are not represented as local event-sourced implementations.
 - **Multi-Tenant Isolation**: Every organization-scoped table enforces `(tenant_id, organization_id)` composite keys with `NOT NULL DEFAULT '0'` and CHECK constraints preventing empty values.
 - **Contract-First**: OpenAPI authorities under `apis/` drive SDK generation for 9 languages; no hand-written HTTP clients in consumers.
-- **High Availability**: Gateway and session services support horizontal scaling; disconnect fence and presence state use Redis-backed storage in HA topologies.
+- **High Availability Runtime**: Gateway and session services support horizontal scaling; disconnect
+  fence and presence state use Redis-backed storage in HA topologies. Reference Kubernetes manifests
+  are not release-ready until immutable images, placement constraints, autoscaling signals, and
+  durable observability are verified in the target cluster.
 - **Defense in Depth**: Trusted-proxy IP validation, per-service circuit breakers, bounded rate limiter memory, one edge per-IP limiter per gateway ingress, post-auth per-tenant limiting, and Docker/Kubernetes `_FILE` secret injection.
-- **Production Readiness**: Graceful shutdown with connection draining, Kubernetes health probes (liveness/readiness/startup), capacity management with multi-dimensional resource tracking.
+- **Production Safety Baseline**: Graceful shutdown, connection draining, health probes, and bounded
+  runtime capacity controls are implemented. These controls are necessary but insufficient for a
+  production-readiness claim.
 
 ### Topology
 
@@ -101,6 +113,11 @@ for current group membership and roles, while Knowledgebase owns the managed gro
 documents, and content lifecycle. IM records an integration projection only for provisioning,
 remote-reference, retry, and UI state, without cross-database foreign keys.
 
+The scope values come from the framework-verified Auth Token context. `organization_id=0` is the
+canonical tenant-session scope and is valid for group Knowledgebase lifecycle operations; it is not
+a missing-organization error. Authorization is based on active Conversation membership and role,
+not on whether the user selected an organization login mode.
+
 The group Header and group-information management entry use the generated IM SDK facade and an
 authoritative `getCurrentMember` read rather than a cached member-list inference. Ordinary group
 creation is lazy: omitted or `false` `initializeKnowledgebase` does not validate Knowledgebase
@@ -129,7 +146,7 @@ only framework-verified mTLS and signed IM caller context, and runs database, Dr
 runtime readiness preflight before accepting lifecycle work.
 
 The server stores only an opaque, one-time, short-lived ticket hash. On consumption it rechecks the
-session actor, tenant and organization scope, active membership, membership epoch, link generation,
+ session actor, exact token-derived scope, active membership, membership epoch, link generation,
 and immutable Knowledgebase target quartet: knowledge-space id/UUID plus binding id/UUID. IM's
 version-aware outbox/inbox membership projection synchronizes ACL changes; leave, removal, role
 reduction, and dissolution revoke or archive access without cross-database foreign keys.

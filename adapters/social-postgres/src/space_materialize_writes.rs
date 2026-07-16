@@ -13,6 +13,26 @@ use crate::organization_store::{GroupMemberRecord, GroupRecord, SpaceRecord};
 use crate::wire_id::social_entity_id_to_i64;
 use crate::{SocialPostgresPool, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
+const SPACE_MEMBER_CAPACITY_FULL: &str = "space member capacity full during materialization";
+const GROUP_MEMBER_CAPACITY_FULL: &str = "group member capacity full during materialization";
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum SpaceMaterializationError {
+    CapacityFull,
+    Persistence(String),
+}
+
+impl std::fmt::Display for SpaceMaterializationError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CapacityFull => formatter.write_str("space or group member capacity is full"),
+            Self::Persistence(message) => formatter.write_str(message),
+        }
+    }
+}
+
+impl std::error::Error for SpaceMaterializationError {}
+
 const SPACE_INSERT_SQL: &str = r#"
 INSERT INTO im_spaces (tenant_id, organization_id, space_id, space_name, space_type, owner_user_id, description, avatar_url, max_members, settings_json, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
@@ -40,20 +60,17 @@ INSERT INTO im_space_members (
 ON CONFLICT (tenant_id, organization_id, space_id, user_id) DO NOTHING
 "#;
 
-const SPACE_MEMBER_RESERVE_CAPACITY_SQL: &str = r#"
-WITH locked_space AS (
-    SELECT max_members
-    FROM im_spaces
-    WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3
-    FOR UPDATE
-),
-member_count AS (
-    SELECT COUNT(*)::bigint AS current_count
-    FROM im_space_members
-    WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3
-)
-SELECT ls.max_members, mc.current_count
-FROM locked_space ls, member_count mc
+const SPACE_MEMBER_LOCK_PARENT_SQL: &str = r#"
+SELECT max_members
+FROM im_spaces
+WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3
+FOR UPDATE
+"#;
+
+const SPACE_MEMBER_COUNT_SQL: &str = r#"
+SELECT COUNT(*)::bigint AS current_count
+FROM im_space_members
+WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3
 "#;
 
 const SPACE_MEMBER_GET_SQL: &str = r#"
@@ -118,20 +135,17 @@ INSERT INTO im_group_members (
 ON CONFLICT (tenant_id, organization_id, group_id, user_id) DO NOTHING
 "#;
 
-const GROUP_MEMBER_RESERVE_CAPACITY_SQL: &str = r#"
-WITH locked_group AS (
-    SELECT max_members
-    FROM im_chat_groups
-    WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
-    FOR UPDATE
-),
-member_count AS (
-    SELECT COUNT(*)::bigint AS current_count
-    FROM im_group_members
-    WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
-)
-SELECT lg.max_members, mc.current_count
-FROM locked_group lg, member_count mc
+const GROUP_MEMBER_LOCK_PARENT_SQL: &str = r#"
+SELECT max_members
+FROM im_chat_groups
+WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
+FOR UPDATE
+"#;
+
+const GROUP_MEMBER_COUNT_SQL: &str = r#"
+SELECT COUNT(*)::bigint AS current_count
+FROM im_group_members
+WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
 "#;
 
 const GROUP_MEMBER_GET_SQL: &str = r#"
@@ -168,15 +182,32 @@ pub fn materialize_space_commits_in_transaction(
         let mut txn = client
             .transaction()
             .map_err(|error| postgres_unavailable("materialize_space_commits_batch", error))?;
-        for commit in &commits {
-            materialize_space_commit_on(&mut txn, commit)
-                .map_err(im_platform_contracts::ContractError::Unavailable)?;
-        }
+        materialize_space_commits_on_transaction(&mut txn, &commits).map_err(|error| {
+            im_platform_contracts::ContractError::Unavailable(error.to_string())
+        })?;
         txn.commit()
             .map_err(|error| postgres_unavailable("materialize_space_commits_batch", error))?;
         Ok(())
     })
     .map_err(|error| format!("{error:?}"))
+}
+
+pub fn materialize_space_commits_on_transaction(
+    txn: &mut postgres::Transaction<'_>,
+    commits: &[CommitEnvelope],
+) -> Result<(), SpaceMaterializationError> {
+    for commit in commits {
+        materialize_space_commit_on(txn, commit).map_err(classify_materialization_error)?;
+    }
+    Ok(())
+}
+
+fn classify_materialization_error(error: String) -> SpaceMaterializationError {
+    if error == SPACE_MEMBER_CAPACITY_FULL || error == GROUP_MEMBER_CAPACITY_FULL {
+        SpaceMaterializationError::CapacityFull
+    } else {
+        SpaceMaterializationError::Persistence(error)
+    }
 }
 
 fn materialize_space_commit_on(
@@ -294,15 +325,7 @@ fn materialize_space_member_joined(
         joined_at: payload.joined_at,
         updated_at: payload.updated_at,
     };
-    let max_members = load_space(
-        txn,
-        commit.tenant_id.as_str(),
-        commit.organization_id.as_str(),
-        record.space_id,
-    )
-    .map(|space| space.max_members)
-    .unwrap_or(i32::MAX);
-    insert_space_member_within_capacity(txn, &record, max_members)
+    insert_space_member_within_capacity(txn, &record)
 }
 
 fn materialize_space_member_updated(
@@ -467,15 +490,7 @@ fn materialize_group_member_joined(
         joined_at: payload.joined_at,
         updated_at: payload.updated_at,
     };
-    let max_members = load_group(
-        txn,
-        commit.tenant_id.as_str(),
-        commit.organization_id.as_str(),
-        record.group_id,
-    )
-    .map(|group| group.max_members)
-    .unwrap_or(i32::MAX);
-    insert_group_member_within_capacity(txn, &record, max_members)
+    insert_group_member_within_capacity(txn, &record)
 }
 
 fn materialize_group_member_updated(
@@ -697,8 +712,16 @@ fn load_group_member(
 fn insert_space_member_within_capacity(
     txn: &mut postgres::Transaction<'_>,
     record: &SpaceMemberRecord,
-    max_members: i32,
 ) -> Result<(), String> {
+    let parent_row = txn
+        .query_opt(
+            SPACE_MEMBER_LOCK_PARENT_SQL,
+            &[&record.tenant_id, &record.organization_id, &record.space_id],
+        )
+        .map_err(|error| format!("space member parent lock failed: {error}"))?;
+    let Some(parent_row) = parent_row else {
+        return Err("space not found".to_owned());
+    };
     let existing = txn
         .query_opt(
             SPACE_MEMBER_GET_SQL,
@@ -713,20 +736,16 @@ fn insert_space_member_within_capacity(
     if existing.is_some() {
         return Ok(());
     }
-    let capacity_row = txn
-        .query_opt(
-            SPACE_MEMBER_RESERVE_CAPACITY_SQL,
+    let count_row = txn
+        .query_one(
+            SPACE_MEMBER_COUNT_SQL,
             &[&record.tenant_id, &record.organization_id, &record.space_id],
         )
         .map_err(|error| format!("space member capacity check failed: {error}"))?;
-    let Some(capacity_row) = capacity_row else {
-        return Err("space not found".to_owned());
-    };
-    let space_max: i32 = capacity_row.get("max_members");
-    let current_count: i64 = capacity_row.get("current_count");
-    let effective_max = i32::min(space_max, max_members);
-    if current_count >= i64::from(effective_max) {
-        return Err("space member capacity full during materialization".to_owned());
+    let space_max: i32 = parent_row.get("max_members");
+    let current_count: i64 = count_row.get("current_count");
+    if current_count >= i64::from(space_max) {
+        return Err(SPACE_MEMBER_CAPACITY_FULL.to_owned());
     }
     txn.execute(
         SPACE_MEMBER_INSERT_SQL,
@@ -748,8 +767,16 @@ fn insert_space_member_within_capacity(
 fn insert_group_member_within_capacity(
     txn: &mut postgres::Transaction<'_>,
     record: &GroupMemberRecord,
-    max_members: i32,
 ) -> Result<(), String> {
+    let parent_row = txn
+        .query_opt(
+            GROUP_MEMBER_LOCK_PARENT_SQL,
+            &[&record.tenant_id, &record.organization_id, &record.group_id],
+        )
+        .map_err(|error| format!("group member parent lock failed: {error}"))?;
+    let Some(parent_row) = parent_row else {
+        return Err("group not found".to_owned());
+    };
     let existing = txn
         .query_opt(
             GROUP_MEMBER_GET_SQL,
@@ -764,20 +791,16 @@ fn insert_group_member_within_capacity(
     if existing.is_some() {
         return Ok(());
     }
-    let capacity_row = txn
-        .query_opt(
-            GROUP_MEMBER_RESERVE_CAPACITY_SQL,
+    let count_row = txn
+        .query_one(
+            GROUP_MEMBER_COUNT_SQL,
             &[&record.tenant_id, &record.organization_id, &record.group_id],
         )
         .map_err(|error| format!("group member capacity check failed: {error}"))?;
-    let Some(capacity_row) = capacity_row else {
-        return Err("group not found".to_owned());
-    };
-    let group_max: i32 = capacity_row.get("max_members");
-    let current_count: i64 = capacity_row.get("current_count");
-    let effective_max = i32::min(group_max, max_members);
-    if current_count >= i64::from(effective_max) {
-        return Err("group member capacity full during materialization".to_owned());
+    let group_max: i32 = parent_row.get("max_members");
+    let current_count: i64 = count_row.get("current_count");
+    if current_count >= i64::from(group_max) {
+        return Err(GROUP_MEMBER_CAPACITY_FULL.to_owned());
     }
     txn.execute(
         GROUP_MEMBER_INSERT_SQL,
@@ -795,4 +818,25 @@ fn insert_group_member_within_capacity(
     )
     .map_err(|error| format!("group member insert failed: {error}"))
     .map(|_| ())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn capacity_failures_remain_typed_at_the_transaction_boundary() {
+        assert_eq!(
+            classify_materialization_error(SPACE_MEMBER_CAPACITY_FULL.to_owned()),
+            SpaceMaterializationError::CapacityFull
+        );
+        assert_eq!(
+            classify_materialization_error(GROUP_MEMBER_CAPACITY_FULL.to_owned()),
+            SpaceMaterializationError::CapacityFull
+        );
+        assert_eq!(
+            classify_materialization_error("database unavailable".to_owned()),
+            SpaceMaterializationError::Persistence("database unavailable".to_owned())
+        );
+    }
 }

@@ -1,8 +1,8 @@
 //! Transactional social commit materialization for multi-commit write batches.
 //!
 //! Friend accept and similar flows emit several commits (request status, friendship,
-//! direct chat). A single PostgreSQL transaction keeps supplemental stores consistent
-//! before journal append.
+//! direct chat). Callers may either let this adapter own the transaction for replay and
+//! repair, or pass the journal-owned transaction used by the online write authority.
 
 use im_domain_events::social::{
     DirectChatBoundPayload, FriendRequestAcceptedPayload, FriendRequestCanceledPayload,
@@ -10,7 +10,7 @@ use im_domain_events::social::{
     FriendshipActivatedPayload, FriendshipRemovedPayload, UserBlockReleasedPayload,
     UserBlockedPayload,
 };
-use im_platform_contracts::CommitEnvelope;
+use im_platform_contracts::{CommitEnvelope, ContractError};
 
 use crate::wire_id::social_entity_id_to_i64;
 use crate::{
@@ -109,15 +109,30 @@ pub fn materialize_commits_in_transaction(
         let mut txn = client
             .transaction()
             .map_err(|error| postgres_unavailable("materialize_social_commits_batch", error))?;
-        for commit in &commits {
-            materialize_commit_on(&mut txn, commit)
-                .map_err(im_platform_contracts::ContractError::Unavailable)?;
-        }
+        materialize_commits_on_transaction(&mut txn, &commits)?;
         txn.commit()
             .map_err(|error| postgres_unavailable("materialize_social_commits_batch", error))?;
         Ok(())
     })
     .map_err(|error| format!("{error:?}"))
+}
+
+/// Materialize newly committed social events on a caller-owned transaction.
+///
+/// The online PostgreSQL write authority uses this entrypoint so journal rows and
+/// the relational social read model commit or roll back as one database unit.
+pub fn materialize_commits_on_transaction(
+    txn: &mut postgres::Transaction<'_>,
+    commits: &[CommitEnvelope],
+) -> Result<(), ContractError> {
+    for commit in commits {
+        materialize_commit_on(txn, commit).map_err(|error| {
+            ContractError::Unavailable(format!(
+                "social postgres materialization failed: {error}"
+            ))
+        })?;
+    }
+    Ok(())
 }
 
 fn materialize_commit_on(

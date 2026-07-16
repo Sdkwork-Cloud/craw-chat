@@ -68,9 +68,8 @@ lives only in the sibling `../sdkwork-rtc` repository:
 ## Current Repository Truth
 
 For day-to-day engineering, the checked-in SDK workspaces and their family-root
-`sdk-manifest.json` files are the source of truth. Per-family `.sdkwork-assembly.json` is retired
-and must not be restored. A repo-level `sdks/.sdkwork-assembly.json` may exist only as a
-multi-surface generation registry and must not duplicate per-family manifest fields.
+`sdk-manifest.json` files are the source of truth. Multi-family tools discover those manifests
+directly and do not maintain a parallel registry.
 
 The three Sdkwork IM HTTP-contract SDK families are separated by target surface:
 

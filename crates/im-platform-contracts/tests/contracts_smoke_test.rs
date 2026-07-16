@@ -1,7 +1,7 @@
 use im_platform_contracts::{
     CommitEnvelope, CommitJournal, CommitPosition, ContractError, LeaseGrant, LeaseStore,
     MetadataStore, ObjectDescriptor, ObjectPutRequest, ObjectStore, RealtimeDisconnectFenceRecord,
-    RealtimeDisconnectFenceStore, TimelineProjectionStore,
+    RealtimeDisconnectFenceStore, TimelineProjectionScope, TimelineProjectionStore,
 };
 
 struct NullJournal;
@@ -30,8 +30,7 @@ impl MetadataStore for NullMetadata {
 impl TimelineProjectionStore for NullProjection {
     fn upsert_timeline_entry(
         &self,
-        _tenant_id: &str,
-        _timeline_scope: &str,
+        _scope: &TimelineProjectionScope,
         _message_seq: u64,
         _payload: &str,
     ) -> Result<(), ContractError> {
@@ -40,8 +39,7 @@ impl TimelineProjectionStore for NullProjection {
 
     fn load_timeline(
         &self,
-        _tenant_id: &str,
-        _timeline_scope: &str,
+        _scope: &TimelineProjectionScope,
     ) -> Result<Vec<(u64, String)>, ContractError> {
         Ok(Vec::new())
     }
@@ -141,11 +139,13 @@ fn test_contract_types_are_usable_without_binding_to_a_vendor() {
     metadata
         .load_snapshot("tenant", "demo")
         .expect("metadata load should succeed");
+    let timeline_scope = TimelineProjectionScope::new("100001", "0", "c_demo")
+        .expect("timeline projection scope should be valid");
     projection
-        .upsert_timeline_entry("100001", "c_demo", 1, "{}")
+        .upsert_timeline_entry(&timeline_scope, 1, "{}")
         .expect("projection upsert should succeed");
     projection
-        .load_timeline("100001", "c_demo")
+        .load_timeline(&timeline_scope)
         .expect("projection load should succeed");
     disconnect_fence_store
         .save_fence(RealtimeDisconnectFenceRecord {

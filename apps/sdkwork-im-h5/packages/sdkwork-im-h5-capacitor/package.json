@@ -1,0 +1,19 @@
+{
+  "name": "@sdkwork/im-h5-capacitor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build:capacitor-ios": "cap sync ios && cap build ios --configuration Release",
+    "build:capacitor-android": "cap sync android && cap build android --androidreleasetype AAB",
+    "check": "cap doctor"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0"
+  }
+}

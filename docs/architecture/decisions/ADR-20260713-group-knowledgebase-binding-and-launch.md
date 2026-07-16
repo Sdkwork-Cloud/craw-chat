@@ -21,7 +21,9 @@ application and cannot safely grant a specific group space from an arbitrary gro
 ## Decision
 
 1. The scope key for a group knowledge space is `(tenant_id, organization_id, conversation_id)`.
-   IM Conversation remains authoritative for group roles and membership.
+   `organization_id` is a token-derived isolation dimension and the canonical tenant-session
+   sentinel `0` is valid; organization login is not an authorization prerequisite. IM Conversation
+   remains authoritative for group roles and membership.
 2. Knowledgebase owns one dedicated managed group-space binding aggregate per scope. It is the
    sole authoritative group-to-space relation; generic Knowledgebase context-binding mutations for
    `chat_group` are rejected so two competing mappings cannot exist.
@@ -38,7 +40,7 @@ application and cannot safely grant a specific group space from an arbitrary gro
    tables or cross-database foreign keys.
 5. IM emits a short-lived, hash-stored, one-time opaque ticket only after the binding is active
    and the requester is a joined non-Guest member. The Knowledgebase app consumes it using an
-   approved trusted IM SDK/delegation boundary and rechecks session actor, tenant/org scope, active
+   approved trusted IM SDK/delegation boundary and rechecks session actor, exact token-derived scope, active
    membership, role, binding version, and expiry.
 6. Browser launch uses a standalone Knowledgebase route with a fragment ticket and removes it from
    browser history once consumed. Desktop launch uses an allowlisted

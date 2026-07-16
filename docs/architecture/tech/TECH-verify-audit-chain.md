@@ -19,7 +19,9 @@
   <span class="api-op-id">operationId: verifyAuditChain</span>
 </div>
 
-Verifies the visible audit hash chain and returns the latest chain head.
+Verifies records through a fixed audit-sequence high watermark with bounded keyset pages. The
+verifier retains only the previous hash, expected sequence, count, and current head between pages;
+it never materializes the complete ledger in memory.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
@@ -33,6 +35,11 @@ Verifies the visible audit hash chain and returns the latest chain head.
 <ApiSchemaTable schema="AuditChainVerification" />
 
 The response includes `chainHeadHash` and `chainValid` for operator-side integrity checks.
+The result verifies tenant identity, contiguous audit sequence, previous-hash linkage, record hash
+recomputation, and arrival at the captured chain head. Appends above the captured high watermark
+are intentionally excluded from the in-flight verification.
+Export and verification share the per-instance `SDKWORK_IM_AUDIT_MAX_CONCURRENT_SCANS` gate
+(default `4`, maximum `32`).
 
 ### Error Responses
 
@@ -40,6 +47,6 @@ The response includes `chainHeadHash` and `chainValid` for operator-side integri
 | --- | --- | --- |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `audit.read`. |
+| `503` | `dependency_unavailable` | The audit store is unavailable. |
 
 </section>
-

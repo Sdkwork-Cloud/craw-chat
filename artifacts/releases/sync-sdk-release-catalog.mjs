@@ -80,22 +80,22 @@ function buildCatalog(repoRoot, bundleId) {
     {
       audience: 'im',
       workspace: 'sdkwork-im-sdk',
-      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-im-sdk', '.sdkwork-assembly.json'),
+      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-im-sdk', 'sdk-manifest.json'),
     },
     {
       audience: 'app',
       workspace: 'sdkwork-im-app-sdk',
-      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-im-app-sdk', '.sdkwork-assembly.json'),
+      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-im-app-sdk', 'sdk-manifest.json'),
     },
     {
       audience: 'backend',
       workspace: 'sdkwork-im-backend-sdk',
-      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-im-backend-sdk', '.sdkwork-assembly.json'),
+      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-im-backend-sdk', 'sdk-manifest.json'),
     },
     {
       audience: 'rtc',
       workspace: 'sdkwork-rtc-sdk',
-      assemblyPath: path.join(repoRoot, '.sdkwork', 'dependencies', 'sdkwork-rtc', 'sdks', 'sdkwork-rtc-sdk', '.sdkwork-assembly.json'),
+      assemblyPath: path.join(repoRoot, '.sdkwork', 'dependencies', 'sdkwork-rtc', 'sdks', 'sdkwork-rtc-sdk', 'sdk-manifest.json'),
       packageField: 'publicPackage',
       readmePathFor: (workspaceConfig, languageEntry) =>
         `../../../sdkwork-rtc/sdks/${workspaceConfig.workspace}/${languageEntry.workspace}/README.md`,

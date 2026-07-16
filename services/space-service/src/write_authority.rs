@@ -2,11 +2,13 @@
 
 use std::sync::Arc;
 
-use im_adapters_social_postgres::SpacePostgresMaterializer;
 use im_adapters_social_postgres::governance_store::SpaceMemberRecord;
 use im_adapters_social_postgres::member_capacity::MemberInsertOutcome;
 use im_adapters_social_postgres::organization_store::{
     GroupMemberRecord, GroupRecord, SpaceRecord,
+};
+use im_adapters_social_postgres::{
+    SpaceMaterializationError, SpacePostgresMaterializer, materialize_space_commits_on_transaction,
 };
 use im_app_context::AppContext;
 use im_domain_events::space::{
@@ -22,6 +24,8 @@ use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 
 use crate::http::AppState;
 use crate::journal_bootstrap::SpaceCommitJournal;
+
+const MEMBER_CAPACITY_CONFLICT: &str = "space-write-member-capacity-full";
 
 pub struct SpaceWriteAuthority {
     journal: SpaceCommitJournal,
@@ -451,50 +455,54 @@ impl SpaceWriteAuthority {
         if commits.is_empty() {
             return Ok(());
         }
-        let materialized = if let Some(materializer) = self.materializer.as_ref() {
-            if let Err(error) = materializer.materialize_commits(commits.as_slice()) {
-                crate::space_materializer_metrics::record_postgres_materialization_failures(
-                    commits.len() as u64,
-                );
+
+        if self.materializer.is_some() {
+            let SpaceCommitJournal::Postgres(journal) = &self.journal else {
                 tracing::error!(
-                    error = %error,
                     commit_count = commits.len(),
-                    "space postgres materialization failed before journal append"
+                    "space postgres read model requires a postgres journal for atomic writes"
                 );
-                if error.contains("capacity full") {
-                    return Err(ApiProblem::bad_request("member limit reached"));
-                }
-                return Err(ApiProblem::internal_server_error(
-                    "space postgres materialization failed",
+                return Err(ApiProblem::dependency_unavailable(
+                    "atomic postgres space write authority is unavailable",
                 ));
+            };
+            let commit_count = commits.len();
+            let result = journal.append_batch_with_allocated_sequences_in_transaction(
+                commits,
+                |txn, sequenced_commits| {
+                    materialize_space_commits_on_transaction(txn, sequenced_commits).map_err(
+                        |error| match error {
+                            SpaceMaterializationError::CapacityFull => {
+                                ContractError::Conflict(MEMBER_CAPACITY_CONFLICT.into())
+                            }
+                            SpaceMaterializationError::Persistence(message) => {
+                                ContractError::Unavailable(format!(
+                                    "space postgres materialization failed: {message}"
+                                ))
+                            }
+                        },
+                    )
+                },
+            );
+            if let Err(error) = result {
+                if !is_member_capacity_conflict(&error) {
+                    crate::space_materializer_metrics::record_postgres_atomic_write_failures(
+                        commit_count as u64,
+                    );
+                }
+                return Err(coordinated_write_error(error));
             }
-            true
-        } else {
-            false
-        };
+            return Ok(());
+        }
 
         if commits.len() == 1 {
-            if let Err(error) = self.journal.append(commits[0].clone()) {
-                if materialized {
-                    crate::space_materializer_metrics::record_postgres_journal_append_failures_after_materialize(
-                        commits.len() as u64,
-                    );
-                    if let Some(materializer) = self.materializer.as_ref() {
-                        let _ = materializer.compensate_commits(commits.as_slice());
-                    }
-                }
-                return Err(journal_append_error(error));
-            }
-        } else if let Err(error) = self.journal.append_batch(commits.clone()) {
-            if materialized {
-                crate::space_materializer_metrics::record_postgres_journal_append_failures_after_materialize(
-                    commits.len() as u64,
-                );
-                if let Some(materializer) = self.materializer.as_ref() {
-                    let _ = materializer.compensate_commits(commits.as_slice());
-                }
-            }
-            return Err(journal_append_error(error));
+            self.journal
+                .append(commits[0].clone())
+                .map_err(journal_append_error)?;
+        } else {
+            self.journal
+                .append_batch(commits)
+                .map_err(journal_append_error)?;
         }
         Ok(())
     }
@@ -516,6 +524,22 @@ fn serialize_error(error: serde_json::Error) -> ApiProblem {
 fn journal_append_error(error: ContractError) -> ApiProblem {
     tracing::error!(?error, "space commit journal append failed");
     ApiProblem::dependency_unavailable("space commit journal append failed")
+}
+
+fn coordinated_write_error(error: ContractError) -> ApiProblem {
+    match error {
+        ContractError::Conflict(message) if message == MEMBER_CAPACITY_CONFLICT => {
+            ApiProblem::bad_request("member limit reached")
+        }
+        other => {
+            tracing::error!(?other, "atomic space postgres write failed");
+            ApiProblem::dependency_unavailable("atomic space postgres write failed")
+        }
+    }
+}
+
+fn is_member_capacity_conflict(error: &ContractError) -> bool {
+    matches!(error, ContractError::Conflict(message) if message == MEMBER_CAPACITY_CONFLICT)
 }
 
 pub fn persist_space_created(
@@ -806,4 +830,22 @@ pub fn persist_group_owner_transferred(
                 ApiProblem::internal_server_error("failed to transfer group owner")
             }
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_the_typed_capacity_marker_is_a_business_rejection() {
+        assert!(is_member_capacity_conflict(&ContractError::Conflict(
+            MEMBER_CAPACITY_CONFLICT.into()
+        )));
+        assert!(!is_member_capacity_conflict(&ContractError::Conflict(
+            "journal position conflict".into()
+        )));
+        assert!(!is_member_capacity_conflict(&ContractError::Unavailable(
+            MEMBER_CAPACITY_CONFLICT.into()
+        )));
+    }
 }

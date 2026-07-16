@@ -18,7 +18,7 @@
 ### Existing files to modify
 
 - `sdks/sdkwork-im-sdk/README.md`
-- `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
+- `sdks/sdkwork-im-sdk/sdk-manifest.json`
 - `sdks/sdkwork-im-sdk/bin/generate-sdk.ps1`
 - `sdks/sdkwork-im-sdk/bin/generate-sdk.sh`
 - `sdks/sdkwork-im-sdk/bin/verify-sdk.mjs`
@@ -271,7 +271,7 @@ git commit -m "feat(sdk): scaffold multilanguage workspace boundaries"
 ### Task 3: Extend assembly metadata and root README for the full SDK family
 
 **Files:**
-- Modify: `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
+- Modify: `sdks/sdkwork-im-sdk/sdk-manifest.json`
 - Modify: `sdks/sdkwork-im-sdk/README.md`
 - Create: `sdks/sdkwork-im-sdk/docs/multilanguage-capability-matrix.md`
 - Test: `sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs`
@@ -304,11 +304,11 @@ Run:
 node sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs
 ```
 
-Expected: FAIL because `.sdkwork-assembly.json` only contains `typescript` and `flutter`.
+Expected: FAIL because `sdk-manifest.json` only contains `typescript` and `flutter`.
 
 - [ ] **Step 3: Implement assembly and README expansion**
 
-Update `.sdkwork-assembly.json` so every official language has:
+Update `sdk-manifest.json` so every official language has:
 
 - workspace path
 - generated manifest path
@@ -338,7 +338,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-im-sdk/.sdkwork-assembly.json sdks/sdkwork-im-sdk/README.md sdks/sdkwork-im-sdk/docs/multilanguage-capability-matrix.md
+git add sdks/sdkwork-im-sdk/sdk-manifest.json sdks/sdkwork-im-sdk/README.md sdks/sdkwork-im-sdk/docs/multilanguage-capability-matrix.md
 git commit -m "docs(sdk): add multilanguage assembly metadata"
 ```
 
@@ -491,7 +491,7 @@ git commit -m "feat(sdk): extend multilanguage generation dispatch"
 
 **Files:**
 - Create: `sdks/sdkwork-im-sdk/docs/multilanguage-audit-report.md`
-- Modify: `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
+- Modify: `sdks/sdkwork-im-sdk/sdk-manifest.json`
 - Test: `sdks/sdkwork-im-sdk/bin/generate-sdk.ps1`
 - Test: `sdks/sdkwork-im-sdk/bin/verify-sdk.mjs`
 
@@ -533,7 +533,7 @@ Write `multilanguage-audit-report.md` with one section per language:
 
 - [ ] **Step 4: Refresh capability metadata**
 
-Update `.sdkwork-assembly.json` so the first full-language generation audit is reflected in:
+Update `sdk-manifest.json` so the first full-language generation audit is reflected in:
 
 - verification status
 - docs status
@@ -543,7 +543,7 @@ Update `.sdkwork-assembly.json` so the first full-language generation audit is r
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-im-sdk/docs/multilanguage-audit-report.md sdks/sdkwork-im-sdk/.sdkwork-assembly.json
+git add sdks/sdkwork-im-sdk/docs/multilanguage-audit-report.md sdks/sdkwork-im-sdk/sdk-manifest.json
 git commit -m "docs(sdk): capture multilanguage generation audit baseline"
 ```
 
@@ -684,7 +684,7 @@ git commit -m "docs(sdk): formalize multilanguage generator standard"
 
 **Files:**
 - Modify: `sdks/sdkwork-im-sdk/docs/multilanguage-audit-report.md`
-- Modify: `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
+- Modify: `sdks/sdkwork-im-sdk/sdk-manifest.json`
 
 - [ ] **Step 1: Run root generation from the live service**
 
@@ -735,7 +735,7 @@ plan.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-im-sdk/docs/multilanguage-audit-report.md sdks/sdkwork-im-sdk/.sdkwork-assembly.json
+git add sdks/sdkwork-im-sdk/docs/multilanguage-audit-report.md sdks/sdkwork-im-sdk/sdk-manifest.json
 git commit -m "test(sdk): record multilanguage workspace verification baseline"
 ```
 

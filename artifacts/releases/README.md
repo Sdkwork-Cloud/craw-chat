@@ -169,7 +169,7 @@ Every server bundle must freeze a single canonical payload layout for `sdkwork-i
 The SDK release catalog is a machine-readable release snapshot, not a hand-maintained spreadsheet.
 
 - authority source:
-  - the checked-in `.sdkwork-assembly.json` files under each SDK workspace
+  - the checked-in `sdk-manifest.json` files under each SDK family root
 - current workspaces:
   - `sdks/sdkwork-im-sdk`
   - `sdks/sdkwork-im-app-sdk`

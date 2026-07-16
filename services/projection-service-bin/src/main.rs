@@ -26,7 +26,7 @@ async fn run() -> Result<(), String> {
         .map_err(|error| format!("projection-service failed to bind local listener: {error}"))?;
 
     let runtime = Arc::new(projection_service::build_projection_runtime_from_env()?);
-    let _projection_journal_consumer =
+    let projection_journal_consumer =
         projection_service::spawn_projection_journal_consumer_from_env(runtime.clone());
     let app =
         sdkwork_routes_im_projection_open_api::build_public_app_with_runtime(runtime.clone()).await;
@@ -36,15 +36,12 @@ async fn run() -> Result<(), String> {
         listener.local_addr().map_err(|e| e.to_string())?
     );
 
-    let shutdown_runtime = runtime.clone();
     axum::serve(listener, app)
-        .with_graceful_shutdown(async move {
-            sdkwork_im_service_readiness::shutdown_signal().await;
-            if let Err(error) = shutdown_runtime.persist_durable_state() {
-                tracing::error!("projection-service durable persist on shutdown failed: {error}");
-            }
-        })
+        .with_graceful_shutdown(sdkwork_im_service_readiness::shutdown_signal())
         .await
         .map_err(|error| format!("projection-service server should run: {error}"))?;
+    if let Some(handle) = projection_journal_consumer {
+        handle.shutdown();
+    }
     Ok(())
 }

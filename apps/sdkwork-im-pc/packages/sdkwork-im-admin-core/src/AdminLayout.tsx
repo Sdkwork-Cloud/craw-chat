@@ -36,9 +36,7 @@ export const AdminLayoutInner: React.FC<AdminLayoutProps> = ({ onSwitchToClient,
     { id: 'users', icon: Users, label: t('admin.nav.users'), path: '/admin/users' },
     { id: 'infrastructure', icon: Server, label: t('admin.nav.infrastructure'), path: '/admin/infrastructure' },
     { id: 'billing', icon: CreditCard, label: t('admin.nav.billing'), path: '/admin/billing' },
-    { id: 'announcements', icon: Bell, label: t('admin.nav.announcements'), path: '/admin/announcements' },
     { id: 'compliance', icon: ShieldAlert, label: t('admin.nav.compliance'), path: '/admin/compliance' },
-    { id: 'settings', icon: Settings, label: t('admin.nav.settings'), path: '/admin/settings' },
   ] as const;
 
   const currentPath = location.pathname.replace(/\/$/, '');

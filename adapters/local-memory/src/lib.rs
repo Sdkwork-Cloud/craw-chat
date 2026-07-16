@@ -13,7 +13,7 @@ use im_platform_contracts::{
     RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowRecord, RealtimeEventWindowStore,
     RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
     StreamStateRecord, StreamStateStore, TimelineProjectionBatch, TimelineProjectionRecord,
-    TimelineProjectionStore, TimelineProjectionWindow,
+    TimelineProjectionScope, TimelineProjectionStore, TimelineProjectionWindow,
 };
 use im_storage_contracts::{StorageDomainSnapshot, StorageDomainSnapshotStore};
 use im_time::rfc3339_le;
@@ -1014,9 +1014,9 @@ pub struct MemoryTimelineProjectionStore {
 }
 
 impl MemoryTimelineProjectionStore {
-    pub fn entries(&self, tenant_id: &str, timeline_scope: &str) -> Vec<(u64, String)> {
+    pub fn entries(&self, scope: &TimelineProjectionScope) -> Vec<(u64, String)> {
         lock_memory_mutex(&self.entries, "timeline projection store")
-            .get(timeline_projection_scope_key(tenant_id, timeline_scope).as_str())
+            .get(timeline_projection_scope_key(scope).as_str())
             .map(|items| {
                 items
                     .iter()
@@ -1030,13 +1030,12 @@ impl MemoryTimelineProjectionStore {
 impl TimelineProjectionStore for MemoryTimelineProjectionStore {
     fn upsert_timeline_entry(
         &self,
-        tenant_id: &str,
-        timeline_scope: &str,
+        scope: &TimelineProjectionScope,
         message_seq: u64,
         payload: &str,
     ) -> Result<(), ContractError> {
         lock_memory_mutex(&self.entries, "timeline projection store")
-            .entry(timeline_projection_scope_key(tenant_id, timeline_scope))
+            .entry(timeline_projection_scope_key(scope))
             .or_default()
             .insert(message_seq, payload.to_string());
         Ok(())
@@ -1044,22 +1043,20 @@ impl TimelineProjectionStore for MemoryTimelineProjectionStore {
 
     fn load_timeline(
         &self,
-        tenant_id: &str,
-        timeline_scope: &str,
+        scope: &TimelineProjectionScope,
     ) -> Result<Vec<(u64, String)>, ContractError> {
-        Ok(self.entries(tenant_id, timeline_scope))
+        Ok(self.entries(scope))
     }
 
     fn load_timeline_window(
         &self,
-        tenant_id: &str,
-        timeline_scope: &str,
+        scope: &TimelineProjectionScope,
         after_seq: u64,
         limit: usize,
     ) -> Result<TimelineProjectionWindow, ContractError> {
         let entries = lock_memory_mutex(&self.entries, "timeline projection store");
         let mut items = entries
-            .get(timeline_projection_scope_key(tenant_id, timeline_scope).as_str())
+            .get(timeline_projection_scope_key(scope).as_str())
             .map(|scope_entries| {
                 scope_entries
                     .range((Excluded(after_seq), Unbounded))
@@ -1075,13 +1072,12 @@ impl TimelineProjectionStore for MemoryTimelineProjectionStore {
 
     fn upsert_timeline_entries(
         &self,
-        tenant_id: &str,
-        timeline_scope: &str,
+        scope: &TimelineProjectionScope,
         records: &[TimelineProjectionRecord],
     ) -> Result<(), ContractError> {
         let mut entries = lock_memory_mutex(&self.entries, "timeline projection store");
         let scope_entries = entries
-            .entry(timeline_projection_scope_key(tenant_id, timeline_scope))
+            .entry(timeline_projection_scope_key(scope))
             .or_default();
         for record in records {
             scope_entries.insert(record.message_seq, record.payload.clone());
@@ -1096,10 +1092,7 @@ impl TimelineProjectionStore for MemoryTimelineProjectionStore {
         let mut entries = lock_memory_mutex(&self.entries, "timeline projection store");
         for batch in batches {
             let scope_entries = entries
-                .entry(timeline_projection_scope_key(
-                    batch.tenant_id.as_str(),
-                    batch.timeline_scope.as_str(),
-                ))
+                .entry(timeline_projection_scope_key(&batch.scope))
                 .or_default();
             for record in &batch.records {
                 scope_entries.insert(record.message_seq, record.payload.clone());
@@ -1203,8 +1196,12 @@ fn notification_recipient_scope_key(
     scope_key_parts(&[tenant_id, recipient_kind, recipient_id])
 }
 
-fn timeline_projection_scope_key(tenant_id: &str, timeline_scope: &str) -> String {
-    scope_key_parts(&[tenant_id, timeline_scope])
+fn timeline_projection_scope_key(scope: &TimelineProjectionScope) -> String {
+    scope_key_parts(&[
+        scope.tenant_id(),
+        scope.organization_id(),
+        scope.timeline_scope(),
+    ])
 }
 
 fn record_notification_recipient_scope_key(record: &NotificationTaskRecord) -> String {

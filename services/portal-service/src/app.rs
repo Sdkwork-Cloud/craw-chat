@@ -16,7 +16,9 @@ use crate::handlers::{get_portal_access_snapshot, get_portal_snapshot, get_porta
 use crate::openapi::{docs, openapi_json};
 use crate::state::{AppState, PortalRuntime, PublicAppGuardrails};
 
-const PORTAL_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
+const PORTAL_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_PORTAL_MAX_IN_FLIGHT_REQUESTS";
+const PORTAL_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 64;
+const PORTAL_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 256;
 
 pub fn default_app_state() -> AppState {
     crate::bootstrap::default_app_state()
@@ -25,14 +27,20 @@ pub fn default_app_state() -> AppState {
 pub fn build_domain_api_router(state: AppState) -> Router {
     Router::new()
         .route("/app/v3/api/portal/access", get(get_portal_access_snapshot))
+        .route("/app/v3/api/portal/automation", get(get_portal_snapshot))
+        .route("/app/v3/api/portal/conversations", get(get_portal_snapshot))
+        .route("/app/v3/api/portal/dashboard", get(get_portal_snapshot))
+        .route("/app/v3/api/portal/governance", get(get_portal_snapshot))
+        .route("/app/v3/api/portal/home", get(get_portal_snapshot))
+        .route("/app/v3/api/portal/media", get(get_portal_snapshot))
+        .route("/app/v3/api/portal/realtime", get(get_portal_snapshot))
         .route("/app/v3/api/portal/workspace", get(get_portal_workspace))
-        .route("/app/v3/api/portal/{section}", get(get_portal_snapshot))
         .with_state(state)
 }
 
 pub fn apply_public_http_guardrails(router: Router) -> Router {
     let guardrails = PublicAppGuardrails {
-        request_gate: Arc::new(Semaphore::new(PORTAL_MAX_IN_FLIGHT_REQUESTS_DEFAULT)),
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
     };
     router
         .layer(DefaultBodyLimit::max(1024 * 1024))
@@ -40,6 +48,15 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
             guardrails,
             enforce_in_flight_gate,
         ))
+}
+
+fn resolve_max_in_flight_requests() -> usize {
+    std::env::var(PORTAL_MAX_IN_FLIGHT_REQUESTS_ENV)
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(PORTAL_MAX_IN_FLIGHT_REQUESTS_DEFAULT)
+        .min(PORTAL_MAX_IN_FLIGHT_REQUESTS_MAX)
 }
 
 pub fn build_public_app() -> Router {

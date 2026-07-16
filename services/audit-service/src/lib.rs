@@ -1,5 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
-use std::ops::Bound::{Excluded, Unbounded};
+mod chain_scan;
+mod export_stream;
+
+use std::ops::Bound::{Excluded, Included, Unbounded};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use axum::extract::{DefaultBodyLimit, Extension, Query, State};
@@ -23,8 +26,8 @@ use sdkwork_routes_web_framework_backend_api::response::{
     ApiProblem, ApiResult, created_json, finish_api_json, finish_api_response,
 };
 use sdkwork_utils_rust::{
-    MAX_LIST_PAGE_SIZE, PageInfo, PageMode, SdkWorkPageData, SdkWorkPageSizeQuery,
-    SdkWorkResourceData, sha256_hash,
+    DEFAULT_LIST_PAGE_SIZE, MAX_LIST_PAGE_SIZE, PageInfo, PageMode, SdkWorkPageData,
+    SdkWorkPageSizeQuery, SdkWorkResourceData, sha256_hash,
 };
 use sdkwork_web_core::{
     ProblemCorrelation, WebEnvironment, WebFrameworkError, WebFrameworkErrorKind,
@@ -34,17 +37,26 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 use tracing::{error, info};
 
+use chain_scan::{
+    AUDIT_CHAIN_SCAN_PAGE_SIZE, AuditChainAccumulator, AuditScanPage, AuditScanTarget,
+    verify_audit_records_chain,
+};
+use export_stream::streaming_export_response;
+
 const AUDIT_RECORD_ID_MAX_BYTES: usize = 256;
 const AUDIT_AGGREGATE_TYPE_MAX_BYTES: usize = 128;
 const AUDIT_AGGREGATE_ID_MAX_BYTES: usize = 256;
 const AUDIT_ACTION_MAX_BYTES: usize = 128;
 const AUDIT_PAYLOAD_MAX_BYTES: usize = 128 * 1024;
 const AUDIT_RECORD_LIST_MAX_LIMIT: usize = MAX_LIST_PAGE_SIZE as usize;
-const AUDIT_RECORD_LIST_DEFAULT_PAGE_SIZE: usize = 100;
+const AUDIT_RECORD_LIST_DEFAULT_PAGE_SIZE: usize = DEFAULT_LIST_PAGE_SIZE as usize;
 const AUDIT_RECORD_DELIVERY_PROOF_VERSION: &str = "audit.record.delivery-proof.v1";
 const AUDIT_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_AUDIT_MAX_IN_FLIGHT_REQUESTS";
 const AUDIT_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
 const AUDIT_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
+const AUDIT_MAX_CONCURRENT_SCANS_ENV: &str = "SDKWORK_IM_AUDIT_MAX_CONCURRENT_SCANS";
+const AUDIT_MAX_CONCURRENT_SCANS_DEFAULT: usize = 4;
+const AUDIT_MAX_CONCURRENT_SCANS_MAX: usize = 32;
 const AUDIT_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_AUDIT_MAX_REQUEST_BODY_BYTES";
 const AUDIT_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const AUDIT_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
@@ -57,6 +69,16 @@ const AUDIT_POSTGRES_POOL_MAX_SIZE: u32 = 16;
 #[derive(Clone)]
 pub struct AppState {
     runtime: Arc<AuditRuntime>,
+    audit_scan_gate: Arc<Semaphore>,
+}
+
+impl AppState {
+    fn new(runtime: Arc<AuditRuntime>) -> Self {
+        Self {
+            runtime,
+            audit_scan_gate: Arc::new(Semaphore::new(resolve_max_concurrent_scans())),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -80,6 +102,12 @@ pub struct AuditRecord {
     pub recorded_at: String,
     pub chain_prev_hash: Option<String>,
     pub chain_hash: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AuditRecordSample {
+    pub items: Vec<AuditRecord>,
+    pub has_more: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -162,7 +190,7 @@ impl AuditRecordMutationResponse {
 /// Audit runtime that dispatches each public method to a selected backend.
 ///
 /// The backend is chosen at construction time (see [`AuditRuntime::from_env`])
-/// and is transparent to handlers: the six public method signatures are stable
+/// and is transparent to handlers: public method behavior is backend-independent
 /// regardless of whether records live in process memory (dev/test) or in
 /// PostgreSQL (production). Production never silently degrades to the
 /// in-memory backend when a database URL is configured.
@@ -180,9 +208,24 @@ pub struct AuditRuntime {
 /// fall back to volatile storage).
 enum AuditBackend {
     InMemory {
-        records: RwLock<HashMap<String, TenantAuditRecords>>,
+        records: RwLock<HashMap<AuditScopeKey, TenantAuditRecords>>,
     },
     Postgres(PostgresAuditStore),
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+struct AuditScopeKey {
+    tenant_id: String,
+    organization_id: String,
+}
+
+impl AuditScopeKey {
+    fn from_auth(auth: &AppContext) -> Self {
+        Self {
+            tenant_id: auth.tenant_id.clone(),
+            organization_id: auth.organization_id.clone(),
+        }
+    }
 }
 
 impl Default for AuditBackend {
@@ -218,13 +261,6 @@ impl TenantAuditRecords {
         self.by_record_id.insert(record.record_id.clone(), record);
     }
 
-    fn ordered_items(&self) -> Vec<AuditRecord> {
-        self.record_order
-            .iter()
-            .filter_map(|record_id| self.by_record_id.get(record_id.as_str()).cloned())
-            .collect()
-    }
-
     fn next_audit_seq(&self) -> u64 {
         self.by_audit_seq
             .last_key_value()
@@ -247,6 +283,40 @@ impl TenantAuditRecords {
             }
         }
         audit_seq_cursor_page(items, limit, has_more)
+    }
+
+    fn window_through(
+        &self,
+        after_audit_seq: u64,
+        max_audit_seq: u64,
+        limit: usize,
+    ) -> AuditScanPage {
+        let mut items = Vec::with_capacity(limit.saturating_add(1));
+        for (_, record_id) in self
+            .by_audit_seq
+            .range((Excluded(after_audit_seq), Included(max_audit_seq)))
+            .take(limit.saturating_add(1))
+        {
+            if let Some(record) = self.by_record_id.get(record_id.as_str()).cloned() {
+                items.push(record);
+            }
+        }
+        let has_more = items.len() > limit;
+        items.truncate(limit);
+        AuditScanPage { items, has_more }
+    }
+
+    fn recent(&self, limit: usize) -> AuditRecordSample {
+        let mut items = self
+            .record_order
+            .iter()
+            .rev()
+            .take(limit.saturating_add(1))
+            .filter_map(|record_id| self.by_record_id.get(record_id.as_str()).cloned())
+            .collect::<Vec<_>>();
+        let has_more = items.len() > limit;
+        items.truncate(limit);
+        AuditRecordSample { items, has_more }
     }
 }
 
@@ -315,6 +385,16 @@ impl AuditError {
             ),
         }
     }
+
+    fn bounded_collection_required(resource: &'static str, max_items: usize) -> Self {
+        Self {
+            status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            code: "bounded_collection_required",
+            message: format!(
+                "{resource} exceeds the bounded compatibility limit of {max_items} items; use the paginated or streaming API"
+            ),
+        }
+    }
 }
 
 /// Map [`AuditError::status`] to the canonical [`WebFrameworkErrorKind`].
@@ -379,13 +459,22 @@ impl AuditRuntime {
     }
 
     pub fn list_records(&self, auth: &AppContext) -> Result<Vec<AuditRecord>, AuditError> {
-        match &self.backend {
-            AuditBackend::InMemory { records } => Ok(Self::read_records(records)
-                .get(auth.tenant_id.as_str())
-                .map(TenantAuditRecords::ordered_items)
-                .unwrap_or_default()),
-            AuditBackend::Postgres(store) => store.list_records(auth),
+        let page = self.list_records_window(
+            auth,
+            ListAuditRecordsQuery {
+                after_audit_seq: Some(0),
+                paging: SdkWorkPageSizeQuery {
+                    page_size: Some(MAX_LIST_PAGE_SIZE),
+                },
+            },
+        )?;
+        if page.page_info.has_more == Some(true) {
+            return Err(AuditError::bounded_collection_required(
+                "audit record list",
+                AUDIT_RECORD_LIST_MAX_LIMIT,
+            ));
         }
+        Ok(page.items)
     }
 
     pub fn list_records_window(
@@ -393,6 +482,7 @@ impl AuditRuntime {
         auth: &AppContext,
         query: ListAuditRecordsQuery,
     ) -> Result<AuditRecordListResponse, AuditError> {
+        ensure_audit_read_access(auth)?;
         let after_audit_seq = query.after_audit_seq.unwrap_or(0);
         let page_size = query
             .paging
@@ -404,7 +494,7 @@ impl AuditRuntime {
 
         match &self.backend {
             AuditBackend::InMemory { records } => Ok(Self::read_records(records)
-                .get(auth.tenant_id.as_str())
+                .get(&AuditScopeKey::from_auth(auth))
                 .map(|tenant_records: &TenantAuditRecords| {
                     tenant_records.window(after_audit_seq, limit)
                 })
@@ -412,6 +502,25 @@ impl AuditRuntime {
             AuditBackend::Postgres(store) => {
                 store.list_records_window(auth, after_audit_seq, limit)
             }
+        }
+    }
+
+    pub fn recent_records(
+        &self,
+        auth: &AppContext,
+        limit: usize,
+    ) -> Result<AuditRecordSample, AuditError> {
+        ensure_audit_read_access(auth)?;
+        let limit = limit.clamp(1, AUDIT_RECORD_LIST_MAX_LIMIT);
+        match &self.backend {
+            AuditBackend::InMemory { records } => Ok(Self::read_records(records)
+                .get(&AuditScopeKey::from_auth(auth))
+                .map(|tenant_records| tenant_records.recent(limit))
+                .unwrap_or(AuditRecordSample {
+                    items: Vec::new(),
+                    has_more: false,
+                })),
+            AuditBackend::Postgres(store) => store.recent_records(auth, limit),
         }
     }
 
@@ -430,16 +539,96 @@ impl AuditRuntime {
     }
 
     pub fn verify_chain(&self, auth: &AppContext) -> Result<AuditChainVerification, AuditError> {
-        let items = self.list_records(auth)?;
-        let chain_head_hash = items.last().map(|record| record.chain_hash.clone());
-        let chain_valid = verify_audit_records_chain(auth.tenant_id.as_str(), items.as_slice());
+        let target = self.prepare_scan(auth)?;
+        let mut accumulator = AuditChainAccumulator::new(auth.tenant_id.as_str());
+        let mut after_audit_seq = 0u64;
+        while after_audit_seq < target.max_audit_seq {
+            let page = self.scan_records_page(
+                auth,
+                after_audit_seq,
+                target.max_audit_seq,
+                AUDIT_CHAIN_SCAN_PAGE_SIZE,
+            )?;
+            if page.items.is_empty() {
+                if page.has_more {
+                    return Err(AuditError::internal(
+                        "audit_cursor_invalid",
+                        "audit verification returned an empty page with has_more=true",
+                    ));
+                }
+                break;
+            }
+            for record in &page.items {
+                accumulator.observe(record)?;
+            }
+            let next_audit_seq = page
+                .items
+                .last()
+                .map(|record| record.audit_seq)
+                .ok_or_else(|| {
+                    AuditError::internal(
+                        "audit_cursor_invalid",
+                        "audit verification page unexpectedly became empty",
+                    )
+                })?;
+            if next_audit_seq <= after_audit_seq {
+                return Err(AuditError::internal(
+                    "audit_cursor_invalid",
+                    "audit verification cursor failed to advance",
+                ));
+            }
+            after_audit_seq = next_audit_seq;
+            if !page.has_more {
+                break;
+            }
+        }
+        let result = accumulator.finish(&target);
         Ok(AuditChainVerification {
             tenant_id: auth.tenant_id.clone(),
             verified_at: utc_now_rfc3339_millis(),
-            total: items.len(),
-            chain_head_hash,
-            chain_valid,
+            total: result.total,
+            chain_head_hash: result.chain_head_hash,
+            chain_valid: result.chain_valid,
         })
+    }
+
+    fn prepare_scan(&self, auth: &AppContext) -> Result<AuditScanTarget, AuditError> {
+        ensure_audit_read_access(auth)?;
+        match &self.backend {
+            AuditBackend::InMemory { records } => Ok(Self::read_records(records)
+                .get(&AuditScopeKey::from_auth(auth))
+                .and_then(TenantAuditRecords::last)
+                .map_or_else(AuditScanTarget::default, |record| AuditScanTarget {
+                    max_audit_seq: record.audit_seq,
+                    chain_head_hash: Some(record.chain_hash.clone()),
+                })),
+            AuditBackend::Postgres(store) => store.scan_target(auth),
+        }
+    }
+
+    fn scan_records_page(
+        &self,
+        auth: &AppContext,
+        after_audit_seq: u64,
+        max_audit_seq: u64,
+        limit: usize,
+    ) -> Result<AuditScanPage, AuditError> {
+        ensure_audit_read_access(auth)?;
+        let limit = limit.clamp(1, AUDIT_RECORD_LIST_MAX_LIMIT);
+        match &self.backend {
+            AuditBackend::InMemory { records } => Ok(Self::read_records(records)
+                .get(&AuditScopeKey::from_auth(auth))
+                .map(|tenant_records| {
+                    tenant_records.window_through(after_audit_seq, max_audit_seq, limit)
+                })
+                .unwrap_or(AuditScanPage {
+                    items: Vec::new(),
+                    has_more: false,
+                })),
+            AuditBackend::Postgres(store) => {
+                store.scan_records_page(auth, after_audit_seq, max_audit_seq, limit)
+            }
+        }
     }
 
     /// Construct the runtime using process environment variables.
@@ -447,8 +636,7 @@ impl AuditRuntime {
     /// Selection rules (see `log_audit_persistence_warning`/ADR):
     /// - `SDKWORK_IM_ENVIRONMENT=dev|test` → in-memory backend.
     /// - `SDKWORK_IM_ENVIRONMENT=prod` (the default) without
-    ///   `SDKWORK_IM_DATABASE_URL` → in-memory backend with an `error!` log
-    ///   warning that audit records will not survive restart.
+    ///   `SDKWORK_IM_DATABASE_URL` → fail-closed startup panic.
     /// - `SDKWORK_IM_ENVIRONMENT=prod` with `SDKWORK_IM_DATABASE_URL` →
     ///   PostgreSQL backend. Initialization failure is fail-closed: the
     ///   process panics rather than silently degrading to in-memory storage.
@@ -459,8 +647,8 @@ impl AuditRuntime {
     }
 
     fn read_records(
-        records: &RwLock<HashMap<String, TenantAuditRecords>>,
-    ) -> RwLockReadGuard<'_, HashMap<String, TenantAuditRecords>> {
+        records: &RwLock<HashMap<AuditScopeKey, TenantAuditRecords>>,
+    ) -> RwLockReadGuard<'_, HashMap<AuditScopeKey, TenantAuditRecords>> {
         match records.read() {
             Ok(guard) => guard,
             Err(poisoned) => {
@@ -471,8 +659,8 @@ impl AuditRuntime {
     }
 
     fn write_records(
-        records: &RwLock<HashMap<String, TenantAuditRecords>>,
-    ) -> RwLockWriteGuard<'_, HashMap<String, TenantAuditRecords>> {
+        records: &RwLock<HashMap<AuditScopeKey, TenantAuditRecords>>,
+    ) -> RwLockWriteGuard<'_, HashMap<AuditScopeKey, TenantAuditRecords>> {
         match records.write() {
             Ok(guard) => guard,
             Err(poisoned) => {
@@ -484,14 +672,14 @@ impl AuditRuntime {
 }
 
 fn record_anchor_in_memory(
-    records: &RwLock<HashMap<String, TenantAuditRecords>>,
+    records: &RwLock<HashMap<AuditScopeKey, TenantAuditRecords>>,
     auth: &AppContext,
     request: RecordAuditAnchor,
 ) -> Result<AuditRecordMutationOutcome, AuditError> {
     validate_record_audit_anchor_request(&request)?;
     let recorded_at = utc_now_rfc3339_millis();
     let mut records = AuditRuntime::write_records(records);
-    let tenant_records = records.entry(auth.tenant_id.clone()).or_default();
+    let tenant_records = records.entry(AuditScopeKey::from_auth(auth)).or_default();
     if let Some(existing) = tenant_records.get(request.record_id.as_str()).cloned() {
         if audit_record_matches_request(&existing, auth, &request) {
             return Ok(AuditRecordMutationOutcome {
@@ -594,12 +782,6 @@ impl PostgresAuditStore {
         run_audit_postgres_io(move || insert_audit_record(&pool, &auth, request))
     }
 
-    fn list_records(&self, auth: &AppContext) -> Result<Vec<AuditRecord>, AuditError> {
-        let pool = self.pool.clone();
-        let auth = auth.clone();
-        run_audit_postgres_io(move || select_all_audit_records(&pool, &auth))
-    }
-
     fn list_records_window(
         &self,
         auth: &AppContext,
@@ -610,6 +792,36 @@ impl PostgresAuditStore {
         let auth = auth.clone();
         run_audit_postgres_io(move || {
             select_audit_records_window(&pool, &auth, after_audit_seq, limit)
+        })
+    }
+
+    fn recent_records(
+        &self,
+        auth: &AppContext,
+        limit: usize,
+    ) -> Result<AuditRecordSample, AuditError> {
+        let pool = self.pool.clone();
+        let auth = auth.clone();
+        run_audit_postgres_io(move || select_recent_audit_records(&pool, &auth, limit))
+    }
+
+    fn scan_target(&self, auth: &AppContext) -> Result<AuditScanTarget, AuditError> {
+        let pool = self.pool.clone();
+        let auth = auth.clone();
+        run_audit_postgres_io(move || select_audit_scan_target(&pool, &auth))
+    }
+
+    fn scan_records_page(
+        &self,
+        auth: &AppContext,
+        after_audit_seq: u64,
+        max_audit_seq: u64,
+        limit: usize,
+    ) -> Result<AuditScanPage, AuditError> {
+        let pool = self.pool.clone();
+        let auth = auth.clone();
+        run_audit_postgres_io(move || {
+            select_audit_scan_page(&pool, &auth, after_audit_seq, max_audit_seq, limit)
         })
     }
 }
@@ -661,26 +873,6 @@ limit 1
 for update
 "#;
 
-const SELECT_ALL_AUDIT_RECORDS_SQL: &str = r#"
-select
-    tenant_id,
-    record_id,
-    audit_seq,
-    aggregate_type,
-    aggregate_id,
-    action,
-    actor_id,
-    actor_kind,
-    actor_session_id,
-    payload,
-    recorded_at,
-    chain_prev_hash,
-    chain_hash
-from im_audit_records
-where tenant_id = $1 and organization_id = $2
-order by audit_seq asc
-"#;
-
 const SELECT_AUDIT_RECORDS_WINDOW_SQL: &str = r#"
 select
     tenant_id,
@@ -700,6 +892,59 @@ from im_audit_records
 where tenant_id = $1 and organization_id = $2 and audit_seq > $3
 order by audit_seq asc
 limit $4
+"#;
+
+const SELECT_AUDIT_SCAN_TARGET_SQL: &str = r#"
+select audit_seq, chain_hash
+from im_audit_records
+where tenant_id = $1 and organization_id = $2
+order by audit_seq desc
+limit 1
+"#;
+
+const SELECT_AUDIT_SCAN_PAGE_SQL: &str = r#"
+select
+    tenant_id,
+    record_id,
+    audit_seq,
+    aggregate_type,
+    aggregate_id,
+    action,
+    actor_id,
+    actor_kind,
+    actor_session_id,
+    payload,
+    recorded_at,
+    chain_prev_hash,
+    chain_hash
+from im_audit_records
+where tenant_id = $1
+  and organization_id = $2
+  and audit_seq > $3
+  and audit_seq <= $4
+order by audit_seq asc
+limit $5
+"#;
+
+const SELECT_RECENT_AUDIT_RECORDS_SQL: &str = r#"
+select
+    tenant_id,
+    record_id,
+    audit_seq,
+    aggregate_type,
+    aggregate_id,
+    action,
+    actor_id,
+    actor_kind,
+    actor_session_id,
+    payload,
+    recorded_at,
+    chain_prev_hash,
+    chain_hash
+from im_audit_records
+where tenant_id = $1 and organization_id = $2
+order by audit_seq desc
+limit $3
 "#;
 
 const AUDIT_ADVISORY_LOCK_SQL: &str = "select pg_advisory_xact_lock(hashtext($1))";
@@ -831,20 +1076,6 @@ fn insert_audit_record(
     })
 }
 
-fn select_all_audit_records(
-    pool: &AuditPostgresPool,
-    auth: &AppContext,
-) -> Result<Vec<AuditRecord>, AuditError> {
-    let mut client = audit_pool_client(pool, "audit select all")?;
-    let rows = client
-        .query(
-            SELECT_ALL_AUDIT_RECORDS_SQL,
-            &[&auth.tenant_id, &auth.organization_id],
-        )
-        .map_err(|error| audit_db_error("audit select all", error))?;
-    rows.iter().map(row_to_audit_record).collect()
-}
-
 fn select_audit_records_window(
     pool: &AuditPostgresPool,
     auth: &AppContext,
@@ -883,6 +1114,98 @@ fn select_audit_records_window(
         items.truncate(limit);
     }
     Ok(audit_seq_cursor_page(items, limit, has_more))
+}
+
+fn select_recent_audit_records(
+    pool: &AuditPostgresPool,
+    auth: &AppContext,
+    limit: usize,
+) -> Result<AuditRecordSample, AuditError> {
+    let mut client = audit_pool_client(pool, "audit select recent")?;
+    let fetch_count = i64::try_from(limit)
+        .ok()
+        .and_then(|value| value.checked_add(1))
+        .ok_or_else(|| AuditError::internal("limit_overflow", "limit overflowed i64"))?;
+    let rows = client
+        .query(
+            SELECT_RECENT_AUDIT_RECORDS_SQL,
+            &[&auth.tenant_id, &auth.organization_id, &fetch_count],
+        )
+        .map_err(|error| audit_db_error("audit select recent", error))?;
+    let mut items = rows
+        .iter()
+        .map(row_to_audit_record)
+        .collect::<Result<Vec<_>, _>>()?;
+    let has_more = items.len() > limit;
+    items.truncate(limit);
+    Ok(AuditRecordSample { items, has_more })
+}
+
+fn select_audit_scan_target(
+    pool: &AuditPostgresPool,
+    auth: &AppContext,
+) -> Result<AuditScanTarget, AuditError> {
+    let mut client = audit_pool_client(pool, "audit select scan target")?;
+    let row = client
+        .query_opt(
+            SELECT_AUDIT_SCAN_TARGET_SQL,
+            &[&auth.tenant_id, &auth.organization_id],
+        )
+        .map_err(|error| audit_db_error("audit select scan target", error))?;
+    row.map_or_else(
+        || Ok(AuditScanTarget::default()),
+        |row| {
+            let audit_seq_i64: i64 = row.get(0);
+            let max_audit_seq = u64::try_from(audit_seq_i64).map_err(|_| {
+                AuditError::internal(
+                    "audit_seq_overflow",
+                    format!("audit_seq {audit_seq_i64} from database is negative"),
+                )
+            })?;
+            Ok(AuditScanTarget {
+                max_audit_seq,
+                chain_head_hash: Some(row.get(1)),
+            })
+        },
+    )
+}
+
+fn select_audit_scan_page(
+    pool: &AuditPostgresPool,
+    auth: &AppContext,
+    after_audit_seq: u64,
+    max_audit_seq: u64,
+    limit: usize,
+) -> Result<AuditScanPage, AuditError> {
+    let mut client = audit_pool_client(pool, "audit select scan page")?;
+    let after_seq_i64 = i64::try_from(after_audit_seq).map_err(|_| {
+        AuditError::internal("audit_seq_overflow", "after_audit_seq overflowed i64")
+    })?;
+    let max_seq_i64 = i64::try_from(max_audit_seq)
+        .map_err(|_| AuditError::internal("audit_seq_overflow", "max_audit_seq overflowed i64"))?;
+    let fetch_count = i64::try_from(limit)
+        .ok()
+        .and_then(|value| value.checked_add(1))
+        .ok_or_else(|| AuditError::internal("limit_overflow", "limit overflowed i64"))?;
+    let rows = client
+        .query(
+            SELECT_AUDIT_SCAN_PAGE_SQL,
+            &[
+                &auth.tenant_id,
+                &auth.organization_id,
+                &after_seq_i64,
+                &max_seq_i64,
+                &fetch_count,
+            ],
+        )
+        .map_err(|error| audit_db_error("audit select scan page", error))?;
+    let mut items = rows
+        .iter()
+        .map(row_to_audit_record)
+        .collect::<Result<Vec<_>, _>>()?;
+    let has_more = items.len() > limit;
+    items.truncate(limit);
+    Ok(AuditScanPage { items, has_more })
 }
 
 fn row_to_audit_record(row: &r2d2_postgres::postgres::Row) -> Result<AuditRecord, AuditError> {
@@ -1132,41 +1455,6 @@ pub fn verify_audit_export_bundle_integrity(bundle: &AuditExportBundle) -> bool 
     actual_chain_valid
 }
 
-fn verify_audit_records_chain(tenant_id: &str, items: &[AuditRecord]) -> bool {
-    let mut previous_hash: Option<&str> = None;
-
-    for item in items {
-        if item.tenant_id != tenant_id {
-            return false;
-        }
-        if item.chain_prev_hash.as_deref() != previous_hash {
-            return false;
-        }
-
-        let expected_hash = compute_audit_record_chain_hash(AuditRecordHashInput {
-            tenant_id: item.tenant_id.as_str(),
-            record_id: item.record_id.as_str(),
-            audit_seq: item.audit_seq,
-            aggregate_type: item.aggregate_type.as_str(),
-            aggregate_id: item.aggregate_id.as_str(),
-            action: item.action.as_str(),
-            actor_id: item.actor_id.as_str(),
-            actor_kind: item.actor_kind.as_str(),
-            actor_session_id: item.actor_session_id.as_deref(),
-            payload: item.payload.as_deref(),
-            recorded_at: item.recorded_at.as_str(),
-            chain_prev_hash: previous_hash,
-        });
-        if item.chain_hash != expected_hash {
-            return false;
-        }
-
-        previous_hash = Some(item.chain_hash.as_str());
-    }
-
-    true
-}
-
 struct AuditRecordHashInput<'a> {
     tenant_id: &'a str,
     record_id: &'a str,
@@ -1263,9 +1551,7 @@ fn resolve_audit_backend_from_env() -> AuditBackend {
 }
 
 pub fn default_app_state() -> AppState {
-    AppState {
-        runtime: Arc::new(AuditRuntime::from_env()),
-    }
+    AppState::new(Arc::new(AuditRuntime::from_env()))
 }
 
 pub fn build_default_app() -> Router {
@@ -1307,7 +1593,7 @@ pub fn build_app(runtime: Arc<AuditRuntime>) -> Router {
 }
 
 pub fn build_business_router(runtime: Arc<AuditRuntime>) -> Router {
-    let state = AppState { runtime };
+    let state = AppState::new(runtime);
     Router::new()
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
@@ -1462,11 +1748,27 @@ async fn export_bundle(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result: ApiResult<AuditExportBundle> = (|| {
+    let result: Result<Response, ApiProblem> = (|| {
         ensure_audit_read_access(&auth)?;
-        Ok(state.runtime.export_bundle(&auth)?)
+        let permit = state
+            .audit_scan_gate
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| {
+                ApiProblem::dependency_unavailable(
+                    "server is at maximum concurrent audit export capacity, please retry later",
+                )
+            })?;
+        let target = state.runtime.prepare_scan(&auth)?;
+        Ok(streaming_export_response(
+            &ctx,
+            state.runtime.clone(),
+            auth,
+            target,
+            permit,
+        ))
     })();
-    finish_api_json(&ctx, result)
+    finish_api_response(&ctx, result)
 }
 
 async fn verify_chain(
@@ -1476,6 +1778,15 @@ async fn verify_chain(
 ) -> Response {
     let result: ApiResult<AuditChainVerification> = (|| {
         ensure_audit_read_access(&auth)?;
+        let _permit = state
+            .audit_scan_gate
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| {
+                ApiProblem::dependency_unavailable(
+                    "server is at maximum concurrent audit verification capacity, please retry later",
+                )
+            })?;
         Ok(state.runtime.verify_chain(&auth)?)
     })();
     finish_api_json(&ctx, result)
@@ -1504,6 +1815,15 @@ fn resolve_max_in_flight_requests() -> usize {
         .filter(|&parsed| parsed > 0)
         .unwrap_or(AUDIT_MAX_IN_FLIGHT_REQUESTS_DEFAULT)
         .min(AUDIT_MAX_IN_FLIGHT_REQUESTS_MAX)
+}
+
+fn resolve_max_concurrent_scans() -> usize {
+    std::env::var(AUDIT_MAX_CONCURRENT_SCANS_ENV)
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(AUDIT_MAX_CONCURRENT_SCANS_DEFAULT)
+        .min(AUDIT_MAX_CONCURRENT_SCANS_MAX)
 }
 
 fn resolve_max_http_request_body_bytes() -> usize {

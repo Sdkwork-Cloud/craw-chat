@@ -37,9 +37,7 @@ pub use http::{
     AppState, build_app, build_domain_api_router, build_embedded_app, build_public_app,
 };
 pub use space_materializer_metrics::{
-    postgres_journal_append_failure_after_materialize_count,
-    postgres_materialization_failure_count,
-    record_postgres_journal_append_failures_after_materialize,
-    record_postgres_materialization_failures,
+    postgres_atomic_write_failure_count, postgres_materialization_failure_count,
+    record_postgres_atomic_write_failures, record_postgres_materialization_failures,
     render_prometheus as render_space_materializer_prometheus,
 };

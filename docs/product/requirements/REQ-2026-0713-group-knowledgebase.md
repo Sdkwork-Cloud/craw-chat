@@ -16,7 +16,9 @@ independently running Tauri application.
 
 ## Scope
 
-- The group identity is the IM Conversation `conversationId`, scoped by tenant and organization.
+- The group identity is the IM Conversation `conversationId`, scoped by the Auth Token-derived
+  tenant and organization dimension. Tenant sessions use `organizationId=0`; organization login is
+  not required to create, initialize, or open a group Knowledgebase.
 - IM owns group existence, member state, group roles, owner transfer, and user-facing commands.
 - Knowledgebase owns the group-space binding, space/document lifecycle, and final content access
   enforcement.
@@ -24,7 +26,7 @@ independently running Tauri application.
   generated SDK. The current `Owner` role is authoritative for initialization; an ownership
   transfer changes which actor may perform a later initialization or retry.
 - `initializeKnowledgebase` defaults to `false` on group creation. An omitted or `false` value
-  must not validate Knowledgebase organization scope, reserve a binding, call Knowledgebase, or
+  must not reserve a binding, call Knowledgebase, or
   create a Knowledgebase record. The initial Owner may explicitly set it to `true`; the server
   durably creates the group before one Owner-authorized provisioning attempt and returns its
   lifecycle state without rolling back an otherwise created group when that remote attempt fails.
@@ -59,7 +61,7 @@ independently running Tauri application.
    call Knowledgebase. An initial Owner can explicitly send `true` for a valid group scope; the
    group is durable before its one provisioning attempt, and the response reports `active`,
    `provisioning`, or `failed` without rolling back a successfully created group. Only the current
-   Owner can retry a failed initialization; Admin and Member requests in `absent` or `failed`
+   Owner can retry a failed initialization from any authenticated group scope; Admin and Member requests in `absent` or `failed`
    state are denied without reserving a link or calling Knowledgebase.
 2. Concurrent ensure requests for the same `(tenant, organization, conversation)` produce one
    active Knowledgebase space and one authoritative binding; all Owner retries are idempotent.
@@ -103,7 +105,7 @@ independently running Tauri application.
 
 | Area | Requirement |
 | --- | --- |
-| Security | Tenant/org isolation, least privilege, Owner-only initialization, opaque one-time tickets, mTLS + signed caller context, fail-closed authorization, redacted logs, no credential-bearing URL or persistent client storage. |
+| Security | Auth Token-derived scope isolation, Conversation membership authorization, least privilege, Owner-only initialization, opaque one-time tickets, mTLS + signed caller context, fail-closed authorization, redacted logs, no credential-bearing URL or persistent client storage. |
 | Privacy | Only opaque ticket hashes and minimum audit metadata are persisted; no document content or session secrets enter IM records. |
 | Reliability | Database uniqueness, idempotency keys, outbox/inbox replay, retryable provisioning, lifecycle reconciliation, and archive rather than destructive defaults. |
 | Performance | Header action is non-blocking, provisioning is asynchronous, no list-all client reads, and membership authorization is version-aware with invalidation on events. |

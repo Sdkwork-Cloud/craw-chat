@@ -94,18 +94,7 @@
     "sdkClients": [],
     "events": [],
     "configKeys": [],
-    "sdkDependencies": [
-      {
-        "workspace": "sdkwork-im-backend-sdk",
-        "surface": "backend-api",
-        "credentialMode": "authenticated-backend-admin"
-      },
-      {
-        "workspace": "sdkwork-iam-backend-sdk",
-        "surface": "backend-api",
-        "credentialMode": "authenticated-backend-admin"
-      }
-    ],
+    "sdkDependencies": [],
     "permissionComposition": {
       "inheritanceMode": "module-catalog-with-overrides",
       "moduleCatalogRefs": [

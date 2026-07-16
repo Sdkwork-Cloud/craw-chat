@@ -7,8 +7,12 @@ fn test_audit_runtime_uses_record_id_index_and_read_write_guards() {
         "audit runtime must not keep tenant records as Vec<AuditRecord>; idempotency checks need record_id lookup"
     );
     assert!(
-        source.contains("records: RwLock<HashMap<String, TenantAuditRecords>>"),
-        "audit runtime should keep tenant records behind an RwLock-owned indexed store"
+        source.contains("records: RwLock<HashMap<AuditScopeKey, TenantAuditRecords>>"),
+        "audit runtime should keep organization-scoped records behind an RwLock-owned indexed store"
+    );
+    assert!(
+        source.contains("struct AuditScopeKey") && source.contains("organization_id: String"),
+        "audit runtime should isolate records by tenant and organization"
     );
     assert!(
         source.contains("struct TenantAuditRecords"),
@@ -41,5 +45,16 @@ fn test_audit_runtime_uses_record_id_index_and_read_write_guards() {
     assert!(
         source.contains("fn read_records(") && source.contains("fn write_records("),
         "audit runtime should expose explicit read/write guard helpers"
+    );
+    assert!(
+        !source.contains("SELECT_ALL_AUDIT_RECORDS_SQL")
+            && !source.contains("select_all_audit_records"),
+        "audit verification and export must not retain an unbounded PostgreSQL read helper"
+    );
+    assert!(
+        source.contains("SELECT_AUDIT_SCAN_PAGE_SQL")
+            && source.contains("and audit_seq <= $4")
+            && source.contains("limit $5"),
+        "audit scans should use a fixed high watermark and SQL keyset limit"
     );
 }

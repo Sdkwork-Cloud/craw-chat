@@ -1,4 +1,4 @@
-import type { PortalSnapshot } from './portal-snapshot';
+import type { PortalConversationSnapshot } from './portal-conversation-snapshot';
 
 export interface ConversationSnapshotRetrieveResponse {
   code: 0;

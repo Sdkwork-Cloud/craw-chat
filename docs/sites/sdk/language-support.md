@@ -66,7 +66,7 @@ and `/backend/v3/api/admin/*` are backend SDK modules.
 
 Use family-root `sdk-manifest.json` in each workspace for package-layer ownership, `manifestPath`,
 generated output path, dependency, transport naming, and release-state facts. Per-family
-`.sdkwork-assembly.json` is retired and must not be restored.
+`sdk-manifest.json` is retired and must not be restored.
 
 ## What To Read Next
 

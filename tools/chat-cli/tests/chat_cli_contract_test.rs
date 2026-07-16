@@ -1239,7 +1239,7 @@ fn test_rtc_sdk_family_lives_in_sibling_repo_not_local_sdks() {
             rtc_readme.display()
         )
     });
-    let rtc_assembly = rtc_sdk_family_root().join(".sdkwork-assembly.json");
+    let rtc_assembly = rtc_sdk_family_root().join("sdk-manifest.json");
     assert!(
         rtc_assembly.is_file(),
         "sibling RTC SDK family must expose assembly metadata: {}",
@@ -1250,7 +1250,7 @@ fn test_rtc_sdk_family_lives_in_sibling_repo_not_local_sdks() {
         "sdkwork-rtc-sdk",
         "RtcProviderDriver",
         "verify-sdk.mjs",
-        ".sdkwork-assembly.json",
+        "sdk-manifest.json",
     ] {
         assert!(
             rtc_readme_text.contains(required_text),

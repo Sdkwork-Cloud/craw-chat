@@ -97,20 +97,17 @@
   "embeddedRuntimeDefaults": {
     "knowledgebaseTenantId": "100001",
     "knowledgebaseOrganizationId": "0",
-    "notes": "The root IAM bootstrap session is tenant-scoped (organizationId 0). Organization-bound capabilities must negotiate an ORGANIZATION session before calling their API."
+    "notes": "The root IAM bootstrap session is tenant-scoped (organizationId 0). Group knowledgebase uses this token-derived scope directly and does not require organization login."
   },
-  "capabilityScopeRequirements": [
+  "capabilityScopeRequirements": [],
+  "capabilityAccessRequirements": [
     {
       "capability": "group-knowledgebase",
-      "requiredLoginScope": "ORGANIZATION",
-      "organizationId": {
-        "format": "canonical-positive-signed-64-bit-decimal",
-        "minimum": "1",
-        "maximum": "9223372036854775807"
-      },
-      "clientPreflight": "server-derived-capability-status",
-      "serverEnforcement": "required",
-      "scopeMismatchBehavior": "capability-unavailable-and-select-organization"
+      "requiredAuthentication": "framework-verified-dual-token-session",
+      "authorizationAuthority": "conversation-membership",
+      "organizationLoginRequired": false,
+      "initializerRole": "owner",
+      "activeAccessRoles": ["owner", "admin", "member"]
     }
   ],
   "gatewayAssembly": {

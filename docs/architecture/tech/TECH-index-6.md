@@ -56,7 +56,7 @@ for repo-local generation state:
 | `sdks/sdkwork-im-backend-sdk` | `sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml` | `node ./sdks/sdkwork-im-backend-sdk/bin/verify-sdk.mjs` |
 | `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk` | `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdk-manifest.json` | `node ../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs` |
 
-Per-family `.sdkwork-assembly.json` is retired. Do not restore it under IM or RTC SDK family roots.
+Per-family `sdk-manifest.json` is retired. Do not restore it under IM or RTC SDK family roots.
 
 The OpenAPI-generated families share the SDKWork dual-token standard and generate from OpenAPI 3.x.
 The RTC SDK is intentionally separate: it owns provider catalogs, provider package boundaries,

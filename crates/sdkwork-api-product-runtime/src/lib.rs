@@ -20,10 +20,12 @@ use tokio::{fs, net::TcpListener, sync::oneshot};
 use url::{Host, Url};
 
 mod admin_sandbox;
+mod sandbox_policy;
 
 use admin_sandbox::{handle_admin_sandbox_request, SharedAdminSandboxState};
 use im_portal_snapshots::{build_portal_snapshot_for_section, build_portal_workspace_view};
 use ops_service::OpsRuntime;
+use sandbox_policy::ensure_admin_sandbox_allowed;
 
 const JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 const BACKEND_ADMIN_API_PREFIX: &str = "/backend/v3/api/admin";
@@ -229,6 +231,10 @@ pub async fn build_product_runtime_router(
     config: StandaloneConfig,
     options: RouterProductRuntimeOptions,
 ) -> Result<Router> {
+    ensure_admin_sandbox_allowed(
+        config.admin_sandbox_enabled,
+        im_app_context::is_production_like_im_environment(),
+    )?;
     validate_product_site_dirs(options.site_dirs.clone()).await?;
     let site_dirs = options.site_dirs;
     let state = build_runtime_proxy_state(config, site_dirs.clone());
@@ -377,7 +383,21 @@ async fn get_portal_snapshot(Path(section): Path<String>) -> Response {
 
     let ops = portal_ops_runtime();
     let snapshot = build_portal_snapshot_for_section(section, ops, None, None)
-        .unwrap_or_else(|| serde_json::json!({ "section": section, "dataAvailability": false }));
+        .and_then(|value| serde_json::to_value(value).ok())
+        .unwrap_or_else(|| {
+            serde_json::json!({
+                "meta": {
+                    "section": section,
+                    "opsStatus": "unknown",
+                },
+                "availability": {
+                    "state": "unavailable",
+                    "source": "local-product-runtime",
+                    "complete": false,
+                    "reason": "portal snapshot is unavailable",
+                },
+            })
+        });
     json_response(StatusCode::OK, portal_envelope_json(snapshot))
 }
 
@@ -1411,12 +1431,24 @@ mod tests {
             .get("data")
             .and_then(|data| data.get("item"))
             .expect("portal home snapshot should use SdkWorkApiResponse data.item");
+        assert_eq!(
+            item.pointer("/meta/section")
+                .and_then(|value| value.as_str()),
+            Some("home"),
+        );
+        assert_eq!(
+            item.pointer("/availability/state")
+                .and_then(|value| value.as_str()),
+            Some("unavailable"),
+        );
+        assert_eq!(
+            item.pointer("/availability/complete")
+                .and_then(|value| value.as_bool()),
+            Some(false),
+        );
         assert!(
-            item["enabledModules"]
-                .as_array()
-                .expect("portal home should include enabledModules")
-                .contains(&serde_json::json!("chat")),
-            "portal home snapshot must expose modules consumable by SettingsService"
+            item.get("enabledModules").is_none(),
+            "portal home must not fabricate a local module catalogue when no authority is wired"
         );
         assert!(
             item.get("organizationDirectory")

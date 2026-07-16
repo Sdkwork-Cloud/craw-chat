@@ -19,7 +19,7 @@ fn test_record_anchor_and_export_bundle() {
         deployment_mode: None,
         auth_level: None,
         data_scope: Default::default(),
-        permission_scope: BTreeSet::new(),
+        permission_scope: BTreeSet::from(["audit.read".to_owned()]),
         device_id: None,
     };
 
@@ -63,7 +63,7 @@ fn test_recorded_at_advances_between_distinct_records() {
         deployment_mode: None,
         auth_level: None,
         data_scope: Default::default(),
-        permission_scope: BTreeSet::new(),
+        permission_scope: BTreeSet::from(["audit.read".to_owned()]),
         device_id: None,
     };
 
@@ -116,7 +116,7 @@ fn test_export_bundle_includes_verifiable_chain_and_detects_tampering() {
         deployment_mode: None,
         auth_level: None,
         data_scope: Default::default(),
-        permission_scope: BTreeSet::new(),
+        permission_scope: BTreeSet::from(["audit.read".to_owned()]),
         device_id: None,
     };
 
@@ -186,7 +186,7 @@ fn test_runtime_record_anchor_rejects_oversized_payload_consistently_with_http_c
         deployment_mode: None,
         auth_level: None,
         data_scope: Default::default(),
-        permission_scope: BTreeSet::new(),
+        permission_scope: BTreeSet::from(["audit.read".to_owned()]),
         device_id: None,
     };
 
@@ -215,5 +215,74 @@ fn test_runtime_record_anchor_rejects_oversized_payload_consistently_with_http_c
             .total,
         0,
         "rejected oversized payload must not append a partial audit record"
+    );
+}
+
+#[test]
+fn test_runtime_reads_require_permission_and_isolate_organizations() {
+    let runtime = audit_service::AuditRuntime::default();
+    let auth = AppContext {
+        tenant_id: "100001".into(),
+        organization_id: "organization-a".to_owned(),
+        user_id: "1".into(),
+        actor_id: "1".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s_demo".into()),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
+        permission_scope: BTreeSet::from(["audit.read".to_owned()]),
+        device_id: None,
+    };
+
+    runtime
+        .record_anchor(
+            &auth,
+            audit_service::RecordAuditAnchor {
+                record_id: "audit_organization_a".into(),
+                aggregate_type: "security_event".into(),
+                aggregate_id: "event_1".into(),
+                action: "security.permission_denied".into(),
+                payload: None,
+            },
+        )
+        .expect("audit record should be stored in organization-a");
+    runtime
+        .record_anchor(
+            &auth,
+            audit_service::RecordAuditAnchor {
+                record_id: "audit_organization_a_second".into(),
+                aggregate_type: "security_event".into(),
+                aggregate_id: "event_2".into(),
+                action: "security.warning".into(),
+                payload: None,
+            },
+        )
+        .expect("second audit record should be stored in organization-a");
+
+    let recent = runtime
+        .recent_records(&auth, 1)
+        .expect("recent audit sample should succeed");
+    assert_eq!(recent.items.len(), 1);
+    assert_eq!(recent.items[0].record_id, "audit_organization_a_second");
+    assert!(recent.has_more);
+
+    let mut no_permission = auth.clone();
+    no_permission.permission_scope.clear();
+    let error = runtime
+        .export_bundle(&no_permission)
+        .expect_err("runtime reads must enforce audit.read");
+    assert!(format!("{error:?}").contains("permission_denied"));
+
+    let mut other_organization = auth;
+    other_organization.organization_id = "organization-b".to_owned();
+    let export = runtime
+        .export_bundle(&other_organization)
+        .expect("authorized organization-b read should succeed");
+    assert_eq!(
+        export.total, 0,
+        "organizations must not share audit records"
     );
 }

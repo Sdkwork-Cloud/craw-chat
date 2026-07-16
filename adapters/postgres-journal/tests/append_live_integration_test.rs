@@ -189,6 +189,105 @@ async fn append_and_batch_replays_validate_the_immutable_event_fingerprint() {
     );
 }
 
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+async fn coordinated_append_allocates_sequences_and_rolls_back_callback_failures() {
+    let _test_guard = LIVE_POSTGRES_TEST_LOCK.lock().await;
+    let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
+        .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
+    sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
+        .await
+        .expect("shared IM database pools should bootstrap");
+    let journal = PostgresJournalConfig::new(database_url)
+        .connect()
+        .expect("postgres journal should connect");
+    let suffix = uuid_like_suffix();
+    let aggregate_id = format!("space_atomic_{suffix}");
+    let first_event_id = format!("evt_space_atomic_first_{suffix}");
+    let second_event_id = format!("evt_space_atomic_second_{suffix}");
+    let mut first = sample_envelope(first_event_id.as_str(), aggregate_id.as_str());
+    first.event_type = "space.created".into();
+    first.ordering_seq = 1;
+    let mut second = sample_envelope(second_event_id.as_str(), aggregate_id.as_str());
+    second.event_type = "space.member_joined".into();
+    second.ordering_seq = 1;
+
+    let rollback_result = journal.append_batch_with_allocated_sequences_in_transaction(
+        vec![first.clone(), second.clone()],
+        |txn, sequenced| {
+            assert_eq!(sequenced[0].ordering_seq, 0);
+            assert_eq!(sequenced[1].ordering_seq, 1);
+            let inserted: i64 = txn
+                .query_one(
+                    "select count(*) from im_commit_journal where event_id in ($1, $2)",
+                    &[&sequenced[0].event_id, &sequenced[1].event_id],
+                )
+                .expect("journal rows should be visible inside the transaction")
+                .get(0);
+            assert_eq!(inserted, 2);
+            Err(ContractError::Unavailable(
+                "forced coordinated mutation failure".into(),
+            ))
+        },
+    );
+    assert!(matches!(
+        rollback_result,
+        Err(ContractError::Unavailable(_))
+    ));
+
+    let pool = journal.pool().clone();
+    let first_event_id_for_check = first_event_id.clone();
+    let second_event_id_for_check = second_event_id.clone();
+    let rolled_back_rows = tokio::task::spawn_blocking(move || {
+        pool.get()
+            .expect("verification connection should be available")
+            .query_one(
+                "select count(*) from im_commit_journal where event_id in ($1, $2)",
+                &[&first_event_id_for_check, &second_event_id_for_check],
+            )
+            .expect("rolled-back journal rows should be countable")
+            .get::<_, i64>(0)
+    })
+    .await
+    .expect("rollback verification should not panic");
+    assert_eq!(rolled_back_rows, 0);
+
+    let positions = journal
+        .append_batch_with_allocated_sequences_in_transaction(
+            vec![first.clone(), second.clone()],
+            |_txn, _sequenced| Ok(()),
+        )
+        .expect("coordinated append should commit");
+    assert_eq!(positions[0].offset, 1);
+    assert_eq!(positions[1].offset, 2);
+    let replay_positions = journal
+        .append_batch_with_allocated_sequences_in_transaction(
+            vec![first, second],
+            |_txn, inserted| {
+                assert!(
+                    inserted.is_empty(),
+                    "exact event replay must not reapply an older read-model mutation"
+                );
+                Ok(())
+            },
+        )
+        .expect("exact coordinated replay should remain idempotent");
+    assert_eq!(replay_positions, positions);
+
+    let pool = journal.pool().clone();
+    tokio::task::spawn_blocking(move || {
+        pool.get()
+            .expect("cleanup connection should be available")
+            .execute(
+                "delete from im_commit_journal where event_id in ($1, $2)",
+                &[&first_event_id, &second_event_id],
+            )
+            .expect("coordinated append rows should be cleaned up");
+    })
+    .await
+    .expect("cleanup should not panic");
+}
+
 fn uuid_like_suffix() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()

@@ -96,8 +96,18 @@ assert.doesNotMatch(
 );
 assert.match(
   integrationServiceSource,
-  /console integration contract is not available/u,
-  'Console integration service must fail closed until the integration SDK contract exists.',
+  /CONSOLE_INTEGRATION_CONTRACT_UNAVAILABLE/u,
+  'Console integration service must publish an explicit unavailable reason until the integration SDK contract exists.',
+);
+assert.match(
+  integrationServiceSource,
+  /available:\s*false\s+as\s+const/u,
+  'Console integration service must expose an unavailable capability rather than a throwing pseudo-service.',
+);
+assert.doesNotMatch(
+  integrationServiceSource,
+  /throw\s+new\s+Error/u,
+  'Console integration service must not leave a reachable throwing pseudo-service.',
 );
 assert.doesNotMatch(
   integrationServiceSource,

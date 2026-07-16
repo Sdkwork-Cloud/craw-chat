@@ -18,7 +18,10 @@
   <span class="api-op-id">operationId: exportAuditBundle</span>
 </div>
 
-Exports an audit bundle containing the visible records at the time of the request.
+Streams an audit bundle containing the records visible at the request's fixed audit-sequence
+high watermark. The service reads the ledger with bounded keyset pages and emits JSON through a
+backpressured response body; it does not materialize the tenant's complete audit history in
+process memory.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
@@ -34,6 +37,20 @@ Exports an audit bundle containing the visible records at the time of the reques
 The export payload includes `chainHeadHash` and `chainValid` so offline verifiers can detect
 tampering before import.
 
+`total`, `chainHeadHash`, and `chainValid` are emitted after the streamed `items` array has been
+scanned. Consumers must accept the bundle only after the response body completes and parses as a
+complete JSON document. A transport or storage failure after response streaming starts terminates
+the body, so a truncated or invalid document is a failed export and must be retried. Concurrent
+appends above the captured high watermark belong to a later export.
+
+Each service instance shares a bounded scan gate between export and verification requests. Configure
+it with `SDKWORK_IM_AUDIT_MAX_CONCURRENT_SCANS` (default `4`, hard maximum `32`) so slow clients
+cannot create unbounded memory or database pressure.
+
+Standalone assembly serves this stream in-process. When an external audit-service upstream is
+configured, the cloud gateway forwards the response body incrementally instead of applying its
+normal buffered-response size cap.
+
 
 ### Error Responses
 
@@ -41,5 +58,6 @@ tampering before import.
 | --- | --- | --- |
 | `401` | `40101` | AppContext projection is missing or invalid. |
 | `403` | `40301` | The caller lacks `audit.read`. |
+| `503` | `50301` | Export concurrency is saturated or the audit store is unavailable before streaming starts. |
 
 </section>

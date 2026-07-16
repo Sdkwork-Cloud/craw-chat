@@ -13,7 +13,7 @@ use sdkwork_im_contract_core::{
     ContractError, MetadataStore, ObjectDescriptor, ObjectPutRequest, ObjectStore,
 };
 use sdkwork_im_contract_message::{
-    CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionStore,
+    CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionScope, TimelineProjectionStore,
 };
 use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
@@ -74,8 +74,7 @@ impl CommitJournal for NullCommitJournal {
 impl TimelineProjectionStore for NullProjectionStore {
     fn upsert_timeline_entry(
         &self,
-        _tenant_id: &str,
-        _timeline_scope: &str,
+        _scope: &TimelineProjectionScope,
         _message_seq: u64,
         _payload: &str,
     ) -> Result<(), ContractError> {
@@ -84,8 +83,7 @@ impl TimelineProjectionStore for NullProjectionStore {
 
     fn load_timeline(
         &self,
-        _tenant_id: &str,
-        _timeline_scope: &str,
+        _scope: &TimelineProjectionScope,
     ) -> Result<Vec<(u64, String)>, ContractError> {
         Ok(Vec::new())
     }
@@ -377,11 +375,13 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
             1,
         ))
         .expect("journal append should succeed");
+    let timeline_scope = TimelineProjectionScope::new("100001", "0", "c_demo")
+        .expect("timeline projection scope should be valid");
     projection
-        .upsert_timeline_entry("100001", "c_demo", 1, "{}")
+        .upsert_timeline_entry(&timeline_scope, 1, "{}")
         .expect("projection update should succeed");
     projection
-        .load_timeline("100001", "c_demo")
+        .load_timeline(&timeline_scope)
         .expect("projection load should succeed");
 
     assert_eq!(descriptor.object_key, "media/demo.png");

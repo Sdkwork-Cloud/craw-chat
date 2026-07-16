@@ -1,4 +1,4 @@
-import type { PortalSnapshot } from './portal-snapshot';
+import type { PortalDashboardSnapshot } from './portal-dashboard-snapshot';
 
 export interface DashboardRetrieveResponse {
   code: 0;

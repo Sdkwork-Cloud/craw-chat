@@ -92,9 +92,8 @@ impl GroupKnowledgebaseScope {
     }
 }
 
-/// Group spaces are organization-owned resources. A tenant-wide IM context is
-/// deliberately not a valid fallback because Knowledgebase has no equivalent
-/// tenant-wide ACL scope.
+/// Resolves the token-derived organization scope dimension. Tenant sessions
+/// use the canonical `0` sentinel; organization sessions use a positive id.
 pub(crate) fn resolve_group_knowledgebase_organization_id(
     auth: &AppContext,
 ) -> Result<String, RuntimeError> {
@@ -107,14 +106,17 @@ pub(crate) fn resolve_group_knowledgebase_organization_id(
 pub(super) fn validate_group_knowledgebase_organization_id(
     organization_id: &str,
 ) -> Result<(), RuntimeError> {
-    validate_group_knowledgebase_signed_scope_id(organization_id, "organization")
+    if organization_id == "0" {
+        return Ok(());
+    }
+    validate_group_knowledgebase_positive_signed_scope_id(organization_id, "organization")
 }
 
 pub(super) fn validate_group_knowledgebase_tenant_id(tenant_id: &str) -> Result<(), RuntimeError> {
-    validate_group_knowledgebase_signed_scope_id(tenant_id, "tenant")
+    validate_group_knowledgebase_positive_signed_scope_id(tenant_id, "tenant")
 }
 
-fn validate_group_knowledgebase_signed_scope_id(
+fn validate_group_knowledgebase_positive_signed_scope_id(
     value: &str,
     scope_label: &str,
 ) -> Result<(), RuntimeError> {
@@ -3607,8 +3609,8 @@ impl GroupKnowledgebaseCoordinator {
         let scope = match GroupKnowledgebaseScope::from_auth_context(auth, conversation_id) {
             Ok(scope) => scope,
             // Membership mutation is an IM capability, not a group-KB
-            // capability. Tenant-wide conversations must remain mutable, but
-            // they can never create an IM-to-KB ACL synchronization event.
+            // capability. A malformed token-derived scope must not prevent the
+            // Conversation mutation from completing.
             Err(RuntimeError::PermissionDenied(_)) => return Ok(None),
             Err(error) => return Err(error),
         };
@@ -4068,8 +4070,8 @@ impl GroupKnowledgebaseCoordinator {
         let scope = match GroupKnowledgebaseScope::from_auth_context(auth, conversation_id) {
             Ok(scope) => scope,
             // Archiving a conversation is independent of group-KB support.
-            // A tenant-wide conversation cannot have a valid KB binding, so
-            // deliberately do not enqueue an invalid archive projection.
+            // Deliberately do not enqueue a projection for a malformed
+            // token-derived scope.
             Err(RuntimeError::PermissionDenied(_)) => return Ok(false),
             Err(error) => return Err(error),
         };
@@ -5422,12 +5424,12 @@ mod tests {
     }
 
     #[test]
-    fn group_knowledgebase_rejects_a_tenant_wide_organization_scope() {
+    fn group_knowledgebase_accepts_token_derived_tenant_and_organization_scopes() {
         let mut auth =
             im_app_context::local_service_app_context("100001", "42", "user", None, ["*"]);
-        let error = GroupKnowledgebaseScope::from_auth_context(&auth, "g-organization-bound")
-            .expect_err("tenant-wide group knowledgebase scope must be rejected");
-        assert!(matches!(error, RuntimeError::PermissionDenied(_)));
+        let tenant_scope = GroupKnowledgebaseScope::from_auth_context(&auth, "g-tenant-group")
+            .expect("tenant-scoped group knowledgebase should be valid");
+        assert_eq!(tenant_scope.organization_id, "0");
 
         auth.organization_id = "200001".into();
         let scope = GroupKnowledgebaseScope::from_auth_context(&auth, "g-organization-bound")
@@ -5442,6 +5444,7 @@ mod tests {
 
     #[test]
     fn group_knowledgebase_organization_scope_uses_the_signed_i64_cross_service_boundary() {
+        assert!(validate_group_knowledgebase_organization_id("0").is_ok());
         assert!(validate_group_knowledgebase_organization_id("9223372036854775807").is_ok());
         assert!(matches!(
             validate_group_knowledgebase_organization_id("9223372036854775808"),
@@ -5624,31 +5627,31 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn group_knowledgebase_rejects_a_tenant_wide_outbox_payload() {
+    async fn group_knowledgebase_accepts_a_tenant_scoped_outbox_payload() {
         let coordinator = GroupKnowledgebaseCoordinator::with_memory_store(Arc::new(
             UnavailableGroupKnowledgebasePort,
         ));
         let error = coordinator
             .deliver_outbox_payload(GroupKnowledgebaseOutboxPayload {
                 operation: GroupKnowledgebaseOutboxOperation::SynchronizeMembers,
-                source_event_id: "group-kb-tenant-wide-sync".into(),
+                source_event_id: "group-kb-tenant-scope-sync".into(),
                 scope: GroupKnowledgebaseScope {
                     tenant_id: "100001".into(),
                     organization_id: "0".into(),
-                    conversation_id: "g-organization-bound".into(),
+                    conversation_id: "g-tenant-scope".into(),
                 },
                 knowledge_space_id: 101,
-                knowledge_space_uuid: "space-organization-bound".into(),
+                knowledge_space_uuid: "space-tenant-scope".into(),
                 knowledgebase_binding_id: 201,
-                knowledgebase_binding_uuid: "binding-organization-bound".into(),
+                knowledgebase_binding_uuid: "binding-tenant-scope".into(),
                 upstream_link_generation: 1,
                 membership_epoch: 1,
                 members: Vec::new(),
                 archived_by: None,
             })
             .await
-            .expect_err("tenant-wide ACL synchronization must not reach Knowledgebase");
-        assert!(matches!(error, RuntimeError::PermissionDenied(_)));
+            .expect_err("the unavailable port should receive the valid tenant-scoped payload");
+        assert!(matches!(error, RuntimeError::Contract(_)));
     }
 
     #[test]
@@ -5660,9 +5663,9 @@ mod tests {
             ConversationRuntime::new(ConversationCommitJournal::Memory(InMemoryJournal::default()));
         let mut auth =
             im_app_context::local_service_app_context("100001", "42", "user", None, ["*"]);
-        auth.session_id = Some("session-tenant-wide".into());
+        auth.session_id = Some("session-malformed-organization".into());
 
-        for organization_id in ["0", "0200001", "org-200001"] {
+        for organization_id in ["0200001", "org-200001"] {
             auth.organization_id = organization_id.into();
             let ticket = random_opaque_value("gklt_").expect("valid ticket");
             let error = coordinator

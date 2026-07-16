@@ -99,7 +99,18 @@
     ],
     "sdkClients": [],
     "events": [],
-    "configKeys": [],
+    "configKeys": [
+      "SDKWORK_DESKTOP_RUNTIME_BIND",
+      "SDKWORK_ADMIN_PROXY_TARGET",
+      "SDKWORK_ADMIN_BIND",
+      "SDKWORK_ADMIN_SANDBOX",
+      "SDKWORK_ADMIN_SANDBOX_MODE",
+      "SDKWORK_ADMIN_SANDBOX_STORAGE_FILE",
+      "SDKWORK_IM_PORTAL_API_BASE_URL",
+      "SDKWORK_PORTAL_API_BASE_URL",
+      "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+      "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND"
+    ],
     "routeManifest": null
   },
   "integration": {

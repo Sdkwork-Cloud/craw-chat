@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { PortalSnapshot, PortalWorkspaceView } from '../types';
+import type { PortalAccessSnapshot, PortalConversationSnapshot, PortalDashboardSnapshot, PortalGovernanceSnapshot, PortalModuleSnapshot, PortalRealtimeSnapshot, PortalWorkspaceView } from '../types';
 
 
 export class PortalWorkspaceApi {
@@ -27,8 +27,8 @@ export class PortalRealtimeApi {
 
 
 /** Read the tenant realtime snapshot */
-  async retrieve(): Promise<PortalSnapshot> {
-    return this.client.get<PortalSnapshot>(appApiPath(`/portal/realtime`));
+  async retrieve(): Promise<PortalRealtimeSnapshot> {
+    return this.client.get<PortalRealtimeSnapshot>(appApiPath(`/portal/realtime`));
   }
 }
 
@@ -41,8 +41,8 @@ export class PortalMediaApi {
 
 
 /** Read the tenant media snapshot */
-  async retrieve(): Promise<PortalSnapshot> {
-    return this.client.get<PortalSnapshot>(appApiPath(`/portal/media`));
+  async retrieve(): Promise<PortalModuleSnapshot> {
+    return this.client.get<PortalModuleSnapshot>(appApiPath(`/portal/media`));
   }
 }
 
@@ -55,8 +55,8 @@ export class PortalHomeApi {
 
 
 /** Read the tenant portal home snapshot */
-  async retrieve(): Promise<PortalSnapshot> {
-    return this.client.get<PortalSnapshot>(appApiPath(`/portal/home`));
+  async retrieve(): Promise<PortalModuleSnapshot> {
+    return this.client.get<PortalModuleSnapshot>(appApiPath(`/portal/home`));
   }
 }
 
@@ -69,8 +69,8 @@ export class PortalGovernanceApi {
 
 
 /** Read the tenant governance snapshot */
-  async retrieve(): Promise<PortalSnapshot> {
-    return this.client.get<PortalSnapshot>(appApiPath(`/portal/governance`));
+  async retrieve(): Promise<PortalGovernanceSnapshot> {
+    return this.client.get<PortalGovernanceSnapshot>(appApiPath(`/portal/governance`));
   }
 }
 
@@ -83,8 +83,8 @@ export class PortalDashboardApi {
 
 
 /** Read the tenant dashboard snapshot */
-  async retrieve(): Promise<PortalSnapshot> {
-    return this.client.get<PortalSnapshot>(appApiPath(`/portal/dashboard`));
+  async retrieve(): Promise<PortalDashboardSnapshot> {
+    return this.client.get<PortalDashboardSnapshot>(appApiPath(`/portal/dashboard`));
   }
 }
 
@@ -97,8 +97,8 @@ export class PortalConversationSnapshotApi {
 
 
 /** Read the tenant conversations snapshot */
-  async retrieve(): Promise<PortalSnapshot> {
-    return this.client.get<PortalSnapshot>(appApiPath(`/portal/conversations`));
+  async retrieve(): Promise<PortalConversationSnapshot> {
+    return this.client.get<PortalConversationSnapshot>(appApiPath(`/portal/conversations`));
   }
 }
 
@@ -111,8 +111,8 @@ export class PortalAutomationApi {
 
 
 /** Read the tenant automation snapshot */
-  async retrieve(): Promise<PortalSnapshot> {
-    return this.client.get<PortalSnapshot>(appApiPath(`/portal/automation`));
+  async retrieve(): Promise<PortalModuleSnapshot> {
+    return this.client.get<PortalModuleSnapshot>(appApiPath(`/portal/automation`));
   }
 }
 
@@ -124,9 +124,9 @@ export class PortalAccessApi {
   }
 
 
-/** Read the tenant portal sign-in snapshot */
-  async retrieve(): Promise<PortalSnapshot> {
-    return this.client.get<PortalSnapshot>(appApiPath(`/portal/access`));
+/** Read the tenant portal access snapshot */
+  async retrieve(): Promise<PortalAccessSnapshot> {
+    return this.client.get<PortalAccessSnapshot>(appApiPath(`/portal/access`));
   }
 }
 

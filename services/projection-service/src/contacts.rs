@@ -17,8 +17,8 @@ use crate::model::ContactDirectChatBindingView;
 use crate::model::ContactListCursor;
 use crate::{ContactView, TimelineProjectionService};
 
-use super::projection::ProjectionError;
 use super::lock_projection_mutex;
+use super::projection::ProjectionError;
 use super::scope::{
     ContactOwnerScopeKey, contact_owner_scope_key, encode_projection_key_segments,
     projection_organization_id_for_event, scope_key,
@@ -279,7 +279,10 @@ impl TimelineProjectionService {
             .filter(|value| !value.is_empty())
             .map(str::to_lowercase);
         let scan_batch_size = if requested_query.is_some() {
-            limit.saturating_mul(8).max(limit.saturating_add(1)).min(512)
+            limit
+                .saturating_mul(8)
+                .max(limit.saturating_add(1))
+                .min(512)
         } else {
             limit.saturating_add(1)
         };
@@ -335,13 +338,15 @@ impl TimelineProjectionService {
             items.truncate(limit);
         }
         let next_cursor = if has_more {
-            last_returned_cursor.as_ref().and_then(|(last_interaction_at, target_user_id)| {
-                let payload = serde_json::json!({
-                    "lastInteractionAt": last_interaction_at,
-                    "targetUserId": target_user_id,
-                });
-                crate::cursor_auth::encode_signed_projection_cursor(&payload).ok()
-            })
+            last_returned_cursor
+                .as_ref()
+                .and_then(|(last_interaction_at, target_user_id)| {
+                    let payload = serde_json::json!({
+                        "lastInteractionAt": last_interaction_at,
+                        "targetUserId": target_user_id,
+                    });
+                    crate::cursor_auth::encode_signed_projection_cursor(&payload).ok()
+                })
         } else {
             None
         };
@@ -367,18 +372,13 @@ impl TimelineProjectionService {
             ) else {
                 continue;
             };
-            contact.display_name = contact_member_attribute(
-                &member.attributes,
-                &["displayName", "display_name"],
-            );
+            contact.display_name =
+                contact_member_attribute(&member.attributes, &["displayName", "display_name"]);
             contact.avatar_url = contact_member_attribute(
                 &member.attributes,
                 &["avatarUrl", "avatar_url", "avatar"],
             );
-            contact.chat_id = contact_member_attribute(
-                &member.attributes,
-                &["chatId", "chat_id"],
-            );
+            contact.chat_id = contact_member_attribute(&member.attributes, &["chatId", "chat_id"]);
         }
     }
 
@@ -1019,6 +1019,7 @@ mod tests {
                             "user_contact_deadlock",
                             20,
                             crate::model::ContactListCursor::Start,
+                            None,
                         );
                     }
                 })

@@ -6,6 +6,7 @@ version.workspace = true
 
 [dependencies]
 axum.workspace = true
+futures-util.workspace = true
 sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
 sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
 im-app-context = { path = "../../crates/im-app-context" }

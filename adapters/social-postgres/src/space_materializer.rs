@@ -74,57 +74,6 @@ impl SpacePostgresMaterializer {
         Ok(())
     }
 
-    /// Best-effort rollback for commits that were materialized before a journal append failure.
-    pub fn compensate_commits(&self, commits: &[CommitEnvelope]) -> Result<(), String> {
-        for commit in commits.iter().rev() {
-            self.try_compensate_commit(commit)?;
-        }
-        Ok(())
-    }
-
-    fn try_compensate_commit(&self, commit: &CommitEnvelope) -> Result<(), String> {
-        match commit.event_type.as_str() {
-            "space.created" => {
-                let payload: SpaceCreatedPayload = serde_json::from_str(commit.payload.as_str())
-                    .map_err(|error| format!("invalid space.created payload: {error}"))?;
-                self.space_store
-                    .delete(
-                        commit.tenant_id.as_str(),
-                        commit.organization_id.as_str(),
-                        social_entity_id_to_i64(payload.space_id.as_str()),
-                    )
-                    .map_err(|error| format!("space compensation delete failed: {error:?}"))
-            }
-            "space.member_joined" => {
-                let payload: SpaceMemberJoinedPayload =
-                    serde_json::from_str(commit.payload.as_str())
-                        .map_err(|error| format!("invalid space.member_joined payload: {error}"))?;
-                self.space_member_store
-                    .delete(
-                        commit.tenant_id.as_str(),
-                        commit.organization_id.as_str(),
-                        social_entity_id_to_i64(payload.space_id.as_str()),
-                        payload.user_id.as_str(),
-                    )
-                    .map_err(|error| format!("space member compensation delete failed: {error:?}"))
-            }
-            "group.member_joined" => {
-                let payload: GroupMemberJoinedPayload =
-                    serde_json::from_str(commit.payload.as_str())
-                        .map_err(|error| format!("invalid group.member_joined payload: {error}"))?;
-                self.group_member_store
-                    .delete(
-                        commit.tenant_id.as_str(),
-                        commit.organization_id.as_str(),
-                        social_entity_id_to_i64(payload.group_id.as_str()),
-                        payload.user_id.as_str(),
-                    )
-                    .map_err(|error| format!("group member compensation delete failed: {error:?}"))
-            }
-            _ => Ok(()),
-        }
-    }
-
     fn try_materialize_commit(&self, commit: &CommitEnvelope) -> Result<(), String> {
         match commit.event_type.as_str() {
             "space.created" => self.materialize_space_created(commit),

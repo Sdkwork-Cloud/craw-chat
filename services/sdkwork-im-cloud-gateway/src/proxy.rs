@@ -22,6 +22,8 @@ use crate::runtime::{
 use crate::state::GatewayState;
 use crate::websocket::proxy_websocket_request;
 
+const AUDIT_EXPORT_PATH: &str = "/backend/v3/api/audit/export";
+
 pub(crate) async fn proxy_get_request(
     websocket_upgrade: Result<
         WebSocketUpgrade,
@@ -150,6 +152,7 @@ pub(crate) async fn proxy_request(State(state): State<GatewayState>, request: Re
     };
     let method_str = request.method().as_str().to_owned();
     let path_str = request.uri().path().to_owned();
+    let stream_response = path_str == AUDIT_EXPORT_PATH;
     let trace_id = new_gateway_trace_id();
     let (parts, body) = request.into_parts();
     let correlation = problem_correlation_for_parts(
@@ -204,7 +207,13 @@ pub(crate) async fn proxy_request(State(state): State<GatewayState>, request: Re
             } else {
                 state.circuit_breakers.record_success(service_id.as_str());
             }
-            build_proxy_response(service_id.as_str(), upstream_response, correlation).await
+            build_proxy_response(
+                service_id.as_str(),
+                upstream_response,
+                correlation,
+                stream_response,
+            )
+            .await
         }
         Err(error) => {
             state.circuit_breakers.record_failure(service_id.as_str());

@@ -1,25 +1,12 @@
-export interface IntegrationApp {
-  id: string;
-  name: string;
-  type: string;
-  desc: string;
-  color: string;
-  iconType: 'Puzzle' | 'Webhook' | 'Bot';
-  status: 'active' | 'disabled';
-}
-
-export interface GetAppsResponse {
-  data: IntegrationApp[];
-  total: number;
-}
-
+/**
+ * The generated app SDK does not currently expose an integration catalogue or
+ * integration-management API. Do not manufacture client-side records or
+ * mutation controls before that authority exists.
+ */
 export const CONSOLE_INTEGRATION_CONTRACT_UNAVAILABLE =
-  'console integration contract is not available';
+  'Console integrations are unavailable because the required app API contract has not been published.';
 
-class IntegrationService {
-  async getApps(_params: { search?: string; status?: string }): Promise<GetAppsResponse> {
-    throw new Error(CONSOLE_INTEGRATION_CONTRACT_UNAVAILABLE);
-  }
-}
-
-export const integrationService = new IntegrationService();
+export const consoleIntegrationCapability = {
+  available: false as const,
+  reason: CONSOLE_INTEGRATION_CONTRACT_UNAVAILABLE,
+};

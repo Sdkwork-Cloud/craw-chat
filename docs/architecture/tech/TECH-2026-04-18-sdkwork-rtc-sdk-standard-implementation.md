@@ -23,7 +23,7 @@
 
 - `docs/superpowers/specs/2026-04-18-sdkwork-rtc-sdk-jdbc-style-standard-design.md`
 - `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`
-- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdk-manifest.json`
 - `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/README.md`
 - `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/package-standards.md`
 - `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/provider-adapter-standard.md`
@@ -66,7 +66,7 @@
 
 **Files:**
 - Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`
-- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdk-manifest.json`
 - Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/README.md`
 - Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/package-standards.md`
 - Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/provider-adapter-standard.md`
@@ -79,7 +79,7 @@
 Add `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs` assertions that require:
 - the RTC workspace is listed in `sdks/README.md`
 - the root docs files exist
-- `.sdkwork-assembly.json` declares all official languages
+- `sdk-manifest.json` declares all official languages
 - the default provider is `volcengine`
 
 - [ ] **Step 2: Run the test to confirm the gap**

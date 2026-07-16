@@ -13,7 +13,7 @@ use im_adapters_local_disk::{
 use im_platform_contracts::{
     CommitEnvelope, CommitJournal, ContractError, MetadataSnapshotRecord, MetadataStore,
     RealtimeCheckpointRecord, RealtimeCheckpointStore, TimelineProjectionBatch,
-    TimelineProjectionRecord, TimelineProjectionStore,
+    TimelineProjectionRecord, TimelineProjectionScope, TimelineProjectionStore,
 };
 use im_storage_contracts::{
     StorageBindingRecord, StorageCatalog, StorageConfigRecord, StorageCredentialMode,
@@ -296,12 +296,14 @@ fn test_file_timeline_projection_store_preserves_cross_instance_entries() {
         let file_path = file_path.clone();
         handles.push(thread::spawn(move || {
             let store = FileTimelineProjectionStore::new(&file_path);
+            let scope = TimelineProjectionScope::new(tenant_id, "0", timeline_scope)
+                .expect("timeline scope should be valid");
             for seq in 0..writes_per_thread {
                 let message_seq = (thread_id * writes_per_thread + seq + 1) as u64;
                 let payload = format!("{{\"thread\":{thread_id},\"seq\":{seq}}}");
                 barrier.wait();
                 store
-                    .upsert_timeline_entry(tenant_id, timeline_scope, message_seq, payload.as_str())
+                    .upsert_timeline_entry(&scope, message_seq, payload.as_str())
                     .expect("cross-instance timeline upsert should succeed");
             }
         }));
@@ -312,7 +314,9 @@ fn test_file_timeline_projection_store_preserves_cross_instance_entries() {
     }
 
     let reopened = FileTimelineProjectionStore::new(&file_path);
-    let entries = reopened.entries(tenant_id, timeline_scope);
+    let scope = TimelineProjectionScope::new(tenant_id, "0", timeline_scope)
+        .expect("timeline scope should be valid");
+    let entries = reopened.entries(&scope);
     assert_eq!(
         entries.len(),
         thread_count * writes_per_thread,
@@ -356,20 +360,22 @@ fn test_validate_metadata_store_file_rejects_array_shape() {
 fn test_file_timeline_projection_store_upserts_by_sequence_across_reopen() {
     let file_path = unique_store_file("timeline_projection_store");
     let store = FileTimelineProjectionStore::new(&file_path);
+    let scope = TimelineProjectionScope::new("100001", "0", "c_demo")
+        .expect("timeline scope should be valid");
 
     store
-        .upsert_timeline_entry("100001", "c_demo", 1, "{\"summary\":\"first\"}")
+        .upsert_timeline_entry(&scope, 1, "{\"summary\":\"first\"}")
         .expect("first timeline upsert should succeed");
     store
-        .upsert_timeline_entry("100001", "c_demo", 2, "{\"summary\":\"second\"}")
+        .upsert_timeline_entry(&scope, 2, "{\"summary\":\"second\"}")
         .expect("second timeline upsert should succeed");
     store
-        .upsert_timeline_entry("100001", "c_demo", 2, "{\"summary\":\"second-v2\"}")
+        .upsert_timeline_entry(&scope, 2, "{\"summary\":\"second-v2\"}")
         .expect("idempotent timeline upsert should succeed");
 
     let reopened = FileTimelineProjectionStore::new(&file_path);
     assert_eq!(
-        reopened.entries("100001", "c_demo"),
+        reopened.entries(&scope),
         vec![
             (1, "{\"summary\":\"first\"}".to_string()),
             (2, "{\"summary\":\"second-v2\"}".to_string()),
@@ -380,24 +386,28 @@ fn test_file_timeline_projection_store_upserts_by_sequence_across_reopen() {
 }
 
 #[test]
-fn test_file_timeline_projection_store_isolates_same_scope_across_tenants() {
-    let file_path = unique_store_file("timeline_projection_store_tenant_scope");
+fn test_file_timeline_projection_store_isolates_same_scope_across_organizations() {
+    let file_path = unique_store_file("timeline_projection_store_organization_scope");
     let store = FileTimelineProjectionStore::new(&file_path);
+    let org_a = TimelineProjectionScope::new("t_shared", "org_a", "c_shared")
+        .expect("organization A scope should be valid");
+    let org_b = TimelineProjectionScope::new("t_shared", "org_b", "c_shared")
+        .expect("organization B scope should be valid");
 
     store
-        .upsert_timeline_entry("t_alpha", "c_shared", 1, "{\"summary\":\"alpha\"}")
-        .expect("alpha tenant timeline upsert should succeed");
+        .upsert_timeline_entry(&org_a, 1, "{\"summary\":\"alpha\"}")
+        .expect("organization A timeline upsert should succeed");
     store
-        .upsert_timeline_entry("t_beta", "c_shared", 1, "{\"summary\":\"beta\"}")
-        .expect("beta tenant timeline upsert should succeed");
+        .upsert_timeline_entry(&org_b, 1, "{\"summary\":\"beta\"}")
+        .expect("organization B timeline upsert should succeed");
 
     let reopened = FileTimelineProjectionStore::new(&file_path);
     assert_eq!(
-        reopened.entries("t_alpha", "c_shared"),
+        reopened.entries(&org_a),
         vec![(1, "{\"summary\":\"alpha\"}".to_string())]
     );
     assert_eq!(
-        reopened.entries("t_beta", "c_shared"),
+        reopened.entries(&org_b),
         vec![(1, "{\"summary\":\"beta\"}".to_string())]
     );
 
@@ -452,8 +462,8 @@ fn test_file_timeline_projection_store_batches_multiple_scopes_across_reopen() {
     store
         .upsert_timeline_batches(&[
             TimelineProjectionBatch {
-                tenant_id: "100001".into(),
-                timeline_scope: "c_demo".into(),
+                scope: TimelineProjectionScope::new("100001", "0", "c_demo")
+                    .expect("conversation timeline scope should be valid"),
                 records: vec![
                     TimelineProjectionRecord {
                         message_seq: 1,
@@ -466,16 +476,16 @@ fn test_file_timeline_projection_store_batches_multiple_scopes_across_reopen() {
                 ],
             },
             TimelineProjectionBatch {
-                tenant_id: "100001".into(),
-                timeline_scope: "client-route-sync:1:d_demo".into(),
+                scope: TimelineProjectionScope::new("100001", "0", "client-route-sync:1:d_demo")
+                    .expect("client route timeline scope should be valid"),
                 records: vec![TimelineProjectionRecord {
                     message_seq: 9,
                     payload: "{\"syncSeq\":9}".into(),
                 }],
             },
             TimelineProjectionBatch {
-                tenant_id: "100001".into(),
-                timeline_scope: "c_demo".into(),
+                scope: TimelineProjectionScope::new("100001", "0", "c_demo")
+                    .expect("conversation timeline scope should be valid"),
                 records: vec![TimelineProjectionRecord {
                     message_seq: 2,
                     payload: "{\"summary\":\"second-v2\"}".into(),
@@ -486,14 +496,20 @@ fn test_file_timeline_projection_store_batches_multiple_scopes_across_reopen() {
 
     let reopened = FileTimelineProjectionStore::new(&file_path);
     assert_eq!(
-        reopened.entries("100001", "c_demo"),
+        reopened.entries(
+            &TimelineProjectionScope::new("100001", "0", "c_demo")
+                .expect("conversation timeline scope should be valid"),
+        ),
         vec![
             (1, "{\"summary\":\"first\"}".to_string()),
             (2, "{\"summary\":\"second-v2\"}".to_string()),
         ]
     );
     assert_eq!(
-        reopened.entries("100001", "client-route-sync:1:d_demo"),
+        reopened.entries(
+            &TimelineProjectionScope::new("100001", "0", "client-route-sync:1:d_demo")
+                .expect("client route timeline scope should be valid"),
+        ),
         vec![(9, "{\"syncSeq\":9}".to_string())]
     );
 

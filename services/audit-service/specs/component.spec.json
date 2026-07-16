@@ -99,7 +99,13 @@
     ],
     "sdkClients": [],
     "events": [],
-    "configKeys": [],
+    "configKeys": [
+      "SDKWORK_IM_AUDIT_MAX_CONCURRENT_SCANS",
+      "SDKWORK_IM_AUDIT_MAX_IN_FLIGHT_REQUESTS",
+      "SDKWORK_IM_AUDIT_MAX_REQUEST_BODY_BYTES",
+      "SDKWORK_IM_DATABASE_URL",
+      "SDKWORK_IM_ENVIRONMENT"
+    ],
     "routeManifest": null
   },
   "integration": {

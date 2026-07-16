@@ -18,11 +18,23 @@ class ChatMessageHistoryResult {
 class MessageHistoryPaginationState {
   const MessageHistoryPaginationState({
     required this.hasMore,
-    required this.nextAfterSeq,
+    required this.nextCursor,
   });
 
   final bool hasMore;
-  final int nextAfterSeq;
+  final String? nextCursor;
+}
+
+enum MessageHistoryWindowDirection { older, newer }
+
+class MessageHistoryPageMergeResult {
+  const MessageHistoryPageMergeResult({
+    required this.items,
+    required this.incomingPageRetained,
+  });
+
+  final List<ConversationMessageEntry> items;
+  final bool incomingPageRetained;
 }
 
 int resolveLatestMessageSeq(List<ConversationMessageEntry> entries) {
@@ -35,31 +47,69 @@ int resolveLatestMessageSeq(List<ConversationMessageEntry> entries) {
   return maxSeq;
 }
 
-List<ConversationMessageEntry> mergeConversationMessageEntries(
-  List<ConversationMessageEntry> existing,
-  List<ConversationMessageEntry> incoming,
-) {
+MessageHistoryPageMergeResult mergeConversationMessagePage(
+  Iterable<ConversationMessageEntry> existing,
+  Iterable<ConversationMessageEntry> incoming, {
+  required MessageHistoryWindowDirection direction,
+}) {
+  final existingEntries = existing.toList(growable: false);
+  final incomingEntries = incoming.toList(growable: false);
+  final existingIds = existingEntries.map((entry) => entry.messageId).toSet();
   final byId = <String, ConversationMessageEntry>{};
-  for (final entry in existing) {
+  for (final entry in existingEntries) {
     byId[entry.messageId] = entry;
   }
-  for (final entry in incoming) {
+  for (final entry in incomingEntries) {
     byId[entry.messageId] = entry;
   }
   final merged = byId.values.toList()
-    ..sort((left, right) => left.messageSeq.compareTo(right.messageSeq));
-  if (merged.length <= maxMessageHistoryEntries) {
-    return merged;
-  }
-  return merged.sublist(merged.length - maxMessageHistoryEntries);
+    ..sort((left, right) {
+      final sequenceComparison = left.messageSeq.compareTo(right.messageSeq);
+      if (sequenceComparison != 0) {
+        return sequenceComparison;
+      }
+      final occurredAtComparison = left.occurredAt.compareTo(right.occurredAt);
+      if (occurredAtComparison != 0) {
+        return occurredAtComparison;
+      }
+      return left.messageId.compareTo(right.messageId);
+    });
+  final items = direction == MessageHistoryWindowDirection.older
+      ? merged.take(maxMessageHistoryEntries).toList(growable: false)
+      : merged.length <= maxMessageHistoryEntries
+          ? merged
+          : merged.sublist(merged.length - maxMessageHistoryEntries);
+  final retainedIds = items.map((entry) => entry.messageId).toSet();
+  final incomingPageRetained = incomingEntries.every(
+    (entry) =>
+        existingIds.contains(entry.messageId) ||
+        retainedIds.contains(entry.messageId),
+  );
+  return MessageHistoryPageMergeResult(
+    items: items,
+    incomingPageRetained: incomingPageRetained,
+  );
 }
 
-MessageHistoryPaginationState readSeqPageInfo(PageInfo? pageInfo) {
-  final hasMore = pageInfo?.hasMore == true;
-  final parsedCursor = hasMore ? int.tryParse(pageInfo?.nextCursor ?? '') : null;
+List<ConversationMessageEntry> mergeConversationMessageEntries(
+  Iterable<ConversationMessageEntry> existing,
+  Iterable<ConversationMessageEntry> incoming, {
+  MessageHistoryWindowDirection direction = MessageHistoryWindowDirection.newer,
+}) {
+  return mergeConversationMessagePage(
+    existing,
+    incoming,
+    direction: direction,
+  ).items;
+}
+
+MessageHistoryPaginationState readCursorPageInfo(PageInfo? pageInfo) {
+  final nextCursor = pageInfo?.nextCursor;
+  final hasMore =
+      pageInfo?.hasMore == true && nextCursor != null && nextCursor.isNotEmpty;
   return MessageHistoryPaginationState(
     hasMore: hasMore,
-    nextAfterSeq: parsedCursor != null && parsedCursor > 0 ? parsedCursor : 0,
+    nextCursor: hasMore ? nextCursor : null,
   );
 }
 
@@ -67,7 +117,7 @@ MessageHistoryPaginationState pickMessageHistoryPagination(
   ChatMessageHistoryResult? response,
 ) {
   return response?.pagination ??
-      const MessageHistoryPaginationState(hasMore: false, nextAfterSeq: 0);
+      const MessageHistoryPaginationState(hasMore: false, nextCursor: null);
 }
 
 ChatMessageHistoryResult readMessageHistoryPageFromSdkResponse(
@@ -79,7 +129,7 @@ ChatMessageHistoryResult readMessageHistoryPageFromSdkResponse(
       response?.data,
       ConversationMessageEntry.fromJson,
     ),
-    pagination: readSeqPageInfo(pageInfo),
+    pagination: readCursorPageInfo(pageInfo),
   );
 }
 

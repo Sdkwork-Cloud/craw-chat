@@ -14,7 +14,6 @@ import {
   isCurrentGroupOwnerMember,
   resolveCurrentGroupKnowledgebaseMemberAccess,
 } from '../packages/sdkwork-im-pc-chat/src/services/GroupKnowledgebaseAccessPolicy';
-
 const VALID_TICKET = `gklt_${'a'.repeat(43)}`;
 
 type GroupKnowledgebaseLaunchOperation = GroupKnowledgebaseLaunchClient['chat']['conversations']['knowledgebase']['launch'];
@@ -203,9 +202,18 @@ function createLaunchClient(
     new URL('../packages/sdkwork-im-pc-chat/src/services/GroupKnowledgebaseLaunchService.ts', import.meta.url),
     'utf8',
   );
-
   assert.match(chatLayoutSource, /groupService\.retrieveCurrentUserGroupKnowledgebaseAccess\(activeGroupId\)/u);
   assert.match(chatLayoutSource, /groupKnowledgebaseLaunchService\.retrieveLifecycle\(activeGroupId\)/u);
+  assert.match(
+    chatLayoutSource,
+    /if\s*\(!hasGroupKnowledgebaseAuthenticatedSession\)\s*\{[\s\S]*return;[\s\S]*\}[\s\S]*setIsGroupKnowledgebaseAccessLoading\(true\);[\s\S]*Promise\.all\(\[/u,
+    'every authenticated group session must resolve membership and lifecycle before choosing the action',
+  );
+  assert.doesNotMatch(
+    chatLayoutSource,
+    /hasGroupKnowledgebaseOrganizationLoginContext|knowledgebaseOrganizationRequired/u,
+    'group knowledgebase access must be determined by group membership and lifecycle, not login context',
+  );
   assert.match(
     chatLayoutSource,
     /groupKnowledgebaseAccessMode\s*===\s*['"]initialize['"][\s\S]*groupKnowledgebaseLaunchService\.initialize\(localizedActiveChat\.id/u,

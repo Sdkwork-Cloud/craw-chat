@@ -5,7 +5,7 @@ import type { ConversationInboxEntry } from "@sdkwork/im-sdk";
 import { formatRelativeTime, useI18n } from "@sdkwork/im-h5-commons";
 
 import { fetchChatInboxPage, markConversationRead, readInboxPageState } from "../services/chatInboxService";
-import { mergeInboxEntries, mergeLatestInboxEntries } from "../services/chatInboxUtils";
+import { mergeInboxPage } from "../services/chatInboxUtils";
 import {
   rememberConversationTitle,
   resolveConversationInboxEntryDisplayTitle,
@@ -22,6 +22,7 @@ export function ChatInboxPage() {
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const entriesRef = useRef<ConversationInboxEntry[]>([]);
   const loadInboxRef = useRef<(options?: { silent?: boolean }) => void>(() => undefined);
   const requestGenerationRef = useRef(0);
   const loadingMoreRef = useRef(false);
@@ -43,12 +44,16 @@ export function ChatInboxPage() {
         const responseItems = response.items ?? [];
         const pageState = readInboxPageState(response);
         if (options?.silent && loadedAdditionalPagesRef.current && !searchQuery.trim()) {
-          setEntries((previous) => mergeLatestInboxEntries(previous, responseItems));
+          const page = mergeInboxPage(entriesRef.current, responseItems, "newer");
+          entriesRef.current = page.entries;
+          setEntries(page.entries);
         } else {
+          const page = mergeInboxPage([], responseItems, "newer");
           loadedAdditionalPagesRef.current = false;
-          setEntries(responseItems);
-          setNextCursor(pageState.nextCursor);
-          setHasMore(pageState.hasMore);
+          entriesRef.current = page.entries;
+          setEntries(page.entries);
+          setNextCursor(page.incomingPageRetained ? pageState.nextCursor : undefined);
+          setHasMore(page.incomingPageRetained && pageState.hasMore);
         }
       })
       .catch((cause: unknown) => {
@@ -84,7 +89,13 @@ export function ChatInboxPage() {
         if (requestGeneration !== requestGenerationRef.current) {
           return;
         }
-        setEntries((previous) => mergeInboxEntries(previous, response.items ?? []));
+        const page = mergeInboxPage(entriesRef.current, response.items ?? [], "older");
+        if (!page.incomingPageRetained) {
+          setError(t("chat.inbox.loadMoreError"));
+          return;
+        }
+        entriesRef.current = page.entries;
+        setEntries(page.entries);
         loadedAdditionalPagesRef.current = true;
         const pageState = readInboxPageState(response);
         setNextCursor(pageState.nextCursor);

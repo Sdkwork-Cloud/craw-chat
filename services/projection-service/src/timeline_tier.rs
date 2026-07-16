@@ -6,7 +6,7 @@ use std::sync::{Arc, OnceLock};
 use im_app_context::is_production_like_im_environment;
 use im_domain_core::retention::is_retention_expired;
 use im_time::utc_now_rfc3339_millis;
-use sdkwork_im_contract_message::TimelineProjectionStore;
+use sdkwork_im_contract_message::{TimelineProjectionScope, TimelineProjectionStore};
 
 use sdkwork_utils_rust::SdkWorkPageData;
 
@@ -115,10 +115,13 @@ pub fn timeline_window_from_memory(
 pub fn timeline_window_from_durable_store(
     store: &dyn TimelineProjectionStore,
     tenant_id: &str,
+    organization_id: &str,
     conversation_id: &str,
     after_seq: u64,
     limit: usize,
 ) -> Result<SdkWorkPageData<TimelineViewEntry>, ProjectionError> {
+    let scope = TimelineProjectionScope::new(tenant_id, organization_id, conversation_id)
+        .map_err(ProjectionError::StoreFailure)?;
     let limit = limit.max(1);
     let now = utc_now_rfc3339_millis();
     let mut visible_after_seq = Some(after_seq);
@@ -130,7 +133,7 @@ pub fn timeline_window_from_durable_store(
     loop {
         let batch_after = visible_after_seq.unwrap_or(after_seq);
         let window = store
-            .load_timeline_window(tenant_id, conversation_id, batch_after, fetch_batch)
+            .load_timeline_window(&scope, batch_after, fetch_batch)
             .map_err(ProjectionError::StoreFailure)?;
         trailing_has_more = window.has_more;
 
@@ -171,16 +174,19 @@ pub fn timeline_window_from_durable_store(
 pub fn load_timeline_tail_for_restore(
     store: &dyn TimelineProjectionStore,
     tenant_id: &str,
+    organization_id: &str,
     conversation_id: &str,
     message_count: u64,
     cap: usize,
 ) -> Result<BTreeMap<u64, TimelineViewEntry>, ProjectionError> {
     if cap == PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED || message_count == 0 {
-        return load_full_timeline_for_restore(store, tenant_id, conversation_id);
+        return load_full_timeline_for_restore(store, tenant_id, organization_id, conversation_id);
     }
+    let scope = TimelineProjectionScope::new(tenant_id, organization_id, conversation_id)
+        .map_err(ProjectionError::StoreFailure)?;
     let after_seq = message_count.saturating_sub(cap as u64);
     let window = store
-        .load_timeline_window(tenant_id, conversation_id, after_seq, cap)
+        .load_timeline_window(&scope, after_seq, cap)
         .map_err(ProjectionError::StoreFailure)?;
     parse_timeline_restore_entries(window.items)
 }
@@ -194,10 +200,13 @@ const TIMELINE_FULL_RESTORE_MAX_ENTRIES: usize = 10_000;
 pub fn load_full_timeline_for_restore(
     store: &dyn TimelineProjectionStore,
     tenant_id: &str,
+    organization_id: &str,
     conversation_id: &str,
 ) -> Result<BTreeMap<u64, TimelineViewEntry>, ProjectionError> {
+    let scope = TimelineProjectionScope::new(tenant_id, organization_id, conversation_id)
+        .map_err(ProjectionError::StoreFailure)?;
     let rows = store
-        .load_timeline(tenant_id, conversation_id)
+        .load_timeline(&scope)
         .map_err(ProjectionError::StoreFailure)?;
     let rows = if rows.len() > TIMELINE_FULL_RESTORE_MAX_ENTRIES {
         tracing::warn!(
@@ -229,6 +238,7 @@ pub fn resolve_timeline_window(
     tier: &TimelineTierConfig,
     memory_timeline: Option<&BTreeMap<u64, TimelineViewEntry>>,
     tenant_id: &str,
+    organization_id: &str,
     conversation_id: &str,
     after_seq: u64,
     limit: usize,
@@ -257,6 +267,7 @@ pub fn resolve_timeline_window(
     let mut durable_view = timeline_window_from_durable_store(
         store.as_ref(),
         tenant_id,
+        organization_id,
         conversation_id,
         after_seq,
         limit,
@@ -283,7 +294,7 @@ mod tests {
     use super::*;
     use im_adapters_local_memory::MemoryTimelineProjectionStore;
     use im_domain_core::message::{MessageBody, MessageType, Sender};
-    use sdkwork_im_contract_message::TimelineProjectionRecord;
+    use sdkwork_im_contract_message::{TimelineProjectionRecord, TimelineProjectionScope};
 
     fn sample_entry(seq: u64) -> TimelineViewEntry {
         TimelineViewEntry {
@@ -335,8 +346,8 @@ mod tests {
         let store = Arc::new(MemoryTimelineProjectionStore::default());
         store
             .upsert_timeline_entries(
-                "100001",
-                "c_demo",
+                &TimelineProjectionScope::new("100001", "0", "c_demo")
+                    .expect("timeline scope should be valid"),
                 &[
                     TimelineProjectionRecord {
                         message_seq: 1,
@@ -354,14 +365,15 @@ mod tests {
         tier.configure_durable_timeline(store, 1);
 
         let mut memory = BTreeMap::from([(2, sample_entry(2))]);
-        let window = resolve_timeline_window(&tier, Some(&memory), "100001", "c_demo", 0, 10)
+        let window = resolve_timeline_window(&tier, Some(&memory), "100001", "0", "c_demo", 0, 10)
             .expect("window");
         assert_eq!(window.items.len(), 1);
         assert_eq!(window.items[0].message_seq, 1);
 
         memory.insert(2, sample_entry(2));
-        let hot_window = resolve_timeline_window(&tier, Some(&memory), "100001", "c_demo", 1, 10)
-            .expect("hot window");
+        let hot_window =
+            resolve_timeline_window(&tier, Some(&memory), "100001", "0", "c_demo", 1, 10)
+                .expect("hot window");
         assert_eq!(hot_window.items.len(), 1);
         assert_eq!(hot_window.items[0].message_seq, 2);
     }
@@ -380,8 +392,7 @@ mod tests {
     #[test]
     fn resolve_memory_timeline_cap_enforces_default_in_production_without_durable_store() {
         const SDKWORK_IM_ENVIRONMENT_ENV: &str = "SDKWORK_IM_ENVIRONMENT";
-        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _guard = ENV_LOCK.lock().expect("env test lock");
+        let _guard = crate::lock_projection_test_environment();
         let previous = std::env::var(SDKWORK_IM_ENVIRONMENT_ENV).ok();
         unsafe {
             std::env::set_var(SDKWORK_IM_ENVIRONMENT_ENV, "prod");

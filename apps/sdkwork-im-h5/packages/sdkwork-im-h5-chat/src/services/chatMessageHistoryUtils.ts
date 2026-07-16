@@ -7,28 +7,36 @@ export interface MessageHistoryPaginationState {
   nextCursor?: string;
 }
 
+export type MessageHistoryWindowDirection = "older" | "newer";
+
+export interface MessageHistoryPageMergeResult {
+  entries: ConversationMessageEntry[];
+  incomingPageRetained: boolean;
+}
+
 export function readCursorPageInfo(
   pageInfo?: SdkWorkListPageInfo,
 ): { hasMore: boolean; nextCursor?: string } {
-  const hasMore = pageInfo?.hasMore === true;
+  const nextCursor = pageInfo?.nextCursor;
+  const hasMore = pageInfo?.hasMore === true
+    && typeof nextCursor === "string"
+    && nextCursor.length > 0;
   return {
     hasMore,
-    nextCursor: hasMore ? (pageInfo?.nextCursor ?? undefined) : undefined,
+    nextCursor: hasMore ? nextCursor : undefined,
   };
-}
-
-export function readSeqPageInfo(pageInfo?: SdkWorkListPageInfo): MessageHistoryPaginationState {
-  return readCursorPageInfo(pageInfo);
 }
 
 export function resolveLatestMessageSeq(entries: readonly ConversationMessageEntry[]): number {
   return entries.reduce((max, entry) => Math.max(max, entry.messageSeq ?? 0), 0);
 }
 
-export function mergeConversationMessageEntries(
+export function mergeConversationMessagePage(
   existing: readonly ConversationMessageEntry[],
   incoming: readonly ConversationMessageEntry[],
-): ConversationMessageEntry[] {
+  direction: MessageHistoryWindowDirection,
+): MessageHistoryPageMergeResult {
+  const existingIds = new Set(existing.map((entry) => entry.messageId));
   const byId = new Map<string, ConversationMessageEntry>();
   for (const entry of existing) {
     byId.set(entry.messageId, entry);
@@ -36,7 +44,7 @@ export function mergeConversationMessageEntries(
   for (const entry of incoming) {
     byId.set(entry.messageId, entry);
   }
-  return Array.from(byId.values())
+  const sorted = Array.from(byId.values())
     .sort((left, right) => {
       const sequenceDifference = (left.messageSeq ?? 0) - (right.messageSeq ?? 0);
       if (sequenceDifference !== 0) {
@@ -47,12 +55,28 @@ export function mergeConversationMessageEntries(
         return occurredAtDifference;
       }
       return left.messageId.localeCompare(right.messageId);
-    })
-    .slice(-MAX_MESSAGE_HISTORY_ENTRIES);
+    });
+  const entries = direction === "older"
+    ? sorted.slice(0, MAX_MESSAGE_HISTORY_ENTRIES)
+    : sorted.slice(-MAX_MESSAGE_HISTORY_ENTRIES);
+  const retainedIds = new Set(entries.map((entry) => entry.messageId));
+  const incomingPageRetained = incoming.every(
+    (entry) => existingIds.has(entry.messageId) || retainedIds.has(entry.messageId),
+  );
+
+  return { entries, incomingPageRetained };
+}
+
+export function mergeConversationMessageEntries(
+  existing: readonly ConversationMessageEntry[],
+  incoming: readonly ConversationMessageEntry[],
+  direction: MessageHistoryWindowDirection = "newer",
+): ConversationMessageEntry[] {
+  return mergeConversationMessagePage(existing, incoming, direction).entries;
 }
 
 export function pickMessageHistoryPagination(response: {
   pageInfo?: SdkWorkListPageInfo;
 }): MessageHistoryPaginationState {
-  return readSeqPageInfo(response.pageInfo);
+  return readCursorPageInfo(response.pageInfo);
 }

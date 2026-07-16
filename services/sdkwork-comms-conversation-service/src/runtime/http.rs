@@ -31,7 +31,7 @@ use sdkwork_utils_rust::{
     SdkWorkProblemDetail, SdkWorkResourceData, SdkWorkResultCode,
 };
 use sdkwork_web_core::{
-    ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, WebLoginScope, WebRequestContext,
+    ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, WebRequestContext,
     problem_response,
 };
 use serde::de::DeserializeOwned;
@@ -1747,13 +1747,6 @@ async fn create_conversation(
                 "initializeKnowledgebase is only supported for group conversations",
             )));
         }
-        // A normal group creation must never inspect Knowledgebase scope. The
-        // opt-in path validates it before the durable group write so an
-        // explicitly requested initialization cannot leave an unexpected
-        // tenant-wide group behind when Knowledgebase has no legal scope.
-        if initialize_knowledgebase {
-            require_group_knowledgebase_http_organization(&auth)?;
-        }
         // Group conversations use a server-derived canonical `g_` id seeded
         // from creator + group name + client request key. Direct and other
         // generic conversation types continue to accept a client-supplied id.
@@ -2114,27 +2107,10 @@ fn require_im_app_context(ctx: &WebRequestContext) -> Result<AppContext, ApiErro
     })
 }
 
-fn require_group_knowledgebase_http_organization(auth: &AppContext) -> Result<(), ApiError> {
-    super::knowledgebase::resolve_group_knowledgebase_organization_id(auth)
-        .map(|_| ())
-        .map_err(ApiError::from)
-}
-
-/// The browser-facing group-KB endpoints fail before any conversation or
-/// provider work when the authenticated request is tenant-wide. Knowledgebase
-/// owns organization-scoped spaces only; it has no tenant-wide ACL model.
 fn require_group_knowledgebase_http_context(
     ctx: &WebRequestContext,
 ) -> Result<AppContext, ApiError> {
-    if ctx.login_scope() != Some(WebLoginScope::Organization) {
-        return Err(ApiError::forbidden(
-            "group_knowledgebase_organization_login_required",
-            "group knowledgebase requires an active organization login context",
-        ));
-    }
-    let auth = require_im_app_context(ctx)?;
-    require_group_knowledgebase_http_organization(&auth)?;
-    Ok(auth)
+    require_im_app_context(ctx)
 }
 
 fn require_normalized_idempotency_key(ctx: &WebRequestContext) -> Result<String, ApiError> {
@@ -2473,7 +2449,10 @@ async fn get_group_knowledgebase(
     State(state): State<AppState>,
     Path(conversation_id): Path<String>,
 ) -> Response {
-    let auth = match require_group_knowledgebase_http_context(&ctx) {
+    // retrieve 是只读查询，内部已经通过 require_active_member_from_auth_context
+    // 完成"是否为该群活跃成员 + 非 Guest"的 ACL 校验。Organization 登录态要求
+    // 是为 create/launch 签发 launch ticket 设计的，retrieve 不应被其拦截。
+    let auth = match require_im_app_context(&ctx) {
         Ok(auth) => auth,
         Err(error) => {
             return resource_response::<GroupKnowledgebaseLinkView>(&ctx, Err(error.into()));
@@ -3258,7 +3237,7 @@ mod tests {
     use im_app_context::DualTokenRequestBuilderExt;
     use sdkwork_web_core::{
         ServerRequestId, WebApiSurface, WebAuthLevel, WebAuthMode, WebDeploymentMode,
-        WebEnvironment, WebRequestPrincipal, WebSubjectType, WebTransportFacts,
+        WebEnvironment, WebLoginScope, WebRequestPrincipal, WebSubjectType, WebTransportFacts,
     };
     use std::collections::BTreeSet;
     use std::sync::{Mutex, OnceLock};
@@ -3629,21 +3608,21 @@ mod tests {
     }
 
     #[test]
-    fn group_knowledgebase_http_requires_framework_organization_login_context() {
-        let error =
+    fn group_knowledgebase_http_requires_only_an_authenticated_framework_context() {
+        let tenant_auth =
             require_group_knowledgebase_http_context(&organization_request_context(Some("0")))
-                .expect_err("tenant-wide group knowledgebase HTTP access must be rejected");
-        assert_eq!(error.status, StatusCode::FORBIDDEN);
+                .expect("tenant login context should project into AppContext");
+        assert_eq!(tenant_auth.organization_id, "0");
 
-        let auth =
+        let organization_auth =
             require_group_knowledgebase_http_context(&organization_request_context(Some("200001")))
                 .expect("organization login context should project into AppContext");
-        assert_eq!(auth.organization_id, "200001");
+        assert_eq!(organization_auth.organization_id, "200001");
 
         assert!(
-            require_group_knowledgebase_http_context(&organization_request_context(Some(
-                "org-200001",
-            )))
+            require_group_knowledgebase_http_context(
+                &request_context_with_normalized_idempotency_key(None)
+            )
             .is_err()
         );
     }

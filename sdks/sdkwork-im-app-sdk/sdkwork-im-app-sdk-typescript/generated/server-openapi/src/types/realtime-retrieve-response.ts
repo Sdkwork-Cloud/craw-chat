@@ -1,4 +1,4 @@
-import type { PortalSnapshot } from './portal-snapshot';
+import type { PortalRealtimeSnapshot } from './portal-realtime-snapshot';
 
 export interface RealtimeRetrieveResponse {
   code: 0;

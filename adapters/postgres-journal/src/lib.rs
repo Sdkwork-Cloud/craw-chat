@@ -26,6 +26,7 @@
 //!   composite primary key `(partition_key, commit_offset)` and the unique
 //!   `event_id` enforce idempotent appends.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
@@ -353,6 +354,57 @@ impl PostgresCommitJournal {
     pub fn partition_prefix(&self) -> &Arc<str> {
         &self.partition_prefix
     }
+
+    /// Appends a batch and applies a related PostgreSQL mutation in one transaction.
+    ///
+    /// The journal owns aggregate sequence allocation for this path. Partition locks are
+    /// acquired in lexical order so concurrent multi-aggregate batches cannot deadlock.
+    /// The callback receives only newly inserted envelopes with their committed
+    /// `ordering_seq` values. Exact event-ID replay never reapplies an older mutation.
+    pub fn append_batch_with_allocated_sequences_in_transaction<F>(
+        &self,
+        mut envelopes: Vec<CommitEnvelope>,
+        apply: F,
+    ) -> Result<Vec<CommitPosition>, ContractError>
+    where
+        F: for<'txn> FnOnce(
+                &mut r2d2_postgres::postgres::Transaction<'txn>,
+                &[CommitEnvelope],
+            ) -> Result<(), ContractError>
+            + Send,
+    {
+        if envelopes.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let pool = self.pool.clone();
+        let prefix = self.partition_prefix.clone();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "journal coordinated append")?;
+            let mut txn = client.transaction().map_err(|error| {
+                postgres_unavailable_db("journal coordinated append begin", error)
+            })?;
+            lock_journal_partitions(
+                &mut txn,
+                prefix.as_ref(),
+                &envelopes,
+                "journal coordinated append lock",
+            )?;
+            let existing_event_ids =
+                allocate_next_ordering_sequences(&mut txn, prefix.as_ref(), &mut envelopes)?;
+            let positions = append_many_on_transaction(&mut txn, prefix.as_ref(), &envelopes)?;
+            let inserted_envelopes = envelopes
+                .iter()
+                .filter(|envelope| !existing_event_ids.contains(&envelope.event_id))
+                .cloned()
+                .collect::<Vec<_>>();
+            apply(&mut txn, &inserted_envelopes)?;
+            txn.commit().map_err(|error| {
+                postgres_unavailable_db("journal coordinated append commit", error)
+            })?;
+            Ok(positions)
+        })
+    }
 }
 
 impl CommitJournal for PostgresCommitJournal {
@@ -375,17 +427,10 @@ impl CommitJournal for PostgresCommitJournal {
     }
 
     fn recorded(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
-        let pool = self.pool.clone();
-        let prefix = self.partition_prefix.clone();
-        run_postgres_io(move || {
-            load_recorded_page(
-                &pool,
-                &prefix,
-                None,
-                COMMIT_JOURNAL_REPLAY_BATCH_LIMIT as i64,
-            )
-            .map(|(events, _cursor)| events)
-        })
+        Err(ContractError::UnsupportedCapability(
+            "PostgreSQL journal readback requires recorded_page keyset replay; unbounded recorded() is disabled"
+                .into(),
+        ))
     }
 
     fn recorded_page(
@@ -396,7 +441,8 @@ impl CommitJournal for PostgresCommitJournal {
         let pool = self.pool.clone();
         let prefix = self.partition_prefix.clone();
         let cursor = cursor.cloned();
-        let limit = i64::try_from(limit.max(1)).unwrap_or(COMMIT_JOURNAL_REPLAY_BATCH_LIMIT as i64);
+        let limit = i64::try_from(limit.clamp(1, COMMIT_JOURNAL_REPLAY_BATCH_LIMIT))
+            .unwrap_or(COMMIT_JOURNAL_REPLAY_BATCH_LIMIT as i64);
         run_postgres_io(move || {
             let (items, next_cursor) = load_recorded_page(&pool, &prefix, cursor.as_ref(), limit)?;
             Ok(CommitJournalReplayPage { items, next_cursor })
@@ -413,7 +459,8 @@ impl CommitJournal for PostgresCommitJournal {
         let prefix = self.partition_prefix.clone();
         let scope = scope.clone();
         let cursor = cursor.cloned();
-        let limit = i64::try_from(limit.max(1)).unwrap_or(COMMIT_JOURNAL_REPLAY_BATCH_LIMIT as i64);
+        let limit = i64::try_from(limit.clamp(1, COMMIT_JOURNAL_REPLAY_BATCH_LIMIT))
+            .unwrap_or(COMMIT_JOURNAL_REPLAY_BATCH_LIMIT as i64);
         run_postgres_io(move || {
             let (items, next_cursor) =
                 load_recorded_page_for_aggregate(&pool, &prefix, &scope, cursor.as_ref(), limit)?;
@@ -432,7 +479,8 @@ impl CommitJournal for PostgresCommitJournal {
         let prefix = self.partition_prefix.clone();
         let query = query.clone();
         let cursor = cursor.cloned();
-        let limit = i64::try_from(limit.max(1)).unwrap_or(COMMIT_JOURNAL_REPLAY_BATCH_LIMIT as i64);
+        let limit = i64::try_from(limit.clamp(1, COMMIT_JOURNAL_REPLAY_BATCH_LIMIT))
+            .unwrap_or(COMMIT_JOURNAL_REPLAY_BATCH_LIMIT as i64);
         run_postgres_io(move || {
             let (items, next_cursor) = load_recorded_page_for_aggregate_event_types(
                 &pool,
@@ -506,6 +554,15 @@ pub(crate) const LOAD_EVENT_BY_POSITION_SQL: &str = r#"
 select event_id, partition_key, commit_offset
 from im_commit_journal
 where partition_key = $1 and commit_offset = $2
+"#;
+
+const LOCK_JOURNAL_PARTITION_SQL: &str =
+    "select pg_advisory_xact_lock(hashtextextended($1, 0::bigint))";
+
+const LOAD_MAX_AGGREGATE_SEQ_SQL: &str = r#"
+select coalesce(max(commit_offset), 0)::bigint
+from im_commit_journal
+where partition_key = $1
 "#;
 
 const LOAD_RECORDED_SQL: &str = r#"
@@ -901,6 +958,94 @@ fn journal_replay_ordering_seq(aggregate_seq: i64) -> Result<u64, ContractError>
     postgres_bigint_output(ordering_seq, "aggregate_seq")
 }
 
+fn journal_partitions(prefix: &str, envelopes: &[CommitEnvelope]) -> BTreeSet<String> {
+    envelopes
+        .iter()
+        .map(|envelope| compose_partition_key(prefix, envelope.ordering_key.as_str()))
+        .collect()
+}
+
+fn lock_journal_partitions(
+    txn: &mut r2d2_postgres::postgres::Transaction<'_>,
+    prefix: &str,
+    envelopes: &[CommitEnvelope],
+    action: &'static str,
+) -> Result<(), ContractError> {
+    for partition_key in journal_partitions(prefix, envelopes) {
+        txn.query_one(LOCK_JOURNAL_PARTITION_SQL, &[&partition_key])
+            .map_err(|error| postgres_unavailable_db(action, error))?;
+    }
+    Ok(())
+}
+
+fn allocate_next_ordering_sequences(
+    txn: &mut r2d2_postgres::postgres::Transaction<'_>,
+    prefix: &str,
+    envelopes: &mut [CommitEnvelope],
+) -> Result<BTreeSet<String>, ContractError> {
+    let mut next_by_partition = BTreeMap::new();
+    for partition_key in journal_partitions(prefix, envelopes) {
+        let row = txn
+            .query_one(LOAD_MAX_AGGREGATE_SEQ_SQL, &[&partition_key])
+            .map_err(|error| postgres_unavailable_db("journal aggregate sequence lookup", error))?;
+        let current: i64 = postgres_row_get(&row, 0, "aggregate sequence lookup", "aggregate_seq")?;
+        next_by_partition.insert(partition_key, current);
+    }
+
+    let mut existing_by_event = BTreeMap::new();
+    for envelope in envelopes.iter() {
+        let existing = txn
+            .query_opt(LOAD_EVENT_BY_ID_SQL, &[&envelope.event_id])
+            .map_err(|error| {
+                postgres_unavailable_db("journal aggregate sequence replay lookup", error)
+            })?;
+        if let Some(row) = existing {
+            existing_by_event.insert(
+                envelope.event_id.clone(),
+                JournalEventFingerprint::from_row(&row)?.aggregate_seq,
+            );
+        }
+    }
+    assign_ordering_sequences(
+        prefix,
+        envelopes,
+        &mut next_by_partition,
+        &existing_by_event,
+    )?;
+    Ok(existing_by_event.into_keys().collect())
+}
+
+fn assign_ordering_sequences(
+    prefix: &str,
+    envelopes: &mut [CommitEnvelope],
+    next_by_partition: &mut BTreeMap<String, i64>,
+    existing_by_event: &BTreeMap<String, i64>,
+) -> Result<(), ContractError> {
+    for envelope in envelopes {
+        let partition_key = compose_partition_key(prefix, envelope.ordering_key.as_str());
+        let aggregate_seq = if let Some(existing) = existing_by_event.get(&envelope.event_id) {
+            *existing
+        } else {
+            let current = next_by_partition.get_mut(&partition_key).ok_or_else(|| {
+                ContractError::Unavailable(
+                    "journal aggregate sequence partition lock state is missing".into(),
+                )
+            })?;
+            *current = current.checked_add(1).ok_or_else(|| {
+                ContractError::Conflict("journal aggregate sequence is exhausted".into())
+            })?;
+            *current
+        };
+        let zero_based = aggregate_seq.checked_sub(1).ok_or_else(|| {
+            ContractError::Unavailable(
+                "journal aggregate sequence lookup returned a non-positive value".into(),
+            )
+        })?;
+        envelope.ordering_seq = postgres_bigint_output(zero_based, "aggregate_seq")?;
+    }
+    Ok(())
+}
+
 fn append_one(
     pool: &PostgresJournalPool,
     prefix: &str,
@@ -910,6 +1055,12 @@ fn append_one(
     let mut txn = client
         .transaction()
         .map_err(|error| postgres_unavailable_db("journal append begin", error))?;
+    lock_journal_partitions(
+        &mut txn,
+        prefix,
+        std::slice::from_ref(envelope),
+        "journal append lock",
+    )?;
 
     let partition_key = compose_partition_key(prefix, &envelope.ordering_key);
     let payload_json = postgres_jsonb_payload(envelope.payload.as_str())?;
@@ -1046,9 +1197,20 @@ fn append_many(
     let mut txn = client
         .transaction()
         .map_err(|error| postgres_unavailable("journal append_batch begin", error))?;
+    lock_journal_partitions(&mut txn, prefix, &envelopes, "journal append_batch lock")?;
+    let positions = append_many_on_transaction(&mut txn, prefix, &envelopes)?;
+    txn.commit()
+        .map_err(|error| postgres_unavailable("journal append_batch commit", error))?;
+    Ok(positions)
+}
 
+fn append_many_on_transaction(
+    txn: &mut r2d2_postgres::postgres::Transaction<'_>,
+    prefix: &str,
+    envelopes: &[CommitEnvelope],
+) -> Result<Vec<CommitPosition>, ContractError> {
     let mut positions = Vec::with_capacity(envelopes.len());
-    for envelope in &envelopes {
+    for envelope in envelopes {
         let partition_key = compose_partition_key(prefix, &envelope.ordering_key);
         let payload_json = postgres_jsonb_payload(envelope.payload.as_str())?;
         let payload_hash = sha256_hash(envelope.payload.as_bytes());
@@ -1118,7 +1280,7 @@ fn append_many(
             }
             InsertOutcome::EventIdAbsorbed => {
                 let (partition, offset) = resolve_journal_event_id_replay(
-                    &mut txn,
+                    txn,
                     prefix,
                     envelope,
                     "journal append_batch conflict lookup",
@@ -1138,7 +1300,7 @@ fn append_many(
                     postgres_row_get(&row, 0, "position lookup", "event_id")?;
                 if existing_event_id == envelope.event_id {
                     let (partition, offset) = resolve_journal_event_id_replay(
-                        &mut txn,
+                        txn,
                         prefix,
                         envelope,
                         "journal append_batch defensive replay lookup",
@@ -1152,9 +1314,6 @@ fn append_many(
 
         positions.push(CommitPosition::new(final_partition, final_offset));
     }
-
-    txn.commit()
-        .map_err(|error| postgres_unavailable("journal append_batch commit", error))?;
 
     Ok(positions)
 }
@@ -1690,14 +1849,17 @@ pub fn conversation_member_access_gate_from_pool(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use im_domain_events::{AggregateType, CommitEnvelope};
     use im_platform_contracts::ContractError;
 
     use super::{
         AGENT_MENTION_DISPATCH_EVENT_TYPE, AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA,
-        JournalEventFingerprint, ensure_journal_event_replay_matches, journal_aggregate_seq,
-        journal_position_conflict, journal_replay_ordering_seq, postgres_bigint_input,
-        postgres_bigint_output, postgres_jsonb_payload, postgres_timestamptz, postgres_unavailable,
+        JournalEventFingerprint, assign_ordering_sequences, compose_partition_key,
+        ensure_journal_event_replay_matches, journal_aggregate_seq, journal_position_conflict,
+        journal_replay_ordering_seq, postgres_bigint_input, postgres_bigint_output,
+        postgres_jsonb_payload, postgres_timestamptz, postgres_unavailable,
         replay_envelope_metadata,
     };
 
@@ -1993,5 +2155,53 @@ mod tests {
             assert!(!message.contains("event_sensitive"));
             assert!(!message.contains("evt_replay_fingerprint"));
         }
+    }
+
+    #[test]
+    fn coordinated_sequence_assignment_is_contiguous_and_replay_stable() {
+        let mut envelopes = vec![
+            CommitEnvelope::minimal("evt-existing", "tenant-a", "space.updated", "space", "1", 9),
+            CommitEnvelope::minimal("evt-new-a", "tenant-a", "space.updated", "space", "1", 9),
+            CommitEnvelope::minimal("evt-new-b", "tenant-a", "group.updated", "group", "2", 9),
+        ];
+        let partition_a = compose_partition_key("space", &envelopes[0].ordering_key);
+        let partition_b = compose_partition_key("space", &envelopes[2].ordering_key);
+        let mut current = BTreeMap::from([(partition_a, 2_i64), (partition_b, 0_i64)]);
+        let existing = BTreeMap::from([("evt-existing".to_owned(), 2_i64)]);
+
+        assign_ordering_sequences("space", &mut envelopes, &mut current, &existing)
+            .expect("sequence allocation should succeed");
+
+        assert_eq!(
+            envelopes[0].ordering_seq, 1,
+            "replay keeps its stored sequence"
+        );
+        assert_eq!(
+            envelopes[1].ordering_seq, 2,
+            "next event receives sequence 3"
+        );
+        assert_eq!(
+            envelopes[2].ordering_seq, 0,
+            "new aggregate starts at sequence 1"
+        );
+    }
+
+    #[test]
+    fn coordinated_sequence_assignment_rejects_exhausted_aggregate() {
+        let mut envelopes = vec![CommitEnvelope::minimal(
+            "evt-overflow",
+            "tenant-a",
+            "space.updated",
+            "space",
+            "1",
+            0,
+        )];
+        let partition = compose_partition_key("space", &envelopes[0].ordering_key);
+        let mut current = BTreeMap::from([(partition, i64::MAX)]);
+
+        assert!(matches!(
+            assign_ordering_sequences("space", &mut envelopes, &mut current, &BTreeMap::new()),
+            Err(ContractError::Conflict(_))
+        ));
     }
 }

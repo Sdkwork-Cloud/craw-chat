@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: chat
-Updated: 2026-07-14
+Updated: 2026-07-16
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md
 
 ## Document Map
@@ -116,7 +116,7 @@ Product detail lives in the linked PRD shards below.
 
 ## 8. Commercial Readiness Status
 
-As of 2026-07-14:
+As of 2026-07-16:
 
 Overall status: **pre-GA release candidate, commercial sign-off blocked**. The application has not
 launched. Direct distribution remains prohibited until real pre-release/capacity runs and complete
@@ -130,23 +130,32 @@ checksum, signature, SBOM, provenance, staging E2E, HA, and recovery evidence pa
 - Audit list/export/verify paths fail-closed on PostgreSQL read errors (no silent empty lists).
 - Ops lag surfaces start empty until governance/runtime wiring publishes real lag items (no synthetic zero-lag defaults).
 - `distributed_runtime_service.proto` (RuntimeTopology, RouteLease, DomainEventRelay) remains **Phase 2 contract-only**; internal RPC host serves RoomOrchestration and MessageDispatch unary RPCs only.
-- Admin/console surfaces ship through `apps/sdkwork-im-pc` package families (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) with generated backend SDK integration.
+- Admin/console surfaces live in `apps/sdkwork-im-pc` package families. Admin feature services use
+  `@sdkwork/im-pc-admin-sdk`, which composes generated `@sdkwork/im-backend-sdk` and
+  `@sdkwork/iam-backend-sdk` clients with the shared TokenManager. A generated method is not treated
+  as proof that its production admin authority is deployed.
 - Gateway chat routes resolve principal directories from environment (catalog path or dev/test allow-all); production forbids `SDKWORK_IM_ALLOW_ALL_PRINCIPALS`.
 - Production topology requires `SDKWORK_IM_JWT_REQUIRE_JTI=true`, `SDKWORK_IM_JWT_REPLAY_REDIS_URL`, and Redis for replay protection.
 - Production rejects the public dev/test JWT signing secret (`sdkwork-im-dev-jwt-secret-not-for-production-use`) at AppContext validation time (fail-closed).
 - Audit, conversation journal, and RTC state stores fail-closed in production when durable backends are unavailable.
-- Commit journal recovery and projection consumers replay in bounded batches (`COMMIT_JOURNAL_REPLAY_BATCH_LIMIT` = 500) via `CommitJournal::recorded_page` (PostgreSQL `LIMIT` keyset), preventing unbounded OOM on large journals.
+- Commit journal recovery and projection consumers replay in bounded batches (`COMMIT_JOURNAL_REPLAY_BATCH_LIMIT` = 200) via `CommitJournal::recorded_page` (PostgreSQL `LIMIT` keyset), preventing unbounded OOM on large journals.
 - Single-conversation journal recovery uses aggregate-scoped `CommitJournal::recorded_page_for_aggregate` (PostgreSQL `WHERE aggregate_id = $1`) instead of full-journal scan plus in-memory filter.
 - Embedded projection apply after journal commit is fail-closed in production (`ContractError::Unavailable`); the cloud projection runtime remains the durable path.
-- Portal dashboard/conversations/realtime snapshots expose `dataAvailability: false` until ops metrics wiring reports healthy runtime with non-empty lag or replay counters.
+- Portal dashboard/conversations/realtime snapshots expose typed `availability.state = unavailable`
+  and omit metrics until an authoritative ops source reports real data.
 - Gateway `realtime.events.list` returns `SdkWorkApiResponse` envelope; RPC cursor pagination sets `total_count = 0` when the total is unknown.
 - Interactive list HTTP query parameters use canonical `page_size` and `cursor`; `pageSize` is SDK/model naming only and is rejected when sent as a URL query alias.
 - Social open-api handlers emit `SdkWorkApiResponse` / `ProblemDetail` envelopes via SDKWork web-framework response mapping; create routes return `201`, delete routes return `204`, and list/retrieve/update routes return `200`.
-- Admin sandbox resource collection creates return `201`, command/upsert routes remain `200`, and deletes remain `204`.
+- The admin sandbox is a development/test-only contract surface. Production-like runtimes reject
+  startup when it is enabled and require a real `SDKWORK_ADMIN_PROXY_TARGET`; file-backed sandbox
+  state is never a billing, metering, audit, tenant, or storage authority.
 - `shutdown_signal()` handles SIGTERM and SIGINT on Unix for Kubernetes graceful drain.
-- K8s deployments enforce Restricted Pod Security Standards with `securityContext`, `imagePullSecrets`, and `readOnlyRootFilesystem`.
-- Network policies enforce default-deny egress with explicit CIDR allowlists.
-- Release artifacts require SHA-256 checksums and Cosign/Sigstore code signing.
+- Kubernetes reference manifests include Restricted Pod Security contexts, image pull secrets,
+  read-only root filesystems, and default-deny network-policy examples. They are not production
+  release evidence while mutable image tags, placement/HA gaps, telemetry export, and target-cluster
+  validation remain unresolved.
+- Release policy requires SHA-256 checksums, signing, SBOM, and provenance; those artifacts must be
+  produced and verified for the actual release, not inferred from manifest flags.
 - Managed group Knowledgebase production activation additionally requires the independently
   deployed Knowledgebase RPC host, durable database and Drive storage, approved network route,
   issued mTLS material, and runtime preflight. Endpoint, certificate, Secret, and storage-claim
@@ -160,10 +169,10 @@ checksum, signature, SBOM, provenance, staging E2E, HA, and recovery evidence pa
 
 | Surface | Root | Status | Notes |
 | --- | --- | --- | --- |
-| PC web/desktop | `apps/sdkwork-im-pc` | **Production release-candidate remediation in progress** | Core chat uses generated/composed SDKs and server pagination. Startup sync is bounded to the offline message window; selected-group member hydration uses bounded SDK cursor pages. The Tauri offline store is principal-scoped and bounded, uses lease-fenced multi-batch sends, quarantines corrupt payloads, and never replaces PostgreSQL as the production source of truth. Route-level RBAC is implemented (`RequirePermission` gates `/console/*` and `/admin/*`), realtime HashMap entries are capped (`RTC_SESSIONS_MAX_ENTRIES` / `RTC_SIGNALS_MAX_PER_SESSION`), and supply-chain placeholder media is cleaned up. Signed release artifacts (checksum/signature/SBOM via CI) remain the release blocker. |
-| Console/admin | `apps/sdkwork-im-pc` (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) | **Production release-candidate remediation in progress** | Reachable SDK-backed operations are enabled. Route-level RBAC and secret-redaction are implemented. Signed release artifacts remain release blockers. |
-| H5 mobile | `apps/sdkwork-im-h5` | **Production pilot ready** | IAM `platform: "h5"`, inbox pagination (memory cap 200) + virtualized message history window (cap 500), incremental WebSocket message sync, offline text send queue (IndexedDB + claim/lease, cap 100), Drive via `@sdkwork/drive-app-sdk`, user-visible retry on load failures |
-| Flutter mobile | `apps/sdkwork-im-flutter-mobile` | **Production pilot ready** | Inbox + conversation REST, incremental WebSocket message sync (cap 500), explicit message-history pagination, offline text send queue (`shared_preferences` v2 + claim/lease, cap 100), Drive upload facade; tokens in `flutter_secure_storage`; inbox error/retry UX |
+| PC web/desktop | `apps/sdkwork-im-pc` | **Pre-GA remediation in progress** | Core chat uses generated/composed SDKs and server pagination. Startup sync is bounded to the offline message window; selected-group member hydration uses bounded SDK cursor pages. The Tauri offline store is principal-scoped and bounded, uses lease-fenced multi-batch sends, quarantines corrupt payloads, and never replaces PostgreSQL as the production source of truth. Route-level RBAC is implemented (`RequirePermission` gates `/console/*` and `/admin/*`) and realtime maps are capped. Production cluster, direct staging E2E/capacity, recovery, immutable artifact, signing, SBOM, and provenance evidence remain blockers. |
+| Console/admin | `apps/sdkwork-im-pc` (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) | **Pre-GA integration only** | Route-level RBAC, fail-closed unavailable states, secret redaction, and generated SDK composition are implemented. Commercial release also requires real durable admin/billing authorities, typed non-`LooseJsonValue` contracts, production upstream preflight, audit/SLO evidence, and signed release artifacts. |
+| H5 mobile | `apps/sdkwork-im-h5` | **Pre-GA validation** | IAM `platform: "h5"`, server pagination, a virtualized message history window capped at 500 items, incremental WebSocket message sync, a bounded offline text queue, Drive app SDK integration, and user-visible retry are implemented. Real staging E2E, device matrix, capacity, security, and signed distribution evidence remain required. |
+| Flutter mobile | `apps/sdkwork-im-flutter-mobile` | **Pre-GA validation** | Inbox/conversation REST, bounded cursor pagination, incremental WebSocket sync, bounded offline text queue, Drive facade, secure token storage, and retry UX are implemented. Real staging E2E, device matrix, capacity, security, and signed distribution evidence remain required. |
 
 ### Commerce and Extension Modules (pre-GA boundaries)
 

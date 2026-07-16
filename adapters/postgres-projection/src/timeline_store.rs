@@ -2,14 +2,15 @@ use im_domain_core::retention::retention_until_from_class;
 use im_platform_contracts::ContractError;
 use r2d2_postgres::postgres::types::Json;
 use sdkwork_im_contract_message::{
-    TimelineProjectionBatch, TimelineProjectionRecord, TimelineProjectionWindow,
+    TimelineProjectionBatch, TimelineProjectionRecord, TimelineProjectionScope,
+    TimelineProjectionWindow,
 };
 use sdkwork_utils_rust::sha256_hash;
 use serde::Deserialize;
 
 use crate::{
     PostgresProjectionPool, now_rfc3339, postgres_pool_client, postgres_timestamptz,
-    postgres_unavailable, require_projection_organization_id, run_postgres_io,
+    postgres_unavailable, run_postgres_io,
 };
 
 const UPSERT_TIMELINE_ENTRY_SQL: &str = r#"
@@ -77,40 +78,31 @@ impl PostgresTimelineProjectionStore {
 impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelineProjectionStore {
     fn upsert_timeline_entry(
         &self,
-        tenant_id: &str,
-        timeline_scope: &str,
+        scope: &TimelineProjectionScope,
         message_seq: u64,
         payload: &str,
     ) -> Result<(), ContractError> {
         upsert_timeline_rows(
             &self.pool,
-            &[(
-                tenant_id.to_owned(),
-                timeline_scope.to_owned(),
-                message_seq,
-                payload.to_owned(),
-            )],
+            &[(scope.clone(), message_seq, payload.to_owned())],
         )
     }
 
     fn load_timeline(
         &self,
-        tenant_id: &str,
-        timeline_scope: &str,
+        scope: &TimelineProjectionScope,
     ) -> Result<Vec<(u64, String)>, ContractError> {
-        let organization_id = require_projection_organization_id()?;
         let pool = self.pool.clone();
-        let tenant_id = tenant_id.to_owned();
-        let timeline_scope = timeline_scope.to_owned();
+        let scope = scope.clone();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "timeline load")?;
             let rows = client
                 .query(
                     LOAD_TIMELINE_SQL,
                     &[
-                        &tenant_id,
-                        &organization_id,
-                        &timeline_scope,
+                        &scope.tenant_id(),
+                        &scope.organization_id(),
+                        &scope.timeline_scope(),
                         &LOAD_TIMELINE_DEFAULT_LIMIT,
                     ],
                 )
@@ -128,15 +120,12 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
 
     fn load_timeline_window(
         &self,
-        tenant_id: &str,
-        timeline_scope: &str,
+        scope: &TimelineProjectionScope,
         after_seq: u64,
         limit: usize,
     ) -> Result<TimelineProjectionWindow, ContractError> {
-        let organization_id = require_projection_organization_id()?;
         let pool = self.pool.clone();
-        let tenant_id = tenant_id.to_owned();
-        let timeline_scope = timeline_scope.to_owned();
+        let scope = scope.clone();
         let fetch_limit = i64::try_from(limit.saturating_add(1)).unwrap_or(i64::MAX);
         let after_seq_i64 = i64::try_from(after_seq).unwrap_or(i64::MAX);
         run_postgres_io(move || {
@@ -145,9 +134,9 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
                 .query(
                     LOAD_TIMELINE_WINDOW_SQL,
                     &[
-                        &tenant_id,
-                        &organization_id,
-                        &timeline_scope,
+                        &scope.tenant_id(),
+                        &scope.organization_id(),
+                        &scope.timeline_scope(),
                         &after_seq_i64,
                         &fetch_limit,
                     ],
@@ -169,20 +158,12 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
 
     fn upsert_timeline_entries(
         &self,
-        tenant_id: &str,
-        timeline_scope: &str,
+        scope: &TimelineProjectionScope,
         records: &[TimelineProjectionRecord],
     ) -> Result<(), ContractError> {
         let rows = records
             .iter()
-            .map(|record| {
-                (
-                    tenant_id.to_owned(),
-                    timeline_scope.to_owned(),
-                    record.message_seq,
-                    record.payload.clone(),
-                )
-            })
+            .map(|record| (scope.clone(), record.message_seq, record.payload.clone()))
             .collect::<Vec<_>>();
         upsert_timeline_rows(&self.pool, &rows)
     }
@@ -195,8 +176,7 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
         for batch in batches {
             for record in &batch.records {
                 rows.push((
-                    batch.tenant_id.clone(),
-                    batch.timeline_scope.clone(),
+                    batch.scope.clone(),
                     record.message_seq,
                     record.payload.clone(),
                 ));
@@ -208,12 +188,11 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
 
 fn upsert_timeline_rows(
     pool: &PostgresProjectionPool,
-    rows: &[(String, String, u64, String)],
+    rows: &[(TimelineProjectionScope, u64, String)],
 ) -> Result<(), ContractError> {
     if rows.is_empty() {
         return Ok(());
     }
-    let organization_id = require_projection_organization_id()?;
     let pool = pool.clone();
     let rows = rows.to_vec();
     run_postgres_io(move || {
@@ -222,7 +201,7 @@ fn upsert_timeline_rows(
             .transaction()
             .map_err(|error| postgres_unavailable("timeline upsert begin", error))?;
         let created_at = postgres_timestamptz(&now_rfc3339(), "created_at")?;
-        for (tenant_id, conversation_id, message_seq, payload) in rows {
+        for (scope, message_seq, payload) in rows {
             let parsed = parse_timeline_payload(payload.as_str());
             let retention_until = resolve_timeline_retention_until(&parsed)
                 .map(|value| postgres_timestamptz(value.as_str(), "retention_until"))
@@ -235,9 +214,9 @@ fn upsert_timeline_rows(
                 .execute(
                     UPSERT_TIMELINE_ENTRY_SQL,
                     &[
-                        &tenant_id,
-                        &organization_id,
-                        &conversation_id,
+                        &scope.tenant_id(),
+                        &scope.organization_id(),
+                        &scope.timeline_scope(),
                         &message_seq_i64,
                         &message_id,
                         &summary,

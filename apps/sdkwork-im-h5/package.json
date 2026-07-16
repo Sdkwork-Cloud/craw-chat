@@ -8,9 +8,11 @@
     "build": "tsc -p tsconfig.app.json && vite build",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "lint": "tsc --noEmit -p tsconfig.app.json",
+    "test": "pnpm run test:chat-conversation-title && pnpm run test:chat-inbox-search && pnpm run test:chat-pagination",
     "test:drive-app-sdk-integration": "node scripts/drive-app-sdk-integration-contract.test.mjs",
     "test:chat-conversation-title": "tsx --tsconfig tsconfig.app.json scripts/chat-conversation-title-contract.test.ts",
-    "test:chat-inbox-search": "node scripts/chat-inbox-search-contract.test.mjs"
+    "test:chat-inbox-search": "node scripts/chat-inbox-search-contract.test.mjs",
+    "test:chat-pagination": "tsx --tsconfig tsconfig.app.json scripts/chat-pagination-window-contract.test.ts"
   },
   "dependencies": {
     "@sdkwork/auth-pc-react": "workspace:*",
