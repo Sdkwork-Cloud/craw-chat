@@ -1,8 +1,9 @@
 import tailwindcss from '@tailwindcss/vite';
+import { createSdkworkCredentialEntryBootstrapVitePlugin } from '../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry/src/vite.ts';
 import react from '@vitejs/plugin-react';
 import { createRequire } from 'node:module';
 import path from 'path';
-import {defineConfig, loadEnv, type Plugin} from 'vite';
+import {defineConfig, type Plugin} from 'vite';
 import { handleSdkworkChatLocalApiRequest } from './local-api';
 
 const repoRoot = path.resolve(__dirname, '../..');
@@ -265,16 +266,25 @@ function sdkworkChatLocalApiPlugin(): Plugin {
 }
 
 export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
   return {
-    define: {
-      'process.env.SDKWORK_ACCESS_TOKEN': JSON.stringify(
-        env.SDKWORK_ACCESS_TOKEN ?? process.env.SDKWORK_ACCESS_TOKEN ?? '',
-      ),
-    },
-        plugins: [sdkworkChatLocalApiPlugin(), react(), tailwindcss()],
+    plugins: [
+      createSdkworkCredentialEntryBootstrapVitePlugin({
+        accessToken: process.env.SDKWORK_ACCESS_TOKEN,
+        environment: mode,
+      }),
+      sdkworkChatLocalApiPlugin(),
+      react(),
+      tailwindcss(),
+    ],
     resolve: {
       alias: [
+        {
+          find: '@sdkwork/iam-credential-entry/vite',
+          replacement: path.resolve(
+            repoRoot,
+            '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry/src/vite.ts',
+          ),
+        },
         { find: '@', replacement: path.resolve(__dirname, '.') },
         { find: 'react/jsx-runtime', replacement: reactJsxRuntimeEntry },
         { find: 'react/jsx-dev-runtime', replacement: reactJsxDevRuntimeEntry },

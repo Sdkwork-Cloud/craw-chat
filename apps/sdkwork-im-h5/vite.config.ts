@@ -1,7 +1,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createSdkworkCredentialEntryBootstrapVitePlugin } from "../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry/src/vite.ts";
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig } from "vite";
 
 const imH5Root = path.dirname(fileURLToPath(import.meta.url));
 const imRoot = path.resolve(imH5Root, "../..");
@@ -14,14 +15,20 @@ const sdkCommonRoot = path.resolve(imRoot, "../sdkwork-sdk-commons/sdkwork-sdk-c
 const sdkCommonSourceRoot = path.resolve(sdkCommonRoot, "src");
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, imH5Root, "");
   return {
-    define: {
-      "process.env.SDKWORK_ACCESS_TOKEN": JSON.stringify(env.SDKWORK_ACCESS_TOKEN ?? ""),
-    },
-    plugins: [react()],
+    plugins: [
+      createSdkworkCredentialEntryBootstrapVitePlugin({
+        accessToken: process.env.SDKWORK_ACCESS_TOKEN,
+        environment: mode,
+      }),
+      react(),
+    ],
     resolve: {
       alias: {
+        "@sdkwork/iam-credential-entry/vite": path.resolve(
+          iamRoot,
+          "apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry/src/vite.ts",
+        ),
         "@sdkwork/auth-pc-react": path.resolve(
           iamRoot,
           "apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/index.ts",

@@ -112,7 +112,7 @@ Do not add raw HTTP wrappers or manual auth headers in feature packages; bootstr
 Anonymous login, registration, and QR auth use `@sdkwork/iam-credential-entry` through `createSdkworkAppbasePcAuthRuntime`:
 
 - Runtime app id: `sdkwork-im-pc` (must match dev bootstrap JWT and standalone gateway IAM provisioning).
-- Dev orchestration injects private `SDKWORK_ACCESS_TOKEN` before renderer startup; Vite defines `process.env.SDKWORK_ACCESS_TOKEN` only (never `VITE_*`).
+- Dev orchestration injects private `SDKWORK_ACCESS_TOKEN` before renderer startup; the shared IAM Vite serve plugin publishes only the canonical credential-entry global (never `VITE_*` or a Vite `process.env` define).
 - Credential-entry SDK calls send `Access-Token: <bootstrap JWT>`; `Authorization` is forbidden on those routes.
 - The IM TokenManager holds bootstrap access tokens in memory only until a full dual-token session is committed.
 

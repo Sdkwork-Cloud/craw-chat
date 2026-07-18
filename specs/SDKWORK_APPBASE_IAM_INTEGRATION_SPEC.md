@@ -179,7 +179,7 @@ Rules:
 - `createSdkworkAppbasePcAuthRuntime` wraps the IAM app SDK with `@sdkwork/iam-credential-entry` `wrapCredentialEntryClient` by default.
 - Before each credential-entry SDK call, the runtime clears session tokens and seeds the global TokenManager from private `SDKWORK_ACCESS_TOKEN` only.
 - Tracked env templates document `SDKWORK_ACCESS_TOKEN=` with blank value. Resolved JWT values belong only in local bootstrap overlays or dev orchestrator env injection.
-- Browser/renderer runtimes must not read bootstrap tokens from `VITE_*` or public runtime config. Vite injects `process.env.SDKWORK_ACCESS_TOKEN` through private define only.
+- Browser/renderer runtimes must not read bootstrap tokens from `VITE_*` or public runtime config. Development serve uses `@sdkwork/iam-credential-entry/vite` and its canonical global handoff; Vite `process.env.SDKWORK_ACCESS_TOKEN` define replacement is forbidden.
 - After interactive login succeeds, runtime session `accessToken` supersedes bootstrap credentials for all protected SDK calls.
 - The product TokenManager may hold a transient bootstrap-only `accessToken` in memory for credential-entry calls. It must not persist partial single-token sessions; full dual-token sessions still require both `authToken` and `accessToken`.
 
@@ -596,4 +596,3 @@ The following are not allowed:
 - Appbase packages importing product app packages.
 - Product feature UI importing generated SDK internals to bypass the runtime/service boundary.
 - Mock success branches that hide missing SDK, OpenAPI, or backend runtime capabilities.
-

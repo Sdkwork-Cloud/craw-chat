@@ -47,6 +47,7 @@
     "@sdkwork/core-pc-react": "workspace:*",
     "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/iam-contracts": "workspace:*",
+    "@sdkwork/iam-credential-entry": "workspace:*",
     "@sdkwork/iam-sdk-ports": "workspace:*",
     "@sdkwork/im-admin-core": "workspace:*",
     "@sdkwork/im-admin-dashboard": "workspace:*",
