@@ -5583,6 +5583,7 @@ dependencies = [
  "sdkwork-routes-drive-app-api",
  "sdkwork-routes-drive-backend-api",
  "sdkwork-routes-drive-open-api",
+ "sdkwork-routes-storage-backend-api",
  "sqlx",
  "tokio",
 ]
@@ -7399,6 +7400,7 @@ dependencies = [
  "sdkwork-iam-web-adapter",
  "sdkwork-intelligence-agents-service",
  "sdkwork-web-axum",
+ "sdkwork-web-bootstrap",
  "sdkwork-web-contract",
  "sdkwork-web-core",
  "serde",
@@ -8214,6 +8216,7 @@ dependencies = [
  "sdkwork-database-sqlx",
  "sdkwork-iam-context-service",
  "sdkwork-iam-web-adapter",
+ "sdkwork-payment-providers",
  "sdkwork-payment-repository-sqlx",
  "sdkwork-payment-service",
  "sdkwork-payment-service-host",
@@ -8223,6 +8226,7 @@ dependencies = [
  "sdkwork-web-core",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "sqlx",
 ]
 
@@ -8310,6 +8314,33 @@ dependencies = [
  "serde_json",
  "sqlx",
  "uuid",
+]
+
+[[package]]
+name = "sdkwork-routes-storage-backend-api"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "http 1.4.2",
+ "sdkwork-drive-config",
+ "sdkwork-drive-contract",
+ "sdkwork-drive-http",
+ "sdkwork-drive-observability",
+ "sdkwork-drive-security",
+ "sdkwork-drive-storage-contract",
+ "sdkwork-drive-storage-s3",
+ "sdkwork-drive-workspace-service",
+ "sdkwork-iam-web-adapter",
+ "sdkwork-utils-rust",
+ "sdkwork-web-axum",
+ "sdkwork-web-core",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tower 0.5.3",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
