@@ -11,7 +11,7 @@ Platform naming authority: `../sdkwork-specs/APP_RUNTIME_TOPOLOGY_SPEC.md`.
 
 **standalone.development**
 
-Profile env files: `configs/topology/`
+Profile env files: `etc/topology/`
 
 ## Surfaces
 

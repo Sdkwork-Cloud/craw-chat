@@ -2,7 +2,7 @@
 /**
  * Topology env file lint.
  *
- * Validates every `.env` file under `configs/topology/` enforces:
+ * Validates every `.env` file under `etc/topology/` enforces:
  *   - Each `KEY=VALUE` pair occupies its own line (no concatenated entries).
  *   - Line endings are `\n` or `\r\n` (bare `\r` between key pairs is rejected).
  *   - No inline `KEY=VALUE1KEY2=VALUE2` concatenations.
@@ -20,14 +20,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const topologyDir = path.join(repoRoot, 'configs', 'topology');
+const topologyDir = path.join(repoRoot, 'etc', 'topology');
 
 const envFiles = fs
   .readdirSync(topologyDir)
   .filter((name) => name.endsWith('.env'))
   .map((name) => path.join(topologyDir, name));
 
-assert.ok(envFiles.length > 0, 'configs/topology must contain .env profile files');
+assert.ok(envFiles.length > 0, 'etc/topology must contain .env profile files');
 
 const violations = [];
 

@@ -156,6 +156,9 @@
       "@sdkwork/order-app-sdk": [
         "../../../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/src/index.ts"
       ],
+      "@sdkwork/order-service": [
+        "../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-service/src/index.ts"
+      ],
       "@sdkwork/membership-app-sdk": [
         "../../../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts"
       ],

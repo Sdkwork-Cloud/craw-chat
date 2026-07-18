@@ -1,4 +1,4 @@
-﻿# Sdkwork IM 鈥?Customer Operations Guide
+# Sdkwork IM 鈥?Customer Operations Guide
 
 Status: active  
 Owner: SDKWork maintainers  
@@ -24,7 +24,7 @@ Evidence: Step-11 capacity artifacts under `artifacts/perf/step-11/capacity/` an
 | `cloud.production` | Customer-facing SaaS |
 | `standalone.unified-process.production` | Private/on-prem single-node |
 
-Topology authority: `configs/topology/` and `specs/topology.spec.json`.
+Topology authority: `etc/topology/` and `specs/topology.spec.json`.
 
 ## 3. Incident Response
 

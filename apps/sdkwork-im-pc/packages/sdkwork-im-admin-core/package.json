@@ -4,8 +4,11 @@
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
   "dependencies": {
+    "@sdkwork/iam-backend-sdk": "workspace:*",
+    "@sdkwork/im-backend-sdk": "workspace:*",
     "@sdkwork/im-pc-commons": "workspace:*",
-    "@sdkwork/im-pc-admin-sdk": "workspace:*",
+    "@sdkwork/im-pc-core": "workspace:*",
+    "@sdkwork/sdk-common": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-router-dom": "catalog:"

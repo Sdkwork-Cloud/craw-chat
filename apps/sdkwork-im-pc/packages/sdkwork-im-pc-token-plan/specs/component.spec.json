@@ -92,6 +92,16 @@
         "name": "subscriptionCatalog",
         "export": ".",
         "package": "@sdkwork/membership-pc-subscription"
+      },
+      {
+        "name": "membershipCheckoutPort",
+        "export": ".",
+        "package": "@sdkwork/im-pc-core"
+      },
+      {
+        "name": "orderCheckoutDialog",
+        "export": ".",
+        "package": "@sdkwork/order-pc-checkout"
       }
     ],
     "runtimeEntrypoints": [],
@@ -101,11 +111,13 @@
     "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [],
-    "routeManifest": null
+    "routeManifest": null,
+    "compositionBoundary": "The IM application adapter injects the order-owned checkout service and dialog into the membership catalog. Membership packages do not depend on order packages."
   },
   "verification": {
     "commands": [
-      "powershell -NoProfile -Command \"Get-Content specs/component.spec.json -Raw | ConvertFrom-Json | Out-Null\""
+      "powershell -NoProfile -Command \"Get-Content specs/component.spec.json -Raw | ConvertFrom-Json | Out-Null\"",
+      "pnpm --dir ../.. test:token-plan-checkout"
     ]
   }
 }

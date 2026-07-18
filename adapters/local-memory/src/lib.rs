@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use im_domain_core::stream::{StreamFrame, StreamSessionState};
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{
     AutomationExecutionRecord, AutomationExecutionStore, CommitJournal,
@@ -12,7 +13,8 @@ use im_platform_contracts::{
     RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
     RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowRecord, RealtimeEventWindowStore,
     RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
-    StreamStateRecord, StreamStateStore, TimelineProjectionBatch, TimelineProjectionRecord,
+    StreamAppendOutcome, StreamCreateOutcome, StreamScope, StreamSessionRecord, StreamStateStore,
+    StreamTransitionOutcome, TimelineProjectionBatch, TimelineProjectionRecord,
     TimelineProjectionScope, TimelineProjectionStore, TimelineProjectionWindow,
 };
 use im_storage_contracts::{StorageDomainSnapshot, StorageDomainSnapshotStore};
@@ -679,41 +681,145 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
 
 #[derive(Clone, Default)]
 pub struct MemoryStreamStateStore {
-    states: Arc<Mutex<HashMap<String, StreamStateRecord>>>,
+    state: Arc<Mutex<MemoryStreamState>>,
 }
 
-impl MemoryStreamStateStore {
-    pub fn state(&self, tenant_id: &str, stream_id: &str) -> Option<StreamStateRecord> {
-        lock_memory_mutex(&self.states, "stream state store")
-            .get(stream_scope_key(tenant_id, stream_id).as_str())
-            .cloned()
-    }
+#[derive(Default)]
+struct MemoryStreamState {
+    sessions: HashMap<String, StreamSessionRecord>,
+    frames: HashMap<String, BTreeMap<u64, StreamFrame>>,
 }
 
 impl StreamStateStore for MemoryStreamStateStore {
-    fn load_state(
-        &self,
-        tenant_id: &str,
-        stream_id: &str,
-    ) -> Result<Option<StreamStateRecord>, ContractError> {
-        Ok(self.state(tenant_id, stream_id))
-    }
-
-    fn save_state(&self, record: StreamStateRecord) -> Result<(), ContractError> {
-        let key = stream_scope_key(record.tenant_id.as_str(), record.stream_id.as_str());
-        let mut states = lock_memory_mutex(&self.states, "stream state store");
-        let next = states
-            .remove(key.as_str())
-            .map(|previous| previous.merge_monotonic(record.clone()))
-            .unwrap_or(record);
-        states.insert(key, next);
+    fn check_ready(&self) -> Result<(), ContractError> {
+        drop(lock_memory_mutex(
+            &self.state,
+            "stream state store readiness",
+        ));
         Ok(())
     }
 
-    fn clear_state(&self, tenant_id: &str, stream_id: &str) -> Result<bool, ContractError> {
-        Ok(lock_memory_mutex(&self.states, "stream state store")
-            .remove(stream_scope_key(tenant_id, stream_id).as_str())
-            .is_some())
+    fn load_session(
+        &self,
+        scope: &StreamScope,
+    ) -> Result<Option<StreamSessionRecord>, ContractError> {
+        Ok(lock_memory_mutex(&self.state, "stream state store")
+            .sessions
+            .get(stream_scope_key(scope).as_str())
+            .cloned())
+    }
+
+    fn create_session(
+        &self,
+        record: StreamSessionRecord,
+        max_active_streams: u64,
+    ) -> Result<StreamCreateOutcome, ContractError> {
+        let mut state = lock_memory_mutex(&self.state, "stream state store");
+        let key = stream_scope_key(&record.scope);
+        if let Some(existing) = state.sessions.get(key.as_str()) {
+            return Ok(StreamCreateOutcome::Existing(existing.clone()));
+        }
+        let active = state
+            .sessions
+            .values()
+            .filter(|candidate| {
+                candidate.scope.tenant_id == record.scope.tenant_id
+                    && candidate.scope.organization_id == record.scope.organization_id
+                    && !matches!(
+                        candidate.session.state,
+                        StreamSessionState::Completed
+                            | StreamSessionState::Aborted
+                            | StreamSessionState::Expired
+                    )
+            })
+            .count() as u64;
+        if active >= max_active_streams {
+            return Ok(StreamCreateOutcome::CapacityExceeded);
+        }
+        state.sessions.insert(key, record.clone());
+        Ok(StreamCreateOutcome::Applied(record))
+    }
+
+    fn append_frame(
+        &self,
+        expected_version: u64,
+        next_session: StreamSessionRecord,
+        frame: StreamFrame,
+    ) -> Result<StreamAppendOutcome, ContractError> {
+        let mut state = lock_memory_mutex(&self.state, "stream state store");
+        let key = stream_scope_key(&next_session.scope);
+        let current = state
+            .sessions
+            .get(key.as_str())
+            .cloned()
+            .ok_or_else(|| ContractError::Invalid("stream session does not exist".into()))?;
+        if let Some(existing) = state
+            .frames
+            .get(key.as_str())
+            .and_then(|frames| frames.get(&frame.frame_seq))
+            .cloned()
+        {
+            return Ok(StreamAppendOutcome::Existing {
+                session: current,
+                frame: existing,
+            });
+        }
+        if current.version != expected_version {
+            return Ok(StreamAppendOutcome::VersionConflict);
+        }
+        state
+            .frames
+            .entry(key.clone())
+            .or_default()
+            .insert(frame.frame_seq, frame.clone());
+        state.sessions.insert(key, next_session.clone());
+        Ok(StreamAppendOutcome::Applied {
+            session: next_session,
+            frame,
+        })
+    }
+
+    fn transition_session(
+        &self,
+        expected_version: u64,
+        next_session: StreamSessionRecord,
+    ) -> Result<StreamTransitionOutcome, ContractError> {
+        let mut state = lock_memory_mutex(&self.state, "stream state store");
+        let key = stream_scope_key(&next_session.scope);
+        if state
+            .sessions
+            .get(key.as_str())
+            .map(|record| record.version)
+            != Some(expected_version)
+        {
+            return Ok(StreamTransitionOutcome::VersionConflict);
+        }
+        state.sessions.insert(key, next_session.clone());
+        Ok(StreamTransitionOutcome::Applied(next_session))
+    }
+
+    fn list_frames_after(
+        &self,
+        scope: &StreamScope,
+        after_frame_seq: u64,
+        page_size: usize,
+    ) -> Result<Vec<StreamFrame>, ContractError> {
+        let state = lock_memory_mutex(&self.state, "stream state store");
+        Ok(state
+            .frames
+            .get(stream_scope_key(scope).as_str())
+            .into_iter()
+            .flat_map(|frames| frames.range((Excluded(after_frame_seq), Unbounded)))
+            .take(page_size)
+            .map(|(_, frame)| frame.clone())
+            .collect())
+    }
+
+    fn clear_stream(&self, scope: &StreamScope) -> Result<bool, ContractError> {
+        let mut state = lock_memory_mutex(&self.state, "stream state store");
+        let key = stream_scope_key(scope);
+        state.frames.remove(key.as_str());
+        Ok(state.sessions.remove(key.as_str()).is_some())
     }
 }
 
@@ -1180,8 +1286,12 @@ fn remove_presence_online_seen_at_index(
     }
 }
 
-fn stream_scope_key(tenant_id: &str, stream_id: &str) -> String {
-    scope_key_parts(&[tenant_id, stream_id])
+fn stream_scope_key(scope: &StreamScope) -> String {
+    scope_key_parts(&[
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        scope.stream_id.as_str(),
+    ])
 }
 
 fn notification_scope_key(tenant_id: &str, notification_id: &str) -> String {

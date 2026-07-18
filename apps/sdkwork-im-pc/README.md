@@ -102,7 +102,7 @@ pnpm test:sdkwork-im-pc-architecture-standard
 - IM HTTP/WebSocket: generated `@sdkwork/im-sdk` and app/backend SDK families under repository `sdks/`
 - Platform IAM/Drive/Knowledgebase/Voice/Agent: sibling app SDK families via `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
   - Knowledgebase: `@sdkwork/knowledgebase-app-sdk` through composed `createKnowledgebaseAppClient` (not raw generated transport)
-  - Voice: `@sdkwork/voice-app-sdk` through `voicePcIntegration` and embed packages `@sdkwork/voice-pc-market` / `@sdkwork/voice-pc-speech` (tabs `voice` / `voicegen`). Production market lists `audio_assets` via SDK; pilot preview uses `VITE_SDKWORK_VOICE_MARKET_PILOT`. Split-deploy requires `SDKWORK_IM_VOICE_APP_API_UPSTREAM`.
+  - Voice: `@sdkwork/voice-app-sdk` through `voicePcIntegration` and embed packages `@sdkwork/voice-pc-market` / `@sdkwork/voice-pc-speech` (tabs `voice` / `voicegen`). Production market lists `audio_assets` via SDK; pilot preview uses `VITE_SDKWORK_VOICE_MARKET_PILOT`. The SDK root resolves through the platform assembly gateway.
 - RTC media: `@sdkwork/rtc-sdk` from sibling `../sdkwork-rtc` (not checked into this repository's `sdks/`)
 
 Do not add raw HTTP wrappers or manual auth headers in feature packages; bootstrap owns SDK construction.

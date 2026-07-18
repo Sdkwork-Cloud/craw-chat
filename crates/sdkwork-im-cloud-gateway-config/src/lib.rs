@@ -89,7 +89,7 @@ pub fn is_assembly_embedded_im_service(service_id: &str) -> bool {
     )
 }
 
-/// T1 commerce capability app-api authorities embedded by IM standalone gateway.
+/// T1 commerce capability app-api authorities embedded by IM standalone assembly.
 pub const COMMERCE_T1_APP_API_SERVICES: &[&str] = &[
     "sdkwork-account-app-api",
     "sdkwork-catalog-app-api",
@@ -108,7 +108,7 @@ pub fn is_commerce_t1_app_api_service(service_id: &str) -> bool {
     COMMERCE_T1_APP_API_SERVICES.contains(&canonical)
 }
 
-/// Sibling dependency app APIs embedded by IM standalone gateway in single-ingress mode.
+/// Sibling dependency app APIs embedded by IM standalone assembly in single-ingress mode.
 pub fn is_standalone_embedded_dependency_service(service_id: &str) -> bool {
     matches!(
         canonical_service_id(service_id),
@@ -212,17 +212,13 @@ fn parse_toml_key_value(trimmed: &str, keys: &[&str]) -> Option<String> {
     Some(value.to_owned())
 }
 
-/// Upstreams for the single-ingress runtime.
-/// IM foundation routes are served in-process. Dependency app APIs are proxied
-/// only when an operator provides an explicit upstream override.
+/// Application-plane bridge to the embedded platform gateway IAM surface.
 pub fn default_single_ingress_upstreams() -> Vec<ServiceUpstreamConfig> {
     let appbase_upstream = default_appbase_app_api_upstream();
-    let mut upstreams = vec![service_upstream(
+    vec![service_upstream(
         "sdkwork-iam-app-api",
         appbase_upstream.as_str(),
-    )];
-    upstreams.extend(explicit_dependency_app_api_upstreams());
-    upstreams
+    )]
 }
 
 /// Resolves legacy gateway service ids to canonical communication capability ids.
@@ -254,7 +250,7 @@ fn service_upstream_lookup<'a>(
 }
 
 fn default_appbase_app_api_upstream() -> String {
-    explicit_appbase_app_api_upstream().unwrap_or_else(default_platform_api_gateway_base_url)
+    default_platform_api_gateway_base_url()
 }
 
 fn default_platform_api_gateway_base_url() -> String {
@@ -278,54 +274,6 @@ fn normalize_base_url(value: String) -> Option<String> {
     Some(normalized)
 }
 
-fn explicit_appbase_app_api_upstream() -> Option<String> {
-    env::var("SDKWORK_IM_APPBASE_APP_API_UPSTREAM")
-        .or_else(|_| {
-            env::var("SDKWORK_APPBASE_APP_API_BIND_ADDR")
-                .map(|bind_addr| format!("http://{}", bind_addr.trim()))
-        })
-        .ok()
-        .and_then(normalize_base_url)
-}
-
-fn explicit_dependency_app_api_upstreams() -> Vec<ServiceUpstreamConfig> {
-    let mut upstreams = Vec::new();
-    for service_id in [
-        "sdkwork-drive-app-api",
-        "sdkwork-notary-app-api",
-        "sdkwork-mail-app-api",
-        "sdkwork-community-app-api",
-        "sdkwork-course-app-api",
-        "sdkwork-knowledgebase-app-api",
-        "sdkwork-voice-app-api",
-        "sdkwork-agents-app-api",
-    ] {
-        if let Some(base_url) = explicit_app_api_upstream(service_id) {
-            upstreams.push(service_upstream(service_id, base_url.as_str()));
-        }
-    }
-    for service_id in COMMERCE_T1_APP_API_SERVICES {
-        if let Some(base_url) = explicit_app_api_upstream(service_id) {
-            upstreams.push(service_upstream(service_id, base_url.as_str()));
-        }
-    }
-    upstreams
-}
-
-fn explicit_app_api_upstream(service_id: &str) -> Option<String> {
-    let capability = service_id
-        .strip_prefix("sdkwork-")
-        .and_then(|rest| rest.strip_suffix("-app-api"))
-        .unwrap_or(service_id);
-    let capability_env = capability.replace('-', "_").to_ascii_uppercase();
-    first_env_value(&[
-        &format!("SDKWORK_IM_{capability_env}_APP_API_UPSTREAM"),
-        &format!("SDKWORK_{capability_env}_APP_API_UPSTREAM"),
-        &format!("SDKWORK_{capability_env}_APP_API_BASE_URL"),
-    ])
-    .and_then(normalize_base_url)
-}
-
 pub fn service_upstream(service_id: &str, base_url: &str) -> ServiceUpstreamConfig {
     ServiceUpstreamConfig {
         service_id: service_id.to_owned(),
@@ -347,62 +295,6 @@ mod tests {
         "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
         "SDKWORK_API_CLOUD_GATEWAY_BASE_URL",
         "SDKWORK_API_CLOUD_GATEWAY_BIND",
-        "SDKWORK_IM_APPBASE_APP_API_UPSTREAM",
-        "SDKWORK_APPBASE_APP_API_BIND_ADDR",
-        "SDKWORK_IM_DRIVE_APP_API_UPSTREAM",
-        "SDKWORK_DRIVE_APP_API_UPSTREAM",
-        "SDKWORK_DRIVE_APP_API_BASE_URL",
-        "SDKWORK_IM_NOTARY_APP_API_UPSTREAM",
-        "SDKWORK_NOTARY_APP_API_UPSTREAM",
-        "SDKWORK_NOTARY_APP_API_BASE_URL",
-        "SDKWORK_IM_MAIL_APP_API_UPSTREAM",
-        "SDKWORK_MAIL_APP_API_UPSTREAM",
-        "SDKWORK_MAIL_APP_API_BASE_URL",
-        "SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM",
-        "SDKWORK_COMMUNITY_APP_API_UPSTREAM",
-        "SDKWORK_COMMUNITY_APP_API_BASE_URL",
-        "SDKWORK_IM_COURSE_APP_API_UPSTREAM",
-        "SDKWORK_COURSE_APP_API_UPSTREAM",
-        "SDKWORK_COURSE_APP_API_BASE_URL",
-        "SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM",
-        "SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM",
-        "SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL",
-        "SDKWORK_IM_VOICE_APP_API_UPSTREAM",
-        "SDKWORK_VOICE_APP_API_UPSTREAM",
-        "SDKWORK_VOICE_APP_API_BASE_URL",
-        "SDKWORK_IM_AGENTS_APP_API_UPSTREAM",
-        "SDKWORK_AGENTS_APP_API_UPSTREAM",
-        "SDKWORK_AGENTS_APP_API_BASE_URL",
-        "SDKWORK_IM_ACCOUNT_APP_API_UPSTREAM",
-        "SDKWORK_ACCOUNT_APP_API_UPSTREAM",
-        "SDKWORK_ACCOUNT_APP_API_BASE_URL",
-        "SDKWORK_IM_CATALOG_APP_API_UPSTREAM",
-        "SDKWORK_CATALOG_APP_API_UPSTREAM",
-        "SDKWORK_CATALOG_APP_API_BASE_URL",
-        "SDKWORK_IM_INVENTORY_APP_API_UPSTREAM",
-        "SDKWORK_INVENTORY_APP_API_UPSTREAM",
-        "SDKWORK_INVENTORY_APP_API_BASE_URL",
-        "SDKWORK_IM_INVOICE_APP_API_UPSTREAM",
-        "SDKWORK_INVOICE_APP_API_UPSTREAM",
-        "SDKWORK_INVOICE_APP_API_BASE_URL",
-        "SDKWORK_IM_MEMBERSHIP_APP_API_UPSTREAM",
-        "SDKWORK_MEMBERSHIP_APP_API_UPSTREAM",
-        "SDKWORK_MEMBERSHIP_APP_API_BASE_URL",
-        "SDKWORK_IM_MERCHANDISE_APP_API_UPSTREAM",
-        "SDKWORK_MERCHANDISE_APP_API_UPSTREAM",
-        "SDKWORK_MERCHANDISE_APP_API_BASE_URL",
-        "SDKWORK_IM_ORDER_APP_API_UPSTREAM",
-        "SDKWORK_ORDER_APP_API_UPSTREAM",
-        "SDKWORK_ORDER_APP_API_BASE_URL",
-        "SDKWORK_IM_PAYMENT_APP_API_UPSTREAM",
-        "SDKWORK_PAYMENT_APP_API_UPSTREAM",
-        "SDKWORK_PAYMENT_APP_API_BASE_URL",
-        "SDKWORK_IM_PROMOTION_APP_API_UPSTREAM",
-        "SDKWORK_PROMOTION_APP_API_UPSTREAM",
-        "SDKWORK_PROMOTION_APP_API_BASE_URL",
-        "SDKWORK_IM_SHOP_APP_API_UPSTREAM",
-        "SDKWORK_SHOP_APP_API_UPSTREAM",
-        "SDKWORK_SHOP_APP_API_BASE_URL",
     ];
 
     fn env_lock() -> MutexGuard<'static, ()> {
@@ -591,7 +483,6 @@ bind_address = "127.0.0.1:38080"
             config.upstream_base_url("sdkwork-iam-app-api"),
             Some("http://127.0.0.1:3900")
         );
-        assert_eq!(config.upstream_base_url("interaction-service"), None);
         for service_id in [
             "session-gateway",
             "comms-conversation-service",
@@ -686,7 +577,7 @@ bind_address = "127.0.0.1:38080"
     }
 
     #[test]
-    fn test_web_gateway_config_allows_appbase_explicit_upstream() {
+    fn test_web_gateway_config_ignores_retired_appbase_explicit_upstream() {
         let _lock = env_lock();
         let _clear = clear_gateway_env();
         let _appbase_upstream = ScopedEnvVar::set(
@@ -699,135 +590,7 @@ bind_address = "127.0.0.1:38080"
         let config = WebGatewayConfig::from_env();
 
         assert_eq!(config.runtime_mode, GatewayRuntimeMode::SingleIngress);
-        assert_eq!(
-            config.upstream_base_url("sdkwork-iam-app-api"),
-            Some("http://127.0.0.1:19090")
-        );
+        assert_eq!(config.upstream_base_url("sdkwork-iam-app-api"), Some("http://127.0.0.1:3900"));
     }
 
-    #[test]
-    fn test_web_gateway_config_allows_explicit_dependency_app_api_upstreams() {
-        let _lock = env_lock();
-        let _clear = clear_gateway_env();
-        let _drive_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_DRIVE_APP_API_UPSTREAM",
-            "http://127.0.0.1:28080/",
-        );
-        let _notary_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_NOTARY_APP_API_UPSTREAM",
-            "http://127.0.0.1:28092/",
-        );
-        let _catalog_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_CATALOG_APP_API_UPSTREAM",
-            "http://127.0.0.1:28094/",
-        );
-        let _order_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_ORDER_APP_API_UPSTREAM",
-            "http://127.0.0.1:28095/",
-        );
-        let _mail_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_MAIL_APP_API_UPSTREAM",
-            "http://127.0.0.1:28096/",
-        );
-        let _community_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM",
-            "http://127.0.0.1:28098/",
-        );
-        let _course_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_COURSE_APP_API_UPSTREAM",
-            "http://127.0.0.1:28100/",
-        );
-        let _knowledgebase_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM",
-            "http://127.0.0.1:28102/",
-        );
-        let _voice_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_VOICE_APP_API_UPSTREAM",
-            "http://127.0.0.1:28103/",
-        );
-        let _agents_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_AGENTS_APP_API_UPSTREAM",
-            "http://127.0.0.1:28104/",
-        );
-
-        let config = WebGatewayConfig::from_env();
-
-        assert_eq!(config.runtime_mode, GatewayRuntimeMode::SingleIngress);
-        assert_eq!(
-            config.upstream_base_url("sdkwork-drive-app-api"),
-            Some("http://127.0.0.1:28080")
-        );
-        assert_eq!(
-            config.upstream_base_url("sdkwork-notary-app-api"),
-            Some("http://127.0.0.1:28092")
-        );
-        assert_eq!(
-            config.upstream_base_url("sdkwork-catalog-app-api"),
-            Some("http://127.0.0.1:28094")
-        );
-        assert_eq!(
-            config.upstream_base_url("sdkwork-order-app-api"),
-            Some("http://127.0.0.1:28095")
-        );
-        assert_eq!(
-            config.upstream_base_url("sdkwork-mail-app-api"),
-            Some("http://127.0.0.1:28096")
-        );
-        assert_eq!(
-            config.upstream_base_url("sdkwork-community-app-api"),
-            Some("http://127.0.0.1:28098")
-        );
-        assert_eq!(
-            config.upstream_base_url("sdkwork-course-app-api"),
-            Some("http://127.0.0.1:28100")
-        );
-        assert_eq!(
-            config.upstream_base_url("sdkwork-knowledgebase-app-api"),
-            Some("http://127.0.0.1:28102")
-        );
-        assert_eq!(
-            config.upstream_base_url("sdkwork-voice-app-api"),
-            Some("http://127.0.0.1:28103")
-        );
-        assert_eq!(
-            config.upstream_base_url("sdkwork-agents-app-api"),
-            Some("http://127.0.0.1:28104")
-        );
-    }
-
-    #[test]
-    fn test_web_gateway_config_prefers_application_scoped_dependency_upstream() {
-        let _lock = env_lock();
-        let _clear = clear_gateway_env();
-        let _drive_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_DRIVE_APP_API_UPSTREAM",
-            "http://127.0.0.1:28080/",
-        );
-        let _sdkwork_drive_upstream =
-            ScopedEnvVar::set("SDKWORK_DRIVE_APP_API_UPSTREAM", "http://127.0.0.1:38080");
-        let _sdkwork_drive_base_url =
-            ScopedEnvVar::set("SDKWORK_DRIVE_APP_API_BASE_URL", "http://127.0.0.1:48080");
-
-        let config = WebGatewayConfig::from_env();
-
-        assert_eq!(
-            config.upstream_base_url("sdkwork-drive-app-api"),
-            Some("http://127.0.0.1:28080")
-        );
-    }
-
-    #[test]
-    fn test_web_gateway_config_uses_unscoped_dependency_base_url_when_no_application_override() {
-        let _lock = env_lock();
-        let _clear = clear_gateway_env();
-        let _sdkwork_drive_base_url =
-            ScopedEnvVar::set("SDKWORK_DRIVE_APP_API_BASE_URL", "http://127.0.0.1:48080/");
-
-        let config = WebGatewayConfig::from_env();
-
-        assert_eq!(
-            config.upstream_base_url("sdkwork-drive-app-api"),
-            Some("http://127.0.0.1:48080")
-        );
-    }
 }

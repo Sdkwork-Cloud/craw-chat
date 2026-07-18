@@ -24,6 +24,51 @@ fn streaming_route_http_test_app() -> axum::Router {
 }
 
 #[tokio::test]
+async fn test_service_readiness_probes_store_and_metrics_include_stream_counters() {
+    init_streaming_http_test_env();
+    let runtime = std::sync::Arc::new(streaming_service::StreamingRuntime::default());
+    let app = streaming_service::build_app(runtime.clone());
+
+    let readiness = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/readyz")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("readiness request should succeed");
+    assert_eq!(readiness.status(), StatusCode::OK);
+
+    let metrics = app
+        .oneshot(
+            Request::builder()
+                .uri("/metrics")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("metrics request should succeed");
+    assert_eq!(metrics.status(), StatusCode::OK);
+    assert_eq!(
+        metrics.headers().get("content-type").unwrap(),
+        "text/plain; version=0.0.4; charset=utf-8"
+    );
+    let body = metrics
+        .into_body()
+        .collect()
+        .await
+        .expect("metrics body should collect")
+        .to_bytes();
+    let body = String::from_utf8(body.to_vec()).expect("metrics should be utf-8");
+    assert!(body.contains("sdkwork_http_requests_total"));
+    assert!(body.contains("im_stream_append_requests_total"));
+    assert!(body.contains("im_stream_store_errors_total"));
+    assert!(body.contains("im_stream_frame_page_items_total"));
+}
+
+#[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
     let app = streaming_http_test_app();
 

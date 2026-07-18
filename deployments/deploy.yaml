@@ -1,4 +1,4 @@
-﻿version: 1
+version: 1
 defaultProfile: cloud.production
 
 profiles:
@@ -22,7 +22,7 @@ profiles:
       topology:
         spec: specs/topology.spec.json
         profile: cloud.production
-        env: configs/topology/cloud.production.env
+        env: etc/topology/cloud.production.env
       kubernetes:
         reference: deployments/kubernetes/cloud/
 
@@ -40,4 +40,4 @@ profiles:
       topology:
         spec: specs/topology.spec.json
         profile: standalone.development
-        env: configs/topology/standalone.development.env
+        env: etc/topology/standalone.development.env

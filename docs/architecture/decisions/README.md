@@ -6,7 +6,7 @@ This directory holds architecture decision records (ADRs) for `sdkwork-im`, foll
 Topology v2 authority for runtime profiles and ingress: [../../topology-greenfield.md](../../topology-greenfield.md).
 
 Superseded ADRs may retain historical crate or profile names in migration tables; active
-implementation uses `sdkwork-im-server`, topology profile ids under `configs/topology/`, and
+implementation uses `sdkwork-im-server`, topology profile ids under `etc/topology/`, and
 application ingress `127.0.0.1:18079` for development.
 
 ## When an ADR is required

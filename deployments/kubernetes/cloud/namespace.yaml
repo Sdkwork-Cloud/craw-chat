@@ -5,4 +5,3 @@ metadata:
   labels:
     app.kubernetes.io/part-of: sdkwork-im
     sdkwork.io/deployment-profile: cloud
-    sdkwork.io/deployment-profile: cloud

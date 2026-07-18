@@ -15,7 +15,9 @@ const spaceWrites = readExists('adapters/social-postgres/src/space_materialize_w
 for (const symbol of [
   'materialize_space_commits_in_transaction',
   'materialize_space_commit_on',
-  'SPACE_MEMBER_RESERVE_CAPACITY_SQL',
+  'SPACE_MEMBER_LOCK_PARENT_SQL',
+  'SPACE_MEMBER_COUNT_SQL',
+  'insert_space_member_within_capacity',
 ]) {
   assert.ok(spaceWrites.includes(symbol), `space_materialize_writes must implement ${symbol}`);
 }
@@ -31,10 +33,10 @@ assert.match(
   /commits\.len\(\)\s*>\s*1[\s\S]*materialize_space_commits_in_transaction/,
   'SpacePostgresMaterializer must route multi-commit batches through transactional materialize',
 );
-assert.match(
+assert.doesNotMatch(
   spaceMaterializer,
-  /space\.created[\s\S]*compensation delete/,
-  'space materializer compensate must rollback space.created supplemental rows',
+  /compensat(?:e|ion)/u,
+  'space multi-commit materialization must rely on one PostgreSQL transaction instead of ad hoc compensation',
 );
 
 const writeAuthority = readExists('services/space-service/src/write_authority.rs');
@@ -45,8 +47,9 @@ assert.match(
 );
 
 const lib = readExists('adapters/social-postgres/src/lib.rs');
-assert.ok(
-  lib.includes('pub use space_materialize_writes::materialize_space_commits_in_transaction'),
+assert.match(
+  lib,
+  /pub use space_materialize_writes::\{[\s\S]*materialize_space_commits_in_transaction/u,
   'social-postgres lib must export materialize_space_commits_in_transaction',
 );
 

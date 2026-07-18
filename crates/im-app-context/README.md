@@ -21,7 +21,7 @@ Do not add parallel `src/*.rs` module files unless they are wired through `lib.r
 
 ## Configuration
 
-See `specs/component.spec.json` and production topology profiles under `configs/topology/`. Production requires tenant-bound JWT signing secrets and forbids the public dev fallback secret.
+See `specs/component.spec.json` and production topology profiles under `etc/topology/`. Production requires tenant-bound JWT signing secrets and forbids the public dev fallback secret.
 
 ## Verification
 

@@ -369,12 +369,12 @@ assert.match(
 );
 assert.match(
   sessionSource,
-  /migrateLegacySessionStorage/u,
+  /migrateLegacyLocalStorage/u,
   'IM PC session storage must migrate legacy localStorage auth sessions into sessionStorage.',
 );
 assert.match(
   sessionSource,
-  /localStorage\.removeItem\(SDKWORK_IM_LEGACY_SESSION_STORAGE_KEY\)/u,
+  /localStorage\.removeItem\(SDKWORK_IM_LEGACY_LOCAL_STORAGE_KEY\)/u,
   'IM PC session storage must clear legacy localStorage auth sessions after migration.',
 );
 

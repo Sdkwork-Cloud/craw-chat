@@ -107,7 +107,7 @@ tests for app, ops, and control-plane endpoints.
 ## Retired Local Profiles
 
 Pre-topology-v2 minimal-node/minimal/default profile ids are removed. Use topology profile ids under
-`configs/topology/` and `pnpm dev` / `pnpm dev:server` for development.
+`etc/topology/` and `pnpm dev` / `pnpm dev:server` for development.
 
 ## What To Read Next
 

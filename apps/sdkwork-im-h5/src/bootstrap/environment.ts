@@ -25,13 +25,17 @@ export function resolveEnvironment(): ImH5Environment {
       ?? import.meta.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
     applicationPublicHttpUrl.replace(/^http/u, "ws"),
   );
+  const platformApiGatewayHttpUrl = normalizeBaseUrl(
+    import.meta.env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
+    applicationPublicHttpUrl,
+  );
 
   return {
     applicationPublicHttpUrl,
     applicationPublicWebSocketUrl,
     appbaseAppApiBaseUrl: normalizeBaseUrl(
       import.meta.env.VITE_SDKWORK_IAM_APP_API_BASE_URL,
-      deriveAppApiBaseUrl(applicationPublicHttpUrl),
+      deriveAppApiBaseUrl(platformApiGatewayHttpUrl),
     ),
   };
 }

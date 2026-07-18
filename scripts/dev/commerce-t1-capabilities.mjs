@@ -50,18 +50,3 @@ export const COMMERCE_T1_DATABASE_URL_ENV_KEYS = Object.freeze(
     return `SDKWORK_${capability}_DATABASE_URL`;
   }),
 );
-
-export const COMMERCE_T1_EXTERNAL_UPSTREAM_ENV_KEY_GROUPS = Object.freeze(
-  COMMERCE_T1_APP_API_AUTHORITIES.map((authority) => {
-    const capability = authority
-      .replace(/^sdkwork-/, '')
-      .replace(/-app-api$/, '')
-      .replace(/-/g, '_')
-      .toUpperCase();
-    return Object.freeze([
-      `SDKWORK_IM_${capability}_APP_API_UPSTREAM`,
-      `SDKWORK_${capability}_APP_API_UPSTREAM`,
-      `SDKWORK_${capability}_APP_API_BASE_URL`,
-    ]);
-  }),
-);

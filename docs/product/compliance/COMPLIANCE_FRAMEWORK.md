@@ -1,4 +1,4 @@
-﻿# Sdkwork IM 鈥?Regulatory Compliance Framework
+# Sdkwork IM 鈥?Regulatory Compliance Framework
 
 Status: active
 Owner: SDKWork maintainers
@@ -83,7 +83,7 @@ evidence requirements for commercial deployment.
 
 ### 4.3 Configuration
 
-Data residency is enforced through deployment topology configuration in `configs/topology/`.
+Data residency is enforced through deployment topology configuration in `etc/topology/`.
 The `SDKWORK_IM_REGION` environment variable tags all data with its residency region. Migration
 between regions requires a formal data migration request and customer consent.
 

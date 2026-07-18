@@ -29,7 +29,7 @@ defaults and minimal surprises.
 
 ## Runtime Profiles
 
-Authority: `specs/topology.spec.json` and `configs/topology/*.env`.
+Authority: `specs/topology.spec.json` and `etc/topology/*.env`.
 
 | Profile id | Command | Application ingress |
 | --- | --- | --- |

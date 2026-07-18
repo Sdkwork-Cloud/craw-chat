@@ -33,6 +33,40 @@ const sharedDatabaseSource = read('scripts/dev/sdkwork-im-shared-database.mjs');
 const releaseSources = readJson('config/shared-sdk-release-sources.json');
 const workspaceSource = read('pnpm-workspace.yaml');
 
+for (const environment of ['development', 'test', 'staging', 'production']) {
+  const gatewayConfigSource = read(
+    `etc/sdkwork-api-cloud-gateway.sdkwork-im.${environment}.toml`,
+  );
+  assert.doesNotMatch(
+    gatewayConfigSource,
+    /\[\[upstreams\]\]|runtimeMode\s*=\s*"split(?:-or-embedded)?"/u,
+    `${environment} platform gateway config must be embedded-only`,
+  );
+  for (const evidence of [
+    'serviceId = "sdkwork-im-im-http"',
+    'serviceId = "sdkwork-im-backend-http"',
+    'apiPrefix = "/app/v3/api/portal"',
+    'cargoFeature = "foundation-im"',
+    'cargoDependency = "sdkwork-im-gateway-assembly"',
+    'sdkwork_im_gateway_assembly::assemble_application_router',
+  ]) {
+    assert.ok(
+      gatewayConfigSource.includes(evidence),
+      `${environment} platform gateway config must publish executable IM assembly evidence: ${evidence}`,
+    );
+  }
+}
+
+const developmentGatewayConfigSource = read(
+  'etc/sdkwork-api-cloud-gateway.sdkwork-im.development.toml',
+);
+for (const feature of ['foundation-drive', 'foundation-mail', 'foundation-notary']) {
+  assert.ok(
+    developmentGatewayConfigSource.includes(`cargoFeature = "${feature}"`),
+    `development platform gateway must publish ${feature} through an embedded assembly`,
+  );
+}
+
 assert.match(
   specsReadme,
   /im-app-api-sdk-integration\.spec\.md/u,
@@ -195,8 +229,8 @@ assert.match(
 );
 assert.match(
   localSpec,
-  /Local PC development exposes one public backend entrypoint, `http:\/\/127\.0\.0\.1:18079`/u,
-  'local standard must require the PC renderer to use the unified gateway instead of the internal appbase port.',
+  /Local PC development exposes the IM application plane on `http:\/\/127\.0\.0\.1:18079`[\s\S]*Foundation APIs use the single platform gateway root/u,
+  'local standard must separate the IM application plane from the platform assembly gateway.',
 );
 
 assert.match(localAppApiSource, /Rust unified server/u);

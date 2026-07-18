@@ -15,7 +15,7 @@ Local development uses topology v4 orchestration through Node scripts and the
 Configuration authority:
 
 - `specs/topology.spec.json`
-- `configs/topology/*.env`
+- `etc/topology/*.env`
 
 ## Application Ingress Binary
 

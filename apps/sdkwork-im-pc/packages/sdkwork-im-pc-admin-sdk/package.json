@@ -26,10 +26,7 @@
     }
   },
   "dependencies": {
-    "@sdkwork/iam-backend-sdk": "workspace:*",
-    "@sdkwork/im-backend-sdk": "workspace:*",
-    "@sdkwork/im-pc-core": "workspace:*",
-    "@sdkwork/sdk-common": "catalog:"
+    "@sdkwork/im-admin-core": "workspace:*"
   },
   "publishConfig": {
     "access": "public",

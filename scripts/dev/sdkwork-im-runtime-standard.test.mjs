@@ -89,7 +89,21 @@ for (const required of [
 ]) {
   assert.ok(envExample.includes(required), `.env.postgres.example must document ${required}`);
 }
-assert.doesNotMatch(envExample, /SDKWORK_CLAW_DATABASE_/u);
+assert.doesNotMatch(
+  envExample,
+  /SDKWORK_CLAW_DATABASE_(?!ADMIN_)/u,
+  'IM runtime identity must remain application-scoped; only unified bootstrap admin keys are shared',
+);
+for (const required of [
+  'SDKWORK_CLAW_DATABASE_ADMIN_HOST',
+  'SDKWORK_CLAW_DATABASE_ADMIN_PORT',
+  'SDKWORK_CLAW_DATABASE_ADMIN_USERNAME',
+  'SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD',
+  'SDKWORK_CLAW_DATABASE_ADMIN_DATABASE',
+  'SDKWORK_CLAW_DATABASE_ADMIN_SSL_MODE',
+]) {
+  assert.match(envExample, new RegExp(`^${required}=`, 'mu'));
+}
 
 const sharedDbModule = await import(
   pathToFileURL(path.join(repoRoot, 'scripts/dev/sdkwork-im-shared-database.mjs')).href

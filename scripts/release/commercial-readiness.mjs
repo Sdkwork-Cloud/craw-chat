@@ -297,6 +297,14 @@ export function buildCommercialReadinessChecks({
       args: ['scripts/dev/sdkwork-im-commercial-deployment-contract.test.mjs'],
     },
     {
+      id: 'cloud-image-release-evidence',
+      label: 'Immutable cloud image release evidence',
+      cwd: repoRoot,
+      command: nodeExecutable,
+      args: ['scripts/release/verify-sdkwork-im-cloud-image-release.mjs'],
+      failureClass: 'readiness-blocked',
+    },
+    {
       id: 'topology-baggage',
       label: 'Topology v2 baggage contract',
       cwd: repoRoot,
@@ -671,6 +679,7 @@ export async function runCommercialReadiness({
 } = {}) {
   const checks = buildCommercialReadinessChecks({ repoRoot, platform });
   const results = [];
+  const readinessBlockers = [];
 
   for (const check of checks) {
     logger.log(`[commercial-readiness] running ${check.id}: ${formatCommand(check)}`);
@@ -687,6 +696,7 @@ export async function runCommercialReadiness({
         appReleaseAssessment: null,
         capacityAssessment: null,
         preReleaseAssessment: null,
+        readinessBlockers,
         failure: {
           stage: check.id,
           summary,
@@ -696,6 +706,17 @@ export async function runCommercialReadiness({
 
     results.push(result);
     if (!result.ok) {
+      if (check.failureClass === 'readiness-blocked') {
+        const blocker = {
+          stage: check.id,
+          summary: `exit code ${result.exitCode}`,
+        };
+        readinessBlockers.push(blocker);
+        logger.error(
+          `[commercial-readiness] blocked by ${check.id} with exit code ${result.exitCode}; continuing evidence assessment.`,
+        );
+        continue;
+      }
       logger.error(`[commercial-readiness] failed ${check.id} with exit code ${result.exitCode}.`);
       return {
         ok: false,
@@ -704,6 +725,7 @@ export async function runCommercialReadiness({
         appReleaseAssessment: null,
         capacityAssessment: null,
         preReleaseAssessment: null,
+        readinessBlockers,
         failure: {
           stage: check.id,
           summary: `exit code ${result.exitCode}`,
@@ -747,6 +769,7 @@ export async function runCommercialReadiness({
         appReleaseAssessment: null,
         capacityAssessment: null,
         preReleaseAssessment: null,
+        readinessBlockers,
         failure: {
           stage: tierGate.stage,
           summary,
@@ -768,24 +791,12 @@ export async function runCommercialReadiness({
       for (const blocker of assessment.blockers) {
         logger.error(`[commercial-readiness] ${blocker}`);
       }
-
-      return {
-        ok: false,
-        exitCode: READINESS_BLOCKED_EXIT_CODE,
-        checks: results,
-        appReleaseAssessment: null,
-        capacityAssessment: null,
-        preReleaseAssessment: null,
-        ...Object.fromEntries(
-          tierAssessments.map(({ resultKey, evidenceIndexPath, assessment: tierAssessment }) => [
-            resultKey,
-            {
-              ...tierAssessment,
-              evidenceIndexPath,
-            },
-          ]),
-        ),
-      };
+      readinessBlockers.push({
+        blockers: assessment.blockers,
+        stage: tierGate.resultKey,
+        summary: assessment.summary,
+      });
+      continue;
     }
 
     logger.log(`[commercial-readiness] ${assessment.summary}`);
@@ -816,6 +827,7 @@ export async function runCommercialReadiness({
       checks: results,
       ...tierAssessmentResults,
       appReleaseAssessment: null,
+      readinessBlockers,
       failure: {
         stage: 'app-release-evidence-load',
         summary,
@@ -831,29 +843,41 @@ export async function runCommercialReadiness({
       logger.error(`[commercial-readiness] ${blocker}`);
     }
 
+    readinessBlockers.push({
+      blockers: appReleaseAssessment.blockers,
+      stage: 'appReleaseAssessment',
+      summary: appReleaseAssessment.summary,
+    });
+  } else {
+    logger.log(`[commercial-readiness] ${appReleaseAssessment.summary}`);
+  }
+
+  const appReleaseAssessmentResult = {
+    ...appReleaseAssessment,
+    appManifestPath: appManifest.appManifestPath,
+  };
+
+  if (readinessBlockers.length > 0) {
+    logger.error(
+      `[commercial-readiness] commercial sign-off remains blocked by ${readinessBlockers.length} evidence gate(s).`,
+    );
     return {
       ok: false,
       exitCode: READINESS_BLOCKED_EXIT_CODE,
       checks: results,
       ...tierAssessmentResults,
-      appReleaseAssessment: {
-        ...appReleaseAssessment,
-        appManifestPath: appManifest.appManifestPath,
-      },
+      appReleaseAssessment: appReleaseAssessmentResult,
+      readinessBlockers,
     };
   }
-
-  logger.log(`[commercial-readiness] ${appReleaseAssessment.summary}`);
 
   return {
     ok: true,
     exitCode: 0,
     checks: results,
     ...tierAssessmentResults,
-    appReleaseAssessment: {
-      ...appReleaseAssessment,
-      appManifestPath: appManifest.appManifestPath,
-    },
+    appReleaseAssessment: appReleaseAssessmentResult,
+    readinessBlockers: [],
   };
 }
 

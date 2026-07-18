@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseAllDocuments } from 'yaml';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const k8sRoot = path.join(repoRoot, 'deployments', 'kubernetes', 'cloud');
@@ -13,6 +14,9 @@ const requiredManifests = [
   'ingress.yaml',
   'pod-disruption-budgets.yaml',
   'horizontal-pod-autoscalers.yaml',
+  'additional-service-deployments.yaml',
+  'image-inventory.json',
+  'image-lock.schema.json',
   'im-gateway/deployment.yaml',
   'im-gateway/service.yaml',
   'session-gateway/deployment.yaml',
@@ -32,7 +36,7 @@ for (const relativePath of requiredManifests) {
   );
 }
 
-const stagingProfile = path.join(repoRoot, 'configs', 'topology', 'cloud.staging.env');
+const stagingProfile = path.join(repoRoot, 'etc', 'topology', 'cloud.staging.env');
 assert.equal(fs.existsSync(stagingProfile), true, 'missing staging topology profile');
 
 const prometheusRules = path.join(repoRoot, 'deployments', 'observability', 'prometheus-rules.yaml');
@@ -133,6 +137,129 @@ for (const [key, value] of Object.entries(conversationCacheLimits)) {
   );
 }
 
+const activeCloudServices = [
+  'im-gateway',
+  'session-gateway',
+  'conversation-service',
+  'governance-service',
+  'notification-service',
+  'projection-service',
+  'media-service',
+  'streaming-service',
+  'audit-service',
+  'automation-service',
+  'social-service',
+  'space-service',
+  'ops-service',
+];
+const imageInventory = JSON.parse(
+  fs.readFileSync(path.join(k8sRoot, 'image-inventory.json'), 'utf8'),
+);
+assert.equal(imageInventory.schemaVersion, 1);
+assert.deepEqual(Object.keys(imageInventory.images).sort(), [...activeCloudServices].sort());
+const cloudBuildInventory = JSON.parse(
+  fs.readFileSync(path.join(repoRoot, 'deployments', 'docker', 'cloud-service-builds.json'), 'utf8'),
+);
+assert.equal(cloudBuildInventory.schemaVersion, 1);
+assert.deepEqual(Object.keys(cloudBuildInventory.services).sort(), [...activeCloudServices].sort());
+const cloudDockerfile = fs.readFileSync(
+  path.join(repoRoot, 'deployments', 'docker', 'sdkwork-im-cloud-service.Dockerfile'),
+  'utf8',
+);
+assert.match(cloudDockerfile, /^ARG RUNTIME_IMAGE$/mu);
+assert.match(cloudDockerfile, /^FROM \$\{RUNTIME_IMAGE\}/mu);
+assert.doesNotMatch(cloudDockerfile, /cargo fetch|\|\| true|:latest/u);
+
+const deploymentManifestPaths = [
+  'additional-service-deployments.yaml',
+  'im-gateway/deployment.yaml',
+  'session-gateway/deployment.yaml',
+  'conversation-service/deployment.yaml',
+  'governance-service/deployment.yaml',
+  'notification-service/deployment.yaml',
+  'projection-service/deployment.yaml',
+  'media-service/deployment.yaml',
+  'streaming-service/deployment.yaml',
+];
+const deploymentResources = deploymentManifestPaths.flatMap((relativePath) =>
+  parseAllDocuments(fs.readFileSync(path.join(k8sRoot, relativePath), 'utf8'))
+    .map((document) => {
+      assert.equal(document.errors.length, 0, `${relativePath} must be valid unambiguous YAML`);
+      return document.toJS();
+    })
+    .filter((resource) => resource?.kind === 'Deployment'),
+);
+assert.deepEqual(
+  deploymentResources.map((resource) => resource.metadata.name).sort(),
+  [...activeCloudServices].sort(),
+);
+for (const deployment of deploymentResources) {
+  const service = deployment.metadata.name;
+  assert.equal(deployment.spec.strategy?.type, 'RollingUpdate', `${service} must use RollingUpdate`);
+  assert.equal(
+    deployment.spec.strategy?.rollingUpdate?.maxUnavailable,
+    0,
+    `${service} must keep all current replicas available during rollout`,
+  );
+  assert.equal(deployment.spec.strategy?.rollingUpdate?.maxSurge, 1);
+  assert.ok(deployment.spec.minReadySeconds >= 10, `${service} must prove readiness before promotion`);
+  assert.ok(deployment.spec.progressDeadlineSeconds >= 300);
+
+  const podSpec = deployment.spec.template.spec;
+  assert.ok(
+    podSpec.terminationGracePeriodSeconds >= 60,
+    `${service} must have a bounded graceful termination window`,
+  );
+  const spreadByKey = new Map(
+    (podSpec.topologySpreadConstraints ?? []).map((constraint) => [
+      constraint.topologyKey,
+      constraint,
+    ]),
+  );
+  assert.equal(spreadByKey.get('kubernetes.io/hostname')?.whenUnsatisfiable, 'DoNotSchedule');
+  assert.equal(spreadByKey.get('topology.kubernetes.io/zone')?.whenUnsatisfiable, 'ScheduleAnyway');
+  for (const constraint of spreadByKey.values()) {
+    assert.equal(constraint.maxSkew, 1);
+    assert.equal(
+      constraint.labelSelector?.matchLabels?.['app.kubernetes.io/name'],
+      service,
+      `${service} topology selector must match the pod label`,
+    );
+  }
+
+  assert.equal(podSpec.containers.length, 1);
+  const container = podSpec.containers[0];
+  assert.equal(
+    container.image,
+    `${imageInventory.images[service]}:latest`,
+    `${service} template repository must match the governed image inventory`,
+  );
+  assert.ok(container.readinessProbe, `${service} must define readinessProbe`);
+  assert.ok(container.livenessProbe, `${service} must define livenessProbe`);
+  assert.ok(container.resources?.requests?.memory, `${service} must reserve memory`);
+  assert.ok(container.resources?.limits?.memory, `${service} must cap memory`);
+}
+const hpaManifest = fs.readFileSync(path.join(k8sRoot, 'horizontal-pod-autoscalers.yaml'), 'utf8');
+const pdbManifest = fs.readFileSync(path.join(k8sRoot, 'pod-disruption-budgets.yaml'), 'utf8');
+for (const service of activeCloudServices) {
+  if (service !== 'im-gateway') {
+    assert.match(hpaManifest, new RegExp('name:\\s*' + service + '(?:-hpa)?(?:\\s|$)', 'u'));
+  }
+  assert.match(pdbManifest, new RegExp('name:\\s*' + service + '-pdb(?:\\s|$)', 'u'));
+}
+const consolidatedDeployments = fs.readFileSync(
+  path.join(k8sRoot, 'additional-service-deployments.yaml'),
+  'utf8',
+);
+const consolidatedRuntimeConfig = fs.readFileSync(
+  path.join(k8sRoot, 'configmaps-and-secrets.yaml'),
+  'utf8',
+);
+for (const retiredService of ['contact-service', 'interaction-service']) {
+  assert.doesNotMatch(consolidatedDeployments, new RegExp(retiredService, 'u'));
+  assert.doesNotMatch(consolidatedRuntimeConfig, new RegExp(retiredService, 'u'));
+}
+
 for (const profile of [
   'standalone.development',
   'standalone.staging',
@@ -142,7 +269,7 @@ for (const profile of [
   'cloud.production',
 ]) {
   const topology = fs.readFileSync(
-    path.join(repoRoot, 'configs', 'topology', profile + '.env'),
+    path.join(repoRoot, 'etc', 'topology', profile + '.env'),
     'utf8',
   );
   for (const [key, value] of Object.entries(conversationCacheLimits)) {
@@ -156,7 +283,7 @@ for (const profile of [
 
 for (const profile of ['standalone.production', 'cloud.staging', 'cloud.production']) {
   const topology = fs.readFileSync(
-    path.join(repoRoot, 'configs', 'topology', profile + '.env'),
+    path.join(repoRoot, 'etc', 'topology', profile + '.env'),
     'utf8',
   );
   for (const key of [

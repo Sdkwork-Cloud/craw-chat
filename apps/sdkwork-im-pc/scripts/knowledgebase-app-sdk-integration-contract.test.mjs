@@ -174,16 +174,10 @@ assert.match(
   'Release build plan must bridge SDKWORK_KNOWLEDGEBASE_REF into the shared SDK materializer ref for the knowledgebase app SDK.',
 );
 
-assert.match(
-  devRunnerSource,
-  /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*explicitKnowledgebaseAppApiUpstream[\s\S]*SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM/u,
-  'PC dev runner must default sdkwork-knowledgebase traffic through the shared gateway root while preserving explicit Knowledgebase external upstream overrides.',
-);
-
-assert.match(
-  gatewayConfigSource,
-  /sdkwork-knowledgebase-app-api[\s\S]*SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM[\s\S]*SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM[\s\S]*SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL/u,
-  'Gateway config must expose deterministic sdkwork-knowledgebase app-api upstream environment keys.',
+assert.doesNotMatch(
+  `${devRunnerSource}\n${gatewayConfigSource}`,
+  /explicitKnowledgebaseAppApiUpstream|SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM|SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM|SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL/u,
+  'Knowledgebase foundation traffic must use the platform assembly gateway without per-module upstream overrides.',
 );
 
 assert.match(
@@ -220,18 +214,10 @@ assert.equal(
   'sdkwork-knowledgebase app API must route through the shared sdkwork-api-cloud-gateway root.',
 );
 
-const explicitExternalUpstreamEnvKeys =
-  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys?.[
-    'sdkwork-knowledgebase-app-api'
-  ];
-assert.deepEqual(
-  explicitExternalUpstreamEnvKeys,
-  [
-    'SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM',
-    'SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM',
-    'SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL',
-  ],
-  'component.spec.json must document knowledgebase explicit external upstream env keys.',
+assert.equal(
+  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys,
+  undefined,
+  'component.spec.json must not publish per-module foundation upstream keys.',
 );
 
 assert.ok(

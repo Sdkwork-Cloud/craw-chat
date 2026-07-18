@@ -64,6 +64,10 @@ const orderPcPackageRoot = path.resolve(
   dependencyRoot('sdkwork-order'),
   'apps/sdkwork-order-pc/packages',
 );
+const orderCommonPackageRoot = path.resolve(
+  dependencyRoot('sdkwork-order'),
+  'apps/sdkwork-order-common/packages',
+);
 const promotionPcPackageRoot = path.resolve(
   dependencyRoot('sdkwork-promotion'),
   'apps/sdkwork-promotion-pc/packages',
@@ -297,6 +301,7 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/catalog-app-sdk', replacement: catalogAppSdkEntry },
         { find: '@sdkwork/shop-app-sdk', replacement: shopAppSdkEntry },
         { find: '@sdkwork/order-app-sdk', replacement: orderAppSdkEntry },
+        { find: '@sdkwork/order-service', replacement: path.resolve(orderCommonPackageRoot, 'sdkwork-order-service/src/index.ts') },
         { find: '@sdkwork/membership-app-sdk', replacement: generatedMembershipAppSdkEntry },
         { find: '@sdkwork/membership-pc-membership', replacement: path.resolve(membershipPcPackageRoot, 'sdkwork-membership-pc-membership/src/index.ts') },
         { find: /^@sdkwork\/membership-pc-subscription\/(.+)$/, replacement: `${path.resolve(membershipPcPackageRoot, 'sdkwork-membership-pc-subscription/src')}/$1` },
@@ -450,6 +455,7 @@ export default defineConfig(({mode}) => {
         '@sdkwork/catalog-app-sdk',
         '@sdkwork/shop-app-sdk',
         '@sdkwork/order-app-sdk',
+        '@sdkwork/order-service',
         '@sdkwork/membership-app-sdk',
         '@sdkwork/membership-pc-membership',
         '@sdkwork/membership-pc-subscription',

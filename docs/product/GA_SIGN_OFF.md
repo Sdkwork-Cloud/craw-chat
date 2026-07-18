@@ -186,7 +186,7 @@ corresponding phase is declared GA. Phase 1 target GA date is 2026-07-31; Phase 
 | 11 | SLA / SLO documentation | ✅ | Platform ops | 2026-07-31 | [SLA_SLO.md](compliance/SLA_SLO.md) |
 | 12 | Compliance framework | ✅ | Compliance | 2026-07-31 | [COMPLIANCE_FRAMEWORK.md](compliance/COMPLIANCE_FRAMEWORK.md) |
 | 13 | Billing / metering architecture | ✅ | Commercial | 2026-07-31 | [BILLING_METERING.md](pricing/BILLING_METERING.md) |
-| 14 | K8s deployment (versioned image tags, ConfigMaps) | ✅ | Platform ops | 2026-07-31 | `deployments/`, `configs/topology/` |
+| 14 | K8s deployment (versioned image tags, ConfigMaps) | ✅ | Platform ops | 2026-07-31 | `deployments/`, `etc/topology/` |
 | 15 | Frontend error boundaries | ✅ | Frontend | 2026-07-31 | `apps/sdkwork-im-pc/` |
 | 16 | Skeleton screens | ✅ | Frontend | 2026-07-31 | `apps/sdkwork-im-pc/` |
 | 17 | E2EE | ❌ | Security | Phase 2 | Roadmap §6 |
@@ -198,7 +198,7 @@ corresponding phase is declared GA. Phase 1 target GA date is 2026-07-31; Phase 
 | # | Item | Status | Owner | Target | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | 1 | E2EE for direct chats | 🟡 | Security | 2026 Q4 | Roadmap, [DATA_PROTECTION.md](compliance/DATA_PROTECTION.md) |
-| 2 | Multi-region active-passive DR | 🟡 | Platform ops | 2026 Q4 | `configs/topology/`, [SLA_SLO.md](compliance/SLA_SLO.md) §7 |
+| 2 | Multi-region active-passive DR | 🟡 | Platform ops | 2026 Q4 | `etc/topology/`, [SLA_SLO.md](compliance/SLA_SLO.md) §7 |
 | 3 | Audit PostgreSQL persistence | 🟡 | Compliance | 2026 Q4 | [COMPLIANCE_FRAMEWORK.md](compliance/COMPLIANCE_FRAMEWORK.md) §6 |
 | 4 | Enterprise management features | 🟡 | IM backend | 2026 Q4 | [PRD.md](prd/PRD.md), [roadmap/README.md](roadmap/README.md) |
 | 5 | Message recall / edit tombstone propagation | ✅ | IM backend | 2026 Q4 | `services/conversation-runtime/` |
@@ -208,8 +208,8 @@ corresponding phase is declared GA. Phase 1 target GA date is 2026-07-31; Phase 
 
 | # | Item | Status | Owner | Target | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Multi-node cluster HA | ❌ | Platform ops | 2027 Q1 | `configs/topology/`, [SLA_SLO.md](compliance/SLA_SLO.md) §11.2 |
-| 2 | Active-active multi-region | ❌ | Platform ops | 2027 Q1 | `configs/topology/` |
+| 1 | Multi-node cluster HA | ❌ | Platform ops | 2027 Q1 | `etc/topology/`, [SLA_SLO.md](compliance/SLA_SLO.md) §11.2 |
+| 2 | Active-active multi-region | ❌ | Platform ops | 2027 Q1 | `etc/topology/` |
 | 3 | Rate limiting and quota enforcement | ❌ | API platform | 2027 Q1 | [BILLING_METERING.md](pricing/BILLING_METERING.md) §5, `../sdkwork-specs/SECURITY_SPEC.md` |
 | 4 | E2EE for group chats and media | ❌ | Security | 2027 Q1 | [DATA_PROTECTION.md](compliance/DATA_PROTECTION.md) |
 | 5 | SOC 2 Type II certification | 🟡 | Compliance | 2027 Q1 | [COMPLIANCE_FRAMEWORK.md](compliance/COMPLIANCE_FRAMEWORK.md) §2.1 |
@@ -299,7 +299,7 @@ checklist items in section 4.3 to be complete with evidence.
 | 4 | Rate limiting absent exposes platform to abuse at scale | Medium | High | Phase 1 relies on per-IP gateway limits and tenant quota counters; Phase 3 adds full per-tenant quota enforcement with 429 responses | API platform |
 | 5 | Multi-region DR not available for Phase 1 / Phase 2 active region | Medium | High | Phase 1 documents single-region RTO/RPO; Phase 2 delivers active-passive DR with WAL replication | Platform ops |
 | 6 | SOC 2 / ISO 27001 not yet certified blocks regulated procurement | High | Medium | Phase 1 ships with documented controls alignment; certification engagement kicks off in Phase 2 with target completion in Phase 3 | Compliance |
-| 7 | K8s deployment drift between environments | Low | Medium | Versioned image tags and ConfigMaps enforced; topology profiles in `configs/topology/` are the single source of truth | Platform ops |
+| 7 | K8s deployment drift between environments | Low | Medium | Versioned image tags and ConfigMaps enforced; topology profiles in `etc/topology/` are the single source of truth | Platform ops |
 | 8 | Frontend regressions on error surfaces | Low | Medium | Error boundaries and skeleton screens ship in Phase 1; regression coverage added to frontend CI | Frontend |
 | 9 | JWT signing key compromise | Low | Critical | 90-day rotation runbook enforced; break-glass revocation procedure documented | IAM / platform |
 | 10 | Tenant isolation bypass via projection layer | Low | Critical | Tenant isolation verification runbook exercised before each release; defense-in-depth validation at IAM, schema, and AppContext layers | IAM / platform |
@@ -402,7 +402,7 @@ under section 9.3 before the phase is re-declared GA.
 
 ### 10.6 Configuration and Deployment
 
-- `configs/topology/` — Deployment topology profiles.
+- `etc/topology/` — Deployment topology profiles.
 - `specs/topology.spec.json` — Topology machine contract.
 - `deployments/observability/` — Prometheus, Grafana, and Alertmanager configuration.
 - `sdkwork.app.config.json` — IM application identity and capability metadata.

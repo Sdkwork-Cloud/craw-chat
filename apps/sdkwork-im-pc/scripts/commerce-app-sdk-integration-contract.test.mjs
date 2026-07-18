@@ -4,10 +4,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  COMMERCE_T1_APP_API_AUTHORITIES,
   COMMERCE_T1_APP_SDK_PACKAGES,
   COMMERCE_T1_APP_SDK_WORKSPACE_PATHS,
-  COMMERCE_T1_EXTERNAL_UPSTREAM_ENV_KEY_GROUPS,
 } from '../../../scripts/dev/commerce-t1-capabilities.mjs';
 
 const appRoot = path.resolve(import.meta.dirname, '..');
@@ -61,7 +59,7 @@ const commerceIntegrationSource = readText('packages', 'sdkwork-im-pc-core', 'sr
 const imShopAdapterSource = readText('packages', 'sdkwork-im-pc-shop', 'src', 'index.tsx');
 const appAuthRuntimeSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'appAuthRuntime.ts');
 const membershipAppSdkClientSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'membershipPcIntegration.ts');
-const apiCloudGatewayConfigSource = readRepoText('configs', 'sdkwork-api-cloud-gateway.sdkwork-im.development.toml');
+const apiCloudGatewayConfigSource = readRepoText('etc', 'sdkwork-api-cloud-gateway.sdkwork-im.development.toml');
 
 assert.equal(
   packageJson.scripts?.['test:commerce-app-sdk-integration'],
@@ -172,10 +170,10 @@ assert.match(
   'Membership app SDK client must consume the membership transport surface.',
 );
 
-assert.match(
+assert.doesNotMatch(
   apiCloudGatewayConfigSource,
-  /serviceId = "sdkwork-membership-app-api"[\s\S]*apiPrefix = "\/app\/v3\/api\/memberships"/u,
-  'IM api-cloud-gateway development config must route memberships before IAM catch-all.',
+  /serviceId = "sdkwork-(?:account|catalog|inventory|invoice|membership|merchandise|order|payment|promotion|shop)-app-api"/u,
+  'IM api-cloud-gateway config must not publish commerce surfaces without verified assembly integration.',
 );
 
 assert.match(
@@ -184,38 +182,17 @@ assert.match(
   'PC dev runner must launch api-cloud-gateway with IM-owned development config.',
 );
 
-assert.match(
+assert.doesNotMatch(
   devRunnerSource,
-  /COMMERCE_T1_APP_API_AUTHORITIES|SDKWORK_CATALOG_APP_API|SDKWORK_ORDER_APP_API|SDKWORK_SHOP_APP_API/u,
-  'PC dev runner must bridge T1 commerce app-api upstream overrides.',
+  /explicit(?:Catalog|Order|Shop|Membership)AppApiUpstream|SDKWORK_(?:IM_)?(?:CATALOG|ORDER|SHOP|MEMBERSHIP)_APP_API_UPSTREAM/u,
+  'PC dev runner must not bridge T1 commerce per-module upstream overrides.',
 );
 
-for (const authority of ['sdkwork-catalog-app-api', 'sdkwork-order-app-api', 'sdkwork-shop-app-api', 'sdkwork-membership-app-api']) {
-  assert.match(
-    gatewayConfigSource,
-    new RegExp(authority.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'),
-    `Gateway config must expose upstream resolution for ${authority}.`,
-  );
-}
-
-for (const authority of COMMERCE_T1_APP_API_AUTHORITIES) {
-  const externalUpstreamKeys =
-    componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys?.[authority];
-  const expected = COMMERCE_T1_EXTERNAL_UPSTREAM_ENV_KEY_GROUPS.find(
-    (group) => group.some((key) => key.includes(authority.replace(/^sdkwork-/, '').replace(/-app-api$/, '').replace(/-/g, '_').toUpperCase())),
-  );
-  if (authority === 'sdkwork-catalog-app-api' || authority === 'sdkwork-order-app-api' || authority === 'sdkwork-shop-app-api') {
-    assert.ok(
-      externalUpstreamKeys?.length,
-      `component.spec.json must document explicit external upstream env keys for ${authority}.`,
-    );
-    assert.deepEqual(
-      externalUpstreamKeys,
-      expected,
-      `component.spec.json explicit external upstream keys must match commerce T1 registry for ${authority}.`,
-    );
-  }
-}
+assert.equal(
+  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys,
+  undefined,
+  'component.spec.json must not publish commerce foundation upstream keys.',
+);
 
 for (const repoId of ['sdkwork-catalog', 'sdkwork-shop', 'sdkwork-order']) {
   const capability = repoId.replace(/^sdkwork-/u, '');

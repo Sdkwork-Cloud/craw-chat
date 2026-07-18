@@ -354,7 +354,7 @@ jobs:
       
       - name: Check Runtime Profile
         run: |
-          PROFILE=$(grep SDKWORK_IM_RUNTIME_PROFILE configs/topology/cloud.split-services.production.env | cut -d'=' -f2)
+          PROFILE=$(grep SDKWORK_IM_RUNTIME_PROFILE etc/topology/cloud.split-services.production.env | cut -d'=' -f2)
           if [ "$PROFILE" != "production" ]; then
             echo "❌ CRITICAL: Production deployment must use production profile"
             exit 1
@@ -363,7 +363,7 @@ jobs:
       
       - name: Check JWT Signature
         run: |
-          JWT_SIG=$(grep SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE configs/topology/cloud.split-services.production.env | cut -d'=' -f2)
+          JWT_SIG=$(grep SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE etc/topology/cloud.split-services.production.env | cut -d'=' -f2)
           if [ "$JWT_SIG" != "true" ]; then
             echo "❌ CRITICAL: JWT signature verification must be enabled"
             exit 1
@@ -372,7 +372,7 @@ jobs:
       
       - name: Check IAM Database
         run: |
-          if ! grep -q "SDKWORK_IM_IAM_DATABASE_URL" configs/topology/cloud.split-services.production.env; then
+          if ! grep -q "SDKWORK_IM_IAM_DATABASE_URL" etc/topology/cloud.split-services.production.env; then
             echo "❌ HIGH: IAM database must be configured"
             exit 1
           fi
@@ -582,7 +582,7 @@ impl RedisClusterClientBuilder {
     }
 }
 
-// 文件: configs/topology/cloud.split-services.production.env
+// 文件: etc/topology/cloud.split-services.production.env
 
 # Redis Cluster配置
 SDKWORK_IM_REDIS_CLUSTER_NODES=redis://redis-node-1:6379,redis://redis-node-2:6380,redis://redis-node-3:6381

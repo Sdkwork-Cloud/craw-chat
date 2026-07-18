@@ -223,7 +223,8 @@ export function resolveProductAppApiBaseUrl(): string | undefined {
 }
 
 export function resolveImApiBaseUrl(): string | undefined {
-  return readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL)
+  return readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL)
+    ?? readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL)
     ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_SDK_BASE_URL')
     ?? readDiscoveredDevGatewayHttpUrl()
     ?? resolveLocalDevApplicationHttpBaseUrl()
@@ -248,7 +249,7 @@ export function resolveImApiBaseUrlOrThrow(): string {
   const baseUrl = resolveImApiBaseUrl();
   if (!baseUrl) {
     throw new Error(
-      'Sdkwork IM SDK API base URL is not configured. Set VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL.',
+      'Sdkwork IM SDK API base URL is not configured. Set VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL.',
     );
   }
   return normalizeHttpSdkBaseUrl(baseUrl);

@@ -162,16 +162,10 @@ assert.match(
   'Shared SDK git materializer must know how to prepare the sdkwork-drive-pc-drive embed package.',
 );
 
-assert.match(
-  devRunnerSource,
-  /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*explicitDriveAppApiUpstream[\s\S]*SDKWORK_IM_DRIVE_APP_API_UPSTREAM/u,
-  'PC dev runner must default sdkwork-drive traffic through the shared gateway root while preserving explicit Drive external upstream overrides.',
-);
-
-assert.match(
-  gatewayConfigSource,
-  /sdkwork-drive-app-api[\s\S]*SDKWORK_IM_DRIVE_APP_API_UPSTREAM[\s\S]*SDKWORK_DRIVE_APP_API_UPSTREAM[\s\S]*SDKWORK_DRIVE_APP_API_BASE_URL/u,
-  'Gateway config must expose deterministic sdkwork-drive app-api upstream environment keys.',
+assert.doesNotMatch(
+  `${devRunnerSource}\n${gatewayConfigSource}`,
+  /explicitDriveAppApiUpstream|SDKWORK_IM_DRIVE_APP_API_UPSTREAM|SDKWORK_DRIVE_APP_API_UPSTREAM|SDKWORK_DRIVE_APP_API_BASE_URL/u,
+  'Drive foundation traffic must use the platform assembly gateway without per-module upstream overrides.',
 );
 
 assert.match(

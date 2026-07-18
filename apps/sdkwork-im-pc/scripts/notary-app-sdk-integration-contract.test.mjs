@@ -207,10 +207,10 @@ assert.match(
   'Shared SDK git materializer must expose sdkwork-notary repo/ref override environment variables.',
 );
 
-assert.match(
+assert.doesNotMatch(
   devRunnerSource,
-  /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*explicitNotaryAppApiUpstream[\s\S]*SDKWORK_IM_NOTARY_APP_API_UPSTREAM/u,
-  'PC dev runner must default sdkwork-notary traffic through the shared gateway root while preserving explicit Notary external upstream overrides.',
+  /explicitNotaryAppApiUpstream|SDKWORK_IM_NOTARY_APP_API_UPSTREAM|SDKWORK_NOTARY_APP_API_UPSTREAM|SDKWORK_NOTARY_APP_API_BASE_URL/u,
+  'Notary foundation traffic must use the platform assembly gateway without per-module upstream overrides.',
 );
 
 assert.match(
@@ -224,10 +224,10 @@ assert.doesNotMatch(
   'Unified server launcher must not default local notary SDK traffic to a separate per-module upstream.',
 );
 
-assert.match(
+assert.doesNotMatch(
   gatewayConfigSource,
-  /sdkwork-notary-app-api[\s\S]*SDKWORK_IM_NOTARY_APP_API_UPSTREAM[\s\S]*SDKWORK_NOTARY_APP_API_UPSTREAM[\s\S]*SDKWORK_NOTARY_APP_API_BASE_URL/u,
-  'Gateway config must expose deterministic sdkwork-notary app-api upstream environment keys.',
+  /SDKWORK_IM_NOTARY_APP_API_UPSTREAM|SDKWORK_NOTARY_APP_API_UPSTREAM|SDKWORK_NOTARY_APP_API_BASE_URL/u,
+  'Gateway config must not expose per-module Notary upstream environment keys.',
 );
 
 assert.match(

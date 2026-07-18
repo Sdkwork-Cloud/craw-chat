@@ -28,8 +28,8 @@ const openApiRouter = read('crates/sdkwork-routes-im-realtime-open-api/src/lib.r
 const topologySpec = readJson('specs/topology.spec.json');
 const sessionGatewayDeployment = read('deployments/kubernetes/cloud/session-gateway/deployment.yaml');
 const sessionGatewayConfigMap = read('deployments/kubernetes/cloud/session-gateway/configmap.example.yaml');
-const cloudProductionTopology = read('configs/topology/cloud.production.env');
-const topologyReadme = read('configs/topology/README.md');
+const cloudProductionTopology = read('etc/topology/cloud.production.env');
+const topologyReadme = read('etc/topology/README.md');
 
 const haEnvKeys = [
   'SDKWORK_IM_REALTIME_CLUSTER_BUS_URL',
@@ -105,10 +105,8 @@ assert.match(cloudProductionTopology, /^SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT
   'cloud production topology must configure the same bounded drain deadline');
 assert.match(topologyReadme, /SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT_SECS/u,
   'topology documentation must define the session-gateway drain setting');
-assert.match(sessionGatewayDeployment, /kill -TERM 1/u,
-  'session-gateway preStop must start the application drain lifecycle');
-assert.doesNotMatch(sessionGatewayDeployment, /command:\s*\["\/bin\/sh",\s*"-c",\s*"sleep \d+"\]/u,
-  'session-gateway deployment must not use a sleep-only preStop hook');
+assert.doesNotMatch(sessionGatewayDeployment, /preStop:|\/bin\/sh|kill -TERM 1/u,
+  'session-gateway must use native PID 1 SIGTERM handling without a shell-dependent preStop hook');
 assert.match(
   sessionGatewayBin,
   /build_public_app_with_realtime_bootstrap/u,

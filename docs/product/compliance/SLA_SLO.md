@@ -22,7 +22,7 @@ infrastructure described in `docs/operations/OPERATIONS_MANUAL.md`.
 | Professional | Professional | Single-node cloud | Soft | 99.5% monthly | Business hours |
 | Enterprise | Enterprise | Multi-node cluster | Yes | 99.9% monthly | 24/7, 1-hour P0 |
 
-Topology profiles are defined in `configs/topology/` and `specs/topology.spec.json`.
+Topology profiles are defined in `etc/topology/` and `specs/topology.spec.json`.
 
 ## 3. Availability SLA
 

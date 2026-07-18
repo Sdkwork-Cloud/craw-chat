@@ -40,7 +40,10 @@ pub use sdkwork_im_contract_message::{
     replay_commit_journal_pages,
 };
 pub use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
-pub use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
+pub use sdkwork_im_contract_stream::{
+    StreamAppendOutcome, StreamCreateOutcome, StreamScope, StreamSessionRecord, StreamStateStore,
+    StreamTransitionOutcome,
+};
 
 pub use cluster_bus::ClusterEventBus;
 pub use push_provider::{PushDeliveryResult, PushMessage, PushProvider};

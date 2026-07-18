@@ -1,4 +1,4 @@
-﻿# Sdkwork IM PC Playwright E2E
+# Sdkwork IM PC Playwright E2E
 
 ## Scope
 
@@ -45,7 +45,7 @@ pnpm exec playwright test
 
 CI uses **mock-based** IAM/IM responses so the gate stays deterministic without a live cloud-service stack.
 
-For staging-backed runs against `configs/topology/cloud.staging.env`:
+For staging-backed runs against `etc/topology/cloud.staging.env`:
 
 1. Deploy or point to a reachable staging ingress
 2. Export `PLAYWRIGHT_BASE_URL` to that ingress

@@ -84,8 +84,6 @@ members = [
     "services/governance-service-bin",
     "services/sdkwork-comms-conversation-service",
     "services/sdkwork-comms-conversation-service-bin",
-    "services/contact-service",
-    "services/interaction-service",
     "services/media-service",
     "services/media-service-bin",
     "services/portal-service",

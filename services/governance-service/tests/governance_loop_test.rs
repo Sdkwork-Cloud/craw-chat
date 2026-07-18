@@ -15,9 +15,13 @@ use session_gateway::{
 use tower::ServiceExt;
 
 fn audit_app_context() -> AppContext {
+    audit_app_context_for_organization("100001")
+}
+
+fn audit_app_context_for_organization(organization_id: &str) -> AppContext {
     AppContext {
         tenant_id: "100001".into(),
-        organization_id: "0".to_owned(),
+        organization_id: organization_id.to_owned(),
         user_id: "1080".into(),
         session_id: None,
         app_id: None,
@@ -156,6 +160,14 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
             .as_deref()
             .expect("migrate audit record should include payload")
             .contains("\"targetNodeId\":\"node_b\"")
+    );
+
+    let other_organization_export = audit_runtime
+        .export_bundle(&audit_app_context_for_organization("0"))
+        .expect("cross-organization audit export should succeed");
+    assert_eq!(
+        other_organization_export.total, 0,
+        "control-plane audit records must remain organization-scoped",
     );
 }
 

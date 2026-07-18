@@ -5,7 +5,8 @@ mod paths;
 mod routes;
 mod web_bootstrap;
 
-pub use manifest::{backend_route_manifest, backend_routes};
+pub use manifest::{API_SURFACE, backend_route_manifest, backend_routes};
+pub use paths::BACKEND_API_PREFIX;
 pub use routes::build_control_app;
 pub use web_bootstrap::wrap_router;
 

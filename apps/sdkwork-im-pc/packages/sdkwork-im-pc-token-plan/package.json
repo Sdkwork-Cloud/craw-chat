@@ -9,7 +9,9 @@
     "@sdkwork/im-pc-core": "workspace:*",
     "@sdkwork/membership-pc-membership": "workspace:*",
     "@sdkwork/membership-pc-subscription": "workspace:*",
-    "react": "catalog:"
+    "@sdkwork/order-pc-checkout": "workspace:*",
+    "react": "catalog:",
+    "react-i18next": "catalog:"
   },
   "publishConfig": {
     "access": "public",

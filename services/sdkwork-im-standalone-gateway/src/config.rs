@@ -168,6 +168,6 @@ pub fn resolve_config_path(args: &[String]) -> Result<String, String> {
         .unwrap_or_else(|| "development".to_string());
 
     Ok(format!(
-        "configs/sdkwork-im-standalone-gateway.{environment}.toml"
+        "services/sdkwork-im-standalone-gateway/etc/sdkwork-im-standalone-gateway.{environment}.toml"
     ))
 }

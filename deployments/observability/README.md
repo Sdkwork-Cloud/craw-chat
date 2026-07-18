@@ -48,7 +48,7 @@ Configure OpenTelemetry export with `OTEL_EXPORTER_OTLP_ENDPOINT` (see `.env.pos
 ## Verification Commands
 
 ```bash
-kubectl apply --dry-run=client -f deployments/kubernetes/cloud/
+kubectl apply --dry-run=client -f dist/kubernetes-cloud/
 kubectl apply --dry-run=client -f deployments/observability/otel-collector.yaml
 pnpm run test:commercial-deployment-contract
 pnpm run test:step11-ha-dr-drill

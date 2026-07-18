@@ -9,6 +9,13 @@ metadata:
     app.kubernetes.io/part-of: sdkwork-im
 spec:
   replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  minReadySeconds: 10
+  progressDeadlineSeconds: 600
   selector:
     matchLabels:
       app.kubernetes.io/name: session-gateway
@@ -20,9 +27,22 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-pull-secret
-      # The application owns a 45-second bounded drain. Kubernetes keeps an
-      # additional 30 seconds for hook startup, final task joins, and forced exit.
+      # Kubernetes sends SIGTERM directly to PID 1. The application owns a
+      # 45-second bounded drain; the remaining 30 seconds cover final joins.
       terminationGracePeriodSeconds: 75
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: session-gateway
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: session-gateway
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
@@ -57,12 +77,6 @@ spec:
               value: sdkwork-im-session-gateway
             - name: TMPDIR
               value: /tmp
-          # Start the same SIGTERM lifecycle used outside Kubernetes. The process
-          # first fails readiness, then fences/releases routes and joins workers.
-          lifecycle:
-            preStop:
-              exec:
-                command: ["/bin/sh", "-c", "kill -TERM 1; while kill -0 1 2>/dev/null; do sleep 1; done"]
           # startupProbe lets the runtime restore per-principal realtime route
           # state from PostgreSQL before livenessProbe kicks in. Without it,
           # a slow cold start (large tenant, many subscriptions) could be

@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, HashMap};
-use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Arc, Mutex};
 
 use im_app_context::AppContext;
@@ -8,7 +7,10 @@ use im_domain_core::stream::{
 };
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_contract_core::ContractError;
-use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
+use sdkwork_im_contract_stream::{
+    StreamAppendOutcome, StreamCreateOutcome, StreamScope, StreamSessionRecord, StreamStateStore,
+    StreamTransitionOutcome,
+};
 use sdkwork_utils_rust::{SdkWorkPageData, cursor_list_page_data};
 
 use crate::dto::{
@@ -20,25 +22,15 @@ use crate::error::StreamingError;
 use crate::helpers::{
     ensure_stream_session_actor_access, lock_stream_mutex, resolve_stream_frame_sender,
     stream_abort_matches_request, stream_checkpoint_matches_request,
-    stream_completion_matches_request, stream_frame_index, stream_scope_key,
-    stream_session_matches_open_request, validate_abort_stream_request_payload_size,
-    validate_append_frame_request_payload_size, validate_complete_stream_request_payload_size,
-    validate_open_stream_request_payload_size, validate_stream_frame_page_size, validate_stream_id,
+    stream_completion_matches_request, stream_scope_key, stream_session_matches_open_request,
+    validate_abort_stream_request_payload_size, validate_append_frame_request_payload_size,
+    validate_complete_stream_request_payload_size, validate_open_stream_request_payload_size,
+    validate_stream_frame_page_size, validate_stream_id,
 };
+use crate::metrics::StreamRuntimeMetrics;
 
-/// Maximum number of concurrently active (non-terminal) streams a single
-/// tenant may own before new `open_stream` requests are rejected with
-/// `stream_capacity_exceeded`. This protects the runtime from a single
-/// noisy tenant exhausting memory by opening unbounded streams.
-///
-/// The limit counts only streams whose state is not yet `Completed`,
-/// `Aborted`, or `Expired` — terminated streams release their slot so the
-/// tenant can continue to open new streams. The default is intentionally
-/// generous for normal IM streaming (typing indicators, ephemeral frames,
-/// durable session logs); tenants needing a higher limit should be
-/// provisioned through dedicated capacity planning rather than a global
-/// bump.
-const MAX_ACTIVE_STREAMS_PER_TENANT: u64 = 1000;
+const MAX_ACTIVE_STREAMS_PER_TENANT_ORGANIZATION: u64 = 1000;
+const MAX_CONCURRENCY_RETRIES: usize = 8;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -52,64 +44,56 @@ impl AppState {
 }
 
 pub struct StreamingRuntime {
-    pub(crate) sessions: Mutex<HashMap<String, StreamSession>>,
-    pub(crate) frames: Mutex<HashMap<String, BTreeMap<u64, StreamFrame>>>,
     pub(crate) state_store: Arc<dyn StreamStateStore>,
-    /// Per-tenant count of currently active (non-terminal) streams.
-    /// Incremented on `open_stream` (new session only, not idempotent
-    /// replay); decremented when a stream transitions to a terminal
-    /// state (`Completed` / `Aborted` / `Expired`). Lock order is
-    /// `sessions` -> `tenant_active_stream_counts`; no inverse acquisition
-    /// exists, so this cannot deadlock.
-    pub(crate) tenant_active_stream_counts: Mutex<HashMap<String, u64>>,
+    metrics: StreamRuntimeMetrics,
 }
 
 impl StreamingRuntime {
     pub fn with_store(state_store: Arc<dyn StreamStateStore>) -> Self {
         Self {
-            sessions: Mutex::new(HashMap::new()),
-            frames: Mutex::new(HashMap::new()),
             state_store,
-            tenant_active_stream_counts: Mutex::new(HashMap::new()),
+            metrics: StreamRuntimeMetrics::default(),
         }
     }
 
-    pub(crate) fn ensure_stream_state(
+    pub fn check_store_ready(&self) -> Result<(), String> {
+        self.state_store.check_ready().map_err(|error| {
+            self.metrics.record_readiness_failure();
+            format!("stream state store readiness failed: {error:?}")
+        })
+    }
+
+    pub fn render_runtime_metrics_prometheus(&self) -> String {
+        self.metrics.render_prometheus()
+    }
+
+    fn store_result<T>(&self, result: Result<T, ContractError>) -> Result<T, StreamingError> {
+        result.map_err(|error| {
+            self.metrics.record_store_error();
+            StreamingError::stream_store(error)
+        })
+    }
+
+    fn scope(auth: &AppContext, stream_id: &str) -> StreamScope {
+        StreamScope::new(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            stream_id,
+        )
+    }
+
+    fn load_record(
         &self,
-        tenant_id: &str,
+        auth: &AppContext,
         stream_id: &str,
-    ) -> Result<(), StreamingError> {
+    ) -> Result<StreamSessionRecord, StreamingError> {
         validate_stream_id(stream_id)?;
-        let scope_key = stream_scope_key(tenant_id, stream_id);
-        let needs_restore =
-            !lock_stream_mutex(&self.sessions, "stream runtime").contains_key(scope_key.as_str());
-        if !needs_restore {
-            lock_stream_mutex(&self.frames, "stream runtime")
-                .entry(scope_key)
-                .or_default();
-            return Ok(());
-        }
-
-        let restored = self
-            .state_store
-            .load_state(tenant_id, stream_id)
-            .map_err(StreamingError::stream_store)?;
-        if let Some(record) = restored {
-            // TOCTOU-safe restore: between the `contains_key` check above and
-            // here, a concurrent `open_stream_with_outcome` may have already
-            // inserted a fresh session. Use `entry().or_insert()` so we never
-            // overwrite the in-memory session a concurrent opener just created.
-            // Mirrors the fix already applied in
-            // `im-calls-service/src/state.rs::ensure_rtc_state`.
-            lock_stream_mutex(&self.sessions, "stream runtime")
-                .entry(scope_key.clone())
-                .or_insert(record.session);
-            lock_stream_mutex(&self.frames, "stream runtime")
-                .entry(scope_key)
-                .or_insert_with(|| stream_frame_index(record.frames));
-        }
-
-        Ok(())
+        self.store_result(self.state_store.load_session(&Self::scope(auth, stream_id)))?
+            .ok_or_else(|| StreamingError {
+                status: axum::http::StatusCode::NOT_FOUND,
+                code: "stream_not_found",
+                message: format!("stream not found: {stream_id}"),
+            })
     }
 
     pub fn session(
@@ -117,17 +101,9 @@ impl StreamingRuntime {
         auth: &AppContext,
         stream_id: &str,
     ) -> Result<StreamSession, StreamingError> {
-        self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
-        let session = lock_stream_mutex(&self.sessions, "stream runtime")
-            .get(stream_scope_key(auth.tenant_id.as_str(), stream_id).as_str())
-            .cloned()
-            .ok_or_else(|| StreamingError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "stream_not_found",
-                message: format!("stream not found: {stream_id}"),
-            })?;
-        ensure_stream_session_actor_access(&session, auth, stream_id)?;
-        Ok(session)
+        let record = self.load_record(auth, stream_id)?;
+        ensure_stream_session_actor_access(&record.session, auth, stream_id)?;
+        Ok(record.session)
     }
 
     pub fn open_stream(
@@ -156,65 +132,19 @@ impl StreamingRuntime {
                 });
             }
         };
-
-        let scope_key = stream_scope_key(auth.tenant_id.as_str(), request.stream_id.as_str());
-        self.ensure_stream_state(auth.tenant_id.as_str(), request.stream_id.as_str())?;
-        let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
-        if let Some(existing) = sessions.get(scope_key.as_str()).cloned() {
-            if stream_session_matches_open_request(&existing, auth, &request, &durability_class) {
-                drop(sessions);
-                lock_stream_mutex(&self.frames, "stream runtime")
-                    .entry(scope_key)
-                    .or_default();
-                return Ok(StreamSessionMutationOutcome {
-                    session: existing,
-                    applied: false,
-                });
-            }
-
-            return Err(StreamingError::conflict(request.stream_id.as_str()));
-        }
-
-        // Per-tenant capacity guard: count currently active (non-terminal)
-        // streams owned by this tenant and reject new opens once the limit
-        // is reached. This runs under the `sessions` write lock so the
-        // count-and-increment is atomic against concurrent open/complete/
-        // abort for the same tenant. The count is maintained separately in
-        // `tenant_active_stream_counts` to avoid an O(n) scan of the
-        // sessions HashMap on every open; the nested `sessions` ->
-        // `tenant_active_stream_counts` acquisition is safe because no
-        // caller acquires them in the reverse order.
-        {
-            let mut counts = lock_stream_mutex(
-                &self.tenant_active_stream_counts,
-                "stream tenant capacity counts",
-            );
-            let current = counts.get(auth.tenant_id.as_str()).copied().unwrap_or(0);
-            if current >= MAX_ACTIVE_STREAMS_PER_TENANT {
-                return Err(StreamingError {
-                    status: axum::http::StatusCode::TOO_MANY_REQUESTS,
-                    code: "stream_capacity_exceeded",
-                    message: format!(
-                        "tenant {} already has {} active streams; limit is {}",
-                        auth.tenant_id, current, MAX_ACTIVE_STREAMS_PER_TENANT
-                    ),
-                });
-            }
-            counts.insert(auth.tenant_id.clone(), current + 1);
-        }
-
-        let opened_at = utc_now_rfc3339_millis();
+        let scope = Self::scope(auth, request.stream_id.as_str());
+        let now = utc_now_rfc3339_millis();
         let session = StreamSession {
             tenant_id: auth.tenant_id.clone(),
             stream_id: request.stream_id.clone(),
             owner_principal_id: auth.actor_id.clone(),
             owner_principal_kind: auth.actor_kind.clone(),
-            stream_type: request.stream_type,
-            scope_kind: request.scope_kind,
-            scope_id: request.scope_id,
-            durability_class,
+            stream_type: request.stream_type.clone(),
+            scope_kind: request.scope_kind.clone(),
+            scope_id: request.scope_id.clone(),
+            durability_class: durability_class.clone(),
             ordering_scope: "stream".into(),
-            schema_ref: request.schema_ref,
+            schema_ref: request.schema_ref.clone(),
             state: StreamSessionState::Opened,
             last_frame_seq: 0,
             last_checkpoint_seq: None,
@@ -222,22 +152,50 @@ impl StreamingRuntime {
             complete_frame_seq: None,
             abort_frame_seq: None,
             abort_reason: None,
-            opened_at,
+            opened_at: now.clone(),
             closed_at: None,
             expires_at: None,
         };
-
-        sessions.insert(scope_key.clone(), session.clone());
-        drop(sessions);
-        lock_stream_mutex(&self.frames, "stream runtime")
-            .entry(scope_key)
-            .or_default();
-        self.persist_state(auth.tenant_id.as_str(), request.stream_id.as_str())?;
-
-        Ok(StreamSessionMutationOutcome {
-            session,
-            applied: true,
-        })
+        let record = StreamSessionRecord {
+            scope,
+            session: session.clone(),
+            version: 1,
+            updated_at: now,
+        };
+        match self.store_result(
+            self.state_store
+                .create_session(record, MAX_ACTIVE_STREAMS_PER_TENANT_ORGANIZATION),
+        )? {
+            StreamCreateOutcome::Applied(record) => Ok(StreamSessionMutationOutcome {
+                session: record.session,
+                applied: true,
+            }),
+            StreamCreateOutcome::Existing(record) => {
+                if stream_session_matches_open_request(
+                    &record.session,
+                    auth,
+                    &request,
+                    &durability_class,
+                ) {
+                    Ok(StreamSessionMutationOutcome {
+                        session: record.session,
+                        applied: false,
+                    })
+                } else {
+                    Err(StreamingError::conflict(request.stream_id.as_str()))
+                }
+            }
+            StreamCreateOutcome::CapacityExceeded => {
+                self.metrics.record_capacity_rejection();
+                Err(StreamingError {
+                    status: axum::http::StatusCode::TOO_MANY_REQUESTS,
+                    code: "stream_capacity_exceeded",
+                    message: format!(
+                        "tenant organization already has {MAX_ACTIVE_STREAMS_PER_TENANT_ORGANIZATION} active streams"
+                    ),
+                })
+            }
+        }
     }
 
     pub fn append_frame(
@@ -257,6 +215,7 @@ impl StreamingRuntime {
         stream_id: &str,
         request: AppendStreamFrameRequest,
     ) -> Result<AppendStreamFrameOutcome, StreamingError> {
+        let _append_timer = self.metrics.track_append();
         validate_append_frame_request_payload_size(&request)?;
         if request.frame_seq == 0 {
             return Err(StreamingError {
@@ -265,95 +224,92 @@ impl StreamingRuntime {
                 message: "frameSeq must start from 1".into(),
             });
         }
-
-        let scope_key = stream_scope_key(auth.tenant_id.as_str(), stream_id);
-        self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
-        let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
-        let session = sessions
-            .get_mut(scope_key.as_str())
-            .ok_or_else(|| StreamingError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "stream_not_found",
-                message: format!("stream not found: {stream_id}"),
-            })?;
-        ensure_stream_session_actor_access(session, auth, stream_id)?;
-
-        if matches!(
-            session.state,
-            StreamSessionState::Completed | StreamSessionState::Aborted
-        ) {
-            return Err(StreamingError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "stream_state_invalid",
-                message: format!("stream is already closed: {stream_id}"),
-            });
-        }
-
         let sender = resolve_stream_frame_sender(auth);
-
-        let mut frames = lock_stream_mutex(&self.frames, "stream runtime");
-        let stream_frames = frames.entry(scope_key).or_default();
-
-        if let Some(existing) = stream_frames.get(&request.frame_seq) {
-            let is_same_retry = existing.frame_type == request.frame_type
-                && existing.schema_ref == request.schema_ref
-                && existing.encoding == request.encoding
-                && existing.payload == request.payload
-                && existing.sender == sender
-                && existing.attributes == request.attributes;
-            if is_same_retry {
-                return Ok(AppendStreamFrameOutcome {
-                    frame: existing.clone(),
-                    applied: false,
+        for _ in 0..MAX_CONCURRENCY_RETRIES {
+            let current = self.load_record(auth, stream_id)?;
+            ensure_stream_session_actor_access(&current.session, auth, stream_id)?;
+            if matches!(
+                current.session.state,
+                StreamSessionState::Completed | StreamSessionState::Aborted
+            ) {
+                return Err(StreamingError {
+                    status: axum::http::StatusCode::BAD_REQUEST,
+                    code: "stream_state_invalid",
+                    message: format!("stream is already closed: {stream_id}"),
                 });
             }
-            return Err(StreamingError {
-                status: axum::http::StatusCode::CONFLICT,
-                code: "stream_frame_conflict",
-                message: format!("frame seq conflict: {}", request.frame_seq),
-            });
+            if request.frame_seq > current.session.last_frame_seq + 1 {
+                return Err(StreamingError {
+                    status: axum::http::StatusCode::BAD_REQUEST,
+                    code: "stream_frame_out_of_order",
+                    message: format!(
+                        "expected next frame seq {}, got {}",
+                        current.session.last_frame_seq + 1,
+                        request.frame_seq
+                    ),
+                });
+            }
+            let frame = StreamFrame {
+                tenant_id: auth.tenant_id.clone(),
+                stream_id: stream_id.to_owned(),
+                stream_type: current.session.stream_type.clone(),
+                scope_kind: current.session.scope_kind.clone(),
+                scope_id: current.session.scope_id.clone(),
+                frame_seq: request.frame_seq,
+                frame_type: request.frame_type.clone(),
+                schema_ref: request.schema_ref.clone(),
+                encoding: request.encoding.clone(),
+                payload: request.payload.clone(),
+                sender: sender.clone(),
+                attributes: request.attributes.clone(),
+                occurred_at: utc_now_rfc3339_millis(),
+            };
+            let mut next = current.clone();
+            next.version = current.version + 1;
+            next.updated_at = utc_now_rfc3339_millis();
+            next.session.last_frame_seq = frame.frame_seq;
+            next.session.state = StreamSessionState::Active;
+            match self.store_result(self.state_store.append_frame(
+                current.version,
+                next,
+                frame.clone(),
+            ))? {
+                StreamAppendOutcome::Applied { frame, .. } => {
+                    return Ok(AppendStreamFrameOutcome {
+                        frame,
+                        applied: true,
+                    });
+                }
+                StreamAppendOutcome::Existing {
+                    frame: existing, ..
+                } => {
+                    let same = existing.frame_type == request.frame_type
+                        && existing.schema_ref == request.schema_ref
+                        && existing.encoding == request.encoding
+                        && existing.payload == request.payload
+                        && existing.sender == sender
+                        && existing.attributes == request.attributes;
+                    return if same {
+                        Ok(AppendStreamFrameOutcome {
+                            frame: existing,
+                            applied: false,
+                        })
+                    } else {
+                        Err(StreamingError {
+                            status: axum::http::StatusCode::CONFLICT,
+                            code: "stream_frame_conflict",
+                            message: format!("frame seq conflict: {}", request.frame_seq),
+                        })
+                    };
+                }
+                StreamAppendOutcome::VersionConflict => {
+                    self.metrics.record_append_version_conflict();
+                    continue;
+                }
+            }
         }
-
-        if request.frame_seq != session.last_frame_seq + 1 {
-            return Err(StreamingError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "stream_frame_out_of_order",
-                message: format!(
-                    "expected next frame seq {}, got {}",
-                    session.last_frame_seq + 1,
-                    request.frame_seq
-                ),
-            });
-        }
-
-        let occurred_at = utc_now_rfc3339_millis();
-        let frame = StreamFrame {
-            tenant_id: auth.tenant_id.clone(),
-            stream_id: session.stream_id.clone(),
-            stream_type: session.stream_type.clone(),
-            scope_kind: session.scope_kind.clone(),
-            scope_id: session.scope_id.clone(),
-            frame_seq: request.frame_seq,
-            frame_type: request.frame_type,
-            schema_ref: request.schema_ref,
-            encoding: request.encoding,
-            payload: request.payload,
-            sender,
-            attributes: request.attributes,
-            occurred_at,
-        };
-
-        stream_frames.insert(frame.frame_seq, frame.clone());
-        session.last_frame_seq = frame.frame_seq;
-        session.state = StreamSessionState::Active;
-        drop(frames);
-        drop(sessions);
-        self.persist_state(auth.tenant_id.as_str(), stream_id)?;
-
-        Ok(AppendStreamFrameOutcome {
-            frame,
-            applied: true,
-        })
+        self.metrics.record_concurrency_exhausted();
+        Err(concurrency_exhausted(stream_id))
     }
 
     pub fn checkpoint_stream(
@@ -373,55 +329,25 @@ impl StreamingRuntime {
         stream_id: &str,
         request: CheckpointStreamRequest,
     ) -> Result<StreamSessionMutationOutcome, StreamingError> {
-        self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
-        let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
-        let session = sessions
-            .get_mut(stream_scope_key(auth.tenant_id.as_str(), stream_id).as_str())
-            .ok_or_else(|| StreamingError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "stream_not_found",
-                message: format!("stream not found: {stream_id}"),
-            })?;
-        ensure_stream_session_actor_access(session, auth, stream_id)?;
-
-        if session.last_checkpoint_seq == Some(request.frame_seq) {
-            if stream_checkpoint_matches_request(session, auth, &request) {
-                return Ok(StreamSessionMutationOutcome {
-                    session: session.clone(),
-                    applied: false,
-                });
+        self.transition(auth, stream_id, |session| {
+            if session.last_checkpoint_seq == Some(request.frame_seq)
+                && stream_checkpoint_matches_request(session, auth, &request)
+            {
+                return Ok(false);
             }
-            return Err(StreamingError::conflict(stream_id));
-        }
-
-        if matches!(
-            session.state,
-            StreamSessionState::Completed | StreamSessionState::Aborted
-        ) {
-            return Err(StreamingError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "stream_state_invalid",
-                message: format!("stream is already closed: {stream_id}"),
-            });
-        }
-
-        if session
-            .last_checkpoint_seq
-            .is_some_and(|last_checkpoint_seq| request.frame_seq < last_checkpoint_seq)
-        {
-            return Err(StreamingError::conflict(stream_id));
-        }
-
-        session.last_frame_seq = session.last_frame_seq.max(request.frame_seq);
-        session.last_checkpoint_seq = Some(request.frame_seq);
-        session.state = StreamSessionState::Checkpointed;
-        let session = session.clone();
-        drop(sessions);
-        self.persist_state(auth.tenant_id.as_str(), stream_id)?;
-
-        Ok(StreamSessionMutationOutcome {
-            session,
-            applied: true,
+            if matches!(
+                session.state,
+                StreamSessionState::Completed | StreamSessionState::Aborted
+            ) {
+                return Err(StreamingError::conflict(stream_id));
+            }
+            if request.frame_seq < session.last_checkpoint_seq.unwrap_or(0) {
+                return Err(StreamingError::conflict(stream_id));
+            }
+            session.last_frame_seq = session.last_frame_seq.max(request.frame_seq);
+            session.last_checkpoint_seq = Some(request.frame_seq);
+            session.state = StreamSessionState::Checkpointed;
+            Ok(true)
         })
     }
 
@@ -443,62 +369,23 @@ impl StreamingRuntime {
         request: CompleteStreamRequest,
     ) -> Result<StreamSessionMutationOutcome, StreamingError> {
         validate_complete_stream_request_payload_size(&request)?;
-        self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
-        let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
-        let session = sessions
-            .get_mut(stream_scope_key(auth.tenant_id.as_str(), stream_id).as_str())
-            .ok_or_else(|| StreamingError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "stream_not_found",
-                message: format!("stream not found: {stream_id}"),
-            })?;
-        ensure_stream_session_actor_access(session, auth, stream_id)?;
-
-        if session.state == StreamSessionState::Completed {
-            if stream_completion_matches_request(session, auth, &request) {
-                return Ok(StreamSessionMutationOutcome {
-                    session: session.clone(),
-                    applied: false,
-                });
+        self.transition(auth, stream_id, |session| {
+            if session.state == StreamSessionState::Completed {
+                return if stream_completion_matches_request(session, auth, &request) {
+                    Ok(false)
+                } else {
+                    Err(StreamingError::conflict(stream_id))
+                };
             }
-            return Err(StreamingError::conflict(stream_id));
-        }
-
-        if session.state == StreamSessionState::Aborted {
-            return Err(StreamingError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "stream_state_invalid",
-                message: format!("stream is already closed: {stream_id}"),
-            });
-        }
-
-        session.last_frame_seq = session.last_frame_seq.max(request.frame_seq);
-        session.result_message_id = request.result_message_id;
-        session.complete_frame_seq = Some(request.frame_seq);
-        session.state = StreamSessionState::Completed;
-        session.closed_at = Some(utc_now_rfc3339_millis());
-        let session = session.clone();
-        drop(sessions);
-        // Release the per-tenant capacity slot now that the stream has
-        // transitioned to a terminal state. Saturating subtraction guards
-        // against any drift caused by recovery replays or count corruption.
-        {
-            let mut counts = lock_stream_mutex(
-                &self.tenant_active_stream_counts,
-                "stream tenant capacity counts",
-            );
-            if let Some(count) = counts.get_mut(auth.tenant_id.as_str()) {
-                *count = count.saturating_sub(1);
-                if *count == 0 {
-                    counts.remove(auth.tenant_id.as_str());
-                }
+            if session.state == StreamSessionState::Aborted {
+                return Err(StreamingError::conflict(stream_id));
             }
-        }
-        self.persist_state(auth.tenant_id.as_str(), stream_id)?;
-
-        Ok(StreamSessionMutationOutcome {
-            session,
-            applied: true,
+            session.last_frame_seq = session.last_frame_seq.max(request.frame_seq);
+            session.result_message_id = request.result_message_id.clone();
+            session.complete_frame_seq = Some(request.frame_seq);
+            session.state = StreamSessionState::Completed;
+            session.closed_at = Some(utc_now_rfc3339_millis());
+            Ok(true)
         })
     }
 
@@ -520,65 +407,64 @@ impl StreamingRuntime {
         request: AbortStreamRequest,
     ) -> Result<StreamSessionMutationOutcome, StreamingError> {
         validate_abort_stream_request_payload_size(&request)?;
-        self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
-        let mut sessions = lock_stream_mutex(&self.sessions, "stream runtime");
-        let session = sessions
-            .get_mut(stream_scope_key(auth.tenant_id.as_str(), stream_id).as_str())
-            .ok_or_else(|| StreamingError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "stream_not_found",
-                message: format!("stream not found: {stream_id}"),
-            })?;
-        ensure_stream_session_actor_access(session, auth, stream_id)?;
+        self.transition(auth, stream_id, |session| {
+            if session.state == StreamSessionState::Aborted {
+                return if stream_abort_matches_request(session, auth, &request) {
+                    Ok(false)
+                } else {
+                    Err(StreamingError::conflict(stream_id))
+                };
+            }
+            if session.state == StreamSessionState::Completed {
+                return Err(StreamingError::conflict(stream_id));
+            }
+            session.last_frame_seq = session
+                .last_frame_seq
+                .max(request.frame_seq.unwrap_or(session.last_frame_seq));
+            session.state = StreamSessionState::Aborted;
+            session.abort_frame_seq = request.frame_seq;
+            session.abort_reason = request.reason.clone();
+            session.closed_at = Some(utc_now_rfc3339_millis());
+            Ok(true)
+        })
+    }
 
-        if session.state == StreamSessionState::Aborted {
-            if stream_abort_matches_request(session, auth, &request) {
+    fn transition<F>(
+        &self,
+        auth: &AppContext,
+        stream_id: &str,
+        mut apply: F,
+    ) -> Result<StreamSessionMutationOutcome, StreamingError>
+    where
+        F: FnMut(&mut StreamSession) -> Result<bool, StreamingError>,
+    {
+        for _ in 0..MAX_CONCURRENCY_RETRIES {
+            let current = self.load_record(auth, stream_id)?;
+            ensure_stream_session_actor_access(&current.session, auth, stream_id)?;
+            let mut next = current.clone();
+            if !apply(&mut next.session)? {
                 return Ok(StreamSessionMutationOutcome {
-                    session: session.clone(),
+                    session: current.session,
                     applied: false,
                 });
             }
-            return Err(StreamingError::conflict(stream_id));
-        }
-
-        if session.state == StreamSessionState::Completed {
-            return Err(StreamingError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "stream_state_invalid",
-                message: format!("stream is already closed: {stream_id}"),
-            });
-        }
-
-        if let Some(frame_seq) = request.frame_seq {
-            session.last_frame_seq = session.last_frame_seq.max(frame_seq);
-        }
-        session.state = StreamSessionState::Aborted;
-        session.abort_frame_seq = request.frame_seq;
-        session.abort_reason = request.reason;
-        session.closed_at = Some(utc_now_rfc3339_millis());
-        let session = session.clone();
-        drop(sessions);
-        // Release the per-tenant capacity slot now that the stream has
-        // transitioned to a terminal state. See `complete_stream_with_outcome`
-        // for the rationale on saturating subtraction.
-        {
-            let mut counts = lock_stream_mutex(
-                &self.tenant_active_stream_counts,
-                "stream tenant capacity counts",
-            );
-            if let Some(count) = counts.get_mut(auth.tenant_id.as_str()) {
-                *count = count.saturating_sub(1);
-                if *count == 0 {
-                    counts.remove(auth.tenant_id.as_str());
+            next.version = current.version + 1;
+            next.updated_at = utc_now_rfc3339_millis();
+            match self.store_result(self.state_store.transition_session(current.version, next))? {
+                StreamTransitionOutcome::Applied(record) => {
+                    return Ok(StreamSessionMutationOutcome {
+                        session: record.session,
+                        applied: true,
+                    });
+                }
+                StreamTransitionOutcome::VersionConflict => {
+                    self.metrics.record_transition_version_conflict();
+                    continue;
                 }
             }
         }
-        self.persist_state(auth.tenant_id.as_str(), stream_id)?;
-
-        Ok(StreamSessionMutationOutcome {
-            session,
-            applied: true,
-        })
+        self.metrics.record_concurrency_exhausted();
+        Err(concurrency_exhausted(stream_id))
     }
 
     pub fn list_frames(
@@ -588,39 +474,22 @@ impl StreamingRuntime {
         after_frame_seq: u64,
         page_size: usize,
     ) -> Result<SdkWorkPageData<StreamFrame>, StreamingError> {
-        self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
         let page_size = validate_stream_frame_page_size(page_size)?;
-
-        let scope_key = stream_scope_key(auth.tenant_id.as_str(), stream_id);
-        let sessions = lock_stream_mutex(&self.sessions, "stream runtime");
-        let session = sessions
-            .get(scope_key.as_str())
-            .ok_or_else(|| StreamingError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "stream_not_found",
-                message: format!("stream not found: {stream_id}"),
-            })?;
-        ensure_stream_session_actor_access(session, auth, stream_id)?;
-        drop(sessions);
-
-        let frames = lock_stream_mutex(&self.frames, "stream runtime");
-        let mut has_more = false;
-        let mut items = Vec::new();
-        if let Some(stream_frames) = frames.get(scope_key.as_str()) {
-            for (_, frame) in stream_frames.range((Excluded(after_frame_seq), Unbounded)) {
-                if items.len() == page_size {
-                    has_more = true;
-                    break;
-                }
-                items.push(frame.clone());
-            }
+        let record = self.load_record(auth, stream_id)?;
+        ensure_stream_session_actor_access(&record.session, auth, stream_id)?;
+        let mut items = self.store_result(self.state_store.list_frames_after(
+            &record.scope,
+            after_frame_seq,
+            page_size + 1,
+        ))?;
+        let has_more = items.len() > page_size;
+        if has_more {
+            items.truncate(page_size);
         }
-        let next_cursor = if has_more {
-            items.last().map(|frame| frame.frame_seq.to_string())
-        } else {
-            None
-        };
-
+        let next_cursor = has_more
+            .then(|| items.last().map(|frame| frame.frame_seq.to_string()))
+            .flatten();
+        self.metrics.record_frame_page(items.len());
         Ok(cursor_list_page_data(
             items,
             page_size,
@@ -628,78 +497,171 @@ impl StreamingRuntime {
             has_more,
         ))
     }
+}
 
-    fn persist_state(&self, tenant_id: &str, stream_id: &str) -> Result<(), StreamingError> {
-        self.state_store
-            .save_state(self.state_record(tenant_id, stream_id)?)
-            .map_err(StreamingError::stream_store)
-    }
-
-    fn state_record(
-        &self,
-        tenant_id: &str,
-        stream_id: &str,
-    ) -> Result<StreamStateRecord, StreamingError> {
-        let scope_key = stream_scope_key(tenant_id, stream_id);
-        let session = lock_stream_mutex(&self.sessions, "stream runtime")
-            .get(scope_key.as_str())
-            .cloned()
-            .ok_or_else(|| StreamingError {
-                status: axum::http::StatusCode::CONFLICT,
-                code: "stream_state_inconsistent",
-                message: format!(
-                    "stream session missing while persisting state for stream id: {stream_id}"
-                ),
-            })?;
-        let frames = lock_stream_mutex(&self.frames, "stream runtime")
-            .get(scope_key.as_str())
-            .cloned()
-            .unwrap_or_default()
-            .into_values()
-            .collect();
-
-        Ok(StreamStateRecord {
-            tenant_id: tenant_id.into(),
-            stream_id: stream_id.into(),
-            session,
-            frames,
-            updated_at: utc_now_rfc3339_millis(),
-        })
+fn concurrency_exhausted(stream_id: &str) -> StreamingError {
+    StreamingError {
+        status: axum::http::StatusCode::CONFLICT,
+        code: "stream_concurrency_conflict",
+        message: format!("stream changed concurrently; retry request: {stream_id}"),
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Default)]
+struct MemoryStreamState {
+    sessions: HashMap<String, StreamSessionRecord>,
+    frames: HashMap<String, BTreeMap<u64, StreamFrame>>,
+}
+
+#[derive(Default)]
 pub(crate) struct RuntimeMemoryStreamStateStore {
-    pub(crate) states: Arc<Mutex<HashMap<String, StreamStateRecord>>>,
+    state: Mutex<MemoryStreamState>,
 }
 
 impl StreamStateStore for RuntimeMemoryStreamStateStore {
-    fn load_state(
-        &self,
-        tenant_id: &str,
-        stream_id: &str,
-    ) -> Result<Option<StreamStateRecord>, ContractError> {
-        Ok(lock_stream_mutex(&self.states, "stream state store")
-            .get(stream_scope_key(tenant_id, stream_id).as_str())
-            .cloned())
-    }
-
-    fn save_state(&self, record: StreamStateRecord) -> Result<(), ContractError> {
-        let key = stream_scope_key(record.tenant_id.as_str(), record.stream_id.as_str());
-        let mut states = lock_stream_mutex(&self.states, "stream state store");
-        let next = states
-            .remove(key.as_str())
-            .map(|previous| previous.merge_monotonic(record.clone()))
-            .unwrap_or(record);
-        states.insert(key, next);
+    fn check_ready(&self) -> Result<(), ContractError> {
+        drop(lock_stream_mutex(
+            &self.state,
+            "runtime stream store readiness",
+        ));
         Ok(())
     }
 
-    fn clear_state(&self, tenant_id: &str, stream_id: &str) -> Result<bool, ContractError> {
-        Ok(lock_stream_mutex(&self.states, "stream state store")
-            .remove(stream_scope_key(tenant_id, stream_id).as_str())
-            .is_some())
+    fn load_session(
+        &self,
+        scope: &StreamScope,
+    ) -> Result<Option<StreamSessionRecord>, ContractError> {
+        Ok(lock_stream_mutex(&self.state, "stream state store")
+            .sessions
+            .get(scope_key(scope).as_str())
+            .cloned())
     }
+
+    fn create_session(
+        &self,
+        record: StreamSessionRecord,
+        max_active_streams: u64,
+    ) -> Result<StreamCreateOutcome, ContractError> {
+        let mut state = lock_stream_mutex(&self.state, "stream state store");
+        let key = scope_key(&record.scope);
+        if let Some(existing) = state.sessions.get(key.as_str()) {
+            return Ok(StreamCreateOutcome::Existing(existing.clone()));
+        }
+        let active = state
+            .sessions
+            .values()
+            .filter(|candidate| {
+                candidate.scope.tenant_id == record.scope.tenant_id
+                    && candidate.scope.organization_id == record.scope.organization_id
+                    && !matches!(
+                        candidate.session.state,
+                        StreamSessionState::Completed
+                            | StreamSessionState::Aborted
+                            | StreamSessionState::Expired
+                    )
+            })
+            .count() as u64;
+        if active >= max_active_streams {
+            return Ok(StreamCreateOutcome::CapacityExceeded);
+        }
+        state.sessions.insert(key, record.clone());
+        Ok(StreamCreateOutcome::Applied(record))
+    }
+
+    fn append_frame(
+        &self,
+        expected_version: u64,
+        next_session: StreamSessionRecord,
+        frame: StreamFrame,
+    ) -> Result<StreamAppendOutcome, ContractError> {
+        let mut state = lock_stream_mutex(&self.state, "stream state store");
+        let key = scope_key(&next_session.scope);
+        let Some(current) = state.sessions.get(key.as_str()).cloned() else {
+            return Err(ContractError::Invalid(
+                "stream session does not exist".into(),
+            ));
+        };
+        if let Some(existing) = state
+            .frames
+            .get(key.as_str())
+            .and_then(|frames| frames.get(&frame.frame_seq))
+            .cloned()
+        {
+            return Ok(StreamAppendOutcome::Existing {
+                session: current,
+                frame: existing,
+            });
+        }
+        if current.version != expected_version {
+            return Ok(StreamAppendOutcome::VersionConflict);
+        }
+        state
+            .frames
+            .entry(key.clone())
+            .or_default()
+            .insert(frame.frame_seq, frame.clone());
+        state.sessions.insert(key, next_session.clone());
+        Ok(StreamAppendOutcome::Applied {
+            session: next_session,
+            frame,
+        })
+    }
+
+    fn transition_session(
+        &self,
+        expected_version: u64,
+        next_session: StreamSessionRecord,
+    ) -> Result<StreamTransitionOutcome, ContractError> {
+        let mut state = lock_stream_mutex(&self.state, "stream state store");
+        let key = scope_key(&next_session.scope);
+        if state
+            .sessions
+            .get(key.as_str())
+            .map(|record| record.version)
+            != Some(expected_version)
+        {
+            return Ok(StreamTransitionOutcome::VersionConflict);
+        }
+        state.sessions.insert(key, next_session.clone());
+        Ok(StreamTransitionOutcome::Applied(next_session))
+    }
+
+    fn list_frames_after(
+        &self,
+        scope: &StreamScope,
+        after_frame_seq: u64,
+        page_size: usize,
+    ) -> Result<Vec<StreamFrame>, ContractError> {
+        let state = lock_stream_mutex(&self.state, "stream state store");
+        Ok(state
+            .frames
+            .get(scope_key(scope).as_str())
+            .into_iter()
+            .flat_map(|frames| {
+                frames.range((
+                    std::ops::Bound::Excluded(after_frame_seq),
+                    std::ops::Bound::Unbounded,
+                ))
+            })
+            .take(page_size)
+            .map(|(_, frame)| frame.clone())
+            .collect())
+    }
+
+    fn clear_stream(&self, scope: &StreamScope) -> Result<bool, ContractError> {
+        let mut state = lock_stream_mutex(&self.state, "stream state store");
+        let key = scope_key(scope);
+        state.frames.remove(key.as_str());
+        Ok(state.sessions.remove(key.as_str()).is_some())
+    }
+}
+
+fn scope_key(scope: &StreamScope) -> String {
+    stream_scope_key(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        scope.stream_id.as_str(),
+    )
 }
 
 impl Default for StreamingRuntime {

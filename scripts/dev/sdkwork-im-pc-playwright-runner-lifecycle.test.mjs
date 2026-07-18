@@ -15,6 +15,7 @@ import {
   probeHttp,
   stopServer,
   waitForOwnedHttpOk,
+  waitForOwnedServerPort,
 } from './sdkwork-im-pc-playwright-runner.mjs';
 
 class FakeChild extends EventEmitter {
@@ -60,6 +61,38 @@ class FakeAvailablePortServer extends EventEmitter {
     queueMicrotask(() => callback());
   }
 }
+
+const reportedPortChild = new FakeChild();
+const reportedPortPromise = waitForOwnedServerPort(reportedPortChild);
+reportedPortChild.emit('message', {
+  port: 43_217,
+  type: 'sdkwork-im-pc-server-listening',
+});
+assert.equal(
+  await reportedPortPromise,
+  43_217,
+  'the runner must use the exact OS-assigned port reported by its owned server',
+);
+
+const exitedBeforePortChild = new FakeChild();
+exitedBeforePortChild.finish(1);
+await assert.rejects(
+  waitForOwnedServerPort(exitedBeforePortChild),
+  /exited before reporting its TCP port with code 1/u,
+  'port discovery must fail immediately when the owned server already exited',
+);
+
+const invalidPortChild = new FakeChild();
+const invalidPortPromise = waitForOwnedServerPort(invalidPortChild);
+invalidPortChild.emit('message', {
+  port: 0,
+  type: 'sdkwork-im-pc-server-listening',
+});
+await assert.rejects(
+  invalidPortPromise,
+  /reported server TCP port must be a positive integer/u,
+  'port discovery must reject malformed child readiness messages',
+);
 
 function waitForCondition(check, timeoutMs = 5_000) {
   const deadline = Date.now() + timeoutMs;
@@ -544,8 +577,18 @@ for (const [label, source] of [
 }
 assert.match(
   smokeWrapperSource,
-  /process\.env\.PLAYWRIGHT_PC_SMOKE_PORT\s*\?\?\s*['"]3000['"]/u,
-  'the smoke gate must allow a caller-owned free port without weakening exclusive port checks',
+  /process\.env\.PLAYWRIGHT_PC_SMOKE_PORT[\s\S]*:\s*0;/u,
+  'the smoke gate must default to an OS-assigned port for concurrency-safe execution',
+);
+assert.match(
+  smokeWrapperSource,
+  /stdio:\s*\[['"]inherit['"],\s*['"]inherit['"],\s*['"]inherit['"],\s*['"]ipc['"]\]/u,
+  'the smoke gate must receive the OS-assigned server port over owned child IPC',
+);
+assert.match(
+  smokeWrapperSource,
+  /configuredServerPort\s*>\s*0[\s\S]*assertPortAvailable/u,
+  'an explicitly configured smoke port must retain exclusive preflight checks',
 );
 assert.match(
   e2eWrapperSource,

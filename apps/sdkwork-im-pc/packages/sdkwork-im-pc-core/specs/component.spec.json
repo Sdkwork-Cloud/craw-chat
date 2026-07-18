@@ -80,6 +80,13 @@
     }
   ],
   "contracts": {
+    "requiredPorts": [
+      {
+        "name": "orderMembershipCheckoutService",
+        "export": ".",
+        "package": "@sdkwork/order-service"
+      }
+    ],
     "publicExports": [
       "."
     ],
@@ -143,6 +150,11 @@
       },
       {
         "workspace": "sdkwork-mail-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-membership-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api"
       },

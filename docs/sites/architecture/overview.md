@@ -1,4 +1,4 @@
-﻿# Architecture Overview
+# Architecture Overview
 
 Sdkwork IM is a multi-service Rust workspace, not a single binary with optional extras. The current
 documentation is easiest to understand through five architectural lenses:
@@ -103,7 +103,7 @@ tests for app, ops, and control-plane endpoints.
 
 ## Development Profiles
 
-Use topology profile ids under `configs/topology/` and `pnpm dev` / `pnpm dev:server` for development.
+Use topology profile ids under `etc/topology/` and `pnpm dev` / `pnpm dev:server` for development.
 
 ## What To Read Next
 

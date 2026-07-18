@@ -17,7 +17,7 @@ SDKWork Chat maintainers.
 | Machine contract | [../specs/topology.spec.json](../specs/topology.spec.json) |
 | PC integration adapters | [architecture/tech/INTEGRATION-ADAPTER-REGISTER.md](./architecture/tech/INTEGRATION-ADAPTER-REGISTER.md) |
 | Pagination debt | [architecture/tech/PAGINATION-DEBT-REGISTER.md](./architecture/tech/PAGINATION-DEBT-REGISTER.md) |
-| Profile env files | [../configs/topology/](../configs/topology/) |
+| Profile env files | [../etc/topology/](../etc/topology/) |
 | Deployment index | [部署/README.md](./部署/README.md) |
 | Compliance pack | [product/compliance/](./product/compliance/) |
 | Public docs site | [sites/](./sites/) |

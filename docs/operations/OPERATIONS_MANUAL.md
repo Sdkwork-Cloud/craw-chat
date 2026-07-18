@@ -1,4 +1,4 @@
-﻿# SDKWork IM 杩愮淮鎵嬪唽
+# SDKWork IM 杩愮淮鎵嬪唽
 
 **鐗堟湰**: v1.0  
 **閫傜敤鑼冨洿**: 鐢熶骇鐜杩愮淮銆佹晠闅滃鐞嗐€佸閲忚鍒? 
@@ -80,7 +80,7 @@ services:
 
 ```bash
 # 閰嶇疆鏂囦欢浣嶇疆
-configs/topology/
+etc/topology/
 鈹溾攢鈹€ standalone.development.env
 鈹溾攢鈹€ standalone.unified-process.production.env
 鈹溾攢鈹€ cloud.production.env
@@ -88,7 +88,7 @@ configs/topology/
 
 # 浣跨敤鏂瑰紡
 export SDKWORK_IM_RUNTIME_PROFILE=production
-source configs/topology/cloud.production.env
+source etc/topology/cloud.production.env
 ```
 
 #### 蹇呴渶閰嶇疆椤?
@@ -125,7 +125,7 @@ cd sdkwork-im
 
 # Step 2: 鍔犺浇閰嶇疆
 export SDKWORK_IM_RUNTIME_PROFILE=production
-source configs/topology/cloud.production.env
+source etc/topology/cloud.production.env
 
 # Step 3: 瀹夊叏閰嶇疆妫€鏌?
 scripts/check-security-config.sh

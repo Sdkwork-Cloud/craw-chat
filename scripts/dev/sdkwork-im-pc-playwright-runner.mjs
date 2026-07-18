@@ -25,6 +25,60 @@ export function parseTcpPort(value, label = 'TCP port') {
   return port;
 }
 
+export function waitForOwnedServerPort(child, {
+  messageType = 'sdkwork-im-pc-server-listening',
+  timeoutMs = 10_000,
+} = {}) {
+  if (!child || typeof child.on !== 'function' || typeof child.once !== 'function') {
+    throw new Error('server port discovery requires an owned child process');
+  }
+  const normalizedTimeout = normalizePositiveInteger(timeoutMs, 'server port discovery timeout');
+  if (childHasExited(child)) {
+    return Promise.reject(new Error(
+      `owned server exited before reporting its TCP port with ${formatChildExit(child.exitCode, child.signalCode)}`,
+    ));
+  }
+
+  return new Promise((resolve, reject) => {
+    let timer;
+    const cleanup = () => {
+      clearTimeout(timer);
+      child.removeListener('error', onError);
+      child.removeListener('exit', onExit);
+      child.removeListener('message', onMessage);
+    };
+    const settle = (error, port) => {
+      cleanup();
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(port);
+    };
+    const onError = () => settle(new Error('owned server failed before reporting its TCP port'));
+    const onExit = (code, signal) => settle(new Error(
+      `owned server exited before reporting its TCP port with ${formatChildExit(code, signal)}`,
+    ));
+    const onMessage = (message) => {
+      if (!message || message.type !== messageType) {
+        return;
+      }
+      try {
+        settle(null, parseTcpPort(message.port, 'reported server TCP port'));
+      } catch (error) {
+        settle(error);
+      }
+    };
+
+    child.once('error', onError);
+    child.once('exit', onExit);
+    child.on('message', onMessage);
+    timer = setTimeout(() => settle(new Error(
+      `owned server did not report its TCP port within ${normalizedTimeout}ms`,
+    )), normalizedTimeout);
+  });
+}
+
 function assertHostPortAvailable({ createServer, host, port }) {
   return new Promise((resolve, reject) => {
     const server = createServer();

@@ -3540,7 +3540,7 @@ assert.equal(
 );
 assert.match(
   knowledgeShellLoadersSource,
-  /knowledge:\s*async\s*\(\)\s*=>\s*\{[\s\S]*import\(['"]@sdkwork\/knowledgebase-pc-knowledge['"]\)[\s\S]*ensureKnowledgebasePcRuntimeOnModule/u,
+  /knowledge:\s*async\s*\(\)\s*=>\s*\{[\s\S]*import\(['"]@sdkwork\/knowledgebase-pc-knowledge['"]\)[\s\S]*ensureKnowledgebasePcRuntimeOnModule[\s\S]*KnowledgebaseHostSurface[\s\S]*resolveKnowledgebaseHostPresentationMode/u,
   'IM shell must lazy-load the sdkwork-knowledgebase-pc-knowledge capability package with host runtime wiring.',
 );
 assert.match(
@@ -3570,8 +3570,8 @@ assert.match(
 );
 assert.match(
   knowledgeEmbedIndexSource,
-  /export\s*\{\s*KnowledgeView\s*\}/u,
-  'sdkwork-knowledgebase-pc-knowledge must export KnowledgeView for host-managed embedding.',
+  /export\s*\{\s*KnowledgebaseHostSurface\s*\}/u,
+  'sdkwork-knowledgebase-pc-knowledge must export its host-managed surface.',
 );
 assert.doesNotMatch(
   knowledgebasePcIntegrationSource,
@@ -4055,7 +4055,7 @@ assert.match(
 );
 assert.match(
   integrationServiceSource,
-  /console integration contract is not available/u,
+  /console integrations? (?:are|is) (?:unavailable|not available)/iu,
   'console integration service must fail closed until the integration SDK contract exists',
 );
 assert.match(

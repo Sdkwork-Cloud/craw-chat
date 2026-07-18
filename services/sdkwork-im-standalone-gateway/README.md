@@ -67,7 +67,7 @@ cargo build -p sdkwork-im-standalone-gateway
 cargo test -p sdkwork-im-standalone-gateway -- --nocapture
 cargo test -p sdkwork-im-iam-application-bootstrap
 pnpm gateway:build:standalone
-node scripts/dev/run-standalone-gateway-dev.mjs --config configs/sdkwork-im-standalone-gateway.development.toml
+node scripts/dev/run-standalone-gateway-dev.mjs --config services/sdkwork-im-standalone-gateway/etc/sdkwork-im-standalone-gateway.development.toml
 node scripts/dev/sdkwork-im-iam-application-bootstrap-standard.test.mjs
 node scripts/dev/sdkwork-im-web-backend-standard.test.mjs
 ```

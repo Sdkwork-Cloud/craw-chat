@@ -19,7 +19,8 @@ use im_platform_contracts::{
     NotificationTaskRecord, NotificationTaskStore, PresenceStateRecord, PresenceStateStore,
     RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
     RealtimeDisconnectFenceStore, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
-    StreamStateRecord, StreamStateStore, TimelineProjectionScope, TimelineProjectionStore,
+    StreamAppendOutcome, StreamCreateOutcome, StreamScope, StreamSessionRecord, StreamStateStore,
+    StreamTransitionOutcome, TimelineProjectionScope, TimelineProjectionStore,
 };
 use im_storage_contracts::{
     StorageBindingRecord, StorageCatalog, StorageConfigRecord, StorageCredentialMode,
@@ -47,17 +48,16 @@ fn realtime_disconnect_fence_record(
     }
 }
 
-fn stream_state_record(
+fn stream_session_record(
     state: StreamSessionState,
     last_frame_seq: u64,
     last_checkpoint_seq: Option<u64>,
     complete_frame_seq: Option<u64>,
-    frame_seqs: Vec<u64>,
+    version: u64,
     updated_at: &str,
-) -> StreamStateRecord {
-    StreamStateRecord {
-        tenant_id: "100001".into(),
-        stream_id: "st_demo".into(),
+) -> StreamSessionRecord {
+    StreamSessionRecord {
+        scope: StreamScope::new("100001", "org-a", "st_demo"),
         session: StreamSession {
             tenant_id: "100001".into(),
             stream_id: "st_demo".into(),
@@ -80,7 +80,7 @@ fn stream_state_record(
             closed_at: complete_frame_seq.map(|_| "2026-05-06T00:00:03.000Z".into()),
             expires_at: None,
         },
-        frames: frame_seqs.into_iter().map(stream_frame).collect(),
+        version,
         updated_at: updated_at.into(),
     }
 }
@@ -1138,45 +1138,51 @@ fn test_memory_realtime_subscription_store_loads_matching_scope_event_candidates
 }
 
 #[test]
-fn test_memory_stream_state_store_rejects_stale_cursor_and_frame_regression() {
+fn test_memory_stream_state_store_enforces_version_and_bounded_frame_pages() {
     let store = MemoryStreamStateStore::default();
-    store
-        .save_state(stream_state_record(
-            StreamSessionState::Completed,
-            3,
-            Some(2),
-            Some(3),
-            vec![1, 2, 3],
-            "2026-05-06T00:00:03.000Z",
-        ))
-        .expect("current stream state save should succeed");
-    store
-        .save_state(stream_state_record(
-            StreamSessionState::Active,
-            1,
-            None,
-            None,
-            vec![1],
-            "2026-05-06T00:00:01.000Z",
-        ))
-        .expect("stale stream state save should not fail the caller");
-
-    let state = store
-        .state("100001", "st_demo")
-        .expect("stream state should be present");
-    assert_eq!(state.session.state, StreamSessionState::Completed);
-    assert_eq!(state.session.last_frame_seq, 3);
-    assert_eq!(state.session.last_checkpoint_seq, Some(2));
-    assert_eq!(state.session.complete_frame_seq, Some(3));
-    assert_eq!(
-        state
-            .frames
-            .iter()
-            .map(|frame| frame.frame_seq)
-            .collect::<Vec<_>>(),
-        vec![1, 2, 3]
+    let initial = stream_session_record(
+        StreamSessionState::Opened,
+        0,
+        None,
+        None,
+        1,
+        "2026-05-06T00:00:00.000Z",
     );
-    assert_eq!(state.updated_at, "2026-05-06T00:00:03.000Z");
+    assert!(matches!(
+        store.create_session(initial.clone(), 10).unwrap(),
+        StreamCreateOutcome::Applied(_)
+    ));
+    let mut next = initial.clone();
+    next.version = 2;
+    next.session.last_frame_seq = 1;
+    next.session.state = StreamSessionState::Active;
+    assert!(matches!(
+        store
+            .append_frame(1, next.clone(), stream_frame(1))
+            .unwrap(),
+        StreamAppendOutcome::Applied { .. }
+    ));
+    assert!(matches!(
+        store.transition_session(1, next.clone()).unwrap(),
+        StreamTransitionOutcome::VersionConflict
+    ));
+    for seq in 2..=3 {
+        let current = store.load_session(&initial.scope).unwrap().unwrap();
+        let mut following = current.clone();
+        following.version += 1;
+        following.session.last_frame_seq = seq;
+        assert!(matches!(
+            store
+                .append_frame(current.version, following, stream_frame(seq))
+                .unwrap(),
+            StreamAppendOutcome::Applied { .. }
+        ));
+    }
+    let page = store.list_frames_after(&initial.scope, 0, 2).unwrap();
+    assert_eq!(
+        page.iter().map(|frame| frame.frame_seq).collect::<Vec<_>>(),
+        vec![1, 2]
+    );
 }
 
 #[test]

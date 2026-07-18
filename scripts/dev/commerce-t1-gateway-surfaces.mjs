@@ -1,4 +1,4 @@
-/** Commerce T1 app-api dependency surfaces for sdkwork-api-cloud-gateway IM config bundles. */
+/** Unpublished app-api candidates that require real assembly integration before gateway release. */
 
 export const COMMERCE_T1_GATEWAY_APP_API_SURFACES = Object.freeze([
   {
@@ -80,7 +80,6 @@ export const STANDALONE_EMBEDDED_GATEWAY_APP_API_SURFACES = Object.freeze([
     sdkFamily: 'sdkwork-drive-app-sdk',
     apiAuthority: 'sdkwork-drive-app-api',
     segments: ['drive'],
-    requiredBaseUrlKey: 'SDKWORK_DRIVE_APP_API_BASE_URL',
   },
   {
     serviceId: 'sdkwork-knowledgebase-app-api',
@@ -88,7 +87,6 @@ export const STANDALONE_EMBEDDED_GATEWAY_APP_API_SURFACES = Object.freeze([
     sdkFamily: 'sdkwork-knowledgebase-app-sdk',
     apiAuthority: 'sdkwork-knowledgebase-app-api',
     segments: ['knowledge'],
-    requiredBaseUrlKey: 'SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL',
   },
   {
     serviceId: 'sdkwork-mail-app-api',
@@ -96,7 +94,6 @@ export const STANDALONE_EMBEDDED_GATEWAY_APP_API_SURFACES = Object.freeze([
     sdkFamily: 'sdkwork-mail-app-sdk',
     apiAuthority: 'sdkwork-mail-app-api',
     segments: ['mail'],
-    requiredBaseUrlKey: 'SDKWORK_MAIL_APP_API_BASE_URL',
   },
   {
     serviceId: 'sdkwork-notary-app-api',
@@ -104,7 +101,6 @@ export const STANDALONE_EMBEDDED_GATEWAY_APP_API_SURFACES = Object.freeze([
     sdkFamily: 'sdkwork-notary-app-sdk',
     apiAuthority: 'sdkwork-notary-app-api',
     segments: ['notary'],
-    requiredBaseUrlKey: 'SDKWORK_NOTARY_APP_API_BASE_URL',
   },
   {
     serviceId: 'sdkwork-course-app-api',
@@ -122,7 +118,6 @@ export const STANDALONE_EMBEDDED_GATEWAY_APP_API_SURFACES = Object.freeze([
       'course_reactions',
       'course_applications',
     ],
-    requiredBaseUrlKey: 'SDKWORK_COURSE_APP_API_BASE_URL',
   },
   {
     serviceId: 'sdkwork-community-app-api',
@@ -130,7 +125,6 @@ export const STANDALONE_EMBEDDED_GATEWAY_APP_API_SURFACES = Object.freeze([
     sdkFamily: 'sdkwork-community-app-sdk',
     apiAuthority: 'sdkwork-community-app-api',
     segments: ['community'],
-    requiredBaseUrlKey: 'SDKWORK_COMMUNITY_APP_API_BASE_URL',
   },
   {
     serviceId: 'sdkwork-voice-app-api',
@@ -138,7 +132,6 @@ export const STANDALONE_EMBEDDED_GATEWAY_APP_API_SURFACES = Object.freeze([
     sdkFamily: 'sdkwork-voice-app-sdk',
     apiAuthority: 'sdkwork-voice-app-api',
     segments: ['voice'],
-    requiredBaseUrlKey: 'SDKWORK_VOICE_APP_API_BASE_URL',
   },
   {
     serviceId: 'sdkwork-agents-app-api',
@@ -146,65 +139,16 @@ export const STANDALONE_EMBEDDED_GATEWAY_APP_API_SURFACES = Object.freeze([
     sdkFamily: 'sdkwork-agents-app-sdk',
     apiAuthority: 'sdkwork-agents-app-api',
     segments: ['ai'],
-    requiredBaseUrlKey: 'SDKWORK_AGENTS_APP_API_BASE_URL',
   },
 ]);
 
-function renderDependencySurface(surface, segment) {
-  const capability = surface.serviceId
-    .replace(/^sdkwork-/, '')
-    .replace(/-app-api$/, '')
-    .replace(/-/g, '_')
-    .toUpperCase();
-  const requiredBaseUrlKey = surface.requiredBaseUrlKey
-    ?? `SDKWORK_${capability}_APP_API_BASE_URL`;
+export function listUnpublishedGatewaySurfaceCandidates() {
   return [
-    '[[dependencySurfaces]]',
-    `serviceId = "${surface.serviceId}"`,
-    `workspace = "${surface.workspace}"`,
-    `sdkFamily = "${surface.sdkFamily}"`,
-    `apiAuthority = "${surface.apiAuthority}"`,
-    'surface = "app"',
-    `apiPrefix = "/app/v3/api/${segment}"`,
-    'sameOriginAllowed = true',
-    `coverage = "${surface.apiAuthority}-${segment.replace(/\//g, '-')}-routes"`,
-    `requiredBaseUrlKey = "${requiredBaseUrlKey}"`,
-    '',
-  ].join('\n');
-}
-
-function renderUpstream(serviceId, baseUrl) {
-  return [
-    '[[upstreams]]',
-    `serviceId = "${serviceId}"`,
-    `baseUrl = "${baseUrl}"`,
-    '',
-  ].join('\n');
-}
-
-export function renderImApiCloudGatewayCommerceSurfacesToml({
-  applicationIngressBaseUrl = 'http://127.0.0.1:18079',
-} = {}) {
-  const blocks = [];
-  const upstreamServiceIds = new Set();
-
-  for (const surface of COMMERCE_T1_GATEWAY_APP_API_SURFACES) {
-    for (const segment of surface.segments) {
-      blocks.push(renderDependencySurface(surface, segment));
-    }
-    upstreamServiceIds.add(surface.serviceId);
-  }
-
-  for (const surface of STANDALONE_EMBEDDED_GATEWAY_APP_API_SURFACES) {
-    for (const segment of surface.segments) {
-      blocks.push(renderDependencySurface(surface, segment));
-    }
-    upstreamServiceIds.add(surface.serviceId);
-  }
-
-  for (const serviceId of upstreamServiceIds) {
-    blocks.push(renderUpstream(serviceId, applicationIngressBaseUrl));
-  }
-
-  return blocks.join('\n');
+    ...COMMERCE_T1_GATEWAY_APP_API_SURFACES,
+    ...STANDALONE_EMBEDDED_GATEWAY_APP_API_SURFACES,
+  ].map((surface) => ({
+    ...surface,
+    segments: [...surface.segments],
+    publicationState: 'requires-assembly-integration',
+  }));
 }

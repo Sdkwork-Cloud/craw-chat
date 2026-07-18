@@ -3,9 +3,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use im_app_context::AppContext;
 use im_domain_core::message::Sender;
-use im_domain_core::stream::{
-    StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
-};
+use im_domain_core::stream::{StreamDurabilityClass, StreamSession, StreamSessionState};
 
 use sdkwork_utils_rust::MAX_LIST_PAGE_SIZE;
 
@@ -174,8 +172,8 @@ pub(crate) fn lock_stream_mutex<'a, T>(
     }
 }
 
-pub(crate) fn stream_scope_key(tenant_id: &str, stream_id: &str) -> String {
-    encode_stream_key_segments([tenant_id, stream_id])
+pub(crate) fn stream_scope_key(tenant_id: &str, organization_id: &str, stream_id: &str) -> String {
+    encode_stream_key_segments([tenant_id, organization_id, stream_id])
 }
 
 fn encode_stream_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
@@ -188,19 +186,10 @@ fn encode_stream_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -
     encoded
 }
 
-pub(crate) fn stream_frame_index(frames: Vec<StreamFrame>) -> BTreeMap<u64, StreamFrame> {
-    frames.into_iter().filter(|frame| frame.frame_seq > 0).fold(
-        BTreeMap::new(),
-        |mut index, frame| {
-            index.insert(frame.frame_seq, frame);
-            index
-        },
-    )
-}
-
 pub fn stream_open_request_key(auth: &AppContext, stream_id: &str) -> String {
     encode_stream_key_segments([
         auth.tenant_id.as_str(),
+        auth.organization_id.as_str(),
         auth.actor_kind.as_str(),
         auth.actor_id.as_str(),
         "open",
@@ -211,6 +200,7 @@ pub fn stream_open_request_key(auth: &AppContext, stream_id: &str) -> String {
 pub fn stream_complete_request_key(auth: &AppContext, stream_id: &str) -> String {
     encode_stream_key_segments([
         auth.tenant_id.as_str(),
+        auth.organization_id.as_str(),
         auth.actor_kind.as_str(),
         auth.actor_id.as_str(),
         "complete",
@@ -222,6 +212,7 @@ pub fn stream_checkpoint_request_key(auth: &AppContext, stream_id: &str, frame_s
     let frame_seq = frame_seq.to_string();
     encode_stream_key_segments([
         auth.tenant_id.as_str(),
+        auth.organization_id.as_str(),
         auth.actor_kind.as_str(),
         auth.actor_id.as_str(),
         "checkpoint",
@@ -233,6 +224,7 @@ pub fn stream_checkpoint_request_key(auth: &AppContext, stream_id: &str, frame_s
 pub fn stream_abort_request_key(auth: &AppContext, stream_id: &str) -> String {
     encode_stream_key_segments([
         auth.tenant_id.as_str(),
+        auth.organization_id.as_str(),
         auth.actor_kind.as_str(),
         auth.actor_id.as_str(),
         "abort",
@@ -244,6 +236,7 @@ pub fn stream_append_request_key(auth: &AppContext, stream_id: &str, frame_seq: 
     let frame_seq = frame_seq.to_string();
     encode_stream_key_segments([
         auth.tenant_id.as_str(),
+        auth.organization_id.as_str(),
         auth.actor_kind.as_str(),
         auth.actor_id.as_str(),
         "append",

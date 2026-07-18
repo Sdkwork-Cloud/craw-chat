@@ -101,8 +101,6 @@ const {
   createSdkworkChatBrowserOrigins,
   createSdkworkChatPcDevPlan,
   formatSdkworkChatPcAccessLinks,
-  resolveNotaryAppApiUpstream,
-  resolveCatalogAppApiUpstream,
   resolveAvailableSdkworkChatPcDevPort,
   resolveLocalNetworkHosts,
   waitForSdkworkChatApplicationReady,
@@ -416,16 +414,6 @@ assert.equal(
   typeof releaseBuildModule.createSdkworkChatPcReleaseBuildPlan,
   'function',
   'release build wrapper must expose an auditable command plan',
-);
-assert.equal(
-  typeof resolveNotaryAppApiUpstream,
-  'function',
-  'PC dev command module must expose an auditable Notary app-api upstream resolver',
-);
-assert.equal(
-  typeof resolveCatalogAppApiUpstream,
-  'function',
-  'PC dev command module must expose an auditable catalog app-api upstream resolver',
 );
 const releaseBuildPlan = releaseBuildModule.createSdkworkChatPcReleaseBuildPlan({
   env: {
@@ -752,7 +740,7 @@ assert.equal(
   'browser renderer must point IM websocket traffic at application.public-ingress',
 );
 
-const customDriveUpstreamPlan = createSdkworkChatPcDevPlan({
+const cloudAssemblyPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
   env: {
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
@@ -760,51 +748,44 @@ const customDriveUpstreamPlan = createSdkworkChatPcDevPlan({
   },
   repoRoot,
 });
-assert.equal(
-  customDriveUpstreamPlan.processes[0].env.SDKWORK_IM_DRIVE_APP_API_UPSTREAM,
-  'http://127.0.0.1:28080',
-  'PC dev must allow the Drive app-api dependency upstream to be overridden for external Drive deployments',
-);
 assert.deepEqual(
-  customDriveUpstreamPlan.processes.map((entry) => entry.label),
+  cloudAssemblyPlan.processes.map((entry) => entry.label),
   ['sdkwork-im-server', 'sdkwork-im-pc-browser', 'sdkwork-api-cloud-gateway'],
-  'cloud dev must keep the shared gateway available for remaining foundation surfaces when Drive uses an explicit external upstream',
+  'cloud dev must start the application server, renderer, and embedded platform assembly gateway',
 );
-const customNotaryUpstreamPlan = createSdkworkChatPcDevPlan({
-  argv: ['--target', 'browser'],
-  env: {
-    SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
-    SDKWORK_NOTARY_APP_API_UPSTREAM: 'http://127.0.0.1:28092/',
-  },
-  repoRoot,
-});
-assert.equal(
-  customNotaryUpstreamPlan.processes[0].env.SDKWORK_IM_NOTARY_APP_API_UPSTREAM,
-  'http://127.0.0.1:28092',
-  'PC dev must allow the Notary app-api dependency upstream to be overridden for external Notary deployments',
+const cloudAssemblyGateway = cloudAssemblyPlan.processes.find(
+  (entry) => entry.label === 'sdkwork-api-cloud-gateway',
 );
+assert.ok(cloudAssemblyGateway, 'cloud dev must include the managed platform assembly gateway');
 assert.deepEqual(
-  customNotaryUpstreamPlan.processes.map((entry) => entry.label),
-  ['sdkwork-im-server', 'sdkwork-im-pc-browser', 'sdkwork-api-cloud-gateway'],
-  'cloud dev must keep the shared gateway available for remaining foundation surfaces when Notary uses an explicit external upstream',
+  cloudAssemblyGateway.args.slice(0, 9),
+  [
+    'run',
+    '-p',
+    'sdkwork-api-cloud-gateway',
+    '--bin',
+    'sdkwork-api-cloud-gateway',
+    '--features',
+    'foundation-appbase,foundation-im,foundation-drive,foundation-mail,foundation-notary',
+    '--',
+    '--config',
+  ],
+  'managed gateway must compile every assembly declared by the IM development config',
 );
-const customCatalogUpstreamPlan = createSdkworkChatPcDevPlan({
-  argv: ['--target', 'browser'],
-  env: {
-    SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
-    SDKWORK_CATALOG_APP_API_UPSTREAM: 'http://127.0.0.1:28094/',
-  },
-  repoRoot,
-});
+for (const databaseEnvKey of [
+  'SDKWORK_DRIVE_DATABASE_URL',
+  'SDKWORK_MAIL_DATABASE_URL',
+  'SDKWORK_NOTARY_DATABASE_URL',
+]) {
+  assert.ok(
+    cloudAssemblyGateway.env[databaseEnvKey],
+    `managed gateway must receive ${databaseEnvKey} for embedded dependency bootstrap`,
+  );
+}
 assert.equal(
-  customCatalogUpstreamPlan.processes[0].env.SDKWORK_IM_CATALOG_APP_API_UPSTREAM,
-  'http://127.0.0.1:28094',
-  'PC dev must allow the catalog app-api dependency upstream to be overridden for external catalog deployments',
-);
-assert.deepEqual(
-  customCatalogUpstreamPlan.processes.map((entry) => entry.label),
-  ['sdkwork-im-server', 'sdkwork-im-pc-browser', 'sdkwork-api-cloud-gateway'],
-  'cloud dev must keep the shared gateway available for remaining foundation surfaces when catalog uses an explicit external upstream',
+  cloudAssemblyGateway.env.SDKWORK_DRIVE_APP_API_UPSTREAM,
+  undefined,
+  'retired dependency upstream overrides must not enter the embedded gateway process',
 );
 assert.equal(
   createSdkworkChatBrowserOrigins({ port: 4188 }),

@@ -58,6 +58,7 @@ test('commercial readiness checks cover the verified frontend and backend gate c
       'step11-scenario-catalog',
       'step11-ha-dr-drill',
       'commercial-deployment-contract',
+      'cloud-image-release-evidence',
       'topology-baggage',
       'dependency-management',
       'workflow-commercial-gates',
@@ -205,6 +206,10 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   assert.equal(
     checks.find((check) => check.id === 'governance-service-tests')?.env,
     undefined,
+  );
+  assert.equal(
+    checks.find((check) => check.id === 'cloud-image-release-evidence')?.failureClass,
+    'readiness-blocked',
   );
   assert.equal(shouldUseShellForCommand('pnpm.cmd', 'win32'), true);
   assert.equal(shouldUseShellForCommand('cargo', 'win32'), false);
@@ -600,6 +605,73 @@ test('commercial readiness blocks current app manifest release evidence gaps bef
   assert.match(logs.stderr.join('\n'), /preReleaseAssessment/);
 });
 
+test('commercial readiness aggregates every release evidence blocker after implementation checks pass', async () => {
+  const logs = createLoggerCapture();
+  const executedCheckIds = [];
+
+  const result = await runCommercialReadiness({
+    repoRoot,
+    logger: logs.logger,
+    runCheck: async (check) => {
+      executedCheckIds.push(check.id);
+      return {
+        ...check,
+        ok: check.id !== 'cloud-image-release-evidence',
+        exitCode: check.id === 'cloud-image-release-evidence' ? 1 : 0,
+      };
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.exitCode, READINESS_BLOCKED_EXIT_CODE);
+  assert.deepEqual(
+    executedCheckIds,
+    buildCommercialReadinessChecks({ repoRoot }).map((check) => check.id),
+    'an evidence failure must not prevent later implementation checks from running',
+  );
+  assert.deepEqual(
+    result.readinessBlockers.map((blocker) => blocker.stage),
+    [
+      'cloud-image-release-evidence',
+      'preReleaseAssessment',
+      'capacityAssessment',
+      'appReleaseAssessment',
+    ],
+  );
+  assert.equal(result.preReleaseAssessment?.ok, false);
+  assert.equal(result.capacityAssessment?.ok, false);
+  assert.equal(result.appReleaseAssessment?.ok, false);
+  assert.match(logs.stderr.join('\n'), /4 evidence gate\(s\)/u);
+});
+
+test('commercial readiness keeps code failures fail-fast after recording an earlier evidence blocker', async () => {
+  const logs = createLoggerCapture();
+  const executedCheckIds = [];
+
+  const result = await runCommercialReadiness({
+    repoRoot,
+    logger: logs.logger,
+    runCheck: async (check) => {
+      executedCheckIds.push(check.id);
+      const exitCode = check.id === 'cloud-image-release-evidence'
+        || check.id === 'topology-baggage'
+        ? 1
+        : 0;
+      return { ...check, ok: exitCode === 0, exitCode };
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.exitCode, COMMAND_FAILURE_EXIT_CODE);
+  assert.equal(result.failure.stage, 'topology-baggage');
+  assert.deepEqual(
+    result.readinessBlockers,
+    [{ stage: 'cloud-image-release-evidence', summary: 'exit code 1' }],
+  );
+  assert.equal(executedCheckIds.at(-1), 'topology-baggage');
+  assert.equal(executedCheckIds.includes('dependency-management'), false);
+});
+
 test('deployment validation index links the unified commercial readiness gate', async () => {
   const operatorIndexPath = path.join(
     repoRoot,
@@ -638,6 +710,7 @@ test('commercial readiness converts thrown command execution errors into a contr
   assert.equal(result.capacityAssessment, null);
   assert.equal(result.preReleaseAssessment, null);
   assert.equal(result.checks.length, 0);
+  assert.deepEqual(result.readinessBlockers, []);
   assert.deepEqual(result.failure, {
     stage: 'pc-install',
     summary: 'spawn pnpm ENOENT',
@@ -660,6 +733,7 @@ test('commercial readiness rejects missing configured working directories before
   assert.equal(result.capacityAssessment, null);
   assert.equal(result.preReleaseAssessment, null);
   assert.equal(result.checks.length, 0);
+  assert.deepEqual(result.readinessBlockers, []);
   assert.equal(result.failure.stage, 'pc-install');
   assert.match(result.failure.summary, /configured cwd does not exist/);
   assert.match(result.failure.summary, /missing-repo-root/);
@@ -703,6 +777,7 @@ test('commercial readiness converts malformed capacity evidence into a controlle
   assert.equal(result.exitCode, COMMAND_FAILURE_EXIT_CODE);
   assert.equal(result.capacityAssessment, null);
   assert.equal(result.preReleaseAssessment, null);
+  assert.deepEqual(result.readinessBlockers, []);
   assert.equal(result.checks.length, buildCommercialReadinessChecks({ repoRoot: tempRepoRoot }).length);
   assert.equal(result.failure.stage, 'capacity-evidence-load');
   assert.match(result.failure.summary, /JSON/i);

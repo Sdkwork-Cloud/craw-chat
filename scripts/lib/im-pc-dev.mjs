@@ -9,10 +9,6 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { resolveSdkworkChatIamCommandEnv } from '../../apps/sdkwork-im-pc/scripts/sdkwork-chat-iam-env.mjs';
-import {
-  COMMERCE_T1_APP_API_AUTHORITIES,
-  COMMERCE_T1_EXTERNAL_UPSTREAM_ENV_KEY_GROUPS,
-} from '../dev/commerce-t1-capabilities.mjs';
 import { ensurePostgresDevDatabaseReady } from '../dev/ensure-postgres-dev-database.mjs';
 import { terminateStaleDevGatewayProcesses } from '../dev/terminate-stale-dev-gateway-processes.mjs';
 import { resolvePostgresDevProfile } from '../dev/sdkwork-im-postgres-dev-profile.mjs';
@@ -43,49 +39,6 @@ const MAX_DEV_PORT_ATTEMPTS = 50;
 const SDKWORK_API_CLOUD_GATEWAY_BASE_URL_ENV_KEYS = [
   'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL',
   'SDKWORK_API_CLOUD_GATEWAY_BASE_URL',
-];
-const DRIVE_APP_API_UPSTREAM_ENV_KEYS = [
-  'SDKWORK_IM_DRIVE_APP_API_UPSTREAM',
-  'SDKWORK_DRIVE_APP_API_UPSTREAM',
-  'SDKWORK_DRIVE_APP_API_BASE_URL',
-];
-const NOTARY_APP_API_UPSTREAM_ENV_KEYS = [
-  'SDKWORK_IM_NOTARY_APP_API_UPSTREAM',
-  'SDKWORK_NOTARY_APP_API_UPSTREAM',
-  'SDKWORK_NOTARY_APP_API_BASE_URL',
-];
-const COMMERCE_T1_APP_API_UPSTREAM_ENV_KEYS = Object.freeze(
-  Object.fromEntries(
-    COMMERCE_T1_APP_API_AUTHORITIES.map((authority, index) => [
-      authority,
-      Object.freeze([...COMMERCE_T1_EXTERNAL_UPSTREAM_ENV_KEY_GROUPS[index]]),
-    ]),
-  ),
-);
-const MAIL_APP_API_UPSTREAM_ENV_KEYS = [
-  'SDKWORK_IM_MAIL_APP_API_UPSTREAM',
-  'SDKWORK_MAIL_APP_API_UPSTREAM',
-  'SDKWORK_MAIL_APP_API_BASE_URL',
-];
-const COMMUNITY_APP_API_UPSTREAM_ENV_KEYS = [
-  'SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM',
-  'SDKWORK_COMMUNITY_APP_API_UPSTREAM',
-  'SDKWORK_COMMUNITY_APP_API_BASE_URL',
-];
-const COURSE_APP_API_UPSTREAM_ENV_KEYS = [
-  'SDKWORK_IM_COURSE_APP_API_UPSTREAM',
-  'SDKWORK_COURSE_APP_API_UPSTREAM',
-  'SDKWORK_COURSE_APP_API_BASE_URL',
-];
-const KNOWLEDGEBASE_APP_API_UPSTREAM_ENV_KEYS = [
-  'SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM',
-  'SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM',
-  'SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL',
-];
-const VOICE_APP_API_UPSTREAM_ENV_KEYS = [
-  'SDKWORK_IM_VOICE_APP_API_UPSTREAM',
-  'SDKWORK_VOICE_APP_API_UPSTREAM',
-  'SDKWORK_VOICE_APP_API_BASE_URL',
 ];
 const SDKWORK_API_CLOUD_GATEWAY_AUTOSTART_ENV_KEYS = [
   'SDKWORK_IM_PLATFORM_API_GATEWAY_AUTOSTART',
@@ -218,99 +171,6 @@ export function resolveSdkworkApiGatewayBaseUrl(env = process.env) {
   return `http://${resolveSdkworkApiGatewayBind(env)}`;
 }
 
-export function resolveDriveAppApiUpstream(env = process.env) {
-  for (const key of DRIVE_APP_API_UPSTREAM_ENV_KEYS) {
-    const upstream = normalizeUpstreamBaseUrl(env[key], key);
-    if (upstream) {
-      return upstream;
-    }
-  }
-  return resolveSdkworkApiGatewayBaseUrl(env);
-}
-
-export function resolveNotaryAppApiUpstream(env = process.env) {
-  for (const key of NOTARY_APP_API_UPSTREAM_ENV_KEYS) {
-    const upstream = normalizeUpstreamBaseUrl(env[key], key);
-    if (upstream) {
-      return upstream;
-    }
-  }
-  return resolveSdkworkApiGatewayBaseUrl(env);
-}
-
-export function resolveCommerceT1AppApiUpstream(authority, env = process.env) {
-  const keys = COMMERCE_T1_APP_API_UPSTREAM_ENV_KEYS[authority] ?? [];
-  for (const key of keys) {
-    const upstream = normalizeUpstreamBaseUrl(env[key], key);
-    if (upstream) {
-      return upstream;
-    }
-  }
-  return resolveSdkworkApiGatewayBaseUrl(env);
-}
-
-export function resolveCatalogAppApiUpstream(env = process.env) {
-  return resolveCommerceT1AppApiUpstream('sdkwork-catalog-app-api', env);
-}
-
-export function resolveOrderAppApiUpstream(env = process.env) {
-  return resolveCommerceT1AppApiUpstream('sdkwork-order-app-api', env);
-}
-
-export function resolveShopAppApiUpstream(env = process.env) {
-  return resolveCommerceT1AppApiUpstream('sdkwork-shop-app-api', env);
-}
-
-export function resolveMailAppApiUpstream(env = process.env) {
-  for (const key of MAIL_APP_API_UPSTREAM_ENV_KEYS) {
-    const upstream = normalizeUpstreamBaseUrl(env[key], key);
-    if (upstream) {
-      return upstream;
-    }
-  }
-  return resolveSdkworkApiGatewayBaseUrl(env);
-}
-
-export function resolveCommunityAppApiUpstream(env = process.env) {
-  for (const key of COMMUNITY_APP_API_UPSTREAM_ENV_KEYS) {
-    const upstream = normalizeUpstreamBaseUrl(env[key], key);
-    if (upstream) {
-      return upstream;
-    }
-  }
-  return resolveSdkworkApiGatewayBaseUrl(env);
-}
-
-export function resolveCourseAppApiUpstream(env = process.env) {
-  for (const key of COURSE_APP_API_UPSTREAM_ENV_KEYS) {
-    const upstream = normalizeUpstreamBaseUrl(env[key], key);
-    if (upstream) {
-      return upstream;
-    }
-  }
-  return resolveSdkworkApiGatewayBaseUrl(env);
-}
-
-export function resolveKnowledgebaseAppApiUpstream(env = process.env) {
-  for (const key of KNOWLEDGEBASE_APP_API_UPSTREAM_ENV_KEYS) {
-    const upstream = normalizeUpstreamBaseUrl(env[key], key);
-    if (upstream) {
-      return upstream;
-    }
-  }
-  return resolveSdkworkApiGatewayBaseUrl(env);
-}
-
-function resolveExplicitAppApiUpstream(env, keys) {
-  for (const key of keys) {
-    const upstream = normalizeUpstreamBaseUrl(env[key], key);
-    if (upstream) {
-      return upstream;
-    }
-  }
-  return undefined;
-}
-
 function shouldAutostartSdkworkApiGateway(env) {
   for (const key of SDKWORK_API_CLOUD_GATEWAY_AUTOSTART_ENV_KEYS) {
     const value = normalizeText(env[key]);
@@ -369,7 +229,7 @@ export function createManagedSdkworkApiGatewayProcess({
   env,
   repoRoot: resolvedRepoRoot,
 }) {
-  if (!shouldAutostartSdkworkApiGateway(env)) {
+  if (isStandaloneSingleIngress(env) || !shouldAutostartSdkworkApiGateway(env)) {
     return undefined;
   }
 
@@ -396,6 +256,8 @@ export function createManagedSdkworkApiGatewayProcess({
       'sdkwork-api-cloud-gateway',
       '--bin',
       'sdkwork-api-cloud-gateway',
+      '--features',
+      'foundation-appbase,foundation-im,foundation-drive,foundation-mail,foundation-notary',
       '--',
       '--config',
       imApiCloudGatewayConfigPath,
@@ -817,40 +679,6 @@ export function createSdkworkChatPcDevPlan({
     throw new Error(resolvedRendererEnv.errors.join('\n'));
   }
   const rendererEnv = mergeSdkworkImBootstrapAccessTokenEnv(resolvedRendererEnv.env);
-  const explicitDriveAppApiUpstream = standaloneSingleIngress
-    ? undefined
-    : resolveExplicitAppApiUpstream(mergedEnv, DRIVE_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitNotaryAppApiUpstream = standaloneSingleIngress
-    ? undefined
-    : resolveExplicitAppApiUpstream(mergedEnv, NOTARY_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitCommerceT1AppApiUpstreams = standaloneSingleIngress
-    ? {}
-    : Object.fromEntries(
-      COMMERCE_T1_APP_API_AUTHORITIES.flatMap((authority) => {
-        const keys = COMMERCE_T1_APP_API_UPSTREAM_ENV_KEYS[authority] ?? [];
-        const upstream = resolveExplicitAppApiUpstream(mergedEnv, keys);
-        if (!upstream) {
-          return [];
-        }
-        const imKey = keys.find((key) => key.startsWith('SDKWORK_IM_'));
-        return imKey ? [[imKey, upstream]] : [];
-      }),
-    );
-  const explicitMailAppApiUpstream = standaloneSingleIngress
-    ? undefined
-    : resolveExplicitAppApiUpstream(mergedEnv, MAIL_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitCommunityAppApiUpstream = standaloneSingleIngress
-    ? undefined
-    : resolveExplicitAppApiUpstream(mergedEnv, COMMUNITY_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitCourseAppApiUpstream = standaloneSingleIngress
-    ? undefined
-    : resolveExplicitAppApiUpstream(mergedEnv, COURSE_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitKnowledgebaseAppApiUpstream = standaloneSingleIngress
-    ? undefined
-    : resolveExplicitAppApiUpstream(mergedEnv, KNOWLEDGEBASE_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitVoiceAppApiUpstream = standaloneSingleIngress
-    ? undefined
-    : resolveExplicitAppApiUpstream(mergedEnv, VOICE_APP_API_UPSTREAM_ENV_KEYS);
   const sharedDatabaseEnv = resolveSdkworkImSharedDatabaseConfig({
     env: mergedEnv,
     repoRoot: resolvedRepoRoot,
@@ -874,46 +702,9 @@ export function createSdkworkChatPcDevPlan({
         'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND',
       ) ?? resolveSdkworkApiGatewayBind(mergedEnv)
       : resolveSdkworkApiGatewayBind(mergedEnv),
-    ...(explicitDriveAppApiUpstream
-      ? { SDKWORK_IM_DRIVE_APP_API_UPSTREAM: explicitDriveAppApiUpstream }
-      : {}),
-    ...(explicitNotaryAppApiUpstream
-      ? { SDKWORK_IM_NOTARY_APP_API_UPSTREAM: explicitNotaryAppApiUpstream }
-      : {}),
-    ...explicitCommerceT1AppApiUpstreams,
-    ...(explicitMailAppApiUpstream
-      ? { SDKWORK_IM_MAIL_APP_API_UPSTREAM: explicitMailAppApiUpstream }
-      : {}),
-    ...(explicitCommunityAppApiUpstream
-      ? { SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM: explicitCommunityAppApiUpstream }
-      : {}),
-    ...(explicitCourseAppApiUpstream
-      ? { SDKWORK_IM_COURSE_APP_API_UPSTREAM: explicitCourseAppApiUpstream }
-      : {}),
-    ...(explicitKnowledgebaseAppApiUpstream
-      ? { SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM: explicitKnowledgebaseAppApiUpstream }
-      : {}),
-    ...(explicitVoiceAppApiUpstream
-      ? { SDKWORK_IM_VOICE_APP_API_UPSTREAM: explicitVoiceAppApiUpstream }
-      : {}),
   };
-  if (standaloneSingleIngress) {
-    for (const authority of COMMERCE_T1_APP_API_AUTHORITIES) {
-      for (const key of COMMERCE_T1_APP_API_UPSTREAM_ENV_KEYS[authority] ?? []) {
-        if (key.startsWith('SDKWORK_IM_')) {
-          delete gatewayServerEnv[key];
-        }
-      }
-    }
-    for (const key of [
-      'SDKWORK_IM_DRIVE_APP_API_UPSTREAM',
-      'SDKWORK_IM_NOTARY_APP_API_UPSTREAM',
-      'SDKWORK_IM_MAIL_APP_API_UPSTREAM',
-      'SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM',
-      'SDKWORK_IM_COURSE_APP_API_UPSTREAM',
-      'SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM',
-      'SDKWORK_IM_VOICE_APP_API_UPSTREAM',
-    ]) {
+  for (const key of Object.keys(gatewayServerEnv)) {
+    if (/^SDKWORK_(?:IM_)?[A-Z0-9_]+_APP_API_UPSTREAM$/u.test(key)) {
       delete gatewayServerEnv[key];
     }
   }
@@ -926,7 +717,7 @@ export function createSdkworkChatPcDevPlan({
   const managedSdkworkApiGatewayProcess = standaloneSingleIngress
     ? undefined
     : createManagedSdkworkApiGatewayProcess({
-      env: mergedEnv,
+      env: gatewayServerEnv,
       repoRoot: resolvedRepoRoot,
     });
   const processes = [];

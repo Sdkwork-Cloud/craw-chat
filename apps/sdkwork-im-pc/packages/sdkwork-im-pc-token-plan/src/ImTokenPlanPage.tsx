@@ -1,4 +1,6 @@
 import { SdkworkSubscriptionCatalogPage } from "@sdkwork/membership-pc-subscription/catalog";
+import { getImHostedMembershipCheckoutService } from "@sdkwork/im-pc-core";
+import { imTokenPlanCatalogHostComponents } from "./ImTokenPlanCheckoutModal";
 import { useImTokenPlanMemberSummary } from "./tokenPlanMemberSummary";
 
 type TokenPlanNoticeTone = "error" | "info" | "success";
@@ -15,6 +17,8 @@ export function ImTokenPlanPage({ onNotify }: ImTokenPlanPageProps) {
     <div className="flex h-full min-h-0 w-full overflow-y-auto bg-[#0e0e11]">
       <div className="mx-auto w-full max-w-7xl">
         <SdkworkSubscriptionCatalogPage
+          checkoutPort={getImHostedMembershipCheckoutService()}
+          components={imTokenPlanCatalogHostComponents}
           memberSummary={memberSummary}
           onMembershipTierUpdated={(membershipTierKey: string) => {
             setMembershipTierKey(membershipTierKey);

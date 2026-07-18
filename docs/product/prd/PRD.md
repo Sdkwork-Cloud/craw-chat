@@ -139,6 +139,7 @@ checksum, signature, SBOM, provenance, staging E2E, HA, and recovery evidence pa
 - Production rejects the public dev/test JWT signing secret (`sdkwork-im-dev-jwt-secret-not-for-production-use`) at AppContext validation time (fail-closed).
 - Audit, conversation journal, and RTC state stores fail-closed in production when durable backends are unavailable.
 - Commit journal recovery and projection consumers replay in bounded batches (`COMMIT_JOURNAL_REPLAY_BATCH_LIMIT` = 200) via `CommitJournal::recorded_page` (PostgreSQL `LIMIT` keyset), preventing unbounded OOM on large journals.
+- Application data streams are durably isolated by tenant and organization. Session creation, frame append, and state transitions use PostgreSQL transaction/CAS semantics; frame pages use server-side keyset `LIMIT`, and production processes do not retain or rewrite full stream histories in memory.
 - Single-conversation journal recovery uses aggregate-scoped `CommitJournal::recorded_page_for_aggregate` (PostgreSQL `WHERE aggregate_id = $1`) instead of full-journal scan plus in-memory filter.
 - Embedded projection apply after journal commit is fail-closed in production (`ContractError::Unavailable`); the cloud projection runtime remains the durable path.
 - Portal dashboard/conversations/realtime snapshots expose typed `availability.state = unavailable`
@@ -150,10 +151,12 @@ checksum, signature, SBOM, provenance, staging E2E, HA, and recovery evidence pa
   startup when it is enabled and require a real `SDKWORK_ADMIN_PROXY_TARGET`; file-backed sandbox
   state is never a billing, metering, audit, tenant, or storage authority.
 - `shutdown_signal()` handles SIGTERM and SIGINT on Unix for Kubernetes graceful drain.
-- Kubernetes reference manifests include Restricted Pod Security contexts, image pull secrets,
-  read-only root filesystems, and default-deny network-policy examples. They are not production
-  release evidence while mutable image tags, placement/HA gaps, telemetry export, and target-cluster
-  validation remain unresolved.
+- Kubernetes source templates include Restricted Pod Security contexts, image pull secrets,
+  read-only root filesystems, zero-unavailable rolling updates, host/zone topology spread, complete
+  PDB coverage, internal-service HPA coverage, and bounded termination windows. They are not applied
+  directly: a clean-revision release materializer requires real OCI digests for all 13 services and
+  emits a checksummed bundle. Real image-lock, registry, telemetry, rollout, rollback, and target-cluster
+  evidence are still required for commercial sign-off.
 - Release policy requires SHA-256 checksums, signing, SBOM, and provenance; those artifacts must be
   produced and verified for the actual release, not inferred from manifest flags.
 - Managed group Knowledgebase production activation additionally requires the independently
@@ -188,7 +191,9 @@ checksum, signature, SBOM, provenance, staging E2E, HA, and recovery evidence pa
 - CI `im-commercial-gates.yml` runs `pnpm verify`, `pnpm check:commercial-readiness`, Playwright Chromium install, and cloud-service tests on `main`.
 - Pre-Release and Capacity tier indexes are both `evidence_collected_gate_blocked`. Populated doc-captured slots are retained only as historical engineering evidence; commercial sign-off requires direct runs in the declared pre-release and `capacity-dedicated` profiles.
 - Push delivery supports FCM HTTP v1 OAuth (`SDKWORK_IM_FCM_CREDENTIALS_PATH`) with legacy server-key fallback, and APNs HTTP/2 JWT (`SDKWORK_IM_APNS_*`) for iOS device tokens.
-- Kubernetes reference manifests cover gateway, realtime, conversation, governance, notification, projection, media, streaming, audit, automation, social, space, and ops services with Ingress, PDB, HPA, ConfigMap, Secret, and NetworkPolicy templates. (`contact-service` / `interaction-service` are retired; use `social-service` + `projection-service`.)
+- Kubernetes templates cover the 13 active gateway, realtime, conversation, governance, notification,
+  projection, media, streaming, audit, automation, social, space, and ops services. Duplicate pre-release
+  contact/interaction compatibility services have been removed from source, builds, and deployment inventory.
 - Staging topology profile: `cloud.staging`.
 - Customer operations and data protection guides: `docs/product/compliance/`.
 - Observability runbook: `deployments/observability/README.md`.

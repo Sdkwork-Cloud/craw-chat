@@ -25,7 +25,7 @@ pnpm dev
 
 This starts the PostgreSQL standalone development profile. The current topology
 adapter maps that standard public profile to the checked-in
-`configs/topology/standalone.development.env` file.
+`etc/topology/standalone.development.env` file.
 
 Default listeners:
 

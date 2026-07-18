@@ -5,10 +5,14 @@ import {
   type SdkworkAppConfig,
 } from '@sdkwork/membership-app-sdk';
 import type { MembershipAppSdkClient } from '@sdkwork/membership-sdk-ports';
-import type { Interceptors } from '@sdkwork/sdk-common';
 import {
   bootstrapSdkworkOrderAppService,
   configureSdkworkOrderAppServiceProvider,
+  createSdkworkMembershipCheckoutService,
+  type SdkworkMembershipCheckoutService,
+} from '@sdkwork/order-service';
+import type { Interceptors } from '@sdkwork/sdk-common';
+import {
   configureSdkworkMembershipAppServiceProvider,
   configureSdkworkMembershipSessionTokenProvider,
   createSdkworkMembershipAppService,
@@ -34,7 +38,24 @@ export type MembershipAppSdkFacade = MembershipAppSdkClient & {
 };
 
 let membershipAppSdkFacade: MembershipAppSdkFacade | null = null;
+let membershipCheckoutService: SdkworkMembershipCheckoutService | null = null;
 let membershipServiceBootstrapped = false;
+
+function requireMembershipCheckoutService(): SdkworkMembershipCheckoutService {
+  if (!membershipCheckoutService) {
+    throw new Error('IM membership checkout composition is unavailable.');
+  }
+  return membershipCheckoutService;
+}
+
+const imHostedMembershipCheckoutService: SdkworkMembershipCheckoutService = {
+  createCheckout(input) {
+    return requireMembershipCheckoutService().createCheckout(input);
+  },
+  getCheckoutStatus(orderId) {
+    return requireMembershipCheckoutService().getCheckoutStatus(orderId);
+  },
+};
 
 export function createMembershipAppSdkClientConfig(
   session?: SdkworkChatSession | null,
@@ -80,10 +101,13 @@ export function resetMembershipAppSdkClient(): void {
 
 export function bootstrapMembershipPcIntegrationForIm(): SdkworkMembershipAppService {
   const tokenManager = getSdkworkChatGlobalTokenManager();
-  bootstrapSdkworkOrderAppService({
+  const orderAppService = bootstrapSdkworkOrderAppService({
     baseUrl: resolveAppSdkBaseUrl(),
     platform: 'pc',
     tokenManager,
+  });
+  membershipCheckoutService = createSdkworkMembershipCheckoutService({
+    appService: orderAppService,
   });
   configureSdkworkMembershipSessionTokenProvider(() => readAppSdkSessionTokens() ?? {});
   configureSdkworkMembershipAppServiceProvider(() => createSdkworkMembershipAppService({
@@ -100,6 +124,10 @@ export function rebootstrapMembershipPcIntegrationForIm(): SdkworkMembershipAppS
   return bootstrapMembershipPcIntegrationForIm();
 }
 
+export function getImHostedMembershipCheckoutService(): SdkworkMembershipCheckoutService {
+  return imHostedMembershipCheckoutService;
+}
+
 export function isMembershipPcIntegrationBootstrapped(): boolean {
   return membershipServiceBootstrapped;
 }
@@ -108,6 +136,7 @@ export function resetMembershipPcIntegration(): void {
   configureSdkworkOrderAppServiceProvider(null);
   configureSdkworkMembershipAppServiceProvider(null);
   configureSdkworkMembershipSessionTokenProvider(null);
+  membershipCheckoutService = null;
   resetMembershipAppSdkClient();
   membershipServiceBootstrapped = false;
 }

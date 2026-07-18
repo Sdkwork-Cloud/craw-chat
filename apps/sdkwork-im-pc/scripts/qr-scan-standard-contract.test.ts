@@ -382,11 +382,19 @@ for (const marker of [
     `Desktop native QR module must include ${marker}.`,
   );
 }
-assert.match(
-  desktopLibSource,
-  /mod notification;\s*mod qr_code;\s*mod session_store;\s*mod tray;\s*mod window_control;/u,
-  'Desktop lib.rs must stay a thin module assembly and declare focused host capability modules.',
-);
+for (const moduleName of [
+  'notification',
+  'qr_code',
+  'session_store',
+  'tray',
+  'window_control',
+]) {
+  assert.match(
+    desktopLibSource,
+    new RegExp(`^mod ${moduleName};$`, 'mu'),
+    `Desktop lib.rs must declare the focused ${moduleName} host capability module.`,
+  );
+}
 assert.match(
   desktopLibSource,
   /tauri::generate_handler!\[[\s\S]*window_control::sdkwork_chat_pc_window_control[\s\S]*notification::sdkwork_chat_pc_show_notification[\s\S]*qr_code::sdkwork_chat_pc_decode_qr_code_image[\s\S]*qr_code::sdkwork_chat_pc_decode_qr_code_rgba[\s\S]*session_store::sdkwork_im_pc_session_read[\s\S]*\]/u,

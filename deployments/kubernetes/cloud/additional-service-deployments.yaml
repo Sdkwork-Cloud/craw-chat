@@ -1,4 +1,4 @@
-﻿# Additional cloud service deployments: audit, automation, social, space,
+# Additional cloud service deployments: audit, automation, social, space,
 # contact, interaction, ops.
 # All deployments enforce Restricted Pod Security Standards:
 #   - runAsNonRoot, non-privileged, read-only root filesystem
@@ -17,6 +17,13 @@ metadata:
     app.kubernetes.io/part-of: sdkwork-im
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  minReadySeconds: 10
+  progressDeadlineSeconds: 600
   selector:
     matchLabels:
       app.kubernetes.io/name: audit-service
@@ -26,6 +33,20 @@ spec:
         app.kubernetes.io/name: audit-service
         app.kubernetes.io/component: audit
     spec:
+      terminationGracePeriodSeconds: 60
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: audit-service
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: audit-service
       imagePullSecrets:
         - name: ghcr-pull-secret
       securityContext:
@@ -117,6 +138,13 @@ metadata:
     app.kubernetes.io/part-of: sdkwork-im
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  minReadySeconds: 10
+  progressDeadlineSeconds: 600
   selector:
     matchLabels:
       app.kubernetes.io/name: automation-service
@@ -126,6 +154,20 @@ spec:
         app.kubernetes.io/name: automation-service
         app.kubernetes.io/component: automation
     spec:
+      terminationGracePeriodSeconds: 60
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: automation-service
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: automation-service
       imagePullSecrets:
         - name: ghcr-pull-secret
       securityContext:
@@ -217,6 +259,13 @@ metadata:
     app.kubernetes.io/part-of: sdkwork-im
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  minReadySeconds: 10
+  progressDeadlineSeconds: 600
   selector:
     matchLabels:
       app.kubernetes.io/name: social-service
@@ -226,6 +275,20 @@ spec:
         app.kubernetes.io/name: social-service
         app.kubernetes.io/component: social
     spec:
+      terminationGracePeriodSeconds: 60
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: social-service
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: social-service
       imagePullSecrets:
         - name: ghcr-pull-secret
       securityContext:
@@ -317,6 +380,13 @@ metadata:
     app.kubernetes.io/part-of: sdkwork-im
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  minReadySeconds: 10
+  progressDeadlineSeconds: 600
   selector:
     matchLabels:
       app.kubernetes.io/name: space-service
@@ -326,6 +396,20 @@ spec:
         app.kubernetes.io/name: space-service
         app.kubernetes.io/component: space
     spec:
+      terminationGracePeriodSeconds: 60
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: space-service
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: space-service
       imagePullSecrets:
         - name: ghcr-pull-secret
       securityContext:
@@ -409,206 +493,6 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: contact-service
-  namespace: sdkwork-im
-  labels:
-    app.kubernetes.io/name: contact-service
-    app.kubernetes.io/component: contact
-    app.kubernetes.io/part-of: sdkwork-im
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: contact-service
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: contact-service
-        app.kubernetes.io/component: contact
-    spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532
-        runAsGroup: 65532
-        fsGroup: 65532
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: contact-service
-          image: ghcr.io/sdkwork/contact-service:latest
-          imagePullPolicy: Always
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]
-          ports:
-            - name: http
-              containerPort: 18094
-          envFrom:
-            - configMapRef:
-                name: contact-service-runtime
-            - secretRef:
-                name: contact-service-secrets
-                optional: true
-          env:
-            - name: SDKWORK_IM_ENVIRONMENT
-              value: production
-            - name: SDKWORK_IM_DEPLOYMENT_PROFILE
-              value: cloud
-            - name: OTEL_SERVICE_NAME
-              value: sdkwork-im-contact-service
-            - name: TMPDIR
-              value: /tmp
-          readinessProbe:
-            httpGet:
-              path: /readyz
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            initialDelaySeconds: 20
-            periodSeconds: 20
-            timeoutSeconds: 5
-          resources:
-            requests:
-              cpu: 250m
-              memory: 512Mi
-            limits:
-              cpu: "2"
-              memory: 2Gi
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: contact-service
-  namespace: sdkwork-im
-  labels:
-    app.kubernetes.io/name: contact-service
-spec:
-  type: ClusterIP
-  selector:
-    app.kubernetes.io/name: contact-service
-  ports:
-    - name: http
-      port: 18094
-      targetPort: http
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: interaction-service
-  namespace: sdkwork-im
-  labels:
-    app.kubernetes.io/name: interaction-service
-    app.kubernetes.io/component: interaction
-    app.kubernetes.io/part-of: sdkwork-im
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: interaction-service
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: interaction-service
-        app.kubernetes.io/component: interaction
-    spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532
-        runAsGroup: 65532
-        fsGroup: 65532
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: interaction-service
-          image: ghcr.io/sdkwork/interaction-service:latest
-          imagePullPolicy: Always
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]
-          ports:
-            - name: http
-              containerPort: 18095
-          envFrom:
-            - configMapRef:
-                name: interaction-service-runtime
-            - secretRef:
-                name: interaction-service-secrets
-                optional: true
-          env:
-            - name: SDKWORK_IM_ENVIRONMENT
-              value: production
-            - name: SDKWORK_IM_DEPLOYMENT_PROFILE
-              value: cloud
-            - name: OTEL_SERVICE_NAME
-              value: sdkwork-im-interaction-service
-            - name: TMPDIR
-              value: /tmp
-          readinessProbe:
-            httpGet:
-              path: /readyz
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            initialDelaySeconds: 20
-            periodSeconds: 20
-            timeoutSeconds: 5
-          resources:
-            requests:
-              cpu: 250m
-              memory: 512Mi
-            limits:
-              cpu: "2"
-              memory: 2Gi
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: interaction-service
-  namespace: sdkwork-im
-  labels:
-    app.kubernetes.io/name: interaction-service
-spec:
-  type: ClusterIP
-  selector:
-    app.kubernetes.io/name: interaction-service
-  ports:
-    - name: http
-      port: 18095
-      targetPort: http
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
   name: ops-service
   namespace: sdkwork-im
   labels:
@@ -617,6 +501,13 @@ metadata:
     app.kubernetes.io/part-of: sdkwork-im
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  minReadySeconds: 10
+  progressDeadlineSeconds: 600
   selector:
     matchLabels:
       app.kubernetes.io/name: ops-service
@@ -626,6 +517,20 @@ spec:
         app.kubernetes.io/name: ops-service
         app.kubernetes.io/component: ops
     spec:
+      terminationGracePeriodSeconds: 60
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: ops-service
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: ops-service
       imagePullSecrets:
         - name: ghcr-pull-secret
       securityContext:

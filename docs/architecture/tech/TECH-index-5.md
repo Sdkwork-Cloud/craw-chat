@@ -51,7 +51,7 @@ plus checked-in SDK workspaces built from those services:
   integrations.
 
 The default development profile is `standalone.split-services.development` (`pnpm dev`). Topology
-authority lives in `specs/topology.spec.json` and `configs/topology/*.env`.
+authority lives in `specs/topology.spec.json` and `etc/topology/*.env`.
 
 For most new integrations, the fastest reading order is:
 
@@ -148,6 +148,6 @@ such rather than documented as delivered features.
   Unified gateway and packaged server entry are aligned to <code>services/sdkwork-im-cloud-gateway/src/lib.rs</code>,
   <code>services/sdkwork-im-cloud-gateway/src/main.rs</code>, and <code>deployments/templates/server.yaml.example</code>.
   Development orchestration is aligned to <code>scripts/im-dev.mjs</code>, <code>scripts/im-server-dev.mjs</code>,
-  and <code>configs/topology/*.env</code>.
+  and <code>etc/topology/*.env</code>.
 </div>
 

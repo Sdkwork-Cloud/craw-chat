@@ -8,7 +8,7 @@
 | --- | --- |
 | [docs/topology-greenfield.md](../topology-greenfield.md) | Topology v2 绿场计划与退役清单 |
 | [specs/topology.spec.json](../../specs/topology.spec.json) | 机器可读拓扑契约 |
-| [configs/topology/*.env](../../configs/topology/) | Profile 环境变量 |
+| [etc/topology/*.env](../../etc/topology/) | Profile 环境变量 |
 | [docs/sites/architecture/](../sites/architecture/) | 对外文档站点（架构、拓扑、模块） |
 | [docs/sites/getting-started/](../sites/getting-started/) | 快速开始与开发命令 |
 | [docs/部署/README.md](../部署/README.md) | 部署与验证索引 |

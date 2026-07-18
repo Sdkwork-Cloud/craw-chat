@@ -80,10 +80,6 @@ pub(super) fn parse_scope_key_parts(key: &str) -> Option<Vec<String>> {
     Some(parts)
 }
 
-pub(super) fn stream_scope_key(tenant_id: &str, stream_id: &str) -> String {
-    scope_key_parts(&[tenant_id, stream_id])
-}
-
 pub(super) fn notification_scope_key(tenant_id: &str, notification_id: &str) -> String {
     scope_key_parts(&[tenant_id, notification_id])
 }

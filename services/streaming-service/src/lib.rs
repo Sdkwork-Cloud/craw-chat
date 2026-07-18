@@ -8,6 +8,7 @@ pub mod dto;
 pub mod error;
 pub mod handlers;
 pub mod helpers;
+mod metrics;
 pub mod openapi;
 pub mod state;
 

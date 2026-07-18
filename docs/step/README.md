@@ -3,7 +3,7 @@
 Execution checkpoints and step-level evidence for Sdkwork IM engineering workflows.
 
 Historical step artifacts may reference retired topology profile names; authoritative runtime routing is
-defined by `specs/topology.spec.json` and `configs/topology/`.
+defined by `specs/topology.spec.json` and `etc/topology/`.
 
 ## Related
 

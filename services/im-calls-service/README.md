@@ -15,7 +15,7 @@ SDKWork IM maintainers.
 ## Forbidden Content
 
 - RTC media runtime paths owned by `sdkwork-rtc`
-- Retired interaction-service HTTP surfaces
+- Chat reactions, pins, threads, and settings owned by the canonical chat routes
 
 ## Related Specs
 

@@ -17,7 +17,7 @@ const rootStandardDirectories = [
   'tools',
   'plugins',
   'examples',
-  'configs',
+  'etc',
   'deployments',
   'scripts',
   'docs',

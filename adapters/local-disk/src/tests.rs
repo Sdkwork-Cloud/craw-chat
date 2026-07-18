@@ -17,7 +17,8 @@ use im_platform_contracts::{
     PresenceStateStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
     RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore, RealtimeEventWindowRecord,
     RealtimeEventWindowStore, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
-    StreamStateRecord, StreamStateStore,
+    StreamAppendOutcome, StreamCreateOutcome, StreamScope, StreamSessionRecord, StreamStateStore,
+    StreamTransitionOutcome,
 };
 
 fn realtime_disconnect_fence_record(
@@ -41,17 +42,16 @@ fn realtime_disconnect_fence_record(
     }
 }
 
-fn stream_state_record(
+fn stream_session_record(
     state: StreamSessionState,
     last_frame_seq: u64,
     last_checkpoint_seq: Option<u64>,
     complete_frame_seq: Option<u64>,
-    frame_seqs: Vec<u64>,
+    version: u64,
     updated_at: &str,
-) -> StreamStateRecord {
-    StreamStateRecord {
-        tenant_id: "100001".into(),
-        stream_id: "st_demo".into(),
+) -> StreamSessionRecord {
+    StreamSessionRecord {
+        scope: StreamScope::new("100001", "org-a", "st_demo"),
         session: StreamSession {
             tenant_id: "100001".into(),
             stream_id: "st_demo".into(),
@@ -74,7 +74,7 @@ fn stream_state_record(
             closed_at: complete_frame_seq.map(|_| "2026-05-06T00:00:03.000Z".into()),
             expires_at: None,
         },
-        frames: frame_seqs.into_iter().map(stream_frame).collect(),
+        version,
         updated_at: updated_at.into(),
     }
 }
@@ -550,7 +550,7 @@ fn test_file_checkpoint_store_recovers_pending_tmp_file_on_reopen() {
     let file_path = unique_checkpoint_store_file();
     let temp_path = pending_temp_file(&file_path);
     let pending_payload = BTreeMap::from([(
-        "6:100001|7:default|4:user|1:1|5:d_pad".to_string(),
+        crate::shared::scope_key("100001", "default", "user", "1", "d_pad"),
         RealtimeCheckpointRecord {
             tenant_id: "100001".into(),
             organization_id: "0".into(),
@@ -1086,79 +1086,53 @@ fn test_file_subscription_store_loads_matching_scope_event_candidates_across_reo
 fn test_file_stream_state_store_persists_across_reopen() {
     let file_path = unique_stream_state_store_file();
     let store = FileStreamStateStore::new(&file_path);
-    store
-        .save_state(StreamStateRecord {
-            tenant_id: "100001".into(),
-            stream_id: "st_demo".into(),
-            session: im_domain_core::stream::StreamSession {
-                tenant_id: "100001".into(),
-                stream_id: "st_demo".into(),
-                owner_principal_id: "1".into(),
-                owner_principal_kind: "user".into(),
-                stream_type: "custom.delta.text".into(),
-                scope_kind: "request".into(),
-                scope_id: "req_demo".into(),
-                durability_class: im_domain_core::stream::StreamDurabilityClass::DurableSession,
-                ordering_scope: "stream".into(),
-                schema_ref: Some("custom.delta.text.v1".into()),
-                state: im_domain_core::stream::StreamSessionState::Active,
-                last_frame_seq: 1,
-                last_checkpoint_seq: Some(1),
-                result_message_id: None,
-                complete_frame_seq: None,
-                abort_frame_seq: None,
-                abort_reason: None,
-                opened_at: "2026-04-06T00:00:00.000Z".into(),
-                closed_at: None,
-                expires_at: None,
-            },
-            frames: vec![im_domain_core::stream::StreamFrame {
-                tenant_id: "100001".into(),
-                stream_id: "st_demo".into(),
-                stream_type: "custom.delta.text".into(),
-                scope_kind: "request".into(),
-                scope_id: "req_demo".into(),
-                frame_seq: 1,
-                frame_type: "delta".into(),
-                schema_ref: Some("custom.delta.text.v1".into()),
-                encoding: "json".into(),
-                payload: "{\"delta\":\"hello\"}".into(),
-                sender: im_domain_core::message::Sender {
-                    id: "1".into(),
-                    kind: "user".into(),
-                    member_id: None,
-                    device_id: Some("d_demo".into()),
-                    session_id: Some("s_demo".into()),
-                    metadata: BTreeMap::new(),
-                },
-                attributes: BTreeMap::new(),
-                occurred_at: "2026-04-06T00:00:00.000Z".into(),
-            }],
-            updated_at: "2026-04-06T00:00:00.000Z".into(),
-        })
-        .expect("save should succeed");
+    let initial = stream_session_record(
+        StreamSessionState::Opened,
+        0,
+        None,
+        None,
+        1,
+        "2026-04-06T00:00:00.000Z",
+    );
+    assert!(matches!(
+        store.create_session(initial.clone(), 10).unwrap(),
+        StreamCreateOutcome::Applied(_)
+    ));
+    let mut next = initial.clone();
+    next.version = 2;
+    next.session.state = StreamSessionState::Active;
+    next.session.last_frame_seq = 1;
+    assert!(matches!(
+        store.append_frame(1, next, stream_frame(1)).unwrap(),
+        StreamAppendOutcome::Applied { .. }
+    ));
 
     let reopened = FileStreamStateStore::new(&file_path);
     let restored = reopened
-        .load_state("100001", "st_demo")
+        .load_session(&initial.scope)
         .expect("load should succeed")
         .expect("stream state should exist");
     assert_eq!(restored.session.last_frame_seq, 1);
     assert_eq!(restored.session.owner_principal_id, "1");
     assert_eq!(restored.session.owner_principal_kind, "user");
-    assert_eq!(restored.frames.len(), 1);
-    assert_eq!(restored.frames[0].frame_seq, 1);
+    assert_eq!(
+        reopened
+            .list_frames_after(&initial.scope, 0, 20)
+            .unwrap()
+            .len(),
+        1
+    );
 
     assert!(
         reopened
-            .clear_state("100001", "st_demo")
+            .clear_stream(&initial.scope)
             .expect("clear should succeed")
     );
 
     let reopened_after_clear = FileStreamStateStore::new(&file_path);
     assert!(
         reopened_after_clear
-            .load_state("100001", "st_demo")
+            .load_session(&initial.scope)
             .expect("load after clear should succeed")
             .is_none()
     );
@@ -1255,47 +1229,33 @@ fn test_file_subscription_store_compares_cutoff_by_rfc3339_instant() {
 }
 
 #[test]
-fn test_file_stream_state_store_rejects_stale_cursor_and_frame_regression() {
+fn test_file_stream_state_store_rejects_stale_version_and_bounds_pages() {
     let file_path = unique_stream_state_store_file();
     let store = FileStreamStateStore::new(&file_path);
-    store
-        .save_state(stream_state_record(
-            StreamSessionState::Completed,
-            3,
-            Some(2),
-            Some(3),
-            vec![1, 2, 3],
-            "2026-05-06T00:00:03.000Z",
-        ))
-        .expect("current stream state save should succeed");
-    store
-        .save_state(stream_state_record(
-            StreamSessionState::Active,
-            1,
-            None,
-            None,
-            vec![1],
-            "2026-05-06T00:00:01.000Z",
-        ))
-        .expect("stale stream state save should not fail the caller");
-
-    let state = store
-        .load_state("100001", "st_demo")
-        .expect("stream state load should succeed")
-        .expect("stream state should be present");
-    assert_eq!(state.session.state, StreamSessionState::Completed);
-    assert_eq!(state.session.last_frame_seq, 3);
-    assert_eq!(state.session.last_checkpoint_seq, Some(2));
-    assert_eq!(state.session.complete_frame_seq, Some(3));
-    assert_eq!(
-        state
-            .frames
-            .iter()
-            .map(|frame| frame.frame_seq)
-            .collect::<Vec<_>>(),
-        vec![1, 2, 3]
+    let initial = stream_session_record(
+        StreamSessionState::Opened,
+        0,
+        None,
+        None,
+        1,
+        "2026-05-06T00:00:00.000Z",
     );
-    assert_eq!(state.updated_at, "2026-05-06T00:00:03.000Z");
+    store.create_session(initial.clone(), 10).unwrap();
+    let mut next = initial.clone();
+    next.version = 2;
+    next.session.last_frame_seq = 1;
+    assert!(matches!(
+        store
+            .append_frame(1, next.clone(), stream_frame(1))
+            .unwrap(),
+        StreamAppendOutcome::Applied { .. }
+    ));
+    assert!(matches!(
+        store.transition_session(1, next).unwrap(),
+        StreamTransitionOutcome::VersionConflict
+    ));
+    let page = store.list_frames_after(&initial.scope, 0, 1).unwrap();
+    assert_eq!(page.len(), 1);
 
     let _ = fs::remove_file(file_path);
 }

@@ -19,7 +19,7 @@ the `sdkwork-im-server` ingress binary.
 Configuration authority:
 
 - `specs/topology.spec.json`
-- `configs/topology/*.env`
+- `etc/topology/*.env`
 
 ## Application Ingress Binary
 

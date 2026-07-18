@@ -22,7 +22,7 @@ fn build_streaming_service_openapi_document() -> Result<serde_json::Value, Strin
         include_str!("app.rs"),
         "build_business_router",
         &[],
-        &["/openapi.json", "/docs"],
+        &["/openapi.json", "/docs", "/metrics"],
     )?;
 
     Ok(build_openapi_document(

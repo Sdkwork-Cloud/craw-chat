@@ -54,6 +54,13 @@ The gate must fail closed:
 - `exit code 2`: implementation checks pass but required release evidence is incomplete.
 - `exit code 0`: all required implementation checks and release evidence pass.
 
+Implementation and tool failures remain fail-fast because later results may depend on their
+outputs. Release-evidence failures are aggregated: the gate continues independent implementation
+checks, evaluates cloud image, Pre-Release Tier, Capacity Tier, and app package evidence, then
+returns exit code `2` with every blocked stage in `readinessBlockers`. CI and go/no-go automation
+must consume the complete blocker set and must not treat a partially populated evidence report as
+commercial sign-off.
+
 ## Release Package Matrix
 
 The SDKWork IM release package matrix is authoritative only when these four

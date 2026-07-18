@@ -91,7 +91,8 @@ Sdkwork IM standalone gateway embeds appbase IAM and IM application ingress on o
 Use this for standalone deployment profiles. Cloud profiles use sdkwork-im-cloud-gateway and sdkwork-api-cloud-gateway.
 
 Options:
-  --environment <development|production>  Config profile (default: development)
+  --environment <development|test|staging|production>
+                                          Config profile (default: development)
   --config <path>                         Explicit TOML config path
   --dev-env-file <path>                   Env file for IAM/database (default: .env.postgres)
   --release                               Build/run release profile

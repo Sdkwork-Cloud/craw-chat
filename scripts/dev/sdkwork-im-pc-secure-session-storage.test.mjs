@@ -46,6 +46,16 @@ assert.match(
 );
 assert.match(
   sessionSource,
+  /getSessionStorage\(\)\?\.setItem\(SDKWORK_IM_SESSION_KEY, value\)/u,
+  'browser auth sessions must be scoped to sessionStorage',
+);
+assert.doesNotMatch(
+  sessionSource,
+  /getLocalStorage\(\)\?\.setItem\(SDKWORK_IM_SESSION_KEY, value\)/u,
+  'browser auth tokens must not be persisted to localStorage',
+);
+assert.match(
+  sessionSource,
   /handleDesktopSessionPersistError/u,
   'desktop session persist failures must invalidate cache and log errors',
 );

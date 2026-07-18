@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 # 配置
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-CONFIG_DIR="$ROOT_DIR/configs/topology"
+CONFIG_DIR="$ROOT_DIR/etc/topology"
 
 # 默认profile
 PROFILE="${1:-production}"

@@ -11,6 +11,7 @@ import {
   VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
   VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_HTTP_URL,
   VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
 } from "../config/topologyEnvKeys";
 import {
   getImH5GlobalTokenManager,
@@ -134,7 +135,8 @@ function resolveSameOriginWebSocketBaseUrl(): string | undefined {
 
 export function resolveImSdkApiBaseUrl(): string {
   const baseUrl =
-    readEnvValue(
+    readEnvValue(VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL)
+    ?? readEnvValue(
       VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_HTTP_URL,
       VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
     )
@@ -142,7 +144,7 @@ export function resolveImSdkApiBaseUrl(): string {
     ?? resolveSameOriginHttpBaseUrl();
   if (!baseUrl) {
     throw new Error(
-      "Sdkwork IM H5 SDK API base URL is not configured. Set VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_HTTP_URL.",
+      "Sdkwork IM H5 SDK API base URL is not configured. Set VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL.",
     );
   }
   return normalizeHttpSdkBaseUrl(baseUrl);

@@ -16,7 +16,7 @@ const chatOpenApiSource = read('crates/sdkwork-routes-im-chat-open-api/src/lib.r
 const conversationHttpSource = read('services/sdkwork-comms-conversation-service/src/runtime/http.rs');
 const sessionGatewayBootstrapSource = read('services/session-gateway/src/runtime_bootstrap.rs');
 const imCallsHandlersSource = read('services/im-calls-service/src/handlers.rs');
-const productionTopology = read('configs/topology/cloud.production.env');
+const productionTopology = read('etc/topology/cloud.production.env');
 
 assert.match(
   appContextSource,

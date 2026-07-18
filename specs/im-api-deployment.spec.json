@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.im.api-deployment",
+  "authority": {
+    "applicationManifestPath": "../sdkwork.app.config.json",
+    "deploymentConfigPath": "../etc/sdkwork.deployment.config.json",
+    "topologySpecPath": "topology.spec.json"
+  },
+  "profiles": {
+    "cloud": {
+      "applicationAndApiOriginsAreDistinct": true,
+      "apiBaseUrlField": "cloudApiBaseUrl"
+    },
+    "standalone": {
+      "applicationAndApiOriginsAreDistinct": false,
+      "apiBaseUrlField": "applicationOrigin",
+      "singleIngress": true
+    }
+  },
+  "apiSurfaces": {
+    "imOpenApi": "/im/v3/api",
+    "appApi": "/app/v3/api",
+    "backendApi": "/backend/v3/api",
+    "realtimeWebSocket": "/im/v3/api/realtime/ws"
+  }
+}

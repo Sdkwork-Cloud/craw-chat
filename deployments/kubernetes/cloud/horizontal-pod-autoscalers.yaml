@@ -52,6 +52,111 @@ spec:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
+  name: governance-service-hpa
+  namespace: sdkwork-im
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: governance-service }
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+    - type: Resource
+      resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notification-service-hpa
+  namespace: sdkwork-im
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: notification-service }
+  minReplicas: 2
+  maxReplicas: 12
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+    - type: Resource
+      resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: audit-service-hpa
+  namespace: sdkwork-im
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: audit-service }
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+    - type: Resource
+      resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: automation-service-hpa
+  namespace: sdkwork-im
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: automation-service }
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+    - type: Resource
+      resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: social-service-hpa
+  namespace: sdkwork-im
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: social-service }
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+    - type: Resource
+      resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: space-service-hpa
+  namespace: sdkwork-im
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: space-service }
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+    - type: Resource
+      resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ops-service-hpa
+  namespace: sdkwork-im
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: ops-service }
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+    - type: Resource
+      resource: { name: memory, target: { type: Utilization, averageUtilization: 80 } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
   name: conversation-service-hpa
   namespace: sdkwork-im
 spec:

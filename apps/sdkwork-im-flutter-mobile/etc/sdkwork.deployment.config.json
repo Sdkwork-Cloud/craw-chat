@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component-deployment",
+  "application": "sdkwork-im-flutter-mobile",
+  "parentDeploymentConfig": "../../../etc/sdkwork.deployment.config.json",
+  "runtimeTargets": ["flutter-ios", "flutter-android"]
+}

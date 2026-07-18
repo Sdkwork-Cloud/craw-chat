@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.browser-runtime",
+  "renderer": "h5",
+  "devServer": { "bind": "127.0.0.1", "port": 4177 },
+  "runtimeBindings": {
+    "applicationHttp": "VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+    "applicationWebSocket": "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL",
+    "sdkGatewayHttp": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
+  }
+}

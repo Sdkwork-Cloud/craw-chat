@@ -1,7 +1,7 @@
-﻿# Profiles and Environment
+# Profiles and Environment
 
 Sdkwork IM development and production routing are owned by topology v4. Use
-`specs/topology.spec.json` and `configs/topology/*.env` as the only profile authority.
+`specs/topology.spec.json` and `etc/topology/*.env` as the only profile authority.
 
 ## Development Profiles
 

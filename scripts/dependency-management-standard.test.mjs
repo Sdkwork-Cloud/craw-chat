@@ -319,31 +319,10 @@ function assertSharedGatewayFoundationIntegration() {
     !Array.isArray(foundationGateway?.legacyCompatibilityDefaultFoundationUpstreams),
     'Sdkwork IM must not document per-module foundation upstreams as defaults beside the shared gateway root',
   );
-  const explicitExternalFoundationUpstreams = (foundationGateway?.explicitExternalFoundationUpstreams ?? [])
-    .slice()
-    .sort();
-  const expectedExternalFoundationUpstreams = [
-      'sdkwork-iam-app-api',
-      'sdkwork-drive-app-api',
-      'sdkwork-notary-app-api',
-      'sdkwork-account-app-api',
-      'sdkwork-catalog-app-api',
-      'sdkwork-inventory-app-api',
-      'sdkwork-invoice-app-api',
-      'sdkwork-membership-app-api',
-      'sdkwork-merchandise-app-api',
-      'sdkwork-order-app-api',
-      'sdkwork-payment-app-api',
-      'sdkwork-promotion-app-api',
-      'sdkwork-shop-app-api',
-      'sdkwork-mail-app-api',
-      'sdkwork-community-app-api',
-      'sdkwork-course-app-api',
-      'sdkwork-knowledgebase-app-api',
-    ].sort();
   assert(
-    JSON.stringify(explicitExternalFoundationUpstreams) === JSON.stringify(expectedExternalFoundationUpstreams),
-    'Sdkwork IM may keep per-module foundation upstreams only as explicit external upstream overrides',
+    foundationGateway?.explicitExternalFoundationUpstreams === undefined
+      && foundationGateway?.explicitExternalUpstreamEnvKeys === undefined,
+    'Sdkwork IM must not publish per-module foundation upstream overrides',
   );
 
   for (const relativePath of ['Cargo.toml', 'services/sdkwork-im-cloud-gateway/Cargo.toml']) {

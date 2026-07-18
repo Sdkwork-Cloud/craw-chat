@@ -1099,6 +1099,7 @@ CREATE TABLE im_stream_sessions (
     expires_at TEXT,
     payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
     payload_hash TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     retention_until TEXT,
@@ -1116,6 +1117,10 @@ CREATE INDEX IF NOT EXISTS idx_im_stream_sessions_scope
 
 CREATE INDEX IF NOT EXISTS idx_im_stream_sessions_updated
     ON im_stream_sessions (tenant_id, organization_id, updated_at DESC, stream_id);
+
+CREATE INDEX IF NOT EXISTS idx_im_stream_sessions_active
+    ON im_stream_sessions (tenant_id, organization_id)
+    WHERE stream_state NOT IN ('completed', 'aborted', 'expired');
 
 CREATE INDEX IF NOT EXISTS idx_im_stream_sessions_retention_until
     ON im_stream_sessions (tenant_id, organization_id, retention_until)

@@ -16,7 +16,10 @@ use sdkwork_im_contract_message::{
     CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionScope, TimelineProjectionStore,
 };
 use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
-use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
+use sdkwork_im_contract_stream::{
+    StreamAppendOutcome, StreamCreateOutcome, StreamScope, StreamSessionRecord, StreamStateStore,
+    StreamTransitionOutcome,
+};
 
 struct NullAdminStore;
 struct NullMetadataStore;
@@ -246,19 +249,47 @@ impl PresenceStateStore for NullPresenceStore {
 }
 
 impl StreamStateStore for NullStreamStore {
-    fn load_state(
-        &self,
-        _tenant_id: &str,
-        _stream_id: &str,
-    ) -> Result<Option<StreamStateRecord>, ContractError> {
-        Ok(None)
-    }
-
-    fn save_state(&self, _record: StreamStateRecord) -> Result<(), ContractError> {
+    fn check_ready(&self) -> Result<(), ContractError> {
         Ok(())
     }
 
-    fn clear_state(&self, _tenant_id: &str, _stream_id: &str) -> Result<bool, ContractError> {
+    fn load_session(
+        &self,
+        _scope: &StreamScope,
+    ) -> Result<Option<StreamSessionRecord>, ContractError> {
+        Ok(None)
+    }
+    fn create_session(
+        &self,
+        record: StreamSessionRecord,
+        _max_active_streams: u64,
+    ) -> Result<StreamCreateOutcome, ContractError> {
+        Ok(StreamCreateOutcome::Applied(record))
+    }
+    fn append_frame(
+        &self,
+        _expected_version: u64,
+        session: StreamSessionRecord,
+        frame: im_domain_core::stream::StreamFrame,
+    ) -> Result<StreamAppendOutcome, ContractError> {
+        Ok(StreamAppendOutcome::Applied { session, frame })
+    }
+    fn transition_session(
+        &self,
+        _expected_version: u64,
+        session: StreamSessionRecord,
+    ) -> Result<StreamTransitionOutcome, ContractError> {
+        Ok(StreamTransitionOutcome::Applied(session))
+    }
+    fn list_frames_after(
+        &self,
+        _scope: &StreamScope,
+        _after_frame_seq: u64,
+        _page_size: usize,
+    ) -> Result<Vec<im_domain_core::stream::StreamFrame>, ContractError> {
+        Ok(Vec::new())
+    }
+    fn clear_stream(&self, _scope: &StreamScope) -> Result<bool, ContractError> {
         Ok(false)
     }
 }
@@ -412,8 +443,8 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
         type_name::<im_platform_contracts::PresenceStateRecord>()
     );
     assert_eq!(
-        type_name::<StreamStateRecord>(),
-        type_name::<im_platform_contracts::StreamStateRecord>()
+        type_name::<StreamSessionRecord>(),
+        type_name::<im_platform_contracts::StreamSessionRecord>()
     );
     // StateRecord lives in im-domain-core::rtc; im-platform-contracts no
     // longer re-exports it to keep the contract layer independent of domain.
@@ -443,7 +474,7 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
         .list_states_for_principal("100001", "default", "user", "1")
         .expect("presence listing should succeed");
     stream_store
-        .clear_state("100001", "stream_demo")
+        .clear_stream(&StreamScope::new("100001", "default", "stream_demo"))
         .expect("stream clear should succeed");
     rtc_store
         .clear_state("100001", "rtc_demo")

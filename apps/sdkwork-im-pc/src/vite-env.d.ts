@@ -17,8 +17,9 @@ declare module 'express' {
   }
 
   export interface ExpressApp {
+    (req: import('http').IncomingMessage, res: import('http').ServerResponse): void;
     get(path: string, handler: (req: Request, res: Response) => unknown): void;
-    listen(port: number, host: string, callback: () => void): void;
+    listen(port: number, host: string, callback: () => void): import('http').Server;
     post(path: string, handler: (req: Request, res: Response) => unknown): void;
     use(...args: unknown[]): void;
   }

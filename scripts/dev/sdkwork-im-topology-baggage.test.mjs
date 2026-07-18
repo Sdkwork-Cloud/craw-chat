@@ -12,7 +12,7 @@ const scanRoots = [
   'services',
   'tools',
   'scripts',
-  'configs',
+  'etc',
   'deployments',
   'apps',
   'bin',

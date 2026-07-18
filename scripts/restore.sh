@@ -199,7 +199,7 @@ if [ "$SKIP_CONFIG" != "true" ]; then
         if tar -xzf "$CONFIG_ARCHIVE" -C "$STAGE_DIR"; then
             log_pass "Configuration extracted to $STAGE_DIR"
             log_info "Review and copy required files to $ROOT_DIR before starting services"
-            log_info "Manual step: cp -r $STAGE_DIR/configs/* $ROOT_DIR/configs/"
+            log_info "Manual step: cp -r $STAGE_DIR/etc/* $ROOT_DIR/etc/"
         else
             log_error "Failed to extract configuration archive"
         fi

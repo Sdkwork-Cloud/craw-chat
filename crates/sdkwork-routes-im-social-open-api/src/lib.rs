@@ -7,7 +7,7 @@ mod paths;
 mod routes;
 mod web_bootstrap;
 
-pub use manifest::{open_route_manifest, open_routes};
+pub use manifest::{API_SURFACE, open_route_manifest, open_routes};
 pub use routes::build_supplemental_app;
 pub use web_bootstrap::wrap_router;
 

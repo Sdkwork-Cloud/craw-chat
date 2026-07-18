@@ -220,7 +220,7 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
         )
         .await
         .expect("complete after abort request should succeed");
-    assert_eq!(complete_after_abort.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(complete_after_abort.status(), StatusCode::CONFLICT);
 }
 
 #[tokio::test]
@@ -1082,7 +1082,7 @@ async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
     assert_eq!(first_open_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
         first_open_json["data"]["requestKey"],
-        "6#1000014#user1#14#open19#st_actor_scope_open"
+        "6#1000016#1000014#user1#14#open19#st_actor_scope_open"
     );
 
     let conflicting_open = app
@@ -1382,7 +1382,7 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
     assert_eq!(first_complete_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
         first_complete_json["data"]["requestKey"],
-        "6#1000014#user1#18#complete23#st_actor_scope_complete"
+        "6#1000016#1000014#user1#18#complete23#st_actor_scope_complete"
     );
 
     let hidden_complete = app
@@ -1679,7 +1679,7 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
     assert_eq!(first_abort_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
         first_abort_json["data"]["requestKey"],
-        "6#1000014#user1#15#abort20#st_actor_scope_abort"
+        "6#1000016#1000014#user1#15#abort20#st_actor_scope_abort"
     );
 
     let hidden_abort = app
@@ -1912,7 +1912,7 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
     assert_eq!(first_checkpoint_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
         first_checkpoint_json["data"]["requestKey"],
-        "6#1000014#user1#110#checkpoint25#st_actor_scope_checkpoint1#3"
+        "6#1000016#1000014#user1#110#checkpoint25#st_actor_scope_checkpoint1#3"
     );
 
     let hidden_checkpoint = app

@@ -110,7 +110,7 @@ Current entries:
 
 Ports exist only in:
 
-1. `configs/topology/<profile-id>.env`
+1. `etc/topology/<profile-id>.env`
 2. `specs/topology.spec.json` -> `internalUpstreams.*.defaultBind`
 
 Development binds:
@@ -142,4 +142,4 @@ pnpm test:workflow-commercial-gates
 node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root . --spec specs/topology.spec.json
 ```
 
-Contract tests load fixture profile env. Default dev ingress is `http://127.0.0.1:18079` through `configs/topology/standalone.development.env`.
+Contract tests load fixture profile env. Default dev ingress is `http://127.0.0.1:18079` through `etc/topology/standalone.development.env`.

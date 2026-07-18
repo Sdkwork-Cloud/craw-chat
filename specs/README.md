@@ -29,7 +29,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
   `crates/sdkwork-im-cloud-gateway-config` keep product-owned IM routing only; cloud
   platform API routing is owned by the shared gateway boundary.
 - Local PC development starts through `scripts/im-dev.mjs` (`pnpm dev`), which loads topology
-  profiles from `configs/topology/` and starts `sdkwork-im-standalone-gateway` only. It does
+  profiles from `etc/topology/` and starts `sdkwork-im-standalone-gateway` only. It does
   not spawn a separate `sdkwork-api-cloud-gateway` process in the default `standalone.development`
   profile.
 - `crates/sdkwork-im-cloud-gateway-config` omits HTTP upstream targets for standalone-embedded
@@ -95,6 +95,7 @@ Sibling checkout and release refs are declared in `sdkwork.workflow.json` (`sdkw
 ## Local Extension Specs
 
 - [im-app-api-sdk-integration.spec.md](./im-app-api-sdk-integration.spec.md) defines Sdkwork IM's IM API, IM app API, IM backend API, product SDK ownership, IAM login integration, shared database, local source-link development, and git-backed release dependency rules.
+- [im-web-ingress-domain.spec.json](./im-web-ingress-domain.spec.json) defines adaptive PC/H5 web ingress ownership and points to the root app manifest as the four-environment public-domain authority.
 - [../docs/architecture/decisions/ADR-20260617-comms-service-naming-boundaries.md](../docs/architecture/decisions/ADR-20260617-comms-service-naming-boundaries.md) records canonical communication service ids, social/space ownership, and deprecated contact/interaction HTTP surfaces.
 - [../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md](../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md) records Phase 1 RPC host completion (three `*-rpc-bin` services) and deferred Phase 2 `sdkwork-discovery` product integration.
 - [database-prefix-registry.json](./database-prefix-registry.json) registers `im` as the controlled prefix for instant-messaging tables in the `im` app.

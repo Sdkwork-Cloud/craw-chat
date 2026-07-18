@@ -518,7 +518,7 @@ main() {
     local config_archive="${TMP_DIR}/sdkwork-im-config_${BACKUP_DATE}.tar.gz"
     if tar -czf "$config_archive" \
         -C "$ROOT_DIR" \
-        configs/ \
+        etc/ \
         deployments/templates/ \
         sdkwork.app.config.json \
         sdkwork.workflow.json \

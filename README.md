@@ -70,7 +70,7 @@ Six primary planes carry traffic; two cross-cutting planes govern and observe th
 | **Domain** | `crates/im-domain-core`, `crates/im-domain-events` | Aggregate models, invariants, state machines, domain events |
 | **Runtime** | `crates/sdkwork-im-runtime-{link,route,id}`, `crates/im-storage-runtime`, `crates/im-app-context` | Use-case orchestration, connection runtime, storage runtime, AppContext projection |
 | **Adapters** | `adapters/local-disk`, `local-memory`, `redis-cache`, `postgres-journal`, `postgres-realtime`, `social-postgres`, `object-storage-s3`, `push-providers/*` | Storage and provider integrations |
-| **Services** | `services/sdkwork-im-cloud-gateway`, `session-gateway`, `conversation-runtime`, `streaming-service`, `im-calls-service`, `media-service`, `notification-service`, `automation-service`, `audit-service`, `ops-service`, `governance-service`, `projection-service`, `social-service`, `space-service`, `contact-service`, `interaction-service` | Runnable HTTP service processes |
+| **Services** | `services/sdkwork-im-cloud-gateway`, `session-gateway`, `conversation-runtime`, `streaming-service`, `im-calls-service`, `media-service`, `notification-service`, `automation-service`, `audit-service`, `ops-service`, `governance-service`, `projection-service`, `social-service`, `space-service` | Runnable HTTP service processes |
 
 ### CCP — Client Connect Protocol
 
@@ -144,7 +144,7 @@ sdkwork-im/
 ├─ sdks/           IM SDK families (RTC SDK lives in ../sdkwork-rtc)
 ├─ adapters/       storage/provider adapters (local-disk, redis, postgres, s3, push)
 ├─ services/       runnable HTTP service processes
-├─ configs/        topology profiles (configs/topology/*.env)
+├─ etc/            deployment index, topology profiles, and gateway templates
 ├─ deployments/    production templates
 ├─ docs/           architecture, deployment, docs/sites
 ├─ scripts/        standard command dispatch, governance, release
@@ -172,10 +172,10 @@ Topology is a versioned contract, not a convention. Profile ids use exactly `<de
 
 - `cloud.development` and `cloud.staging` are available for cloud integration and pre-production rehearsal.
 - Internal upstream fan-out and in-process route mounting are implementation details behind the selected profile.
-- Profile files: `configs/topology/{deploymentProfile}.{environment}.env`.
+- Profile files: `etc/topology/{deploymentProfile}.{environment}.env`.
 - Retired vocabulary is rejected by `pnpm test:topology-baggage`; see [`specs/topology.spec.json`](./specs/topology.spec.json) for the full retired list.
 
-Authority: [docs/topology-greenfield.md](./docs/topology-greenfield.md), [specs/topology.spec.json](./specs/topology.spec.json), [configs/topology/](./configs/topology/).
+Authority: [docs/topology-greenfield.md](./docs/topology-greenfield.md), [specs/topology.spec.json](./specs/topology.spec.json), [etc/topology/](./etc/topology/).
 
 ## API surface
 

@@ -1,5 +1,5 @@
 import express from 'express';
-import type { IncomingMessage, ServerResponse } from 'http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { handleSdkworkChatLocalApiRequest } from './local-api';
@@ -71,7 +71,10 @@ function applySecurityHeaders(_req: IncomingMessage, res: ServerResponse, next: 
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT ?? 3000);
+  const requestedPort = Number(process.env.PORT ?? 3000);
+  if (!Number.isSafeInteger(requestedPort) || requestedPort < 0 || requestedPort > 65_535) {
+    throw new Error('PORT must be an integer between 0 and 65535');
+  }
 
   app.use(express.json());
   app.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
@@ -99,8 +102,18 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  const server = createServer(app);
+  server.listen(requestedPort, '0.0.0.0', () => {
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      server.close();
+      throw new Error('Server did not expose a TCP listen address');
+    }
+    console.log(`Server running on http://localhost:${address.port}`);
+    process.send?.({
+      port: address.port,
+      type: 'sdkwork-im-pc-server-listening',
+    });
   });
 }
 

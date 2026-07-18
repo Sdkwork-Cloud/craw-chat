@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-03
+Updated: 2026-07-16
 Specs: OBSERVABILITY_SPEC.md, SECURITY_SPEC.md, PRIVACY_SPEC.md, DEPLOYMENT_SPEC.md, REGION_SPEC.md, CONFIG_SPEC.md
 
 ## 1. Purpose
@@ -39,11 +39,11 @@ detected, contained, and recovered* in production.
 Sdkwork IM is a multi-tenant real-time messaging platform built in Rust. It uses CQRS with Event
 Sourcing, where `im_commit_journal` (PostgreSQL) is the append-only durable event log and
 projections are rebuilt from the journal. Redis holds session state, presence, and sequence caches.
-The platform runs as 15 microservices on Kubernetes.
+The governed cloud topology defines 13 active microservices on Kubernetes.
 
 ### 2.1 Single-Region Topology
 
-Today the platform operates in **single-region mode** per deployment topology in `configs/topology/`.
+Today the platform operates in **single-region mode** per deployment topology in `etc/topology/`.
 All write traffic for a tenant is served by one PostgreSQL primary and one Redis cluster in the
 same region.
 
@@ -85,7 +85,7 @@ archival interval (best case 1 hour for Professional tier).
 ### 3.2 Phase 2 Strategy - Active-Passive
 
 - **Primary region**: serves all read and write traffic. PostgreSQL primary, Redis cluster,
-  full microservice fleet (15 services).
+  full governed microservice fleet (13 services).
 - **DR region**: hot standby. PostgreSQL promoted-as-replica (logical subscriber), independent
   Redis cluster, full microservice fleet running at minimum replica count. No client traffic.
 - **Replication**: asynchronous PostgreSQL logical replication (publication/subscription) for
@@ -292,15 +292,16 @@ replication at the storage layer. This is independent of the PostgreSQL replicat
 | Tenant avatars | Async cross-region replication | < 1 minute |
 | Audit log bundles | Replicated on archival | < 1 hour |
 
-Replication is configured in `configs/topology/cloud.production.env` via
+Replication is configured in `etc/topology/cloud.production.env` via
 `SDKWORK_IM_DRIVE_REPLICATION_TARGETS`. Tenants with data residency constraints (per
 `COMPLIANCE_FRAMEWORK.md` section 4) may opt out of cross-region replication; such tenants are not
 eligible for cross-region DR and must rely on intra-region recovery only.
 
 ### 6.5 Microservice Fleet in DR Region
 
-All 15 microservices are deployed to the DR region at all times, but at minimum replica counts to
-control cost. On failover, HPA scales them to production capacity.
+The table below is the required DR target topology for the 13 active services. It is not evidence that
+a DR region is currently deployed. Commercial activation requires a direct inventory, immutable image
+digests, health evidence, replication evidence, and a successful failover drill from that environment.
 
 | Service | Primary replicas | DR standby replicas | On failover |
 | --- | --- | --- | --- |
@@ -317,8 +318,6 @@ control cost. On failover, HPA scales them to production capacity.
 | social-service | 2+ | 1 | Scale to 2+ |
 | space-service | 2+ | 1 | Scale to 2+ |
 | ops-service | 2+ | 1 | Scale to 2+ |
-
-> **Note (2026-07):** `contact-service` and `interaction-service` are deprecated shims; social and projection surfaces run in `social-service` and `projection-service`. Do not scale retired process names in new deployments.
 
 ## 7. Failover Procedure
 
@@ -723,9 +722,9 @@ in order, top to bottom, without skipping steps.
 - [DATA_PROTECTION.md](../product/compliance/DATA_PROTECTION.md) - Data protection summary.
 - [TECH_ARCHITECTURE.md](../architecture/tech/TECH_ARCHITECTURE.md) - Technical architecture;
   CQRS + Event Sourcing, `im_commit_journal`, microservice boundaries.
-- `configs/topology/cloud.production.env` - Regional deployment topology.
+- `etc/topology/cloud.production.env` - Regional deployment topology.
 - `deployments/observability/prometheus-rules.yaml` - Alert rules including DR replication lag.
-- `deployments/kubernetes/cloud/` - Per-service deployment manifests (15 services).
+- `deployments/kubernetes/cloud/` - Source templates for the 13 active services; deploy only a digest-materialized release bundle.
 - `docs/runbooks/RUNBOOK-audit-log-investigation.md` - Audit log continuity verification after
   failover.
 - `docs/runbooks/RUNBOOK-provider-outage.md` - Provider outage response (upstream cloud

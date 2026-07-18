@@ -13,7 +13,7 @@ Redis cache adapter for IM runtime control and core contract caching.
 
 ## Configuration
 
-Redis connection is configured through IM runtime topology profiles under `configs/topology/`.
+Redis connection is configured through IM runtime topology profiles under `etc/topology/`.
 
 ## Verification
 

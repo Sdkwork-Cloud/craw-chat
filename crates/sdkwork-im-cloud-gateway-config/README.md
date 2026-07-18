@@ -19,13 +19,12 @@ This README is the SDKWork module entrypoint for `sdkwork-im-cloud-gateway-confi
 
 Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
 
-Shared-gateway mode defaults Appbase, Drive, and Notary platform upstreams to the shared
-`sdkwork-api-cloud-gateway` root. `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` and
-`SDKWORK_API_CLOUD_GATEWAY_BASE_URL` override that root; `SDKWORK_API_CLOUD_GATEWAY_BIND` derives a local
-`http://<bind>` root when no base URL is set. Application ingress bind uses
-`SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND`. Per-surface upstream keys such as
-`SDKWORK_IM_APPBASE_APP_API_UPSTREAM`, `SDKWORK_IM_DRIVE_APP_API_UPSTREAM`, and
-`SDKWORK_IM_NOTARY_APP_API_UPSTREAM` are explicit external upstream overrides.
+Foundation traffic uses one `sdkwork-api-cloud-gateway` root.
+`SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` and `SDKWORK_API_CLOUD_GATEWAY_BASE_URL` select that root;
+`SDKWORK_API_CLOUD_GATEWAY_BIND` derives a local `http://<bind>` root when no URL is set. Application
+ingress bind uses `SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND`. Per-module foundation upstream and
+base URL overrides are retired; the platform gateway mounts selected capabilities through Cargo
+assembly features.
 
 ## SaaS/Private/Local Behavior
 

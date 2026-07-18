@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.im.web-ingress-domain",
+  "authority": {
+    "manifestPath": "../sdkwork.app.config.json",
+    "deploymentConfigPath": "../etc/sdkwork.deployment.config.json",
+    "environmentsField": "environments",
+    "apiDeploymentSpecPath": "im-api-deployment.spec.json"
+  },
+  "environments": [
+    "development",
+    "test",
+    "staging",
+    "production"
+  ],
+  "clients": {
+    "pc": {
+      "manifestPath": "../apps/sdkwork-im-pc/sdkwork.app.config.json",
+      "clientArch": "pc"
+    },
+    "h5": {
+      "manifestPath": "../apps/sdkwork-im-h5/sdkwork.app.config.json",
+      "clientArch": "h5"
+    }
+  },
+  "routing": {
+    "hostMatch": "exact",
+    "pathPrefix": "/",
+    "selection": "user-agent",
+    "defaultClient": "pc",
+    "desktopClient": "pc",
+    "mobileClient": "h5"
+  },
+  "domainConvention": {
+    "development": "<application-code>-dev.<base-domain>",
+    "test": "<application-code>-test.<base-domain>",
+    "staging": "<application-code>-staging.<base-domain>",
+    "production": "<application-code>.<base-domain>"
+  }
+}

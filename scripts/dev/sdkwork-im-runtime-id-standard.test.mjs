@@ -29,7 +29,7 @@ for (const expectedText of [
   'pub const SDKWORK_IM_ID_NODE_ID_ENV: &str = "SDKWORK_IM_ID_NODE_ID";',
   'clock_rollback: "reject_and_alert"',
   'node_conflict: "database_backed_auto_allocation"',
-  'failure_handling: "database_first_then_env_fallback"',
+  'failure_handling: "database_first_then_fail_closed"',
 ]) {
   assert.match(
     runtimeIdSource,
@@ -37,6 +37,11 @@ for (const expectedText of [
     `runtime ID source must contain standard fragment: ${expectedText}`,
   );
 }
+assert.match(
+  runtimeIdSource,
+  /runtime_id_fallback_is_forbidden[\s\S]*UnavailableIdGenerator/u,
+  'production runtime ID allocation must fail closed instead of reusing a static node after database failure',
+);
 assert.doesNotMatch(
   runtimeIdSource,
   /rand::|random::<|Uuid::|uuid::|bigserial|nextval|max\s*\(\s*id\s*\)/iu,

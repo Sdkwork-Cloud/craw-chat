@@ -8,6 +8,17 @@ Read `../sdkwork-specs/SOUL.md` before executing tasks in this root. Follow spec
 
 ## SDKWORK Standards
 
+
+<!-- SDKWORK-PROGRESSIVE-LOADING: v1 -->
+Resolve this standards root once and use it as the global authority for the current task:
+
+- `../sdkwork-specs/README.md`
+- `../sdkwork-specs/SOUL.md`
+- `../sdkwork-specs/AGENTS_SPEC.md`
+
+Read only the relevant README task-matrix row or navigation heading, then load the selected authority sections.
+<!-- /SDKWORK-PROGRESSIVE-LOADING: v1 -->
+
 Canonical SDKWORK specs path from this root:
 
 - `../sdkwork-specs/README.md`
@@ -22,7 +33,7 @@ Do not copy root standard text into this repository. If these relative paths do 
 
 ## Application Identity
 
-Read `sdkwork.app.config.json` only when changing IM application behavior, runtime config, SDK wiring, release metadata, packaging, app-owned capabilities, or deployment metadata.
+Read `sdkwork.app.config.json` for IM identity, registration, SDK/API inventory, release metadata, packaging capability, or app-owned capabilities. Read `etc/` for concrete environment, domain, Base URL, bind, topology, runtime, and deployment values. The app manifest is not runtime configuration authority.
 
 ## RTC Dependency Boundary
 
@@ -36,19 +47,20 @@ Read `sdkwork.app.config.json` only when changing IM application behavior, runti
 - RPC contracts live under `apis/rpc/` with generated `sdkwork-im-rpc-sdk`.
 - Phase 1 RPC hosts ship as `*-rpc-bin` services (`session-gateway-rpc-bin`, `sdkwork-comms-conversation-rpc-bin`, `sdkwork-comms-conversation-internal-rpc-bin`) through `sdkwork-rpc-framework`; optional registration uses `SDKWORK_IM_DISCOVERY_ENDPOINT`.
 - The `sdkwork-discovery` product control plane remains deferred until Phase 2. Phased adoption plan: `docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md`.
-- Until Phase 2 discovery ships, cloud internal routing continues to use static topology env vars in `configs/topology/` and gateway upstream URLs as the primary fallback.
+- Until Phase 2 discovery ships, cloud internal routing continues to use static topology env vars in `etc/topology/` and gateway upstream URLs as the primary fallback.
 
 ## Group Knowledgebase Boundary
 
 - IM owns Conversation membership, current-Owner initialization authorization, lifecycle status, and opaque launch-ticket issuance. Knowledgebase owns the one-to-one group-space binding, content, and final ACL enforcement.
 - Browser launch carries only the opaque ticket in the standalone Knowledgebase route fragment. Desktop launch carries only that ticket through the registered deep link to the independent Knowledgebase Tauri process; space identifiers, destinations, session tokens, and caller context are never passed by IM.
-- Use generated IM SDKs and the generated Knowledgebase RPC SDK or approved composed facades only. Raw HTTP, manual credential headers, and local SDK forks are forbidden; the trusted RPC path requires mTLS, signed caller context, and deployment readiness described in `configs/topology/README.md`.
+- Use generated IM SDKs and the generated Knowledgebase RPC SDK or approved composed facades only. Raw HTTP, manual credential headers, and local SDK forks are forbidden; the trusted RPC path requires mTLS, signed caller context, and deployment readiness described in `etc/topology/README.md`.
 
 ## Local Dictionary Structure
 
 - `AGENTS.md`: repository agent entrypoint and relative SDKWork spec index.
 - `CLAUDE.md`, `GEMINI.md`, `CODEX.md`: compatibility shims that point to `AGENTS.md` and must not duplicate rules.
 - `sdkwork.app.config.json`: IM application identity, runtime, release, and capability metadata.
+- `etc/`: IM deployment profile index, public origin/API matrices, renderer bootstrap inputs, gateway/service templates, and local DNS examples.
 - `sdkwork.workflow.json`: GitHub packaging/release workflow manifest governed by `GITHUB_WORKFLOW_SPEC.md`.
 - `.github/workflows/package.yml`: thin reusable workflow call only.
 - `.sdkwork/`: local skills, plugins, manifests, and AI workspace metadata.
@@ -57,7 +69,7 @@ Read `sdkwork.app.config.json` only when changing IM application behavior, runti
 - `apps/`: runnable application surfaces such as `apps/sdkwork-im-pc/`.
 - `crates/`, `services/`, `adapters/`: Rust contracts, runtime services, and provider integrations.
 - `sdks/`: SDK families, OpenAPI authorities, route manifests, and generated SDK artifacts.
-- `configs/`, `deployments/`, `scripts/`, `tools/`, `docs/`, `tests/`: config templates, deployment descriptors, thin command entrypoints, validators, documentation, and verification assets.
+- `etc/`, `deployments/`, `scripts/`, `tools/`, `docs/`, `tests/`: source configuration, infrastructure descriptors, thin command entrypoints, validators, documentation, and verification assets.
 - `package.json`, `Cargo.toml`: language/build manifests.
 
 ## Documentation Canon
@@ -67,6 +79,16 @@ Read `sdkwork.app.config.json` only when changing IM application behavior, runti
 - [docs/architecture/tech/TECH_ARCHITECTURE.md](docs/architecture/tech/TECH_ARCHITECTURE.md)
 
 ## Spec Resolution Order
+
+
+<!-- SDKWORK-PROGRESSIVE-LOADING: v1 -->
+Use dynamic progressive loading for the current task: resolve the selected root and task category before reading broad source context.
+
+1. Read this `AGENTS.md` routing material and classify the owned surface.
+2. Read `sdkwork.app.config.json`, module `specs/`, repository/application `specs/`, and `.sdkwork/` only when the task reaches the contract each item governs.
+3. Locate only the relevant task-matrix row or navigation heading in `../sdkwork-specs/README.md`; do not load the full catalog.
+4. Read only the task-specific global spec sections selected by that route, then inspect implementation files.
+<!-- /SDKWORK-PROGRESSIVE-LOADING: v1 -->
 
 Use dynamic progressive loading:
 
@@ -102,6 +124,13 @@ Build scripts, dev runners, and cross-repository dependency preparation tooling 
 
 ## Build, Test, and Verification
 
+
+<!-- SDKWORK-VERIFICATION-ROUTING: v1 -->
+Choose only the narrowest verification selected by the changed surface. This is not a default full-suite command list.
+Run workspace-wide checks only when the change crosses that boundary.
+`bootstrap-*`, `align-*`, `sync-*`, `--write`, and other mutating repair commands are not verification defaults; use them only for an explicitly scoped repair, migration, bootstrap, or alignment task and inspect the resulting diff.
+<!-- /SDKWORK-VERIFICATION-ROUTING: v1 -->
+
 Use canonical root package scripts from `PNPM_SCRIPT_SPEC.md`:
 
 - `pnpm dev`: default PostgreSQL `standalone.development` browser dev workflow.
@@ -115,58 +144,25 @@ Run the narrowest relevant check first, then broader verification when API contr
 
 ## Agent Execution Rules
 
+
+<!-- SDKWORK-PROGRESSIVE-LOADING: v1 -->
+Use dynamic progressive loading for the current task; treat indexes and cross-references as discovery, not as a startup bundle.
+Keep `../sdkwork-specs/SOUL.md` and the task-selected standards authoritative; expand context only when evidence exposes a new contract boundary.
+Language-specific specs are on-demand: only the touched language loads `../sdkwork-specs/RUST_CODE_SPEC.md`, `../sdkwork-specs/JAVA_CODE_SPEC.md`, `../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md`, or `../sdkwork-specs/FRONTEND_CODE_SPEC.md`.
+Package command standardization loads `../sdkwork-specs/PNPM_SCRIPT_SPEC.md` only when the current task changes package commands or scripts; GitHub packaging work loads `../sdkwork-specs/GITHUB_WORKFLOW_SPEC.md` only when it reaches that workflow boundary.
+Do not infer a recursive workspace scan or a broad validation suite from the presence of a path alone.
+<!-- /SDKWORK-PROGRESSIVE-LOADING: v1 -->
+
 Use dynamic progressive loading and the convention dictionary instead of broad context loading. Do not hand-edit generated SDK output unless the source contract is verified. Do not replace generated SDK integration with raw HTTP. Do not preserve retired commands, copied workflow bodies, or legacy local guidance blocks. Record exact verification commands and important outputs before reporting completion.
 
-## HTTP API Response Envelope
+Human Review Rules
 
-All L2+ SDKWork-owned custom HTTP contracts, including `app-api`, `backend-api`, and SDKWork-owned business `open-api`, `MUST` follow `API_SPEC.md` section 4.5, section 14, and section 15:
+Request human review before breaking SDKWork standards, changing public naming, altering security/auth behavior, changing database migrations or production deployment config, deleting data/files, changing generated SDK ownership, or modifying release/deployment governance. Surface unresolved spec paths, app identity conflicts, component ownership conflicts, and API authority ambiguity instead of guessing.
 
-- **Default classification:** omitted `x-sdkwork-wire-protocol` means SDKWork-owned custom API (`sdkwork-v3`); only operation-level `x-sdkwork-wire-protocol: external` plus `x-sdkwork-external-protocol-id` identifies a third-party compatibility `open-api` operation.
-- **Input:** typed request bodies, section 14.1 list/search/command input, `SdkWorkListQuery`, and `q` for free-text search.
-- **Success output:** `SdkWorkApiResponse` with `{ "code": 0, "data": <payload>, "traceId": "<server-uuid>" }`.
-- **Error output:** HTTP 4xx/5xx `application/problem+json` (`ProblemDetail`) with numeric `code` and `traceId`.
-- Success `code` is numeric `int32`; HTTP 2xx JSON bodies `MUST` use `0` only. REST semantics remain on HTTP status (`201`, `202`, etc.).
-- Platform error codes are numeric non-zero values per section 15.3 (`40001`, `40101`, `40401`, …).
-- Single resource: `data.item`
-- Lists: `data.items` + `data.pageInfo` (`PageInfo.mode` is `offset` or `cursor`)
-- Commands: `data.accepted` plus optional `resourceId` / `status`
-- Async accept (`202`): `data.operationId`, `data.status`, optional `pollUrl`
-- Operation patterns: retrieve/list/search/create/update/delete/command/async/bulk semantics follow `API_SPEC.md` section 15.4; create uses `201`, delete uses `204` with no JSON body, and `PUT`/`PATCH` use SDK action `update`.
+## Task-Specific Standards
 
-Vendor compatibility `open-api` routes that mirror upstream tool or provider wire (for example OpenAI `/v1/*`, Anthropic/Claude `/anthropic/v1/*`, Google/Gemini `/google/v1beta/*`, Claude Code, or Codex) `MAY` opt out only when every exempt operation declares operation-level `x-sdkwork-wire-protocol: external` and `x-sdkwork-external-protocol-id` per `API_SPEC.md` section 4.5.2. SDKWork-owned business `open-api` operations `MUST NOT` opt out. Mixed OpenAPI documents are validated per operation; one external operation never exempts SDKWork-owned operations in the same document.
-
-Errors `MUST` use HTTP 4xx/5xx with `application/problem+json` (`ProblemDetail`) including required numeric `code` and `traceId`. Business failures `MUST NOT` use HTTP 2xx with non-zero `code`, string wire codes, `success`, or human `message`.
-
-Forbidden legacy envelopes and fields: `PlusApiResult`, `AppbaseApiResult`, `StoreApiResult`, `SdkWorkResponse`, per-domain `*ApiResult`, wire field `requestId`, bare domain DTOs at the HTTP root, and top-level `{ items, pageInfo, traceId }` without `data`.
-
-Handlers `MUST` serialize success and map errors through `sdkwork-web-framework` response mapping. Generated HTTP SDKs (`--standard-profile sdkwork-v3`) unwrap `data` by default and expose typed numeric `ProblemDetail.code` / `traceId` on errors; use `.raw` when the full envelope is required.
-
-Before completing API contract, SDK generation, or frontend service work, run:
-
-```bash
-node <sdkwork-specs>/tools/check-api-operation-patterns.mjs --workspace <workspace-root>
-node <sdkwork-specs>/tools/check-api-response-envelope.mjs --workspace <workspace-root>
-```
-
-Authority: `sdkwork-specs/API_SPEC.md` section 4.5 and sections 14–16, `SDK_SPEC.md` section 4.2, `FRONTEND_SPEC.md`, `MIGRATION_SPEC.md` section 4.2.
-
-## List And Search Pagination
-
-All L2+ list/search APIs and their backing services, repositories, SDK consumers, and interactive frontend lists `MUST` follow `PAGINATION_SPEC.md`:
-
-- **Input:** standard `SdkWorkListQuery` or query params (`page`/`page_size` or `cursor`/`page_size` per `API_SPEC.md` §14.1); default `page_size` `20`; max `200` unless a documented exception exists.
-- **Output:** `SdkWorkApiResponse.data.items` + `data.pageInfo` with `PageInfo.mode` (`offset` or `cursor`) per `API_SPEC.md` §16.
-- **Store-level pagination:** push filtering, sorting, and page selection to SQL `LIMIT`/keyset or incrementally maintained indexes — never unbounded collect then `skip`/`take`/`slice` in process memory (`PAGINATION_SPEC.md` §2).
-- **SDK and frontend:** interactive lists request one page at a time from the server; no default `listAll*` on P0/P1 paths; no client-side `slice` pagination over full downloads.
-
-Before completing list/search API, repository, SDK list helper, projection read model, or paginated UI work, run:
-
-```bash
-node <sdkwork-specs>/tools/check-pagination.mjs --workspace <workspace-root>
-```
-
-Authority: `PAGINATION_SPEC.md`, `API_SPEC.md` §14.1/§16, `DATABASE_SPEC.md` §20.5, `WEB_BACKEND_SPEC.md` §12, `SDK_SPEC.md` §4.2/§6, `FRONTEND_SPEC.md`, `APP_SDK_INTEGRATION_SPEC.md` §9.
+API work loads `../sdkwork-specs/API_SPEC.md` and its validators. List/search work loads `../sdkwork-specs/PAGINATION_SPEC.md` and `check-pagination.mjs`. Source configuration work loads `../sdkwork-specs/SOURCE_CONFIG_SPEC.md` and `check-source-config-standard.mjs`. Link these authorities instead of copying their normative bodies into `AGENTS.md`.
 
 ## Human Review Rules
 
-Request human review before breaking SDKWork standards, changing public naming, altering security/auth behavior, changing database migrations or production deployment config, deleting data/files, changing generated SDK ownership, or modifying release/deployment governance. Surface unresolved spec paths, app identity conflicts, component ownership conflicts, and API authority ambiguity instead of guessing.
+Require human review for breaking standards, security exceptions, naming migrations, public contract changes, destructive operations, and changes that affect all repositories or application roots.

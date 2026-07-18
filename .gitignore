@@ -3,6 +3,7 @@
 **/target/
 /target-alt/
 **/target-alt/
+/.container-artifacts/
 
 # Buf staging output when generate runs from apis/rpc instead of SDK workspaces
 /apis/rpc/generated/
@@ -88,3 +89,12 @@ config/*.local.toml
 **/.sdkwork/cache/
 **/.sdkwork/tmp/
 **/.sdkwork/dart/pub-cache/
+
+# Common runtime/build artifacts (auto-aligned)
+*.sqlite-shm
+*.sqlite-wal
+.turbo/
+**/.turbo/
+*.tsbuildinfo
+**/.cache/
+

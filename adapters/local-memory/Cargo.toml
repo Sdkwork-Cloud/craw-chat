@@ -5,10 +5,8 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+im-domain-core.workspace = true
 im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-storage-contracts = { path = "../../crates/im-storage-contracts" }
 im-time = { path = "../../crates/im-time" }
-
-[dev-dependencies]
-im-domain-core = { path = "../../crates/im-domain-core" }

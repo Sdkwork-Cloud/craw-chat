@@ -2,15 +2,16 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use im_domain_core::stream::{StreamFrame, StreamSessionState};
 use im_platform_contracts::{
     ContractError, ExpireOnlinePresenceStateCommand, PresenceStateRecord, PresenceStateStore,
-    StreamStateRecord, StreamStateStore,
+    StreamAppendOutcome, StreamCreateOutcome, StreamScope, StreamSessionRecord, StreamStateStore,
+    StreamTransitionOutcome,
 };
 use im_time::rfc3339_le;
 
 use crate::shared::{
-    principal_scope_key, read_json_records_or_default, scope_key, stream_scope_key,
-    update_json_records,
+    principal_scope_key, read_json_records_or_default, scope_key, update_json_records,
 };
 
 #[derive(Clone, Debug)]
@@ -31,46 +32,194 @@ impl FileStreamStateStore {
         self.file_path.as_path()
     }
 
-    fn read_records(&self) -> Result<BTreeMap<String, StreamStateRecord>, ContractError> {
+    fn read_records(&self) -> Result<PersistedStreamStateRecords, ContractError> {
         read_json_records_or_default(self.file_path.as_path(), "stream state store")
     }
 }
 
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+struct PersistedStreamStateRecords {
+    sessions: BTreeMap<String, StreamSessionRecord>,
+    frames: BTreeMap<String, BTreeMap<u64, StreamFrame>>,
+}
+
 impl StreamStateStore for FileStreamStateStore {
-    fn load_state(
+    fn check_ready(&self) -> Result<(), ContractError> {
+        let _guard = self
+            .io_lock
+            .lock()
+            .expect("stream state file store lock should lock");
+        self.read_records().map(|_| ())
+    }
+
+    fn load_session(
         &self,
-        tenant_id: &str,
-        stream_id: &str,
-    ) -> Result<Option<StreamStateRecord>, ContractError> {
+        scope: &StreamScope,
+    ) -> Result<Option<StreamSessionRecord>, ContractError> {
         let _guard = self
             .io_lock
             .lock()
             .expect("stream state file store lock should lock");
         Ok(self
             .read_records()?
-            .remove(stream_scope_key(tenant_id, stream_id).as_str()))
+            .sessions
+            .get(stream_record_key(scope).as_str())
+            .cloned())
     }
 
-    fn save_state(&self, record: StreamStateRecord) -> Result<(), ContractError> {
+    fn create_session(
+        &self,
+        record: StreamSessionRecord,
+        max_active_streams: u64,
+    ) -> Result<StreamCreateOutcome, ContractError> {
         let _guard = self
             .io_lock
             .lock()
             .expect("stream state file store lock should lock");
+        let mut outcome = None;
         update_json_records(
             self.file_path.as_path(),
             "stream state store",
-            |records: &mut BTreeMap<String, StreamStateRecord>| {
-                let key = stream_scope_key(record.tenant_id.as_str(), record.stream_id.as_str());
-                let next = records
-                    .remove(key.as_str())
-                    .map(|previous| previous.merge_monotonic(record.clone()))
-                    .unwrap_or(record);
-                records.insert(key, next);
+            |records: &mut PersistedStreamStateRecords| {
+                let key = stream_record_key(&record.scope);
+                if let Some(existing) = records.sessions.get(key.as_str()) {
+                    outcome = Some(StreamCreateOutcome::Existing(existing.clone()));
+                    return;
+                }
+                let active = records
+                    .sessions
+                    .values()
+                    .filter(|candidate| {
+                        candidate.scope.tenant_id == record.scope.tenant_id
+                            && candidate.scope.organization_id == record.scope.organization_id
+                            && !matches!(
+                                candidate.session.state,
+                                StreamSessionState::Completed
+                                    | StreamSessionState::Aborted
+                                    | StreamSessionState::Expired
+                            )
+                    })
+                    .count() as u64;
+                if active >= max_active_streams {
+                    outcome = Some(StreamCreateOutcome::CapacityExceeded);
+                    return;
+                }
+                records.sessions.insert(key, record.clone());
+                outcome = Some(StreamCreateOutcome::Applied(record.clone()));
             },
-        )
+        )?;
+        outcome.ok_or_else(|| ContractError::Unavailable("stream create outcome missing".into()))
     }
 
-    fn clear_state(&self, tenant_id: &str, stream_id: &str) -> Result<bool, ContractError> {
+    fn append_frame(
+        &self,
+        expected_version: u64,
+        next_session: StreamSessionRecord,
+        frame: StreamFrame,
+    ) -> Result<StreamAppendOutcome, ContractError> {
+        let _guard = self
+            .io_lock
+            .lock()
+            .expect("stream state file store lock should lock");
+        let mut outcome = None;
+        update_json_records(
+            self.file_path.as_path(),
+            "stream state store",
+            |records: &mut PersistedStreamStateRecords| {
+                let key = stream_record_key(&next_session.scope);
+                let Some(current) = records.sessions.get(key.as_str()).cloned() else {
+                    return;
+                };
+                if let Some(existing) = records
+                    .frames
+                    .get(key.as_str())
+                    .and_then(|frames| frames.get(&frame.frame_seq))
+                    .cloned()
+                {
+                    outcome = Some(StreamAppendOutcome::Existing {
+                        session: current,
+                        frame: existing,
+                    });
+                    return;
+                }
+                if current.version != expected_version {
+                    outcome = Some(StreamAppendOutcome::VersionConflict);
+                    return;
+                }
+                records
+                    .frames
+                    .entry(key.clone())
+                    .or_default()
+                    .insert(frame.frame_seq, frame.clone());
+                records.sessions.insert(key, next_session.clone());
+                outcome = Some(StreamAppendOutcome::Applied {
+                    session: next_session.clone(),
+                    frame: frame.clone(),
+                });
+            },
+        )?;
+        outcome.ok_or_else(|| ContractError::Invalid("stream session does not exist".into()))
+    }
+
+    fn transition_session(
+        &self,
+        expected_version: u64,
+        next_session: StreamSessionRecord,
+    ) -> Result<StreamTransitionOutcome, ContractError> {
+        let _guard = self
+            .io_lock
+            .lock()
+            .expect("stream state file store lock should lock");
+        let mut outcome = None;
+        update_json_records(
+            self.file_path.as_path(),
+            "stream state store",
+            |records: &mut PersistedStreamStateRecords| {
+                let key = stream_record_key(&next_session.scope);
+                if records
+                    .sessions
+                    .get(key.as_str())
+                    .map(|record| record.version)
+                    != Some(expected_version)
+                {
+                    outcome = Some(StreamTransitionOutcome::VersionConflict);
+                    return;
+                }
+                records.sessions.insert(key, next_session.clone());
+                outcome = Some(StreamTransitionOutcome::Applied(next_session.clone()));
+            },
+        )?;
+        outcome
+            .ok_or_else(|| ContractError::Unavailable("stream transition outcome missing".into()))
+    }
+
+    fn list_frames_after(
+        &self,
+        scope: &StreamScope,
+        after_frame_seq: u64,
+        page_size: usize,
+    ) -> Result<Vec<StreamFrame>, ContractError> {
+        let _guard = self
+            .io_lock
+            .lock()
+            .expect("stream state file store lock should lock");
+        let records = self.read_records()?;
+        Ok(records
+            .frames
+            .get(stream_record_key(scope).as_str())
+            .into_iter()
+            .flat_map(|frames| {
+                frames.range((
+                    std::ops::Bound::Excluded(after_frame_seq),
+                    std::ops::Bound::Unbounded,
+                ))
+            })
+            .take(page_size)
+            .map(|(_, frame)| frame.clone())
+            .collect())
+    }
+
+    fn clear_stream(&self, scope: &StreamScope) -> Result<bool, ContractError> {
         let _guard = self
             .io_lock
             .lock()
@@ -78,10 +227,10 @@ impl StreamStateStore for FileStreamStateStore {
         update_json_records(
             self.file_path.as_path(),
             "stream state store",
-            |records: &mut BTreeMap<String, StreamStateRecord>| {
-                records
-                    .remove(stream_scope_key(tenant_id, stream_id).as_str())
-                    .is_some()
+            |records: &mut PersistedStreamStateRecords| {
+                let key = stream_record_key(scope);
+                records.frames.remove(key.as_str());
+                records.sessions.remove(key.as_str()).is_some()
             },
         )
     }
@@ -258,9 +407,17 @@ impl PresenceStateStore for FilePresenceStateStore {
 }
 
 pub fn validate_stream_state_store_file(file_path: impl AsRef<Path>) -> Result<(), ContractError> {
-    let _: BTreeMap<String, StreamStateRecord> =
+    let _: PersistedStreamStateRecords =
         read_json_records_or_default(file_path.as_ref(), "stream state store")?;
     Ok(())
+}
+
+fn stream_record_key(scope: &StreamScope) -> String {
+    crate::shared::scope_key_parts(&[
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        scope.stream_id.as_str(),
+    ])
 }
 
 pub fn validate_presence_state_store_file(

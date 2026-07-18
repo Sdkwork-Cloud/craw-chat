@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sdkwork.com/schemas/im/sdkwork.deployment.config.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "application", "defaultProfile", "environments", "profiles"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "sdkwork.deployment-index" },
+    "application": { "const": "sdkwork-im" },
+    "defaultProfile": { "type": "string", "pattern": "^(standalone|cloud)\\.(development|test|staging|production)$" },
+    "environments": {
+      "type": "object",
+      "required": ["development", "test", "staging", "production"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(development|test|staging|production)$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["applicationOrigin", "cloudApiBaseUrl"],
+          "properties": {
+            "applicationOrigin": { "type": "string", "format": "uri" },
+            "cloudApiBaseUrl": { "type": "string", "format": "uri" }
+          }
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "minProperties": 8,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["config"],
+        "properties": { "config": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}

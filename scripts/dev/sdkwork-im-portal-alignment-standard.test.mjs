@@ -42,7 +42,7 @@ const infraStatusServiceText = readText(
   'InfraStatusService.ts',
 );
 const devGatewayConfigText = readText(
-  'configs',
+  'etc',
   'sdkwork-api-cloud-gateway.sdkwork-im.development.toml',
 );
 
@@ -68,8 +68,13 @@ assert.match(
 );
 assert.match(
   portalSnapshotsText,
-  /return -1;/u,
-  'portal governance health score must be -1 when audit data is unavailable',
+  /"governance"\s*=>[\s\S]*unavailable_availability\("audit",\s*"audit sample was not supplied"\)/u,
+  'portal governance must expose typed unavailable state when audit data is unavailable',
+);
+assert.doesNotMatch(
+  portalSnapshotsText,
+  /health_score|return -1;/u,
+  'portal governance must not publish a synthetic health score sentinel',
 );
 assert.match(
   portalHandlersText,
@@ -88,7 +93,7 @@ assert.match(
 );
 assert.match(
   dashboardServiceText,
-  /hasPortalMetrics/u,
+  /state:\s*snapshot\.availability\.state[\s\S]*metrics:\s*metrics\s*\?[\s\S]*:\s*\[\]/u,
   'console dashboard must gate activity trends on portal metric availability',
 );
 assert.match(
@@ -100,7 +105,7 @@ assert.match(
     'src',
     'ConsoleDashboard.tsx',
   ),
-  /暂无活跃度数据/u,
+  /暂无可验证运行指标/u,
   'console dashboard UI must render empty activity state instead of fake zero bars',
 );
 assert.match(

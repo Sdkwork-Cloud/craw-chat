@@ -99,16 +99,10 @@ assert.match(
   'Release build plan must bridge SDKWORK_COMMUNITY_REF into the shared SDK materializer ref for the community app SDK.',
 );
 
-assert.match(
-  devRunnerSource,
-  /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*explicitCommunityAppApiUpstream[\s\S]*SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM/u,
-  'PC dev runner must default sdkwork-community traffic through the shared gateway root while preserving explicit Community external upstream overrides.',
-);
-
-assert.match(
-  gatewayConfigSource,
-  /sdkwork-community-app-api[\s\S]*SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM[\s\S]*SDKWORK_COMMUNITY_APP_API_UPSTREAM[\s\S]*SDKWORK_COMMUNITY_APP_API_BASE_URL/u,
-  'Gateway config must expose deterministic sdkwork-community app-api upstream environment keys.',
+assert.doesNotMatch(
+  `${devRunnerSource}\n${gatewayConfigSource}`,
+  /explicitCommunityAppApiUpstream|SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM|SDKWORK_COMMUNITY_APP_API_UPSTREAM|SDKWORK_COMMUNITY_APP_API_BASE_URL/u,
+  'Community foundation traffic must use the platform assembly gateway without per-module upstream overrides.',
 );
 
 assert.match(
@@ -142,16 +136,10 @@ assert.equal(
   'sdkwork-community app API must route through the shared sdkwork-api-cloud-gateway root.',
 );
 
-const explicitExternalUpstreamEnvKeys =
-  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys?.['sdkwork-community-app-api'];
-assert.deepEqual(
-  explicitExternalUpstreamEnvKeys,
-  [
-    'SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM',
-    'SDKWORK_COMMUNITY_APP_API_UPSTREAM',
-    'SDKWORK_COMMUNITY_APP_API_BASE_URL',
-  ],
-  'component.spec.json must document community explicit external upstream env keys.',
+assert.equal(
+  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys,
+  undefined,
+  'component.spec.json must not publish per-module foundation upstream keys.',
 );
 
 assert.match(

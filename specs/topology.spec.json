@@ -3,7 +3,7 @@
   "kind": "sdkwork.app.topology",
   "appId": "sdkwork-im",
   "archetype": "realtime-application-platform",
-  "profileRoot": "configs/topology",
+  "profileRoot": "etc/topology",
   "profilePattern": "{deploymentProfile}.{environment}.env",
   "vocabulary": {
     "deploymentProfile": {
@@ -15,6 +15,7 @@
     "environment": {
       "allowed": [
         "development",
+        "test",
         "staging",
         "production"
       ]
@@ -35,12 +36,14 @@
     "gatewayBind": "127.0.0.1:18079"
   },
   "profileFiles": {
-    "standalone.development": "configs/topology/standalone.development.env",
-    "standalone.production": "configs/topology/standalone.production.env",
-    "cloud.production": "configs/topology/cloud.production.env",
-    "cloud.staging": "configs/topology/cloud.staging.env",
-    "cloud.development": "configs/topology/cloud.development.env",
-    "standalone.staging": "configs/topology/standalone.staging.env"
+    "standalone.development": "etc/topology/standalone.development.env",
+    "standalone.test": "etc/topology/standalone.test.env",
+    "standalone.production": "etc/topology/standalone.production.env",
+    "cloud.production": "etc/topology/cloud.production.env",
+    "cloud.staging": "etc/topology/cloud.staging.env",
+    "cloud.development": "etc/topology/cloud.development.env",
+    "cloud.test": "etc/topology/cloud.test.env",
+    "standalone.staging": "etc/topology/standalone.staging.env"
   },
   "envKeys": {
     "deploymentProfile": "SDKWORK_IM_DEPLOYMENT_PROFILE",
@@ -98,13 +101,13 @@
     "standaloneGateway": {
       "crate": "sdkwork-im-standalone-gateway",
       "binary": "sdkwork-im-standalone-gateway",
-      "configGlob": "configs/sdkwork-im-standalone-gateway.{profile}.toml"
+      "configGlob": "services/sdkwork-im-standalone-gateway/etc/sdkwork-im-standalone-gateway.{profile}.toml"
     },
     "cloudGateway": {
       "crate": "sdkwork-api-cloud-gateway",
       "binary": "sdkwork-api-cloud-gateway",
       "repository": "sdkwork-api-cloud-gateway",
-      "configGlob": "configs/sdkwork-api-cloud-gateway.sdkwork-im.{profile}.toml"
+      "configGlob": "etc/sdkwork-api-cloud-gateway.sdkwork-im.{profile}.toml"
     }
   },
   "orchestration": {
@@ -152,6 +155,27 @@
             "id": "pc-renderer",
             "package": "apps/sdkwork-im-pc",
             "script": "dev",
+            "required": true
+          }
+        ],
+        "healthSurfaces": [
+          "application.public-ingress",
+          "platform.api-gateway"
+        ]
+      },
+      "cloud.test": {
+        "processes": [
+          {
+            "id": "platform.api-gateway",
+            "crate": "sdkwork-api-cloud-gateway",
+            "binary": "sdkwork-api-cloud-gateway",
+            "repository": "sdkwork-api-cloud-gateway",
+            "required": true
+          },
+          {
+            "id": "application.public-ingress",
+            "crate": "sdkwork-im-cloud-gateway",
+            "binary": "sdkwork-im-server",
             "required": true
           }
         ],
@@ -226,6 +250,24 @@
           "application.public-ingress"
         ]
       },
+      "standalone.test": {
+        "processes": [
+          {
+            "id": "application.public-ingress",
+            "crate": "sdkwork-im-standalone-gateway",
+            "binary": "sdkwork-im-standalone-gateway",
+            "required": true
+          }
+        ],
+        "capabilitySubset": [
+          "application-http",
+          "application-websocket",
+          "platform-iam-adapter"
+        ],
+        "healthSurfaces": [
+          "application.public-ingress"
+        ]
+      },
       "standalone.production": {
         "processes": [
           {
@@ -272,6 +314,7 @@
       }
     }
   },
+  "apiDeploymentSpec": "im-api-deployment.spec.json",
   "cloudPublicHosts": {
     "application.public-ingress": {
       "httpHost": "im.sdkwork.com",
@@ -285,6 +328,8 @@
   "packaging": {
     "cloudConfigFiles": [
       "sdkwork-api-cloud-gateway.sdkwork-im.development.toml",
+      "sdkwork-api-cloud-gateway.sdkwork-im.test.toml",
+      "sdkwork-api-cloud-gateway.sdkwork-im.staging.toml",
       "sdkwork-api-cloud-gateway.sdkwork-im.production.toml"
     ],
     "targets": [

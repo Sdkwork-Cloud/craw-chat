@@ -9,6 +9,28 @@ fn test_session_gateway_lib_rs_stays_below_step02_redline() {
 }
 
 #[test]
+fn test_realtime_route_owner_clone_contract_cannot_default_to_runtime_panic() {
+    let websocket_source = include_str!("../src/websocket.rs").replace("\r\n", "\n");
+    let trait_source = websocket_source
+        .split("pub trait RealtimeRouteOwner")
+        .nth(1)
+        .expect("RealtimeRouteOwner trait should exist")
+        .split("#[derive(Clone, Copy, Debug, Default)]")
+        .next()
+        .expect("RealtimeRouteOwner trait should precede CcpWebsocketRuntime");
+
+    assert!(
+        trait_source
+            .contains("fn boxed_clone(&self) -> Box<dyn RealtimeRouteOwner + Send + Sync>;"),
+        "RealtimeRouteOwner implementors must provide the clone contract used by spawn_blocking"
+    );
+    assert!(
+        !trait_source.contains("unimplemented!") && !trait_source.contains("panic!("),
+        "RealtimeRouteOwner defaults must not defer a missing clone contract to a runtime panic"
+    );
+}
+
+#[test]
 fn test_session_gateway_cluster_disconnect_surface_moves_out_of_cluster_impl() {
     let cluster_source = include_str!("../src/cluster.rs");
 

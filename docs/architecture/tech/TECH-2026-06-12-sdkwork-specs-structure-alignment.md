@@ -25,7 +25,7 @@
 - Create: `jobs/README.md`
 - Create: `plugins/README.md`
 - Create: `examples/README.md`
-- Create: `configs/README.md`
+- Create: `etc/README.md`
 - Create: `tests/README.md`
 - Create: `apps/sdkwork-im-pc/AGENTS.md`
 - Create: `apps/sdkwork-im-pc/CODEX.md`

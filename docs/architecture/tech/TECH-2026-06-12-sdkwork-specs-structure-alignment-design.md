@@ -15,7 +15,7 @@ The current tree already has local SDKWORK entrypoints at the repository root, b
 structure exposes gaps:
 
 - Standard top-level capability directories such as `apis/`, `jobs/`, `plugins/`, `examples/`,
-  `configs/`, and `tests/` are missing.
+  `etc/`, and `tests/` are missing.
 - The repository root has `package.json` with `workspace:*` dependencies but no root
   `pnpm-workspace.yaml`.
 - `apps/sdkwork-chat-pc` is an independent application root with `sdkwork.app.config.json`, but it
@@ -100,4 +100,3 @@ this pass only. New packages should use the PC architecture naming target:
 The `.sdkwork/dart/pub-cache` entries have been removed from Git tracking with `git rm --cached`.
 Local cache files remain on disk and are ignored by the repository and `.sdkwork/` ignore rules.
 The workspace structure test now fails if these cache entries are tracked again.
-

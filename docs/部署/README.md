@@ -3,7 +3,7 @@
 Topology v4 是唯一的部署标准。权威来源：
 
 - `specs/topology.spec.json`
-- `configs/topology/*.env`
+- `etc/topology/*.env`
 - [TECH-topology-greenfield.md](../architecture/tech/TECH-topology-greenfield.md)
 
 ## 开发入口

@@ -133,6 +133,7 @@
     "@sdkwork/membership-app-sdk": "workspace:*",
     "@sdkwork/membership-service": "workspace:*",
     "@sdkwork/membership-sdk-ports": "workspace:*",
+    "@sdkwork/order-service": "workspace:*",
     "@sdkwork/mail-pc-core": "workspace:*",
     "@sdkwork/community-app-sdk": "workspace:*",
     "@sdkwork/course-app-sdk": "workspace:*",

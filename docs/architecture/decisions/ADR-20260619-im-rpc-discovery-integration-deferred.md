@@ -21,7 +21,7 @@ Sdkwork IM already ships:
 
 All three RPC hosts use `sdkwork-rpc-framework` (`sdkwork-rpc-server`, `sdkwork-rpc-discovery`, `sdkwork-rpc-client`, `sdkwork-rpc-core`) and support optional discovery registration via `SDKWORK_IM_DISCOVERY_ENDPOINT`. When the env var is unset, registration returns `Ok(None)` and the host runs in standalone mode.
 
-Cloud internal routing still uses static topology env vars (`configs/topology/`) as the primary fallback until Phase 2 discovery ships. Gateway upstream URLs currently cover HTTP only; RPC upstream configuration is deferred until business services consume RPC clients.
+Cloud internal routing still uses static topology env vars (`etc/topology/`) as the primary fallback until Phase 2 discovery ships. Gateway upstream URLs currently cover HTTP only; RPC upstream configuration is deferred until business services consume RPC clients.
 
 The sibling `sdkwork-discovery` product control plane remains available for Phase 2 integration.
 
@@ -60,7 +60,7 @@ Three hosted gRPC service processes shipped:
 All hosts:
 - Use `sdkwork-im-rpc-service-rust` dispatchers via `sdkwork-rpc-server`.
 - Support optional discovery registration via `SDKWORK_IM_DISCOVERY_ENDPOINT` (returns `Ok(None)` when unset).
-- Topology profiles document bind addresses in `configs/topology/`.
+- Topology profiles document bind addresses in `etc/topology/`.
 
 Gate: `cargo test -p sdkwork-im-rpc-service-rust`, `pnpm test:rpc-contract`.
 

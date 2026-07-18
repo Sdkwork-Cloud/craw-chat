@@ -1,0 +1,135 @@
+mode = "embedded"
+
+[service]
+name = "sdkwork-api-cloud-gateway"
+environment = "staging"
+
+[server]
+bind = "127.0.0.1:3900"
+
+[[dependencySurfaces]]
+serviceId = "sdkwork-iam-app-api"
+workspace = "sdkwork-appbase"
+sdkFamily = "sdkwork-iam-app-sdk"
+apiAuthority = "sdkwork-iam-app-api"
+surface = "app"
+apiPrefix = "/app/v3/api"
+runtimeMode = "embedded"
+sameOriginAllowed = true
+executableExport = "sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router"
+cargoFeature = "foundation-appbase"
+cargoDependency = "sdkwork_routes_iam_app_api"
+coverage = "appbase-iam-routes"
+
+[[dependencySurfaces]]
+serviceId = "sdkwork-im-im-http"
+workspace = "sdkwork-im"
+sdkFamily = "sdkwork-im-sdk"
+apiAuthority = "sdkwork-im-im-http"
+surface = "app"
+apiPrefix = "/im/v3/api"
+runtimeMode = "embedded"
+sameOriginAllowed = true
+executableExport = "sdkwork_im_gateway_assembly::assemble_application_router"
+cargoFeature = "foundation-im"
+cargoDependency = "sdkwork-im-gateway-assembly"
+coverage = "sdkwork-im-im-http-embedded-assembly-routes"
+
+[[dependencySurfaces]]
+serviceId = "sdkwork-im-im-http"
+workspace = "sdkwork-im"
+sdkFamily = "sdkwork-im-app-sdk"
+apiAuthority = "sdkwork-im-portal-http"
+surface = "app"
+apiPrefix = "/app/v3/api/portal"
+runtimeMode = "embedded"
+sameOriginAllowed = true
+executableExport = "sdkwork_im_gateway_assembly::assemble_application_router"
+cargoFeature = "foundation-im"
+cargoDependency = "sdkwork-im-gateway-assembly"
+coverage = "sdkwork-im-portal-http-embedded-assembly-routes"
+
+[[dependencySurfaces]]
+serviceId = "sdkwork-im-backend-http"
+workspace = "sdkwork-im"
+sdkFamily = "sdkwork-im-backend-sdk"
+apiAuthority = "sdkwork-im-backend-http"
+surface = "backend"
+apiPrefix = "/backend/v3/api/control"
+runtimeMode = "embedded"
+sameOriginAllowed = true
+executableExport = "sdkwork_im_gateway_assembly::assemble_application_router"
+cargoFeature = "foundation-im"
+cargoDependency = "sdkwork-im-gateway-assembly"
+coverage = "sdkwork-im-backend-http-embedded-assembly-routes"
+
+[[dependencySurfaces]]
+serviceId = "sdkwork-im-backend-http"
+workspace = "sdkwork-im"
+sdkFamily = "sdkwork-im-backend-sdk"
+apiAuthority = "sdkwork-im-backend-http"
+surface = "backend"
+apiPrefix = "/backend/v3/api/audit"
+runtimeMode = "embedded"
+sameOriginAllowed = true
+executableExport = "sdkwork_im_gateway_assembly::assemble_application_router"
+cargoFeature = "foundation-im"
+cargoDependency = "sdkwork-im-gateway-assembly"
+coverage = "sdkwork-im-backend-http-embedded-assembly-routes"
+
+[[dependencySurfaces]]
+serviceId = "sdkwork-im-backend-http"
+workspace = "sdkwork-im"
+sdkFamily = "sdkwork-im-backend-sdk"
+apiAuthority = "sdkwork-im-backend-http"
+surface = "backend"
+apiPrefix = "/backend/v3/api/ops"
+runtimeMode = "embedded"
+sameOriginAllowed = true
+executableExport = "sdkwork_im_gateway_assembly::assemble_application_router"
+cargoFeature = "foundation-im"
+cargoDependency = "sdkwork-im-gateway-assembly"
+coverage = "sdkwork-im-backend-http-embedded-assembly-routes"
+
+[cors]
+allowAnyOrigin = false
+allowedOrigins = ["https://im-staging.sdkwork.com", "https://api-staging.sdkwork.com"]
+
+[request]
+maxBodyBytes = 33554432
+
+[observability]
+accessLogEnabled = true
+auditLogEnabled = true
+metricsEnabled = true
+metricsPath = "/metrics"
+tracingEnabled = true
+redactHeaders = ["authorization", "access-token", "cookie", "x-api-key", "set-cookie"]
+
+[security]
+allowedHosts = ["api-staging.sdkwork.com"]
+trustedProxyCidrs = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+secureHeadersEnabled = true
+maxHeaderBytes = 65536
+maxHeaderCount = 128
+rejectCredentialHeadersOnAnonymousAuthRoutes = true
+csrfGuardEnabled = true
+
+[security.waf]
+enabled = true
+mode = "monitor"
+inspectQuery = true
+inspectHeaders = true
+inspectJsonBody = true
+
+[traffic]
+rateLimitEnabled = true
+compatXRateLimitHeaders = true
+globalMaxInFlight = 1024
+rateLimits = []
+concurrencyLimits = []
+
+[policy]
+enabled = true
+dryRun = false
+rules = []

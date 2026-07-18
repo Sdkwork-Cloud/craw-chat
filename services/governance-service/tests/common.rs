@@ -25,15 +25,6 @@ pub fn control_plane_write_request(
     control_plane_request_builder(method, uri, user_id, actor_kind, "control.write")
 }
 
-pub fn control_plane_read_request(
-    method: &str,
-    uri: &str,
-    user_id: &str,
-    actor_kind: &str,
-) -> Builder {
-    control_plane_request_builder(method, uri, user_id, actor_kind, "control.read")
-}
-
 pub fn control_plane_json_body(body: &str) -> Body {
     Body::from(body.to_owned())
 }

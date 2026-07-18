@@ -3,13 +3,23 @@
 Domain: communication
 Capability: chat
 Package type: rust-crate
-Status: standardizing
+Status: pre-GA production implementation
 
 This README is the SDKWork module entrypoint for `streaming-service`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../sdkwork-specs/`.
 
-## Public API
+## Responsibility
 
-- `.`
+`streaming-service` owns ordered application data streams at `/im/v3/api/streams/*`.
+It does not own RTC media transport or Drive media objects.
+
+The durable authority separates session metadata from frame rows. Every operation is scoped by
+`tenant_id`, `organization_id`, and `stream_id`. Session mutations use optimistic versions, frame
+append and session advancement commit in one PostgreSQL transaction, and duplicate frame sequence
+numbers return the stored frame so the service can distinguish replay from payload conflict.
+
+Frame reads use `frame_seq > cursor ORDER BY frame_seq LIMIT page_size + 1`. Neither reads nor
+writes load or rewrite the complete stream, and the production runtime does not retain an
+unbounded in-process session/frame mirror.
 
 ## Required SDK Surface
 
@@ -33,7 +43,10 @@ Extension points are limited to public exports, runtime entrypoints, SDK clients
 
 ## Verification
 
-- `cargo test --manifest-path apps/sdkwork-im/services/streaming-service/Cargo.toml`
+- `cargo test -p streaming-service`
+- `cargo test -p im-adapters-postgres-journal --test stream_state_live_integration_test -- --ignored --nocapture`
+- `pnpm run test:sqlite:smoke`
+- `pnpm run check:pagination`
 
 ## Owner And Status
 

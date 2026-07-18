@@ -39,8 +39,9 @@ assert.doesNotMatch(
 );
 
 const lib = readExists('adapters/social-postgres/src/lib.rs');
-assert.ok(
-  lib.includes('pub use materialize_writes::materialize_commits_in_transaction'),
+assert.match(
+  lib,
+  /pub use materialize_writes::\{[\s\S]*materialize_commits_in_transaction/u,
   'social-postgres lib must export materialize_commits_in_transaction',
 );
 

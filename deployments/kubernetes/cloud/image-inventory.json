@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "images": {
+    "audit-service": "ghcr.io/sdkwork/audit-service",
+    "automation-service": "ghcr.io/sdkwork/automation-service",
+    "conversation-service": "ghcr.io/sdkwork/conversation-service",
+    "governance-service": "ghcr.io/sdkwork/governance-service",
+    "im-gateway": "ghcr.io/sdkwork/chat-server",
+    "media-service": "ghcr.io/sdkwork/media-service",
+    "notification-service": "ghcr.io/sdkwork/notification-service",
+    "ops-service": "ghcr.io/sdkwork/ops-service",
+    "projection-service": "ghcr.io/sdkwork/projection-service",
+    "session-gateway": "ghcr.io/sdkwork/session-gateway",
+    "social-service": "ghcr.io/sdkwork/social-service",
+    "space-service": "ghcr.io/sdkwork/space-service",
+    "streaming-service": "ghcr.io/sdkwork/streaming-service"
+  }
+}

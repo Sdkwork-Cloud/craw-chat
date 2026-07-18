@@ -11,17 +11,16 @@ import {
   createOwnedProcessLifecycle,
   parseTcpPort,
   waitForOwnedHttpOk,
+  waitForOwnedServerPort,
 } from './sdkwork-im-pc-playwright-runner.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pcRoot = path.join(repoRoot, 'apps', 'sdkwork-im-pc');
 const distIndex = path.join(pcRoot, 'dist', 'index.html');
 const serverEntry = path.join(pcRoot, 'dist', 'server.cjs');
-const serverPort = parseTcpPort(
-  process.env.PLAYWRIGHT_PC_SMOKE_PORT ?? '3000',
-  'PLAYWRIGHT_PC_SMOKE_PORT',
-);
-const serverBaseUrl = `http://127.0.0.1:${serverPort}`;
+const configuredServerPort = process.env.PLAYWRIGHT_PC_SMOKE_PORT
+  ? parseTcpPort(process.env.PLAYWRIGHT_PC_SMOKE_PORT, 'PLAYWRIGHT_PC_SMOKE_PORT')
+  : 0;
 const lifecycle = createOwnedProcessLifecycle();
 const useProcessGroup = process.platform !== 'win32';
 
@@ -38,11 +37,13 @@ assert.equal(
 
 async function main() {
   await lifecycle.run(async ({ signal }) => {
-    await assertPortAvailable({
-      host: '0.0.0.0',
-      port: serverPort,
-      readinessHosts: ['127.0.0.1'],
-    });
+    if (configuredServerPort > 0) {
+      await assertPortAvailable({
+        host: '0.0.0.0',
+        port: configuredServerPort,
+        readinessHosts: ['127.0.0.1'],
+      });
+    }
     if (signal.aborted) {
       return;
     }
@@ -52,12 +53,14 @@ async function main() {
       env: {
         ...process.env,
         NODE_ENV: 'production',
-        PORT: String(serverPort),
+        PORT: String(configuredServerPort),
       },
       shell: false,
-      stdio: 'inherit',
+      stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
       windowsHide: true,
     }), { processGroup: useProcessGroup });
+    const serverPort = await waitForOwnedServerPort(server);
+    const serverBaseUrl = `http://127.0.0.1:${serverPort}`;
     const { body } = await waitForOwnedHttpOk({
       child: server,
       url: `${serverBaseUrl}/`,

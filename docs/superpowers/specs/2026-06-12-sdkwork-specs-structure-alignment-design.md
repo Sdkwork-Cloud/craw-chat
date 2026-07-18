@@ -12,7 +12,7 @@ The current tree already has local SDKWORK entrypoints at the repository root, b
 structure exposes gaps:
 
 - Standard top-level capability directories such as `apis/`, `jobs/`, `plugins/`, `examples/`,
-  `configs/`, and `tests/` are missing.
+  `etc/`, and `tests/` are missing.
 - The repository root has `package.json` with `workspace:*` dependencies but no root
   `pnpm-workspace.yaml`.
 - `apps/sdkwork-im-pc` is an independent application root with `sdkwork.app.config.json`, but it

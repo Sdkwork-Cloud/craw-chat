@@ -18,10 +18,13 @@ function readJson(...segments) {
 const sidebarSource = readText('packages', 'sdkwork-im-pc-chat', 'src', 'components', 'Sidebar.tsx');
 const capabilitySurfaceSource = readText('packages', 'sdkwork-im-pc-chat', 'src', 'surfaces', 'CapabilityModuleSurface.tsx');
 const moduleLayoutSource = readText('packages', 'sdkwork-im-pc-shell', 'src', 'moduleLayout.ts');
+const authGateSource = readText('src', 'AuthGate.tsx');
 const membershipIntegrationSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'membershipPcIntegration.ts');
 const tokenPlanPageSource = readText('packages', 'sdkwork-im-pc-token-plan', 'src', 'ImTokenPlanPage.tsx');
+const tokenPlanMemberSummarySource = readText('packages', 'sdkwork-im-pc-token-plan', 'src', 'tokenPlanMemberSummary.ts');
 const tokenPlanPackage = readJson('packages', 'sdkwork-im-pc-token-plan', 'package.json');
 const tokenPlanComponentSpec = readJson('packages', 'sdkwork-im-pc-token-plan', 'specs', 'component.spec.json');
+const imPcCoreComponentSpec = readJson('packages', 'sdkwork-im-pc-core', 'specs', 'component.spec.json');
 const indexCssSource = readText('src', 'index.css');
 const imCheckoutAdapterPath = path.join(
   appRoot,
@@ -30,7 +33,22 @@ const imCheckoutAdapterPath = path.join(
   'src',
   'ImTokenPlanCheckoutModal.tsx',
 );
+const imCheckoutAdapterSource = fs.readFileSync(imCheckoutAdapterPath, 'utf8');
 const workspaceSource = fs.readFileSync(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8');
+const rootComponentSpec = JSON.parse(fs.readFileSync(path.join(repoRoot, 'specs', 'component.spec.json'), 'utf8'));
+const topologySpec = JSON.parse(fs.readFileSync(path.join(repoRoot, 'specs', 'topology.spec.json'), 'utf8'));
+const cloudGatewayConstantsSource = fs.readFileSync(
+  path.join(repoRoot, 'services', 'sdkwork-im-cloud-gateway', 'src', 'constants.rs'),
+  'utf8',
+);
+const standaloneGatewayCargoSource = fs.readFileSync(
+  path.join(repoRoot, 'services', 'sdkwork-im-standalone-gateway', 'Cargo.toml'),
+  'utf8',
+);
+const standaloneDependencyRoutesSource = fs.readFileSync(
+  path.join(repoRoot, 'services', 'sdkwork-im-standalone-gateway', 'src', 'embedded_dependency_routes.rs'),
+  'utf8',
+);
 const subscriptionCatalogPageSource = fs.readFileSync(
   path.join(
     repoRoot,
@@ -92,6 +110,15 @@ const orderCheckoutStyleSource = fs.readFileSync(
   'utf8',
 );
 
+function assertSourceContainsInOrder(source, fragments, message) {
+  let cursor = 0;
+  for (const fragment of fragments) {
+    const index = source.indexOf(fragment, cursor);
+    assert.notEqual(index, -1, `${message} Missing fragment: ${fragment}`);
+    cursor = index + fragment.length;
+  }
+}
+
 assert.match(
   sidebarSource,
   /active=\{activeTab === "token-plan"\}[\s\S]*onTabChange\("token-plan"\)[\s\S]*<Crown/u,
@@ -99,8 +126,8 @@ assert.match(
 );
 assert.match(
   capabilitySurfaceSource,
-  /import\("@sdkwork\/im-pc-token-plan"\)[\s\S]*case "token-plan"[\s\S]*<ImTokenPlanPage/u,
-  'The Token Plan surface must be lazy-loaded from its IM adapter package.',
+  /import\("@sdkwork\/im-pc-token-plan"\)[\s\S]*case "token-plan"[\s\S]*<ImTokenPlanPage onNotify=\{showToast\}/u,
+  'The Token Plan surface must be lazy-loaded and connected to the IM notification host.',
 );
 assert.match(
   moduleLayoutSource,
@@ -112,15 +139,25 @@ assert.match(
   /@sdkwork\/membership-pc-subscription\/catalog/u,
   'The IM adapter must render the canonical Membership catalog.',
 );
-assert.doesNotMatch(
+assert.match(
   tokenPlanPageSource,
-  /ImTokenPlanCheckoutModal|checkoutModal|\bcomponents=\{/u,
-  'The IM page must not override the Membership default checkout host.',
+  /checkoutPort=\{getImHostedMembershipCheckoutService\(\)\}[\s\S]*components=\{imTokenPlanCatalogHostComponents\}/u,
+  'The IM composition adapter must inject the order-owned checkout port and UI into Membership.',
+);
+assertSourceContainsInOrder(
+  authGateSource,
+  ['navigate(buildAuthLoginPath(redirectTarget)', 'if (isAuthenticated) {', 'return children'],
+  'The IM auth gate must preserve the requested route and mount Token Plan only for authenticated sessions.',
+);
+assert.match(
+  tokenPlanMemberSummarySource,
+  /membershipTierKey:[\s\S]*pointBalance:\s*state\.dashboard\.summary\.pointBalance/u,
+  'The IM Token Plan member summary must expose both membership tier and point balance.',
 );
 assert.equal(
   fs.existsSync(imCheckoutAdapterPath),
-  false,
-  'IM must not retain a product-specific checkout adapter.',
+  true,
+  'IM must own the cross-capability checkout UI adapter outside Membership.',
 );
 assert.match(
   subscriptionCatalogPageSource,
@@ -132,10 +169,15 @@ assert.match(
   /checkoutModal:\s*SubscriptionCatalogCheckoutModal/u,
   'The Membership default host must register its checkout component.',
 );
-assert.match(
+assert.doesNotMatch(
   subscriptionCatalogHostComponentsSource,
   /<SdkworkOrderCheckoutDialog/u,
-  'The Membership default checkout host must delegate QR payment UI to Order.',
+  'The Membership default checkout host must not import or render Order UI.',
+);
+assert.match(
+  imCheckoutAdapterSource,
+  /@sdkwork\/order-pc-checkout[\s\S]*<SdkworkOrderCheckoutDialog/u,
+  'The IM composition adapter must own the Order checkout dialog integration.',
 );
 assert.match(
   orderCheckoutDialogSource,
@@ -149,8 +191,8 @@ assert.match(
 );
 assert.match(
   orderCheckoutStyleSource,
-  /\.sdkwork-order-checkout-dialog\s*\{[\s\S]*width:\s*min\(92vw,\s*52rem\)\s*!important[\s\S]*min-height:\s*min\(76vh,\s*43rem\)/u,
-  'The shared checkout dialog must keep a compact width with room for the structured payment flow.',
+  /\.sdkwork-order-checkout-dialog\s*\{[\s\S]*width:\s*min\(92vw,\s*52rem\)\s*!important[\s\S]*max-height:\s*min\(calc\(100dvh - 2rem\),\s*48rem\)/u,
+  'The shared checkout dialog must keep a compact width and viewport-bounded height.',
 );
 assert.match(
   orderCheckoutStyleSource,
@@ -169,8 +211,18 @@ assert.doesNotMatch(
 );
 assert.match(
   membershipIntegrationSource,
-  /bootstrapSdkworkOrderAppService\(\{[\s\S]*tokenManager/u,
-  'IM Membership bootstrap must initialize the Order app service with the shared IAM TokenManager.',
+  /getSdkworkChatGlobalTokenManager\(\)[\s\S]*bootstrapSdkworkOrderAppService\(\{[\s\S]*tokenManager[\s\S]*createSdkworkMembershipCheckoutService/u,
+  'IM composition must initialize Order with the global TokenManager and expose a Membership checkout port.',
+);
+assert.match(
+  membershipIntegrationSource,
+  /createMembershipAppSdkClientConfig[\s\S]*tokenManager:\s*getSdkworkChatGlobalTokenManager\(\)/u,
+  'The Membership SDK client must share the same IM global TokenManager as Order checkout.',
+);
+assert.doesNotMatch(
+  membershipIntegrationSource,
+  /import\s*\{[^}]*bootstrapSdkworkOrderAppService[^}]*\}\s*from '@sdkwork\/membership-service'/u,
+  'IM must never import Order bootstrap symbols from Membership.',
 );
 assert.match(
   membershipIntegrationSource,
@@ -190,20 +242,20 @@ for (const packageName of [
 }
 assert.equal(
   tokenPlanPackage.dependencies?.['@sdkwork/order-pc-checkout'],
-  undefined,
-  'The IM Token Plan package must consume the Order checkout only through Membership.',
+  'workspace:*',
+  'The IM composition adapter must declare its direct Order checkout UI dependency.',
 );
 assert.equal(
   tokenPlanPackage.dependencies?.['react-i18next'],
-  undefined,
-  'The IM Token Plan package must not retain the removed checkout adapter dependency.',
+  'catalog:',
+  'The IM checkout adapter must declare the translation runtime it consumes.',
 );
 assert.equal(
   tokenPlanComponentSpec.contracts.requiredPorts.some(
     (port) => port.name === 'orderCheckoutDialog',
   ),
-  false,
-  'The IM Token Plan component contract must not declare a direct Order checkout port.',
+  true,
+  'The IM composition adapter contract must declare the Order checkout dialog port.',
 );
 assert.equal(
   tokenPlanComponentSpec.contracts.requiredPorts.some(
@@ -226,6 +278,77 @@ assert.deepEqual(
   tokenPlanComponentSpec.contracts.dependencyApiSurfaces,
   [],
   'The IM Token Plan component must not mount dependency APIs.',
+);
+for (const workspace of ['sdkwork-membership-app-sdk', 'sdkwork-order-app-sdk']) {
+  assert.equal(
+    imPcCoreComponentSpec.contracts.sdkDependencies.some(
+      (dependency) => dependency.workspace === workspace
+        && dependency.surface === 'app-api'
+        && dependency.credentialMode === 'authenticated-app-api',
+    ),
+    true,
+    `IM PC core must declare ${workspace} in the authenticated SDK composition closure.`,
+  );
+  assert.equal(
+    rootComponentSpec.contracts.dependencyApiSurfaces.some(
+      (dependency) => dependency.workspace === workspace
+        && dependency.apiAuthority === workspace.replace('-sdk', '-api')
+        && dependency.targetRuntimeIntegration?.mode === 'shared-gateway',
+    ),
+    true,
+    `The IM application contract must route ${workspace} through the shared gateway.`,
+  );
+}
+for (const serviceId of [
+  'sdkwork-membership-app-api',
+  'sdkwork-order-app-api',
+  'sdkwork-payment-app-api',
+]) {
+  assert.equal(
+    rootComponentSpec.integration.foundationApiGateway.standaloneEmbeddedAuthorities.includes(serviceId),
+    true,
+    `Standalone Token Plan runtime must embed ${serviceId}.`,
+  );
+  assert.match(
+    cloudGatewayConstantsSource,
+    new RegExp(`"${serviceId}"`, 'u'),
+    `Cloud Token Plan routing must register ${serviceId}.`,
+  );
+}
+for (const dependency of [
+  ['membership', 'sdkwork-membership'],
+  ['order', 'sdkwork-order'],
+  ['payment', 'sdkwork-payment'],
+]) {
+  const [capability, crateStem] = dependency;
+  assertSourceContainsInOrder(
+    standaloneGatewayCargoSource,
+    [`${crateStem}-gateway-assembly`, `${crateStem}-service-host`],
+    `Standalone Token Plan runtime must link ${capability} gateway assembly and service host crates.`,
+  );
+  assertSourceContainsInOrder(
+    standaloneDependencyRoutesSource,
+    [
+      `merge_embedded_dependency(router, "${capability}"`,
+      `${crateStem.replaceAll('-', '_')}_gateway_assembly::assemble_application_router`,
+    ],
+    `Standalone Token Plan runtime must mount the ${capability} application router in-process.`,
+  );
+}
+assert.deepEqual(
+  topologySpec.vocabulary.deploymentProfile.allowed,
+  ['standalone', 'cloud'],
+  'Token Plan must remain available under both canonical IM deployment profiles.',
+);
+assert.equal(
+  topologySpec.envKeys.clientApiGatewayBaseUrl,
+  'VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL',
+  'Both deployment profiles must resolve Token Plan SDK traffic through the platform API gateway root.',
+);
+assert.doesNotMatch(
+  [tokenPlanPageSource, membershipIntegrationSource, standaloneDependencyRoutesSource].join('\n'),
+  /clawrouter|claw-router|claw_router/iu,
+  'IM Token Plan integration must not depend on ClawRouter business code or SDKs.',
 );
 for (const workspacePath of [
   'sdkwork-membership-pc-membership',

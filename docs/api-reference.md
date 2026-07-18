@@ -29,13 +29,12 @@ Architecture decision: [ADR-20260617-comms-service-naming-boundaries](../archite
 Reactions, pins, threads, and conversation settings are **`chat` resources** under
 `/im/v3/api/chat/conversations/...` and `/im/v3/api/chat/messages/...`, not a separate interactions namespace.
 
-## Deprecated surfaces
+## Rejected non-canonical surfaces
 
-| Legacy name | Status | Replacement |
+| Rejected path | Canonical authority |
 | --- | --- | --- |
-| `contact-service` HTTP routes | Deprecated library scaffold | `social-service` / `comms-social-service` on `/im/v3/api/social/*` |
-| `interaction-service` HTTP routes | Deprecated | `chat` tag paths in OpenAPI |
-| `/api/v1/contacts/*`, `/api/v1/spaces/*`, `/api/v1/interactions/*` | Non-canonical documentation only | `/im/v3/api/*` per OpenAPI |
+| `/api/v1/contacts/*`, `/api/v1/spaces/*`, `/api/v1/interactions/*` | `/im/v3/api/*` per OpenAPI |
+| `/im/v3/api/interactions/*` | `chat` resources in `sdkwork-im-im.openapi.yaml` |
 
 ## Gateway
 
@@ -48,8 +47,3 @@ Reactions, pins, threads, and conversation settings are **`chat` resources** und
 ```bash
 node sdks/materialize-im-v3-openapi-boundaries.mjs
 ```
-
-## Legacy note
-
-Older drafts of this file described a proposed `/api/v1` DDD layout. That layout was never the runtime
-contract. Use OpenAPI and the ADR above as the only source of truth for path naming.

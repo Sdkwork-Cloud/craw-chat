@@ -46,7 +46,7 @@ export interface SdkworkChatSessionChangedDetail {
 export type SdkworkChatRequestContext = Partial<SdkworkChatAppContext>;
 
 const SDKWORK_IM_SESSION_KEY = 'sdkwork-im-pc:session:v1';
-const SDKWORK_IM_LEGACY_SESSION_STORAGE_KEY = 'sdkwork-im-pc:session:v1';
+const SDKWORK_IM_LEGACY_LOCAL_STORAGE_KEY = 'sdkwork-im-pc:session:v1';
 export const SDKWORK_IM_SESSION_CHANGED_EVENT = 'sdkwork-im-pc:auth-session-changed';
 
 let sdkworkChatGlobalTokenManager: AuthTokenManager | null = null;
@@ -62,21 +62,10 @@ function readPersistedSessionRawValue(): string | null {
     return null;
   }
 
-  migrateLegacySessionStorage();
-  const localStorage = getLocalStorage();
-  const durableValue = localStorage?.getItem(SDKWORK_IM_SESSION_KEY) ?? null;
-  if (durableValue) {
-    persistedSessionRawValueCache = durableValue;
-    return durableValue;
-  }
-
-  const legacyValue = getSessionStorage()?.getItem(SDKWORK_IM_SESSION_KEY) ?? null;
-  if (legacyValue) {
-    localStorage?.setItem(SDKWORK_IM_SESSION_KEY, legacyValue);
-    getSessionStorage()?.removeItem(SDKWORK_IM_SESSION_KEY);
-  }
-  persistedSessionRawValueCache = legacyValue;
-  return legacyValue;
+  migrateLegacyLocalStorage();
+  const value = getSessionStorage()?.getItem(SDKWORK_IM_SESSION_KEY) ?? null;
+  persistedSessionRawValueCache = value;
+  return value;
 }
 
 function handleDesktopSessionPersistError(operation: string, error: unknown): void {
@@ -93,8 +82,8 @@ function writePersistedSessionRawValue(value: string): void {
     return;
   }
 
-  getLocalStorage()?.setItem(SDKWORK_IM_SESSION_KEY, value);
-  getSessionStorage()?.removeItem(SDKWORK_IM_SESSION_KEY);
+  getSessionStorage()?.setItem(SDKWORK_IM_SESSION_KEY, value);
+  getLocalStorage()?.removeItem(SDKWORK_IM_LEGACY_LOCAL_STORAGE_KEY);
 }
 
 function removePersistedSessionRawValue(): void {
@@ -107,7 +96,7 @@ function removePersistedSessionRawValue(): void {
   }
 
   getSessionStorage()?.removeItem(SDKWORK_IM_SESSION_KEY);
-  getLocalStorage()?.removeItem(SDKWORK_IM_LEGACY_SESSION_STORAGE_KEY);
+  getLocalStorage()?.removeItem(SDKWORK_IM_LEGACY_LOCAL_STORAGE_KEY);
 }
 
 export async function hydrateAppSdkSessionFromSecureStorage(): Promise<void> {
@@ -115,7 +104,7 @@ export async function hydrateAppSdkSessionFromSecureStorage(): Promise<void> {
     return;
   }
 
-  migrateLegacySessionStorage();
+  migrateLegacyLocalStorage();
   const secureValue = await readDesktopSecureSessionRawValue();
   if (secureValue) {
     persistedSessionRawValueCache = secureValue;
@@ -124,7 +113,7 @@ export async function hydrateAppSdkSessionFromSecureStorage(): Promise<void> {
   }
 
   const legacyValue = getSessionStorage()?.getItem(SDKWORK_IM_SESSION_KEY)
-    ?? getLocalStorage()?.getItem(SDKWORK_IM_LEGACY_SESSION_STORAGE_KEY)
+    ?? getLocalStorage()?.getItem(SDKWORK_IM_LEGACY_LOCAL_STORAGE_KEY)
     ?? null;
   if (!legacyValue) {
     persistedSessionRawValueCache = null;
@@ -138,7 +127,7 @@ export async function hydrateAppSdkSessionFromSecureStorage(): Promise<void> {
 
 function removePersistedSessionRawValueFromWebStorageOnly(): void {
   getSessionStorage()?.removeItem(SDKWORK_IM_SESSION_KEY);
-  getLocalStorage()?.removeItem(SDKWORK_IM_LEGACY_SESSION_STORAGE_KEY);
+  getLocalStorage()?.removeItem(SDKWORK_IM_LEGACY_LOCAL_STORAGE_KEY);
 }
 
 function getLocalStorage(): Storage | undefined {
@@ -155,20 +144,22 @@ function getSessionStorage(): Storage | undefined {
   return window.sessionStorage;
 }
 
-function migrateLegacySessionStorage(): void {
+function migrateLegacyLocalStorage(): void {
   const sessionStorage = getSessionStorage();
   const localStorage = getLocalStorage();
   if (!sessionStorage || !localStorage) {
     return;
   }
 
-  const legacyValue = sessionStorage.getItem(SDKWORK_IM_SESSION_KEY);
-  if (!legacyValue || localStorage.getItem(SDKWORK_IM_SESSION_KEY)) {
+  const legacyValue = localStorage.getItem(SDKWORK_IM_LEGACY_LOCAL_STORAGE_KEY);
+  if (!legacyValue) {
     return;
   }
 
-  localStorage.setItem(SDKWORK_IM_SESSION_KEY, legacyValue);
-  sessionStorage.removeItem(SDKWORK_IM_SESSION_KEY);
+  if (!sessionStorage.getItem(SDKWORK_IM_SESSION_KEY)) {
+    sessionStorage.setItem(SDKWORK_IM_SESSION_KEY, legacyValue);
+  }
+  localStorage.removeItem(SDKWORK_IM_LEGACY_LOCAL_STORAGE_KEY);
 }
 
 function dispatchAppSdkSessionChanged(session: SdkworkChatSession | null): void {

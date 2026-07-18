@@ -1,48 +1,50 @@
-﻿# Deployments
+# Deployments
 
 ## Purpose
 
-Deployment descriptors, environment topology, packaging handoff files, infrastructure examples, and
-deployment runbooks for Sdkwork IM.
+This directory owns SDKWork IM deployment descriptors, non-secret configuration templates, container
+packaging contracts, observability resources, and service-manager examples.
 
-## Topology v2
+The default development profile is `standalone.development` through `pnpm dev`. Production server and
+cloud profiles use PostgreSQL. Desktop SQLite is an application-owned bounded offline cache and is not a
+server persistence alternative.
 
-- Machine contract: [../specs/topology.spec.json](../specs/topology.spec.json)
-- Profile env files: [../configs/topology/](../configs/topology/)
-- Greenfield plan: [../docs/topology-greenfield.md](../docs/topology-greenfield.md)
-- Deployment docs: [../docs/閮ㄧ讲/README.md](../docs/閮ㄧ讲/README.md)
-
-Default development profile: `standalone.development` via `pnpm dev`.
-Application ingress bind: `127.0.0.1:18079` (from profile env, not hardcoded in services).
-
-Retired compose files and `bin/*-local.*` lifecycle scripts are removed; see topology-greenfield
-delete list.
+Cloud Kubernetes source templates are under `kubernetes/cloud/`. They are not directly deployable:
+release automation must replace every template tag with a build-produced OCI digest through
+`scripts/release/materialize-sdkwork-im-kubernetes.mjs`. See `kubernetes/README.md` for the fail-closed
+workflow.
 
 ## Owner
 
-SDKWork Chat maintainers.
+SDKWork IM maintainers.
 
 ## Allowed Content
 
-- Docker, Kubernetes, systemd, nginx, release handoff, and topology documentation.
-- Docker server image: [docker/sdkwork-im-server.Dockerfile](docker/sdkwork-im-server.Dockerfile)
-- Kubernetes reference manifests under `kubernetes/` for cloud cloud-service profiles.
-- Deployment examples and non-secret environment templates.
-- Runbooks for SaaS, private, local, and packaged deployment modes.
+- Docker and Kubernetes packaging contracts and non-secret templates.
+- systemd, launchd, and Windows service descriptors.
+- Observability collectors, alert rules, dashboards, and runbooks.
+- Deployment documentation and topology handoff examples.
 
 ## Forbidden Content
 
-- Live secrets, private keys, local override files, runtime databases, mutable service state, logs,
-  caches, or user-private config.
+- Runtime secrets, private keys, local configuration overrides, or credentials.
+- Databases, mutable service state, logs, caches, or generated release bundles.
+- Kubernetes release output that still uses mutable image tags.
+- Fabricated image digests, checksums, SBOM, provenance, signatures, or cluster evidence.
 
 ## Related Specs
 
 - `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`
 - `../sdkwork-specs/DEPLOYMENT_SPEC.md`
 - `../sdkwork-specs/RELEASE_SPEC.md`
-- `../sdkwork-specs/RUNTIME_DIRECTORY_SPEC.md`
+- `../sdkwork-specs/CONFIG_SPEC.md`
+- `../sdkwork-specs/SUPPLY_CHAIN_SECURITY_SPEC.md`
 
 ## Verification
 
-Run deployment-specific checks and `pnpm run test:sdkwork-workspace-structure-standard` after root
-layout changes.
+```bash
+pnpm run test:commercial-deployment-contract
+pnpm run test:kubernetes-release-materializer
+pnpm run test:production-security-standard
+pnpm run test:k8s-secret-guard
+```

@@ -138,14 +138,9 @@ pub trait RealtimeRouteOwner: Send + Sync {
 
     fn release_active_client_route_if_current_session(&self, auth: &AppContext, device_id: &str);
 
-    /// Clone the owner into an owned trait object so it can be moved into a
-    /// `spawn_blocking` task. The default implementation panics; implementors
-    /// that participate in blocking route-session checks must override this.
-    fn boxed_clone(&self) -> Box<dyn RealtimeRouteOwner + Send + Sync> {
-        unimplemented!(
-            "boxed_clone not implemented for this RealtimeRouteOwner; route-session checks cannot be moved to spawn_blocking"
-        )
-    }
+    /// Clone the owner into an owned trait object so route-session checks can
+    /// be moved into `spawn_blocking` without borrowing the WebSocket task.
+    fn boxed_clone(&self) -> Box<dyn RealtimeRouteOwner + Send + Sync>;
 }
 
 #[derive(Clone, Copy, Debug, Default)]

@@ -22,9 +22,10 @@ durable telemetry export, direct capacity/DR evidence, and all commercial releas
 - **Multi-Tenant Isolation**: Every organization-scoped table enforces `(tenant_id, organization_id)` composite keys with `NOT NULL DEFAULT '0'` and CHECK constraints preventing empty values.
 - **Contract-First**: OpenAPI authorities under `apis/` drive SDK generation for 9 languages; no hand-written HTTP clients in consumers.
 - **High Availability Runtime**: Gateway and session services support horizontal scaling; disconnect
-  fence and presence state use Redis-backed storage in HA topologies. Reference Kubernetes manifests
-  are not release-ready until immutable images, placement constraints, autoscaling signals, and
-  durable observability are verified in the target cluster.
+  fence and presence state use Redis-backed storage in HA topologies. Kubernetes templates implement
+  rolling availability, host/zone spread, PDBs, HPAs, bounded termination, and digest-only release
+  materialization. Real registry digests, durable telemetry, rollout and rollback results, and target-
+  cluster evidence remain release blockers.
 - **Defense in Depth**: Trusted-proxy IP validation, per-service circuit breakers, bounded rate limiter memory, one edge per-IP limiter per gateway ingress, post-auth per-tenant limiting, and Docker/Kubernetes `_FILE` secret injection.
 - **Production Safety Baseline**: Graceful shutdown, connection draining, health probes, and bounded
   runtime capacity controls are implemented. These controls are necessary but insufficient for a
@@ -175,7 +176,7 @@ Contact directory and friend request management with `organization_id`-scoped qu
 | `audit-service` | Compliance audit trail. |
 | `governance-service` | Policy enforcement loop. |
 | `im-calls-service` | RTC call signaling lifecycle (`create`/`retrieve`/`invite`/`accept`/`reject`/`end`/`signals`/`credentials`), credential issuance, provider handoff to `../sdkwork-rtc`. **Architecture**: Uses `DashMap` for lock-free concurrent session storage with epoch-based fencing (`RtcSession.epoch: u64`) to reject stale concurrent writes. Each state transition increments epoch atomically via `AtomicU64::fetch_add`. Persistence layer (`RtcStateStore.save_state`) compares epoch before merging: higher epoch wins, equal epochs merge monotonically. Participant authorization enforced per SECURITY_SPEC §4.2. |
-| `streaming-service` | Media streaming. |
+| `streaming-service` | Ordered application-data stream sessions and frames; PostgreSQL CAS authority with organization-scoped keyset frame pagination. RTC media remains owned by `../sdkwork-rtc`. |
 | `space-service` | Workspace/space management. |
 
 ## 3. Data Architecture
@@ -393,7 +394,7 @@ Conversation preferences and message favorites are hot-path in-memory projection
 
 ### 6.2 Environment Topology
 
-Static topology configuration in `configs/topology/` maps upstream service URLs. In Phase 2, this will be replaced by `sdkwork-discovery` service discovery.
+Static topology configuration in `etc/topology/` maps upstream service URLs. In Phase 2, this will be replaced by `sdkwork-discovery` service discovery.
 
 #### Managed Group Knowledgebase Preconditions
 
@@ -409,6 +410,7 @@ must be supplied by the owning environment before activation.
 ### 6.3 Database
 
 - **PostgreSQL**: Production, staging, and default development IM persistence authority (schema in `database/ddl/baseline/postgres/`)
+- **Stream authority**: `im_stream_sessions` is versioned by `(tenant_id, organization_id, stream_id)` and `im_stream_frames` is append-only by frame sequence. Create capacity checks serialize per tenant/organization, append locks the session row and commits the new frame plus session high-water mark atomically, state transitions use bounded compare-and-set retries, and frame history is read with SQL keyset `LIMIT`. The runtime keeps no unbounded stream snapshot cache and never reloads or rewrites all frames for a mutation. `/readyz` probes the authoritative store; `/metrics` exports low-cardinality append latency, CAS conflict, retry exhaustion, capacity rejection, store failure, readiness failure, and bounded page-volume counters.
 - **Server SQLite compatibility baseline**: Lifecycle validation and standalone gateway/sibling-module co-location checks only (schema in `database/ddl/baseline/sqlite/`); it is not PostgreSQL parity, and IM journal, projections, social materializer, and message search do not use SQLite as production persistence
 - **PC desktop SQLite**: A separate application-data database owned by the Tauri host is a bounded offline cache and pending-send queue, never a server source of truth. Schema v3 scopes every row by tenant, organization, principal kind, and principal id. Conversation, message, and cursor cache rows have TTL, row-count, and logical-byte budgets; pending sends have separate row/byte limits, a 60-second claim lease, claim-token fenced acknowledge/release/quarantine transitions, and a bounded 30-day corrupt-payload quarantine.
 - Desktop SQLite work runs on the Tauri blocking pool behind one serialized connection with WAL, `synchronous=NORMAL`, foreign keys, a bounded busy timeout, and WAL autocheckpointing. Logout/account switch purges cache rows after awaiting completion while preserving unsent rows; an opaque server history cursor is never persisted or parsed as sequence arithmetic by the PC UI.
@@ -421,7 +423,9 @@ must be supplied by the owning environment before activation.
   task; build success is not capacity evidence.
 - Both DDL files are consolidated baselines with `organization_id` dual isolation from Migration 010+
 - SQLite DDL uses SQLite-compatible syntax: `TEXT` for JSONB/TIMESTAMPTZ, `json_valid()` CHECK constraints, no `DO $$`/`pg_constraint`/`USING GIN`
-- Pre-GA migrations in `database/migrations/{postgres,sqlite}/` currently cover conversation-id rewriting and managed group Knowledgebase binding; baseline DDL remains the greenfield authority
+- Pre-GA migrations in `database/migrations/{postgres,sqlite}/` currently cover conversation-id rewriting,
+  managed group Knowledgebase binding, and Stream transactional authority/version indexing; baseline DDL
+  remains the greenfield authority
 - All migrations are idempotent and safe to re-execute
 
 ## 7. Observability
@@ -450,6 +454,8 @@ must be supplied by the owning environment before activation.
 | Gateway OpenAPI aggregation | `cargo test -p sdkwork-im-cloud-gateway --test openapi_index_test -- --nocapture` | Self-reference skip, aggregate cache, single-flight refresh |
 | Database naming | `pnpm test scripts/dev/sdkwork-im-database-naming-standard.test.mjs` | DDL convention compliance |
 | Runtime ID | `pnpm test scripts/dev/sdkwork-im-runtime-id-standard.test.mjs` | Snowflake ID format |
+| Stream transactional authority | `pnpm run test:stream-transactional-authority-standard` | Organization scope, CAS, keyset LIMIT, readiness, metrics, live PostgreSQL test presence |
+| Immutable Kubernetes release | `pnpm run test:kubernetes-release-materializer` | Complete digest lock and checksummed manifest materialization |
 | Full verify | `pnpm verify` | All checks |
 
 ## 10. Gateway Protection Configuration Reference
@@ -474,7 +480,7 @@ must be supplied by the owning environment before activation.
 
 ### 10.1 Topology Env Lint Guard
 
-`scripts/dev/sdkwork-im-topology-env-lint.test.mjs` validates every `.env` file under `configs/topology/` to prevent production fail-closed guard regressions:
+`scripts/dev/sdkwork-im-topology-env-lint.test.mjs` validates every `.env` file under `etc/topology/` to prevent production fail-closed guard regressions:
 
 - Each `KEY=VALUE` pair occupies its own line (no concatenated entries joined by bare `\r`).
 - No inline `KEY=VALUE1KEY2=VALUE2` concatenations.

@@ -21,7 +21,13 @@ const CAPABILITY_MODULE_LOADERS: Record<string, CapabilityModuleLoader> = {
       import('@sdkwork/im-pc-core'),
     ]);
     imCore.ensureKnowledgebasePcRuntimeOnModule(knowledgebaseModule.configureKnowledgebasePcRuntime);
-    return { default: knowledgebaseModule.KnowledgeView };
+    const KnowledgebaseCapability: React.FC = () => React.createElement(
+      knowledgebaseModule.KnowledgebaseHostSurface,
+      {
+        presentationMode: knowledgebaseModule.resolveKnowledgebaseHostPresentationMode(),
+      },
+    );
+    return { default: KnowledgebaseCapability };
   },
   community: () => import('@sdkwork/im-pc-community').then((module) => ({ default: module.CommunityView })),
   voice: async () => {

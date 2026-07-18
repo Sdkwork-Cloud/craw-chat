@@ -320,7 +320,6 @@ for (const relativePath of [
   'services/social-service/src/http.rs',
   'services/social-service/src/postgres/http.rs',
   'services/space-service/src/http.rs',
-  'services/interaction-service/src/http.rs',
   'services/sdkwork-comms-conversation-service/src/runtime/http.rs',
   'services/session-gateway/src/lib.rs',
   'services/audit-service/src/lib.rs',

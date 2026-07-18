@@ -3,10 +3,14 @@ use std::sync::Arc;
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, State};
 use axum::http::Request;
+use axum::http::header::CONTENT_TYPE;
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
+use sdkwork_im_web_bootstrap::{
+    im_service_http_metrics, im_service_router_config, mount_im_infra_routes,
+};
+use sdkwork_web_bootstrap::{ReadinessCheck, ReadinessFuture};
 use sdkwork_web_core::WebRequestContext;
 use tokio::sync::Semaphore;
 
@@ -24,6 +28,22 @@ use crate::state::{AppState, StreamingRuntime};
 #[derive(Clone)]
 struct PublicAppGuardrails {
     request_gate: Arc<Semaphore>,
+}
+
+#[derive(Clone)]
+struct StreamStoreReadiness {
+    runtime: Arc<StreamingRuntime>,
+}
+
+impl ReadinessCheck for StreamStoreReadiness {
+    fn check(&self) -> ReadinessFuture<'_> {
+        let runtime = self.runtime.clone();
+        Box::pin(async move {
+            tokio::task::spawn_blocking(move || runtime.check_store_ready())
+                .await
+                .map_err(|error| format!("stream readiness task failed: {error}"))?
+        })
+    }
 }
 
 pub fn build_default_app() -> Router {
@@ -62,22 +82,53 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router(default_streaming_runtime())),
-        im_service_router_config(),
+    let runtime = default_streaming_runtime();
+    mount_stream_infra_routes(
+        apply_public_http_guardrails(build_business_router(runtime.clone())),
+        runtime,
     )
 }
 
 pub fn build_app(runtime: Arc<StreamingRuntime>) -> Router {
-    mount_im_infra_routes(build_business_router(runtime), im_service_router_config())
+    mount_stream_infra_routes(build_business_router(runtime.clone()), runtime)
 }
 
 fn build_business_router(runtime: Arc<StreamingRuntime>) -> Router {
     let state = AppState { runtime };
+    let metrics_runtime = state.runtime.clone();
     Router::new()
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
+        .route(
+            "/metrics",
+            get(move || {
+                let runtime = metrics_runtime.clone();
+                async move {
+                    let mut body = im_service_http_metrics().render_prometheus();
+                    body.push_str(&runtime.render_runtime_metrics_prometheus());
+                    (
+                        [(CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")],
+                        body,
+                    )
+                }
+            }),
+        )
         .merge(build_domain_api_router(state))
+}
+
+fn mount_stream_infra_routes(router: Router, runtime: Arc<StreamingRuntime>) -> Router {
+    let mut config = im_service_router_config();
+    let mut readiness_checks = Vec::new();
+    if let Some(environment_readiness) = config.readiness.take() {
+        readiness_checks.push(environment_readiness);
+    }
+    readiness_checks.push(Arc::new(StreamStoreReadiness { runtime }));
+    mount_im_infra_routes(
+        router,
+        config
+            .skip_metrics()
+            .with_composite_readiness(readiness_checks),
+    )
 }
 
 async fn enforce_in_flight_gate(

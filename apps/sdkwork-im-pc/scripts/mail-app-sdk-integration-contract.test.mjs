@@ -87,16 +87,10 @@ assert.match(
   'Release build plan must bridge SDKWORK_MAIL_REF into the shared SDK materializer ref for the mail app SDK.',
 );
 
-assert.match(
-  devRunnerSource,
-  /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*explicitMailAppApiUpstream[\s\S]*SDKWORK_IM_MAIL_APP_API_UPSTREAM/u,
-  'PC dev runner must default sdkwork-mail traffic through the shared gateway root while preserving explicit Mail external upstream overrides.',
-);
-
-assert.match(
-  gatewayConfigSource,
-  /sdkwork-mail-app-api[\s\S]*SDKWORK_IM_MAIL_APP_API_UPSTREAM[\s\S]*SDKWORK_MAIL_APP_API_UPSTREAM[\s\S]*SDKWORK_MAIL_APP_API_BASE_URL/u,
-  'Gateway config must expose deterministic sdkwork-mail app-api upstream environment keys.',
+assert.doesNotMatch(
+  `${devRunnerSource}\n${gatewayConfigSource}`,
+  /explicitMailAppApiUpstream|SDKWORK_IM_MAIL_APP_API_UPSTREAM|SDKWORK_MAIL_APP_API_UPSTREAM|SDKWORK_MAIL_APP_API_BASE_URL/u,
+  'Mail foundation traffic must use the platform assembly gateway without per-module upstream overrides.',
 );
 
 assert.match(
@@ -130,16 +124,10 @@ assert.equal(
   'sdkwork-mail app API must route through the shared sdkwork-api-cloud-gateway root.',
 );
 
-const explicitExternalUpstreamEnvKeys =
-  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys?.['sdkwork-mail-app-api'];
-assert.deepEqual(
-  explicitExternalUpstreamEnvKeys,
-  [
-    'SDKWORK_IM_MAIL_APP_API_UPSTREAM',
-    'SDKWORK_MAIL_APP_API_UPSTREAM',
-    'SDKWORK_MAIL_APP_API_BASE_URL',
-  ],
-  'component.spec.json must document mail explicit external upstream env keys.',
+assert.equal(
+  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys,
+  undefined,
+  'component.spec.json must not publish per-module foundation upstream keys.',
 );
 
 function extractCommercialRuntimeModuleIds(source) {
