@@ -119,6 +119,9 @@
             "runtimeTargets": [
               "browser"
             ],
+            "clientArchitectures": [
+              "pc-web"
+            ],
             "required": true
           },
           {
@@ -128,6 +131,9 @@
             "runtimeTargets": [
               "desktop"
             ],
+            "clientArchitectures": [
+              "tauri"
+            ],
             "required": true
           },
           {
@@ -135,6 +141,9 @@
             "role": "client",
             "script": "_sdkwork:client:h5:standalone",
             "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
               "h5"
             ],
             "required": true
@@ -158,6 +167,9 @@
             "runtimeTargets": [
               "browser"
             ],
+            "clientArchitectures": [
+              "pc-web"
+            ],
             "required": true
           },
           {
@@ -167,6 +179,9 @@
             "runtimeTargets": [
               "desktop"
             ],
+            "clientArchitectures": [
+              "tauri"
+            ],
             "required": true
           },
           {
@@ -174,6 +189,9 @@
             "role": "client",
             "script": "_sdkwork:client:h5:cloud",
             "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
               "h5"
             ],
             "required": true
