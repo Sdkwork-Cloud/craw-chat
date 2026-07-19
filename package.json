@@ -36,7 +36,7 @@
     "clean": "pnpm exec sdkwork-app clean",
     "_sdkwork:build": "node scripts/release/build-sdkwork-im-production.mjs",
     "_sdkwork:test": "node scripts/run-sdkwork-im-standards-verification.mjs",
-    "_sdkwork:check": "pnpm run check:app-composition && node scripts/dependency-management-standard.test.mjs",
+    "_sdkwork:check": "pnpm exec sdkwork-app doctor && node ../sdkwork-specs/tools/check-app-manifest-standard.mjs --workspace . && pnpm run check:pnpm-script-standard && pnpm run check:agent-workflow-standard && node scripts/release/commercial-readiness.test.mjs && pnpm run check:app-composition && node scripts/dependency-management-standard.test.mjs",
     "_sdkwork:verify": "node scripts/run-sdkwork-im-standards-verification.mjs && pnpm run check:app-composition",
     "_sdkwork:clean": "node -e \"require('fs').rmSync('apps/sdkwork-im-pc/dist',{recursive:true,force:true}); require('fs').rmSync('.runtime/dev-sites',{recursive:true,force:true})\"",
     "_sdkwork:gateway:standalone": "node scripts/gateway-standalone-run.mjs",

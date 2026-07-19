@@ -69,7 +69,7 @@
     }
   },
   "publish": {
-    "status": "ACTIVE",
+    "status": "DRAFT",
     "installSkill": { "name": "sdkwork-skills-app" },
     "platforms": ["H5", "APP_IOS", "APP_ANDROID"],
     "installPlatforms": ["H5", "APP_IOS", "APP_ANDROID"],
@@ -96,47 +96,59 @@
           "packageFormat": "ZIP",
           "platform": "H5",
           "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.1.0/h5.zip",
-          "enabled": true,
-          "metadata": {},
+          "enabled": false,
+          "metadata": {
+            "releaseBuildDeferred": true
+          },
           "checksumAlgorithm": "SHA-256",
-          "checksum": null,
           "architecture": "universal",
           "deploymentProfile": "cloud",
-          "runtimeTarget": "browser"
+          "runtimeTarget": "browser",
+          "profileBinding": "fixed",
+          "targetPlatform": "h5",
+          "clientArchitecture": "h5"
         },
         {
-          "id": "app-ios-universal-ipa",
+          "id": "ios-universal-dual-mobile-ipa",
           "name": "SDKWork IM H5 Capacitor iOS IPA",
-          "sourceType": "DIRECT_DOWNLOAD",
+          "sourceType": "BINARY_URL",
           "packageFormat": "IPA",
           "platform": "APP_IOS",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.1.0/app-ios-universal.ipa",
-          "enabled": true,
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.1.0/ios-universal-dual-mobile.ipa",
+          "enabled": false,
           "metadata": {
-            "hostFramework": "capacitor"
+            "hostFramework": "capacitor",
+            "releaseBuildDeferred": true
           },
           "checksumAlgorithm": "SHA-256",
-          "checksum": null,
           "architecture": "universal",
-          "deploymentProfile": "cloud",
-          "runtimeTarget": "capacitor-ios"
+          "runtimeTarget": "capacitor-ios",
+          "profileBinding": "runtime-configurable",
+          "supportedDeploymentProfiles": ["standalone", "cloud"],
+          "defaultDeploymentProfile": "standalone",
+          "targetPlatform": "ios",
+          "clientArchitecture": "capacitor"
         },
         {
-          "id": "app-android-universal-aab",
+          "id": "android-universal-dual-mobile-aab",
           "name": "SDKWork IM H5 Capacitor Android AAB",
-          "sourceType": "DIRECT_DOWNLOAD",
+          "sourceType": "BINARY_URL",
           "packageFormat": "AAB",
           "platform": "APP_ANDROID",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.1.0/app-android-universal.aab",
-          "enabled": true,
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.1.0/android-universal-dual-mobile.aab",
+          "enabled": false,
           "metadata": {
-            "hostFramework": "capacitor"
+            "hostFramework": "capacitor",
+            "releaseBuildDeferred": true
           },
           "checksumAlgorithm": "SHA-256",
-          "checksum": null,
           "architecture": "universal",
-          "deploymentProfile": "cloud",
-          "runtimeTarget": "capacitor-android"
+          "runtimeTarget": "capacitor-android",
+          "profileBinding": "runtime-configurable",
+          "supportedDeploymentProfiles": ["standalone", "cloud"],
+          "defaultDeploymentProfile": "standalone",
+          "targetPlatform": "android",
+          "clientArchitecture": "capacitor"
         }
       ],
       "metadata": {
@@ -165,8 +177,8 @@
         ],
         "packageIds": [
           "h5-universal-cloud-browser-zip",
-          "app-ios-universal-ipa",
-          "app-android-universal-aab"
+          "ios-universal-dual-mobile-ipa",
+          "android-universal-dual-mobile-aab"
         ],
         "publishedAt": "2026-06-25T00:00:00Z",
         "current": true,
@@ -187,6 +199,7 @@
   },
   "metadata": {
     "standardOwner": "sdkwork-platform",
-    "initializedAt": "2026-06-25T00:00:00Z"
+    "initializedAt": "2026-06-25T00:00:00Z",
+    "deploymentConfig": "etc/sdkwork.deployment.config.json"
   }
 }

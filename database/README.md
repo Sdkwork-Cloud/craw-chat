@@ -61,6 +61,8 @@ table registry retains migration provenance instead of rewriting the historical
 baseline.
 Migration `0007` normalizes legacy projection metadata and timeline rows that
 stored serialized JSON as JSONB strings; current adapters persist JSONB values directly.
+Migration `0008` preserves positive signed-int64 IAM user actors while reserving
+`assigned_by = 0` for trusted system and other non-user assignment events.
 4. **Drift** — run `pnpm db:drift:check` before release.
 
 The PostgreSQL baseline is tenant-and-organization isolated: primary keys, unique

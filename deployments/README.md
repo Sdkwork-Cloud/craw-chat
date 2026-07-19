@@ -9,6 +9,12 @@ The default development profile is `standalone.development` through `pnpm dev`. 
 cloud profiles use PostgreSQL. Desktop SQLite is an application-owned bounded offline cache and is not a
 server persistence alternative.
 
+`deploy.yaml` is a deployment manifest v2 authority for `standalone.production` and
+`cloud.production` only. Development profiles are resolved by topology v5 and are never deploy targets.
+Cloud deployment exposes the IM client through the deployed `sdkwork-api-cloud-gateway`; it does not
+install or start `sdkwork-im-standalone-gateway`. Standalone deployment owns that gateway as its single
+application ingress.
+
 Cloud Kubernetes source templates are under `kubernetes/cloud/`. They are not directly deployable:
 release automation must replace every template tag with a build-produced OCI digest through
 `scripts/release/materialize-sdkwork-im-kubernetes.mjs`. See `kubernetes/README.md` for the fail-closed

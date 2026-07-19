@@ -107,8 +107,7 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
                     ],
                 )
                 .map_err(|error| postgres_unavailable("timeline load select", error))?;
-            rows
-                .into_iter()
+            rows.into_iter()
                 .map(|row| {
                     let message_seq: i64 = row.get(0);
                     let Json(payload) = row.get::<_, Json<serde_json::Value>>(1);

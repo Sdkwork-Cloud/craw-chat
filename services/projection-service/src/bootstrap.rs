@@ -2,8 +2,8 @@ use std::sync::{Arc, OnceLock};
 
 use im_adapters_local_memory::{MemoryMetadataStore, MemoryTimelineProjectionStore};
 use im_adapters_postgres_journal::{
-    PostgresAgentIntegrationStore, PostgresJournalConfig, PostgresJournalPool,
-    PostgresOutboxStore, PostgresSearchProvider,
+    PostgresAgentIntegrationStore, PostgresJournalConfig, PostgresJournalPool, PostgresOutboxStore,
+    PostgresSearchProvider,
 };
 use im_adapters_postgres_projection::{PostgresProjectionConfig, PostgresProjectionStores};
 use im_app_context::resolve_web_environment_from_process_env;

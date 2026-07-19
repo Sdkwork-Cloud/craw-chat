@@ -14,8 +14,7 @@ use crate::projection::{
 use crate::scope::{scope_key, scope_key_for_event};
 use crate::{TimelineProjectionService, lock_projection_mutex};
 use im_platform_contracts::{
-    AgentAssignmentSource, ConversationAgentProjectionItem,
-    ReplaceConversationAgentProjection,
+    AgentAssignmentSource, ConversationAgentProjectionItem, ReplaceConversationAgentProjection,
 };
 
 impl TimelineProjectionService {
@@ -321,7 +320,7 @@ impl TimelineProjectionService {
                     "agent projection organization id must be int64".into(),
                 )
             })?;
-        let assigned_by = event.actor.actor_id.parse::<u64>().unwrap_or(0);
+        let assigned_by = projection_assigned_by(event)?;
         let assignment_source = match assignments.source {
             ConversationAgentAssignmentSource::DefaultPolicy => {
                 AgentAssignmentSource::DefaultPolicy
@@ -355,6 +354,23 @@ impl TimelineProjectionService {
             })
             .map_err(ProjectionError::StoreFailure)
     }
+}
+
+fn projection_assigned_by(event: &CommitEnvelope) -> Result<u64, ProjectionError> {
+    if event.actor.actor_kind != "user" {
+        return Ok(0);
+    }
+    let assigned_by = event.actor.actor_id.parse::<u64>().map_err(|_| {
+        ProjectionError::InvalidEvent(
+            "agent projection user actor id must be a signed int64 string".into(),
+        )
+    })?;
+    if assigned_by == 0 || assigned_by > i64::MAX as u64 {
+        return Err(ProjectionError::InvalidEvent(
+            "agent projection user actor id must be a positive signed int64".into(),
+        ));
+    }
+    Ok(assigned_by)
 }
 
 fn projected_created_agent_assignments(
@@ -523,5 +539,25 @@ mod agent_assignment_catalog_tests {
             agent_assignments: Some(legacy_group_agent_assignment_set()),
         };
         assert!(normalize_conversation_catalog_entry(invalid_direct).is_err());
+    }
+
+    #[test]
+    fn projection_assignment_actor_maps_system_to_zero_and_validates_users() {
+        let mut event = CommitEnvelope::minimal(
+            "evt_projection_actor",
+            "100001",
+            "conversation.created",
+            "conversation",
+            "c_projection_actor",
+            1,
+        );
+        assert_eq!(projection_assigned_by(&event).unwrap(), 0);
+
+        event.actor.actor_kind = "user".into();
+        event.actor.actor_id = "330339707122622464".into();
+        assert_eq!(projection_assigned_by(&event).unwrap(), 330339707122622464);
+
+        event.actor.actor_id = "system".into();
+        assert!(projection_assigned_by(&event).is_err());
     }
 }

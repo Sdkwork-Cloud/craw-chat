@@ -3,7 +3,7 @@
 
 # Profiles and Environment
 
-Sdkwork IM development and production routing are owned by topology v4. Use
+Sdkwork IM development and production routing are owned by topology v5. Use
 `specs/topology.spec.json` and `etc/topology/*.env` as the only profile authority.
 
 ## Development Profiles
@@ -13,9 +13,9 @@ Sdkwork IM development and production routing are owned by topology v4. Use
 | `standalone.development` | `pnpm dev`, `pnpm dev:browser`, `pnpm dev:desktop` | Default PostgreSQL standalone development stack |
 | `standalone.staging` | pre-production rehearsal | Standalone release rehearsal |
 | `standalone.production` | private install templates | Standalone production bind + URL contract |
-| `cloud.development` | cloud integration dev | Cloud integration with platform gateway |
+| `cloud.development` | `pnpm dev:cloud`, `pnpm dev:browser:cloud`, `pnpm dev:desktop:cloud` | Local client only against deployed `sdkwork-api-cloud-gateway` |
 | `cloud.staging` | cloud rehearsal | SaaS pre-production rehearsal |
-| `cloud.production` | `pnpm build` | SaaS production (`im.sdkwork.com`, `api.sdkwork.com`) |
+| `cloud.production` | `pnpm build` | Cloud production (`im.sdkwork.com`, `api.sdkwork.com`) |
 
 See [Production Domain Binding](/deployment/production-domain-binding) for public URL keys.
 
@@ -28,10 +28,15 @@ See [Production Domain Binding](/deployment/production-domain-binding) for publi
 | Platform gateway | `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` | `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` |
 | Ingress bind | `SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND` | — |
 
+`cloud.development` resolves IM HTTP, WebSocket, and platform API access through
+`https://api-dev.sdkwork.com` / `wss://api-dev.sdkwork.com`. It starts no local gateway, API listener,
+database, Redis, migration, seed, or worker. `standalone.development` retains one local standalone
+gateway plus the selected client.
+
 ## Server-Only Dev
 
 `pnpm dev:server` starts `scripts/im-server-dev.mjs`, which runs the server-only development
-stack for the selected topology v4 profile. Public profile ids do not encode process layout.
+stack for the selected topology v5 profile. Public profile ids do not encode process layout.
 
 ## Packaged Server Deployment
 
@@ -41,7 +46,7 @@ Production server installs use:
 - `deployments/templates/chat.toml.example`
 - `/etc/sdkwork/chat/server.env`
 
-Do not use retired pre-topology-v4 profile names or legacy per-profile runtime config trees under
+Do not use retired pre-topology-v5 profile names or legacy per-profile runtime config trees under
 `.runtime/`.
 
 ## Authentication Boundary

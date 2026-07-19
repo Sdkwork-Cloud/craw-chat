@@ -288,7 +288,7 @@ impl AgentIntegrationStore for PostgresAgentIntegrationStore {
     ) -> Result<(), ContractError> {
         validate_signed_id(command.tenant_id, "tenantId", false)?;
         validate_signed_id(command.organization_id, "organizationId", true)?;
-        validate_signed_id(command.assigned_by, "assignedBy", false)?;
+        validate_signed_id(command.assigned_by, "assignedBy", true)?;
         validate_signed_id(command.assignment_generation, "assignmentGeneration", false)?;
         validate_signed_id(
             command.source_aggregate_version,
@@ -1105,5 +1105,7 @@ mod tests {
         assert!(parse_positive_id("0", "requestedBy").is_err());
         assert!(validate_signed_id(i64::MAX as u64, "id", false).is_ok());
         assert!(validate_signed_id(i64::MAX as u64 + 1, "id", false).is_err());
+        assert!(validate_signed_id(0, "systemActorId", true).is_ok());
+        assert!(validate_signed_id(0, "userActorId", false).is_err());
     }
 }
