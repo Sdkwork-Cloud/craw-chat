@@ -293,7 +293,7 @@ impl AgentIntegrationStore for PostgresAgentIntegrationStore {
         validate_signed_id(
             command.source_aggregate_version,
             "sourceAggregateVersion",
-            false,
+            true,
         )?;
         if command.items.len() > MAX_ASSIGNMENTS || command.assignment_generation == 0 {
             return Err(ContractError::Invalid(
@@ -1107,5 +1107,6 @@ mod tests {
         assert!(validate_signed_id(i64::MAX as u64 + 1, "id", false).is_err());
         assert!(validate_signed_id(0, "systemActorId", true).is_ok());
         assert!(validate_signed_id(0, "userActorId", false).is_err());
+        assert!(validate_signed_id(0, "sourceAggregateVersion", true).is_ok());
     }
 }

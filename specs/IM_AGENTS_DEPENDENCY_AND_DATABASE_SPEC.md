@@ -124,7 +124,7 @@ in aggregate-version order.
 | `position` | int32 | Stable display/dispatch order. |
 | `enabled`, `status` | boolean, enum | Active assignment state; status is `active`, `disabled`, or `removed`. |
 | `assigned_by`, `assigned_at` | int64, instant | Trusted mutation actor and event time; `0` is reserved for system/non-user actors whose principal ids are not numeric IAM user ids. |
-| `source_event_id`, `source_aggregate_version` | string, int64 | Replay and stale-write guard. |
+| `source_event_id`, `source_aggregate_version` | string, int64 | Replay and stale-write guard; aggregate versions are zero-based and remain within signed-int64 range. |
 | `payload_hash` | string | Canonical projected assignment hash. |
 | `created_at`, `updated_at`, `retention_until` | instant | Projection lifecycle. |
 

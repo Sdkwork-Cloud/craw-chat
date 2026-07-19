@@ -63,6 +63,8 @@ Migration `0007` normalizes legacy projection metadata and timeline rows that
 stored serialized JSON as JSONB strings; current adapters persist JSONB values directly.
 Migration `0008` preserves positive signed-int64 IAM user actors while reserving
 `assigned_by = 0` for trusted system and other non-user assignment events.
+Migration `0009` aligns the Agents projection stale-write guard with the IM
+journal's zero-based aggregate sequence while keeping assignment generations positive.
 4. **Drift** — run `pnpm db:drift:check` before release.
 
 The PostgreSQL baseline is tenant-and-organization isolated: primary keys, unique

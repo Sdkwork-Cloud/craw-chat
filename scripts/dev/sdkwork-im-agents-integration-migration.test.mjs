@@ -24,6 +24,10 @@ test('IM Agents integration migration is paired and IM-owned', () => {
     path.join(migrationRoot, '0008_allow_system_assignment_actor.up.sql'),
     'utf8',
   );
+  const zeroBasedAggregateVersionUp = readFileSync(
+    path.join(migrationRoot, '0009_allow_zero_source_aggregate_version.up.sql'),
+    'utf8',
+  );
 
   for (const table of integrationTables) {
     assert.match(up, new RegExp(`CREATE\\s+TABLE\\s+${table}\\b`, 'iu'));
@@ -37,6 +41,10 @@ test('IM Agents integration migration is paired and IM-owned', () => {
   assert.match(subjectGuardUp, /tenant_id\s*>\s*0\s+AND\s+organization_id\s*>=\s*0/iu);
   assert.match(subjectGuardUp, /assigned_by\s*>\s*0/iu);
   assert.match(systemActorCompatibilityUp, /assigned_by\s*>=\s*0/iu);
+  assert.match(
+    zeroBasedAggregateVersionUp,
+    /assignment_generation\s*>\s*0\s+AND\s+source_aggregate_version\s*>=\s*0/iu,
+  );
   assert.match(subjectGuardUp, /created_by\s*>\s*0\s+AND\s+updated_by\s*>\s*0/iu);
   assert.match(subjectGuardUp, /requested_by\s*>\s*0/iu);
   assert.match(subjectGuardUp, /NOT\s+VALID/iu);
