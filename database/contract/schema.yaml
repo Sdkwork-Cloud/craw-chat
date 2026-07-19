@@ -1,7 +1,7 @@
 schema_version: 1
 kind: sdkwork.database.schema
 module_id: im
-contract_version: 1.0.0
+contract_version: 2.0.0
 owner_team: im-platform
 compliance_level: L2
 engines:
@@ -189,5 +189,14 @@ tables:
     lifecycle_status: active
     owner: im-platform
   - name: im_group_knowledge_launch_tickets
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_projection_conversation_agent
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_conversation_agent_binding
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_agent_dispatch
     lifecycle_status: active
     owner: im-platform

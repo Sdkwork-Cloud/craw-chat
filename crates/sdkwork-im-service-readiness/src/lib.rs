@@ -1,5 +1,6 @@
 use std::future::Future;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use im_app_context::resolve_web_environment_from_process_env;
 use sdkwork_database_sqlx::DatabasePool;
@@ -232,14 +233,65 @@ pub fn init_im_service_tracing_from_env() {
     sdkwork_web_bootstrap::init_tracing_from_env();
 }
 
+/// Enable the canonical process pool before any IM or embedded module bootstrap.
+pub fn enable_process_shared_database_pool() {
+    sdkwork_database_sqlx::enable_process_shared_database_pool();
+}
+
 /// Install shared IM sqlx + r2d2 pools when PostgreSQL is configured.
 ///
 /// Every IM HTTP/RPC process in standalone and cloud deployments
 /// SHOULD call this before assembling routes or opening PostgreSQL adapters.
 pub async fn bootstrap_im_service_database_from_env() -> Result<(), String> {
+    enable_process_shared_database_pool();
     sdkwork_im_database_pool::try_bootstrap_im_process_database_pools_from_env()
         .await
         .map(|_| ())
+}
+
+#[derive(Clone)]
+struct BooleanReadinessCheck {
+    label: String,
+    healthy: Arc<AtomicBool>,
+}
+
+impl ReadinessCheck for BooleanReadinessCheck {
+    fn check(&self) -> ReadinessFuture<'_> {
+        let label = self.label.clone();
+        let healthy = self.healthy.clone();
+        Box::pin(async move {
+            if healthy.load(Ordering::Acquire) {
+                Ok(())
+            } else {
+                Err(format!("{label} is unhealthy"))
+            }
+        })
+    }
+}
+
+static PROCESS_READINESS_CHECKS: OnceLock<Mutex<Vec<Arc<dyn ReadinessCheck>>>> = OnceLock::new();
+
+pub fn register_im_process_boolean_readiness_check(
+    label: impl Into<String>,
+    healthy: Arc<AtomicBool>,
+) -> Result<(), String> {
+    let label = label.into();
+    if label.trim().is_empty() {
+        return Err("readiness check label must not be empty".into());
+    }
+    PROCESS_READINESS_CHECKS
+        .get_or_init(|| Mutex::new(Vec::new()))
+        .lock()
+        .map_err(|_| "process readiness registry lock is poisoned".to_string())?
+        .push(Arc::new(BooleanReadinessCheck { label, healthy }));
+    Ok(())
+}
+
+fn registered_im_process_readiness_checks() -> Vec<Arc<dyn ReadinessCheck>> {
+    PROCESS_READINESS_CHECKS
+        .get()
+        .and_then(|checks| checks.lock().ok().map(|checks| checks.clone()))
+        .unwrap_or_default()
 }
 
 /// Runs all required startup work before a process claims its TCP address.
@@ -282,6 +334,7 @@ pub async fn resolve_im_service_readiness_check() -> Arc<dyn ReadinessCheck> {
         }
         None => {}
     }
+    checks.extend(registered_im_process_readiness_checks());
 
     match checks.len() {
         0 if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) => {

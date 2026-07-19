@@ -148,6 +148,11 @@
       "purpose": "Sdkwork IM IM API, IM app API, IM backend API, product SDK ownership, IAM login integration, shared database, local source-link development, and git-backed release dependency rules."
     },
     {
+      "file": "IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md",
+      "path": "./IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md",
+      "purpose": "Mandatory IM-to-Agents dependency direction and target assignment/session/dispatch database contract."
+    },
+    {
       "file": "database-prefix-registry.json",
       "path": "./database-prefix-registry.json",
       "purpose": "Registers im as the controlled prefix for instant-messaging tables in the chat app."
@@ -360,9 +365,9 @@
         }
       },
       {
-        "workspace": "sdkwork-agent-app-sdk",
-        "sdkFamily": "sdkwork-agent-app-sdk",
-        "apiAuthority": "sdkwork-agent-app-api",
+        "workspace": "sdkwork-agents-app-sdk",
+        "sdkFamily": "sdkwork-agents-app-sdk",
+        "apiAuthority": "sdkwork-agents-app-api",
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/ai",
         "targetRuntimeIntegration": {
@@ -374,9 +379,9 @@
         }
       },
       {
-        "workspace": "sdkwork-agent-backend-sdk",
-        "sdkFamily": "sdkwork-agent-backend-sdk",
-        "apiAuthority": "sdkwork-agent-backend-api",
+        "workspace": "sdkwork-agents-backend-sdk",
+        "sdkFamily": "sdkwork-agents-backend-sdk",
+        "apiAuthority": "sdkwork-agents-backend-api",
         "surface": "backend-api",
         "apiPrefix": "/backend/v3/api/ai",
         "targetRuntimeIntegration": {
@@ -388,9 +393,9 @@
         }
       },
       {
-        "workspace": "sdkwork-agent-sdk",
-        "sdkFamily": "sdkwork-agent-sdk",
-        "apiAuthority": "sdkwork-agent-open-api",
+        "workspace": "sdkwork-agents-sdk",
+        "sdkFamily": "sdkwork-agents-sdk",
+        "apiAuthority": "sdkwork-agents-open-api",
         "surface": "open-api",
         "apiPrefix": "/agent/v3/api",
         "targetRuntimeIntegration": {

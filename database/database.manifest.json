@@ -10,7 +10,7 @@
   ],
   "defaultEngine": "postgres",
   "tablePrefix": "im_",
-  "contractVersion": "1.0.0",
+  "contractVersion": "2.0.0",
   "baselineStrategy": "baseline-plus-migrations",
   "baselineAnchorTable": "im_commit_journal",
   "modules": [],

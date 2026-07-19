@@ -1,6 +1,7 @@
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{
-    CommitPosition, ContractError, OutboxEventRecord, StoredMessageRecord,
+    AgentDispatchReplyCompletion, AgentMentionDispatchRequest, CommitPosition, ContractError,
+    OutboxEventRecord, StoredMessageRecord,
 };
 
 pub trait DurableMessagePostWriter: Send + Sync {
@@ -26,6 +27,29 @@ pub trait DurableMessagePostWriter: Send + Sync {
         message: StoredMessageRecord,
         outboxes: Vec<OutboxEventRecord>,
     ) -> Result<Vec<CommitPosition>, ContractError>;
+
+    fn persist_message_post_batch_with_agent_dispatch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+        message: StoredMessageRecord,
+        outboxes: Vec<OutboxEventRecord>,
+        dispatch_request: Option<AgentMentionDispatchRequest>,
+        max_dispatch_attempts: u32,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        let _ = (dispatch_request, max_dispatch_attempts);
+        self.persist_message_post_batch(envelopes, message, outboxes)
+    }
+
+    fn persist_agent_reply_and_complete_dispatch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+        message: StoredMessageRecord,
+        outboxes: Vec<OutboxEventRecord>,
+        completion: AgentDispatchReplyCompletion,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        let _ = completion;
+        self.persist_message_post_batch(envelopes, message, outboxes)
+    }
 }
 
 impl DurableMessagePostWriter for im_adapters_postgres_journal::PostgresDurableMessagePostWriter {
@@ -37,6 +61,40 @@ impl DurableMessagePostWriter for im_adapters_postgres_journal::PostgresDurableM
     ) -> Result<Vec<CommitPosition>, ContractError> {
         im_adapters_postgres_journal::PostgresDurableMessagePostWriter::persist_message_post_batch(
             self, envelopes, message, outboxes,
+        )
+    }
+
+    fn persist_message_post_batch_with_agent_dispatch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+        message: StoredMessageRecord,
+        outboxes: Vec<OutboxEventRecord>,
+        dispatch_request: Option<AgentMentionDispatchRequest>,
+        max_dispatch_attempts: u32,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        im_adapters_postgres_journal::PostgresDurableMessagePostWriter::persist_message_post_batch_with_agent_dispatch(
+            self,
+            envelopes,
+            message,
+            outboxes,
+            dispatch_request,
+            max_dispatch_attempts,
+        )
+    }
+
+    fn persist_agent_reply_and_complete_dispatch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+        message: StoredMessageRecord,
+        outboxes: Vec<OutboxEventRecord>,
+        completion: AgentDispatchReplyCompletion,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        im_adapters_postgres_journal::PostgresDurableMessagePostWriter::persist_agent_reply_and_complete_dispatch(
+            self,
+            envelopes,
+            message,
+            outboxes,
+            completion,
         )
     }
 }

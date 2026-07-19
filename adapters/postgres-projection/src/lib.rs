@@ -8,6 +8,7 @@ use im_platform_contracts::ContractError;
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
 use sdkwork_database_config::DatabaseConfig;
+use serde_json::Value;
 use tokio::runtime::Handle;
 
 pub use metadata_store::PostgresMetadataStore;
@@ -202,6 +203,32 @@ pub(crate) fn now_rfc3339() -> String {
     im_time::utc_now_rfc3339_millis()
 }
 
+pub(crate) fn postgres_jsonb_payload(
+    payload: &str,
+    field: &'static str,
+) -> Result<Value, ContractError> {
+    serde_json::from_str(payload).map_err(|error| {
+        ContractError::Invalid(format!(
+            "postgres projection {field} must be valid JSON: {error}"
+        ))
+    })
+}
+
+pub(crate) fn postgres_jsonb_payload_text(
+    payload: Value,
+    field: &'static str,
+) -> Result<String, ContractError> {
+    let payload = match payload {
+        Value::String(legacy_payload) => postgres_jsonb_payload(legacy_payload.as_str(), field)?,
+        payload => payload,
+    };
+    serde_json::to_string(&payload).map_err(|error| {
+        ContractError::Invalid(format!(
+            "postgres projection {field} could not be serialized: {error}"
+        ))
+    })
+}
+
 /// Parse an RFC3339 timestamp string into `DateTime<Utc>` so it serializes
 /// as `TIMESTAMPTZ` (matching the column type). Passing raw `String`s
 /// produces `VARCHAR`-typed parameters that fail serialization against
@@ -252,4 +279,38 @@ fn redact_postgres_url(database_url: &str) -> String {
     let scheme = &database_url[..after_scheme];
     let host = &database_url[after_scheme + at_offset..];
     format!("{scheme}<redacted>{host}")
+}
+
+#[cfg(test)]
+mod json_payload_tests {
+    use super::*;
+
+    #[test]
+    fn structured_jsonb_payload_round_trips_as_json() {
+        let payload = postgres_jsonb_payload(r#"{"items":[1,2]}"#, "test payload")
+            .expect("structured JSON should parse");
+        assert_eq!(
+            postgres_jsonb_payload_text(payload, "test payload")
+                .expect("structured JSON should serialize"),
+            r#"{"items":[1,2]}"#
+        );
+    }
+
+    #[test]
+    fn legacy_jsonb_string_payload_is_unwrapped_once() {
+        let legacy = Value::String(r#"[{"tenantId":"100001"}]"#.into());
+        assert_eq!(
+            postgres_jsonb_payload_text(legacy, "legacy payload")
+                .expect("legacy JSON string should normalize"),
+            r#"[{"tenantId":"100001"}]"#
+        );
+    }
+
+    #[test]
+    fn invalid_legacy_jsonb_string_payload_is_rejected() {
+        assert!(
+            postgres_jsonb_payload_text(Value::String("not-json".into()), "legacy payload")
+                .is_err()
+        );
+    }
 }

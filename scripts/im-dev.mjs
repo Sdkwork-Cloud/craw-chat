@@ -25,6 +25,7 @@ function normalizeText(value) {
 
 function parseArgs(argv) {
   const settings = {
+    clientOnly: false,
     target: 'browser',
     database: undefined,
     deploymentProfile: 'standalone',
@@ -36,6 +37,10 @@ function parseArgs(argv) {
     const arg = argv[index];
     if (arg === '--help' || arg === '-h') {
       settings.help = true;
+      continue;
+    }
+    if (arg === '--client-only') {
+      settings.clientOnly = true;
       continue;
     }
     if (arg === '--target') {
@@ -83,6 +88,7 @@ Options:
   --environment <development|staging|production>    Default: development
   --target <browser|desktop>                        Default: browser
   --database <postgres>                             Default: postgres
+  --client-only                                     Do not resolve a database or start a gateway/server
   --help, -h
 `);
 }
@@ -97,16 +103,22 @@ async function main() {
   const profileId = resolveDevProfileId(settings.deploymentProfile, settings.environment)
     || DEFAULT_DEV_PROFILE_ID;
   const profileEnv = loadProfile(profileId);
-  const postgresProfile = resolvePostgresDevProfile({ env: process.env, repoRoot: REPO_ROOT });
+  const postgresProfile = settings.clientOnly
+    ? undefined
+    : resolvePostgresDevProfile({ env: process.env, repoRoot: REPO_ROOT });
   const envFile = undefined;
   const fileEnv = postgresProfile?.fileEnv ?? {};
   const childEnv = mergeRuntimeEnv(process.env, profileEnv, fileEnv, {
     SDKWORK_IM_PROFILE_ID: profileId,
     SDKWORK_IM_DEPLOYMENT_PROFILE: settings.deploymentProfile,
-    SDKWORK_IM_STANDALONE_GATEWAY_CONFIG: resolveStandaloneGatewayConfigPath(
-      { ...process.env, ...profileEnv, ...fileEnv, ...(postgresProfile?.env ?? {}) },
-      REPO_ROOT,
-    ),
+    ...(settings.clientOnly
+      ? {}
+      : {
+          SDKWORK_IM_STANDALONE_GATEWAY_CONFIG: resolveStandaloneGatewayConfigPath(
+            { ...process.env, ...profileEnv, ...fileEnv, ...(postgresProfile?.env ?? {}) },
+            REPO_ROOT,
+          ),
+        }),
     ...IAM_APPLICATION_BOOTSTRAP_ENV,
     ...(postgresProfile?.env ?? {}),
   });
@@ -117,6 +129,9 @@ async function main() {
   );
 
   const runnerArgv = ['--target', settings.target];
+  if (settings.clientOnly) {
+    runnerArgv.push('--client-only');
+  }
   if (settings.database) {
     runnerArgv.push('--database', settings.database);
   }

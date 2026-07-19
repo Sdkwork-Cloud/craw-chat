@@ -1,9 +1,10 @@
 use im_app_context::AppContext;
 use im_domain_core::retention::retention_until_from_envelope;
 use im_platform_contracts::{
-    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAggregateStore, ConversationMemberRecord,
-    ConversationSeqAllocator, IdGenerator, MessageStore, OutboxStore, ReadCursorRecord,
-    RealtimeEventPublisher, RetentionScopeStore, StoredMessageRecord,
+    AgentDispatchReplyCompletion, AgentReplyCommitResult, CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
+    ConversationAggregateStore, ConversationMemberRecord, ConversationSeqAllocator, IdGenerator,
+    MessageStore, OutboxStore, ReadCursorRecord, RealtimeEventPublisher, RetentionScopeStore,
+    StoredMessageRecord,
 };
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{
@@ -46,6 +47,7 @@ use serde_json::{Value as JsonValue, json};
 
 mod actor_inbox;
 mod agent_dispatch;
+mod agent_dispatch_worker;
 mod agents;
 mod binding;
 #[cfg(test)]
@@ -95,6 +97,12 @@ use self::support::{
     next_member_episode, resolve_active_member, resolve_active_member_id,
     resolve_active_member_id_with_kind, resolve_active_member_with_kind, upsert_member,
     upsert_read_cursor, upsert_roster_member,
+};
+pub use agent_dispatch_worker::{
+    AgentDispatchSource, AgentDispatchSourceLoader, AgentDispatchWorker, AgentDispatchWorkerConfig,
+    AgentDispatchWorkerHandle, AgentDispatchWorkerOutcome, AgentReplyCommitter,
+    ConversationRuntimeAgentReplyCommitter, MessageStoreAgentDispatchSourceLoader,
+    resolve_agent_dispatch_worker_id, spawn_agent_dispatch_worker,
 };
 pub use direct_message_access::DirectMessageAccessGate;
 pub use durable_conversation_event::DurableConversationEventWriter;
@@ -2438,6 +2446,66 @@ fn sha256_message_hash(body: &MessageBody) -> String {
     format!("sha256:{}", sha256_hash(&serialized))
 }
 
+fn validate_agent_dispatch_reply(
+    conversation: &ConversationState,
+    command: &PostMessageCommand,
+    completion: Option<&AgentDispatchReplyCompletion>,
+) -> Result<(), RuntimeError> {
+    let completion = completion.ok_or_else(|| {
+        RuntimeError::InvalidInput("agent dispatch reply completion is required".into())
+    })?;
+    let tenant_id = command.tenant_id.parse::<u64>().map_err(|_| {
+        RuntimeError::InvalidInput("agent dispatch reply tenant id must be an int64 string".into())
+    })?;
+    let organization_id = command.organization_id.parse::<u64>().map_err(|_| {
+        RuntimeError::InvalidInput(
+            "agent dispatch reply organization id must be an int64 string".into(),
+        )
+    })?;
+    if tenant_id != completion.tenant_id
+        || organization_id != completion.organization_id
+        || command.conversation_id != completion.conversation_id
+        || command.sender.kind != "agent"
+        || command.sender.id != completion.agent_id
+        || command.message_type != MessageType::Standard
+        || completion.dispatch_id.trim().is_empty()
+        || completion.lease_owner.trim().is_empty()
+        || completion.agents_session_id.trim().is_empty()
+        || completion.agents_turn_id.trim().is_empty()
+    {
+        return Err(RuntimeError::InvalidInput(
+            "agent dispatch reply identity is invalid".into(),
+        ));
+    }
+    if command.client_msg_id.as_deref()
+        != Some(format!("agent-dispatch-reply:{}", completion.dispatch_id).as_str())
+    {
+        return Err(RuntimeError::InvalidInput(
+            "agent dispatch reply client message id is invalid".into(),
+        ));
+    }
+    let assignments = conversation.aggregate.agent_assignments().ok_or_else(|| {
+        RuntimeError::Conflict("agent dispatch reply conversation has no agent assignments".into())
+    })?;
+    let assignment = assignments
+        .agents
+        .iter()
+        .find(|assignment| assignment.agent_id == completion.agent_id)
+        .ok_or_else(|| {
+            RuntimeError::Conflict(
+                "agent dispatch reply target is no longer assigned to the conversation".into(),
+            )
+        })?;
+    if assignments.generation != completion.assignment_generation
+        || assignment.revision_id != completion.agent_revision_ref
+    {
+        return Err(RuntimeError::Conflict(
+            "agent dispatch reply assignment generation or revision is stale".into(),
+        ));
+    }
+    Ok(())
+}
+
 // This internal transition result keeps the full idempotent view and mutation
 // payload inline because the runtime immediately pattern-matches and forwards it
 // within a single command path; boxing would add indirection without changing
@@ -3269,7 +3337,26 @@ where
         &self,
         command: PostMessageCommand,
     ) -> Result<PostMessageResult, RuntimeError> {
-        self.post_message_with_policy(command, MessagePostPolicy::GenericPost)
+        self.post_message_with_policy(command, MessagePostPolicy::GenericPost, None)
+    }
+
+    pub fn post_agent_dispatch_reply(
+        &self,
+        command: PostMessageCommand,
+        completion: AgentDispatchReplyCompletion,
+    ) -> Result<AgentReplyCommitResult, RuntimeError> {
+        let result = self.post_message_with_policy(
+            command,
+            MessagePostPolicy::AgentDispatchReply,
+            Some(completion),
+        )?;
+        let reply_message_id = result.message_id.parse::<u64>().map_err(|_| {
+            RuntimeError::Conflict("agent reply message id is not a Snowflake integer".into())
+        })?;
+        Ok(AgentReplyCommitResult {
+            reply_message_id,
+            reply_message_seq: result.message_seq,
+        })
     }
 
     pub fn publish_system_channel_message(
@@ -3287,6 +3374,7 @@ where
                 body: command.body,
             },
             MessagePostPolicy::SystemChannelPublish,
+            None,
         )
     }
 
@@ -3294,6 +3382,7 @@ where
         &self,
         command: PostMessageCommand,
         policy: MessagePostPolicy,
+        dispatch_completion: Option<AgentDispatchReplyCompletion>,
     ) -> Result<PostMessageResult, RuntimeError> {
         validate_payload_size(
             "conversationId",
@@ -3307,13 +3396,29 @@ where
             MESSAGE_CLIENT_MSG_ID_MAX_BYTES,
         )?;
         validate_message_body_contract(&command.body)?;
-        self.ensure_member_loaded(
-            command.tenant_id.as_str(),
-            command.organization_id.as_str(),
-            command.conversation_id.as_str(),
-            command.sender.kind.as_str(),
-            command.sender.id.as_str(),
-        )?;
+        match policy {
+            MessagePostPolicy::AgentDispatchReply => {
+                self.ensure_conversation_loaded(
+                    command.tenant_id.as_str(),
+                    command.organization_id.as_str(),
+                    command.conversation_id.as_str(),
+                )?;
+                self.hydrate_conversation_agent_metadata_if_missing(
+                    command.tenant_id.as_str(),
+                    command.organization_id.as_str(),
+                    command.conversation_id.as_str(),
+                )?;
+            }
+            MessagePostPolicy::GenericPost | MessagePostPolicy::SystemChannelPublish => {
+                self.ensure_member_loaded(
+                    command.tenant_id.as_str(),
+                    command.organization_id.as_str(),
+                    command.conversation_id.as_str(),
+                    command.sender.kind.as_str(),
+                    command.sender.id.as_str(),
+                )?;
+            }
+        }
         if agents::message_has_agent_mentions(&command.body) {
             self.hydrate_conversation_agent_metadata_if_missing(
                 command.tenant_id.as_str(),
@@ -3394,42 +3499,79 @@ where
                             );
                         }
                         ensure_conversation_write_allowed(conversation)?;
-                        let sender_member = resolve_active_member_with_kind(
-                            conversation,
-                            command.sender.id.as_str(),
-                            command.sender.kind.as_str(),
-                        )?;
-                        policy::ensure_actor_kind_matches_member(
-                            &sender_member,
-                            command.sender.kind.as_str(),
-                        )?;
+                        let sender_member = if policy == MessagePostPolicy::AgentDispatchReply {
+                            None
+                        } else {
+                            let sender_member = resolve_active_member_with_kind(
+                                conversation,
+                                command.sender.id.as_str(),
+                                command.sender.kind.as_str(),
+                            )?;
+                            policy::ensure_actor_kind_matches_member(
+                                &sender_member,
+                                command.sender.kind.as_str(),
+                            )?;
+                            Some(sender_member)
+                        };
                         match policy {
                             MessagePostPolicy::GenericPost => {
-                                policy::ensure_message_post_allowed(conversation, &sender_member)?;
+                                let sender_member = sender_member.as_ref().ok_or_else(|| {
+                                    RuntimeError::Conflict(
+                                        "generic post is missing an active sender member".into(),
+                                    )
+                                })?;
+                                policy::ensure_message_post_allowed(conversation, sender_member)?;
                                 policy::ensure_room_message_post_allowed(
                                     conversation,
-                                    &sender_member,
+                                    sender_member,
                                 )?;
                                 direct_message_access::ensure_direct_message_post_allowed(
                                     command.tenant_id.as_str(),
                                     command.organization_id.as_str(),
                                     conversation,
-                                    &sender_member,
+                                    sender_member,
                                     self.resolve_direct_message_access_gate().as_deref(),
                                 )?;
                             }
                             MessagePostPolicy::SystemChannelPublish => {
+                                let sender_member = sender_member.as_ref().ok_or_else(|| {
+                                    RuntimeError::Conflict(
+                                        "system publish is missing an active sender member".into(),
+                                    )
+                                })?;
                                 policy::ensure_system_channel_publish_command_allowed(
                                     conversation,
-                                    &sender_member,
+                                    sender_member,
                                 )?
                             }
+                            MessagePostPolicy::AgentDispatchReply => {
+                                validate_agent_dispatch_reply(
+                                    conversation,
+                                    &command,
+                                    dispatch_completion.as_ref(),
+                                )?;
+                            }
                         }
-                        let resolved_agent_mentions = agents::resolve_message_agent_mentions(
-                            conversation,
-                            &sender_member,
-                            &command.body,
-                        )?;
+                        let resolved_agent_mentions = if policy
+                            == MessagePostPolicy::AgentDispatchReply
+                        {
+                            if agents::message_has_agent_mentions(&command.body) {
+                                return Err(RuntimeError::InvalidInput(
+                                    "agent dispatch replies cannot mention another agent".into(),
+                                ));
+                            }
+                            Vec::new()
+                        } else {
+                            agents::resolve_message_agent_mentions(
+                                conversation,
+                                sender_member.as_ref().ok_or_else(|| {
+                                    RuntimeError::Conflict(
+                                        "message post is missing an active sender member".into(),
+                                    )
+                                })?,
+                                &command.body,
+                            )?
+                        };
                         // Per-conversation ordinal seq: Redis batch prefetch or Postgres counter.
                         let message_seq = if let Some(allocator) = &self.seq_allocator {
                             allocator
@@ -3452,7 +3594,9 @@ where
                         };
 
                         let mut sender = command.sender.clone();
-                        if sender.member_id.is_none() {
+                        if sender.member_id.is_none()
+                            && let Some(sender_member) = sender_member.as_ref()
+                        {
                             sender.member_id = Some(sender_member.member_id.clone());
                         }
 
@@ -3539,6 +3683,7 @@ where
 
                         let mut journal_envelopes = vec![envelope];
                         let mut outboxes = Vec::new();
+                        let mut agent_dispatch_request = None;
                         if let Some(outbox) = self.build_message_posted_outbox_record(
                             command.tenant_id.as_str(),
                             command.organization_id.as_str(),
@@ -3562,6 +3707,7 @@ where
                                 dispatch_ordering_seq,
                                 retention_class.as_str(),
                             )? {
+                                agent_dispatch_request = Some(dispatch.request);
                                 if let Some(outbox) = dispatch.outbox {
                                     outboxes.push(outbox);
                                 }
@@ -3589,14 +3735,32 @@ where
                         };
 
                         if let Some(writer) = &self.durable_message_post_writer {
-                            writer
-                                .persist_message_post_batch(
-                                    journal_envelopes,
-                                    stored_record,
-                                    outboxes,
-                                )
-                                .map_err(RuntimeError::from)?;
+                            if let Some(completion) = dispatch_completion.clone() {
+                                writer
+                                    .persist_agent_reply_and_complete_dispatch(
+                                        journal_envelopes,
+                                        stored_record,
+                                        outboxes,
+                                        completion,
+                                    )
+                                    .map_err(RuntimeError::from)?;
+                            } else {
+                                writer
+                                    .persist_message_post_batch_with_agent_dispatch(
+                                        journal_envelopes,
+                                        stored_record,
+                                        outboxes,
+                                        agent_dispatch_request,
+                                        10,
+                                    )
+                                    .map_err(RuntimeError::from)?;
+                            }
                         } else {
+                            if dispatch_completion.is_some() {
+                                return Err(RuntimeError::Conflict(
+                                    "agent dispatch reply requires an atomic durable writer".into(),
+                                ));
+                            }
                             self.journal.append_batch(journal_envelopes)?;
 
                             if let Some(store) = &self.message_store {
@@ -3674,11 +3838,25 @@ where
             PostMessageMutation::Applied {
                 result, message, ..
             } => {
-                self.publish_message_posted_realtime(
+                let publish_result = self.publish_message_posted_realtime(
                     command.tenant_id.as_str(),
                     command.organization_id.as_str(),
                     &message,
-                )?;
+                );
+                if let Err(error) = publish_result {
+                    if policy == MessagePostPolicy::AgentDispatchReply
+                        && self.durable_message_post_writer.is_some()
+                    {
+                        tracing::warn!(
+                            conversation_id = %command.conversation_id,
+                            message_id = %message.message_id,
+                            error = ?error,
+                            "agent reply realtime publish failed after durable outbox commit"
+                        );
+                    } else {
+                        return Err(error);
+                    }
+                }
                 self.maybe_evict_after_write();
                 Ok(result)
             }

@@ -44,6 +44,7 @@ sdkwork-knowledgebase-rpc-sdk-rust.workspace = true
 sdkwork-rpc-client = { workspace = true, features = ["tls"] }
 sdkwork-rpc-core.workspace = true
 projection-service = { path = "../../services/projection-service" }
+sdkwork-agents-runtime-facade.workspace = true
 prost = "0.14"
 postgres.workspace = true
 r2d2.workspace = true

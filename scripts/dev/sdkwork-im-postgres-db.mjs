@@ -366,6 +366,20 @@ export function parsePostgresConfig({
   return config;
 }
 
+export function applyResolvedPostgresProfile(config, profile) {
+  if (!profile?.postgres || profile.kind !== 'postgresql') {
+    return config;
+  }
+  for (const key of ['database', 'host', 'password', 'port', 'sslmode', 'username']) {
+    const value = normalizeField(profile.postgres[key]);
+    if (value !== undefined) {
+      config.database[key] = value;
+    }
+  }
+  validateDatabaseConfig(config.database, 'SDKWORK_IM_DATABASE_');
+  return config;
+}
+
 function encodePostgresDatabaseName(database) {
   return encodeURIComponent(database).replaceAll('%2F', '/');
 }
@@ -813,6 +827,7 @@ async function executePostgresDbStep(step) {
 export async function runPostgresDbCli({
   argv = process.argv.slice(2),
   env = process.env,
+  extraEnv = {},
   repoRoot = defaultRepoRoot,
   stderr = process.stderr,
   stdout = process.stdout,
@@ -823,8 +838,8 @@ export async function runPostgresDbCli({
     return { status: 0 };
   }
 
-  const profile = resolvePostgresDevProfile({ env, repoRoot });
-  const config = profile.config;
+  const profile = resolvePostgresDevProfile({ env, extraEnv, repoRoot });
+  const config = applyResolvedPostgresProfile(profile.config, profile);
   if (env.SDKWORK_IM_DATABASE_SCHEMA || env.SDKWORK_CLAW_DATABASE_SCHEMA) {
     config.database.schema = env.SDKWORK_IM_DATABASE_SCHEMA ?? env.SDKWORK_CLAW_DATABASE_SCHEMA;
   }

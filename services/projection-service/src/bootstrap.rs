@@ -2,7 +2,8 @@ use std::sync::{Arc, OnceLock};
 
 use im_adapters_local_memory::{MemoryMetadataStore, MemoryTimelineProjectionStore};
 use im_adapters_postgres_journal::{
-    PostgresJournalConfig, PostgresJournalPool, PostgresOutboxStore, PostgresSearchProvider,
+    PostgresAgentIntegrationStore, PostgresJournalConfig, PostgresJournalPool,
+    PostgresOutboxStore, PostgresSearchProvider,
 };
 use im_adapters_postgres_projection::{PostgresProjectionConfig, PostgresProjectionStores};
 use im_app_context::resolve_web_environment_from_process_env;
@@ -315,6 +316,11 @@ fn assemble_projection_runtime(
             PostgresOutboxStore::from_pool(PostgresJournalPool::from_pool(stores.pool().clone())),
         );
         service.configure_conversation_event_outbox(conversation_event_outbox);
+        let agent_integration_store: Arc<dyn im_platform_contracts::AgentIntegrationStore> =
+            Arc::new(PostgresAgentIntegrationStore::from_pool_with_runtime_ids(
+                PostgresJournalPool::from_pool(stores.pool().clone()),
+            ));
+        service.configure_agent_integration_store(agent_integration_store);
         info!(
             memory_timeline_cap = memory_cap,
             "projection-service configured tiered timeline (postgres durable + in-memory hot cache)"

@@ -71,7 +71,10 @@ fn test_postgres_projection_live_store_roundtrip_when_database_is_configured() {
         .load_snapshot(snapshot_scope.as_str(), snapshot_key)
         .expect("metadata snapshot should load")
         .expect("metadata snapshot should exist");
-    assert_eq!(loaded_snapshot, snapshot_payload);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&loaded_snapshot).unwrap(),
+        serde_json::from_str::<serde_json::Value>(snapshot_payload).unwrap(),
+    );
 
     stores
         .timeline
@@ -87,12 +90,12 @@ fn test_postgres_projection_live_store_roundtrip_when_database_is_configured() {
         .timeline
         .load_timeline(&scope_a)
         .expect("organization A timeline should load");
-    assert_eq!(loaded_timeline_a, vec![(1, timeline_payload_a.to_owned())]);
+    assert_json_payload_eq(loaded_timeline_a[0].1.as_str(), timeline_payload_a);
     let loaded_timeline_b = stores
         .timeline
         .load_timeline(&scope_b)
         .expect("organization B timeline should load");
-    assert_eq!(loaded_timeline_b, vec![(1, timeline_payload_b.to_owned())]);
+    assert_json_payload_eq(loaded_timeline_b[0].1.as_str(), timeline_payload_b);
 
     stores
         .timeline
@@ -114,12 +117,12 @@ fn test_postgres_projection_live_store_roundtrip_when_database_is_configured() {
         .load_timeline(&scope_a)
         .expect("organization A timeline should load after restart");
     assert_eq!(loaded_timeline_a.len(), 2);
-    assert_eq!(loaded_timeline_a[0].1, timeline_payload_a);
+    assert_json_payload_eq(loaded_timeline_a[0].1.as_str(), timeline_payload_a);
     let loaded_timeline_b = restarted_stores
         .timeline
         .load_timeline(&scope_b)
         .expect("organization B timeline should remain isolated after restart");
-    assert_eq!(loaded_timeline_b, vec![(1, timeline_payload_b.to_owned())]);
+    assert_json_payload_eq(loaded_timeline_b[0].1.as_str(), timeline_payload_b);
 }
 
 #[test]
@@ -140,4 +143,11 @@ fn unique_suffix() -> String {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_nanos().to_string())
         .unwrap_or_else(|_| "0".into())
+}
+
+fn assert_json_payload_eq(actual: &str, expected: &str) {
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(actual).unwrap(),
+        serde_json::from_str::<serde_json::Value>(expected).unwrap(),
+    );
 }

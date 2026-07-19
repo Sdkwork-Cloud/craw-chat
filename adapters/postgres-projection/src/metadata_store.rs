@@ -3,8 +3,8 @@ use r2d2_postgres::postgres::types::Json;
 use sdkwork_utils_rust::sha256_hash;
 
 use crate::{
-    PostgresProjectionPool, now_rfc3339, postgres_pool_client, postgres_timestamptz,
-    postgres_unavailable, run_postgres_io,
+    PostgresProjectionPool, now_rfc3339, postgres_jsonb_payload, postgres_jsonb_payload_text,
+    postgres_pool_client, postgres_timestamptz, postgres_unavailable, run_postgres_io,
 };
 
 const UPSERT_METADATA_SNAPSHOT_SQL: &str = r#"
@@ -23,7 +23,7 @@ on conflict (snapshot_scope, snapshot_key) do update set
 "#;
 
 const LOAD_METADATA_SNAPSHOT_SQL: &str = r#"
-select payload_json::text
+select payload_json
 from im_projection_metadata_snapshots
 where snapshot_scope = $1
   and snapshot_key = $2
@@ -48,12 +48,19 @@ impl MetadataStore for PostgresMetadataStore {
         let value = value.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "metadata put snapshot")?;
+            let json_payload = postgres_jsonb_payload(value.as_str(), "metadata snapshot")?;
             let payload_hash = sha256_hash(value.as_bytes());
             let created_at = postgres_timestamptz(&now_rfc3339(), "created_at")?;
             client
                 .execute(
                     UPSERT_METADATA_SNAPSHOT_SQL,
-                    &[&scope, &key, &Json(value), &payload_hash, &created_at],
+                    &[
+                        &scope,
+                        &key,
+                        &Json(json_payload),
+                        &payload_hash,
+                        &created_at,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("metadata put snapshot", error))?;
             Ok(())
@@ -69,7 +76,11 @@ impl MetadataStore for PostgresMetadataStore {
             let row = client
                 .query_opt(LOAD_METADATA_SNAPSHOT_SQL, &[&scope, &key])
                 .map_err(|error| postgres_unavailable("metadata load snapshot", error))?;
-            Ok(row.map(|row| row.get::<_, String>(0)))
+            row.map(|row| {
+                let Json(payload) = row.get::<_, Json<serde_json::Value>>(0);
+                postgres_jsonb_payload_text(payload, "metadata snapshot")
+            })
+            .transpose()
         })
     }
 

@@ -10,6 +10,9 @@ use im_time::{max_optional_rfc3339_string, max_rfc3339_string, rfc3339_cmp};
 use sdkwork_im_contract_core::ContractError;
 use serde::{Deserialize, Serialize};
 
+mod integration;
+pub use integration::*;
+
 pub const AGENT_MENTION_DISPATCH_EVENT_TYPE: &str = "conversation.agent_mention_dispatch_requested";
 pub const AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA: &str =
     "conversation.agent_mention_dispatch_requested.v1";

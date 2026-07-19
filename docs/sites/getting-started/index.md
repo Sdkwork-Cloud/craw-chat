@@ -31,7 +31,7 @@ Authority: `specs/topology.spec.json` and `etc/topology/*.env`.
 | Profile id | Command | Application ingress |
 | --- | --- | --- |
 | `standalone.development` | `pnpm dev` / `pnpm dev:browser` / `pnpm dev:desktop` | `http://127.0.0.1:18079` |
-| `cloud.development` | `pnpm dev:browser:postgres:cloud` | `http://127.0.0.1:18079` |
+| `cloud.development` | `pnpm dev:browser:cloud` | configured remote application ingress |
 
 ## Auth Boundary
 

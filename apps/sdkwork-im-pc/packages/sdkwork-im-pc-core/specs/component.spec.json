@@ -260,6 +260,12 @@
           "inheritRoles": true
         },
         {
+          "moduleId": "membership",
+          "manifestRef": "../../../../../../sdkwork-membership/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": false
+        },
+        {
           "moduleId": "notary",
           "manifestRef": "../../../../../../sdkwork-notary/specs/iam.module.manifest.json",
           "inheritPermissions": true,

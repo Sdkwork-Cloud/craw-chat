@@ -19,6 +19,11 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 ## Contract Manifest
 
 - [component.spec.json](./component.spec.json) is the machine-readable component contract.
+- [IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md](./IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md)
+  defines the mandatory `sdkwork-im -> sdkwork-agents -> sdkwork-kernel`
+  dependency direction, bounded-context ownership, and the target IM database
+  contract for assignment projection, Agents session binding, and dispatch
+  correlation.
 - Shared foundation API composition targets `sdkwork-api-cloud-gateway` through
   `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` and `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
   for cloud or external-upstream deployments. In `standalone.*`, the sibling

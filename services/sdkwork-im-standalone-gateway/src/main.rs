@@ -5,6 +5,7 @@ mod embedded_plane_wiring;
 
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
+use std::sync::Arc;
 
 use axum::Router;
 use axum::middleware::from_fn_with_state;
@@ -28,6 +29,7 @@ use web_gateway::{
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    sdkwork_im_service_readiness::enable_process_shared_database_pool();
     sdkwork_im_service_readiness::ensure_im_service_process_identity(
         "sdkwork-im-standalone-gateway",
     );
@@ -95,6 +97,10 @@ async fn async_main(
     let embedded_dependencies = embedded_dependency_routes::bootstrap_embedded_dependency_routes()
         .await
         .map_err(|error| format!("failed to assemble embedded dependency routers: {error}"))?;
+    let agent_dispatch_worker = bootstrap_agent_dispatch_worker(
+        embedded_dependencies.agents_chat_facade.clone(),
+        gateway_config.environment.as_str(),
+    )?;
 
     let web_config = WebGatewayConfig::from_env();
     let registry = build_gateway_registry()?;
@@ -184,10 +190,81 @@ async fn async_main(
         if let Some(handle) = retention_scheduler {
             handle.shutdown();
         }
+        if let Some(handle) = agent_dispatch_worker {
+            handle.shutdown().await;
+        }
         embedded_runtime.shutdown().await;
     })
     .await?;
     Ok(())
+}
+
+fn bootstrap_agent_dispatch_worker(
+    agents_chat_facade: Option<Arc<dyn sdkwork_agents_runtime_facade::AgentsChatFacade>>,
+    environment: &str,
+) -> Result<Option<conversation_runtime::AgentDispatchWorkerHandle>, String> {
+    let development = matches!(
+        environment.trim().to_ascii_lowercase().as_str(),
+        "dev" | "development" | "test" | "testing" | "local"
+    );
+    let Some(agents_chat_facade) = agents_chat_facade else {
+        if development {
+            tracing::warn!("Agents facade unavailable; IM agent dispatch worker is disabled");
+            return Ok(None);
+        }
+        return Err("Agents facade is required by the IM agent dispatch worker".into());
+    };
+    let Some(runtime) = conversation_runtime::resolve_embedded_conversation_runtime() else {
+        if development {
+            tracing::warn!(
+                "conversation runtime unavailable; IM agent dispatch worker is disabled"
+            );
+            return Ok(None);
+        }
+        return Err("conversation runtime is required by the IM agent dispatch worker".into());
+    };
+    let shared_pool = match sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool() {
+        Ok(pool) => pool,
+        Err(error) if development => {
+            tracing::warn!(
+                error = %error,
+                "PostgreSQL unavailable; IM agent dispatch worker is disabled in development"
+            );
+            return Ok(None);
+        }
+        Err(error) => {
+            return Err(format!(
+                "IM agent dispatch worker requires the shared PostgreSQL pool: {error}"
+            ));
+        }
+    };
+    let pool = im_adapters_postgres_journal::PostgresJournalPool::from_pool(shared_pool);
+    let message_store =
+        Arc::new(im_adapters_postgres_journal::PostgresMessageStore::from_pool(pool.clone()));
+    let integration_store = Arc::new(
+        im_adapters_postgres_journal::PostgresAgentIntegrationStore::from_pool_with_runtime_ids(
+            pool,
+        ),
+    );
+    let source_loader =
+        Arc::new(conversation_runtime::MessageStoreAgentDispatchSourceLoader::new(message_store));
+    let reply_committer =
+        Arc::new(conversation_runtime::ConversationRuntimeAgentReplyCommitter::new(runtime));
+    let worker = conversation_runtime::AgentDispatchWorker::new(
+        integration_store,
+        agents_chat_facade,
+        source_loader,
+        reply_committer,
+        conversation_runtime::resolve_agent_dispatch_worker_id()?,
+    )?;
+    let config = conversation_runtime::AgentDispatchWorkerConfig::from_env()?;
+    tracing::info!(config = ?config, "starting IM agent dispatch worker");
+    let handle = conversation_runtime::spawn_agent_dispatch_worker(worker, config);
+    sdkwork_im_service_readiness::register_im_process_boolean_readiness_check(
+        "im agent dispatch worker",
+        handle.health_signal(),
+    )?;
+    Ok(Some(handle))
 }
 
 /// Apply gateway process environment defaults.

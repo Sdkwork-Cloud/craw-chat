@@ -31,6 +31,8 @@ struct ApplicationAssemblyBackground {
 }
 
 pub async fn assemble_application_router() -> Result<ApplicationAssembly, String> {
+    sdkwork_im_database_pool::try_bootstrap_im_process_database_pools_from_env().await?;
+
     let mut router = Router::new();
     let mut background = ApplicationAssemblyBackground {
         _social_shared_channel_sync: None,
@@ -132,8 +134,8 @@ fn build_social_runtime() -> Result<Arc<SocialRuntime>, String> {
     }
 }
 
-async fn resolve_embedded_social_postgres_pool()
--> Option<im_adapters_social_postgres::SocialPostgresPool> {
+async fn resolve_embedded_social_postgres_pool(
+) -> Option<im_adapters_social_postgres::SocialPostgresPool> {
     if let Ok(pool) = sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool() {
         return Some(im_adapters_social_postgres::SocialPostgresPool::new(pool));
     }

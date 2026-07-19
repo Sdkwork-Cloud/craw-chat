@@ -32,12 +32,12 @@ async function importRepoModule(relativePath) {
 const rootPackageJson = JSON.parse(readText('package.json'));
 
 for (const [scriptName, expectedCommand] of Object.entries({
-  'release:plan': 'node scripts/release/plan-sdkwork-im-install-packages.mjs',
+  'release:plan': 'pnpm exec sdkwork-app release:plan',
   'release:build:prod': 'node scripts/release/build-sdkwork-im-production.mjs',
   'release:stage': 'node scripts/release/stage-sdkwork-im-release-package.mjs',
-  'release:package': 'node scripts/release/build-sdkwork-im-install-package.mjs',
+  'release:package': 'pnpm exec sdkwork-app release:package',
   'release:package:check': 'node scripts/release/build-sdkwork-im-install-package.mjs --check --dry-run --all',
-  'release:validate': 'node scripts/release/validate-sdkwork-im-install-artifacts.mjs',
+  'release:validate': 'pnpm exec sdkwork-app release:validate',
   'release:validate:evidence': 'node scripts/release/sync-sdkwork-im-release-evidence.mjs --check',
   'release:stage:evidence': 'node scripts/release/sync-sdkwork-im-release-evidence.mjs --write',
   'release:build:desktop': 'node scripts/release/build-sdkwork-im-production.mjs --target desktop',
@@ -795,8 +795,8 @@ for (const forbiddenText of [
 }
 for (const [phase, expectedCommand] of Object.entries({
   stage: 'pnpm release:stage -- --package-id $env:SDKWORK_PACKAGE_ID',
-  package: 'pnpm release:package -- --package-id $env:SDKWORK_PACKAGE_ID',
-  validate: 'pnpm release:validate -- --package-id $env:SDKWORK_PACKAGE_ID',
+  package: 'node scripts/release/build-sdkwork-im-install-package.mjs --package-id $env:SDKWORK_PACKAGE_ID',
+  validate: 'node scripts/release/validate-sdkwork-im-install-artifacts.mjs --package-id $env:SDKWORK_PACKAGE_ID',
 })) {
   const phaseScript = workflowConfig.lifecycle?.[phase]?.map((step) => step.run).join('\n') ?? '';
   assert.match(
@@ -810,7 +810,12 @@ for (const target of workflowConfig.targets ?? []) {
     target.id,
     `${target.platform}-${target.architecture}-${target.deploymentProfile}-${target.profile}-${String(target.formats?.[0] ?? '').replaceAll('.', '-')}`,
   );
-  assert.equal(target.outputGlobs?.includes('dist/release-packages/*'), true, `${target.id} should upload release packages`);
+  assert.equal(target.outputGlobs?.includes(target.artifactPath), true, `${target.id} should upload its primary artifact`);
+  assert.equal(
+    target.outputGlobs?.includes(`dist/release-evidence/${target.id}/*`),
+    true,
+    `${target.id} should upload its target-scoped release evidence`,
+  );
 }
 
 const packageWorkflowText = readText('.github', 'workflows', 'package.yml');

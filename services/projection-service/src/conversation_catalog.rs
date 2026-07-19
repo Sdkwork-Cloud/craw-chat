@@ -13,6 +13,10 @@ use crate::projection::{
 };
 use crate::scope::{scope_key, scope_key_for_event};
 use crate::{TimelineProjectionService, lock_projection_mutex};
+use im_platform_contracts::{
+    AgentAssignmentSource, ConversationAgentProjectionItem,
+    ReplaceConversationAgentProjection,
+};
 
 impl TimelineProjectionService {
     pub(crate) fn apply_conversation_created(
@@ -51,7 +55,7 @@ impl TimelineProjectionService {
             {
                 entry.title = Some(title);
             }
-            if let Some(assignments) = projected_agent_assignments
+            if let Some(assignments) = projected_agent_assignments.clone()
                 && entry
                     .agent_assignments
                     .as_ref()
@@ -81,6 +85,10 @@ impl TimelineProjectionService {
             });
         if handoff_view.is_some() {
             summary.agent_handoff = handoff_view;
+        }
+        drop(summaries);
+        if let Some(assignments) = projected_agent_assignments {
+            self.persist_conversation_agent_projection(event, &assignments)?;
         }
         Ok(())
     }
@@ -173,7 +181,9 @@ impl TimelineProjectionService {
                 payload.previous_generation, current.generation
             )));
         }
-        entry.agent_assignments = Some(next_assignments);
+        entry.agent_assignments = Some(next_assignments.clone());
+        drop(conversations);
+        self.persist_conversation_agent_projection(event, &next_assignments)?;
         Ok(())
     }
 
@@ -290,6 +300,60 @@ impl TimelineProjectionService {
         }
         self.load_conversation_catalog_from_durable_store(scope.as_str())
             .and_then(|entry| agent_assignments_from_catalog_entry(&entry))
+    }
+
+    fn persist_conversation_agent_projection(
+        &self,
+        event: &CommitEnvelope,
+        assignments: &ConversationAgentAssignmentSet,
+    ) -> Result<(), ProjectionError> {
+        let Some(store) = self.agent_integration_store.get() else {
+            return Ok(());
+        };
+        let tenant_id = event.tenant_id.parse::<u64>().map_err(|_| {
+            ProjectionError::InvalidEvent("agent projection tenant id must be int64".into())
+        })?;
+        let organization_id = event
+            .normalized_organization_id()
+            .parse::<u64>()
+            .map_err(|_| {
+                ProjectionError::InvalidEvent(
+                    "agent projection organization id must be int64".into(),
+                )
+            })?;
+        let assigned_by = event.actor.actor_id.parse::<u64>().unwrap_or(0);
+        let assignment_source = match assignments.source {
+            ConversationAgentAssignmentSource::DefaultPolicy => {
+                AgentAssignmentSource::DefaultPolicy
+            }
+            ConversationAgentAssignmentSource::ConversationOverride => {
+                AgentAssignmentSource::ConversationOverride
+            }
+        };
+        store
+            .replace_conversation_agents(ReplaceConversationAgentProjection {
+                tenant_id,
+                organization_id,
+                conversation_id: event.aggregate_id.clone(),
+                assignment_source,
+                assignment_generation: assignments.generation,
+                assigned_by,
+                assigned_at: event.committed_at.clone(),
+                source_event_id: event.event_id.clone(),
+                source_aggregate_version: event.ordering_seq,
+                payload_hash: sdkwork_utils_rust::sha256_hash(event.payload.as_bytes()),
+                items: assignments
+                    .agents
+                    .iter()
+                    .enumerate()
+                    .map(|(position, assignment)| ConversationAgentProjectionItem {
+                        agent_id: assignment.agent_id.clone(),
+                        agent_revision_ref: assignment.revision_id.clone(),
+                        position: position as i32,
+                    })
+                    .collect(),
+            })
+            .map_err(ProjectionError::StoreFailure)
     }
 }
 

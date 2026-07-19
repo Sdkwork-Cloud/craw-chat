@@ -41,15 +41,26 @@ pnpm db:validate
 pnpm test:database-framework-standard
 pnpm test:database-naming-standard
 pnpm test:contract:database
+cargo test -p im-adapters-postgres-journal --test agent_integration_migration_live_test -- --ignored --nocapture
 ```
 
 ## Initialization state
 
-This module is in **pre-GA migration state** for greenfield deployments:
+This module uses an immutable baseline plus versioned migrations:
 
 1. **Baseline** — `database/ddl/baseline/postgres/0001_im_baseline.sql` is the **runtime authority** for IM core (journal, projection, social materializer, search).
 2. **SQLite compatibility baseline** — `database/ddl/baseline/sqlite/0001_im_baseline.sql` exists only for lifecycle validation and desktop gateway co-location checks. It is not engine parity. **IM services do not persist to SQLite**; `SDKWORK_IM_DATABASE_ENGINE=sqlite` uses in-memory ephemeral IM state in dev/test. Desktop `chat.sqlite` hosts gateway webstore and sibling module databases, not the IM event log.
-3. **Migrations** — `database/migrations/{engine}/` contains the pre-GA conversation-id rewrite and managed group Knowledgebase binding migrations. PostgreSQL is the runtime authority; SQLite migration files validate the explicitly limited compatibility surface.
+3. **Migrations** — `database/migrations/{engine}/` contains the conversation-id rewrite, managed group Knowledgebase binding, stream authority, and the active IM-to-Agents integration migration. PostgreSQL is the runtime authority; SQLite migration files validate the explicitly limited compatibility surface.
+
+Contract `2.0.0` activates the three IM-to-Agents tables from paired PostgreSQL
+migration `0005`; paired migration `0006` adds validated scope/sign guards.
+Their tenant, organization, end-user subject, message, and
+Snowflake fields were BIGINT from creation; the adapter rejects non-decimal,
+zero where forbidden, and values above signed int64 before persistence. The
+table registry retains migration provenance instead of rewriting the historical
+baseline.
+Migration `0007` normalizes legacy projection metadata and timeline rows that
+stored serialized JSON as JSONB strings; current adapters persist JSONB values directly.
 4. **Drift** — run `pnpm db:drift:check` before release.
 
 The PostgreSQL baseline is tenant-and-organization isolated: primary keys, unique

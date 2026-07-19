@@ -116,18 +116,18 @@ const {
 
 assert.equal(
   packageJson.scripts.dev,
-  'pnpm dev:browser',
-  'root pnpm dev must delegate to the browser dev stack',
+  'pnpm dev:standalone',
+  'root pnpm dev must delegate directly to the standalone development profile',
 );
 assert.equal(
   packageJson.scripts['dev:browser'],
-  'pnpm dev:browser:postgres:standalone',
-  'root pnpm dev:browser must delegate to the PostgreSQL standalone profile',
+  'pnpm exec sdkwork-app dev --runtime-target browser --database postgres --deployment-profile standalone',
+  'root pnpm dev:browser must delegate to the shared lifecycle facade',
 );
 assert.equal(
   packageJson.scripts['dev:browser:postgres:standalone'],
-  'node scripts/im-dev.mjs --target browser --deployment-profile standalone --database postgres',
-  'root pnpm dev:browser full profile must start PostgreSQL standalone browser dev',
+  'pnpm exec sdkwork-app dev --runtime-target browser --database postgres --deployment-profile standalone',
+  'root pnpm dev:browser full profile must select PostgreSQL standalone browser dev through the facade',
 );
 assert.doesNotMatch(
   packageJson.scripts['dev:browser:postgres:standalone'],
@@ -136,13 +136,13 @@ assert.doesNotMatch(
 );
 assert.equal(
   packageJson.scripts['dev:desktop'],
-  'pnpm dev:desktop:postgres:standalone',
-  'root pnpm dev:desktop must delegate to the PostgreSQL standalone profile',
+  'pnpm exec sdkwork-app dev --runtime-target desktop --database postgres --deployment-profile standalone',
+  'root pnpm dev:desktop must delegate to the shared lifecycle facade',
 );
 assert.equal(
   packageJson.scripts['dev:desktop:postgres:standalone'],
-  'node scripts/im-dev.mjs --target desktop --deployment-profile standalone --database postgres',
-  'root pnpm dev:desktop full profile must start PostgreSQL standalone desktop dev',
+  'pnpm exec sdkwork-app dev --runtime-target desktop --database postgres --deployment-profile standalone',
+  'root pnpm dev:desktop full profile must select PostgreSQL standalone desktop dev through the facade',
 );
 assert.doesNotMatch(
   packageJson.scripts['dev:desktop:postgres:standalone'],
@@ -395,10 +395,10 @@ assert.match(
   /scripts\/dev\/prepare-shared-sdk-git-sources\.mjs/u,
   'root sdk:shared:prepare must materialize git-backed shared SDK sources for release builds',
 );
-assert.match(
+assert.equal(
   packageJson.scripts['release:build'],
-  /scripts\/release\/run-sdkwork-im-pc-release-build\.mjs/u,
-  'root release:build must delegate to the repository-owned release build wrapper',
+  'pnpm exec sdkwork-app release:build',
+  'root release:build must delegate to the shared lifecycle facade',
 );
 assert.match(
   releaseBuildSource,

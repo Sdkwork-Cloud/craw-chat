@@ -565,6 +565,39 @@
       "writeOwner": "comms-conversation-service",
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql",
       "notes": "Short-lived one-time launch ticket hashes fenced by the immutable space/binding target and IM upstream link generation. Raw tickets are never persisted or included in IM audit payloads."
+    },
+    {
+      "tableName": "im_projection_conversation_agent",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "database/migrations/postgres/0005_agents_integration_expand.up.sql",
+      "lifecycleStatus": "active",
+      "notes": "Replayable conversation-agent assignment read model sourced only from im_commit_journal."
+    },
+    {
+      "tableName": "im_conversation_agent_binding",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "relation_entity",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/migrations/postgres/0005_agents_integration_expand.up.sql",
+      "lifecycleStatus": "active",
+      "notes": "IM-owned opaque correlation from assignment generation to Agents session; no Agents database foreign key."
+    },
+    {
+      "tableName": "im_agent_dispatch",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "operational_state",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/migrations/postgres/0005_agents_integration_expand.up.sql",
+      "lifecycleStatus": "active",
+      "notes": "Durable source IM message to Agents turn to visible IM reply dispatch lifecycle."
     }
   ]
 }

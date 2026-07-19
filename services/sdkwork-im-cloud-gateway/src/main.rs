@@ -13,6 +13,7 @@ use sdkwork_im_cloud_gateway_observability::{
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    sdkwork_im_service_readiness::enable_process_shared_database_pool();
     sdkwork_im_service_readiness::ensure_im_service_process_identity("sdkwork-im-cloud-gateway");
     sdkwork_im_service_readiness::init_im_service_tracing_from_env();
 

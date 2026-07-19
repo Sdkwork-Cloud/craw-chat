@@ -43,6 +43,7 @@ use r2d2_postgres::PostgresConnectionManager;
 use sdkwork_utils_rust::sha256_hash;
 use tokio::runtime::Handle;
 
+mod agent_integration_store;
 mod aggregate_store;
 mod automation_execution_store;
 mod message_post_persistence;
@@ -57,6 +58,7 @@ mod search_store;
 mod seq_allocator;
 mod stream_state_store;
 
+pub use agent_integration_store::PostgresAgentIntegrationStore;
 pub use aggregate_store::PostgresAggregateStore;
 pub use automation_execution_store::PostgresAutomationExecutionStore;
 pub use im_platform_contracts::CommitJournalReplayCursor as JournalReplayCursor;

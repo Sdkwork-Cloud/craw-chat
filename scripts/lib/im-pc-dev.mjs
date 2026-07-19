@@ -509,6 +509,7 @@ export function loadSdkworkChatPcDevEnvFile(envFile, {
 
 export function parseSdkworkChatPcDevArgs(argv = []) {
   const options = {
+    clientOnly: false,
     database: undefined,
     dryRun: false,
     envFile: undefined,
@@ -519,6 +520,10 @@ export function parseSdkworkChatPcDevArgs(argv = []) {
     const token = tokens[index];
     if (token === '--dry-run') {
       options.dryRun = true;
+      continue;
+    }
+    if (token === '--client-only') {
+      options.clientOnly = true;
       continue;
     }
     if (token === '--database') {
@@ -573,9 +578,11 @@ export function createSdkworkChatPcDevPlan({
     throw new Error(`Unsupported sdkwork-im-pc dev target: ${options.target}`);
   }
   const defaultDatabaseProfile = 'postgres';
-  const databaseProfile = options.database === 'postgresql'
-    ? 'postgres'
-    : options.database ?? defaultDatabaseProfile;
+  const databaseProfile = options.clientOnly
+    ? undefined
+    : options.database === 'postgresql'
+      ? 'postgres'
+      : options.database ?? defaultDatabaseProfile;
   const defaultEnvFile = databaseProfile === 'postgres'
     ? resolveDefaultPostgresEnvFile(resolvedRepoRoot)
     : undefined;
@@ -596,21 +603,25 @@ export function createSdkworkChatPcDevPlan({
     : undefined;
   const devEnvFile = databaseProfile === 'postgres'
     ? (customDevEnvFile ?? postgresDevProfile.fileEnv)
-    : loadSdkworkChatPcDevEnvFile(options.envFile ?? defaultEnvFile, {
-      repoRoot: resolvedRepoRoot,
-    });
+    : databaseProfile === 'sqlite'
+      ? loadSdkworkChatPcDevEnvFile(options.envFile ?? defaultEnvFile, {
+          repoRoot: resolvedRepoRoot,
+        })
+      : {};
   const requestedEnv = {
     ...env,
     ...devEnvFile,
     ...(postgresDevProfile?.env ?? {}),
   };
-  const cargoEnv = createSdkworkImServerCargoEnv({
-    env: {
-      ...requestedEnv,
-      ...serverEnv,
-    },
-    repoRoot: resolvedRepoRoot,
-  });
+  const cargoEnv = options.clientOnly
+    ? { env: requestedEnv }
+    : createSdkworkImServerCargoEnv({
+        env: {
+          ...requestedEnv,
+          ...serverEnv,
+        },
+        repoRoot: resolvedRepoRoot,
+      });
   const mergedEnv = {
     ...cargoEnv.env,
   };
@@ -679,6 +690,20 @@ export function createSdkworkChatPcDevPlan({
     throw new Error(resolvedRendererEnv.errors.join('\n'));
   }
   const rendererEnv = mergeSdkworkImBootstrapAccessTokenEnv(resolvedRendererEnv.env);
+  const rendererProcess = {
+    ...shared,
+    env: rendererEnv,
+    args: target.pnpmArgs,
+    label: target.label,
+  };
+  if (options.clientOnly) {
+    return {
+      devServer,
+      dryRun: options.dryRun,
+      target: options.target,
+      processes: [rendererProcess],
+    };
+  }
   const sharedDatabaseEnv = resolveSdkworkImSharedDatabaseConfig({
     env: mergedEnv,
     repoRoot: resolvedRepoRoot,
@@ -738,12 +763,7 @@ export function createSdkworkChatPcDevPlan({
       label: 'sdkwork-im-server',
     });
   }
-  processes.push({
-    ...shared,
-    env: rendererEnv,
-    args: target.pnpmArgs,
-    label: target.label,
-  });
+  processes.push(rendererProcess);
   if (managedSdkworkApiGatewayProcess) {
     processes.push(managedSdkworkApiGatewayProcess);
   }

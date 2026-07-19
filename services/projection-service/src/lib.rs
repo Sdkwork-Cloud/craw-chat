@@ -157,6 +157,8 @@ pub struct TimelineProjectionService {
     metadata_tier: metadata_tier::MetadataTierConfig,
     conversation_event_outbox:
         std::sync::OnceLock<std::sync::Arc<dyn im_platform_contracts::OutboxStore>>,
+    agent_integration_store:
+        std::sync::OnceLock<std::sync::Arc<dyn im_platform_contracts::AgentIntegrationStore>>,
 }
 
 impl TimelineProjectionService {
@@ -197,6 +199,13 @@ impl TimelineProjectionService {
         store: std::sync::Arc<dyn im_platform_contracts::OutboxStore>,
     ) {
         let _ = self.conversation_event_outbox.set(store);
+    }
+
+    pub fn configure_agent_integration_store(
+        &self,
+        store: std::sync::Arc<dyn im_platform_contracts::AgentIntegrationStore>,
+    ) {
+        let _ = self.agent_integration_store.set(store);
     }
 }
 

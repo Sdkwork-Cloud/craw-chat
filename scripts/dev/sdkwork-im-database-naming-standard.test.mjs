@@ -89,6 +89,9 @@ assert.equal(tableRegistry.prefixRegistry, './database-prefix-registry.json');
 assert.ok(tableRegistry.databaseProfiles.includes('postgresql'));
 
 const registeredTables = tableRegistry.tables.map((entry) => entry.tableName);
+const baselineRegisteredTables = tableRegistry.tables
+  .filter((entry) => entry.migration.startsWith('database/ddl/baseline/postgres/'))
+  .map((entry) => entry.tableName);
 assert.equal(
   registeredTables.length,
   unique(registeredTables).length,
@@ -112,11 +115,24 @@ for (const entry of tableRegistry.tables) {
   assert.ok(entry.tableProfile, `${entry.tableName} must declare a table profile`);
   assert.ok(entry.writeOwner, `${entry.tableName} must declare a write owner`);
   const migrationPath = entry.migration;
-  assert.match(
-    migrationPath,
-    /^database\/ddl\/baseline\/postgres\/[0-9]{4}_[a-z0-9_]+\.sql$/u,
-    `${entry.tableName} must point to a canonical PostgreSQL baseline under database/ddl/baseline/postgres`,
+  const lifecycleStatus = entry.lifecycleStatus ?? 'active';
+  assert.ok(
+    lifecycleStatus === 'active' || lifecycleStatus === 'expanding',
+    `${entry.tableName} has unsupported lifecycleStatus=${lifecycleStatus}`,
   );
+  if (lifecycleStatus === 'active') {
+    assert.match(
+      migrationPath,
+      /^database\/(?:ddl\/baseline\/postgres\/[0-9]{4}_[a-z0-9_]+\.sql|migrations\/postgres\/[0-9]{4}_[a-z0-9_]+\.up\.sql)$/u,
+      `${entry.tableName} must point to its immutable PostgreSQL baseline or versioned up migration`,
+    );
+  } else {
+    assert.match(
+      migrationPath,
+      /^database\/migrations\/postgres\/[0-9]{4}_[a-z0-9_]+\.up\.sql$/u,
+      `${entry.tableName} expanding lifecycle must point to a PostgreSQL up migration`,
+    );
+  }
   assert.ok(
     fs.existsSync(path.join(repoRoot, ...migrationPath.split('/'))),
     `${entry.tableName} migration file must exist: ${migrationPath}`,
@@ -126,6 +142,19 @@ for (const entry of tableRegistry.tables) {
     migrationSource.includes(`create table`) && migrationSource.includes(entry.tableName),
     `${entry.tableName} must be created in its registered migration ${migrationPath}`,
   );
+  if (migrationPath.includes('/migrations/postgres/')) {
+    const downMigrationPath = migrationPath.replace(/\.up\.sql$/u, '.down.sql');
+    assert.ok(
+      fs.existsSync(path.join(repoRoot, ...downMigrationPath.split('/'))),
+      `${entry.tableName} expanding migration must have a paired down migration: ${downMigrationPath}`,
+    );
+    const downMigrationSource = read(downMigrationPath).toLowerCase();
+    assert.match(
+      downMigrationSource,
+      new RegExp(`\\bdrop\\s+table(?:\\s+if\\s+exists)?\\s+${entry.tableName}\\b`, 'u'),
+      `${entry.tableName} must be dropped in its paired down migration ${downMigrationPath}`,
+    );
+  }
 }
 
 const migrationTables = extractAll(
@@ -146,10 +175,10 @@ for (const table of migrationTables) {
   assert.ok(table.length <= 63, `${table} should fit PostgreSQL's default identifier length`);
 }
 
-for (const table of registeredTables) {
+for (const table of baselineRegisteredTables) {
   assert.ok(
     migrationTables.includes(table),
-    `registered IM table ${table} must exist in the canonical migration`,
+    `baseline-registered IM table ${table} must exist in the canonical baseline`,
   );
 }
 assert.ok(

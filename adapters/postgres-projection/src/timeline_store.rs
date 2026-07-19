@@ -9,8 +9,8 @@ use sdkwork_utils_rust::sha256_hash;
 use serde::Deserialize;
 
 use crate::{
-    PostgresProjectionPool, now_rfc3339, postgres_pool_client, postgres_timestamptz,
-    postgres_unavailable, run_postgres_io,
+    PostgresProjectionPool, now_rfc3339, postgres_jsonb_payload, postgres_jsonb_payload_text,
+    postgres_pool_client, postgres_timestamptz, postgres_unavailable, run_postgres_io,
 };
 
 const UPSERT_TIMELINE_ENTRY_SQL: &str = r#"
@@ -37,7 +37,7 @@ on conflict (tenant_id, organization_id, conversation_id, message_seq) do update
 "#;
 
 const LOAD_TIMELINE_SQL: &str = r#"
-select message_seq, payload_json::text
+select message_seq, payload_json
 from im_projection_timeline_entries
 where tenant_id = $1
   and organization_id = $2
@@ -53,7 +53,7 @@ limit $4
 const LOAD_TIMELINE_DEFAULT_LIMIT: i64 = 200;
 
 const LOAD_TIMELINE_WINDOW_SQL: &str = r#"
-select message_seq, payload_json::text
+select message_seq, payload_json
 from im_projection_timeline_entries
 where tenant_id = $1
   and organization_id = $2
@@ -107,14 +107,17 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
                     ],
                 )
                 .map_err(|error| postgres_unavailable("timeline load select", error))?;
-            Ok(rows
+            rows
                 .into_iter()
                 .map(|row| {
                     let message_seq: i64 = row.get(0);
-                    let payload: String = row.get(1);
-                    (message_seq.max(0) as u64, payload)
+                    let Json(payload) = row.get::<_, Json<serde_json::Value>>(1);
+                    Ok((
+                        message_seq.max(0) as u64,
+                        postgres_jsonb_payload_text(payload, "timeline payload")?,
+                    ))
                 })
-                .collect())
+                .collect::<Result<Vec<_>, ContractError>>()
         })
     }
 
@@ -146,10 +149,13 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
                 .into_iter()
                 .map(|row| {
                     let message_seq: i64 = row.get(0);
-                    let payload: String = row.get(1);
-                    (message_seq.max(0) as u64, payload)
+                    let Json(payload) = row.get::<_, Json<serde_json::Value>>(1);
+                    Ok((
+                        message_seq.max(0) as u64,
+                        postgres_jsonb_payload_text(payload, "timeline payload")?,
+                    ))
                 })
-                .collect::<Vec<_>>();
+                .collect::<Result<Vec<_>, ContractError>>()?;
             let has_more = items.len() > limit;
             items.truncate(limit);
             Ok(TimelineProjectionWindow { items, has_more })
@@ -203,6 +209,7 @@ fn upsert_timeline_rows(
         let created_at = postgres_timestamptz(&now_rfc3339(), "created_at")?;
         for (scope, message_seq, payload) in rows {
             let parsed = parse_timeline_payload(payload.as_str());
+            let json_payload = postgres_jsonb_payload(payload.as_str(), "timeline payload")?;
             let retention_until = resolve_timeline_retention_until(&parsed)
                 .map(|value| postgres_timestamptz(value.as_str(), "retention_until"))
                 .transpose()?;
@@ -220,7 +227,7 @@ fn upsert_timeline_rows(
                         &message_seq_i64,
                         &message_id,
                         &summary,
-                        &Json(payload),
+                        &Json(json_payload),
                         &payload_hash,
                         &created_at,
                         &retention_until,

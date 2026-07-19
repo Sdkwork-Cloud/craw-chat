@@ -17,6 +17,7 @@ const AGENT_DISPATCH_ID_DIGEST_LEN: usize = 32;
 pub(super) struct AgentMentionDispatchArtifacts {
     pub envelope: CommitEnvelope,
     pub outbox: Option<OutboxEventRecord>,
+    pub request: AgentMentionDispatchRequest,
 }
 
 impl<J> ConversationRuntime<J>
@@ -118,7 +119,11 @@ where
             event_id.as_str(),
             payload,
         )?;
-        Ok(Some(AgentMentionDispatchArtifacts { envelope, outbox }))
+        Ok(Some(AgentMentionDispatchArtifacts {
+            envelope,
+            outbox,
+            request,
+        }))
     }
 
     fn build_agent_mention_dispatch_outbox_record(

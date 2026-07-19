@@ -18,6 +18,7 @@ use sdkwork_knowledgebase_gateway_assembly::{
 
 pub struct EmbeddedDependencyRoutes {
     pub router: Router,
+    pub agents_chat_facade: Option<Arc<dyn sdkwork_agents_runtime_facade::AgentsChatFacade>>,
 }
 
 struct CommerceT1Module {
@@ -532,7 +533,7 @@ async fn sync_agents_embedded_database() -> Result<(), String> {
         return Ok(());
     }
     ensure_embedded_dependency_app_root("SDKWORK_AGENTS", "sdkwork-agents");
-    sdkwork_agents_database_host::bootstrap_agents_database_from_env()
+    sdkwork_agents_gateway_assembly::bootstrap_application_database_from_env()
         .await
         .map_err(|error| format!("agents database bootstrap failed: {error}"))?;
     Ok(())
@@ -663,8 +664,30 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
     router = merge_embedded_dependency(router, "mail", bootstrap_embedded_mail_routes).await?;
     router = merge_embedded_dependency(router, "notary", bootstrap_embedded_notary_routes).await?;
     router = merge_embedded_dependency(router, "course", bootstrap_embedded_course_routes).await?;
-    router = merge_embedded_dependency(router, "agents", bootstrap_embedded_agents_routes).await?;
-    Ok(EmbeddedDependencyRoutes { router })
+    let agents_runtime = match bootstrap_embedded_agents_routes().await {
+        Ok(runtime) => Some(runtime),
+        Err(error) if is_development_environment() => {
+            eprintln!(
+                "[sdkwork-im-standalone-gateway] optional dependency agents is unavailable in development; continuing without its routes: {error}"
+            );
+            None
+        }
+        Err(error) => {
+            return Err(format!(
+                "embedded dependency agents failed readiness and cannot be mounted: {error}"
+            ));
+        }
+    };
+    let agents_chat_facade = agents_runtime
+        .as_ref()
+        .map(|runtime| runtime.chat_facade.clone());
+    if let Some(runtime) = agents_runtime {
+        router = router.merge(runtime.router);
+    }
+    Ok(EmbeddedDependencyRoutes {
+        router,
+        agents_chat_facade,
+    })
 }
 
 async fn merge_embedded_dependency<F, Fut>(
@@ -752,39 +775,11 @@ async fn bootstrap_embedded_mail_routes() -> Result<Router, String> {
         .map_err(|error| format!("compose embedded mail router failed: {error}"))
 }
 
-async fn bootstrap_embedded_agents_routes() -> Result<Router, String> {
-    let state = tokio::task::spawn_blocking(build_embedded_agents_http_state)
+async fn bootstrap_embedded_agents_routes()
+-> Result<sdkwork_agents_gateway_assembly::AppBusinessRuntimeAssembly, String> {
+    sdkwork_agents_gateway_assembly::assemble_app_business_runtime()
         .await
-        .map_err(|error| format!("agents bootstrap worker failed: {error}"))??;
-    Ok(sdkwork_routes_agents_app_api::build_served_router(state).await)
-}
-
-fn build_embedded_agents_http_state()
--> Result<sdkwork_intelligence_agents_service::AgentHttpState, String> {
-    use sdkwork_intelligence_agents_service::{
-        AUDIT_SINK_NODE_ID, AgentBusinessIdGenerator, AgentHttpState, IamGatedPolicyProvider,
-        SqlAgentAuditSink, SqlAgentRepository, SyncPostgresAdapter,
-    };
-
-    let repository_adapter =
-        SyncPostgresAdapter::connect_from_agents_managed_store_env().map_err(|error| {
-            format!("connect agents managed store postgres adapter failed: {error}")
-        })?;
-
-    let audit_adapter = {
-        let audit_pool = repository_adapter.pool().clone();
-        let audit_id_generator = AgentBusinessIdGenerator::with_node_id(AUDIT_SINK_NODE_ID)
-            .map_err(|error| {
-                format!("build agents audit sink snowflake id generator failed: {error}")
-            })?;
-        SyncPostgresAdapter::with_pool_and_id_generator(audit_pool, audit_id_generator)
-    };
-
-    Ok(AgentHttpState::new(
-        SqlAgentRepository::new(repository_adapter),
-        SqlAgentAuditSink::new_global(audit_adapter),
-        IamGatedPolicyProvider::default(),
-    ))
+        .map_err(|error| format!("compose embedded agents app routes failed: {error}"))
 }
 
 async fn bootstrap_embedded_commerce_routes() -> Result<Router, String> {

@@ -103,11 +103,54 @@ assert.match(
 assert.ok(fs.existsSync(dbScriptPath), 'PostgreSQL pnpm database script must exist');
 
 const {
+  applyResolvedPostgresProfile,
   buildPostgresDatabaseUrl,
   createPostgresDbPlan,
   parsePostgresConfig,
   sanitizePostgresDatabaseUrl,
 } = await import(pathToFileURL(dbScriptPath).href);
+
+const runtimeOverrideConfig = applyResolvedPostgresProfile(
+  {
+    database: {
+      database: 'file_db',
+      host: '127.0.0.1',
+      password: 'file_pass',
+      port: '5432',
+      schema: 'file_schema',
+      sslmode: 'disable',
+      username: 'file_user',
+    },
+    admin: {},
+  },
+  {
+    kind: 'postgresql',
+    postgres: {
+      database: 'runtime_db',
+      host: 'db.runtime',
+      password: 'runtime_pass',
+      port: '6543',
+      sslmode: 'require',
+      username: 'runtime_user',
+    },
+  },
+);
+assert.match(
+  dbScript,
+  /resolvePostgresDevProfile\(\{ env, extraEnv, repoRoot \}\)/u,
+  'programmatic PostgreSQL CLI runs must support explicit, non-persistent database profile overrides',
+);
+assert.equal(runtimeOverrideConfig.database.host, 'db.runtime');
+assert.equal(runtimeOverrideConfig.database.port, '6543');
+assert.equal(runtimeOverrideConfig.database.database, 'runtime_db');
+assert.equal(runtimeOverrideConfig.database.username, 'runtime_user');
+assert.equal(runtimeOverrideConfig.database.password, 'runtime_pass');
+assert.equal(runtimeOverrideConfig.database.sslmode, 'require');
+assert.equal(
+  runtimeOverrideConfig.database.schema,
+  'file_schema',
+  'runtime URL override must preserve the explicit schema authority from the profile file',
+);
 
 const parsedSplitConfig = parsePostgresConfig({
   configText: [

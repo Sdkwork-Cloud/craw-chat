@@ -6,6 +6,7 @@ const DEFAULT_BIND_ADDR: &str = "127.0.0.1:18083";
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    sdkwork_im_service_readiness::enable_process_shared_database_pool();
     sdkwork_im_service_readiness::ensure_im_service_process_identity("projection-service");
     sdkwork_im_service_readiness::init_im_service_tracing_from_env();
 

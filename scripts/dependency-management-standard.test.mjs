@@ -357,9 +357,9 @@ function assertSharedGatewayFoundationIntegration() {
     .sort();
   const expectedSharedGatewaySurfaceIds = [
     'sdkwork-iam-app-api',
-    'sdkwork-agent-app-api',
-    'sdkwork-agent-backend-api',
-    'sdkwork-agent-open-api',
+    'sdkwork-agents-app-api',
+    'sdkwork-agents-backend-api',
+    'sdkwork-agents-open-api',
     'sdkwork-aiot-app-api',
     'sdkwork-aiot-backend-api',
     'sdkwork-drive-app-api',
@@ -367,6 +367,7 @@ function assertSharedGatewayFoundationIntegration() {
     'sdkwork-catalog-app-api',
     'sdkwork-shop-app-api',
     'sdkwork-order-app-api',
+    'sdkwork-membership-app-api',
     'sdkwork-mail-app-api',
     'sdkwork-community-app-api',
     'sdkwork-course-app-api',
@@ -433,6 +434,76 @@ function assertDocumentation() {
     !/current legacy web-gateway compatibility|long-term foundation API aggregation authority/u.test(imAppApiSpec),
     'specs/im-app-api-sdk-integration.spec.md must document sdkwork-api-cloud-gateway as the current shared foundation API boundary without legacy web-gateway compatibility wording',
   );
+
+  const imAgentsBoundarySpec = readText('specs/IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md');
+  assert(
+    imAgentsBoundarySpec.includes('sdkwork-im -> sdkwork-agents -> sdkwork-kernel'),
+    'IM Agents boundary spec must declare the one-way sdkwork-im -> sdkwork-agents -> sdkwork-kernel dependency',
+  );
+  assert(
+    imAgentsBoundarySpec.includes('IM code and migrations MUST NOT write any `ai_agent_*` table'),
+    'IM Agents boundary spec must forbid cross-module writes to Agents tables',
+  );
+  assert(
+    /Agents\s+MUST NOT import IM/u.test(imAgentsBoundarySpec),
+    'IM Agents boundary spec must forbid the reverse Agents-to-IM dependency',
+  );
+  for (const targetTable of [
+    'im_projection_conversation_agent',
+    'im_conversation_agent_binding',
+    'im_agent_dispatch',
+  ]) {
+    assert(
+      imAgentsBoundarySpec.includes(`\`${targetTable}\``),
+      `IM Agents database target must define ${targetTable}`,
+    );
+  }
+  assert(
+    imAgentsBoundarySpec.includes('id, uuid, binding_id'),
+    'IM Agents binding target must define a stable binding_id for dispatch correlation',
+  );
+  assert(
+    /There is no\s+foreign key to an `ai_agent_\*` table/u.test(imAgentsBoundarySpec),
+    'IM Agents database target must forbid cross-module foreign keys',
+  );
+}
+
+function assertAgentsDependencyBoundary() {
+  const cargoFiles = [path.join(repoRoot, 'Cargo.toml')];
+  for (const moduleRoot of ['adapters', 'apps', 'crates', 'services']) {
+    const absoluteModuleRoot = path.join(repoRoot, moduleRoot);
+    if (!fs.existsSync(absoluteModuleRoot)) continue;
+    for (const entry of fs.readdirSync(absoluteModuleRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const manifest = path.join(absoluteModuleRoot, entry.name, 'Cargo.toml');
+      if (fs.existsSync(manifest)) cargoFiles.push(manifest);
+    }
+  }
+  const forbiddenPrivateCrates = [
+    'sdkwork-routes-agents-app-api',
+    'sdkwork-intelligence-agents-service',
+    'sdkwork-agents-database-host',
+  ];
+  for (const filePath of cargoFiles) {
+    const relativePath = slashPath(path.relative(repoRoot, filePath));
+    const source = fs.readFileSync(filePath, 'utf8');
+    for (const crateName of forbiddenPrivateCrates) {
+      assert(
+        !new RegExp(`^\\s*${crateName}\\s*=`, 'mu').test(source),
+        `${relativePath} must consume the public Agents facade/assembly instead of ${crateName}`,
+      );
+    }
+  }
+  const rootCargo = readText('Cargo.toml');
+  const standaloneCargo = readText('services/sdkwork-im-standalone-gateway/Cargo.toml');
+  assert(
+    rootCargo.includes('sdkwork-agents-gateway-assembly'),
+    'Cargo.toml must declare the public Agents gateway assembly for embedded host composition',
+  );
+  assert(
+    standaloneCargo.includes('sdkwork-agents-gateway-assembly = { workspace = true }'),
+    'standalone gateway must consume Agents only through the public gateway assembly',
+  );
 }
 
 assertDependencyDeclaration();
@@ -442,6 +513,7 @@ assertWorkflowRefs();
 assertReleaseLifecycleDependencyGate();
 assertDiscoveryIntegrationDeferred();
 assertSharedGatewayFoundationIntegration();
+assertAgentsDependencyBoundary();
 for (const relativePath of sourceDependencyFiles) {
   assertNativeDependencyFile(relativePath);
 }

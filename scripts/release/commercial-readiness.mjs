@@ -491,6 +491,15 @@ export function assessAppReleaseEvidence(appManifest, { repoRoot = null } = {}) 
   const packages = Array.isArray(appManifest?.artifacts?.installConfig?.packages)
     ? appManifest.artifacts.installConfig.packages
     : [];
+  const publishStatus = typeof appManifest?.publish?.status === 'string'
+    ? appManifest.publish.status.trim().toUpperCase()
+    : '';
+  if (publishStatus && publishStatus !== 'ACTIVE') {
+    blockers.push(`publish.status=${publishStatus} is not eligible for commercial release sign-off.`);
+  }
+  if (packages.length > 0 && !packages.some(isEnabledManifestEntry)) {
+    blockers.push('The app manifest has no enabled release package.');
+  }
 
   packages.forEach((releasePackage, index) => {
     if (!isEnabledManifestEntry(releasePackage) || isStoreControlledPackage(releasePackage)) {

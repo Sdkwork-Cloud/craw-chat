@@ -95,6 +95,7 @@
       "im_adapters_postgres_journal::PostgresConversationSeqAllocator",
       "im_adapters_postgres_journal::PostgresDurableConversationEventWriter",
       "im_adapters_postgres_journal::PostgresDurableMessagePostWriter",
+      "im_adapters_postgres_journal::PostgresAgentIntegrationStore",
       "im_adapters_postgres_journal::PostgresJournalConfig",
       "im_adapters_postgres_journal::PostgresJournalPool",
       "im_adapters_postgres_journal::PostgresMessageStore",
@@ -119,6 +120,10 @@
       {
         "name": "messageStore",
         "export": "im_adapters_postgres_journal::PostgresMessageStore"
+      },
+      {
+        "name": "agentIntegrationStore",
+        "export": "im_adapters_postgres_journal::PostgresAgentIntegrationStore"
       },
       {
         "name": "outboxStore",

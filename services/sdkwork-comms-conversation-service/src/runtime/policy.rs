@@ -83,6 +83,7 @@ fn ensure_message_mutation_within_ttl(
 pub(super) enum MessagePostPolicy {
     GenericPost,
     SystemChannelPublish,
+    AgentDispatchReply,
 }
 
 pub(super) fn ensure_generic_creatable_conversation_type(

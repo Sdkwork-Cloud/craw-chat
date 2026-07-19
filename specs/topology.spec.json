@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "kind": "sdkwork.app.topology",
   "appId": "sdkwork-im",
   "archetype": "realtime-application-platform",
@@ -18,14 +18,6 @@
         "test",
         "staging",
         "production"
-      ]
-    },
-    "connectivityPlane": {
-      "allowed": [
-        "application",
-        "platform",
-        "operations",
-        "edge"
       ]
     }
   },
@@ -115,15 +107,27 @@
       "standalone.development": {
         "processes": [
           {
-            "id": "application.public-ingress",
-            "crate": "sdkwork-im-standalone-gateway",
-            "binary": "sdkwork-im-standalone-gateway",
+            "id": "standalone-gateway",
+            "role": "standalone-gateway",
+            "script": "_sdkwork:gateway:standalone",
             "required": true
           },
           {
-            "id": "pc-renderer",
-            "package": "apps/sdkwork-im-pc",
-            "script": "dev",
+            "id": "im-browser",
+            "role": "client",
+            "script": "_sdkwork:client:browser:standalone",
+            "runtimeTargets": [
+              "browser"
+            ],
+            "required": true
+          },
+          {
+            "id": "im-desktop",
+            "role": "client",
+            "script": "_sdkwork:client:desktop:standalone",
+            "runtimeTargets": [
+              "desktop"
+            ],
             "required": true
           }
         ],
@@ -139,158 +143,52 @@
       "cloud.development": {
         "processes": [
           {
-            "id": "platform.api-gateway",
-            "crate": "sdkwork-api-cloud-gateway",
-            "binary": "sdkwork-api-cloud-gateway",
-            "repository": "sdkwork-api-cloud-gateway",
-            "required": false
-          },
-          {
-            "id": "application.public-ingress",
-            "crate": "sdkwork-im-cloud-gateway",
-            "binary": "sdkwork-im-server",
+            "id": "im-browser",
+            "role": "client",
+            "script": "_sdkwork:client:browser:cloud",
+            "runtimeTargets": [
+              "browser"
+            ],
             "required": true
           },
           {
-            "id": "pc-renderer",
-            "package": "apps/sdkwork-im-pc",
-            "script": "dev",
+            "id": "im-desktop",
+            "role": "client",
+            "script": "_sdkwork:client:desktop:cloud",
+            "runtimeTargets": [
+              "desktop"
+            ],
             "required": true
           }
         ],
         "healthSurfaces": [
           "application.public-ingress",
           "platform.api-gateway"
-        ]
-      },
-      "cloud.test": {
-        "processes": [
-          {
-            "id": "platform.api-gateway",
-            "crate": "sdkwork-api-cloud-gateway",
-            "binary": "sdkwork-api-cloud-gateway",
-            "repository": "sdkwork-api-cloud-gateway",
-            "required": true
-          },
-          {
-            "id": "application.public-ingress",
-            "crate": "sdkwork-im-cloud-gateway",
-            "binary": "sdkwork-im-server",
-            "required": true
-          }
-        ],
-        "healthSurfaces": [
-          "application.public-ingress",
-          "platform.api-gateway"
-        ]
-      },
-      "cloud.production": {
-        "processes": [
-          {
-            "id": "platform.api-gateway",
-            "crate": "sdkwork-api-cloud-gateway",
-            "binary": "sdkwork-api-cloud-gateway",
-            "repository": "sdkwork-api-cloud-gateway",
-            "required": true
-          },
-          {
-            "id": "application.public-ingress",
-            "crate": "sdkwork-im-cloud-gateway",
-            "binary": "sdkwork-im-server",
-            "required": true
-          }
-        ],
-        "healthSurfaces": [
-          "application.public-ingress",
-          "platform.api-gateway"
-        ]
-      },
-      "cloud.staging": {
-        "processes": [
-          {
-            "id": "platform.api-gateway",
-            "crate": "sdkwork-api-cloud-gateway",
-            "binary": "sdkwork-api-cloud-gateway",
-            "repository": "sdkwork-api-cloud-gateway",
-            "required": true
-          },
-          {
-            "id": "application.public-ingress",
-            "crate": "sdkwork-im-cloud-gateway",
-            "binary": "sdkwork-im-server",
-            "required": true
-          }
-        ],
-        "healthSurfaces": [
-          "application.public-ingress",
-          "platform.api-gateway"
-        ]
-      },
-      "standalone.staging": {
-        "processes": [
-          {
-            "id": "application.public-ingress",
-            "crate": "sdkwork-im-standalone-gateway",
-            "binary": "sdkwork-im-standalone-gateway",
-            "required": true
-          },
-          {
-            "id": "pc-renderer",
-            "package": "apps/sdkwork-im-pc",
-            "script": "dev",
-            "required": true
-          }
-        ],
-        "capabilitySubset": [
-          "application-http",
-          "application-websocket",
-          "platform-iam-adapter"
-        ],
-        "healthSurfaces": [
-          "application.public-ingress"
         ]
       },
       "standalone.test": {
-        "processes": [
-          {
-            "id": "application.public-ingress",
-            "crate": "sdkwork-im-standalone-gateway",
-            "binary": "sdkwork-im-standalone-gateway",
-            "required": true
-          }
-        ],
-        "capabilitySubset": [
-          "application-http",
-          "application-websocket",
-          "platform-iam-adapter"
-        ],
-        "healthSurfaces": [
-          "application.public-ingress"
-        ]
+        "processes": [],
+        "healthSurfaces": []
+      },
+      "standalone.staging": {
+        "processes": [],
+        "healthSurfaces": []
       },
       "standalone.production": {
-        "processes": [
-          {
-            "id": "application.public-ingress",
-            "crate": "sdkwork-im-standalone-gateway",
-            "binary": "sdkwork-im-standalone-gateway",
-            "required": true
-          },
-          {
-            "id": "pc-renderer",
-            "package": "apps/sdkwork-im-pc",
-            "script": "dev",
-            "required": true
-          }
-        ],
-        "capabilitySubset": [
-          "application-http",
-          "application-websocket",
-          "platform-iam-adapter"
-        ],
-        "healthSurfaces": [
-          "application.public-ingress"
-        ]
+        "processes": [],
+        "healthSurfaces": []
+      },
+      "cloud.test": {
+        "processes": [],
+        "healthSurfaces": []
+      },
+      "cloud.staging": {
+        "processes": [],
+        "healthSurfaces": []
+      },
+      "cloud.production": {
+        "processes": [],
+        "healthSurfaces": []
       }
     }
   },
@@ -353,5 +251,9 @@
         ]
       }
     ]
+  },
+  "cloudIngress": {
+    "strategy": "platform-collapsed",
+    "platformGateway": "sdkwork-api-cloud-gateway"
   }
 }

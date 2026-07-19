@@ -22,22 +22,27 @@ pub(crate) fn build_browser_cors_layer() -> CorsLayer {
             "https://tauri.localhost".to_owned(),
         ]);
     }
-    let mut policy = sdkwork_web_bootstrap::security_policy_for_environment(&environment, configured);
+    let mut policy =
+        sdkwork_web_bootstrap::security_policy_for_environment(&environment, configured);
     for header_name in browser_request_headers() {
-        if !policy.cors.allowed_headers.iter().any(|allowed| allowed.eq_ignore_ascii_case(&header_name)) {
+        if !policy
+            .cors
+            .allowed_headers
+            .iter()
+            .any(|allowed| allowed.eq_ignore_ascii_case(&header_name))
+        {
             policy.cors.allowed_headers.push(header_name);
         }
     }
-    sdkwork_web_axum::cors_layer_from_policy(policy.cors)
-        .allow_methods(AllowMethods::list([
-            Method::DELETE,
-            Method::GET,
-            Method::HEAD,
-            Method::OPTIONS,
-            Method::PATCH,
-            Method::POST,
-            Method::PUT,
-        ]))
+    sdkwork_web_axum::cors_layer_from_policy(policy.cors).allow_methods(AllowMethods::list([
+        Method::DELETE,
+        Method::GET,
+        Method::HEAD,
+        Method::OPTIONS,
+        Method::PATCH,
+        Method::POST,
+        Method::PUT,
+    ]))
 }
 
 fn resolve_browser_origins() -> Vec<String> {

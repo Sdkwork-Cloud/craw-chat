@@ -44,6 +44,7 @@ const standardChecks = [
   'test:rtc-signaling-boundary',
   'test:rpc-contract',
   'test:database-naming-standard',
+  'test:agents-integration-migration',
   'test:postgresql-ubuntu-wsl-guide',
   'test:postgresql-pnpm-db-command',
   'test:deployment-docs-encoding',

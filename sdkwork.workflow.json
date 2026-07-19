@@ -273,7 +273,7 @@
       {
         "name": "Validate release contract",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nnode scripts/release/sdkwork-im-release-package.test.mjs\npnpm release:plan -- --check --version $env:SDKWORK_PACKAGE_VERSION\npnpm release:package:check -- --json --version $env:SDKWORK_PACKAGE_VERSION"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nnode scripts/release/sdkwork-im-release-package.test.mjs\nnode scripts/release/plan-sdkwork-im-install-packages.mjs --check --version $env:SDKWORK_PACKAGE_VERSION\npnpm release:package:check -- --json --version $env:SDKWORK_PACKAGE_VERSION"
       },
       {
         "name": "Build selected production artifacts",
@@ -295,7 +295,7 @@
       {
         "name": "Build selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\npnpm release:package -- --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nnode scripts/release/build-sdkwork-im-install-package.mjs --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION"
       }
     ],
     "sign": [
@@ -316,7 +316,7 @@
       {
         "name": "Validate selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$extension = if ($env:SDKWORK_PACKAGE_FORMAT -eq \"tar.gz\") { \"tar.gz\" } else { $env:SDKWORK_PACKAGE_FORMAT }\n$pattern = \"sdkwork-im-$env:SDKWORK_PACKAGE_ID-*.$extension\"\n$artifact = Get-ChildItem -Path \"dist/release-packages\" -File |\n  Where-Object { $_.Name -like $pattern -and $_.Name -notlike \"*.manifest.json\" } |\n  Select-Object -First 1\nif (-not $artifact) {\n  throw \"Missing Sdkwork IM release artifact for $env:SDKWORK_PACKAGE_ID matching $pattern\"\n}\npnpm release:validate -- --package-id $env:SDKWORK_PACKAGE_ID --artifact-path $artifact.FullName --version $env:SDKWORK_PACKAGE_VERSION --json"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$extension = if ($env:SDKWORK_PACKAGE_FORMAT -eq \"tar.gz\") { \"tar.gz\" } else { $env:SDKWORK_PACKAGE_FORMAT }\n$pattern = \"sdkwork-im-$env:SDKWORK_PACKAGE_ID-*.$extension\"\n$artifact = Get-ChildItem -Path \"dist/release-packages\" -File |\n  Where-Object { $_.Name -like $pattern -and $_.Name -notlike \"*.manifest.json\" } |\n  Select-Object -First 1\nif (-not $artifact) {\n  throw \"Missing Sdkwork IM release artifact for $env:SDKWORK_PACKAGE_ID matching $pattern\"\n}\nnode scripts/release/validate-sdkwork-im-install-artifacts.mjs --package-id $env:SDKWORK_PACKAGE_ID --artifact-path $artifact.FullName --version $env:SDKWORK_PACKAGE_VERSION --json"
       }
     ]
   },
@@ -331,10 +331,14 @@
       ],
       "runner": "ubuntu-latest",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-web-universal-cloud-browser-zip-0.1.0.zip",
+        "dist/release-packages/sdkwork-im-web-universal-cloud-browser-zip-0.1.0.manifest.json",
+        "dist/release-evidence/web-universal-cloud-browser-zip/*"
       ],
       "deploymentProfile": "cloud",
-      "runtimeTarget": "browser"
+      "runtimeTarget": "browser",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-web-universal-cloud-browser-zip-0.1.0.zip"
     },
     {
       "id": "linux-x64-standalone-server-tar-gz",
@@ -346,10 +350,14 @@
       ],
       "runner": "ubuntu-latest",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-linux-x64-standalone-server-tar-gz-0.1.0.tar.gz",
+        "dist/release-packages/sdkwork-im-linux-x64-standalone-server-tar-gz-0.1.0.manifest.json",
+        "dist/release-evidence/linux-x64-standalone-server-tar-gz/*"
       ],
       "deploymentProfile": "standalone",
-      "runtimeTarget": "server"
+      "runtimeTarget": "server",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-linux-x64-standalone-server-tar-gz-0.1.0.tar.gz"
     },
     {
       "id": "linux-arm64-standalone-server-tar-gz",
@@ -361,10 +369,14 @@
       ],
       "runner": "ubuntu-24.04-arm",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-linux-arm64-standalone-server-tar-gz-0.1.0.tar.gz",
+        "dist/release-packages/sdkwork-im-linux-arm64-standalone-server-tar-gz-0.1.0.manifest.json",
+        "dist/release-evidence/linux-arm64-standalone-server-tar-gz/*"
       ],
       "deploymentProfile": "standalone",
-      "runtimeTarget": "server"
+      "runtimeTarget": "server",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-linux-arm64-standalone-server-tar-gz-0.1.0.tar.gz"
     },
     {
       "id": "macos-x64-standalone-server-tar-gz",
@@ -376,10 +388,14 @@
       ],
       "runner": "macos-15-intel",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-macos-x64-standalone-server-tar-gz-0.1.0.tar.gz",
+        "dist/release-packages/sdkwork-im-macos-x64-standalone-server-tar-gz-0.1.0.manifest.json",
+        "dist/release-evidence/macos-x64-standalone-server-tar-gz/*"
       ],
       "deploymentProfile": "standalone",
-      "runtimeTarget": "server"
+      "runtimeTarget": "server",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-macos-x64-standalone-server-tar-gz-0.1.0.tar.gz"
     },
     {
       "id": "macos-arm64-standalone-server-tar-gz",
@@ -391,10 +407,14 @@
       ],
       "runner": "macos-latest",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-macos-arm64-standalone-server-tar-gz-0.1.0.tar.gz",
+        "dist/release-packages/sdkwork-im-macos-arm64-standalone-server-tar-gz-0.1.0.manifest.json",
+        "dist/release-evidence/macos-arm64-standalone-server-tar-gz/*"
       ],
       "deploymentProfile": "standalone",
-      "runtimeTarget": "server"
+      "runtimeTarget": "server",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-macos-arm64-standalone-server-tar-gz-0.1.0.tar.gz"
     },
     {
       "id": "windows-x64-standalone-server-zip",
@@ -406,10 +426,14 @@
       ],
       "runner": "windows-latest",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-windows-x64-standalone-server-zip-0.1.0.zip",
+        "dist/release-packages/sdkwork-im-windows-x64-standalone-server-zip-0.1.0.manifest.json",
+        "dist/release-evidence/windows-x64-standalone-server-zip/*"
       ],
       "deploymentProfile": "standalone",
-      "runtimeTarget": "server"
+      "runtimeTarget": "server",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-windows-x64-standalone-server-zip-0.1.0.zip"
     },
     {
       "id": "windows-arm64-standalone-server-zip",
@@ -421,10 +445,14 @@
       ],
       "runner": "windows-11-arm",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-windows-arm64-standalone-server-zip-0.1.0.zip",
+        "dist/release-packages/sdkwork-im-windows-arm64-standalone-server-zip-0.1.0.manifest.json",
+        "dist/release-evidence/windows-arm64-standalone-server-zip/*"
       ],
       "deploymentProfile": "standalone",
-      "runtimeTarget": "server"
+      "runtimeTarget": "server",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-windows-arm64-standalone-server-zip-0.1.0.zip"
     },
     {
       "id": "linux-x64-standalone-desktop-zip",
@@ -436,10 +464,14 @@
       ],
       "runner": "ubuntu-latest",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-linux-x64-standalone-desktop-zip-0.1.0.zip",
+        "dist/release-packages/sdkwork-im-linux-x64-standalone-desktop-zip-0.1.0.manifest.json",
+        "dist/release-evidence/linux-x64-standalone-desktop-zip/*"
       ],
       "deploymentProfile": "standalone",
-      "runtimeTarget": "desktop"
+      "runtimeTarget": "desktop",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-linux-x64-standalone-desktop-zip-0.1.0.zip"
     },
     {
       "id": "linux-arm64-standalone-desktop-zip",
@@ -451,10 +483,14 @@
       ],
       "runner": "ubuntu-24.04-arm",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-linux-arm64-standalone-desktop-zip-0.1.0.zip",
+        "dist/release-packages/sdkwork-im-linux-arm64-standalone-desktop-zip-0.1.0.manifest.json",
+        "dist/release-evidence/linux-arm64-standalone-desktop-zip/*"
       ],
       "deploymentProfile": "standalone",
-      "runtimeTarget": "desktop"
+      "runtimeTarget": "desktop",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-linux-arm64-standalone-desktop-zip-0.1.0.zip"
     },
     {
       "id": "macos-x64-standalone-desktop-zip",
@@ -466,10 +502,14 @@
       ],
       "runner": "macos-15-intel",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-macos-x64-standalone-desktop-zip-0.1.0.zip",
+        "dist/release-packages/sdkwork-im-macos-x64-standalone-desktop-zip-0.1.0.manifest.json",
+        "dist/release-evidence/macos-x64-standalone-desktop-zip/*"
       ],
       "deploymentProfile": "standalone",
-      "runtimeTarget": "desktop"
+      "runtimeTarget": "desktop",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-macos-x64-standalone-desktop-zip-0.1.0.zip"
     },
     {
       "id": "macos-arm64-standalone-desktop-zip",
@@ -481,10 +521,14 @@
       ],
       "runner": "macos-latest",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-macos-arm64-standalone-desktop-zip-0.1.0.zip",
+        "dist/release-packages/sdkwork-im-macos-arm64-standalone-desktop-zip-0.1.0.manifest.json",
+        "dist/release-evidence/macos-arm64-standalone-desktop-zip/*"
       ],
       "deploymentProfile": "standalone",
-      "runtimeTarget": "desktop"
+      "runtimeTarget": "desktop",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-macos-arm64-standalone-desktop-zip-0.1.0.zip"
     },
     {
       "id": "windows-x64-standalone-desktop-zip",
@@ -496,10 +540,14 @@
       ],
       "runner": "windows-latest",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-windows-x64-standalone-desktop-zip-0.1.0.zip",
+        "dist/release-packages/sdkwork-im-windows-x64-standalone-desktop-zip-0.1.0.manifest.json",
+        "dist/release-evidence/windows-x64-standalone-desktop-zip/*"
       ],
       "deploymentProfile": "standalone",
-      "runtimeTarget": "desktop"
+      "runtimeTarget": "desktop",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-windows-x64-standalone-desktop-zip-0.1.0.zip"
     },
     {
       "id": "windows-arm64-standalone-desktop-zip",
@@ -511,10 +559,14 @@
       ],
       "runner": "windows-11-arm",
       "outputGlobs": [
-        "dist/release-packages/*"
+        "dist/release-packages/sdkwork-im-windows-arm64-standalone-desktop-zip-0.1.0.zip",
+        "dist/release-packages/sdkwork-im-windows-arm64-standalone-desktop-zip-0.1.0.manifest.json",
+        "dist/release-evidence/windows-arm64-standalone-desktop-zip/*"
       ],
       "deploymentProfile": "standalone",
-      "runtimeTarget": "desktop"
+      "runtimeTarget": "desktop",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-windows-arm64-standalone-desktop-zip-0.1.0.zip"
     }
   ],
   "security": {
@@ -526,5 +578,23 @@
     "workflowArtifact": true,
     "githubRelease": true,
     "retentionDays": 30
-  }
+  },
+  "deployments": [
+    {
+      "id": "cloud-production-web",
+      "environment": "production",
+      "targetId": "web-universal-cloud-browser-zip",
+      "deploymentProfile": "cloud",
+      "lifecycle": "deploy",
+      "artifactEvidencePath": ".sdkwork/evidence/{packageId}.json"
+    },
+    {
+      "id": "standalone-production-server",
+      "environment": "production",
+      "targetId": "linux-x64-standalone-server-tar-gz",
+      "deploymentProfile": "standalone",
+      "lifecycle": "deploy",
+      "artifactEvidencePath": ".sdkwork/evidence/{packageId}.json"
+    }
+  ]
 }

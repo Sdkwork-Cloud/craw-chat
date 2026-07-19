@@ -3,11 +3,13 @@
 use chrono::{DateTime, Utc};
 use im_domain_events::{AggregateType, CommitEnvelope};
 use im_platform_contracts::{
-    AGENT_MENTION_DISPATCH_EVENT_TYPE, CommitPosition, ContractError, OutboxEventRecord,
-    OutboxPublishStatus, StoredMessageRecord,
+    AGENT_MENTION_DISPATCH_EVENT_TYPE, AgentDispatchReplyCompletion, CommitPosition, ContractError,
+    IdGenerator, OutboxEventRecord, OutboxPublishStatus, StoredMessageRecord,
 };
 use r2d2_postgres::postgres::Transaction;
+use sdkwork_im_contract_agent::AgentMentionDispatchRequest;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use crate::{
     PostgresJournalPool, compose_partition_key, journal_aggregate_seq, journal_position_conflict,
@@ -334,6 +336,7 @@ impl PostgresDurableConversationEventWriter {
 pub struct PostgresDurableMessagePostWriter {
     pool: PostgresJournalPool,
     partition_prefix: std::sync::Arc<str>,
+    id_generator: Arc<dyn IdGenerator>,
 }
 
 impl PostgresDurableMessagePostWriter {
@@ -341,6 +344,9 @@ impl PostgresDurableMessagePostWriter {
         Self {
             pool,
             partition_prefix,
+            id_generator: sdkwork_im_runtime_id::build_runtime_id_generator_blocking(
+                "im-durable-message-post",
+            ),
         }
     }
 
@@ -370,6 +376,17 @@ impl PostgresDurableMessagePostWriter {
         message: StoredMessageRecord,
         outboxes: Vec<OutboxEventRecord>,
     ) -> Result<Vec<CommitPosition>, ContractError> {
+        self.persist_message_post_batch_with_agent_dispatch(envelopes, message, outboxes, None, 10)
+    }
+
+    pub fn persist_message_post_batch_with_agent_dispatch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+        message: StoredMessageRecord,
+        outboxes: Vec<OutboxEventRecord>,
+        dispatch_request: Option<AgentMentionDispatchRequest>,
+        max_dispatch_attempts: u32,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
         if envelopes.is_empty() {
             return Err(ContractError::Invalid(
                 "durable message post requires at least one journal envelope".into(),
@@ -378,6 +395,7 @@ impl PostgresDurableMessagePostWriter {
         validate_message_post_batch(envelopes.as_slice(), &message, outboxes.as_slice())?;
         let pool = self.pool.clone();
         let prefix = self.partition_prefix.clone();
+        let id_generator = self.id_generator.clone();
         run_postgres_io(move || {
             persist_message_post_txn(
                 &pool,
@@ -385,9 +403,69 @@ impl PostgresDurableMessagePostWriter {
                 envelopes.as_slice(),
                 &message,
                 outboxes.as_slice(),
+                dispatch_request.as_ref(),
+                max_dispatch_attempts,
+                id_generator.as_ref(),
             )
         })
     }
+
+    pub fn persist_agent_reply_and_complete_dispatch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+        message: StoredMessageRecord,
+        outboxes: Vec<OutboxEventRecord>,
+        completion: AgentDispatchReplyCompletion,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        if envelopes.is_empty() {
+            return Err(ContractError::Invalid(
+                "durable agent reply requires at least one journal envelope".into(),
+            ));
+        }
+        validate_message_post_batch(envelopes.as_slice(), &message, outboxes.as_slice())?;
+        validate_agent_reply_completion(&message, &completion)?;
+        let pool = self.pool.clone();
+        let prefix = self.partition_prefix.clone();
+        run_postgres_io(move || {
+            persist_agent_reply_txn(
+                &pool,
+                prefix.as_ref(),
+                envelopes.as_slice(),
+                &message,
+                outboxes.as_slice(),
+                &completion,
+            )
+        })
+    }
+}
+
+fn validate_agent_reply_completion(
+    message: &StoredMessageRecord,
+    completion: &AgentDispatchReplyCompletion,
+) -> Result<(), ContractError> {
+    let message_tenant_id = message
+        .tenant_id
+        .parse::<u64>()
+        .map_err(|_| ContractError::Invalid("agent reply tenant id is invalid".into()))?;
+    let message_organization_id = message
+        .organization_id
+        .parse::<u64>()
+        .map_err(|_| ContractError::Invalid("agent reply organization id is invalid".into()))?;
+    if message_tenant_id != completion.tenant_id
+        || message_organization_id != completion.organization_id
+        || message.conversation_id != completion.conversation_id
+        || message.sender_principal_kind != "agent"
+        || message.sender_principal_id != completion.agent_id
+        || completion.dispatch_id.trim().is_empty()
+        || completion.lease_owner.trim().is_empty()
+        || completion.agents_session_id.trim().is_empty()
+        || completion.agents_turn_id.trim().is_empty()
+    {
+        return Err(ContractError::Invalid(
+            "agent reply dispatch completion identity is invalid".into(),
+        ));
+    }
+    Ok(())
 }
 
 fn validate_message_post_batch(
@@ -442,11 +520,75 @@ fn persist_message_post_txn(
     envelopes: &[CommitEnvelope],
     message: &StoredMessageRecord,
     outboxes: &[OutboxEventRecord],
+    dispatch_request: Option<&AgentMentionDispatchRequest>,
+    max_dispatch_attempts: u32,
+    id_generator: &dyn IdGenerator,
 ) -> Result<Vec<CommitPosition>, ContractError> {
     let mut client = postgres_pool_client(pool, "persist_message_post")?;
     let mut txn = client
         .transaction()
         .map_err(|error| postgres_unavailable_db("persist_message_post begin", error))?;
+
+    let outcomes = envelopes
+        .iter()
+        .map(|envelope| append_journal_in_transaction(&mut txn, prefix, envelope))
+        .collect::<Result<Vec<_>, _>>()?;
+    let inserted_count = outcomes
+        .iter()
+        .filter(|outcome| matches!(outcome, JournalAppendOutcome::Inserted(_, _)))
+        .count();
+    if inserted_count == outcomes.len() {
+        insert_message_in_transaction(&mut txn, message)?;
+        for outbox in outboxes {
+            if enqueue_outbox_in_transaction(&mut txn, outbox)?
+                == OutboxEnqueueOutcome::IdentityConflict
+            {
+                return Err(ContractError::Conflict("event already enqueued".into()));
+            }
+        }
+        if let Some(dispatch_request) = dispatch_request {
+            crate::agent_integration_store::enqueue_dispatches_in_transaction(
+                &mut txn,
+                dispatch_request,
+                max_dispatch_attempts,
+                id_generator,
+            )?;
+        }
+    } else if inserted_count == 0 {
+        ensure_message_post_replay_matches(&mut txn, message, outboxes)?;
+        if let Some(dispatch_request) = dispatch_request {
+            crate::agent_integration_store::enqueue_dispatches_in_transaction(
+                &mut txn,
+                dispatch_request,
+                max_dispatch_attempts,
+                id_generator,
+            )?;
+        }
+    } else {
+        return Err(message_post_replay_conflict());
+    }
+
+    let positions = outcomes
+        .into_iter()
+        .map(JournalAppendOutcome::into_commit_position)
+        .collect::<Result<Vec<_>, ContractError>>()?;
+    txn.commit()
+        .map_err(|error| postgres_unavailable_db("persist_message_post commit", error))?;
+    Ok(positions)
+}
+
+fn persist_agent_reply_txn(
+    pool: &PostgresJournalPool,
+    prefix: &str,
+    envelopes: &[CommitEnvelope],
+    message: &StoredMessageRecord,
+    outboxes: &[OutboxEventRecord],
+    completion: &AgentDispatchReplyCompletion,
+) -> Result<Vec<CommitPosition>, ContractError> {
+    let mut client = postgres_pool_client(pool, "persist_agent_reply")?;
+    let mut txn = client
+        .transaction()
+        .map_err(|error| postgres_unavailable_db("persist_agent_reply begin", error))?;
 
     let outcomes = envelopes
         .iter()
@@ -471,13 +613,69 @@ fn persist_message_post_txn(
         return Err(message_post_replay_conflict());
     }
 
+    complete_agent_dispatch_in_transaction(&mut txn, message, completion)?;
     let positions = outcomes
         .into_iter()
         .map(JournalAppendOutcome::into_commit_position)
         .collect::<Result<Vec<_>, ContractError>>()?;
     txn.commit()
-        .map_err(|error| postgres_unavailable_db("persist_message_post commit", error))?;
+        .map_err(|error| postgres_unavailable_db("persist_agent_reply commit", error))?;
     Ok(positions)
+}
+
+fn complete_agent_dispatch_in_transaction(
+    txn: &mut Transaction<'_>,
+    message: &StoredMessageRecord,
+    completion: &AgentDispatchReplyCompletion,
+) -> Result<(), ContractError> {
+    let completed_at = postgres_timestamptz(&message.created_at, "completed_at")?;
+    let affected = txn
+        .execute(
+            crate::agent_integration_store::COMPLETE_DISPATCH_SQL,
+            &[
+                &(completion.tenant_id as i64),
+                &(completion.organization_id as i64),
+                &completion.dispatch_id,
+                &completion.lease_owner,
+                &completion.agents_turn_id,
+                &message.message_id,
+                &(message.message_seq as i64),
+                &completed_at,
+            ],
+        )
+        .map_err(|error| postgres_unavailable_db("complete agent dispatch with reply", error))?;
+    if affected == 1 {
+        return Ok(());
+    }
+
+    let row = txn
+        .query_opt(
+            crate::agent_integration_store::SELECT_DISPATCH_COMPLETION_SQL,
+            &[
+                &(completion.tenant_id as i64),
+                &(completion.organization_id as i64),
+                &completion.dispatch_id,
+            ],
+        )
+        .map_err(|error| postgres_unavailable_db("load completed agent dispatch", error))?
+        .ok_or_else(|| {
+            ContractError::Conflict("agent dispatch completion fence rejected".into())
+        })?;
+    let exact_replay = row.get::<_, i16>(0) == 4
+        && row.get::<_, String>(1) == completion.agent_id
+        && row.get::<_, Option<String>>(2).as_deref()
+            == Some(completion.agents_session_id.as_str())
+        && row.get::<_, Option<String>>(3).as_deref() == Some(completion.agents_turn_id.as_str())
+        && row.get::<_, Option<i64>>(4) == Some(message.message_id)
+        && row.get::<_, Option<i64>>(5) == Some(message.message_seq as i64)
+        && row.get::<_, String>(6) == completion.conversation_id;
+    if exact_replay {
+        Ok(())
+    } else {
+        Err(ContractError::Conflict(
+            "agent dispatch completion fence rejected".into(),
+        ))
+    }
 }
 
 fn validate_conversation_event(

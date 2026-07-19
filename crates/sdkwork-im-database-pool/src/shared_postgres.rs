@@ -5,16 +5,16 @@
 //! [`bootstrap_im_process_database_pools_from_env`]. Adapters MUST reuse that r2d2
 //! pool and MUST NOT open independent pools against the same DSN.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
-use r2d2::Pool;
+use r2d2::{HandleError, Pool};
 use r2d2_postgres::PostgresConnectionManager;
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_im_database_host::ImDatabaseHost;
 use tracing::info;
 
-use crate::bootstrap_im_database_from_env;
+use crate::bootstrap_im_database;
 
 /// TLS connector type for the shared IM PostgreSQL r2d2 pool.
 pub type ImSharedPostgresTlsConnector = postgres_native_tls::MakeTlsConnector;
@@ -25,6 +25,19 @@ pub type ImSharedPostgresConnectionManager =
 pub type ImSharedPostgresR2d2Pool = Pool<ImSharedPostgresConnectionManager>;
 
 static IM_PROCESS_DATABASE_POOLS: OnceLock<ImProcessDatabasePools> = OnceLock::new();
+
+#[derive(Debug)]
+struct CapturingPostgresErrorHandler {
+    last_error: Arc<Mutex<Option<String>>>,
+}
+
+impl HandleError<r2d2_postgres::postgres::Error> for CapturingPostgresErrorHandler {
+    fn handle_error(&self, error: r2d2_postgres::postgres::Error) {
+        if let Ok(mut last_error) = self.last_error.lock() {
+            *last_error = Some(format!("{error:?}"));
+        }
+    }
+}
 
 /// Installed once per IM service or gateway process.
 pub struct ImProcessDatabasePools {
@@ -84,8 +97,8 @@ fn im_database_url_configured() -> bool {
 }
 
 /// Bootstraps IM pools when PostgreSQL is configured; otherwise no-op.
-pub async fn try_bootstrap_im_process_database_pools_from_env()
--> Result<Option<&'static ImProcessDatabasePools>, String> {
+pub async fn try_bootstrap_im_process_database_pools_from_env(
+) -> Result<Option<&'static ImProcessDatabasePools>, String> {
     if !im_database_url_configured() {
         return Ok(None);
     }
@@ -102,13 +115,13 @@ pub async fn try_bootstrap_im_process_database_pools_from_env()
 }
 
 /// Bootstrap IM lifecycle (sqlx) plus one shared r2d2 pool for all modules in this process.
-pub async fn bootstrap_im_process_database_pools_from_env()
--> Result<&'static ImProcessDatabasePools, String> {
+pub async fn bootstrap_im_process_database_pools_from_env(
+) -> Result<&'static ImProcessDatabasePools, String> {
+    sdkwork_database_sqlx::enable_process_shared_database_pool();
     if let Some(pools) = im_process_database_pools() {
         return Ok(pools);
     }
 
-    let host = bootstrap_im_database_from_env().await?;
     let config = DatabaseConfig::from_env("IM")
         .map_err(|error| format!("read IM database config failed: {error}"))?;
     if config.engine != DatabaseEngine::Postgres {
@@ -118,7 +131,23 @@ pub async fn bootstrap_im_process_database_pools_from_env()
         );
     }
 
-    let postgres_r2d2 = Arc::new(build_im_postgres_r2d2_pool(&config)?);
+    let sqlx_pool = sdkwork_database_sqlx::create_pool_from_config(config.clone())
+        .await
+        .map_err(|error| format!("create IM process SQLx pool failed: {error}"))?;
+    let sqlx_max_connections = sqlx_pool.config().max_connections;
+    let host = bootstrap_im_database(sqlx_pool).await?;
+
+    let r2d2_max_connections =
+        sdkwork_database_sqlx::process_shared_temporary_driver_max_connections().ok_or_else(
+            || {
+                "IM r2d2 capacity was not reserved; set SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT before process pool bootstrap"
+                    .to_owned()
+            },
+        )?;
+    let mut r2d2_config = config.clone();
+    r2d2_config.max_connections = r2d2_max_connections;
+    r2d2_config.min_connections = r2d2_config.min_connections.min(r2d2_max_connections);
+    let postgres_r2d2 = Arc::new(build_im_postgres_r2d2_pool(&r2d2_config)?);
     let pools = ImProcessDatabasePools {
         host,
         postgres_r2d2,
@@ -131,8 +160,9 @@ pub async fn bootstrap_im_process_database_pools_from_env()
     info!(
         target: "sdkwork.im",
         event = "im.database.process_pools_installed",
-        max_connections = config.max_connections,
-        min_connections = config.min_connections,
+        process_max_connections = config.max_connections,
+        sqlx_max_connections,
+        r2d2_max_connections,
         pool_connection_timeout_secs = pool_tuning.connection_timeout.as_secs(),
         pool_max_lifetime_secs = pool_tuning
             .max_lifetime
@@ -246,17 +276,26 @@ pub(crate) fn build_im_postgres_r2d2_pool(
     let manager = PostgresConnectionManager::new(pg_config, tls);
     let min_idle = config.min_connections.min(config.max_connections);
     let tuning = read_im_postgres_pool_tuning();
+    let last_error = Arc::new(Mutex::new(None));
     Pool::builder()
         .max_size(config.max_connections)
         .min_idle(Some(min_idle))
         .connection_timeout(tuning.connection_timeout)
         .max_lifetime(tuning.max_lifetime)
         .idle_timeout(tuning.idle_timeout)
+        .error_handler(Box::new(CapturingPostgresErrorHandler {
+            last_error: last_error.clone(),
+        }))
         .build(manager)
         .map_err(|error| {
+            let cause = last_error
+                .lock()
+                .ok()
+                .and_then(|last_error| last_error.clone())
+                .unwrap_or_else(|| format!("{error:?}"));
             format!(
-                "failed to create shared IM postgres r2d2 pool ({}): {error}",
-                redact_postgres_url(config.url.as_str())
+                "failed to create shared IM postgres r2d2 pool ({}): {cause}",
+                redact_postgres_url(config.url.as_str()),
             )
         })
 }
