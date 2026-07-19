@@ -576,7 +576,7 @@ select
     aggregate_type,
     aggregate_id,
     aggregate_seq,
-    occurred_at::text,
+    occurred_at,
     payload_json::text,
     idempotency_key,
     partition_key,
@@ -596,7 +596,7 @@ select
     aggregate_type,
     aggregate_id,
     aggregate_seq,
-    occurred_at::text,
+    occurred_at,
     payload_json::text,
     idempotency_key,
     partition_key,
@@ -617,7 +617,7 @@ select
     aggregate_type,
     aggregate_id,
     aggregate_seq,
-    occurred_at::text,
+    occurred_at,
     payload_json::text,
     idempotency_key,
     partition_key,
@@ -639,7 +639,7 @@ select
     aggregate_type,
     aggregate_id,
     aggregate_seq,
-    occurred_at::text,
+    occurred_at,
     payload_json::text,
     idempotency_key,
     partition_key,
@@ -662,7 +662,7 @@ select
     aggregate_type,
     aggregate_id,
     aggregate_seq,
-    occurred_at::text,
+    occurred_at,
     payload_json::text,
     idempotency_key,
     partition_key,
@@ -687,7 +687,7 @@ select
     aggregate_type,
     aggregate_id,
     aggregate_seq,
-    occurred_at::text,
+    occurred_at,
     payload_json::text,
     idempotency_key,
     partition_key,
@@ -1583,7 +1583,8 @@ fn parse_journal_replay_rows(
         let aggregate_type_str: String = journal_replay_row_get(&row, 4, "aggregate_type")?;
         let aggregate_id: String = journal_replay_row_get(&row, 5, "aggregate_id")?;
         let aggregate_seq: i64 = journal_replay_row_get(&row, 6, "aggregate_seq")?;
-        let occurred_at: String = journal_replay_row_get(&row, 7, "occurred_at")?;
+        let occurred_at: DateTime<Utc> = journal_replay_row_get(&row, 7, "occurred_at")?;
+        let occurred_at = occurred_at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
         let payload: String = journal_replay_row_get(&row, 8, "payload_json")?;
         let idempotency_key: Option<String> = journal_replay_row_get(&row, 9, "idempotency_key")?;
         let partition_key: String = journal_replay_row_get(&row, 10, "partition_key")?;
@@ -1858,10 +1859,12 @@ mod tests {
 
     use super::{
         AGENT_MENTION_DISPATCH_EVENT_TYPE, AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA,
-        JournalEventFingerprint, assign_ordering_sequences, compose_partition_key,
-        ensure_journal_event_replay_matches, journal_aggregate_seq, journal_position_conflict,
-        journal_replay_ordering_seq, postgres_bigint_input, postgres_bigint_output,
-        postgres_jsonb_payload, postgres_timestamptz, postgres_unavailable,
+        JournalEventFingerprint, LOAD_RECORDED_AFTER_SQL, LOAD_RECORDED_AGGREGATE_AFTER_SQL,
+        LOAD_RECORDED_AGGREGATE_EVENT_TYPES_AFTER_SQL, LOAD_RECORDED_AGGREGATE_EVENT_TYPES_SQL,
+        LOAD_RECORDED_AGGREGATE_SQL, LOAD_RECORDED_SQL, assign_ordering_sequences,
+        compose_partition_key, ensure_journal_event_replay_matches, journal_aggregate_seq,
+        journal_position_conflict, journal_replay_ordering_seq, postgres_bigint_input,
+        postgres_bigint_output, postgres_jsonb_payload, postgres_timestamptz, postgres_unavailable,
         replay_envelope_metadata,
     };
 
@@ -2042,6 +2045,21 @@ mod tests {
             postgres_timestamptz("not-a-timestamp", "occurred_at"),
             Err(ContractError::Invalid(_))
         ));
+    }
+
+    #[test]
+    fn replay_queries_keep_occurred_at_as_typed_timestamptz() {
+        for query in [
+            LOAD_RECORDED_SQL,
+            LOAD_RECORDED_AFTER_SQL,
+            LOAD_RECORDED_AGGREGATE_SQL,
+            LOAD_RECORDED_AGGREGATE_AFTER_SQL,
+            LOAD_RECORDED_AGGREGATE_EVENT_TYPES_SQL,
+            LOAD_RECORDED_AGGREGATE_EVENT_TYPES_AFTER_SQL,
+        ] {
+            assert!(query.contains("occurred_at,"));
+            assert!(!query.contains("occurred_at::text"));
+        }
     }
 
     #[test]
