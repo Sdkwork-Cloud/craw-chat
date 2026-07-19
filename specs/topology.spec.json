@@ -129,6 +129,15 @@
               "desktop"
             ],
             "required": true
+          },
+          {
+            "id": "im-h5",
+            "role": "client",
+            "script": "_sdkwork:client:h5:standalone",
+            "runtimeTargets": [
+              "h5"
+            ],
+            "required": true
           }
         ],
         "capabilitySubset": [
@@ -157,6 +166,15 @@
             "script": "_sdkwork:client:desktop:cloud",
             "runtimeTargets": [
               "desktop"
+            ],
+            "required": true
+          },
+          {
+            "id": "im-h5",
+            "role": "client",
+            "script": "_sdkwork:client:h5:cloud",
+            "runtimeTargets": [
+              "h5"
             ],
             "required": true
           }
