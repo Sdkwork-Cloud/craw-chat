@@ -25,8 +25,8 @@ const skipPathFragments = [
 ];
 
 const replacements = [
-  ['services/local-minimal-node', 'services/sdkwork-im-cloud-gateway'],
-  ['cargo test -p local-minimal-node', 'cargo test -p sdkwork-im-cloud-gateway'],
+  ['services/local-minimal-node', 'crates/sdkwork-api-im-standalone-gateway'],
+  ['cargo test -p local-minimal-node', 'cargo test -p sdkwork-api-im-standalone-gateway'],
   ['local-minimal-node', 'sdkwork-im-server'],
   ['"profile": "local-default"', '"profile": "standalone.split-services.development"'],
   ['"sourceProfile": "local-minimal"', '"sourceProfile": "standalone.split-services.development"'],

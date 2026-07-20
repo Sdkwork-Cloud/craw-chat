@@ -63,8 +63,8 @@ durable telemetry export, direct capacity/DR evidence, and all commercial releas
 
 | Service | Binary | Responsibility |
 |---|---|---|
-| `sdkwork-im-standalone-gateway` | `sdkwork-im-standalone-gateway` | Single-process deployment embedding IAM, session, and all IM routes on one bind. |
-| `sdkwork-im-cloud-gateway` | `sdkwork-im-server` | Split-deploy proxy gateway with registry-driven upstream routing. |
+| `sdkwork-api-im-standalone-gateway` | `sdkwork-api-im-standalone-gateway` | Single-process deployment embedding IAM, session, and all IM routes on one bind. |
+| `sdkwork-api-im-standalone-gateway` | `sdkwork-im-server` | Split-deploy proxy gateway with registry-driven upstream routing. |
 
 **Gateway Protection**: Both gateway variants apply the following protection layers:
 
@@ -72,7 +72,7 @@ durable telemetry export, direct capacity/DR evidence, and all commercial releas
 
 2. **Rate Limiting**:
    - **Edge per-IP limiter** (default 600 RPM / 50 burst): Runs before business dispatch and uses `HybridIpRateLimiter`. Redis-backed fixed-window counters are used when configured; otherwise the gateway uses a bounded local `DashMap` token bucket. Retry-after is dynamically calculated from actual RPM: `ceil(60 / max_rpm)` seconds. Bounded eviction at `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` (default 5000) prevents unbounded memory growth from rotating client IPs. Probe paths (`/health`, `/healthz`, `/livez`, `/ready`, `/readyz`, `/metrics`) are exempt.
-   - **Standalone ingress placement**: `sdkwork-im-standalone-gateway` disables the inner cloud-gateway IP limiter while assembling IM routes, then applies one final edge limiter after IM, IAM, and embedded dependency routers are merged. This avoids double-counting IM requests while keeping dependency routes protected.
+   - **Standalone ingress placement**: `sdkwork-api-im-standalone-gateway` disables the inner cloud-gateway IP limiter while assembling IM routes, then applies one final edge limiter after IM, IAM, and embedded dependency routers are merged. This avoids double-counting IM requests while keeping dependency routes protected.
    - **Post-auth per-tenant limiter** (default 60 000 RPM / 2 000 burst): Runs after `AppContext` is resolved by the IAM interceptor chain. Each authenticated tenant has an independent bucket so that a noisy tenant on a shared NAT egress IP cannot exhaust the tenant-level budget for other tenants. Configurable via `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_RPM`, `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_BURST`, `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_MAX_ENTRIES` (default 10 000). Unauthenticated public routes are governed by the edge IP limiter.
 
 3. **Per-Service Circuit Breaker** (`CircuitBreakerRegistry`): Each upstream service has an independent circuit breaker. Failures in one service do not trip the breaker for others. HalfOpen state allows only a single probe request at a time. Configurable via `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_THRESHOLD` (default 10) and `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_RESET_SECS` (default 30).
@@ -450,8 +450,8 @@ must be supplied by the owning environment before activation.
 | Check | Command | Scope |
 |---|---|---|
 | Multi-tenant isolation | `node scripts/dev/sdkwork-im-multi-tenant-isolation-contract.test.mjs` | SQL query org_id filtering |
-| Gateway rate limit | `cargo test -p sdkwork-im-cloud-gateway gateway_protection` | Token bucket, circuit breaker, trusted proxy |
-| Gateway OpenAPI aggregation | `cargo test -p sdkwork-im-cloud-gateway --test openapi_index_test -- --nocapture` | Self-reference skip, aggregate cache, single-flight refresh |
+| Gateway rate limit | `cargo test -p sdkwork-api-im-standalone-gateway gateway_protection` | Token bucket, circuit breaker, trusted proxy |
+| Gateway OpenAPI aggregation | `cargo test -p sdkwork-api-im-standalone-gateway --test openapi_index_test -- --nocapture` | Self-reference skip, aggregate cache, single-flight refresh |
 | Database naming | `pnpm test scripts/dev/sdkwork-im-database-naming-standard.test.mjs` | DDL convention compliance |
 | Runtime ID | `pnpm test scripts/dev/sdkwork-im-runtime-id-standard.test.mjs` | Snowflake ID format |
 | Stream transactional authority | `pnpm run test:stream-transactional-authority-standard` | Organization scope, CAS, keyset LIMIT, readiness, metrics, live PostgreSQL test presence |

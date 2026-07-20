@@ -16,7 +16,7 @@
 - `cargo test -p im-platform-contracts --offline --test provider_registry_contract_test -- --nocapture`
 - `cargo test -p control-plane-api --offline --test provider_registry_test -- --nocapture`
 - `cargo test -p control-plane-api --offline --test governance_loop_test -- --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test provider_plugin_docs_test -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test provider_plugin_docs_test -- --nocapture`
 
 ## 评价
 

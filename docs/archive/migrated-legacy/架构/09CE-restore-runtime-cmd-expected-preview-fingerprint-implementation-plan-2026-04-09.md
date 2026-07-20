@@ -6,7 +6,7 @@
 
 ## Steps
 
-- Add a failing Windows wrapper regression in `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`.
+- Add a failing Windows wrapper regression in `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`.
 - Extend the deployment asset contract assertion for `bin/_cmd-forward-powershell.cmd`.
 - Normalize `--expected-preview-fingerprint` to `-ExpectedPreviewFingerprint` inside the shared `.cmd` forwarder.
 - Re-run targeted, deployment-profile, package, and formatting verification.

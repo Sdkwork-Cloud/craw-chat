@@ -18,8 +18,8 @@ Profile env files: `etc/topology/`
 
 | Surface id | Standalone | Cloud |
 | --- | --- | --- |
-| `application.public-ingress` | `sdkwork-im-standalone-gateway` | `sdkwork-im-cloud-gateway` / `sdkwork-im-server` |
-| `platform.api-gateway` | embedded in standalone gateway | `sdkwork-api-cloud-gateway` |
+| `application.public-ingress` | `sdkwork-api-im-standalone-gateway` | `sdkwork-api-im-standalone-gateway` / `sdkwork-im-server` |
+| `platform.api-gateway` | embedded in standalone gateway | `platform.api-gateway` |
 | `operations.control-ingress` | (optional) | (optional) |
 
 ## Env Keys (standalone development)
@@ -62,7 +62,7 @@ Public application host for IM: **`im.sdkwork.com`**.
 ## Phrases for reviews
 
 - "WebSocket terminates on **application.public-ingress**, not platform.api-gateway."
-- "Standalone profiles embed IAM through **sdkwork-im-standalone-gateway**."
+- "Standalone profiles embed IAM through **sdkwork-api-im-standalone-gateway**."
 - "Foundation SDKs use **SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL** only."
 
 See `topology-greenfield.md` for migration notes.

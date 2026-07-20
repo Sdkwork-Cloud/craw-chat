@@ -30,7 +30,7 @@
 - `artifacts/perf/step-11/README.md`
 - `artifacts/perf/step-11/pre-release/README.md`
 - `artifacts/perf/step-11/capacity/README.md`
-- `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`
 - `docs/step/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md`
 
 ## Verification
@@ -38,7 +38,7 @@
 Red:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
 ```
 
 - Failed because `artifacts/perf/step-11/pre-release` did not exist.
@@ -46,10 +46,10 @@ cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalo
 Green:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
 cargo fmt --all --check
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 ```
 
 ## Next Gap

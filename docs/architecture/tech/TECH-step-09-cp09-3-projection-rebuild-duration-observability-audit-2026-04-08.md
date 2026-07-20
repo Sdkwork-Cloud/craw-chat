@@ -6,12 +6,12 @@
 ## 审计范围
 - `services/projection-service/src/observability.rs`
 - `services/ops-service/src/lib.rs`
-- `services/sdkwork-im-cloud-gateway/src/node.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/build.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/platform.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/build.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs`
 - `services/projection-service/tests/projection_snapshot_test.rs`
 - `services/ops-service/tests/http_smoke_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/domain_recovery_persistence_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/domain_recovery_persistence_test.rs`
 
 ## 审计结论
 - 本轮未发现阻塞当前增量交付的剩余缺陷。
@@ -53,7 +53,7 @@
 - `cargo fmt --all --check`
 - `cargo test -p projection-service --offline`
 - `cargo test -p ops-service --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 
 ## 复盘结论
 - 到本轮为止，`Projection Plane` 的核心 metrics / tracing / logging 已达到 Step 09 文档要求的“按 plane 基本收口”。

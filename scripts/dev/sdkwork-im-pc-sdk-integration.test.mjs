@@ -123,20 +123,30 @@ const retiredGenericBackendSdkPackage = `@sdkwork/${'backend'}-sdk`;
 assert.equal(appPackageJson.name, '@sdkwork/im-pc', 'desktop app package must use a standard SDKWork package name');
 assert.equal(
   appPackageJson.scripts.dev,
-  'node ../../scripts/dev/run-sdkwork-im-pc-vite-dev.mjs',
+  'pnpm dev:standalone',
+  'desktop app pnpm dev must preserve the workspace default standalone profile',
 );
 assert.equal(appPackageJson.scripts['dev:tauri'], undefined);
-assert.match(
+assert.equal(
   appPackageJson.scripts.build,
+  'pnpm exec sdkwork-app build',
+  'desktop app build must delegate to the shared lifecycle facade',
+);
+assert.match(
+  appPackageJson.scripts['_sdkwork:build'],
   /^node \.\.\/\.\.\/scripts\/dev\/run-vite-cli\.mjs build/u,
-  'desktop app build must prepare linked SDKWork UI dependencies before Vite build',
+  'desktop private build hook must prepare linked SDKWork UI dependencies before Vite build',
 );
 assert.equal(
   appPackageJson.scripts.lint,
   'node ../../scripts/dev/run-tsc-cli.mjs --noEmit -p tsconfig.app.json',
   'desktop app lint must prepare linked SDKWork UI dependencies before TypeScript checks',
 );
-assert.equal(appPackageJson.scripts['dev:desktop'], 'pnpm --filter @sdkwork/im-pc-desktop dev:desktop');
+assert.equal(
+  appPackageJson.scripts['dev:desktop'],
+  'pnpm dev:desktop:postgres:standalone',
+  'desktop app dev:desktop must select the canonical standalone desktop profile',
+);
 assert.equal(appPackageJson.scripts['desktop:dev:local'], undefined);
 assert.equal(appPackageJson.scripts['desktop:build:local'], undefined);
 assert.equal(appPackageJson.scripts['build:desktop:local'], 'pnpm --filter @sdkwork/im-pc-desktop build:desktop:local');
@@ -1035,7 +1045,7 @@ assert.match(
   /appId:\s*['"]sdkwork-im-pc['"]/u,
   'auth runtime must use the provisioned IAM runtime appId sdkwork-im-pc',
 );
-const standaloneGatewayMain = read('services/sdkwork-im-standalone-gateway/src/main.rs');
+const standaloneGatewayMain = read('crates/sdkwork-api-im-standalone-gateway/src/main.rs');
 assert.match(
   standaloneGatewayMain,
   /ensure_im_tenant_application_runtime_from_env/u,

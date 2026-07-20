@@ -66,21 +66,21 @@
 
 - `services/conversation-runtime/src/runtime.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/sdkwork-im-cloud-gateway/src/node.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/effects.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/message.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/message.rs`
 
 ### 5.2 测试证据
 
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
 - `services/conversation-runtime/tests/authority_command_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ### 5.3 验证证据
 
 - `cargo test -p conversation-runtime --test authority_command_test --offline`
 - `cargo test -p conversation-runtime --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 6. 架构结论

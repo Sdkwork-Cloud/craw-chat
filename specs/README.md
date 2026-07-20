@@ -24,20 +24,20 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
   dependency direction, bounded-context ownership, and the target IM database
   contract for assignment projection, Agents session binding, and dispatch
   correlation.
-- Shared foundation API composition targets `sdkwork-api-cloud-gateway` through
+- Shared foundation API composition targets `platform.api-gateway` through
   `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` and `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
   for cloud or external-upstream deployments. In `standalone.*`, the sibling
-  `sdkwork-im-standalone-gateway` collapses platform ingress on one bind and mounts Drive,
+  `sdkwork-api-im-standalone-gateway` collapses platform ingress on one bind and mounts Drive,
   Knowledgebase, Commerce, Mail, and Notary dependency APIs in-process via Cargo-linked route crates.
 - Application HTTP/WebSocket traffic uses `SDKWORK_IM_APPLICATION_PUBLIC_*` and
-  `VITE_SDKWORK_IM_APPLICATION_PUBLIC_*`. `services/sdkwork-im-cloud-gateway` and
-  `crates/sdkwork-im-cloud-gateway-config` keep product-owned IM routing only; cloud
+  `VITE_SDKWORK_IM_APPLICATION_PUBLIC_*`. `crates/sdkwork-api-im-standalone-gateway` and
+  `crates/sdkwork-api-im-standalone-gateway` keep product-owned IM routing only; cloud
   platform API routing is owned by the shared gateway boundary.
 - Local PC development starts through `scripts/im-dev.mjs` (`pnpm dev`), which loads topology
-  profiles from `etc/topology/` and starts `sdkwork-im-standalone-gateway` only. It does
-  not spawn a separate `sdkwork-api-cloud-gateway` process in the default `standalone.development`
+  profiles from `etc/topology/` and starts `sdkwork-api-im-standalone-gateway` only. It does
+  not spawn a separate `platform.api-gateway` process in the default `standalone.development`
   profile.
-- `crates/sdkwork-im-cloud-gateway-config` omits HTTP upstream targets for standalone-embedded
+- `crates/sdkwork-api-im-standalone-gateway` omits HTTP upstream targets for standalone-embedded
   dependency APIs in standalone profiles. Direct module URLs remain explicit cloud/external-upstream
   overrides through `SDKWORK_IM_*_APP_API_UPSTREAM` keys documented in `component.spec.json`.
 - Consumers should integrate through public exports, runtime entrypoints, SDK clients, or adapters declared in the manifest.
@@ -47,7 +47,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 | Framework | Status | Integration point |
 | --- | --- | --- |
-| `sdkwork-web-framework` | **Integrated** | Gateway (`services/sdkwork-im-cloud-gateway`) and upstream HTTP services wrap routers through `crates/sdkwork-im-web-bootstrap` (`WebFrameworkLayer`, `ImAppContextInjector`, IAM resolver). OpenAPI authorities materialize `x-sdkwork-request-context` / `x-sdkwork-api-surface`. Verified by `pnpm test:web-framework-standard`. |
+| `sdkwork-web-framework` | **Integrated** | Gateway (`crates/sdkwork-api-im-standalone-gateway`) and upstream HTTP services wrap routers through `crates/sdkwork-im-web-bootstrap` (`WebFrameworkLayer`, `ImAppContextInjector`, IAM resolver). OpenAPI authorities materialize `x-sdkwork-request-context` / `x-sdkwork-api-surface`. Verified by `pnpm test:web-framework-standard`. |
 | `sdkwork-database` | **Integrated** | `Cargo.toml` workspace deps (`sdkwork-database-config`, `sdkwork-database-sqlx`); pool bootstrap in `crates/sdkwork-im-database-pool`; postgres adapters consume unified pool config. Verified by `pnpm test:database-framework-standard`. |
 | `sdkwork-utils` | **Integrated** | `Cargo.toml` workspace dep (`sdkwork-utils-rust`); PC core and H5 core consume `@sdkwork/utils`; Flutter mobile consumes `sdkwork_common_flutter` through generated IM SDK HTTP stack. Crypto/encoding helpers must not duplicate `sha2` or ad-hoc base64url in shared runtime paths. Verified by `pnpm test:utils-standard` and `pnpm test:h5-utils-standard`. |
 | `sdkwork-drive` | **Integrated** | File upload/download delegated to sibling `sdkwork-drive` at `/app/v3/api/drive/*`. PC/H5/Flutter chat media uploads share canonical attribution (`im_conversation`, `scene=im`, `source=chat_message`) per `specs/im-app-api-sdk-integration.spec.md`. PC uses `@sdkwork/drive-app-sdk` through `@sdkwork/im-pc-core`; H5 through `sdkwork-im-h5-core`; Flutter through IM-composed `drive_app_sdk_client.dart`. Verified by PC/H5 drive integration contract tests, `pnpm test:chat-drive-upload-attribution-standard`, and `services/media-service/tests/provider_integration_test.rs`. |

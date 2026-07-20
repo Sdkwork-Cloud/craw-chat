@@ -61,7 +61,7 @@
 
 | 高风险路径 | 主要问题 | 优先 Step | 补充 Step |
 | --- | --- | --- | --- |
-| `services/sdkwork-im-cloud-gateway/src/lib.rs` | 超大文件、装配和运行时细节混写 | `01` `02` | `04` `10` |
+| `crates/sdkwork-api-im-standalone-gateway/src/lib.rs` | 超大文件、装配和运行时细节混写 | `01` `02` | `04` `10` |
 | `services/conversation-runtime/src/lib.rs` | 消息主链路和服务边界混写 | `01` `02` `05` | `09` |
 | `services/session-gateway/src/lib.rs` | 连接热路径、协议接入、运行时边界混写 | `01` `02` `03` `04` | `11` |
 | `crates/im-platform-contracts/` | 业务契约与目标 `CCP` 契约仍需收口 | `03` | `12` |

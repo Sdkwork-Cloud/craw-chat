@@ -10,7 +10,9 @@ import { fileURLToPath } from 'node:url';
 
 import {
   formatResolvedNetworkAccessLines,
-  resolveNonLoopbackIpv4Addresses,
+  formatNetworkUrlHost,
+  resolveNetworkInterfaceSnapshot,
+  resolveNonLoopbackIpAddresses,
 } from '@sdkwork/app-topology/network-access';
 
 import { resolveSdkworkChatIamCommandEnv } from '../../apps/sdkwork-im-pc/scripts/sdkwork-chat-iam-env.mjs';
@@ -26,11 +28,9 @@ import {
 import {
   IAM_APPLICATION_BOOTSTRAP_ENV,
   resolveIamDevEnv,
-  resolveStandaloneGatewayConfigPath,
 } from './im-topology.mjs';
 import { resolveImProductSiteDirEnv } from './im-product-site-dirs.mjs';
 import { resolveRealtimeClusterDevEnv } from './im-realtime-cluster-dev.mjs';
-import { resolveImApiCloudGatewayConfigPath } from '../dev/im-api-cloud-gateway-config.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), '..');
@@ -38,17 +38,7 @@ export const SDKWORK_IM_PC_DEV_HOST_ENV = 'SDKWORK_IM_PC_DEV_HOST';
 export const SDKWORK_IM_PC_DEV_PORT_ENV = 'SDKWORK_IM_PC_DEV_PORT';
 export const DEFAULT_SDKWORK_IM_PC_DEV_HOST = '0.0.0.0';
 export const DEFAULT_SDKWORK_IM_PC_DEV_PORT = 4176;
-export const DEFAULT_SDKWORK_API_CLOUD_GATEWAY_BIND = '127.0.0.1:3900';
-export const DEFAULT_SDKWORK_API_CLOUD_GATEWAY_BASE_URL = `http://${DEFAULT_SDKWORK_API_CLOUD_GATEWAY_BIND}`;
 const MAX_DEV_PORT_ATTEMPTS = 50;
-const SDKWORK_API_CLOUD_GATEWAY_BASE_URL_ENV_KEYS = [
-  'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL',
-  'SDKWORK_API_CLOUD_GATEWAY_BASE_URL',
-];
-const SDKWORK_API_CLOUD_GATEWAY_AUTOSTART_ENV_KEYS = [
-  'SDKWORK_IM_PLATFORM_API_GATEWAY_AUTOSTART',
-  'SDKWORK_API_CLOUD_GATEWAY_AUTOSTART',
-];
 
 const TARGETS = Object.freeze({
   browser: {
@@ -95,7 +85,7 @@ function normalizeUpstreamBaseUrl(value, label) {
   return normalized.replace(/\/+$/u, '');
 }
 
-function normalizeGatewayBind(value, label = 'SDKWORK_API_CLOUD_GATEWAY_BIND') {
+function normalizeGatewayBind(value, label = 'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND') {
   const normalized = normalizeText(value);
   if (!normalized) {
     return undefined;
@@ -122,21 +112,10 @@ export function deriveWebSocketBaseUrlFromHttpBaseUrl(httpBaseUrl) {
   return parsedUrl.toString().replace(/\/+$/u, '');
 }
 
-export function resolveSdkworkApiGatewayBind(env = process.env) {
-  return normalizeGatewayBind(env.SDKWORK_API_CLOUD_GATEWAY_BIND) ?? DEFAULT_SDKWORK_API_CLOUD_GATEWAY_BIND;
-}
-
 export function resolveDeploymentProfile(env = process.env) {
   const explicit = normalizeText(env.SDKWORK_IM_DEPLOYMENT_PROFILE);
   if (explicit === 'standalone' || explicit === 'cloud') {
     return explicit;
-  }
-  const retiredHosting = normalizeText(env.SDKWORK_IM_HOSTING);
-  if (retiredHosting === 'self-hosted') {
-    return 'standalone';
-  }
-  if (retiredHosting === 'cloud-hosted') {
-    return 'cloud';
   }
   return 'standalone';
 }
@@ -163,34 +142,20 @@ export function resolveApplicationPublicHttpUrl(env = process.env) {
   return 'http://127.0.0.1:18079';
 }
 
-export function resolveSdkworkApiGatewayBaseUrl(env = process.env) {
+export function resolvePlatformApiGatewayBaseUrl(env = process.env) {
   if (isStandaloneSingleIngress(env)) {
     return resolveApplicationPublicHttpUrl(env);
   }
-  for (const key of SDKWORK_API_CLOUD_GATEWAY_BASE_URL_ENV_KEYS) {
-    const baseUrl = normalizeUpstreamBaseUrl(env[key], key);
-    if (baseUrl) {
-      return baseUrl;
-    }
+  const baseUrl = normalizeUpstreamBaseUrl(
+    env.SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
+    'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL',
+  );
+  if (!baseUrl) {
+    throw new Error(
+      'cloud development requires SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL',
+    );
   }
-  return `http://${resolveSdkworkApiGatewayBind(env)}`;
-}
-
-function shouldAutostartSdkworkApiGateway(env) {
-  for (const key of SDKWORK_API_CLOUD_GATEWAY_AUTOSTART_ENV_KEYS) {
-    const value = normalizeText(env[key]);
-    if (!value) {
-      continue;
-    }
-    return !['0', 'false', 'off', 'no'].includes(value.toLowerCase());
-  }
-  return true;
-}
-
-export function isSdkworkApiGatewayManagedExternally(env = process.env) {
-  const managedExternally = normalizeText(env.SDKWORK_IM_PLATFORM_API_GATEWAY_MANAGED_EXTERNALLY);
-  return Boolean(managedExternally)
-    && !['0', 'false', 'off', 'no'].includes(managedExternally.toLowerCase());
+  return baseUrl;
 }
 
 export function createStandaloneGatewayProcess({
@@ -198,79 +163,28 @@ export function createStandaloneGatewayProcess({
   repoRoot: resolvedRepoRoot,
   gatewayWillStart = true,
 }) {
-  if (!gatewayWillStart || !shouldAutostartSdkworkApiGateway(env)) {
+  if (!gatewayWillStart) {
     return undefined;
   }
 
-  const configPath = resolveStandaloneGatewayConfigPath(env, resolvedRepoRoot);
   const iamDevEnv = resolveIamDevEnv(env, resolvedRepoRoot);
   const gatewayEnv = {
     ...iamDevEnv,
     ...env,
     ...IAM_APPLICATION_BOOTSTRAP_ENV,
     ...resolveRealtimeClusterDevEnv({ ...iamDevEnv, ...env }),
-    SDKWORK_IM_STANDALONE_GATEWAY_CONFIG: configPath,
     SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT:
       normalizeText(env.SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT) ?? 'development',
     CARGO_TARGET_DIR: normalizeText(env.SDKWORK_IM_STANDALONE_GATEWAY_CARGO_TARGET_DIR)
-      ?? path.join(resolvedRepoRoot, '.runtime', 'cargo-target', 'sdkwork-im-standalone-gateway-dev'),
+      ?? path.join(resolvedRepoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev'),
   };
 
   return {
-    args: [
-      path.join(resolvedRepoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs'),
-      '--config',
-      configPath,
-    ],
+    args: [path.join(resolvedRepoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs')],
     command: process.execPath,
     cwd: resolvedRepoRoot,
     env: gatewayEnv,
-    label: 'sdkwork-im-standalone-gateway',
-    shell: false,
-  };
-}
-
-export function createManagedSdkworkApiGatewayProcess({
-  env,
-  repoRoot: resolvedRepoRoot,
-}) {
-  if (isStandaloneSingleIngress(env) || !shouldAutostartSdkworkApiGateway(env)) {
-    return undefined;
-  }
-
-  const apiGatewayWorkspaceRoot = path.resolve(resolvedRepoRoot, '..', 'sdkwork-api-cloud-gateway');
-  const imApiCloudGatewayConfigPath = resolveImApiCloudGatewayConfigPath(env, resolvedRepoRoot);
-  const iamDevEnv = resolveIamDevEnv(env, resolvedRepoRoot);
-  const gatewayEnv = {
-    ...iamDevEnv,
-    ...env,
-    ...IAM_APPLICATION_BOOTSTRAP_ENV,
-    CARGO_TARGET_DIR: normalizeText(env.SDKWORK_API_CLOUD_GATEWAY_CARGO_TARGET_DIR)
-      ?? path.join(apiGatewayWorkspaceRoot, 'target', 'chat-pc-dev'),
-    SDKWORK_API_CLOUD_GATEWAY_BIND: resolveSdkworkApiGatewayBind(env),
-  };
-  const gatewayMode = normalizeText(env.SDKWORK_API_CLOUD_GATEWAY_MODE);
-  if (gatewayMode) {
-    gatewayEnv.SDKWORK_API_CLOUD_GATEWAY_MODE = gatewayMode;
-  }
-
-  return {
-    args: [
-      'run',
-      '-p',
-      'sdkwork-api-cloud-gateway',
-      '--bin',
-      'sdkwork-api-cloud-gateway',
-      '--features',
-      'foundation-appbase,foundation-im,foundation-drive,foundation-mail,foundation-notary',
-      '--',
-      '--config',
-      imApiCloudGatewayConfigPath,
-    ],
-    command: cargoCommand(),
-    cwd: apiGatewayWorkspaceRoot,
-    env: gatewayEnv,
-    label: 'sdkwork-api-cloud-gateway',
+    label: 'sdkwork-api-im-standalone-gateway',
     shell: false,
   };
 }
@@ -323,13 +237,8 @@ export function createSdkworkChatBrowserOrigins({
     .map((value) => normalizeText(value))
     .filter((value, index, values) => value && values.indexOf(value) === index);
   return originHosts
-    .map((originHost) => `http://${formatBrowserOriginHost(originHost)}:${resolvedPort}`)
+    .map((originHost) => `http://${formatNetworkUrlHost(originHost)}:${resolvedPort}`)
     .join(',');
-}
-
-function formatBrowserOriginHost(host) {
-  const normalized = String(host).trim().replace(/^\[|\]$/gu, '');
-  return normalized.includes(':') ? `[${normalized}]` : normalized;
 }
 
 function isPrivateIpv4Address(address) {
@@ -347,40 +256,22 @@ function isPrivateIpv6Address(address) {
   return normalized.startsWith('fc') || normalized.startsWith('fd');
 }
 
-function resolvePrivateIpv6Addresses(interfaces) {
-  return Object.values(interfaces ?? {})
-    .flatMap((entries) => entries ?? [])
-    .filter((entry) => (
-      (entry.family === 'IPv6' || entry.family === 6)
-      && !entry.internal
-      && isPrivateIpv6Address(entry.address)
-    ))
-    .map((entry) => entry.address)
-    .filter((address, index, addresses) => addresses.indexOf(address) === index);
-}
-
 export function resolveLocalNetworkHosts({
   networkInterfaces = os.networkInterfaces,
 } = {}) {
-  const interfaces = typeof networkInterfaces === 'function'
-    ? networkInterfaces()
-    : networkInterfaces;
-  const ipv4Addresses = resolveNonLoopbackIpv4Addresses(interfaces)
-    .filter(isPrivateIpv4Address);
-  const ipv6Addresses = resolvePrivateIpv6Addresses(interfaces);
-  return [...ipv4Addresses, ...ipv6Addresses].sort();
+  return resolveNonLoopbackIpAddresses(networkInterfaces).filter((address) => (
+    address.includes(':')
+      ? isPrivateIpv6Address(address)
+      : isPrivateIpv4Address(address)
+  ));
 }
 
 export function resolveSdkworkChatAccessNetworkHosts({
   networkInterfaces = os.networkInterfaces,
 } = {}) {
-  const interfaces = typeof networkInterfaces === 'function'
-    ? networkInterfaces()
-    : networkInterfaces;
-  return [
-    ...resolveNonLoopbackIpv4Addresses(interfaces),
-    ...resolvePrivateIpv6Addresses(interfaces),
-  ].sort();
+  return resolveNonLoopbackIpAddresses(networkInterfaces).filter((address) => (
+    !address.includes(':') || isPrivateIpv6Address(address)
+  ));
 }
 
 export function createSdkworkChatPcAccessUrls({
@@ -390,7 +281,7 @@ export function createSdkworkChatPcAccessUrls({
   const resolvedPort = normalizePort(port, SDKWORK_IM_PC_DEV_PORT_ENV);
   return {
     localUrl: `http://localhost:${resolvedPort}`,
-    networkUrls: networkHosts.map((host) => `http://${formatBrowserOriginHost(host)}:${resolvedPort}`),
+    networkUrls: networkHosts.map((host) => `http://${formatNetworkUrlHost(host)}:${resolvedPort}`),
   };
 }
 
@@ -678,7 +569,7 @@ export function createSdkworkChatPcDevPlan({
   const applicationPublicWebSocketUrl = deriveWebSocketBaseUrlFromHttpBaseUrl(
     applicationPublicHttpUrl,
   );
-  const platformApiGatewayBaseUrl = resolveSdkworkApiGatewayBaseUrl({
+  const platformApiGatewayBaseUrl = resolvePlatformApiGatewayBaseUrl({
     ...mergedEnv,
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
   });
@@ -739,12 +630,6 @@ export function createSdkworkChatPcDevPlan({
     VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
     VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: applicationPublicWebSocketUrl,
     VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: platformApiGatewayBaseUrl,
-    SDKWORK_API_CLOUD_GATEWAY_BIND: standaloneSingleIngress
-      ? normalizeGatewayBind(
-        mergedEnv.SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND,
-        'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND',
-      ) ?? resolveSdkworkApiGatewayBind(mergedEnv)
-      : resolveSdkworkApiGatewayBind(mergedEnv),
   };
   for (const key of Object.keys(gatewayServerEnv)) {
     if (/^SDKWORK_(?:IM_)?[A-Z0-9_]+_APP_API_UPSTREAM$/u.test(key)) {
@@ -757,34 +642,11 @@ export function createSdkworkChatPcDevPlan({
       repoRoot: resolvedRepoRoot,
     })
     : undefined;
-  const managedSdkworkApiGatewayProcess = standaloneSingleIngress
-    ? undefined
-    : createManagedSdkworkApiGatewayProcess({
-      env: gatewayServerEnv,
-      repoRoot: resolvedRepoRoot,
-    });
   const processes = [];
-  if (standaloneSingleIngress) {
-    if (managedStandaloneGatewayProcess) {
-      processes.push(managedStandaloneGatewayProcess);
-    }
-  } else {
-    processes.push({
-      ...shared,
-      args: ['dev:server'],
-      env: managedSdkworkApiGatewayProcess
-        ? {
-            ...gatewayServerEnv,
-            SDKWORK_IM_PLATFORM_API_GATEWAY_MANAGED_EXTERNALLY: 'true',
-          }
-        : gatewayServerEnv,
-      label: 'sdkwork-im-server',
-    });
+  if (managedStandaloneGatewayProcess) {
+    processes.push(managedStandaloneGatewayProcess);
   }
   processes.push(rendererProcess);
-  if (managedSdkworkApiGatewayProcess) {
-    processes.push(managedSdkworkApiGatewayProcess);
-  }
   return {
     devServer,
     dryRun: options.dryRun,
@@ -835,6 +697,7 @@ export async function runSdkworkChatPcDev({
   stderr = process.stderr,
   networkInterfaces = os.networkInterfaces,
   waitForApplicationReady = waitForSdkworkChatApplicationReady,
+  ensureDatabaseReady = ensurePostgresDevDatabaseReady,
 } = {}) {
   const siteDirEnv = await resolveImProductSiteDirEnv({
     buildEnv: env,
@@ -868,8 +731,8 @@ export async function runSdkworkChatPcDev({
     repoRoot: resolvedRepoRoot,
   });
   const serverBindGateway = serverPortPlan.processes[0];
-  const shouldResolveServerBind = serverBindGateway?.label === 'sdkwork-im-server'
-    || serverBindGateway?.label === 'sdkwork-im-standalone-gateway';
+  const shouldResolveServerBind =
+    serverBindGateway?.label === 'sdkwork-api-im-standalone-gateway';
   if (shouldResolveServerBind) {
     terminateStaleDevGatewayProcesses({ stdout });
   }
@@ -883,9 +746,7 @@ export async function runSdkworkChatPcDev({
       `[sdkwork-im-pc-dev] 127.0.0.1:18079 is busy; using http://${resolvedServerBind.bindAddr}\n`,
     );
   }
-  const interfaces = typeof networkInterfaces === 'function'
-    ? networkInterfaces()
-    : networkInterfaces;
+  const interfaces = resolveNetworkInterfaceSnapshot(networkInterfaces);
   const networkHosts = resolveLocalNetworkHosts({ networkInterfaces: interfaces });
   const accessNetworkHosts = resolveSdkworkChatAccessNetworkHosts({
     networkInterfaces: interfaces,
@@ -916,10 +777,10 @@ export async function runSdkworkChatPcDev({
   }
 
   const gatewayProcess = plan.processes.find((entry) => (
-    entry.label === 'sdkwork-im-server' || entry.label === 'sdkwork-im-standalone-gateway'
+    entry.label === 'sdkwork-api-im-standalone-gateway'
   ));
   if (gatewayProcess) {
-    await ensurePostgresDevDatabaseReady({
+    await ensureDatabaseReady({
       env: gatewayProcess.env,
       repoRoot: resolvedRepoRoot,
       stdout,

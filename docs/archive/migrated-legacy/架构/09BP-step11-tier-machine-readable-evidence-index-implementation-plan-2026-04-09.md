@@ -11,7 +11,7 @@
 ### Task 1: Freeze the missing co-located index bug
 
 **Files:**
-- Modify: `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`
+- Modify: `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`
 
 - [ ] Add a regression test that requires:
   - `artifacts/perf/step-11/schemas/step-11-tier-evidence-index.schema.json`
@@ -20,7 +20,7 @@
 - [ ] Run:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_artifact_roots -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_artifact_roots -- --exact --nocapture
 ```
 
 - [ ] Confirm red because the schema and co-located evidence indexes are missing.
@@ -58,8 +58,8 @@ cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalo
 - [ ] Run:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_artifact_roots -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_artifact_roots -- --exact --nocapture
 cargo fmt --all --check
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 ```

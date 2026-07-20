@@ -13,7 +13,7 @@
 ### Task 1: Freeze the collected-evidence contract
 
 **Files:**
-- Modify: `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`
+- Modify: `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`
 - Create: `artifacts/perf/step-11/pre-release/failover/drill.json`
 - Modify: `artifacts/perf/step-11/pre-release/pre-release-tier-evidence-index.json`
 - Modify: `artifacts/perf/step-11/pre-release/checksum-manifest.txt`
@@ -46,7 +46,7 @@
 **Files:**
 - Verify only
 
-- [ ] Run `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_pre_release_failover_collected_evidence -- --exact --nocapture`
+- [ ] Run `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_pre_release_failover_collected_evidence -- --exact --nocapture`
 - [ ] Run `cargo fmt --all --check`
-- [ ] Run `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture`
-- [ ] Run `cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture`
+- [ ] Run `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture`
+- [ ] Run `cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture`

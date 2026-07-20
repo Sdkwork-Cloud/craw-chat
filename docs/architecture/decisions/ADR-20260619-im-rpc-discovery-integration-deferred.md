@@ -10,7 +10,7 @@ Specs: RPC_SPEC.md, RUST_RPC_SPEC.md, RPC_SDK_WORKSPACE_SPEC.md, DEPLOYMENT_SPEC
 
 Sdkwork IM already ships:
 
-- HTTP ingress through `sdkwork-web-framework` (`services/sdkwork-im-cloud-gateway`).
+- HTTP ingress through `sdkwork-web-framework` (`crates/sdkwork-api-im-standalone-gateway`).
 - Persistence through `sdkwork-database` (`crates/sdkwork-im-database-pool`, postgres adapters).
 - RPC **contracts** under `apis/rpc/` and generated `sdkwork-im-rpc-sdk`.
 - Rust RPC **binding scaffold** in `crates/sdkwork-im-rpc-service-rust` (tonic adapters, manifests, health helpers).

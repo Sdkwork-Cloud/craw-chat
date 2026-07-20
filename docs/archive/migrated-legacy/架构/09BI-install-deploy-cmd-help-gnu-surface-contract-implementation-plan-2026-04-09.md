@@ -6,7 +6,7 @@ Make `(retired lifecycle script) --help` and `pnpm dev --help` surface the GNU-s
 
 ## Implementation
 
-1. Freeze both Windows help surfaces in `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+1. Freeze both Windows help surfaces in `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
 2. Patch the `-Help` branches in `(retired lifecycle script)` and `pnpm dev`
 3. Keep forwarding and runtime execution behavior unchanged for this loop
 4. Backwrite review, step, and architecture indexes

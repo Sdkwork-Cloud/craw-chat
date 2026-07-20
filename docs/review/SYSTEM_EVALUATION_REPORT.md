@@ -68,7 +68,7 @@
    - 双层速率限制 (IP层 + 租户层)
    - 熔断器模式 (per-service isolation)
    - 可信代理IP验证
-   - 文件: `services/sdkwork-im-cloud-gateway/src/gateway_protection.rs`
+   - 文件: `crates/sdkwork-api-im-standalone-gateway/src/gateway_protection.rs`
 
 #### 问题
 1. ⚠️ **单区域单写入者限制**
@@ -211,7 +211,7 @@ fn validate_security_config(profile: RuntimeProfile) {
 
 2. **内容安全分析**:
    ```rust
-   // 文件: services/sdkwork-im-cloud-gateway/src/anomaly_detector.rs
+   // 文件: crates/sdkwork-api-im-standalone-gateway/src/anomaly_detector.rs
    - 垃圾内容识别
    - URL过度检测
    - 重复模式检测
@@ -459,7 +459,7 @@ let client = redis::Client::open("redis+sentinel://sentinel-1:26379,redis-master
 #### 优势
 1. **多层限流架构**:
    ```rust
-   // 文件: services/sdkwork-im-cloud-gateway/src/gateway_protection.rs
+   // 文件: crates/sdkwork-api-im-standalone-gateway/src/gateway_protection.rs
    Layer 1: Per-IP rate limiting (600 RPM)
    Layer 2: Per-tenant rate limiting (60,000 RPM)
    ```
@@ -567,7 +567,7 @@ jobs:
 #### 优势
 1. **熔断器机制**:
    ```rust
-   // 文件: services/sdkwork-im-cloud-gateway/src/gateway_protection.rs
+   // 文件: crates/sdkwork-api-im-standalone-gateway/src/gateway_protection.rs
    - Per-service isolation
    - Three states: Closed → Open → Half-Open
    - Single probe recovery

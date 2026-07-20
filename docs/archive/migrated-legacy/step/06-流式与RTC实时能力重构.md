@@ -178,8 +178,8 @@ RTC 只负责信令：
 - `services/streaming-service/tests/stream_lifecycle_test.rs`
 - `services/im-call-runtime/tests/rtc_signal_flow_test.rs`
 - `services/im-call-runtime/tests/rtc_runtime_persistence_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/stream_runtime_persistence_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/rtc_runtime_persistence_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/stream_runtime_persistence_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/rtc_runtime_persistence_test.rs`
 
 ## 7. 结果验证
 
@@ -278,7 +278,7 @@ RTC 只负责信令：
   - `services/im-call-runtime/tests/rtc_runtime_persistence_test.rs`
     - 新增 provider-aware runtime 测试，覆`create_session / issue_participant_credential / provider_health_snapshot / close_session`
   - `services/im-call-runtime/tests/rtc_signal_flow_test.rs`
-  - `services/sdkwork-im-cloud-gateway/tests/rtc_runtime_persistence_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/rtc_runtime_persistence_test.rs`
 - 对本 step 当前状态的判断
   - `CP06-1` 已进入真实运行时闭环的第一阶段，不再只是契约与架构文档
   - 当前仍未完成的部分是对外 credential / callback / artifact surface，以`rtc-aliyun / rtc-tencent` adapter
@@ -289,15 +289,15 @@ RTC 只负责信令：
     - 新增 `POST /im/v3/api/calls/sessions/{rtcSessionId}/credentials`
     - 新增 `GET /backend/v3/api/rtc/provider_health`
     - 直接复用已有 `RtcRuntime::issue_participant_credential(...)` `provider_health_snapshot(...)`
-  - `services/sdkwork-im-cloud-gateway/src/node/rtc.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/rtc.rs`
     - 新增同名 handler，并沿用当前 conversation-bound access guard
-  - `services/sdkwork-im-cloud-gateway/src/node/build.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/build.rs`
     - 暴露`im-call-runtime` 一致的两条 RTC provider surface
 - 自动化验证已补齐
   - `services/im-call-runtime/tests/http_smoke_test.rs`
     - `test_issue_rtc_participant_credential_over_http`
     - `test_get_rtc_provider_health_over_http`
-  - `services/sdkwork-im-cloud-gateway/tests/http_e2e_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/http_e2e_test.rs`
     - `test_local_minimal_profile_issues_rtc_participant_credential_over_http`
     - `test_local_minimal_profile_gets_rtc_provider_health_over_http`
 - 对本 step 当前状态的判断
@@ -310,7 +310,7 @@ RTC 只负责信令：
   - 新增 `RtcRuntime::recording_artifact(...)`
   - 新增 `POST /backend/v3/api/rtc/provider_callbacks`
   - 新增 `Retired recording artifact HTTP read; call artifacts are delivered as Drive-backed IM records`
-- `services/sdkwork-im-cloud-gateway`
+- `crates/sdkwork-api-im-standalone-gateway`
   - 镜像暴露同名 RTC provider surface
   - callback 保持 provider/integration 面，不引入厂DTO
   - artifact 继续session / conversation 边界约束
@@ -318,7 +318,7 @@ RTC 只负责信令：
   - `services/im-call-runtime/tests/http_smoke_test.rs`
     - `test_map_rtc_provider_callback_over_http`
     - `test_get_rtc_recording_artifact_over_http`
-  - `services/sdkwork-im-cloud-gateway/tests/http_e2e_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/http_e2e_test.rs`
     - `test_local_minimal_profile_maps_rtc_provider_callback_over_http`
     - `test_local_minimal_profile_gets_rtc_recording_artifact_over_http`
 - Step 06 / `06-B`

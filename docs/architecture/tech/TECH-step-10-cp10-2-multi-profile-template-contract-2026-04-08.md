@@ -60,7 +60,7 @@
     收口到 `-ProfileName`
 
 ### 3. 文档与回归门禁已追平当前真实脚本合同
-- `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
   - 已新增：
     - `test_deployment_profiles_and_templates_document_local_minimal_and_local_default_contracts`
     - `test_deploy_local_scripts_expose_profile_selection_contract`
@@ -82,27 +82,27 @@
 ## TDD 证据
 
 ### Red
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_deployment_profiles_and_templates_document_local_minimal_and_local_default_contracts`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_deployment_profiles_and_templates_document_local_minimal_and_local_default_contracts`
   - 初始失败，证profile/template 文档与模板资产尚未形成合
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_deploy_local_scripts_expose_profile_selection_contract`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_deploy_local_scripts_expose_profile_selection_contract`
   - 初始失败，证`retired-lifecycle-deploy` 尚未公开 profile selector
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_deploy_local_ps1_forwards_profile_name_to_bootstrap_script`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_deploy_local_ps1_forwards_profile_name_to_bootstrap_script`
   - 初始失败，证PowerShell 入口尚未profile 正确转发送bootstrap
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_deploy_local_cmd_normalizes_profile_name_switch`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_deploy_local_cmd_normalizes_profile_name_switch`
   - 初始失败，证CMD 参数兼容层尚未收口profile 语义
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_quick_start_doc_freezes_full_local_command_surface -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_quick_start_doc_freezes_full_local_command_surface -- --exact`
   - 本轮补充文档 contract 后先失败，证`快速启动脚md` 还未公开 `standalone.split-services.development` `profile selector`
 
 ### Green
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_deployment_profiles_and_templates_document_local_minimal_and_local_default_contracts`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_deploy_local_scripts_expose_profile_selection_contract`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_deploy_local_ps1_forwards_profile_name_to_bootstrap_script`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_deploy_local_cmd_normalizes_profile_name_switch`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_quick_start_doc_freezes_full_local_command_surface -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_deployment_profiles_and_templates_document_local_minimal_and_local_default_contracts`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_deploy_local_scripts_expose_profile_selection_contract`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_deploy_local_ps1_forwards_profile_name_to_bootstrap_script`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_deploy_local_cmd_normalizes_profile_name_switch`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_quick_start_doc_freezes_full_local_command_surface -- --exact`
 
 ## Fresh 验证
 - `cargo fmt --all --check`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
 - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 

@@ -54,7 +54,7 @@ if ($postgresqlContent -match 'migrationMode:\s*([^\r\n]+)') {
 }
 
 $report = [ordered]@{
-    product = "sdkwork-im-server"
+    product = "sdkwork-api-im-standalone-gateway"
     instance = $InstanceName
     mode = $Mode
     storage = "postgresql"
@@ -74,7 +74,7 @@ if ($OutputFormat -eq "json") {
     Write-Output $json
 }
 else {
-    Write-Host "sdkwork-im-server storage report"
+    Write-Host "sdkwork-api-im-standalone-gateway storage report"
     Write-Host "mode: $Mode"
     Write-Host "storage: postgresql"
     Write-Host "configValid: $($report.configValid)"

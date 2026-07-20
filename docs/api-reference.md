@@ -38,7 +38,7 @@ Reactions, pins, threads, and conversation settings are **`chat` resources** und
 
 ## Gateway
 
-- Edge: `sdkwork-im-cloud-gateway` / `sdkwork-im-server`
+- Edge: `sdkwork-api-im-standalone-gateway` / `sdkwork-im-server`
 - Aggregated docs: `/docs`, `/openapi.json`, `/openapi/services/<service-id>.openapi.json`
 - Default dev application ingress: `http://127.0.0.1:18079` (`pnpm dev`)
 

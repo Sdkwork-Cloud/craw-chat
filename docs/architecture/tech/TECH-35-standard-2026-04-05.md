@@ -98,14 +98,14 @@
 - `services/automation-service/src/lib.rs`
 - `services/automation-service/tests/automation_execution_test.rs`
 - `services/automation-service/tests/http_smoke_test.rs`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
-- `services/sdkwork-im-cloud-gateway/tests/task10_capabilities_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/task10_capabilities_e2e_test.rs`
 
 ## 7. 验证命令
 
 - `cargo test -p automation-service --test automation_execution_test --offline`
 - `cargo test -p automation-service --test http_smoke_test --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --test task10_capabilities_e2e_test --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --test task10_capabilities_e2e_test --offline`
 - `cargo test --workspace --offline`
 
 ## 8. 下一轮 review 建议

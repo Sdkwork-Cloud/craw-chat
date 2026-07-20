@@ -42,7 +42,7 @@
 
 - 新增 `im_auth_context::resolve_bearer_auth_context(...)`
 - 新增 `local_minimal_node::build_public_app()`
-- `services/sdkwork-im-cloud-gateway/src/main.rs` 已改为启动 `build_public_app()`
+- `crates/sdkwork-api-im-standalone-gateway/src/main.rs` 已改为启动 `build_public_app()`
 - `build_public_app()` 对 health 以外的入口统一要求 Bearer
 - `build_default_app()` 暂保留为测试/内部装配 builder，避免一次性打断现有大量模块级离线测试
 

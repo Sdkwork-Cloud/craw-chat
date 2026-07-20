@@ -9,9 +9,9 @@
 - `services/projection-service/src/lib.rs`
 - `services/projection-service/tests/lib_structure_test.rs`
 - `services/projection-service/tests/timeline_projection_test.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/effects.rs`
-- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/cluster_realtime_routing_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/cluster_realtime_routing_e2e_test.rs`
 
 ## 2. 审计结论
 

@@ -32,10 +32,10 @@
 ## Verification
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline cmd_help_surfaces_gnu_style_named_flags -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline cmd_help_surfaces_gnu_style_named_flags -- --nocapture
 cmd /c .\bin\retired-lifecycle-install.cmd --help
 cmd /c .\bin\retired-lifecycle-deploy.cmd --help
-cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 cargo fmt --all --check
 ```
 

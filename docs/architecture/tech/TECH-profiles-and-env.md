@@ -13,7 +13,7 @@ Sdkwork IM development and production routing are owned by topology v5. Use
 | `standalone.development` | `pnpm dev`, `pnpm dev:browser`, `pnpm dev:desktop` | Default PostgreSQL standalone development stack |
 | `standalone.staging` | pre-production rehearsal | Standalone release rehearsal |
 | `standalone.production` | private install templates | Standalone production bind + URL contract |
-| `cloud.development` | `pnpm dev:cloud`, `pnpm dev:browser:cloud`, `pnpm dev:desktop:cloud` | Local client only against deployed `sdkwork-api-cloud-gateway` |
+| `cloud.development` | `pnpm dev:cloud`, `pnpm dev:browser:cloud`, `pnpm dev:desktop:cloud` | Local client only against deployed `platform.api-gateway` |
 | `cloud.staging` | cloud rehearsal | SaaS pre-production rehearsal |
 | `cloud.production` | `pnpm build` | Cloud production (`im.sdkwork.com`, `api.sdkwork.com`) |
 

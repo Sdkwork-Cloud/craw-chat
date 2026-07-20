@@ -2,13 +2,13 @@
 
 ## 1. 审计范围
 
-- `services/sdkwork-im-cloud-gateway/src/node/effects.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/membership.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/message.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/access.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/membership.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/message.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/access.rs`
 - `services/conversation-runtime/src/runtime.rs`
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ## 2. 审计结论
 

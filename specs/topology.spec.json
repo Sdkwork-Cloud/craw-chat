@@ -85,9 +85,8 @@
   },
   "components": {
     "standaloneGateway": {
-      "crate": "sdkwork-im-standalone-gateway",
-      "binary": "sdkwork-im-standalone-gateway",
-      "configGlob": "services/sdkwork-im-standalone-gateway/etc/sdkwork-im-standalone-gateway.{profile}.toml"
+      "crate": "sdkwork-api-im-standalone-gateway",
+      "binary": "sdkwork-api-im-standalone-gateway"
     }
   },
   "orchestration": {

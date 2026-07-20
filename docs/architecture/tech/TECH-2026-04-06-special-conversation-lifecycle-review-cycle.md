@@ -74,7 +74,7 @@ This wave freezes the lifecycle matrix first, then lands the smallest commercial
     - `POST /im/v3/api/chat/conversations/{conversationId}/agent-handoff/accept`
     - `POST /im/v3/api/chat/conversations/{conversationId}/agent-handoff/resolve`
     - `POST /im/v3/api/chat/conversations/{conversationId}/agent-handoff/close`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - exposed the same dedicated read/write lifecycle routes in the local profile
   - aligned `409 conversation_conflict` mapping with runtime
 
@@ -86,7 +86,7 @@ This wave freezes the lifecycle matrix first, then lands the smallest commercial
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - `test_agent_handoff_accept_resolve_close_over_http`
   - `test_agent_handoff_accept_rejects_non_target_actor_over_http`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_agent_handoff_accept_resolve_close_in_local_profile`
   - `test_agent_handoff_accept_rejects_source_actor_in_local_profile`
 
@@ -98,7 +98,7 @@ This wave freezes the lifecycle matrix first, then lands the smallest commercial
 - Green phase:
   - `cargo test -p conversation-runtime --offline test_agent_handoff_accept_resolve_close_state_machine_and_closed_handoff_rejects_posts`
   - `cargo test -p conversation-runtime --offline test_agent_handoff_accept_resolve_close_over_http`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline test_agent_handoff_accept_resolve_close_in_local_profile`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline test_agent_handoff_accept_resolve_close_in_local_profile`
 
 ## 6. Remaining Risks
 

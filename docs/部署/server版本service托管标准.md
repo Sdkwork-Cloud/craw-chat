@@ -67,7 +67,7 @@ macOS service：
 
 ## Unified Gateway Contract
 
-- 对外服务入口仍为 `sdkwork-im-cloud-gateway`。
+- 对外服务入口仍为 `sdkwork-api-im-standalone-gateway`。
 - 标准 operator 端点：`/healthz`、`/readyz`、`/openapi.json`、`/openapi/index.json`、`/docs`。
 - 上游服务 schema 代理：`/openapi/services/<service-id>.openapi.json`。
 - 渲染文档：`/docs/services/<service-id>`。

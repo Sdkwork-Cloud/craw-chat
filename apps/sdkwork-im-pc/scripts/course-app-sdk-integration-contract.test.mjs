@@ -64,10 +64,7 @@ const releaseSources = readRepoJson('config', 'shared-sdk-release-sources.json')
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
 const releaseBuildSource = readRepoText('scripts', 'release', 'run-sdkwork-im-pc-release-build.mjs');
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
-const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-cloud-gateway-config', 'src', 'lib.rs');
-const gatewaySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'lib.rs');
-const gatewayRegistrySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'registry.rs');
-const gatewayConstantsSource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'constants.rs');
+const standaloneDependencies = readRepoText('crates', 'sdkwork-api-im-standalone-gateway', 'src', 'embedded_dependency_routes.rs');
 const workflow = readRepoJson('sdkwork.workflow.json');
 const componentSpec = readRepoJson('specs', 'component.spec.json');
 const moduleRegistrySource = readText('packages', 'sdkwork-im-pc-shell', 'src', 'moduleRegistry.ts');
@@ -195,21 +192,15 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  `${devRunnerSource}\n${gatewayConfigSource}`,
+  `${devRunnerSource}\n${standaloneDependencies}`,
   /explicitCourseAppApiUpstream|SDKWORK_IM_COURSE_APP_API_UPSTREAM|SDKWORK_COURSE_APP_API_UPSTREAM|SDKWORK_COURSE_APP_API_BASE_URL/u,
   'Course foundation traffic must use the platform assembly gateway without per-module upstream overrides.',
 );
 
 assert.match(
-  gatewayConstantsSource,
-  /COURSE_APP_API_SEGMENTS[\s\S]*"courses"[\s\S]*"course_applications"/u,
-  'Web gateway must declare sdkwork-course app-api route segments.',
-);
-
-assert.match(
-  gatewayRegistrySource,
-  /"sdkwork-course-app-api"[\s\S]*SdkworkCourseAppSdk/u,
-  'Web gateway must route sdkwork-course app-api paths to the Course app SDK upstream.',
+  standaloneDependencies,
+  /sdkwork_api_course_assembly::assemble_api_router/u,
+  'Standalone gateway must mount Course through its canonical API assembly.',
 );
 
 assert.ok(
@@ -235,26 +226,26 @@ assert.equal(
   'component.spec.json must bind sdkwork-course-app-api to sdkwork-course-app-sdk.',
 );
 assert.equal(
-  dependencySurface.targetRuntimeIntegration?.gatewayApplication,
-  'sdkwork-api-cloud-gateway',
-  'sdkwork-course app API must route through the shared sdkwork-api-cloud-gateway root.',
+  dependencySurface.targetRuntimeIntegration?.connectivitySurface,
+  'platform.api-gateway',
+  'sdkwork-course app API must route through the shared platform.api-gateway root.',
 );
 
 assert.equal(
-  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys,
+  componentSpec.integration?.platformApiGateway?.explicitExternalUpstreamEnvKeys,
   undefined,
   'component.spec.json must not publish per-module foundation upstream keys.',
 );
 
 assert.ok(
-  componentSpec.integration?.foundationApiGateway?.standaloneEmbeddedAuthorities?.includes(
+  componentSpec.integration?.platformApiGateway?.standaloneEmbeddedAuthorities?.includes(
     'sdkwork-course-app-api',
   ),
   'component.spec.json must embed sdkwork-course-app-api in standalone single-ingress mode.',
 );
 
 assert.equal(
-  componentSpec.integration?.foundationApiGateway?.standaloneDeferredAuthorities?.includes(
+  componentSpec.integration?.platformApiGateway?.standaloneDeferredAuthorities?.includes(
     'sdkwork-course-app-api',
   ),
   false,
@@ -262,14 +253,14 @@ assert.equal(
 );
 
 const embeddedRoutesSource = readRepoText(
-  'services',
-  'sdkwork-im-standalone-gateway',
+  'crates',
+  'sdkwork-api-im-standalone-gateway',
   'src',
   'embedded_dependency_routes.rs',
 );
 assert.match(
   embeddedRoutesSource,
-  /bootstrap_embedded_course_routes[\s\S]*sdkwork_course_gateway_assembly::assemble_api_router/u,
+  /bootstrap_embedded_course_routes[\s\S]*sdkwork_api_course_assembly::assemble_api_router/u,
   'IM standalone gateway must embed sdkwork-course routes in standalone single-ingress mode.',
 );
 

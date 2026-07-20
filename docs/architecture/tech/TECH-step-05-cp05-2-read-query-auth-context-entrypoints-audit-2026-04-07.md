@@ -9,11 +9,11 @@
 - `services/conversation-runtime/src/runtime/membership.rs`
 - `services/conversation-runtime/src/runtime/handoff.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/membership.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/handoff.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/access.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/membership.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/handoff.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/access.rs`
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ## 2. 本轮主要审计结论
 
@@ -48,22 +48,22 @@
 ### 4.1 Red
 
 - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-red-runtime'; cargo test -p conversation-runtime --test conversation_domain_structure_test test_runtime_exposes_read_query_auth_context_entrypoints --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-red-local-node'; cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test test_local_minimal_node_read_query_paths_use_runtime_auth_context_entrypoints --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-red-local-node'; cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test test_local_minimal_node_read_query_paths_use_runtime_auth_context_entrypoints --offline`
 
 ### 4.2 Green
 
 - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-green-runtime'; cargo test -p conversation-runtime --test conversation_domain_structure_test test_runtime_exposes_read_query_auth_context_entrypoints --offline`
 - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-green-runtime-http'; cargo test -p conversation-runtime --test conversation_domain_structure_test test_http_read_query_surface_uses_runtime_auth_context_entrypoints --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-green-local-node'; cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test test_local_minimal_node_read_query_paths_use_runtime_auth_context_entrypoints --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-green-local-node'; cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test test_local_minimal_node_read_query_paths_use_runtime_auth_context_entrypoints --offline`
 
 ### 4.3 Fresh verification
 
-- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/membership.rs services/conversation-runtime/src/runtime/handoff.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/sdkwork-im-cloud-gateway/src/node/membership.rs services/sdkwork-im-cloud-gateway/src/node/handoff.rs services/sdkwork-im-cloud-gateway/src/node/access.rs services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/membership.rs services/conversation-runtime/src/runtime/handoff.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs crates/sdkwork-api-im-standalone-gateway/src/node/membership.rs crates/sdkwork-api-im-standalone-gateway/src/node/handoff.rs crates/sdkwork-api-im-standalone-gateway/src/node/access.rs crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 - `cargo test -p conversation-runtime --test conversation_domain_structure_test --offline`
 - `cargo test -p conversation-runtime --test authority_command_test --offline`
 - `cargo test -p conversation-runtime --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-local-node-structure'; cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-local-node-full'; cargo test -p sdkwork-im-cloud-gateway --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-local-node-structure'; cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-local-node-full'; cargo test -p sdkwork-api-im-standalone-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 5. 审计结论
@@ -78,7 +78,7 @@
 
 ## 6. 下一步审计关注点
 
-- `services/sdkwork-im-cloud-gateway/src/node/projection.rs` 是否继续需要 authority query owner 收口。
+- `crates/sdkwork-api-im-standalone-gateway/src/node/projection.rs` 是否继续需要 authority query owner 收口。
 - projection-service 读查询是否需要新的 auth-context boundary 或统一 query snapshot owner。
 - `effects.rs / session.rs` 等下游面是否仍有 raw `AuthContext` 漂移。
 

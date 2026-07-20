@@ -34,9 +34,9 @@
 ## Verification
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline missing_catalog_path_and_returns_provider_unavailable -- --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline --test principal_profile_provider_runtime_selection_test -- --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline missing_catalog_path_and_returns_provider_unavailable -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test principal_profile_provider_runtime_selection_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 cargo fmt --all --check
 ```
 

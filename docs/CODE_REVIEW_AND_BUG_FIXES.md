@@ -1,7 +1,7 @@
 # IM系统代码审查与Bug修复报告
 
 **审查日期**: 2025年1月
-**审查范围**: im-domain-core、sdkwork-im-cloud-gateway核心模块
+**审查范围**: im-domain-core、sdkwork-api-im-standalone-gateway核心模块
 **审查目标**: 确保无bug，对齐行业最专业的IM软件设计标准
 
 ---
@@ -82,7 +82,7 @@ fn reset_counters_keep_state(&mut self) {
 ### 问题3: 内存泄漏风险 (anomaly_detector.rs)
 
 **问题描述**:
-- **位置**: `services/sdkwork-im-cloud-gateway/src/anomaly_detector.rs`
+- **位置**: `crates/sdkwork-api-im-standalone-gateway/src/anomaly_detector.rs`
 - **风险**: `user_trackers`和`ip_trackers`使用DashMap但缺少定期清理
 - **影响**: 长期运行后内存持续增长，可能导致OOM
 
@@ -118,7 +118,7 @@ pub fn cleanup_stale_entries(&self) {
 ### 问题4: DashMap API使用错误 (gateway_protection.rs)
 
 **问题描述**:
-- **位置**: `services/sdkwork-im-cloud-gateway/src/gateway_protection.rs:325-331`
+- **位置**: `crates/sdkwork-api-im-standalone-gateway/src/gateway_protection.rs:325-331`
 - **风险**: 使用`or_insert_with`后无法获取修改后的值，导致逻辑错误
 - **影响**: 速率限制可能失效，导致限流不准确
 
@@ -177,7 +177,7 @@ match self.buckets.entry(client_ip) {
 ### 问题6: 配置参数验证缺失 (anomaly_detector.rs)
 
 **问题描述**:
-- **位置**: `services/sdkwork-im-cloud-gateway/src/anomaly_detector.rs:428-437`
+- **位置**: `crates/sdkwork-api-im-standalone-gateway/src/anomaly_detector.rs:428-437`
 - **风险**: 配置参数为0或负数时会导致运行时错误
 - **影响**: 可能导致服务崩溃或异常检测失效
 

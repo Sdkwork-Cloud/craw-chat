@@ -14,7 +14,7 @@
 - 结构证据
   - `test_projection_service_access_module_exposes_auth_context_entrypoints`
   - `test_local_minimal_node_effects_member_fanout_uses_projection_auth_context_entrypoints`
-  - `$env:CARGO_TARGET_DIR='target-cp054j-green-local-structure'; cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test --offline`
+  - `$env:CARGO_TARGET_DIR='target-cp054j-green-local-structure'; cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test --offline`
 - 行为证据
   - `test_active_conversation_principal_ids_from_auth_context_returns_current_active_members`
   - `test_local_minimal_profile_fanouts_message_notifications_to_other_active_members_only`
@@ -23,7 +23,7 @@
   - `test_local_minimal_profile_fanouts_agent_handoff_lifecycle_realtime_events_to_other_device`
 - 回归证据
   - `$env:CARGO_TARGET_DIR='target-cp054j-reg-projection-full'; cargo test -p projection-service --offline`
-  - `rustfmt --edition 2024 --check services/projection-service/src/access.rs services/projection-service/src/lib.rs services/projection-service/tests/lib_structure_test.rs services/projection-service/tests/timeline_projection_test.rs services/sdkwork-im-cloud-gateway/src/node/effects.rs services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+  - `rustfmt --edition 2024 --check services/projection-service/src/access.rs services/projection-service/src/lib.rs services/projection-service/tests/lib_structure_test.rs services/projection-service/tests/timeline_projection_test.rs crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ## 3. 剩余问题
 

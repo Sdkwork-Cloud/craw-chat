@@ -47,7 +47,7 @@
 
 ### 2.3 Local orchestration does not reinterpret these payloads as conversation authority
 
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - automation request audit writes `execution.input_payload` as opaque audit payload
   - automation completion emits an in-app notification using `execution.output_payload`
   - notification request audit records only summary metadata such as:
@@ -99,7 +99,7 @@ Static audit evidence:
 - repo search for notification event consumers:
   - `rg -n "notification\\.(requested|dispatched)" services -g "*.rs"`
 - repo search for payload parsing in affected runtimes:
-  - `rg -n "input_payload|serde_json::from_str\\(&event\\.payload\\)" services/sdkwork-im-cloud-gateway/src/lib.rs services/automation-service/src/lib.rs services/notification-service/src/lib.rs -g "*.rs"`
+  - `rg -n "input_payload|serde_json::from_str\\(&event\\.payload\\)" crates/sdkwork-api-im-standalone-gateway/src/lib.rs services/automation-service/src/lib.rs services/notification-service/src/lib.rs -g "*.rs"`
 
 Observed conclusions:
 

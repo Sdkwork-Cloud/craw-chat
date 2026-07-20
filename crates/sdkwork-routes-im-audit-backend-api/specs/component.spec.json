@@ -74,7 +74,7 @@
       "route_manifest",
       "wrap_router"
     ],
-    "routeManifest": "sdks/_route-manifests/backend-api/sdkwork-routes-im-audit-backend-api.route-manifest.json",
+    "routeManifest": "src/manifest.rs",
     "sdkClients": [],
     "sdkDependencies": [],
     "dependencyApiExports": [],

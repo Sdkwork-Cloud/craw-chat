@@ -8,8 +8,8 @@
   },
   "processes": [
     {
-      "id": "sdkwork-im-standalone-gateway",
-      "entrypoint": "services/sdkwork-im-standalone-gateway/src/main.rs",
+      "id": "sdkwork-api-im-standalone-gateway",
+      "entrypoint": "crates/sdkwork-api-im-standalone-gateway/src/main.rs",
       "poolOwner": "crates/sdkwork-im-service-readiness/src/lib.rs",
       "driver": "sqlx::PgPool",
       "poolCount": 1,
@@ -17,18 +17,18 @@
       "schemaEnv": "SDKWORK_IM_DATABASE_SCHEMA",
       "maxConnectionsEnv": "SDKWORK_IM_DATABASE_MAX_CONNECTIONS",
       "temporaryDriverPoolCountEnv": "SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT",
-      "productionSourceRoots": ["services/sdkwork-im-standalone-gateway/src"],
+      "productionSourceRoots": ["crates/sdkwork-api-im-standalone-gateway/src"],
       "consumers": [
-        {"module": "IM lifecycle and adapters", "poolMode": "installed-process-pool", "evidence": ["services/sdkwork-im-standalone-gateway/src/main.rs"]},
-        {"module": "embedded IAM and dependencies", "poolMode": "installed-process-pool", "evidence": ["services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs"]}
+        {"module": "IM lifecycle and adapters", "poolMode": "installed-process-pool", "evidence": ["crates/sdkwork-api-im-standalone-gateway/src/main.rs"]},
+        {"module": "embedded IAM and dependencies", "poolMode": "installed-process-pool", "evidence": ["crates/sdkwork-api-im-standalone-gateway/src/embedded_dependency_routes.rs"]}
       ],
       "temporaryDriverExceptions": [
         {"driver": "r2d2", "owner": "sdkwork-im persistence maintainers", "removalMilestone": "Migrate synchronous adapters before the next IM production release", "combinedConnectionBudget": 10, "adr": "docs/architecture/decisions/ADR-20260719-im-process-database-pool-migration.md", "evidence": ["crates/sdkwork-im-database-pool/src/shared_postgres.rs"]}
       ]
     },
     {
-      "id": "sdkwork-im-cloud-gateway",
-      "entrypoint": "services/sdkwork-im-cloud-gateway/src/main.rs",
+      "id": "sdkwork-api-im-standalone-gateway",
+      "entrypoint": "crates/sdkwork-api-im-standalone-gateway/src/main.rs",
       "poolOwner": "crates/sdkwork-im-service-readiness/src/lib.rs",
       "driver": "sqlx::PgPool",
       "poolCount": 1,
@@ -36,10 +36,10 @@
       "schemaEnv": "SDKWORK_IM_DATABASE_SCHEMA",
       "maxConnectionsEnv": "SDKWORK_IM_DATABASE_MAX_CONNECTIONS",
       "temporaryDriverPoolCountEnv": "SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT",
-      "productionSourceRoots": ["services/sdkwork-im-cloud-gateway/src"],
+      "productionSourceRoots": ["crates/sdkwork-api-im-standalone-gateway/src"],
       "consumers": [
-        {"module": "IM application assembly", "poolMode": "installed-process-pool", "evidence": ["services/sdkwork-im-cloud-gateway/src/main.rs"]},
-        {"module": "embedded IAM", "poolMode": "installed-process-pool", "evidence": ["services/sdkwork-im-cloud-gateway/src/main.rs"]}
+        {"module": "IM application assembly", "poolMode": "installed-process-pool", "evidence": ["crates/sdkwork-api-im-standalone-gateway/src/main.rs"]},
+        {"module": "embedded IAM", "poolMode": "installed-process-pool", "evidence": ["crates/sdkwork-api-im-standalone-gateway/src/main.rs"]}
       ],
       "temporaryDriverExceptions": [
         {"driver": "r2d2", "owner": "sdkwork-im persistence maintainers", "removalMilestone": "Migrate synchronous adapters before the next IM production release", "combinedConnectionBudget": 10, "adr": "docs/architecture/decisions/ADR-20260719-im-process-database-pool-migration.md", "evidence": ["crates/sdkwork-im-database-pool/src/shared_postgres.rs"]}
@@ -203,6 +203,6 @@
   "verification": [
     "node ../sdkwork-specs/tools/check-process-shared-database-pool.mjs --root .",
     "cargo test -p sdkwork-im-database-pool",
-    "cargo check -p sdkwork-im-standalone-gateway -p sdkwork-im-cloud-gateway"
+    "cargo check -p sdkwork-api-im-standalone-gateway -p sdkwork-api-im-standalone-gateway"
   ]
 }

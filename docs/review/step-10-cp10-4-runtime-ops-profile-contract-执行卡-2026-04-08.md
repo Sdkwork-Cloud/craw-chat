@@ -62,7 +62,7 @@
 - `docs/部署/快速启动脚本.md`
   - 新增 runtime ops profile 选择说明
   - 明确 `standalone.split-services.development` 的 config-first / runtime-contract fallback 口径
-- `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
   - `test_runtime_operation_scripts_expose_profile_selection_contract`
   - `test_inspect_runtime_local_ps1_uses_local_default_profile_config_when_requested`
   - `test_inspect_runtime_local_cmd_supports_profile_switch`
@@ -71,11 +71,11 @@
 ## TDD / Red-Green 证据
 
 ### Red
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_runtime_operation_scripts_expose_profile_selection_contract -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_runtime_operation_scripts_expose_profile_selection_contract -- --exact`
   - 初始失败：`inspect-runtime-local.ps1 must expose a profile selector`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_inspect_runtime_local_ps1_uses_local_default_profile_config_when_requested -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_inspect_runtime_local_ps1_uses_local_default_profile_config_when_requested -- --exact`
   - 初始失败：实际仍解析到 `runtime-from-local-minimal`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_inspect_runtime_local_cmd_supports_profile_switch -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_inspect_runtime_local_cmd_supports_profile_switch -- --exact`
   - 初始失败：CMD 转发后的 PowerShell 仍落到 `.runtime/standalone.split-services.development`
 
 ### Green
@@ -84,7 +84,7 @@
 
 ## Fresh 验证
 - `cargo fmt --all --check`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/inspect-runtime-local.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/repair-runtime-local.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/list-runtime-backups-local.ps1 -Help`

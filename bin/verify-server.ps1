@@ -25,7 +25,7 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/verify-server.ps1 [-InstanceName <name>] [-ConfigDir <path>] [-ReleaseGatePath <path-to-release-gate.json>] [-OutputFormat <text|json>]"
-    Write-Host "Validate config, storage wiring, and ready state for sdkwork-im-server, and optionally audit the machine-readable release-gate bundle for semantic contract drift, decisionStatus, and semanticIssues."
+    Write-Host "Validate config, storage wiring, and ready state for sdkwork-api-im-standalone-gateway, and optionally audit the machine-readable release-gate bundle for semantic contract drift, decisionStatus, and semanticIssues."
     exit 0
 }
 
@@ -170,7 +170,7 @@ if ($releaseContracts.enabled) {
 }
 
 $result = [ordered]@{
-    product = "sdkwork-im-server"
+    product = "sdkwork-api-im-standalone-gateway"
     instance = $InstanceName
     config = $ConfigDir
     configValid = $configValid
@@ -186,7 +186,7 @@ if ($OutputFormat -eq "json") {
     Write-Output $json
 }
 else {
-    Write-Host "sdkwork-im-server verify report"
+    Write-Host "sdkwork-api-im-standalone-gateway verify report"
     Write-Host "config: $ConfigDir"
     Write-Host "configValid: $($result.configValid)"
     Write-Host "storageValid: $($result.storageValid)"

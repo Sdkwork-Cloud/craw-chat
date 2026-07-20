@@ -85,7 +85,7 @@
 - Create: `deployments/postgres/migrations/README.md`
 - Create: `deployments/postgres/migrations/20260409_01_im_social_space_conversation_baseline.sql`
 - Modify: `docs/架构/05-数据模型与数据库设计.md`
-- Test: `services/sdkwork-im-cloud-gateway/tests/` 下新增或扩展文档契约测试
+- Test: `crates/sdkwork-api-im-standalone-gateway/tests/` 下新增或扩展文档契约测试
 
 **Steps:**
 

@@ -44,7 +44,7 @@
 
 - `cargo test -p session-gateway`
 - `cargo test -p conversation-runtime`
-- `cargo test -p sdkwork-im-cloud-gateway`
+- `cargo test -p sdkwork-api-im-standalone-gateway`
 - `cargo test -p projection-service`
 - `cargo test -p im-adapters-local-disk`
 - `cargo test -p sdkwork-im-cli`

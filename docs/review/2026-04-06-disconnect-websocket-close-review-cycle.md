@@ -6,7 +6,7 @@
 
 - Affected services:
   - `services/session-gateway`
-  - `services/sdkwork-im-cloud-gateway`
+  - `crates/sdkwork-api-im-standalone-gateway`
 - Root cause:
   - explicit disconnect already cleared live subscriptions, released route ownership, and established reconnect-required fencing
   - but existing websocket connections had no shutdown signal tied to disconnect
@@ -35,12 +35,12 @@ Red coverage was added first in:
 
 - `services/session-gateway/tests/websocket_smoke_test.rs`
   - `test_realtime_websocket_closes_when_session_disconnects`
-- `services/sdkwork-im-cloud-gateway/tests/websocket_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/websocket_e2e_test.rs`
   - `test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects`
 
 Red evidence:
 
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects -- --exact --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects -- --exact --nocapture`
   - failed on timeout waiting for a websocket close frame after disconnect
 - `cargo test -p session-gateway --offline test_realtime_websocket_closes_when_session_disconnects -- --exact --nocapture`
   - initially required test harness correction, then reproduced the same missing-close behavior
@@ -69,24 +69,24 @@ This is a transport-layer complement to Standards 86, 87, 88, and 89.
   - inbound frame handling now also re-checks disconnect generation before processing a late client frame
 - `services/session-gateway/src/lib.rs`
   - both normal disconnect and duplicate same-session disconnect retry paths now signal websocket closure
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - same websocket disconnect signal propagation for local profile disconnect paths
 - `services/session-gateway/tests/websocket_smoke_test.rs`
   - added disconnect-close regression
-- `services/sdkwork-im-cloud-gateway/tests/websocket_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/websocket_e2e_test.rs`
   - added integrated disconnect-close regression
 
 ## 6. Verification
 
 ### Red
 
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects -- --exact --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects -- --exact --nocapture`
   - failed on websocket timeout waiting for close
 
 ### Green
 
 - `cargo test -p session-gateway --offline test_realtime_websocket_closes_when_session_disconnects -- --exact --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects -- --exact --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects -- --exact --nocapture`
 
 Observed green result:
 

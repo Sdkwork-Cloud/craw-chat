@@ -15,15 +15,11 @@ function readJson(relativePath) {
 
 const runtimeBootstrapSource = read('services/session-gateway/src/runtime_bootstrap.rs');
 const gatewayEmbedSource = read('services/session-gateway/src/gateway_embed.rs');
-const embeddedGatewayModule = read('services/sdkwork-im-cloud-gateway/src/embedded_session_gateway.rs');
 const sessionGatewayLib = read('services/session-gateway/src/lib.rs');
 const sessionGatewayHttpLimits = read('services/session-gateway/src/http_limits.rs');
 const sessionGatewayReadiness = read('services/session-gateway/src/service_readiness.rs');
 const sessionGatewayBin = read('services/session-gateway-bin/src/main.rs');
-const standaloneGatewayMain = read('services/sdkwork-im-standalone-gateway/src/main.rs');
-const gatewayConfigLib = read('crates/sdkwork-im-cloud-gateway-config/src/lib.rs');
-const gatewayLib = read('services/sdkwork-im-cloud-gateway/src/lib.rs');
-const gatewayProxy = read('services/sdkwork-im-cloud-gateway/src/proxy.rs');
+const standaloneGatewayMain = read('crates/sdkwork-api-im-standalone-gateway/src/main.rs');
 const openApiRouter = read('crates/sdkwork-routes-im-realtime-open-api/src/lib.rs');
 const topologySpec = readJson('specs/topology.spec.json');
 const sessionGatewayDeployment = read('deployments/kubernetes/cloud/session-gateway/deployment.yaml');
@@ -195,14 +191,9 @@ assert.match(
 );
 
 assert.match(
-  gatewayConfigLib,
-  /SingleIngress/u,
-  'gateway config must expose the single-ingress runtime mode',
-);
-assert.match(
-  gatewayConfigLib,
-  /should_embed_session_gateway/u,
-  'gateway config must resolve embedded realtime policy from typed config',
+  JSON.stringify(topologySpec),
+  /api-standalone-gateway/u,
+  'topology must declare the canonical standalone gateway role',
 );
 assert.match(
   gatewayEmbedSource,
@@ -215,19 +206,19 @@ assert.match(
   'gateway embed bootstrap must start optional tcp/udp/quic link listeners',
 );
 assert.match(
-  embeddedGatewayModule,
-  /bootstrap_embedded_session_gateway_runtime/u,
-  'gateway must expose shared embedded session-gateway runtime bootstrap',
+  standaloneGatewayMain,
+  /bootstrap_gateway_embedded_realtime_plane/u,
+  'standalone gateway must bootstrap the embedded realtime plane directly',
 );
 assert.match(
-  embeddedGatewayModule,
-  /Option<session_gateway::GatewayEmbeddedRealtimePlane>/u,
-  'embedded gateway must retain the shared realtime plane lifecycle owner',
+  standaloneGatewayMain,
+  /let realtime_plane = session_gateway::bootstrap_gateway_embedded_realtime_plane/u,
+  'standalone gateway must retain the realtime plane lifecycle owner',
 );
 assert.match(
-  embeddedGatewayModule,
-  /plane\s*\.shutdown\(self\.drain_timeout\)\s*\.await/u,
-  'embedded gateway shutdown must delegate to the bounded realtime plane lifecycle',
+  standaloneGatewayMain,
+  /realtime_plane\.shutdown\(realtime_drain_timeout\)\.await/u,
+  'standalone gateway shutdown must delegate to the bounded realtime plane lifecycle',
 );
 assert.match(
   gatewayEmbedSource,
@@ -235,39 +226,29 @@ assert.match(
   'shared embedded realtime plane shutdown must cancel and await the cluster subscriber',
 );
 assert.doesNotMatch(
-  embeddedGatewayModule,
+  standaloneGatewayMain,
   /\.join\(\)/u,
-  'embedded gateway shutdown must not synchronously join a cluster subscriber',
-);
-assert.match(
-  embeddedGatewayModule,
-  /spawn_blocking\(move \|\| drop\(router\)\)/u,
-  'embedded session-gateway shutdown must drop postgres-backed router off async runtime workers',
-);
-assert.match(
-  gatewayLib,
-  /bootstrap_embedded_session_gateway_runtime/u,
-  'gateway lib must re-export embedded session-gateway bootstrap',
-);
-assert.match(
-  gatewayLib,
-  /build_app_with_registry_product_runtime_and_embedded_services/u,
-  'gateway must support embedded session-gateway router injection',
-);
-assert.match(
-  gatewayProxy,
-  /dispatch_embedded_session_gateway_if_configured/u,
-  'gateway must dispatch embedded session-gateway when router is configured',
-);
-assert.doesNotMatch(
-  gatewayProxy,
-  /runtime_mode != GatewayRuntimeMode::SingleIngress/u,
-  'embedded session-gateway dispatch must not be gated on unified-only runtime mode',
+  'standalone gateway shutdown must not synchronously join a cluster subscriber',
 );
 assert.match(
   standaloneGatewayMain,
-  /bootstrap_embedded_session_gateway_runtime/u,
-  'standalone gateway must use shared embedded session-gateway bootstrap',
+  /assemble_api_router_with_realtime_bootstrap/u,
+  'standalone gateway must pass realtime bootstrap into the application assembly',
+);
+assert.match(
+  standaloneGatewayMain,
+  /service_router/u,
+  'standalone gateway must apply the standard process-level web bootstrap',
+);
+assert.doesNotMatch(
+  standaloneGatewayMain,
+  /proxy|upstream registry/iu,
+  'standalone gateway must not retain a proxy or upstream route registry',
+);
+assert.match(
+  standaloneGatewayMain,
+  /bootstrap_gateway_embedded_realtime_plane/u,
+  'standalone gateway must use the session-gateway embedded bootstrap',
 );
 assert.doesNotMatch(
   standaloneGatewayMain,

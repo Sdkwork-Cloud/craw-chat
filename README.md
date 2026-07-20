@@ -70,7 +70,7 @@ Six primary planes carry traffic; two cross-cutting planes govern and observe th
 | **Domain** | `crates/im-domain-core`, `crates/im-domain-events` | Aggregate models, invariants, state machines, domain events |
 | **Runtime** | `crates/sdkwork-im-runtime-{link,route,id}`, `crates/im-storage-runtime`, `crates/im-app-context` | Use-case orchestration, connection runtime, storage runtime, AppContext projection |
 | **Adapters** | `adapters/local-disk`, `local-memory`, `redis-cache`, `postgres-journal`, `postgres-realtime`, `social-postgres`, `object-storage-s3`, `push-providers/*` | Storage and provider integrations |
-| **Services** | `services/sdkwork-im-cloud-gateway`, `session-gateway`, `conversation-runtime`, `streaming-service`, `im-calls-service`, `media-service`, `notification-service`, `automation-service`, `audit-service`, `ops-service`, `governance-service`, `projection-service`, `social-service`, `space-service` | Runnable HTTP service processes |
+| **Services** | `crates/sdkwork-api-im-standalone-gateway`, `session-gateway`, `conversation-runtime`, `streaming-service`, `im-calls-service`, `media-service`, `notification-service`, `automation-service`, `audit-service`, `ops-service`, `governance-service`, `projection-service`, `social-service`, `space-service` | Runnable HTTP service processes |
 
 ### CCP — Client Connect Protocol
 
@@ -155,7 +155,7 @@ sdkwork-im/
 
 Platform framework integration:
 
-- HTTP ingress uses [`../sdkwork-web-framework`](../sdkwork-web-framework) through `services/sdkwork-im-cloud-gateway` (`WebFramework`, `WebRequestContext`, IAM adapter, 18-stage interceptor chain).
+- HTTP ingress uses [`../sdkwork-web-framework`](../sdkwork-web-framework) through `crates/sdkwork-api-im-standalone-gateway` (`WebFramework`, `WebRequestContext`, IAM adapter, 18-stage interceptor chain).
 - PostgreSQL pools use [`../sdkwork-database`](../sdkwork-database) through `crates/sdkwork-im-database-pool` and postgres adapters.
 - `sdkwork-discovery` is **deferred (Phase 2)**: RPC contracts exist under `apis/rpc/` with generated `sdkwork-im-rpc-sdk`. Phase 1 gRPC hosts (`*-rpc-bin`) ship through `sdkwork-rpc-framework` with optional `SDKWORK_IM_DISCOVERY_ENDPOINT` registration. The `sdkwork-discovery` product control plane ships in Phase 2 per [ADR-20260619](../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md).
 
@@ -171,9 +171,9 @@ Topology is a versioned contract, not a convention. Profile ids use exactly `<de
 | `standalone.production` | standalone | production | standalone server/container/desktop release |
 | `cloud.production` | cloud | production | `pnpm build` |
 
-- `standalone.development` starts one local `sdkwork-im-standalone-gateway` and the selected client.
+- `standalone.development` starts one local `sdkwork-api-im-standalone-gateway` and the selected client.
 - `cloud.development` starts only the selected local client. It consumes the deployed
-  `sdkwork-api-cloud-gateway` at `https://api-dev.sdkwork.com` / `wss://api-dev.sdkwork.com` and starts
+  `platform.api-gateway` at `https://api-dev.sdkwork.com` / `wss://api-dev.sdkwork.com` and starts
   no local gateway, API listener, PostgreSQL, Redis, migration, seed, or worker process.
 - `cloud.staging` is available for pre-production source-config and release rehearsal; it is not a local development fallback.
 - Internal upstream fan-out and in-process route mounting are implementation details behind the selected profile.
@@ -217,7 +217,7 @@ Index: [sdks/README.md](./sdks/README.md), [docs/sites/sdk/index.md](./docs/site
 
 ## Quick start
 
-**Prerequisites:** Rust (stable), Node.js 22, pnpm 10. Sibling checkouts: `sdkwork-api-cloud-gateway` (platform plane), `sdkwork-rtc` (for PC RTC).
+**Prerequisites:** Rust (stable), Node.js 22, pnpm 10. Sibling checkouts: `platform.api-gateway` (platform plane), `sdkwork-rtc` (for PC RTC).
 
 ```bash
 pnpm install
@@ -295,18 +295,24 @@ Maintenance: `pnpm migrate:topology-v2-baggage` re-applies archive vocabulary mi
 | Packaged server | `bin/install-server.*`, `bin/start-server.*`, `bin/verify-server.*` | Production single-port install + service hosting |
 | Standalone control plane | `cargo run -p governance-service --offline` | Governance API development |
 
-**Packaging targets** (12 total in [`sdkwork.workflow.json`](./sdkwork.workflow.json)):
+**Packaging targets** (18 total in [`sdkwork.workflow.json`](./sdkwork.workflow.json)):
 
 - Server: `linux-x64/arm64`, `macos-x64/arm64`, `windows-x64/arm64` (tar.gz / zip)
 - Desktop: same 6 OS+arch combos (zip)
+- Web clients: PC Web and H5 browser bundles (zip)
+- Flutter: Android APK/AAB and iOS IPA
+- Cloud: digest-pinned Kubernetes deployment bundle (tar.gz)
 
 **Release packages:** [`sdkwork.app.config.json`](./sdkwork.app.config.json) is currently `DRAFT`.
-Its web, standalone server, and desktop package matrix is declared but disabled until real artifacts,
-checksums, signatures, SBOM, provenance, and immutable release evidence are materialized.
+Its web, standalone server, desktop, Flutter, and cloud container package matrix is declared but
+disabled until real artifacts, checksums, signatures, SBOM, provenance, and immutable release
+evidence are materialized. Capacitor iOS/Android remain deferred because native host projects are not
+present. See [docs/releases/README.md](./docs/releases/README.md) for release ownership and toolchain
+gates.
 
 **Docker:** optional container validation path. Production containers use topology v5 profile env keys. See [docs/sites/deployment/docker.md](./docs/sites/deployment/docker.md).
 
-**Service hosting:** `sdkwork-im-standalone-gateway` owns the standalone single-ingress contract and
+**Service hosting:** `sdkwork-api-im-standalone-gateway` owns the standalone single-ingress contract and
 PostgreSQL-backed service runtime. Templates remain under `deployments/templates/`.
 
 Production source deploy: [docs/部署/源码部署.md](./docs/部署/源码部署.md).
@@ -347,8 +353,8 @@ Full scenarios: [docs/部署/性能与灾备演练场景.md](./docs/部署/性�
 
 **Current tenant isolation:** identity isolation via tenant-scoped data model (`tenant_id` on every table), organization scope constraints, advisory-locked audit hash chain, per-tenant idempotency keys, and gateway rate limits (per-route, per-method). Quota, scheduling, dedicated storage, and fault-isolation dimensions are roadmap items.
 
-**Current deployment form:** standalone uses one `sdkwork-im-standalone-gateway`; cloud uses the deployed
-`sdkwork-api-cloud-gateway` as public API ingress and does not deploy the standalone gateway. Split
+**Current deployment form:** standalone uses one `sdkwork-api-im-standalone-gateway`; cloud uses the deployed
+`platform.api-gateway` as public API ingress and does not deploy the standalone gateway. Split
 services remain behind the selected ingress. Single-region single-writer per session; no multi-master.
 
 **Roadmap (design targets, not yet shipped):**

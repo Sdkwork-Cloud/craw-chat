@@ -123,9 +123,9 @@ function createSdkworkImProductionBuildPlan({
 
   if (includeServer) {
     steps.push({
-      label: 'build sdkwork-im-server release binary',
+      label: 'build sdkwork-api-im-standalone-gateway release binary',
       command: cargoCommand(),
-      args: ['build', '-p', 'sdkwork-im-cloud-gateway', '--bin', 'sdkwork-im-server', '--release'],
+      args: ['build', '-p', 'sdkwork-api-im-standalone-gateway', '--bin', 'sdkwork-api-im-standalone-gateway', '--release'],
       cwd: root,
       env,
     });
@@ -166,7 +166,7 @@ function createSdkworkImProductionBuildPlan({
     root,
     steps,
     expectedArtifacts: {
-      serverBinary: path.join(root, 'target', 'release', process.platform === 'win32' ? 'sdkwork-im-server.exe' : 'sdkwork-im-server'),
+      serverBinary: path.join(root, 'target', 'release', process.platform === 'win32' ? 'sdkwork-api-im-standalone-gateway.exe' : 'sdkwork-api-im-standalone-gateway'),
       pcWebDist: path.join(root, 'apps', 'sdkwork-im-pc', 'dist'),
       desktopBundleRoot: path.join(
         root,

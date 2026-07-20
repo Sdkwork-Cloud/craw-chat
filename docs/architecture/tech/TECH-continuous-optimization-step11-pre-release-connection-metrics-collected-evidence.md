@@ -28,16 +28,16 @@
 Red:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_pre_release_connection_metrics_collected_evidence -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_pre_release_connection_metrics_collected_evidence -- --exact --nocapture
 ```
 
 Green:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_pre_release_connection_metrics_collected_evidence -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_pre_release_connection_metrics_collected_evidence -- --exact --nocapture
 cargo fmt --all --check
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 ```
 
 ## Result

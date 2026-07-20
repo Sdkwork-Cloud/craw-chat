@@ -21,8 +21,8 @@ const sharedManifestSource = read(
   'crates/sdkwork-iam-embedded-application-bootstrap/src/manifest.rs',
   iamRepoRoot,
 );
-const standaloneGatewayMain = read('services/sdkwork-im-standalone-gateway/src/main.rs');
-const standaloneGatewayCargo = read('services/sdkwork-im-standalone-gateway/Cargo.toml');
+const standaloneGatewayMain = read('crates/sdkwork-api-im-standalone-gateway/src/main.rs');
+const standaloneGatewayCargo = read('crates/sdkwork-api-im-standalone-gateway/Cargo.toml');
 const topologySource = read('scripts/lib/im-topology.mjs');
 const signingSecretsSource = read(
   'crates/sdkwork-iam-web-adapter/src/signing_secrets.rs',
@@ -104,7 +104,7 @@ assert.match(
 assert.match(
   imPcDevSource,
   /IAM_APPLICATION_BOOTSTRAP_ENV/u,
-  'Managed sdkwork-api-cloud-gateway dev process must inherit IAM application bootstrap env.',
+  'Managed platform.api-gateway dev process must inherit IAM application bootstrap env.',
 );
 
 assert.match(

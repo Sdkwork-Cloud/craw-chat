@@ -29,7 +29,7 @@
     - inspect / repair / list / archive / prune / preview / restore 后续动作
 
 ### 2. `CP10-1` 已新增可回归测试
-- `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
   - 新增 `test_status_local_help_texts_share_runtime_ops_contract_across_platform_scripts`
   - 新增 `test_quick_start_doc_freezes_full_local_command_surface`
 - 这两条测试把“脚本 help 语义统一”和“文档命令面冻结”变成了真实回归门禁，而不再只是人工约定。
@@ -62,20 +62,20 @@
 ## TDD 证据
 
 ### Red
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_status_local_help_texts_share_runtime_ops_contract_across_platform_scripts`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_status_local_help_texts_share_runtime_ops_contract_across_platform_scripts`
   - 失败点与预期一致：
     - `retired-lifecycle-status.sh` 尚未声明与 PowerShell 相同的 runtime ops contract
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_quick_start_doc_freezes_full_local_command_surface`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_quick_start_doc_freezes_full_local_command_surface`
   - 失败点与预期一致：
     - `docs/部署/快速启动脚本.md` 缺少 `init-config-local` 等完整命令面
 
 ### Green
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_status_local_help_texts_share_runtime_ops_contract_across_platform_scripts`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_quick_start_doc_freezes_full_local_command_surface`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_status_local_help_texts_share_runtime_ops_contract_across_platform_scripts`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_quick_start_doc_freezes_full_local_command_surface`
 
 ## 回归验证
 - `cargo fmt --all --check`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/retired-lifecycle-status.ps1 -Help`
 - `cmd /c bin\\retired-lifecycle-status.cmd --help`
 

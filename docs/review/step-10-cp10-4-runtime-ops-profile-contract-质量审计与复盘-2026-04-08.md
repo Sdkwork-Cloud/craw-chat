@@ -11,7 +11,7 @@
 - `bin/preview-runtime-restore-local.*`
 - `bin/restore-runtime-local.*`
 - `docs/部署/快速启动脚本.md`
-- `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
 
 ## 审计结论
 - 本轮未发现阻塞 `CP10-4` 关闭的剩余缺陷。
@@ -37,7 +37,7 @@
 
 ## 验证证据
 - `cargo fmt --all --check`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/inspect-runtime-local.ps1 -Help`
 - `cmd /c bin\\inspect-runtime-local.cmd --help`
 

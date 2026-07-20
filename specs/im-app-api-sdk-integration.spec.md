@@ -104,7 +104,7 @@ Foundation API integration depends on topology profile:
 | Topology profile | Foundation API integration |
 | --- | --- |
 | `standalone.*` | The managed stack starts the IM application gateway and the platform assembly gateway. Foundation SDK roots resolve to the platform gateway; selected capabilities mount through Cargo-linked gateway assemblies. |
-| `cloud.*` | Foundation APIs route through `sdkwork-api-cloud-gateway`; per-module upstream and base URL overrides are retired. |
+| `cloud.*` | Foundation APIs route through `platform.api-gateway`; per-module upstream and base URL overrides are retired. |
 
 Rules:
 
@@ -116,14 +116,14 @@ Rules:
   `VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL`; these are resolved by
   `apps/sdkwork-im-pc/scripts/sdkwork-im-iam-env.mjs` and topology profile env files.
 - Local PC development starts through `scripts/im-dev.mjs`, which loads topology profiles and
-  starts `sdkwork-im-standalone-gateway` for the default `standalone.development` profile. It must not spawn
+  starts `sdkwork-api-im-standalone-gateway` for the default `standalone.development` profile. It must not spawn
   additional loopback HTTP servers for embedded dependency app APIs.
 - In standalone profiles, `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` selects the managed platform
   gateway bind. Cloud deployments select the same logical ingress with
   `SDKWORK_API_CLOUD_GATEWAY_BASE_URL`; neither profile accepts per-module foundation overrides.
-- `services/sdkwork-im-cloud-gateway`, `crates/sdkwork-im-cloud-gateway-config`, and internal services behind `application.public-ingress`
+- `crates/sdkwork-api-im-standalone-gateway`, `crates/sdkwork-api-im-standalone-gateway`, and internal services behind `application.public-ingress`
   remain product-owned IM routing, config, and local/private runtime layers. Foundation API
-  aggregation is owned by `sdkwork-api-cloud-gateway`, not by merging sibling route crates into
+  aggregation is owned by `platform.api-gateway`, not by merging sibling route crates into
   `sdkwork-api-im-assembly`.
 - Executable foundation API integration evidence is owned by sibling workspace metadata and
   `specs/component.spec.json` dependency surfaces. Add new foundation surfaces there only when an

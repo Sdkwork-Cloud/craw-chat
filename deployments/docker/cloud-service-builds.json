@@ -5,7 +5,6 @@
     "automation-service": { "package": "automation-service-bin", "binary": "automation-service", "port": 28091 },
     "conversation-service": { "package": "sdkwork-comms-conversation-service-bin", "binary": "sdkwork-comms-conversation-service", "port": 28082 },
     "governance-service": { "package": "governance-service-bin", "binary": "governance-service", "port": 18081 },
-    "im-gateway": { "package": "sdkwork-im-cloud-gateway", "binary": "sdkwork-im-server", "port": 18079 },
     "media-service": { "package": "media-service-bin", "binary": "media-service", "port": 18086 },
     "notification-service": { "package": "notification-service-bin", "binary": "notification-service", "port": 18087 },
     "ops-service": { "package": "ops-service-bin", "binary": "ops-service", "port": 18096 },

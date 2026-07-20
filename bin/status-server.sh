@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/status-server.sh [--instance <name>] [--config-dir <path>] [--release-gate-path <path-to-release-gate.json>] [--output-format <text|json>]
 
-Show sdkwork-im-server status, generated service contracts, storage report paths, and optionally summarize the machine-readable release-gate bundle, decisionStatus, contractsValid, platforms, and semanticIssues.
+Show sdkwork-api-im-standalone-gateway status, generated service contracts, storage report paths, and optionally summarize the machine-readable release-gate bundle, decisionStatus, contractsValid, platforms, and semanticIssues.
 EOF
 }
 
@@ -77,7 +77,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-systemd_contract_path="${config_dir}/generated/sdkwork-im-server.service"
+systemd_contract_path="${config_dir}/generated/sdkwork-api-im-standalone-gateway.service"
 launchd_contract_path="${config_dir}/generated/com.sdkwork.im.server.plist"
 windows_service_contract_path="${config_dir}/generated/SdkworkImServer.xml"
 windows_service_install_script_path="${config_dir}/generated/install-SdkworkImServer.ps1"
@@ -115,7 +115,7 @@ fi
 if [[ "$output_format" == "json" ]]; then
   cat <<EOF
 {
-  "product": "sdkwork-im-server",
+  "product": "sdkwork-api-im-standalone-gateway",
   "instance": "$(escape_json "$instance_name")",
   "config": "$(escape_json "$config_dir")",
   "status": "configuration-only skeleton",
@@ -150,7 +150,7 @@ EOF
   exit 0
 fi
 
-echo "sdkwork-im-server status"
+echo "sdkwork-api-im-standalone-gateway status"
 echo "instance: ${instance_name}"
 echo "config: ${config_dir}"
 echo "status: configuration-only skeleton"

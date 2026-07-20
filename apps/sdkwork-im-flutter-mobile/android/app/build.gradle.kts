@@ -30,11 +30,44 @@ android {
         versionName = flutter.versionName
     }
 
+    val releaseSigningProperties = listOf(
+        "SDKWORK_RELEASE_KEYSTORE_FILE",
+        "SDKWORK_RELEASE_KEYSTORE_PASSWORD",
+        "SDKWORK_RELEASE_KEY_ALIAS",
+        "SDKWORK_RELEASE_KEY_PASSWORD",
+    ).associateWith { providers.gradleProperty(it).orNull }
+    val releaseSigningReady = releaseSigningProperties.values.all { !it.isNullOrBlank() }
+
+    signingConfigs {
+        if (releaseSigningReady) {
+            create("release") {
+                storeFile = file(releaseSigningProperties.getValue("SDKWORK_RELEASE_KEYSTORE_FILE")!!)
+                storePassword = releaseSigningProperties.getValue("SDKWORK_RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = releaseSigningProperties.getValue("SDKWORK_RELEASE_KEY_ALIAS")
+                keyPassword = releaseSigningProperties.getValue("SDKWORK_RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (releaseSigningReady) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+    }
+
+    tasks.configureEach {
+        if (name.contains("Release") && (name.startsWith("assemble") || name.startsWith("bundle"))) {
+            doFirst {
+                if (!releaseSigningReady) {
+                    throw GradleException(
+                        "Release signing requires SDKWORK_RELEASE_KEYSTORE_FILE, " +
+                            "SDKWORK_RELEASE_KEYSTORE_PASSWORD, SDKWORK_RELEASE_KEY_ALIAS, and " +
+                            "SDKWORK_RELEASE_KEY_PASSWORD Gradle properties.",
+                    )
+                }
+            }
         }
     }
 }

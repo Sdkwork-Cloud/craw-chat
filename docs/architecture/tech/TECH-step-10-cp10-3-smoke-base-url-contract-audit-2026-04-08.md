@@ -4,7 +4,7 @@
 # Step 10 / CP10-3 smoke base-url contract 质量审计与复盘 - 2026-04-08
 
 ## 审计范围
-- `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
 - `pnpm dev`
 - `pnpm dev`
 - `bin/_cmd-forward-powershell.cmd`
@@ -36,7 +36,7 @@
 
 ## 验证证据
 - `cargo fmt --all --check`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
 - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 

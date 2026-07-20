@@ -56,8 +56,7 @@ const releaseSources = readRepoJson('config', 'shared-sdk-release-sources.json')
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
 const releaseBuildSource = readRepoText('scripts', 'release', 'run-sdkwork-im-pc-release-build.mjs');
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
-const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-cloud-gateway-config', 'src', 'lib.rs');
-const gatewaySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'lib.rs');
+const standaloneDependencies = readRepoText('crates', 'sdkwork-api-im-standalone-gateway', 'src', 'embedded_dependency_routes.rs');
 const workflow = readRepoJson('sdkwork.workflow.json');
 const componentSpec = readRepoJson('specs', 'component.spec.json');
 const moduleRegistrySource = readText('packages', 'sdkwork-im-pc-shell', 'src', 'moduleRegistry.ts');
@@ -175,15 +174,15 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  `${devRunnerSource}\n${gatewayConfigSource}`,
+  `${devRunnerSource}\n${standaloneDependencies}`,
   /explicitKnowledgebaseAppApiUpstream|SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM|SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM|SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL/u,
   'Knowledgebase foundation traffic must use the platform assembly gateway without per-module upstream overrides.',
 );
 
 assert.match(
-  gatewaySource,
-  /"sdkwork-knowledgebase-app-api"[\s\S]*\/app\/v3\/api\/knowledge\/\{\*path\}[\s\S]*SdkworkKnowledgebaseAppSdk/u,
-  'Web gateway must route sdkwork-knowledgebase app-api paths to the Knowledgebase app SDK upstream.',
+  standaloneDependencies,
+  /sdkwork_api_knowledgebase_assembly::assemble_api_router/u,
+  'Standalone gateway must mount Knowledgebase through its canonical API assembly.',
 );
 
 assert.ok(
@@ -209,26 +208,26 @@ assert.equal(
   'component.spec.json must bind sdkwork-knowledgebase-app-api to sdkwork-knowledgebase-app-sdk.',
 );
 assert.equal(
-  dependencySurface.targetRuntimeIntegration?.gatewayApplication,
-  'sdkwork-api-cloud-gateway',
-  'sdkwork-knowledgebase app API must route through the shared sdkwork-api-cloud-gateway root.',
+  dependencySurface.targetRuntimeIntegration?.connectivitySurface,
+  'platform.api-gateway',
+  'sdkwork-knowledgebase app API must route through the shared platform.api-gateway root.',
 );
 
 assert.equal(
-  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys,
+  componentSpec.integration?.platformApiGateway?.explicitExternalUpstreamEnvKeys,
   undefined,
   'component.spec.json must not publish per-module foundation upstream keys.',
 );
 
 assert.ok(
-  componentSpec.integration?.foundationApiGateway?.standaloneEmbeddedAuthorities?.includes(
+  componentSpec.integration?.platformApiGateway?.standaloneEmbeddedAuthorities?.includes(
     'sdkwork-knowledgebase-app-api',
   ),
   'component.spec.json must embed sdkwork-knowledgebase-app-api in standalone single-ingress mode.',
 );
 
 assert.equal(
-  componentSpec.integration?.foundationApiGateway?.standaloneDeferredAuthorities?.includes(
+  componentSpec.integration?.platformApiGateway?.standaloneDeferredAuthorities?.includes(
     'sdkwork-knowledgebase-app-api',
   ),
   false,
@@ -236,14 +235,14 @@ assert.equal(
 );
 
 const embeddedRoutesSource = readRepoText(
-  'services',
-  'sdkwork-im-standalone-gateway',
+  'crates',
+  'sdkwork-api-im-standalone-gateway',
   'src',
   'embedded_dependency_routes.rs',
 );
 assert.match(
   embeddedRoutesSource,
-  /bootstrap_embedded_knowledgebase_routes[\s\S]*sdkwork_knowledgebase_gateway_assembly::assemble_api_router/u,
+  /bootstrap_embedded_knowledgebase_routes[\s\S]*sdkwork_api_knowledgebase_assembly::assemble_api_router/u,
   'IM standalone gateway must embed sdkwork-knowledgebase routes in standalone single-ingress mode.',
 );
 

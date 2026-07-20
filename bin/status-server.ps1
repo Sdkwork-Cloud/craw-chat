@@ -25,7 +25,7 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/status-server.ps1 [-InstanceName <name>] [-ConfigDir <path>] [-ReleaseGatePath <path-to-release-gate.json>] [-OutputFormat <text|json>]"
-    Write-Host "Show sdkwork-im-server status, generated service contracts, storage report paths, and optionally summarize the machine-readable release-gate bundle, decisionStatus, contractsValid, platforms, and semanticIssues."
+    Write-Host "Show sdkwork-api-im-standalone-gateway status, generated service contracts, storage report paths, and optionally summarize the machine-readable release-gate bundle, decisionStatus, contractsValid, platforms, and semanticIssues."
     exit 0
 }
 
@@ -44,7 +44,7 @@ function Get-ReleaseContractReport {
     return $json | ConvertFrom-Json
 }
 
-$generatedUnitPath = Join-Path $ConfigDir "generated\sdkwork-im-server.service"
+$generatedUnitPath = Join-Path $ConfigDir "generated\sdkwork-api-im-standalone-gateway.service"
 $generatedLaunchdPath = Join-Path $ConfigDir "generated\com.sdkwork.im.server.plist"
 $generatedWindowsServiceXmlPath = Join-Path $ConfigDir "generated\SdkworkImServer.xml"
 $generatedWindowsServiceInstallScriptPath = Join-Path $ConfigDir "generated\install-SdkworkImServer.ps1"
@@ -86,7 +86,7 @@ $storageReport = [ordered]@{
 }
 
 $result = [ordered]@{
-    product = "sdkwork-im-server"
+    product = "sdkwork-api-im-standalone-gateway"
     instance = $InstanceName
     config = $ConfigDir
     status = "configuration-only skeleton"
@@ -101,7 +101,7 @@ if ($OutputFormat -eq "json") {
     exit 0
 }
 
-Write-Host "sdkwork-im-server status"
+Write-Host "sdkwork-api-im-standalone-gateway status"
 Write-Host "instance: $InstanceName"
 Write-Host "config: $ConfigDir"
 Write-Host "status: configuration-only skeleton"

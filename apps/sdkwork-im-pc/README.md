@@ -8,7 +8,7 @@ Topology v2 authority: [../../docs/topology-greenfield.md](../../docs/topology-g
 
 - Node.js 22, pnpm 10
 - Rust toolchain (server + desktop host)
-- Sibling checkouts: `../sdkwork-api-cloud-gateway`, `../sdkwork-rtc` (RTC media), plus shared SDK sources linked from `pnpm-workspace.yaml`
+- Sibling checkouts: `../platform.api-gateway`, `../sdkwork-rtc` (RTC media), plus shared SDK sources linked from `pnpm-workspace.yaml`
 
 ## Development (recommended)
 

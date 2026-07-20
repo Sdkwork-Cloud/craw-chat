@@ -44,7 +44,6 @@ const packageJson = readJson('package.json');
 const tsconfigSource = readText('tsconfig.json');
 const viteConfigSource = readText('vite.config.ts');
 const pnpmWorkspaceSource = readRepoText('pnpm-workspace.yaml');
-const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-cloud-gateway-config', 'src', 'lib.rs');
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
 const componentSpec = readRepoJson('specs', 'component.spec.json');
 const shopServiceSource = fs.readFileSync(
@@ -59,7 +58,13 @@ const commerceIntegrationSource = readText('packages', 'sdkwork-im-pc-core', 'sr
 const imShopAdapterSource = readText('packages', 'sdkwork-im-pc-shop', 'src', 'index.tsx');
 const appAuthRuntimeSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'appAuthRuntime.ts');
 const membershipAppSdkClientSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'membershipPcIntegration.ts');
-const apiCloudGatewayConfigSource = readRepoText('etc', 'sdkwork-api-cloud-gateway.sdkwork-im.development.toml');
+const standaloneDependencySource = readRepoText(
+  'crates',
+  'sdkwork-api-im-standalone-gateway',
+  'src',
+  'embedded_dependency_routes.rs',
+);
+const topologySpec = readRepoJson('specs', 'topology.spec.json');
 
 assert.equal(
   packageJson.scripts?.['test:commerce-app-sdk-integration'],
@@ -170,16 +175,27 @@ assert.match(
   'Membership app SDK client must consume the membership transport surface.',
 );
 
-assert.doesNotMatch(
-  apiCloudGatewayConfigSource,
-  /serviceId = "sdkwork-(?:account|catalog|inventory|invoice|membership|merchandise|order|payment|promotion|shop)-app-api"/u,
-  'IM api-cloud-gateway config must not publish commerce surfaces without verified assembly integration.',
+assert.match(
+  standaloneDependencySource,
+  /bootstrap_embedded_commerce_routes[\s\S]*bootstrap_embedded_account_routes[\s\S]*bootstrap_embedded_shop_routes/u,
+  'IM standalone gateway must publish verified commerce routes through its embedded assembly.',
 );
 
+const standaloneProcesses = topologySpec.orchestration?.profiles?.['standalone.development']?.processes ?? [];
+const cloudProcesses = topologySpec.orchestration?.profiles?.['cloud.development']?.processes ?? [];
+assert.equal(
+  standaloneProcesses.filter((processSpec) => processSpec.role === 'api-standalone-gateway').length,
+  1,
+  'standalone development must own exactly one application standalone gateway.',
+);
+assert.ok(
+  cloudProcesses.length > 0 && cloudProcesses.every((processSpec) => processSpec.role === 'client'),
+  'cloud development must contain only local client processes.',
+);
 assert.match(
   devRunnerSource,
-  /resolveImApiCloudGatewayConfigPath[\s\S]*imApiCloudGatewayConfigPath/u,
-  'PC dev runner must launch api-cloud-gateway with IM-owned development config.',
+  /if \(options\.clientOnly\)[\s\S]*processes: \[rendererProcess\]/u,
+  'PC client-only plans must return before any local server or gateway planning.',
 );
 
 assert.doesNotMatch(
@@ -189,7 +205,7 @@ assert.doesNotMatch(
 );
 
 assert.equal(
-  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys,
+  componentSpec.integration?.platformApiGateway?.explicitExternalUpstreamEnvKeys,
   undefined,
   'component.spec.json must not publish commerce foundation upstream keys.',
 );

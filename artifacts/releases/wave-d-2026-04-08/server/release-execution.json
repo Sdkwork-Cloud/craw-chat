@@ -7,8 +7,8 @@
   "state": "template_only_pending_execution",
   "updatedAt": "2026-04-17",
   "canonicalBuild": {
-    "command": "cargo build -p sdkwork-im-cloud-gateway --release --bin sdkwork-im-server --offline",
-    "package": "sdkwork-im-cloud-gateway",
+    "command": "cargo build -p sdkwork-api-im-standalone-gateway --release --bin sdkwork-im-server --offline",
+    "package": "sdkwork-api-im-standalone-gateway",
     "binary": "sdkwork-im-server",
     "profile": "release"
   },

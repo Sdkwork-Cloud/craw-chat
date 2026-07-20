@@ -122,7 +122,7 @@ function serializeFieldValue(value) {
 
 function buildTextSummary(report) {
   const lines = [
-    "sdkwork-im-server release plan",
+    "sdkwork-api-im-standalone-gateway release plan",
     `bundle: ${report.bundleId ?? ""}`,
     `wave: ${report.wave ?? ""}`,
     `selectedPlatform: ${report.selectedPlatform ?? ""}`,
@@ -231,7 +231,7 @@ function main() {
   });
 
   const result = {
-    product: "sdkwork-im-server",
+    product: "sdkwork-api-im-standalone-gateway",
     gatePath: releaseGateAbsolutePath,
     bundleId: releaseGate.bundleId,
     wave: releaseGate.wave,

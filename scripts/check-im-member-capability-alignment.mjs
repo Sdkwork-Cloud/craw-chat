@@ -107,7 +107,7 @@ for (const route of capabilitySpec.openapiSelfServiceRoutes) {
   );
 }
 
-const standaloneGatewayMain = read('services/sdkwork-im-standalone-gateway/src/main.rs');
+const standaloneGatewayMain = read('crates/sdkwork-api-im-standalone-gateway/src/main.rs');
 assert.match(
   standaloneGatewayMain,
   /application_router\s*\n\s*\.merge\(iam_router\)/u,

@@ -13,7 +13,7 @@
   - notification public request access owner
   - projection realtime principal -> client route fanout target owner
   - message notification side-effect fanout owner
-- 当前仓库里，`services/sdkwork-im-cloud-gateway/src/node/platform.rs` 在 `request_automation_execution(...)` 成功后仍然自己拼装：
+- 当前仓库里，`crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs` 在 `request_automation_execution(...)` 成功后仍然自己拼装：
   - `ntf_automation_{execution_id}` notification id
   - `evt_{execution_id}_automation_execution_completed` source event id
   - `automation.execution_completed` / `automation.result` 固定元数据
@@ -30,13 +30,13 @@
     - source event id / type 规则
     - `automation.result` 固定 category / channel / title
     - 收件人绑定到当前 `auth.actor_id`
-- `services/sdkwork-im-cloud-gateway/src/node/platform.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs`
   - `request_automation_execution(...)` 改为直接消费 `notification_runtime.request_automation_result_notification(...)`
   - 删除本地 automation result notification 字段拼装
 - 测试新增 / 更新
   - `services/notification-service/tests/lib_structure_test.rs`
   - `services/notification-service/tests/notification_pipeline_test.rs`
-  - `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ## 4. 测试与验证证据
 
@@ -44,18 +44,18 @@
 
 - `cargo test -p notification-service --test lib_structure_test test_notification_runtime_exposes_automation_result_notification_owner_seam --offline`
 - `cargo test -p notification-service --test notification_pipeline_test test_request_automation_result_notification_targets_requesting_actor_idempotently --offline`
-- `$env:CARGO_TARGET_DIR='target-cp054d-red-local'; cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test test_local_minimal_node_automation_path_uses_notification_runtime_automation_result_owner --offline`
+- `$env:CARGO_TARGET_DIR='target-cp054d-red-local'; cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test test_local_minimal_node_automation_path_uses_notification_runtime_automation_result_owner --offline`
 
 ### 4.2 Green / 结构与行为验证
 
 - `cargo test -p notification-service --test lib_structure_test test_notification_runtime_exposes_automation_result_notification_owner_seam --offline`
 - `cargo test -p notification-service --test notification_pipeline_test test_request_automation_result_notification_targets_requesting_actor_idempotently --offline`
-- `$env:CARGO_TARGET_DIR='target-cp054d-green-local'; cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test test_local_minimal_node_automation_path_uses_notification_runtime_automation_result_owner --offline`
+- `$env:CARGO_TARGET_DIR='target-cp054d-green-local'; cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test test_local_minimal_node_automation_path_uses_notification_runtime_automation_result_owner --offline`
 
 ### 4.3 Green / 回归验证
 
-- `$env:CARGO_TARGET_DIR='target-cp054d-green-local'; cargo test -p sdkwork-im-cloud-gateway --test task10_capabilities_e2e_test test_local_minimal_profile_exposes_notification_automation_audit_and_ops_capabilities --offline`
-- `$env:CARGO_TARGET_DIR='target-cp054d-green-local'; cargo test -p sdkwork-im-cloud-gateway --test task10_capabilities_e2e_test test_local_minimal_profile_treats_duplicate_automation_request_as_idempotent --offline`
+- `$env:CARGO_TARGET_DIR='target-cp054d-green-local'; cargo test -p sdkwork-api-im-standalone-gateway --test task10_capabilities_e2e_test test_local_minimal_profile_exposes_notification_automation_audit_and_ops_capabilities --offline`
+- `$env:CARGO_TARGET_DIR='target-cp054d-green-local'; cargo test -p sdkwork-api-im-standalone-gateway --test task10_capabilities_e2e_test test_local_minimal_profile_treats_duplicate_automation_request_as_idempotent --offline`
 - `cargo fmt --all`
 - `cargo fmt --all --check`
 

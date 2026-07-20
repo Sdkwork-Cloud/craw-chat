@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/install-service-server.sh [--instance <name>] [--install-root <path>] [--config-dir <path>] [--log-dir <path>] [--service-mode <auto|systemd|launchd|windows-service>]
 
-Render the sdkwork-im-server service contract, generate systemd and launchd targets, generate Windows Service wrapper targets, and report install status.
+Render the sdkwork-api-im-standalone-gateway service contract, generate systemd and launchd targets, generate Windows Service wrapper targets, and report install status.
 EOF
 }
 
@@ -62,37 +62,37 @@ while [[ $# -gt 0 ]]; do
 done
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-systemd_template="${ROOT_DIR}/deployments/systemd/sdkwork-im-server.service"
+systemd_template="${ROOT_DIR}/deployments/systemd/sdkwork-api-im-standalone-gateway.service"
 launchd_template="${ROOT_DIR}/deployments/launchd/com.sdkwork.im.server.plist"
 windows_service_template="${ROOT_DIR}/deployments/windows-service/SdkworkImServer.xml"
 generated_dir="${config_dir}/generated"
 mkdir -p "$generated_dir" "$log_dir"
-generated_unit="${generated_dir}/sdkwork-im-server.service"
+generated_unit="${generated_dir}/sdkwork-api-im-standalone-gateway.service"
 generated_launchd_plist="${generated_dir}/com.sdkwork.im.server.plist"
 generated_windows_service_xml="${generated_dir}/SdkworkImServer.xml"
 generated_windows_service_install_script="${generated_dir}/install-SdkworkImServer.ps1"
 generated_windows_service_uninstall_script="${generated_dir}/uninstall-SdkworkImServer.ps1"
-service_binary_path="${install_root}/bin/sdkwork-im-server"
+service_binary_path="${install_root}/bin/sdkwork-api-im-standalone-gateway"
 server_config_path="${config_dir}/chat.toml"
 windows_service_wrapper_exe="${install_root}/bin/SdkworkImServer.exe"
 windows_service_wrapper_xml_target="${install_root}/bin/SdkworkImServer.xml"
-stdout_log_path="${log_dir}/sdkwork-im-server.out.log"
-stderr_log_path="${log_dir}/sdkwork-im-server.err.log"
+stdout_log_path="${log_dir}/sdkwork-api-im-standalone-gateway.out.log"
+stderr_log_path="${log_dir}/sdkwork-api-im-standalone-gateway.err.log"
 
 if [[ -f "$systemd_template" ]]; then
   sed \
     -e "s|WorkingDirectory=/opt/sdkwork/chat|WorkingDirectory=${install_root}|g" \
     -e "s|EnvironmentFile=/etc/sdkwork/chat/server.env|EnvironmentFile=${config_dir}/server.env|g" \
-    -e "s|ExecStart=/opt/sdkwork/chat/bin/sdkwork-im-server --config /etc/sdkwork/chat/chat.toml|ExecStart=${service_binary_path} --config ${server_config_path}|g" \
+    -e "s|ExecStart=/opt/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway --config /etc/sdkwork/chat/chat.toml|ExecStart=${service_binary_path} --config ${server_config_path}|g" \
     "$systemd_template" >"$generated_unit"
 fi
 
 if [[ -f "$launchd_template" ]]; then
   sed \
-    -e "s|__INSTALL_ROOT__/bin/sdkwork-im-server|${service_binary_path}|g" \
+    -e "s|__INSTALL_ROOT__/bin/sdkwork-api-im-standalone-gateway|${service_binary_path}|g" \
     -e "s|__CONFIG_DIR__/chat.toml|${server_config_path}|g" \
-    -e "s|__LOG_DIR__/sdkwork-im-server.out.log|${stdout_log_path}|g" \
-    -e "s|__LOG_DIR__/sdkwork-im-server.err.log|${stderr_log_path}|g" \
+    -e "s|__LOG_DIR__/sdkwork-api-im-standalone-gateway.out.log|${stdout_log_path}|g" \
+    -e "s|__LOG_DIR__/sdkwork-api-im-standalone-gateway.err.log|${stderr_log_path}|g" \
     -e "s|__INSTALL_ROOT__|${install_root}|g" \
     -e "s|__CONFIG_DIR__|${config_dir}|g" \
     -e "s|__LOG_DIR__|${log_dir}|g" \
@@ -139,7 +139,7 @@ EOF
 
 cat >"${generated_dir}/service-install-report.json" <<EOF
 {
-  "product": "sdkwork-im-server",
+  "product": "sdkwork-api-im-standalone-gateway",
   "instance": "${instance_name}",
   "installRoot": "${install_root}",
   "configDir": "${config_dir}",
@@ -157,7 +157,7 @@ cat >"${generated_dir}/service-install-report.json" <<EOF
 }
 EOF
 
-echo "sdkwork-im-server service install summary"
+echo "sdkwork-api-im-standalone-gateway service install summary"
 echo "instance: ${instance_name}"
 echo "install: ${install_root}"
 echo "config: ${config_dir}"

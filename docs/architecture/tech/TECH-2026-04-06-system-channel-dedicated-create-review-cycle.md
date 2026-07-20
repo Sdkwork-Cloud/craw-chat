@@ -59,7 +59,7 @@ The safest vertical slice is:
   - initialized read cursors for both members
   - exposed `POST /im/v3/api/chat/conversations/system_channels`
   - added `ensure_message_post_allowed(...)` and enforced system-channel publisher-only posting
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - exposed the same dedicated create route on the local profile
   - mapped auth context into the runtime command without exposing requester identity in the body
 
@@ -73,7 +73,7 @@ The safest vertical slice is:
   - `test_create_system_channel_over_http`
   - `test_create_system_channel_rejects_non_system_actor_over_http`
   - `test_system_channel_subscriber_cannot_post_over_http`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_system_channel_create_in_local_profile_creates_system_and_subscriber_members`
   - `test_system_channel_create_rejects_non_system_creator_in_local_profile`
   - `test_system_channel_subscriber_cannot_post_in_local_profile`
@@ -84,8 +84,8 @@ The safest vertical slice is:
 - `cargo test -p conversation-runtime --offline test_system_channel_rejects_subscriber_post_but_allows_system_publisher_post`
 - `cargo test -p conversation-runtime --offline test_create_system_channel_over_http`
 - `cargo test -p conversation-runtime --offline test_system_channel_subscriber_cannot_post_over_http`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_system_channel_create_in_local_profile_creates_system_and_subscriber_members`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_system_channel_subscriber_cannot_post_in_local_profile`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_system_channel_create_in_local_profile_creates_system_and_subscriber_members`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_system_channel_subscriber_cannot_post_in_local_profile`
 
 ## 6. Remaining Risks
 

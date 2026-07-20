@@ -131,7 +131,7 @@ assert.equal(
 );
 assert.equal(
   buildPlan.steps[0].env.SDKWORK_IM_SERVER_BINARY_PATH,
-  path.join(repoRoot, 'target', 'release', 'sdkwork-im-server'),
+  path.join(repoRoot, 'target', 'release', 'sdkwork-api-im-standalone-gateway'),
   'source build plan must default the runtime binary path to the release binary built in the source checkout',
 );
 
@@ -180,7 +180,7 @@ assert.deepEqual(
     '--env-file',
     envFile,
     '--binary-path',
-    path.join(repoRoot, 'target', 'release', 'sdkwork-im-server'),
+    path.join(repoRoot, 'target', 'release', 'sdkwork-api-im-standalone-gateway'),
   ],
   'Linux source start plan must reuse bin/start-server.sh in foreground mode for systemd-compatible operation',
 );
@@ -211,7 +211,7 @@ assert.deepEqual(
     '-EnvFile',
     envFile,
     '-BinaryPath',
-    path.join(repoRoot, 'target', 'release', 'sdkwork-im-server.exe'),
+    path.join(repoRoot, 'target', 'release', 'sdkwork-api-im-standalone-gateway.exe'),
   ],
   'Windows source start plan must reuse bin/start-server.ps1 with the source checkout release binary',
 );

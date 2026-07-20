@@ -32,8 +32,8 @@
 
 ## Changed Files
 
-- `services/sdkwork-im-cloud-gateway/src/node/principal_profile.rs`
-- `services/sdkwork-im-cloud-gateway/tests/principal_profile_provider_runtime_selection_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/principal_profile.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/principal_profile_provider_runtime_selection_test.rs`
 - `docs/review/continuous-optimization-principal-profile-external-catalog-missing-catalog-unavailable-contract-2026-04-09.md`
 - `docs/step/continuous-optimization-principal-profile-external-catalog-missing-catalog-unavailable-contract-2026-04-09.md`
 - `docs/架构/09BJ-principal-profile-external-catalog-missing-catalog-unavailable-contract-implementation-plan-2026-04-09.md`
@@ -44,7 +44,7 @@
 Red:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline missing_catalog_path_and_returns_provider_unavailable -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline missing_catalog_path_and_returns_provider_unavailable -- --nocapture
 ```
 
 - Failed before the patch because app assembly panicked at:
@@ -53,9 +53,9 @@ cargo test -p sdkwork-im-cloud-gateway --offline missing_catalog_path_and_return
 Green:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline missing_catalog_path_and_returns_provider_unavailable -- --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline --test principal_profile_provider_runtime_selection_test -- --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline missing_catalog_path_and_returns_provider_unavailable -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test principal_profile_provider_runtime_selection_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 cargo fmt --all --check
 ```
 

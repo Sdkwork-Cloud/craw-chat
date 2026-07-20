@@ -44,7 +44,7 @@ This is stricter than the previous wave, but it eliminates half-implemented aggr
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - `test_generic_create_rejects_reserved_special_types_over_http`
   - `test_group_create_preserves_actor_kind_over_http`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_generic_create_rejects_reserved_special_types_in_local_profile`
 
 ## 4. Implementation Summary
@@ -59,7 +59,7 @@ This is stricter than the previous wave, but it eliminates half-implemented aggr
 - `cargo test -p conversation-runtime test_generic_create_rejects_unknown_and_reserved_special_conversation_types --offline`
 - `cargo test -p conversation-runtime test_generic_create_rejects_reserved_special_types_over_http --offline`
 - `cargo test -p conversation-runtime test_group_create_preserves_actor_kind_over_http --offline`
-- `cargo test -p sdkwork-im-cloud-gateway test_generic_create_rejects_reserved_special_types_in_local_profile --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway test_generic_create_rejects_reserved_special_types_in_local_profile --offline`
 
 ## 6. Remaining Risks
 

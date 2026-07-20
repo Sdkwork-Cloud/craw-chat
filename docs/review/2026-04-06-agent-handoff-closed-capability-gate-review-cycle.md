@@ -62,7 +62,7 @@ This keeps the fix minimal while freezing the most dangerous mutation paths.
   - added `ensure_conversation_bound_write_allowed(...)`
   - introduced internal rule:
     - closed `agent_handoff` rejects further conversation-bound capability writes with `RuntimeError::Conflict`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - added `ensure_conversation_bound_write_access(...)`
   - added `ensure_stream_session_write_access(...)`
   - renamed the RTC mutation gate behavior to enforce lifecycle-aware access for:
@@ -82,7 +82,7 @@ This keeps the fix minimal while freezing the most dangerous mutation paths.
 
 ## 5. Tests Added
 
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_local_profile`
   - `test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local_profile`
 
@@ -95,15 +95,15 @@ These tests prove both:
 
 ### Red
 
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_local_profile -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_local_profile -- --exact`
   - failed with `200 != 409`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local_profile -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local_profile -- --exact`
   - failed with `200 != 409`
 
 ### Green
 
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_local_profile -- --exact`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local_profile -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_local_profile -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local_profile -- --exact`
 
 ## 7. Remaining Risks
 

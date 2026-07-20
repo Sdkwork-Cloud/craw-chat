@@ -30,18 +30,18 @@
 Red:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_inspect_runtime_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_inspect_runtime_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
 ```
 
 Green:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_inspect_runtime_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints -- --exact --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_inspect_runtime_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test -- --nocapture
 cargo fmt --all
 cargo fmt --all --check
-cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 ```
 
 ## Result

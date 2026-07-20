@@ -34,7 +34,7 @@
 ## 本轮实际完成
 
 ### 1. `sdkwork-im-server` 新增 runtime backup archive owner seam
-- `services/sdkwork-im-cloud-gateway/src/node/runtime_dir.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/runtime_dir.rs`
   - 新增 `RuntimeDirArchiveView`
   - 新增 `archive_runtime_backup(...)`
   - 新增 `format_runtime_dir_archive(...)`
@@ -56,7 +56,7 @@
   的输入
 
 ### 3. backup catalog 现在可区分 active / archived snapshot
-- `services/sdkwork-im-cloud-gateway/src/node/runtime_dir.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/runtime_dir.rs`
   - `RuntimeDirBackupCatalogItemView` 新增：
     - `lifecycleStage`
   - `list_runtime_backups(...)` 现在会把 catalog item 明确标记为：
@@ -70,7 +70,7 @@
   - 但它依然保留原来的 restore/repair 来源语义
 
 ### 4. CLI 与脚本已经完整接通 archive 入口
-- `services/sdkwork-im-cloud-gateway/src/main.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/main.rs`
   - 新增：
     - `archive-runtime-backup --backup-dir <path> [--runtime-dir <path>] [--json]`
 - 新增脚本：
@@ -83,7 +83,7 @@
 - 这意味着 runtime-dir 的 `inspect / repair / list / archive / preview / restore` 现在已形成连续操作面
 
 ### 5. 自动化测试证明 archive 后仍可 preview restore
-- `services/sdkwork-im-cloud-gateway/tests/runtime_dir_backup_catalog_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/runtime_dir_backup_catalog_test.rs`
   - 现已新增 archive 场景回归：
     - archive 会把 active snapshot 移到 archived 路径
     - catalog 会把该 item 标记为 `archived`
@@ -94,11 +94,11 @@
 
 ## 改动范围
 - 代码：
-  - `services/sdkwork-im-cloud-gateway/src/node/runtime_dir.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node.rs`
-  - `services/sdkwork-im-cloud-gateway/src/main.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/runtime_dir.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/main.rs`
 - 测试：
-  - `services/sdkwork-im-cloud-gateway/tests/runtime_dir_backup_catalog_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/runtime_dir_backup_catalog_test.rs`
 - 脚本：
   - `bin/archive-runtime-backup-local.ps1`
   - `bin/archive-runtime-backup-local.sh`
@@ -117,18 +117,18 @@
 
 ### Red
 - 先写测试，再验证缺口：
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test runtime_dir_backup_catalog_test`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test runtime_dir_backup_catalog_test`
 - 红测失败点与预期一致：
   - `sdkwork-im-server` 还没有 `archive_runtime_backup(...)`
   - `RuntimeDirBackupCatalogItemView` 还没有 `lifecycle_stage`
 
 ### Green
 - 定向测试现已通过：
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test runtime_dir_backup_catalog_test`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test runtime_dir_backup_catalog_test`
 
 ## 回归验证
 - `cargo fmt --all --check`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/archive-runtime-backup-local.ps1 -Help`
 
 ## 结论

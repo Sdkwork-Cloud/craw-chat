@@ -22,13 +22,13 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/uninstall-service-server.ps1 [-InstanceName <name>] [-ConfigDir <path>]"
-    Write-Host "Remove generated sdkwork-im-server service artifacts and summarize systemd/launchd/windows-service uninstall status."
+    Write-Host "Remove generated sdkwork-api-im-standalone-gateway service artifacts and summarize systemd/launchd/windows-service uninstall status."
     exit 0
 }
 
 $generatedDir = Join-Path $ConfigDir "generated"
 foreach ($path in @(
-    (Join-Path $generatedDir "sdkwork-im-server.service"),
+    (Join-Path $generatedDir "sdkwork-api-im-standalone-gateway.service"),
     (Join-Path $generatedDir "com.sdkwork.im.server.plist"),
     (Join-Path $generatedDir "SdkworkImServer.xml"),
     (Join-Path $generatedDir "install-SdkworkImServer.ps1"),
@@ -40,7 +40,7 @@ foreach ($path in @(
     }
 }
 
-Write-Host "Removed generated sdkwork-im-server service artifacts for instance '$InstanceName'."
-Write-Host "systemd target: sdkwork-im-server.service"
+Write-Host "Removed generated sdkwork-api-im-standalone-gateway service artifacts for instance '$InstanceName'."
+Write-Host "systemd target: sdkwork-api-im-standalone-gateway.service"
 Write-Host "launchd target: com.sdkwork.im.server"
 Write-Host "windows service target: SdkworkImServer"

@@ -10,7 +10,7 @@
 ## Scope
 
 - 修改 `README.md`、`docs/部署/快速启动脚本.md`。
-- 扩展 `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`。
+- 扩展 `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`。
 
 ## Implementation
 

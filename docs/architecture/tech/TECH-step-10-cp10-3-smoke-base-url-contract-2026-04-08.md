@@ -52,7 +52,7 @@
   - 根文档 Docker 入口说明已升级为统一 `retired-lifecycle-deploy.*` 的 smoke-base-url 示例
 
 ### 4. 回归门禁已补齐
-- `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
   - 新增：
     - `test_deploy_local_scripts_expose_repeatable_smoke_base_url_contract`
     - `test_deploy_local_ps1_forwards_smoke_base_url_to_bootstrap_script`
@@ -63,16 +63,16 @@
 ## TDD 证据
 
 ### Red
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_deploy_local_scripts_expose_repeatable_smoke_base_url_contract -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_deploy_local_scripts_expose_repeatable_smoke_base_url_contract -- --exact`
   - 初始失败，证明 `retired-lifecycle-deploy.ps1` 尚未公开 smoke base-url override
 
 ### Green
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
   - 现已通过，说明脚本、文档与参数兼容层合同一致
 
 ## Fresh 验证
 - `cargo fmt --all --check`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
 - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 

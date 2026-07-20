@@ -49,7 +49,7 @@
   - rebuild duration
 
 ### 2. startup recovery 现在会记录真实 projection rebuild 总时长
-- `services/sdkwork-im-cloud-gateway/src/node/build.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/build.rs`
   - `ProjectionReplaySummary` 新增 `rebuild_duration_ms`
   - startup recovery 会在真实 rebuild 发生时记录总耗时
   - 语义为：
@@ -70,7 +70,7 @@
   - `projectionPlane.rebuildDurationMs` 会跟随 projection owner 的真实值对外暴露
 
 ### 4. `sdkwork-im-server` 已把 rebuild duration 映射到真实 HTTP 面
-- `services/sdkwork-im-cloud-gateway/src/node/platform.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs`
   - `refresh_node_operational_view(...)` 现在会把 `projection-service` owner 的 `rebuild_duration_ms` 写入 `OpsRuntime`
 - 这意味着 `Local Minimal` profile 下，启动恢复后的真实 rebuild duration 已可直接在：
   - `/backend/v3/api/ops/health`
@@ -78,7 +78,7 @@
  读取
 
 ### 5. snapshot-only recovery 现在具备正确的双指标语义
-- `services/sdkwork-im-cloud-gateway/tests/domain_recovery_persistence_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/domain_recovery_persistence_test.rs`
   - snapshot-only recovery 场景现在证明：
     - `projectionPlane.replay.durationMs == 0`
     - `projectionPlane.rebuildDurationMs >= 1`
@@ -88,13 +88,13 @@
 - 代码：
   - `services/projection-service/src/observability.rs`
   - `services/ops-service/src/lib.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node/build.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node/platform.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/build.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs`
 - 测试：
   - `services/projection-service/tests/projection_snapshot_test.rs`
   - `services/ops-service/tests/http_smoke_test.rs`
-  - `services/sdkwork-im-cloud-gateway/tests/domain_recovery_persistence_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/domain_recovery_persistence_test.rs`
 - 文档：
   - 本执行卡
   - 本轮质量审计与复盘
@@ -110,7 +110,7 @@
 - 先补测试，再验证缺口：
   - `cargo test -p projection-service --offline test_projection_service_records_projection_rebuild_duration -- --exact`
   - `cargo test -p ops-service --offline test_cluster_lag_health_runtime_dir_and_diagnostics_over_http -- --exact`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics -- --exact`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics -- --exact`
 - 红测失败点与预期一致：
   - `projection-service` 还没有 `rebuild_duration_ms` owner state
   - `ops-service` 的 `projectionPlane` 视图还没有 `rebuildDurationMs`
@@ -123,7 +123,7 @@
 - `cargo fmt --all --check`
 - `cargo test -p projection-service --offline`
 - `cargo test -p ops-service --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 
 ## 结论
 - 这是 `Wave C / Step 09 / CP09-3` 的第六个真实代码增量。

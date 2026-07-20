@@ -64,7 +64,7 @@ The current safest vertical slice is:
   - initialized read cursors for both members
   - exposed `POST /im/v3/api/chat/conversations/agent_handoffs`
   - extended message post policy so `agent_handoff` can carry real handoff dialogue
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - exposed the same dedicated create route on the local profile
   - mapped auth context into the runtime command without exposing source identity in the body
 
@@ -78,7 +78,7 @@ The current safest vertical slice is:
   - `test_create_agent_handoff_over_http`
   - `test_create_agent_handoff_rejects_non_agent_actor_over_http`
   - `test_agent_handoff_target_can_post_over_http`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_agent_handoff_create_in_local_profile_creates_agent_and_target_members`
   - `test_agent_handoff_create_rejects_non_agent_creator_in_local_profile`
   - `test_agent_handoff_target_can_post_in_local_profile`
@@ -89,8 +89,8 @@ The current safest vertical slice is:
 - `cargo test -p conversation-runtime --offline test_agent_handoff_allows_source_and_target_posts`
 - `cargo test -p conversation-runtime --offline test_create_agent_handoff_over_http`
 - `cargo test -p conversation-runtime --offline test_agent_handoff_target_can_post_over_http`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_agent_handoff_create_in_local_profile_creates_agent_and_target_members`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_agent_handoff_target_can_post_in_local_profile`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_agent_handoff_create_in_local_profile_creates_agent_and_target_members`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_agent_handoff_target_can_post_in_local_profile`
 
 ## 6. Remaining Risks
 

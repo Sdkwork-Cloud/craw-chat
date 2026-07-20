@@ -7,9 +7,7 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>__INSTALL_ROOT__/bin/sdkwork-im-server</string>
-    <string>--config</string>
-    <string>__CONFIG_DIR__/server.yaml</string>
+    <string>__INSTALL_ROOT__/bin/sdkwork-api-im-standalone-gateway</string>
   </array>
 
   <key>WorkingDirectory</key>
@@ -22,9 +20,9 @@
   <true/>
 
   <key>StandardOutPath</key>
-  <string>__LOG_DIR__/sdkwork-im-server.out.log</string>
+  <string>__LOG_DIR__/sdkwork-api-im-standalone-gateway.out.log</string>
 
   <key>StandardErrorPath</key>
-  <string>__LOG_DIR__/sdkwork-im-server.err.log</string>
+  <string>__LOG_DIR__/sdkwork-api-im-standalone-gateway.err.log</string>
 </dict>
 </plist>

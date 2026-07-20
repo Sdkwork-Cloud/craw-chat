@@ -7,7 +7,7 @@ Align the Step 11 optimization doc with the current catalog, schema, and test re
 ## Red
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed -- --exact --nocapture
 ```
 
 - The step doc did not say the `artifactRoot` catalog gap was already closed.
@@ -22,9 +22,9 @@ cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalo
 ## Verify
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed -- --exact --nocapture
 cargo fmt --all --check
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture
 ```
 
 ## Next

@@ -8,7 +8,7 @@
 - `docs/部署/快速启动脚本.md`
 - `docs/部署/README.md`
 - `README.md`
-- `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
 
 ## 审计结论
 - 本轮未发现阻塞 `CP10-3` 通过的剩余缺陷。
@@ -36,8 +36,8 @@
 
 ## 验证证据
 - `cargo fmt --all --check`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test public_auth_e2e_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test public_auth_e2e_test`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
 - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 - PowerShell parser 成功解析 `tools/smoke/local_stack_smoke.ps1`

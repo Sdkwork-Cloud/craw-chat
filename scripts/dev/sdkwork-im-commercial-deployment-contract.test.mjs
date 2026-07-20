@@ -8,6 +8,55 @@ import { parseAllDocuments } from 'yaml';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const k8sRoot = path.join(repoRoot, 'deployments', 'kubernetes', 'cloud');
+const rootPackageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+const deployManifest = parseAllDocuments(
+  fs.readFileSync(path.join(repoRoot, 'deployments', 'deploy.yaml'), 'utf8'),
+)[0].toJSON();
+const appManifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'sdkwork.app.config.json'), 'utf8'));
+const workflow = JSON.parse(fs.readFileSync(path.join(repoRoot, 'sdkwork.workflow.json'), 'utf8'));
+
+assert.equal(
+  rootPackageJson.scripts['deploy:validate:standalone'],
+  'pnpm exec sdkwork-app deploy:validate --profile standalone.production',
+  'standalone deploy validation must select the canonical deploy v2 profile id',
+);
+assert.equal(
+  rootPackageJson.scripts['deploy:validate:cloud'],
+  'pnpm exec sdkwork-app deploy:validate --profile cloud.production',
+  'cloud deploy validation must select the canonical deploy v2 profile id',
+);
+assert.deepEqual(
+  deployManifest.profiles['cloud.production'].packages,
+  [],
+  'cloud production must not misclassify the Kubernetes deployment artifact as a client package',
+);
+assert.deepEqual(
+  deployManifest.profiles['standalone.production'].packages,
+  ['desktop-windows', 'desktop-macos', 'desktop-linux'],
+  'standalone production packages must declare non-web desktop client surfaces only',
+);
+const appPackageIds = new Set(
+  appManifest.artifacts?.installConfig?.packages?.map((packageSpec) => packageSpec.id) ?? [],
+);
+const workflowTargets = new Map(
+  workflow.targets?.map((target) => [target.id, target]) ?? [],
+);
+for (const deployment of workflow.deployments ?? []) {
+  assert.equal(
+    appPackageIds.has(deployment.targetId),
+    true,
+    `workflow deployment ${deployment.id} must bind an app manifest package`,
+  );
+  assert.ok(
+    workflowTargets.has(deployment.targetId),
+    `workflow deployment ${deployment.id} must bind a workflow target`,
+  );
+  assert.match(
+    deployment.artifactEvidencePath,
+    /\.sdkwork\/evidence\/\{packageId\}\.json$/u,
+    `workflow deployment ${deployment.id} must use package-scoped artifact evidence`,
+  );
+}
 
 const requiredManifests = [
   'namespace.yaml',

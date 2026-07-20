@@ -64,7 +64,7 @@ All public adapters that authorize conversation-bound delegated writes must pass
 
 Required current adapter:
 
-- `services/sdkwork-im-cloud-gateway`
+- `crates/sdkwork-api-im-standalone-gateway`
 
 Current covered delegated write families:
 

@@ -32,21 +32,21 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/stop-server.ps1 [-InstanceName <name>] [-ConfigDir <path>] [-RunDir <path>]"
-    Write-Host "Stop the sdkwork-im-server runtime service for an instance by using the pid file under the run directory, honoring config ownership, and reporting status."
+    Write-Host "Stop the sdkwork-api-im-standalone-gateway runtime service for an instance by using the pid file under the run directory, honoring config ownership, and reporting status."
     exit 0
 }
 
-$pidFile = Join-Path $RunDir "sdkwork-im-server.pid"
-$processInfoPath = Join-Path $RunDir "sdkwork-im-server.process.json"
+$pidFile = Join-Path $RunDir "sdkwork-api-im-standalone-gateway.pid"
+$processInfoPath = Join-Path $RunDir "sdkwork-api-im-standalone-gateway.process.json"
 if (-not (Test-Path $pidFile)) {
-    Write-Host "sdkwork-im-server is not running."
+    Write-Host "sdkwork-api-im-standalone-gateway is not running."
     exit 0
 }
 
 $rawPid = Get-Content -Path $pidFile -ErrorAction SilentlyContinue | Select-Object -First 1
 if ([string]::IsNullOrWhiteSpace($rawPid)) {
     Remove-Item -Path $pidFile -Force -ErrorAction SilentlyContinue
-    Write-Host "sdkwork-im-server pid file was empty and has been cleared."
+    Write-Host "sdkwork-api-im-standalone-gateway pid file was empty and has been cleared."
     exit 0
 }
 
@@ -55,10 +55,10 @@ try {
     $process = Get-Process -Id $pid -ErrorAction Stop
     Stop-Process -Id $pid -ErrorAction Stop
     try { Wait-Process -Id $pid -Timeout 30 -ErrorAction Stop } catch { }
-    Write-Host "Stopped sdkwork-im-server PID $pid"
+    Write-Host "Stopped sdkwork-api-im-standalone-gateway PID $pid"
 }
 catch {
-    Write-Host "sdkwork-im-server process from pid file is not running."
+    Write-Host "sdkwork-api-im-standalone-gateway process from pid file is not running."
 }
 
 Remove-Item -Path $pidFile -Force -ErrorAction SilentlyContinue

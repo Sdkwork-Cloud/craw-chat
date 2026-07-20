@@ -213,7 +213,7 @@ Reference implementations:
 
 - `sdkwork-iam/crates/sdkwork-iam-embedded-application-bootstrap`
 - `crates/sdkwork-im-iam-application-bootstrap/src/lib.rs`
-- `services/sdkwork-im-standalone-gateway/src/main.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/main.rs`
 - `sdkwork-clawrouter/services/sdkwork-clawrouter-router-service/src/infrastructure/sql/iam_application_bootstrap.rs`
 
 ## 6. App SDK Client And Token Rules
@@ -370,9 +370,9 @@ Rules:
 
 Reference implementations:
 
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
-- `services/sdkwork-im-cloud-gateway/tests/http_proxy_test.rs`
-- `crates/sdkwork-im-cloud-gateway-config/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/http_proxy_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
 
 ## 10. Local/Private Runtime Parity
 
@@ -428,8 +428,8 @@ Rules:
 Reference implementations:
 
 - `crates/sdkwork-api-product-runtime/src/local_iam.rs`
-- `services/sdkwork-im-cloud-gateway/tests/openapi_index_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/http_proxy_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/openapi_index_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/http_proxy_test.rs`
 
 ## 11. Appbase Package And Workspace Aliasing
 
@@ -514,8 +514,8 @@ node scripts/dev/sdkwork-im-iam-application-bootstrap-standard.test.mjs
 node scripts/dev/sdkwork-im-bootstrap-access-token.test.mjs
 node apps/sdkwork-im-pc/scripts/sdk-runtime-token-manager-contract.test.mjs
 cargo test -p sdkwork-im-iam-application-bootstrap
-cargo test -p sdkwork-im-cloud-gateway --test http_proxy_test
-cargo test -p sdkwork-im-cloud-gateway --test openapi_index_test
+cargo test -p sdkwork-api-im-standalone-gateway --test http_proxy_test
+cargo test -p sdkwork-api-im-standalone-gateway --test openapi_index_test
 ```
 
 Run narrower tests first, then broader workspace checks when the blast radius warrants it.
@@ -553,17 +553,17 @@ cargo test -p sdkwork-routes-iam-app-api local_app_router_serves_directory_recor
 | Product IAM runtime, token store, appbase runtime config, appearance | `apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/appAuthRuntime.ts` |
 | Product auth service facade (bootstrap/logout only) | `apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/appAuthService.ts` |
 | Dev bootstrap access token orchestration | `scripts/dev/sdkwork-im-bootstrap-access-token.mjs`, `scripts/lib/im-pc-dev.mjs` |
-| IAM tenant application bootstrap (standalone) | `crates/sdkwork-im-iam-application-bootstrap/src/lib.rs`, `services/sdkwork-im-standalone-gateway/src/main.rs` |
+| IAM tenant application bootstrap (standalone) | `crates/sdkwork-im-iam-application-bootstrap/src/lib.rs`, `crates/sdkwork-api-im-standalone-gateway/src/main.rs` |
 | Shared credential-entry package | `sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry/` |
 | Generated app SDK client bootstrap and base URL normalization | `apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/appSdkClient.ts` |
 | Session persistence, token manager, AppContext headers | `apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/session.ts` |
 | IAM deployment mode and env bootstrap | `apps/sdkwork-im-pc/scripts/sdkwork-chat-iam-env.mjs` |
 | Appbase package aliasing | `apps/sdkwork-im-pc/vite.config.ts` |
 | Appbase UI/service structural contract tests | `apps/sdkwork-im-pc/scripts/auth-appbase-ui-contract.test.mjs` |
-| Gateway route descriptors, CORS, embedded fallback | `services/sdkwork-im-cloud-gateway/src/lib.rs` |
-| Gateway routing and local IAM proxy tests | `services/sdkwork-im-cloud-gateway/tests/http_proxy_test.rs` |
+| Gateway route descriptors, CORS, embedded fallback | `crates/sdkwork-api-im-standalone-gateway/src/lib.rs` |
+| Gateway routing and local IAM proxy tests | `crates/sdkwork-api-im-standalone-gateway/tests/http_proxy_test.rs` |
 | Local/private IAM parity router | `crates/sdkwork-api-product-runtime/src/local_iam.rs` |
-| OpenAPI path parity tests | `services/sdkwork-im-cloud-gateway/tests/openapi_index_test.rs` |
+| OpenAPI path parity tests | `crates/sdkwork-api-im-standalone-gateway/tests/openapi_index_test.rs` |
 
 ## 14. Quick Integration Checklist For New Apps
 

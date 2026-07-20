@@ -20,7 +20,7 @@
 ### 2.3 OpenAPI operationId 生成器对齐规范（本轮新增）
 - `crates/sdkwork-im-openapi/src/lib.rs` 已从 `method_path` 改为 `dotted lowerCamel` 资源动作风格，并移除路径参数、处理标准动作词。
 - 新增规范映射单测（覆盖 `sessions.create`、`users.retrieve`、`organizationMemberships.list`、`roles.permissions.delete` 等）。
-- 已通过：`cargo test -p sdkwork-im-openapi`、`cargo check -p sdkwork-im-server`、`cargo test -p sdkwork-im-cloud-gateway --test openapi_im_v3_contract_test`。
+- 已通过：`cargo test -p sdkwork-im-openapi`、`cargo check -p sdkwork-im-server`、`cargo test -p sdkwork-api-im-standalone-gateway --test openapi_im_v3_contract_test`。
 
 ## 3. 当前仍存在的问题（按优先级）
 

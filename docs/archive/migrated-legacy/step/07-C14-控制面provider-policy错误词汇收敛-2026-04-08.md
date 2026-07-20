@@ -22,4 +22,4 @@
 ## 验证
 
 - `cargo test -p control-plane-api --offline --test provider_registry_test test_control_plane_returns_conflict_status_for_unknown_provider_policy_versions -- --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test provider_plugin_docs_test -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test provider_plugin_docs_test -- --nocapture`

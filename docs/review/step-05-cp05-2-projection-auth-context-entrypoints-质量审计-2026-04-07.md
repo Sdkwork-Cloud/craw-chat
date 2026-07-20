@@ -4,11 +4,11 @@
 
 - `services/projection-service/src/access.rs`
 - `services/projection-service/src/http.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/projection.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/session.rs`
-- `services/sdkwork-im-cloud-gateway/src/node.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/projection.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/session.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node.rs`
 - `services/projection-service/tests/lib_structure_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ## 2. 审计结论
 
@@ -25,7 +25,7 @@
 
 ## 4. 仍然存在的剩余风险
 
-- `services/sdkwork-im-cloud-gateway/src/node/effects.rs` 仍有 runtime read raw authority threading。
+- `crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs` 仍有 runtime read raw authority threading。
 - 这说明 `CP05-2` 尚未整体闭环，`Step 05` 也不能进入 `91 / 95 / 97` 通过态。
 
 ## 5. 质量证据

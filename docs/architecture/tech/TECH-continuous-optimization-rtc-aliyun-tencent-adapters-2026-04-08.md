@@ -56,9 +56,9 @@
 - `cargo test -p im-adapter-rtc-tencent --offline --test adapter_contract_test -- --nocapture`
 - `cargo test -p im-call-runtime --offline --test http_smoke_test -- --nocapture`
 - `cargo test -p im-call-runtime --offline --test rtc_runtime_persistence_test -- --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test http_e2e_test test_local_minimal_profile_gets_rtc_provider_health_over_http -- --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test rtc_runtime_persistence_test -- --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test provider_plugin_docs_test -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test http_e2e_test test_local_minimal_profile_gets_rtc_provider_health_over_http -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test rtc_runtime_persistence_test -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test provider_plugin_docs_test -- --nocapture`
 
 ## 当前结论
 

@@ -12,7 +12,7 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-gateway-unlock-'));
-const executablePath = path.join(tempDir, 'sdkwork-im-standalone-gateway.exe');
+const executablePath = path.join(tempDir, 'sdkwork-api-im-standalone-gateway.exe');
 
 fs.writeFileSync(executablePath, 'gateway');
 
@@ -27,7 +27,7 @@ assert.equal(unlocked.unlocked, true);
 const defaultTargetDir = resolveStandaloneGatewayDevTargetDir({ env: {}, repoRoot });
 assert.equal(
   defaultTargetDir,
-  path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-im-standalone-gateway-dev'),
+  path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev'),
   'the default build target must contain the executable selected by the launcher',
 );
 
@@ -43,13 +43,13 @@ assert.equal(
 
 const resolved = resolveStandaloneGatewayDevExecutable({
   env: {
-    CARGO_TARGET_DIR: path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-im-standalone-gateway-dev'),
+    CARGO_TARGET_DIR: path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev'),
   },
   repoRoot,
 });
 assert.match(
   resolved.replaceAll('\\', '/'),
-  /\/\.runtime\/cargo-target\/sdkwork-im-standalone-gateway-dev\/debug\/sdkwork-im-standalone-gateway\.exe$/u,
+  /\/\.runtime\/cargo-target\/sdkwork-api-im-standalone-gateway-dev\/debug\/sdkwork-api-im-standalone-gateway\.exe$/u,
 );
 
 console.log('wait-for-dev-gateway-exe-unlock.test.mjs passed');

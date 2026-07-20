@@ -38,7 +38,7 @@
 
 - `bin/chat-window-gui.ps1`
 - `bin/open-chat-test.ps1`
-- `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
 
 ## 新增回归约束
 
@@ -50,8 +50,8 @@
 
 已通过：
 
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_open_chat_test_ps1_uses_detached_gui_launcher_for_default_windows_mode -- --exact`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_chat_window_gui_ps1_uses_polling_runtime_instead_of_async_child_stdio_bridge -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_open_chat_test_ps1_uses_detached_gui_launcher_for_default_windows_mode -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_chat_window_gui_ps1_uses_polling_runtime_instead_of_async_child_stdio_bridge -- --exact`
 
 人工验证已通过：
 

@@ -6,7 +6,7 @@ This is the shortest verified path to a working local Sdkwork IM development sta
 
 - Rust toolchain
 - Node.js 22 + pnpm 10
-- Sibling checkout: `sdkwork-api-cloud-gateway` (platform plane)
+- Sibling checkout: `platform.api-gateway` (platform plane)
 
 ## 1. Install Dependencies
 

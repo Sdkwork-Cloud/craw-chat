@@ -10,7 +10,7 @@ Thin IM host adapter over canonical `@sdkwork/aiot-pc-console-device` in `../sdk
 | --- | --- |
 | Device console UI and AIoT app SDK integration | `sdkwork-aiot` |
 | IM session bridge into AIoT PC runtime | `@sdkwork/im-pc-core` (`aiotPcIntegration`) |
-| Gateway upstream `/app/v3/api/iot/*` | `sdkwork-api-cloud-gateway` |
+| Gateway upstream `/app/v3/api/iot/*` | `platform.api-gateway` |
 
 Bootstrap: `apps/sdkwork-im-pc/src/bootstrap/aiotPc.ts` calls `bootstrapAiotPcForIm()` before render.
 

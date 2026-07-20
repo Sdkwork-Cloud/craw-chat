@@ -4,7 +4,7 @@
 # Step 11 / CP11-1 性能与演练场景清单 质量审计与复盘 - 2026-04-08
 
 ## 审计范围
-- `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`
 - `tools/perf/step-11-scenario-catalog.json`
 - `docs/部署/性能与灾备演练场景.md`
 
@@ -23,7 +23,7 @@
 - `failover` 与跨 cell / region 演练仍未实际执行，`149` 相关结论不能提前判定闭环。
 
 ## 验证证据
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test`
 - `cargo fmt --all --check`
 
 ## 复盘结论

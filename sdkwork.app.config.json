@@ -38,7 +38,12 @@
     "framework": "web",
     "runtimes": [
       "WEB",
-      "BROWSER"
+      "BROWSER",
+      "H5",
+      "APP_ANDROID",
+      "APP_IOS",
+      "TAURI",
+      "CONTAINER"
     ],
     "deliveryModes": [
       "WEB_URL",
@@ -46,6 +51,8 @@
     ],
     "defaultPlatform": "WEB",
     "defaultArchitecture": "x64",
+    "targetPlatforms": ["web", "h5", "windows", "macos", "linux", "android", "ios"],
+    "clientArchitectures": ["pc-web", "h5", "tauri", "flutter"],
     "supportedDeploymentProfiles": [
       "cloud",
       "standalone"
@@ -134,10 +141,22 @@
       "name": "sdkwork-skills-app"
     },
     "platforms": [
-      "WEB"
+      "WEB",
+      "H5",
+      "DESKTOP_WINDOWS",
+      "DESKTOP_MACOS",
+      "DESKTOP_LINUX",
+      "APP_ANDROID",
+      "APP_IOS"
     ],
     "installPlatforms": [
-      "WEB"
+      "WEB",
+      "H5",
+      "DESKTOP_WINDOWS",
+      "DESKTOP_MACOS",
+      "DESKTOP_LINUX",
+      "APP_ANDROID",
+      "APP_IOS"
     ],
     "defaultPackageId": "web-universal-cloud-browser-zip",
     "storeUrl": "https://sdkwork.com/apps/chat",
@@ -175,6 +194,114 @@
           "profileBinding": "fixed",
           "targetPlatform": "web",
           "clientArchitecture": "pc-web"
+        },
+        {
+          "id": "h5-universal-cloud-mobile-zip",
+          "name": "Sdkwork IM H5 Web Bundle",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "ZIP",
+          "platform": "H5",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-h5-universal-cloud-mobile-zip-0.1.0.zip",
+          "enabled": false,
+          "metadata": {
+            "workflowPlatform": "h5",
+            "packageProfile": "mobile",
+            "releaseBuildDeferred": true
+          },
+          "checksumAlgorithm": "SHA-256",
+          "architecture": "universal",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "browser",
+          "profileBinding": "fixed",
+          "targetPlatform": "h5",
+          "clientArchitecture": "h5"
+        },
+        {
+          "id": "android-universal-cloud-mobile-apk",
+          "name": "Sdkwork IM Flutter Android APK",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "APK",
+          "platform": "APP_ANDROID",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-android-universal-cloud-mobile-apk-0.1.0.apk",
+          "enabled": false,
+          "metadata": {
+            "workflowPlatform": "android",
+            "packageProfile": "mobile",
+            "releaseBuildDeferred": true
+          },
+          "checksumAlgorithm": "SHA-256",
+          "architecture": "universal",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "flutter-android",
+          "profileBinding": "fixed",
+          "targetPlatform": "android",
+          "clientArchitecture": "flutter"
+        },
+        {
+          "id": "android-universal-cloud-mobile-aab",
+          "name": "Sdkwork IM Flutter Android AAB",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "AAB",
+          "platform": "APP_ANDROID",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-android-universal-cloud-mobile-aab-0.1.0.aab",
+          "enabled": false,
+          "metadata": {
+            "workflowPlatform": "android",
+            "packageProfile": "mobile",
+            "releaseBuildDeferred": true
+          },
+          "checksumAlgorithm": "SHA-256",
+          "architecture": "universal",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "flutter-android",
+          "profileBinding": "fixed",
+          "targetPlatform": "android",
+          "clientArchitecture": "flutter"
+        },
+        {
+          "id": "ios-universal-cloud-mobile-ipa",
+          "name": "Sdkwork IM Flutter iOS IPA",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "IPA",
+          "platform": "APP_IOS",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-ios-universal-cloud-mobile-ipa-0.1.0.ipa",
+          "enabled": false,
+          "metadata": {
+            "workflowPlatform": "ios",
+            "packageProfile": "mobile",
+            "releaseBuildDeferred": true,
+            "requiresMacosXcode": true,
+            "requiresProvisioningProfile": true,
+            "requiresStoreApproval": true
+          },
+          "checksumAlgorithm": "SHA-256",
+          "architecture": "universal",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "flutter-ios",
+          "profileBinding": "fixed",
+          "targetPlatform": "ios",
+          "clientArchitecture": "flutter"
+        },
+        {
+          "id": "container-x64-cloud-container-kubernetes-tar-gz",
+          "name": "Sdkwork IM Cloud Kubernetes Bundle",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "TAR_GZ",
+          "platform": "API",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-container-x64-cloud-container-kubernetes-tar-gz-0.1.0.tar.gz",
+          "enabled": false,
+          "metadata": {
+            "workflowPlatform": "container",
+            "packageProfile": "container",
+            "packageVariant": "kubernetes",
+            "releaseBuildDeferred": true,
+            "requiresImmutableImageLock": true
+          },
+          "checksumAlgorithm": "SHA-256",
+          "architecture": "x64",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "container",
+          "profileBinding": "fixed"
         },
         {
           "id": "linux-x64-standalone-server-tar-gz",
@@ -444,6 +571,11 @@
         ],
         "packageIds": [
           "web-universal-cloud-browser-zip",
+          "h5-universal-cloud-mobile-zip",
+          "android-universal-cloud-mobile-apk",
+          "android-universal-cloud-mobile-aab",
+          "ios-universal-cloud-mobile-ipa",
+          "container-x64-cloud-container-kubernetes-tar-gz",
           "linux-x64-standalone-server-tar-gz",
           "linux-arm64-standalone-server-tar-gz",
           "macos-x64-standalone-server-tar-gz",

@@ -74,20 +74,20 @@
 ## 证据
 - 代码：
   - `services/ops-service/src/lib.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node/build.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node/platform.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/build.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs`
 - 测试：
   - `services/ops-service/tests/ops_runtime_test.rs`
   - `services/ops-service/tests/http_smoke_test.rs`
-  - `services/sdkwork-im-cloud-gateway/tests/domain_recovery_persistence_test.rs`
-  - `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/domain_recovery_persistence_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 - 验证：
   - `cargo fmt --all`
   - `cargo test -p ops-service --offline --test ops_runtime_test test_runtime_exposes_projection_replay_status_with_derived_throughput`
   - `cargo test -p ops-service --offline --test http_smoke_test test_cluster_lag_health_runtime_dir_and_diagnostics_over_http`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_reports_projection_replay_backlog_and_lag_after_stale_snapshot_restart`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_reports_projection_replay_backlog_and_lag_after_stale_snapshot_restart`
   - `cargo test -p ops-service --offline`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline`
   - `cargo test -p projection-service --offline`
 
 ## 当前判断

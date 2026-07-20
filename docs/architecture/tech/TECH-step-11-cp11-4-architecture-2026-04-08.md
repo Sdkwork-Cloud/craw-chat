@@ -61,7 +61,7 @@
 ## 证据
 - 代码 / 配置：
   - `tools/perf/step-11-cp11-3-local-drill-baseline.json`
-  - `services/sdkwork-im-cloud-gateway/tests/performance_ha_dr_drill_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/performance_ha_dr_drill_test.rs`
   - `tools/perf/step-11-scenario-catalog.json`
 - 文档：
   - `docs/部署/性能与灾备演练场景.md`
@@ -69,9 +69,9 @@
   - `docs/review/step-11-performance-ha-dr演练-2026-04-08.md`
 - 验证：
   - `cargo fmt --all --check`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_quant_baseline_test -- --nocapture`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_ha_dr_drill_test -- --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_quant_baseline_test -- --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_ha_dr_drill_test -- --nocapture`
 
 ## 当前判断
 - `CP11-4`：通过

@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/plan-release-server.ps1 [-ReleaseGatePath <path-to-release-gate.json>] [-Platform <all|linux|macos|windows>] [-OutputFormat <text|json>]"
-    Write-Host "Summarize the sdkwork-im-server release plan from the machine-readable release-gate, package-catalog, and release-execution contracts."
+    Write-Host "Summarize the sdkwork-api-im-standalone-gateway release plan from the machine-readable release-gate, package-catalog, and release-execution contracts."
     Write-Host "The emitted plan keeps checksum and artifact-file-list contract pointers visible for operators and automation."
     exit 0
 }

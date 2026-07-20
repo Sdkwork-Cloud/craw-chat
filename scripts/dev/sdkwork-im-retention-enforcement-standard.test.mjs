@@ -28,8 +28,8 @@ for (const required of [
 }
 
 const schedulerSpawnSites = [
-  'services/sdkwork-im-standalone-gateway/src/main.rs',
-  'services/sdkwork-im-cloud-gateway/src/main.rs',
+  'crates/sdkwork-api-im-standalone-gateway/src/main.rs',
+  'crates/sdkwork-api-im-standalone-gateway/src/main.rs',
   'services/ops-service-bin/src/main.rs',
   'services/comms-social-service-bin/src/main.rs',
 ];

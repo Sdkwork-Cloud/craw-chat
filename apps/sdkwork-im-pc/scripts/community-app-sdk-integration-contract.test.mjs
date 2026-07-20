@@ -26,8 +26,6 @@ function readRepoJson(...segments) {
 const packageJson = readJson('package.json');
 const releaseSources = readRepoJson('config', 'shared-sdk-release-sources.json');
 const workflow = readRepoJson('sdkwork.workflow.json');
-const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-cloud-gateway-config', 'src', 'lib.rs');
-const gatewayRegistrySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'registry.rs');
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
 const releaseBuildSource = readRepoText('scripts', 'release', 'run-sdkwork-im-pc-release-build.mjs');
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
@@ -100,15 +98,9 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  `${devRunnerSource}\n${gatewayConfigSource}`,
+  devRunnerSource,
   /explicitCommunityAppApiUpstream|SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM|SDKWORK_COMMUNITY_APP_API_UPSTREAM|SDKWORK_COMMUNITY_APP_API_BASE_URL/u,
   'Community foundation traffic must use the platform assembly gateway without per-module upstream overrides.',
-);
-
-assert.match(
-  gatewayRegistrySource,
-  /"sdkwork-community-app-api"[\s\S]*\/app\/v3\/api\/community\/\{\*path\}[\s\S]*SdkworkCommunityAppSdk/u,
-  'Web gateway must route sdkwork-community app-api paths to the Community app SDK upstream.',
 );
 
 assert.ok(
@@ -131,13 +123,13 @@ assert.equal(
   'component.spec.json must bind sdkwork-community-app-api to sdkwork-community-app-sdk.',
 );
 assert.equal(
-  dependencySurface.targetRuntimeIntegration?.gatewayApplication,
-  'sdkwork-api-cloud-gateway',
-  'sdkwork-community app API must route through the shared sdkwork-api-cloud-gateway root.',
+  dependencySurface.targetRuntimeIntegration?.connectivitySurface,
+  'platform.api-gateway',
+  'sdkwork-community app API must route through the shared platform.api-gateway root.',
 );
 
 assert.equal(
-  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys,
+  componentSpec.integration?.platformApiGateway?.explicitExternalUpstreamEnvKeys,
   undefined,
   'component.spec.json must not publish per-module foundation upstream keys.',
 );

@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/init-config-server.sh [--instance <name>] [--config-dir <path>] [--data-dir <path>] [--log-dir <path>] [--run-dir <path>] [--bind-address <host:port>] [--base-url <url>] [--api-base-url <url>] [--websocket-base-url <url>] [--browser-origins <csv>] [--non-interactive] [--force]
 
-Render sdkwork-im-server configuration files for the selected instance and preserve file-based PostgreSQL settings.
+Render sdkwork-api-im-standalone-gateway configuration files for the selected instance and preserve file-based PostgreSQL settings.
 EOF
 }
 
@@ -216,7 +216,7 @@ if [[ ! -f "$password_file" || "$force_write" -eq 1 ]]; then
   printf '%s\n' "replace-me" >"$password_file"
 fi
 
-echo "Rendered sdkwork-im-server configuration for instance '${instance_name}'."
+echo "Rendered sdkwork-api-im-standalone-gateway configuration for instance '${instance_name}'."
 echo "chat.toml: ${chat_toml}"
 echo "server.env: ${server_env}"
 echo "postgresql.yaml: ${postgresql_yaml}"

@@ -14,13 +14,13 @@
 ### Task 1: Freeze the missing-root bug
 
 **Files:**
-- Modify: `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`
+- Modify: `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`
 
 - [ ] Add a regression test that requires both high-tier `artifactRoot` directories and README guidance to exist.
 - [ ] Run:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
 ```
 
 - [ ] Confirm red because the repo has no `artifacts/perf/step-11/pre-release` root yet.
@@ -53,9 +53,9 @@ cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalo
 - [ ] Run:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
 cargo fmt --all --check
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 ```
 

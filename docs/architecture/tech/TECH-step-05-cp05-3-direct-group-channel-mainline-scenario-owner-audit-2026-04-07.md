@@ -11,7 +11,7 @@
 - `services/conversation-runtime/src/runtime/policy.rs`
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
 - `services/conversation-runtime/tests/conversation_flow_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
 
 ## 2. 审计结论
 

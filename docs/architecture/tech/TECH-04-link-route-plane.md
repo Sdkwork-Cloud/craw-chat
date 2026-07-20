@@ -116,7 +116,7 @@
 - `services/session-gateway/src/websocket.rs`
 - `services/session-gateway/src/realtime.rs`
 - `services/session-gateway/src/cluster.rs`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
 - `services/control-plane-api/`
 
 ### 5.3 运行时拆分建议
@@ -158,9 +158,9 @@
 
 - `services/session-gateway/tests/websocket_smoke_test.rs`
 - `services/session-gateway/tests/cluster_routing_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/cluster_realtime_routing_e2e_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/cluster_drain_rebalance_e2e_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/disconnect_fence_persistence_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/cluster_realtime_routing_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/cluster_drain_rebalance_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/disconnect_fence_persistence_test.rs`
 
 ## 7. 结果验证
 

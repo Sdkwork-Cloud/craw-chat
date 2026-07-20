@@ -62,20 +62,20 @@
 - `services/conversation-runtime/src/runtime/membership.rs`
 - `services/conversation-runtime/src/runtime/handoff.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/membership.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/handoff.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/access.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/membership.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/handoff.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/access.rs`
 
 ### 5.2 测试证据
 
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
 - `services/conversation-runtime/tests/authority_command_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ### 5.3 Fresh verification
 
 - `cargo test -p conversation-runtime --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-local-node-full'; cargo test -p sdkwork-im-cloud-gateway --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-local-node-full'; cargo test -p sdkwork-api-im-standalone-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 6. 架构结论

@@ -48,7 +48,7 @@ The current safest vertical slice is:
   - created requester and agent memberships together
   - initialized read cursors for both members
   - exposed `POST /im/v3/api/chat/conversations/agent_dialogs`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - exposed the same dedicated create route on the local profile
   - mapped auth context into the runtime command without exposing requester identity in the body
 
@@ -60,7 +60,7 @@ The current safest vertical slice is:
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - `test_create_agent_dialog_over_http`
   - `test_create_agent_dialog_rejects_non_user_actor_over_http`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_agent_dialog_create_in_local_profile_creates_user_and_agent_members`
   - `test_agent_dialog_create_rejects_non_user_creator_in_local_profile`
 
@@ -68,7 +68,7 @@ The current safest vertical slice is:
 
 - `cargo test -p conversation-runtime --test conversation_flow_test --offline`
 - `cargo test -p conversation-runtime --test http_smoke_test --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --test access_control_e2e_test --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --test access_control_e2e_test --offline`
 
 ## 6. Remaining Risks
 

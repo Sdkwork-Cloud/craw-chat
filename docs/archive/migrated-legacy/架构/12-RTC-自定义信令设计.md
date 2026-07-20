@@ -215,7 +215,7 @@ RTC 相关能力拆成两层：
 
 - `cargo test -p im-domain-core --test model_contract_test --offline`
 - `cargo test -p im-call-runtime --test rtc_signal_flow_test --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --test http_e2e_test --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --test http_e2e_test --offline`
 
 ## 11. 下一步
 

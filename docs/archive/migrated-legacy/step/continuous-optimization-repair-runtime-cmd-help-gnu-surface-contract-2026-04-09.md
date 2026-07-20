@@ -8,7 +8,7 @@
 
 - Modify:
   - `bin/repair-runtime-local.ps1`
-  - `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
 
 ## Implementation
 

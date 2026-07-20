@@ -42,7 +42,7 @@ const sourceDependencyFiles = [
   'apps/sdkwork-im-pc/vite.config.ts',
   'crates/im-domain-core/Cargo.toml',
   'crates/im-platform-contracts/Cargo.toml',
-  'services/sdkwork-im-cloud-gateway/Cargo.toml',
+  'crates/sdkwork-api-im-standalone-gateway/Cargo.toml',
   'artifacts/releases/sync-sdk-release-catalog.mjs',
   'sdks/sdkwork-im-app-sdk/bin/verify-flutter-composed-workspace.mjs',
   'sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-flutter/composed/pubspec_overrides.yaml',
@@ -270,65 +270,61 @@ function assertDiscoveryIntegrationDeferred() {
   );
 }
 
-function assertSharedGatewayFoundationIntegration() {
+function assertProfileResolvedPlatformIntegration() {
   const componentSpec = readJson('specs/component.spec.json');
   const componentSpecText = readText('specs/component.spec.json');
-  const foundationGateway = componentSpec.integration?.foundationApiGateway;
+  const platformGateway = componentSpec.integration?.platformApiGateway;
 
   assert(
-    foundationGateway?.targetApplication === 'sdkwork-api-cloud-gateway',
-    'specs/component.spec.json must declare sdkwork-api-cloud-gateway as the shared foundation API gateway target',
+    platformGateway?.connectivitySurface === 'platform.api-gateway',
+    'specs/component.spec.json must declare platform.api-gateway as a topology surface',
   );
   assert(
-    foundationGateway?.targetMode === 'shared-gateway',
-    'specs/component.spec.json foundationApiGateway.targetMode must be shared-gateway',
+    platformGateway?.targetMode === 'profile-resolved',
+    'specs/component.spec.json platformApiGateway.targetMode must be profile-resolved',
   );
   assert(
-    foundationGateway?.commonSdkRootEnv === 'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL',
+    platformGateway?.commonSdkRootEnv === 'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL',
     'specs/component.spec.json must use SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL as the server platform SDK root',
   );
   assert(
-    foundationGateway?.browserSdkRootEnv === 'VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL',
+    platformGateway?.browserSdkRootEnv === 'VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL',
     'specs/component.spec.json must use VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL as the browser platform SDK root',
   );
   assert(
-    foundationGateway?.authority === 'cargo-workspace',
-    'Sdkwork IM shared gateway integration must use Cargo workspace metadata as build authority',
+    platformGateway?.authority === 'topology-profile',
+    'Sdkwork IM platform API gateway resolution must use topology profiles as authority',
   );
   assert(
-    foundationGateway?.catalogPolicy === 'no-dedicated-gateway-catalog',
-    'Sdkwork IM must not introduce a standalone gateway catalog',
-  );
-  assert(
-    foundationGateway?.productApiPolicy === 'Sdkwork IM IM APIs remain product-owned SDKWork API surfaces',
+    platformGateway?.productApiPolicy === 'Sdkwork IM IM APIs remain product-owned SDKWork API surfaces',
     'Sdkwork IM component spec must keep IM APIs product-owned',
   );
   assert(
-    foundationGateway?.migrationState === 'shared-gateway-default',
-    'Sdkwork IM foundation API defaults must use sdkwork-api-cloud-gateway instead of product-local aggregation',
+    platformGateway?.alignmentState === 'current',
+    'Sdkwork IM platform API gateway contract must be aligned to the current topology model',
   );
 
   assert(
     !componentSpecText.includes('legacyCompatibilityComponents')
       && !componentSpecText.includes('legacyDirectFoundationRuntimeDependencies')
       && !componentSpecText.includes('legacy-web-gateway'),
-    'Sdkwork IM shared-gateway migration is complete only when component.spec.json no longer declares legacy web-gateway compatibility or direct foundation runtime dependencies',
+    'Sdkwork IM alignment is complete only when component.spec.json has no legacy gateway compatibility or direct platform runtime dependencies',
   );
 
   assert(
-    !Array.isArray(foundationGateway?.legacyCompatibilityDefaultFoundationUpstreams),
-    'Sdkwork IM must not document per-module foundation upstreams as defaults beside the shared gateway root',
+    !Array.isArray(platformGateway?.legacyCompatibilityDefaultFoundationUpstreams),
+    'Sdkwork IM must not document per-module upstreams beside the topology surface',
   );
   assert(
-    foundationGateway?.explicitExternalFoundationUpstreams === undefined
-      && foundationGateway?.explicitExternalUpstreamEnvKeys === undefined,
-    'Sdkwork IM must not publish per-module foundation upstream overrides',
+    platformGateway?.explicitExternalFoundationUpstreams === undefined
+      && platformGateway?.explicitExternalUpstreamEnvKeys === undefined,
+    'Sdkwork IM must not publish per-module upstream overrides',
   );
 
-  for (const relativePath of ['Cargo.toml', 'services/sdkwork-im-cloud-gateway/Cargo.toml']) {
+  for (const relativePath of ['Cargo.toml', 'crates/sdkwork-api-im-standalone-gateway/Cargo.toml']) {
     assert(
       !/^sdkwork_iam_http\s*=/mu.test(readText(relativePath)),
-      `${relativePath} must not depend on sdkwork_iam_http; appbase app API runtime is owned by sdkwork-api-cloud-gateway`,
+      `${relativePath} must not depend on sdkwork_iam_http; appbase app API runtime is owned by platform.api-gateway`,
     );
   }
 
@@ -345,14 +341,16 @@ function assertSharedGatewayFoundationIntegration() {
     ]) {
       assert(
         !source.includes(dependencyName),
-        `${relativePath} must not depend on ${dependencyName}; Agent and AIoT runtime APIs are served through sdkwork-api-cloud-gateway`,
+        `${relativePath} must not depend on ${dependencyName}; Agent and AIoT runtime APIs are served through platform.api-gateway`,
       );
     }
   }
 
   const dependencyApiSurfaces = componentSpec.contracts?.dependencyApiSurfaces ?? [];
-  const sharedGatewaySurfaceIds = dependencyApiSurfaces
-    .filter((surface) => surface.targetRuntimeIntegration?.gatewayApplication === 'sdkwork-api-cloud-gateway')
+  const platformSurfaceIds = dependencyApiSurfaces
+    .filter((surface) =>
+      surface.targetRuntimeIntegration?.connectivitySurface === 'platform.api-gateway'
+        && surface.targetRuntimeIntegration?.mode === 'profile-resolved')
     .map((surface) => surface.apiAuthority)
     .sort();
   const expectedSharedGatewaySurfaceIds = [
@@ -376,24 +374,24 @@ function assertSharedGatewayFoundationIntegration() {
     'sdkwork-rtc-backend-api',
   ].sort();
   assert(
-    JSON.stringify(sharedGatewaySurfaceIds) === JSON.stringify(expectedSharedGatewaySurfaceIds),
-    `component spec must declare the current shared-gateway dependency API surface targets, got ${sharedGatewaySurfaceIds.join(',')}`,
+    JSON.stringify(platformSurfaceIds) === JSON.stringify(expectedSharedGatewaySurfaceIds),
+    `component spec must declare the current profile-resolved dependency API surfaces, got ${platformSurfaceIds.join(',')}`,
   );
   for (const surface of dependencyApiSurfaces) {
     assert(
-      surface.targetRuntimeIntegration?.catalogPolicy === 'no-dedicated-gateway-catalog',
-      `${surface.apiAuthority} must use existing Cargo/spec evidence instead of a standalone gateway catalog`,
+      surface.targetRuntimeIntegration?.catalogPolicy === undefined,
+      `${surface.apiAuthority} must not carry a gateway catalog policy`,
     );
     assert(
       surface.currentCompatibility === undefined,
-      `${surface.apiAuthority} must not keep legacy web-gateway compatibility after migration to sdkwork-api-cloud-gateway`,
+      `${surface.apiAuthority} must not keep legacy web-gateway compatibility after migration to platform.api-gateway`,
     );
   }
 
   for (const relativePath of [
-    'crates/sdkwork-im-cloud-gateway-config/src/lib.rs',
-    'services/sdkwork-im-cloud-gateway/src/main.rs',
-    'services/sdkwork-im-cloud-gateway/src/lib.rs',
+    'crates/sdkwork-api-im-standalone-gateway/src/main.rs',
+    'crates/sdkwork-api-im-standalone-gateway/src/embedded_dependency_routes.rs',
+    'crates/sdkwork-api-im-assembly/src/bootstrap.rs',
   ]) {
     const source = readText(relativePath);
     for (const marker of [
@@ -413,7 +411,7 @@ function assertSharedGatewayFoundationIntegration() {
   const forbiddenGatewayCatalogs = listFilesRecursive(path.join(repoRoot, 'specs'))
     .map((filePath) => slashPath(path.relative(repoRoot, filePath)))
     .filter((relativePath) =>
-      /(^|\/)(sdkwork-api-cloud-gateway-catalog|api-gateway-catalog|gateway-catalog|foundation-api-catalog)\.(json|ya?ml|toml)$/iu.test(relativePath)
+      /(^|\/)(platform.api-gateway-catalog|api-gateway-catalog|gateway-catalog|foundation-api-catalog)\.(json|ya?ml|toml)$/iu.test(relativePath)
     );
   assert(
     forbiddenGatewayCatalogs.length === 0,
@@ -432,7 +430,7 @@ function assertDocumentation() {
   const imAppApiSpec = readText('specs/im-app-api-sdk-integration.spec.md');
   assert(
     !/current legacy web-gateway compatibility|long-term foundation API aggregation authority/u.test(imAppApiSpec),
-    'specs/im-app-api-sdk-integration.spec.md must document sdkwork-api-cloud-gateway as the current shared foundation API boundary without legacy web-gateway compatibility wording',
+    'specs/im-app-api-sdk-integration.spec.md must document platform.api-gateway as the current shared foundation API boundary without legacy web-gateway compatibility wording',
   );
 
   const imAgentsBoundarySpec = readText('specs/IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md');
@@ -495,14 +493,14 @@ function assertAgentsDependencyBoundary() {
     }
   }
   const rootCargo = readText('Cargo.toml');
-  const standaloneCargo = readText('services/sdkwork-im-standalone-gateway/Cargo.toml');
+  const standaloneCargo = readText('crates/sdkwork-api-im-standalone-gateway/Cargo.toml');
   assert(
-    rootCargo.includes('sdkwork-agents-gateway-assembly'),
-    'Cargo.toml must declare the public Agents gateway assembly for embedded host composition',
+    rootCargo.includes('sdkwork-api-agents-assembly'),
+    'Cargo.toml must declare the canonical Agents API assembly for embedded host composition',
   );
   assert(
-    standaloneCargo.includes('sdkwork-agents-gateway-assembly = { workspace = true }'),
-    'standalone gateway must consume Agents only through the public gateway assembly',
+    standaloneCargo.includes('sdkwork-api-agents-assembly = { workspace = true }'),
+    'standalone gateway must consume Agents through the canonical API assembly',
   );
 }
 
@@ -512,7 +510,7 @@ assertCiMaterializer();
 assertWorkflowRefs();
 assertReleaseLifecycleDependencyGate();
 assertDiscoveryIntegrationDeferred();
-assertSharedGatewayFoundationIntegration();
+assertProfileResolvedPlatformIntegration();
 assertAgentsDependencyBoundary();
 for (const relativePath of sourceDependencyFiles) {
   assertNativeDependencyFile(relativePath);

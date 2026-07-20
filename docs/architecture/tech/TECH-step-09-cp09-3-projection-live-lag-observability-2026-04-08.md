@@ -74,7 +74,7 @@
   - `ops/replay-status` 继续只回答 replay drill，不被 live lag 语义污染
 
 ### 4. `sdkwork-im-server` 已把 live lag 映射到真实 ops 面
-- `services/sdkwork-im-cloud-gateway/src/node/platform.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs`
   - `refresh_node_operational_view(...)` 现在会把 `projection-service` owner 的 live lag 映射进 `OpsRuntime`
 - 这意味着 `Local Minimal` profile 下，业务请求触发的真实 projection apply 已可直接在：
   - `/backend/v3/api/ops/lag`
@@ -101,10 +101,10 @@
   - `services/projection-service/src/lib.rs`
   - `services/projection-service/src/scope.rs`
   - `services/ops-service/src/lib.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node/platform.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs`
 - 测试：
   - `services/projection-service/tests/projection_snapshot_test.rs`
-  - `services/sdkwork-im-cloud-gateway/tests/domain_recovery_persistence_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/domain_recovery_persistence_test.rs`
 - 文档：
   - 本执行卡
   - 本轮质量审计与复盘
@@ -119,7 +119,7 @@
 ### Red
 - 先写测试，再验证缺口：
   - `cargo test -p projection-service --offline test_projection_service_tracks_live_projection_lag_per_scope -- --exact`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics -- --exact`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics -- --exact`
 - 红测失败点与预期一致：
   - `TimelineProjectionService` 还没有 `projection_live_lag_items()` owner seam
   - `ops/lag` 还拿不到 `projection_live` item
@@ -131,7 +131,7 @@
 - `cargo fmt --all --check`
 - `cargo test -p projection-service --offline`
 - `cargo test -p ops-service --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 
 ## 结论
 - 这是 `Wave C / Step 09 / CP09-3` 的第五个真实代码增量。

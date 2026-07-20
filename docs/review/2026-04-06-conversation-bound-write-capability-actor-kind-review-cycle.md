@@ -34,7 +34,7 @@ Regression tests were added first:
 
 - `services/conversation-runtime/tests/conversation_flow_test.rs`
   - `test_conversation_bound_write_capability_gate_rejects_actor_kind_mismatch`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_conversation_bound_stream_writes_reject_bearer_actor_kind_mismatch`
   - `test_conversation_bound_rtc_writes_reject_bearer_actor_kind_mismatch`
 
@@ -71,11 +71,11 @@ Chosen design:
   - added `ensure_conversation_bound_write_allowed_with_actor_kind(...)`
   - changed `ensure_conversation_bound_write_allowed(...)` into a compatibility wrapper
   - hardened the capability gate with `ensure_actor_kind_matches_member(...)`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - updated `ensure_conversation_bound_write_access(...)` to call the actor-kind-aware runtime gate
 - `services/conversation-runtime/tests/conversation_flow_test.rs`
   - added runtime regression coverage for the generic capability gate
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - added local bearer actor-kind mismatch coverage for:
     - conversation-bound stream writes
     - conversation-bound RTC writes
@@ -91,7 +91,7 @@ Chosen design:
 ### Green
 
 - `cargo test -p conversation-runtime --offline test_conversation_bound_write_capability_gate_rejects_actor_kind_mismatch`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test access_control_e2e_test conversation_bound_`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test access_control_e2e_test conversation_bound_`
 
 Observed green results:
 

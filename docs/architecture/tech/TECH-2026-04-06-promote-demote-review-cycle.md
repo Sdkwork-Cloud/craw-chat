@@ -100,7 +100,7 @@
 
 - `services/conversation-runtime/src/lib.rs`
   - 新增 runtime HTTP 路由 `/members/change-role`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - 新增 app 路由 `/members/change-role`
   - 新增 `conversation.member_role_changed` 审计锚点
 
@@ -118,10 +118,10 @@
 - `cargo test -p conversation-runtime --test conversation_flow_test --offline`
 - `cargo test -p conversation-runtime --test http_smoke_test --offline`
 - `cargo test -p projection-service --test timeline_projection_test --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --test access_control_e2e_test --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --test access_control_e2e_test --offline`
 - `cargo test -p conversation-runtime --offline`
 - `cargo test -p projection-service --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 - `cargo test --workspace --offline`
 
 ## 7. 当前剩余风险

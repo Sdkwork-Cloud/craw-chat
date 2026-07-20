@@ -50,7 +50,7 @@
   - `docs/部署/快速启动脚本.md`
 - 验证：
   - `cargo fmt --all --check`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/inspect-runtime-local.ps1 -Help`
   - `cmd /c bin\\inspect-runtime-local.cmd --help`
 

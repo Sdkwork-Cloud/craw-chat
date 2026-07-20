@@ -41,7 +41,7 @@
 
 - `cargo test -p session-gateway --test database_schema_contract_test` ✅
 - `cargo test -p session-gateway --test postgres_realtime_sql_contract_test` ✅
-- `cargo test -p sdkwork-im-cloud-gateway --test openapi_im_v3_contract_test` ✅
+- `cargo test -p sdkwork-api-im-standalone-gateway --test openapi_im_v3_contract_test` ✅
 - `cargo test -p control-plane-api --test openapi_export_test` ✅
 - `node sdks/test/verify-im-v3-sdk-family-contract.test.mjs` ✅
 - `node ../scripts/validate-component-specs.mjs --apps-root ..` ✅（`892 components, 0 failed`）

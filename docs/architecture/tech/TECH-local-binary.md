@@ -26,8 +26,8 @@ Configuration authority:
 Build and test the ingress directly:
 
 ```bash
-cargo build -p sdkwork-im-cloud-gateway
-cargo test -p sdkwork-im-cloud-gateway --tests
+cargo build -p sdkwork-api-im-standalone-gateway
+cargo test -p sdkwork-api-im-standalone-gateway --tests
 ```
 
 The packaged binary name is `sdkwork-im-server`.
@@ -41,11 +41,11 @@ curl http://127.0.0.1:18079/healthz
 ```
 
 If `/healthz` or `/app/v3/api/auth/sessions/current` hang while TCP connects succeed, the unified
-`sdkwork-im-standalone-gateway` runtime is likely starved. Projection HTTP handlers run mutex-heavy
+`sdkwork-api-im-standalone-gateway` runtime is likely starved. Projection HTTP handlers run mutex-heavy
 reads on dedicated blocking threads; restart stale gateway processes before debugging client auth.
 
 ```powershell
-taskkill /F /IM sdkwork-im-standalone-gateway.exe
+taskkill /F /IM sdkwork-api-im-standalone-gateway.exe
 pnpm dev
 ```
 

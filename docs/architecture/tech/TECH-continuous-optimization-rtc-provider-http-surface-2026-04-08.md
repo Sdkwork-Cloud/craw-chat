@@ -12,13 +12,13 @@
   - 新增 `POST /im/v3/api/calls/sessions/{rtc_session_id}/credentials`
   - 新增 `GET /backend/v3/api/rtc/provider_health`
   - 对外复用 `RtcRuntime::issue_participant_credential(...)` 与 `provider_health_snapshot(...)`
-- `services/sdkwork-im-cloud-gateway/src/node/rtc.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/rtc.rs`
   - 新增同等能力的本地节点 handler
-- `services/sdkwork-im-cloud-gateway/src/node/build.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/build.rs`
   - 暴露与 `im-call-runtime` 对齐的两条 RTC provider surface 路由
 - `services/im-call-runtime/tests/http_smoke_test.rs`
   - 新增 credential / provider health HTTP red-green tests
-- `services/sdkwork-im-cloud-gateway/tests/http_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/http_e2e_test.rs`
   - 新增 credential / provider health e2e tests
 
 ## 验证结果
@@ -27,10 +27,10 @@
 - `cargo fmt --all --check`
 - `$env:CARGO_TARGET_DIR='C:\Users\admin\.codex\memories\target-rtc-surface-service'; cargo test -p im-call-runtime --offline --test http_smoke_test -- --nocapture`
 - `$env:CARGO_TARGET_DIR='C:\Users\admin\.codex\memories\target-rtc-surface-service'; cargo test -p im-call-runtime --offline --test rtc_runtime_persistence_test -- --nocapture`
-- `$env:CARGO_TARGET_DIR='C:\Users\admin\.codex\memories\target-rtc-surface-local'; cargo test -p sdkwork-im-cloud-gateway --offline --test http_e2e_test test_local_minimal_profile_issues_rtc_participant_credential_over_http -- --nocapture`
-- `$env:CARGO_TARGET_DIR='C:\Users\admin\.codex\memories\target-rtc-surface-local'; cargo test -p sdkwork-im-cloud-gateway --offline --test http_e2e_test test_local_minimal_profile_gets_rtc_provider_health_over_http -- --nocapture`
-- `$env:CARGO_TARGET_DIR='C:\Users\admin\.codex\memories\target-rtc-surface-local'; cargo test -p sdkwork-im-cloud-gateway --offline --test rtc_runtime_persistence_test -- --nocapture`
-- `$env:CARGO_TARGET_DIR='C:\Users\admin\.codex\memories\target-rtc-surface-local'; cargo test -p sdkwork-im-cloud-gateway --offline --test provider_plugin_docs_test -- --nocapture`
+- `$env:CARGO_TARGET_DIR='C:\Users\admin\.codex\memories\target-rtc-surface-local'; cargo test -p sdkwork-api-im-standalone-gateway --offline --test http_e2e_test test_local_minimal_profile_issues_rtc_participant_credential_over_http -- --nocapture`
+- `$env:CARGO_TARGET_DIR='C:\Users\admin\.codex\memories\target-rtc-surface-local'; cargo test -p sdkwork-api-im-standalone-gateway --offline --test http_e2e_test test_local_minimal_profile_gets_rtc_provider_health_over_http -- --nocapture`
+- `$env:CARGO_TARGET_DIR='C:\Users\admin\.codex\memories\target-rtc-surface-local'; cargo test -p sdkwork-api-im-standalone-gateway --offline --test rtc_runtime_persistence_test -- --nocapture`
+- `$env:CARGO_TARGET_DIR='C:\Users\admin\.codex\memories\target-rtc-surface-local'; cargo test -p sdkwork-api-im-standalone-gateway --offline --test provider_plugin_docs_test -- --nocapture`
 
 说明：由于 `D:` 盘构建缓存空间耗尽，本轮测试使用 `CARGO_TARGET_DIR` 切换到 `C:` 盘独立缓存目录完成验证。
 

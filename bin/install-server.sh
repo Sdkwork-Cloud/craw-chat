@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/install-server.sh [--instance <name>] [--install-root <path>] [--config-dir <path>] [--data-dir <path>] [--log-dir <path>] [--run-dir <path>] [--non-interactive] [--force]
 
-Create the sdkwork-im-server install/config/data/log/run directory skeleton and stage canonical payload examples.
+Create the sdkwork-api-im-standalone-gateway install/config/data/log/run directory skeleton and stage canonical payload examples.
 EOF
 }
 
@@ -99,7 +99,7 @@ resolve_template_path() {
     return 0
   fi
 
-  echo "Missing sdkwork-im-server template. Expected packaged path '${packaged_relative_paths}' or source path '${source_path}'." >&2
+  echo "Missing sdkwork-api-im-standalone-gateway template. Expected packaged path '${packaged_relative_paths}' or source path '${source_path}'." >&2
   return 1
 }
 
@@ -131,7 +131,7 @@ cat >"$install_json" <<EOF
 }
 EOF
 
-echo "Prepared sdkwork-im-server directories for instance '${instance_name}'."
+echo "Prepared sdkwork-api-im-standalone-gateway directories for instance '${instance_name}'."
 echo "ConfigDir: ${config_dir}"
 echo "DataDir: ${data_dir}"
 echo "LogDir: ${log_dir}"

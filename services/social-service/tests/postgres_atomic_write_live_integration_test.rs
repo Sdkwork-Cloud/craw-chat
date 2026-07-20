@@ -37,11 +37,8 @@ fn social_journal_and_read_model_roll_back_together_when_materialization_fails()
     let request_id = format!("friend_request_atomic_{suffix}");
     let event_id = format!("evt_friend_request_atomic_{suffix}");
     let request_db_id = social_entity_id_to_i64(request_id.as_str());
-    let commit = friend_request_submitted_commit(
-        event_id.as_str(),
-        tenant_id.as_str(),
-        request_id.as_str(),
-    );
+    let commit =
+        friend_request_submitted_commit(event_id.as_str(), tenant_id.as_str(), request_id.as_str());
 
     let rollback_result = journal.append_batch_with_allocated_sequences_in_transaction(
         vec![commit.clone()],
@@ -81,10 +78,9 @@ fn social_journal_and_read_model_roll_back_together_when_materialization_fails()
     assert_eq!(rolled_back, (0, 0));
 
     journal
-        .append_batch_with_allocated_sequences_in_transaction(
-            vec![commit],
-            |txn, inserted| materialize_commits_on_transaction(txn, inserted),
-        )
+        .append_batch_with_allocated_sequences_in_transaction(vec![commit], |txn, inserted| {
+            materialize_commits_on_transaction(txn, inserted)
+        })
         .expect("social journal and read model should commit together");
     let committed_row = verification
         .query_one(

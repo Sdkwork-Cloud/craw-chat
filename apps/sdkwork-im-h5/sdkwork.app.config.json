@@ -73,7 +73,7 @@
     "installSkill": { "name": "sdkwork-skills-app" },
     "platforms": ["H5", "APP_IOS", "APP_ANDROID"],
     "installPlatforms": ["H5", "APP_IOS", "APP_ANDROID"],
-    "defaultPackageId": "h5-universal-cloud-browser-zip",
+    "defaultPackageId": "h5-universal-cloud-mobile-zip",
     "storeUrl": "https://sdkwork.com/apps/sdkwork-im-h5",
     "stores": [],
     "config": {
@@ -84,18 +84,18 @@
   },
   "artifacts": {
     "installConfig": {
-      "defaultPackageId": "h5-universal-cloud-browser-zip",
+      "defaultPackageId": "h5-universal-cloud-mobile-zip",
       "installCommand": "sdkwork install sdkwork-im-h5",
       "launchCommand": "sdkwork open sdkwork-im-h5",
       "uninstallCommand": "sdkwork uninstall sdkwork-im-h5",
       "packages": [
         {
-          "id": "h5-universal-cloud-browser-zip",
+          "id": "h5-universal-cloud-mobile-zip",
           "name": "SDKWork IM H5 Web Bundle",
           "sourceType": "WEB_URL",
           "packageFormat": "ZIP",
           "platform": "H5",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.1.0/h5.zip",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.1.0/h5-universal-cloud-mobile.zip",
           "enabled": false,
           "metadata": {
             "releaseBuildDeferred": true
@@ -176,7 +176,7 @@
           "Inbox and conversation REST baseline"
         ],
         "packageIds": [
-          "h5-universal-cloud-browser-zip",
+          "h5-universal-cloud-mobile-zip",
           "ios-universal-dual-mobile-ipa",
           "android-universal-dual-mobile-aab"
         ],

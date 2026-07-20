@@ -5,10 +5,10 @@
 - `services/notification-service/src/lib.rs`
 - `services/notification-service/tests/lib_structure_test.rs`
 - `services/notification-service/tests/public_auth_test.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/platform.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/access.rs`
-- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/public_auth_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/access.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/public_auth_e2e_test.rs`
 
 ## 2. 审计结论
 

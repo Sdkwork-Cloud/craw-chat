@@ -32,7 +32,7 @@
 
 ### 2.2 runtime ops PowerShell wrapper 最小 smoke 已冻结
 
-- 更新：`services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+- 更新：`crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
 - 当前新增或扩展回归：
   - `test_runtime_operation_scripts_expose_profile_selection_contract`
     - 已把 `retired-lifecycle-status.ps1` / `retired-lifecycle-status.sh` 纳入 runtime ops profile 合同门禁
@@ -69,5 +69,5 @@
 ## 4. fresh evidence
 
 - `cargo fmt --all --check`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test -- --nocapture`
 

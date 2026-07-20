@@ -37,7 +37,7 @@
     "deliveryModes": ["DIRECT_DOWNLOAD"],
     "defaultPlatform": "APP_ANDROID",
     "defaultArchitecture": "universal",
-    "supportedDeploymentProfiles": ["cloud", "standalone"],
+    "supportedDeploymentProfiles": ["cloud"],
     "defaultDeploymentProfile": "cloud"
   },
   "media": {
@@ -73,7 +73,7 @@
     "installSkill": { "name": "sdkwork-skills-app" },
     "platforms": ["APP_ANDROID", "APP_IOS"],
     "installPlatforms": ["APP_ANDROID", "APP_IOS"],
-    "defaultPackageId": "android-universal-dual-mobile-apk",
+    "defaultPackageId": "android-universal-cloud-mobile-apk",
     "storeUrl": "https://sdkwork.com/apps/sdkwork-im-flutter-mobile",
     "stores": [],
     "config": {
@@ -84,18 +84,18 @@
   },
   "artifacts": {
     "installConfig": {
-      "defaultPackageId": "android-universal-dual-mobile-apk",
+      "defaultPackageId": "android-universal-cloud-mobile-apk",
       "installCommand": "sdkwork install sdkwork-im-flutter-mobile",
       "launchCommand": "sdkwork open sdkwork-im-flutter-mobile",
       "uninstallCommand": "sdkwork uninstall sdkwork-im-flutter-mobile",
       "packages": [
         {
-          "id": "android-universal-dual-mobile-apk",
+          "id": "android-universal-cloud-mobile-apk",
           "name": "SDKWork IM Mobile Android APK",
           "sourceType": "BINARY_URL",
           "packageFormat": "APK",
           "platform": "APP_ANDROID",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-flutter-mobile/STABLE/0.1.0/android-universal-dual-mobile.apk",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-flutter-mobile/STABLE/0.1.0/android-universal-cloud-mobile.apk",
           "enabled": false,
           "metadata": {
             "releaseBuildDeferred": true
@@ -103,19 +103,18 @@
           "checksumAlgorithm": "SHA-256",
           "architecture": "universal",
           "runtimeTarget": "flutter-android",
-          "profileBinding": "runtime-configurable",
-          "supportedDeploymentProfiles": ["standalone", "cloud"],
-          "defaultDeploymentProfile": "standalone",
+          "profileBinding": "fixed",
+          "deploymentProfile": "cloud",
           "targetPlatform": "android",
           "clientArchitecture": "flutter"
         },
         {
-          "id": "android-universal-dual-mobile-aab",
+          "id": "android-universal-cloud-mobile-aab",
           "name": "SDKWork IM Mobile Android App Bundle",
           "sourceType": "BINARY_URL",
           "packageFormat": "AAB",
           "platform": "APP_ANDROID",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-flutter-mobile/STABLE/0.1.0/android-universal-dual-mobile.aab",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-flutter-mobile/STABLE/0.1.0/android-universal-cloud-mobile.aab",
           "enabled": false,
           "metadata": {
             "releaseBuildDeferred": true
@@ -123,29 +122,30 @@
           "checksumAlgorithm": "SHA-256",
           "architecture": "universal",
           "runtimeTarget": "flutter-android",
-          "profileBinding": "runtime-configurable",
-          "supportedDeploymentProfiles": ["standalone", "cloud"],
-          "defaultDeploymentProfile": "standalone",
+          "profileBinding": "fixed",
+          "deploymentProfile": "cloud",
           "targetPlatform": "android",
           "clientArchitecture": "flutter"
         },
         {
-          "id": "ios-universal-dual-mobile-ipa",
+          "id": "ios-universal-cloud-mobile-ipa",
           "name": "SDKWork IM Mobile iOS IPA",
           "sourceType": "BINARY_URL",
           "packageFormat": "IPA",
           "platform": "APP_IOS",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-flutter-mobile/STABLE/0.1.0/ios-universal-dual-mobile.ipa",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-flutter-mobile/STABLE/0.1.0/ios-universal-cloud-mobile.ipa",
           "enabled": false,
           "metadata": {
-            "releaseBuildDeferred": true
+            "releaseBuildDeferred": true,
+            "requiresMacosXcode": true,
+            "requiresProvisioningProfile": true,
+            "requiresStoreApproval": true
           },
           "checksumAlgorithm": "SHA-256",
           "architecture": "universal",
           "runtimeTarget": "flutter-ios",
-          "profileBinding": "runtime-configurable",
-          "supportedDeploymentProfiles": ["standalone", "cloud"],
-          "defaultDeploymentProfile": "standalone",
+          "profileBinding": "fixed",
+          "deploymentProfile": "cloud",
           "targetPlatform": "ios",
           "clientArchitecture": "flutter"
         }
@@ -175,9 +175,9 @@
           "Inbox and conversation REST baseline"
         ],
         "packageIds": [
-          "android-universal-dual-mobile-apk",
-          "android-universal-dual-mobile-aab",
-          "ios-universal-dual-mobile-ipa"
+          "android-universal-cloud-mobile-apk",
+          "android-universal-cloud-mobile-aab",
+          "ios-universal-cloud-mobile-ipa"
         ],
         "publishedAt": "2026-06-25T00:00:00Z",
         "current": true,

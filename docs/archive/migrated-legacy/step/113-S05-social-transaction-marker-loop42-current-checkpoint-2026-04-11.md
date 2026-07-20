@@ -9,7 +9,7 @@
   - runtime startup 的 journal replay、same-event retry 的 best-effort repair、HTTP `repair-derived-snapshot` 与 standalone `repair-social-runtime-dir` CLI 在修复成功后都会清除 marker
   - fresh targeted regression：`cargo test -p control-plane-api --offline --test social_friend_request_test test_control_plane_social_file_runtime_leaves_pending_tx_marker_after_snapshot_failure_and_clears_it_after_restart_replay -- --nocapture` = `passed`
   - full package regression：`cargo test -p control-plane-api --offline --tests -- --nocapture` = `61 passed`
-  - operator wrapper regression：`cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test -- --nocapture` = `64 passed`
+  - operator wrapper regression：`cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test -- --nocapture` = `64 passed`
 - 当前仍缺:
   - `S05 step_closure`
   - 更强 `staged / manifest` 级 `atomic multi-file tx` 证明

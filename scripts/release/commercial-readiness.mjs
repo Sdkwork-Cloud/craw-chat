@@ -455,7 +455,7 @@ export function buildCommercialReadinessChecks({
       label: 'Sdkwork IM gateway integration tests',
       cwd: repoRoot,
       command: 'cargo',
-      args: ['test', '-p', 'sdkwork-im-cloud-gateway', '--tests'],
+      args: ['test', '-p', 'sdkwork-api-im-standalone-gateway', '--tests'],
     },
     {
       id: 'session-gateway-tests',

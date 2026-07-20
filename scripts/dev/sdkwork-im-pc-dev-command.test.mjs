@@ -66,11 +66,11 @@ const desktopLockfileSource = fs.readFileSync(
   'utf8',
 );
 const unifiedWebSource = fs.readFileSync(
-  path.join(repoRoot, 'scripts/im-server-dev.mjs'),
+  path.join(repoRoot, 'scripts/gateway-standalone-run.mjs'),
   'utf8',
 );
 const imGatewayCargoSource = fs.readFileSync(
-  path.join(repoRoot, 'services/sdkwork-im-cloud-gateway/Cargo.toml'),
+  path.join(repoRoot, 'crates/sdkwork-api-im-standalone-gateway/Cargo.toml'),
   'utf8',
 );
 const imDomainCoreCargoSource = fs.readFileSync(
@@ -121,12 +121,12 @@ assert.equal(
 );
 assert.equal(
   packageJson.scripts['dev:browser'],
-  'pnpm exec sdkwork-app dev --runtime-target browser --database postgres --deployment-profile standalone',
-  'root pnpm dev:browser must delegate to the shared lifecycle facade',
+  'pnpm dev:browser:postgres:standalone',
+  'root pnpm dev:browser must delegate to the canonical standalone browser profile',
 );
 assert.equal(
   packageJson.scripts['dev:browser:postgres:standalone'],
-  'pnpm exec sdkwork-app dev --runtime-target browser --database postgres --deployment-profile standalone',
+  'pnpm exec sdkwork-app dev --runtime-target browser --deployment-profile standalone',
   'root pnpm dev:browser full profile must select PostgreSQL standalone browser dev through the facade',
 );
 assert.doesNotMatch(
@@ -136,12 +136,12 @@ assert.doesNotMatch(
 );
 assert.equal(
   packageJson.scripts['dev:desktop'],
-  'pnpm exec sdkwork-app dev --runtime-target desktop --database postgres --deployment-profile standalone',
-  'root pnpm dev:desktop must delegate to the shared lifecycle facade',
+  'pnpm dev:desktop:postgres:standalone',
+  'root pnpm dev:desktop must delegate to the canonical standalone desktop profile',
 );
 assert.equal(
   packageJson.scripts['dev:desktop:postgres:standalone'],
-  'pnpm exec sdkwork-app dev --runtime-target desktop --database postgres --deployment-profile standalone',
+  'pnpm exec sdkwork-app dev --runtime-target desktop --deployment-profile standalone',
   'root pnpm dev:desktop full profile must select PostgreSQL standalone desktop dev through the facade',
 );
 assert.doesNotMatch(
@@ -151,23 +151,23 @@ assert.doesNotMatch(
 );
 assert.equal(
   packageJson.scripts['dev:server'],
-  'node scripts/im-server-dev.mjs',
-  'root pnpm dev:server must remain the canonical Sdkwork IM server startup command',
+  'pnpm exec sdkwork-app dev --runtime-target server --deployment-profile standalone',
+  'root pnpm dev:server must delegate to the shared lifecycle facade',
 );
 assert.ok(
   unifiedWebSource.includes('resolveImProductSiteDirEnv'),
-  'root pnpm dev:server must create local dev site fallbacks when admin or portal sources are absent',
+  'standalone gateway launcher must create local site fallbacks when product sources are absent',
 );
 assert.match(
   unifiedWebSource,
   /import \{ resolveImProductSiteDirEnv \} from '\.\/lib\/im-product-site-dirs\.mjs';/u,
-  'root pnpm dev:server must import product site directory resolution from its owning module',
+  'standalone gateway launcher must import product site resolution from its owning module',
 );
 assert.ok(
-  unifiedWebSource.includes('createManagedSdkworkApiGatewayProcess')
-    && unifiedWebSource.includes('SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL')
-    && unifiedWebSource.includes('SDKWORK_API_CLOUD_GATEWAY_BIND'),
-  'root pnpm dev:server must manage sdkwork-api-cloud-gateway and expose one shared foundation gateway root',
+  unifiedWebSource.includes("resolveDevProfileId('standalone'")
+    && unifiedWebSource.includes('run-standalone-gateway-dev.mjs')
+    && !unifiedWebSource.includes('createManagedSdkworkApiGatewayProcess'),
+  'standalone launcher must select the standalone profile and start only the application gateway',
 );
 assert.ok(
   !unifiedWebSource.includes("?? 'embedded'")
@@ -175,34 +175,23 @@ assert.ok(
   'root pnpm dev:server must not default the product gateway runtime to embedded foundation aggregation',
 );
 assert.ok(
-  unifiedWebSource.includes('cargo')
-    && unifiedWebSource.includes('sdkwork-im-cloud-gateway')
-    && unifiedWebSource.includes('sdkwork-im-server')
-    && unifiedWebSource.includes('resolveSdkworkImSharedDatabaseConfig'),
-  'root pnpm dev:server must start the Rust sdkwork-im-cloud-gateway with the shared database config',
+  unifiedWebSource.includes('sdkwork-api-im-standalone-gateway')
+    && unifiedWebSource.includes('resolveSdkworkImSharedDatabaseConfig')
+    && !unifiedWebSource.includes("'sdkwork-im-server'"),
+  'standalone launcher must start the canonical gateway with the shared database config',
 );
 assert.doesNotMatch(
   unifiedWebSource,
   /\bmvn(?:\.cmd)?\b|mavenCommand|spring-ai-plus-server-app|spring-boot:run|ensureAppbaseAppApi|waitForAppbaseAppApiReady|sdkwork-iam-app-api|SDKWORK_IM_APPBASE_APP_API_UPSTREAM|SDKWORK_APPBASE_APP_API_BIND_ADDR|SDKWORK_APPBASE_BROWSER_ORIGINS/u,
-  'root pnpm dev:server must not start or wait for any Java/appbase app-api upstream',
+  'standalone launcher must not start or wait for Java/appbase API upstreams',
 );
 assert.ok(
-  unifiedWebSource.includes('resolveImProductSiteDirEnv')
-    && unifiedWebSource.includes('Object.assign'),
-  'root pnpm dev:server must pass the resolved admin and portal site dirs to the Rust gateway',
+  unifiedWebSource.includes('resolveImProductSiteDirEnv'),
+  'standalone launcher must pass resolved product site directories to the gateway',
 );
 assert.ok(
-  unifiedWebSource.includes('terminateStaleSdkworkImServerProcesses')
-    && unifiedWebSource.includes('target')
-    && unifiedWebSource.includes('sdkwork-im-server.exe'),
-  'root pnpm dev:server must clean up stale same-workspace Windows sdkwork-im-server.exe processes before cargo rebuilds the locked binary',
-);
-assert.ok(
-  unifiedWebSource.includes('terminateProcessTree')
-    && unifiedWebSource.includes('taskkill')
-    && unifiedWebSource.includes('/T')
-    && unifiedWebSource.includes('/F'),
-  'root pnpm dev:server must terminate the Windows cargo/server process tree instead of leaving sdkwork-im-server.exe behind',
+  unifiedWebSource.includes('terminateStaleDevGatewayProcesses'),
+  'standalone launcher must clean up stale canonical gateway processes before rebuilding',
 );
 assert.ok(
   localAppApiSource.includes('Sdkwork IM app-api is provided by the Rust unified server')
@@ -221,12 +210,12 @@ assert.ok(
 assert.doesNotMatch(
   imGatewayCargoSource,
   /[A-Za-z]:[\\/]/u,
-  'sdkwork-im-cloud-gateway Rust manifest must not point to an absolute checkout path',
+  'sdkwork-api-im-standalone-gateway Rust manifest must not point to an absolute checkout path',
 );
 assert.doesNotMatch(
   imGatewayCargoSource,
   /sdkwork-agent-business\.workspace\s*=\s*true/u,
-  'sdkwork-im-cloud-gateway must not consume sdkwork-agent-business; Agent API runtime is routed through sdkwork-api-cloud-gateway',
+  'sdkwork-api-im-standalone-gateway must not consume sdkwork-agent-business; Agent API runtime is routed through platform.api-gateway',
 );
 for (const cargoSource of [
   imDomainCoreCargoSource,
@@ -642,8 +631,6 @@ for (const packageJsonPath of packageJsonFiles) {
 
 const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const pnpmShell = process.platform === 'win32';
-const apiGatewayWorkspaceRoot = path.resolve(repoRoot, '..', 'sdkwork-api-cloud-gateway');
-
 const browserPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
   env: {
@@ -663,22 +650,18 @@ assert.deepEqual(
 );
 assert.deepEqual(
   browserPlan.processes.map((entry) => entry.label),
-  ['sdkwork-im-standalone-gateway', 'sdkwork-im-pc-browser'],
+  ['sdkwork-api-im-standalone-gateway', 'sdkwork-im-pc-browser'],
   'standalone single-ingress browser dev must start the embedded standalone gateway and browser renderer',
 );
 const browserStandaloneGatewayProcess = browserPlan.processes.find(
-  (entry) => entry.label === 'sdkwork-im-standalone-gateway',
+  (entry) => entry.label === 'sdkwork-api-im-standalone-gateway',
 );
 assert.deepEqual(browserStandaloneGatewayProcess, {
-  args: [
-    path.join(repoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs'),
-    '--config',
-    browserStandaloneGatewayProcess.env.SDKWORK_IM_STANDALONE_GATEWAY_CONFIG,
-  ],
+  args: [path.join(repoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs')],
   command: process.execPath,
   cwd: repoRoot,
   env: browserStandaloneGatewayProcess.env,
-  label: 'sdkwork-im-standalone-gateway',
+  label: 'sdkwork-api-im-standalone-gateway',
   shell: false,
 });
 assert.equal(
@@ -744,48 +727,17 @@ const cloudAssemblyPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
   env: {
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
+    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'https://api-dev.sdkwork.com',
+    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'wss://api-dev.sdkwork.com',
+    SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api-dev.sdkwork.com',
     SDKWORK_DRIVE_APP_API_UPSTREAM: 'http://127.0.0.1:28080/',
   },
   repoRoot,
 });
 assert.deepEqual(
   cloudAssemblyPlan.processes.map((entry) => entry.label),
-  ['sdkwork-im-server', 'sdkwork-im-pc-browser', 'sdkwork-api-cloud-gateway'],
-  'cloud dev must start the application server, renderer, and embedded platform assembly gateway',
-);
-const cloudAssemblyGateway = cloudAssemblyPlan.processes.find(
-  (entry) => entry.label === 'sdkwork-api-cloud-gateway',
-);
-assert.ok(cloudAssemblyGateway, 'cloud dev must include the managed platform assembly gateway');
-assert.deepEqual(
-  cloudAssemblyGateway.args.slice(0, 9),
-  [
-    'run',
-    '-p',
-    'sdkwork-api-cloud-gateway',
-    '--bin',
-    'sdkwork-api-cloud-gateway',
-    '--features',
-    'foundation-appbase,foundation-im,foundation-drive,foundation-mail,foundation-notary',
-    '--',
-    '--config',
-  ],
-  'managed gateway must compile every assembly declared by the IM development config',
-);
-for (const databaseEnvKey of [
-  'SDKWORK_DRIVE_DATABASE_URL',
-  'SDKWORK_MAIL_DATABASE_URL',
-  'SDKWORK_NOTARY_DATABASE_URL',
-]) {
-  assert.ok(
-    cloudAssemblyGateway.env[databaseEnvKey],
-    `managed gateway must receive ${databaseEnvKey} for embedded dependency bootstrap`,
-  );
-}
-assert.equal(
-  cloudAssemblyGateway.env.SDKWORK_DRIVE_APP_API_UPSTREAM,
-  undefined,
-  'retired dependency upstream overrides must not enter the embedded gateway process',
+  ['sdkwork-im-pc-browser'],
+  'cloud dev must start only the client and consume the configured remote API surfaces',
 );
 assert.equal(
   createSdkworkChatBrowserOrigins({ port: 4188 }),
@@ -1059,7 +1011,7 @@ const desktopPlan = createSdkworkChatPcDevPlan({
 assert.equal(desktopPlan.target, 'desktop');
 assert.deepEqual(
   desktopPlan.processes.map((entry) => entry.label),
-  ['sdkwork-im-standalone-gateway', 'sdkwork-im-pc-desktop'],
+  ['sdkwork-api-im-standalone-gateway', 'sdkwork-im-pc-desktop'],
   'standalone single-ingress desktop dev must start the embedded standalone gateway and Tauri desktop process',
 );
 assert.deepEqual(desktopPlan.processes[1], {
@@ -1138,6 +1090,7 @@ await runSdkworkChatPcDev({
   }),
   repoRoot,
   networkInterfaces: () => ({}),
+  ensureDatabaseReady: async () => {},
   spawnImpl(command, args, options) {
     spawned.push({ command, args, options });
     return createFakeChild();
@@ -1208,11 +1161,7 @@ assert.equal(
 );
 assert.deepEqual(
   spawned[0].args,
-  [
-    path.join(repoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs'),
-    '--config',
-    spawned[0].options.env.SDKWORK_IM_STANDALONE_GATEWAY_CONFIG,
-  ],
+  [path.join(repoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs')],
   'dev runner must spawn the embedded standalone gateway for standalone single-ingress profiles',
 );
 assert.equal(
@@ -1233,6 +1182,7 @@ await runSdkworkChatPcDev({
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
   },
   findAvailableDevPort: async () => 4188,
+  ensureDatabaseReady: async () => {},
   resolveServerBindEnv: async ({ env }) => ({
     bindAddr: '0.0.0.0:18079',
     env: {

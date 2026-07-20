@@ -100,7 +100,7 @@
 
 ### 5.3 接入层
 
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - 新增 `/im/v3/api/chat/conversations/{conversation_id}/members/leave`
   - 新增 `leave_conversation(...)`
   - 新增审计动作 `conversation.member_left`
@@ -113,7 +113,7 @@
   - `test_direct_conversation_rejects_leave_for_now`
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - `test_group_member_can_leave_roster_over_http`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_group_member_can_leave_and_then_loses_conversation_access`
 
 ## 7. 验证结果
@@ -122,11 +122,11 @@
 
 - `cargo test -p conversation-runtime --test conversation_flow_test --offline`
 - `cargo test -p conversation-runtime --test http_smoke_test --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --test access_control_e2e_test --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --test access_control_e2e_test --offline`
 - `cargo fmt --all`
 - `cargo test -p conversation-runtime --offline`
 - `cargo test -p projection-service --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 - `cargo test --workspace --offline`
 
 ## 8. 当前剩余风险

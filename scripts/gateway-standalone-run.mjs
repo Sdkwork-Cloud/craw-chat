@@ -4,7 +4,6 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
 
 import {
   IAM_APPLICATION_BOOTSTRAP_ENV,
@@ -13,7 +12,6 @@ import {
   mergeRuntimeEnv,
   REPO_ROOT,
   resolveDevProfileId,
-  resolveStandaloneGatewayConfigPath,
 } from './lib/im-topology.mjs';
 import { resolveImProductSiteDirEnv } from './lib/im-product-site-dirs.mjs';
 import { resolveRealtimeClusterDevEnv } from './lib/im-realtime-cluster-dev.mjs';
@@ -32,7 +30,6 @@ function normalizeText(value) {
 function parseArgs(argv) {
   const settings = {
     environment: DEFAULT_ENVIRONMENT,
-    config: undefined,
     devEnvFile: '.env.postgres',
     release: false,
     dryRun: false,
@@ -58,11 +55,6 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
-    if (arg === '--config') {
-      settings.config = argv[index + 1];
-      index += 1;
-      continue;
-    }
     if (arg === '--dev-env-file') {
       settings.devEnvFile = argv[index + 1];
       index += 1;
@@ -72,37 +64,22 @@ function parseArgs(argv) {
   return settings;
 }
 
-function resolveConfigPath(settings) {
-  if (settings.config) {
-    return path.isAbsolute(settings.config)
-      ? settings.config
-      : path.resolve(repoRoot, settings.config);
-  }
-  return resolveStandaloneGatewayConfigPath(
-    { SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT: settings.environment },
-    repoRoot,
-  );
-}
-
 function printHelp() {
   console.log(`Usage: node scripts/gateway-standalone-run.mjs [options]
 
-Sdkwork IM standalone gateway embeds appbase IAM and IM application ingress on one bind.
-Use this for standalone deployment profiles. Cloud profiles use sdkwork-im-cloud-gateway and sdkwork-api-cloud-gateway.
+The canonical IM standalone gateway embeds IAM and application APIs on one bind.
+Cloud profiles start clients only and consume the configured remote platform API gateway.
 
 Options:
   --environment <development|test|staging|production>
                                           Config profile (default: development)
-  --config <path>                         Explicit TOML config path
   --dev-env-file <path>                   Env file for IAM/database (default: .env.postgres)
   --release                               Build/run release profile
   --dry-run                               Print command without executing
   --help, -h                              Show this help
 
 Environment overrides:
-  SDKWORK_IM_STANDALONE_GATEWAY_CONFIG
   SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT
-  SDKWORK_IM_STANDALONE_GATEWAY_BIND
   SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND
 `);
 }
@@ -131,22 +108,14 @@ async function main() {
     process.exit(0);
   }
 
-  const configPath = resolveConfigPath(settings);
-  if (!fs.existsSync(configPath)) {
-    console.error(`[sdkwork-im] standalone gateway config not found: ${configPath}`);
-    process.exit(1);
-  }
-
   const fileEnv = loadEnvFile(resolveDevEnvFilePath(settings.devEnvFile), repoRoot);
   const profileId = resolveDevProfileId('standalone', settings.environment);
   const profileEnv = loadProfile(profileId);
-  const iamDevEnv = profileEnv;
   const baseEnv = mergeRuntimeEnv(process.env, profileEnv, fileEnv, {
     SDKWORK_IM_PROFILE_ID: profileId,
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
     ...resolveSdkworkImSharedDatabaseConfig({ env: { ...process.env, ...profileEnv, ...fileEnv }, repoRoot }).env,
     ...IAM_APPLICATION_BOOTSTRAP_ENV,
-    SDKWORK_IM_STANDALONE_GATEWAY_CONFIG: configPath,
     SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT: settings.environment,
   });
   const realtimeClusterEnv = resolveRealtimeClusterDevEnv(
@@ -154,7 +123,7 @@ async function main() {
     {
       onInject: ({ key }) => {
         console.log(
-          `[sdkwork-im-standalone-gateway] using development default for ${key} (set explicitly in .env.postgres for production-like clusters)`,
+          `[sdkwork-api-im-standalone-gateway] using development default for ${key} (set explicitly in .env.postgres for production-like clusters)`,
         );
       },
     },
@@ -167,7 +136,7 @@ async function main() {
       env: baseEnv,
       onFallback: ({ fallbackDir, label, sourceDir }) => {
         console.log(
-          `[sdkwork-im-standalone-gateway] ${label} source not found at ${path.relative(repoRoot, sourceDir)}; using ${path.relative(repoRoot, fallbackDir)}`,
+          `[sdkwork-api-im-standalone-gateway] ${label} source not found at ${path.relative(repoRoot, sourceDir)}; using ${path.relative(repoRoot, fallbackDir)}`,
         );
       },
       repoRoot,
@@ -178,22 +147,18 @@ async function main() {
   const bindEnv = await resolveSdkworkImServerBindEnv({ env: gatewayEnv });
   if (bindEnv.portChanged) {
     console.log(
-      `[sdkwork-im-standalone-gateway] 127.0.0.1:18079 is busy; using http://${bindEnv.bindAddr}`,
+      `[sdkwork-api-im-standalone-gateway] 127.0.0.1:18079 is busy; using http://${bindEnv.bindAddr}`,
     );
   }
   const gatewayEnvWithBind = bindEnv.env;
 
-  const launcherArgs = [
-    path.join(repoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs'),
-    '--config',
-    configPath,
-  ];
+  const launcherArgs = [path.join(repoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs')];
   if (settings.release) {
     launcherArgs.push('--release');
   }
 
   if (settings.dryRun) {
-    console.log(`[sdkwork-im-standalone-gateway] ${process.execPath} ${launcherArgs.join(' ')}`);
+    console.log(`[sdkwork-api-im-standalone-gateway] ${process.execPath} ${launcherArgs.join(' ')}`);
     process.exit(0);
   }
 

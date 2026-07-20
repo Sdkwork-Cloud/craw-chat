@@ -15,7 +15,7 @@
 - `CP05-4` 的前两个真实增量已经分别处理了：
   - notification public request access owner
   - projection realtime principal -> client route fanout target owner
-- 当前仓库里，`services/sdkwork-im-cloud-gateway/src/node/effects.rs` 仍自己做 message notification side-effect fanout：
+- 当前仓库里，`crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs` 仍自己做 message notification side-effect fanout：
   - 自己过滤 sender
   - 自己循环 recipient
   - 自己拼 `ntf_{message_id}_{recipient_id}` notification id
@@ -31,13 +31,13 @@
     - 跳过当前 actor 自己
     - 按 recipient fanout notification request
     - 统一生成 `ntf_{notification_id_seed}_{recipient_id}` 规则
-- `services/sdkwork-im-cloud-gateway/src/node/effects.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs`
   - `fanout_message_notifications(...)` 改为直接调用 `notification_runtime.request_notification_fanout(...)`
   - 删除本地 per-recipient loop 与 notification id 拼装
 - 测试新增/更新
   - `services/notification-service/tests/lib_structure_test.rs`
   - `services/notification-service/tests/notification_pipeline_test.rs`
-  - `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ## 4. 测试与验证证据
 
@@ -45,17 +45,17 @@
 
 - `cargo test -p notification-service --test lib_structure_test test_notification_runtime_exposes_notification_fanout_owner_seam --offline`
 - `cargo test -p notification-service --test notification_pipeline_test test_request_notification_fanout_skips_actor_and_creates_notifications_for_other_recipients --offline`
-- `$env:CARGO_TARGET_DIR='target-cp054c-red-local'; cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test test_local_minimal_node_effects_use_notification_service_fanout_owner_seam --offline`
+- `$env:CARGO_TARGET_DIR='target-cp054c-red-local'; cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test test_local_minimal_node_effects_use_notification_service_fanout_owner_seam --offline`
 
 ### 4.2 Green / 结构与行为验证
 
 - `cargo test -p notification-service --test lib_structure_test test_notification_runtime_exposes_notification_fanout_owner_seam --offline`
 - `cargo test -p notification-service --test notification_pipeline_test test_request_notification_fanout_skips_actor_and_creates_notifications_for_other_recipients --offline`
-- `$env:CARGO_TARGET_DIR='target-cp054c-green-local'; cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test test_local_minimal_node_effects_use_notification_service_fanout_owner_seam --offline`
+- `$env:CARGO_TARGET_DIR='target-cp054c-green-local'; cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test test_local_minimal_node_effects_use_notification_service_fanout_owner_seam --offline`
 
 ### 4.3 Green / 回归验证
 
-- `$env:CARGO_TARGET_DIR='target-cp054c-green-local'; cargo test -p sdkwork-im-cloud-gateway --test http_e2e_test test_local_minimal_profile_fanouts_message_notifications_to_other_active_members_only --offline`
+- `$env:CARGO_TARGET_DIR='target-cp054c-green-local'; cargo test -p sdkwork-api-im-standalone-gateway --test http_e2e_test test_local_minimal_profile_fanouts_message_notifications_to_other_active_members_only --offline`
 - `cargo test -p notification-service --test notification_pipeline_test test_duplicate_request_notification_is_idempotent_when_payload_matches --offline`
 - `cargo fmt --all`
 - `cargo fmt --all --check`

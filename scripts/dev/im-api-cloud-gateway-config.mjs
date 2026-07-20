@@ -24,11 +24,11 @@ export function resolveImApiCloudGatewayConfigPath(env = process.env, resolvedRe
   const configPath = path.join(
     resolvedRepoRoot,
     'etc',
-    `sdkwork-api-cloud-gateway.sdkwork-im.${environment}.toml`,
+    `platform.api-gateway.sdkwork-im.${environment}.toml`,
   );
   if (fs.existsSync(configPath)) {
     return configPath;
   }
 
-  return path.join(resolvedRepoRoot, 'etc', 'sdkwork-api-cloud-gateway.sdkwork-im.development.toml');
+  return path.join(resolvedRepoRoot, 'etc', 'platform.api-gateway.sdkwork-im.development.toml');
 }

@@ -42,7 +42,7 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/restart-server.ps1 [-InstanceName <name>] [-InstallRoot <path>] [-ConfigDir <path>] [-LogDir <path>] [-RunDir <path>] [-BinaryPath <path>] [-Release] [-Foreground] [-HealthUrl <url>] [-SkipHealthCheck]"
-    Write-Host "Restart sdkwork-im-server using the stop/start runtime service scripts and preserve instance/config/status semantics."
+    Write-Host "Restart sdkwork-api-im-standalone-gateway using the stop/start runtime service scripts and preserve instance/config/status semantics."
     exit 0
 }
 

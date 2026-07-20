@@ -9,7 +9,7 @@
 
 ## 最小实施面
 
-1. 先把 `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs` 收紧到：
+1. 先把 `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs` 收紧到：
    - `scenarioFamilies` 必须包含 `failover`
    - `failover` 必须冻结指标与本地执行资产
 2. 运行红灯，确认缺口真实存在

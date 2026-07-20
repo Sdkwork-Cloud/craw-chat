@@ -37,9 +37,9 @@
   - `EditMessageCommand::from_auth_context(...)`
   - `RecallMessageCommand::from_auth_context(...)`
 - 在 `services/conversation-runtime/src/runtime/http.rs` 删除手工 `Sender { ... }` 组装，统一改用上述构造器。
-- 在 `services/sdkwork-im-cloud-gateway/src/node/effects.rs` 删除本地 message / system-channel 发送路径的手工 sender 组装，统一改用上述构造器。
-- 在 `services/sdkwork-im-cloud-gateway/src/node/message.rs` 删除 edit / recall 路径的手工 sender 组装，统一改用上述构造器。
-- 在 `services/sdkwork-im-cloud-gateway/src/node.rs` 删除本地辅助函数:
+- 在 `crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs` 删除本地 message / system-channel 发送路径的手工 sender 组装，统一改用上述构造器。
+- 在 `crates/sdkwork-api-im-standalone-gateway/src/node/message.rs` 删除 edit / recall 路径的手工 sender 组装，统一改用上述构造器。
+- 在 `crates/sdkwork-api-im-standalone-gateway/src/node.rs` 删除本地辅助函数:
   - `build_sender(...)`
 
 ### 3.2 测试补齐
@@ -49,7 +49,7 @@
   - 新增 `test_http_message_surface_uses_auth_context_command_constructors`
 - `services/conversation-runtime/tests/authority_command_test.rs`
   - 新增 `test_message_mutation_commands_from_auth_context_preserve_authority_snapshot`
-- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
   - 新增 `test_local_minimal_node_message_paths_use_auth_context_command_constructors`
 
 ## 4. 涉及文件
@@ -58,15 +58,15 @@
 
 - `services/conversation-runtime/src/runtime.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/sdkwork-im-cloud-gateway/src/node.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/effects.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/message.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/message.rs`
 
 ### 4.2 测试
 
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
 - `services/conversation-runtime/tests/authority_command_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ## 5. 验证证据
 
@@ -74,18 +74,18 @@
 
 - Red
   - `cargo test -p conversation-runtime --test conversation_domain_structure_test test_message_mutation_commands_offer_auth_context_constructors --offline`
-  - `cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test test_local_minimal_node_message_paths_use_auth_context_command_constructors --offline`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test test_local_minimal_node_message_paths_use_auth_context_command_constructors --offline`
 - Green
   - `cargo test -p conversation-runtime --test conversation_domain_structure_test test_message_mutation_commands_offer_auth_context_constructors --offline`
   - `cargo test -p conversation-runtime --test authority_command_test --offline`
-  - `cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test test_local_minimal_node_message_paths_use_auth_context_command_constructors --offline`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test test_local_minimal_node_message_paths_use_auth_context_command_constructors --offline`
 
 ### 5.2 完整回归证据
 
-- `rustfmt --edition 2024 services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/conversation-runtime/tests/authority_command_test.rs services/sdkwork-im-cloud-gateway/src/node.rs services/sdkwork-im-cloud-gateway/src/node/effects.rs services/sdkwork-im-cloud-gateway/src/node/message.rs services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
-- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/conversation-runtime/tests/authority_command_test.rs services/sdkwork-im-cloud-gateway/src/node.rs services/sdkwork-im-cloud-gateway/src/node/effects.rs services/sdkwork-im-cloud-gateway/src/node/message.rs services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `rustfmt --edition 2024 services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/conversation-runtime/tests/authority_command_test.rs crates/sdkwork-api-im-standalone-gateway/src/node.rs crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs crates/sdkwork-api-im-standalone-gateway/src/node/message.rs crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
+- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/conversation-runtime/tests/authority_command_test.rs crates/sdkwork-api-im-standalone-gateway/src/node.rs crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs crates/sdkwork-api-im-standalone-gateway/src/node/message.rs crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 - `cargo test -p conversation-runtime --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ### 5.3 验证结论

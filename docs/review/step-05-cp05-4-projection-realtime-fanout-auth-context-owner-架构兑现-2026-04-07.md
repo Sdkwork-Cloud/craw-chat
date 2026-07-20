@@ -19,7 +19,7 @@
 - `sdkwork-im-server/effects.rs` 现在通过这条 seam 统一完成 realtime publish helper 的 auth-context capture。
 - owner / consumer 边界变为：
   - owner：`services/projection-service/src/access.rs`
-  - consumer：`services/sdkwork-im-cloud-gateway/src/node/effects.rs`
+  - consumer：`crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs`
 
 ## 3. 当前决议
 

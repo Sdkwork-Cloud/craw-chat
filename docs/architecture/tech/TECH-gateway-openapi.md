@@ -50,7 +50,7 @@
 - The aggregate contract also publishes gateway-owned discovery operations such as the schema index, runtime summary, and service-schema proxy routes, so `/docs` shows both proxied API surface and gateway discovery surface together.
 - The aggregate contract now defines formal OpenAPI response schemas for the gateway discovery surface. Tooling can bind directly against `GatewayOpenapiIndex`, `GatewayRuntimeSummary`, `GatewayRouteSummary`, `GatewaySurfaceGroupSummary`, and related enum schemas under `components.schemas`.
 - In strict startup mode, upstream schema fetch failures are treated as blocking errors for aggregate schema generation.
-- The unified `sdkwork-im-cloud-gateway` now proxies registry-owned public websocket upgrade routes on the same external port as the HTTP surface. The current IM open-platform example is `GET /im/v3/api/realtime/ws`, but the gateway behavior is no longer hardcoded to that single path.
+- The unified `sdkwork-api-im-standalone-gateway` now proxies registry-owned public websocket upgrade routes on the same external port as the HTTP surface. The current IM open-platform example is `GET /im/v3/api/realtime/ws`, but the gateway behavior is no longer hardcoded to that single path.
 - The service index now exposes four complementary collections:
   `sdkContracts` for the three public SDKWork OpenAPI contract groups,
   `services` for per-upstream operational service schema and docs inventory,
@@ -68,7 +68,7 @@
 - `protocols` makes websocket visibility explicit without forcing tooling to infer transport semantics from path naming conventions.
 - `websocketSubprotocols` lists the declared websocket subprotocols owned by a service on the unified gateway contract. It is omitted for HTTP-only services.
 - `session-gateway` now publishes separate `sessions`, `presence`, and `realtime` operation groups in the index so generated SDKs and operator-facing docs can preserve the same conceptual boundaries as the live service contract.
-- The index intentionally does not expose direct upstream health URLs because the unified deployment contract is the single `sdkwork-im-cloud-gateway` port, not the split internal bind set.
+- The index intentionally does not expose direct upstream health URLs because the unified deployment contract is the single `sdkwork-api-im-standalone-gateway` port, not the split internal bind set.
 - Startup output on the `sdkwork-im-server` process prints the aggregate schema URL, the schema index URL, the runtime summary URL, a separate `SDK Contracts` section for `im-api`, `app-api`, and `backend-api`, an `Upstream Operational Service Contracts` section for service-level schema/docs URLs, the currently public gateway endpoint patterns derived from the route registry, and a `service + operationGroup` surface summary aligned with the runtime-summary/index metadata.
 
 ## Related Pages

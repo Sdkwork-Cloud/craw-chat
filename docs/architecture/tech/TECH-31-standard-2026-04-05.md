@@ -58,7 +58,7 @@
 - `services/control-plane-api/src/lib.rs`
 - `services/control-plane-api/tests/public_auth_test.rs`
 - `services/control-plane-api/tests/drain_routes_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/cluster_drain_rebalance_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/cluster_drain_rebalance_e2e_test.rs`
 
 ## 5. 设计原则
 

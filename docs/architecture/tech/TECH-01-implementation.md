@@ -297,7 +297,7 @@ impl IdGenerator for SnowflakeIdGeneratorAdapter { /* delegate */ }
 
 ### 3.5 Outbox Relay Worker
 
-新增 `services/sdkwork-im-cloud-gateway/src/node/outbox_relay.rs`（阶段 0 与主进程同生命周期，阶段 1 拆为独立 deployment）：
+新增 `crates/sdkwork-api-im-standalone-gateway/src/node/outbox_relay.rs`（阶段 0 与主进程同生命周期，阶段 1 拆为独立 deployment）：
 
 - 启动一个 tokio 后台 task，周期（默认 50ms）调用 `OutboxStore.drain_pending`。
 - 投递到现有实时投递 runtime（`RealtimeDeliveryRuntime`）与通知 runtime（`NotificationRuntime`）。
@@ -331,8 +331,8 @@ impl IdGenerator for SnowflakeIdGeneratorAdapter { /* delegate */ }
 | 2 | `cargo test -p im-adapters-postgres-journal --tests` | 真实 PG（`SDKWORK_IM_POSTGRES_TEST_DATABASE_URL`）集成测试 |
 | 3 | `cargo test -p im-domain-core --tests` | ID 单调唯一性测试 |
 | 4 | `cargo test -p im-app-context --tests` | organization 解析回归 |
-| 5 | `cargo test -p sdkwork-im-cloud-gateway --tests` | 双实例并发发消息，seq 单调且无空洞 |
-| 6 | `cargo test -p sdkwork-im-cloud-gateway --tests` | outbox 投递幂等、重试、失败标记 |
+| 5 | `cargo test -p sdkwork-api-im-standalone-gateway --tests` | 双实例并发发消息，seq 单调且无空洞 |
+| 6 | `cargo test -p sdkwork-api-im-standalone-gateway --tests` | outbox 投递幂等、重试、失败标记 |
 
 汇总门禁（全绿方可标记阶段 0 完成）：
 

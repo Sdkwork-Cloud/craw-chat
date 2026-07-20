@@ -1,10 +1,10 @@
 # Step 09 / CP09-4 runtime backup archive retention lifecycle 质量审计与复盘 - 2026-04-08
 
 ## 审计范围
-- `services/sdkwork-im-cloud-gateway/src/node/runtime_dir.rs`
-- `services/sdkwork-im-cloud-gateway/src/node.rs`
-- `services/sdkwork-im-cloud-gateway/src/main.rs`
-- `services/sdkwork-im-cloud-gateway/tests/runtime_dir_backup_catalog_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/runtime_dir.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/main.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/runtime_dir_backup_catalog_test.rs`
 - `bin/archive-runtime-backup-local.ps1`
 - `bin/archive-runtime-backup-local.sh`
 - `bin/prune-runtime-archives-local.ps1`
@@ -32,8 +32,8 @@
 
 ## 验证证据
 - `cargo fmt --all --check`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test runtime_dir_backup_catalog_test`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test runtime_dir_backup_catalog_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/archive-runtime-backup-local.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/prune-runtime-archives-local.ps1 -Help`
 

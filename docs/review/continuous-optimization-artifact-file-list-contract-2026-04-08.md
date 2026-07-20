@@ -39,7 +39,7 @@
 
 ### 2.4 contract gate 已冻结
 
-- 更新：`services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+- 更新：`crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
 - 新增：
   - `test_local_default_release_bundle_freezes_artifact_file_list_contract`
 - 当前门禁已锁定：
@@ -60,6 +60,6 @@
 
 ## 4. fresh evidence
 
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_local_default_release_bundle_freezes_artifact_file_list_contract -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_local_default_release_bundle_freezes_artifact_file_list_contract -- --nocapture`
 - `cargo fmt --all --check`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test -- --nocapture`

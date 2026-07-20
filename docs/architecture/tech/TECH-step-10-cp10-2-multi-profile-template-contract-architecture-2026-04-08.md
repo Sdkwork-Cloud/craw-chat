@@ -45,7 +45,7 @@
 
 ## 证据
 - 代码：
-  - `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
   - `pnpm dev`
   - `pnpm dev`
   - `bin/_cmd-forward-powershell.cmd`
@@ -60,7 +60,7 @@
   - `deployments/templates/standalone.split-services.development.env.example`
 - 验证：
   - `cargo fmt --all --check`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
   - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 

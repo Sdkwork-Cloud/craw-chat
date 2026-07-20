@@ -576,7 +576,7 @@ for (const requiredText of [
   'automation-service',
   'control-plane-api',
   'ops-service',
-  'sdkwork-im-cloud-gateway calls runtime',
+  'sdkwork-api-im-standalone-gateway calls runtime',
   'Flexible Distributed Deployment',
   'single-process local mode',
   'cloud service mode',

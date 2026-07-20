@@ -11,7 +11,7 @@ function readText(...segments) {
 
 const productRuntimeText = readText('crates', 'sdkwork-api-product-runtime', 'src', 'lib.rs');
 const gatewayAssemblyText = readText('crates', 'sdkwork-api-im-assembly', 'src', 'bootstrap.rs');
-const cloudGatewayRuntimeText = readText('services', 'sdkwork-im-cloud-gateway', 'src', 'runtime.rs');
+const cloudGatewayRuntimeText = readText('services', 'sdkwork-api-im-standalone-gateway', 'src', 'runtime.rs');
 const portalSnapshotsText = readText('crates', 'im-portal-snapshots', 'src', 'snapshots.rs');
 const portalHandlersText = readText('services', 'portal-service', 'src', 'handlers.rs');
 const securityServiceText = readText(
@@ -41,10 +41,8 @@ const infraStatusServiceText = readText(
   'services',
   'InfraStatusService.ts',
 );
-const devGatewayConfigText = readText(
-  'etc',
-  'sdkwork-api-cloud-gateway.sdkwork-im.development.toml',
-);
+const deploymentIndex = JSON.parse(readText('etc', 'sdkwork.deployment.config.json'));
+const cloudDevelopmentProfileText = readText('etc', 'topology', 'cloud.development.env');
 
 assert.doesNotMatch(
   productRuntimeText,
@@ -113,10 +111,24 @@ assert.match(
   /realtimeWindowHealth/u,
   'admin infra status must expose realtime window health instead of redisHitRate',
 );
+assert.equal(
+  deploymentIndex.profiles?.['cloud.development']?.config,
+  'topology/cloud.development.env',
+  'cloud development must resolve from the source etc deployment index',
+);
 assert.match(
-  devGatewayConfigText,
-  /\/app\/v3\/api\/portal/u,
-  'cloud gateway development config must register portal dependency surface',
+  cloudDevelopmentProfileText,
+  /^SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https:\/\/api-dev\.sdkwork\.com$/mu,
+  'cloud development must consume the deployed platform gateway without a loopback fallback',
+);
+const activeCloudDevelopmentProfileText = cloudDevelopmentProfileText
+  .split(/\r?\n/u)
+  .filter((line) => !line.trimStart().startsWith('#'))
+  .join('\n');
+assert.doesNotMatch(
+  activeCloudDevelopmentProfileText,
+  /(?:localhost|127\.0\.0\.1)/u,
+  'cloud development source config must remain client-only and remote-bound',
 );
 assert.match(
   productRuntimeText,

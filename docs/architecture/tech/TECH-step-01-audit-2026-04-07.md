@@ -29,8 +29,8 @@
 
 | 文件 | 当前风险 | 关联 step | 后续动作 |
 | --- | --- | --- | --- |
-| `services/sdkwork-im-cloud-gateway/src/lib.rs` | 入口文件风险已收口，但真实实现已迁移到 `src/node.rs` | `01` `02` | Step 02 已完成 facade 收口，后续继续治理 `src/node.rs` |
-| `services/sdkwork-im-cloud-gateway/src/node.rs` | 装配、运行时、HTTP 接口与脚本相关能力仍集中在单文件 | `02` `10` | 继续在 Step 02/10 拆分实现文件 |
+| `crates/sdkwork-api-im-standalone-gateway/src/lib.rs` | 入口文件风险已收口，但真实实现已迁移到 `src/node.rs` | `01` `02` | Step 02 已完成 facade 收口，后续继续治理 `src/node.rs` |
+| `crates/sdkwork-api-im-standalone-gateway/src/node.rs` | 装配、运行时、HTTP 接口与脚本相关能力仍集中在单文件 | `02` `10` | 继续在 Step 02/10 拆分实现文件 |
 | `services/conversation-runtime/src/lib.rs` | 入口文件风险已收口，但真实实现已迁移到 `src/runtime.rs` | `01` `02` `05` | Step 02 已完成 facade 收口，后续继续治理 `src/runtime.rs` |
 | `services/conversation-runtime/src/runtime.rs` | 消息主链路、恢复逻辑与策略辅助逻辑仍集中在单文件 | `02` `05` | 继续在 Step 02/05 拆分实现文件 |
 | `services/session-gateway/src/lib.rs` | 连接热路径与 presence/runtime 曾混写 | `01` `02` `03` `04` | 已完成首轮拆分，后续继续抽连接热路径 |

@@ -4,7 +4,7 @@
 # Step 11 / CP11-3 高可用与恢复演练基线 质量审计与复盘 - 2026-04-08
 
 ## 审计范围
-- `services/sdkwork-im-cloud-gateway/tests/performance_ha_dr_drill_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/performance_ha_dr_drill_test.rs`
 - `tools/perf/step-11-cp11-3-local-drill-baseline.json`
 - `tools/perf/step-11-scenario-catalog.json`
 - `docs/部署/性能与灾备演练场景.md`
@@ -25,7 +25,7 @@
 - `upgrade-rollback` 尚未形成 Step 11 演练证据，因此整步仍不能提前判定闭环。
 
 ## 验证证据
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_ha_dr_drill_test -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_ha_dr_drill_test -- --nocapture`
 - `cargo fmt --all --check`
 
 ## 复盘结论

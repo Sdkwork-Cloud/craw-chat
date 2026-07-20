@@ -45,7 +45,7 @@
   `sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml`.
 - Read and write permissions are split between `control.read` and `control.write`.
 - Standalone governance development can call `control-plane-api` directly, but packaged installs
-  expose the same governance routes through the unified `sdkwork-im-server` / `sdkwork-im-cloud-gateway` public
+  expose the same governance routes through the unified `sdkwork-im-server` / `sdkwork-api-im-standalone-gateway` public
   origin.
 
 ## How To Use This Page

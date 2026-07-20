@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/verify-server.sh [--instance <name>] [--config-dir <path>] [--release-gate-path <path-to-release-gate.json>] [--output-format <text|json>]
 
-Validate config, storage wiring, and ready state for sdkwork-im-server, and optionally audit the machine-readable release-gate bundle for semantic contract drift, decisionStatus, contractsValid, platforms, and semanticIssues.
+Validate config, storage wiring, and ready state for sdkwork-api-im-standalone-gateway, and optionally audit the machine-readable release-gate bundle for semantic contract drift, decisionStatus, contractsValid, platforms, and semanticIssues.
 EOF
 }
 
@@ -171,7 +171,7 @@ fi
 if [[ "$output_format" == "json" ]]; then
   cat <<EOF
 {
-  "product": "sdkwork-im-server",
+  "product": "sdkwork-api-im-standalone-gateway",
   "instance": "${instance_name}",
   "config": "${config_dir}",
   "configValid": ${config_valid},
@@ -183,7 +183,7 @@ if [[ "$output_format" == "json" ]]; then
 }
 EOF
 else
-  echo "sdkwork-im-server verify report"
+  echo "sdkwork-api-im-standalone-gateway verify report"
   echo "config: ${config_dir}"
   echo "configValid: ${config_valid}"
   echo "storageValid: ${storage_valid}"

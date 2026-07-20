@@ -14,7 +14,7 @@
 
 **Files:**
 - Create: `artifacts/perf/step-11/pre-release/stream/metrics.json`
-- Modify: `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`
+- Modify: `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`
 
 - [ ] Write the failing test for `test_continuous_optimization_materializes_pre_release_stream_metrics_collected_evidence`.
 - [ ] Run the exact test and confirm it fails because `stream/metrics.json` is missing.
@@ -65,9 +65,9 @@
 ### Task 5: Verification
 
 **Files:**
-- Verify: `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`
+- Verify: `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`
 
 - [ ] Run the exact stream test.
 - [ ] Run `cargo fmt --all --check`.
-- [ ] Run `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture`.
-- [ ] Run `cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture`.
+- [ ] Run `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture`.
+- [ ] Run `cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture`.

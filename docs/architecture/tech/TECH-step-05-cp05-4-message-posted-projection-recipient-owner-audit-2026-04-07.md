@@ -14,13 +14,13 @@
 - 结构证据
   - `test_notification_runtime_exposes_message_posted_notification_owner_seam`
   - `test_local_minimal_node_effects_do_not_thread_message_posted_recipient_ids`
-  - `cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test --offline --target-dir target-cp054k-reg-local-structure-full`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test --offline --target-dir target-cp054k-reg-local-structure-full`
 - 行为证据
   - `test_request_message_posted_notifications_resolves_current_active_recipients_from_projection_auth_context`
   - `test_local_minimal_profile_fanouts_message_notifications_to_other_active_members_only`
 - 回归证据
   - `cargo test -p notification-service --offline --target-dir target-cp054k-reg-notification-full`
-  - `rustfmt --edition 2024 --check services/notification-service/src/lib.rs services/notification-service/tests/lib_structure_test.rs services/notification-service/tests/notification_pipeline_test.rs services/sdkwork-im-cloud-gateway/src/node/build.rs services/sdkwork-im-cloud-gateway/src/node/effects.rs services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+  - `rustfmt --edition 2024 --check services/notification-service/src/lib.rs services/notification-service/tests/lib_structure_test.rs services/notification-service/tests/notification_pipeline_test.rs crates/sdkwork-api-im-standalone-gateway/src/node/build.rs crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ## 3. 剩余问题
 

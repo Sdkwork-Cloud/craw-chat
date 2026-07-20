@@ -38,10 +38,10 @@
 ## 验证证据
 
 - 新增回归测试：
-  - `services/sdkwork-im-cloud-gateway/tests/principal_profile_provider_runtime_selection_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/principal_profile_provider_runtime_selection_test.rs`
 - 通过：
-  - `cargo test -p sdkwork-im-cloud-gateway --test principal_profile_provider_runtime_selection_test -- --nocapture`
-  - `cargo test -p sdkwork-im-cloud-gateway principal_profile_provider -- --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --test principal_profile_provider_runtime_selection_test -- --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway principal_profile_provider -- --nocapture`
 
 ## 剩余问题清单
 

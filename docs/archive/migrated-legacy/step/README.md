@@ -201,7 +201,7 @@
 
 结合现状与架构基线，当前执行时必须额外遵守以下约束：
 
-- 不允许继续把新逻辑堆进 `services/sdkwork-im-cloud-gateway` 的 monolith 装配层（应拆到独立 `services/*` crate）
+- 不允许继续把新逻辑堆进 `crates/sdkwork-api-im-standalone-gateway` 的 monolith 装配层（应拆到独立 `services/*` crate）
 - 不允许继续把新逻辑堆进 `services/conversation-runtime/src/lib.rs`
 - 不允许继续把新逻辑堆进 `services/session-gateway/src/lib.rs`
 - 单文件超过 `1000` 行视为红线问题

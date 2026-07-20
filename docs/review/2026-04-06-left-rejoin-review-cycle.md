@@ -76,7 +76,7 @@
 - `services/conversation-runtime/tests/conversation_flow_test.rs`
   - `test_left_member_rejoin_creates_new_membership_episode`
   - `test_stale_member_id_cannot_remove_rejoined_active_member`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_left_member_rejoin_gets_new_member_identity_and_fresh_cursor`
 
 ## 6. 验证结果
@@ -86,8 +86,8 @@
 - `cargo fmt --all`
 - `cargo test -p conversation-runtime --test conversation_flow_test --offline`
 - `cargo test -p conversation-runtime --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --test access_control_e2e_test --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --test access_control_e2e_test --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 - `cargo test --workspace --offline`
 
 ## 7. 当前剩余风险

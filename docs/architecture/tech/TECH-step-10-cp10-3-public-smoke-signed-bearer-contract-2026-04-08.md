@@ -54,7 +54,7 @@
   - 根文档Docker 入口新增 signed bearer / dev secret 说明
 
 ### 4. 回归门禁已从“文件存在”提升到“脚本可执行卡
-- `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
   - 新增文件合同测试
     - `test_local_minimal_compose_injects_public_bearer_secret_for_public_smoke_contract`
     - `test_local_stack_smoke_scripts_require_signed_public_bearer_contract`
@@ -69,7 +69,7 @@
 ## TDD / Red-Green 证据
 
 ### Red
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
   - 初始失败 3 项：
     - compose 未注`sdkwork_im_PUBLIC_BEARER_HS256_SECRET`
     - smoke 脚本仍嵌`alg=none`
@@ -81,8 +81,8 @@
 
 ## Fresh 验证
 - `cargo fmt --all --check`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test public_auth_e2e_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test public_auth_e2e_test`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
 - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 - PowerShell parser 解析 `tools/smoke/local_stack_smoke.ps1`

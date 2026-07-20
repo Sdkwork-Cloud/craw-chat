@@ -31,6 +31,12 @@ struct ApiAssemblyBackground {
 }
 
 pub async fn assemble_api_router() -> Result<ApiAssembly, String> {
+    assemble_api_router_with_realtime_bootstrap(None).await
+}
+
+pub async fn assemble_api_router_with_realtime_bootstrap(
+    realtime_bootstrap: Option<&RealtimePlaneBootstrap>,
+) -> Result<ApiAssembly, String> {
     sdkwork_im_database_pool::try_bootstrap_im_process_database_pools_from_env().await?;
 
     let mut router = Router::new();
@@ -74,6 +80,15 @@ pub async fn assemble_api_router() -> Result<ApiAssembly, String> {
     router = router.merge(sdkwork_routes_im_ops_backend_api::gateway_mount());
     router = router.merge(sdkwork_routes_im_portal_app_api::gateway_mount());
     router = router.merge(sdkwork_routes_im_projection_open_api::build_supplemental_public_app());
+    router = router.merge(match realtime_bootstrap {
+        Some(bootstrap) => {
+            sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap_from_env(
+                bootstrap,
+            )
+            .await
+        }
+        None => sdkwork_routes_im_realtime_open_api::gateway_mount(),
+    });
     background._projection_journal_consumer =
         projection_service::spawn_projection_journal_consumer_from_env(
             projection_service::default_projection_runtime(),
@@ -134,8 +149,8 @@ fn build_social_runtime() -> Result<Arc<SocialRuntime>, String> {
     }
 }
 
-async fn resolve_embedded_social_postgres_pool(
-) -> Option<im_adapters_social_postgres::SocialPostgresPool> {
+async fn resolve_embedded_social_postgres_pool()
+-> Option<im_adapters_social_postgres::SocialPostgresPool> {
     if let Ok(pool) = sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool() {
         return Some(im_adapters_social_postgres::SocialPostgresPool::new(pool));
     }

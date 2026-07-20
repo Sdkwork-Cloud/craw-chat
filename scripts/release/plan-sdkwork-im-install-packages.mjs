@@ -13,7 +13,7 @@ const APP_CODE = 'chat';
 const PRODUCT_NAME = 'chat';
 const PACKAGE_NAME = 'sdkwork-chat';
 const RUNTIME_DISPLAY_NAME = 'Sdkwork IM';
-const SERVER_BINARY_BASENAME = 'sdkwork-im-server';
+const SERVER_BINARY_BASENAME = 'sdkwork-api-im-standalone-gateway';
 const LINUX_INSTALL_ROOT = '/opt/sdkwork/chat';
 const MACOS_INSTALL_ROOT = '/usr/lib/sdkwork/chat';
 const POSIX_INSTALL_ROOT = LINUX_INSTALL_ROOT;
@@ -446,7 +446,7 @@ function serviceIntegrationFor(platform) {
   }
   return {
     kind: 'systemd',
-    manifest: 'service/linux/sdkwork-im-server.service',
+    manifest: 'service/linux/sdkwork-api-im-standalone-gateway.service',
   };
 }
 

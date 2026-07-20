@@ -32,38 +32,60 @@ const localAppApiSource = read('scripts/dev/start-sdkwork-im-local-app-api.mjs')
 const sharedDatabaseSource = read('scripts/dev/sdkwork-im-shared-database.mjs');
 const releaseSources = readJson('config/shared-sdk-release-sources.json');
 const workspaceSource = read('pnpm-workspace.yaml');
+const deploymentIndex = readJson('etc/sdkwork.deployment.config.json');
+const topologySpec = readJson('specs/topology.spec.json');
+const standaloneGatewayMainSource = read('crates/sdkwork-api-im-standalone-gateway/src/main.rs');
+const applicationAssemblySource = read('crates/sdkwork-api-im-assembly/src/bootstrap.rs');
+const standaloneDependencySource = read(
+  'crates/sdkwork-api-im-standalone-gateway/src/embedded_dependency_routes.rs',
+);
 
 for (const environment of ['development', 'test', 'staging', 'production']) {
-  const gatewayConfigSource = read(
-    `etc/sdkwork-api-cloud-gateway.sdkwork-im.${environment}.toml`,
-  );
-  assert.doesNotMatch(
-    gatewayConfigSource,
-    /\[\[upstreams\]\]|runtimeMode\s*=\s*"split(?:-or-embedded)?"/u,
-    `${environment} platform gateway config must be embedded-only`,
-  );
-  for (const evidence of [
-    'serviceId = "sdkwork-im-im-http"',
-    'serviceId = "sdkwork-im-backend-http"',
-    'apiPrefix = "/app/v3/api/portal"',
-    'cargoFeature = "foundation-im"',
-    'cargoDependency = "sdkwork-api-im-assembly"',
-    'sdkwork_api_im_assembly::assemble_api_router',
-  ]) {
-    assert.ok(
-      gatewayConfigSource.includes(evidence),
-      `${environment} platform gateway config must publish executable IM assembly evidence: ${evidence}`,
+  for (const deploymentProfile of ['standalone', 'cloud']) {
+    const profileId = `${deploymentProfile}.${environment}`;
+    const relativeProfilePath = `etc/topology/${profileId}.env`;
+    const profileSource = read(relativeProfilePath);
+    assert.equal(
+      deploymentIndex.profiles?.[profileId]?.config,
+      `topology/${profileId}.env`,
+      `${profileId} must resolve through the source etc deployment index`,
+    );
+    assert.equal(
+      topologySpec.profileFiles?.[profileId],
+      relativeProfilePath,
+      `${profileId} must resolve through topology v5`,
+    );
+    assert.match(
+      profileSource,
+      new RegExp(`^SDKWORK_IM_DEPLOYMENT_PROFILE=${deploymentProfile}$`, 'mu'),
+      `${profileId} must declare its deployment profile in the tracked source config`,
     );
   }
 }
 
-const developmentGatewayConfigSource = read(
-  'etc/sdkwork-api-cloud-gateway.sdkwork-im.development.toml',
+for (const environment of ['development', 'test', 'staging', 'production']) {
+  assert.equal(
+    fs.existsSync(path.join(repoRoot, `etc/platform.api-gateway.sdkwork-im.${environment}.toml`)),
+    false,
+    `${environment} must not restore the retired per-environment API cloud gateway config`,
+  );
+}
+
+assert.match(
+  standaloneGatewayMainSource,
+  /sdkwork_api_im_assembly::assemble_api_router_with_realtime_bootstrap/u,
+  'standalone gateway must consume the canonical IM API assembly in process',
 );
-for (const feature of ['foundation-drive', 'foundation-mail', 'foundation-notary']) {
-  assert.ok(
-    developmentGatewayConfigSource.includes(`cargoFeature = "${feature}"`),
-    `development platform gateway must publish ${feature} through an embedded assembly`,
+assert.match(
+  applicationAssemblySource,
+  /sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap_from_env/u,
+  'IM API assembly must mount the realtime route crate through its live bootstrap',
+);
+for (const dependency of ['drive', 'mail', 'notary']) {
+  assert.match(
+    standaloneDependencySource,
+    new RegExp(`bootstrap_embedded_${dependency}_routes`, 'u'),
+    `standalone gateway must publish ${dependency} through an embedded assembly`,
   );
 }
 
@@ -244,7 +266,7 @@ assert.match(devCommandSource, /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL/u);
 assert.doesNotMatch(
   devCommandSource,
   /SDKWORK_IM_DRIVE_APP_API_UPSTREAM:\s*resolveDriveAppApiUpstream|SDKWORK_IM_NOTARY_APP_API_UPSTREAM:\s*resolveNotaryAppApiUpstream|SDKWORK_IM_CATALOG_APP_API_UPSTREAM:\s*resolveCatalogAppApiUpstream|SDKWORK_IM_MAIL_APP_API_UPSTREAM:\s*resolveMailAppApiUpstream|SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM:\s*resolveCommunityAppApiUpstream|SDKWORK_IM_COURSE_APP_API_UPSTREAM:\s*resolveCourseAppApiUpstream/u,
-  'local PC development must use one shared sdkwork-api-cloud-gateway root by default instead of materializing per-module foundation upstreams.',
+  'local PC development must use one shared platform.api-gateway root by default instead of materializing per-module foundation upstreams.',
 );
 assert.doesNotMatch(
   `${devCommandSource}\n${localAppApiSource}`,

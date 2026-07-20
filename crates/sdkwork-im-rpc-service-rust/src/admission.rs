@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn service_mtls_auth_accepts_service_authorization_scheme() {
         let metadata = RpcMetadata {
-            authorization: Some("Service sdkwork-im-cloud-gateway".into()),
+            authorization: Some("Service sdkwork-api-im-standalone-gateway".into()),
             idempotency_key: Some("idem-1".into()),
             ..RpcMetadata::default()
         };

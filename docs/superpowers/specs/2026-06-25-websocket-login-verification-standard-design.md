@@ -34,15 +34,15 @@ TypeScript SDK（`@sdkwork/im-sdk`）的浏览器运行时约定：
 
 ### 3.2 网关现有能力（可复用的正确形态）
 
-`sdkwork-im-cloud-gateway` 已实现：
+`sdkwork-api-im-standalone-gateway` 已实现：
 
 - 对 realtime websocket 在无 header 场景下：`Upgrade -> read auth.init -> IAM 校验 -> auth.ok -> 连接 upstream -> 代理帧`
 - 对 query 清洗、header 清洗、fatal 错误关闭等具备测试覆盖
 
 权威实现与测试：
 
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
-- `services/sdkwork-im-cloud-gateway/tests/websocket_proxy_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/websocket_proxy_test.rs`
 
 ## 4. Standard Terms
 
@@ -292,7 +292,7 @@ gateway 在连接级错误上必须保证：
 
 ### 13.1 Rust gateway tests
 
-基线已有：`services/sdkwork-im-cloud-gateway/tests/websocket_proxy_test.rs`
+基线已有：`crates/sdkwork-api-im-standalone-gateway/tests/websocket_proxy_test.rs`
 
 必须补齐（对所有 registry websocket routes）：
 
@@ -334,7 +334,7 @@ gateway 在连接级错误上必须保证：
   the merged router, while other `/im/v3/api/realtime/*` and `/im/v3/api/presence/*` HTTP routes continue to use oneshot
   dispatch.
 - **Regression tests**: `session-gateway/tests/websocket_http_framework_upgrade_test.rs` and
-  `sdkwork-im-standalone-gateway` embedded-plane websocket handshake test.
+  `sdkwork-api-im-standalone-gateway` embedded-plane websocket handshake test.
 
 ### 14.2 PC client shared connection (2026-06-25)
 
@@ -371,11 +371,11 @@ gateway 在连接级错误上必须保证：
 
 - **Crate**: `crates/sdkwork-im-websocket-auth-gate` — single owner for `auth.init` frame parsing,
   IAM dual-token header projection, `auth.ok` / error frames, query sanitization, and device binding.
-- **Consumers**: `sdkwork-im-cloud-gateway` (registry websocket proxy) and `session-gateway` (embedded
+- **Consumers**: `sdkwork-api-im-standalone-gateway` (registry websocket proxy) and `session-gateway` (embedded
   compat path when upgrade arrives without headers).
 - **Helpers in `im-app-context`**: `has_websocket_upgrade_auth_headers`,
   `websocket_query_device_id_from_path_and_query`, `coalesce_websocket_device_id`.
-- **Verification**: `cargo test -p sdkwork-im-websocket-auth-gate`, `cargo test -p sdkwork-im-cloud-gateway websocket`,
+- **Verification**: `cargo test -p sdkwork-im-websocket-auth-gate`, `cargo test -p sdkwork-api-im-standalone-gateway websocket`,
   `cargo test -p session-gateway --test websocket_auth_init_test`, `pnpm test:sdkwork-im-sdk-websocket-contract`.
 
 ### 14.6 CCP handshake subscription guard (2026-06-25)
@@ -428,7 +428,7 @@ Auth-init gate logic lives in `crates/sdkwork-im-websocket-auth-gate/`:
 
 Consumers:
 
-- `services/sdkwork-im-cloud-gateway/src/lib.rs` — registry websocket proxy
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs` — registry websocket proxy
 - `services/session-gateway/src/websocket_auth_init.rs` — embedded compat path
 
 Shared helpers in `crates/im-app-context/src/lib.rs`:
@@ -439,7 +439,7 @@ Shared helpers in `crates/im-app-context/src/lib.rs`:
 
 ### 16.3 Standalone gateway alignment
 
-当 `sdkwork-im-standalone-gateway` 作为 public ingress 时：
+当 `sdkwork-api-im-standalone-gateway` 作为 public ingress 时：
 
 - MUST 使用同一 shared unit 处理所有 registry websocket routes。
 - embedded/upstream 的 session-gateway 仍可保留兼容能力，但标准路径必须经过 gateway gate。
@@ -458,7 +458,7 @@ Shared helpers in `crates/im-app-context/src/lib.rs`:
 
 基线（已存在，继续扩展）：
 
-- `services/sdkwork-im-cloud-gateway/tests/websocket_proxy_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/websocket_proxy_test.rs`
 
 新增覆盖（必须）：
 
@@ -508,7 +508,7 @@ Shared helpers in `crates/im-app-context/src/lib.rs`:
 
 ### 17.4 CI / Verification commands (narrow-first)
 
-- Rust：`cargo test -p sdkwork-im-cloud-gateway`（网关 proxy 行为）
+- Rust：`cargo test -p sdkwork-api-im-standalone-gateway`（网关 proxy 行为）
 - Rust：`cargo test -p session-gateway`（上游 compat 与 CCP 行为）
 - Node：`pnpm test:sdkwork-im-sdk-websocket-contract`（若存在对应 script；否则将该脚本纳入现有 verify 链路）
 

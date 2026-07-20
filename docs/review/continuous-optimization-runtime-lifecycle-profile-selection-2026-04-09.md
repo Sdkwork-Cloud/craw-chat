@@ -33,17 +33,17 @@
 Red:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_restart_local_ps1_forwards_profile_name_to_stop_and_start_scripts -- --exact --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_init_config_local_ps1_uses_local_default_profile_when_requested -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_restart_local_ps1_forwards_profile_name_to_stop_and_start_scripts -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_init_config_local_ps1_uses_local_default_profile_when_requested -- --exact --nocapture
 ```
 
 Green:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test -- --nocapture
 cargo fmt --all
 cargo fmt --all --check
-cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 ```
 
 ## Result

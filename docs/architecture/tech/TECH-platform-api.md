@@ -43,7 +43,7 @@
 - Provider health, IoT protocol, app-facing notifications, app-facing automation execution, and
   app-facing RTC provider routes belong to `sdkwork-im-app-sdk` under `/app/v3/api/*`.
 - In packaged installs, these routes are still reached through the unified `sdkwork-im-server` /
-  `sdkwork-im-cloud-gateway` public origin even though the implementation remains on the app-node side of the
+  `sdkwork-api-im-standalone-gateway` public origin even though the implementation remains on the app-node side of the
   runtime.
 - Platform routes do not have a standalone SDK family.
 

@@ -9,7 +9,7 @@
 
 - Affected services:
   - `services/session-gateway`
-  - `services/sdkwork-im-cloud-gateway`
+  - `crates/sdkwork-api-im-standalone-gateway`
 - Root cause:
   - `RealtimeClusterBridge::bind_client_route(...)` implemented `latest bind wins` by overwriting the route directory entry only
   - unlike `migrate_node_routes(...)`, the direct rebind path did not move:
@@ -92,8 +92,8 @@ Those remain later commercial enhancements, but they must not block correctness 
 
 - `cargo test -p session-gateway --offline test_cluster_bridge_rebind_latest_owner_transfers_realtime_state`
 - `cargo test -p session-gateway --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_routes_realtime_events_to_remote_owner_node`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_drain_migrates_routes_and_preserves_realtime_delivery`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_routes_realtime_events_to_remote_owner_node`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_drain_migrates_routes_and_preserves_realtime_delivery`
 
 Observed green result:
 

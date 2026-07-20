@@ -52,7 +52,7 @@
 - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-1f-im-domain-core-full'; cargo test -p im-domain-core --offline`
 - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-1f-conversation-runtime-full'; cargo test -p conversation-runtime --offline`
 - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-1f-projection-service-full'; cargo test -p projection-service --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-1f-local-node-full'; cargo test -p sdkwork-im-cloud-gateway --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-1f-local-node-full'; cargo test -p sdkwork-api-im-standalone-gateway --offline`
 - 备注：`sdkwork-im-server` 的 `deployment_profile_test` 会打印预期的启动失败/健康检查超时样例日志，但 suite 退出码为 `0`。
 
 ## 6. 架构映射

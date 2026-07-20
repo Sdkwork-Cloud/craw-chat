@@ -6,7 +6,7 @@
   "artifact": "server-release-provenance",
   "state": "template_only_pending_capture",
   "updatedAt": "2026-04-17",
-  "canonicalBuildCommand": "cargo build -p sdkwork-im-cloud-gateway --release --bin sdkwork-im-server --offline",
+  "canonicalBuildCommand": "cargo build -p sdkwork-api-im-standalone-gateway --release --bin sdkwork-im-server --offline",
   "contractPaths": [
     "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
     "artifacts/releases/wave-d-2026-04-08/server/release-execution.json",
@@ -18,7 +18,7 @@
     "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json"
   ],
   "payloadSourcePaths": [
-    "services/sdkwork-im-cloud-gateway/Cargo.toml",
+    "crates/sdkwork-api-im-standalone-gateway/Cargo.toml",
     "deployments/templates/server.yaml.example",
     "deployments/templates/server.env.example",
     "deployments/templates/postgresql.yaml.example",

@@ -18,8 +18,8 @@
 | 4 | RTC通话质量监控 | P0 | `services/im-calls-service/src/quality_monitor.rs` | ✅ |
 | 5 | 信令优先级队列 | P0 | `services/im-calls-service/src/priority_queue.rs` | ✅ |
 | 6 | ICE连接监控 | P0 | 已集成在 `quality_monitor.rs` | ✅ |
-| 7 | DashMap高性能限流器 | P1 | `services/sdkwork-im-cloud-gateway/src/gateway_protection.rs` | ✅ |
-| 8 | 异常行为检测 | P0 | `services/sdkwork-im-cloud-gateway/src/anomaly_detector.rs` | ✅ |
+| 7 | DashMap高性能限流器 | P1 | `crates/sdkwork-api-im-standalone-gateway/src/gateway_protection.rs` | ✅ |
+| 8 | 异常行为检测 | P0 | `crates/sdkwork-api-im-standalone-gateway/src/anomaly_detector.rs` | ✅ |
 | 9 | 敏感数据脱敏 | P0 | `crates/im-domain-core/src/logging/redactor.rs` | ✅ |
 | 10 | 路由迁移超时保护 | P0 | `services/session-gateway/src/cluster.rs` | ✅ |
 
@@ -134,7 +134,7 @@ pub enum RtcSignalPriority {
 
 ### 4. DashMap高性能限流器
 
-**文件**: `services/sdkwork-im-cloud-gateway/src/gateway_protection.rs`
+**文件**: `crates/sdkwork-api-im-standalone-gateway/src/gateway_protection.rs`
 
 **功能**:
 - 使用 DashMap 替代 `Mutex<HashMap>` 实现无锁并发
@@ -168,7 +168,7 @@ pub async fn dashmap_rate_limit_middleware(
 
 ### 5. 异常行为检测 (AnomalyDetector)
 
-**文件**: `services/sdkwork-im-cloud-gateway/src/anomaly_detector.rs`
+**文件**: `crates/sdkwork-api-im-standalone-gateway/src/anomaly_detector.rs`
 
 **功能**:
 - 消息频率异常检测 (> 100条/分钟)
@@ -351,7 +351,7 @@ pnpm test:performance-baseline
 
 1. ✅ `crates/im-domain-core/src/lib.rs` - 添加 `connection_quality` 和 `logging` 模块
 2. ✅ `services/im-calls-service/src/lib.rs` - 添加 `quality_monitor` 和 `priority_queue` 模块
-3. ✅ `services/sdkwork-im-cloud-gateway/src/gateway_protection.rs` - 添加 DashMap 限流器
+3. ✅ `crates/sdkwork-api-im-standalone-gateway/src/gateway_protection.rs` - 添加 DashMap 限流器
 4. ✅ `services/session-gateway/src/cluster.rs` - 添加超时保护
 
 需要后续更新:

@@ -2239,9 +2239,8 @@ impl SocialRuntime {
         journal: im_adapters_postgres_journal::PostgresCommitJournal,
         pool: im_adapters_social_postgres::SocialPostgresPool,
     ) -> Self {
-        let materializer = Arc::new(
-            crate::commit_materializer::SocialPostgresMaterializer::from_pool(pool),
-        );
+        let materializer =
+            Arc::new(crate::commit_materializer::SocialPostgresMaterializer::from_pool(pool));
         self.postgres_atomic_write_authority = Some(Arc::new(
             crate::postgres_write_authority::SocialPostgresAtomicWriteAuthority::new(
                 journal,
@@ -2400,9 +2399,7 @@ impl SocialRuntime {
         }
 
         let append_result = if commits.len() == 1 {
-            self.commit_journal
-                .append(commits[0].clone())
-                .map(|_| ())
+            self.commit_journal.append(commits[0].clone()).map(|_| ())
         } else {
             self.commit_journal
                 .append_batch(commits.to_vec())
@@ -4760,9 +4757,7 @@ mod postgres_write_authority_tests {
         assert_eq!(inserted.len(), 1);
         assert_eq!(inserted[0].ordering_seq, 41);
         assert_eq!(authority.calls.load(Ordering::Relaxed), 1);
-        assert!(
-            fallback_journal.recorded().is_empty()
-        );
+        assert!(fallback_journal.recorded().is_empty());
     }
 
     #[test]
@@ -4777,10 +4772,7 @@ mod postgres_write_authority_tests {
 
         assert!(!postgres_materialized);
         assert_eq!(inserted, vec![commit.clone()]);
-        assert_eq!(
-            journal.recorded(),
-            vec![commit]
-        );
+        assert_eq!(journal.recorded(), vec![commit]);
     }
 }
 

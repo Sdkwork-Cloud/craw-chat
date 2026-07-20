@@ -53,12 +53,12 @@
 
 ## 证据
 - 代码：
-  - `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`
   - `tools/perf/step-11-scenario-catalog.json`
 - 文档：
   - `docs/部署/性能与灾备演练场景.md`
 - 验证：
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test`
   - `cargo fmt --all --check`
 
 ## 当前判断

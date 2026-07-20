@@ -18,6 +18,28 @@ on:
         description: Package version used in artifact names and manifests.
         required: false
         default: ''
+      deployment_profile:
+        description: Deployment profile filter for non-side-effecting package planning.
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - standalone
+          - cloud
+      runtime_target:
+        description: Runtime target filter.
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - browser
+          - desktop
+          - server
+          - container
+          - flutter-android
+          - flutter-ios
       platform:
         description: Platform filter.
         required: true
@@ -28,6 +50,10 @@ on:
           - linux
           - windows
           - macos
+          - h5
+          - android
+          - ios
+          - container
       architecture:
         description: CPU architecture filter.
         required: true
@@ -37,6 +63,7 @@ on:
           - all
           - x64
           - arm64
+          - universal
       profile:
         description: Runtime profile filter.
         required: true
@@ -46,6 +73,9 @@ on:
           - all
           - server
           - desktop
+          - browser
+          - mobile
+          - container
       format:
         description: Package format filter.
         required: true
@@ -55,11 +85,22 @@ on:
           - all
           - zip
           - tar.gz
+          - apk
+          - aab
+          - ipa
       deploy:
         description: Run configured deployment environments after packaging.
         required: true
         default: false
         type: boolean
+      deploy_approval_ref:
+        description: Protected environment or change-record approval reference.
+        required: false
+        default: ''
+      deploy_rollback_target:
+        description: Immutable rollback target or approved forward-fix boundary.
+        required: false
+        default: ''
       sdkwork_app_topology_ref:
         description: sdkwork-app-topology commit/ref.
         required: false
@@ -203,13 +244,18 @@ jobs:
       config_path: sdkwork.workflow.json
       tag: ${{ github.event.inputs.tag || github.event.release.tag_name || github.ref_name }}
       package_version: ${{ github.event.inputs.package_version || '' }}
+      deployment_profile: ${{ github.event.inputs.deployment_profile || 'all' }}
+      runtime_target: ${{ github.event.inputs.runtime_target || 'all' }}
       platform: ${{ github.event.inputs.platform || 'all' }}
       architecture: ${{ github.event.inputs.architecture || 'all' }}
       profile: ${{ github.event.inputs.profile || 'all' }}
+      variant: all
       format: ${{ github.event.inputs.format || 'all' }}
-      publish_release: true
+      publish_release: false
       upload_artifact: true
-      deploy: ${{ github.event.inputs.deploy == 'true' || github.event_name == 'release' }}
+      deploy: ${{ github.event.inputs.deploy == 'true' }}
+      deploy_approval_ref: ${{ github.event.inputs.deploy_approval_ref || '' }}
+      deploy_rollback_target: ${{ github.event.inputs.deploy_rollback_target || '' }}
       retention_days: 30
       framework_ref: b0829529b9277a3da32b90c2d36ff34ff09fa832
       dependency_refs_json: >-

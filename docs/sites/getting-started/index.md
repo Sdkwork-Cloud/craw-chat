@@ -6,8 +6,8 @@ defaults and minimal surprises.
 ## What You Get
 
 - Topology v5 development orchestration through the shared `sdkwork-app` lifecycle facade.
-- Standalone development uses one local `sdkwork-im-standalone-gateway`; cloud development uses the
-  already deployed `sdkwork-api-cloud-gateway` and starts only the selected local client.
+- Standalone development uses one local `sdkwork-api-im-standalone-gateway`; cloud development uses the
+  already deployed `platform.api-gateway` and starts only the selected local client.
 - OpenAPI-style API documentation aligned to the implemented HTTP surface.
 - Clear boundaries between IM standard APIs, app-business APIs, backend control/admin APIs, and SDK workspaces.
 

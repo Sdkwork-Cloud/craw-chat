@@ -62,7 +62,7 @@
 - 默认空闲态现在也会稳定返回零值 schema，而不是缺字段。
 
 ### 4. `sdkwork-im-server` 已把 live update delay 映射到真实 HTTP 面
-- `services/sdkwork-im-cloud-gateway/src/node/platform.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs`
   - `map_projection_plane_observability(...)` 现在会把 `projection-service` 的 `updateDelay` 映射到 `ops-service`
 - 这意味着 `Local Minimal` profile 下，业务请求触发的真实 projection apply 可以直接在：
   - `/backend/v3/api/ops/health`
@@ -85,11 +85,11 @@
   - `services/projection-service/src/lib.rs`
   - `services/projection-service/src/update_delay.rs`
   - `services/ops-service/src/lib.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node/platform.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs`
 - 测试：
   - `services/projection-service/tests/projection_snapshot_test.rs`
   - `services/ops-service/tests/http_smoke_test.rs`
-  - `services/sdkwork-im-cloud-gateway/tests/domain_recovery_persistence_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/domain_recovery_persistence_test.rs`
 - 文档：
   - 本执行卡
   - 本轮质量审计与复盘
@@ -105,7 +105,7 @@
 - 先写测试，再验证缺口：
   - `cargo test -p projection-service --offline --test projection_snapshot_test test_projection_service_records_projection_update_delay_metrics`
   - `cargo test -p ops-service --offline --test http_smoke_test test_cluster_lag_health_runtime_dir_and_diagnostics_over_http`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics`
 - 红测失败点与预期一致：
   - `projection-service` 的 observability JSON 中还没有 `updateDelay`
   - `ops-service` 默认 `projectionPlane.updateDelay.*` 还是 `null`
@@ -118,10 +118,10 @@
 - `cargo fmt --all`
 - `cargo test -p projection-service --offline --test projection_snapshot_test test_projection_service_records_projection_update_delay_metrics`
 - `cargo test -p ops-service --offline --test http_smoke_test test_cluster_lag_health_runtime_dir_and_diagnostics_over_http`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics`
 - `cargo test -p projection-service --offline`
 - `cargo test -p ops-service --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 
 ## 结论
 - 这是 `Wave C / Step 09 / CP09-3` 的第四个真实代码增量。

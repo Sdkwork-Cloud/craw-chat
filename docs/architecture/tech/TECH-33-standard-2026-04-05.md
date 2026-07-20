@@ -75,7 +75,7 @@
 - `services/media-service/tests/public_auth_test.rs`
 - `services/media-service/tests/media_asset_test.rs`
 - `services/media-service/tests/media_event_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/public_auth_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/public_auth_e2e_test.rs`
 
 ## 8. 后续建议
 

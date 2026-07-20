@@ -42,13 +42,13 @@
   - `pnpm dev`
   - `bin/_cmd-forward-powershell.cmd`
   - `deployments/scripts/bootstrap-local.ps1`
-  - `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
 - 文档：
   - `docs/部署/快速启动脚本.md`
   - `README.md`
 - 验证：
   - `cargo fmt --all --check`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
   - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 

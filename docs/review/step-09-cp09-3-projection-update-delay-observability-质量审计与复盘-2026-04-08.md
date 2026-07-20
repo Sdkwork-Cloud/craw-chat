@@ -5,10 +5,10 @@
 - `services/projection-service/src/lib.rs`
 - `services/projection-service/src/update_delay.rs`
 - `services/ops-service/src/lib.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/platform.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs`
 - `services/projection-service/tests/projection_snapshot_test.rs`
 - `services/ops-service/tests/http_smoke_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/domain_recovery_persistence_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/domain_recovery_persistence_test.rs`
 
 ## 审计结论
 - 本轮未发现阻塞当前增量交付的剩余缺陷。
@@ -51,10 +51,10 @@
 - `cargo fmt --all`
 - `cargo test -p projection-service --offline --test projection_snapshot_test test_projection_service_records_projection_update_delay_metrics`
 - `cargo test -p ops-service --offline --test http_smoke_test test_cluster_lag_health_runtime_dir_and_diagnostics_over_http`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics`
 - `cargo test -p projection-service --offline`
 - `cargo test -p ops-service --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 
 ## 复盘结论
 - 本轮最正确的决策，是选择 `inbox / timeline update delay` 这个最贴近现有 apply 主路径的指标，而不是急于上更重的 live lag 状态机。

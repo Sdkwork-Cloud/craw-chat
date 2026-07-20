@@ -161,9 +161,9 @@ step 重点对齐
 建议优先复用或扩展以下现有测试：
 
 - `services/conversation-runtime/tests/conversation_flow_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/public_auth_e2e_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/task10_capabilities_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/public_auth_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/task10_capabilities_e2e_test.rs`
 - `services/projection-service/tests/timeline_projection_test.rs`
 
 ## 7. 结果验证

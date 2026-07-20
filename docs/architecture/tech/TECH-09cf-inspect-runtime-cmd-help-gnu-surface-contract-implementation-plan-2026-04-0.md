@@ -9,7 +9,7 @@
 
 ## Steps
 
-- Add a failing regression in `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs` for `inspect-runtime-local.cmd --help`.
+- Add a failing regression in `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs` for `inspect-runtime-local.cmd --help`.
 - Update `bin/inspect-runtime-local.ps1` to print both PowerShell and `.cmd` usage lines in the help branch.
 - Re-run targeted, deployment-profile, package, and formatting verification.
 

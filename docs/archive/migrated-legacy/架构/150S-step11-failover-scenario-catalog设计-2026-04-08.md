@@ -34,8 +34,8 @@
 
 最小可信资产固定为：
 
-- `services/sdkwork-im-cloud-gateway/tests/performance_ha_dr_drill_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/cluster_realtime_routing_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/performance_ha_dr_drill_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/cluster_realtime_routing_e2e_test.rs`
 - `tools/perf/step-11-cp11-3-local-drill-baseline.json`
 
 ### 4. 文档层

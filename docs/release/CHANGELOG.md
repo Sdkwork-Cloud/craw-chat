@@ -88,8 +88,8 @@
   - `node scripts/dev/sdkwork-im-runtime-standard.test.mjs` = `passed`
   - `node scripts/dev/sdkwork-im-component-spec-consistency.test.mjs` = `passed`
   - `node ../sdkwork-specs/tools/check-agent-workflow-standard.mjs --root .` = `passed`
-  - `cargo test -p sdkwork-im-cloud-gateway --test openapi_index_test -- --nocapture` = `12 passed`
-  - `cargo fmt -p sdkwork-im-cloud-gateway` = `passed`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --test openapi_index_test -- --nocapture` = `12 passed`
+  - `cargo fmt -p sdkwork-api-im-standalone-gateway` = `passed`
   - `pnpm.cmd check:commercial-readiness` = implementation checks passed through gateway tests, then blocked by `appReleaseAssessment` with `55` release-evidence blockers
 - remaining blockers:
   - all 13 enabled direct distribution packages in `sdkwork.app.config.json` still lack real SHA-256 checksums;

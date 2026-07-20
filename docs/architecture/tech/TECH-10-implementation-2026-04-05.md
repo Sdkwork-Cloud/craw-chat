@@ -83,7 +83,7 @@
 - `cargo test -p session-gateway test_cluster_bridge_rejects_new_route_binds_when_node_is_draining --offline`
 - `cargo test -p session-gateway test_cluster_bridge_migrates_route_and_realtime_state_to_target_node --offline`
 - `cargo test -p control-plane-api test_control_plane_can_drain_and_migrate_routes --offline`
-- `cargo test -p sdkwork-im-cloud-gateway test_local_minimal_profile_drain_migrates_routes_and_preserves_realtime_delivery --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway test_local_minimal_profile_drain_migrates_routes_and_preserves_realtime_delivery --offline`
 
 ## Task 24 已落地范围
 

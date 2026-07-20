@@ -42,7 +42,7 @@
   - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-1f-im-domain-core-full'; cargo test -p im-domain-core --offline`
   - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-1f-conversation-runtime-full'; cargo test -p conversation-runtime --offline`
   - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-1f-projection-service-full'; cargo test -p projection-service --offline`
-  - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-1f-local-node-full'; cargo test -p sdkwork-im-cloud-gateway --offline`
+  - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-1f-local-node-full'; cargo test -p sdkwork-api-im-standalone-gateway --offline`
 
 ## 6. 决议
 

@@ -67,11 +67,11 @@
 - `services/im-call-runtime/tests/rtc_runtime_persistence_test.rs`
 - `services/media-service/tests/media_asset_test.rs`
 - `services/media-service/tests/provider_integration_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/stream_runtime_persistence_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/rtc_runtime_persistence_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/media_provider_http_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/http_e2e_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/stream_runtime_persistence_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/rtc_runtime_persistence_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/media_provider_http_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/http_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
 
 ## 当前判断
 - `S10`：`step_closure`

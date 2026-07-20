@@ -97,8 +97,8 @@ fn im_database_url_configured() -> bool {
 }
 
 /// Bootstraps IM pools when PostgreSQL is configured; otherwise no-op.
-pub async fn try_bootstrap_im_process_database_pools_from_env(
-) -> Result<Option<&'static ImProcessDatabasePools>, String> {
+pub async fn try_bootstrap_im_process_database_pools_from_env()
+-> Result<Option<&'static ImProcessDatabasePools>, String> {
     if !im_database_url_configured() {
         return Ok(None);
     }
@@ -115,8 +115,8 @@ pub async fn try_bootstrap_im_process_database_pools_from_env(
 }
 
 /// Bootstrap IM lifecycle (sqlx) plus one shared r2d2 pool for all modules in this process.
-pub async fn bootstrap_im_process_database_pools_from_env(
-) -> Result<&'static ImProcessDatabasePools, String> {
+pub async fn bootstrap_im_process_database_pools_from_env()
+-> Result<&'static ImProcessDatabasePools, String> {
     sdkwork_database_sqlx::enable_process_shared_database_pool();
     if let Some(pools) = im_process_database_pools() {
         return Ok(pools);

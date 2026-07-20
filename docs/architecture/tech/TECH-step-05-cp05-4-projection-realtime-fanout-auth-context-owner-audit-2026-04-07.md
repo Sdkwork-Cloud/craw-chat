@@ -14,14 +14,14 @@
 - 结构证据
   - `test_projection_service_access_module_exposes_auth_context_entrypoints`
   - `test_local_minimal_node_effects_use_projection_owned_realtime_fanout_target_seam`
-  - `$env:CARGO_TARGET_DIR='target-cp054i-reg-local-structure-full'; cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test --offline`
+  - `$env:CARGO_TARGET_DIR='target-cp054i-reg-local-structure-full'; cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test --offline`
 - 行为证据
   - `test_local_minimal_profile_fanouts_realtime_message_events_to_other_conversation_member`
   - `test_local_minimal_profile_fanouts_member_governance_realtime_events_to_registered_owner_device`
   - `test_local_minimal_profile_fanouts_agent_handoff_lifecycle_realtime_events_to_other_device`
 - 回归证据
   - `$env:CARGO_TARGET_DIR='target-cp054i-reg-projection-full'; cargo test -p projection-service --offline`
-  - `rustfmt --edition 2024 --check services/projection-service/src/access.rs services/projection-service/tests/lib_structure_test.rs services/sdkwork-im-cloud-gateway/src/node/effects.rs services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+  - `rustfmt --edition 2024 --check services/projection-service/src/access.rs services/projection-service/tests/lib_structure_test.rs crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ## 3. 质量判断
 

@@ -110,7 +110,7 @@
 
 - `services/conversation-runtime/src/lib.rs`
   - 新增 runtime HTTP 路由 `/members/transfer-owner`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - 新增 app 路由 `/members/transfer-owner`
   - 新增 owner transfer handler
   - 新增 `conversation.owner_transferred` 审计锚点
@@ -123,7 +123,7 @@
   - `test_direct_conversation_rejects_owner_transfer`
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - `test_group_owner_transfer_over_http`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_group_owner_transfer_allows_safe_handoff_and_leave`
 
 ## 7. 验证结果
@@ -132,7 +132,7 @@
 
 - `cargo test -p conversation-runtime --test conversation_flow_test --offline`
 - `cargo test -p conversation-runtime --test http_smoke_test --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --test access_control_e2e_test --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --test access_control_e2e_test --offline`
 
 本轮完成后还需继续执行格式化、模块级和全工作区离线回归。
 

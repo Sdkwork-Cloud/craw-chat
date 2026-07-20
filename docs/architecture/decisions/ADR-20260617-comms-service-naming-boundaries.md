@@ -51,8 +51,8 @@ documentation is an index only and must not introduce `/api/v1/*` or `/im/v3/api
 ## Verification
 
 ```bash
-cargo check -p social-service -p space-service -p sdkwork-im-cloud-gateway -p sdkwork-comms-conversation-service
-cargo test -p sdkwork-im-cloud-gateway-config
+cargo check -p social-service -p space-service -p sdkwork-api-im-standalone-gateway -p sdkwork-comms-conversation-service
+cargo test -p sdkwork-api-im-standalone-gateway
 pnpm run test:deprecated-service-boundary
 node sdks/materialize-im-v3-openapi-boundaries.mjs
 ```

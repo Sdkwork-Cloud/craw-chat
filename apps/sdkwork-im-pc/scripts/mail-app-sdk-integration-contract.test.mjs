@@ -26,8 +26,7 @@ function readRepoJson(...segments) {
 const packageJson = readJson('package.json');
 const releaseSources = readRepoJson('config', 'shared-sdk-release-sources.json');
 const workflow = readRepoJson('sdkwork.workflow.json');
-const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-cloud-gateway-config', 'src', 'lib.rs');
-const gatewayRegistrySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'registry.rs');
+const standaloneDependencies = readRepoText('crates', 'sdkwork-api-im-standalone-gateway', 'src', 'embedded_dependency_routes.rs');
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
 const releaseBuildSource = readRepoText('scripts', 'release', 'run-sdkwork-im-pc-release-build.mjs');
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
@@ -88,15 +87,15 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  `${devRunnerSource}\n${gatewayConfigSource}`,
+  `${devRunnerSource}\n${standaloneDependencies}`,
   /explicitMailAppApiUpstream|SDKWORK_IM_MAIL_APP_API_UPSTREAM|SDKWORK_MAIL_APP_API_UPSTREAM|SDKWORK_MAIL_APP_API_BASE_URL/u,
   'Mail foundation traffic must use the platform assembly gateway without per-module upstream overrides.',
 );
 
 assert.match(
-  gatewayRegistrySource,
-  /"sdkwork-mail-app-api"[\s\S]*\/app\/v3\/api\/mail\/\{\*path\}[\s\S]*SdkworkMailAppSdk/u,
-  'Web gateway must route sdkwork-mail app-api paths to the Mail app SDK upstream.',
+  standaloneDependencies,
+  /sdkwork_api_mail_assembly::assemble_api_router/u,
+  'Standalone gateway must mount Mail through its canonical API assembly.',
 );
 
 assert.ok(
@@ -119,13 +118,13 @@ assert.equal(
   'component.spec.json must bind sdkwork-mail-app-api to sdkwork-mail-app-sdk.',
 );
 assert.equal(
-  dependencySurface.targetRuntimeIntegration?.gatewayApplication,
-  'sdkwork-api-cloud-gateway',
-  'sdkwork-mail app API must route through the shared sdkwork-api-cloud-gateway root.',
+  dependencySurface.targetRuntimeIntegration?.connectivitySurface,
+  'platform.api-gateway',
+  'sdkwork-mail app API must route through the shared platform.api-gateway root.',
 );
 
 assert.equal(
-  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys,
+  componentSpec.integration?.platformApiGateway?.explicitExternalUpstreamEnvKeys,
   undefined,
   'component.spec.json must not publish per-module foundation upstream keys.',
 );

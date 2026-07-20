@@ -33,11 +33,11 @@
 
 ## 证据
 - 代码：
-  - `services/sdkwork-im-cloud-gateway/src/node/runtime_dir.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node.rs`
-  - `services/sdkwork-im-cloud-gateway/src/main.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/runtime_dir.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/main.rs`
 - 测试：
-  - `services/sdkwork-im-cloud-gateway/tests/runtime_dir_backup_catalog_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/runtime_dir_backup_catalog_test.rs`
 - 脚本：
   - `bin/archive-runtime-backup-local.ps1`
   - `bin/archive-runtime-backup-local.sh`
@@ -48,7 +48,7 @@
   - `bin/retired-lifecycle-status.sh`
 - 验证：
   - `cargo fmt --all --check`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/archive-runtime-backup-local.ps1 -Help`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/prune-runtime-archives-local.ps1 -Help`
 

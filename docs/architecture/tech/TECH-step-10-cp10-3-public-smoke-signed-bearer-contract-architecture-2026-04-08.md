@@ -39,7 +39,7 @@
   - `(removed compose file)`
   - `tools/smoke/local_stack_smoke.ps1`
   - `tools/smoke/local_stack_smoke.sh`
-  - `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
 - 文档：
   - `docs/部署/本地最小安装与运行.md`
   - `docs/部署/快速启动脚本.md`
@@ -47,8 +47,8 @@
   - `README.md`
 - 验证：
   - `cargo fmt --all --check`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test public_auth_e2e_test`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test public_auth_e2e_test`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
   - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 

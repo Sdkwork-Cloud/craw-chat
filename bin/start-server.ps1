@@ -44,7 +44,7 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/start-server.ps1 [-InstanceName <name>] [-InstallRoot <path>] [-ConfigDir <path>] [-LogDir <path>] [-RunDir <path>] [-EnvFile <path>] [-BinaryPath <path>] [-Release] [-Foreground] [-HealthUrl <url>] [-SkipHealthCheck]"
     Write-Host "Usage: cmd /c .\bin\start-server.cmd [--instance <name>] [--install-root <path>] [--config-dir <path>] [--log-dir <path>] [--run-dir <path>] [--env-file <path>] [--binary-path <path>] [--release] [--foreground] [--health-url <url>] [--skip-health-check]"
-    Write-Host "Start the sdkwork-im-server runtime service for an instance with config loading, binary resolution, log and run directory management, health checks, and status-friendly foreground or background execution."
+    Write-Host "Start the sdkwork-api-im-standalone-gateway runtime service for an instance with config loading, binary resolution, log and run directory management, health checks, and status-friendly foreground or background execution."
     exit 0
 }
 
@@ -145,15 +145,15 @@ function Resolve-ServerBinaryPath {
     }
 
     $installCandidates = @(
-        (Join-Path $InstallRoot "bin\sdkwork-im-server.exe"),
-        (Join-Path $InstallRoot "bin\sdkwork-im-cloud-gateway.exe")
+        (Join-Path $InstallRoot "bin\sdkwork-api-im-standalone-gateway.exe"),
+        (Join-Path $InstallRoot "bin\sdkwork-api-im-standalone-gateway.exe")
     )
     foreach ($candidate in $installCandidates) {
         if (Test-Path $candidate) { return $candidate }
     }
 
-    $releaseCandidate = Join-Path $Root "target\release\sdkwork-im-server.exe"
-    $debugCandidate = Join-Path $Root "target\debug\sdkwork-im-server.exe"
+    $releaseCandidate = Join-Path $Root "target\release\sdkwork-api-im-standalone-gateway.exe"
+    $debugCandidate = Join-Path $Root "target\debug\sdkwork-api-im-standalone-gateway.exe"
     $legacyReleaseCandidate = Join-Path $Root "target\release\web-gateway.exe"
     $legacyDebugCandidate = Join-Path $Root "target\debug\web-gateway.exe"
     $candidates = if ($PreferRelease) {
@@ -169,10 +169,10 @@ function Resolve-ServerBinaryPath {
     $cargo = Get-Command cargo -ErrorAction SilentlyContinue
     if ($null -ne $cargo) {
         if ($PreferRelease) {
-            cargo build --release -p sdkwork-im-cloud-gateway --offline | Out-Host
+            cargo build --release -p sdkwork-api-im-standalone-gateway --offline | Out-Host
         }
         else {
-            cargo build -p sdkwork-im-cloud-gateway --offline | Out-Host
+            cargo build -p sdkwork-api-im-standalone-gateway --offline | Out-Host
         }
         foreach ($candidate in $candidates) {
             if (Test-Path $candidate) { return $candidate }
@@ -251,14 +251,14 @@ if ([string]::IsNullOrWhiteSpace($resolvedBindAddress)) {
 }
 $resolvedBinaryPath = Resolve-ServerBinaryPath -Root $root -InstallRoot $InstallRoot -ExplicitBinaryPath $BinaryPath -PreferRelease:$Release
 if ([string]::IsNullOrWhiteSpace($resolvedBinaryPath)) {
-    throw "Unable to resolve sdkwork-im-server binary. Set -BinaryPath, install a packaged binary under $InstallRoot, or build sdkwork-im-cloud-gateway."
+    throw "Unable to resolve sdkwork-api-im-standalone-gateway binary. Set -BinaryPath, install a packaged binary under $InstallRoot, or build sdkwork-api-im-standalone-gateway."
 }
 
 $resolvedHealthUrl = Resolve-HealthUrl -ExplicitHealthUrl $HealthUrl -ResolvedBindAddress $resolvedBindAddress
-$stdoutLog = Join-Path $LogDir "sdkwork-im-server.out.log"
-$stderrLog = Join-Path $LogDir "sdkwork-im-server.err.log"
-$pidFile = Join-Path $RunDir "sdkwork-im-server.pid"
-$processInfoPath = Join-Path $RunDir "sdkwork-im-server.process.json"
+$stdoutLog = Join-Path $LogDir "sdkwork-api-im-standalone-gateway.out.log"
+$stderrLog = Join-Path $LogDir "sdkwork-api-im-standalone-gateway.err.log"
+$pidFile = Join-Path $RunDir "sdkwork-api-im-standalone-gateway.pid"
+$processInfoPath = Join-Path $RunDir "sdkwork-api-im-standalone-gateway.process.json"
 foreach ($path in @($LogDir, $RunDir)) {
     if (-not (Test-Path $path)) {
         New-Item -ItemType Directory -Path $path -Force | Out-Null
@@ -268,12 +268,12 @@ foreach ($path in @($LogDir, $RunDir)) {
 $expectedProcessName = [System.IO.Path]::GetFileNameWithoutExtension($resolvedBinaryPath)
 $existing = Get-ManagedProcess -PidFile $pidFile -ExpectedProcessName $expectedProcessName
 if ($null -ne $existing) {
-    throw "sdkwork-im-server is already running with PID $($existing.Id)."
+    throw "sdkwork-api-im-standalone-gateway is already running with PID $($existing.Id)."
 }
 
 $env:SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND = $resolvedBindAddress
 $env:SDKWORK_IM_WEB_GATEWAY_BIND = $resolvedBindAddress
-$serverArguments = @("--config", $serverYamlPath)
+$serverArguments = @()
 
 if ($Foreground) {
     & $resolvedBinaryPath @serverArguments
@@ -294,12 +294,12 @@ if (-not $SkipHealthCheck) {
         Start-Sleep -Seconds 1
         if ($null -eq (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
             Remove-Item -Path $pidFile -Force -ErrorAction SilentlyContinue
-            throw "sdkwork-im-server exited before becoming healthy. Check logs: $stderrLog"
+            throw "sdkwork-api-im-standalone-gateway exited before becoming healthy. Check logs: $stderrLog"
         }
         try {
             $response = Invoke-WebRequest -Uri $resolvedHealthUrl -UseBasicParsing -TimeoutSec 2
             if ($response.StatusCode -eq 200) {
-                Write-Host "Started sdkwork-im-server in background on $resolvedHealthUrl"
+                Write-Host "Started sdkwork-api-im-standalone-gateway in background on $resolvedHealthUrl"
                 exit 0
             }
         }
@@ -307,7 +307,7 @@ if (-not $SkipHealthCheck) {
     }
     Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
     Remove-Item -Path $pidFile -Force -ErrorAction SilentlyContinue
-    throw "sdkwork-im-server did not become healthy within 30 seconds: $resolvedHealthUrl"
+    throw "sdkwork-api-im-standalone-gateway did not become healthy within 30 seconds: $resolvedHealthUrl"
 }
 
-Write-Host "Started sdkwork-im-server in background without health wait."
+Write-Host "Started sdkwork-api-im-standalone-gateway in background without health wait."

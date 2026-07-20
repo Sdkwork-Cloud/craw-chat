@@ -1,12 +1,12 @@
 ﻿# Server Lifecycle
 
-The formal packaged server contract is centered on the unified `sdkwork-im-cloud-gateway` service and the
+The formal packaged server contract is centered on the unified `sdkwork-api-im-standalone-gateway` service and the
 canonical binary name `sdkwork-im-server`.
 
 ## Canonical Startup Contract
 
 - binary: `sdkwork-im-server`
-- package source: `services/sdkwork-im-cloud-gateway`
+- package source: `crates/sdkwork-api-im-standalone-gateway`
 - startup command: `sdkwork-im-server --config <config-root>/server.yaml`
 - default frozen bind in `deployments/templates/server.yaml.example`: `0.0.0.0:18079`
 

@@ -10,7 +10,7 @@
 ## Scope
 
 - 修改 `bin/init-config-local.*`、`bin/retired-lifecycle-install.*`、`bin/retired-lifecycle-start.*`、`bin/retired-lifecycle-stop.*`、`bin/retired-lifecycle-restart.*`。
-- 扩展 `services/sdkwork-im-cloud-gateway/tests/deployment_profile_test.rs`。
+- 扩展 `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`。
 
 ## Implementation
 

@@ -127,9 +127,7 @@ pub fn materialize_commits_on_transaction(
 ) -> Result<(), ContractError> {
     for commit in commits {
         materialize_commit_on(txn, commit).map_err(|error| {
-            ContractError::Unavailable(format!(
-                "social postgres materialization failed: {error}"
-            ))
+            ContractError::Unavailable(format!("social postgres materialization failed: {error}"))
         })?;
     }
     Ok(())

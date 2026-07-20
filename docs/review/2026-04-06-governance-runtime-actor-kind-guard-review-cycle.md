@@ -35,7 +35,7 @@ Two regression tests were added before the fix:
 
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - `test_group_member_governance_over_http_rejects_actor_kind_mismatch`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_group_member_governance_rejects_bearer_actor_kind_mismatch`
 
 Red verification proved the defect:
@@ -86,7 +86,7 @@ This preserves minimal patch scope while moving the authorization truth to the c
     - `ensure_actor_kind_matches_member(...)`
     - then existing governance permission checks
   - updated HTTP governance handlers to pass `auth.actor_kind`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - updated governance handlers to call runtime actor-kind-aware methods with raw ingress `auth.actor_kind`
   - existing side-effect normalization remains in place, but unauthorized mismatched writes are now rejected before mutation
 - `services/conversation-runtime/tests/conversation_flow_test.rs`
@@ -95,7 +95,7 @@ This preserves minimal patch scope while moving the authorization truth to the c
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - added:
     - `test_group_member_governance_over_http_rejects_actor_kind_mismatch`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - added:
     - `test_group_member_governance_rejects_bearer_actor_kind_mismatch`
 
@@ -105,14 +105,14 @@ This preserves minimal patch scope while moving the authorization truth to the c
 
 - `cargo test -p conversation-runtime --offline test_group_member_governance_over_http_rejects_actor_kind_mismatch -- --exact`
   - failed with status `200` instead of `403`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_group_member_governance_rejects_bearer_actor_kind_mismatch -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_group_member_governance_rejects_bearer_actor_kind_mismatch -- --exact`
   - failed with status `200` instead of `403`
 
 ### Green
 
 - `cargo test -p conversation-runtime --offline test_governance_writes_reject_actor_kind_mismatch -- --exact`
 - `cargo test -p conversation-runtime --offline test_group_member_governance_over_http_rejects_actor_kind_mismatch -- --exact`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_group_member_governance_rejects_bearer_actor_kind_mismatch -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_group_member_governance_rejects_bearer_actor_kind_mismatch -- --exact`
 
 ## 6. Remaining Risks
 

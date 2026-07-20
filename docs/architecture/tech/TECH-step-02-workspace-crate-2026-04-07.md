@@ -22,7 +22,7 @@
 | --- | --- | --- |
 | `services/session-gateway/src/lib.rs` | `639` | 通过 |
 | `services/conversation-runtime/src/lib.rs` | `3` | 通过 |
-| `services/sdkwork-im-cloud-gateway/src/lib.rs` | `3` | 通过 |
+| `crates/sdkwork-api-im-standalone-gateway/src/lib.rs` | `3` | 通过 |
 | `services/projection-service/src/lib.rs` | `965` | 通过，需重点盯防 |
 | `adapters/local-disk/src/lib.rs` | `24` | 通过 |
 | `tools/chat-cli/src/lib.rs` | `848` | 通过 |

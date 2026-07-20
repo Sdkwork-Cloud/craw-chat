@@ -16,7 +16,7 @@ const result = terminateStaleDevGatewayProcesses({
   platform: 'win32',
   spawnSyncImpl(command, args) {
     calls.push({ command, args });
-    if (args.includes('sdkwork-im-standalone-gateway.exe')) {
+    if (args.includes('sdkwork-api-im-standalone-gateway.exe')) {
       return { status: 0, stdout: '', stderr: '' };
     }
     return { status: 128, stdout: '', stderr: 'not found' };
@@ -24,16 +24,16 @@ const result = terminateStaleDevGatewayProcesses({
   stdout,
 });
 
-assert.deepEqual(result.terminated, ['sdkwork-im-standalone-gateway.exe']);
+assert.deepEqual(result.terminated, ['sdkwork-api-im-standalone-gateway.exe']);
 assert.equal(calls.filter((entry) => typeof entry === 'object').length, 2);
 assert.match(
   calls.join('\n'),
-  /terminated stale sdkwork-im-standalone-gateway\.exe/u,
+  /terminated stale sdkwork-api-im-standalone-gateway\.exe/u,
 );
 assert.deepEqual(
   STALE_DEV_GATEWAY_PROCESS_NAMES,
   [
-    'sdkwork-im-standalone-gateway.exe',
+    'sdkwork-api-im-standalone-gateway.exe',
     'sdkwork-clawrouter-standalone-gateway.exe',
   ],
 );

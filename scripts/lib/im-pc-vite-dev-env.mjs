@@ -9,7 +9,7 @@ import {
   deriveWebSocketBaseUrlFromHttpBaseUrl,
   isStandaloneSingleIngress,
   resolveApplicationPublicHttpUrl,
-  resolveSdkworkApiGatewayBaseUrl,
+  resolvePlatformApiGatewayBaseUrl,
 } from '../lib/im-pc-dev.mjs';
 import { resolveSdkworkChatIamCommandEnv } from '../../apps/sdkwork-im-pc/scripts/sdkwork-chat-iam-env.mjs';
 
@@ -90,7 +90,7 @@ export async function resolveSdkworkImPcViteDevEnv(env = process.env) {
 
   const applicationPublicHttpUrl = resolveApplicationPublicHttpUrl(mergedEnv);
   const applicationPublicWebSocketUrl = deriveWebSocketBaseUrlFromHttpBaseUrl(applicationPublicHttpUrl);
-  const platformApiGatewayBaseUrl = resolveSdkworkApiGatewayBaseUrl({
+  const platformApiGatewayBaseUrl = resolvePlatformApiGatewayBaseUrl({
     ...mergedEnv,
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
   });

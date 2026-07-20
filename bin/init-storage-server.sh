@@ -80,7 +80,7 @@ ready="$config_valid"
 
 cat >"$report_path" <<EOF
 {
-  "product": "sdkwork-im-server",
+  "product": "sdkwork-api-im-standalone-gateway",
   "instance": "${instance_name}",
   "mode": "${mode}",
   "storage": "postgresql",
@@ -95,7 +95,7 @@ EOF
 if [[ "$output_format" == "json" ]]; then
   cat "$report_path"
 else
-  echo "sdkwork-im-server storage report"
+  echo "sdkwork-api-im-standalone-gateway storage report"
   echo "mode: ${mode}"
   echo "storage: postgresql"
   echo "configValid: ${config_valid}"

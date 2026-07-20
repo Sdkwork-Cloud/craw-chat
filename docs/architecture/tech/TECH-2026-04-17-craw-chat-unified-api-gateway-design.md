@@ -67,9 +67,9 @@ External clients must only rely on the gateway base URL, never on direct service
   - service registry, route registry, ownership rules, visibility rules
 - `crates/sdkwork-im-openapi`
   - service schema indexing, aggregate OpenAPI generation, docs HTML helpers
-- `crates/sdkwork-im-cloud-gateway-config`
+- `crates/sdkwork-api-im-standalone-gateway`
   - bind addresses, upstream config, schema refresh policy, runtime mode
-- `crates/sdkwork-im-cloud-gateway-observability`
+- `crates/sdkwork-api-im-standalone-gateway-observability`
   - startup summary, route summary, schema status reporting
 
 ### 5.2 Existing Components To Preserve
@@ -201,7 +201,7 @@ Direct service endpoints should converge on:
 
 ### 9.2 Repo Authority Snapshots
 
-- `openapi/aggregate/sdkwork-im-cloud-gateway.openapi.json`
+- `openapi/aggregate/sdkwork-api-im-standalone-gateway.openapi.json`
 - `openapi/aggregate/openapi-index.json`
 - `openapi/public/sdkwork-im-im.openapi.yaml`
 - `openapi/public/sdkwork-im-control.openapi.json`

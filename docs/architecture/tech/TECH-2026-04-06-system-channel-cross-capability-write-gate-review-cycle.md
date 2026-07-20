@@ -69,15 +69,15 @@ This keeps one authoritative place for:
   - reused that helper for:
     - `message.post`
     - conversation-bound capability writes such as `stream.*` and `rtc.*`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - `ensure_conversation_bound_write_access(...)` now delegates actor-aware enforcement directly to `conversation-runtime`
   - removed duplicate pre-check membership call from the local access layer
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - added stream and rtc regression tests for subscriber-side writes in `system_channel`
 
 ## 5. Tests Added
 
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_system_channel_subscriber_cannot_write_conversation_bound_streams_in_local_profile`
   - `test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_local_profile`
 
@@ -90,15 +90,15 @@ These tests prove both:
 
 ### Red
 
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_system_channel_subscriber_cannot_write_conversation_bound_streams_in_local_profile -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_system_channel_subscriber_cannot_write_conversation_bound_streams_in_local_profile -- --exact`
   - failed with `200 != 403`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_local_profile -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_local_profile -- --exact`
   - failed with `200 != 403`
 
 ### Green
 
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_system_channel_subscriber_cannot_write_conversation_bound_streams_in_local_profile -- --exact`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_local_profile -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_system_channel_subscriber_cannot_write_conversation_bound_streams_in_local_profile -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_local_profile -- --exact`
 
 ## 7. Remaining Risks
 

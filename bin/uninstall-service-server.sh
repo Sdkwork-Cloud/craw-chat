@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/uninstall-service-server.sh [--instance <name>] [--config-dir <path>]
 
-Remove generated sdkwork-im-server service artifacts and summarize systemd/launchd/windows-service uninstall status.
+Remove generated sdkwork-api-im-standalone-gateway service artifacts and summarize systemd/launchd/windows-service uninstall status.
 EOF
 }
 
@@ -46,13 +46,13 @@ done
 
 generated_dir="${config_dir}/generated"
 rm -f \
-  "${generated_dir}/sdkwork-im-server.service" \
+  "${generated_dir}/sdkwork-api-im-standalone-gateway.service" \
   "${generated_dir}/com.sdkwork.im.server.plist" \
   "${generated_dir}/SdkworkImServer.xml" \
   "${generated_dir}/install-SdkworkImServer.ps1" \
   "${generated_dir}/uninstall-SdkworkImServer.ps1" \
   "${generated_dir}/service-install-report.json"
-echo "Removed generated sdkwork-im-server service artifacts for instance '${instance_name}'."
-echo "systemd target: sdkwork-im-server.service"
+echo "Removed generated sdkwork-api-im-standalone-gateway service artifacts for instance '${instance_name}'."
+echo "systemd target: sdkwork-api-im-standalone-gateway.service"
 echo "launchd target: com.sdkwork.im.server"
 echo "windows service target: SdkworkImServer"

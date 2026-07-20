@@ -105,8 +105,8 @@
 
 - `services/streaming-service/src/lib.rs`
 - `services/streaming-service/tests/stream_lifecycle_test.rs`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
-- `services/sdkwork-im-cloud-gateway/tests/http_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/http_e2e_test.rs`
 
 ## 6. 后续 review 建议
 

@@ -7,14 +7,14 @@
 ## 证据
 
 - 红灯：
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture`
   - 失败信息：`Step 11 catalog must define the failover scenario family`
 - 绿灯：
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture`
 
 ## 本轮改动
 
-- 收紧 `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`
+- 收紧 `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`
 - 更新 `tools/perf/step-11-scenario-catalog.json`
 - 更新 `docs/部署/性能与灾备演练场景.md`
 

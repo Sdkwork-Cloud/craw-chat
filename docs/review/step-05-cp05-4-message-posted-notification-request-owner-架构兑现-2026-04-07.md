@@ -19,7 +19,7 @@
 - `sdkwork-im-server` effects 不再直接构造 `RequestNotificationFanout` 的 message-posted 默认字段。
 - owner / consumer 边界变为：
   - owner：`services/notification-service/src/lib.rs`
-  - consumer：`services/sdkwork-im-cloud-gateway/src/node/effects.rs`
+  - consumer：`crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs`
 
 ## 3. 当前决议
 

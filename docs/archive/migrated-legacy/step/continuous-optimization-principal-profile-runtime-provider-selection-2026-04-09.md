@@ -8,7 +8,7 @@
 
 1. 补失败测试，要求默认 `build_default_app_with_runtime_dir(...)` 在 external 配置下输出 `principal-profile-external-catalog` 元数据。
 2. 跑红灯，确认失败原因是默认入口仍绑定 local provider。
-3. 在 `services/sdkwork-im-cloud-gateway/src/node/principal_profile.rs` 实现：
+3. 在 `crates/sdkwork-api-im-standalone-gateway/src/node/principal_profile.rs` 实现：
    - provider 选择配置解析
    - external 用户目录加载
    - external 主链路元数据映射

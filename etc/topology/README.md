@@ -18,7 +18,7 @@ Platform standard: [../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_ADOPTION.md](../../
 
 ## Standalone gateway
 
-Standalone profiles embed IAM and IM application ingress through `sdkwork-im-standalone-gateway`
+Standalone profiles embed IAM and IM application ingress through `sdkwork-api-im-standalone-gateway`
 on `application.public-ingress`. Client and platform SDK URLs collapse to the same bind.
 Startup also provisions IAM tenant application runtime `sdkwork-im-pc` for tenant `100001`
 before credential-entry routes (login, registration, QR auth) are served.
@@ -41,7 +41,7 @@ handlers unless an explicit cloud upstream is configured.
 
 In the default `standalone.development` profile, IM API, OpenAPI, health, readiness, IAM app-api, and embedded dependency routes all share `http://127.0.0.1:18079`. Process layout is an implementation detail behind the selected deployment profile and must not appear in profile ids or public pnpm scripts. Port `3900` can be used by a separate platform or edge gateway in other workspaces; verify the process identity before diagnosing IM behavior from `3900`.
 
-For `sdkwork-im-standalone-gateway`, `/openapi/runtime-summary.json` must report
+For `sdkwork-api-im-standalone-gateway`, `/openapi/runtime-summary.json` must report
 `runtimeMode: "unified"`. A standalone process that tries to proxy IM chat routes
 to unconfigured internal HTTP upstreams is stale or mis-launched and can return
 `50301 dependency_unavailable`.
@@ -139,7 +139,7 @@ preStop signal, scheduler delay, and forced process termination.
 | `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` | _(empty)_ | Comma-separated trusted proxy IPs for X-Forwarded-For |
 | `SDKWORK_IM_GATEWAY_OPENAPI_CACHE_TTL_SECS` | `60` | Successful aggregate `/openapi.json` cache TTL; concurrent misses are coalesced |
 
-Standalone applies one final edge `HybridIpRateLimiter` after IM, IAM, and embedded dependency routers are merged. Cloud gateway mode applies its own edge limiter inside `sdkwork-im-cloud-gateway`. Probe paths (`/health`, `/healthz`, `/livez`, `/ready`, `/readyz`, `/metrics`) are exempt from IP rate limiting in every gateway middleware variant.
+Standalone applies one final edge `HybridIpRateLimiter` after IM, IAM, and embedded dependency routers are merged. Cloud gateway mode applies its own edge limiter inside `sdkwork-api-im-standalone-gateway`. Probe paths (`/health`, `/healthz`, `/livez`, `/ready`, `/readyz`, `/metrics`) are exempt from IP rate limiting in every gateway middleware variant.
 
 `/openapi.json` skips configured upstreams whose `{baseUrl}/openapi.json` resolves to the current gateway aggregate endpoint. This prevents recursive OpenAPI aggregation, the request fan-out that caused API calls to remain pending after startup, and the secondary rate-limit/socket pressure that followed.
 

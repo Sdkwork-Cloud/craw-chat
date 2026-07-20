@@ -5427,9 +5427,64 @@ dependencies = [
 name = "sdkwork-api-im-standalone-gateway"
 version = "0.1.0"
 dependencies = [
+ "axum 0.8.9",
+ "im-adapters-postgres-journal",
+ "sdkwork-account-service-host",
+ "sdkwork-agents-runtime-facade",
+ "sdkwork-api-account-assembly",
+ "sdkwork-api-agents-assembly",
+ "sdkwork-api-catalog-assembly",
+ "sdkwork-api-config",
+ "sdkwork-api-course-assembly",
+ "sdkwork-api-drive-assembly",
  "sdkwork-api-im-assembly",
+ "sdkwork-api-inventory-assembly",
+ "sdkwork-api-invoice-assembly",
+ "sdkwork-api-knowledgebase-assembly",
+ "sdkwork-api-mail-assembly",
+ "sdkwork-api-membership-assembly",
+ "sdkwork-api-merchandise-assembly",
+ "sdkwork-api-notary-assembly",
+ "sdkwork-api-order-assembly",
+ "sdkwork-api-payment-assembly",
+ "sdkwork-api-product-runtime",
+ "sdkwork-api-promotion-assembly",
+ "sdkwork-api-shop-assembly",
+ "sdkwork-catalog-service-host",
+ "sdkwork-comms-conversation-service",
+ "sdkwork-course-database-host",
+ "sdkwork-database-config",
+ "sdkwork-database-sqlx",
+ "sdkwork-drive-config",
+ "sdkwork-drive-security",
+ "sdkwork-drive-workspace-service",
+ "sdkwork-iam-database-host",
+ "sdkwork-iam-embedded-application-bootstrap",
+ "sdkwork-im-database-pool",
+ "sdkwork-im-iam-application-bootstrap",
+ "sdkwork-im-service-readiness",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-inventory-service-host",
+ "sdkwork-invoice-service-host",
+ "sdkwork-knowledgebase-database-host",
+ "sdkwork-mail-database-host",
+ "sdkwork-membership-service-host",
+ "sdkwork-merchandise-service-host",
+ "sdkwork-notary-database-host",
+ "sdkwork-order-service-host",
+ "sdkwork-payment-service-host",
+ "sdkwork-promotion-service-host",
+ "sdkwork-routes-iam-app-api",
+ "sdkwork-shop-service-host",
+ "sdkwork-web-axum",
  "sdkwork-web-bootstrap",
+ "sdkwork-web-core",
+ "sdkwork-webstore-database-host",
+ "session-gateway",
+ "social-service",
  "tokio",
+ "tower-http",
+ "tracing",
 ]
 
 [[package]]
@@ -6391,7 +6446,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-im-cloud-gateway"
+name = "sdkwork-api-im-standalone-gateway"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -6411,8 +6466,8 @@ dependencies = [
  "sdkwork-iam-database-host",
  "sdkwork-iam-web-adapter",
  "sdkwork-im-api-registry",
- "sdkwork-im-cloud-gateway-config",
- "sdkwork-im-cloud-gateway-observability",
+ "sdkwork-api-im-standalone-gateway",
+ "sdkwork-api-im-standalone-gateway-observability",
  "sdkwork-im-database-pool",
  "sdkwork-im-iam-application-bootstrap",
  "sdkwork-im-openapi",
@@ -6440,18 +6495,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-im-cloud-gateway-config"
+name = "sdkwork-api-im-standalone-gateway"
 version = "0.1.0"
 dependencies = [
  "serde",
 ]
 
 [[package]]
-name = "sdkwork-im-cloud-gateway-observability"
+name = "sdkwork-api-im-standalone-gateway-observability"
 version = "0.1.0"
 dependencies = [
  "sdkwork-im-api-registry",
- "sdkwork-im-cloud-gateway-config",
+ "sdkwork-api-im-standalone-gateway",
  "serde",
 ]
 
@@ -6651,7 +6706,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-im-standalone-gateway"
+name = "sdkwork-api-im-standalone-gateway"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -6688,9 +6743,9 @@ dependencies = [
  "sdkwork-drive-workspace-service",
  "sdkwork-iam-database-host",
  "sdkwork-iam-embedded-application-bootstrap",
- "sdkwork-im-cloud-gateway",
- "sdkwork-im-cloud-gateway-config",
- "sdkwork-im-cloud-gateway-observability",
+ "sdkwork-api-im-standalone-gateway",
+ "sdkwork-api-im-standalone-gateway",
+ "sdkwork-api-im-standalone-gateway-observability",
  "sdkwork-im-database-pool",
  "sdkwork-im-iam-application-bootstrap",
  "sdkwork-im-service-readiness",
@@ -6814,6 +6869,7 @@ dependencies = [
  "async-trait",
  "base64",
  "clawrouter-open-sdk",
+ "futures",
  "hmac 0.12.1",
  "reqwest",
  "sdkwork-agent-kernel",
@@ -6834,6 +6890,7 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -6988,6 +7045,7 @@ dependencies = [
  "sdkwork-knowledgebase-provider-runtime",
  "serde",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]
@@ -7001,6 +7059,7 @@ dependencies = [
  "sdkwork-knowledgebase-provider-runtime",
  "serde",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]
@@ -7014,6 +7073,7 @@ dependencies = [
  "sdkwork-knowledgebase-provider-runtime",
  "serde",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]
@@ -7028,6 +7088,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "zeroize",
 ]
 
 [[package]]
@@ -7042,6 +7103,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "zeroize",
 ]
 
 [[package]]
@@ -7055,6 +7117,7 @@ dependencies = [
  "sdkwork-knowledgebase-provider-runtime",
  "serde",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]
@@ -7069,6 +7132,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "zeroize",
 ]
 
 [[package]]
@@ -7082,6 +7146,7 @@ dependencies = [
  "sdkwork-knowledgebase-provider-runtime",
  "serde",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]
@@ -7095,6 +7160,7 @@ dependencies = [
  "sdkwork-knowledgebase-provider-runtime",
  "serde",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]
@@ -7108,6 +7174,7 @@ dependencies = [
  "sdkwork-knowledgebase-provider-runtime",
  "serde",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]

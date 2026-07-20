@@ -189,11 +189,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -203,11 +202,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/drive",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -217,11 +215,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/notary",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -231,11 +228,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/catalog",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -245,11 +241,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/memberships",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -259,11 +254,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/shops",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -273,11 +267,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/orders",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -287,11 +280,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/mail",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -301,11 +293,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/community",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -315,11 +306,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/courses",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -329,11 +319,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/knowledge",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -343,11 +332,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/rtc",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -357,11 +345,10 @@
         "surface": "backend-api",
         "apiPrefix": "/backend/v3/api/rtc",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -371,11 +358,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/ai",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -385,11 +371,10 @@
         "surface": "backend-api",
         "apiPrefix": "/backend/v3/api/ai",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -399,11 +384,10 @@
         "surface": "open-api",
         "apiPrefix": "/agent/v3/api",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -413,11 +397,10 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/iot",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       },
       {
@@ -427,11 +410,10 @@
         "surface": "backend-api",
         "apiPrefix": "/backend/v3/api/iot",
         "targetRuntimeIntegration": {
-          "mode": "shared-gateway",
-          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
           "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-          "catalogPolicy": "no-dedicated-gateway-catalog"
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
         }
       }
     ]
@@ -441,21 +423,17 @@
     "dependencyPolicy": "Consumers integrate through public package exports, declared runtime entrypoints, generated SDK clients, or documented adapters only.",
     "sdkPolicy": "Generated SDK clients are injected through service/runtime boundaries; reusable UI must not create raw HTTP clients or manual auth headers.",
     "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract.",
-    "foundationApiGateway": {
-      "targetApplication": "sdkwork-api-cloud-gateway",
-      "targetMode": "shared-gateway",
+    "platformApiGateway": {
+      "connectivitySurface": "platform.api-gateway",
+      "targetMode": "profile-resolved",
       "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
       "gatewayBaseUrlEnvKeys": [
-        "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-        "SDKWORK_API_CLOUD_GATEWAY_BASE_URL"
+        "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
       ],
-      "gatewayBindEnv": "SDKWORK_API_CLOUD_GATEWAY_BIND",
-      "defaultLocalGatewayBaseUrl": "http://127.0.0.1:3900",
       "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-      "authority": "cargo-workspace",
-      "catalogPolicy": "no-dedicated-gateway-catalog",
+      "authority": "topology-profile",
       "productApiPolicy": "Sdkwork IM IM APIs remain product-owned SDKWork API surfaces",
-      "migrationState": "shared-gateway-default",
+      "alignmentState": "current",
       "standaloneEmbeddedAuthorities": [
         "sdkwork-drive-app-api",
         "sdkwork-knowledgebase-app-api",
@@ -474,8 +452,8 @@
         "sdkwork-course-app-api"
       ],
       "standaloneDeferredAuthorities": [],
-      "foundationDependencyRuntimeMode": "embedded-assembly-only",
-      "foundationDependencyOverridePolicy": "per-module upstream and base URL overrides are retired"
+      "dependencyRuntimeMode": "embedded-assembly-only",
+      "dependencyOverridePolicy": "per-module upstream and base URL overrides are forbidden"
     }
   },
   "verification": {

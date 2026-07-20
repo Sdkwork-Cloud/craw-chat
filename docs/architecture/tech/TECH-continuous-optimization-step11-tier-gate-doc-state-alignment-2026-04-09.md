@@ -28,7 +28,7 @@
 
 ## Changed Files
 
-- `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`
 - `docs/step/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md`
 
 ## Verification
@@ -36,7 +36,7 @@
 Red:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed -- --exact --nocapture
 ```
 
 - Failed because the step doc did not contain the closure addendum.
@@ -44,9 +44,9 @@ cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalo
 Green:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed -- --exact --nocapture
 cargo fmt --all --check
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture
 ```
 
 ## Next Gap

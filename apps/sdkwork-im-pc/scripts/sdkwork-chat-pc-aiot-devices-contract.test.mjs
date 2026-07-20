@@ -124,8 +124,8 @@ const aiotDeviceServiceSource = readText(
 );
 assert.match(
   aiotDeviceServiceSource,
-  /from\s+["']@sdkwork\/aiot-app-sdk["']/u,
-  'Canonical device service must consume sdkwork-aiot-app-sdk.',
+  /from\s+["']@sdkwork\/aiot-pc-core["'][\s\S]*from\s+["']@sdkwork\/aiot-app-core["']/u,
+  'Canonical device service must consume the approved AIoT PC and app SDK wrappers.',
 );
 assert.match(
   aiotDeviceServiceSource,
@@ -155,8 +155,8 @@ const aiotIotServiceSource = readText(
 );
 assert.match(
   aiotIotServiceSource,
-  /from\s+["']@sdkwork\/aiot-app-sdk["']/u,
-  'Canonical IoT service must consume sdkwork-aiot-app-sdk.',
+  /from\s+["']@sdkwork\/aiot-pc-core["'][\s\S]*from\s+["']@sdkwork\/aiot-app-core["']/u,
+  'Canonical IoT service must consume the approved AIoT PC and app SDK wrappers.',
 );
 assert.match(
   aiotIotServiceSource,
@@ -209,12 +209,12 @@ assert.match(
 );
 
 const rootCargoSource = readRepoText('Cargo.toml');
-const imGatewayCargoSource = readRepoText('services/sdkwork-im-cloud-gateway/Cargo.toml');
+const imGatewayCargoSource = readRepoText('crates/sdkwork-api-im-standalone-gateway/Cargo.toml');
 const sessionGatewayCargoSource = readRepoText('services/session-gateway/Cargo.toml');
 const imPlatformCargoSource = readRepoText('crates/im-platform-contracts/Cargo.toml');
 const imPlatformExportsSource = readRepoText('crates/im-platform-contracts/src/lib.rs');
 const imPlatformProviderSource = readRepoText('crates/im-platform-contracts/src/provider.rs');
-const imGatewayLibSource = readRepoText('services/sdkwork-im-cloud-gateway/src/lib.rs');
+const imGatewayMainSource = readRepoText('crates/sdkwork-api-im-standalone-gateway/src/main.rs');
 
 for (const retiredRustMember of [
   'adapters/iot-access-local',
@@ -229,7 +229,7 @@ for (const retiredRustMember of [
 }
 
 for (const [label, source] of [
-  ['sdkwork-im-cloud-gateway Cargo.toml', imGatewayCargoSource],
+  ['sdkwork-api-im-standalone-gateway Cargo.toml', imGatewayCargoSource],
   ['session-gateway Cargo.toml', sessionGatewayCargoSource],
   ['im-platform-contracts Cargo.toml', imPlatformCargoSource],
 ]) {
@@ -243,7 +243,7 @@ for (const [label, source] of [
 for (const [label, source] of [
   ['im-platform-contracts exports', imPlatformExportsSource],
   ['im-platform-contracts provider contracts', imPlatformProviderSource],
-  ['sdkwork-im-cloud-gateway lib', imGatewayLibSource],
+  ['sdkwork-api-im-standalone-gateway main', imGatewayMainSource],
 ]) {
   assert.doesNotMatch(
     source,
@@ -261,24 +261,24 @@ for (const dependencyName of [
   assert.doesNotMatch(
     rootCargoSource,
     new RegExp(`${dependencyName}\\s*=`),
-    `Sdkwork IM Rust workspace must not integrate ${dependencyName}; AIoT runtime API traffic is routed through sdkwork-api-cloud-gateway.`,
+    `Sdkwork IM Rust workspace must not integrate ${dependencyName}; AIoT runtime API traffic is routed through platform.api-gateway.`,
   );
   assert.doesNotMatch(
     imGatewayCargoSource,
     new RegExp(`${dependencyName}\\.workspace\\s*=\\s*true`),
-    `sdkwork-im-cloud-gateway must not consume ${dependencyName}; AIoT runtime API traffic is routed through sdkwork-api-cloud-gateway.`,
+    `sdkwork-api-im-standalone-gateway must not consume ${dependencyName}; AIoT runtime API traffic is routed through platform.api-gateway.`,
   );
 }
 
 assert.doesNotMatch(
-  imGatewayLibSource,
+  imGatewayMainSource,
   /mod aiot_bridge;|sdkwork_aiot_http_api|aiot_app_api_server|aiot_backend_api_server/u,
-  'sdkwork-im-cloud-gateway must not keep a product-local SDKWork AIoT Rust backend bridge.',
+  'sdkwork-api-im-standalone-gateway must not keep a product-local SDKWork AIoT Rust backend bridge.',
 );
 assert.doesNotMatch(
-  imGatewayLibSource,
+  imGatewayMainSource,
   /\/app\/v3\/api\/iot|\/backend\/v3\/api\/iot|aiot_bridge::|standard_app_api_server|standard_admin_api_server/u,
-  'sdkwork-im-cloud-gateway must not mount AIoT app/backend API prefixes; sdkwork-api-cloud-gateway owns those foundation surfaces.',
+  'sdkwork-api-im-standalone-gateway must not mount AIoT app/backend API prefixes; platform.api-gateway owns those foundation surfaces.',
 );
 
 console.log('sdkwork im pc AIoT devices SDK contract passed.');

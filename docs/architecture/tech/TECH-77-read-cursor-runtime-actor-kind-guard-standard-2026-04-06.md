@@ -69,7 +69,7 @@ All public adapters must pass raw ingress actor kind into the runtime read-curso
 Required current adapters:
 
 - `services/conversation-runtime` HTTP handler
-- `services/sdkwork-im-cloud-gateway` HTTP handler
+- `crates/sdkwork-api-im-standalone-gateway` HTTP handler
 
 Adapters must not normalize actor kind before runtime authorization. The runtime is the authority.
 

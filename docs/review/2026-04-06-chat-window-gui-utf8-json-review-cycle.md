@@ -52,8 +52,8 @@ GUI 聊天窗持续报错：
 
 已通过测试：
 
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_chat_window_gui_ps1_reads_cli_json_via_utf8_process_io -- --exact`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_chat_window_gui_ps1_uses_polling_runtime_instead_of_async_child_stdio_bridge -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_chat_window_gui_ps1_reads_cli_json_via_utf8_process_io -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_chat_window_gui_ps1_uses_polling_runtime_instead_of_async_child_stdio_bridge -- --exact`
 
 已通过人工验证：
 

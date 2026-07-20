@@ -6,14 +6,14 @@ documentation is easiest to understand through five architectural lenses:
 1. The workspace layout and contract crates
 2. Topology v2 connectivity planes (`application.public-ingress` + `platform.api-gateway`)
 3. The separate `control-plane-api`
-4. The unified `sdkwork-im-cloud-gateway` / `sdkwork-im-server` application ingress
+4. The unified `sdkwork-api-im-standalone-gateway` / `sdkwork-im-server` application ingress
 5. The runtime-directory persistence contract and shared storage baseline
 
 ## Core Architecture Facts
 
 | Fact | Current implementation |
 | --- | --- |
-| Application ingress binary | `services/sdkwork-im-cloud-gateway` with `[[bin]] name = "sdkwork-im-server"` |
+| Application ingress binary | `crates/sdkwork-api-im-standalone-gateway` with `[[bin]] name = "sdkwork-im-server"` |
 | Default IM open-platform prefix | `/im/v3/api/*` |
 | Default app-development prefix | `/app/v3/api/*` |
 | Default backend/operator prefix | `/backend/v3/api/*` |
@@ -39,7 +39,7 @@ Domains exposed through the ingress include:
 - notifications, automation, audit, and operator diagnostics
 - principal-profile, object-storage, RTC, and IoT-related provider health surfaces
 
-Routing is implemented in `services/sdkwork-im-cloud-gateway`.
+Routing is implemented in `crates/sdkwork-api-im-standalone-gateway`.
 
 ## Control Plane
 
@@ -56,7 +56,7 @@ binary that binds `127.0.0.1:18081` in `services/control-plane-api/src/main.rs`.
 
 ## Unified Gateway And Packaged Server
 
-`services/sdkwork-im-cloud-gateway` publishes the packaged application ingress boundary. Its discovery surface
+`crates/sdkwork-api-im-standalone-gateway` publishes the packaged application ingress boundary. Its discovery surface
 includes `GET /openapi.json`, `GET /openapi/index.json`, and `GET /openapi/runtime-summary.json`,
 along with rendered docs and per-service OpenAPI proxies.
 

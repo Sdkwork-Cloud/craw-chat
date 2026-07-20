@@ -30,16 +30,16 @@
 Red:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_shell_lifecycle_scripts_use_args_based_process_identity_for_portability -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_shell_lifecycle_scripts_use_args_based_process_identity_for_portability -- --exact --nocapture
 ```
 
 Green:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_shell_lifecycle_scripts_use_args_based_process_identity_for_portability -- --exact --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_shell_lifecycle_scripts_use_args_based_process_identity_for_portability -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test -- --nocapture
 cargo fmt --all --check
-cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 ```
 
 ## Result

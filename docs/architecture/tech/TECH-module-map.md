@@ -13,7 +13,7 @@ directories are stable enough to document as product surfaces.
 | `adapters/` | Provider and storage adapters such as local disk, local memory, IoT access, IoT MQTT, object storage, and RTC providers |
 | `crates/` | Shared contracts, CCP protocol crates, AppContext projection, runtime links, route ownership models, and domain primitives |
 | `services/` | App runtime services, control-plane API, operator services, and business subsystems |
-| `services/sdkwork-im-cloud-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `sdkwork-im-server` binary |
+| `crates/sdkwork-api-im-standalone-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `sdkwork-im-server` binary |
 | `tools/` | Local verification tools such as `chat-cli` and smoke workflows |
 | `bin/` | PowerShell, Bash, and CMD lifecycle wrappers for local development and operations |
 | `deployments/` | Dockerfile, Compose profiles, environment templates, and bootstrap scripts |
@@ -25,7 +25,7 @@ directories are stable enough to document as product surfaces.
 
 | Service | Responsibility |
 | --- | --- |
-| `sdkwork-im-cloud-gateway` | Unified application ingress, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `sdkwork-im-server` binary |
+| `sdkwork-api-im-standalone-gateway` | Unified application ingress, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `sdkwork-im-server` binary |
 | `comms-conversation-service` | Conversation, membership, message, and handoff behavior |
 | `session-gateway` | client route heartbeat, presence, realtime route ownership, disconnect fences, and websocket handling |
 | `projection-service` | Inbox, summaries, read cursors, member directories, pins, search, visibility, and interaction read-model projection support |
@@ -55,7 +55,7 @@ directories are stable enough to document as product surfaces.
 - `apps/sdkwork-im-admin` and `apps/sdkwork-im-portal` are not documented as complete products.
 - SDK workspaces are documented separately from actual release status.
 - Checked-in OpenAPI authority now exists for the app, admin, and management SDK workspaces.
-- `sdkwork-im-cloud-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `sdkwork-im-server` binary.
+- `sdkwork-api-im-standalone-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `sdkwork-im-server` binary.
 - The admin control-plane TypeScript SDK is locally verified, but that does not imply that every
   browser `/backend/v3/api/admin/*` route has already been promoted into the formal control-plane authority.
 

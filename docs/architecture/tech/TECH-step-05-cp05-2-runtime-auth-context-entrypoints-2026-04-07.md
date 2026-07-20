@@ -49,8 +49,8 @@
   - `resolve_agent_handoff_from_auth_context(...)`
   - `close_agent_handoff_from_auth_context(...)`
 - 在 `services/conversation-runtime/src/runtime/http.rs` 所有 non-message mutation 路径改为调用上述 runtime auth-context entrypoint。
-- 在 `services/sdkwork-im-cloud-gateway/src/node/conversation.rs`、`handoff.rs`、`membership.rs`、`projection.rs` 全部改为调用上述 runtime auth-context entrypoint。
-- 在 `services/sdkwork-im-cloud-gateway/src/node.rs` 清理了这次边界前移后不再使用的 conversation command imports。
+- 在 `crates/sdkwork-api-im-standalone-gateway/src/node/conversation.rs`、`handoff.rs`、`membership.rs`、`projection.rs` 全部改为调用上述 runtime auth-context entrypoint。
+- 在 `crates/sdkwork-api-im-standalone-gateway/src/node.rs` 清理了这次边界前移后不再使用的 conversation command imports。
 
 ### 3.2 测试补齐
 
@@ -58,7 +58,7 @@
   - 新增 `test_runtime_exposes_non_message_auth_context_entrypoints`
   - 新增 `test_http_non_message_surface_uses_runtime_auth_context_entrypoints`
   - 同步升级旧的 non-message boundary 断言，禁止 HTTP 继续走旧 `*with_*kind` 入口
-- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
   - 新增 `test_local_minimal_node_non_message_paths_use_runtime_auth_context_entrypoints`
   - 同步升级旧的 non-message boundary 断言，禁止 sdkwork-im-server 继续走旧 `*with_*kind` 入口
 
@@ -70,16 +70,16 @@
 - `services/conversation-runtime/src/runtime/membership.rs`
 - `services/conversation-runtime/src/runtime/handoff.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/sdkwork-im-cloud-gateway/src/node.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/conversation.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/handoff.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/membership.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/projection.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/conversation.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/handoff.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/membership.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/projection.rs`
 
 ### 4.2 测试
 
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 - `services/conversation-runtime/tests/authority_command_test.rs`
 
 ## 5. 验证证据
@@ -92,14 +92,14 @@
 - Green
   - `cargo test -p conversation-runtime --test conversation_domain_structure_test --offline`
   - `cargo test -p conversation-runtime --test authority_command_test --offline`
-  - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node'; cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test --offline`
+  - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node'; cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test --offline`
 
 ### 5.2 完整回归证据
 
-- `rustfmt --edition 2024 services/conversation-runtime/src/runtime/creation.rs services/conversation-runtime/src/runtime/membership.rs services/conversation-runtime/src/runtime/handoff.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/sdkwork-im-cloud-gateway/src/node.rs services/sdkwork-im-cloud-gateway/src/node/conversation.rs services/sdkwork-im-cloud-gateway/src/node/membership.rs services/sdkwork-im-cloud-gateway/src/node/handoff.rs services/sdkwork-im-cloud-gateway/src/node/projection.rs services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
-- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime/creation.rs services/conversation-runtime/src/runtime/membership.rs services/conversation-runtime/src/runtime/handoff.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/sdkwork-im-cloud-gateway/src/node.rs services/sdkwork-im-cloud-gateway/src/node/conversation.rs services/sdkwork-im-cloud-gateway/src/node/membership.rs services/sdkwork-im-cloud-gateway/src/node/handoff.rs services/sdkwork-im-cloud-gateway/src/node/projection.rs services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `rustfmt --edition 2024 services/conversation-runtime/src/runtime/creation.rs services/conversation-runtime/src/runtime/membership.rs services/conversation-runtime/src/runtime/handoff.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs crates/sdkwork-api-im-standalone-gateway/src/node.rs crates/sdkwork-api-im-standalone-gateway/src/node/conversation.rs crates/sdkwork-api-im-standalone-gateway/src/node/membership.rs crates/sdkwork-api-im-standalone-gateway/src/node/handoff.rs crates/sdkwork-api-im-standalone-gateway/src/node/projection.rs crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
+- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime/creation.rs services/conversation-runtime/src/runtime/membership.rs services/conversation-runtime/src/runtime/handoff.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs crates/sdkwork-api-im-standalone-gateway/src/node.rs crates/sdkwork-api-im-standalone-gateway/src/node/conversation.rs crates/sdkwork-api-im-standalone-gateway/src/node/membership.rs crates/sdkwork-api-im-standalone-gateway/src/node/handoff.rs crates/sdkwork-api-im-standalone-gateway/src/node/projection.rs crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 - `cargo test -p conversation-runtime --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node-full'; cargo test -p sdkwork-im-cloud-gateway --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node-full'; cargo test -p sdkwork-api-im-standalone-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ### 5.3 验证结论

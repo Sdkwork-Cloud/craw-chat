@@ -65,7 +65,7 @@ The contract is:
   - runtime message write now also validates sender kind against the resolved member principal kind before appending
   - exposed route:
     - `POST /im/v3/api/chat/conversations/{conversation_id}/system-channel/publish`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - exposed the same dedicated publish route
   - added local side-effect handling for dedicated publish:
     - notification fanout
@@ -84,7 +84,7 @@ The contract is:
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - `test_system_channel_publisher_must_use_dedicated_publish_route_over_http`
   - `test_system_channel_dedicated_publish_over_http`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_system_channel_publisher_must_use_dedicated_publish_in_local_profile`
   - `test_system_channel_dedicated_publish_allows_only_publisher_in_local_profile`
 
@@ -100,7 +100,7 @@ These tests prove:
 
 - `cargo test -p conversation-runtime --offline test_system_channel_requires_dedicated_publish_command_and_allows_only_publisher -- --exact`
   - failed to compile because dedicated publish command/method did not exist
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_system_channel_publisher_must_use_dedicated_publish_in_local_profile -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_system_channel_publisher_must_use_dedicated_publish_in_local_profile -- --exact`
   - failed with `200 != 403`
 
 ### Green
@@ -108,8 +108,8 @@ These tests prove:
 - `cargo test -p conversation-runtime --offline test_system_channel_requires_dedicated_publish_command_and_allows_only_publisher -- --exact`
 - `cargo test -p conversation-runtime --offline test_system_channel_publisher_must_use_dedicated_publish_route_over_http -- --exact`
 - `cargo test -p conversation-runtime --offline test_system_channel_dedicated_publish_over_http -- --exact`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_system_channel_publisher_must_use_dedicated_publish_in_local_profile -- --exact`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_system_channel_dedicated_publish_allows_only_publisher_in_local_profile -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_system_channel_publisher_must_use_dedicated_publish_in_local_profile -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_system_channel_dedicated_publish_allows_only_publisher_in_local_profile -- --exact`
 
 ## 7. Remaining Risks
 

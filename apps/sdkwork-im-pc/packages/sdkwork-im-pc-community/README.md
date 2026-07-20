@@ -10,7 +10,7 @@ Thin IM host adapter over canonical `@sdkwork/community-pc-community` in `../sdk
 | --- | --- |
 | UI, service, OpenAPI, Rust domain | `sdkwork-community` |
 | IM toast, avatar, session, language bridge, SDK port injection | `@sdkwork/im-pc-community` (this package) |
-| Gateway upstream `/app/v3/api/community/*` | `sdkwork-im-cloud-gateway` |
+| Gateway upstream `/app/v3/api/community/*` | `sdkwork-api-im-standalone-gateway` |
 
 Bootstrap: `apps/sdkwork-im-pc/src/bootstrap/communityPc.ts` calls `bootstrapCommunityPcForIm()` then `bootstrapImCommunityPcHost()` before render.
 

@@ -115,7 +115,7 @@
 
 重点涉及：
 
-- `services/sdkwork-im-cloud-gateway/tests/`
+- `crates/sdkwork-api-im-standalone-gateway/tests/`
 - `services/session-gateway/tests/`
 - `services/streaming-service/tests/`
 - `services/projection-service/tests/`

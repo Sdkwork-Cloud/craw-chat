@@ -42,7 +42,7 @@
   - 每类场景对应的仓库种子资产
 
 ### 3. 已把 CP11-1 合同纳入真实回归门禁
-- 新增：`services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`
+- 新增：`crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`
 - 回归门禁覆盖：
   - 场景清单文件存在且 JSON 合法
   - 三层 tier 名称固定
@@ -53,7 +53,7 @@
 ## TDD / Red-Green 证据
 
 ### Red
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test`
   - 初始失败：缺少 `tools/perf/step-11-scenario-catalog.json`
   - 初始失败：缺少 `docs/部署/性能与灾备演练场景.md`
 
@@ -62,7 +62,7 @@
 - 这证明 `CP11-1` 不是口头整理，而是已经进入仓库回归门禁
 
 ## Fresh 验证
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test`
 - `cargo fmt --all --check`
 
 ## 当前判断

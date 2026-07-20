@@ -17,8 +17,8 @@
 
 - 将 `failover` 固定为 `Step 11` 的独立场景族
 - 统一使用本地已有最小可信入口：
-  - `services/sdkwork-im-cloud-gateway/tests/performance_ha_dr_drill_test.rs`
-  - `services/sdkwork-im-cloud-gateway/tests/cluster_realtime_routing_e2e_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/performance_ha_dr_drill_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/cluster_realtime_routing_e2e_test.rs`
   - `tools/perf/step-11-cp11-3-local-drill-baseline.json`
 - 冻结的指标字段为：
   - `takeover_duration_ms`
@@ -38,10 +38,10 @@
 ## 验证
 
 - 红灯：
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture`
   - 失败点：`Step 11 catalog must define the failover scenario family`
 - 绿灯：
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture`
 
 ## 下一轮建议
 

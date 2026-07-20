@@ -195,7 +195,7 @@
 - **成员扇出**：`ConversationRuntime::list_members` 枚举会话成员 principal
 - **设备过滤**：`session-gateway` `RealtimeDeliveryRuntime::publish_scope_event_for_principal_kind`（`delivery_class = durable`，持久化 event window + checkpoint）
 - **Ephemeral 分层**：typing / presence 走 `publish_ephemeral_scope_event_for_principal_kind`（仅内存 window + watch 通知，不写 Postgres/Redis durable store）
-- **嵌入接线**：`sdkwork-im-standalone-gateway/src/embedded_plane_wiring.rs` 注册 `register_embedded_realtime_publisher`
+- **嵌入接线**：`sdkwork-api-im-standalone-gateway/src/embedded_plane_wiring.rs` 注册 `register_embedded_realtime_publisher`
 
 已满足：
 

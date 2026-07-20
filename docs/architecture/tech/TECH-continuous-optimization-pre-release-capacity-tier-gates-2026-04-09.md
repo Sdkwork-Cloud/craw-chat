@@ -10,7 +10,7 @@
 ## 红绿证据
 
 - 红灯：
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_surfaces_tier_gate_artifact_roots_in_catalog_schema_and_backwrites -- --exact --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_surfaces_tier_gate_artifact_roots_in_catalog_schema_and_backwrites -- --exact --nocapture`
   - 失败信息：缺少 `gateTemplate`
 - 绿灯：
   - 同一条测试在补齐 catalog tier `artifactRoot`、schema 字段和文档回写后保持通过

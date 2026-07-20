@@ -65,9 +65,9 @@
 
 - 注意：默认 `target\\debug\\sdkwork-im-server.exe` 被常驻进程锁定，直接复用默认 target 会触发 Windows `os error 5`
 - 本轮 e2e 使用隔离 target：
-  - `$env:CARGO_TARGET_DIR='target-cp053'; cargo test -p sdkwork-im-cloud-gateway --test access_control_e2e_test test_direct_conversation_member_management_is_restricted --offline`
-  - `$env:CARGO_TARGET_DIR='target-cp053'; cargo test -p sdkwork-im-cloud-gateway --test access_control_e2e_test test_group_owner_transfer_allows_safe_handoff_and_leave --offline`
-  - `$env:CARGO_TARGET_DIR='target-cp053'; cargo test -p sdkwork-im-cloud-gateway --test access_control_e2e_test test_system_channel_dedicated_publish_allows_only_publisher_in_local_profile --offline`
+  - `$env:CARGO_TARGET_DIR='target-cp053'; cargo test -p sdkwork-api-im-standalone-gateway --test access_control_e2e_test test_direct_conversation_member_management_is_restricted --offline`
+  - `$env:CARGO_TARGET_DIR='target-cp053'; cargo test -p sdkwork-api-im-standalone-gateway --test access_control_e2e_test test_group_owner_transfer_allows_safe_handoff_and_leave --offline`
+  - `$env:CARGO_TARGET_DIR='target-cp053'; cargo test -p sdkwork-api-im-standalone-gateway --test access_control_e2e_test test_system_channel_dedicated_publish_allows_only_publisher_in_local_profile --offline`
 
 ## 5. 当前判断
 

@@ -10,11 +10,11 @@ function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 }
 
-const mainSource = read('services/sdkwork-im-standalone-gateway/src/main.rs');
+const mainSource = read('crates/sdkwork-api-im-standalone-gateway/src/main.rs');
 const embeddedSource = read(
-  'services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs',
+  'crates/sdkwork-api-im-standalone-gateway/src/embedded_dependency_routes.rs',
 );
-const gatewayCargo = read('services/sdkwork-im-standalone-gateway/Cargo.toml');
+const gatewayCargo = read('crates/sdkwork-api-im-standalone-gateway/Cargo.toml');
 const driveInstaller = read(
   '../sdkwork-drive/crates/sdkwork-drive-workspace-service/src/infrastructure/sql/installer.rs',
 );

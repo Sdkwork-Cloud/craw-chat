@@ -227,69 +227,39 @@ assert.doesNotMatch(
 
 
 
-const gatewayCargo = read('services/sdkwork-im-cloud-gateway/Cargo.toml');
+const gatewayCargo = read('crates/sdkwork-api-im-standalone-gateway/Cargo.toml');
 
 assert.match(gatewayCargo, /sdkwork_web_axum\.workspace\s*=\s*true/u);
 
-assert.match(gatewayCargo, /sdkwork_web_bootstrap\.workspace\s*=\s*true/u);
+assert.match(gatewayCargo, /sdkwork-web-bootstrap\.workspace\s*=\s*true/u);
 
-assert.match(gatewayCargo, /sdkwork_iam_web_adapter\.workspace\s*=\s*true/u);
+assert.match(gatewayCargo, /sdkwork-im-web-bootstrap\.workspace\s*=\s*true/u);
+assert.match(gatewayCargo, /sdkwork_routes_iam_app_api\s*=\s*\{ workspace = true \}/u);
 
 
 
-const gatewayLib = read('services/sdkwork-im-cloud-gateway/src/lib.rs');
+const gatewayMain = read('crates/sdkwork-api-im-standalone-gateway/src/main.rs');
+const realtimeWebBootstrap = read('crates/sdkwork-routes-im-realtime-open-api/src/web_bootstrap.rs');
 
-const gatewayApp = read('services/sdkwork-im-cloud-gateway/src/app.rs');
-
-const gatewayWebFramework = read('services/sdkwork-im-cloud-gateway/src/web_framework.rs');
-
-assert.match(gatewayLib, /mod web_framework;/u);
-
-assert.match(gatewayApp, /web_framework::wrap_gateway_router/u);
-
-assert.match(gatewayApp, /RealtimeAuthContextResolver/u);
-
-assert.match(
-  gatewayApp,
-  /resolve_iam_auth_pool_from_env/u,
-  'gateway must bootstrap realtime websocket auth from IAM database pool when configured',
-);
-
-assert.match(gatewayWebFramework, /WebFramework::builder/u);
-
-assert.match(gatewayWebFramework, /with_web_request_context/u);
-
-assert.match(gatewayWebFramework, /service_router/u);
-
-assert.match(gatewayWebFramework, /IamWebRequestContextResolver/u);
-
-assert.match(
-  gatewayWebFramework,
-  /iam_web_request_context_resolver_from_env/u,
-  'gateway web framework must wire the canonical IAM web request context resolver from environment',
-);
+assert.match(gatewayMain, /service_router/u);
+assert.match(gatewayMain, /shared_iam_web_request_context_resolver_from_env/u);
+assert.match(gatewayMain, /build_sdkwork_iam_app_api_router/u);
+assert.match(realtimeWebBootstrap, /wrap_im_open_api_service_router_from_env/u);
 assert.doesNotMatch(
-  gatewayWebFramework,
+  `${gatewayMain}\n${realtimeWebBootstrap}`,
   /IamDatabaseWebRequestContextResolver/u,
   'gateway web framework must not reference the concrete IAM database resolver type in application integration',
 );
 assert.doesNotMatch(
-  gatewayWebFramework,
+  `${gatewayMain}\n${realtimeWebBootstrap}`,
   /iam_database_resolver_from_env/u,
   'gateway web framework must not keep the legacy IAM database resolver factory name',
 );
 
-assert.match(gatewayWebFramework, /IM_APP_API_PREFIX/u);
-
-assert.match(gatewayWebFramework, /REALTIME_WS/u);
-
-assert.match(gatewayWebFramework, /\/ws\//u);
-
-const gatewayHttpProxyTest = read('services/sdkwork-im-cloud-gateway/tests/http_proxy_test.rs');
 assert.match(
-  gatewayHttpProxyTest,
-  /SDKWORK_IM_ENVIRONMENT[\s\S]*SDKWORK_ENV/,
-  'gateway http proxy tests must bootstrap both IM and IAM test environments for dual-token fallback',
+  gatewayMain,
+  /SDKWORK_ENV[\s\S]*SDKWORK_IM_ENVIRONMENT/,
+  'standalone gateway must align the framework and IM environment before creating the runtime',
 );
 
 for (const relativePath of [

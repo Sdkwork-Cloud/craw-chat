@@ -379,7 +379,7 @@ try {
   });
   assert.equal(browserValidation.ok, true, `browser archive validation issues: ${browserValidation.issues.join('; ')}`);
 
-  writeFixture(serverStage, 'bin/sdkwork-im-server.exe', 'server');
+  writeFixture(serverStage, 'bin/sdkwork-api-im-standalone-gateway.exe', 'server');
   writeFixture(serverStage, 'config/chat.toml.example', '[server]\nbind_address = "127.0.0.1:18079"\n');
   writeFixture(serverStage, 'config/server.env.example', 'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=127.0.0.1:18079\n');
   writeFixture(serverStage, 'config/postgresql.yaml.example', 'engine: postgresql');
@@ -541,7 +541,7 @@ const stagingArchivePaths = new Set(dryRunStagingPlan.actions.map((action) => ac
 for (const expectedPath of [
   'config/chat.toml.example',
   'config/postgresql.yaml.example',
-  'service/linux/sdkwork-im-server.service',
+  'service/linux/sdkwork-api-im-standalone-gateway.service',
   'service/macos/com.sdkwork.im.server.plist',
   'service/windows/SdkworkImServer.xml',
   'web/sdkwork-im-pc/dist',
@@ -607,11 +607,11 @@ const postgresqlTemplate = readText('deployments', 'templates', 'postgresql.yaml
 assert.match(postgresqlTemplate, /passwordFile: \/etc\/sdkwork\/chat\/database\.secret/u);
 assert.doesNotMatch(postgresqlTemplate, /\/etc\/sdkwork-im\/default/u);
 
-const systemdTemplate = readText('deployments', 'systemd', 'sdkwork-im-server.service');
+const systemdTemplate = readText('deployments', 'systemd', 'sdkwork-api-im-standalone-gateway.service');
 for (const expectedText of [
   'WorkingDirectory=/opt/sdkwork/chat',
   'EnvironmentFile=/etc/sdkwork/chat/server.env',
-  'ExecStart=/opt/sdkwork/chat/bin/sdkwork-im-server --config /etc/sdkwork/chat/chat.toml',
+  'ExecStart=/opt/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway --config /etc/sdkwork/chat/chat.toml',
 ]) {
   assert.match(systemdTemplate, new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
 }
@@ -680,7 +680,11 @@ assert.equal(workflowConfig.app?.repository, 'Sdkwork-Cloud/sdkwork-im');
 assert.equal(workflowConfig.release?.artifactPrefix, 'sdkwork-im');
 assert.equal(workflowConfig.release?.defaultVersion, '0.1.0');
 assert.equal(workflowConfig.release?.changelog?.source, 'auto');
-assert.equal(workflowConfig.publish?.githubRelease, true);
+assert.equal(
+  workflowConfig.publish?.githubRelease,
+  false,
+  'DRAFT IM packages must not be published to GitHub Releases before real signing and store evidence is approved',
+);
 assert.equal(workflowConfig.publish?.workflowArtifact, true);
 assert.equal(workflowConfig.security?.artifactAttestations, true);
 assert.equal(workflowConfig.security?.sbomRequired, true, 'sdkwork.workflow.json must require SBOM when sdkwork.app.config.json does');
@@ -695,8 +699,13 @@ assert.ok(
 );
 assert.match(
   workflowConfig.lifecycle?.sbom?.map((step) => step.run).join('\n') ?? '',
-  /SBOM generation is configured by release environment/u,
-  'sdkwork.workflow.json lifecycle.sbom must delegate SBOM generation to the release environment when sbomRequired is true',
+  /workflow-supply-chain-evidence\.mjs attest/u,
+  'sdkwork.workflow.json lifecycle.sbom must create byte-bound SBOM, provenance, and framework evidence',
+);
+assert.match(
+  workflowConfig.lifecycle?.sign?.map((step) => step.run).join('\n') ?? '',
+  /workflow-supply-chain-evidence\.mjs sign/u,
+  'sdkwork.workflow.json lifecycle.sign must invoke the real detached-signature producer',
 );
 assert.doesNotMatch(
   workflowConfig.lifecycle?.sbom?.map((step) => step.run).join('\n') ?? '',
@@ -748,20 +757,26 @@ const expectedWorkflowTargetIds = [
   'macos-arm64-standalone-desktop-zip',
   'windows-x64-standalone-desktop-zip',
   'windows-arm64-standalone-desktop-zip',
+  'h5-universal-cloud-mobile-zip',
+  'android-universal-cloud-mobile-apk',
+  'android-universal-cloud-mobile-aab',
+  'ios-universal-cloud-mobile-ipa',
+  'container-x64-cloud-container-kubernetes-tar-gz',
 ];
+const sortedExpectedWorkflowTargetIds = [...expectedWorkflowTargetIds].sort();
 assert.deepEqual(
-  workflowConfig.targets?.map((target) => target.id),
-  expectedWorkflowTargetIds,
-  'sdkwork.workflow.json should expose canonical package ids for the supported browser, server, and desktop packages',
+  workflowConfig.targets?.map((target) => target.id).sort(),
+  sortedExpectedWorkflowTargetIds,
+  'sdkwork.workflow.json should expose canonical package ids for every implemented root release target',
 );
 assert.deepEqual(
-  appManifest.artifacts?.installConfig?.packages?.map((releasePackage) => releasePackage.id),
-  expectedWorkflowTargetIds,
+  appManifest.artifacts?.installConfig?.packages?.map((releasePackage) => releasePackage.id).sort(),
+  sortedExpectedWorkflowTargetIds,
   'sdkwork.app.config.json install packages should match sdkwork.workflow.json targets exactly',
 );
 assert.deepEqual(
-  appManifest.release?.notes?.find((note) => note.current === true)?.packageIds,
-  expectedWorkflowTargetIds,
+  appManifest.release?.notes?.find((note) => note.current === true)?.packageIds.sort(),
+  sortedExpectedWorkflowTargetIds,
   'sdkwork.app.config.json current release note packageIds should match sdkwork.workflow.json targets exactly',
 );
 const workflowTargetsById = new Map((workflowConfig.targets ?? []).map((target) => [target.id, target]));
@@ -771,6 +786,10 @@ for (const releasePackage of appManifest.artifacts?.installConfig?.packages ?? [
   assert.equal(releasePackage.deploymentProfile, workflowTarget.deploymentProfile, `${releasePackage.id} deploymentProfile`);
   assert.equal(releasePackage.runtimeTarget, workflowTarget.runtimeTarget, `${releasePackage.id} runtimeTarget`);
   assert.equal(releasePackage.architecture, workflowTarget.architecture, `${releasePackage.id} architecture`);
+  if (releasePackage.clientArchitecture) {
+    assert.equal(releasePackage.targetPlatform, workflowTarget.targetPlatform, `${releasePackage.id} targetPlatform`);
+    assert.equal(releasePackage.clientArchitecture, workflowTarget.clientArchitecture, `${releasePackage.id} clientArchitecture`);
+  }
   assert.equal(
     releasePackage.packageFormat,
     packageFormatForManifest(workflowTarget.formats?.[0]),
@@ -806,9 +825,10 @@ for (const [phase, expectedCommand] of Object.entries({
   );
 }
 for (const target of workflowConfig.targets ?? []) {
+  const variantToken = target.variant ? `-${target.variant}` : '';
   assert.equal(
     target.id,
-    `${target.platform}-${target.architecture}-${target.deploymentProfile}-${target.profile}-${String(target.formats?.[0] ?? '').replaceAll('.', '-')}`,
+    `${target.platform}-${target.architecture}-${target.deploymentProfile}-${target.profile}${variantToken}-${String(target.formats?.[0] ?? '').replaceAll('.', '-')}`,
   );
   assert.equal(target.outputGlobs?.includes(target.artifactPath), true, `${target.id} should upload its primary artifact`);
   assert.equal(
@@ -830,7 +850,7 @@ for (const expectedText of [
   'release:',
   'config_path: sdkwork.workflow.json',
   "package_version: ${{ github.event.inputs.package_version || '' }}",
-  'publish_release: true',
+  'publish_release: false',
   'upload_artifact: true',
   'framework_ref: b0829529b9277a3da32b90c2d36ff34ff09fa832',
 ]) {

@@ -14,24 +14,14 @@ function cargoCommand() {
   return process.platform === 'win32' ? 'cargo.exe' : 'cargo';
 }
 
-function normalizeText(value) {
-  const normalized = String(value ?? '').trim();
-  return normalized || undefined;
-}
-
 function parseArgs(argv) {
-  const configIndex = argv.indexOf('--config');
-  if (configIndex === -1 || !argv[configIndex + 1]) {
-    throw new Error('run-standalone-gateway-dev.mjs requires --config <path>');
-  }
   return {
-    configPath: argv[configIndex + 1],
     release: argv.includes('--release'),
   };
 }
 
 async function main() {
-  const { configPath, release } = parseArgs(process.argv.slice(2));
+  const { release } = parseArgs(process.argv.slice(2));
   const repoRoot = process.cwd();
   const profile = release ? 'release' : 'debug';
   const targetDir = resolveStandaloneGatewayDevTargetDir({
@@ -52,16 +42,16 @@ async function main() {
   const unlock = await waitForDevGatewayExecutableUnlock({ executablePath });
   if (unlock.waitedMs > 0) {
     process.stdout.write(
-      `[sdkwork-im-standalone-gateway] waited ${unlock.waitedMs}ms for executable unlock\n`,
+      `[sdkwork-api-im-standalone-gateway] waited ${unlock.waitedMs}ms for executable unlock\n`,
     );
   }
 
   const cargoArgs = [
     'build',
     '-p',
-    'sdkwork-im-standalone-gateway',
+    'sdkwork-api-im-standalone-gateway',
     '--bin',
-    'sdkwork-im-standalone-gateway',
+    'sdkwork-api-im-standalone-gateway',
   ];
   if (release) {
     cargoArgs.push('--release');
@@ -77,7 +67,7 @@ async function main() {
     process.exit(build.status ?? 1);
   }
 
-  const gateway = spawn(executablePath, ['--config', configPath], {
+  const gateway = spawn(executablePath, [], {
     cwd: repoRoot,
     env: gatewayEnv,
     stdio: 'inherit',
@@ -86,7 +76,7 @@ async function main() {
 
   gateway.on('error', (error) => {
     process.stderr.write(
-      `[sdkwork-im-standalone-gateway] ${error instanceof Error ? error.message : String(error)}\n`,
+      `[sdkwork-api-im-standalone-gateway] ${error instanceof Error ? error.message : String(error)}\n`,
     );
     process.exit(1);
   });
@@ -100,7 +90,7 @@ async function main() {
 
 main().catch((error) => {
   process.stderr.write(
-    `[sdkwork-im-standalone-gateway] ${error instanceof Error ? error.message : String(error)}\n`,
+    `[sdkwork-api-im-standalone-gateway] ${error instanceof Error ? error.message : String(error)}\n`,
   );
   process.exit(1);
 });

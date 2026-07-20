@@ -55,17 +55,17 @@
 - `crates/sdkwork-im-openapi/Cargo.toml`
 - `crates/sdkwork-im-openapi/src/lib.rs`
 - `crates/sdkwork-im-openapi/tests/openapi_aggregate_test.rs`
-- `crates/sdkwork-im-cloud-gateway-config/Cargo.toml`
-- `crates/sdkwork-im-cloud-gateway-config/src/lib.rs`
-- `crates/sdkwork-im-cloud-gateway-observability/Cargo.toml`
-- `crates/sdkwork-im-cloud-gateway-observability/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/Cargo.toml`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway-observability/Cargo.toml`
+- `crates/sdkwork-api-im-standalone-gateway-observability/src/lib.rs`
 - `services/web-gateway/Cargo.toml`
 - `services/web-gateway/src/lib.rs`
 - `services/web-gateway/src/main.rs`
 - `services/web-gateway/tests/http_proxy_test.rs`
 - `services/web-gateway/tests/websocket_proxy_test.rs`
 - `services/web-gateway/tests/openapi_index_test.rs`
-- `openapi/aggregate/sdkwork-im-cloud-gateway.openapi.json`
+- `openapi/aggregate/sdkwork-api-im-standalone-gateway.openapi.json`
 - `openapi/aggregate/openapi-index.json`
 - `openapi/public/sdkwork-im-im.openapi.yaml`
 - `openapi/public/sdkwork-im-control.openapi.json`
@@ -224,10 +224,10 @@ git commit -m "feat(api): add live openapi export to sdkwork im services"
 ### Task 3: Introduce The Single-Port Web Gateway
 
 **Files:**
-- Create: `crates/sdkwork-im-cloud-gateway-config/Cargo.toml`
-- Create: `crates/sdkwork-im-cloud-gateway-config/src/lib.rs`
-- Create: `crates/sdkwork-im-cloud-gateway-observability/Cargo.toml`
-- Create: `crates/sdkwork-im-cloud-gateway-observability/src/lib.rs`
+- Create: `crates/sdkwork-api-im-standalone-gateway/Cargo.toml`
+- Create: `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
+- Create: `crates/sdkwork-api-im-standalone-gateway-observability/Cargo.toml`
+- Create: `crates/sdkwork-api-im-standalone-gateway-observability/src/lib.rs`
 - Create: `services/web-gateway/Cargo.toml`
 - Create: `services/web-gateway/src/lib.rs`
 - Create: `services/web-gateway/src/main.rs`
@@ -284,7 +284,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Cargo.toml crates/sdkwork-im-cloud-gateway-config crates/sdkwork-im-cloud-gateway-observability services/web-gateway
+git add Cargo.toml crates/sdkwork-api-im-standalone-gateway crates/sdkwork-api-im-standalone-gateway-observability services/web-gateway
 git commit -m "feat(api): add single-port web gateway"
 ```
 
@@ -346,8 +346,8 @@ git commit -m "feat(api): proxy realtime websocket through gateway"
 - Modify: `services/web-gateway/src/main.rs`
 - Create: `services/web-gateway/tests/openapi_index_test.rs`
 - Modify: `crates/sdkwork-im-openapi/src/lib.rs`
-- Modify: `crates/sdkwork-im-cloud-gateway-observability/src/lib.rs`
-- Create: `openapi/aggregate/sdkwork-im-cloud-gateway.openapi.json`
+- Modify: `crates/sdkwork-api-im-standalone-gateway-observability/src/lib.rs`
+- Create: `openapi/aggregate/sdkwork-api-im-standalone-gateway.openapi.json`
 - Create: `openapi/aggregate/openapi-index.json`
 - Create: `openapi/public/sdkwork-im-im.openapi.yaml`
 - Create: `openapi/public/sdkwork-im-control.openapi.json`
@@ -393,7 +393,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services/web-gateway crates/sdkwork-im-openapi crates/sdkwork-im-cloud-gateway-observability openapi
+git add services/web-gateway crates/sdkwork-im-openapi crates/sdkwork-api-im-standalone-gateway-observability openapi
 git commit -m "feat(api): add aggregate schemas and schema index"
 ```
 

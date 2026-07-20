@@ -37,16 +37,12 @@ const imCheckoutAdapterSource = fs.readFileSync(imCheckoutAdapterPath, 'utf8');
 const workspaceSource = fs.readFileSync(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8');
 const rootComponentSpec = JSON.parse(fs.readFileSync(path.join(repoRoot, 'specs', 'component.spec.json'), 'utf8'));
 const topologySpec = JSON.parse(fs.readFileSync(path.join(repoRoot, 'specs', 'topology.spec.json'), 'utf8'));
-const cloudGatewayConstantsSource = fs.readFileSync(
-  path.join(repoRoot, 'services', 'sdkwork-im-cloud-gateway', 'src', 'constants.rs'),
-  'utf8',
-);
 const standaloneGatewayCargoSource = fs.readFileSync(
-  path.join(repoRoot, 'services', 'sdkwork-im-standalone-gateway', 'Cargo.toml'),
+  path.join(repoRoot, 'crates', 'sdkwork-api-im-standalone-gateway', 'Cargo.toml'),
   'utf8',
 );
 const standaloneDependencyRoutesSource = fs.readFileSync(
-  path.join(repoRoot, 'services', 'sdkwork-im-standalone-gateway', 'src', 'embedded_dependency_routes.rs'),
+  path.join(repoRoot, 'crates', 'sdkwork-api-im-standalone-gateway', 'src', 'embedded_dependency_routes.rs'),
   'utf8',
 );
 const subscriptionCatalogPageSource = fs.readFileSync(
@@ -293,7 +289,7 @@ for (const workspace of ['sdkwork-membership-app-sdk', 'sdkwork-order-app-sdk'])
     rootComponentSpec.contracts.dependencyApiSurfaces.some(
       (dependency) => dependency.workspace === workspace
         && dependency.apiAuthority === workspace.replace('-sdk', '-api')
-        && dependency.targetRuntimeIntegration?.mode === 'shared-gateway',
+        && dependency.targetRuntimeIntegration?.mode === 'profile-resolved',
     ),
     true,
     `The IM application contract must route ${workspace} through the shared gateway.`,
@@ -305,14 +301,9 @@ for (const serviceId of [
   'sdkwork-payment-app-api',
 ]) {
   assert.equal(
-    rootComponentSpec.integration.foundationApiGateway.standaloneEmbeddedAuthorities.includes(serviceId),
+    rootComponentSpec.integration.platformApiGateway.standaloneEmbeddedAuthorities.includes(serviceId),
     true,
     `Standalone Token Plan runtime must embed ${serviceId}.`,
-  );
-  assert.match(
-    cloudGatewayConstantsSource,
-    new RegExp(`"${serviceId}"`, 'u'),
-    `Cloud Token Plan routing must register ${serviceId}.`,
   );
 }
 for (const dependency of [
@@ -323,14 +314,14 @@ for (const dependency of [
   const [capability, crateStem] = dependency;
   assertSourceContainsInOrder(
     standaloneGatewayCargoSource,
-    [`${crateStem}-gateway-assembly`, `${crateStem}-service-host`],
-    `Standalone Token Plan runtime must link ${capability} gateway assembly and service host crates.`,
+    [`sdkwork-api-${capability}-assembly`, `${crateStem}-service-host`],
+    `Standalone Token Plan runtime must link the ${capability} API assembly and service host.`,
   );
   assertSourceContainsInOrder(
     standaloneDependencyRoutesSource,
     [
       `merge_embedded_dependency(router, "${capability}"`,
-      `${crateStem.replaceAll('-', '_')}_gateway_assembly::assemble_api_router`,
+      `sdkwork_api_${capability}_assembly::assemble_api_router`,
     ],
     `Standalone Token Plan runtime must mount the ${capability} application router in-process.`,
   );

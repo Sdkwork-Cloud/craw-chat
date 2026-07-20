@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/start-server.sh [--instance <name>] [--install-root <path>] [--config-dir <path>] [--log-dir <path>] [--run-dir <path>] [--env-file <path>] [--binary-path <path>] [--release] [--foreground] [--health-url <url>] [--skip-health-check]
 
-Start the sdkwork-im-server runtime service for an instance with config loading, binary resolution, log and run directory management, health checks, and status-friendly foreground or background execution.
+Start the sdkwork-api-im-standalone-gateway runtime service for an instance with config loading, binary resolution, log and run directory management, health checks, and status-friendly foreground or background execution.
 EOF
 }
 
@@ -158,18 +158,18 @@ resolve_binary_path() {
   fi
 
   for candidate in \
-    "${install_root}/bin/sdkwork-im-server" \
-    "${install_root}/bin/sdkwork-im-cloud-gateway"; do
+    "${install_root}/bin/sdkwork-api-im-standalone-gateway" \
+    "${install_root}/bin/sdkwork-api-im-standalone-gateway"; do
     if [[ -x "$candidate" ]]; then
       printf '%s\n' "$candidate"
       return 0
     fi
   done
 
-  local debug_candidate="${ROOT_DIR}/target/debug/sdkwork-im-server"
-  local release_candidate="${ROOT_DIR}/target/release/sdkwork-im-server"
-  local legacy_debug_candidate="${ROOT_DIR}/target/debug/sdkwork-im-cloud-gateway"
-  local legacy_release_candidate="${ROOT_DIR}/target/release/sdkwork-im-cloud-gateway"
+  local debug_candidate="${ROOT_DIR}/target/debug/sdkwork-api-im-standalone-gateway"
+  local release_candidate="${ROOT_DIR}/target/release/sdkwork-api-im-standalone-gateway"
+  local legacy_debug_candidate="${ROOT_DIR}/target/debug/sdkwork-api-im-standalone-gateway"
+  local legacy_release_candidate="${ROOT_DIR}/target/release/sdkwork-api-im-standalone-gateway"
   if [[ "$prefer_release" -eq 1 ]]; then
     for candidate in "$release_candidate" "$debug_candidate" "$legacy_release_candidate" "$legacy_debug_candidate"; do
       [[ -x "$candidate" ]] && printf '%s\n' "$candidate" && return 0
@@ -182,9 +182,9 @@ resolve_binary_path() {
 
   if command -v cargo >/dev/null 2>&1; then
     if [[ "$prefer_release" -eq 1 ]]; then
-      cargo build --release -p sdkwork-im-cloud-gateway --offline
+      cargo build --release -p sdkwork-api-im-standalone-gateway --offline
     else
-      cargo build -p sdkwork-im-cloud-gateway --offline
+      cargo build -p sdkwork-api-im-standalone-gateway --offline
     fi
     resolve_binary_path "" "$prefer_release"
     return 0
@@ -225,14 +225,14 @@ if [[ -z "$bind_address" ]]; then
 fi
 [[ -n "$bind_address" ]] || bind_address="127.0.0.1:18079"
 resolved_binary="$(resolve_binary_path "$binary_path" "$release_mode" || true)"
-[[ -n "$resolved_binary" ]] || { echo "Unable to resolve sdkwork-im-server binary. Set --binary-path, install a packaged binary, or build sdkwork-im-cloud-gateway." >&2; exit 1; }
+[[ -n "$resolved_binary" ]] || { echo "Unable to resolve sdkwork-api-im-standalone-gateway binary. Set --binary-path, install a packaged binary, or build sdkwork-api-im-standalone-gateway." >&2; exit 1; }
 resolved_health_url="$(resolve_health_url "$health_url" "$bind_address")"
 
 mkdir -p "$log_dir" "$run_dir"
-stdout_log="${log_dir}/sdkwork-im-server.out.log"
-stderr_log="${log_dir}/sdkwork-im-server.err.log"
-pid_file="${run_dir}/sdkwork-im-server.pid"
-process_info="${run_dir}/sdkwork-im-server.process.json"
+stdout_log="${log_dir}/sdkwork-api-im-standalone-gateway.out.log"
+stderr_log="${log_dir}/sdkwork-api-im-standalone-gateway.err.log"
+pid_file="${run_dir}/sdkwork-api-im-standalone-gateway.pid"
+process_info="${run_dir}/sdkwork-api-im-standalone-gateway.process.json"
 process_name="$(basename "${resolved_binary}")"
 
 if [[ -f "$pid_file" ]]; then
@@ -240,7 +240,7 @@ if [[ -f "$pid_file" ]]; then
   if [[ -n "$current_pid" ]] && kill -0 "$current_pid" >/dev/null 2>&1; then
     current_name="$(ps -p "$current_pid" -o comm= | tr -d '[:space:]' || true)"
     if [[ "$current_name" == "${process_name}" || "$current_name" == "${process_name%.*}" ]]; then
-      echo "sdkwork-im-server is already running with PID ${current_pid}." >&2
+      echo "sdkwork-api-im-standalone-gateway is already running with PID ${current_pid}." >&2
       exit 1
     fi
   fi
@@ -248,7 +248,7 @@ fi
 
 export SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND="$bind_address"
 export SDKWORK_IM_WEB_GATEWAY_BIND="$bind_address"
-server_args=(--config "$server_yaml")
+server_args=()
 
 if [[ "$foreground" -eq 1 ]]; then
   exec "$resolved_binary" "${server_args[@]}"
@@ -271,25 +271,25 @@ if [[ "$skip_health_check" -eq 0 ]]; then
     sleep 1
     if ! kill -0 "$server_pid" >/dev/null 2>&1; then
       rm -f "$pid_file"
-      echo "sdkwork-im-server exited before becoming healthy. Check logs: ${stderr_log}" >&2
+      echo "sdkwork-api-im-standalone-gateway exited before becoming healthy. Check logs: ${stderr_log}" >&2
       exit 1
     fi
     if command -v curl >/dev/null 2>&1; then
       if curl -fsS "$resolved_health_url" >/dev/null 2>&1; then
-        echo "Started sdkwork-im-server in background on ${resolved_health_url}"
+        echo "Started sdkwork-api-im-standalone-gateway in background on ${resolved_health_url}"
         exit 0
       fi
     elif command -v wget >/dev/null 2>&1; then
       if wget -q -O - "$resolved_health_url" >/dev/null 2>&1; then
-        echo "Started sdkwork-im-server in background on ${resolved_health_url}"
+        echo "Started sdkwork-api-im-standalone-gateway in background on ${resolved_health_url}"
         exit 0
       fi
     fi
   done
   kill "$server_pid" >/dev/null 2>&1 || true
   rm -f "$pid_file"
-  echo "sdkwork-im-server did not become healthy within 30 seconds: ${resolved_health_url}" >&2
+  echo "sdkwork-api-im-standalone-gateway did not become healthy within 30 seconds: ${resolved_health_url}" >&2
   exit 1
 fi
 
-echo "Started sdkwork-im-server in background without health wait."
+echo "Started sdkwork-api-im-standalone-gateway in background without health wait."

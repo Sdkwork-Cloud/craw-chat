@@ -11,7 +11,7 @@ Sdkwork IM uses topology v4 connectivity planes. See `specs/topology.spec.json` 
 ```text
 PC / Web Client
   ├─ IAM, Drive, Notary, Agent REST
-  +-------------------------------> platform.api-gateway (sdkwork-api-cloud-gateway :3900)
+  +-------------------------------> platform.api-gateway (platform.api-gateway :3900)
   |
   ├─ /im/v3/api/* HTTP
   ├─ /im/v3/api/realtime/ws

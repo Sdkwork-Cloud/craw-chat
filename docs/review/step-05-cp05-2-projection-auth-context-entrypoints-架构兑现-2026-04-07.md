@@ -25,7 +25,7 @@
 - `CP05-2` 还未整体闭环。
 - downstream Step 05 authority consumer 仍未全部切到统一 owner。
 - 已知剩余热点：
-  - `services/sdkwork-im-cloud-gateway/src/node/effects.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs`
 
 ## 4. 是否偏离架构
 
@@ -48,13 +48,13 @@
 - 代码
   - `services/projection-service/src/access.rs`
   - `services/projection-service/src/http.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node/projection.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node/session.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/projection.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/session.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node.rs`
 - 测试
   - `services/projection-service/tests/lib_structure_test.rs`
-  - `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 - fresh verification
   - `cargo test -p projection-service --offline`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline`
   - `rustfmt --edition 2024 --check ...`

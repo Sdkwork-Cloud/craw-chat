@@ -33,14 +33,14 @@ Build or start a production Sdkwork IM server directly from a source checkout.
 
 Actions:
   plan                    Print the source deployment plan only.
-  build                   Build web assets and the release sdkwork-im-server binary.
+  build                   Build web assets and the release sdkwork-api-im-standalone-gateway binary.
   start                   Start the source-built release binary through bin/start-server.
 
 Options:
   --env-file <path>       Runtime env file. Defaults to <config-dir>/server.env.
   --config-dir <path>     Runtime config directory. Defaults to /etc/sdkwork/chat on Linux/macOS or ProgramData on Windows.
   --install-root <path>   Source checkout/install root. Defaults to this repository root.
-  --binary-path <path>    Release binary path. Defaults to target/release/sdkwork-im-server.
+  --binary-path <path>    Release binary path. Defaults to target/release/sdkwork-api-im-standalone-gateway.
   --background            Start as a background process instead of foreground/systemd mode.
   --health-url <url>      Health check URL forwarded to bin/start-server.
   --skip-health-check     Skip bin/start-server background health check.
@@ -196,7 +196,7 @@ function mergeEnvValues(...sources) {
 }
 
 function defaultBinaryPath(root, platform = process.platform) {
-  return path.join(root, 'target', 'release', platform === 'win32' ? 'sdkwork-im-server.exe' : 'sdkwork-im-server');
+  return path.join(root, 'target', 'release', platform === 'win32' ? 'sdkwork-api-im-standalone-gateway.exe' : 'sdkwork-api-im-standalone-gateway');
 }
 
 function createResolvedSourceServerEnv({

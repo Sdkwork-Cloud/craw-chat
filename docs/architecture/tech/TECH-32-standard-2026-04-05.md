@@ -34,7 +34,7 @@
 以下入口必须执行上述规则：
 
 - `services/notification-service`
-- `services/sdkwork-im-cloud-gateway`
+- `crates/sdkwork-api-im-standalone-gateway`
 
 具体对应的 handler 为：
 
@@ -63,8 +63,8 @@
 
 - `services/notification-service/src/lib.rs`
 - `services/notification-service/tests/public_auth_test.rs`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
-- `services/sdkwork-im-cloud-gateway/tests/public_auth_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/public_auth_e2e_test.rs`
 
 ## 6. 后续建议
 

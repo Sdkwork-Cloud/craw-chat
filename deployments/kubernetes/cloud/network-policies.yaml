@@ -1,28 +1,8 @@
 # Network policies for SDKWork IM cloud deployment.
 # Enforces least-privilege network isolation between service tiers:
-#   1. Gateway tier (im-gateway, session-gateway) accepts external ingress.
-#   2. Service tier (conversation, projection, media, streaming, etc.) accepts only gateway traffic.
+#   1. The realtime tier accepts external WebSocket ingress.
+#   2. Service tier accepts only the platform API gateway and realtime traffic.
 #   3. Data tier (database, Redis) accepts only service tier traffic.
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: im-gateway-ingress
-  namespace: sdkwork-im
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/component: gateway
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - namespaceSelector: {}
-      ports:
-        - protocol: TCP
-          port: 18079
-        - protocol: TCP
-          port: 28080
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -69,9 +49,12 @@ spec:
     - Ingress
   ingress:
     - from:
-        - podSelector:
+        - namespaceSelector:
             matchLabels:
-              app.kubernetes.io/component: gateway
+              kubernetes.io/metadata.name: sdkwork-platform
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: platform-api-gateway
         - podSelector:
             matchLabels:
               app.kubernetes.io/component: realtime

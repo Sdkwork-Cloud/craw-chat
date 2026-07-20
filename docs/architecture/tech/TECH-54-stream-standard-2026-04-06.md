@@ -75,7 +75,7 @@
 
 新增并冻结以下回归用例：
 
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_non_member_cannot_open_conversation_bound_stream`
   - `test_non_member_cannot_mutate_or_read_conversation_bound_stream_state`
 
@@ -96,8 +96,8 @@
 本轮修复至少需要通过以下验证：
 
 ```bash
-cargo test -p sdkwork-im-cloud-gateway --test access_control_e2e_test --offline
-cargo test -p sdkwork-im-cloud-gateway --offline
+cargo test -p sdkwork-api-im-standalone-gateway --test access_control_e2e_test --offline
+cargo test -p sdkwork-api-im-standalone-gateway --offline
 cargo test -p streaming-service --offline
 cargo test --workspace --offline
 ```

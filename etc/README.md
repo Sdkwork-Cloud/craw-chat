@@ -5,7 +5,7 @@
 `sdkwork.deployment.config.json` is the root deployment profile index and public origin authority.
 The `topology/` files are process-consumable profile instances; gateway TOML files configure the
 root cloud API gateway composition. Standalone gateway process templates live with their host at
-`services/sdkwork-im-standalone-gateway/etc/`.
+`crates/sdkwork-api-im-standalone-gateway/etc/`.
 
 ## Owner
 

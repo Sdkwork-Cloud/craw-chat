@@ -41,7 +41,7 @@ features:
 Sdkwork IM is a Rust workspace with three primary runtime surfaces in the current repository state,
 plus checked-in SDK workspaces built from those services:
 
-- `services/sdkwork-im-cloud-gateway`, the unified application ingress that publishes the canonical
+- `crates/sdkwork-api-im-standalone-gateway`, the unified application ingress that publishes the canonical
   `sdkwork-im-server` binary, aggregates OpenAPI discovery, and fronts split or unified runtime
   layouts.
 - `services/control-plane-api`, the separate governance surface for protocol registry, provider
@@ -130,7 +130,7 @@ For most new integrations, the fastest reading order is:
 | --- | --- |
 | App runtime | Presence heartbeat, realtime delivery, conversations, membership, messages, media, streams, RTC, notifications, automation, audit, ops, and provider health |
 | Control plane | Protocol registry, protocol governance, provider registry, effective bindings, provider policy preview and rollback, plus node drain, activate, and route migration |
-| Unified gateway and server | `sdkwork-im-cloud-gateway` publishes the canonical `sdkwork-im-server` binary, the aggregate OpenAPI and discovery routes, service-schema proxies, rendered docs, and the single-port server install contract |
+| Unified gateway and server | `sdkwork-api-im-standalone-gateway` publishes the canonical `sdkwork-im-server` binary, the aggregate OpenAPI and discovery routes, service-schema proxies, rendered docs, and the single-port server install contract |
 | Deployment | Local binary lifecycle scripts, Docker Compose bootstrap, server install/service-management scripts, runtime inspection, repair, backup listing, archive, preview, and restore |
 | SDK workspaces | IM standard SDK for `/im/v3/api`; App API SDK for `/app/v3/api`; Backend SDK for `/backend/v3/api` including control and admin modules; independent RTC provider-standard SDK for provider runtime integration |
 | Frontend apps | `apps/sdkwork-im-admin` already provides a verified standalone operator shell, a first-class storage-management workflow, and a documented `/backend/v3/api/admin/storage/*` contract surface, while `apps/sdkwork-im-portal` exists in-repo but is not yet documented here as a mature product surface |
@@ -143,10 +143,10 @@ such rather than documented as delivered features.
 
 <div class="source-note">
   <strong>Implementation sources:</strong>
-  App routing is aligned to <code>services/sdkwork-im-cloud-gateway</code>.
+  App routing is aligned to <code>crates/sdkwork-api-im-standalone-gateway</code>.
   Control-plane routing is aligned to <code>services/control-plane-api/src/lib.rs</code>.
-  Unified gateway and packaged server entry are aligned to <code>services/sdkwork-im-cloud-gateway/src/lib.rs</code>,
-  <code>services/sdkwork-im-cloud-gateway/src/main.rs</code>, and <code>deployments/templates/server.yaml.example</code>.
+  Unified gateway and packaged server entry are aligned to <code>crates/sdkwork-api-im-standalone-gateway/src/lib.rs</code>,
+  <code>crates/sdkwork-api-im-standalone-gateway/src/main.rs</code>, and <code>deployments/templates/server.yaml.example</code>.
   Development orchestration is aligned to <code>scripts/im-dev.mjs</code>, <code>scripts/im-server-dev.mjs</code>,
   and <code>etc/topology/*.env</code>.
 </div>

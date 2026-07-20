@@ -258,7 +258,7 @@ When `SDKWORK_IM_FCM_CREDENTIALS_PATH` is configured:
 ### 10.1 Breach Detection
 
 - Automated detection through Prometheus alerting (anomaly detection in
-  `services/sdkwork-im-cloud-gateway/src/anomaly_detector.rs`).
+  `crates/sdkwork-api-im-standalone-gateway/src/anomaly_detector.rs`).
 - Manual reporting through security incident response workflow.
 - External notifications from subprocessors.
 

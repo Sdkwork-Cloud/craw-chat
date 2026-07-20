@@ -9,7 +9,7 @@
 
 - Affected services:
   - `services/session-gateway`
-  - `services/sdkwork-im-cloud-gateway`
+  - `crates/sdkwork-api-im-standalone-gateway`
 - Root cause:
   - Standard 88 introduced a reconnect-required fence after `session.disconnect`
   - but `RealtimeClusterBridge` stored that fence only in an in-memory `HashMap`
@@ -33,7 +33,7 @@ Red coverage was added first in three places:
   - `test_disconnect_fence_survives_bridge_rebuild_with_shared_store`
 - `services/session-gateway/tests/http_smoke_test.rs`
   - `test_session_gateway_rebuild_preserves_reconnect_required_fence_until_fresh_resume`
-- `services/sdkwork-im-cloud-gateway/tests/http_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/http_e2e_test.rs`
   - `test_local_minimal_profile_rebuild_preserves_reconnect_required_fence_until_fresh_resume`
 
 Red evidence:
@@ -42,7 +42,7 @@ Red evidence:
   - failed because there was no disconnect fence store adapter and no `with_disconnect_fence_store(...)` constructor
 - `cargo test -p session-gateway --offline test_session_gateway_rebuild_preserves_reconnect_required_fence_until_fresh_resume -- --exact --nocapture`
   - failed because there was no injectable cluster builder for restart-style verification
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_rebuild_preserves_reconnect_required_fence_until_fresh_resume -- --exact --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_rebuild_preserves_reconnect_required_fence_until_fresh_resume -- --exact --nocapture`
   - failed for the same missing persistence seam
 
 Those failures exposed the real gap: the codebase had no persistence/recovery boundary for disconnect fences.
@@ -78,7 +78,7 @@ The minimum correct design is:
   - added `build_app_with_cluster(...)` so restart-style tests can rebuild the access plane with a new bridge instance
 - `services/session-gateway/tests/http_smoke_test.rs`
   - added restart/rebuild reconnect fence regression
-- `services/sdkwork-im-cloud-gateway/tests/http_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/http_e2e_test.rs`
   - added local profile restart/rebuild reconnect fence regression
 
 ## 6. Verification
@@ -87,7 +87,7 @@ The minimum correct design is:
 
 - `cargo test -p session-gateway --offline disconnect_fence_survives_bridge_rebuild_with_shared_store -- --nocapture`
 - `cargo test -p session-gateway --offline test_session_gateway_rebuild_preserves_reconnect_required_fence_until_fresh_resume -- --exact --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_rebuild_preserves_reconnect_required_fence_until_fresh_resume -- --exact --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_rebuild_preserves_reconnect_required_fence_until_fresh_resume -- --exact --nocapture`
 
 Observed red result:
 
@@ -97,7 +97,7 @@ Observed red result:
 
 - `cargo test -p session-gateway --offline disconnect_fence_survives_bridge_rebuild_with_shared_store -- --nocapture`
 - `cargo test -p session-gateway --offline test_session_gateway_rebuild_preserves_reconnect_required_fence_until_fresh_resume -- --exact --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_rebuild_preserves_reconnect_required_fence_until_fresh_resume -- --exact --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_rebuild_preserves_reconnect_required_fence_until_fresh_resume -- --exact --nocapture`
 
 Observed green result:
 

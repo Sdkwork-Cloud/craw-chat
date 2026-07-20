@@ -54,9 +54,7 @@ const viteConfigSource = readText('vite.config.ts');
 const releaseSources = readRepoJson('config', 'shared-sdk-release-sources.json');
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
-const unifiedServerSource = readRepoText('scripts', 'im-server-dev.mjs');
-const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-cloud-gateway-config', 'src', 'lib.rs');
-const gatewaySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'lib.rs');
+const standaloneDependencies = readRepoText('crates', 'sdkwork-api-im-standalone-gateway', 'src', 'embedded_dependency_routes.rs');
 const workflow = readRepoJson('sdkwork.workflow.json');
 const packageWorkflowSource = readRepoText('.github', 'workflows', 'package.yml');
 const appAuthRuntimeSource = readText(
@@ -214,26 +212,26 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  unifiedServerSource,
-  /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*resolveSdkworkApiGatewayBaseUrl/u,
-  'Unified server launcher must configure the shared sdkwork-api-cloud-gateway root for local notary SDK traffic.',
+  devRunnerSource,
+  /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*resolvePlatformApiGatewayBaseUrl/u,
+  'Development runner must resolve Notary SDK traffic through platform.api-gateway.',
 );
 assert.doesNotMatch(
-  unifiedServerSource,
+  devRunnerSource,
   /SDKWORK_IM_NOTARY_APP_API_UPSTREAM\s*=/u,
   'Unified server launcher must not default local notary SDK traffic to a separate per-module upstream.',
 );
 
 assert.doesNotMatch(
-  gatewayConfigSource,
+  standaloneDependencies,
   /SDKWORK_IM_NOTARY_APP_API_UPSTREAM|SDKWORK_NOTARY_APP_API_UPSTREAM|SDKWORK_NOTARY_APP_API_BASE_URL/u,
   'Gateway config must not expose per-module Notary upstream environment keys.',
 );
 
 assert.match(
-  gatewaySource,
-  /sdkwork-notary-app-api[\s\S]*\/app\/v3\/api\/notary\/\{\*path\}[\s\S]*SdkworkNotaryAppSdk/u,
-  'Web gateway must route sdkwork-notary app-api paths to the Notary app SDK upstream.',
+  standaloneDependencies,
+  /sdkwork_api_notary_assembly::assemble_api_router/u,
+  'Standalone gateway must mount Notary through its canonical API assembly.',
 );
 
 assert.ok(

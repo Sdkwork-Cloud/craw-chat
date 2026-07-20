@@ -57,8 +57,8 @@ export function resolveStandaloneGatewayDevExecutable({
 } = {}) {
   const targetDir = resolveStandaloneGatewayDevTargetDir({ env, repoRoot });
   const executableName = process.platform === 'win32'
-    ? 'sdkwork-im-standalone-gateway.exe'
-    : 'sdkwork-im-standalone-gateway';
+    ? 'sdkwork-api-im-standalone-gateway.exe'
+    : 'sdkwork-api-im-standalone-gateway';
   return path.join(targetDir, profile, executableName);
 }
 
@@ -72,5 +72,5 @@ export function resolveStandaloneGatewayDevTargetDir({
   const configuredTargetDir = String(env.CARGO_TARGET_DIR ?? '').trim();
   return configuredTargetDir
     ? path.resolve(repoRoot, configuredTargetDir)
-    : path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-im-standalone-gateway-dev');
+    : path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev');
 }

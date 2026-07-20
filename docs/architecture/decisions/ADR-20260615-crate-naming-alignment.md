@@ -78,7 +78,7 @@ authority. The canonical `<domain>` is `im` and the canonical `<app>` is `chat`.
 | HTTP services | `sdkwork-im-<capability>-service` | `conversation-runtime` → `sdkwork-im-conversation-service`; `projection-service` → `sdkwork-im-projection-service` |
 | Gateway | `sdkwork-<app>-gateway` | `session-gateway` → `sdkwork-chat-session-gateway`; `web-gateway` → `sdkwork-chat-web-gateway` |
 | Service host | `sdkwork-<app>-service-host` | `sdkwork-im-server` (retired unified node) -> `sdkwork-im-service-host` |
-| App config | `sdkwork-chat-*` | `sdkwork-im-cloud-gateway-config` → `sdkwork-chat-gateway-config` |
+| App config | `sdkwork-chat-*` | `sdkwork-api-im-standalone-gateway` → `sdkwork-chat-gateway-config` |
 
 ### Migration batches
 

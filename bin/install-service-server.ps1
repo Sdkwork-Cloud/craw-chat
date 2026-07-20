@@ -35,12 +35,12 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/install-service-server.ps1 [-InstanceName <name>] [-InstallRoot <path>] [-ConfigDir <path>] [-LogDir <path>] [-ServiceMode <auto|systemd|launchd|windows-service>]"
-    Write-Host "Render the sdkwork-im-server service contract, generate systemd and launchd targets, generate Windows Service wrapper targets, and report install status."
+    Write-Host "Render the sdkwork-api-im-standalone-gateway service contract, generate systemd and launchd targets, generate Windows Service wrapper targets, and report install status."
     exit 0
 }
 
 $root = Split-Path -Parent $PSScriptRoot
-$systemdTemplate = Join-Path $root "deployments\systemd\sdkwork-im-server.service"
+$systemdTemplate = Join-Path $root "deployments\systemd\sdkwork-api-im-standalone-gateway.service"
 $launchdTemplate = Join-Path $root "deployments\launchd\com.sdkwork.im.server.plist"
 $windowsServiceTemplate = Join-Path $root "deployments\windows-service\SdkworkImServer.xml"
 $generatedDir = Join-Path $ConfigDir "generated"
@@ -48,7 +48,7 @@ if (-not (Test-Path $generatedDir)) {
     New-Item -ItemType Directory -Path $generatedDir -Force | Out-Null
 }
 $null = New-Item -ItemType Directory -Path $LogDir -Force -ErrorAction SilentlyContinue
-$generatedUnitPath = Join-Path $generatedDir "sdkwork-im-server.service"
+$generatedUnitPath = Join-Path $generatedDir "sdkwork-api-im-standalone-gateway.service"
 $generatedLaunchdPath = Join-Path $generatedDir "com.sdkwork.im.server.plist"
 $generatedWindowsServiceXmlPath = Join-Path $generatedDir "SdkworkImServer.xml"
 $generatedWindowsServiceInstallScriptPath = Join-Path $generatedDir "install-SdkworkImServer.ps1"
@@ -60,28 +60,28 @@ $normalizedConfigDir = $ConfigDir.TrimEnd('\', '/')
 $normalizedLogDir = $LogDir.TrimEnd('\', '/')
 $environmentFile = Join-Path $normalizedConfigDir "server.env"
 $serverConfigPath = Join-Path $normalizedConfigDir "server.yaml"
-$serviceBinaryPath = "$normalizedInstallRoot/bin/sdkwork-im-server"
+$serviceBinaryPath = "$normalizedInstallRoot/bin/sdkwork-api-im-standalone-gateway"
 $windowsServiceWrapperExePath = Join-Path (Join-Path $normalizedInstallRoot "bin") "SdkworkImServer.exe"
 $windowsServiceWrapperXmlTargetPath = Join-Path (Join-Path $normalizedInstallRoot "bin") "SdkworkImServer.xml"
-$stdoutLogPath = Join-Path $normalizedLogDir "sdkwork-im-server.out.log"
-$stderrLogPath = Join-Path $normalizedLogDir "sdkwork-im-server.err.log"
+$stdoutLogPath = Join-Path $normalizedLogDir "sdkwork-api-im-standalone-gateway.out.log"
+$stderrLogPath = Join-Path $normalizedLogDir "sdkwork-api-im-standalone-gateway.err.log"
 
 if (Test-Path $systemdTemplate) {
     $unitContent = Get-Content -Path $systemdTemplate -Raw
     $rendered = $unitContent.
         Replace('WorkingDirectory=/opt/sdkwork/chat', "WorkingDirectory=$normalizedInstallRoot").
         Replace('EnvironmentFile=/etc/sdkwork/chat/server.env', "EnvironmentFile=$environmentFile").
-        Replace('ExecStart=/opt/sdkwork/chat/bin/sdkwork-im-server --config /etc/sdkwork/chat/server.yaml', "ExecStart=$serviceBinaryPath --config $serverConfigPath")
+        Replace('ExecStart=/opt/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway --config /etc/sdkwork/chat/server.yaml', "ExecStart=$serviceBinaryPath --config $serverConfigPath")
     $rendered | Set-Content -Path $generatedUnitPath -Encoding utf8
 }
 
 if (Test-Path $launchdTemplate) {
     $plistContent = Get-Content -Path $launchdTemplate -Raw
     $rendered = $plistContent.
-        Replace('__INSTALL_ROOT__/bin/sdkwork-im-server', $serviceBinaryPath).
+        Replace('__INSTALL_ROOT__/bin/sdkwork-api-im-standalone-gateway', $serviceBinaryPath).
         Replace('__CONFIG_DIR__/server.yaml', $serverConfigPath).
-        Replace('__LOG_DIR__/sdkwork-im-server.out.log', $stdoutLogPath).
-        Replace('__LOG_DIR__/sdkwork-im-server.err.log', $stderrLogPath).
+        Replace('__LOG_DIR__/sdkwork-api-im-standalone-gateway.out.log', $stdoutLogPath).
+        Replace('__LOG_DIR__/sdkwork-api-im-standalone-gateway.err.log', $stderrLogPath).
         Replace('__INSTALL_ROOT__', $normalizedInstallRoot).
         Replace('__CONFIG_DIR__', $normalizedConfigDir).
         Replace('__LOG_DIR__', $normalizedLogDir)
@@ -128,7 +128,7 @@ if (Test-Path `$wrapperConfigTargetPath) {
 "@ | Set-Content -Path $generatedWindowsServiceUninstallScriptPath -Encoding utf8
 
 $serviceReport = [ordered]@{
-    product = "sdkwork-im-server"
+    product = "sdkwork-api-im-standalone-gateway"
     instance = $InstanceName
     installRoot = $InstallRoot
     configDir = $ConfigDir
@@ -146,7 +146,7 @@ $serviceReport = [ordered]@{
 }
 $serviceReport | ConvertTo-Json -Depth 4 | Set-Content -Path $serviceReportPath -Encoding utf8
 
-Write-Host "sdkwork-im-server service install summary"
+Write-Host "sdkwork-api-im-standalone-gateway service install summary"
 Write-Host "instance: $InstanceName"
 Write-Host "install: $InstallRoot"
 Write-Host "config: $ConfigDir"

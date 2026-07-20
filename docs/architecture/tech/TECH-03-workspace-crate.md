@@ -84,7 +84,7 @@ step 重点对齐
 
 优先处理：
 
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
 - `services/conversation-runtime/src/lib.rs`
 - `services/session-gateway/src/lib.rs`
 
@@ -127,7 +127,7 @@ step 重点对齐
 
 - `Cargo.toml`
 - `crates/`
-- `services/sdkwork-im-cloud-gateway/`
+- `crates/sdkwork-api-im-standalone-gateway/`
 - `services/conversation-runtime/`
 - `services/session-gateway/`
 - `services/streaming-service/`

@@ -9,7 +9,7 @@
 
 ## Scope
 
-- Touch only `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`.
+- Touch only `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`.
 - Keep historical partial-state backwrite docs unchanged.
 - Keep `Capacity Tier` expectations unchanged.
 

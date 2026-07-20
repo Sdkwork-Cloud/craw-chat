@@ -16,14 +16,14 @@
 ### Task 1: 冻结默认入口 external 选择回归测试
 
 **Files:**
-- Create: `services/sdkwork-im-cloud-gateway/tests/principal_profile_provider_runtime_selection_test.rs`
-- Test: `services/sdkwork-im-cloud-gateway/tests/principal_profile_provider_runtime_selection_test.rs`
+- Create: `crates/sdkwork-api-im-standalone-gateway/tests/principal_profile_provider_runtime_selection_test.rs`
+- Test: `crates/sdkwork-api-im-standalone-gateway/tests/principal_profile_provider_runtime_selection_test.rs`
 
 - [x] **Step 1: 写失败测试**
 
 - [x] **Step 2: 运行红灯**
 
-Run: `cargo test -p sdkwork-im-cloud-gateway --test principal_profile_provider_runtime_selection_test -- --nocapture`
+Run: `cargo test -p sdkwork-api-im-standalone-gateway --test principal_profile_provider_runtime_selection_test -- --nocapture`
 Expected: FAIL，且默认入口仍输出 local user metadata
 
 - [x] **Step 3: 保持断言聚焦**
@@ -32,13 +32,13 @@ Expected: FAIL，且默认入口仍输出 local user metadata
 
 - [x] **Step 4: 运行通过验证**
 
-Run: `cargo test -p sdkwork-im-cloud-gateway --test principal_profile_provider_runtime_selection_test -- --nocapture`
+Run: `cargo test -p sdkwork-api-im-standalone-gateway --test principal_profile_provider_runtime_selection_test -- --nocapture`
 Expected: PASS
 
 ### Task 2: 落地默认 provider 选择与 external adapter
 
 **Files:**
-- Modify: `services/sdkwork-im-cloud-gateway/src/node/principal_profile.rs`
+- Modify: `crates/sdkwork-api-im-standalone-gateway/src/node/principal_profile.rs`
 
 - [x] **Step 1: 增加 provider 选择配置解析**
 
@@ -62,7 +62,7 @@ Expected: PASS
 
 - [x] **Step 1: 跑 principal-profile 相关回归**
 
-Run: `cargo test -p sdkwork-im-cloud-gateway principal_profile_provider -- --nocapture`
+Run: `cargo test -p sdkwork-api-im-standalone-gateway principal_profile_provider -- --nocapture`
 Expected: PASS
 
 - [x] **Step 2: 回写文档**

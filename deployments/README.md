@@ -11,8 +11,8 @@ server persistence alternative.
 
 `deploy.yaml` is a deployment manifest v2 authority for `standalone.production` and
 `cloud.production` only. Development profiles are resolved by topology v5 and are never deploy targets.
-Cloud deployment exposes the IM client through the deployed `sdkwork-api-cloud-gateway`; it does not
-install or start `sdkwork-im-standalone-gateway`. Standalone deployment owns that gateway as its single
+Cloud deployment exposes the IM client through the deployed `platform.api-gateway`; it does not
+install or start `sdkwork-api-im-standalone-gateway`. Standalone deployment owns that gateway as its single
 application ingress.
 
 Cloud Kubernetes source templates are under `kubernetes/cloud/`. They are not directly deployable:

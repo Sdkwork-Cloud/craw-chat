@@ -23,7 +23,7 @@ Without step 2, the popup path depended on a weaker fallback that was not reliab
 
 ## Verification
 
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_open_chat_test_ps1_uses_detached_gui_launcher_for_default_windows_mode -- --exact --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_open_chat_test_ps1_uses_detached_gui_launcher_for_default_windows_mode -- --exact --nocapture`
 - `cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_open_chat_test_powershell_scripted_validation_emits_json_summary -- --exact --nocapture`
 - `cargo fmt --all --check`
 - same-session runtime proof:

@@ -22,8 +22,8 @@ Configuration authority:
 Build and test the ingress directly:
 
 ```bash
-cargo build -p sdkwork-im-cloud-gateway
-cargo test -p sdkwork-im-cloud-gateway --tests
+cargo build -p sdkwork-api-im-standalone-gateway
+cargo test -p sdkwork-api-im-standalone-gateway --tests
 ```
 
 The packaged binary name is `sdkwork-im-server`.

@@ -82,8 +82,6 @@ const shellLoadersSource = readText(
   'src',
   'capabilityModuleLoaders.ts',
 );
-const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-cloud-gateway-config', 'src', 'lib.rs');
-const gatewaySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'lib.rs');
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
 const voicePcRoot = path.resolve(repoRoot, '..', 'sdkwork-voice', 'apps', 'sdkwork-voice-pc');
@@ -161,15 +159,9 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  `${devRunnerSource}\n${gatewayConfigSource}`,
+  devRunnerSource,
   /explicitVoiceAppApiUpstream|SDKWORK_IM_VOICE_APP_API_UPSTREAM|SDKWORK_VOICE_APP_API_UPSTREAM|SDKWORK_VOICE_APP_API_BASE_URL/u,
   'Voice foundation traffic must use the platform assembly gateway without per-module upstream overrides.',
-);
-
-assert.match(
-  gatewaySource,
-  /sdkwork-voice-app-api[\s\S]*\/app\/v3\/api\/voice\/\{\*path\}[\s\S]*SdkworkVoiceAppSdk/u,
-  'Web gateway must route sdkwork-voice app-api paths to the Voice app SDK upstream.',
 );
 
 assert.match(

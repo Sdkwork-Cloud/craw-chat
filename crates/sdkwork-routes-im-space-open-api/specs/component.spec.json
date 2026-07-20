@@ -74,7 +74,7 @@
       "route_manifest",
       "wrap_router"
     ],
-    "routeManifest": "sdks/_route-manifests/open-api/sdkwork-routes-im-space-open-api.route-manifest.json",
+    "routeManifest": "src/manifest.rs",
     "sdkClients": [],
     "sdkDependencies": [],
     "dependencyApiExports": [],

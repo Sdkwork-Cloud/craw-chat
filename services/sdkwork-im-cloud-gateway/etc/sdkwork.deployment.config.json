@@ -1,7 +1,0 @@
-{
-  "schemaVersion": 1,
-  "kind": "sdkwork.component-deployment",
-  "application": "sdkwork-im-cloud-gateway",
-  "parentDeploymentConfig": "../../../etc/sdkwork.deployment.config.json",
-  "profiles": ["cloud.development", "cloud.test", "cloud.staging", "cloud.production"]
-}

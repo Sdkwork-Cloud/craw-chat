@@ -49,7 +49,7 @@
 - `docs/架构/150C-控制面provider绑定求值与租户治理设计-2026-04-08.md`
 - `docs/架构/142-控制面与配置治理设计-2026-04-06.md`
 - `docs/架构/09-实施计划.md`
-- `services/sdkwork-im-cloud-gateway/tests/provider_plugin_docs_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/provider_plugin_docs_test.rs`
 
 ## 5. 验证
 

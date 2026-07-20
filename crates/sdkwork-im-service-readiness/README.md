@@ -19,5 +19,5 @@ SDKWork IM maintainers.
 
 ```bash
 cargo check -p sdkwork-im-service-readiness
-cargo test -p sdkwork-im-cloud-gateway --test http_proxy_test
+cargo test -p sdkwork-api-im-standalone-gateway --test http_proxy_test
 ```

@@ -246,6 +246,9 @@
     "node": "22",
     "pnpm": "10.0.0",
     "rust": "stable",
+    "flutter": "stable",
+    "android": true,
+    "xcode": true,
     "dotnet": "8.0.x",
     "wix": "5.0.2"
   },
@@ -281,42 +284,49 @@
         "env": {
           "SDKWORK_SHARED_SDK_MODE": "git"
         },
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$env:SDKWORK_IM_RELEASE_VERSION = $env:SDKWORK_PACKAGE_VERSION\n$env:SDKWORK_SHARED_SDK_GITHUB_TOKEN = $env:GH_TOKEN\nif ($env:SDKWORK_PACKAGE_PROFILE -eq \"browser\") {\n  pnpm release:build:prod -- --target browser\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") {\n  pnpm release:build:prod -- --target server\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -eq \"desktop\") {\n  pnpm release:build:prod -- --target desktop --platform $env:SDKWORK_PACKAGE_PLATFORM --arch $env:SDKWORK_PACKAGE_ARCHITECTURE\n} else {\n  throw \"Unsupported Sdkwork IM package profile $env:SDKWORK_PACKAGE_PROFILE\"\n}"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$env:SDKWORK_IM_RELEASE_VERSION = $env:SDKWORK_PACKAGE_VERSION\n$env:SDKWORK_SHARED_SDK_GITHUB_TOKEN = $env:GH_TOKEN\nif ($env:SDKWORK_PACKAGE_PROFILE -eq \"browser\" -and $env:SDKWORK_PACKAGE_PLATFORM -eq \"web\") {\n  pnpm release:build:prod -- --target browser\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") {\n  pnpm release:build:prod -- --target server\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -eq \"desktop\") {\n  pnpm release:build:prod -- --target desktop --platform $env:SDKWORK_PACKAGE_PLATFORM --arch $env:SDKWORK_PACKAGE_ARCHITECTURE\n} else {\n  node scripts/release/workflow-release-target.mjs build --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n}"
       }
     ],
     "stage": [
       {
         "name": "Stage selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\npnpm release:stage -- --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nif ($env:SDKWORK_PACKAGE_PROFILE -in @(\"browser\", \"server\", \"desktop\") -and $env:SDKWORK_PACKAGE_PLATFORM -ne \"h5\") {\n  pnpm release:stage -- --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n}"
       }
     ],
     "package": [
       {
         "name": "Build selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nnode scripts/release/build-sdkwork-im-install-package.mjs --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nif ($env:SDKWORK_PACKAGE_PROFILE -in @(\"browser\", \"server\", \"desktop\") -and $env:SDKWORK_PACKAGE_PLATFORM -ne \"h5\") {\n  node scripts/release/build-sdkwork-im-install-package.mjs --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n} else {\n  node scripts/release/workflow-release-target.mjs package --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n}"
       }
     ],
     "sign": [
       {
         "name": "Sign release artifacts",
         "shell": "pwsh",
-        "run": "Write-Host \"Signing policy is configured by release environment for $env:SDKWORK_PACKAGE_ID\""
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nnode scripts/release/workflow-supply-chain-evidence.mjs sign"
       }
     ],
     "sbom": [
       {
         "name": "Generate release SBOM",
         "shell": "pwsh",
-        "run": "Write-Host \"SBOM generation is configured by release environment for $env:SDKWORK_PACKAGE_ID\""
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nnode scripts/release/workflow-supply-chain-evidence.mjs attest"
       }
     ],
     "validate": [
       {
         "name": "Validate selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$extension = if ($env:SDKWORK_PACKAGE_FORMAT -eq \"tar.gz\") { \"tar.gz\" } else { $env:SDKWORK_PACKAGE_FORMAT }\n$pattern = \"sdkwork-im-$env:SDKWORK_PACKAGE_ID-*.$extension\"\n$artifact = Get-ChildItem -Path \"dist/release-packages\" -File |\n  Where-Object { $_.Name -like $pattern -and $_.Name -notlike \"*.manifest.json\" } |\n  Select-Object -First 1\nif (-not $artifact) {\n  throw \"Missing Sdkwork IM release artifact for $env:SDKWORK_PACKAGE_ID matching $pattern\"\n}\nnode scripts/release/validate-sdkwork-im-install-artifacts.mjs --package-id $env:SDKWORK_PACKAGE_ID --artifact-path $artifact.FullName --version $env:SDKWORK_PACKAGE_VERSION --json"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nif ($env:SDKWORK_PACKAGE_PROFILE -in @(\"browser\", \"server\", \"desktop\") -and $env:SDKWORK_PACKAGE_PLATFORM -ne \"h5\") {\n  $extension = if ($env:SDKWORK_PACKAGE_FORMAT -eq \"tar.gz\") { \"tar.gz\" } else { $env:SDKWORK_PACKAGE_FORMAT }\n  $pattern = \"sdkwork-im-$env:SDKWORK_PACKAGE_ID-*.$extension\"\n  $artifact = Get-ChildItem -Path \"dist/release-packages\" -File | Where-Object { $_.Name -like $pattern -and $_.Name -notlike \"*.manifest.json\" } | Select-Object -First 1\n  if (-not $artifact) { throw \"Missing Sdkwork IM release artifact for $env:SDKWORK_PACKAGE_ID matching $pattern\" }\n  node scripts/release/validate-sdkwork-im-install-artifacts.mjs --package-id $env:SDKWORK_PACKAGE_ID --artifact-path $artifact.FullName --version $env:SDKWORK_PACKAGE_VERSION --json\n} else {\n  node scripts/release/workflow-release-target.mjs validate --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n}"
+      }
+    ],
+    "deploy": [
+      {
+        "name": "Apply immutable artifact through deployctl",
+        "shell": "pwsh",
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nnode scripts/release/workflow-deploy.mjs"
       }
     ]
   },
@@ -337,6 +347,8 @@
       ],
       "deploymentProfile": "cloud",
       "runtimeTarget": "browser",
+      "targetPlatform": "web",
+      "clientArchitecture": "pc-web",
       "profileBinding": "fixed",
       "artifactPath": "dist/release-packages/sdkwork-im-web-universal-cloud-browser-zip-0.1.0.zip"
     },
@@ -470,6 +482,8 @@
       ],
       "deploymentProfile": "standalone",
       "runtimeTarget": "desktop",
+      "targetPlatform": "linux",
+      "clientArchitecture": "tauri",
       "profileBinding": "fixed",
       "artifactPath": "dist/release-packages/sdkwork-im-linux-x64-standalone-desktop-zip-0.1.0.zip"
     },
@@ -489,6 +503,8 @@
       ],
       "deploymentProfile": "standalone",
       "runtimeTarget": "desktop",
+      "targetPlatform": "linux",
+      "clientArchitecture": "tauri",
       "profileBinding": "fixed",
       "artifactPath": "dist/release-packages/sdkwork-im-linux-arm64-standalone-desktop-zip-0.1.0.zip"
     },
@@ -508,6 +524,8 @@
       ],
       "deploymentProfile": "standalone",
       "runtimeTarget": "desktop",
+      "targetPlatform": "macos",
+      "clientArchitecture": "tauri",
       "profileBinding": "fixed",
       "artifactPath": "dist/release-packages/sdkwork-im-macos-x64-standalone-desktop-zip-0.1.0.zip"
     },
@@ -527,6 +545,8 @@
       ],
       "deploymentProfile": "standalone",
       "runtimeTarget": "desktop",
+      "targetPlatform": "macos",
+      "clientArchitecture": "tauri",
       "profileBinding": "fixed",
       "artifactPath": "dist/release-packages/sdkwork-im-macos-arm64-standalone-desktop-zip-0.1.0.zip"
     },
@@ -546,6 +566,8 @@
       ],
       "deploymentProfile": "standalone",
       "runtimeTarget": "desktop",
+      "targetPlatform": "windows",
+      "clientArchitecture": "tauri",
       "profileBinding": "fixed",
       "artifactPath": "dist/release-packages/sdkwork-im-windows-x64-standalone-desktop-zip-0.1.0.zip"
     },
@@ -565,8 +587,104 @@
       ],
       "deploymentProfile": "standalone",
       "runtimeTarget": "desktop",
+      "targetPlatform": "windows",
+      "clientArchitecture": "tauri",
       "profileBinding": "fixed",
       "artifactPath": "dist/release-packages/sdkwork-im-windows-arm64-standalone-desktop-zip-0.1.0.zip"
+    },
+    {
+      "id": "h5-universal-cloud-mobile-zip",
+      "profileBinding": "fixed",
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "browser",
+      "targetPlatform": "h5",
+      "clientArchitecture": "h5",
+      "profile": "mobile",
+      "platform": "h5",
+      "architecture": "universal",
+      "formats": ["zip"],
+      "runner": "ubuntu-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-h5-universal-cloud-mobile-zip-0.1.0.zip",
+        "dist/release-packages/sdkwork-im-h5-universal-cloud-mobile-zip-0.1.0.manifest.json",
+        "dist/release-evidence/h5-universal-cloud-mobile-zip/*"
+      ],
+      "artifactPath": "dist/release-packages/sdkwork-im-h5-universal-cloud-mobile-zip-0.1.0.zip"
+    },
+    {
+      "id": "android-universal-cloud-mobile-apk",
+      "profileBinding": "fixed",
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "flutter-android",
+      "targetPlatform": "android",
+      "clientArchitecture": "flutter",
+      "profile": "mobile",
+      "platform": "android",
+      "architecture": "universal",
+      "formats": ["apk"],
+      "runner": "ubuntu-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-android-universal-cloud-mobile-apk-0.1.0.apk",
+        "dist/release-packages/sdkwork-im-android-universal-cloud-mobile-apk-0.1.0.manifest.json",
+        "dist/release-evidence/android-universal-cloud-mobile-apk/*"
+      ],
+      "artifactPath": "dist/release-packages/sdkwork-im-android-universal-cloud-mobile-apk-0.1.0.apk"
+    },
+    {
+      "id": "android-universal-cloud-mobile-aab",
+      "profileBinding": "fixed",
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "flutter-android",
+      "targetPlatform": "android",
+      "clientArchitecture": "flutter",
+      "profile": "mobile",
+      "platform": "android",
+      "architecture": "universal",
+      "formats": ["aab"],
+      "runner": "ubuntu-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-android-universal-cloud-mobile-aab-0.1.0.aab",
+        "dist/release-packages/sdkwork-im-android-universal-cloud-mobile-aab-0.1.0.manifest.json",
+        "dist/release-evidence/android-universal-cloud-mobile-aab/*"
+      ],
+      "artifactPath": "dist/release-packages/sdkwork-im-android-universal-cloud-mobile-aab-0.1.0.aab"
+    },
+    {
+      "id": "ios-universal-cloud-mobile-ipa",
+      "profileBinding": "fixed",
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "flutter-ios",
+      "targetPlatform": "ios",
+      "clientArchitecture": "flutter",
+      "profile": "mobile",
+      "platform": "ios",
+      "architecture": "universal",
+      "formats": ["ipa"],
+      "runner": "macos-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-ios-universal-cloud-mobile-ipa-0.1.0.ipa",
+        "dist/release-packages/sdkwork-im-ios-universal-cloud-mobile-ipa-0.1.0.manifest.json",
+        "dist/release-evidence/ios-universal-cloud-mobile-ipa/*"
+      ],
+      "artifactPath": "dist/release-packages/sdkwork-im-ios-universal-cloud-mobile-ipa-0.1.0.ipa"
+    },
+    {
+      "id": "container-x64-cloud-container-kubernetes-tar-gz",
+      "profileBinding": "fixed",
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "container",
+      "profile": "container",
+      "platform": "container",
+      "architecture": "x64",
+      "variant": "kubernetes",
+      "formats": ["tar.gz"],
+      "runner": "ubuntu-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-container-x64-cloud-container-kubernetes-tar-gz-0.1.0.tar.gz",
+        "dist/release-packages/sdkwork-im-container-x64-cloud-container-kubernetes-tar-gz-0.1.0.manifest.json",
+        "dist/release-evidence/container-x64-cloud-container-kubernetes-tar-gz/*"
+      ],
+      "artifactPath": "dist/release-packages/sdkwork-im-container-x64-cloud-container-kubernetes-tar-gz-0.1.0.tar.gz"
     }
   ],
   "security": {
@@ -576,14 +694,14 @@
   },
   "publish": {
     "workflowArtifact": true,
-    "githubRelease": true,
+    "githubRelease": false,
     "retentionDays": 30
   },
   "deployments": [
     {
-      "id": "cloud-production-web",
+      "id": "cloud-production-kubernetes",
       "environment": "production",
-      "targetId": "web-universal-cloud-browser-zip",
+      "targetId": "container-x64-cloud-container-kubernetes-tar-gz",
       "deploymentProfile": "cloud",
       "lifecycle": "deploy",
       "artifactEvidencePath": ".sdkwork/evidence/{packageId}.json"

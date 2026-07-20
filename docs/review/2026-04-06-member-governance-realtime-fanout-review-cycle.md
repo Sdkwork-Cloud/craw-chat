@@ -51,7 +51,7 @@ Member governance mutations are now treated as first-class business realtime eve
 
 ## 4. Implementation
 
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - `add_member(...)` now publishes `conversation.member_joined`
   - `change_conversation_member_role(...)` now publishes `conversation.member_role_changed`
   - `remove_member(...)` now publishes `conversation.member_removed`
@@ -73,24 +73,24 @@ Member governance mutations are now treated as first-class business realtime eve
 
 ## 5. Tests Added
 
-- `services/sdkwork-im-cloud-gateway/tests/http_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/http_e2e_test.rs`
   - `test_local_minimal_profile_fanouts_member_governance_realtime_events_to_registered_owner_device`
-- `services/sdkwork-im-cloud-gateway/tests/websocket_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/websocket_e2e_test.rs`
   - `test_local_minimal_profile_pushes_member_joined_events_over_websocket`
 
 ## 6. Verification
 
 ### Red
 
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_fanouts_member_governance_realtime_events_to_registered_owner_device -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_fanouts_member_governance_realtime_events_to_registered_owner_device -- --exact`
   - failed with `0 != 5`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_pushes_member_joined_events_over_websocket -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_pushes_member_joined_events_over_websocket -- --exact`
   - failed on websocket timeout because no push arrived
 
 ### Green
 
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_fanouts_member_governance_realtime_events_to_registered_owner_device -- --exact`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_pushes_member_joined_events_over_websocket -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_fanouts_member_governance_realtime_events_to_registered_owner_device -- --exact`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_pushes_member_joined_events_over_websocket -- --exact`
 
 ## 7. Remaining Risks
 

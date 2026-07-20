@@ -6,7 +6,7 @@
 
 - Affected services:
   - `services/session-gateway`
-  - `services/sdkwork-im-cloud-gateway`
+  - `crates/sdkwork-api-im-standalone-gateway`
 - Previous behavior:
   - the server actively closed live realtime websocket transports after `session.disconnect`
   - but the close frame used `Message::Close(None)`
@@ -42,14 +42,14 @@ Red coverage was added first by tightening the existing disconnect websocket reg
 
 - `services/session-gateway/tests/websocket_smoke_test.rs`
   - `test_realtime_websocket_closes_when_session_disconnects`
-- `services/sdkwork-im-cloud-gateway/tests/websocket_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/websocket_e2e_test.rs`
   - `test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects`
 
 Red evidence:
 
 - `cargo test -p session-gateway --offline test_realtime_websocket_closes_when_session_disconnects -- --exact --nocapture`
   - failed because `session_gateway::SESSION_DISCONNECT_CLOSE_CODE` and `session_gateway::SESSION_DISCONNECT_CLOSE_REASON` did not exist yet
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects -- --exact --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects -- --exact --nocapture`
   - failed for the same reason
 
 That red state was intentional: the tests now required an explicit public close contract, which the implementation did not yet provide.
@@ -77,7 +77,7 @@ The minimum production-ready rule is:
   - re-exported the disconnect close constants so tests and downstream consumers can bind to the same contract
 - `services/session-gateway/tests/websocket_smoke_test.rs`
   - now asserts exact close code and reason
-- `services/sdkwork-im-cloud-gateway/tests/websocket_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/websocket_e2e_test.rs`
   - now asserts exact close code and reason
 
 ## 7. Verification
@@ -85,7 +85,7 @@ The minimum production-ready rule is:
 ### Red
 
 - `cargo test -p session-gateway --offline test_realtime_websocket_closes_when_session_disconnects -- --exact --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects -- --exact --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects -- --exact --nocapture`
 
 Observed red result:
 
@@ -94,7 +94,7 @@ Observed red result:
 ### Green
 
 - `cargo test -p session-gateway --offline test_realtime_websocket_closes_when_session_disconnects -- --exact --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects -- --exact --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline test_local_minimal_profile_closes_realtime_websocket_when_session_disconnects -- --exact --nocapture`
 
 Observed green result:
 

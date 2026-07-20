@@ -41,7 +41,7 @@
 - Backend management, control, admin, operator, and audit endpoints map to [Backend API](/api-reference/backend-api) and `sdkwork-im-backend-sdk`.
 - App API routes do not own login, account, tenant, organization, or token refresh; those contexts are supplied by the upstream appbase identity system.
 - In packaged installs, the same App API surface is exposed through the unified `sdkwork-im-server`
-  / `sdkwork-im-cloud-gateway` public origin rather than a separate public app-node port.
+  / `sdkwork-api-im-standalone-gateway` public origin rather than a separate public app-node port.
 
 ## How To Use This Page
 

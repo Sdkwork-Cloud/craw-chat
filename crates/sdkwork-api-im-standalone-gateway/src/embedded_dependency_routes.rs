@@ -8,13 +8,13 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use axum::Router;
+use sdkwork_api_knowledgebase_assembly::{
+    KnowledgebaseRuntime, resolve_database_url, validate_process_config,
+};
 use sdkwork_drive_workspace_service::application::download_service::ensure_production_download_token_signing_configured;
 use sdkwork_drive_workspace_service::infrastructure::outbox_dispatch::ensure_domain_outbox_dispatcher;
 use sdkwork_drive_workspace_service::infrastructure::sql::connect_any_database_and_install_schema;
 use sdkwork_iam_embedded_application_bootstrap::ensure_tenant_application_from_app_root_with_env_and_fallback;
-use sdkwork_api_knowledgebase_assembly::{
-    KnowledgebaseRuntime, resolve_database_url, validate_process_config,
-};
 
 pub struct EmbeddedDependencyRoutes {
     pub router: Router,
@@ -668,7 +668,7 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
         Ok(runtime) => Some(runtime),
         Err(error) if is_development_environment() => {
             eprintln!(
-                "[sdkwork-im-standalone-gateway] optional dependency agents is unavailable in development; continuing without its routes: {error}"
+                "[sdkwork-api-im-standalone-gateway] optional dependency agents is unavailable in development; continuing without its routes: {error}"
             );
             None
         }
@@ -703,7 +703,7 @@ where
         Ok(dependency_router) => Ok(router.merge(dependency_router)),
         Err(error) if is_development_environment() => {
             eprintln!(
-                "[sdkwork-im-standalone-gateway] optional dependency {dependency} is unavailable in development; continuing without its routes: {error}"
+                "[sdkwork-api-im-standalone-gateway] optional dependency {dependency} is unavailable in development; continuing without its routes: {error}"
             );
             Ok(router)
         }
@@ -740,8 +740,7 @@ async fn bootstrap_embedded_drive_routes() -> Result<Router, String> {
 
     ensure_drive_tenant_application_bootstrap_from_env().await?;
 
-    let assembly =
-        sdkwork_api_drive_assembly::assemble_api_router(pool.clone()).await;
+    let assembly = sdkwork_api_drive_assembly::assemble_api_router(pool.clone()).await;
     Ok(assembly.router)
 }
 
@@ -808,93 +807,73 @@ async fn bootstrap_embedded_commerce_routes() -> Result<Router, String> {
 
 async fn bootstrap_embedded_account_routes() -> Result<Router, String> {
     let host = embedded_account_service_host().await?;
-    Ok(
-        sdkwork_api_account_assembly::assemble_api_router(host)
-            .await
-            .router,
-    )
+    Ok(sdkwork_api_account_assembly::assemble_api_router(host)
+        .await
+        .router)
 }
 
 async fn bootstrap_embedded_catalog_routes() -> Result<Router, String> {
     let host = embedded_catalog_service_host().await?;
-    Ok(
-        sdkwork_api_catalog_assembly::assemble_api_router(host)
-            .await
-            .router,
-    )
+    Ok(sdkwork_api_catalog_assembly::assemble_api_router(host)
+        .await
+        .router)
 }
 
 async fn bootstrap_embedded_inventory_routes() -> Result<Router, String> {
     let host = embedded_inventory_service_host().await?;
-    Ok(
-        sdkwork_api_inventory_assembly::assemble_api_router(host)
-            .await
-            .router,
-    )
+    Ok(sdkwork_api_inventory_assembly::assemble_api_router(host)
+        .await
+        .router)
 }
 
 async fn bootstrap_embedded_invoice_routes() -> Result<Router, String> {
     let host = embedded_invoice_service_host().await?;
-    Ok(
-        sdkwork_api_invoice_assembly::assemble_api_router(host)
-            .await
-            .router,
-    )
+    Ok(sdkwork_api_invoice_assembly::assemble_api_router(host)
+        .await
+        .router)
 }
 
 async fn bootstrap_embedded_membership_routes() -> Result<Router, String> {
     let host = embedded_membership_service_host().await?;
-    Ok(
-        sdkwork_api_membership_assembly::assemble_api_router(host)
-            .await
-            .router,
-    )
+    Ok(sdkwork_api_membership_assembly::assemble_api_router(host)
+        .await
+        .router)
 }
 
 async fn bootstrap_embedded_merchandise_routes() -> Result<Router, String> {
     let host = embedded_merchandise_service_host().await?;
-    Ok(
-        sdkwork_api_merchandise_assembly::assemble_api_router(host)
-            .await
-            .router,
-    )
+    Ok(sdkwork_api_merchandise_assembly::assemble_api_router(host)
+        .await
+        .router)
 }
 
 async fn bootstrap_embedded_order_routes() -> Result<Router, String> {
     let host = embedded_order_service_host().await?;
-    Ok(
-        sdkwork_api_order_assembly::assemble_api_router(host)
-            .await
-            .router,
-    )
+    Ok(sdkwork_api_order_assembly::assemble_api_router(host)
+        .await
+        .router)
 }
 
 async fn bootstrap_embedded_payment_routes() -> Result<Router, String> {
     set_env_var("SDKWORK_PAYMENT_DISABLE_RECHARGE_PROXY", "true");
     let host = embedded_payment_service_host().await?;
-    Ok(
-        sdkwork_api_payment_assembly::assemble_api_router(host)
-            .await
-            .router,
-    )
+    Ok(sdkwork_api_payment_assembly::assemble_api_router(host)
+        .await
+        .router)
 }
 
 async fn bootstrap_embedded_promotion_routes() -> Result<Router, String> {
     let host = embedded_promotion_service_host().await?;
-    Ok(
-        sdkwork_api_promotion_assembly::assemble_api_router(host)
-            .await
-            .router,
-    )
+    Ok(sdkwork_api_promotion_assembly::assemble_api_router(host)
+        .await
+        .router)
 }
 
 async fn bootstrap_embedded_shop_routes() -> Result<Router, String> {
     let host = embedded_shop_service_host().await?;
-    Ok(
-        sdkwork_api_shop_assembly::assemble_api_router(host)
-            .await
-            .router,
-    )
+    Ok(sdkwork_api_shop_assembly::assemble_api_router(host)
+        .await
+        .router)
 }
 
 async fn bootstrap_embedded_notary_routes() -> Result<Router, String> {

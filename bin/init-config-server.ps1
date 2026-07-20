@@ -48,7 +48,7 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/init-config-server.ps1 [-InstanceName <name>] [-ConfigDir <path>] [-DataDir <path>] [-LogDir <path>] [-RunDir <path>] [-BindAddress <host:port>] [-BaseUrl <url>] [-ApiBaseUrl <url>] [-WebsocketBaseUrl <url>] [-BrowserOrigins <csv>] [-NonInteractive] [-Force]"
     Write-Host "Usage: cmd /c .\bin\init-config-server.cmd [--instance <name>] [--config-dir <path>] [--data-dir <path>] [--log-dir <path>] [--run-dir <path>] [--bind-address <host:port>] [--base-url <url>] [--api-base-url <url>] [--websocket-base-url <url>] [--browser-origins <csv>] [--non-interactive] [--force]"
-    Write-Host "Render sdkwork-im-server configuration files for the selected instance and preserve file-based PostgreSQL settings."
+    Write-Host "Render sdkwork-api-im-standalone-gateway configuration files for the selected instance and preserve file-based PostgreSQL settings."
     exit 0
 }
 
@@ -188,7 +188,7 @@ if ((-not (Test-Path $passwordFilePath)) -or $Force) {
     "replace-me" | Set-Content -Path $passwordFilePath -Encoding utf8
 }
 
-Write-Host "Rendered sdkwork-im-server configuration for instance '$InstanceName'."
+Write-Host "Rendered sdkwork-api-im-standalone-gateway configuration for instance '$InstanceName'."
 Write-Host "chat.toml: $chatTomlPath"
 Write-Host "server.env: $serverEnvPath"
 Write-Host "postgresql.yaml: $postgresqlPath"

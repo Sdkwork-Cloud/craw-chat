@@ -59,24 +59,24 @@
 
 - `services/conversation-runtime/src/runtime.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/conversation.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/handoff.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/membership.rs`
-- `services/sdkwork-im-cloud-gateway/src/node/projection.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/conversation.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/handoff.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/membership.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/projection.rs`
 
 ### 5.2 测试证据
 
 - `services/conversation-runtime/tests/authority_command_test.rs`
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
-- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ### 5.3 fresh verification 证据
 
 - `cargo test -p conversation-runtime --test conversation_domain_structure_test test_non_message_commands_offer_auth_context_constructors --offline`
 - `cargo test -p conversation-runtime --test authority_command_test test_non_message_commands_from_auth_context_preserve_authority_identity --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --test lib_structure_test test_local_minimal_node_non_message_paths_use_auth_context_command_constructors --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --test lib_structure_test test_local_minimal_node_non_message_paths_use_auth_context_command_constructors --offline`
 - `cargo test -p conversation-runtime --offline`
-- `cargo test -p sdkwork-im-cloud-gateway --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 6. 架构结论

@@ -16,7 +16,7 @@
   - `test_local_minimal_profile_fanouts_message_notifications_to_other_active_members_only`
 - 回归证据
   - `$env:CARGO_TARGET_DIR='target-cp054f-reg-notification'; cargo test -p notification-service --offline`
-  - `rustfmt --edition 2024 --check services/notification-service/src/lib.rs services/notification-service/tests/lib_structure_test.rs services/notification-service/tests/notification_pipeline_test.rs services/sdkwork-im-cloud-gateway/src/node/effects.rs services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs`
+  - `rustfmt --edition 2024 --check services/notification-service/src/lib.rs services/notification-service/tests/lib_structure_test.rs services/notification-service/tests/notification_pipeline_test.rs crates/sdkwork-api-im-standalone-gateway/src/node/effects.rs crates/sdkwork-api-im-standalone-gateway/tests/lib_structure_test.rs`
 
 ## 3. 质量判断
 

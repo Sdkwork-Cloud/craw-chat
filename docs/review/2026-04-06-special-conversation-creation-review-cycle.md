@@ -47,7 +47,7 @@
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - `test_create_conversation_rejects_unknown_type_over_http`
   - `test_create_system_channel_preserves_actor_kind_over_http`
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/access_control_e2e_test.rs`
   - `test_system_channel_create_preserves_actor_kind_in_local_profile`
 
 ## 4. Implementation Summary
@@ -57,7 +57,7 @@
   - Added `RuntimeError::ConversationTypeInvalid`
   - Added `create_conversation_with_creator_kind(...)`
   - Ensured `conversation.created` event actor uses real creator kind
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   - App-facing create endpoint now passes `auth.actor_kind`
   - Added `conversation_type_invalid` error mapping
 
@@ -66,7 +66,7 @@
 - `cargo test -p conversation-runtime test_create_conversation_rejects_unknown_conversation_type --offline`
 - `cargo test -p conversation-runtime test_create_conversation_rejects_unknown_type_over_http --offline`
 - `cargo test -p conversation-runtime test_create_system_channel_preserves_actor_kind_over_http --offline`
-- `cargo test -p sdkwork-im-cloud-gateway test_system_channel_create_preserves_actor_kind_in_local_profile --offline`
+- `cargo test -p sdkwork-api-im-standalone-gateway test_system_channel_create_preserves_actor_kind_in_local_profile --offline`
 
 ## 6. Remaining Risks
 

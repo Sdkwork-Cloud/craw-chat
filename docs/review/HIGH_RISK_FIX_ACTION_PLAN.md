@@ -64,7 +64,7 @@ pub fn validate_production_security_config(config: &AppConfig) -> Result<(), Sec
     Ok(())
 }
 
-// 文件: services/sdkwork-im-standalone-gateway/src/main.rs
+// 文件: crates/sdkwork-api-im-standalone-gateway/src/main.rs
 fn main() {
     // 启动时验证配置
     let config = AppConfig::load();

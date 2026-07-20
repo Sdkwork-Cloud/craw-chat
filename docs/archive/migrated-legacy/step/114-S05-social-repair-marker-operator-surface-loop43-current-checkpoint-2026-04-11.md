@@ -9,7 +9,7 @@
   - 文本型 CLI 输出新增 `transaction-marker-cleared: <bool>` 行
   - fresh targeted regression：`cargo test -p control-plane-api --offline --test social_runtime_cli_test test_control_plane_repair_social_runtime_dir_cli_reports_transaction_marker_clearance_after_snapshot_failure -- --nocapture` = `passed`
   - full package regression：`cargo test -p control-plane-api --offline --tests -- --nocapture` = `62 passed`
-  - operator wrapper regression：`cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test -- --nocapture` = `64 passed`
+  - operator wrapper regression：`cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test -- --nocapture` = `64 passed`
 - 当前仍缺:
   - `S05 step_closure`
   - 更强 `staged / manifest` 级 `atomic multi-file tx` 证明

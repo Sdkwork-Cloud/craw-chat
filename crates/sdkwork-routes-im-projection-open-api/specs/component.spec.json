@@ -78,7 +78,7 @@
       "wrap_router",
       "wrap_router_from_env"
     ],
-    "routeManifest": "sdks/_route-manifests/open-api/sdkwork-routes-im-projection-open-api.route-manifest.json",
+    "routeManifest": "src/manifest.rs",
     "sdkClients": [],
     "sdkDependencies": [],
     "dependencyApiExports": [],

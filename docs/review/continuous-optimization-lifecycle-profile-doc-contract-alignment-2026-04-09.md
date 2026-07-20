@@ -26,15 +26,15 @@
 Red:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_quick_start_doc_surfaces_local_default_profile_examples_across_lifecycle_commands -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_quick_start_doc_surfaces_local_default_profile_examples_across_lifecycle_commands -- --exact --nocapture
 ```
 
 Green:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test -- --nocapture
 cargo fmt --all --check
-cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 ```
 
 ## Result

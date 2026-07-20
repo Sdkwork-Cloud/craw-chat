@@ -36,14 +36,14 @@
 - `artifacts/perf/step-11/pre-release/artifact-file-list.txt`
 - `artifacts/perf/step-11/capacity/checksum-manifest.txt`
 - `artifacts/perf/step-11/capacity/artifact-file-list.txt`
-- `services/sdkwork-im-cloud-gateway/tests/performance_drill_catalog_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/performance_drill_catalog_test.rs`
 
 ## Verification
 
 Red:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_artifact_roots -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_artifact_roots -- --exact --nocapture
 ```
 
 - Failed because `artifacts/perf/step-11/schemas/step-11-tier-evidence-index.schema.json` was missing.
@@ -51,10 +51,10 @@ cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalo
 Green:
 
 ```powershell
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_artifact_roots -- --exact --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_artifact_roots -- --exact --nocapture
 cargo fmt --all --check
-cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test -- --nocapture
-cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 ```
 
 ## Next Gap

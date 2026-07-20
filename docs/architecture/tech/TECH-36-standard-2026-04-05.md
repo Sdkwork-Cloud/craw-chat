@@ -122,8 +122,8 @@ pub struct NotificationRequestResult {
 - `services/notification-service/src/lib.rs`
 - `services/notification-service/tests/notification_pipeline_test.rs`
 - `services/notification-service/tests/http_smoke_test.rs`
-- `services/sdkwork-im-cloud-gateway/src/lib.rs`
-- `services/sdkwork-im-cloud-gateway/tests/task10_capabilities_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/task10_capabilities_e2e_test.rs`
 
 ## 6. 后续 review 建议
 

@@ -6,7 +6,7 @@ Implementation-aligned capability map for the current Sdkwork IM repository.
 
 | Area | Notes | Reference |
 | --- | --- | --- |
-| Conversations | Standard conversations, agent dialogs, handoffs, system channels | `services/sdkwork-im-cloud-gateway`, `services/comms-conversation-service` |
+| Conversations | Standard conversations, agent dialogs, handoffs, system channels | `crates/sdkwork-api-im-standalone-gateway`, `services/comms-conversation-service` |
 | Rooms | Live, chat, and game room binding with enter/leave orchestration | `services/comms-conversation-service` |
 | Membership | List, add, remove, transfer owner, change role, leave | OpenAPI `/im/v3/api/chat/*` |
 | Messages | Send, edit, recall, message history reads | `services/sdkwork-comms-conversation-service` |
@@ -17,7 +17,7 @@ Implementation-aligned capability map for the current Sdkwork IM repository.
 | Area | Notes | Reference |
 | --- | --- | --- |
 | Presence | Heartbeat and current presence | `services/session-gateway` |
-| Realtime delivery | Subscription sync, websocket upgrade | `services/session-gateway`, `services/sdkwork-im-cloud-gateway` |
+| Realtime delivery | Subscription sync, websocket upgrade | `services/session-gateway`, `crates/sdkwork-api-im-standalone-gateway` |
 
 ## Media, streams, calls
 

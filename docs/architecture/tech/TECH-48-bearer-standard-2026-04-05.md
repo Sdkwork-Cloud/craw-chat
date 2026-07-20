@@ -96,7 +96,7 @@
 - `cargo test -p automation-service --offline --test public_auth_test -- --nocapture`
 - `cargo test -p media-service --offline --test public_auth_test -- --nocapture`
 - `cargo test -p session-gateway --offline --test public_auth_test -- --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture`
 - `cargo test --workspace --offline`
 
 ## 7. 后续演进

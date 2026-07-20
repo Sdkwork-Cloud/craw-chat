@@ -3,9 +3,7 @@
   <name>SdkworkImServer</name>
   <description>Sdkwork IM Server Windows Service wrapper</description>
 
-  <executable>__INSTALL_ROOT__\bin\sdkwork-im-server.exe</executable>
-  <arguments>--config &quot;__CONFIG_DIR__\server.yaml&quot;</arguments>
-
+  <executable>__INSTALL_ROOT__\bin\sdkwork-api-im-standalone-gateway.exe</executable>
   <logpath>__LOG_DIR__</logpath>
   <log mode="roll" />
 

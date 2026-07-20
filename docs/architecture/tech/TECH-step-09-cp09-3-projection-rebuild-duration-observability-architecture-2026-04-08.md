@@ -68,18 +68,18 @@
 - 代码：
   - `services/projection-service/src/observability.rs`
   - `services/ops-service/src/lib.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node/build.rs`
-  - `services/sdkwork-im-cloud-gateway/src/node/platform.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/build.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/src/node/platform.rs`
 - 测试：
   - `services/projection-service/tests/projection_snapshot_test.rs`
   - `services/ops-service/tests/http_smoke_test.rs`
-  - `services/sdkwork-im-cloud-gateway/tests/domain_recovery_persistence_test.rs`
+  - `crates/sdkwork-api-im-standalone-gateway/tests/domain_recovery_persistence_test.rs`
 - 验证：
   - `cargo fmt --all --check`
   - `cargo test -p projection-service --offline`
   - `cargo test -p ops-service --offline`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline`
 
 ## 当前判断
 - `CP09-3`：通过。

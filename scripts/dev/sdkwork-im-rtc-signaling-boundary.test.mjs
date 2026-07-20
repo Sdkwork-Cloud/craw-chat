@@ -174,14 +174,14 @@ for (const relativePath of [
   );
 }
 
-const webGatewaySource = read('services/sdkwork-im-cloud-gateway/src/lib.rs');
+const apiAssemblyCargo = read('crates/sdkwork-api-im-assembly/Cargo.toml');
 assert.doesNotMatch(
-  webGatewaySource,
+  apiAssemblyCargo,
   /sdkwork-rtc-signaling-service|\/app\/v3\/api\/rtc/u,
   'web-gateway must not classify call signaling as an sdkwork-rtc app-api target',
 );
 
-for (const relativePath of ['Cargo.toml', 'services/sdkwork-im-cloud-gateway/Cargo.toml']) {
+for (const relativePath of ['Cargo.toml', 'crates/sdkwork-api-im-standalone-gateway/Cargo.toml']) {
   const source = read(relativePath);
   assert.doesNotMatch(
     source,
@@ -190,11 +190,10 @@ for (const relativePath of ['Cargo.toml', 'services/sdkwork-im-cloud-gateway/Car
   );
 }
 
-const webGatewayCallsSource = read('services/sdkwork-im-cloud-gateway/src/lib.rs');
 assert.match(
-  webGatewayCallsSource,
-  /im-calls-service/u,
-  'sdkwork-im-cloud-gateway must route IM-owned call signaling through im-calls-service upstream',
+  apiAssemblyCargo,
+  /calls-service = \{ path = "\.\.\/\.\.\/services\/im-calls-service" \}/u,
+  'IM API assembly must compose the IM-owned calls service through its calls route crate',
 );
 
 for (const relativePath of [

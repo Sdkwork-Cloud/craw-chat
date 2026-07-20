@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make `sdkwork-api-cloud-gateway` the only HTTP API ingress for Sdkwork IM while keeping `sdkwork-im-server` responsible only for static shell delivery and IM realtime/TCP transport.
+**Goal:** Make `platform.api-gateway` the only HTTP API ingress for Sdkwork IM while keeping `sdkwork-im-server` responsible only for static shell delivery and IM realtime/TCP transport.
 
-**Architecture:** The migration is done in four phases. First fix the configuration and observability model so foundation gateway-backed services are not treated as ordinary product upstreams. Second make renderer HTTP API traffic explicitly target `sdkwork-api-cloud-gateway` while keeping realtime endpoints on `sdkwork-im-server`. Third strip generic HTTP ingress duties from `sdkwork-im-server`. Fourth tighten tests and startup output so the boundary cannot drift back.
+**Architecture:** The migration is done in four phases. First fix the configuration and observability model so foundation gateway-backed services are not treated as ordinary product upstreams. Second make renderer HTTP API traffic explicitly target `platform.api-gateway` while keeping realtime endpoints on `sdkwork-im-server`. Third strip generic HTTP ingress duties from `sdkwork-im-server`. Fourth tighten tests and startup output so the boundary cannot drift back.
 
 **Tech Stack:** Rust 2024, Axum, Cargo workspace crates, Node/pnpm dev runners, TypeScript app bootstrap
 
@@ -14,14 +14,14 @@
 
 ### Config and model ownership
 
-- Modify: `crates/sdkwork-im-cloud-gateway-config/src/lib.rs`
+- Modify: `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
   Purpose: separate direct product upstreams from shared foundation gateway-backed services in the configuration model.
-- Modify: `crates/sdkwork-im-cloud-gateway-config/README.md`
+- Modify: `crates/sdkwork-api-im-standalone-gateway/README.md`
   Purpose: document the new gateway-backed dependency model.
 
 ### Runtime observability and startup reporting
 
-- Modify: `crates/sdkwork-im-cloud-gateway-observability/src/lib.rs`
+- Modify: `crates/sdkwork-api-im-standalone-gateway-observability/src/lib.rs`
   Purpose: format startup/runtime summaries with clear separation between direct upstreams and shared foundation gateway-backed services.
 - Modify: `services/web-gateway/tests/openapi_index_test.rs`
   Purpose: lock the new startup/runtime summary semantics.
@@ -31,7 +31,7 @@
 - Modify: `services/web-gateway/src/lib.rs`
   Purpose: ensure only API-related routes remain in the HTTP gateway responsibility set.
 - Modify: `crates/sdkwork-api-product-runtime/src/lib.rs`
-  Purpose: remove or reject generic HTTP API ingress responsibilities that should belong to `sdkwork-api-cloud-gateway`, while keeping static shell and realtime ownership.
+  Purpose: remove or reject generic HTTP API ingress responsibilities that should belong to `platform.api-gateway`, while keeping static shell and realtime ownership.
 
 ### Product runtime and frontend bootstrap
 
@@ -59,8 +59,8 @@
 ### Task 1: Reframe Gateway Config Ownership
 
 **Files:**
-- Modify: `crates/sdkwork-im-cloud-gateway-config/src/lib.rs`
-- Modify: `crates/sdkwork-im-cloud-gateway-config/README.md`
+- Modify: `crates/sdkwork-api-im-standalone-gateway/src/lib.rs`
+- Modify: `crates/sdkwork-api-im-standalone-gateway/README.md`
 - Test: `services/web-gateway/tests/openapi_index_test.rs`
 
 - [ ] **Step 1: Write the failing config/summary test expectations**
@@ -74,7 +74,7 @@ Expected: FAIL or reveal the old behavior if the config model is still flat.
 
 - [ ] **Step 3: Introduce explicit foundation gateway-backed service classification**
 
-Refactor `sdkwork-im-cloud-gateway-config` so appbase/drive/notary can be recognized as shared foundation gateway-backed dependency surfaces rather than product-local independent upstreams.
+Refactor `sdkwork-api-im-standalone-gateway` so appbase/drive/notary can be recognized as shared foundation gateway-backed dependency surfaces rather than product-local independent upstreams.
 
 - [ ] **Step 4: Update the gateway-config README**
 
@@ -91,14 +91,14 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add crates/sdkwork-im-cloud-gateway-config/src/lib.rs crates/sdkwork-im-cloud-gateway-config/README.md services/web-gateway/tests/openapi_index_test.rs
+git add crates/sdkwork-api-im-standalone-gateway/src/lib.rs crates/sdkwork-api-im-standalone-gateway/README.md services/web-gateway/tests/openapi_index_test.rs
 git commit -m "refactor: separate gateway-backed foundation service config"
 ```
 
 ### Task 2: Make Startup And Runtime Summary Match Real Ownership
 
 **Files:**
-- Modify: `crates/sdkwork-im-cloud-gateway-observability/src/lib.rs`
+- Modify: `crates/sdkwork-api-im-standalone-gateway-observability/src/lib.rs`
 - Test: `services/web-gateway/tests/openapi_index_test.rs`
 
 - [ ] **Step 1: Write/adjust failing assertions for startup summary wording**
@@ -129,7 +129,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/sdkwork-im-cloud-gateway-observability/src/lib.rs services/web-gateway/tests/openapi_index_test.rs
+git add crates/sdkwork-api-im-standalone-gateway-observability/src/lib.rs services/web-gateway/tests/openapi_index_test.rs
 git commit -m "refactor: group gateway-backed foundation services in startup summary"
 ```
 
@@ -144,7 +144,7 @@ git commit -m "refactor: group gateway-backed foundation services in startup sum
 - [ ] **Step 1: Add failing assertions for the intended route split**
 
 Lock the rule:
-- `sdkwork-api-cloud-gateway` owns normal HTTP API ingress
+- `platform.api-gateway` owns normal HTTP API ingress
 - `sdkwork-im-server` keeps realtime transport only
 - no extra generic HTTP proxy fallback from `sdkwork-im-server`
 
@@ -157,7 +157,7 @@ Expected: establish current baseline before changing behavior.
 
 - [ ] **Step 3: Remove generic HTTP ingress duties from product runtime where applicable**
 
-Change `sdkwork-api-product-runtime` so it no longer claims ownership of generic HTTP API ingress responsibilities that belong to `sdkwork-api-cloud-gateway`. Preserve:
+Change `sdkwork-api-product-runtime` so it no longer claims ownership of generic HTTP API ingress responsibilities that belong to `platform.api-gateway`. Preserve:
 - static shell/site routes
 - realtime transport
 - local desktop runtime routes that are not part of gateway-owned API ingress
@@ -197,8 +197,8 @@ git commit -m "refactor: separate gateway HTTP ingress from sdkwork-im realtime 
 - [ ] **Step 1: Add failing assertions for HTTP/gateway and realtime/server URL ownership**
 
 Lock:
-- app/api HTTP -> `sdkwork-api-cloud-gateway`
-- IM HTTP -> `sdkwork-api-cloud-gateway`
+- app/api HTTP -> `platform.api-gateway`
+- IM HTTP -> `platform.api-gateway`
 - IM realtime websocket -> `sdkwork-im-server`
 
 - [ ] **Step 2: Run the Node dev/integration contract tests**

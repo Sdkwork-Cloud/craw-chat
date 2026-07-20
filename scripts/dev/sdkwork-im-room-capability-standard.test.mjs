@@ -14,7 +14,7 @@ const roomRuntime = read('services/sdkwork-comms-conversation-service/src/runtim
 const http = read('services/sdkwork-comms-conversation-service/src/runtime/http.rs');
 const policy = read('services/sdkwork-comms-conversation-service/src/runtime/policy.rs');
 const binding = read('services/sdkwork-comms-conversation-service/src/runtime/binding.rs');
-const gateway = read('services/sdkwork-im-cloud-gateway/src/lib.rs');
+const apiAssembly = read('crates/sdkwork-api-im-assembly/src/bootstrap.rs');
 const routerPaths = read('crates/sdkwork-routes-im-chat-open-api/src/paths.rs');
 const openapi = read('apis/open-api/im/sdkwork-im-im.openapi.yaml');
 const sdkOpenapi = read('sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml');
@@ -57,7 +57,7 @@ assert.match(policy, /SDKWORK_IM_LIVE_ROOM_MESSAGE_RATE_LIMIT/);
 assert.match(binding, /organization_id_from_auth_context\(auth\)/);
 assert.doesNotMatch(binding, /require_active_member_with_kind\([\s\S]*"default"/);
 
-assert.match(gateway, /\/im\/v3\/api\/chat\/rooms/);
+assert.match(apiAssembly, /sdkwork_routes_im_chat_open_api::gateway_mount_with_state/);
 assert.match(routerPaths, /pub const ROOMS/);
 assert.match(routerPaths, /pub const ROOM_ENTER/);
 

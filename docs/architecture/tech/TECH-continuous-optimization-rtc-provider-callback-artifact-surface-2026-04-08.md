@@ -19,10 +19,10 @@
   - 新增 `RtcRuntime::recording_artifact(...)`
   - 新增 `POST /backend/v3/api/rtc/provider_callbacks`
   - 新增 `Retired recording artifact HTTP read; call artifacts are delivered as Drive-backed IM records`
-- `services/sdkwork-im-cloud-gateway/src/node/rtc.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/rtc.rs`
   - 新增 callback handler
   - 新增 recording artifact handler
-- `services/sdkwork-im-cloud-gateway/src/node/build.rs`
+- `crates/sdkwork-api-im-standalone-gateway/src/node/build.rs`
   - 镜像暴露同名 RTC provider surface
 
 ## 设计决策
@@ -45,7 +45,7 @@
 - `services/im-call-runtime/tests/http_smoke_test.rs`
   - `test_map_rtc_provider_callback_over_http`
   - `test_get_rtc_recording_artifact_over_http`
-- `services/sdkwork-im-cloud-gateway/tests/http_e2e_test.rs`
+- `crates/sdkwork-api-im-standalone-gateway/tests/http_e2e_test.rs`
   - `test_local_minimal_profile_maps_rtc_provider_callback_over_http`
   - `test_local_minimal_profile_gets_rtc_recording_artifact_over_http`
 
@@ -57,12 +57,12 @@
 - `cargo fmt --all --check`
 - `cargo test -p im-call-runtime --offline --test http_smoke_test -- --nocapture`
 - `cargo test -p im-call-runtime --offline --test rtc_runtime_persistence_test -- --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test http_e2e_test test_local_minimal_profile_issues_rtc_participant_credential_over_http -- --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test http_e2e_test test_local_minimal_profile_gets_rtc_provider_health_over_http -- --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test http_e2e_test test_local_minimal_profile_maps_rtc_provider_callback_over_http -- --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test http_e2e_test test_local_minimal_profile_gets_rtc_recording_artifact_over_http -- --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test rtc_runtime_persistence_test -- --nocapture`
-- `cargo test -p sdkwork-im-cloud-gateway --offline --test provider_plugin_docs_test -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test http_e2e_test test_local_minimal_profile_issues_rtc_participant_credential_over_http -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test http_e2e_test test_local_minimal_profile_gets_rtc_provider_health_over_http -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test http_e2e_test test_local_minimal_profile_maps_rtc_provider_callback_over_http -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test http_e2e_test test_local_minimal_profile_gets_rtc_recording_artifact_over_http -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test rtc_runtime_persistence_test -- --nocapture`
+- `cargo test -p sdkwork-api-im-standalone-gateway --offline --test provider_plugin_docs_test -- --nocapture`
 
 ## 当前结论
 

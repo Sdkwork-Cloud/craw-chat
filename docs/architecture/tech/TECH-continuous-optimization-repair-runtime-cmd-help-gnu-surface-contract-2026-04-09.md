@@ -28,12 +28,12 @@
 ## Verification
 
 - Red:
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_repair_runtime_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_repair_runtime_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture`
 - Green:
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test test_repair_runtime_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline --test deployment_profile_test -- --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_repair_runtime_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test -- --nocapture`
   - `cargo fmt --all --check`
-  - `cargo test -p sdkwork-im-cloud-gateway --offline -- --nocapture`
+  - `cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture`
 
 ## Next
 

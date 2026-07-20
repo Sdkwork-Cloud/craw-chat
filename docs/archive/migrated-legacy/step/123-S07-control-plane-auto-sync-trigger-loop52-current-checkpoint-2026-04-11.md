@@ -101,7 +101,7 @@
 - next_mode: `实施批次`
 - next_steps: `S07`
 - next_goal: `把 control-plane 已落地的 shared-channel auto-trigger seam 接到真实 conversation-runtime consumer`
-- next_files_to_check: `services/control-plane-api/src/lib.rs` `services/control-plane-api/src/main.rs` `services/sdkwork-im-cloud-gateway/Cargo.toml` `services/sdkwork-im-cloud-gateway/src/lib.rs` `services/conversation-runtime/src/runtime/http.rs`
+- next_files_to_check: `services/control-plane-api/src/lib.rs` `services/control-plane-api/src/main.rs` `crates/sdkwork-api-im-standalone-gateway/Cargo.toml` `crates/sdkwork-api-im-standalone-gateway/src/lib.rs` `services/conversation-runtime/src/runtime/http.rs`
 - next_verification_focus: `shared-channel trigger injection owner` `default builder / prod wiring boundary` `legacy localActorKind missing truth handling`
 
 ## Stop Decision

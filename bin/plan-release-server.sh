@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/plan-release-server.sh [--release-gate-path <path-to-release-gate.json>] [--platform <all|linux|macos|windows>] [--output-format <text|json>]
 
-Summarize the sdkwork-im-server release plan from the machine-readable release-gate, package-catalog, and release-execution contracts.
+Summarize the sdkwork-api-im-standalone-gateway release plan from the machine-readable release-gate, package-catalog, and release-execution contracts.
 The emitted plan keeps checksum and artifact-file-list contract pointers visible for operators and automation.
 EOF
 }

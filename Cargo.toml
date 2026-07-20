@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "crates/sdkwork-api-im-standalone-gateway",
-    "crates/sdkwork-api-im-assembly",
     "adapters/local-disk",
     "adapters/local-memory",
     "adapters/postgres-realtime",
@@ -41,8 +40,6 @@ members = [
     "crates/sdkwork-im-contract-notification",
     "crates/sdkwork-im-contract-stream",
     "crates/sdkwork-im-api-registry",
-    "crates/sdkwork-im-cloud-gateway-config",
-    "crates/sdkwork-im-cloud-gateway-observability",
     "crates/sdkwork-im-openapi",
     "crates/sdkwork-im-realtime-api-paths",
     "crates/sdkwork-im-websocket-auth-gate",
@@ -102,8 +99,6 @@ members = [
     "services/space-service-bin",
     "services/streaming-service",
     "services/streaming-service-bin",
-    "services/sdkwork-im-cloud-gateway",
-    "services/sdkwork-im-standalone-gateway",
     "services/im-calls-service",
     "adapters/push-providers/push-apns",
     "adapters/push-providers/push-fcm",
@@ -156,6 +151,8 @@ im-app-context = { path = "crates/im-app-context" }
 im-storage-contracts = { path = "crates/im-storage-contracts" }
 im-storage-runtime = { path = "crates/im-storage-runtime" }
 sdkwork-api-config = { path = "crates/sdkwork-api-config" }
+sdkwork-api-product-runtime = { path = "crates/sdkwork-api-product-runtime" }
+sdkwork-im-web-bootstrap = { path = "crates/sdkwork-im-web-bootstrap" }
 # Cross-repository SDKWork dependencies.
 # IM consumes the canonical reusable Rust crates published under
 # `sdkwork-appbase/crates/`. The workspace keys below keep IM's short
@@ -230,7 +227,6 @@ sdkwork-im-ccp-registry = { path = "crates/sdkwork-im-ccp-registry" }
 
 # Workspace-inherited member dependencies required by SDKWork verification.
 sdkwork-im-api-registry = { path = "crates/sdkwork-im-api-registry" }
-sdkwork-im-cloud-gateway-config = { path = "crates/sdkwork-im-cloud-gateway-config" }
 sdkwork_routes_im_audit_backend_api = { path = "crates/sdkwork-routes-im-audit-backend-api", package = "sdkwork-routes-im-audit-backend-api" }
 sdkwork_routes_im_automation_app_api = { path = "crates/sdkwork-routes-im-automation-app-api", package = "sdkwork-routes-im-automation-app-api" }
 sdkwork_routes_im_calls_open_api = { path = "crates/sdkwork-routes-im-calls-open-api", package = "sdkwork-routes-im-calls-open-api" }
@@ -247,7 +243,6 @@ sdkwork_routes_im_social_backend_api = { path = "crates/sdkwork-routes-im-social
 sdkwork_routes_im_social_open_api = { path = "crates/sdkwork-routes-im-social-open-api", package = "sdkwork-routes-im-social-open-api" }
 sdkwork_routes_im_space_open_api = { path = "crates/sdkwork-routes-im-space-open-api", package = "sdkwork-routes-im-space-open-api" }
 sdkwork_routes_im_stream_app_api = { path = "crates/sdkwork-routes-im-stream-app-api", package = "sdkwork-routes-im-stream-app-api" }
-sdkwork-im-cloud-gateway = { path = "services/sdkwork-im-cloud-gateway" }
 sdkwork_routes_iam_app_api = { path = "../sdkwork-iam/crates/sdkwork-routes-iam-app-api", package = "sdkwork-routes-iam-app-api" }
 sdkwork-api-drive-assembly = { path = "../sdkwork-drive/crates/sdkwork-api-drive-assembly" }
 sdkwork-api-notary-assembly = { path = "../sdkwork-notary/crates/sdkwork-api-notary-assembly" }

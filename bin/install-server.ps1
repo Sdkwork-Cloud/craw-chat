@@ -44,7 +44,7 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/install-server.ps1 [-InstanceName <name>] [-InstallRoot <path>] [-ConfigDir <path>] [-DataDir <path>] [-LogDir <path>] [-RunDir <path>] [-NonInteractive] [-Force]"
     Write-Host "Usage: cmd /c .\bin\install-server.cmd [--instance <name>] [--install-root <path>] [--config-dir <path>] [--data-dir <path>] [--log-dir <path>] [--run-dir <path>] [--non-interactive] [--force]"
-    Write-Host "Create the sdkwork-im-server install/config/data/log/run directory skeleton and stage canonical payload examples."
+    Write-Host "Create the sdkwork-api-im-standalone-gateway install/config/data/log/run directory skeleton and stage canonical payload examples."
     exit 0
 }
 
@@ -70,7 +70,7 @@ function Resolve-ServerTemplatePath {
     }
 
     $packagedCandidates = $PackagedRelativePaths -join ', '
-    throw "Missing sdkwork-im-server template. Expected packaged path '$packagedCandidates' or source path '$sourcePath'."
+    throw "Missing sdkwork-api-im-standalone-gateway template. Expected packaged path '$packagedCandidates' or source path '$sourcePath'."
 }
 
 foreach ($path in @($InstallRoot, $ConfigDir, $DataDir, $LogDir, $RunDir)) {
@@ -114,7 +114,7 @@ $installMetadata = [ordered]@{
 
 $installMetadata | ConvertTo-Json -Depth 4 | Set-Content -Path $installMetadataPath -Encoding utf8
 
-Write-Host "Prepared sdkwork-im-server directories for instance '$InstanceName'."
+Write-Host "Prepared sdkwork-api-im-standalone-gateway directories for instance '$InstanceName'."
 Write-Host "ConfigDir: $ConfigDir"
 Write-Host "DataDir: $DataDir"
 Write-Host "LogDir: $LogDir"
