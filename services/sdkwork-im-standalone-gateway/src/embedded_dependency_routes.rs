@@ -809,7 +809,7 @@ async fn bootstrap_embedded_commerce_routes() -> Result<Router, String> {
 async fn bootstrap_embedded_account_routes() -> Result<Router, String> {
     let host = embedded_account_service_host().await?;
     Ok(
-        sdkwork_account_gateway_assembly::assemble_api_router(host)
+        sdkwork_api_account_assembly::assemble_api_router(host)
             .await
             .router,
     )

@@ -264,7 +264,7 @@ sdkwork-notary-database-host = { path = "../sdkwork-notary/crates/sdkwork-notary
 sdkwork-course-database-host = { path = "../sdkwork-course/crates/sdkwork-course-database-host" }
 sdkwork-agents-gateway-assembly = { path = "../sdkwork-agents/crates/sdkwork-agents-gateway-assembly" }
 sdkwork-agents-runtime-facade = { path = "../sdkwork-agents/crates/sdkwork-agents-runtime-facade" }
-sdkwork-account-gateway-assembly = { path = "../sdkwork-account/crates/sdkwork-account-gateway-assembly" }
+sdkwork-api-account-assembly = { path = "../sdkwork-account/crates/sdkwork-api-account-assembly" }
 sdkwork-account-service-host = { path = "../sdkwork-account/crates/sdkwork-account-service-host" }
 sdkwork-catalog-gateway-assembly = { path = "../sdkwork-catalog/crates/sdkwork-catalog-gateway-assembly" }
 sdkwork-catalog-service-host = { path = "../sdkwork-catalog/crates/sdkwork-catalog-service-host" }
