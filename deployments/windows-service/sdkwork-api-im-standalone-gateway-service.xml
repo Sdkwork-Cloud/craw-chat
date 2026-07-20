@@ -1,7 +1,7 @@
 <service>
-  <id>SdkworkImServer</id>
-  <name>SdkworkImServer</name>
-  <description>Sdkwork IM Server Windows Service wrapper</description>
+  <id>sdkwork-api-im-standalone-gateway</id>
+  <name>SDKWork IM Standalone API Gateway</name>
+  <description>SDKWork IM standalone API gateway Windows service wrapper</description>
 
   <executable>__INSTALL_ROOT__\bin\sdkwork-api-im-standalone-gateway.exe</executable>
   <logpath>__LOG_DIR__</logpath>

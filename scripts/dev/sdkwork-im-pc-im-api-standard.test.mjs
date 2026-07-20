@@ -28,7 +28,7 @@ const appAuthServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-cor
 const viteConfigSource = read('apps/sdkwork-im-pc/vite.config.ts');
 const localApiSource = read('apps/sdkwork-im-pc/local-api.ts');
 const devCommandSource = read('scripts/lib/im-pc-dev.mjs');
-const localAppApiSource = read('scripts/dev/start-sdkwork-im-local-app-api.mjs');
+const retiredLocalAppApiLauncher = path.join(repoRoot, 'scripts/dev/start-sdkwork-im-local-app-api.mjs');
 const sharedDatabaseSource = read('scripts/dev/sdkwork-im-shared-database.mjs');
 const releaseSources = readJson('config/shared-sdk-release-sources.json');
 const workspaceSource = read('pnpm-workspace.yaml');
@@ -255,8 +255,11 @@ assert.match(
   'local standard must separate the IM application plane from the platform assembly gateway.',
 );
 
-assert.match(localAppApiSource, /Rust unified server/u);
-assert.match(localAppApiSource, /resolveSdkworkImSharedDatabaseConfig/u);
+assert.equal(
+  fs.existsSync(retiredLocalAppApiLauncher),
+  false,
+  'retired local app-api sidecar launcher must not remain as a compatibility wrapper',
+);
 assert.match(sharedDatabaseSource, /APP_CODE\s*=\s*['"]chat['"]/u);
 assert.match(sharedDatabaseSource, /SDKWORK_IM_DATABASE_ENGINE/u);
 assert.match(sharedDatabaseSource, /SDKWORK_IM_DATABASE_SSL_MODE/u);
@@ -269,7 +272,7 @@ assert.doesNotMatch(
   'local PC development must use one shared platform.api-gateway root by default instead of materializing per-module foundation upstreams.',
 );
 assert.doesNotMatch(
-  `${devCommandSource}\n${localAppApiSource}`,
+  devCommandSource,
   /\bmvn(?:\.cmd)?\b|spring-ai-plus-server-app|spring-boot:run|SDKWORK_IM_APPBASE_APP_API_UPSTREAM|SDKWORK_APPBASE_APP_API_BIND_ADDR|SDKWORK_APPBASE_BROWSER_ORIGINS/u,
   'local PC development must use the Rust unified server for app-api instead of Java/appbase upstream startup.',
 );

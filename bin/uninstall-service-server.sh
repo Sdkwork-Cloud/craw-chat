@@ -47,12 +47,12 @@ done
 generated_dir="${config_dir}/generated"
 rm -f \
   "${generated_dir}/sdkwork-api-im-standalone-gateway.service" \
-  "${generated_dir}/com.sdkwork.im.server.plist" \
-  "${generated_dir}/SdkworkImServer.xml" \
-  "${generated_dir}/install-SdkworkImServer.ps1" \
-  "${generated_dir}/uninstall-SdkworkImServer.ps1" \
+  "${generated_dir}/com.sdkwork.im.api-standalone-gateway.plist" \
+  "${generated_dir}/sdkwork-api-im-standalone-gateway-service.xml" \
+  "${generated_dir}/install-sdkwork-api-im-standalone-gateway-service.ps1" \
+  "${generated_dir}/uninstall-sdkwork-api-im-standalone-gateway-service.ps1" \
   "${generated_dir}/service-install-report.json"
 echo "Removed generated sdkwork-api-im-standalone-gateway service artifacts for instance '${instance_name}'."
 echo "systemd target: sdkwork-api-im-standalone-gateway.service"
-echo "launchd target: com.sdkwork.im.server"
-echo "windows service target: SdkworkImServer"
+echo "launchd target: com.sdkwork.im.api-standalone-gateway"
+echo "windows service target: sdkwork-api-im-standalone-gateway"

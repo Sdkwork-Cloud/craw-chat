@@ -4,21 +4,21 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  createSdkworkImServerCargoEnv,
-  resolveSdkworkImServerBindEnv,
-} from './sdkwork-im-server-dev-runtime.mjs';
+  createStandaloneGatewayCargoEnv,
+  resolveStandaloneGatewayBindEnv,
+} from './sdkwork-api-im-standalone-gateway-dev-runtime.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 
-const defaultCargoEnv = createSdkworkImServerCargoEnv({
+const defaultCargoEnv = createStandaloneGatewayCargoEnv({
   env: {},
   repoRoot,
 });
 assert.equal(
   defaultCargoEnv.env.CARGO_TARGET_DIR,
-  path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-im-server-dev'),
-  'pnpm dev:server must build into an isolated target dir so locked target/debug/sdkwork-im-server.exe cannot block rebuilds',
+  path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev'),
+  'pnpm dev:server must build into an isolated target dir so a locked gateway executable cannot block rebuilds',
 );
 assert.equal(
   defaultCargoEnv.usingDefaultTargetDir,
@@ -26,7 +26,7 @@ assert.equal(
   'default pnpm dev:server cargo target dir should be reported as an automatic dev fallback',
 );
 
-const explicitCargoEnv = createSdkworkImServerCargoEnv({
+const explicitCargoEnv = createStandaloneGatewayCargoEnv({
   env: {
     CARGO_TARGET_DIR: path.join(repoRoot, 'custom-target'),
   },
@@ -43,7 +43,7 @@ assert.equal(
   'explicit CARGO_TARGET_DIR must not be reported as the automatic dev fallback',
 );
 
-const fallbackBindEnv = await resolveSdkworkImServerBindEnv({
+const fallbackBindEnv = await resolveStandaloneGatewayBindEnv({
   env: {},
   isPortAvailable: async (port) => port === 18081,
   maxAttempts: 3,
@@ -84,7 +84,7 @@ assert.equal(
   'pnpm dev:server must report when it had to move off the default gateway port',
 );
 
-const reservedDrivePortBindEnv = await resolveSdkworkImServerBindEnv({
+const reservedDrivePortBindEnv = await resolveStandaloneGatewayBindEnv({
   env: {
     SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '127.0.0.1:28079',
   },
@@ -102,7 +102,7 @@ assert.equal(
   'pnpm dev:server must report reserved internal runtime port skips as automatic port fallback',
 );
 
-const explicitBindEnv = await resolveSdkworkImServerBindEnv({
+const explicitBindEnv = await resolveStandaloneGatewayBindEnv({
   env: {
     SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '127.0.0.1:28079',
   },
@@ -119,7 +119,7 @@ assert.equal(
   'explicit available server binds must not be reported as automatic port fallback',
 );
 
-const explicitBusyBindEnv = await resolveSdkworkImServerBindEnv({
+const explicitBusyBindEnv = await resolveStandaloneGatewayBindEnv({
   env: {
     SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '127.0.0.1:18079',
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'http://127.0.0.1:18079',
@@ -140,28 +140,28 @@ assert.equal(
 );
 
 await assert.rejects(
-  () => resolveSdkworkImServerBindEnv({
+  () => resolveStandaloneGatewayBindEnv({
     env: {
       SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '127.0.0.1:28079',
     },
     isPortAvailable: async () => false,
     maxAttempts: 2,
   }),
-  /No available sdkwork-im server port found from 28079/u,
+  /No available sdkwork-api-im-standalone-gateway port found from 28079/u,
   'pnpm dev:server must fail clearly when no candidate port is available from an explicit bind',
 );
 
 const startScript = fs.readFileSync(
-  path.join(repoRoot, 'scripts/im-server-dev.mjs'),
+  path.join(repoRoot, 'scripts/gateway-standalone-run.mjs'),
   'utf8',
 );
 assert.match(
   startScript,
-  /createSdkworkImServerCargoEnv/u,
-  'pnpm dev:server startup must use the shared cargo target isolation helper',
+  /resolveStandaloneGatewayBindEnv/u,
+  'pnpm dev:server startup must use the canonical gateway bind helper',
 );
 assert.match(
-  startScript,
-  /resolveSdkworkImServerBindEnv/u,
-  'pnpm dev:server startup must use the shared gateway bind resolver',
+  fs.readFileSync(path.join(repoRoot, 'scripts/lib/im-pc-dev.mjs'), 'utf8'),
+  /createStandaloneGatewayCargoEnv/u,
+  'standalone dev orchestration must use the shared cargo target isolation helper',
 );

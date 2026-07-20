@@ -175,8 +175,8 @@ function createPlannedArchiveEntries(packageItem, stagingRoot, { requireStagedFi
         plannedPaths.add('bin/install-server.sh');
       } else if (artifact.path === 'service') {
         plannedPaths.add('service/linux/sdkwork-api-im-standalone-gateway.service');
-        plannedPaths.add('service/macos/com.sdkwork.im.server.plist');
-        plannedPaths.add('service/windows/SdkworkImServer.xml');
+        plannedPaths.add('service/macos/com.sdkwork.im.api-standalone-gateway.plist');
+        plannedPaths.add('service/windows/sdkwork-api-im-standalone-gateway-service.xml');
       } else {
         plannedPaths.add(artifact.path);
       }

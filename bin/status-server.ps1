@@ -45,10 +45,10 @@ function Get-ReleaseContractReport {
 }
 
 $generatedUnitPath = Join-Path $ConfigDir "generated\sdkwork-api-im-standalone-gateway.service"
-$generatedLaunchdPath = Join-Path $ConfigDir "generated\com.sdkwork.im.server.plist"
-$generatedWindowsServiceXmlPath = Join-Path $ConfigDir "generated\SdkworkImServer.xml"
-$generatedWindowsServiceInstallScriptPath = Join-Path $ConfigDir "generated\install-SdkworkImServer.ps1"
-$generatedWindowsServiceUninstallScriptPath = Join-Path $ConfigDir "generated\uninstall-SdkworkImServer.ps1"
+$generatedLaunchdPath = Join-Path $ConfigDir "generated\com.sdkwork.im.api-standalone-gateway.plist"
+$generatedWindowsServiceXmlPath = Join-Path $ConfigDir "generated\sdkwork-api-im-standalone-gateway-service.xml"
+$generatedWindowsServiceInstallScriptPath = Join-Path $ConfigDir "generated\install-sdkwork-api-im-standalone-gateway-service.ps1"
+$generatedWindowsServiceUninstallScriptPath = Join-Path $ConfigDir "generated\uninstall-sdkwork-api-im-standalone-gateway-service.ps1"
 $verifyReportPath = Join-Path $ConfigDir "storage-init-report.json"
 
 $releaseContracts = [ordered]@{
@@ -66,12 +66,12 @@ $serviceContracts = [ordered]@{
     }
     launchd = [ordered]@{
         path = $generatedLaunchdPath
-        label = "com.sdkwork.im.server"
+        label = "com.sdkwork.im.api-standalone-gateway"
         exists = (Test-Path -LiteralPath $generatedLaunchdPath)
     }
     windowsService = [ordered]@{
         path = $generatedWindowsServiceXmlPath
-        target = "SdkworkImServer"
+        target = "sdkwork-api-im-standalone-gateway"
         installScriptPath = $generatedWindowsServiceInstallScriptPath
         uninstallScriptPath = $generatedWindowsServiceUninstallScriptPath
         exists = (Test-Path -LiteralPath $generatedWindowsServiceXmlPath)
@@ -107,11 +107,11 @@ Write-Host "config: $ConfigDir"
 Write-Host "status: configuration-only skeleton"
 Write-Host "systemd contract: $generatedUnitPath"
 Write-Host "launchd contract: $generatedLaunchdPath"
-Write-Host "launchd label: com.sdkwork.im.server"
+Write-Host "launchd label: com.sdkwork.im.api-standalone-gateway"
 Write-Host "windows service contract: $generatedWindowsServiceXmlPath"
 Write-Host "windows service install script: $generatedWindowsServiceInstallScriptPath"
 Write-Host "windows service uninstall script: $generatedWindowsServiceUninstallScriptPath"
-Write-Host "windows service target: SdkworkImServer"
+Write-Host "windows service target: sdkwork-api-im-standalone-gateway"
 Write-Host "storage report: $verifyReportPath"
 if ($releaseContracts.enabled) {
     Write-Host "releaseGate: $($releaseContracts.gatePath)"

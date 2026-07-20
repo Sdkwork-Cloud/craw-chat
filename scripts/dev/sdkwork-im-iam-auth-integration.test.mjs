@@ -93,7 +93,7 @@ assert.match(
 assert.doesNotMatch(
   gatewayLauncher,
   /createUnifiedImApiSidecarProcesses|for\s*\(\s*const\s+\w*sidecar\w*\s+of/u,
-  'im-server-dev must not spawn unified HTTP sidecar processes',
+  'standalone gateway launcher must not spawn HTTP sidecar processes',
 );
 assert.match(
   read('crates/sdkwork-api-im-standalone-gateway/src/main.rs'),
@@ -161,7 +161,7 @@ assert.match(
   'standalone dependency bootstrap must mount course through its canonical API assembly',
 );
 
-const serverDevRuntime = read('scripts/dev/sdkwork-im-server-dev-runtime.mjs');
+const serverDevRuntime = read('scripts/dev/sdkwork-api-im-standalone-gateway-dev-runtime.mjs');
 assert.doesNotMatch(
   serverDevRuntime,
   /28082[\s\S]*28093/u,

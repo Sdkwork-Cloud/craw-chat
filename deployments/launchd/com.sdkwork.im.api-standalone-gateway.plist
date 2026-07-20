@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.sdkwork.im.server</string>
+  <string>com.sdkwork.im.api-standalone-gateway</string>
 
   <key>ProgramArguments</key>
   <array>

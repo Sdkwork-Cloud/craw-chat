@@ -88,9 +88,9 @@ const postgresEnvExampleSource = fs.readFileSync(
 const postgresDatabaseConfigIndexSource = readDeploymentDoc('postgresql-database-configuration.md');
 const postgresDevelopmentGuideSource = readDeploymentDocsMatching(/PostgreSQL.*\.md$/u).join('\n');
 const postgresProductionGuideSource = postgresDevelopmentGuideSource;
-const localAppApiSource = fs.readFileSync(
-  path.join(repoRoot, 'scripts/dev/start-sdkwork-im-local-app-api.mjs'),
-  'utf8',
+const retiredLocalAppApiLauncher = path.join(
+  repoRoot,
+  'scripts/dev/start-sdkwork-im-local-app-api.mjs',
 );
 const sharedDatabaseSource = fs.readFileSync(
   path.join(repoRoot, 'scripts/dev/sdkwork-im-shared-database.mjs'),
@@ -193,19 +193,10 @@ assert.ok(
   unifiedWebSource.includes('terminateStaleDevGatewayProcesses'),
   'standalone launcher must clean up stale canonical gateway processes before rebuilding',
 );
-assert.ok(
-  localAppApiSource.includes('Sdkwork IM app-api is provided by the Rust unified server')
-    && localAppApiSource.includes('resolveSdkworkImSharedDatabaseConfig'),
-  'legacy local app API wrapper must point developers to the Rust unified server instead of starting a separate app-api host',
-);
-assert.doesNotMatch(
-  localAppApiSource,
-  /\bmvn(?:\.cmd)?\b|mavenCommand|spring-ai-plus-server-app|spring-boot:run|SDKWORK_APPBASE_APP_API_BIND_ADDR|SDKWORK_APPBASE_BROWSER_ORIGINS|SDKWORK_APPBASE_APP_API_STARTUP_TIMEOUT_MS/u,
-  'legacy local app API wrapper must not retain Java or appbase startup residue',
-);
-assert.ok(
-  !localAppApiSource.includes(['run-local', '-minimal.mjs'].join('')),
-  'legacy local app API wrapper must not start a second runtime beside the unified Rust server',
+assert.equal(
+  fs.existsSync(retiredLocalAppApiLauncher),
+  false,
+  'retired local app-api sidecar launcher must not remain as a compatibility wrapper',
 );
 assert.doesNotMatch(
   imGatewayCargoSource,
@@ -1239,12 +1230,12 @@ const devRunnerSource = fs.readFileSync(
   );
   assert.match(
     devRunnerSource,
-    /createSdkworkImServerCargoEnv/u,
+    /createStandaloneGatewayCargoEnv/u,
   'dev runner plan must use the shared cargo target isolation helper',
 );
 assert.match(
   devRunnerSource,
-  /resolveSdkworkImServerBindEnv/u,
+  /resolveStandaloneGatewayBindEnv/u,
   'dev runner must resolve the shared gateway bind before spawning server and renderer children',
 );
 assert.match(
@@ -1262,7 +1253,7 @@ assert.ok(
     && devRunnerSource.includes('taskkill')
     && devRunnerSource.includes('/T')
     && devRunnerSource.includes('/F'),
-  'dev runner shutdown must terminate Windows process trees so cargo grandchildren cannot keep target/debug/sdkwork-im-server.exe locked',
+  'dev runner shutdown must terminate Windows process trees so cargo gateway grandchildren cannot keep the executable locked',
 );
 
 const chatPcAppRoot = path.join(repoRoot, 'apps/sdkwork-im-pc');

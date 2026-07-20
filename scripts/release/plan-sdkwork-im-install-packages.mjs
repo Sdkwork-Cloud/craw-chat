@@ -435,13 +435,13 @@ function serviceIntegrationFor(platform) {
   if (platform === 'windows') {
     return {
       kind: 'windows-service',
-      manifest: 'service/windows/SdkworkImServer.xml',
+      manifest: 'service/windows/sdkwork-api-im-standalone-gateway-service.xml',
     };
   }
   if (platform === 'macos') {
     return {
       kind: 'launchd',
-      manifest: 'service/macos/com.sdkwork.im.server.plist',
+      manifest: 'service/macos/com.sdkwork.im.api-standalone-gateway.plist',
     };
   }
   return {

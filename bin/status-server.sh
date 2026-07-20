@@ -78,10 +78,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 systemd_contract_path="${config_dir}/generated/sdkwork-api-im-standalone-gateway.service"
-launchd_contract_path="${config_dir}/generated/com.sdkwork.im.server.plist"
-windows_service_contract_path="${config_dir}/generated/SdkworkImServer.xml"
-windows_service_install_script_path="${config_dir}/generated/install-SdkworkImServer.ps1"
-windows_service_uninstall_script_path="${config_dir}/generated/uninstall-SdkworkImServer.ps1"
+launchd_contract_path="${config_dir}/generated/com.sdkwork.im.api-standalone-gateway.plist"
+windows_service_contract_path="${config_dir}/generated/sdkwork-api-im-standalone-gateway-service.xml"
+windows_service_install_script_path="${config_dir}/generated/install-sdkwork-api-im-standalone-gateway-service.ps1"
+windows_service_uninstall_script_path="${config_dir}/generated/uninstall-sdkwork-api-im-standalone-gateway-service.ps1"
 storage_report_path="${config_dir}/storage-init-report.json"
 
 systemd_exists=false
@@ -127,12 +127,12 @@ if [[ "$output_format" == "json" ]]; then
     },
     "launchd": {
       "path": "$(escape_json "$launchd_contract_path")",
-      "label": "com.sdkwork.im.server",
+      "label": "com.sdkwork.im.api-standalone-gateway",
       "exists": ${launchd_exists}
     },
     "windowsService": {
       "path": "$(escape_json "$windows_service_contract_path")",
-      "target": "SdkworkImServer",
+      "target": "sdkwork-api-im-standalone-gateway",
       "installScriptPath": "$(escape_json "$windows_service_install_script_path")",
       "uninstallScriptPath": "$(escape_json "$windows_service_uninstall_script_path")",
       "exists": ${windows_service_exists},
@@ -156,11 +156,11 @@ echo "config: ${config_dir}"
 echo "status: configuration-only skeleton"
 echo "systemd contract: ${systemd_contract_path}"
 echo "launchd contract: ${launchd_contract_path}"
-echo "launchd label: com.sdkwork.im.server"
+echo "launchd label: com.sdkwork.im.api-standalone-gateway"
 echo "windows service contract: ${windows_service_contract_path}"
 echo "windows service install script: ${windows_service_install_script_path}"
 echo "windows service uninstall script: ${windows_service_uninstall_script_path}"
-echo "windows service target: SdkworkImServer"
+echo "windows service target: sdkwork-api-im-standalone-gateway"
 echo "storage report: ${storage_report_path}"
 if [[ "$release_contracts_enabled" == true ]]; then
   printf '%s\n' "$release_contracts_summary"

@@ -29,10 +29,10 @@ if ($Help) {
 $generatedDir = Join-Path $ConfigDir "generated"
 foreach ($path in @(
     (Join-Path $generatedDir "sdkwork-api-im-standalone-gateway.service"),
-    (Join-Path $generatedDir "com.sdkwork.im.server.plist"),
-    (Join-Path $generatedDir "SdkworkImServer.xml"),
-    (Join-Path $generatedDir "install-SdkworkImServer.ps1"),
-    (Join-Path $generatedDir "uninstall-SdkworkImServer.ps1"),
+    (Join-Path $generatedDir "com.sdkwork.im.api-standalone-gateway.plist"),
+    (Join-Path $generatedDir "sdkwork-api-im-standalone-gateway-service.xml"),
+    (Join-Path $generatedDir "install-sdkwork-api-im-standalone-gateway-service.ps1"),
+    (Join-Path $generatedDir "uninstall-sdkwork-api-im-standalone-gateway-service.ps1"),
     (Join-Path $generatedDir "service-install-report.json")
 )) {
     if (Test-Path $path) {
@@ -42,5 +42,5 @@ foreach ($path in @(
 
 Write-Host "Removed generated sdkwork-api-im-standalone-gateway service artifacts for instance '$InstanceName'."
 Write-Host "systemd target: sdkwork-api-im-standalone-gateway.service"
-Write-Host "launchd target: com.sdkwork.im.server"
-Write-Host "windows service target: SdkworkImServer"
+Write-Host "launchd target: com.sdkwork.im.api-standalone-gateway"
+Write-Host "windows service target: sdkwork-api-im-standalone-gateway"

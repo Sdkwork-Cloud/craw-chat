@@ -386,7 +386,7 @@ try {
   writeFixture(serverStage, 'INSTALL.md', '# install');
   writeFixture(serverStage, 'install-manifest.json', '{"product":"chat"}');
   writeFixture(serverStage, 'web/sdkwork-im-pc/dist/index.html', '<!doctype html>');
-  writeFixture(serverStage, 'service/windows/SdkworkImServer.xml', '<service />');
+  writeFixture(serverStage, 'service/windows/sdkwork-api-im-standalone-gateway-service.xml', '<service />');
   const serverBuildPlan = packageBuilder.createSdkworkImInstallPackageBuildPlan({
     outputDir,
     packageId: 'windows-x64-standalone-server-zip',
@@ -542,8 +542,8 @@ for (const expectedPath of [
   'config/chat.toml.example',
   'config/postgresql.yaml.example',
   'service/linux/sdkwork-api-im-standalone-gateway.service',
-  'service/macos/com.sdkwork.im.server.plist',
-  'service/windows/SdkworkImServer.xml',
+  'service/macos/com.sdkwork.im.api-standalone-gateway.plist',
+  'service/windows/sdkwork-api-im-standalone-gateway-service.xml',
   'web/sdkwork-im-pc/dist',
 ]) {
   assert.equal(

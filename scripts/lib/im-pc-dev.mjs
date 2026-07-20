@@ -22,9 +22,9 @@ import { resolvePostgresDevProfile } from '../dev/sdkwork-im-postgres-dev-profil
 import { mergeSdkworkImBootstrapAccessTokenEnv } from '../dev/sdkwork-im-bootstrap-access-token.mjs';
 import { resolveSdkworkImSharedDatabaseConfig } from '../dev/sdkwork-im-shared-database.mjs';
 import {
-  createSdkworkImServerCargoEnv,
-  resolveSdkworkImServerBindEnv,
-} from '../dev/sdkwork-im-server-dev-runtime.mjs';
+  createStandaloneGatewayCargoEnv,
+  resolveStandaloneGatewayBindEnv,
+} from '../dev/sdkwork-api-im-standalone-gateway-dev-runtime.mjs';
 import {
   IAM_APPLICATION_BOOTSTRAP_ENV,
   resolveIamDevEnv,
@@ -524,7 +524,7 @@ export function createSdkworkChatPcDevPlan({
   };
   const cargoEnv = options.clientOnly
     ? { env: requestedEnv }
-    : createSdkworkImServerCargoEnv({
+    : createStandaloneGatewayCargoEnv({
         env: {
           ...requestedEnv,
           ...serverEnv,
@@ -691,7 +691,7 @@ export async function runSdkworkChatPcDev({
   env = process.env,
   findAvailableDevPort = resolveAvailableSdkworkChatPcDevPort,
   repoRoot: resolvedRepoRoot = repoRoot,
-  resolveServerBindEnv = resolveSdkworkImServerBindEnv,
+  resolveServerBindEnv = resolveStandaloneGatewayBindEnv,
   spawnImpl = spawn,
   stdout = process.stdout,
   stderr = process.stderr,

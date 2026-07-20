@@ -1,10 +1,10 @@
 import net from 'node:net';
 import path from 'node:path';
 
-const DEFAULT_SERVER_HOST = '127.0.0.1';
-const DEFAULT_SERVER_PORT = 18079;
-const DEFAULT_MAX_SERVER_PORT_ATTEMPTS = 50;
-const DEFAULT_RESERVED_SERVER_PORTS = new Set([
+const DEFAULT_GATEWAY_HOST = '127.0.0.1';
+const DEFAULT_GATEWAY_PORT = 18079;
+const DEFAULT_MAX_GATEWAY_PORT_ATTEMPTS = 50;
+const DEFAULT_RESERVED_GATEWAY_PORTS = new Set([
   28080, // session-gateway internal runtime when launched independently
   28081, // governance-service internal runtime when launched independently
 ]);
@@ -44,7 +44,7 @@ function parseBindAddr(value, label = APPLICATION_PUBLIC_INGRESS_BIND_ENV) {
 
   const host = normalized.slice(0, lastColonIndex).replace(/^\[|\]$/gu, '');
   return {
-    host: normalizeText(host) ?? DEFAULT_SERVER_HOST,
+    host: normalizeText(host) ?? DEFAULT_GATEWAY_HOST,
     port: normalizePort(normalized.slice(lastColonIndex + 1), label),
   };
 }
@@ -62,7 +62,7 @@ function isReservedPort(reservedPorts, port) {
   return false;
 }
 
-export function isTcpPortAvailable(port, host = DEFAULT_SERVER_HOST) {
+export function isTcpPortAvailable(port, host = DEFAULT_GATEWAY_HOST) {
   return new Promise((resolve) => {
     const server = net.createServer();
     server.unref();
@@ -73,18 +73,18 @@ export function isTcpPortAvailable(port, host = DEFAULT_SERVER_HOST) {
   });
 }
 
-export function createSdkworkImServerCargoEnv({
+export function createStandaloneGatewayCargoEnv({
   env = process.env,
   repoRoot,
 } = {}) {
   if (!repoRoot) {
-    throw new Error('repoRoot is required for sdkwork-im server cargo env resolution');
+    throw new Error('repoRoot is required for standalone gateway cargo env resolution');
   }
 
   const explicitTargetDir = normalizeText(env.CARGO_TARGET_DIR);
   const cargoTargetDir = explicitTargetDir
     ? path.resolve(repoRoot, explicitTargetDir)
-    : path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-im-server-dev');
+    : path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev');
 
   return {
     env: {
@@ -113,15 +113,15 @@ function createBindEnvResult(env, host, port, requestedPort) {
   };
 }
 
-export async function resolveSdkworkImServerBindEnv({
+export async function resolveStandaloneGatewayBindEnv({
   env = process.env,
   isPortAvailable = isTcpPortAvailable,
-  maxAttempts = DEFAULT_MAX_SERVER_PORT_ATTEMPTS,
-  reservedPorts = DEFAULT_RESERVED_SERVER_PORTS,
+  maxAttempts = DEFAULT_MAX_GATEWAY_PORT_ATTEMPTS,
+  reservedPorts = DEFAULT_RESERVED_GATEWAY_PORTS,
 } = {}) {
   const explicitBind = parseBindAddr(env[APPLICATION_PUBLIC_INGRESS_BIND_ENV]);
-  const host = explicitBind?.host ?? DEFAULT_SERVER_HOST;
-  const startPort = explicitBind?.port ?? DEFAULT_SERVER_PORT;
+  const host = explicitBind?.host ?? DEFAULT_GATEWAY_HOST;
+  const startPort = explicitBind?.port ?? DEFAULT_GATEWAY_PORT;
   const requestedPort = startPort;
 
   for (let offset = 0; offset < maxAttempts; offset += 1) {
@@ -138,6 +138,6 @@ export async function resolveSdkworkImServerBindEnv({
   }
 
   throw new Error(
-    `No available sdkwork-im server port found from ${startPort} after ${maxAttempts} attempts`,
+    `No available sdkwork-api-im-standalone-gateway port found from ${startPort} after ${maxAttempts} attempts`,
   );
 }

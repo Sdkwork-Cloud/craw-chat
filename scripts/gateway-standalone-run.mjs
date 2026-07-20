@@ -17,7 +17,7 @@ import { resolveImProductSiteDirEnv } from './lib/im-product-site-dirs.mjs';
 import { resolveRealtimeClusterDevEnv } from './lib/im-realtime-cluster-dev.mjs';
 import { resolveSdkworkImSharedDatabaseConfig } from './dev/sdkwork-im-shared-database.mjs';
 import { terminateStaleDevGatewayProcesses } from './dev/terminate-stale-dev-gateway-processes.mjs';
-import { resolveSdkworkImServerBindEnv } from './dev/sdkwork-im-server-dev-runtime.mjs';
+import { resolveStandaloneGatewayBindEnv } from './dev/sdkwork-api-im-standalone-gateway-dev-runtime.mjs';
 
 const repoRoot = REPO_ROOT;
 const DEFAULT_ENVIRONMENT = 'development';
@@ -144,7 +144,7 @@ async function main() {
   };
 
   terminateStaleDevGatewayProcesses({});
-  const bindEnv = await resolveSdkworkImServerBindEnv({ env: gatewayEnv });
+  const bindEnv = await resolveStandaloneGatewayBindEnv({ env: gatewayEnv });
   if (bindEnv.portChanged) {
     console.log(
       `[sdkwork-api-im-standalone-gateway] 127.0.0.1:18079 is busy; using http://${bindEnv.bindAddr}`,
