@@ -1,0 +1,186 @@
+{
+  "kind": "sdkwork.api.assembly",
+  "schemaVersion": 1,
+  "applicationCode": "im",
+  "apiMode": "served",
+  "packageName": "sdkwork-api-im-assembly",
+  "crateDir": "crates/sdkwork-api-im-assembly",
+  "routeCrates": [
+    {
+      "packageName": "sdkwork-routes-im-audit-backend-api",
+      "memberDir": "crates/sdkwork-routes-im-audit-backend-api",
+      "libName": "sdkwork_routes_im_audit_backend_api",
+      "surface": "backend-api",
+      "pathPrefix": null,
+      "mountOrder": 0,
+      "componentRef": "crates/sdkwork-routes-im-audit-backend-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-audit-backend-api/sdks/_route-manifests/backend-api/sdkwork-routes-im-audit-backend-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-audit-backend-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-automation-app-api",
+      "memberDir": "crates/sdkwork-routes-im-automation-app-api",
+      "libName": "sdkwork_routes_im_automation_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 1,
+      "componentRef": "crates/sdkwork-routes-im-automation-app-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-automation-app-api/sdks/_route-manifests/app-api/sdkwork-routes-im-automation-app-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-automation-app-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-calls-open-api",
+      "memberDir": "crates/sdkwork-routes-im-calls-open-api",
+      "libName": "sdkwork_routes_im_calls_open_api",
+      "surface": "open-api",
+      "pathPrefix": null,
+      "mountOrder": 2,
+      "componentRef": "crates/sdkwork-routes-im-calls-open-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-calls-open-api/sdks/_route-manifests/open-api/sdkwork-routes-im-calls-open-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-calls-open-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-chat-open-api",
+      "memberDir": "crates/sdkwork-routes-im-chat-open-api",
+      "libName": "sdkwork_routes_im_chat_open_api",
+      "surface": "open-api",
+      "pathPrefix": null,
+      "mountOrder": 3,
+      "componentRef": "crates/sdkwork-routes-im-chat-open-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-chat-open-api/sdks/_route-manifests/open-api/sdkwork-routes-im-chat-open-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-chat-open-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-governance-backend-api",
+      "memberDir": "crates/sdkwork-routes-im-governance-backend-api",
+      "libName": "sdkwork_routes_im_governance_backend_api",
+      "surface": "backend-api",
+      "pathPrefix": null,
+      "mountOrder": 4,
+      "componentRef": "crates/sdkwork-routes-im-governance-backend-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-governance-backend-api/sdks/_route-manifests/backend-api/sdkwork-routes-im-governance-backend-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-governance-backend-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-knowledgebase-app-api",
+      "memberDir": "crates/sdkwork-routes-im-knowledgebase-app-api",
+      "libName": "sdkwork_routes_im_knowledgebase_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 5,
+      "componentRef": "crates/sdkwork-routes-im-knowledgebase-app-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-knowledgebase-app-api/src/manifest.rs",
+      "sourceRef": "crates/sdkwork-routes-im-knowledgebase-app-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-media-app-api",
+      "memberDir": "crates/sdkwork-routes-im-media-app-api",
+      "libName": "sdkwork_routes_im_media_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 6,
+      "componentRef": "crates/sdkwork-routes-im-media-app-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-media-app-api/sdks/_route-manifests/app-api/sdkwork-routes-im-media-app-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-media-app-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-notification-app-api",
+      "memberDir": "crates/sdkwork-routes-im-notification-app-api",
+      "libName": "sdkwork_routes_im_notification_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 7,
+      "componentRef": "crates/sdkwork-routes-im-notification-app-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-notification-app-api/sdks/_route-manifests/app-api/sdkwork-routes-im-notification-app-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-notification-app-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-ops-backend-api",
+      "memberDir": "crates/sdkwork-routes-im-ops-backend-api",
+      "libName": "sdkwork_routes_im_ops_backend_api",
+      "surface": "backend-api",
+      "pathPrefix": null,
+      "mountOrder": 8,
+      "componentRef": "crates/sdkwork-routes-im-ops-backend-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-ops-backend-api/sdks/_route-manifests/backend-api/sdkwork-routes-im-ops-backend-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-ops-backend-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-portal-app-api",
+      "memberDir": "crates/sdkwork-routes-im-portal-app-api",
+      "libName": "sdkwork_routes_im_portal_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 9,
+      "componentRef": "crates/sdkwork-routes-im-portal-app-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-portal-app-api/sdks/_route-manifests/app-api/sdkwork-routes-im-portal-app-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-portal-app-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-projection-open-api",
+      "memberDir": "crates/sdkwork-routes-im-projection-open-api",
+      "libName": "sdkwork_routes_im_projection_open_api",
+      "surface": "open-api",
+      "pathPrefix": null,
+      "mountOrder": 10,
+      "componentRef": "crates/sdkwork-routes-im-projection-open-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-projection-open-api/sdks/_route-manifests/open-api/sdkwork-routes-im-projection-open-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-projection-open-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-realtime-open-api",
+      "memberDir": "crates/sdkwork-routes-im-realtime-open-api",
+      "libName": "sdkwork_routes_im_realtime_open_api",
+      "surface": "open-api",
+      "pathPrefix": null,
+      "mountOrder": 11,
+      "componentRef": "crates/sdkwork-routes-im-realtime-open-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-realtime-open-api/sdks/_route-manifests/open-api/sdkwork-routes-im-realtime-open-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-realtime-open-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-social-backend-api",
+      "memberDir": "crates/sdkwork-routes-im-social-backend-api",
+      "libName": "sdkwork_routes_im_social_backend_api",
+      "surface": "backend-api",
+      "pathPrefix": null,
+      "mountOrder": 12,
+      "componentRef": "crates/sdkwork-routes-im-social-backend-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-social-backend-api/sdks/_route-manifests/backend-api/sdkwork-routes-im-social-backend-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-social-backend-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-social-open-api",
+      "memberDir": "crates/sdkwork-routes-im-social-open-api",
+      "libName": "sdkwork_routes_im_social_open_api",
+      "surface": "open-api",
+      "pathPrefix": null,
+      "mountOrder": 13,
+      "componentRef": "crates/sdkwork-routes-im-social-open-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-social-open-api/sdks/_route-manifests/open-api/sdkwork-routes-im-social-open-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-social-open-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-space-open-api",
+      "memberDir": "crates/sdkwork-routes-im-space-open-api",
+      "libName": "sdkwork_routes_im_space_open_api",
+      "surface": "open-api",
+      "pathPrefix": null,
+      "mountOrder": 14,
+      "componentRef": "crates/sdkwork-routes-im-space-open-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-space-open-api/sdks/_route-manifests/open-api/sdkwork-routes-im-space-open-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-space-open-api/Cargo.toml"
+    },
+    {
+      "packageName": "sdkwork-routes-im-stream-app-api",
+      "memberDir": "crates/sdkwork-routes-im-stream-app-api",
+      "libName": "sdkwork_routes_im_stream_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 15,
+      "componentRef": "crates/sdkwork-routes-im-stream-app-api/specs/component.spec.json",
+      "routeManifestRef": "crates/sdkwork-routes-im-stream-app-api/sdks/_route-manifests/app-api/sdkwork-routes-im-stream-app-api.route-manifest.json",
+      "sourceRef": "crates/sdkwork-routes-im-stream-app-api/Cargo.toml"
+    }
+  ]
+}

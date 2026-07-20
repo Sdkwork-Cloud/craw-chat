@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/sdkwork-api-im-assembly",
     "adapters/local-disk",
     "adapters/local-memory",
     "adapters/postgres-realtime",

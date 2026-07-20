@@ -7,10 +7,10 @@
     "dev": "pnpm dev:standalone",
     "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone",
     "dev:cloud": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile cloud",
-    "dev:browser": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone --environment development --runtime-target browser",
-    "dev:browser:cloud": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile cloud --environment development --runtime-target browser",
-    "dev:desktop": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone --environment development --runtime-target desktop",
-    "dev:desktop:cloud": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile cloud --environment development --runtime-target desktop",
+    "dev:browser": "pnpm dev:browser:postgres:standalone",
+    "dev:browser:cloud": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile cloud",
+    "dev:desktop": "pnpm dev:desktop:postgres:standalone",
+    "dev:desktop:cloud": "pnpm exec sdkwork-app dev --root ../.. --runtime-target desktop --deployment-profile cloud",
     "stop": "pnpm exec sdkwork-app stop --root ../..",
     "build:desktop:local": "pnpm --filter @sdkwork/im-pc-desktop build:desktop:local",
     "build": "pnpm exec sdkwork-app build",
@@ -48,7 +48,9 @@
     "test:workspace": "pnpm run test:workspace-workbench && pnpm run test:workspace-service",
     "test:workspace-workbench": "node scripts/workspace-workbench-contract.test.mjs",
     "test:workspace-service": "node ../../scripts/dev/run-tsx-cli.mjs --tsconfig scripts/workspace-service-test.tsconfig.json scripts/workspace-service-contract.test.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "dev:browser:postgres:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile standalone",
+    "dev:desktop:postgres:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target desktop --deployment-profile standalone"
   },
   "dependencies": {
     "@zxing/browser": "catalog:",

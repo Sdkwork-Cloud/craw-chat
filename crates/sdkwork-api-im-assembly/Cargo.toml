@@ -1,0 +1,30 @@
+[package]
+name = "sdkwork-api-im-assembly"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+description = "Generated API assembly for sdkwork-im application HTTP plane."
+
+[lib]
+name = "sdkwork_api_im_assembly"
+path = "src/lib.rs"
+
+[dependencies]
+axum.workspace = true
+tokio.workspace = true
+sdkwork-routes-im-audit-backend-api = { path = "../sdkwork-routes-im-audit-backend-api" }
+sdkwork-routes-im-automation-app-api = { path = "../sdkwork-routes-im-automation-app-api" }
+sdkwork-routes-im-calls-open-api.workspace = true
+sdkwork-routes-im-chat-open-api = { path = "../sdkwork-routes-im-chat-open-api" }
+sdkwork-routes-im-governance-backend-api = { path = "../sdkwork-routes-im-governance-backend-api" }
+sdkwork-routes-im-knowledgebase-app-api = { path = "../sdkwork-routes-im-knowledgebase-app-api" }
+sdkwork-routes-im-media-app-api = { path = "../sdkwork-routes-im-media-app-api" }
+sdkwork-routes-im-notification-app-api = { path = "../sdkwork-routes-im-notification-app-api" }
+sdkwork-routes-im-ops-backend-api = { path = "../sdkwork-routes-im-ops-backend-api" }
+sdkwork-routes-im-portal-app-api = { path = "../sdkwork-routes-im-portal-app-api" }
+sdkwork-routes-im-projection-open-api = { path = "../sdkwork-routes-im-projection-open-api" }
+sdkwork-routes-im-realtime-open-api = { path = "../sdkwork-routes-im-realtime-open-api" }
+sdkwork-routes-im-social-backend-api = { path = "../sdkwork-routes-im-social-backend-api" }
+sdkwork-routes-im-social-open-api = { path = "../sdkwork-routes-im-social-open-api" }
+sdkwork-routes-im-space-open-api = { path = "../sdkwork-routes-im-space-open-api" }
+sdkwork-routes-im-stream-app-api = { path = "../sdkwork-routes-im-stream-app-api" }
