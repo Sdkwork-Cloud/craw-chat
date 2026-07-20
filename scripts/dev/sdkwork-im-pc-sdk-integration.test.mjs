@@ -188,7 +188,7 @@ assert.equal(
   desktopPackageJson.scripts['start:renderer'],
   'node ../../../../scripts/dev/run-sdkwork-im-pc-tauri-renderer-dev.mjs',
 );
-assert.equal(desktopPackageJson.scripts['dev:renderer'], undefined);
+assert.equal(desktopPackageJson.scripts['dev:browser:local'], undefined);
 assert.equal(desktopPackageJson.scripts['desktop:dev:local'], undefined);
 assert.equal(desktopPackageJson.scripts['desktop:build:local'], undefined);
 assert.equal(desktopPackageJson.scripts['build:desktop:local'], 'node ../../../../scripts/run-tauri-cli.mjs build');

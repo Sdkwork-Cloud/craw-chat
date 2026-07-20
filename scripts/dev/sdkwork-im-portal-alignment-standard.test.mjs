@@ -10,7 +10,7 @@ function readText(...segments) {
 }
 
 const productRuntimeText = readText('crates', 'sdkwork-api-product-runtime', 'src', 'lib.rs');
-const gatewayAssemblyText = readText('crates', 'sdkwork-im-gateway-assembly', 'src', 'bootstrap.rs');
+const gatewayAssemblyText = readText('crates', 'sdkwork-api-im-assembly', 'src', 'bootstrap.rs');
 const cloudGatewayRuntimeText = readText('services', 'sdkwork-im-cloud-gateway', 'src', 'runtime.rs');
 const portalSnapshotsText = readText('crates', 'im-portal-snapshots', 'src', 'snapshots.rs');
 const portalHandlersText = readText('services', 'portal-service', 'src', 'handlers.rs');

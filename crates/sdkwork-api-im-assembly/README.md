@@ -1,4 +1,4 @@
-# sdkwork-im-gateway-assembly
+# sdkwork-api-im-assembly
 
 ## Purpose
 
@@ -11,7 +11,7 @@ SDKWork IM maintainers.
 ## Allowed Content
 
 - Gateway bootstrap and route inventory (`assembly-manifest.json`, `src/generated.rs`)
-- Public `assemble_application_router`, `ApplicationAssembly`, and `assembly_route_count` entrypoints
+- Public `assemble_api_router`, `ApiAssembly`, and `assembly_route_count` entrypoints
 - Regression tests that prove route crates merge without duplicate method/path handlers
 
 ## Forbidden Content
@@ -32,6 +32,6 @@ SDKWork IM maintainers.
 ## Verification
 
 ```bash
-cargo test -p sdkwork-im-gateway-assembly --test route_merge_smoke -- --nocapture
+cargo test -p sdkwork-api-im-assembly --test route_merge_smoke -- --nocapture
 pnpm api:assembly:validate
 ```

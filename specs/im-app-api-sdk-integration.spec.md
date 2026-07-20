@@ -124,7 +124,7 @@ Rules:
 - `services/sdkwork-im-cloud-gateway`, `crates/sdkwork-im-cloud-gateway-config`, and internal services behind `application.public-ingress`
   remain product-owned IM routing, config, and local/private runtime layers. Foundation API
   aggregation is owned by `sdkwork-api-cloud-gateway`, not by merging sibling route crates into
-  `sdkwork-im-gateway-assembly`.
+  `sdkwork-api-im-assembly`.
 - Executable foundation API integration evidence is owned by sibling workspace metadata and
   `specs/component.spec.json` dependency surfaces. Add new foundation surfaces there only when an
   existing SDKWork spec or runtime contract proves the surface, prefix, SDK family, and gateway target.

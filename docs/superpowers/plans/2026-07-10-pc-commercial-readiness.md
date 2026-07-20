@@ -17,10 +17,10 @@
 **Files:**
 - Modify: `crates/im-platform-contracts/src/outbox_store.rs`
 - Modify: `adapters/postgres-journal/src/outbox_store.rs`
-- Modify: `crates/sdkwork-im-gateway-assembly/src/conversation_outbox_relay.rs`
-- Modify: `crates/sdkwork-im-gateway-assembly/src/rtc_outbox_relay.rs`
-- Modify: `crates/sdkwork-im-gateway-assembly/src/social_outbox_relay.rs`
-- Modify: `crates/sdkwork-im-gateway-assembly/src/outbox_relay_common.rs`
+- Modify: `crates/sdkwork-api-im-assembly/src/conversation_outbox_relay.rs`
+- Modify: `crates/sdkwork-api-im-assembly/src/rtc_outbox_relay.rs`
+- Modify: `crates/sdkwork-api-im-assembly/src/social_outbox_relay.rs`
+- Modify: `crates/sdkwork-api-im-assembly/src/outbox_relay_common.rs`
 - Test: adapter and relay unit/integration tests beside the implementations
 
 - [x] Add a failing contract test proving each worker claims only its aggregate type.
@@ -29,7 +29,7 @@
 - [x] Introduce a typed `OutboxClaim`/filter boundary and transactional claim operation with a bounded lease.
 - [x] Make publish/fail transitions compare the claim token and current state.
 - [x] Remove the normal-path behavior that marks another domain's event as failed.
-- [x] Run `cargo test -p im-adapters-postgres-journal` and `cargo test -p sdkwork-im-gateway-assembly`.
+- [x] Run `cargo test -p im-adapters-postgres-journal` and `cargo test -p sdkwork-api-im-assembly`.
 
 ### Task 2: Replace Sequence Arithmetic With Opaque Backward Message Cursors
 

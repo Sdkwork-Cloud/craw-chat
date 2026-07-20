@@ -35,14 +35,14 @@ struct EmbeddedStartup {
     runtime: web_gateway::EmbeddedSessionGatewayRuntime,
     retention_scheduler: Option<im_adapters_postgres_journal::RetentionPurgeSchedulerHandle>,
     realtime_relays: EmbeddedRealtimeRelayHandles,
-    _application_assembly: sdkwork_im_gateway_assembly::ApplicationAssembly,
+    _application_assembly: sdkwork_api_im_assembly::ApiAssembly,
 }
 
 #[derive(Default)]
 struct EmbeddedRealtimeRelayHandles {
-    rtc: Option<sdkwork_im_gateway_assembly::RtcOutboxRelayHandle>,
-    conversation: Option<sdkwork_im_gateway_assembly::ConversationOutboxRelayHandle>,
-    social: Option<sdkwork_im_gateway_assembly::SocialOutboxRelayHandle>,
+    rtc: Option<sdkwork_api_im_assembly::RtcOutboxRelayHandle>,
+    conversation: Option<sdkwork_api_im_assembly::ConversationOutboxRelayHandle>,
+    social: Option<sdkwork_api_im_assembly::SocialOutboxRelayHandle>,
 }
 
 impl EmbeddedRealtimeRelayHandles {
@@ -85,7 +85,7 @@ async fn run() -> Result<(), String> {
                     .map_err(|error| {
                         format!("failed to bootstrap IM process database pools: {error}")
                     })?;
-                let embedded_application = sdkwork_im_gateway_assembly::assemble_application_router()
+                let embedded_application = sdkwork_api_im_assembly::assemble_api_router()
                     .await
                     .map_err(|error| format!("failed to assemble IM application router: {error}"))?;
                 let product_runtime_router =
@@ -180,21 +180,21 @@ async fn run() -> Result<(), String> {
 
 fn wire_embedded_realtime_plane(
     session_state: &session_gateway::AppState,
-    application_assembly: &sdkwork_im_gateway_assembly::ApplicationAssembly,
+    application_assembly: &sdkwork_api_im_assembly::ApiAssembly,
 ) -> EmbeddedRealtimeRelayHandles {
     let realtime_runtime = session_state.realtime_runtime();
     conversation_runtime::register_embedded_realtime_publisher(realtime_runtime.clone());
-    sdkwork_im_gateway_assembly::wire_social_runtime_embedded_plane(
+    sdkwork_api_im_assembly::wire_social_runtime_embedded_plane(
         &application_assembly.social_runtime,
         realtime_runtime.clone(),
         conversation_runtime::resolve_embedded_conversation_runtime(),
     );
     EmbeddedRealtimeRelayHandles {
-        rtc: sdkwork_im_gateway_assembly::spawn_rtc_outbox_relay_from_env(realtime_runtime.clone()),
-        conversation: sdkwork_im_gateway_assembly::spawn_conversation_outbox_relay_from_env(
+        rtc: sdkwork_api_im_assembly::spawn_rtc_outbox_relay_from_env(realtime_runtime.clone()),
+        conversation: sdkwork_api_im_assembly::spawn_conversation_outbox_relay_from_env(
             realtime_runtime.clone(),
         ),
-        social: sdkwork_im_gateway_assembly::spawn_social_outbox_relay_from_env(realtime_runtime),
+        social: sdkwork_api_im_assembly::spawn_social_outbox_relay_from_env(realtime_runtime),
     }
 }
 
@@ -463,7 +463,7 @@ mod tests {
             bind_addr.as_str(),
             "sdkwork-im-cloud-gateway",
             async {
-                sdkwork_im_gateway_assembly::assemble_application_router()
+                sdkwork_api_im_assembly::assemble_api_router()
                     .await
                     .map(|_| ())
                     .map_err(|error| format!("failed to assemble IM application router: {error}"))

@@ -14,7 +14,7 @@ members = [
     "crates/sdkwork-im-database-pool",
     "crates/sdkwork-im-web-bootstrap",
     "crates/sdkwork-im-iam-application-bootstrap",
-    "crates/sdkwork-im-gateway-assembly",
+    "crates/sdkwork-api-im-assembly",
     "crates/sdkwork-im-service-readiness",
     "crates/sdkwork-routes-im-social-open-api",
     "crates/sdkwork-routes-im-social-backend-api",

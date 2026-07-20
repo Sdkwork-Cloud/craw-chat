@@ -21,7 +21,7 @@ Startup replay: `replay_social_journal_to_projection()` (embedded projection) an
 
 Bootstrap entrypoint: `social_service::build_social_runtime_from_env()`.
 
-Unified-process wiring: `sdkwork_im_gateway_assembly::ApplicationAssembly::wire_embedded_realtime_plane()`.
+Unified-process wiring: `sdkwork_api_im_assembly::ApiAssembly::wire_embedded_realtime_plane()`.
 
 Direct-message access in unified-process uses `SocialRuntime::ensure_direct_message_allowed()` (refreshes journal authority + block check); gateway assembly must not call `pub(crate)` runtime internals.
 
@@ -82,7 +82,7 @@ Contact tags, preferences, and recommendations **fail closed** in production/sta
 
 ## Unified Gateway Mount (standalone)
 
-`sdkwork_im_gateway_assembly::assemble_application_router()` always merges:
+`sdkwork_api_im_assembly::assemble_api_router()` always merges:
 
 1. `sdkwork_routes_im_social_open_api::build_runtime_public_app` — event-sourced mutations and authoritative list/count surfaces (`friend_requests`, `friendships`, `user_blocks` create/delete, contacts tags/preferences).
 2. When IM Postgres is configured: `sdkwork_routes_im_social_open_api::gateway_mount` — supplemental **read-only** Postgres handlers (user search, block list, direct chat list/get, profile/settings). Supplemental routes **must not** duplicate runtime open-api method+path pairs (for example `GET /im/v3/api/social/friendships`).
@@ -181,7 +181,7 @@ Production fail-closed: set `SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER=1` when split
 - New submissions carry `expiresAt` on `friend_request.submitted` (default **7 days**, env `SDKWORK_IM_FRIEND_REQUEST_TTL_SECONDS`).
 - Background scheduler (`SDKWORK_IM_FRIEND_REQUEST_EXPIRATION_SCHEDULER_ENABLED`, interval `SDKWORK_IM_FRIEND_REQUEST_EXPIRATION_INTERVAL_SECONDS`) emits `friend_request.expired` commits for stale pending requests.
 - Accept handler rejects expired pending requests (`friend_request_expired`) even if scheduler has not yet run.
-- Wired in unified-process bootstrap (`ApplicationAssembly`) alongside shared-channel stale reclaim.
+- Wired in unified-process bootstrap (`ApiAssembly`) alongside shared-channel stale reclaim.
 - Pending badge API: `GET /im/v3/api/social/friend_requests/pending/count` returns `{ count }` in `data.item`.
 - User search `relationshipState`: `self`, `active`, `pending_incoming`, `pending_outgoing`, `none` (blocked users filtered from results).
 - OpenAPI block/unblock use deterministic `blockId` / `eventId` seeds; duplicate block requests return the active record; release is idempotent when already released.
@@ -194,8 +194,8 @@ Production fail-closed: set `SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER=1` when split
 ## Verification
 
 ```bash
-cargo check -p social-service -p space-service -p projection-service -p streaming-service -p im-adapters-postgres-journal -p sdkwork-comms-conversation-service -p sdkwork-im-gateway-assembly
-cargo test -p projection-service -p sdkwork-comms-conversation-service -p social-service -p sdkwork-im-gateway-assembly --lib
+cargo check -p social-service -p space-service -p projection-service -p streaming-service -p im-adapters-postgres-journal -p sdkwork-comms-conversation-service -p sdkwork-api-im-assembly
+cargo test -p projection-service -p sdkwork-comms-conversation-service -p social-service -p sdkwork-api-im-assembly --lib
 cargo test -p social-service friend_request_expiration friend_request_rate -- --nocapture
 cargo test -p projection-service test_user_block_projection_marks_and_restores_friendship_contacts -- --exact
 node sdks/sdkwork-im-sdk/bin/generate-sdk.mjs --language typescript

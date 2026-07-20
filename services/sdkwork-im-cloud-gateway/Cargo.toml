@@ -48,7 +48,7 @@ sdkwork_iam_database_host = { workspace = true }
 sdkwork_im_iam_application_bootstrap = { workspace = true }
 im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
-sdkwork-im-gateway-assembly = { path = "../../crates/sdkwork-im-gateway-assembly" }
+sdkwork-api-im-assembly = { path = "../../crates/sdkwork-api-im-assembly" }
 conversation-runtime = { workspace = true }
 session-gateway = { path = "../session-gateway" }
 sdkwork-routes-im-realtime-open-api = { path = "../../crates/sdkwork-routes-im-realtime-open-api" }

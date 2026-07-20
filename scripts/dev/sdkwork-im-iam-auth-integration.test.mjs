@@ -121,22 +121,22 @@ assert.match(
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_drive_gateway_assembly::assemble_application_business_router/,
+  /sdkwork_drive_gateway_assembly::assemble_business_router/,
   'standalone dependency bootstrap must mount drive business routes through sibling gateway assembly library',
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_knowledgebase_gateway_assembly::assemble_application_business_router/,
+  /sdkwork_knowledgebase_gateway_assembly::assemble_business_router/,
   'standalone dependency bootstrap must mount knowledgebase business routes through sibling gateway assembly library',
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_catalog_gateway_assembly::assemble_application_router[\s\S]*sdkwork_order_gateway_assembly::assemble_application_router[\s\S]*sdkwork_shop_gateway_assembly::assemble_application_router/,
+  /sdkwork_catalog_gateway_assembly::assemble_api_router[\s\S]*sdkwork_order_gateway_assembly::assemble_api_router[\s\S]*sdkwork_shop_gateway_assembly::assemble_api_router/,
   'standalone dependency bootstrap must mount commerce T1 capabilities through sibling gateway assemblies',
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_mail_gateway_assembly::assemble_application_router/,
+  /sdkwork_mail_gateway_assembly::assemble_api_router/,
   'standalone dependency bootstrap must mount mail through sibling gateway assembly library',
 );
 assert.match(
@@ -146,7 +146,7 @@ assert.match(
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_notary_gateway_assembly::assemble_application_business_router/,
+  /sdkwork_notary_gateway_assembly::assemble_business_router/,
   'standalone dependency bootstrap must mount notary business routes through sibling gateway assembly library',
 );
 assert.match(

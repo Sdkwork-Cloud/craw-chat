@@ -5,7 +5,7 @@ use std::sync::Arc;
 use conversation_runtime::{
     register_embedded_realtime_publisher, resolve_embedded_conversation_runtime,
 };
-use sdkwork_im_gateway_assembly::{
+use sdkwork_api_im_assembly::{
     spawn_conversation_outbox_relay_from_env, spawn_rtc_outbox_relay_from_env,
     spawn_social_outbox_relay_from_env, wire_social_runtime_embedded_plane,
 };

@@ -323,7 +323,7 @@ Space groups and channels provision backing conversations through conversation-s
 |---|---|---|
 | Group create | `POST /im/v3/api/spaces/{spaceId}/groups` | Allocates `conversation_id`, calls `SpaceGroupConversationBinder.create_group_conversation`, persists linkage |
 | Channel create | `POST /im/v3/api/spaces/{spaceId}/channels` | Allocates `conversation_id`, calls `SpaceChannelConversationBinder.create_channel_conversation` (system channel) |
-| Gateway wiring | `wire_space_conversation_binders` in `assemble_application_router` | Applied after chat routes register `resolve_embedded_conversation_runtime()` |
+| Gateway wiring | `wire_space_conversation_binders` in `assemble_api_router` | Applied after chat routes register `resolve_embedded_conversation_runtime()` |
 | Group members | `POST/GET/PATCH/DELETE .../groups/{groupId}/members` | Persisted in `im_group_members`; add/remove syncs conversation roster via binder; owner seeded on group create; members may self-leave (`DELETE` when `userId == actor`); owner must transfer before leaving |
 | Group owner transfer | `POST .../groups/{groupId}/transfer_owner` | Transactional PG owner swap + conversation ownership sync via binder |
 

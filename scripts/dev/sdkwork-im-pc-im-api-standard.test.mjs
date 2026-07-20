@@ -47,8 +47,8 @@ for (const environment of ['development', 'test', 'staging', 'production']) {
     'serviceId = "sdkwork-im-backend-http"',
     'apiPrefix = "/app/v3/api/portal"',
     'cargoFeature = "foundation-im"',
-    'cargoDependency = "sdkwork-im-gateway-assembly"',
-    'sdkwork_im_gateway_assembly::assemble_application_router',
+    'cargoDependency = "sdkwork-api-im-assembly"',
+    'sdkwork_api_im_assembly::assemble_api_router',
   ]) {
     assert.ok(
       gatewayConfigSource.includes(evidence),

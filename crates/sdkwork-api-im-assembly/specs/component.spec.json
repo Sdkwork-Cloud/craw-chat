@@ -3,17 +3,19 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "sdkwork-api-im-assembly",
-    "displayName": "SDKWork im API Assembly",
+    "displayName": "Sdkwork IM Gateway Assembly",
     "version": "0.1.0",
     "type": "rust-api-assembly",
-    "root": "sdkwork-im/crates/sdkwork-api-im-assembly",
-    "domain": "application",
+    "root": "crates/sdkwork-api-im-assembly",
+    "domain": "communication",
     "capability": "api-assembly",
     "surface": "api-assembly",
+    "status": "standardizing",
     "languages": [
       "rust"
     ],
     "generated": false,
+    "private": false,
     "manifests": [
       "Cargo.toml",
       "assembly-manifest.json"
@@ -21,32 +23,69 @@
   },
   "canonicalSpecs": [
     {
-      "file": "API_ASSEMBLY_SPEC.md",
-      "path": "../../../sdkwork-specs/API_ASSEMBLY_SPEC.md",
-      "purpose": "API ownership, host-neutral composition, and verification rules."
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
     },
     {
       "file": "APPLICATION_GATEWAY_SPEC.md",
       "path": "../../../sdkwork-specs/APPLICATION_GATEWAY_SPEC.md",
-      "purpose": "Standalone and cloud gateway host boundaries."
+      "purpose": "Gateway assembly layout, route composition, and verification rules."
+    },
+    {
+      "file": "API_SPEC.md",
+      "path": "../../../sdkwork-specs/API_SPEC.md",
+      "purpose": "HTTP API surface composition and route collision rules."
     },
     {
       "file": "WEB_FRAMEWORK_SPEC.md",
       "path": "../../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
-      "purpose": "Typed request context and HTTP framework composition rules."
+      "purpose": "SDKWork web framework route composition and request context rules."
     },
     {
-      "file": "DATABASE_FRAMEWORK_SPEC.md",
-      "path": "../../../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md",
-      "purpose": "Database lifecycle bootstrap ownership for embedded assemblies."
+      "file": "WEB_BACKEND_SPEC.md",
+      "path": "../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
+      "purpose": "Backend handler, router, service, and gateway composition boundaries."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure, public exports, and generated code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork gateway and Rust crate naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate and module rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Regression, integration, and contract verification rules."
     }
   ],
   "contracts": {
+    "layerRole": "runtime-composition",
     "publicExports": [
-      "."
+      "sdkwork_api_im_assembly::assemble_api_router",
+      "sdkwork_api_im_assembly::ApiAssembly",
+      "sdkwork_api_im_assembly::assembly_route_count"
     ],
-    "runtimeEntrypoints": [],
-    "routeManifest": "assembly-manifest.json",
+    "providedPorts": [
+      {
+        "name": "imApplicationGatewayAssembly",
+        "export": "sdkwork_api_im_assembly::assemble_api_router"
+      }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [
+      "sdkwork_api_im_assembly::assemble_api_router"
+    ],
+    "routeManifest": null,
     "sdkClients": [],
     "sdkDependencies": [],
     "dependencyApiExports": [],
@@ -54,10 +93,21 @@
     "events": [],
     "configKeys": []
   },
+  "integration": {
+    "authority": "Root SDKWork specs remain authoritative. This component owns IM application-plane router assembly and must not redefine API contracts owned by route crates.",
+    "dependencyPolicy": "Gateway assembly composes application-owned route crates through Cargo workspace dependencies and declared router entrypoints; standalone and cloud gateway hosts consume this assembly instead of hand-merging route matrices.",
+    "sdkPolicy": "The assembly does not expose SDK clients and must not bypass generated SDK boundaries.",
+    "languagePolicy": "Rust source follows Cargo workspace dependencies and the SDKWork Rust crate responsibility split."
+  },
   "verification": {
     "commands": [
-      "pnpm run api:assembly:validate",
-      "cargo check -p sdkwork-api-im-assembly"
+      "cargo test -p sdkwork-api-im-assembly --test route_merge_smoke -- --nocapture",
+      "pnpm api:assembly:validate",
+      "node ../sdkwork-specs/tools/check-route-path-collisions.mjs --root ."
     ]
+  },
+  "metadata": {
+    "managedBy": "sdkwork-im",
+    "standardVersion": "2026-07-08"
   }
 }

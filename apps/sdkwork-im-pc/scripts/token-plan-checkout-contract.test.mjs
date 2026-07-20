@@ -330,7 +330,7 @@ for (const dependency of [
     standaloneDependencyRoutesSource,
     [
       `merge_embedded_dependency(router, "${capability}"`,
-      `${crateStem.replaceAll('-', '_')}_gateway_assembly::assemble_application_router`,
+      `${crateStem.replaceAll('-', '_')}_gateway_assembly::assemble_api_router`,
     ],
     `Standalone Token Plan runtime must mount the ${capability} application router in-process.`,
   );
