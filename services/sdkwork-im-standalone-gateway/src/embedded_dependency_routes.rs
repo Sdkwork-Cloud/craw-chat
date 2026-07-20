@@ -12,7 +12,7 @@ use sdkwork_drive_workspace_service::application::download_service::ensure_produ
 use sdkwork_drive_workspace_service::infrastructure::outbox_dispatch::ensure_domain_outbox_dispatcher;
 use sdkwork_drive_workspace_service::infrastructure::sql::connect_any_database_and_install_schema;
 use sdkwork_iam_embedded_application_bootstrap::ensure_tenant_application_from_app_root_with_env_and_fallback;
-use sdkwork_knowledgebase_gateway_assembly::{
+use sdkwork_api_knowledgebase_assembly::{
     KnowledgebaseRuntime, resolve_database_url, validate_process_config,
 };
 
@@ -533,7 +533,7 @@ async fn sync_agents_embedded_database() -> Result<(), String> {
         return Ok(());
     }
     ensure_embedded_dependency_app_root("SDKWORK_AGENTS", "sdkwork-agents");
-    sdkwork_agents_gateway_assembly::bootstrap_application_database_from_env()
+    sdkwork_api_agents_assembly::bootstrap_application_database_from_env()
         .await
         .map_err(|error| format!("agents database bootstrap failed: {error}"))?;
     Ok(())
@@ -741,7 +741,7 @@ async fn bootstrap_embedded_drive_routes() -> Result<Router, String> {
     ensure_drive_tenant_application_bootstrap_from_env().await?;
 
     let assembly =
-        sdkwork_drive_gateway_assembly::assemble_api_router(pool.clone()).await;
+        sdkwork_api_drive_assembly::assemble_api_router(pool.clone()).await;
     Ok(assembly.router)
 }
 
@@ -762,22 +762,22 @@ async fn bootstrap_embedded_knowledgebase_routes() -> Result<Router, String> {
         .map_err(|error| format!("knowledgebase database readiness check failed: {error}"))?;
 
     Ok(
-        sdkwork_knowledgebase_gateway_assembly::assemble_api_router(runtime)
+        sdkwork_api_knowledgebase_assembly::assemble_api_router(runtime)
             .await
             .router,
     )
 }
 
 async fn bootstrap_embedded_mail_routes() -> Result<Router, String> {
-    sdkwork_mail_gateway_assembly::assemble_api_router()
+    sdkwork_api_mail_assembly::assemble_api_router()
         .await
         .map(|assembly| assembly.router)
         .map_err(|error| format!("compose embedded mail router failed: {error}"))
 }
 
 async fn bootstrap_embedded_agents_routes()
--> Result<sdkwork_agents_gateway_assembly::AppBusinessRuntimeAssembly, String> {
-    sdkwork_agents_gateway_assembly::assemble_app_business_runtime()
+-> Result<sdkwork_api_agents_assembly::AppBusinessRuntimeAssembly, String> {
+    sdkwork_api_agents_assembly::assemble_app_business_runtime()
         .await
         .map_err(|error| format!("compose embedded agents app routes failed: {error}"))
 }
@@ -818,7 +818,7 @@ async fn bootstrap_embedded_account_routes() -> Result<Router, String> {
 async fn bootstrap_embedded_catalog_routes() -> Result<Router, String> {
     let host = embedded_catalog_service_host().await?;
     Ok(
-        sdkwork_catalog_gateway_assembly::assemble_api_router(host)
+        sdkwork_api_catalog_assembly::assemble_api_router(host)
             .await
             .router,
     )
@@ -827,7 +827,7 @@ async fn bootstrap_embedded_catalog_routes() -> Result<Router, String> {
 async fn bootstrap_embedded_inventory_routes() -> Result<Router, String> {
     let host = embedded_inventory_service_host().await?;
     Ok(
-        sdkwork_inventory_gateway_assembly::assemble_api_router(host)
+        sdkwork_api_inventory_assembly::assemble_api_router(host)
             .await
             .router,
     )
@@ -836,7 +836,7 @@ async fn bootstrap_embedded_inventory_routes() -> Result<Router, String> {
 async fn bootstrap_embedded_invoice_routes() -> Result<Router, String> {
     let host = embedded_invoice_service_host().await?;
     Ok(
-        sdkwork_invoice_gateway_assembly::assemble_api_router(host)
+        sdkwork_api_invoice_assembly::assemble_api_router(host)
             .await
             .router,
     )
@@ -845,7 +845,7 @@ async fn bootstrap_embedded_invoice_routes() -> Result<Router, String> {
 async fn bootstrap_embedded_membership_routes() -> Result<Router, String> {
     let host = embedded_membership_service_host().await?;
     Ok(
-        sdkwork_membership_gateway_assembly::assemble_api_router(host)
+        sdkwork_api_membership_assembly::assemble_api_router(host)
             .await
             .router,
     )
@@ -854,7 +854,7 @@ async fn bootstrap_embedded_membership_routes() -> Result<Router, String> {
 async fn bootstrap_embedded_merchandise_routes() -> Result<Router, String> {
     let host = embedded_merchandise_service_host().await?;
     Ok(
-        sdkwork_merchandise_gateway_assembly::assemble_api_router(host)
+        sdkwork_api_merchandise_assembly::assemble_api_router(host)
             .await
             .router,
     )
@@ -863,7 +863,7 @@ async fn bootstrap_embedded_merchandise_routes() -> Result<Router, String> {
 async fn bootstrap_embedded_order_routes() -> Result<Router, String> {
     let host = embedded_order_service_host().await?;
     Ok(
-        sdkwork_order_gateway_assembly::assemble_api_router(host)
+        sdkwork_api_order_assembly::assemble_api_router(host)
             .await
             .router,
     )
@@ -873,7 +873,7 @@ async fn bootstrap_embedded_payment_routes() -> Result<Router, String> {
     set_env_var("SDKWORK_PAYMENT_DISABLE_RECHARGE_PROXY", "true");
     let host = embedded_payment_service_host().await?;
     Ok(
-        sdkwork_payment_gateway_assembly::assemble_api_router(host)
+        sdkwork_api_payment_assembly::assemble_api_router(host)
             .await
             .router,
     )
@@ -882,7 +882,7 @@ async fn bootstrap_embedded_payment_routes() -> Result<Router, String> {
 async fn bootstrap_embedded_promotion_routes() -> Result<Router, String> {
     let host = embedded_promotion_service_host().await?;
     Ok(
-        sdkwork_promotion_gateway_assembly::assemble_api_router(host)
+        sdkwork_api_promotion_assembly::assemble_api_router(host)
             .await
             .router,
     )
@@ -891,19 +891,19 @@ async fn bootstrap_embedded_promotion_routes() -> Result<Router, String> {
 async fn bootstrap_embedded_shop_routes() -> Result<Router, String> {
     let host = embedded_shop_service_host().await?;
     Ok(
-        sdkwork_shop_gateway_assembly::assemble_api_router(host)
+        sdkwork_api_shop_assembly::assemble_api_router(host)
             .await
             .router,
     )
 }
 
 async fn bootstrap_embedded_notary_routes() -> Result<Router, String> {
-    let assembly = sdkwork_notary_gateway_assembly::assemble_api_router().await?;
+    let assembly = sdkwork_api_notary_assembly::assemble_api_router().await?;
     Ok(assembly.router)
 }
 
 async fn bootstrap_embedded_course_routes() -> Result<Router, String> {
-    let assembly = sdkwork_course_gateway_assembly::assemble_api_router().await?;
+    let assembly = sdkwork_api_course_assembly::assemble_api_router().await?;
     Ok(assembly.router)
 }
 

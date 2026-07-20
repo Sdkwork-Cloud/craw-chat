@@ -309,7 +309,7 @@ fn apply_gateway_process_environment(config: &ResolvedGatewayConfig) {
         .unwrap_or(true)
     {
         // Single-ingress hosts mount IAM once via build_sdkwork_iam_app_api_router below.
-        // Embedded sibling assemblies such as sdkwork-knowledgebase-gateway-assembly must
+        // Embedded sibling assemblies such as sdkwork-api-knowledgebase-assembly must
         // not merge IAM routes again or axum panics on duplicate handlers.
         // SAFETY: Called from fn main() before the Tokio runtime is created.
         unsafe {
