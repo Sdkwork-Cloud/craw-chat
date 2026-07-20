@@ -121,12 +121,12 @@ assert.match(
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_drive_gateway_assembly::assemble_business_router/,
+  /sdkwork_drive_gateway_assembly::assemble_api_router/,
   'standalone dependency bootstrap must mount drive business routes through sibling gateway assembly library',
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_knowledgebase_gateway_assembly::assemble_business_router/,
+  /sdkwork_knowledgebase_gateway_assembly::assemble_api_router/,
   'standalone dependency bootstrap must mount knowledgebase business routes through sibling gateway assembly library',
 );
 assert.match(
@@ -146,7 +146,7 @@ assert.match(
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_notary_gateway_assembly::assemble_business_router/,
+  /sdkwork_notary_gateway_assembly::assemble_api_router/,
   'standalone dependency bootstrap must mount notary business routes through sibling gateway assembly library',
 );
 assert.match(

@@ -269,7 +269,7 @@ const embeddedRoutesSource = readRepoText(
 );
 assert.match(
   embeddedRoutesSource,
-  /bootstrap_embedded_course_routes[\s\S]*sdkwork_course_gateway_assembly::assemble_business_router/u,
+  /bootstrap_embedded_course_routes[\s\S]*sdkwork_course_gateway_assembly::assemble_api_router/u,
   'IM standalone gateway must embed sdkwork-course routes in standalone single-ingress mode.',
 );
 

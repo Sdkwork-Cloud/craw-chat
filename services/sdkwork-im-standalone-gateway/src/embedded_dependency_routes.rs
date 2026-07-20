@@ -741,7 +741,7 @@ async fn bootstrap_embedded_drive_routes() -> Result<Router, String> {
     ensure_drive_tenant_application_bootstrap_from_env().await?;
 
     let assembly =
-        sdkwork_drive_gateway_assembly::assemble_business_router(pool.clone()).await;
+        sdkwork_drive_gateway_assembly::assemble_api_router(pool.clone()).await;
     Ok(assembly.router)
 }
 
@@ -762,7 +762,7 @@ async fn bootstrap_embedded_knowledgebase_routes() -> Result<Router, String> {
         .map_err(|error| format!("knowledgebase database readiness check failed: {error}"))?;
 
     Ok(
-        sdkwork_knowledgebase_gateway_assembly::assemble_business_router(runtime)
+        sdkwork_knowledgebase_gateway_assembly::assemble_api_router(runtime)
             .await
             .router,
     )
@@ -898,12 +898,12 @@ async fn bootstrap_embedded_shop_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_notary_routes() -> Result<Router, String> {
-    let assembly = sdkwork_notary_gateway_assembly::assemble_business_router().await?;
+    let assembly = sdkwork_notary_gateway_assembly::assemble_api_router().await?;
     Ok(assembly.router)
 }
 
 async fn bootstrap_embedded_course_routes() -> Result<Router, String> {
-    let assembly = sdkwork_course_gateway_assembly::assemble_business_router().await?;
+    let assembly = sdkwork_course_gateway_assembly::assemble_api_router().await?;
     Ok(assembly.router)
 }
 

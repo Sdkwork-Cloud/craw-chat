@@ -243,7 +243,7 @@ const embeddedRoutesSource = readRepoText(
 );
 assert.match(
   embeddedRoutesSource,
-  /bootstrap_embedded_knowledgebase_routes[\s\S]*sdkwork_knowledgebase_gateway_assembly::assemble_business_router/u,
+  /bootstrap_embedded_knowledgebase_routes[\s\S]*sdkwork_knowledgebase_gateway_assembly::assemble_api_router/u,
   'IM standalone gateway must embed sdkwork-knowledgebase routes in standalone single-ingress mode.',
 );
 
