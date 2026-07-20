@@ -94,7 +94,6 @@
     "release:build:desktop": "node scripts/release/build-sdkwork-im-production.mjs --target desktop",
     "perf:materialize-step-11-capacity-evidence": "node scripts/perf/materialize-step-11-capacity-evidence.mjs",
     "perf:refresh-step-11-capacity-evidence-index": "node scripts/perf/refresh-step-11-capacity-evidence-index.mjs",
-    "migrate:topology-v2-baggage": "node scripts/dev/migrate-topology-v2-baggage.mjs",
     "test:database-naming-standard": "node scripts/dev/sdkwork-im-database-naming-standard.test.mjs",
     "test:agents-integration-migration": "node --test scripts/dev/sdkwork-im-agents-integration-migration.test.mjs",
     "test:sqlite:smoke": "node scripts/dev/sdkwork-im-group-knowledgebase-sqlite-migration.test.mjs && node scripts/dev/sdkwork-im-stream-transactional-authority-sqlite-migration.test.mjs",

@@ -147,7 +147,6 @@ such rather than documented as delivered features.
   Control-plane routing is aligned to <code>services/control-plane-api/src/lib.rs</code>.
   Unified gateway and packaged server entry are aligned to <code>crates/sdkwork-api-im-standalone-gateway/src/lib.rs</code>,
   <code>crates/sdkwork-api-im-standalone-gateway/src/main.rs</code>, and <code>deployments/templates/server.yaml.example</code>.
-  Development orchestration is aligned to <code>scripts/im-dev.mjs</code>, <code>scripts/im-server-dev.mjs</code>,
+  Development orchestration is aligned to <code>scripts/im-dev.mjs</code>, <code>scripts/gateway-standalone-run.mjs</code>,
   and <code>etc/topology/*.env</code>.
 </div>
-

@@ -35,7 +35,7 @@ gateway plus the selected client.
 
 ## Server-Only Dev
 
-`pnpm dev:server` starts `scripts/im-server-dev.mjs`, which runs the server-only development
+`pnpm dev:server` starts `scripts/gateway-standalone-run.mjs`, which runs the standalone gateway development
 stack for the selected topology v5 profile. Public profile ids do not encode process layout.
 
 ## Packaged Server Deployment

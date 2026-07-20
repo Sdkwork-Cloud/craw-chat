@@ -39,7 +39,6 @@ const skipPathFragments = [
   '/vendor/',
   'sdkwork-im-topology-baggage.test.mjs',
   'migrate-step11-artifact-profiles.mjs',
-  'migrate-topology-v2-baggage.mjs',
   'scripts/perf/materialize-step-11-capacity-evidence.mjs',
   'topology-greenfield.md',
   'docs/superpowers/',

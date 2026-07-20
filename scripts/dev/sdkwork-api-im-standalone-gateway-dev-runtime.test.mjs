@@ -89,11 +89,11 @@ const reservedDrivePortBindEnv = await resolveStandaloneGatewayBindEnv({
     SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '127.0.0.1:28079',
   },
   isPortAvailable: async (port) => port >= 28080,
-  maxAttempts: 3,
+  maxAttempts: 4,
 });
 assert.equal(
   reservedDrivePortBindEnv.bindAddr,
-  '127.0.0.1:28081',
+  '127.0.0.1:28082',
   'pnpm dev:server must skip reserved internal runtime ports',
 );
 assert.equal(

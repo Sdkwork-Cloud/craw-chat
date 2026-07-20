@@ -104,7 +104,7 @@ Current entries:
 
 - `scripts/lib/im-pc-dev.mjs`: shared PC/server dev orchestration library
 - `scripts/im-dev.mjs`: topology-aware PC dev entry (`pnpm dev`, `pnpm dev:browser`, `pnpm dev:desktop`)
-- `scripts/im-server-dev.mjs`: server-only dev stack (`pnpm dev:server`)
+- `scripts/gateway-standalone-run.mjs`: standalone API gateway dev host (`pnpm dev:server`)
 
 ## 5. Port Authority
 

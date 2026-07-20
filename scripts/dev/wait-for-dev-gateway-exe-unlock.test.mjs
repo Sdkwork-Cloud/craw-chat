@@ -11,7 +11,9 @@ import {
 } from './wait-for-dev-gateway-exe-unlock.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-gateway-unlock-'));
+const tempDir = fs.mkdtempSync(
+  path.join(os.tmpdir(), 'sdkwork-api-im-standalone-gateway-unlock-'),
+);
 const executablePath = path.join(tempDir, 'sdkwork-api-im-standalone-gateway.exe');
 
 fs.writeFileSync(executablePath, 'gateway');

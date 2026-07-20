@@ -46,7 +46,7 @@ For `sdkwork-api-im-standalone-gateway`, `/openapi/runtime-summary.json` must re
 to unconfigured internal HTTP upstreams is stale or mis-launched and can return
 `50301 dependency_unavailable`.
 
-Load order: `scripts/im-dev.mjs` and `scripts/im-server-dev.mjs` merge the selected profile before spawning services.
+Load order: `scripts/im-dev.mjs` and `scripts/gateway-standalone-run.mjs` merge the selected profile before spawning local processes.
 
 ## Public URL convention
 
