@@ -91,7 +91,7 @@
     "release:kubernetes:materialize": "node scripts/release/materialize-sdkwork-im-kubernetes.mjs",
     "release:kubernetes:verify": "node scripts/release/verify-sdkwork-im-cloud-image-release.mjs",
     "release:cloud-image:build": "node scripts/release/build-sdkwork-im-cloud-image.mjs",
-    "release:build:desktop": "pnpm exec sdkwork-app release:build --deployment-profile standalone --runtime-target desktop",
+    "release:build:desktop": "node scripts/release/build-sdkwork-im-production.mjs --target desktop",
     "perf:materialize-step-11-capacity-evidence": "node scripts/perf/materialize-step-11-capacity-evidence.mjs",
     "perf:refresh-step-11-capacity-evidence-index": "node scripts/perf/refresh-step-11-capacity-evidence-index.mjs",
     "migrate:topology-v2-baggage": "node scripts/dev/migrate-topology-v2-baggage.mjs",
@@ -225,8 +225,7 @@
     "_sdkwork:deploy:rollback:standalone": "pnpm exec sdkwork-app deploy:rollback --profile standalone.production",
     "_sdkwork:deploy:rollback:cloud": "pnpm exec sdkwork-app deploy:rollback --profile cloud.production",
     "_sdkwork:deploy:validate:standalone": "pnpm exec sdkwork-app deploy:validate --profile standalone.production",
-    "_sdkwork:deploy:validate:cloud": "pnpm exec sdkwork-app deploy:validate --profile cloud.production",
-    "_sdkwork:release:build:desktop": "node scripts/release/build-sdkwork-im-production.mjs --target desktop"
+    "_sdkwork:deploy:validate:cloud": "pnpm exec sdkwork-app deploy:validate --profile cloud.production"
   },
   "dependencies": {
     "@sdkwork/drive-app-sdk": "workspace:*",

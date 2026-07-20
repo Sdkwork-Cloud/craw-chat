@@ -60,14 +60,11 @@ for (const deployment of workflow.deployments ?? []) {
 
 const requiredManifests = [
   'namespace.yaml',
-  'ingress.yaml',
   'pod-disruption-budgets.yaml',
   'horizontal-pod-autoscalers.yaml',
   'additional-service-deployments.yaml',
   'image-inventory.json',
   'image-lock.schema.json',
-  'im-gateway/deployment.yaml',
-  'im-gateway/service.yaml',
   'session-gateway/deployment.yaml',
   'conversation-service/deployment.yaml',
   'governance-service/deployment.yaml',
@@ -187,7 +184,6 @@ for (const [key, value] of Object.entries(conversationCacheLimits)) {
 }
 
 const activeCloudServices = [
-  'im-gateway',
   'session-gateway',
   'conversation-service',
   'governance-service',
@@ -221,7 +217,6 @@ assert.doesNotMatch(cloudDockerfile, /cargo fetch|\|\| true|:latest/u);
 
 const deploymentManifestPaths = [
   'additional-service-deployments.yaml',
-  'im-gateway/deployment.yaml',
   'session-gateway/deployment.yaml',
   'conversation-service/deployment.yaml',
   'governance-service/deployment.yaml',
@@ -291,9 +286,7 @@ for (const deployment of deploymentResources) {
 const hpaManifest = fs.readFileSync(path.join(k8sRoot, 'horizontal-pod-autoscalers.yaml'), 'utf8');
 const pdbManifest = fs.readFileSync(path.join(k8sRoot, 'pod-disruption-budgets.yaml'), 'utf8');
 for (const service of activeCloudServices) {
-  if (service !== 'im-gateway') {
-    assert.match(hpaManifest, new RegExp('name:\\s*' + service + '(?:-hpa)?(?:\\s|$)', 'u'));
-  }
+  assert.match(hpaManifest, new RegExp('name:\\s*' + service + '(?:-hpa)?(?:\\s|$)', 'u'));
   assert.match(pdbManifest, new RegExp('name:\\s*' + service + '-pdb(?:\\s|$)', 'u'));
 }
 const consolidatedDeployments = fs.readFileSync(

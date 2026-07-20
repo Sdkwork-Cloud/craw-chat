@@ -63,19 +63,18 @@ done
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 systemd_template="${ROOT_DIR}/deployments/systemd/sdkwork-api-im-standalone-gateway.service"
-launchd_template="${ROOT_DIR}/deployments/launchd/com.sdkwork.im.server.plist"
-windows_service_template="${ROOT_DIR}/deployments/windows-service/SdkworkImServer.xml"
+launchd_template="${ROOT_DIR}/deployments/launchd/com.sdkwork.im.api-standalone-gateway.plist"
+windows_service_template="${ROOT_DIR}/deployments/windows-service/sdkwork-api-im-standalone-gateway-service.xml"
 generated_dir="${config_dir}/generated"
 mkdir -p "$generated_dir" "$log_dir"
 generated_unit="${generated_dir}/sdkwork-api-im-standalone-gateway.service"
-generated_launchd_plist="${generated_dir}/com.sdkwork.im.server.plist"
-generated_windows_service_xml="${generated_dir}/SdkworkImServer.xml"
-generated_windows_service_install_script="${generated_dir}/install-SdkworkImServer.ps1"
-generated_windows_service_uninstall_script="${generated_dir}/uninstall-SdkworkImServer.ps1"
+generated_launchd_plist="${generated_dir}/com.sdkwork.im.api-standalone-gateway.plist"
+generated_windows_service_xml="${generated_dir}/sdkwork-api-im-standalone-gateway-service.xml"
+generated_windows_service_install_script="${generated_dir}/install-sdkwork-api-im-standalone-gateway-service.ps1"
+generated_windows_service_uninstall_script="${generated_dir}/uninstall-sdkwork-api-im-standalone-gateway-service.ps1"
 service_binary_path="${install_root}/bin/sdkwork-api-im-standalone-gateway"
-server_config_path="${config_dir}/chat.toml"
-windows_service_wrapper_exe="${install_root}/bin/SdkworkImServer.exe"
-windows_service_wrapper_xml_target="${install_root}/bin/SdkworkImServer.xml"
+windows_service_wrapper_exe="${install_root}/bin/sdkwork-api-im-standalone-gateway-service.exe"
+windows_service_wrapper_xml_target="${install_root}/bin/sdkwork-api-im-standalone-gateway-service.xml"
 stdout_log_path="${log_dir}/sdkwork-api-im-standalone-gateway.out.log"
 stderr_log_path="${log_dir}/sdkwork-api-im-standalone-gateway.err.log"
 
@@ -83,14 +82,13 @@ if [[ -f "$systemd_template" ]]; then
   sed \
     -e "s|WorkingDirectory=/opt/sdkwork/chat|WorkingDirectory=${install_root}|g" \
     -e "s|EnvironmentFile=/etc/sdkwork/chat/server.env|EnvironmentFile=${config_dir}/server.env|g" \
-    -e "s|ExecStart=/opt/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway --config /etc/sdkwork/chat/chat.toml|ExecStart=${service_binary_path} --config ${server_config_path}|g" \
+    -e "s|ExecStart=/opt/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway|ExecStart=${service_binary_path}|g" \
     "$systemd_template" >"$generated_unit"
 fi
 
 if [[ -f "$launchd_template" ]]; then
   sed \
     -e "s|__INSTALL_ROOT__/bin/sdkwork-api-im-standalone-gateway|${service_binary_path}|g" \
-    -e "s|__CONFIG_DIR__/chat.toml|${server_config_path}|g" \
     -e "s|__LOG_DIR__/sdkwork-api-im-standalone-gateway.out.log|${stdout_log_path}|g" \
     -e "s|__LOG_DIR__/sdkwork-api-im-standalone-gateway.err.log|${stderr_log_path}|g" \
     -e "s|__INSTALL_ROOT__|${install_root}|g" \
@@ -147,9 +145,9 @@ cat >"${generated_dir}/service-install-report.json" <<EOF
   "serviceMode": "${service_mode}",
   "systemdUnit": "${generated_unit}",
   "launchdPlist": "${generated_launchd_plist}",
-  "launchdLabel": "com.sdkwork.im.server",
+  "launchdLabel": "com.sdkwork.im.api-standalone-gateway",
   "windowsServiceHostMode": "wrapper-required",
-  "windowsServiceName": "SdkworkImServer",
+  "windowsServiceName": "sdkwork-api-im-standalone-gateway",
   "windowsServiceWrapperExe": "${windows_service_wrapper_exe}",
   "windowsServiceWrapperConfig": "${generated_windows_service_xml}",
   "windowsServiceInstallScript": "${generated_windows_service_install_script}",
@@ -170,5 +168,5 @@ echo "windows service template: ${windows_service_template}"
 echo "windows service wrapper config: ${generated_windows_service_xml}"
 echo "windows service install script: ${generated_windows_service_install_script}"
 echo "windows service uninstall script: ${generated_windows_service_uninstall_script}"
-echo "launchd target: com.sdkwork.im.server"
-echo "windows service target: SdkworkImServer"
+echo "launchd target: com.sdkwork.im.api-standalone-gateway"
+echo "windows service target: sdkwork-api-im-standalone-gateway"

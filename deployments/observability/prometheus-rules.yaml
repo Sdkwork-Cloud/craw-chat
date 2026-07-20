@@ -1,15 +1,6 @@
 groups:
   - name: sdkwork-im.availability
     rules:
-      - alert: SdkworkImGatewayNotReady
-        expr: kube_deployment_status_replicas_ready{namespace="sdkwork-im", deployment="im-gateway"} < 1
-        for: 5m
-        labels:
-          severity: critical
-          service: im-gateway
-        annotations:
-          summary: IM gateway has no ready replicas
-          description: Deployment im-gateway in namespace sdkwork-im has zero ready replicas for 5 minutes.
       - alert: SdkworkImSessionGatewayNotReady
         expr: kube_deployment_status_replicas_ready{namespace="sdkwork-im", deployment="session-gateway"} < 1
         for: 5m
@@ -57,15 +48,6 @@ groups:
           description: Deployment streaming-service in namespace sdkwork-im has zero ready replicas for 5 minutes.
   - name: sdkwork-im.slo
     rules:
-      - alert: SdkworkImGatewayReadyzFailures
-        expr: increase(probe_http_status_code{namespace="sdkwork-im", job="im-gateway", path="/readyz", code!="200"}[5m]) > 0
-        for: 10m
-        labels:
-          severity: warning
-          service: im-gateway
-        annotations:
-          summary: IM gateway readiness probe failures
-          description: /readyz returned non-200 responses for im-gateway over the last 10 minutes.
       - alert: SdkworkImHighHttp5xxRate
         expr: |
           (

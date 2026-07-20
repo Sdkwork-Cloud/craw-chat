@@ -611,11 +611,12 @@ const systemdTemplate = readText('deployments', 'systemd', 'sdkwork-api-im-stand
 for (const expectedText of [
   'WorkingDirectory=/opt/sdkwork/chat',
   'EnvironmentFile=/etc/sdkwork/chat/server.env',
-  'ExecStart=/opt/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway --config /etc/sdkwork/chat/chat.toml',
+  'ExecStart=/opt/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway',
 ]) {
   assert.match(systemdTemplate, new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
 }
 assert.doesNotMatch(systemdTemplate, /\/etc\/sdkwork-im|\/opt\/sdkwork-im/u);
+assert.doesNotMatch(systemdTemplate, /--config/u);
 
 for (const relativePath of [
   'bin/dev.ps1',

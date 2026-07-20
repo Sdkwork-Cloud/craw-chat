@@ -1,18 +1,3 @@
-﻿apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: im-gateway-pdb
-  namespace: sdkwork-im
-spec:
-  # im-gateway is the public API ingress; allow at most 1 Pod to be
-  # unavailable during voluntary disruptions (node drain, rolling update) so a
-  # single Pod failure cannot take the API offline. `maxUnavailable: 1` scales
-  # correctly whether the Deployment runs at 2 or N replicas.
-  maxUnavailable: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: im-gateway
----
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
