@@ -18,10 +18,17 @@ Flutter mobile application root for SDKWork IM chat.
 ```powershell
 cd apps/sdkwork-im-flutter-mobile
 flutter pub get
-flutter run
+pnpm dev                 # Android/default device, standalone.development
+pnpm dev:cloud           # Android/default device, cloud.development
+pnpm dev:flutter-ios             # iOS device, standalone.development
+pnpm dev:flutter-ios:cloud       # iOS device, cloud.development
 ```
 
-Configure runtime env from:
+The shared lifecycle resolves the enclosing IM topology and materializes a gitignored
+`.runtime/sdkwork-app/flutter/*.json` file for `--dart-define-from-file`. Set
+`SDKWORK_FLUTTER_DEVICE_ID` when Flutter cannot select the intended device automatically.
+
+Architecture-local examples remain under:
 
 - `config/app/runtime-env.development.example.json`
 - `config/host/flutter.development.example.json`

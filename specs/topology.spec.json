@@ -147,6 +147,30 @@
               "h5"
             ],
             "required": true
+          },
+          {
+            "id": "im-flutter-android",
+            "role": "client",
+            "script": "_sdkwork:client:flutter-android:standalone",
+            "runtimeTargets": [
+              "flutter-android"
+            ],
+            "clientArchitectures": [
+              "flutter"
+            ],
+            "required": true
+          },
+          {
+            "id": "im-flutter-ios",
+            "role": "client",
+            "script": "_sdkwork:client:flutter-ios:standalone",
+            "runtimeTargets": [
+              "flutter-ios"
+            ],
+            "clientArchitectures": [
+              "flutter"
+            ],
+            "required": true
           }
         ],
         "capabilitySubset": [
@@ -193,6 +217,30 @@
             ],
             "clientArchitectures": [
               "h5"
+            ],
+            "required": true
+          },
+          {
+            "id": "im-flutter-android",
+            "role": "client",
+            "script": "_sdkwork:client:flutter-android:cloud",
+            "runtimeTargets": [
+              "flutter-android"
+            ],
+            "clientArchitectures": [
+              "flutter"
+            ],
+            "required": true
+          },
+          {
+            "id": "im-flutter-ios",
+            "role": "client",
+            "script": "_sdkwork:client:flutter-ios:cloud",
+            "runtimeTargets": [
+              "flutter-ios"
+            ],
+            "clientArchitectures": [
+              "flutter"
             ],
             "required": true
           }

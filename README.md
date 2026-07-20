@@ -236,8 +236,8 @@ Default development surfaces (standalone unified topology — platform IAM colla
 | Application ingress (IM + embedded IAM) | `http://127.0.0.1:18079` |
 | Platform API gateway (collapsed) | `http://127.0.0.1:18079` |
 | PC renderer | `http://127.0.0.1:4176` |
-| IM H5 | `http://127.0.0.1:3010` (`pnpm dev:h5` / `pnpm dev:h5:cloud`) |
-| IM Flutter mobile | `flutter run` from `apps/sdkwork-im-flutter-mobile` |
+| IM H5 | `http://127.0.0.1:3010` (`pnpm --dir apps/sdkwork-im-h5 dev` / `pnpm --dir apps/sdkwork-im-h5 dev:cloud`) |
+| IM Flutter mobile | `pnpm --dir apps/sdkwork-im-flutter-mobile dev` / `pnpm --dir apps/sdkwork-im-flutter-mobile dev:cloud` |
 
 Health check: `curl http://127.0.0.1:18079/healthz`
 

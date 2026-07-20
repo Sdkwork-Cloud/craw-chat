@@ -1943,6 +1943,12 @@ importers:
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
 
+  apps/sdkwork-im-flutter-mobile:
+    devDependencies:
+      '@sdkwork/app-topology':
+        specifier: workspace:*
+        version: link:../../../sdkwork-app-topology
+
   apps/sdkwork-im-h5:
     dependencies:
       '@sdkwork/auth-pc-react':
@@ -1982,6 +1988,9 @@ importers:
         specifier: ^7.17.0
         version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
     devDependencies:
+      '@sdkwork/app-topology':
+        specifier: workspace:*
+        version: link:../../../sdkwork-app-topology
       '@types/react':
         specifier: 'catalog:'
         version: 19.2.14
@@ -2304,6 +2313,9 @@ importers:
       '@sdkwork/agents-app-sdk':
         specifier: workspace:*
         version: link:../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript
+      '@sdkwork/app-topology':
+        specifier: workspace:*
+        version: link:../../../sdkwork-app-topology
       '@types/express':
         specifier: 'catalog:'
         version: 4.17.25
