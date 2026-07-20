@@ -33,5 +33,5 @@ SDKWork IM maintainers.
 
 ```bash
 cargo test -p sdkwork-im-gateway-assembly --test route_merge_smoke -- --nocapture
-pnpm gateway:assembly:validate
+pnpm api:assembly:validate
 ```

@@ -42,12 +42,9 @@
     "environment": "SDKWORK_IM_ENVIRONMENT",
     "profileId": "SDKWORK_IM_PROFILE_ID",
     "clientDeploymentProfile": "VITE_SDKWORK_IM_DEPLOYMENT_PROFILE",
-    "gatewayAutostart": "SDKWORK_IM_PLATFORM_API_GATEWAY_AUTOSTART",
     "standaloneGatewayBind": "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
     "standaloneGatewayConfig": "SDKWORK_IM_STANDALONE_GATEWAY_CONFIG",
     "standaloneGatewayEnvironment": "SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT",
-    "cloudGatewayBind": "SDKWORK_API_CLOUD_GATEWAY_BIND",
-    "cloudGatewayConfig": "SDKWORK_API_CLOUD_GATEWAY_CONFIG",
     "clientApiGatewayBaseUrl": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
     "apiGatewayBaseUrl": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
   },
@@ -70,11 +67,8 @@
       "protocols": [
         "http"
       ],
-      "owner": "sdkwork-api-cloud-gateway",
-      "bindEnv": "SDKWORK_API_CLOUD_GATEWAY_BIND",
       "httpUrlEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-      "clientHttpEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
-      "autostartEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_AUTOSTART"
+      "clientHttpEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
     },
     "operations.control-ingress": {
       "connectivityPlane": "operations",
@@ -94,12 +88,6 @@
       "crate": "sdkwork-im-standalone-gateway",
       "binary": "sdkwork-im-standalone-gateway",
       "configGlob": "services/sdkwork-im-standalone-gateway/etc/sdkwork-im-standalone-gateway.{profile}.toml"
-    },
-    "cloudGateway": {
-      "crate": "sdkwork-api-cloud-gateway",
-      "binary": "sdkwork-api-cloud-gateway",
-      "repository": "sdkwork-api-cloud-gateway",
-      "configGlob": "etc/sdkwork-api-cloud-gateway.sdkwork-im.{profile}.toml"
     }
   },
   "orchestration": {
@@ -108,7 +96,7 @@
         "processes": [
           {
             "id": "standalone-gateway",
-            "role": "standalone-gateway",
+            "role": "api-standalone-gateway",
             "script": "_sdkwork:gateway:standalone",
             "required": true
           },
@@ -308,12 +296,7 @@
     }
   },
   "packaging": {
-    "cloudConfigFiles": [
-      "sdkwork-api-cloud-gateway.sdkwork-im.development.toml",
-      "sdkwork-api-cloud-gateway.sdkwork-im.test.toml",
-      "sdkwork-api-cloud-gateway.sdkwork-im.staging.toml",
-      "sdkwork-api-cloud-gateway.sdkwork-im.production.toml"
-    ],
+    "cloudConfigFiles": [],
     "targets": [
       {
         "id": "linux-x64-standalone-gateway-tar-gz",
@@ -335,9 +318,5 @@
         ]
       }
     ]
-  },
-  "cloudIngress": {
-    "strategy": "platform-collapsed",
-    "platformGateway": "sdkwork-api-cloud-gateway"
   }
 }

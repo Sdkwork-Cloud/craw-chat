@@ -6,8 +6,8 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "pnpm dev:standalone",
-    "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone --environment development --runtime-target flutter-android --client-architecture flutter",
-    "dev:cloud": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile cloud --environment development --runtime-target flutter-android --client-architecture flutter",
+    "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone",
+    "dev:cloud": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile cloud",
     "dev:flutter-android": "pnpm dev:standalone",
     "dev:flutter-android:cloud": "pnpm dev:cloud",
     "dev:flutter-ios": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone --environment development --runtime-target flutter-ios --client-architecture flutter",

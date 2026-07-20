@@ -8,6 +8,11 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import {
+  formatResolvedNetworkAccessLines,
+  resolveNonLoopbackIpv4Addresses,
+} from '@sdkwork/app-topology/network-access';
+
 import { resolveSdkworkChatIamCommandEnv } from '../../apps/sdkwork-im-pc/scripts/sdkwork-chat-iam-env.mjs';
 import { ensurePostgresDevDatabaseReady } from '../dev/ensure-postgres-dev-database.mjs';
 import { terminateStaleDevGatewayProcesses } from '../dev/terminate-stale-dev-gateway-processes.mjs';
@@ -342,22 +347,40 @@ function isPrivateIpv6Address(address) {
   return normalized.startsWith('fc') || normalized.startsWith('fd');
 }
 
+function resolvePrivateIpv6Addresses(interfaces) {
+  return Object.values(interfaces ?? {})
+    .flatMap((entries) => entries ?? [])
+    .filter((entry) => (
+      (entry.family === 'IPv6' || entry.family === 6)
+      && !entry.internal
+      && isPrivateIpv6Address(entry.address)
+    ))
+    .map((entry) => entry.address)
+    .filter((address, index, addresses) => addresses.indexOf(address) === index);
+}
+
 export function resolveLocalNetworkHosts({
   networkInterfaces = os.networkInterfaces,
 } = {}) {
   const interfaces = typeof networkInterfaces === 'function'
     ? networkInterfaces()
     : networkInterfaces;
-  return Object.values(interfaces ?? {})
-    .flatMap((entries) => entries ?? [])
-    .filter((entry) => (
-      (entry.family === 'IPv4' || entry.family === 4 || entry.family === 'IPv6' || entry.family === 6)
-      && !entry.internal
-      && (isPrivateIpv4Address(entry.address) || isPrivateIpv6Address(entry.address))
-    ))
-    .map((entry) => entry.address)
-    .filter((address, index, addresses) => addresses.indexOf(address) === index)
-    .sort();
+  const ipv4Addresses = resolveNonLoopbackIpv4Addresses(interfaces)
+    .filter(isPrivateIpv4Address);
+  const ipv6Addresses = resolvePrivateIpv6Addresses(interfaces);
+  return [...ipv4Addresses, ...ipv6Addresses].sort();
+}
+
+export function resolveSdkworkChatAccessNetworkHosts({
+  networkInterfaces = os.networkInterfaces,
+} = {}) {
+  const interfaces = typeof networkInterfaces === 'function'
+    ? networkInterfaces()
+    : networkInterfaces;
+  return [
+    ...resolveNonLoopbackIpv4Addresses(interfaces),
+    ...resolvePrivateIpv6Addresses(interfaces),
+  ].sort();
 }
 
 export function createSdkworkChatPcAccessUrls({
@@ -372,18 +395,13 @@ export function createSdkworkChatPcAccessUrls({
 }
 
 export function formatSdkworkChatPcAccessLinks(accessUrls) {
-  const lines = [
+  return [
     '[sdkwork-im] application started successfully',
-    `[sdkwork-im] Local:   ${accessUrls.localUrl}`,
-  ];
-  if (accessUrls.networkUrls.length === 0) {
-    lines.push('[sdkwork-im] Network: no private IPv4 LAN address detected');
-  } else {
-    for (const url of accessUrls.networkUrls) {
-      lines.push(`[sdkwork-im] Network: ${url}`);
-    }
-  }
-  return lines.join('\n');
+    ...formatResolvedNetworkAccessLines(accessUrls, {
+      prefix: '[sdkwork-im] ',
+      unavailableText: 'no private IPv4 LAN address detected',
+    }),
+  ].join('\n');
 }
 
 export async function waitForSdkworkChatApplicationReady({
@@ -865,7 +883,13 @@ export async function runSdkworkChatPcDev({
       `[sdkwork-im-pc-dev] 127.0.0.1:18079 is busy; using http://${resolvedServerBind.bindAddr}\n`,
     );
   }
-  const networkHosts = resolveLocalNetworkHosts({ networkInterfaces });
+  const interfaces = typeof networkInterfaces === 'function'
+    ? networkInterfaces()
+    : networkInterfaces;
+  const networkHosts = resolveLocalNetworkHosts({ networkInterfaces: interfaces });
+  const accessNetworkHosts = resolveSdkworkChatAccessNetworkHosts({
+    networkInterfaces: interfaces,
+  });
   const runtimeEnv = {
     ...envWithSiteDirs,
     SDKWORK_IM_BROWSER_ORIGINS: envWithSiteDirs.SDKWORK_IM_BROWSER_ORIGINS
@@ -915,7 +939,7 @@ export async function runSdkworkChatPcDev({
   const applicationBaseUrl = rendererProcess?.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL
     ?? rendererProcess?.env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL;
   const accessUrls = createSdkworkChatPcAccessUrls({
-    networkHosts,
+    networkHosts: accessNetworkHosts,
     port: resolvedDevPort,
   });
 

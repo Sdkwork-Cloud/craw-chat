@@ -60,6 +60,7 @@ packages:
   - "../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-checkout"
   - "../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-recharge"
   - "../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript"
+  - "../sdkwork-membership/sdks/sdkwork-membership-backend-sdk/sdkwork-membership-backend-sdk-typescript"
   - "../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-contracts"
   - "../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-sdk-ports"
   - "../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-service"
@@ -68,6 +69,7 @@ packages:
   - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-contracts"
   - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-sdk-ports"
   - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-service"
+  - "../sdkwork-promotion/sdks/sdkwork-promotion-backend-sdk/sdkwork-promotion-backend-sdk-typescript"
   - "../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-core"
   - "../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-coupon"
   - "../sdkwork-mail/sdks/sdkwork-mail-app-sdk/sdkwork-mail-app-sdk-typescript"
@@ -106,10 +108,30 @@ packages:
   - "../sdkwork-app-topology"
 
 catalog:
+  "@tailwindcss/vite": ^4.1.14
   react: ^19.0.0
   react-dom: ^19.0.0
+  react-hook-form: ^7.72.1
+  react-i18next: ^17.0.8
+  i18next: ^26.2.0
+  lucide-react: ^1.7.0
+  motion: ^12.23.24
+  clsx: ^2.1.1
+  tailwind-merge: ^3.5.0
+  tailwindcss: ^4.1.14
+  emoji-picker-react: ^4.18.0
+  qrcode: ^1.5.4
+  "@tiptap/extension-placeholder": ^3.23.4
+  "@tiptap/pm": ^3.23.4
+  "@tiptap/react": ^3.23.4
+  "@tiptap/starter-kit": ^3.23.4
   typescript: ~5.8.2
+  tsx: ^4.21.0
   vite: ^6.2.0
+  "@vitejs/plugin-react": ^5.0.4
+  vite-plugin-dts: ^4.5.4
+  vitest: ^4.1.8
+  jsdom: ^29.1.1
   "@types/react": ^19.0.0
   "@types/react-dom": ^19.0.0
   "@google/genai": ^1.29.0
@@ -135,7 +157,6 @@ catalog:
   "@radix-ui/react-tooltip": ^1.2.8
   "@sdkwork/sdk-common": 1.0.2
   "@tailwindcss/typography": ^0.5.19
-  "@tailwindcss/vite": ^4.1.14
   "@tanstack/react-table": ^8.21.3
   "@tanstack/react-virtual": ^3.13.24
   "@tauri-apps/api": ^2.9.0
@@ -164,20 +185,15 @@ catalog:
   "@tiptap/extension-image": ^3.23.4
   "@tiptap/extension-link": ^3.23.4
   "@tiptap/extension-mention": ^3.23.4
-  "@tiptap/extension-placeholder": ^3.23.4
   "@tiptap/extension-task-item": ^3.23.4
   "@tiptap/extension-task-list": ^3.23.4
   "@tiptap/extension-typography": ^3.23.4
   "@tiptap/extension-underline": ^3.23.4
-  "@tiptap/pm": ^3.23.4
-  "@tiptap/react": ^3.23.4
-  "@tiptap/starter-kit": ^3.23.4
   "@tiptap/suggestion": ^3.23.4
   "@types/express": ^4.17.21
   "@types/markdown-it": ^14.1.2
   "@types/node": ^22.14.0
   "@types/qrcode": ^1.5.6
-  "@vitejs/plugin-react": ^5.0.4
   "@volcengine/rtc": ^4.68.4
   "@xterm/addon-fit": ^0.11.0
   "@xterm/addon-image": ^0.9.0
@@ -192,26 +208,17 @@ catalog:
   "@zxing/library": ^0.22.0
   autoprefixer: ^10.4.21
   class-variance-authority: ^0.7.1
-  clsx: ^2.1.1
   cmdk: ^1.1.1
   dotenv: ^17.2.3
   dompurify: ^3.2.7
-  emoji-picker-react: ^4.18.0
   esbuild: ^0.28.0
   express: ^4.21.2
   framer-motion: ^12.23.24
-  i18next: ^26.2.0
   immer: ^11.1.4
-  jsdom: ^29.1.1
-  lucide-react: ^1.7.0
   markdown-it: ^14.1.1
   marked: ^18.0.5
-  motion: ^12.23.24
   postcss: ^8.5.8
-  qrcode: ^1.5.4
   react-day-picker: ^9.14.0
-  react-hook-form: ^7.72.1
-  react-i18next: ^17.0.8
   react-markdown: ^10.1.0
   react-qr-code: ^2.0.21
   react-resizable-panels: ^4.9.0
@@ -220,12 +227,7 @@ catalog:
   rollup: ^4.0.0
   signature_pad: ^5.1.3
   sonner: ^2.0.7
-  tailwind-merge: ^3.5.0
-  tailwindcss: ^4.1.14
   tailwindcss-animate: ^1.0.7
   tiptap-markdown: ^0.9.0
   tsup: ^8.5.0
-  tsx: ^4.21.0
-  vite-plugin-dts: ^4.5.4
-  vitest: ^4.1.8
   zustand: ^5.0.12

@@ -102,7 +102,7 @@
   "verification": {
     "commands": [
       "cargo test -p sdkwork-im-gateway-assembly --test route_merge_smoke -- --nocapture",
-      "pnpm gateway:assembly:validate",
+      "pnpm api:assembly:validate",
       "node ../sdkwork-specs/tools/check-route-path-collisions.mjs --root ."
     ]
   },

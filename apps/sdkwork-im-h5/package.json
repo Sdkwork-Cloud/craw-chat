@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm dev:standalone",
-    "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone --environment development --runtime-target browser --client-architecture h5",
-    "dev:cloud": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile cloud --environment development --runtime-target browser --client-architecture h5",
+    "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone",
+    "dev:cloud": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile cloud",
     "stop": "pnpm exec sdkwork-app stop --root ../..",
     "build": "pnpm exec sdkwork-app build",
     "test": "pnpm exec sdkwork-app test",
