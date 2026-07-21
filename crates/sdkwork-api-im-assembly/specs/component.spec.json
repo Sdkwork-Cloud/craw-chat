@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "sdkwork-api-im-assembly",
-    "displayName": "Sdkwork IM Gateway Assembly",
+    "displayName": "SDKWork IM API Assembly",
     "version": "0.1.0",
     "type": "rust-api-assembly",
     "root": "crates/sdkwork-api-im-assembly",
@@ -28,9 +28,14 @@
       "purpose": "Component-local contract and discovery rules."
     },
     {
+      "file": "API_ASSEMBLY_SPEC.md",
+      "path": "../../../sdkwork-specs/API_ASSEMBLY_SPEC.md",
+      "purpose": "Host-neutral application API assembly ownership, completeness, exports, and validation rules."
+    },
+    {
       "file": "APPLICATION_GATEWAY_SPEC.md",
       "path": "../../../sdkwork-specs/APPLICATION_GATEWAY_SPEC.md",
-      "purpose": "Gateway assembly layout, route composition, and verification rules."
+      "purpose": "Standalone and platform gateway host consumption boundary for this API assembly."
     },
     {
       "file": "API_SPEC.md",
@@ -72,12 +77,13 @@
     "layerRole": "runtime-composition",
     "publicExports": [
       "sdkwork_api_im_assembly::assemble_api_router",
+      "sdkwork_api_im_assembly::assemble_api_router_with_realtime_bootstrap",
       "sdkwork_api_im_assembly::ApiAssembly",
       "sdkwork_api_im_assembly::assembly_route_count"
     ],
     "providedPorts": [
       {
-        "name": "imApplicationGatewayAssembly",
+        "name": "imApiAssembly",
         "export": "sdkwork_api_im_assembly::assemble_api_router"
       }
     ],
@@ -95,7 +101,7 @@
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. This component owns IM application-plane router assembly and must not redefine API contracts owned by route crates.",
-    "dependencyPolicy": "Gateway assembly composes application-owned route crates through Cargo workspace dependencies and declared router entrypoints; standalone and cloud gateway hosts consume this assembly instead of hand-merging route matrices.",
+    "dependencyPolicy": "The API assembly composes application-owned route crates through Cargo workspace dependencies and declared router entrypoints; canonical gateway hosts consume this assembly instead of hand-merging route matrices.",
     "sdkPolicy": "The assembly does not expose SDK clients and must not bypass generated SDK boundaries.",
     "languagePolicy": "Rust source follows Cargo workspace dependencies and the SDKWork Rust crate responsibility split."
   },

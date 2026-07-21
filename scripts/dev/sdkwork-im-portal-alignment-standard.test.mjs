@@ -11,7 +11,12 @@ function readText(...segments) {
 
 const productRuntimeText = readText('crates', 'sdkwork-api-product-runtime', 'src', 'lib.rs');
 const gatewayAssemblyText = readText('crates', 'sdkwork-api-im-assembly', 'src', 'bootstrap.rs');
-const cloudGatewayRuntimeText = readText('services', 'sdkwork-api-im-standalone-gateway', 'src', 'runtime.rs');
+const standaloneGatewayText = readText(
+  'crates',
+  'sdkwork-api-im-standalone-gateway',
+  'src',
+  'main.rs',
+);
 const portalSnapshotsText = readText('crates', 'im-portal-snapshots', 'src', 'snapshots.rs');
 const portalHandlersText = readText('services', 'portal-service', 'src', 'handlers.rs');
 const securityServiceText = readText(
@@ -59,10 +64,10 @@ assert.match(
   /sdkwork_routes_im_portal_app_api::gateway_mount/u,
   'gateway assembly must mount portal-service routes',
 );
-assert.match(
-  cloudGatewayRuntimeText,
-  /fn should_delegate_to_product_runtime\(_path: &str\) -> bool \{\s*false\s*\}/u,
-  'cloud gateway must not delegate portal traffic to product-runtime stub',
+assert.doesNotMatch(
+  standaloneGatewayText,
+  /should_delegate_to_product_runtime/u,
+  'standalone gateway must not retain the retired product-runtime proxy delegation layer',
 );
 assert.match(
   portalSnapshotsText,

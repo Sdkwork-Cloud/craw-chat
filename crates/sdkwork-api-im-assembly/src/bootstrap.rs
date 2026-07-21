@@ -8,6 +8,7 @@ use conversation_runtime::resolve_embedded_conversation_runtime;
 use im_adapters_social_postgres::SocialPostgresConfig;
 use im_app_context::allows_header_only_app_context_fallback;
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
+use session_gateway::RealtimePlaneBootstrap;
 use social_service::SocialRuntime;
 use tokio::task::JoinHandle;
 

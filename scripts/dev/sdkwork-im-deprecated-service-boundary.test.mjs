@@ -22,7 +22,15 @@ for (const retiredService of ['contact-service', 'interaction-service']) {
   );
 }
 
-const gatewayConfig = readText('crates', 'sdkwork-api-im-standalone-gateway', 'src', 'lib.rs');
+const gatewayConfig = [
+  readText('crates', 'sdkwork-api-im-standalone-gateway', 'src', 'main.rs'),
+  readText(
+    'crates',
+    'sdkwork-api-im-standalone-gateway',
+    'src',
+    'embedded_dependency_routes.rs',
+  ),
+].join('\n');
 assert.doesNotMatch(gatewayConfig, /"(?:contact-service|interaction-service)"/u);
 
 console.log('sdkwork-im removed service boundary contract passed');

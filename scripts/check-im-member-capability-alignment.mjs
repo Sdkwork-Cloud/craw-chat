@@ -110,13 +110,13 @@ for (const route of capabilitySpec.openapiSelfServiceRoutes) {
 const standaloneGatewayMain = read('crates/sdkwork-api-im-standalone-gateway/src/main.rs');
 assert.match(
   standaloneGatewayMain,
-  /application_router\s*\n\s*\.merge\(iam_router\)/u,
-  'standalone gateway must merge embedded IAM router after application router so IAM wins over proxy catch-alls',
+  /sdkwork_api_iam_assembly::assemble_api_router\(\)/u,
+  'standalone gateway must consume IAM through the canonical API assembly',
 );
-assert.doesNotMatch(
+assert.match(
   standaloneGatewayMain,
-  /iam_router\s*\n\s*\.merge\(application_router\)/u,
-  'standalone gateway must not merge application router after IAM (proxy would override embedded IAM)',
+  /let business_router = product_runtime_router[\s\S]*?\.merge\(api_assembly\.router\)[\s\S]*?\.merge\(dependencies\.router\)[\s\S]*?\.merge\(iam_router\)/u,
+  'standalone gateway must merge IAM after application and dependency assemblies so IAM wins over product-runtime catch-alls',
 );
 
 for (const relativePath of [

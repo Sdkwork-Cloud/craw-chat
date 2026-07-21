@@ -244,6 +244,7 @@ sdkwork_routes_im_social_open_api = { path = "crates/sdkwork-routes-im-social-op
 sdkwork_routes_im_space_open_api = { path = "crates/sdkwork-routes-im-space-open-api", package = "sdkwork-routes-im-space-open-api" }
 sdkwork_routes_im_stream_app_api = { path = "crates/sdkwork-routes-im-stream-app-api", package = "sdkwork-routes-im-stream-app-api" }
 sdkwork_routes_iam_app_api = { path = "../sdkwork-iam/crates/sdkwork-routes-iam-app-api", package = "sdkwork-routes-iam-app-api" }
+sdkwork-api-iam-assembly = { path = "../sdkwork-iam/crates/sdkwork-api-iam-assembly" }
 sdkwork-api-drive-assembly = { path = "../sdkwork-drive/crates/sdkwork-api-drive-assembly" }
 sdkwork-api-notary-assembly = { path = "../sdkwork-notary/crates/sdkwork-api-notary-assembly" }
 sdkwork-api-course-assembly = { path = "../sdkwork-course/crates/sdkwork-api-course-assembly" }

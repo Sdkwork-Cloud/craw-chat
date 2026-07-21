@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use im_app_context::AppContext;
@@ -643,14 +643,6 @@ impl NotificationTaskStore for RuntimeMemoryNotificationTaskStore {
             .filter_map(|task_key| state.tasks.get(task_key.as_str()).cloned())
             .collect())
     }
-}
-
-fn runtime_notification_recipient_scope_key(task: &NotificationTask) -> String {
-    notification_recipient_scope_key(
-        task.tenant_id.as_str(),
-        task.recipient_kind.as_str(),
-        task.recipient_id.as_str(),
-    )
 }
 
 fn insert_runtime_notification_task(

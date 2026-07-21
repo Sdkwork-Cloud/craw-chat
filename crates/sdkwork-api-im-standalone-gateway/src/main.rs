@@ -58,9 +58,7 @@ async fn async_main(
     .await
     .map_err(|error| format!("failed to ensure IM IAM tenant application: {error}"))?;
 
-    let iam_router = sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router()
-        .await
-        .map_err(|error| format!("failed to build embedded IAM assembly: {error}"))?;
+    let iam_router = sdkwork_api_iam_assembly::assemble_api_router().await.router;
 
     let realtime_drain_timeout = session_gateway::resolve_session_gateway_drain_timeout()?;
     let realtime_plane = session_gateway::bootstrap_gateway_embedded_realtime_plane().await?;

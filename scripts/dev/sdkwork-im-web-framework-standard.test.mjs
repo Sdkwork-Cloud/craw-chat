@@ -234,7 +234,12 @@ assert.match(gatewayCargo, /sdkwork_web_axum\.workspace\s*=\s*true/u);
 assert.match(gatewayCargo, /sdkwork-web-bootstrap\.workspace\s*=\s*true/u);
 
 assert.match(gatewayCargo, /sdkwork-im-web-bootstrap\.workspace\s*=\s*true/u);
-assert.match(gatewayCargo, /sdkwork_routes_iam_app_api\s*=\s*\{ workspace = true \}/u);
+assert.match(gatewayCargo, /sdkwork-api-iam-assembly\s*=\s*\{ workspace = true \}/u);
+assert.doesNotMatch(
+  gatewayCargo,
+  /sdkwork_routes_iam_app_api/u,
+  'standalone gateway must consume IAM through its API assembly instead of a route crate',
+);
 
 
 
@@ -243,7 +248,7 @@ const realtimeWebBootstrap = read('crates/sdkwork-routes-im-realtime-open-api/sr
 
 assert.match(gatewayMain, /service_router/u);
 assert.match(gatewayMain, /shared_iam_web_request_context_resolver_from_env/u);
-assert.match(gatewayMain, /build_sdkwork_iam_app_api_router/u);
+assert.match(gatewayMain, /sdkwork_api_iam_assembly::assemble_api_router/u);
 assert.match(realtimeWebBootstrap, /wrap_im_open_api_service_router_from_env/u);
 assert.doesNotMatch(
   `${gatewayMain}\n${realtimeWebBootstrap}`,

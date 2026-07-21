@@ -8,9 +8,6 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use axum::Router;
-use sdkwork_api_knowledgebase_assembly::{
-    KnowledgebaseRuntime, resolve_database_url, validate_process_config,
-};
 use sdkwork_drive_workspace_service::application::download_service::ensure_production_download_token_signing_configured;
 use sdkwork_drive_workspace_service::infrastructure::outbox_dispatch::ensure_domain_outbox_dispatcher;
 use sdkwork_drive_workspace_service::infrastructure::sql::connect_any_database_and_install_schema;
@@ -745,26 +742,10 @@ async fn bootstrap_embedded_drive_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_knowledgebase_routes() -> Result<Router, String> {
-    validate_process_config();
-
-    let database_url = resolve_database_url();
-    let tenant_id = resolve_embedded_knowledgebase_tenant_id();
-
-    let runtime = Arc::new(
-        KnowledgebaseRuntime::connect(database_url.as_str(), tenant_id)
-            .await
-            .map_err(|error| format!("initialize knowledgebase runtime failed: {error}"))?,
-    );
-    runtime
-        .readiness_check()
+    sdkwork_api_knowledgebase_assembly::assemble_api_router_from_environment()
         .await
-        .map_err(|error| format!("knowledgebase database readiness check failed: {error}"))?;
-
-    Ok(
-        sdkwork_api_knowledgebase_assembly::assemble_api_router(runtime)
-            .await
-            .router,
-    )
+        .map(|assembly| assembly.router)
+        .map_err(|error| format!("compose embedded knowledgebase router failed: {error}"))
 }
 
 async fn bootstrap_embedded_mail_routes() -> Result<Router, String> {
@@ -1357,14 +1338,6 @@ fn set_env_var(key: &str, value: &str) {
 
 fn normalize_course_environment(raw: &str) -> &'static str {
     normalize_knowledgebase_environment(raw)
-}
-
-fn resolve_embedded_knowledgebase_tenant_id() -> u64 {
-    std::env::var("SDKWORK_KNOWLEDGEBASE_TENANT_ID")
-        .ok()
-        .and_then(|value| value.trim().parse::<u64>().ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(100_001)
 }
 
 fn normalize_knowledgebase_environment(raw: &str) -> &'static str {
