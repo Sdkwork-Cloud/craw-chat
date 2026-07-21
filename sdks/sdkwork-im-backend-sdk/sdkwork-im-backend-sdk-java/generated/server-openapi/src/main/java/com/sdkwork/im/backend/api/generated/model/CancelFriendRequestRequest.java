@@ -9,7 +9,7 @@ public class CancelFriendRequestRequest {
     public String getCanceledAt() {
         return this.canceledAt;
     }
-    
+
     public void setCanceledAt(String canceledAt) {
         this.canceledAt = canceledAt;
     }
@@ -17,7 +17,7 @@ public class CancelFriendRequestRequest {
     public String getCanceledByUserId() {
         return this.canceledByUserId;
     }
-    
+
     public void setCanceledByUserId(String canceledByUserId) {
         this.canceledByUserId = canceledByUserId;
     }
@@ -25,7 +25,7 @@ public class CancelFriendRequestRequest {
     public String getEventId() {
         return this.eventId;
     }
-    
+
     public void setEventId(String eventId) {
         this.eventId = eventId;
     }

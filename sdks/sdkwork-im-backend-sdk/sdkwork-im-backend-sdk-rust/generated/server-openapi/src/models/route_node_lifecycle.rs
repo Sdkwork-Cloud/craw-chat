@@ -9,7 +9,7 @@ pub struct RouteNodeLifecycle {
     pub node_id: String,
 
     #[serde(rename = "ownedRouteCount")]
-    pub owned_route_count: i64,
+    pub owned_route_count: String,
 
     #[serde(rename = "rebalanceState")]
     pub rebalance_state: String,

@@ -5,9 +5,6 @@ pub struct SubmitFriendRequestRequest {
     #[serde(rename = "eventId")]
     pub event_id: String,
 
-    #[serde(rename = "requestId")]
-    pub request_id: String,
-
     #[serde(rename = "requestMessage")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request_message: Option<String>,

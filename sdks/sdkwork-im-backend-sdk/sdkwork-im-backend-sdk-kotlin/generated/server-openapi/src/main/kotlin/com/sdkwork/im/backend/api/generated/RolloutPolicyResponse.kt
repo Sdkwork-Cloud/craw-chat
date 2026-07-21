@@ -7,5 +7,5 @@ data class RolloutPolicyResponse(
     val regionSelector: String? = null,
     val releaseChannel: String? = null,
     val tenantAllowlist: List<String>? = null,
-    val trafficPercent: Int? = null
+    val trafficPercent: String? = null
 )

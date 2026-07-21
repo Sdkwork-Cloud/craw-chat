@@ -8,5 +8,5 @@ data class ApplySharedChannelPolicyRequest(
     val eventId: String? = null,
     val historyVisibility: String? = null,
     val policyId: String? = null,
-    val policyVersion: Int? = null
+    val policyVersion: String? = null
 )

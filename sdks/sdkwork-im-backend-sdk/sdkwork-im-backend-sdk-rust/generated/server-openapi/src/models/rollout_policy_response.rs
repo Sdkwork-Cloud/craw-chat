@@ -21,5 +21,5 @@ pub struct RolloutPolicyResponse {
     pub tenant_allowlist: Vec<String>,
 
     #[serde(rename = "trafficPercent")]
-    pub traffic_percent: i64,
+    pub traffic_percent: String,
 }

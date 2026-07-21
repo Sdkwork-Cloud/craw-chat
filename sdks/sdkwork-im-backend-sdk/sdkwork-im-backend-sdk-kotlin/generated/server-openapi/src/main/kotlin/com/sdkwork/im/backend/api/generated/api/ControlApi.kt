@@ -9,268 +9,306 @@ import com.sdkwork.im.backend.api.generated.http.HttpClient
 class ControlApi(private val client: HttpClient) {
 
     /** Activate a realtime node and clear drain state. */
-    suspend fun nodesActivate(nodeId: String): RouteNodeLifecycle? {
+    suspend fun nodesActivate(nodeId: String): NodesActivateResponse? {
         val raw = client.post(ApiPaths.backendPath("/control/nodes/${serializePathParameter(nodeId, PathParameterSpec("nodeId", "simple", false))}/activate"), null)
-        return client.convertValue(raw, object : TypeReference<RouteNodeLifecycle>() {})
+        return client.convertValue(raw, object : TypeReference<NodesActivateResponse>() {})
     }
 
     /** Mark a realtime node as draining. */
-    suspend fun nodesDrain(nodeId: String): RouteNodeLifecycle? {
+    suspend fun nodesDrain(nodeId: String): NodesDrainResponse? {
         val raw = client.post(ApiPaths.backendPath("/control/nodes/${serializePathParameter(nodeId, PathParameterSpec("nodeId", "simple", false))}/drain"), null)
-        return client.convertValue(raw, object : TypeReference<RouteNodeLifecycle>() {})
+        return client.convertValue(raw, object : TypeReference<NodesDrainResponse>() {})
     }
 
     /** Migrate owned routes from the source node to the target node. */
-    suspend fun nodesRoutesMigrate(nodeId: String, body: MigrateRoutesRequest): RouteMigrationResult? {
+    suspend fun nodesRoutesMigrate(nodeId: String, body: MigrateRoutesRequest): NodesRoutesMigrateResponse? {
         val raw = client.post(ApiPaths.backendPath("/control/nodes/${serializePathParameter(nodeId, PathParameterSpec("nodeId", "simple", false))}/routes/migrate"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<RouteMigrationResult>() {})
+        return client.convertValue(raw, object : TypeReference<NodesRoutesMigrateResponse>() {})
     }
 
     /** Read the control-plane protocol governance snapshot. */
-    suspend fun protocolGovernanceRetrieve(): ProtocolGovernanceResponse? {
+    suspend fun protocolGovernanceRetrieve(): ProtocolGovernanceRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/control/protocol_governance"))
-        return client.convertValue(raw, object : TypeReference<ProtocolGovernanceResponse>() {})
+        return client.convertValue(raw, object : TypeReference<ProtocolGovernanceRetrieveResponse>() {})
     }
 
     /** Read the control-plane protocol registry snapshot. */
-    suspend fun protocolRegistryRetrieve(): ProtocolRegistryResponse? {
+    suspend fun protocolRegistryRetrieve(): ProtocolRegistryRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/control/protocol_registry"))
-        return client.convertValue(raw, object : TypeReference<ProtocolRegistryResponse>() {})
+        return client.convertValue(raw, object : TypeReference<ProtocolRegistryRetrieveResponse>() {})
     }
 
     /** Read provider policy history. */
-    suspend fun providerPoliciesList(): ProviderPolicyHistoryResponse? {
-        val raw = client.get(ApiPaths.backendPath("/control/provider_policies"))
-        return client.convertValue(raw, object : TypeReference<ProviderPolicyHistoryResponse>() {})
+    suspend fun providerPoliciesList(pageSize: Int? = null, cursor: String? = null, page: Int? = null, q: String? = null): SdkWorkListResponse? {
+        val query = buildQueryString(listOf(
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            QueryParameterSpec("page", page, "form", true, false, null),
+            QueryParameterSpec("q", q, "form", true, false, null)
+        ))
+        val raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/provider_policies"), query))
+        return client.convertValue(raw, object : TypeReference<SdkWorkListResponse>() {})
     }
 
     /** Read provider policy diff between two versions. */
-    suspend fun providerPoliciesDiffList(fromVersion: Int, toVersion: Int): ProviderPolicyDiffResponse? {
+    suspend fun providerPoliciesDiffList(fromVersion: String, toVersion: String, pageSize: Int? = null, cursor: String? = null, page: Int? = null, q: String? = null): SdkWorkListResponse? {
         val query = buildQueryString(listOf(
             QueryParameterSpec("fromVersion", fromVersion, "form", true, false, null),
-            QueryParameterSpec("toVersion", toVersion, "form", true, false, null)
+            QueryParameterSpec("toVersion", toVersion, "form", true, false, null),
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            QueryParameterSpec("page", page, "form", true, false, null),
+            QueryParameterSpec("q", q, "form", true, false, null)
         ))
         val raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/provider_policies/diff"), query))
-        return client.convertValue(raw, object : TypeReference<ProviderPolicyDiffResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SdkWorkListResponse>() {})
     }
 
     /** Preview the effective provider policy result before commit. */
-    suspend fun providerPoliciesPreview(body: UpsertProviderBindingPolicyRequest): ProviderBindingCommitResponse? {
+    suspend fun providerPoliciesPreview(body: UpsertProviderBindingPolicyRequest): ProviderPoliciesPreviewResponse? {
         val raw = client.post(ApiPaths.backendPath("/control/provider_policies/preview"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<ProviderBindingCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<ProviderPoliciesPreviewResponse>() {})
     }
 
     /** Rollback provider policy history to a target version. */
-    suspend fun providerPoliciesRollback(body: ProviderPolicyRollbackRequest): ProviderBindingCommitResponse? {
+    suspend fun providerPoliciesRollback(body: ProviderPolicyRollbackRequest): ProviderPoliciesRollbackResponse? {
         val raw = client.post(ApiPaths.backendPath("/control/provider_policies/rollback"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<ProviderBindingCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<ProviderPoliciesRollbackResponse>() {})
     }
 
     /** Read the provider registry snapshot. */
-    suspend fun providerRegistryRetrieve(): ProviderRegistrySnapshotResponse? {
+    suspend fun providerRegistryRetrieve(): ProviderRegistryRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/control/provider_registry"))
-        return client.convertValue(raw, object : TypeReference<ProviderRegistrySnapshotResponse>() {})
+        return client.convertValue(raw, object : TypeReference<ProviderRegistryRetrieveResponse>() {})
     }
 
     /** Read effective provider bindings. */
-    suspend fun providerBindingsList(tenantId: String? = null): ProviderBindingsResponse? {
+    suspend fun providerBindingsList(tenantId: String? = null, pageSize: Int? = null, cursor: String? = null, page: Int? = null, q: String? = null): SdkWorkListResponse? {
         val query = buildQueryString(listOf(
-            QueryParameterSpec("tenantId", tenantId, "form", true, false, null)
+            QueryParameterSpec("tenantId", tenantId, "form", true, false, null),
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            QueryParameterSpec("page", page, "form", true, false, null),
+            QueryParameterSpec("q", q, "form", true, false, null)
         ))
         val raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/provider_bindings"), query))
-        return client.convertValue(raw, object : TypeReference<ProviderBindingsResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SdkWorkListResponse>() {})
     }
 
     /** Upsert a provider binding policy. */
-    suspend fun providerBindingsCreate(body: UpsertProviderBindingPolicyRequest): ProviderBindingCommitResponse? {
+    suspend fun providerBindingsCreate(body: UpsertProviderBindingPolicyRequest): ControlProviderBindingsCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/provider_bindings"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<ProviderBindingCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<ControlProviderBindingsCreateResponse201>() {})
     }
 
     /** Bind a direct chat to a conversation. */
-    suspend fun socialDirectChatsBindingsCreate(body: BindDirectChatRequest): SocialDirectChatCommitResponse? {
+    suspend fun socialDirectChatsBindingsCreate(body: BindDirectChatRequest): SocialDirectChatsBindingsCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/direct_chats/bindings"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialDirectChatCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialDirectChatsBindingsCreateResponse201>() {})
     }
 
     /** Read a direct chat snapshot. */
-    suspend fun socialDirectChatsRetrieve(directChatId: String): SocialDirectChatSnapshotResponse? {
+    suspend fun socialDirectChatsRetrieve(directChatId: String): SocialDirectChatsRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/control/social/direct_chats/${serializePathParameter(directChatId, PathParameterSpec("directChatId", "simple", false))}"))
-        return client.convertValue(raw, object : TypeReference<SocialDirectChatSnapshotResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialDirectChatsRetrieveResponse>() {})
     }
 
     /** Establish an external collaboration connection. */
-    suspend fun socialExternalConnectionsCreate(body: EstablishExternalConnectionRequest): SocialExternalConnectionCommitResponse? {
+    suspend fun socialExternalConnectionsCreate(body: EstablishExternalConnectionRequest): SocialExternalConnectionsCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/external_connections"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialExternalConnectionCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialExternalConnectionsCreateResponse201>() {})
     }
 
     /** Read an external connection snapshot. */
-    suspend fun socialExternalConnectionsRetrieve(connectionId: String): SocialExternalConnectionSnapshotResponse? {
+    suspend fun socialExternalConnectionsRetrieve(connectionId: String): SocialExternalConnectionsRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/control/social/external_connections/${serializePathParameter(connectionId, PathParameterSpec("connectionId", "simple", false))}"))
-        return client.convertValue(raw, object : TypeReference<SocialExternalConnectionSnapshotResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialExternalConnectionsRetrieveResponse>() {})
     }
 
     /** Bind an external member link. */
-    suspend fun socialExternalMemberLinksCreate(body: BindExternalMemberLinkRequest): SocialExternalMemberLinkCommitResponse? {
+    suspend fun socialExternalMemberLinksCreate(body: BindExternalMemberLinkRequest): SocialExternalMemberLinksCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/external_member_links"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialExternalMemberLinkCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialExternalMemberLinksCreateResponse201>() {})
     }
 
     /** Read an external member link snapshot. */
-    suspend fun socialExternalMemberLinksRetrieve(linkId: String): SocialExternalMemberLinkSnapshotResponse? {
+    suspend fun socialExternalMemberLinksRetrieve(linkId: String): SocialExternalMemberLinksRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/control/social/external_member_links/${serializePathParameter(linkId, PathParameterSpec("linkId", "simple", false))}"))
-        return client.convertValue(raw, object : TypeReference<SocialExternalMemberLinkSnapshotResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialExternalMemberLinksRetrieveResponse>() {})
     }
 
     /** Submit a friend request event. */
-    suspend fun socialFriendRequestsCreate(body: SubmitFriendRequestRequest): SocialFriendRequestCommitResponse? {
+    suspend fun socialFriendRequestsCreate(body: SubmitFriendRequestRequest): SocialFriendRequestsCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/friend_requests"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialFriendRequestCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialFriendRequestsCreateResponse201>() {})
     }
 
     /** Read a friend request snapshot. */
-    suspend fun socialFriendRequestsRetrieve(requestId: String): SocialFriendRequestSnapshotResponse? {
+    suspend fun socialFriendRequestsRetrieve(requestId: String): SocialFriendRequestsRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/control/social/friend_requests/${serializePathParameter(requestId, PathParameterSpec("requestId", "simple", false))}"))
-        return client.convertValue(raw, object : TypeReference<SocialFriendRequestSnapshotResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialFriendRequestsRetrieveResponse>() {})
     }
 
     /** Accept a friend request. */
-    suspend fun socialFriendRequestsAccept(requestId: String, body: AcceptFriendRequestRequest): SocialFriendRequestCommitResponse? {
+    suspend fun socialFriendRequestsAccept(requestId: String, body: AcceptFriendRequestRequest): SocialFriendRequestsAcceptResponse? {
         val raw = client.post(ApiPaths.backendPath("/control/social/friend_requests/${serializePathParameter(requestId, PathParameterSpec("requestId", "simple", false))}/accept"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialFriendRequestCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialFriendRequestsAcceptResponse>() {})
     }
 
     /** Decline a friend request. */
-    suspend fun socialFriendRequestsDecline(requestId: String, body: DeclineFriendRequestRequest): SocialFriendRequestCommitResponse? {
+    suspend fun socialFriendRequestsDecline(requestId: String, body: DeclineFriendRequestRequest): SocialFriendRequestsDeclineResponse? {
         val raw = client.post(ApiPaths.backendPath("/control/social/friend_requests/${serializePathParameter(requestId, PathParameterSpec("requestId", "simple", false))}/decline"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialFriendRequestCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialFriendRequestsDeclineResponse>() {})
     }
 
     /** Cancel a friend request. */
-    suspend fun socialFriendRequestsCancel(requestId: String, body: CancelFriendRequestRequest): SocialFriendRequestCommitResponse? {
+    suspend fun socialFriendRequestsCancel(requestId: String, body: CancelFriendRequestRequest): SocialFriendRequestsCancelResponse? {
         val raw = client.post(ApiPaths.backendPath("/control/social/friend_requests/${serializePathParameter(requestId, PathParameterSpec("requestId", "simple", false))}/cancel"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialFriendRequestCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialFriendRequestsCancelResponse>() {})
     }
 
     /** Activate a friendship event. */
-    suspend fun socialFriendshipsCreate(body: ActivateFriendshipRequest): SocialFriendshipCommitResponse? {
+    suspend fun socialFriendshipsCreate(body: ActivateFriendshipRequest): SocialFriendshipsCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/friendships"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialFriendshipCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialFriendshipsCreateResponse201>() {})
     }
 
     /** Read a friendship snapshot. */
-    suspend fun socialFriendshipsRetrieve(friendshipId: String): SocialFriendshipSnapshotResponse? {
+    suspend fun socialFriendshipsRetrieve(friendshipId: String): SocialFriendshipsRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/control/social/friendships/${serializePathParameter(friendshipId, PathParameterSpec("friendshipId", "simple", false))}"))
-        return client.convertValue(raw, object : TypeReference<SocialFriendshipSnapshotResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialFriendshipsRetrieveResponse>() {})
     }
 
     /** Remove a friendship. */
-    suspend fun socialFriendshipsRemove(friendshipId: String, body: RemoveFriendshipRequest): SocialFriendshipCommitResponse? {
+    suspend fun socialFriendshipsRemove(friendshipId: String, body: RemoveFriendshipRequest): SocialFriendshipsRemoveResponse? {
         val raw = client.post(ApiPaths.backendPath("/control/social/friendships/${serializePathParameter(friendshipId, PathParameterSpec("friendshipId", "simple", false))}/remove"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialFriendshipCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialFriendshipsRemoveResponse>() {})
     }
 
     /** Claim selected pending shared-channel sync entries. */
-    suspend fun socialRuntimeClaimPendingSharedChannelSyncTargetedCreate(body: SocialSharedChannelSyncPendingTargetedClaimRequest): SocialSharedChannelSyncPendingClaimResponse? {
+    suspend fun socialRuntimeClaimPendingSharedChannelSyncTargetedCreate(body: SocialSharedChannelSyncPendingTargetedClaimRequest): SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/runtime/claim_pending_shared_channel_sync_targeted"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelSyncPendingClaimResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201>() {})
     }
 
     /** Read the dead-letter shared-channel sync queue. */
-    suspend fun socialRuntimeDeadLetterSharedChannelSyncList(): SocialSharedChannelSyncDeadLetterInventoryResponse? {
-        val raw = client.get(ApiPaths.backendPath("/control/social/runtime/dead_letter_shared_channel_sync"))
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelSyncDeadLetterInventoryResponse>() {})
+    suspend fun socialRuntimeDeadLetterSharedChannelSyncList(pageSize: Int? = null, cursor: String? = null, page: Int? = null, q: String? = null): SdkWorkListResponse? {
+        val query = buildQueryString(listOf(
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            QueryParameterSpec("page", page, "form", true, false, null),
+            QueryParameterSpec("q", q, "form", true, false, null)
+        ))
+        val raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/social/runtime/dead_letter_shared_channel_sync"), query))
+        return client.convertValue(raw, object : TypeReference<SdkWorkListResponse>() {})
     }
 
     /** Read the delivered shared-channel sync ledger. */
-    suspend fun socialRuntimeDeliveredSharedChannelSyncList(): SocialSharedChannelSyncDeliveredInventoryResponse? {
-        val raw = client.get(ApiPaths.backendPath("/control/social/runtime/delivered_shared_channel_sync"))
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelSyncDeliveredInventoryResponse>() {})
+    suspend fun socialRuntimeDeliveredSharedChannelSyncList(pageSize: Int? = null, cursor: String? = null, page: Int? = null, q: String? = null): SdkWorkListResponse? {
+        val query = buildQueryString(listOf(
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            QueryParameterSpec("page", page, "form", true, false, null),
+            QueryParameterSpec("q", q, "form", true, false, null)
+        ))
+        val raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/social/runtime/delivered_shared_channel_sync"), query))
+        return client.convertValue(raw, object : TypeReference<SdkWorkListResponse>() {})
     }
 
     /** Read merged shared-channel sync delivery state. */
-    suspend fun socialRuntimeDeliveryStateSharedChannelSyncList(): SocialSharedChannelSyncDeliveryStateInventoryResponse? {
-        val raw = client.get(ApiPaths.backendPath("/control/social/runtime/delivery_state_shared_channel_sync"))
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelSyncDeliveryStateInventoryResponse>() {})
+    suspend fun socialRuntimeDeliveryStateSharedChannelSyncList(pageSize: Int? = null, cursor: String? = null, page: Int? = null, q: String? = null): SdkWorkListResponse? {
+        val query = buildQueryString(listOf(
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            QueryParameterSpec("page", page, "form", true, false, null),
+            QueryParameterSpec("q", q, "form", true, false, null)
+        ))
+        val raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/social/runtime/delivery_state_shared_channel_sync"), query))
+        return client.convertValue(raw, object : TypeReference<SdkWorkListResponse>() {})
     }
 
     /** Read the pending shared-channel sync queue. */
-    suspend fun socialRuntimePendingSharedChannelSyncList(): SocialSharedChannelSyncPendingInventoryResponse? {
-        val raw = client.get(ApiPaths.backendPath("/control/social/runtime/pending_shared_channel_sync"))
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelSyncPendingInventoryResponse>() {})
+    suspend fun socialRuntimePendingSharedChannelSyncList(pageSize: Int? = null, cursor: String? = null, page: Int? = null, q: String? = null): SdkWorkListResponse? {
+        val query = buildQueryString(listOf(
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            QueryParameterSpec("page", page, "form", true, false, null),
+            QueryParameterSpec("q", q, "form", true, false, null)
+        ))
+        val raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/social/runtime/pending_shared_channel_sync"), query))
+        return client.convertValue(raw, object : TypeReference<SdkWorkListResponse>() {})
     }
 
     /** Reclaim stale shared-channel sync pending ownership. */
-    suspend fun socialRuntimeReclaimStalePendingSharedChannelSyncCreate(): SocialSharedChannelSyncPendingStaleReclaimResponse? {
+    suspend fun socialRuntimeReclaimStalePendingSharedChannelSyncCreate(): SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/runtime/reclaim_stale_pending_shared_channel_sync"), null)
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelSyncPendingStaleReclaimResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201>() {})
     }
 
     /** Release selected pending shared-channel sync entries. */
-    suspend fun socialRuntimeReleasePendingSharedChannelSyncTargetedCreate(body: SocialSharedChannelSyncPendingTargetedReleaseRequest): SocialSharedChannelSyncPendingReleaseResponse? {
+    suspend fun socialRuntimeReleasePendingSharedChannelSyncTargetedCreate(body: SocialSharedChannelSyncPendingTargetedReleaseRequest): SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/runtime/release_pending_shared_channel_sync_targeted"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelSyncPendingReleaseResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201>() {})
     }
 
     /** Repair the persisted social runtime derived snapshot. */
-    suspend fun socialRuntimeRepairDerivedSnapshotCreate(): SocialRuntimeRepairResponse? {
+    suspend fun socialRuntimeRepairDerivedSnapshotCreate(): SocialRuntimeRepairDerivedSnapshotCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/runtime/repair_derived_snapshot"), null)
-        return client.convertValue(raw, object : TypeReference<SocialRuntimeRepairResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialRuntimeRepairDerivedSnapshotCreateResponse201>() {})
     }
 
     /** Repair shared-channel sync backlog state. */
-    suspend fun socialRuntimeRepairSharedChannelSyncCreate(): SocialSharedChannelSyncRepairResponse? {
+    suspend fun socialRuntimeRepairSharedChannelSyncCreate(): SocialRuntimeRepairSharedChannelSyncCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/runtime/repair_shared_channel_sync"), null)
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelSyncRepairResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialRuntimeRepairSharedChannelSyncCreateResponse201>() {})
     }
 
     /** Republish selected pending shared-channel sync entries. */
-    suspend fun socialRuntimeRepublishPendingSharedChannelSyncTargetedCreate(body: SocialSharedChannelSyncTargetedRepublishRequest): SocialSharedChannelSyncTargetedRepublishResponse? {
+    suspend fun socialRuntimeRepublishPendingSharedChannelSyncTargetedCreate(body: SocialSharedChannelSyncTargetedRepublishRequest): SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/runtime/republish_pending_shared_channel_sync_targeted"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelSyncTargetedRepublishResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201>() {})
     }
 
     /** Requeue all dead-letter shared-channel sync entries. */
-    suspend fun socialRuntimeRequeueDeadLetterSharedChannelSyncCreate(): SocialSharedChannelSyncDeadLetterRequeueResponse? {
+    suspend fun socialRuntimeRequeueDeadLetterSharedChannelSyncCreate(): SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/runtime/requeue_dead_letter_shared_channel_sync"), null)
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelSyncDeadLetterRequeueResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201>() {})
     }
 
     /** Requeue selected dead-letter shared-channel sync entries. */
-    suspend fun socialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreate(body: SocialSharedChannelSyncDeadLetterTargetedRequeueRequest): SocialSharedChannelSyncDeadLetterTargetedRequeueResponse? {
+    suspend fun socialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreate(body: SocialSharedChannelSyncDeadLetterTargetedRequeueRequest): SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelSyncDeadLetterTargetedRequeueResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201>() {})
     }
 
     /** Take over selected pending shared-channel sync entries. */
-    suspend fun socialRuntimeTakeoverPendingSharedChannelSyncTargetedCreate(body: SocialSharedChannelSyncPendingTargetedTakeoverRequest): SocialSharedChannelSyncPendingTakeoverResponse? {
+    suspend fun socialRuntimeTakeoverPendingSharedChannelSyncTargetedCreate(body: SocialSharedChannelSyncPendingTargetedTakeoverRequest): SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/runtime/takeover_pending_shared_channel_sync_targeted"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelSyncPendingTakeoverResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201>() {})
     }
 
     /** Apply a shared-channel policy. */
-    suspend fun socialSharedChannelPoliciesCreate(body: ApplySharedChannelPolicyRequest): SocialSharedChannelPolicyCommitResponse? {
+    suspend fun socialSharedChannelPoliciesCreate(body: ApplySharedChannelPolicyRequest): SocialSharedChannelPoliciesCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/shared_channel_policies"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelPolicyCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialSharedChannelPoliciesCreateResponse201>() {})
     }
 
     /** Read a shared-channel policy snapshot. */
-    suspend fun socialSharedChannelPoliciesRetrieve(policyId: String): SocialSharedChannelPolicySnapshotResponse? {
+    suspend fun socialSharedChannelPoliciesRetrieve(policyId: String): SocialSharedChannelPoliciesRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/control/social/shared_channel_policies/${serializePathParameter(policyId, PathParameterSpec("policyId", "simple", false))}"))
-        return client.convertValue(raw, object : TypeReference<SocialSharedChannelPolicySnapshotResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialSharedChannelPoliciesRetrieveResponse>() {})
     }
 
     /** Block a user in the social graph. */
-    suspend fun socialUserBlocksCreate(body: BlockUserRequest): SocialUserBlockCommitResponse? {
+    suspend fun socialUserBlocksCreate(body: BlockUserRequest): SocialUserBlocksCreateResponse201? {
         val raw = client.post(ApiPaths.backendPath("/control/social/user_blocks"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialUserBlockCommitResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialUserBlocksCreateResponse201>() {})
     }
 
     /** Read a user block snapshot. */
-    suspend fun socialUserBlocksRetrieve(blockId: String): SocialUserBlockSnapshotResponse? {
+    suspend fun socialUserBlocksRetrieve(blockId: String): SocialUserBlocksRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/control/social/user_blocks/${serializePathParameter(blockId, PathParameterSpec("blockId", "simple", false))}"))
-        return client.convertValue(raw, object : TypeReference<SocialUserBlockSnapshotResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialUserBlocksRetrieveResponse>() {})
     }
 
     private data class PathParameterSpec(val name: String, val style: String, val explode: Boolean)

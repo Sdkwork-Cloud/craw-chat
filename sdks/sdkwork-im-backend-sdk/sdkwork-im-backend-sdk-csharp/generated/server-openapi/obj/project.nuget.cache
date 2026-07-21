@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "Cp4mUm9Oj/Y=",
+  "success": true,
+  "projectFilePath": "E:\\sdkwork-space\\sdkwork-im\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-csharp\\generated\\server-openapi\\Sdkwork.Im.BackendApi.Generated.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\admin\\.nuget\\packages\\system.net.http.json\\6.0.0\\system.net.http.json.6.0.0.nupkg.sha512",
+    "C:\\Users\\admin\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\6.0.0\\system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512",
+    "C:\\Users\\admin\\.nuget\\packages\\system.text.encodings.web\\6.0.0\\system.text.encodings.web.6.0.0.nupkg.sha512",
+    "C:\\Users\\admin\\.nuget\\packages\\system.text.json\\6.0.0\\system.text.json.6.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

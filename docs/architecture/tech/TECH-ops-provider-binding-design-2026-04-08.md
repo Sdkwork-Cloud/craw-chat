@@ -28,7 +28,7 @@
 
 - `ProviderBindingItemView`
 - `ProviderBindingSnapshotView`
-- `ProviderBindingsView`
+- Current contract: `ProviderBindingSnapshotPageData` with `cursor + page_size` keyset pagination.
 
 用途：
 
@@ -69,4 +69,3 @@
 - 增加 provider binding drift 计算
 - 把 drift 结果接入告警和运维决策
 - 将 provider policy 版本、审计 actor 与回滚快照接入该视图
-

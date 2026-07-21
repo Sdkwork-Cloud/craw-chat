@@ -97,6 +97,12 @@ fn resolve_automation_execution_store_from_env(
     journal: &Arc<AutomationCommitJournal>,
 ) -> Result<Arc<dyn AutomationExecutionStore>, String> {
     if let Some(path) = resolve_automation_execution_store_path_from_env() {
+        let environment = resolve_web_environment_from_process_env();
+        if !matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
+            return Err(format!(
+                "file-backed automation execution store is single-node development storage and is forbidden in production; configure PostgreSQL with {IM_DATABASE_URL_ENV}"
+            ));
+        }
         info!(
             path = %path,
             "automation-service using file-backed automation execution store"
@@ -118,7 +124,7 @@ fn resolve_automation_execution_store_from_env(
     }
 
     Err(format!(
-        "durable automation execution store is required in production: set {IM_DATABASE_URL_ENV} or {AUTOMATION_EXECUTION_STORE_FILE_ENV}"
+        "PostgreSQL automation execution store is required in production: set {IM_DATABASE_URL_ENV}"
     ))
 }
 
@@ -183,8 +189,13 @@ impl CommitJournal for NoopJournalForDev {
 mod tests {
     use super::*;
 
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn production_requires_durable_automation_backends() {
+        let _guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let database_url = std::env::var(IM_DATABASE_URL_ENV).ok();
         let execution_store_file = std::env::var(AUTOMATION_EXECUTION_STORE_FILE_ENV).ok();
         let im_env = std::env::var("SDKWORK_IM_ENVIRONMENT").ok();
@@ -203,6 +214,38 @@ mod tests {
             } else {
                 std::env::remove_var(IM_DATABASE_URL_ENV);
             }
+            if let Some(value) = execution_store_file {
+                std::env::set_var(AUTOMATION_EXECUTION_STORE_FILE_ENV, value);
+            } else {
+                std::env::remove_var(AUTOMATION_EXECUTION_STORE_FILE_ENV);
+            }
+            if let Some(value) = im_env {
+                std::env::set_var("SDKWORK_IM_ENVIRONMENT", value);
+            } else {
+                std::env::remove_var("SDKWORK_IM_ENVIRONMENT");
+            }
+        }
+    }
+
+    #[test]
+    fn production_rejects_file_backed_automation_store() {
+        let _guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let execution_store_file = std::env::var(AUTOMATION_EXECUTION_STORE_FILE_ENV).ok();
+        let im_env = std::env::var("SDKWORK_IM_ENVIRONMENT").ok();
+        unsafe {
+            std::env::set_var(AUTOMATION_EXECUTION_STORE_FILE_ENV, "automation-test.json");
+            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "prod");
+        }
+        let journal = Arc::new(AutomationCommitJournal::Memory(NoopJournalForDev));
+        let result = resolve_automation_execution_store_from_env(&journal);
+        let error = result
+            .err()
+            .expect("production file store must fail closed");
+        assert!(error.contains("forbidden in production"));
+
+        unsafe {
             if let Some(value) = execution_store_file {
                 std::env::set_var(AUTOMATION_EXECUTION_STORE_FILE_ENV, value);
             } else {

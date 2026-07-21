@@ -15,7 +15,7 @@ public class EffectiveProtocolSnapshotResponse {
     public List<String> getAllowedBindings() {
         return this.allowedBindings;
     }
-    
+
     public void setAllowedBindings(List<String> allowedBindings) {
         this.allowedBindings = allowedBindings;
     }
@@ -23,7 +23,7 @@ public class EffectiveProtocolSnapshotResponse {
     public List<String> getAllowedCodecs() {
         return this.allowedCodecs;
     }
-    
+
     public void setAllowedCodecs(List<String> allowedCodecs) {
         this.allowedCodecs = allowedCodecs;
     }
@@ -31,7 +31,7 @@ public class EffectiveProtocolSnapshotResponse {
     public List<String> getEnabledCapabilities() {
         return this.enabledCapabilities;
     }
-    
+
     public void setEnabledCapabilities(List<String> enabledCapabilities) {
         this.enabledCapabilities = enabledCapabilities;
     }
@@ -39,7 +39,7 @@ public class EffectiveProtocolSnapshotResponse {
     public Boolean getKillSwitchActive() {
         return this.killSwitchActive;
     }
-    
+
     public void setKillSwitchActive(Boolean killSwitchActive) {
         this.killSwitchActive = killSwitchActive;
     }
@@ -47,7 +47,7 @@ public class EffectiveProtocolSnapshotResponse {
     public List<String> getPrecedence() {
         return this.precedence;
     }
-    
+
     public void setPrecedence(List<String> precedence) {
         this.precedence = precedence;
     }
@@ -55,7 +55,7 @@ public class EffectiveProtocolSnapshotResponse {
     public String getProtocolVersion() {
         return this.protocolVersion;
     }
-    
+
     public void setProtocolVersion(String protocolVersion) {
         this.protocolVersion = protocolVersion;
     }
@@ -63,7 +63,7 @@ public class EffectiveProtocolSnapshotResponse {
     public String getQuotaProfileId() {
         return this.quotaProfileId;
     }
-    
+
     public void setQuotaProfileId(String quotaProfileId) {
         this.quotaProfileId = quotaProfileId;
     }
@@ -71,7 +71,7 @@ public class EffectiveProtocolSnapshotResponse {
     public String getReleaseChannel() {
         return this.releaseChannel;
     }
-    
+
     public void setReleaseChannel(String releaseChannel) {
         this.releaseChannel = releaseChannel;
     }

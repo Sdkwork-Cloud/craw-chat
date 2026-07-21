@@ -34,7 +34,9 @@ pub use sdkwork_im_contract_message::{
     TimelineProjectionScope, TimelineProjectionStore, TimelineProjectionWindow,
     replay_commit_journal_pages,
 };
-pub use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
+pub use sdkwork_im_contract_notification::{
+    NotificationTaskListCursor, NotificationTaskRecord, NotificationTaskStore,
+};
 pub use sdkwork_im_contract_stream::{
     StreamAppendOutcome, StreamCreateOutcome, StreamScope, StreamSessionRecord, StreamStateStore,
     StreamTransitionOutcome,

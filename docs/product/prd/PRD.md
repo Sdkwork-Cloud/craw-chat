@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: chat
-Updated: 2026-07-16
+Updated: 2026-07-21
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md
 
 ## Document Map
@@ -116,7 +116,7 @@ Product detail lives in the linked PRD shards below.
 
 ## 8. Commercial Readiness Status
 
-As of 2026-07-16:
+As of 2026-07-21:
 
 Overall status: **pre-GA release candidate, commercial sign-off blocked**. The application has not
 launched. Direct distribution remains prohibited until real pre-release/capacity runs and complete
@@ -124,7 +124,7 @@ checksum, signature, SBOM, provenance, staging E2E, HA, and recovery evidence pa
 
 ### Backend, API, and Admin
 
-- OpenAPI authorities for `/im/v3/api`, `/app/v3/api`, and `/backend/v3/api` are checked in with generated TypeScript and Flutter SDK families; `check-api-response-envelope` and `check-pagination` gates pass at repository root.
+- OpenAPI authorities for `/im/v3/api`, `/app/v3/api`, and `/backend/v3/api` are checked in and drive generated SDK families. The backend SDK has been regenerated for TypeScript, Rust, Flutter, Java, C#, Python, Swift, Kotlin, and Go. Authority verification plus TypeScript, Rust, Flutter, Java, and Python publish checks pass; Swift, Kotlin, and Go remain unverified because their toolchains are not installed, and the generated C# family still emits 524 build warnings. Those gaps block commercial SDK sign-off.
 - PostgreSQL migrations live under `database/migrations/` with framework contract tests (`pnpm run test:database-framework-standard`). IM core durable authority is PostgreSQL-only. The PC web runtime uses browser storage (IndexedDB / localStorage) for gateway webstore and sibling modules; the Tauri desktop runtime additionally owns a separate bounded, principal-scoped SQLite offline cache and pending-send queue that is never a server source of truth.
 - Message history reads prefer PostgreSQL `message_store` when configured (in-memory cache is not authoritative in cloud service deployments).
 - Audit list/export/verify paths fail-closed on PostgreSQL read errors (no silent empty lists).
@@ -146,6 +146,14 @@ checksum, signature, SBOM, provenance, staging E2E, HA, and recovery evidence pa
   and omit metrics until an authoritative ops source reports real data.
 - Gateway `realtime.events.list` returns `SdkWorkApiResponse` envelope; RPC cursor pagination sets `total_count = 0` when the total is unknown.
 - Interactive list HTTP query parameters use canonical `page_size` and `cursor`; `pageSize` is SDK/model naming only and is rejected when sent as a URL query alias.
+- Projection contacts, inbox, member-directory, pinned-message, and favorite-message lists reject numeric offset cursors in every environment and use opaque keyset cursors only; pre-launch offset compatibility code has been removed.
+- Ops lag, provider-binding, and provider-binding-drift reads use bounded keyset pagination with `cursor` and `page_size` (1-200). Responses expose `data.items` and cursor `data.pageInfo`; lag `uint64` values are decimal strings at the JSON boundary. Unknown query aliases fail with HTTP 400.
+- Governance-to-Ops node route mirroring reads a 200-entry internal keyset window rather than cloning every connection on the node. The authoritative route count is carried separately, so cluster totals remain exact and diagnostic bundles report truncation instead of presenting the window as the full set.
+- Graceful realtime shutdown fences and releases routes in fixed 256-entry batches; runtime cleanup and Redis/PostgreSQL mirror scans use at most 1,000 routes per page. Control-plane node migration still performs an all-route runtime-state move and all-target mirror rewrite, so million-route migration is not a commercially supported operation.
+- Provider-binding mirror rebuilds enumerate tenant overrides in 1,000-entry internal keyset pages and stream snapshots directly into the replacement index, avoiding simultaneous all-tenant ID and snapshot vectors.
+- Notification and automation file stores are bounded single-node development/test facilities only. Production startup rejects them and requires PostgreSQL for both the projection store and commit journal. Local JSON stores are capped at 32 MiB and 50,000 records; they are not HA authorities.
+- The automation process bounds executions (1,024 / 64 MiB), agent response streams (256 / 64 MiB), frames per response (1,024 / 16 MiB), and tool calls (1,024 / 64 MiB). Active work is never evicted; exhausted capacity fails closed with `automation_runtime_capacity_exhausted`, and in-memory state is committed only after journal append succeeds.
+- Automation `/metrics` exports fixed-label capacity rejections, terminal evictions by resource/reason, current resident entries/estimated bytes, and journal append failures. It never places tenant, principal, execution, stream, or tool-call identifiers in metric labels.
 - Social open-api handlers emit `SdkWorkApiResponse` / `ProblemDetail` envelopes via SDKWork web-framework response mapping; create routes return `201`, delete routes return `204`, and list/retrieve/update routes return `200`.
 - The admin sandbox is a development/test-only contract surface. Production-like runtimes reject
   startup when it is enabled and require a real `SDKWORK_ADMIN_PROXY_TARGET`; file-backed sandbox
@@ -190,7 +198,8 @@ checksum, signature, SBOM, provenance, staging E2E, HA, and recovery evidence pa
 
 - CI `im-commercial-gates.yml` runs `pnpm verify`, `pnpm check:commercial-readiness`, Playwright Chromium install, and cloud-service tests on `main`.
 - Pre-Release and Capacity tier indexes are both `evidence_collected_gate_blocked`. Populated doc-captured slots are retained only as historical engineering evidence; commercial sign-off requires direct runs in the declared pre-release and `capacity-dedicated` profiles.
-- Push delivery supports FCM HTTP v1 OAuth (`SDKWORK_IM_FCM_CREDENTIALS_PATH`) with legacy server-key fallback, and APNs HTTP/2 JWT (`SDKWORK_IM_APNS_*`) for iOS device tokens.
+- The 2026-07-21 full `pnpm run check:commercial-readiness` run completed its functional build, smoke, security, SQLite, Playwright, gateway, and Rust integration stages, then correctly failed four release-evidence gates: Pre-Release evidence is not direct-run sign-off evidence, Capacity evidence is backfilled rather than capacity-dedicated, `publish.status` is `DRAFT`, and the app manifest has no enabled release package. These are real release blockers, not test harness failures.
+- Notification request acceptance is implemented and durable, but end-to-end push delivery is **not implemented**. The repository has no authoritative device-token registration/routing store, durable provider worker claim/lease, retry/dead-letter pipeline, provider receipt projection, or invalid-token retirement flow. A request remains `requested`/accepted; it must not be reported as `dispatched` until a real provider receipt is committed. This is a release blocker.
 - Kubernetes templates cover the 13 active gateway, realtime, conversation, governance, notification,
   projection, media, streaming, audit, automation, social, space, and ops services. Duplicate pre-release
   contact/interaction compatibility services have been removed from source, builds, and deployment inventory.
@@ -200,6 +209,13 @@ checksum, signature, SBOM, provenance, staging E2E, HA, and recovery evidence pa
 
 ### Remaining Enterprise Rollout Items
 
+- Implement the authoritative device-registration and push-provider delivery plane, including tenant/organization isolation, durable claim leases, bounded retries/backoff, dead letters, provider receipts, token retirement, readiness, and real metrics.
+- Implement the general automation target executor through the approved `sdkwork-agents` facade. Agent response start may move an execution to `Running` and a real response completion may move it to `Succeeded`; request acceptance alone remains `Requested`.
+- Add durable automation response/tool-call projections, claim/lease recovery, event-sequence recovery after restart, and an outbox/materializer contract for journal/projection partial failure. Current process-local active streams are not HA-safe and remain a release blocker.
+- Replace the in-memory provider policy history/full tenant-override snapshot authority with a durable, quota-governed store. Paged Ops mirror rebuild removes transient duplication but does not make an unbounded in-memory policy history commercially safe.
+- Resolve database drift before production migration approval. The current development database reports 8 pending migrations and 72 error-level drift differences; do not auto-apply migrations to hide drift.
+- Run isolated live PostgreSQL concurrency tests for first insert races, monotonic terminal state/retry updates, tenant/organization negative isolation, and notification cursor continuity under concurrent inserts.
+- Replace all-route runtime-state migration and all-target Redis/PostgreSQL mirror rewrites with a bounded durable migration job that has claim fencing, resumable progress, compensating recovery, readiness, and low-cardinality metrics.
 - Staging-backed Playwright runs against real cloud-service topology (mock-based chat e2e ships in CI today).
 - Multi-region DR automation and published SDK artifact registry (git materialization remains the default today).
 - Dedicated staging/capacity topology runs to replace doc-captured Step-11 backfill before formal GA sign-off.

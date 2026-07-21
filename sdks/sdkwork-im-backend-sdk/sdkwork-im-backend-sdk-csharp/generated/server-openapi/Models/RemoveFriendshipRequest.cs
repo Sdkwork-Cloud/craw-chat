@@ -6,8 +6,8 @@ namespace Sdkwork.Im.BackendApi.Generated.Models
 {
     public class RemoveFriendshipRequest
     {
-        public string? EventId { get; set; }
-        public string? RemovedAt { get; set; }
-        public string? RemovedByUserId { get; set; }
+        public string EventId { get; set; }
+        public string RemovedAt { get; set; }
+        public string RemovedByUserId { get; set; }
     }
 }

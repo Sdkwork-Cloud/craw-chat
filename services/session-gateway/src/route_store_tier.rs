@@ -5,8 +5,8 @@ use std::sync::Arc;
 use im_adapters_postgres_realtime::{PostgresRealtimePool, PostgresRoutePersistence};
 use im_adapters_redis_cache::RedisBackedRouteStore;
 use sdkwork_im_runtime_route::{
-    RouteBinding, RouteBindingRequest, RouteMigrationResult, RouteNodeLifecycle, RouteRuntimeError,
-    RouteStore,
+    ROUTE_BINDING_PAGE_MAX_SIZE, RouteBinding, RouteBindingPage, RouteBindingRequest,
+    RouteMigrationResult, RouteNodeLifecycle, RouteRuntimeError, RouteStore,
 };
 use tracing::warn;
 
@@ -148,8 +148,20 @@ impl RouteStore for RedisPostgresTieredRouteStore {
         let migration =
             self.redis
                 .migrate_routes_at(source_node_id, target_node_id, migrated_at)?;
-        for route in self.redis.routes_for_node(target_node_id) {
-            self.mirror_persist_with_retry(&route);
+        let mut cursor = None;
+        loop {
+            let page = self.redis.routes_for_node_page(
+                target_node_id,
+                cursor.as_deref(),
+                ROUTE_BINDING_PAGE_MAX_SIZE,
+            );
+            for route in page.items {
+                self.mirror_persist_with_retry(&route);
+            }
+            let Some(next_cursor) = page.next_cursor else {
+                break;
+            };
+            cursor = Some(next_cursor);
         }
         Ok(migration)
     }
@@ -225,6 +237,15 @@ impl RouteStore for RedisPostgresTieredRouteStore {
 
     fn routes_for_node(&self, node_id: &str) -> Vec<RouteBinding> {
         self.redis.routes_for_node(node_id)
+    }
+
+    fn routes_for_node_page(
+        &self,
+        node_id: &str,
+        cursor: Option<&str>,
+        page_size: usize,
+    ) -> RouteBindingPage {
+        self.redis.routes_for_node_page(node_id, cursor, page_size)
     }
 
     fn node_lifecycle(&self, node_id: &str) -> Option<RouteNodeLifecycle> {

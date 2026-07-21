@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-03
+Updated: 2026-07-21
 Specs: PRIVACY_SPEC.md, SECURITY_SPEC.md, IAM_SPEC.md, REGION_SPEC.md
 
 ## 1. Purpose
@@ -233,7 +233,6 @@ When a legal hold is placed on a tenant:
 | SDKWork IAM | Authentication and identity | User identifiers, credentials | All |
 | SDKWork Drive | Media file storage | File metadata, file content | All |
 | SDKWork RTC | Real-time media (calls) | Signaling metadata only | All |
-| Google FCM | Push notification delivery | Device token, notification payload | Global |
 | PostgreSQL | Primary data store | All IM data | Per-region |
 | Redis | Cache and session state | Session tokens, presence | Per-region |
 
@@ -245,13 +244,16 @@ When a legal hold is placed on a tenant:
 4. **Documentation**: Subprocessor added to the public list and customer notification sent.
 5. **Monitoring**: Annual review of subprocessor security posture.
 
-### 9.3 FCM Data Handling
+### 9.3 Planned Push Provider Data Handling
 
-When `SDKWORK_IM_FCM_CREDENTIALS_PATH` is configured:
+Google FCM is not a current IM subprocessor because the authoritative device-token and provider
+delivery plane is not implemented. Configuration-shaped credential values do not activate that
+capability. Before FCM or another provider can be enabled:
 
-- Only delivery status metadata is logged; no message content.
-- Device tokens are stored in IAM and not shared with other subprocessors.
-- FCM credentials are managed through K8s Secrets or `*_FILE` secret mounts.
+- Complete security assessment, DPA, region review, and customer notification.
+- Define an authoritative tenant/organization-scoped device-token store and retention policy.
+- Minimize notification payloads and prove log redaction through tests and production-like evidence.
+- Manage provider credentials through deployment-owned Secret or `*_FILE` mounts.
 
 ## 10. Breach Notification
 

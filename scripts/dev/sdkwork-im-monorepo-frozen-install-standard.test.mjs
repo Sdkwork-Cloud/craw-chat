@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -107,6 +108,35 @@ const commercialGates = readExists('.github/workflows/im-commercial-gates.yml');
 assert.ok(
   commercialGates.includes('sdkwork-im-monorepo-frozen-install-standard.test.mjs'),
   'im-commercial-gates.yml must run monorepo frozen install standard test',
+);
+
+const installArgs = ['install', '--frozen-lockfile', '--lockfile-only', '--ignore-scripts'];
+const pnpmExecPath = process.env.npm_execpath;
+const pnpmCommand = pnpmExecPath
+  ? process.execPath
+  : process.platform === 'win32'
+    ? 'cmd.exe'
+    : 'pnpm';
+const pnpmArgs = pnpmExecPath
+  ? [pnpmExecPath, ...installArgs]
+  : process.platform === 'win32'
+    ? ['/d', '/s', '/c', 'pnpm', ...installArgs]
+    : installArgs;
+const frozenInstall = spawnSync(
+  pnpmCommand,
+  pnpmArgs,
+  {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    env: { ...process.env, CI: 'true' },
+    timeout: 120_000,
+  },
+);
+assert.ifError(frozenInstall.error);
+assert.equal(
+  frozenInstall.status,
+  0,
+  `real frozen lockfile verification failed:\n${frozenInstall.stdout}\n${frozenInstall.stderr}`,
 );
 
 process.stdout.write('sdkwork-im monorepo frozen install standard passed\n');

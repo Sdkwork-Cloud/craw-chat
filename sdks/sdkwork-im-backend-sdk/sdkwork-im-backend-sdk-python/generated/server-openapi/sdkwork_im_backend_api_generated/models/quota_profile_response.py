@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 
 @dataclass
 class QuotaProfileResponse:
-    max_concurrent_sessions_per_tenant: int
-    max_inflight_messages: int
-    max_payload_bytes: int
-    max_subscriptions_per_session: int
+    max_concurrent_sessions_per_tenant: str
+    max_inflight_messages: str
+    max_payload_bytes: str
+    max_subscriptions_per_session: str
     profile_id: str

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 
 @dataclass
 class RouteMigrationResult:
-    migrated_route_count: int
+    migrated_route_count: str
     source_drain_status: str
     source_node_id: str
     source_rebalance_state: str

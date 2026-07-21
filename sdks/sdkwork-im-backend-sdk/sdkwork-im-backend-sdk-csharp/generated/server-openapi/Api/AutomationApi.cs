@@ -18,9 +18,9 @@ namespace Sdkwork.Im.BackendApi.Generated.Api
         /// <summary>
         /// Retrieve automation governance
         /// </summary>
-        public async Task<Dictionary<string, object>?> GovernanceRetrieveAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.GovernanceRetrieveResponse?> GovernanceRetrieveAsync()
         {
-            return await _client.GetAsync<Dictionary<string, object>>(ApiPaths.BackendPath("/automation/governance"));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.GovernanceRetrieveResponse>(ApiPaths.BackendPath("/automation/governance"));
         }
 
 

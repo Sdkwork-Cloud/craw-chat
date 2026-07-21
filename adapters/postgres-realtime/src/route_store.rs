@@ -4,8 +4,9 @@ use chrono::{DateTime, Utc};
 use im_platform_contracts::ContractError;
 use r2d2_postgres::postgres::Row;
 use sdkwork_im_runtime_route::{
-    RouteBinding, RouteBindingRequest, RouteDirectory, RouteMigrationResult, RouteNodeLifecycle,
-    RouteRuntimeError, RouteStore, normalize_route_organization_id,
+    ROUTE_BINDING_PAGE_MAX_SIZE, RouteBinding, RouteBindingPage, RouteBindingRequest,
+    RouteDirectory, RouteMigrationResult, RouteNodeLifecycle, RouteRuntimeError, RouteStore,
+    normalize_route_organization_id,
 };
 
 use crate::{PostgresRealtimePool, run_postgres_io};
@@ -370,8 +371,20 @@ impl RouteStore for PostgresBackedRouteStore {
         let migration =
             self.memory
                 .migrate_routes_at(source_node_id, target_node_id, migrated_at)?;
-        for route in self.memory.routes_for_node(target_node_id) {
-            self.persistence.persist(&route)?;
+        let mut cursor = None;
+        loop {
+            let page = self.memory.routes_for_node_page(
+                target_node_id,
+                cursor.as_deref(),
+                ROUTE_BINDING_PAGE_MAX_SIZE,
+            );
+            for route in page.items {
+                self.persistence.persist(&route)?;
+            }
+            let Some(next_cursor) = page.next_cursor else {
+                break;
+            };
+            cursor = Some(next_cursor);
         }
         Ok(migration)
     }
@@ -438,6 +451,15 @@ impl RouteStore for PostgresBackedRouteStore {
 
     fn routes_for_node(&self, node_id: &str) -> Vec<RouteBinding> {
         self.memory.routes_for_node(node_id)
+    }
+
+    fn routes_for_node_page(
+        &self,
+        node_id: &str,
+        cursor: Option<&str>,
+        page_size: usize,
+    ) -> RouteBindingPage {
+        self.memory.routes_for_node_page(node_id, cursor, page_size)
     }
 
     fn node_lifecycle(&self, node_id: &str) -> Option<RouteNodeLifecycle> {

@@ -4,13 +4,15 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, State};
-use axum::http::Request;
+use axum::http::{Request, header::CONTENT_TYPE};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use tokio::sync::Semaphore;
 
-use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
+use sdkwork_im_web_bootstrap::{
+    im_service_http_metrics, im_service_router_config, mount_im_infra_routes,
+};
 use sdkwork_web_core::WebRequestContext;
 
 use crate::error::AutomationError;
@@ -67,24 +69,40 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router(
-            crate::bootstrap::default_automation_runtime(),
-        )),
-        im_service_router_config(),
-    )
+    let runtime = crate::bootstrap::default_automation_runtime();
+    mount_automation_infra_routes(apply_public_http_guardrails(build_business_router(runtime)))
 }
 
 pub fn build_app(runtime: Arc<AutomationRuntime>) -> Router {
-    mount_im_infra_routes(build_business_router(runtime), im_service_router_config())
+    mount_automation_infra_routes(build_business_router(runtime))
 }
 
 pub fn build_business_router(runtime: Arc<AutomationRuntime>) -> Router {
-    let state = AppState { runtime };
+    let state = AppState {
+        runtime: runtime.clone(),
+    };
     Router::new()
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
+        .route(
+            "/metrics",
+            get(move || {
+                let runtime = runtime.clone();
+                async move {
+                    let mut body = im_service_http_metrics().render_prometheus();
+                    body.push_str(&runtime.render_runtime_metrics_prometheus());
+                    (
+                        [(CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")],
+                        body,
+                    )
+                }
+            }),
+        )
         .merge(build_domain_api_router(state))
+}
+
+fn mount_automation_infra_routes(router: Router) -> Router {
+    mount_im_infra_routes(router, im_service_router_config().skip_metrics())
 }
 
 async fn enforce_in_flight_gate(

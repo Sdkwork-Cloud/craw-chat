@@ -8,15 +8,15 @@ import java.util.Map;
 
 public class AutomationApi {
     private final HttpClient client;
-    
+
     public AutomationApi(HttpClient client) {
         this.client = client;
     }
 
     /** Retrieve automation governance */
-    public Map<String, Object> governanceRetrieve() throws Exception {
+    public GovernanceRetrieveResponse governanceRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.backendPath("/automation/governance"));
-        return client.convertValue(raw, new TypeReference<Map<String, Object>>() {});
+        return client.convertValue(raw, new TypeReference<GovernanceRetrieveResponse>() {});
     }
 
 

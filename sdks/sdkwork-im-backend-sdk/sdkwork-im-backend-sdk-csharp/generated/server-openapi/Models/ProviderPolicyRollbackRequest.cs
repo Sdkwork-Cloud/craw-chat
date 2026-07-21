@@ -6,6 +6,6 @@ namespace Sdkwork.Im.BackendApi.Generated.Models
 {
     public class ProviderPolicyRollbackRequest
     {
-        public int? TargetVersion { get; set; }
+        public string TargetVersion { get; set; }
     }
 }

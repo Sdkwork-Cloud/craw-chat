@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::api::paths::backend_path;
+use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
+use crate::models::{SdkWorkPageData};
 
 #[derive(Clone)]
 pub struct AdminApi {
@@ -14,8 +16,14 @@ impl AdminApi {
     }
 
     /// listApiKeyGroups
-    pub async fn api_key_groups_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/api_key_groups".to_string());
+    pub async fn api_key_groups_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/api_key_groups".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -32,7 +40,7 @@ impl AdminApi {
     }
 
     /// deleteApiKeyGroup
-    pub async fn api_key_groups_delete(&self, group_id: &str) -> Result<serde_json::Value, SdkworkError> {
+    pub async fn api_key_groups_delete(&self, group_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/admin/api_key_groups/{}", serialize_path_parameter(group_id, PathParameterSpec::new("groupId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -44,8 +52,14 @@ impl AdminApi {
     }
 
     /// listApiKeys
-    pub async fn api_keys_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/api_keys".to_string());
+    pub async fn api_keys_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/api_keys".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -62,7 +76,7 @@ impl AdminApi {
     }
 
     /// deleteApiKey
-    pub async fn api_keys_delete(&self, hashed_key: &str) -> Result<serde_json::Value, SdkworkError> {
+    pub async fn api_keys_delete(&self, hashed_key: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/admin/api_keys/{}", serialize_path_parameter(hashed_key, PathParameterSpec::new("hashedKey", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -74,8 +88,14 @@ impl AdminApi {
     }
 
     /// listBillingEvents
-    pub async fn billing_events_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/billing/events".to_string());
+    pub async fn billing_events_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/billing/events".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -92,8 +112,14 @@ impl AdminApi {
     }
 
     /// listChannelModels
-    pub async fn channel_models_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/channel_models".to_string());
+    pub async fn channel_models_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/channel_models".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -104,14 +130,20 @@ impl AdminApi {
     }
 
     /// deleteChannelModel
-    pub async fn channel_models_delete(&self, channel_id: &str, model_id: &str) -> Result<serde_json::Value, SdkworkError> {
+    pub async fn channel_models_delete(&self, channel_id: &str, model_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/admin/channel_models/{}/models/{}", serialize_path_parameter(channel_id, PathParameterSpec::new("channelId", "simple", false)), serialize_path_parameter(model_id, PathParameterSpec::new("modelId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
 
     /// listChannels
-    pub async fn channels_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/channels".to_string());
+    pub async fn channels_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/channels".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -122,14 +154,20 @@ impl AdminApi {
     }
 
     /// deleteChannel
-    pub async fn channels_delete(&self, channel_id: &str) -> Result<serde_json::Value, SdkworkError> {
+    pub async fn channels_delete(&self, channel_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/admin/channels/{}", serialize_path_parameter(channel_id, PathParameterSpec::new("channelId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
 
     /// listCredentials
-    pub async fn credentials_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/credentials".to_string());
+    pub async fn credentials_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/credentials".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -140,7 +178,7 @@ impl AdminApi {
     }
 
     /// deleteCredential
-    pub async fn credentials_providers_keys_delete(&self, tenant_id: &str, provider_id: &str, key_reference: &str) -> Result<serde_json::Value, SdkworkError> {
+    pub async fn credentials_providers_keys_delete(&self, tenant_id: &str, provider_id: &str, key_reference: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/admin/credentials/{}/providers/{}/keys/{}", serialize_path_parameter(tenant_id, PathParameterSpec::new("tenantId", "simple", false)), serialize_path_parameter(provider_id, PathParameterSpec::new("providerId", "simple", false)), serialize_path_parameter(key_reference, PathParameterSpec::new("keyReference", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -152,14 +190,26 @@ impl AdminApi {
     }
 
     /// listRuntimeStatuses
-    pub async fn extensions_runtime_statuses_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/extensions/runtime_statuses".to_string());
+    pub async fn extensions_runtime_statuses_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/extensions/runtime_statuses".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// listRateLimitPolicies
-    pub async fn gateway_rate_limit_policies_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/gateway/rate_limit_policies".to_string());
+    pub async fn gateway_rate_limit_policies_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/gateway/rate_limit_policies".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -170,14 +220,26 @@ impl AdminApi {
     }
 
     /// listRateLimitWindows
-    pub async fn gateway_rate_limit_windows_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/gateway/rate_limit_windows".to_string());
+    pub async fn gateway_rate_limit_windows_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/gateway/rate_limit_windows".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// listMarketingCampaigns
-    pub async fn marketing_campaigns_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/marketing/campaigns".to_string());
+    pub async fn marketing_campaigns_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/marketing/campaigns".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -194,8 +256,14 @@ impl AdminApi {
     }
 
     /// listModelPrices
-    pub async fn model_prices_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/model_prices".to_string());
+    pub async fn model_prices_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/model_prices".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -206,14 +274,20 @@ impl AdminApi {
     }
 
     /// deleteModelPrice
-    pub async fn model_prices_providers_delete(&self, channel_id: &str, model_id: &str, proxy_provider_id: &str) -> Result<serde_json::Value, SdkworkError> {
+    pub async fn model_prices_providers_delete(&self, channel_id: &str, model_id: &str, proxy_provider_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/admin/model_prices/{}/models/{}/providers/{}", serialize_path_parameter(channel_id, PathParameterSpec::new("channelId", "simple", false)), serialize_path_parameter(model_id, PathParameterSpec::new("modelId", "simple", false)), serialize_path_parameter(proxy_provider_id, PathParameterSpec::new("proxyProviderId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
 
     /// listModels
-    pub async fn models_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/models".to_string());
+    pub async fn models_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/models".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -224,14 +298,20 @@ impl AdminApi {
     }
 
     /// deleteModel
-    pub async fn models_providers_delete(&self, external_name: &str, provider_id: &str) -> Result<serde_json::Value, SdkworkError> {
+    pub async fn models_providers_delete(&self, external_name: &str, provider_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/admin/models/{}/providers/{}", serialize_path_parameter(external_name, PathParameterSpec::new("externalName", "simple", false)), serialize_path_parameter(provider_id, PathParameterSpec::new("providerId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
 
     /// listProviders
-    pub async fn providers_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/providers".to_string());
+    pub async fn providers_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/providers".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -242,14 +322,20 @@ impl AdminApi {
     }
 
     /// deleteProvider
-    pub async fn providers_delete(&self, provider_id: &str) -> Result<serde_json::Value, SdkworkError> {
+    pub async fn providers_delete(&self, provider_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/admin/providers/{}", serialize_path_parameter(provider_id, PathParameterSpec::new("providerId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
 
     /// listRoutingDecisionLogs
-    pub async fn routing_decision_logs_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/routing/decision_logs".to_string());
+    pub async fn routing_decision_logs_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/routing/decision_logs".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -260,8 +346,14 @@ impl AdminApi {
     }
 
     /// listRoutingProfiles
-    pub async fn routing_profiles_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/routing/profiles".to_string());
+    pub async fn routing_profiles_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/routing/profiles".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -272,14 +364,26 @@ impl AdminApi {
     }
 
     /// listCompiledRoutingSnapshots
-    pub async fn routing_snapshots_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/routing/snapshots".to_string());
+    pub async fn routing_snapshots_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/routing/snapshots".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// listStorageAuditTrail
-    pub async fn storage_audit_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/storage/audit".to_string());
+    pub async fn storage_audit_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/storage/audit".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -308,7 +412,7 @@ impl AdminApi {
     }
 
     /// deleteTenantStorageConfig
-    pub async fn storage_config_tenants_delete(&self, tenant_id: &str) -> Result<serde_json::Value, SdkworkError> {
+    pub async fn storage_config_tenants_delete(&self, tenant_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/admin/storage/config/tenants/{}", serialize_path_parameter(tenant_id, PathParameterSpec::new("tenantId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -320,8 +424,14 @@ impl AdminApi {
     }
 
     /// listStorageProviders
-    pub async fn storage_providers_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/storage/providers".to_string());
+    pub async fn storage_providers_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/storage/providers".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -338,8 +448,14 @@ impl AdminApi {
     }
 
     /// listUsageRecords
-    pub async fn usage_records_list(&self) -> Result<serde_json::Value, SdkworkError> {
-        let path = backend_path(&"/admin/usage/records".to_string());
+    pub async fn usage_records_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/admin/usage/records".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -450,6 +566,140 @@ fn path_primitive_prefix(name: &str, style: &str) -> String {
 }
 
 
+struct QueryParameterSpec<'a> {
+    name: &'a str,
+    value: serde_json::Value,
+    style: &'a str,
+    explode: bool,
+    allow_reserved: bool,
+    content_type: Option<&'a str>,
+}
+
+impl<'a> QueryParameterSpec<'a> {
+    fn new<T: serde::Serialize>(
+        name: &'a str,
+        value: T,
+        style: &'a str,
+        explode: bool,
+        allow_reserved: bool,
+        content_type: Option<&'a str>,
+    ) -> Self {
+        Self {
+            name,
+            value: serde_json::to_value(value).unwrap_or(serde_json::Value::Null),
+            style,
+            explode,
+            allow_reserved,
+            content_type,
+        }
+    }
+}
+
+fn build_query_string(parameters: &[QueryParameterSpec<'_>]) -> String {
+    let mut pairs = Vec::new();
+    for parameter in parameters {
+        append_serialized_parameter(&mut pairs, parameter);
+    }
+    pairs.join("&")
+}
+
+fn append_serialized_parameter(pairs: &mut Vec<String>, parameter: &QueryParameterSpec<'_>) {
+    if parameter.value.is_null() {
+        return;
+    }
+    if parameter.content_type.is_some() {
+        pairs.push(format!(
+            "{}={}",
+            percent_encode(parameter.name),
+            encode_query_value(&parameter.value.to_string(), parameter.allow_reserved)
+        ));
+        return;
+    }
+
+    let style = if parameter.style.is_empty() { "form" } else { parameter.style };
+    match &parameter.value {
+        serde_json::Value::Array(values) => append_array_parameter(pairs, parameter.name, values, style, parameter.explode, parameter.allow_reserved),
+        serde_json::Value::Object(values) if style == "deepObject" => append_deep_object_parameter(pairs, parameter.name, values, parameter.allow_reserved),
+        serde_json::Value::Object(values) => append_object_parameter(pairs, parameter.name, values, style, parameter.explode, parameter.allow_reserved),
+        value => pairs.push(format!("{}={}", percent_encode(parameter.name), encode_query_value(&primitive_to_string(value), parameter.allow_reserved))),
+    }
+}
+
+fn append_array_parameter(
+    pairs: &mut Vec<String>,
+    name: &str,
+    values: &[serde_json::Value],
+    style: &str,
+    explode: bool,
+    allow_reserved: bool,
+) {
+    let serialized = values.iter().filter(|value| !value.is_null()).map(primitive_to_string).collect::<Vec<_>>();
+    if serialized.is_empty() {
+        return;
+    }
+    if style == "form" && explode {
+        for item in serialized {
+            pairs.push(format!("{}={}", percent_encode(name), encode_query_value(&item, allow_reserved)));
+        }
+        return;
+    }
+    pairs.push(format!("{}={}", percent_encode(name), encode_query_value(&serialized.join(","), allow_reserved)));
+}
+
+fn append_object_parameter(
+    pairs: &mut Vec<String>,
+    name: &str,
+    values: &serde_json::Map<String, serde_json::Value>,
+    style: &str,
+    explode: bool,
+    allow_reserved: bool,
+) {
+    let mut serialized = Vec::new();
+    for (key, value) in values {
+        if value.is_null() {
+            continue;
+        }
+        if style == "form" && explode {
+            pairs.push(format!("{}={}", percent_encode(key), encode_query_value(&primitive_to_string(value), allow_reserved)));
+        } else {
+            serialized.push(key.clone());
+            serialized.push(primitive_to_string(value));
+        }
+    }
+    if !serialized.is_empty() {
+        pairs.push(format!("{}={}", percent_encode(name), encode_query_value(&serialized.join(","), allow_reserved)));
+    }
+}
+
+fn append_deep_object_parameter(
+    pairs: &mut Vec<String>,
+    name: &str,
+    values: &serde_json::Map<String, serde_json::Value>,
+    allow_reserved: bool,
+) {
+    for (key, value) in values {
+        if !value.is_null() {
+            pairs.push(format!("{}={}", percent_encode(&format!("{}[{}]", name, key)), encode_query_value(&primitive_to_string(value), allow_reserved)));
+        }
+    }
+}
+
+fn encode_query_value(value: &str, allow_reserved: bool) -> String {
+    let mut encoded = percent_encode(value);
+    if !allow_reserved {
+        return encoded;
+    }
+    for (escaped, reserved) in [
+        ("%3A", ":"), ("%2F", "/"), ("%3F", "?"), ("%23", "#"),
+        ("%5B", "["), ("%5D", "]"), ("%40", "@"), ("%21", "!"),
+        ("%24", "$"), ("%26", "&"), ("%27", "'"), ("%28", "("),
+        ("%29", ")"), ("%2A", "*"), ("%2B", "+"), ("%2C", ","),
+        ("%3B", ";"), ("%3D", "="),
+    ] {
+        encoded = encoded.replace(escaped, reserved);
+    }
+    encoded
+}
 
 fn primitive_to_string(value: &serde_json::Value) -> String {
     match value {

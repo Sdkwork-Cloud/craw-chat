@@ -1,6 +1,8 @@
 import '../http/client.dart';
+import '../models.dart';
 
 import 'paths.dart';
+import 'response_helpers.dart';
 
 
 class AutomationApi {
@@ -9,8 +11,11 @@ class AutomationApi {
   AutomationApi(this._client);
 
   /// Retrieve automation governance
-  Future<Map<String, dynamic>?> governanceRetrieve() async {
+  Future<GovernanceRetrieveResponse?> governanceRetrieve() async {
     final response = await _client.get(ApiPaths.backendPath('/automation/governance'));
-    return response;
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : GovernanceRetrieveResponse.fromJson(map);
+    })();
   }
 }

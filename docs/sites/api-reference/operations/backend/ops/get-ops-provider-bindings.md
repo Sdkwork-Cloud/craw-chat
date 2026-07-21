@@ -25,12 +25,12 @@ Returns the node-local mirror of provider binding snapshots.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / ops</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingsView`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingSnapshotPageData`</span></div>
 </div>
 
 ### Response `200`
 
-<ApiSchemaTable schema="ProviderBindingsView" />
+<ApiSchemaTable schema="ProviderBindingSnapshotPageData" />
 
 
 ### Error Responses

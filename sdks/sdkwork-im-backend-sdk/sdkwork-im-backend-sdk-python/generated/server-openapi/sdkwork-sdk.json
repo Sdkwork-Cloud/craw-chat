@@ -5,6 +5,8 @@
   "language": "python",
   "sdkType": "backend",
   "packageName": "sdkwork-im-backend-api-generated",
+  "transportPackageName": "sdkwork-im-backend-api-generated",
+  "consumerPackageName": "sdkwork-im-backend-api-generated",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

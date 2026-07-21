@@ -2,13 +2,13 @@ package com.sdkwork.im.backend.api.generated.model;
 
 
 public class ProviderPolicyRollbackRequest {
-    private Integer targetVersion;
+    private String targetVersion;
 
-    public Integer getTargetVersion() {
+    public String getTargetVersion() {
         return this.targetVersion;
     }
-    
-    public void setTargetVersion(Integer targetVersion) {
+
+    public void setTargetVersion(String targetVersion) {
         this.targetVersion = targetVersion;
     }
 }

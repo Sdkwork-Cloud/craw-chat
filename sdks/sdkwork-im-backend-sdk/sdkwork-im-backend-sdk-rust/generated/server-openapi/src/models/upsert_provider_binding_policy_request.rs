@@ -6,7 +6,7 @@ pub struct UpsertProviderBindingPolicyRequest {
 
     #[serde(rename = "expectedBaseVersion")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub expected_base_version: Option<i64>,
+    pub expected_base_version: Option<String>,
 
     #[serde(rename = "pluginId")]
     pub plugin_id: String,

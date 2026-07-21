@@ -171,6 +171,8 @@ pub struct AgentSubjectRecord {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AutomationExecutionRecord {
     pub tenant_id: String,
+    #[serde(default = "default_organization_id")]
+    pub organization_id: String,
     pub principal_id: String,
     pub execution_id: String,
     pub execution: AutomationExecution,
@@ -221,12 +223,17 @@ pub trait AutomationExecutionStore: Send + Sync {
     fn load_execution(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         principal_kind: &str,
         principal_id: &str,
         execution_id: &str,
     ) -> Result<Option<AutomationExecutionRecord>, ContractError>;
 
     fn save_execution(&self, record: AutomationExecutionRecord) -> Result<(), ContractError>;
+}
+
+fn default_organization_id() -> String {
+    "0".to_owned()
 }
 
 fn automation_execution_record_precedes(
@@ -285,6 +292,7 @@ mod tests {
     ) -> AutomationExecutionRecord {
         AutomationExecutionRecord {
             tenant_id: "100001".into(),
+            organization_id: "0".into(),
             principal_id: "1".into(),
             execution_id: "ae_demo".into(),
             execution: AutomationExecution {

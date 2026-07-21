@@ -12,7 +12,7 @@ public class BindDirectChatRequest {
     public String getBoundAt() {
         return this.boundAt;
     }
-    
+
     public void setBoundAt(String boundAt) {
         this.boundAt = boundAt;
     }
@@ -20,7 +20,7 @@ public class BindDirectChatRequest {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -28,7 +28,7 @@ public class BindDirectChatRequest {
     public String getDirectChatId() {
         return this.directChatId;
     }
-    
+
     public void setDirectChatId(String directChatId) {
         this.directChatId = directChatId;
     }
@@ -36,7 +36,7 @@ public class BindDirectChatRequest {
     public String getEventId() {
         return this.eventId;
     }
-    
+
     public void setEventId(String eventId) {
         this.eventId = eventId;
     }
@@ -44,7 +44,7 @@ public class BindDirectChatRequest {
     public String getLeftActorId() {
         return this.leftActorId;
     }
-    
+
     public void setLeftActorId(String leftActorId) {
         this.leftActorId = leftActorId;
     }
@@ -52,7 +52,7 @@ public class BindDirectChatRequest {
     public String getRightActorId() {
         return this.rightActorId;
     }
-    
+
     public void setRightActorId(String rightActorId) {
         this.rightActorId = rightActorId;
     }

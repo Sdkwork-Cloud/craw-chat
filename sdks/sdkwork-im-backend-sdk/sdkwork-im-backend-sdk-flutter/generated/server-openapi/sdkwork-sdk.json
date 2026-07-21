@@ -5,6 +5,8 @@
   "language": "flutter",
   "sdkType": "backend",
   "packageName": "im_backend_api_generated",
+  "transportPackageName": "im_backend_api_generated",
+  "consumerPackageName": "im_backend_api_generated",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

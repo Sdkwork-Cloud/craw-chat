@@ -13,7 +13,7 @@ public class KillSwitchResponse {
     public Boolean getActive() {
         return this.active;
     }
-    
+
     public void setActive(Boolean active) {
         this.active = active;
     }
@@ -21,7 +21,7 @@ public class KillSwitchResponse {
     public List<String> getDisabledBindings() {
         return this.disabledBindings;
     }
-    
+
     public void setDisabledBindings(List<String> disabledBindings) {
         this.disabledBindings = disabledBindings;
     }
@@ -29,7 +29,7 @@ public class KillSwitchResponse {
     public List<String> getDisabledCapabilities() {
         return this.disabledCapabilities;
     }
-    
+
     public void setDisabledCapabilities(List<String> disabledCapabilities) {
         this.disabledCapabilities = disabledCapabilities;
     }
@@ -37,7 +37,7 @@ public class KillSwitchResponse {
     public List<String> getDisabledCodecs() {
         return this.disabledCodecs;
     }
-    
+
     public void setDisabledCodecs(List<String> disabledCodecs) {
         this.disabledCodecs = disabledCodecs;
     }
@@ -45,7 +45,7 @@ public class KillSwitchResponse {
     public String getReason() {
         return this.reason;
     }
-    
+
     public void setReason(String reason) {
         this.reason = reason;
     }
@@ -53,7 +53,7 @@ public class KillSwitchResponse {
     public String getRuleId() {
         return this.ruleId;
     }
-    
+
     public void setRuleId(String ruleId) {
         this.ruleId = ruleId;
     }

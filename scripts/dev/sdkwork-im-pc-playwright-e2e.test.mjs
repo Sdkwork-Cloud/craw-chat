@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Commercial gate wrapper: builds on apps/sdkwork-im-pc/dist, serves production shell on
-// PLAYWRIGHT_PC_PORT (default 4173), then runs Playwright specs under apps/sdkwork-im-pc/e2e/.
+// Explicit PLAYWRIGHT_PC_* ports are honored; otherwise the OS allocates free local ports.
 
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   assertPortAvailable,
   createOwnedProcessLifecycle,
+  findAvailablePort,
   parseTcpPort,
   waitForOwnedHttpOk,
 } from './sdkwork-im-pc-playwright-runner.mjs';
@@ -21,13 +22,12 @@ const distIndex = path.join(pcRoot, 'dist', 'index.html');
 const serverEntry = path.join(pcRoot, 'dist', 'server.cjs');
 const pnpmExecutable = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const commandShell = process.platform === 'win32';
-const e2ePort = parseTcpPort(process.env.PLAYWRIGHT_PC_PORT ?? '4173', 'PLAYWRIGHT_PC_PORT');
-const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`;
-const componentPort = parseTcpPort(
-  process.env.PLAYWRIGHT_PC_COMPONENT_PORT ?? '4174',
-  'PLAYWRIGHT_PC_COMPONENT_PORT',
-);
-const componentBaseUrl = `http://127.0.0.1:${componentPort}`;
+const configuredE2ePort = process.env.PLAYWRIGHT_PC_PORT
+  ? parseTcpPort(process.env.PLAYWRIGHT_PC_PORT, 'PLAYWRIGHT_PC_PORT')
+  : null;
+const configuredComponentPort = process.env.PLAYWRIGHT_PC_COMPONENT_PORT
+  ? parseTcpPort(process.env.PLAYWRIGHT_PC_COMPONENT_PORT, 'PLAYWRIGHT_PC_COMPONENT_PORT')
+  : null;
 const componentServerEntry = path.join(repoRoot, 'scripts', 'dev', 'run-sdkwork-im-pc-vite-dev.mjs');
 const lifecycle = createOwnedProcessLifecycle();
 const useProcessGroup = process.platform !== 'win32';
@@ -64,6 +64,14 @@ function runCommand(command, args, options = {}) {
 
 async function main() {
   await lifecycle.run(async ({ signal }) => {
+    const e2ePort = configuredE2ePort ?? await findAvailablePort({ host: '0.0.0.0' });
+    let componentPort = configuredComponentPort
+      ?? await findAvailablePort({ host: '127.0.0.1' });
+    if (componentPort === e2ePort && configuredComponentPort === null) {
+      componentPort = await findAvailablePort({ host: '127.0.0.1' });
+    }
+    const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`;
+    const componentBaseUrl = `http://127.0.0.1:${componentPort}`;
     assert.notEqual(
       e2ePort,
       componentPort,

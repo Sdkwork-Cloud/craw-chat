@@ -6,8 +6,8 @@ namespace Sdkwork.Im.BackendApi.Generated.Models
 {
     public class AcceptFriendRequestRequest
     {
-        public string? AcceptedAt { get; set; }
-        public string? AcceptedByUserId { get; set; }
-        public string? EventId { get; set; }
+        public string AcceptedAt { get; set; }
+        public string AcceptedByUserId { get; set; }
+        public string EventId { get; set; }
     }
 }

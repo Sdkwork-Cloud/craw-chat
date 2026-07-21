@@ -77,7 +77,7 @@ impl CommitJournal for BlockingJournal {
 }
 
 #[test]
-fn test_request_execution_appends_requested_and_completed_events() {
+fn test_request_execution_appends_requested_event_without_fabricating_completion() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
     let auth = AppContext {
@@ -110,29 +110,26 @@ fn test_request_execution_appends_requested_and_completed_events() {
         .expect("execution request should succeed");
 
     assert_eq!(execution.execution_id, "ae_demo");
-    assert_eq!(execution.state.as_str(), "succeeded");
+    assert_eq!(execution.state.as_str(), "requested");
     assert_eq!(execution.retry_count, 0);
+    assert!(execution.completed_at.is_none());
+    assert!(execution.output_payload.is_none());
 
     let events = journal.recorded();
-    assert_eq!(events.len(), 2);
+    assert_eq!(events.len(), 1);
     assert_eq!(events[0].event_type, "automation.execution_requested");
-    assert_eq!(events[1].event_type, "automation.execution_completed");
     assert_eq!(events[0].aggregate_type, AggregateType::AutomationExecution);
     assert_eq!(events[0].actor.actor_id, "1");
     assert_eq!(
         events[0].idempotency_key.as_deref(),
-        Some("6#1000014#user1#17#ae_demo30#automation.execution_requested")
-    );
-    assert_eq!(
-        events[1].idempotency_key.as_deref(),
-        Some("6#1000014#user1#17#ae_demo30#automation.execution_completed")
+        Some("6#1000011#04#user1#17#ae_demo30#automation.execution_requested")
     );
 
     let payload: serde_json::Value =
-        serde_json::from_str(&events[1].payload).expect("payload should be valid json");
+        serde_json::from_str(&events[0].payload).expect("payload should be valid json");
     assert_eq!(payload["executionId"], "ae_demo");
     assert_eq!(payload["targetKind"], "workflow");
-    assert_eq!(payload["state"], "succeeded");
+    assert_eq!(payload["state"], "requested");
 }
 
 #[test]
@@ -243,7 +240,7 @@ fn test_duplicate_request_execution_is_idempotent_when_payload_matches() {
     assert_eq!(second, first);
 
     let events = journal.recorded();
-    assert_eq!(events.len(), 2);
+    assert_eq!(events.len(), 1);
 }
 
 #[test]
@@ -295,7 +292,7 @@ fn test_duplicate_request_execution_rejects_conflicting_payload() {
     assert_eq!(response.status(), axum::http::StatusCode::CONFLICT);
 
     let events = journal.recorded();
-    assert_eq!(events.len(), 2);
+    assert_eq!(events.len(), 1);
 }
 
 #[test]
@@ -349,14 +346,12 @@ fn test_execution_timestamps_advance_between_distinct_requests() {
         first.requested_at, second.requested_at,
         "distinct execution requests must not reuse a fixed requested_at timestamp"
     );
-    assert_ne!(
-        first.completed_at, second.completed_at,
-        "distinct execution requests must not reuse a fixed completed_at timestamp"
-    );
+    assert!(first.completed_at.is_none());
+    assert!(second.completed_at.is_none());
 }
 
 #[test]
-fn test_request_execution_with_outcome_exposes_applied_then_replayed_delivery_status() {
+fn test_request_execution_with_outcome_remains_accepted_until_real_completion() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "100001".into(),
@@ -390,11 +385,11 @@ fn test_request_execution_with_outcome_exposes_applied_then_replayed_delivery_st
         )
         .expect("first execution request should succeed");
     assert!(first.is_new);
-    assert_eq!(first.delivery_status.as_str(), "applied");
-    assert_eq!(first.execution.state.as_str(), "succeeded");
+    assert_eq!(first.delivery_status.as_str(), "accepted");
+    assert_eq!(first.execution.state.as_str(), "requested");
     assert_eq!(
         first.request_key,
-        "6#1000014#user1#124#ae_outcome_state_machine"
+        "6#1000011#04#user1#124#ae_outcome_state_machine"
     );
 
     let replay = runtime
@@ -410,13 +405,13 @@ fn test_request_execution_with_outcome_exposes_applied_then_replayed_delivery_st
         )
         .expect("duplicate execution request should return replay outcome");
     assert!(!replay.is_new);
-    assert_eq!(replay.delivery_status.as_str(), "replayed");
+    assert_eq!(replay.delivery_status.as_str(), "accepted");
     assert_eq!(replay.request_key, first.request_key);
     assert_eq!(replay.execution, first.execution);
 }
 
 #[test]
-fn test_request_execution_with_outcome_surfaces_accepted_during_inflight_apply() {
+fn test_request_execution_with_outcome_surfaces_accepted_during_inflight_persist() {
     let (requested_started_tx, requested_started_rx) = mpsc::channel();
     let (continue_tx, continue_rx) = mpsc::channel();
     let journal = Arc::new(BlockingJournal::new(requested_started_tx, continue_rx));
@@ -474,14 +469,14 @@ fn test_request_execution_with_outcome_surfaces_accepted_during_inflight_apply()
         .join()
         .expect("first execution request thread should join");
     assert!(first.is_new);
-    assert_eq!(first.delivery_status.as_str(), "applied");
-    assert_eq!(first.execution.state.as_str(), "succeeded");
+    assert_eq!(first.delivery_status.as_str(), "accepted");
+    assert_eq!(first.execution.state.as_str(), "requested");
 
     let replay = runtime
         .request_execution_with_outcome(&auth, request)
         .expect("post-apply duplicate should return replayed outcome");
     assert!(!replay.is_new);
-    assert_eq!(replay.delivery_status.as_str(), "replayed");
+    assert_eq!(replay.delivery_status.as_str(), "accepted");
 }
 
 #[test]
@@ -638,11 +633,11 @@ fn test_execution_requests_are_isolated_by_principal_kind_for_same_actor_id() {
 
     assert_eq!(
         user_request.request_key,
-        "6#1000014#user1#117#ae_kind_isolation"
+        "6#1000011#04#user1#117#ae_kind_isolation"
     );
     assert_eq!(
         system_request.request_key,
-        "6#1000016#system1#117#ae_kind_isolation"
+        "6#1000011#06#system1#117#ae_kind_isolation"
     );
     assert_eq!(user_request.execution.principal_kind, "user");
     assert_eq!(system_request.execution.principal_kind, "system");
@@ -715,8 +710,8 @@ fn test_execution_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
     assert_eq!(first.execution.execution_id, "demo");
     assert_eq!(second.execution.principal_id, "u");
     assert_eq!(second.execution.execution_id, "demo:demo");
-    assert_eq!(first.request_key, "6#1000014#user6#u:demo4#demo");
-    assert_eq!(second.request_key, "6#1000014#user1#u9#demo:demo");
+    assert_eq!(first.request_key, "6#1000011#04#user6#u:demo4#demo");
+    assert_eq!(second.request_key, "6#1000011#04#user1#u9#demo:demo");
     assert_ne!(first.request_key, second.request_key);
 
     let first_read = runtime
@@ -783,15 +778,12 @@ fn test_execution_journal_metadata_is_isolated_by_principal_kind_for_same_actor_
         .expect("system execution request should succeed");
 
     let events = journal.recorded();
-    assert_eq!(events.len(), 4);
+    assert_eq!(events.len(), 2);
 
     let user_requested = &events[0];
-    let user_completed = &events[1];
-    let system_requested = &events[2];
-    let system_completed = &events[3];
+    let system_requested = &events[1];
 
     assert_ne!(user_requested.event_id, system_requested.event_id);
-    assert_ne!(user_completed.event_id, system_completed.event_id);
     assert_ne!(user_requested.aggregate_id, system_requested.aggregate_id);
     assert_ne!(user_requested.scope_id, system_requested.scope_id);
     assert_ne!(user_requested.ordering_key, system_requested.ordering_key);
@@ -803,8 +795,62 @@ fn test_execution_journal_metadata_is_isolated_by_principal_kind_for_same_actor_
         user_requested.idempotency_key,
         system_requested.idempotency_key
     );
-    assert_ne!(
-        user_completed.idempotency_key,
-        system_completed.idempotency_key
+}
+
+#[test]
+fn test_execution_requests_are_isolated_by_organization() {
+    let runtime = automation_service::AutomationRuntime::default();
+    let base = AppContext {
+        tenant_id: "100001".into(),
+        organization_id: "org-a".into(),
+        user_id: "1".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
+        actor_id: "1".into(),
+        actor_kind: "user".into(),
+        session_id: Some("s-org-a".into()),
+        device_id: None,
+        permission_scope: BTreeSet::from([
+            "automation.execute".to_string(),
+            "automation.read".to_string(),
+        ]),
+    };
+    let organization_b = AppContext {
+        organization_id: "org-b".into(),
+        session_id: Some("s-org-b".into()),
+        ..base.clone()
+    };
+    let request = |target_ref: &str| automation_service::RequestAutomationExecution {
+        execution_id: "ae-shared-id".into(),
+        trigger_type: "webhook.manual".into(),
+        target_kind: "workflow".into(),
+        target_ref: target_ref.into(),
+        input_payload: None,
+    };
+
+    let result_a = runtime
+        .request_execution_with_outcome(&base, request("wf-org-a"))
+        .expect("organization A request should succeed");
+    let result_b = runtime
+        .request_execution_with_outcome(&organization_b, request("wf-org-b"))
+        .expect("organization B request with the same public id should succeed");
+
+    assert_ne!(result_a.request_key, result_b.request_key);
+    assert_eq!(
+        runtime
+            .get_execution(&base, "ae-shared-id")
+            .expect("organization A execution should load")
+            .target_ref,
+        "wf-org-a"
+    );
+    assert_eq!(
+        runtime
+            .get_execution(&organization_b, "ae-shared-id")
+            .expect("organization B execution should load")
+            .target_ref,
+        "wf-org-b"
     );
 }

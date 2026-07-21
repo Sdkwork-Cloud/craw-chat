@@ -2,7 +2,7 @@
 
 Status: active  
 Owner: SDKWork maintainers  
-Updated: 2026-06-24  
+Updated: 2026-07-21
 Specs: PRIVACY_SPEC.md, SECURITY_SPEC.md, OBSERVABILITY_SPEC.md
 
 ## 1. Service Levels
@@ -12,9 +12,11 @@ Specs: PRIVACY_SPEC.md, SECURITY_SPEC.md, OBSERVABILITY_SPEC.md
 | Application ingress (`/healthz`, `/readyz`) | 99.9% monthly | 30 minutes |
 | Realtime WebSocket plane | 99.9% monthly | 30 minutes |
 | Conversation API | 99.9% monthly | 30 minutes |
-| Push delivery (FCM HTTP v1) | 99.5% monthly | 2 hours |
 
-Evidence: Step-11 capacity artifacts under `artifacts/perf/step-11/capacity/` and Prometheus rules in `deployments/observability/prometheus-rules.yaml`.
+These are target service levels, not an active customer SLA. Direct staging/capacity evidence,
+immutable release artifacts, and commercial sign-off are still blocked. Historical Step-11
+artifacts are engineering inputs only. Push delivery is not offered because the device-token and
+provider delivery plane is not implemented.
 
 ## 2. Deployment Profiles
 
@@ -42,5 +44,7 @@ Topology authority: `etc/topology/` and `specs/topology.spec.json`.
 
 ## 5. Support Boundaries
 
+- Notification request acceptance does not mean push dispatch or device receipt. Operators must
+  not report `requested`/accepted records as delivered notifications.
 - RTC media runtime is owned by sibling `sdkwork-rtc`; IM owns signaling only.
 - Service discovery Phase 2 remains optional; static topology env vars are the supported fallback.

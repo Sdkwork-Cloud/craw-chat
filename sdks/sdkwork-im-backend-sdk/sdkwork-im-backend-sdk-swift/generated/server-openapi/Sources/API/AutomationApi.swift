@@ -8,8 +8,8 @@ public class AutomationApi {
     }
 
     /// Retrieve automation governance
-    public func governanceRetrieve() async throws -> [String: Any]? {
-        return try await client.get(ApiPaths.backendPath("/automation/governance"), responseType: [String: Any].self)
+    public func governanceRetrieve() async throws -> GovernanceRetrieveResponse? {
+        return try await client.get(ApiPaths.backendPath("/automation/governance"), responseType: GovernanceRetrieveResponse.self)
     }
 
 

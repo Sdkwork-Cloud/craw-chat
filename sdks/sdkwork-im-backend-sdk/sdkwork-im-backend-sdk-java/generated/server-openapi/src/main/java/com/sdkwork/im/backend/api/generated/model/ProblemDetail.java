@@ -1,20 +1,23 @@
 package com.sdkwork.im.backend.api.generated.model;
 
+import java.util.List;
 
 public class ProblemDetail {
     private String type;
     private String title;
     private Integer status;
     private String detail;
-    private String code;
-    private String message;
+    private String instance;
+    private Integer code;
     private String traceId;
-    private Boolean retryable;
+    private String i18nKey;
+    private String locale;
+    private List<FieldError> errors;
 
     public String getType() {
         return this.type;
     }
-    
+
     public void setType(String type) {
         this.type = type;
     }
@@ -22,7 +25,7 @@ public class ProblemDetail {
     public String getTitle() {
         return this.title;
     }
-    
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -30,7 +33,7 @@ public class ProblemDetail {
     public Integer getStatus() {
         return this.status;
     }
-    
+
     public void setStatus(Integer status) {
         this.status = status;
     }
@@ -38,40 +41,56 @@ public class ProblemDetail {
     public String getDetail() {
         return this.detail;
     }
-    
+
     public void setDetail(String detail) {
         this.detail = detail;
     }
 
-    public String getCode() {
-        return this.code;
-    }
-    
-    public void setCode(String code) {
-        this.code = code;
+    public String getInstance() {
+        return this.instance;
     }
 
-    public String getMessage() {
-        return this.message;
+    public void setInstance(String instance) {
+        this.instance = instance;
     }
-    
-    public void setMessage(String message) {
-        this.message = message;
+
+    public Integer getCode() {
+        return this.code;
+    }
+
+    public void setCode(Integer code) {
+        this.code = code;
     }
 
     public String getTraceId() {
         return this.traceId;
     }
-    
+
     public void setTraceId(String traceId) {
         this.traceId = traceId;
     }
 
-    public Boolean getRetryable() {
-        return this.retryable;
+    public String getI18nKey() {
+        return this.i18nKey;
     }
-    
-    public void setRetryable(Boolean retryable) {
-        this.retryable = retryable;
+
+    public void setI18nKey(String i18nKey) {
+        this.i18nKey = i18nKey;
+    }
+
+    public String getLocale() {
+        return this.locale;
+    }
+
+    public void setLocale(String locale) {
+        this.locale = locale;
+    }
+
+    public List<FieldError> getErrors() {
+        return this.errors;
+    }
+
+    public void setErrors(List<FieldError> errors) {
+        this.errors = errors;
     }
 }

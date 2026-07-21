@@ -32,6 +32,16 @@ pub(crate) const AUTOMATION_AGENT_TOOL_CALL_MAX_NAME_BYTES: usize = 256;
 pub(crate) const AUTOMATION_AGENT_TOOL_CALL_MAX_ARGUMENTS_PAYLOAD_BYTES: usize = 128 * 1024;
 pub(crate) const AUTOMATION_AGENT_TOOL_CALL_MAX_RESULT_PAYLOAD_BYTES: usize = 256 * 1024;
 
+pub(crate) const AUTOMATION_RUNTIME_MAX_EXECUTIONS: usize = 1_024;
+pub(crate) const AUTOMATION_RUNTIME_MAX_EXECUTION_BYTES: usize = 64 * 1024 * 1024;
+pub(crate) const AUTOMATION_RUNTIME_MAX_AGENT_RESPONSES: usize = 256;
+pub(crate) const AUTOMATION_RUNTIME_MAX_AGENT_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
+pub(crate) const AUTOMATION_RUNTIME_MAX_FRAMES_PER_RESPONSE: usize = 1_024;
+pub(crate) const AUTOMATION_RUNTIME_MAX_FRAME_BYTES_PER_RESPONSE: usize = 16 * 1024 * 1024;
+pub(crate) const AUTOMATION_RUNTIME_MAX_TOOL_CALLS: usize = 1_024;
+pub(crate) const AUTOMATION_RUNTIME_MAX_TOOL_CALL_BYTES: usize = 64 * 1024 * 1024;
+pub(crate) const AUTOMATION_RUNTIME_TERMINAL_TTL_SECONDS: u64 = 15 * 60;
+
 pub(crate) const AUTOMATION_CAPABILITY_PROFILE_ID: &str = "stable-agent";
 pub(crate) const AUTOMATION_GUARDRAIL_POLICY_ID: &str = "automation-tool-call-guardrail-v1";
 pub(crate) const AUTOMATION_OPERATOR_OVERRIDE_PERMISSION: &str = "automation.operator_override";

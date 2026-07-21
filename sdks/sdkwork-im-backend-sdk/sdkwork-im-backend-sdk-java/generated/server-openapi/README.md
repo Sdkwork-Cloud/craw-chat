@@ -25,6 +25,7 @@ implementation 'com.sdkwork:im-backend-api-generated:0.1.0'
 ```java
 import com.sdkwork.im.backend.api.generated.SdkworkImBackendClient;
 import com.sdkwork.common.core.Types;
+import com.sdkwork.im.backend.api.generated.model.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -34,7 +35,7 @@ public class Main {
 client.setAccessToken("your-access-token");
 
         // Use the SDK
-        Object result = client.getAdmin().apiKeyGroupsList();
+        BillingEventsSummaryRetrieveResponse result = client.getAdmin().billingEventsSummaryRetrieve();
         System.out.println(result);
     }
 }
@@ -72,15 +73,15 @@ client.getHttpClient().setHeader("X-Custom-Header", "value");
 
 ```java
 // Retrieve ops health
-Map<String, Object> result = client.getOps().healthRetrieve();
+HealthRetrieveResponse result = client.getOps().healthRetrieve();
 System.out.println(result);
 ```
 
 ### audit
 
 ```java
-// List audit records
-Map<String, Object> result = client.getAudit().recordsList();
+// Export audit bundle
+ExportRetrieveResponse result = client.getAudit().exportRetrieve();
 System.out.println(result);
 ```
 
@@ -88,7 +89,7 @@ System.out.println(result);
 
 ```java
 // Retrieve automation governance
-Map<String, Object> result = client.getAutomation().governanceRetrieve();
+GovernanceRetrieveResponse result = client.getAutomation().governanceRetrieve();
 System.out.println(result);
 ```
 
@@ -96,15 +97,15 @@ System.out.println(result);
 
 ```java
 // Read the control-plane protocol governance snapshot.
-ProtocolGovernanceResponse result = client.getControl().protocolGovernanceRetrieve();
+ProtocolGovernanceRetrieveResponse result = client.getControl().protocolGovernanceRetrieve();
 System.out.println(result);
 ```
 
 ### admin
 
 ```java
-// listApiKeyGroups
-Object result = client.getAdmin().apiKeyGroupsList();
+// getBillingEventSummary
+BillingEventsSummaryRetrieveResponse result = client.getAdmin().billingEventsSummaryRetrieve();
 System.out.println(result);
 ```
 
@@ -112,7 +113,7 @@ System.out.println(result);
 
 ```java
 try {
-    Object result = client.getAdmin().apiKeyGroupsList();
+    BillingEventsSummaryRetrieveResponse result = client.getAdmin().billingEventsSummaryRetrieve();
     System.out.println(result);
 } catch (Exception e) {
     System.err.println("Error: " + e.getMessage());
@@ -150,10 +151,12 @@ MIT
 
 ## Regeneration Contract
 
-- Generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
-- Each run also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
-- Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
+- HTTP/OpenAPI generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
+- HTTP/OpenAPI generation also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- HTTP/OpenAPI apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
 - CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
-- Put hand-written wrappers, adapters, and orchestration in `custom/`.
-- Files scaffolded under `custom/` are created once and preserved across regenerations.
-- If a generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.
+- Put HTTP/OpenAPI hand-written wrappers, adapters, and orchestration in `custom/`.
+- Files scaffolded under `custom/` are created once and preserved across HTTP/OpenAPI regenerations.
+- If an HTTP/OpenAPI generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.
+- RPC SDK source workspaces use convention-first evidence by default: RPC SDK family naming, language workspace naming, `rpc/*.manifest.json`, proto source references, generated client source, and native package manifests.
+- Use `sdkgen inspect --protocol rpc` to verify RPC convention evidence. Request persisted generator evidence only with `--emit-control-plane` for release, CI, audit, or migration workflows; evidence paths are derived by generator convention.

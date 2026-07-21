@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,8 +42,11 @@ pub struct ClusterView {
 pub struct LagItem {
     pub component: String,
     pub scope_id: String,
+    #[serde(with = "sdkwork_utils_rust::serde_uint64")]
     pub current_offset: u64,
+    #[serde(with = "sdkwork_utils_rust::serde_uint64")]
     pub committed_offset: u64,
+    #[serde(with = "sdkwork_utils_rust::serde_uint64")]
     pub lag: u64,
 }
 
@@ -326,6 +331,9 @@ pub struct DiagnosticBundle {
     pub projection_plane: ProjectionPlaneDiagnosticsView,
     pub side_effect_outboxes: Vec<SideEffectOutboxDiagnosticsView>,
     pub realtime_inbox: RealtimeInboxDiagnosticsView,
+    pub collection_limit: u32,
+    pub collection_totals: BTreeMap<String, u64>,
+    pub truncated_collections: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -154,13 +154,13 @@
 - `POST /im/v3/api/notifications/requests`
 - `GET /im/v3/api/notifications`
 - `GET /im/v3/api/notifications/{id}`
-- 当前最小实现中，消息提交后会在 `sdkwork-im-server` 中以 side-effect 方式触发 `notification.requested -> notification.dispatched`
+- 消息提交后的通知 side effect 只创建持久化 `notification.requested`，API 表示请求已接受，不表示已送达。当前没有权威设备令牌注册/路由、provider worker 或 provider receipt；在这些能力完成前不得产生 `notification.dispatched`，该缺口阻断商业发布。
 
 ### 3.8 自动化
 
 - `POST /im/v3/api/automation/executions`
 - `GET /im/v3/api/automation/executions/{id}`
-- 当前最小实现中，自动化请求会同步走通 `automation.execution_requested -> automation.execution_completed` 最小链路，并为调用者生成一条 `automation.result` 站内通知
+- 自动化请求只创建 `Requested`/accepted。真实 agent response 开始后才进入 `Running`，真实 response complete 后才进入 `Succeeded` 并生成结果通知。通用 workflow target executor 和 active stream 崩溃恢复尚未完成，请求接受不得伪装成 `automation.execution_completed`。
 
 ### 3.9 审计与运维
 

@@ -60,8 +60,20 @@ assert.match(
 );
 assert.match(
   access,
-  /numeric offset \{label\} cursors are deprecated/,
-  'production must reject legacy projection offset cursors via shared keyset parser',
+  /numeric offset \{label\} cursors are unsupported/,
+  'every environment must reject numeric projection cursors via the shared keyset parser',
+);
+assert.doesNotMatch(
+  access,
+  /is_production_like_im_environment|legacy_offset|Cursor::Offset/,
+  'projection cursor parsing must not retain environment-specific offset compatibility',
+);
+
+const projectionModels = readExists('services/projection-service/src/model.rs');
+assert.doesNotMatch(
+  projectionModels,
+  /Offset\(usize\)/,
+  'projection list cursor models must remain keyset-only',
 );
 
 const commercialGates = readExists('.github/workflows/im-commercial-gates.yml');

@@ -6,10 +6,10 @@ namespace Sdkwork.Im.BackendApi.Generated.Models
 {
     public class QuotaProfileResponse
     {
-        public int? MaxConcurrentSessionsPerTenant { get; set; }
-        public int? MaxInflightMessages { get; set; }
-        public int? MaxPayloadBytes { get; set; }
-        public int? MaxSubscriptionsPerSession { get; set; }
-        public string? ProfileId { get; set; }
+        public string MaxConcurrentSessionsPerTenant { get; set; }
+        public string MaxInflightMessages { get; set; }
+        public string MaxPayloadBytes { get; set; }
+        public string MaxSubscriptionsPerSession { get; set; }
+        public string ProfileId { get; set; }
     }
 }

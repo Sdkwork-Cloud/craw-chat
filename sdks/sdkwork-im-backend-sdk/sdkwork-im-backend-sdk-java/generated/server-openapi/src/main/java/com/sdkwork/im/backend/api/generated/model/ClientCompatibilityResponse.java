@@ -13,7 +13,7 @@ public class ClientCompatibilityResponse {
     public List<String> getBlockedExperimentalCapabilities() {
         return this.blockedExperimentalCapabilities;
     }
-    
+
     public void setBlockedExperimentalCapabilities(List<String> blockedExperimentalCapabilities) {
         this.blockedExperimentalCapabilities = blockedExperimentalCapabilities;
     }
@@ -21,7 +21,7 @@ public class ClientCompatibilityResponse {
     public String getClientType() {
         return this.clientType;
     }
-    
+
     public void setClientType(String clientType) {
         this.clientType = clientType;
     }
@@ -29,7 +29,7 @@ public class ClientCompatibilityResponse {
     public String getMinimumProtocolVersion() {
         return this.minimumProtocolVersion;
     }
-    
+
     public void setMinimumProtocolVersion(String minimumProtocolVersion) {
         this.minimumProtocolVersion = minimumProtocolVersion;
     }
@@ -37,7 +37,7 @@ public class ClientCompatibilityResponse {
     public List<String> getSupportedBindings() {
         return this.supportedBindings;
     }
-    
+
     public void setSupportedBindings(List<String> supportedBindings) {
         this.supportedBindings = supportedBindings;
     }
@@ -45,7 +45,7 @@ public class ClientCompatibilityResponse {
     public List<String> getSupportedCapabilities() {
         return this.supportedCapabilities;
     }
-    
+
     public void setSupportedCapabilities(List<String> supportedCapabilities) {
         this.supportedCapabilities = supportedCapabilities;
     }
@@ -53,7 +53,7 @@ public class ClientCompatibilityResponse {
     public List<String> getSupportedCodecs() {
         return this.supportedCodecs;
     }
-    
+
     public void setSupportedCodecs(List<String> supportedCodecs) {
         this.supportedCodecs = supportedCodecs;
     }

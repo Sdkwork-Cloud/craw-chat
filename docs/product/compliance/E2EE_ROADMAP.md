@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-03
+Updated: 2026-07-21
 Specs: PRIVACY_SPEC.md, SECURITY_SPEC.md, IAM_SPEC.md
 
 ## 1. Purpose
@@ -65,7 +65,7 @@ in [COMPLIANCE_FRAMEWORK.md](COMPLIANCE_FRAMEWORK.md).
 | Endpoint compromise (malware on client) | Client OS hardening, device attestation |
 | Metadata exposure (who messaged whom, when) | Server still routes and logs metadata |
 | Traffic analysis / timing correlation | Network-layer padding (out of scope) |
-| Push notification content leakage | FCM receives delivery metadata only; see [CUSTOMER_OPERATIONS.md](CUSTOMER_OPERATIONS.md) section 4 |
+| Future push notification content leakage | Push is not implemented; any provider design must minimize payloads and complete the privacy review in [CUSTOMER_OPERATIONS.md](CUSTOMER_OPERATIONS.md) before activation |
 | Lost device key access (no recovery) | Backup and recovery design in section 9 |
 
 ### 3.3 Trust Assumptions

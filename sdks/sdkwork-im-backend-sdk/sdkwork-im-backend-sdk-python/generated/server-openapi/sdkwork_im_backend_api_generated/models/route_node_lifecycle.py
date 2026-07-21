@@ -7,5 +7,5 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 class RouteNodeLifecycle:
     drain_status: str
     node_id: str
-    owned_route_count: int
+    owned_route_count: str
     rebalance_state: str

@@ -128,7 +128,8 @@ async fn test_request_and_query_notifications_over_http() {
         create_json["data"]["item"]["notificationId"],
         "ntf_http_demo"
     );
-    assert_eq!(create_json["data"]["item"]["status"], "dispatched");
+    assert_eq!(create_json["data"]["item"]["status"], "requested");
+    assert!(create_json["data"]["item"]["dispatchedAt"].is_null());
 
     let list_response = app
         .clone()
@@ -391,7 +392,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first body should be valid json");
-    assert_eq!(first_json["data"]["item"]["deliveryStatus"], "applied");
+    assert_eq!(first_json["data"]["item"]["deliveryStatus"], "accepted");
     assert_eq!(
         first_json["data"]["item"]["proofVersion"],
         "notification.request.delivery-proof.v1"
@@ -446,10 +447,10 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
         idempotent_json["data"]["item"]["notificationId"],
         "ntf_http_idempotent"
     );
-    assert_eq!(idempotent_json["data"]["item"]["status"], "dispatched");
+    assert_eq!(idempotent_json["data"]["item"]["status"], "requested");
     assert_eq!(
         idempotent_json["data"]["item"]["deliveryStatus"],
-        "replayed"
+        "accepted"
     );
     assert_eq!(
         idempotent_json["data"]["item"]["requestKey"],
@@ -545,7 +546,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first body should be valid json");
-    assert_eq!(first_json["data"]["item"]["deliveryStatus"], "applied");
+    assert_eq!(first_json["data"]["item"]["deliveryStatus"], "accepted");
 
     let replayed_response = app
         .oneshot(
@@ -585,7 +586,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
         .to_bytes();
     let replayed_json: serde_json::Value =
         serde_json::from_slice(&replayed_body).expect("replayed body should be valid json");
-    assert_eq!(replayed_json["data"]["item"]["deliveryStatus"], "replayed");
+    assert_eq!(replayed_json["data"]["item"]["deliveryStatus"], "accepted");
     assert_eq!(
         replayed_json["data"]["item"]["requestKey"],
         first_json["data"]["item"]["requestKey"]
@@ -752,9 +753,11 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
         first_json["data"]["item"]["requestedAt"], second_json["data"]["item"]["requestedAt"],
         "separate notification requests must not reuse a fixed requestedAt timestamp"
     );
+    assert!(first_json["data"]["item"]["dispatchedAt"].is_null());
+    assert!(second_json["data"]["item"]["dispatchedAt"].is_null());
     assert_ne!(
-        first_json["data"]["item"]["dispatchedAt"], second_json["data"]["item"]["dispatchedAt"],
-        "separate notification requests must not reuse a fixed dispatchedAt timestamp"
+        first_json["data"]["item"]["requestedAt"], second_json["data"]["item"]["requestedAt"],
+        "separate notification requests must not reuse a fixed requestedAt timestamp"
     );
 
     let list_response = app

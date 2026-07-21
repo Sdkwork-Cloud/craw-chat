@@ -860,14 +860,6 @@ pub(super) fn pinned_messages_window_slice_from_index(
 ) -> (Vec<MessageInteractionSummaryView>, bool) {
     let limit = limit.max(1);
     let mut window = Vec::with_capacity(limit.saturating_add(1));
-    let legacy_offset = matches!(
-        cursor,
-        Some(crate::model::PinnedMessagesListCursor::Offset(_))
-    );
-    let offset = match cursor {
-        Some(crate::model::PinnedMessagesListCursor::Offset(value)) => value,
-        _ => 0,
-    };
     let index_iter: Box<dyn Iterator<Item = &PinnedMessageIndexKey>> = match cursor {
         Some(crate::model::PinnedMessagesListCursor::Keyset {
             pinned_at,
@@ -883,16 +875,11 @@ pub(super) fn pinned_messages_window_slice_from_index(
         }
         _ => Box::new(index_keys.iter()),
     };
-    let mut skipped = 0usize;
     for key in index_iter {
         let Some(stored) = scope_items.get(key.message_id.as_str()) else {
             continue;
         };
         if stored.pin.is_none() {
-            continue;
-        }
-        if legacy_offset && skipped < offset {
-            skipped += 1;
             continue;
         }
         window.push(stored_interaction_to_view(stored));

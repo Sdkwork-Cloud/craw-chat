@@ -96,17 +96,21 @@ Returns the cluster topology as seen by the current node.
 
 Returns lag measurements for runtime components.
 
+Query parameters are `page_size` (1-200, default 20) and opaque `cursor`. The response uses
+`data.items` and `data.pageInfo` with `mode: "cursor"`; lag `uint64` fields are decimal strings.
+Unknown aliases such as `limit` and URL `pageSize` return HTTP 400.
+
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / ops</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 LagView`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 LagPageData`</span></div>
 </div>
 
 ### Response `200`
 
-<ApiSchemaTable schema="LagView" />
+<ApiSchemaTable schema="LagPageData" />
 
 
 ### Error Responses
@@ -201,17 +205,20 @@ Returns runtime directory inspection results.
 
 Returns the node-local mirror of provider binding snapshots.
 
+Query parameters are `page_size` (1-200, default 20) and opaque `cursor`. The response uses
+`data.items` and `data.pageInfo` with `mode: "cursor"`; unknown query aliases return HTTP 400.
+
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / ops</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingsView`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingSnapshotPageData`</span></div>
 </div>
 
 ### Response `200`
 
-<ApiSchemaTable schema="ProviderBindingsView" />
+<ApiSchemaTable schema="ProviderBindingSnapshotPageData" />
 
 
 ### Error Responses
@@ -236,17 +243,20 @@ Returns the node-local mirror of provider binding snapshots.
 
 Returns tenant drift relative to the baseline provider binding selection.
 
+Query parameters are `page_size` (1-200, default 20) and opaque `cursor`. The response uses
+`data.items` and `data.pageInfo` with `mode: "cursor"`; unknown query aliases return HTTP 400.
+
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / ops</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingDriftView`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingDriftPageData`</span></div>
 </div>
 
 ### Response `200`
 
-<ApiSchemaTable schema="ProviderBindingDriftView" />
+<ApiSchemaTable schema="ProviderBindingDriftPageData" />
 
 
 ### Error Responses
@@ -293,4 +303,3 @@ Returns the aggregated diagnostic bundle for the current node.
 | `503` | `*_unavailable` | Operational diagnostics are temporarily unavailable. |
 
 </section>
-

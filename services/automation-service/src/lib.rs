@@ -14,6 +14,7 @@ pub mod state;
 mod constants;
 mod handlers;
 mod helpers;
+mod metrics;
 mod openapi;
 
 // Re-export domain types so consumers can access them from the crate root.

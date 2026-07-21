@@ -1,4 +1,5 @@
 use std::collections::{BTreeSet, HashMap};
+use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use serde::{Deserialize, Serialize};
@@ -16,6 +17,15 @@ pub struct RouteBinding {
     pub connection_kind: String,
     pub bound_at: String,
     pub route_epoch: u64,
+}
+
+pub const ROUTE_BINDING_PAGE_MAX_SIZE: usize = 1_000;
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RouteBindingPage {
+    pub items: Vec<RouteBinding>,
+    pub next_cursor: Option<String>,
+    pub total: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -136,13 +146,6 @@ impl RouteDirectoryState {
         Some(removed)
     }
 
-    fn route_keys_for_node(&self, node_id: &str) -> Vec<String> {
-        self.routes_by_node
-            .get(node_id)
-            .map(|route_keys| route_keys.iter().cloned().collect())
-            .unwrap_or_default()
-    }
-
     fn remove_route_key_from_node(&mut self, node_id: &str, route_key: &str) {
         let should_remove_node = if let Some(route_keys) = self.routes_by_node.get_mut(node_id) {
             route_keys.remove(route_key);
@@ -153,27 +156,6 @@ impl RouteDirectoryState {
         if should_remove_node {
             self.routes_by_node.remove(node_id);
         }
-    }
-
-    fn move_route_keys_between_nodes(
-        &mut self,
-        source_node_id: &str,
-        target_node_id: &str,
-        route_keys: impl IntoIterator<Item = String>,
-    ) {
-        let mut moved_route_keys = Vec::new();
-        for route_key in route_keys {
-            self.remove_route_key_from_node(source_node_id, route_key.as_str());
-            moved_route_keys.push(route_key);
-        }
-        if moved_route_keys.is_empty() {
-            return;
-        }
-
-        self.routes_by_node
-            .entry(target_node_id.into())
-            .or_default()
-            .extend(moved_route_keys);
     }
 }
 
@@ -335,73 +317,56 @@ impl RouteDirectory {
             });
         }
 
-        // Phase 2: Snapshot for rollback
-        let routes = lock_route_mutex(&self.routes, "routes");
-        let route_keys = routes.route_keys_for_node(source_node_id);
-        let original_routes: Vec<(String, RouteBinding)> = route_keys
-            .iter()
-            .filter_map(|key| {
-                routes
-                    .routes_by_key
-                    .get(key)
-                    .map(|route| (key.clone(), route.clone()))
-            })
-            .collect();
-        drop(routes);
-
-        // Phase 3: Perform migration with atomic batch updates
-        let mut migrated = 0;
+        // Validate and move the existing ordered index while holding one lock. This avoids
+        // duplicating every route binding and key during large node migrations.
         let mut routes = lock_route_mutex(&self.routes, "routes");
-        let mut migrated_route_keys = Vec::new();
-        let mut failed_routes = Vec::new();
-
-        for route_key in &route_keys {
-            if let Some(route) = routes.routes_by_key.get_mut(route_key.as_str()) {
-                if route.owner_node_id == source_node_id {
-                    // Validate route is still owned by source (concurrent modification check)
-                    route.owner_node_id = target_node_id.into();
-                    route.route_epoch += 1;
-                    if !migrated_at.is_empty() {
-                        route.bound_at = migrated_at.into();
-                    }
-                    migrated += 1;
-                    migrated_route_keys.push(route_key.clone());
-                } else {
-                    // Route was concurrently modified, skip it
-                    failed_routes.push(route_key.clone());
-                }
-            }
-        }
-
-        // Only update node indices if all migrations succeeded
-        if failed_routes.is_empty() {
-            routes.move_route_keys_between_nodes(
-                source_node_id,
-                target_node_id,
-                migrated_route_keys,
-            );
-        } else {
-            // Rollback partial migration
-            tracing::warn!(
-                target: "sdkwork.im.route",
-                source_node = %source_node_id,
-                target_node = %target_node_id,
-                failed_count = failed_routes.len(),
-                "rolling back migration due to concurrent modifications"
-            );
-
-            for (key, original_route) in original_routes {
-                routes.upsert_route(key, original_route);
-            }
-
+        let inconsistent_route_count = routes
+            .routes_by_node
+            .get(source_node_id)
+            .map(|route_keys| {
+                route_keys
+                    .iter()
+                    .filter(|route_key| {
+                        !matches!(
+                            routes.routes_by_key.get(route_key.as_str()),
+                            Some(route) if route.owner_node_id == source_node_id
+                        )
+                    })
+                    .count()
+            })
+            .unwrap_or_default();
+        if inconsistent_route_count > 0 {
             return Err(RouteRuntimeError {
                 code: "migration_concurrent_modification",
                 message: format!(
-                    "migration rolled back due to {} concurrent route modifications",
-                    failed_routes.len()
+                    "migration rejected due to {inconsistent_route_count} inconsistent route ownership entries"
                 ),
                 node_id: source_node_id.into(),
             });
+        }
+
+        let route_keys = routes
+            .routes_by_node
+            .remove(source_node_id)
+            .unwrap_or_default();
+        let migrated = route_keys.len();
+        for route_key in &route_keys {
+            let route = routes
+                .routes_by_key
+                .get_mut(route_key.as_str())
+                .expect("route index was validated before migration");
+            route.owner_node_id = target_node_id.into();
+            route.route_epoch += 1;
+            if !migrated_at.is_empty() {
+                route.bound_at = migrated_at.into();
+            }
+        }
+        if !route_keys.is_empty() {
+            routes
+                .routes_by_node
+                .entry(target_node_id.into())
+                .or_default()
+                .extend(route_keys);
         }
 
         drop(routes);
@@ -538,6 +503,43 @@ impl RouteDirectory {
                 .then_with(|| left.device_id.cmp(&right.device_id))
         });
         items
+    }
+
+    pub fn routes_for_node_page(
+        &self,
+        node_id: &str,
+        cursor: Option<&str>,
+        page_size: usize,
+    ) -> RouteBindingPage {
+        let routes = lock_route_mutex(&self.routes, "routes");
+        let Some(route_keys) = routes.routes_by_node.get(node_id) else {
+            return RouteBindingPage::default();
+        };
+        let page_size = page_size.clamp(1, ROUTE_BINDING_PAGE_MAX_SIZE);
+        let keys: Box<dyn Iterator<Item = &String>> = match cursor {
+            Some(cursor) => Box::new(route_keys.range((Excluded(cursor.to_owned()), Unbounded))),
+            None => Box::new(route_keys.iter()),
+        };
+        let mut page = keys
+            .filter_map(|route_key| {
+                routes
+                    .routes_by_key
+                    .get(route_key.as_str())
+                    .cloned()
+                    .map(|route| (route_key.clone(), route))
+            })
+            .take(page_size.saturating_add(1))
+            .collect::<Vec<_>>();
+        let has_more = page.len() > page_size;
+        page.truncate(page_size);
+        let next_cursor = has_more
+            .then(|| page.last().map(|(route_key, _)| route_key.clone()))
+            .flatten();
+        RouteBindingPage {
+            items: page.into_iter().map(|(_, route)| route).collect(),
+            next_cursor,
+            total: route_keys.len(),
+        }
     }
 
     pub fn node_lifecycle(&self, node_id: &str) -> Option<RouteNodeLifecycle> {
@@ -991,6 +993,43 @@ mod tests {
         );
         assert_eq!(directory.routes_for_node("node_a").len(), 1);
         assert_eq!(directory.routes_for_node("node_b").len(), 1);
+    }
+
+    #[test]
+    fn test_routes_for_node_page_uses_stable_bounded_keyset() {
+        let directory = RouteDirectory::default();
+        directory.register_node("node_a");
+        for principal_id in ["3", "1", "2"] {
+            directory
+                .bind(RouteBindingRequest::new(
+                    "tenant",
+                    principal_id,
+                    "user",
+                    "device",
+                    "node_a",
+                ))
+                .expect("route should bind");
+        }
+
+        let first = directory.routes_for_node_page("node_a", None, 2);
+        assert_eq!(first.items.len(), 2);
+        assert_eq!(first.total, 3);
+        assert!(first.next_cursor.is_some());
+        let second = directory.routes_for_node_page("node_a", first.next_cursor.as_deref(), 2);
+        assert_eq!(second.items.len(), 1);
+        assert_eq!(second.total, 3);
+        assert!(second.next_cursor.is_none());
+        let mut principal_ids = first
+            .items
+            .into_iter()
+            .chain(second.items)
+            .map(|route| route.principal_id)
+            .collect::<Vec<_>>();
+        principal_ids.sort();
+        assert_eq!(principal_ids, ["1", "2", "3"]);
+
+        let clamped = directory.routes_for_node_page("node_a", None, usize::MAX);
+        assert_eq!(clamped.items.len(), 3);
     }
 
     #[test]

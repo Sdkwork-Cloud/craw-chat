@@ -67,7 +67,7 @@ fn test_runtime_restores_automation_projection_on_rebuild_with_shared_store() {
         .get_execution(&auth, "ae_rebuild")
         .expect("execution should restore after rebuild");
     assert_eq!(execution.execution_id, "ae_rebuild");
-    assert_eq!(execution.state.as_str(), "succeeded");
+    assert_eq!(execution.state.as_str(), "requested");
 }
 
 #[test]

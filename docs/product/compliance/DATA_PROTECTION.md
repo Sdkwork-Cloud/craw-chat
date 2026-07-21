@@ -2,7 +2,7 @@
 
 Status: active  
 Owner: SDKWork maintainers  
-Updated: 2026-06-24  
+Updated: 2026-07-21
 Specs: PRIVACY_SPEC.md, SECURITY_SPEC.md
 
 ## 1. Data Classification
@@ -11,7 +11,7 @@ Specs: PRIVACY_SPEC.md, SECURITY_SPEC.md
 | --- | --- | --- |
 | Tenant metadata | organization ids, role catalogs | RBAC + audit logs |
 | Message content | chat bodies, attachments metadata | tenant-scoped storage, retention classes |
-| Credentials | JWT signing keys, FCM service accounts | secret mounts (`*_FILE`, K8s Secrets) |
+| Credentials | JWT signing keys, future provider credentials | secret mounts (`*_FILE`, K8s Secrets) |
 | Telemetry | traces, metrics, structured logs | redaction, no raw tokens in logs |
 
 ## 2. Retention
@@ -42,4 +42,7 @@ Database and object storage residency are customer-controlled through deployment
 
 ## 5. Subprocessors
 
-Push delivery may invoke Google FCM when `SDKWORK_IM_FCM_CREDENTIALS_PATH` is configured. No message content is logged by the FCM adapter beyond delivery status metadata.
+Push delivery is not currently implemented and Google FCM is not an active IM subprocessor. A
+future provider integration requires an approved data-flow review, device-token retention/deletion
+contract, payload minimization, secret ownership, log-redaction tests, and an updated subprocessor
+notice before activation.

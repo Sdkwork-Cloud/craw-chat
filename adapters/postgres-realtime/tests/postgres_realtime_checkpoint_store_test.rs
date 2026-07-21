@@ -337,14 +337,14 @@ fn test_postgres_realtime_event_window_sql_uses_checkpoint_and_event_tables_atom
 }
 
 #[test]
-fn test_postgres_realtime_client_route_scope_key_uses_length_prefixed_segments() {
+fn test_postgres_realtime_client_route_scope_key_normalizes_tenant_root_and_encodes_segments() {
     assert_eq!(
         postgres_realtime_client_route_scope_key("t:demo", "default", "user", "u|demo", "d#pad"),
-        "6:t:demo|7:default|4:user|6:u|demo|5:d#pad"
+        "6:t:demo|1:0|4:user|6:u|demo|5:d#pad"
     );
     assert_eq!(
         postgres_realtime_client_route_scope_key("100001", "default", "user", "1", "d_pad"),
-        "6:100001|7:default|4:user|1:1|5:d_pad"
+        "6:100001|1:0|4:user|1:1|5:d_pad"
     );
 }
 

@@ -49,6 +49,14 @@ impl NotificationError {
         }
     }
 
+    pub(crate) fn invalid_parameter(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::BAD_REQUEST,
+            code: "invalid_parameter",
+            message: message.into(),
+        }
+    }
+
     pub(crate) fn payload_too_large(
         field: &'static str,
         max_bytes: usize,

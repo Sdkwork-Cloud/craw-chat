@@ -1302,18 +1302,6 @@ fn validate_list_limit(limit: Option<usize>) -> Result<usize, ProjectionAccessEr
     Ok(limit)
 }
 
-fn parse_list_cursor(cursor: Option<&str>) -> Result<usize, ProjectionAccessError> {
-    let Some(cursor) = cursor.map(str::trim).filter(|value| !value.is_empty()) else {
-        return Ok(0);
-    };
-    cursor.parse::<usize>().map_err(|_| {
-        ProjectionAccessError::bad_request(
-            "cursor_invalid",
-            format!("list cursor is invalid: {cursor}"),
-        )
-    })
-}
-
 fn parse_contact_list_cursor(
     cursor: Option<&str>,
 ) -> Result<super::model::ContactListCursor, ProjectionAccessError> {
@@ -1321,15 +1309,10 @@ fn parse_contact_list_cursor(
         return Ok(super::model::ContactListCursor::Start);
     };
     if cursor.chars().all(|ch| ch.is_ascii_digit()) {
-        if crate::bootstrap::is_production_like_im_environment() {
-            return Err(ProjectionAccessError::bad_request(
-                "cursor_deprecated",
-                "numeric offset contact cursors are deprecated; use signed keyset cursors from data.pageInfo.nextCursor",
-            ));
-        }
-        return Ok(super::model::ContactListCursor::Offset(parse_list_cursor(
-            Some(cursor),
-        )?));
+        return Err(ProjectionAccessError::bad_request(
+            "cursor_invalid",
+            "numeric offset contact cursors are unsupported; use the opaque keyset cursor from data.pageInfo.nextCursor",
+        ));
     }
     let wire: super::model::ContactKeysetCursorWire = if cursor.contains('.') {
         let payload = crate::cursor_auth::decode_signed_projection_cursor(cursor)
@@ -1367,15 +1350,10 @@ fn parse_inbox_list_cursor(
         return Ok(super::model::InboxListCursor::Start);
     };
     if cursor.chars().all(|ch| ch.is_ascii_digit()) {
-        if crate::bootstrap::is_production_like_im_environment() {
-            return Err(ProjectionAccessError::bad_request(
-                "cursor_deprecated",
-                "numeric offset inbox cursors are deprecated; use signed keyset cursors from data.pageInfo.nextCursor",
-            ));
-        }
-        return Ok(super::model::InboxListCursor::Offset(parse_list_cursor(
-            Some(cursor),
-        )?));
+        return Err(ProjectionAccessError::bad_request(
+            "cursor_invalid",
+            "numeric offset inbox cursors are unsupported; use the opaque keyset cursor from data.pageInfo.nextCursor",
+        ));
     }
     let wire: super::model::InboxKeysetCursorWire = if cursor.contains('.') {
         let payload = crate::cursor_auth::decode_signed_projection_cursor(cursor)
@@ -1497,15 +1475,12 @@ where
         return Ok(Cursor::start());
     };
     if cursor.chars().all(|ch| ch.is_ascii_digit()) {
-        if crate::bootstrap::is_production_like_im_environment() {
-            return Err(ProjectionAccessError::bad_request(
-                "cursor_deprecated",
-                format!(
-                    "numeric offset {label} cursors are deprecated; use signed keyset cursors from data.pageInfo.nextCursor"
-                ),
-            ));
-        }
-        return Ok(Cursor::offset(parse_list_cursor(Some(cursor))?));
+        return Err(ProjectionAccessError::bad_request(
+            "cursor_invalid",
+            format!(
+                "numeric offset {label} cursors are unsupported; use the opaque keyset cursor from data.pageInfo.nextCursor"
+            ),
+        ));
     }
     let wire: Wire = if cursor.contains('.') {
         let payload = crate::cursor_auth::decode_signed_projection_cursor(cursor)
@@ -1529,16 +1504,11 @@ where
 
 trait FromStartCursor {
     fn start() -> Self;
-    fn offset(value: usize) -> Self;
 }
 
 impl FromStartCursor for super::model::MemberDirectoryListCursor {
     fn start() -> Self {
         Self::Start
-    }
-
-    fn offset(value: usize) -> Self {
-        Self::Offset(value)
     }
 }
 
@@ -1546,18 +1516,24 @@ impl FromStartCursor for super::model::PinnedMessagesListCursor {
     fn start() -> Self {
         Self::Start
     }
-
-    fn offset(value: usize) -> Self {
-        Self::Offset(value)
-    }
 }
 
 impl FromStartCursor for super::model::FavoriteMessagesListCursor {
     fn start() -> Self {
         Self::Start
     }
+}
 
-    fn offset(value: usize) -> Self {
-        Self::Offset(value)
+#[cfg(test)]
+mod keyset_cursor_tests {
+    use super::*;
+
+    #[test]
+    fn numeric_projection_list_cursors_are_rejected_in_every_environment() {
+        assert!(parse_contact_list_cursor(Some("1")).is_err());
+        assert!(parse_inbox_list_cursor(Some("1")).is_err());
+        assert!(parse_member_directory_list_cursor(Some("1")).is_err());
+        assert!(parse_pinned_messages_list_cursor(Some("1")).is_err());
+        assert!(parse_favorite_messages_list_cursor(Some("1")).is_err());
     }
 }

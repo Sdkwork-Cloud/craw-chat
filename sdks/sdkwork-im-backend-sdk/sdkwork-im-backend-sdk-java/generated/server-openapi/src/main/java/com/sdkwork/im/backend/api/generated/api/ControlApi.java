@@ -8,274 +8,312 @@ import java.util.Map;
 
 public class ControlApi {
     private final HttpClient client;
-    
+
     public ControlApi(HttpClient client) {
         this.client = client;
     }
 
     /** Activate a realtime node and clear drain state. */
-    public RouteNodeLifecycle nodesActivate(String nodeId) throws Exception {
+    public NodesActivateResponse nodesActivate(String nodeId) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/nodes/" + serializePathParameter(nodeId, new PathParameterSpec("nodeId", "simple", false)) + "/activate"), null);
-        return client.convertValue(raw, new TypeReference<RouteNodeLifecycle>() {});
+        return client.convertValue(raw, new TypeReference<NodesActivateResponse>() {});
     }
 
     /** Mark a realtime node as draining. */
-    public RouteNodeLifecycle nodesDrain(String nodeId) throws Exception {
+    public NodesDrainResponse nodesDrain(String nodeId) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/nodes/" + serializePathParameter(nodeId, new PathParameterSpec("nodeId", "simple", false)) + "/drain"), null);
-        return client.convertValue(raw, new TypeReference<RouteNodeLifecycle>() {});
+        return client.convertValue(raw, new TypeReference<NodesDrainResponse>() {});
     }
 
     /** Migrate owned routes from the source node to the target node. */
-    public RouteMigrationResult nodesRoutesMigrate(String nodeId, MigrateRoutesRequest body) throws Exception {
+    public NodesRoutesMigrateResponse nodesRoutesMigrate(String nodeId, MigrateRoutesRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/nodes/" + serializePathParameter(nodeId, new PathParameterSpec("nodeId", "simple", false)) + "/routes/migrate"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<RouteMigrationResult>() {});
+        return client.convertValue(raw, new TypeReference<NodesRoutesMigrateResponse>() {});
     }
 
     /** Read the control-plane protocol governance snapshot. */
-    public ProtocolGovernanceResponse protocolGovernanceRetrieve() throws Exception {
+    public ProtocolGovernanceRetrieveResponse protocolGovernanceRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.backendPath("/control/protocol_governance"));
-        return client.convertValue(raw, new TypeReference<ProtocolGovernanceResponse>() {});
+        return client.convertValue(raw, new TypeReference<ProtocolGovernanceRetrieveResponse>() {});
     }
 
     /** Read the control-plane protocol registry snapshot. */
-    public ProtocolRegistryResponse protocolRegistryRetrieve() throws Exception {
+    public ProtocolRegistryRetrieveResponse protocolRegistryRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.backendPath("/control/protocol_registry"));
-        return client.convertValue(raw, new TypeReference<ProtocolRegistryResponse>() {});
+        return client.convertValue(raw, new TypeReference<ProtocolRegistryRetrieveResponse>() {});
     }
 
     /** Read provider policy history. */
-    public ProviderPolicyHistoryResponse providerPoliciesList() throws Exception {
-        Object raw = client.get(ApiPaths.backendPath("/control/provider_policies"));
-        return client.convertValue(raw, new TypeReference<ProviderPolicyHistoryResponse>() {});
+    public SdkWorkListResponse providerPoliciesList(Integer pageSize, String cursor, Integer page, String q) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            new QueryParameterSpec("page", page, "form", true, false, null),
+            new QueryParameterSpec("q", q, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/provider_policies"), query));
+        return client.convertValue(raw, new TypeReference<SdkWorkListResponse>() {});
     }
 
     /** Read provider policy diff between two versions. */
-    public ProviderPolicyDiffResponse providerPoliciesDiffList(Integer fromVersion, Integer toVersion) throws Exception {
+    public SdkWorkListResponse providerPoliciesDiffList(String fromVersion, String toVersion, Integer pageSize, String cursor, Integer page, String q) throws Exception {
         String query = buildQueryString(List.of(
             new QueryParameterSpec("fromVersion", fromVersion, "form", true, false, null),
-            new QueryParameterSpec("toVersion", toVersion, "form", true, false, null)
+            new QueryParameterSpec("toVersion", toVersion, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            new QueryParameterSpec("page", page, "form", true, false, null),
+            new QueryParameterSpec("q", q, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/provider_policies/diff"), query));
-        return client.convertValue(raw, new TypeReference<ProviderPolicyDiffResponse>() {});
+        return client.convertValue(raw, new TypeReference<SdkWorkListResponse>() {});
     }
 
     /** Preview the effective provider policy result before commit. */
-    public ProviderBindingCommitResponse providerPoliciesPreview(UpsertProviderBindingPolicyRequest body) throws Exception {
+    public ProviderPoliciesPreviewResponse providerPoliciesPreview(UpsertProviderBindingPolicyRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/provider_policies/preview"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ProviderBindingCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<ProviderPoliciesPreviewResponse>() {});
     }
 
     /** Rollback provider policy history to a target version. */
-    public ProviderBindingCommitResponse providerPoliciesRollback(ProviderPolicyRollbackRequest body) throws Exception {
+    public ProviderPoliciesRollbackResponse providerPoliciesRollback(ProviderPolicyRollbackRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/provider_policies/rollback"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ProviderBindingCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<ProviderPoliciesRollbackResponse>() {});
     }
 
     /** Read the provider registry snapshot. */
-    public ProviderRegistrySnapshotResponse providerRegistryRetrieve() throws Exception {
+    public ProviderRegistryRetrieveResponse providerRegistryRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.backendPath("/control/provider_registry"));
-        return client.convertValue(raw, new TypeReference<ProviderRegistrySnapshotResponse>() {});
+        return client.convertValue(raw, new TypeReference<ProviderRegistryRetrieveResponse>() {});
     }
 
     /** Read effective provider bindings. */
-    public ProviderBindingsResponse providerBindingsList(String tenantId) throws Exception {
+    public SdkWorkListResponse providerBindingsList(String tenantId, Integer pageSize, String cursor, Integer page, String q) throws Exception {
         String query = buildQueryString(List.of(
-            new QueryParameterSpec("tenantId", tenantId, "form", true, false, null)
+            new QueryParameterSpec("tenantId", tenantId, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            new QueryParameterSpec("page", page, "form", true, false, null),
+            new QueryParameterSpec("q", q, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/provider_bindings"), query));
-        return client.convertValue(raw, new TypeReference<ProviderBindingsResponse>() {});
+        return client.convertValue(raw, new TypeReference<SdkWorkListResponse>() {});
     }
 
     /** Upsert a provider binding policy. */
-    public ProviderBindingCommitResponse providerBindingsCreate(UpsertProviderBindingPolicyRequest body) throws Exception {
+    public ControlProviderBindingsCreateResponse201 providerBindingsCreate(UpsertProviderBindingPolicyRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/provider_bindings"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ProviderBindingCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<ControlProviderBindingsCreateResponse201>() {});
     }
 
     /** Bind a direct chat to a conversation. */
-    public SocialDirectChatCommitResponse socialDirectChatsBindingsCreate(BindDirectChatRequest body) throws Exception {
+    public SocialDirectChatsBindingsCreateResponse201 socialDirectChatsBindingsCreate(BindDirectChatRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/direct_chats/bindings"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialDirectChatCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialDirectChatsBindingsCreateResponse201>() {});
     }
 
     /** Read a direct chat snapshot. */
-    public SocialDirectChatSnapshotResponse socialDirectChatsRetrieve(String directChatId) throws Exception {
+    public SocialDirectChatsRetrieveResponse socialDirectChatsRetrieve(String directChatId) throws Exception {
         Object raw = client.get(ApiPaths.backendPath("/control/social/direct_chats/" + serializePathParameter(directChatId, new PathParameterSpec("directChatId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SocialDirectChatSnapshotResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialDirectChatsRetrieveResponse>() {});
     }
 
     /** Establish an external collaboration connection. */
-    public SocialExternalConnectionCommitResponse socialExternalConnectionsCreate(EstablishExternalConnectionRequest body) throws Exception {
+    public SocialExternalConnectionsCreateResponse201 socialExternalConnectionsCreate(EstablishExternalConnectionRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/external_connections"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialExternalConnectionCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialExternalConnectionsCreateResponse201>() {});
     }
 
     /** Read an external connection snapshot. */
-    public SocialExternalConnectionSnapshotResponse socialExternalConnectionsRetrieve(String connectionId) throws Exception {
+    public SocialExternalConnectionsRetrieveResponse socialExternalConnectionsRetrieve(String connectionId) throws Exception {
         Object raw = client.get(ApiPaths.backendPath("/control/social/external_connections/" + serializePathParameter(connectionId, new PathParameterSpec("connectionId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SocialExternalConnectionSnapshotResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialExternalConnectionsRetrieveResponse>() {});
     }
 
     /** Bind an external member link. */
-    public SocialExternalMemberLinkCommitResponse socialExternalMemberLinksCreate(BindExternalMemberLinkRequest body) throws Exception {
+    public SocialExternalMemberLinksCreateResponse201 socialExternalMemberLinksCreate(BindExternalMemberLinkRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/external_member_links"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialExternalMemberLinkCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialExternalMemberLinksCreateResponse201>() {});
     }
 
     /** Read an external member link snapshot. */
-    public SocialExternalMemberLinkSnapshotResponse socialExternalMemberLinksRetrieve(String linkId) throws Exception {
+    public SocialExternalMemberLinksRetrieveResponse socialExternalMemberLinksRetrieve(String linkId) throws Exception {
         Object raw = client.get(ApiPaths.backendPath("/control/social/external_member_links/" + serializePathParameter(linkId, new PathParameterSpec("linkId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SocialExternalMemberLinkSnapshotResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialExternalMemberLinksRetrieveResponse>() {});
     }
 
     /** Submit a friend request event. */
-    public SocialFriendRequestCommitResponse socialFriendRequestsCreate(SubmitFriendRequestRequest body) throws Exception {
+    public SocialFriendRequestsCreateResponse201 socialFriendRequestsCreate(SubmitFriendRequestRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/friend_requests"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialFriendRequestCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialFriendRequestsCreateResponse201>() {});
     }
 
     /** Read a friend request snapshot. */
-    public SocialFriendRequestSnapshotResponse socialFriendRequestsRetrieve(String requestId) throws Exception {
+    public SocialFriendRequestsRetrieveResponse socialFriendRequestsRetrieve(String requestId) throws Exception {
         Object raw = client.get(ApiPaths.backendPath("/control/social/friend_requests/" + serializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SocialFriendRequestSnapshotResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialFriendRequestsRetrieveResponse>() {});
     }
 
     /** Accept a friend request. */
-    public SocialFriendRequestCommitResponse socialFriendRequestsAccept(String requestId, AcceptFriendRequestRequest body) throws Exception {
+    public SocialFriendRequestsAcceptResponse socialFriendRequestsAccept(String requestId, AcceptFriendRequestRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/friend_requests/" + serializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false)) + "/accept"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialFriendRequestCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialFriendRequestsAcceptResponse>() {});
     }
 
     /** Decline a friend request. */
-    public SocialFriendRequestCommitResponse socialFriendRequestsDecline(String requestId, DeclineFriendRequestRequest body) throws Exception {
+    public SocialFriendRequestsDeclineResponse socialFriendRequestsDecline(String requestId, DeclineFriendRequestRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/friend_requests/" + serializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false)) + "/decline"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialFriendRequestCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialFriendRequestsDeclineResponse>() {});
     }
 
     /** Cancel a friend request. */
-    public SocialFriendRequestCommitResponse socialFriendRequestsCancel(String requestId, CancelFriendRequestRequest body) throws Exception {
+    public SocialFriendRequestsCancelResponse socialFriendRequestsCancel(String requestId, CancelFriendRequestRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/friend_requests/" + serializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false)) + "/cancel"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialFriendRequestCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialFriendRequestsCancelResponse>() {});
     }
 
     /** Activate a friendship event. */
-    public SocialFriendshipCommitResponse socialFriendshipsCreate(ActivateFriendshipRequest body) throws Exception {
+    public SocialFriendshipsCreateResponse201 socialFriendshipsCreate(ActivateFriendshipRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/friendships"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialFriendshipCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialFriendshipsCreateResponse201>() {});
     }
 
     /** Read a friendship snapshot. */
-    public SocialFriendshipSnapshotResponse socialFriendshipsRetrieve(String friendshipId) throws Exception {
+    public SocialFriendshipsRetrieveResponse socialFriendshipsRetrieve(String friendshipId) throws Exception {
         Object raw = client.get(ApiPaths.backendPath("/control/social/friendships/" + serializePathParameter(friendshipId, new PathParameterSpec("friendshipId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SocialFriendshipSnapshotResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialFriendshipsRetrieveResponse>() {});
     }
 
     /** Remove a friendship. */
-    public SocialFriendshipCommitResponse socialFriendshipsRemove(String friendshipId, RemoveFriendshipRequest body) throws Exception {
+    public SocialFriendshipsRemoveResponse socialFriendshipsRemove(String friendshipId, RemoveFriendshipRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/friendships/" + serializePathParameter(friendshipId, new PathParameterSpec("friendshipId", "simple", false)) + "/remove"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialFriendshipCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialFriendshipsRemoveResponse>() {});
     }
 
     /** Claim selected pending shared-channel sync entries. */
-    public SocialSharedChannelSyncPendingClaimResponse socialRuntimeClaimPendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncPendingTargetedClaimRequest body) throws Exception {
+    public SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201 socialRuntimeClaimPendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncPendingTargetedClaimRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/runtime/claim_pending_shared_channel_sync_targeted"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelSyncPendingClaimResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201>() {});
     }
 
     /** Read the dead-letter shared-channel sync queue. */
-    public SocialSharedChannelSyncDeadLetterInventoryResponse socialRuntimeDeadLetterSharedChannelSyncList() throws Exception {
-        Object raw = client.get(ApiPaths.backendPath("/control/social/runtime/dead_letter_shared_channel_sync"));
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelSyncDeadLetterInventoryResponse>() {});
+    public SdkWorkListResponse socialRuntimeDeadLetterSharedChannelSyncList(Integer pageSize, String cursor, Integer page, String q) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            new QueryParameterSpec("page", page, "form", true, false, null),
+            new QueryParameterSpec("q", q, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/social/runtime/dead_letter_shared_channel_sync"), query));
+        return client.convertValue(raw, new TypeReference<SdkWorkListResponse>() {});
     }
 
     /** Read the delivered shared-channel sync ledger. */
-    public SocialSharedChannelSyncDeliveredInventoryResponse socialRuntimeDeliveredSharedChannelSyncList() throws Exception {
-        Object raw = client.get(ApiPaths.backendPath("/control/social/runtime/delivered_shared_channel_sync"));
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelSyncDeliveredInventoryResponse>() {});
+    public SdkWorkListResponse socialRuntimeDeliveredSharedChannelSyncList(Integer pageSize, String cursor, Integer page, String q) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            new QueryParameterSpec("page", page, "form", true, false, null),
+            new QueryParameterSpec("q", q, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/social/runtime/delivered_shared_channel_sync"), query));
+        return client.convertValue(raw, new TypeReference<SdkWorkListResponse>() {});
     }
 
     /** Read merged shared-channel sync delivery state. */
-    public SocialSharedChannelSyncDeliveryStateInventoryResponse socialRuntimeDeliveryStateSharedChannelSyncList() throws Exception {
-        Object raw = client.get(ApiPaths.backendPath("/control/social/runtime/delivery_state_shared_channel_sync"));
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelSyncDeliveryStateInventoryResponse>() {});
+    public SdkWorkListResponse socialRuntimeDeliveryStateSharedChannelSyncList(Integer pageSize, String cursor, Integer page, String q) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            new QueryParameterSpec("page", page, "form", true, false, null),
+            new QueryParameterSpec("q", q, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/social/runtime/delivery_state_shared_channel_sync"), query));
+        return client.convertValue(raw, new TypeReference<SdkWorkListResponse>() {});
     }
 
     /** Read the pending shared-channel sync queue. */
-    public SocialSharedChannelSyncPendingInventoryResponse socialRuntimePendingSharedChannelSyncList() throws Exception {
-        Object raw = client.get(ApiPaths.backendPath("/control/social/runtime/pending_shared_channel_sync"));
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelSyncPendingInventoryResponse>() {});
+    public SdkWorkListResponse socialRuntimePendingSharedChannelSyncList(Integer pageSize, String cursor, Integer page, String q) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            new QueryParameterSpec("page", page, "form", true, false, null),
+            new QueryParameterSpec("q", q, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/control/social/runtime/pending_shared_channel_sync"), query));
+        return client.convertValue(raw, new TypeReference<SdkWorkListResponse>() {});
     }
 
     /** Reclaim stale shared-channel sync pending ownership. */
-    public SocialSharedChannelSyncPendingStaleReclaimResponse socialRuntimeReclaimStalePendingSharedChannelSyncCreate() throws Exception {
+    public SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201 socialRuntimeReclaimStalePendingSharedChannelSyncCreate() throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/runtime/reclaim_stale_pending_shared_channel_sync"), null);
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelSyncPendingStaleReclaimResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201>() {});
     }
 
     /** Release selected pending shared-channel sync entries. */
-    public SocialSharedChannelSyncPendingReleaseResponse socialRuntimeReleasePendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncPendingTargetedReleaseRequest body) throws Exception {
+    public SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201 socialRuntimeReleasePendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncPendingTargetedReleaseRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/runtime/release_pending_shared_channel_sync_targeted"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelSyncPendingReleaseResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201>() {});
     }
 
     /** Repair the persisted social runtime derived snapshot. */
-    public SocialRuntimeRepairResponse socialRuntimeRepairDerivedSnapshotCreate() throws Exception {
+    public SocialRuntimeRepairDerivedSnapshotCreateResponse201 socialRuntimeRepairDerivedSnapshotCreate() throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/runtime/repair_derived_snapshot"), null);
-        return client.convertValue(raw, new TypeReference<SocialRuntimeRepairResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialRuntimeRepairDerivedSnapshotCreateResponse201>() {});
     }
 
     /** Repair shared-channel sync backlog state. */
-    public SocialSharedChannelSyncRepairResponse socialRuntimeRepairSharedChannelSyncCreate() throws Exception {
+    public SocialRuntimeRepairSharedChannelSyncCreateResponse201 socialRuntimeRepairSharedChannelSyncCreate() throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/runtime/repair_shared_channel_sync"), null);
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelSyncRepairResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialRuntimeRepairSharedChannelSyncCreateResponse201>() {});
     }
 
     /** Republish selected pending shared-channel sync entries. */
-    public SocialSharedChannelSyncTargetedRepublishResponse socialRuntimeRepublishPendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncTargetedRepublishRequest body) throws Exception {
+    public SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201 socialRuntimeRepublishPendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncTargetedRepublishRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/runtime/republish_pending_shared_channel_sync_targeted"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelSyncTargetedRepublishResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201>() {});
     }
 
     /** Requeue all dead-letter shared-channel sync entries. */
-    public SocialSharedChannelSyncDeadLetterRequeueResponse socialRuntimeRequeueDeadLetterSharedChannelSyncCreate() throws Exception {
+    public SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201 socialRuntimeRequeueDeadLetterSharedChannelSyncCreate() throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/runtime/requeue_dead_letter_shared_channel_sync"), null);
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelSyncDeadLetterRequeueResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201>() {});
     }
 
     /** Requeue selected dead-letter shared-channel sync entries. */
-    public SocialSharedChannelSyncDeadLetterTargetedRequeueResponse socialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreate(SocialSharedChannelSyncDeadLetterTargetedRequeueRequest body) throws Exception {
+    public SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201 socialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreate(SocialSharedChannelSyncDeadLetterTargetedRequeueRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelSyncDeadLetterTargetedRequeueResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201>() {});
     }
 
     /** Take over selected pending shared-channel sync entries. */
-    public SocialSharedChannelSyncPendingTakeoverResponse socialRuntimeTakeoverPendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncPendingTargetedTakeoverRequest body) throws Exception {
+    public SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201 socialRuntimeTakeoverPendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncPendingTargetedTakeoverRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/runtime/takeover_pending_shared_channel_sync_targeted"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelSyncPendingTakeoverResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201>() {});
     }
 
     /** Apply a shared-channel policy. */
-    public SocialSharedChannelPolicyCommitResponse socialSharedChannelPoliciesCreate(ApplySharedChannelPolicyRequest body) throws Exception {
+    public SocialSharedChannelPoliciesCreateResponse201 socialSharedChannelPoliciesCreate(ApplySharedChannelPolicyRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/shared_channel_policies"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelPolicyCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialSharedChannelPoliciesCreateResponse201>() {});
     }
 
     /** Read a shared-channel policy snapshot. */
-    public SocialSharedChannelPolicySnapshotResponse socialSharedChannelPoliciesRetrieve(String policyId) throws Exception {
+    public SocialSharedChannelPoliciesRetrieveResponse socialSharedChannelPoliciesRetrieve(String policyId) throws Exception {
         Object raw = client.get(ApiPaths.backendPath("/control/social/shared_channel_policies/" + serializePathParameter(policyId, new PathParameterSpec("policyId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SocialSharedChannelPolicySnapshotResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialSharedChannelPoliciesRetrieveResponse>() {});
     }
 
     /** Block a user in the social graph. */
-    public SocialUserBlockCommitResponse socialUserBlocksCreate(BlockUserRequest body) throws Exception {
+    public SocialUserBlocksCreateResponse201 socialUserBlocksCreate(BlockUserRequest body) throws Exception {
         Object raw = client.post(ApiPaths.backendPath("/control/social/user_blocks"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialUserBlockCommitResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialUserBlocksCreateResponse201>() {});
     }
 
     /** Read a user block snapshot. */
-    public SocialUserBlockSnapshotResponse socialUserBlocksRetrieve(String blockId) throws Exception {
+    public SocialUserBlocksRetrieveResponse socialUserBlocksRetrieve(String blockId) throws Exception {
         Object raw = client.get(ApiPaths.backendPath("/control/social/user_blocks/" + serializePathParameter(blockId, new PathParameterSpec("blockId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SocialUserBlockSnapshotResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialUserBlocksRetrieveResponse>() {});
     }
 
     private record PathParameterSpec(String name, String style, boolean explode) {}

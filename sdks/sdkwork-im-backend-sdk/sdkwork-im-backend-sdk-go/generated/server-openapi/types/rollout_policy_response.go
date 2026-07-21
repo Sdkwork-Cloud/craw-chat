@@ -8,5 +8,5 @@ type RolloutPolicyResponse struct {
 	RegionSelector string `json:"regionSelector"`
 	ReleaseChannel string `json:"releaseChannel"`
 	TenantAllowlist []string `json:"tenantAllowlist"`
-	TrafficPercent int `json:"trafficPercent"`
+	TrafficPercent string `json:"trafficPercent"`
 }

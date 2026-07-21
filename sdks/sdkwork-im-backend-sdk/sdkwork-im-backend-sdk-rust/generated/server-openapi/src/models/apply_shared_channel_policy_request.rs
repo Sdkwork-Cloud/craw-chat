@@ -25,5 +25,5 @@ pub struct ApplySharedChannelPolicyRequest {
     pub policy_id: String,
 
     #[serde(rename = "policyVersion")]
-    pub policy_version: i64,
+    pub policy_version: String,
 }

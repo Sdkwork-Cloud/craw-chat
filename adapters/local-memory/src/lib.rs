@@ -8,8 +8,8 @@ use im_platform_contracts::{
     AutomationExecutionRecord, AutomationExecutionStore, CommitJournal,
     CommitJournalAggregateScope, CommitJournalReplayCursor, CommitJournalReplayPage,
     CommitPosition, ContractError, ExpireOnlinePresenceStateCommand, MetadataSnapshotRecord,
-    MetadataStore, NotificationTaskRecord, NotificationTaskStore, PresenceStateRecord,
-    PresenceStateStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
+    MetadataStore, NotificationTaskListCursor, NotificationTaskRecord, NotificationTaskStore,
+    PresenceStateRecord, PresenceStateStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
     RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
     RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowRecord, RealtimeEventWindowStore,
     RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
@@ -835,13 +835,18 @@ struct MemoryNotificationTaskState {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-struct NotificationRecipientSortKey(std::cmp::Reverse<(String, String)>, String);
+struct NotificationRecipientSortKey(std::cmp::Reverse<(String, String)>);
 
 impl MemoryNotificationTaskStore {
-    pub fn task(&self, tenant_id: &str, notification_id: &str) -> Option<NotificationTaskRecord> {
+    pub fn task(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        notification_id: &str,
+    ) -> Option<NotificationTaskRecord> {
         lock_memory_mutex(&self.state, "notification task store")
             .tasks
-            .get(notification_scope_key(tenant_id, notification_id).as_str())
+            .get(notification_scope_key(tenant_id, organization_id, notification_id).as_str())
             .cloned()
     }
 }
@@ -850,14 +855,18 @@ impl NotificationTaskStore for MemoryNotificationTaskStore {
     fn load_task(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         notification_id: &str,
     ) -> Result<Option<NotificationTaskRecord>, ContractError> {
-        Ok(self.task(tenant_id, notification_id))
+        Ok(self.task(tenant_id, organization_id, notification_id))
     }
 
     fn save_task(&self, record: NotificationTaskRecord) -> Result<(), ContractError> {
-        let notification_key =
-            notification_scope_key(record.tenant_id.as_str(), record.notification_id.as_str());
+        let notification_key = notification_scope_key(
+            record.tenant_id.as_str(),
+            record.organization_id.as_str(),
+            record.notification_id.as_str(),
+        );
         let mut state = lock_memory_mutex(&self.state, "notification task store");
         if let Some(previous) = state.tasks.get(notification_key.as_str()).cloned() {
             remove_notification_recipient_index(
@@ -883,20 +892,41 @@ impl NotificationTaskStore for MemoryNotificationTaskStore {
         Ok(())
     }
 
-    fn list_tasks_for_recipient(
+    fn list_tasks_for_recipient_page(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         recipient_kind: &str,
         recipient_id: &str,
+        cursor: Option<&NotificationTaskListCursor>,
+        page_size: usize,
     ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
         let state = lock_memory_mutex(&self.state, "notification task store");
-        let recipient_key =
-            notification_recipient_scope_key(tenant_id, recipient_kind, recipient_id);
+        let recipient_key = notification_recipient_scope_key(
+            tenant_id,
+            organization_id,
+            recipient_kind,
+            recipient_id,
+        );
         let Some(index) = state.tasks_by_recipient.get(recipient_key.as_str()) else {
             return Ok(Vec::new());
         };
-        Ok(index
-            .values()
+        let cursor_key = cursor.map(|value| {
+            NotificationRecipientSortKey(std::cmp::Reverse((
+                value.updated_at.clone(),
+                value.notification_id.clone(),
+            )))
+        });
+        let values: Box<dyn Iterator<Item = &String> + '_> = match cursor_key.as_ref() {
+            Some(key) => Box::new(
+                index
+                    .range((Excluded(key), Unbounded))
+                    .map(|(_, value)| value),
+            ),
+            None => Box::new(index.values()),
+        };
+        Ok(values
+            .take(page_size.saturating_add(1))
             .filter_map(|task_key| state.tasks.get(task_key.as_str()).cloned())
             .collect())
     }
@@ -911,13 +941,21 @@ impl MemoryAutomationExecutionStore {
     pub fn execution(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         principal_kind: &str,
         principal_id: &str,
         execution_id: &str,
     ) -> Option<AutomationExecutionRecord> {
         lock_memory_mutex(&self.executions, "automation execution store")
             .get(
-                execution_scope_key(tenant_id, principal_kind, principal_id, execution_id).as_str(),
+                execution_scope_key(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    execution_id,
+                )
+                .as_str(),
             )
             .cloned()
     }
@@ -927,16 +965,24 @@ impl AutomationExecutionStore for MemoryAutomationExecutionStore {
     fn load_execution(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         principal_kind: &str,
         principal_id: &str,
         execution_id: &str,
     ) -> Result<Option<AutomationExecutionRecord>, ContractError> {
-        Ok(self.execution(tenant_id, principal_kind, principal_id, execution_id))
+        Ok(self.execution(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            execution_id,
+        ))
     }
 
     fn save_execution(&self, record: AutomationExecutionRecord) -> Result<(), ContractError> {
         let key = execution_scope_key(
             record.tenant_id.as_str(),
+            record.organization_id.as_str(),
             record.execution.principal_kind.as_str(),
             record.principal_id.as_str(),
             record.execution_id.as_str(),
@@ -1294,16 +1340,17 @@ fn stream_scope_key(scope: &StreamScope) -> String {
     ])
 }
 
-fn notification_scope_key(tenant_id: &str, notification_id: &str) -> String {
-    scope_key_parts(&[tenant_id, notification_id])
+fn notification_scope_key(tenant_id: &str, organization_id: &str, notification_id: &str) -> String {
+    scope_key_parts(&[tenant_id, organization_id, notification_id])
 }
 
 fn notification_recipient_scope_key(
     tenant_id: &str,
+    organization_id: &str,
     recipient_kind: &str,
     recipient_id: &str,
 ) -> String {
-    scope_key_parts(&[tenant_id, recipient_kind, recipient_id])
+    scope_key_parts(&[tenant_id, organization_id, recipient_kind, recipient_id])
 }
 
 fn timeline_projection_scope_key(scope: &TimelineProjectionScope) -> String {
@@ -1317,6 +1364,7 @@ fn timeline_projection_scope_key(scope: &TimelineProjectionScope) -> String {
 fn record_notification_recipient_scope_key(record: &NotificationTaskRecord) -> String {
     notification_recipient_scope_key(
         record.tenant_id.as_str(),
+        record.organization_id.as_str(),
         record.task.recipient_kind.as_str(),
         record.task.recipient_id.as_str(),
     )
@@ -1325,16 +1373,10 @@ fn record_notification_recipient_scope_key(record: &NotificationTaskRecord) -> S
 fn notification_recipient_sort_key(
     record: &NotificationTaskRecord,
 ) -> NotificationRecipientSortKey {
-    let primary = record
-        .task
-        .dispatched_at
-        .as_deref()
-        .unwrap_or(record.task.requested_at.as_str())
-        .to_owned();
-    NotificationRecipientSortKey(
-        std::cmp::Reverse((primary, record.task.requested_at.clone())),
-        record.task.notification_id.clone(),
-    )
+    NotificationRecipientSortKey(std::cmp::Reverse((
+        record.updated_at.clone(),
+        record.notification_id.clone(),
+    )))
 }
 
 fn insert_notification_recipient_index(
@@ -1366,11 +1408,18 @@ fn remove_notification_recipient_index(
 
 fn execution_scope_key(
     tenant_id: &str,
+    organization_id: &str,
     principal_kind: &str,
     principal_id: &str,
     execution_id: &str,
 ) -> String {
-    scope_key_parts(&[tenant_id, principal_kind, principal_id, execution_id])
+    scope_key_parts(&[
+        tenant_id,
+        organization_id,
+        principal_kind,
+        principal_id,
+        execution_id,
+    ])
 }
 
 #[cfg(test)]

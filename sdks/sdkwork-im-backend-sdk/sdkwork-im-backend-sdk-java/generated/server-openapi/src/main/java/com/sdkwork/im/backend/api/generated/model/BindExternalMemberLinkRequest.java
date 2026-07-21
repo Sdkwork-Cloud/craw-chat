@@ -14,7 +14,7 @@ public class BindExternalMemberLinkRequest {
     public String getConnectionId() {
         return this.connectionId;
     }
-    
+
     public void setConnectionId(String connectionId) {
         this.connectionId = connectionId;
     }
@@ -22,7 +22,7 @@ public class BindExternalMemberLinkRequest {
     public String getEventId() {
         return this.eventId;
     }
-    
+
     public void setEventId(String eventId) {
         this.eventId = eventId;
     }
@@ -30,7 +30,7 @@ public class BindExternalMemberLinkRequest {
     public String getExternalDisplayName() {
         return this.externalDisplayName;
     }
-    
+
     public void setExternalDisplayName(String externalDisplayName) {
         this.externalDisplayName = externalDisplayName;
     }
@@ -38,7 +38,7 @@ public class BindExternalMemberLinkRequest {
     public String getExternalMemberId() {
         return this.externalMemberId;
     }
-    
+
     public void setExternalMemberId(String externalMemberId) {
         this.externalMemberId = externalMemberId;
     }
@@ -46,7 +46,7 @@ public class BindExternalMemberLinkRequest {
     public String getLinkId() {
         return this.linkId;
     }
-    
+
     public void setLinkId(String linkId) {
         this.linkId = linkId;
     }
@@ -54,7 +54,7 @@ public class BindExternalMemberLinkRequest {
     public String getLinkedAt() {
         return this.linkedAt;
     }
-    
+
     public void setLinkedAt(String linkedAt) {
         this.linkedAt = linkedAt;
     }
@@ -62,7 +62,7 @@ public class BindExternalMemberLinkRequest {
     public String getLocalActorId() {
         return this.localActorId;
     }
-    
+
     public void setLocalActorId(String localActorId) {
         this.localActorId = localActorId;
     }
@@ -70,7 +70,7 @@ public class BindExternalMemberLinkRequest {
     public String getLocalActorKind() {
         return this.localActorKind;
     }
-    
+
     public void setLocalActorKind(String localActorKind) {
         this.localActorKind = localActorKind;
     }

@@ -7,9 +7,11 @@ Status: standardizing
 
 This README is the SDKWork module entrypoint for `notification-service`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../sdkwork-specs/`.
 
-## Public API
+## Implemented Boundary
 
-- `.`
+- Accepts tenant- and organization-scoped notification requests and persists `requested`/accepted.
+- Reads notification history with store-level keyset pagination; it does not load a fixed full history and slice it in process memory.
+- Does not implement authoritative device-token registration/routing or a push-provider delivery worker. A request is not `dispatched` until a real provider receipt is committed.
 
 ## Required SDK Surface
 
@@ -17,11 +19,14 @@ This README is the SDKWork module entrypoint for `notification-service`. The mac
 
 ## Configuration
 
-Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
+- Production requires `SDKWORK_IM_DATABASE_URL` for the notification store and PostgreSQL commit journal.
+- `SDKWORK_IM_NOTIFICATION_TASK_STORE_FILE` is a bounded, single-node `dev`/`test` facility and is rejected in production.
 
 ## SaaS/Private/Local Behavior
 
-This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.
+The hot cache is bounded to 1,024 entries / 64 MiB. The local JSON store is capped at 32 MiB and 50,000 notification/index records. PostgreSQL updates serialize monotonic state merges with a transaction-scoped advisory lock so concurrent writers cannot regress a terminal state.
+
+Device registration, provider routing, durable claim/lease, bounded retry/backoff, dead-letter handling, provider receipts, invalid-token retirement, readiness, and delivery metrics remain unimplemented release blockers. Configuration values that resemble FCM/APNs credentials do not constitute an end-to-end delivery capability.
 
 ## Security
 
@@ -33,7 +38,7 @@ Extension points are limited to public exports, runtime entrypoints, SDK clients
 
 ## Verification
 
-- `cargo test --manifest-path apps/sdkwork-im/services/notification-service/Cargo.toml`
+- `cargo test -p notification-service`
 
 ## Owner And Status
 

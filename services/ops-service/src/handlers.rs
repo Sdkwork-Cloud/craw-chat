@@ -1,4 +1,5 @@
-use axum::extract::{Extension, State};
+use axum::extract::rejection::QueryRejection;
+use axum::extract::{Extension, Query, State};
 use axum::response::Response;
 use im_adapters_postgres_journal::{
     PostgresJournalConfig, RetentionCleanupReport, purge_expired_retention_batch,
@@ -6,13 +7,13 @@ use im_adapters_postgres_journal::{
 use im_app_context::AppContext;
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_routes_web_framework_backend_api::response::{ApiResult, finish_api_json};
-use sdkwork_utils_rust::SdkWorkResourceData;
+use sdkwork_utils_rust::{SdkWorkCursorListQuery, SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
 use serde::Deserialize;
 
 use crate::dto::{
-    ClusterView, DiagnosticBundle, LagView, OpsHealthResponse, ProjectionReplayStatusView,
-    ProviderBindingDriftView, ProviderBindingsView, RetentionPurgeResponse,
+    ClusterView, DiagnosticBundle, LagItem, OpsHealthResponse, ProjectionReplayStatusView,
+    ProviderBindingDriftItemView, ProviderBindingSnapshotView, RetentionPurgeResponse,
     RuntimeDirInspectionView,
 };
 use crate::error::OpsError;
@@ -22,6 +23,31 @@ use crate::state::AppState;
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 const RETENTION_PURGE_DEFAULT_BATCH_SIZE: i64 = 500;
 const RETENTION_PURGE_MAX_BATCH_SIZE: i64 = 5_000;
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct OpsCursorListQuery {
+    #[serde(rename = "page_size")]
+    page_size: Option<i32>,
+    cursor: Option<String>,
+}
+
+impl From<OpsCursorListQuery> for SdkWorkCursorListQuery {
+    fn from(value: OpsCursorListQuery) -> Self {
+        Self {
+            page_size: value.page_size,
+            cursor: value.cursor,
+        }
+    }
+}
+
+fn resolve_ops_query(
+    query: Result<Query<OpsCursorListQuery>, QueryRejection>,
+) -> Result<SdkWorkCursorListQuery, OpsError> {
+    query
+        .map(|Query(query)| query.into())
+        .map_err(|_| OpsError::invalid_parameter("invalid ops list query parameters"))
+}
 
 pub(crate) async fn get_ops_health(
     Extension(ctx): Extension<WebRequestContext>,
@@ -54,13 +80,12 @@ pub(crate) async fn get_cluster(
 pub(crate) async fn get_lag(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
+    query: Result<Query<OpsCursorListQuery>, QueryRejection>,
     State(state): State<AppState>,
 ) -> Response {
-    let result: ApiResult<SdkWorkResourceData<LagView>> = (|| {
+    let result: ApiResult<SdkWorkPageData<LagItem>> = (|| {
         ensure_ops_read_access(&auth)?;
-        Ok(SdkWorkResourceData {
-            item: state.runtime.lag_view(),
-        })
+        Ok(state.runtime.lag_page(resolve_ops_query(query)?)?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -82,13 +107,14 @@ pub(crate) async fn get_runtime_dir(
 pub(crate) async fn get_provider_bindings(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
+    query: Result<Query<OpsCursorListQuery>, QueryRejection>,
     State(state): State<AppState>,
 ) -> Response {
-    let result: ApiResult<SdkWorkResourceData<ProviderBindingsView>> = (|| {
+    let result: ApiResult<SdkWorkPageData<ProviderBindingSnapshotView>> = (|| {
         ensure_ops_read_access(&auth)?;
-        Ok(SdkWorkResourceData {
-            item: state.runtime.provider_bindings_view(),
-        })
+        Ok(state
+            .runtime
+            .provider_bindings_page(resolve_ops_query(query)?)?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -96,13 +122,14 @@ pub(crate) async fn get_provider_bindings(
 pub(crate) async fn get_provider_binding_drift(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
+    query: Result<Query<OpsCursorListQuery>, QueryRejection>,
     State(state): State<AppState>,
 ) -> Response {
-    let result: ApiResult<SdkWorkResourceData<ProviderBindingDriftView>> = (|| {
+    let result: ApiResult<SdkWorkPageData<ProviderBindingDriftItemView>> = (|| {
         ensure_ops_read_access(&auth)?;
-        Ok(SdkWorkResourceData {
-            item: state.runtime.provider_binding_drift_view(),
-        })
+        Ok(state
+            .runtime
+            .provider_binding_drift_page(resolve_ops_query(query)?)?)
     })();
     finish_api_json(&ctx, result)
 }

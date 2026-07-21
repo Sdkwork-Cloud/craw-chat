@@ -8,7 +8,7 @@ public class SocialSharedChannelSyncDeadLetterTargetedRequeueRequest {
     public List<String> getRequestKeys() {
         return this.requestKeys;
     }
-    
+
     public void setRequestKeys(List<String> requestKeys) {
         this.requestKeys = requestKeys;
     }

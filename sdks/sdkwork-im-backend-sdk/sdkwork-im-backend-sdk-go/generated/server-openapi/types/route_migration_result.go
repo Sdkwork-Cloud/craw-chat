@@ -2,7 +2,7 @@ package types
 
 
 type RouteMigrationResult struct {
-	MigratedRouteCount int `json:"migratedRouteCount"`
+	MigratedRouteCount string `json:"migratedRouteCount"`
 	SourceDrainStatus string `json:"sourceDrainStatus"`
 	SourceNodeId string `json:"sourceNodeId"`
 	SourceRebalanceState string `json:"sourceRebalanceState"`

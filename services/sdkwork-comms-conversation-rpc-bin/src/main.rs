@@ -40,6 +40,9 @@ async fn run() -> Result<(), String> {
         enable_health: true,
         ..ImRpcServerConfig::local_default()
     };
+    config
+        .validate_plaintext_listener()
+        .map_err(|error| format!("conversation RPC transport configuration invalid: {error}"))?;
 
     let rpc_framework = initialize_im_rpc_framework_from_env()
         .map_err(|error| format!("im rpc framework bootstrap failed: {error}"))?;

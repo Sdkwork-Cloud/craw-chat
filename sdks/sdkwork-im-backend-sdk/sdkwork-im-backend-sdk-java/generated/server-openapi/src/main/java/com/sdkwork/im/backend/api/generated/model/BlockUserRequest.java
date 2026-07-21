@@ -14,7 +14,7 @@ public class BlockUserRequest {
     public String getBlockId() {
         return this.blockId;
     }
-    
+
     public void setBlockId(String blockId) {
         this.blockId = blockId;
     }
@@ -22,7 +22,7 @@ public class BlockUserRequest {
     public String getBlockedUserId() {
         return this.blockedUserId;
     }
-    
+
     public void setBlockedUserId(String blockedUserId) {
         this.blockedUserId = blockedUserId;
     }
@@ -30,7 +30,7 @@ public class BlockUserRequest {
     public String getBlockerUserId() {
         return this.blockerUserId;
     }
-    
+
     public void setBlockerUserId(String blockerUserId) {
         this.blockerUserId = blockerUserId;
     }
@@ -38,7 +38,7 @@ public class BlockUserRequest {
     public String getDirectChatId() {
         return this.directChatId;
     }
-    
+
     public void setDirectChatId(String directChatId) {
         this.directChatId = directChatId;
     }
@@ -46,7 +46,7 @@ public class BlockUserRequest {
     public String getEffectiveAt() {
         return this.effectiveAt;
     }
-    
+
     public void setEffectiveAt(String effectiveAt) {
         this.effectiveAt = effectiveAt;
     }
@@ -54,7 +54,7 @@ public class BlockUserRequest {
     public String getEventId() {
         return this.eventId;
     }
-    
+
     public void setEventId(String eventId) {
         this.eventId = eventId;
     }
@@ -62,7 +62,7 @@ public class BlockUserRequest {
     public String getExpiresAt() {
         return this.expiresAt;
     }
-    
+
     public void setExpiresAt(String expiresAt) {
         this.expiresAt = expiresAt;
     }
@@ -70,7 +70,7 @@ public class BlockUserRequest {
     public String getScope() {
         return this.scope;
     }
-    
+
     public void setScope(String scope) {
         this.scope = scope;
     }

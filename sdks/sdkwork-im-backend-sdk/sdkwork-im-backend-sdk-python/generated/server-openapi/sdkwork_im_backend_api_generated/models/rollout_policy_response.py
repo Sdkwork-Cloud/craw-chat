@@ -11,4 +11,4 @@ class RolloutPolicyResponse:
     region_selector: str
     release_channel: str
     tenant_allowlist: List[str]
-    traffic_percent: int
+    traffic_percent: str

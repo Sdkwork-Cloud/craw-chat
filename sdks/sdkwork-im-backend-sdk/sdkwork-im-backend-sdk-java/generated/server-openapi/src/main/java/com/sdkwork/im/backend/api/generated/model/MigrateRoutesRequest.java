@@ -7,7 +7,7 @@ public class MigrateRoutesRequest {
     public String getTargetNodeId() {
         return this.targetNodeId;
     }
-    
+
     public void setTargetNodeId(String targetNodeId) {
         this.targetNodeId = targetNodeId;
     }

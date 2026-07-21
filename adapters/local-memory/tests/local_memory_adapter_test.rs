@@ -121,6 +121,7 @@ fn notification_task_record(
 ) -> NotificationTaskRecord {
     NotificationTaskRecord {
         tenant_id: "100001".into(),
+        organization_id: "0".into(),
         notification_id: notification_id.into(),
         task: NotificationTask {
             tenant_id: "100001".into(),
@@ -153,6 +154,7 @@ fn automation_execution_record(
 ) -> AutomationExecutionRecord {
     AutomationExecutionRecord {
         tenant_id: "100001".into(),
+        organization_id: "0".into(),
         principal_id: "1".into(),
         execution_id: "ae_demo".into(),
         execution: AutomationExecution {
@@ -244,7 +246,7 @@ fn test_memory_notification_task_store_lists_only_matching_recipient_kind() {
         .expect("system notification save should succeed");
 
     let listed = store
-        .list_tasks_for_recipient("100001", "user", "shared_id")
+        .list_tasks_for_recipient_page("100001", "0", "user", "shared_id", None, 20)
         .expect("recipient listing should succeed");
 
     assert_eq!(
@@ -283,7 +285,7 @@ fn test_memory_notification_task_store_rejects_stale_status_regression_writes() 
         .expect("stale notification save should not fail the caller");
 
     let restored = store
-        .load_task("100001", "ntf_demo")
+        .load_task("100001", "0", "ntf_demo")
         .expect("notification load should succeed")
         .expect("notification should be present");
     assert_eq!(restored.task.status, NotificationStatus::Dispatched);
@@ -1193,6 +1195,7 @@ fn test_memory_automation_execution_store_isolates_same_actor_id_across_principa
         store
             .save_execution(AutomationExecutionRecord {
                 tenant_id: "100001".into(),
+                organization_id: "0".into(),
                 principal_id: "1".into(),
                 execution_id: "ae_kind_isolation".into(),
                 execution: AutomationExecution {
@@ -1217,11 +1220,11 @@ fn test_memory_automation_execution_store_isolates_same_actor_id_across_principa
     }
 
     let user_execution = store
-        .load_execution("100001", "user", "1", "ae_kind_isolation")
+        .load_execution("100001", "0", "user", "1", "ae_kind_isolation")
         .expect("user execution load should succeed")
         .expect("user execution should exist");
     let system_execution = store
-        .load_execution("100001", "system", "1", "ae_kind_isolation")
+        .load_execution("100001", "0", "system", "1", "ae_kind_isolation")
         .expect("system execution load should succeed")
         .expect("system execution should exist");
     assert_eq!(user_execution.execution.principal_kind, "user");
@@ -1253,7 +1256,7 @@ fn test_memory_automation_execution_store_rejects_stale_status_regression_writes
         .expect("stale automation execution save should not fail the caller");
 
     let restored = store
-        .load_execution("100001", "user", "1", "ae_demo")
+        .load_execution("100001", "0", "user", "1", "ae_demo")
         .expect("automation execution load should succeed")
         .expect("automation execution should be present");
     assert_eq!(

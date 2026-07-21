@@ -19,7 +19,7 @@
 
 - `ops-service` 新增：
   - `ProviderBindingDriftItemView`
-  - `ProviderBindingDriftView`
+  - `ProviderBindingDriftPageData`（`cursor + page_size` keyset 分页，响应为 `data.items + data.pageInfo`）
 - `OpsRuntime` 新增：
   - `provider_binding_drift_view()`
 - `ops-service` 新增只读接口：
@@ -77,4 +77,3 @@
 
 1. 补 provider policy 写接口与审计/版本闭环。
 2. 再把 drift 结果接入告警与回滚决策。
-

@@ -7,5 +7,5 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 class UpsertProviderBindingPolicyRequest:
     domain: str
     plugin_id: str
-    expected_base_version: Optional[int] = None
+    expected_base_version: Optional[str] = None
     tenant_id: Optional[str] = None

@@ -203,11 +203,12 @@ impl ClusterMemoryDisconnectFenceStore {
 }
 
 impl RealtimeClusterBridge {
-    pub fn fence_and_release_node_routes(
+    pub fn fence_and_release_node_routes_batch(
         &self,
         node_id: &str,
+        batch_size: usize,
     ) -> Result<usize, RealtimeClusterError> {
-        let routes = self.routes_for_node(node_id);
+        let routes = self.routes_for_node_page(node_id, None, batch_size).items;
         let mut released = 0usize;
         for route in routes {
             self.mark_client_route_disconnected_for_principal_kind(ClientRouteDisconnectCommand {
@@ -232,6 +233,24 @@ impl RealtimeClusterBridge {
             {
                 released = released.saturating_add(1);
             }
+        }
+        Ok(released)
+    }
+
+    pub fn fence_and_release_node_routes(
+        &self,
+        node_id: &str,
+    ) -> Result<usize, RealtimeClusterError> {
+        let mut released = 0usize;
+        while self.has_routes_for_node(node_id) {
+            let batch_released = self.fence_and_release_node_routes_batch(
+                node_id,
+                sdkwork_im_runtime_route::ROUTE_BINDING_PAGE_MAX_SIZE,
+            )?;
+            if batch_released == 0 {
+                break;
+            }
+            released = released.saturating_add(batch_released);
         }
         Ok(released)
     }

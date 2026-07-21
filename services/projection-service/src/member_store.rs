@@ -471,8 +471,6 @@ impl ProjectionMemberRuntimeStore {
         scope: &str,
         tenant_id: &str,
         keyset_cursor: Option<(u8, String, String)>,
-        legacy_offset: usize,
-        use_legacy_offset: bool,
         limit: usize,
     ) -> (Vec<ConversationMember>, bool) {
         let limit = limit.max(1);
@@ -482,7 +480,6 @@ impl ProjectionMemberRuntimeStore {
         };
         let scope_members = self.by_conversation.get(scope);
 
-        let mut skipped = 0usize;
         let index_iter: Box<dyn Iterator<Item = &MemberDirectoryIndexEntry>> =
             if let Some((role_rank, joined_at, principal_id)) = keyset_cursor {
                 let cursor_entry = MemberDirectoryIndexEntry {
@@ -498,10 +495,6 @@ impl ProjectionMemberRuntimeStore {
             };
 
         for entry in index_iter {
-            if use_legacy_offset && skipped < legacy_offset {
-                skipped += 1;
-                continue;
-            }
             let Some(members) = scope_members else {
                 break;
             };
@@ -676,13 +669,18 @@ mod tests {
         }
 
         let (first_page, has_more) =
-            store.collect_member_directory_window(scope, "100001", None, 0, false, 2);
+            store.collect_member_directory_window(scope, "100001", None, 2);
         assert!(has_more);
         assert_eq!(first_page.len(), 2);
         assert_eq!(first_page[0].principal_id, "u0");
 
+        let cursor = Some((
+            member_directory_role_rank(&first_page[1].role),
+            first_page[1].joined_at.clone(),
+            first_page[1].principal_id.clone(),
+        ));
         let (second_page, has_more) =
-            store.collect_member_directory_window(scope, "100001", None, 2, true, 2);
+            store.collect_member_directory_window(scope, "100001", cursor, 2);
         assert!(has_more);
         assert_eq!(second_page[0].principal_id, "u2");
     }

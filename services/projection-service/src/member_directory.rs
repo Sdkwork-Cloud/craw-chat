@@ -45,24 +45,16 @@ impl TimelineProjectionService {
     ) -> Result<SdkWorkPageData<ConversationMemberDirectoryEntry>, crate::projection::ProjectionError>
     {
         let scope = scope_key(tenant_id, organization_id, conversation_id);
-        let (keyset_cursor, legacy_offset, use_legacy_offset) = match cursor {
-            MemberDirectoryListCursor::Start => (None, 0, false),
-            MemberDirectoryListCursor::Offset(value) => (None, value, true),
+        let keyset_cursor = match cursor {
+            MemberDirectoryListCursor::Start => None,
             MemberDirectoryListCursor::Keyset {
                 role_rank,
                 joined_at,
                 principal_id,
-            } => (Some((role_rank, joined_at, principal_id)), 0, false),
+            } => Some((role_rank, joined_at, principal_id)),
         };
         let (members, has_more) = super::lock_projection_mutex(&self.members, "member store")
-            .collect_member_directory_window(
-                scope.as_str(),
-                tenant_id,
-                keyset_cursor,
-                legacy_offset,
-                use_legacy_offset,
-                page_size,
-            );
+            .collect_member_directory_window(scope.as_str(), tenant_id, keyset_cursor, page_size);
         let items = members
             .into_iter()
             .map(|member| ConversationMemberDirectoryEntry::from_member(&member))
@@ -96,11 +88,6 @@ pub(super) fn member_directory_window_slice(
     limit: usize,
 ) -> (Vec<ConversationMemberDirectoryEntry>, bool) {
     let mut window = Vec::with_capacity(limit.saturating_add(1));
-    let legacy_offset = matches!(cursor, Some(MemberDirectoryListCursor::Offset(_)));
-    let offset = match cursor {
-        Some(MemberDirectoryListCursor::Offset(value)) => value,
-        _ => 0,
-    };
     let keyset_cursor = match cursor {
         Some(MemberDirectoryListCursor::Keyset {
             role_rank,
@@ -109,15 +96,10 @@ pub(super) fn member_directory_window_slice(
         }) => Some((role_rank, joined_at, principal_id)),
         _ => None,
     };
-    let mut skipped = 0usize;
     for entry in items {
         if let Some((role_rank, joined_at, principal_id)) = keyset_cursor.as_ref()
             && !member_entry_after_keyset_cursor(&entry, *role_rank, joined_at, principal_id)
         {
-            continue;
-        }
-        if legacy_offset && skipped < offset {
-            skipped += 1;
             continue;
         }
         window.push(entry);

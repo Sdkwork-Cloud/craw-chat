@@ -3,8 +3,9 @@
 use std::sync::Arc;
 
 use sdkwork_im_runtime_route::{
-    RouteBinding, RouteBindingRequest, RouteDirectory, RouteMigrationResult, RouteNodeLifecycle,
-    RouteRuntimeError, RouteStore, encode_route_key_segments, normalize_route_organization_id,
+    ROUTE_BINDING_PAGE_MAX_SIZE, RouteBinding, RouteBindingPage, RouteBindingRequest,
+    RouteDirectory, RouteMigrationResult, RouteNodeLifecycle, RouteRuntimeError, RouteStore,
+    encode_route_key_segments, normalize_route_organization_id,
 };
 
 use crate::redis_blocking::{RedisBlockingTimeouts, run_bounded_redis_command};
@@ -154,6 +155,24 @@ impl RedisBackedRouteStore {
         self.memory.observe_external_binding(binding.clone());
         self.persist_binding(binding)
     }
+
+    fn persist_node_bindings(&self, node_id: &str) -> Result<(), RouteRuntimeError> {
+        let mut cursor = None;
+        loop {
+            let page = self.memory.routes_for_node_page(
+                node_id,
+                cursor.as_deref(),
+                ROUTE_BINDING_PAGE_MAX_SIZE,
+            );
+            for route in page.items {
+                self.persist_binding(&route)?;
+            }
+            let Some(next_cursor) = page.next_cursor else {
+                return Ok(());
+            };
+            cursor = Some(next_cursor);
+        }
+    }
 }
 
 impl RouteStore for RedisBackedRouteStore {
@@ -202,9 +221,7 @@ impl RouteStore for RedisBackedRouteStore {
         let migration =
             self.memory
                 .migrate_routes_at(source_node_id, target_node_id, migrated_at)?;
-        for route in self.memory.routes_for_node(target_node_id) {
-            self.persist_binding(&route)?;
-        }
+        self.persist_node_bindings(target_node_id)?;
         Ok(migration)
     }
 
@@ -294,6 +311,15 @@ impl RouteStore for RedisBackedRouteStore {
 
     fn routes_for_node(&self, node_id: &str) -> Vec<RouteBinding> {
         self.memory.routes_for_node(node_id)
+    }
+
+    fn routes_for_node_page(
+        &self,
+        node_id: &str,
+        cursor: Option<&str>,
+        page_size: usize,
+    ) -> RouteBindingPage {
+        self.memory.routes_for_node_page(node_id, cursor, page_size)
     }
 
     fn node_lifecycle(&self, node_id: &str) -> Option<RouteNodeLifecycle> {

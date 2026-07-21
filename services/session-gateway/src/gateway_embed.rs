@@ -7,6 +7,8 @@ use crate::{
     spawn_cluster_route_event_subscriber, spawn_link_transport_listeners,
 };
 
+const ROUTE_DRAIN_BATCH_SIZE: usize = 256;
+
 /// Runtime handles produced when a gateway process embeds the session-gateway realtime plane.
 pub struct GatewayEmbeddedRealtimePlane {
     pub bootstrap: RealtimePlaneBootstrap,
@@ -26,7 +28,7 @@ impl GatewayEmbeddedRealtimePlane {
         let node_id = self.bootstrap.node_id.clone();
         let readiness = self.bootstrap.assembly.readiness();
         let cluster = self.bootstrap.assembly.realtime_cluster();
-        let routes_before = cluster.routes_for_node(node_id.as_str()).len();
+        let routes_before = cluster.route_count_for_node(node_id.as_str());
 
         readiness.mark_draining();
         let lifecycle_error = cluster
@@ -49,14 +51,16 @@ impl GatewayEmbeddedRealtimePlane {
 
         let mut route_drain_error = None;
         loop {
-            if cluster.routes_for_node(node_id.as_str()).is_empty() {
+            if !cluster.has_routes_for_node(node_id.as_str()) {
                 break;
             }
-            match cluster.fence_and_release_node_routes(node_id.as_str()) {
+            match cluster
+                .fence_and_release_node_routes_batch(node_id.as_str(), ROUTE_DRAIN_BATCH_SIZE)
+            {
                 Ok(_) => route_drain_error = None,
                 Err(error) => route_drain_error = Some(error.message),
             }
-            if cluster.routes_for_node(node_id.as_str()).is_empty() {
+            if !cluster.has_routes_for_node(node_id.as_str()) {
                 break;
             }
             let remaining = remaining_duration(deadline);
@@ -70,7 +74,7 @@ impl GatewayEmbeddedRealtimePlane {
             subscriber.shutdown(remaining_duration(deadline)).await;
         }
 
-        let remaining_routes = cluster.routes_for_node(node_id.as_str()).len();
+        let remaining_routes = cluster.route_count_for_node(node_id.as_str());
         cluster.unbind_node_runtime(node_id.as_str());
         tracing::info!(
             target: "sdkwork.im",

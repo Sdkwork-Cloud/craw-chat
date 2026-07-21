@@ -113,10 +113,6 @@ impl TimelineProjectionService {
             }
             _ => None,
         };
-        let mut offset_remaining = match &query.cursor {
-            crate::model::InboxListCursor::Offset(offset) => *offset,
-            _ => 0,
-        };
         let scan_batch_size = limit
             .saturating_mul(8)
             .max(limit.saturating_add(1))
@@ -147,10 +143,6 @@ impl TimelineProjectionService {
 
             scan_cursor = scanned_entries.last().cloned();
             for (activity_at, scope) in scanned_entries {
-                if offset_remaining > 0 {
-                    offset_remaining -= 1;
-                    continue;
-                }
                 let Some(entry) = self.build_inbox_entry_for_scope(
                     query.tenant_id,
                     query.organization_id,

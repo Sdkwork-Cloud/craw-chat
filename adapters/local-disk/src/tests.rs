@@ -115,6 +115,7 @@ fn notification_task_record(
 ) -> NotificationTaskRecord {
     NotificationTaskRecord {
         tenant_id: "100001".into(),
+        organization_id: "0".into(),
         notification_id: notification_id.into(),
         task: NotificationTask {
             tenant_id: "100001".into(),
@@ -147,6 +148,7 @@ fn automation_execution_record(
 ) -> AutomationExecutionRecord {
     AutomationExecutionRecord {
         tenant_id: "100001".into(),
+        organization_id: "0".into(),
         principal_id: "1".into(),
         execution_id: "ae_demo".into(),
         execution: AutomationExecution {
@@ -1267,6 +1269,7 @@ fn test_file_notification_task_store_persists_across_reopen() {
     store
         .save_task(NotificationTaskRecord {
             tenant_id: "100001".into(),
+            organization_id: "0".into(),
             notification_id: "ntf_demo".into(),
             task: im_domain_core::notification::NotificationTask {
                 tenant_id: "100001".into(),
@@ -1291,7 +1294,7 @@ fn test_file_notification_task_store_persists_across_reopen() {
 
     let reopened = FileNotificationTaskStore::new(&file_path);
     let restored = reopened
-        .load_task("100001", "ntf_demo")
+        .load_task("100001", "0", "ntf_demo")
         .expect("load should succeed")
         .expect("notification task should exist");
     assert_eq!(restored.task.notification_id, "ntf_demo");
@@ -1299,7 +1302,7 @@ fn test_file_notification_task_store_persists_across_reopen() {
     assert_eq!(restored.task.recipient_kind, "user");
 
     let listed = reopened
-        .list_tasks_for_recipient("100001", "user", "1")
+        .list_tasks_for_recipient_page("100001", "0", "user", "1", None, 20)
         .expect("list should succeed");
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].notification_id, "ntf_demo");
@@ -1335,7 +1338,7 @@ fn test_file_notification_task_store_lists_only_matching_recipient_kind() {
         .expect("system notification save should succeed");
 
     let listed = store
-        .list_tasks_for_recipient("100001", "user", "shared_id")
+        .list_tasks_for_recipient_page("100001", "0", "user", "shared_id", None, 20)
         .expect("recipient listing should succeed");
 
     assert_eq!(
@@ -1377,7 +1380,7 @@ fn test_file_notification_task_store_rejects_stale_status_regression_writes() {
         .expect("stale notification save should not fail the caller");
 
     let restored = store
-        .load_task("100001", "ntf_demo")
+        .load_task("100001", "0", "ntf_demo")
         .expect("notification load should succeed")
         .expect("notification should be present");
     assert_eq!(restored.task.status, NotificationStatus::Dispatched);
@@ -1397,6 +1400,7 @@ fn test_file_automation_execution_store_persists_across_reopen() {
     store
         .save_execution(AutomationExecutionRecord {
             tenant_id: "100001".into(),
+            organization_id: "0".into(),
             principal_id: "1".into(),
             execution_id: "ae_demo".into(),
             execution: im_domain_core::automation::AutomationExecution {
@@ -1421,7 +1425,7 @@ fn test_file_automation_execution_store_persists_across_reopen() {
 
     let reopened = FileAutomationExecutionStore::new(&file_path);
     let restored = reopened
-        .load_execution("100001", "user", "1", "ae_demo")
+        .load_execution("100001", "0", "user", "1", "ae_demo")
         .expect("load should succeed")
         .expect("automation execution should exist");
     assert_eq!(restored.execution.execution_id, "ae_demo");
@@ -1442,6 +1446,7 @@ fn test_file_automation_execution_store_isolates_same_actor_id_across_principal_
         store
             .save_execution(AutomationExecutionRecord {
                 tenant_id: "100001".into(),
+                organization_id: "0".into(),
                 principal_id: "1".into(),
                 execution_id: "ae_kind_isolation".into(),
                 execution: im_domain_core::automation::AutomationExecution {
@@ -1467,11 +1472,11 @@ fn test_file_automation_execution_store_isolates_same_actor_id_across_principal_
 
     let reopened = FileAutomationExecutionStore::new(&file_path);
     let user_execution = reopened
-        .load_execution("100001", "user", "1", "ae_kind_isolation")
+        .load_execution("100001", "0", "user", "1", "ae_kind_isolation")
         .expect("user execution load should succeed")
         .expect("user execution should exist");
     let system_execution = reopened
-        .load_execution("100001", "system", "1", "ae_kind_isolation")
+        .load_execution("100001", "0", "system", "1", "ae_kind_isolation")
         .expect("system execution load should succeed")
         .expect("system execution should exist");
     assert_eq!(user_execution.execution.principal_kind, "user");
@@ -1487,6 +1492,7 @@ fn test_file_automation_execution_store_ignores_legacy_key_without_principal_kin
         "100001:1:ae_legacy".to_string(),
         AutomationExecutionRecord {
             tenant_id: "100001".into(),
+            organization_id: "0".into(),
             principal_id: "1".into(),
             execution_id: "ae_legacy".into(),
             execution: im_domain_core::automation::AutomationExecution {
@@ -1518,7 +1524,7 @@ fn test_file_automation_execution_store_ignores_legacy_key_without_principal_kin
     let reopened = FileAutomationExecutionStore::new(&file_path);
     assert!(
         reopened
-            .load_execution("100001", "system", "1", "ae_legacy")
+            .load_execution("100001", "0", "system", "1", "ae_legacy")
             .expect("legacy execution load should succeed")
             .is_none(),
         "local disk automation execution store must not read principal-kind-less legacy keys"
@@ -1553,7 +1559,7 @@ fn test_file_automation_execution_store_rejects_stale_status_regression_writes()
         .expect("stale automation execution save should not fail the caller");
 
     let restored = store
-        .load_execution("100001", "user", "1", "ae_demo")
+        .load_execution("100001", "0", "user", "1", "ae_demo")
         .expect("automation execution load should succeed")
         .expect("automation execution should be present");
     assert_eq!(

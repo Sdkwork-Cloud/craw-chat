@@ -13,7 +13,7 @@ public class ProtocolSchemaResponse {
     public List<String> getBindingProtocols() {
         return this.bindingProtocols;
     }
-    
+
     public void setBindingProtocols(List<String> bindingProtocols) {
         this.bindingProtocols = bindingProtocols;
     }
@@ -21,7 +21,7 @@ public class ProtocolSchemaResponse {
     public String getKind() {
         return this.kind;
     }
-    
+
     public void setKind(String kind) {
         this.kind = kind;
     }
@@ -29,7 +29,7 @@ public class ProtocolSchemaResponse {
     public List<String> getRequiredCapabilities() {
         return this.requiredCapabilities;
     }
-    
+
     public void setRequiredCapabilities(List<String> requiredCapabilities) {
         this.requiredCapabilities = requiredCapabilities;
     }
@@ -37,7 +37,7 @@ public class ProtocolSchemaResponse {
     public String getSchema() {
         return this.schema;
     }
-    
+
     public void setSchema(String schema) {
         this.schema = schema;
     }
@@ -45,7 +45,7 @@ public class ProtocolSchemaResponse {
     public String getStage() {
         return this.stage;
     }
-    
+
     public void setStage(String stage) {
         this.stage = stage;
     }
@@ -53,7 +53,7 @@ public class ProtocolSchemaResponse {
     public List<String> getSupportedConsumers() {
         return this.supportedConsumers;
     }
-    
+
     public void setSupportedConsumers(List<String> supportedConsumers) {
         this.supportedConsumers = supportedConsumers;
     }

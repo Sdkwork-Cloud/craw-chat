@@ -701,6 +701,48 @@ fn test_cluster_bridge_drain_fences_and_releases_all_node_routes() {
 }
 
 #[test]
+fn test_cluster_bridge_drain_batch_is_bounded_and_reports_exact_remaining_count() {
+    let cluster = RealtimeClusterBridge::default();
+    cluster.bind_node_runtime(
+        "node_a",
+        Arc::new(RealtimeDeliveryRuntime::permissive_for_tests()),
+    );
+    for device_id in ["d_one", "d_two", "d_three"] {
+        cluster
+            .bind_client_route_for_principal_kind(
+                "100001",
+                "default",
+                "1",
+                "user",
+                device_id,
+                "node_a",
+                Some("s_batch"),
+                "websocket",
+            )
+            .expect("route bind should succeed");
+    }
+    cluster
+        .mark_node_draining("node_a")
+        .expect("node should enter draining");
+
+    let released = cluster
+        .fence_and_release_node_routes_batch("node_a", 2)
+        .expect("bounded route batch should drain");
+
+    assert_eq!(released, 2);
+    assert_eq!(cluster.route_count_for_node("node_a"), 1);
+    assert!(cluster.has_routes_for_node("node_a"));
+    assert_eq!(
+        cluster
+            .fence_and_release_node_routes_batch("node_a", 2)
+            .expect("remaining route batch should drain"),
+        1
+    );
+    assert_eq!(cluster.route_count_for_node("node_a"), 0);
+    assert!(!cluster.has_routes_for_node("node_a"));
+}
+
+#[test]
 fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let runtime_a = Arc::new(RealtimeDeliveryRuntime::permissive_for_tests());

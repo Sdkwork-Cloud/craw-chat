@@ -6,9 +6,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NotificationTaskRecord {
     pub tenant_id: String,
+    #[serde(default = "default_organization_id")]
+    pub organization_id: String,
     pub notification_id: String,
     pub task: NotificationTask,
     pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotificationTaskListCursor {
+    pub updated_at: String,
+    pub notification_id: String,
 }
 
 impl NotificationTaskRecord {
@@ -35,17 +43,25 @@ pub trait NotificationTaskStore: Send + Sync {
     fn load_task(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         notification_id: &str,
     ) -> Result<Option<NotificationTaskRecord>, ContractError>;
 
     fn save_task(&self, record: NotificationTaskRecord) -> Result<(), ContractError>;
 
-    fn list_tasks_for_recipient(
+    fn list_tasks_for_recipient_page(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         recipient_kind: &str,
         recipient_id: &str,
+        cursor: Option<&NotificationTaskListCursor>,
+        page_size: usize,
     ) -> Result<Vec<NotificationTaskRecord>, ContractError>;
+}
+
+fn default_organization_id() -> String {
+    "0".to_owned()
 }
 
 fn notification_task_record_precedes(
@@ -91,6 +107,7 @@ mod tests {
     ) -> NotificationTaskRecord {
         NotificationTaskRecord {
             tenant_id: "100001".into(),
+            organization_id: "0".into(),
             notification_id: "ntf_demo".into(),
             task: NotificationTask {
                 tenant_id: "100001".into(),

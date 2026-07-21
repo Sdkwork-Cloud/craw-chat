@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-03
+Updated: 2026-07-21
 Specs: OBSERVABILITY_SPEC.md, PRIVACY_SPEC.md, SECURITY_SPEC.md, PERFORMANCE_SPEC.md
 
 ## 1. Purpose
@@ -35,8 +35,11 @@ Topology profiles are defined in `etc/topology/` and `specs/topology.spec.json`.
 | Conversation API (`/im/v3/api/*`) | HTTP 2xx + 4xx (excluding 5xx) ratio | 99.5% | 99.9% |
 | Session-gateway RPC | gRPC OK ratio | 99.5% | 99.9% |
 | Projection read API | HTTP 2xx + 4xx ratio | 99.5% | 99.9% |
-| Push delivery (FCM HTTP v1) | Delivery ack ratio | 99.0% | 99.5% |
 | Media upload/download (SDKWork Drive) | HTTP 2xx ratio | 99.5% | 99.9% |
+
+Push delivery is excluded from the current SLA. Device-token authority, provider workers, receipts,
+retries, dead letters, and delivery metrics are not implemented; commercial release and any push
+SLO remain blocked until direct production-like evidence exists.
 
 ### 3.2 Measurement Window
 
@@ -58,7 +61,6 @@ Where `failed_requests` are:
 - HTTP 5xx responses from application services.
 - WebSocket handshakes that fail before `auth.init` completes.
 - gRPC responses with status codes `UNAVAILABLE`, `DEADLINE_EXCEEDED`, or `INTERNAL`.
-- Push delivery failures where the FCM API returns a non-retryable error.
 
 Probe infrastructure: Prometheus scrape targets defined in
 `deployments/observability/prometheus-rules.yaml` with alert rules in group
@@ -114,7 +116,6 @@ Probe infrastructure: Prometheus scrape targets defined in
 | gRPC error ratio (per service) | > 1% for 2 min | > 5% for 1 min | Critical |
 | WebSocket disconnect rate | > 10/min for 2 min | > 50/min for 1 min | Critical |
 | Message delivery failure rate | > 0.5% for 5 min | > 2% for 2 min | Critical |
-| Push delivery failure rate | > 5% for 5 min | > 10% for 2 min | Warning |
 
 Alert rules are defined in `deployments/observability/prometheus-rules.yaml`.
 

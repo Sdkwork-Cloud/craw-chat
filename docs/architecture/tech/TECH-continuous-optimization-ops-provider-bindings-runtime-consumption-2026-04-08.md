@@ -28,7 +28,7 @@
 - `ops-service` 新增：
   - `ProviderBindingItemView`
   - `ProviderBindingSnapshotView`
-  - `ProviderBindingsView`
+  - Current contract: `ProviderBindingSnapshotPageData` with `cursor + page_size` keyset pagination.
 - `OpsRuntime` 新增：
   - `update_provider_binding_snapshot(...)`
   - `provider_bindings_view()`
@@ -70,4 +70,3 @@
 
 1. 从“镜像快照”推进到“provider binding drift 视图”
 2. 再补 provider policy 写接口与审计闭环
-

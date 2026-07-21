@@ -9,7 +9,7 @@ public class RemoveFriendshipRequest {
     public String getEventId() {
         return this.eventId;
     }
-    
+
     public void setEventId(String eventId) {
         this.eventId = eventId;
     }
@@ -17,7 +17,7 @@ public class RemoveFriendshipRequest {
     public String getRemovedAt() {
         return this.removedAt;
     }
-    
+
     public void setRemovedAt(String removedAt) {
         this.removedAt = removedAt;
     }
@@ -25,7 +25,7 @@ public class RemoveFriendshipRequest {
     public String getRemovedByUserId() {
         return this.removedByUserId;
     }
-    
+
     public void setRemovedByUserId(String removedByUserId) {
         this.removedByUserId = removedByUserId;
     }

@@ -11,5 +11,5 @@ class ApplySharedChannelPolicyRequest:
     event_id: str
     history_visibility: str
     policy_id: str
-    policy_version: int
+    policy_version: str
     conversation_id: Optional[str] = None

@@ -12,416 +12,454 @@ class ControlApi {
   ControlApi(this._client);
 
   /// Activate a realtime node and clear drain state.
-  Future<RouteNodeLifecycle?> nodesActivate(String nodeId) async {
+  Future<NodesActivateResponse?> nodesActivate(String nodeId) async {
     final response = await _client.post(ApiPaths.backendPath('/control/nodes/${serializePathParameter(nodeId, const PathParameterSpec('nodeId', 'simple', false))}/activate'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RouteNodeLifecycle.fromJson(map);
+      return map == null ? null : NodesActivateResponse.fromJson(map);
     })();
   }
 
   /// Mark a realtime node as draining.
-  Future<RouteNodeLifecycle?> nodesDrain(String nodeId) async {
+  Future<NodesDrainResponse?> nodesDrain(String nodeId) async {
     final response = await _client.post(ApiPaths.backendPath('/control/nodes/${serializePathParameter(nodeId, const PathParameterSpec('nodeId', 'simple', false))}/drain'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RouteNodeLifecycle.fromJson(map);
+      return map == null ? null : NodesDrainResponse.fromJson(map);
     })();
   }
 
   /// Migrate owned routes from the source node to the target node.
-  Future<RouteMigrationResult?> nodesRoutesMigrate(String nodeId, MigrateRoutesRequest body) async {
+  Future<NodesRoutesMigrateResponse?> nodesRoutesMigrate(String nodeId, MigrateRoutesRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/nodes/${serializePathParameter(nodeId, const PathParameterSpec('nodeId', 'simple', false))}/routes/migrate'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RouteMigrationResult.fromJson(map);
+      return map == null ? null : NodesRoutesMigrateResponse.fromJson(map);
     })();
   }
 
   /// Read the control-plane protocol governance snapshot.
-  Future<ProtocolGovernanceResponse?> protocolGovernanceRetrieve() async {
+  Future<ProtocolGovernanceRetrieveResponse?> protocolGovernanceRetrieve() async {
     final response = await _client.get(ApiPaths.backendPath('/control/protocol_governance'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ProtocolGovernanceResponse.fromJson(map);
+      return map == null ? null : ProtocolGovernanceRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Read the control-plane protocol registry snapshot.
-  Future<ProtocolRegistryResponse?> protocolRegistryRetrieve() async {
+  Future<ProtocolRegistryRetrieveResponse?> protocolRegistryRetrieve() async {
     final response = await _client.get(ApiPaths.backendPath('/control/protocol_registry'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ProtocolRegistryResponse.fromJson(map);
+      return map == null ? null : ProtocolRegistryRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Read provider policy history.
-  Future<ProviderPolicyHistoryResponse?> providerPoliciesList() async {
-    final response = await _client.get(ApiPaths.backendPath('/control/provider_policies'));
+  Future<SdkWorkListResponse?> providerPoliciesList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/control/provider_policies'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ProviderPolicyHistoryResponse.fromJson(map);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
     })();
   }
 
   /// Read provider policy diff between two versions.
-  Future<ProviderPolicyDiffResponse?> providerPoliciesDiffList(int fromVersion, int toVersion) async {
+  Future<SdkWorkListResponse?> providerPoliciesDiffList(String fromVersion, String toVersion, [int? pageSize, String? cursor, int? page, String? q]) async {
     final query = buildQueryString([
       QueryParameterSpec('fromVersion', fromVersion, 'form', true, false, null),
-      QueryParameterSpec('toVersion', toVersion, 'form', true, false, null)
+      QueryParameterSpec('toVersion', toVersion, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/control/provider_policies/diff'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ProviderPolicyDiffResponse.fromJson(map);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
     })();
   }
 
   /// Preview the effective provider policy result before commit.
-  Future<ProviderBindingCommitResponse?> providerPoliciesPreview(UpsertProviderBindingPolicyRequest body) async {
+  Future<ProviderPoliciesPreviewResponse?> providerPoliciesPreview(UpsertProviderBindingPolicyRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/provider_policies/preview'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ProviderBindingCommitResponse.fromJson(map);
+      return map == null ? null : ProviderPoliciesPreviewResponse.fromJson(map);
     })();
   }
 
   /// Rollback provider policy history to a target version.
-  Future<ProviderBindingCommitResponse?> providerPoliciesRollback(ProviderPolicyRollbackRequest body) async {
+  Future<ProviderPoliciesRollbackResponse?> providerPoliciesRollback(ProviderPolicyRollbackRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/provider_policies/rollback'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ProviderBindingCommitResponse.fromJson(map);
+      return map == null ? null : ProviderPoliciesRollbackResponse.fromJson(map);
     })();
   }
 
   /// Read the provider registry snapshot.
-  Future<ProviderRegistrySnapshotResponse?> providerRegistryRetrieve() async {
+  Future<ProviderRegistryRetrieveResponse?> providerRegistryRetrieve() async {
     final response = await _client.get(ApiPaths.backendPath('/control/provider_registry'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ProviderRegistrySnapshotResponse.fromJson(map);
+      return map == null ? null : ProviderRegistryRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Read effective provider bindings.
-  Future<ProviderBindingsResponse?> providerBindingsList([String? tenantId]) async {
+  Future<SdkWorkListResponse?> providerBindingsList([String? tenantId, int? pageSize, String? cursor, int? page, String? q]) async {
     final query = buildQueryString([
-      QueryParameterSpec('tenantId', tenantId, 'form', true, false, null)
+      QueryParameterSpec('tenantId', tenantId, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/control/provider_bindings'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ProviderBindingsResponse.fromJson(map);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
     })();
   }
 
   /// Upsert a provider binding policy.
-  Future<ProviderBindingCommitResponse?> providerBindingsCreate(UpsertProviderBindingPolicyRequest body) async {
+  Future<ControlProviderBindingsCreateResponse201?> providerBindingsCreate(UpsertProviderBindingPolicyRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/provider_bindings'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ProviderBindingCommitResponse.fromJson(map);
+      return map == null ? null : ControlProviderBindingsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Bind a direct chat to a conversation.
-  Future<SocialDirectChatCommitResponse?> socialDirectChatsBindingsCreate(BindDirectChatRequest body) async {
+  Future<SocialDirectChatsBindingsCreateResponse201?> socialDirectChatsBindingsCreate(BindDirectChatRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/direct_chats/bindings'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialDirectChatCommitResponse.fromJson(map);
+      return map == null ? null : SocialDirectChatsBindingsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Read a direct chat snapshot.
-  Future<SocialDirectChatSnapshotResponse?> socialDirectChatsRetrieve(String directChatId) async {
+  Future<SocialDirectChatsRetrieveResponse?> socialDirectChatsRetrieve(String directChatId) async {
     final response = await _client.get(ApiPaths.backendPath('/control/social/direct_chats/${serializePathParameter(directChatId, const PathParameterSpec('directChatId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialDirectChatSnapshotResponse.fromJson(map);
+      return map == null ? null : SocialDirectChatsRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Establish an external collaboration connection.
-  Future<SocialExternalConnectionCommitResponse?> socialExternalConnectionsCreate(EstablishExternalConnectionRequest body) async {
+  Future<SocialExternalConnectionsCreateResponse201?> socialExternalConnectionsCreate(EstablishExternalConnectionRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/external_connections'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialExternalConnectionCommitResponse.fromJson(map);
+      return map == null ? null : SocialExternalConnectionsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Read an external connection snapshot.
-  Future<SocialExternalConnectionSnapshotResponse?> socialExternalConnectionsRetrieve(String connectionId) async {
+  Future<SocialExternalConnectionsRetrieveResponse?> socialExternalConnectionsRetrieve(String connectionId) async {
     final response = await _client.get(ApiPaths.backendPath('/control/social/external_connections/${serializePathParameter(connectionId, const PathParameterSpec('connectionId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialExternalConnectionSnapshotResponse.fromJson(map);
+      return map == null ? null : SocialExternalConnectionsRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Bind an external member link.
-  Future<SocialExternalMemberLinkCommitResponse?> socialExternalMemberLinksCreate(BindExternalMemberLinkRequest body) async {
+  Future<SocialExternalMemberLinksCreateResponse201?> socialExternalMemberLinksCreate(BindExternalMemberLinkRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/external_member_links'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialExternalMemberLinkCommitResponse.fromJson(map);
+      return map == null ? null : SocialExternalMemberLinksCreateResponse201.fromJson(map);
     })();
   }
 
   /// Read an external member link snapshot.
-  Future<SocialExternalMemberLinkSnapshotResponse?> socialExternalMemberLinksRetrieve(String linkId) async {
+  Future<SocialExternalMemberLinksRetrieveResponse?> socialExternalMemberLinksRetrieve(String linkId) async {
     final response = await _client.get(ApiPaths.backendPath('/control/social/external_member_links/${serializePathParameter(linkId, const PathParameterSpec('linkId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialExternalMemberLinkSnapshotResponse.fromJson(map);
+      return map == null ? null : SocialExternalMemberLinksRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Submit a friend request event.
-  Future<SocialFriendRequestCommitResponse?> socialFriendRequestsCreate(SubmitFriendRequestRequest body) async {
+  Future<SocialFriendRequestsCreateResponse201?> socialFriendRequestsCreate(SubmitFriendRequestRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/friend_requests'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendRequestCommitResponse.fromJson(map);
+      return map == null ? null : SocialFriendRequestsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Read a friend request snapshot.
-  Future<SocialFriendRequestSnapshotResponse?> socialFriendRequestsRetrieve(String requestId) async {
+  Future<SocialFriendRequestsRetrieveResponse?> socialFriendRequestsRetrieve(String requestId) async {
     final response = await _client.get(ApiPaths.backendPath('/control/social/friend_requests/${serializePathParameter(requestId, const PathParameterSpec('requestId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendRequestSnapshotResponse.fromJson(map);
+      return map == null ? null : SocialFriendRequestsRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Accept a friend request.
-  Future<SocialFriendRequestCommitResponse?> socialFriendRequestsAccept(String requestId, AcceptFriendRequestRequest body) async {
+  Future<SocialFriendRequestsAcceptResponse?> socialFriendRequestsAccept(String requestId, AcceptFriendRequestRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/friend_requests/${serializePathParameter(requestId, const PathParameterSpec('requestId', 'simple', false))}/accept'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendRequestCommitResponse.fromJson(map);
+      return map == null ? null : SocialFriendRequestsAcceptResponse.fromJson(map);
     })();
   }
 
   /// Decline a friend request.
-  Future<SocialFriendRequestCommitResponse?> socialFriendRequestsDecline(String requestId, DeclineFriendRequestRequest body) async {
+  Future<SocialFriendRequestsDeclineResponse?> socialFriendRequestsDecline(String requestId, DeclineFriendRequestRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/friend_requests/${serializePathParameter(requestId, const PathParameterSpec('requestId', 'simple', false))}/decline'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendRequestCommitResponse.fromJson(map);
+      return map == null ? null : SocialFriendRequestsDeclineResponse.fromJson(map);
     })();
   }
 
   /// Cancel a friend request.
-  Future<SocialFriendRequestCommitResponse?> socialFriendRequestsCancel(String requestId, CancelFriendRequestRequest body) async {
+  Future<SocialFriendRequestsCancelResponse?> socialFriendRequestsCancel(String requestId, CancelFriendRequestRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/friend_requests/${serializePathParameter(requestId, const PathParameterSpec('requestId', 'simple', false))}/cancel'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendRequestCommitResponse.fromJson(map);
+      return map == null ? null : SocialFriendRequestsCancelResponse.fromJson(map);
     })();
   }
 
   /// Activate a friendship event.
-  Future<SocialFriendshipCommitResponse?> socialFriendshipsCreate(ActivateFriendshipRequest body) async {
+  Future<SocialFriendshipsCreateResponse201?> socialFriendshipsCreate(ActivateFriendshipRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/friendships'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendshipCommitResponse.fromJson(map);
+      return map == null ? null : SocialFriendshipsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Read a friendship snapshot.
-  Future<SocialFriendshipSnapshotResponse?> socialFriendshipsRetrieve(String friendshipId) async {
+  Future<SocialFriendshipsRetrieveResponse?> socialFriendshipsRetrieve(String friendshipId) async {
     final response = await _client.get(ApiPaths.backendPath('/control/social/friendships/${serializePathParameter(friendshipId, const PathParameterSpec('friendshipId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendshipSnapshotResponse.fromJson(map);
+      return map == null ? null : SocialFriendshipsRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Remove a friendship.
-  Future<SocialFriendshipCommitResponse?> socialFriendshipsRemove(String friendshipId, RemoveFriendshipRequest body) async {
+  Future<SocialFriendshipsRemoveResponse?> socialFriendshipsRemove(String friendshipId, RemoveFriendshipRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/friendships/${serializePathParameter(friendshipId, const PathParameterSpec('friendshipId', 'simple', false))}/remove'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendshipCommitResponse.fromJson(map);
+      return map == null ? null : SocialFriendshipsRemoveResponse.fromJson(map);
     })();
   }
 
   /// Claim selected pending shared-channel sync entries.
-  Future<SocialSharedChannelSyncPendingClaimResponse?> socialRuntimeClaimPendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncPendingTargetedClaimRequest body) async {
+  Future<SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201?> socialRuntimeClaimPendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncPendingTargetedClaimRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/runtime/claim_pending_shared_channel_sync_targeted'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelSyncPendingClaimResponse.fromJson(map);
+      return map == null ? null : SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201.fromJson(map);
     })();
   }
 
   /// Read the dead-letter shared-channel sync queue.
-  Future<SocialSharedChannelSyncDeadLetterInventoryResponse?> socialRuntimeDeadLetterSharedChannelSyncList() async {
-    final response = await _client.get(ApiPaths.backendPath('/control/social/runtime/dead_letter_shared_channel_sync'));
+  Future<SdkWorkListResponse?> socialRuntimeDeadLetterSharedChannelSyncList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/control/social/runtime/dead_letter_shared_channel_sync'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelSyncDeadLetterInventoryResponse.fromJson(map);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
     })();
   }
 
   /// Read the delivered shared-channel sync ledger.
-  Future<SocialSharedChannelSyncDeliveredInventoryResponse?> socialRuntimeDeliveredSharedChannelSyncList() async {
-    final response = await _client.get(ApiPaths.backendPath('/control/social/runtime/delivered_shared_channel_sync'));
+  Future<SdkWorkListResponse?> socialRuntimeDeliveredSharedChannelSyncList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/control/social/runtime/delivered_shared_channel_sync'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelSyncDeliveredInventoryResponse.fromJson(map);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
     })();
   }
 
   /// Read merged shared-channel sync delivery state.
-  Future<SocialSharedChannelSyncDeliveryStateInventoryResponse?> socialRuntimeDeliveryStateSharedChannelSyncList() async {
-    final response = await _client.get(ApiPaths.backendPath('/control/social/runtime/delivery_state_shared_channel_sync'));
+  Future<SdkWorkListResponse?> socialRuntimeDeliveryStateSharedChannelSyncList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/control/social/runtime/delivery_state_shared_channel_sync'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelSyncDeliveryStateInventoryResponse.fromJson(map);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
     })();
   }
 
   /// Read the pending shared-channel sync queue.
-  Future<SocialSharedChannelSyncPendingInventoryResponse?> socialRuntimePendingSharedChannelSyncList() async {
-    final response = await _client.get(ApiPaths.backendPath('/control/social/runtime/pending_shared_channel_sync'));
+  Future<SdkWorkListResponse?> socialRuntimePendingSharedChannelSyncList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/control/social/runtime/pending_shared_channel_sync'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelSyncPendingInventoryResponse.fromJson(map);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
     })();
   }
 
   /// Reclaim stale shared-channel sync pending ownership.
-  Future<SocialSharedChannelSyncPendingStaleReclaimResponse?> socialRuntimeReclaimStalePendingSharedChannelSyncCreate() async {
+  Future<SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201?> socialRuntimeReclaimStalePendingSharedChannelSyncCreate() async {
     final response = await _client.post(ApiPaths.backendPath('/control/social/runtime/reclaim_stale_pending_shared_channel_sync'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelSyncPendingStaleReclaimResponse.fromJson(map);
+      return map == null ? null : SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201.fromJson(map);
     })();
   }
 
   /// Release selected pending shared-channel sync entries.
-  Future<SocialSharedChannelSyncPendingReleaseResponse?> socialRuntimeReleasePendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncPendingTargetedReleaseRequest body) async {
+  Future<SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201?> socialRuntimeReleasePendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncPendingTargetedReleaseRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/runtime/release_pending_shared_channel_sync_targeted'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelSyncPendingReleaseResponse.fromJson(map);
+      return map == null ? null : SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201.fromJson(map);
     })();
   }
 
   /// Repair the persisted social runtime derived snapshot.
-  Future<SocialRuntimeRepairResponse?> socialRuntimeRepairDerivedSnapshotCreate() async {
+  Future<SocialRuntimeRepairDerivedSnapshotCreateResponse201?> socialRuntimeRepairDerivedSnapshotCreate() async {
     final response = await _client.post(ApiPaths.backendPath('/control/social/runtime/repair_derived_snapshot'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialRuntimeRepairResponse.fromJson(map);
+      return map == null ? null : SocialRuntimeRepairDerivedSnapshotCreateResponse201.fromJson(map);
     })();
   }
 
   /// Repair shared-channel sync backlog state.
-  Future<SocialSharedChannelSyncRepairResponse?> socialRuntimeRepairSharedChannelSyncCreate() async {
+  Future<SocialRuntimeRepairSharedChannelSyncCreateResponse201?> socialRuntimeRepairSharedChannelSyncCreate() async {
     final response = await _client.post(ApiPaths.backendPath('/control/social/runtime/repair_shared_channel_sync'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelSyncRepairResponse.fromJson(map);
+      return map == null ? null : SocialRuntimeRepairSharedChannelSyncCreateResponse201.fromJson(map);
     })();
   }
 
   /// Republish selected pending shared-channel sync entries.
-  Future<SocialSharedChannelSyncTargetedRepublishResponse?> socialRuntimeRepublishPendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncTargetedRepublishRequest body) async {
+  Future<SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201?> socialRuntimeRepublishPendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncTargetedRepublishRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/runtime/republish_pending_shared_channel_sync_targeted'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelSyncTargetedRepublishResponse.fromJson(map);
+      return map == null ? null : SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201.fromJson(map);
     })();
   }
 
   /// Requeue all dead-letter shared-channel sync entries.
-  Future<SocialSharedChannelSyncDeadLetterRequeueResponse?> socialRuntimeRequeueDeadLetterSharedChannelSyncCreate() async {
+  Future<SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201?> socialRuntimeRequeueDeadLetterSharedChannelSyncCreate() async {
     final response = await _client.post(ApiPaths.backendPath('/control/social/runtime/requeue_dead_letter_shared_channel_sync'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelSyncDeadLetterRequeueResponse.fromJson(map);
+      return map == null ? null : SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201.fromJson(map);
     })();
   }
 
   /// Requeue selected dead-letter shared-channel sync entries.
-  Future<SocialSharedChannelSyncDeadLetterTargetedRequeueResponse?> socialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreate(SocialSharedChannelSyncDeadLetterTargetedRequeueRequest body) async {
+  Future<SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201?> socialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreate(SocialSharedChannelSyncDeadLetterTargetedRequeueRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelSyncDeadLetterTargetedRequeueResponse.fromJson(map);
+      return map == null ? null : SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201.fromJson(map);
     })();
   }
 
   /// Take over selected pending shared-channel sync entries.
-  Future<SocialSharedChannelSyncPendingTakeoverResponse?> socialRuntimeTakeoverPendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncPendingTargetedTakeoverRequest body) async {
+  Future<SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201?> socialRuntimeTakeoverPendingSharedChannelSyncTargetedCreate(SocialSharedChannelSyncPendingTargetedTakeoverRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/runtime/takeover_pending_shared_channel_sync_targeted'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelSyncPendingTakeoverResponse.fromJson(map);
+      return map == null ? null : SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201.fromJson(map);
     })();
   }
 
   /// Apply a shared-channel policy.
-  Future<SocialSharedChannelPolicyCommitResponse?> socialSharedChannelPoliciesCreate(ApplySharedChannelPolicyRequest body) async {
+  Future<SocialSharedChannelPoliciesCreateResponse201?> socialSharedChannelPoliciesCreate(ApplySharedChannelPolicyRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/shared_channel_policies'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelPolicyCommitResponse.fromJson(map);
+      return map == null ? null : SocialSharedChannelPoliciesCreateResponse201.fromJson(map);
     })();
   }
 
   /// Read a shared-channel policy snapshot.
-  Future<SocialSharedChannelPolicySnapshotResponse?> socialSharedChannelPoliciesRetrieve(String policyId) async {
+  Future<SocialSharedChannelPoliciesRetrieveResponse?> socialSharedChannelPoliciesRetrieve(String policyId) async {
     final response = await _client.get(ApiPaths.backendPath('/control/social/shared_channel_policies/${serializePathParameter(policyId, const PathParameterSpec('policyId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialSharedChannelPolicySnapshotResponse.fromJson(map);
+      return map == null ? null : SocialSharedChannelPoliciesRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Block a user in the social graph.
-  Future<SocialUserBlockCommitResponse?> socialUserBlocksCreate(BlockUserRequest body) async {
+  Future<SocialUserBlocksCreateResponse201?> socialUserBlocksCreate(BlockUserRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.backendPath('/control/social/user_blocks'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialUserBlockCommitResponse.fromJson(map);
+      return map == null ? null : SocialUserBlocksCreateResponse201.fromJson(map);
     })();
   }
 
   /// Read a user block snapshot.
-  Future<SocialUserBlockSnapshotResponse?> socialUserBlocksRetrieve(String blockId) async {
+  Future<SocialUserBlocksRetrieveResponse?> socialUserBlocksRetrieve(String blockId) async {
     final response = await _client.get(ApiPaths.backendPath('/control/social/user_blocks/${serializePathParameter(blockId, const PathParameterSpec('blockId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialUserBlockSnapshotResponse.fromJson(map);
+      return map == null ? null : SocialUserBlocksRetrieveResponse.fromJson(map);
     })();
   }
 }

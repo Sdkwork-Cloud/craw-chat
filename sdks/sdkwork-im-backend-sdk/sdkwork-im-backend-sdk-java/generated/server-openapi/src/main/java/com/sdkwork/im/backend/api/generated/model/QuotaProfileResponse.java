@@ -2,48 +2,48 @@ package com.sdkwork.im.backend.api.generated.model;
 
 
 public class QuotaProfileResponse {
-    private Integer maxConcurrentSessionsPerTenant;
-    private Integer maxInflightMessages;
-    private Integer maxPayloadBytes;
-    private Integer maxSubscriptionsPerSession;
+    private String maxConcurrentSessionsPerTenant;
+    private String maxInflightMessages;
+    private String maxPayloadBytes;
+    private String maxSubscriptionsPerSession;
     private String profileId;
 
-    public Integer getMaxConcurrentSessionsPerTenant() {
+    public String getMaxConcurrentSessionsPerTenant() {
         return this.maxConcurrentSessionsPerTenant;
     }
-    
-    public void setMaxConcurrentSessionsPerTenant(Integer maxConcurrentSessionsPerTenant) {
+
+    public void setMaxConcurrentSessionsPerTenant(String maxConcurrentSessionsPerTenant) {
         this.maxConcurrentSessionsPerTenant = maxConcurrentSessionsPerTenant;
     }
 
-    public Integer getMaxInflightMessages() {
+    public String getMaxInflightMessages() {
         return this.maxInflightMessages;
     }
-    
-    public void setMaxInflightMessages(Integer maxInflightMessages) {
+
+    public void setMaxInflightMessages(String maxInflightMessages) {
         this.maxInflightMessages = maxInflightMessages;
     }
 
-    public Integer getMaxPayloadBytes() {
+    public String getMaxPayloadBytes() {
         return this.maxPayloadBytes;
     }
-    
-    public void setMaxPayloadBytes(Integer maxPayloadBytes) {
+
+    public void setMaxPayloadBytes(String maxPayloadBytes) {
         this.maxPayloadBytes = maxPayloadBytes;
     }
 
-    public Integer getMaxSubscriptionsPerSession() {
+    public String getMaxSubscriptionsPerSession() {
         return this.maxSubscriptionsPerSession;
     }
-    
-    public void setMaxSubscriptionsPerSession(Integer maxSubscriptionsPerSession) {
+
+    public void setMaxSubscriptionsPerSession(String maxSubscriptionsPerSession) {
         this.maxSubscriptionsPerSession = maxSubscriptionsPerSession;
     }
 
     public String getProfileId() {
         return this.profileId;
     }
-    
+
     public void setProfileId(String profileId) {
         this.profileId = profileId;
     }

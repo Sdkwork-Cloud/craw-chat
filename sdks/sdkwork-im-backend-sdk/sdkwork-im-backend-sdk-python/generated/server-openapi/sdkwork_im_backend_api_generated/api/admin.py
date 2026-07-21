@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
+from ..models import ApiKeyGroupsCreateResponse201, ApiKeyGroupsStatusResponse, ApiKeyGroupsUpdateResponse, ApiKeysCreateResponse201, ApiKeysStatusResponse, ApiKeysUpdateResponse, BillingEventsSummaryRetrieveResponse, BillingSummaryRetrieveResponse, ChannelModelsCreateResponse201, ChannelsCreateResponse201, CredentialsCreateResponse201, ExtensionsRuntimeReloadsCreateResponse201, GatewayRateLimitPoliciesCreateResponse201, MarketingCampaignsCreateResponse201, MarketingCampaignsStatusResponse, ModelPricesCreateResponse201, ModelsCreateResponse201, ProvidersCreateResponse201, RoutingHealthSnapshotsRetrieveResponse, RoutingProfilesCreateResponse201, SdkWorkListResponse, StorageConfigCreateResponse201, StorageConfigRetrieveResponse, StorageConfigTenantsCreateResponse201, StorageConfigTenantsRetrieveResponse, StorageEffectiveTenantsRetrieveResponse, StorageValidationCreateResponse201, StorageValidationTenantsCreateResponse201, UsageSummaryRetrieveResponse
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -70,6 +71,116 @@ def serialize_path_primitive(value: Any) -> str:
     return str(value)
 
 
+def build_query_string(parameters: List[Dict[str, Any]]) -> str:
+    pairs: List[str] = []
+    for parameter in parameters:
+        append_serialized_parameter(pairs, parameter)
+    return '&'.join(pairs)
+
+
+def append_serialized_parameter(pairs: List[str], parameter: Dict[str, Any]) -> None:
+    value = parameter.get('value')
+    if value is None:
+        return
+
+    name = str(parameter.get('name') or '')
+    allow_reserved = bool(parameter.get('allow_reserved'))
+    content_type = parameter.get('content_type')
+    if content_type:
+        import json
+
+        pairs.append(f"{encode_query_component(name)}={encode_query_value(json.dumps(value, separators=(',', ':')), allow_reserved)}")
+        return
+
+    style = str(parameter.get('style') or 'form')
+    explode = bool(parameter.get('explode'))
+    if style == 'deepObject':
+        append_deep_object_parameter(pairs, name, value, allow_reserved)
+        return
+    if isinstance(value, (list, tuple)):
+        append_array_parameter(pairs, name, value, style, explode, allow_reserved)
+        return
+    if isinstance(value, dict):
+        append_object_parameter(pairs, name, value, style, explode, allow_reserved)
+        return
+
+    pairs.append(f"{encode_query_component(name)}={encode_query_value(serialize_primitive(value), allow_reserved)}")
+
+
+def append_array_parameter(
+    pairs: List[str],
+    name: str,
+    value: Any,
+    style: str,
+    explode: bool,
+    allow_reserved: bool,
+) -> None:
+    values = [serialize_primitive(item) for item in value if item is not None]
+    if not values:
+        return
+
+    if style == 'form' and explode:
+        for item in values:
+            pairs.append(f"{encode_query_component(name)}={encode_query_value(item, allow_reserved)}")
+        return
+
+    pairs.append(f"{encode_query_component(name)}={encode_query_value(','.join(values), allow_reserved)}")
+
+
+def append_object_parameter(
+    pairs: List[str],
+    name: str,
+    value: Dict[str, Any],
+    style: str,
+    explode: bool,
+    allow_reserved: bool,
+) -> None:
+    entries = [(key, entry_value) for key, entry_value in value.items() if entry_value is not None]
+    if not entries:
+        return
+
+    if style == 'form' and explode:
+        for key, entry_value in entries:
+            pairs.append(f"{encode_query_component(str(key))}={encode_query_value(serialize_primitive(entry_value), allow_reserved)}")
+        return
+
+    serialized = ','.join(
+        item
+        for key, entry_value in entries
+        for item in (str(key), serialize_primitive(entry_value))
+    )
+    pairs.append(f"{encode_query_component(name)}={encode_query_value(serialized, allow_reserved)}")
+
+
+def append_deep_object_parameter(pairs: List[str], name: str, value: Any, allow_reserved: bool) -> None:
+    if not isinstance(value, dict):
+        pairs.append(f"{encode_query_component(name)}={encode_query_value(serialize_primitive(value), allow_reserved)}")
+        return
+
+    for key, entry_value in value.items():
+        if entry_value is None:
+            continue
+        pairs.append(f"{encode_query_component(f'{name}[{key}]')}={encode_query_value(serialize_primitive(entry_value), allow_reserved)}")
+
+
+def serialize_primitive(value: Any) -> str:
+    if isinstance(value, dict):
+        import json
+
+        return json.dumps(value, separators=(',', ':'))
+    return str(value)
+
+
+def encode_query_component(value: str) -> str:
+    from urllib.parse import quote
+
+    return quote(value, safe='')
+
+
+def encode_query_value(value: str, allow_reserved: bool) -> str:
+    from urllib.parse import quote
+
+    return quote(value, safe=':/?#[]@!$&\'()*+,;=' if allow_reserved else '')
 
 
 
@@ -102,23 +213,29 @@ class AdminApiKeyGroupsApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listApiKeyGroups"""
-        return self._client.get(f"/backend/v3/api/admin/api_key_groups")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/api_key_groups", query))
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> ApiKeyGroupsCreateResponse201:
         """createApiKeyGroup"""
         return self._client.post(f"/backend/v3/api/admin/api_key_groups", json=body)
 
-    def update(self, group_id: str, body: Dict[str, Any]) -> Any:
+    def update(self, group_id: str, body: Dict[str, Any]) -> ApiKeyGroupsUpdateResponse:
         """updateApiKeyGroup"""
         return self._client.patch(f"/backend/v3/api/admin/api_key_groups/{serialize_path_parameter(group_id, {'name': 'groupId', 'style': 'simple', 'explode': False})}", json=body)
 
-    def delete(self, group_id: str) -> Any:
+    def delete(self, group_id: str) -> None:
         """deleteApiKeyGroup"""
         return self._client.delete(f"/backend/v3/api/admin/api_key_groups/{serialize_path_parameter(group_id, {'name': 'groupId', 'style': 'simple', 'explode': False})}")
 
-    def status(self, group_id: str, body: Dict[str, Any]) -> Any:
+    def status(self, group_id: str, body: Dict[str, Any]) -> ApiKeyGroupsStatusResponse:
         """updateApiKeyGroupStatus"""
         return self._client.post(f"/backend/v3/api/admin/api_key_groups/{serialize_path_parameter(group_id, {'name': 'groupId', 'style': 'simple', 'explode': False})}/status", json=body)
 
@@ -129,23 +246,29 @@ class AdminApiKeysApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listApiKeys"""
-        return self._client.get(f"/backend/v3/api/admin/api_keys")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/api_keys", query))
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> ApiKeysCreateResponse201:
         """createApiKey"""
         return self._client.post(f"/backend/v3/api/admin/api_keys", json=body)
 
-    def update(self, hashed_key: str, body: Dict[str, Any]) -> Any:
+    def update(self, hashed_key: str, body: Dict[str, Any]) -> ApiKeysUpdateResponse:
         """updateApiKey"""
         return self._client.put(f"/backend/v3/api/admin/api_keys/{serialize_path_parameter(hashed_key, {'name': 'hashedKey', 'style': 'simple', 'explode': False})}", json=body)
 
-    def delete(self, hashed_key: str) -> Any:
+    def delete(self, hashed_key: str) -> None:
         """deleteApiKey"""
         return self._client.delete(f"/backend/v3/api/admin/api_keys/{serialize_path_parameter(hashed_key, {'name': 'hashedKey', 'style': 'simple', 'explode': False})}")
 
-    def status(self, hashed_key: str, body: Dict[str, Any]) -> Any:
+    def status(self, hashed_key: str, body: Dict[str, Any]) -> ApiKeysStatusResponse:
         """updateApiKeyStatus"""
         return self._client.post(f"/backend/v3/api/admin/api_keys/{serialize_path_parameter(hashed_key, {'name': 'hashedKey', 'style': 'simple', 'explode': False})}/status", json=body)
 
@@ -166,9 +289,15 @@ class AdminBillingEventsApi:
         self.summary = AdminBillingEventsSummaryApi(client)
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listBillingEvents"""
-        return self._client.get(f"/backend/v3/api/admin/billing/events")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/billing/events", query))
 
 class AdminBillingEventsSummaryApi:
     """admin admin.billing.events.summary API client."""
@@ -177,7 +306,7 @@ class AdminBillingEventsSummaryApi:
         self._client = client
 
 
-    def retrieve(self) -> Any:
+    def retrieve(self) -> BillingEventsSummaryRetrieveResponse:
         """getBillingEventSummary"""
         return self._client.get(f"/backend/v3/api/admin/billing/events/summary")
 
@@ -188,7 +317,7 @@ class AdminBillingSummaryApi:
         self._client = client
 
 
-    def retrieve(self) -> Any:
+    def retrieve(self) -> BillingSummaryRetrieveResponse:
         """getBillingSummary"""
         return self._client.get(f"/backend/v3/api/admin/billing/summary")
 
@@ -200,11 +329,17 @@ class AdminChannelModelsApi:
         self.models = AdminChannelModelsModelsApi(client)
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listChannelModels"""
-        return self._client.get(f"/backend/v3/api/admin/channel_models")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/channel_models", query))
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> ChannelModelsCreateResponse201:
         """saveChannelModel"""
         return self._client.post(f"/backend/v3/api/admin/channel_models", json=body)
 
@@ -215,7 +350,7 @@ class AdminChannelModelsModelsApi:
         self._client = client
 
 
-    def delete(self, channel_id: str, model_id: str) -> Any:
+    def delete(self, channel_id: str, model_id: str) -> None:
         """deleteChannelModel"""
         return self._client.delete(f"/backend/v3/api/admin/channel_models/{serialize_path_parameter(channel_id, {'name': 'channelId', 'style': 'simple', 'explode': False})}/models/{serialize_path_parameter(model_id, {'name': 'modelId', 'style': 'simple', 'explode': False})}")
 
@@ -226,15 +361,21 @@ class AdminChannelsApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listChannels"""
-        return self._client.get(f"/backend/v3/api/admin/channels")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/channels", query))
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> ChannelsCreateResponse201:
         """saveChannel"""
         return self._client.post(f"/backend/v3/api/admin/channels", json=body)
 
-    def delete(self, channel_id: str) -> Any:
+    def delete(self, channel_id: str) -> None:
         """deleteChannel"""
         return self._client.delete(f"/backend/v3/api/admin/channels/{serialize_path_parameter(channel_id, {'name': 'channelId', 'style': 'simple', 'explode': False})}")
 
@@ -246,11 +387,17 @@ class AdminCredentialsApi:
         self.providers = AdminCredentialsProvidersApi(client)
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listCredentials"""
-        return self._client.get(f"/backend/v3/api/admin/credentials")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/credentials", query))
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> CredentialsCreateResponse201:
         """saveCredential"""
         return self._client.post(f"/backend/v3/api/admin/credentials", json=body)
 
@@ -269,7 +416,7 @@ class AdminCredentialsProvidersKeysApi:
         self._client = client
 
 
-    def delete(self, tenant_id: str, provider_id: str, key_reference: str) -> Any:
+    def delete(self, tenant_id: str, provider_id: str, key_reference: str) -> None:
         """deleteCredential"""
         return self._client.delete(f"/backend/v3/api/admin/credentials/{serialize_path_parameter(tenant_id, {'name': 'tenantId', 'style': 'simple', 'explode': False})}/providers/{serialize_path_parameter(provider_id, {'name': 'providerId', 'style': 'simple', 'explode': False})}/keys/{serialize_path_parameter(key_reference, {'name': 'keyReference', 'style': 'simple', 'explode': False})}")
 
@@ -289,7 +436,7 @@ class AdminExtensionsRuntimeReloadsApi:
         self._client = client
 
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> ExtensionsRuntimeReloadsCreateResponse201:
         """reloadExtensionRuntimes"""
         return self._client.post(f"/backend/v3/api/admin/extensions/runtime_reloads", json=body)
 
@@ -300,9 +447,15 @@ class AdminExtensionsRuntimeStatusesApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listRuntimeStatuses"""
-        return self._client.get(f"/backend/v3/api/admin/extensions/runtime_statuses")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/extensions/runtime_statuses", query))
 
 class AdminGatewayApi:
     """admin admin.gateway API client."""
@@ -320,11 +473,17 @@ class AdminGatewayRateLimitPoliciesApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listRateLimitPolicies"""
-        return self._client.get(f"/backend/v3/api/admin/gateway/rate_limit_policies")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/gateway/rate_limit_policies", query))
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> GatewayRateLimitPoliciesCreateResponse201:
         """createRateLimitPolicy"""
         return self._client.post(f"/backend/v3/api/admin/gateway/rate_limit_policies", json=body)
 
@@ -335,9 +494,15 @@ class AdminGatewayRateLimitWindowsApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listRateLimitWindows"""
-        return self._client.get(f"/backend/v3/api/admin/gateway/rate_limit_windows")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/gateway/rate_limit_windows", query))
 
 class AdminMarketingApi:
     """admin admin.marketing API client."""
@@ -354,15 +519,21 @@ class AdminMarketingCampaignsApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listMarketingCampaigns"""
-        return self._client.get(f"/backend/v3/api/admin/marketing/campaigns")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/marketing/campaigns", query))
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> MarketingCampaignsCreateResponse201:
         """saveMarketingCampaign"""
         return self._client.post(f"/backend/v3/api/admin/marketing/campaigns", json=body)
 
-    def status(self, marketing_campaign_id: str, body: Dict[str, Any]) -> Any:
+    def status(self, marketing_campaign_id: str, body: Dict[str, Any]) -> MarketingCampaignsStatusResponse:
         """updateMarketingCampaignStatus"""
         return self._client.post(f"/backend/v3/api/admin/marketing/campaigns/{serialize_path_parameter(marketing_campaign_id, {'name': 'marketingCampaignId', 'style': 'simple', 'explode': False})}/status", json=body)
 
@@ -374,11 +545,17 @@ class AdminModelPricesApi:
         self.models = AdminModelPricesModelsApi(client)
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listModelPrices"""
-        return self._client.get(f"/backend/v3/api/admin/model_prices")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/model_prices", query))
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> ModelPricesCreateResponse201:
         """saveModelPrice"""
         return self._client.post(f"/backend/v3/api/admin/model_prices", json=body)
 
@@ -397,7 +574,7 @@ class AdminModelPricesModelsProvidersApi:
         self._client = client
 
 
-    def delete(self, channel_id: str, model_id: str, proxy_provider_id: str) -> Any:
+    def delete(self, channel_id: str, model_id: str, proxy_provider_id: str) -> None:
         """deleteModelPrice"""
         return self._client.delete(f"/backend/v3/api/admin/model_prices/{serialize_path_parameter(channel_id, {'name': 'channelId', 'style': 'simple', 'explode': False})}/models/{serialize_path_parameter(model_id, {'name': 'modelId', 'style': 'simple', 'explode': False})}/providers/{serialize_path_parameter(proxy_provider_id, {'name': 'proxyProviderId', 'style': 'simple', 'explode': False})}")
 
@@ -409,11 +586,17 @@ class AdminModelsApi:
         self.providers = AdminModelsProvidersApi(client)
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listModels"""
-        return self._client.get(f"/backend/v3/api/admin/models")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/models", query))
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> ModelsCreateResponse201:
         """saveModel"""
         return self._client.post(f"/backend/v3/api/admin/models", json=body)
 
@@ -424,7 +607,7 @@ class AdminModelsProvidersApi:
         self._client = client
 
 
-    def delete(self, external_name: str, provider_id: str) -> Any:
+    def delete(self, external_name: str, provider_id: str) -> None:
         """deleteModel"""
         return self._client.delete(f"/backend/v3/api/admin/models/{serialize_path_parameter(external_name, {'name': 'externalName', 'style': 'simple', 'explode': False})}/providers/{serialize_path_parameter(provider_id, {'name': 'providerId', 'style': 'simple', 'explode': False})}")
 
@@ -435,15 +618,21 @@ class AdminProvidersApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listProviders"""
-        return self._client.get(f"/backend/v3/api/admin/providers")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/providers", query))
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> ProvidersCreateResponse201:
         """saveProvider"""
         return self._client.post(f"/backend/v3/api/admin/providers", json=body)
 
-    def delete(self, provider_id: str) -> Any:
+    def delete(self, provider_id: str) -> None:
         """deleteProvider"""
         return self._client.delete(f"/backend/v3/api/admin/providers/{serialize_path_parameter(provider_id, {'name': 'providerId', 'style': 'simple', 'explode': False})}")
 
@@ -465,9 +654,15 @@ class AdminRoutingDecisionLogsApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listRoutingDecisionLogs"""
-        return self._client.get(f"/backend/v3/api/admin/routing/decision_logs")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/routing/decision_logs", query))
 
 class AdminRoutingHealthSnapshotsApi:
     """admin admin.routing.health_snapshots API client."""
@@ -476,7 +671,7 @@ class AdminRoutingHealthSnapshotsApi:
         self._client = client
 
 
-    def retrieve(self) -> Any:
+    def retrieve(self) -> RoutingHealthSnapshotsRetrieveResponse:
         """listProviderHealthSnapshots"""
         return self._client.get(f"/backend/v3/api/admin/routing/health_snapshots")
 
@@ -487,11 +682,17 @@ class AdminRoutingProfilesApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listRoutingProfiles"""
-        return self._client.get(f"/backend/v3/api/admin/routing/profiles")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/routing/profiles", query))
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> RoutingProfilesCreateResponse201:
         """createRoutingProfile"""
         return self._client.post(f"/backend/v3/api/admin/routing/profiles", json=body)
 
@@ -502,9 +703,15 @@ class AdminRoutingSnapshotsApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listCompiledRoutingSnapshots"""
-        return self._client.get(f"/backend/v3/api/admin/routing/snapshots")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/routing/snapshots", query))
 
 class AdminStorageApi:
     """admin admin.storage API client."""
@@ -525,9 +732,15 @@ class AdminStorageAuditApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listStorageAuditTrail"""
-        return self._client.get(f"/backend/v3/api/admin/storage/audit")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/storage/audit", query))
 
 class AdminStorageConfigApi:
     """admin admin.storage.config API client."""
@@ -537,11 +750,11 @@ class AdminStorageConfigApi:
         self.tenants = AdminStorageConfigTenantsApi(client)
 
 
-    def retrieve(self) -> Any:
+    def retrieve(self) -> StorageConfigRetrieveResponse:
         """getGlobalStorageConfig"""
         return self._client.get(f"/backend/v3/api/admin/storage/config")
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> StorageConfigCreateResponse201:
         """saveGlobalStorageConfig"""
         return self._client.post(f"/backend/v3/api/admin/storage/config", json=body)
 
@@ -552,15 +765,15 @@ class AdminStorageConfigTenantsApi:
         self._client = client
 
 
-    def retrieve(self, tenant_id: str) -> Any:
+    def retrieve(self, tenant_id: str) -> StorageConfigTenantsRetrieveResponse:
         """getTenantStorageConfig"""
         return self._client.get(f"/backend/v3/api/admin/storage/config/tenants/{serialize_path_parameter(tenant_id, {'name': 'tenantId', 'style': 'simple', 'explode': False})}")
 
-    def create(self, tenant_id: str, body: Dict[str, Any]) -> Any:
+    def create(self, tenant_id: str, body: Dict[str, Any]) -> StorageConfigTenantsCreateResponse201:
         """saveTenantStorageConfig"""
         return self._client.post(f"/backend/v3/api/admin/storage/config/tenants/{serialize_path_parameter(tenant_id, {'name': 'tenantId', 'style': 'simple', 'explode': False})}", json=body)
 
-    def delete(self, tenant_id: str) -> Any:
+    def delete(self, tenant_id: str) -> None:
         """deleteTenantStorageConfig"""
         return self._client.delete(f"/backend/v3/api/admin/storage/config/tenants/{serialize_path_parameter(tenant_id, {'name': 'tenantId', 'style': 'simple', 'explode': False})}")
 
@@ -579,7 +792,7 @@ class AdminStorageEffectiveTenantsApi:
         self._client = client
 
 
-    def retrieve(self, tenant_id: str) -> Any:
+    def retrieve(self, tenant_id: str) -> StorageEffectiveTenantsRetrieveResponse:
         """getTenantEffectiveStorageConfig"""
         return self._client.get(f"/backend/v3/api/admin/storage/effective/tenants/{serialize_path_parameter(tenant_id, {'name': 'tenantId', 'style': 'simple', 'explode': False})}")
 
@@ -590,9 +803,15 @@ class AdminStorageProvidersApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listStorageProviders"""
-        return self._client.get(f"/backend/v3/api/admin/storage/providers")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/storage/providers", query))
 
 class AdminStorageValidationApi:
     """admin admin.storage.validation API client."""
@@ -602,7 +821,7 @@ class AdminStorageValidationApi:
         self.tenants = AdminStorageValidationTenantsApi(client)
 
 
-    def create(self, body: Dict[str, Any]) -> Any:
+    def create(self, body: Dict[str, Any]) -> StorageValidationCreateResponse201:
         """validateGlobalStorageConfig"""
         return self._client.post(f"/backend/v3/api/admin/storage/validate", json=body)
 
@@ -613,7 +832,7 @@ class AdminStorageValidationTenantsApi:
         self._client = client
 
 
-    def create(self, tenant_id: str, body: Dict[str, Any]) -> Any:
+    def create(self, tenant_id: str, body: Dict[str, Any]) -> StorageValidationTenantsCreateResponse201:
         """validateTenantStorageConfig"""
         return self._client.post(f"/backend/v3/api/admin/storage/validate/tenants/{serialize_path_parameter(tenant_id, {'name': 'tenantId', 'style': 'simple', 'explode': False})}", json=body)
 
@@ -633,9 +852,15 @@ class AdminUsageRecordsApi:
         self._client = client
 
 
-    def list(self) -> Any:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """listUsageRecords"""
-        return self._client.get(f"/backend/v3/api/admin/usage/records")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/admin/usage/records", query))
 
 class AdminUsageSummaryApi:
     """admin admin.usage.summary API client."""
@@ -644,6 +869,6 @@ class AdminUsageSummaryApi:
         self._client = client
 
 
-    def retrieve(self) -> Any:
+    def retrieve(self) -> UsageSummaryRetrieveResponse:
         """getUsageSummary"""
         return self._client.get(f"/backend/v3/api/admin/usage/summary")

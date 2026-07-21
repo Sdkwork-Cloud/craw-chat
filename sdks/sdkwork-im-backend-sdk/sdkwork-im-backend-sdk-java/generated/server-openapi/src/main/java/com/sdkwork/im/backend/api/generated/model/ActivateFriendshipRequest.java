@@ -12,7 +12,7 @@ public class ActivateFriendshipRequest {
     public String getDirectChatId() {
         return this.directChatId;
     }
-    
+
     public void setDirectChatId(String directChatId) {
         this.directChatId = directChatId;
     }
@@ -20,7 +20,7 @@ public class ActivateFriendshipRequest {
     public String getEstablishedAt() {
         return this.establishedAt;
     }
-    
+
     public void setEstablishedAt(String establishedAt) {
         this.establishedAt = establishedAt;
     }
@@ -28,7 +28,7 @@ public class ActivateFriendshipRequest {
     public String getEventId() {
         return this.eventId;
     }
-    
+
     public void setEventId(String eventId) {
         this.eventId = eventId;
     }
@@ -36,7 +36,7 @@ public class ActivateFriendshipRequest {
     public String getFriendshipId() {
         return this.friendshipId;
     }
-    
+
     public void setFriendshipId(String friendshipId) {
         this.friendshipId = friendshipId;
     }
@@ -44,7 +44,7 @@ public class ActivateFriendshipRequest {
     public String getInitiatorUserId() {
         return this.initiatorUserId;
     }
-    
+
     public void setInitiatorUserId(String initiatorUserId) {
         this.initiatorUserId = initiatorUserId;
     }
@@ -52,7 +52,7 @@ public class ActivateFriendshipRequest {
     public String getPeerUserId() {
         return this.peerUserId;
     }
-    
+
     public void setPeerUserId(String peerUserId) {
         this.peerUserId = peerUserId;
     }

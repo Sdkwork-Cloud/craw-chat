@@ -17,7 +17,7 @@
 
 ## 实际完成项
 
-- `ops-service` 新增 `ProviderBindingItemView / ProviderBindingSnapshotView / ProviderBindingsView`。
+- `ops-service` 使用 `ProviderBindingItem / ProviderBindingSnapshot / ProviderBindingSnapshotPageData`；列表仅接受 `cursor` 与 `page_size`，并返回 `data.items + data.pageInfo` 的 keyset 分页结构。
 - `OpsRuntime` 新增 provider binding snapshot 存储与读取能力：
   - `update_provider_binding_snapshot(...)`
   - `provider_bindings_view()`
@@ -67,4 +67,3 @@
 
 1. 把 provider binding drift 视图从“快照镜像”推进到“差异检测”。
 2. 再补 provider policy 写接口与审计闭环。
-

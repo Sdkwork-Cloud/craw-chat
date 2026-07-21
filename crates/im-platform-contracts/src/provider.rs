@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Mutex, MutexGuard};
 
 use im_time::utc_now_rfc3339_millis;
@@ -7,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 pub const PROVIDER_REGISTRY_INTERFACE_VERSION: &str = "provider-registry/v1";
 const PROVIDER_POLICY_MAX_TENANT_ID_BYTES: usize = 256;
+const PROVIDER_POLICY_TENANT_PAGE_MAX_SIZE: usize = 1_000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -923,6 +925,25 @@ impl RuntimeProviderRegistry {
             .collect()
     }
 
+    pub fn tenant_ids_with_overrides_page(
+        &self,
+        cursor: Option<&str>,
+        page_size: usize,
+    ) -> Vec<String> {
+        let state = lock_provider_registry_state(&self.state);
+        let page_size = page_size.clamp(1, PROVIDER_POLICY_TENANT_PAGE_MAX_SIZE);
+        let tenant_ids: Box<dyn Iterator<Item = &String>> = match cursor {
+            Some(cursor) => Box::new(
+                state
+                    .tenant_overrides
+                    .range((Excluded(cursor.to_owned()), Unbounded))
+                    .map(|(tenant_id, _)| tenant_id),
+            ),
+            None => Box::new(state.tenant_overrides.keys()),
+        };
+        tenant_ids.take(page_size).cloned().collect()
+    }
+
     fn ensure_valid_plugin_for_domain(
         &self,
         plugin_id: &str,
@@ -1340,5 +1361,23 @@ mod tests {
             .expect("tenant override binding should exist");
         assert_eq!(binding.selection_source, "tenant_override");
         assert_eq!(binding.selected_plugin_id.as_deref(), Some("rtc-aliyun"));
+    }
+
+    #[test]
+    fn test_tenant_override_pages_use_stable_keyset_order() {
+        let registry = RuntimeProviderRegistry::platform_default()
+            .with_tenant_override("tenant-c", ProviderDomain::Rtc, "rtc-aliyun")
+            .with_tenant_override("tenant-a", ProviderDomain::Rtc, "rtc-aliyun")
+            .with_tenant_override("tenant-b", ProviderDomain::Rtc, "rtc-aliyun");
+
+        let first = registry.tenant_ids_with_overrides_page(None, 2);
+        assert_eq!(first, ["tenant-a", "tenant-b"]);
+        let second = registry.tenant_ids_with_overrides_page(first.last().map(String::as_str), 2);
+        assert_eq!(second, ["tenant-c"]);
+        assert!(
+            registry
+                .tenant_ids_with_overrides_page(second.last().map(String::as_str), 2)
+                .is_empty()
+        );
     }
 }

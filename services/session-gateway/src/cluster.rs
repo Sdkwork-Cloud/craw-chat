@@ -6,8 +6,8 @@ use im_platform_contracts::ClusterEventBus;
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_contract_control::RealtimeDisconnectFenceStore;
 use sdkwork_im_runtime_route::{
-    RouteBinding, RouteBindingRequest, RouteDirectory, RouteMigrationResult, RouteNodeLifecycle,
-    RouteRuntimeError, RouteStore,
+    ROUTE_BINDING_PAGE_MAX_SIZE, RouteBinding, RouteBindingPage, RouteBindingRequest,
+    RouteDirectory, RouteMigrationResult, RouteNodeLifecycle, RouteRuntimeError, RouteStore,
 };
 use serde::Deserialize;
 use tokio::sync::watch;
@@ -180,18 +180,32 @@ impl RealtimeClusterBridge {
 
         // Clean up route epoch notifiers for routes owned by this node
         // to prevent memory leaks from disconnected clients
-        let routes = self.route_store.routes_for_node(node_id);
-        let mut notifiers =
-            lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers");
-        for route in &routes {
-            let scope_key = client_route_scope_key(
-                &route.tenant_id,
-                &route.organization_id,
-                &route.principal_id,
-                &route.principal_kind,
-                &route.device_id,
+        let route_count = self.route_count_for_node(node_id);
+        let mut cursor = None;
+        loop {
+            let page = self.route_store.routes_for_node_page(
+                node_id,
+                cursor.as_deref(),
+                ROUTE_BINDING_PAGE_MAX_SIZE,
             );
-            notifiers.remove(&scope_key);
+            {
+                let mut notifiers =
+                    lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers");
+                for route in &page.items {
+                    let scope_key = client_route_scope_key(
+                        &route.tenant_id,
+                        &route.organization_id,
+                        &route.principal_id,
+                        &route.principal_kind,
+                        &route.device_id,
+                    );
+                    notifiers.remove(&scope_key);
+                }
+            }
+            let Some(next_cursor) = page.next_cursor else {
+                break;
+            };
+            cursor = Some(next_cursor);
         }
 
         // Clean up disconnect fences owned by this node
@@ -200,7 +214,7 @@ impl RealtimeClusterBridge {
 
         tracing::info!(
             node_id = %node_id,
-            route_count = routes.len(),
+            route_count,
             "unregistered node runtime and cleaned up associated state"
         );
     }
@@ -864,6 +878,24 @@ impl RealtimeClusterBridge {
 
     pub fn routes_for_node(&self, owner_node_id: &str) -> Vec<RealtimeClientRoute> {
         self.route_store.routes_for_node(owner_node_id)
+    }
+
+    pub fn routes_for_node_page(
+        &self,
+        owner_node_id: &str,
+        cursor: Option<&str>,
+        page_size: usize,
+    ) -> RouteBindingPage {
+        self.route_store
+            .routes_for_node_page(owner_node_id, cursor, page_size)
+    }
+
+    pub fn route_count_for_node(&self, owner_node_id: &str) -> usize {
+        self.routes_for_node_page(owner_node_id, None, 1).total
+    }
+
+    pub fn has_routes_for_node(&self, owner_node_id: &str) -> bool {
+        self.route_count_for_node(owner_node_id) > 0
     }
 
     pub fn node_lifecycle(&self, node_id: &str) -> Option<RealtimeNodeLifecycleView> {

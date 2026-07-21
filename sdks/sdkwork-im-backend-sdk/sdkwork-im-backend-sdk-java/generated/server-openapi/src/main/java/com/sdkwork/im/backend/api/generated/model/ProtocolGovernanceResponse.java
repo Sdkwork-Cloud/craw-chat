@@ -13,7 +13,7 @@ public class ProtocolGovernanceResponse {
     public BusinessPolicyVocabularyResponse getBusinessPolicyVocabulary() {
         return this.businessPolicyVocabulary;
     }
-    
+
     public void setBusinessPolicyVocabulary(BusinessPolicyVocabularyResponse businessPolicyVocabulary) {
         this.businessPolicyVocabulary = businessPolicyVocabulary;
     }
@@ -21,7 +21,7 @@ public class ProtocolGovernanceResponse {
     public CapabilityProfileResponse getCapabilityProfile() {
         return this.capabilityProfile;
     }
-    
+
     public void setCapabilityProfile(CapabilityProfileResponse capabilityProfile) {
         this.capabilityProfile = capabilityProfile;
     }
@@ -29,7 +29,7 @@ public class ProtocolGovernanceResponse {
     public EffectiveProtocolSnapshotResponse getEffectiveSnapshot() {
         return this.effectiveSnapshot;
     }
-    
+
     public void setEffectiveSnapshot(EffectiveProtocolSnapshotResponse effectiveSnapshot) {
         this.effectiveSnapshot = effectiveSnapshot;
     }
@@ -37,7 +37,7 @@ public class ProtocolGovernanceResponse {
     public KillSwitchResponse getKillSwitch() {
         return this.killSwitch;
     }
-    
+
     public void setKillSwitch(KillSwitchResponse killSwitch) {
         this.killSwitch = killSwitch;
     }
@@ -45,7 +45,7 @@ public class ProtocolGovernanceResponse {
     public QuotaProfileResponse getQuotaProfile() {
         return this.quotaProfile;
     }
-    
+
     public void setQuotaProfile(QuotaProfileResponse quotaProfile) {
         this.quotaProfile = quotaProfile;
     }
@@ -53,7 +53,7 @@ public class ProtocolGovernanceResponse {
     public RolloutPolicyResponse getRolloutPolicy() {
         return this.rolloutPolicy;
     }
-    
+
     public void setRolloutPolicy(RolloutPolicyResponse rolloutPolicy) {
         this.rolloutPolicy = rolloutPolicy;
     }
@@ -61,7 +61,7 @@ public class ProtocolGovernanceResponse {
     public SdkCompatibilityBaselineResponse getSdkCompatibilityBaseline() {
         return this.sdkCompatibilityBaseline;
     }
-    
+
     public void setSdkCompatibilityBaseline(SdkCompatibilityBaselineResponse sdkCompatibilityBaseline) {
         this.sdkCompatibilityBaseline = sdkCompatibilityBaseline;
     }

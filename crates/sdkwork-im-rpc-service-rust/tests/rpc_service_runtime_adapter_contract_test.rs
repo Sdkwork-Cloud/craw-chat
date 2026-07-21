@@ -37,6 +37,7 @@ fn test_im_rpc_server_and_client_configs_have_distributed_defaults() {
     assert!(!server.require_mtls);
     assert_eq!(server.default_deadline, RpcDeadline::from_millis(30_000));
     assert_eq!(server.max_decoding_message_size, 4 * 1024 * 1024);
+    assert_eq!(server.max_encoding_message_size, 16 * 1024 * 1024);
 
     let client = ImRpcClientConfig::new("http://127.0.0.1:50051");
 
@@ -44,7 +45,65 @@ fn test_im_rpc_server_and_client_configs_have_distributed_defaults() {
     assert!(!client.require_tls);
     assert!(!client.require_mtls);
     assert_eq!(client.default_deadline, RpcDeadline::from_millis(30_000));
-    assert_eq!(client.max_encoding_message_size, usize::MAX);
+    assert_eq!(client.max_encoding_message_size, 16 * 1024 * 1024);
+}
+
+#[tokio::test]
+async fn test_configured_grpc_server_rejects_request_above_decoding_limit() {
+    #[derive(Clone, Default)]
+    struct FakeDispatcher;
+
+    impl ImRpcRuntimeDispatcher for FakeDispatcher {
+        fn dispatch_unary(
+            &self,
+            _request: ImRpcUnaryRequest,
+        ) -> sdkwork_im_rpc_service_rust::ImRpcBoxFuture<Result<ImRpcUnaryResponse, ImRpcError>>
+        {
+            Box::pin(async {
+                ImRpcUnaryResponse::from_message(CreatePresenceHeartbeatResponse::default())
+            })
+        }
+    }
+
+    let config = ImRpcServerConfig {
+        max_decoding_message_size: 128,
+        ..ImRpcServerConfig::local_default()
+    };
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("test TCP listener should bind");
+    let addr = listener
+        .local_addr()
+        .expect("test TCP listener should expose local address");
+    let incoming = tokio_stream::wrappers::TcpListenerStream::new(listener);
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+    let router = build_im_rpc_service_router_with_config(&config, Arc::new(FakeDispatcher));
+    let server_task = tokio::spawn(async move {
+        router
+            .serve_with_incoming_shutdown(incoming, async {
+                let _ = shutdown_rx.await;
+            })
+            .await
+            .expect("in-process IM RPC server should run");
+    });
+
+    let mut client = PresenceServiceClient::connect(format!("http://{addr}"))
+        .await
+        .expect("generated RPC client should connect");
+    let error = client
+        .create_presence_heartbeat(CreatePresenceHeartbeatRequest {
+            device_id: "x".repeat(1_024),
+            status: "online".into(),
+            metadata: None,
+        })
+        .await
+        .expect_err("oversized request must be rejected before dispatch");
+    assert_eq!(error.code(), Code::OutOfRange);
+
+    shutdown_tx
+        .send(())
+        .expect("test shutdown signal should be delivered");
+    server_task.await.expect("server task should join");
 }
 
 #[test]

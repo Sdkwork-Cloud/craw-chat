@@ -15,25 +15,43 @@ use crate::error::AutomationError;
 
 pub(crate) fn execution_scope_key(
     tenant_id: &str,
+    organization_id: &str,
     principal_kind: &str,
     principal_id: &str,
     execution_id: &str,
 ) -> String {
-    encode_automation_key_segments([tenant_id, principal_kind, principal_id, execution_id])
+    encode_automation_key_segments([
+        tenant_id,
+        organization_id,
+        principal_kind,
+        principal_id,
+        execution_id,
+    ])
 }
 
 pub(crate) fn automation_execution_request_key(
     tenant_id: &str,
+    organization_id: &str,
     principal_kind: &str,
     principal_id: &str,
     execution_id: &str,
 ) -> String {
-    execution_scope_key(tenant_id, principal_kind, principal_id, execution_id)
+    execution_scope_key(
+        tenant_id,
+        organization_id,
+        principal_kind,
+        principal_id,
+        execution_id,
+    )
 }
 
-pub(crate) fn execution_event_identity(execution: &AutomationExecution) -> String {
+pub(crate) fn execution_event_identity(
+    execution: &AutomationExecution,
+    organization_id: &str,
+) -> String {
     execution_scope_key(
         execution.tenant_id.as_str(),
+        organization_id,
         execution.principal_kind.as_str(),
         execution.principal_id.as_str(),
         execution.execution_id.as_str(),
@@ -42,24 +60,39 @@ pub(crate) fn execution_event_identity(execution: &AutomationExecution) -> Strin
 
 pub(crate) fn agent_response_scope_key(
     tenant_id: &str,
+    organization_id: &str,
     principal_kind: &str,
     principal_id: &str,
     stream_id: &str,
 ) -> String {
-    encode_automation_key_segments([tenant_id, principal_kind, principal_id, stream_id])
+    encode_automation_key_segments([
+        tenant_id,
+        organization_id,
+        principal_kind,
+        principal_id,
+        stream_id,
+    ])
 }
 
 pub(crate) fn agent_response_execution_scope_key(
     tenant_id: &str,
+    organization_id: &str,
     principal_kind: &str,
     principal_id: &str,
     execution_id: &str,
 ) -> String {
-    encode_automation_key_segments([tenant_id, principal_kind, principal_id, execution_id])
+    execution_scope_key(
+        tenant_id,
+        organization_id,
+        principal_kind,
+        principal_id,
+        execution_id,
+    )
 }
 
 pub(crate) fn agent_tool_call_scope_key(
     tenant_id: &str,
+    organization_id: &str,
     principal_kind: &str,
     principal_id: &str,
     execution_id: &str,
@@ -67,6 +100,7 @@ pub(crate) fn agent_tool_call_scope_key(
 ) -> String {
     encode_automation_key_segments([
         tenant_id,
+        organization_id,
         principal_kind,
         principal_id,
         execution_id,
@@ -76,16 +110,28 @@ pub(crate) fn agent_tool_call_scope_key(
 
 pub(crate) fn agent_tool_call_execution_scope_key(
     tenant_id: &str,
+    organization_id: &str,
     principal_kind: &str,
     principal_id: &str,
     execution_id: &str,
 ) -> String {
-    encode_automation_key_segments([tenant_id, principal_kind, principal_id, execution_id])
+    execution_scope_key(
+        tenant_id,
+        organization_id,
+        principal_kind,
+        principal_id,
+        execution_id,
+    )
 }
 
-pub(crate) fn automation_event_key(execution: &AutomationExecution, segments: &[&str]) -> String {
+pub(crate) fn automation_event_key(
+    execution: &AutomationExecution,
+    organization_id: &str,
+    segments: &[&str],
+) -> String {
     let mut encoded_segments = vec![
         execution.tenant_id.as_str(),
+        organization_id,
         execution.principal_kind.as_str(),
         execution.principal_id.as_str(),
         execution.execution_id.as_str(),

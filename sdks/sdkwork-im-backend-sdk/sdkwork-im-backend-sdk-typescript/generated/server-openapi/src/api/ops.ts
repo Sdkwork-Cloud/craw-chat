@@ -1,7 +1,7 @@
 import { backendApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { SdkWorkPageData } from '../types';
+import type { LagPageData, ProviderBindingDriftPageData, ProviderBindingSnapshotPageData } from '../types';
 
 
 export class OpsDiagnosticsApi {
@@ -18,6 +18,11 @@ export class OpsDiagnosticsApi {
   }
 }
 
+export interface OpsProviderBindingsDriftRetrieveParams {
+  pageSize?: number;
+  cursor?: string;
+}
+
 export class OpsProviderBindingsDriftApi {
   private client: HttpClient;
 
@@ -27,16 +32,18 @@ export class OpsProviderBindingsDriftApi {
 
 
 /** Retrieve provider binding drift */
-  async retrieve(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/provider_bindings/drift`));
+  async retrieve(params?: OpsProviderBindingsDriftRetrieveParams): Promise<ProviderBindingDriftPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<ProviderBindingDriftPageData>(appendQueryString(backendApiPath(`/ops/provider_bindings/drift`), query));
   }
 }
 
 export interface OpsProviderBindingsListParams {
   pageSize?: number;
   cursor?: string;
-  page?: number;
-  q?: string;
 }
 
 export class OpsProviderBindingsApi {
@@ -50,14 +57,12 @@ export class OpsProviderBindingsApi {
 
 
 /** List provider bindings */
-  async list(params?: OpsProviderBindingsListParams): Promise<SdkWorkPageData> {
+  async list(params?: OpsProviderBindingsListParams): Promise<ProviderBindingSnapshotPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
-      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
-      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/ops/provider_bindings`), query));
+    return this.client.get<ProviderBindingSnapshotPageData>(appendQueryString(backendApiPath(`/ops/provider_bindings`), query));
   }
 }
 
@@ -103,6 +108,11 @@ export class OpsReplayStatusApi {
   }
 }
 
+export interface OpsLagRetrieveParams {
+  pageSize?: number;
+  cursor?: string;
+}
+
 export class OpsLagApi {
   private client: HttpClient;
 
@@ -112,8 +122,12 @@ export class OpsLagApi {
 
 
 /** Retrieve projection lag */
-  async retrieve(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/lag`));
+  async retrieve(params?: OpsLagRetrieveParams): Promise<LagPageData> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<LagPageData>(appendQueryString(backendApiPath(`/ops/lag`), query));
   }
 }
 

@@ -5,6 +5,8 @@
   "language": "swift",
   "sdkType": "backend",
   "packageName": "ImBackendApiGenerated",
+  "transportPackageName": "ImBackendApiGenerated",
+  "consumerPackageName": "ImBackendApiGenerated",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

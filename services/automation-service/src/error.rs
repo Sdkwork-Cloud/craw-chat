@@ -62,6 +62,17 @@ impl AutomationError {
         }
     }
 
+    pub(crate) fn runtime_capacity(resource: &'static str) -> Self {
+        crate::metrics::record_capacity_rejection(resource);
+        Self {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            code: "automation_runtime_capacity_exhausted",
+            message: format!(
+                "automation runtime capacity exhausted for {resource}; retry after terminal state eviction"
+            ),
+        }
+    }
+
     pub(crate) fn automation_store(value: ContractError) -> Self {
         match value {
             ContractError::Unavailable(message) => Self {

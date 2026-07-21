@@ -9,59 +9,172 @@ import com.sdkwork.im.backend.api.generated.http.HttpClient
 class OpsApi(private val client: HttpClient) {
 
     /** Retrieve ops health */
-    suspend fun healthRetrieve(): Map<String, Any>? {
+    suspend fun healthRetrieve(): HealthRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/ops/health"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<HealthRetrieveResponse>() {})
     }
 
     /** Retrieve cluster state */
-    suspend fun clusterRetrieve(): Map<String, Any>? {
+    suspend fun clusterRetrieve(): ClusterRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/ops/cluster"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<ClusterRetrieveResponse>() {})
     }
 
     /** Retrieve projection lag */
-    suspend fun lagRetrieve(): Map<String, Any>? {
-        val raw = client.get(ApiPaths.backendPath("/ops/lag"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+    suspend fun lagRetrieve(pageSize: Int? = null, cursor: String? = null): LagListResponse? {
+        val query = buildQueryString(listOf(
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ))
+        val raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/ops/lag"), query))
+        return client.convertValue(raw, object : TypeReference<LagListResponse>() {})
     }
 
     /** Retrieve replay status */
-    suspend fun replayStatusRetrieve(): Map<String, Any>? {
+    suspend fun replayStatusRetrieve(): ReplayStatusRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/ops/replay_status"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<ReplayStatusRetrieveResponse>() {})
     }
 
     /** Retrieve commercial readiness */
-    suspend fun commercialReadinessRetrieve(): Map<String, Any>? {
+    suspend fun commercialReadinessRetrieve(): CommercialReadinessRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/ops/commercial_readiness"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<CommercialReadinessRetrieveResponse>() {})
     }
 
     /** Inspect runtime directory */
-    suspend fun runtimeDirRetrieve(): Map<String, Any>? {
+    suspend fun runtimeDirRetrieve(): RuntimeDirRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/ops/runtime_dir"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<RuntimeDirRetrieveResponse>() {})
     }
 
     /** List provider bindings */
-    suspend fun providerBindingsList(): Map<String, Any>? {
-        val raw = client.get(ApiPaths.backendPath("/ops/provider_bindings"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+    suspend fun providerBindingsList(pageSize: Int? = null, cursor: String? = null): ProviderBindingSnapshotListResponse? {
+        val query = buildQueryString(listOf(
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ))
+        val raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/ops/provider_bindings"), query))
+        return client.convertValue(raw, object : TypeReference<ProviderBindingSnapshotListResponse>() {})
     }
 
     /** Retrieve provider binding drift */
-    suspend fun providerBindingsDriftRetrieve(): Map<String, Any>? {
-        val raw = client.get(ApiPaths.backendPath("/ops/provider_bindings/drift"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+    suspend fun providerBindingsDriftRetrieve(pageSize: Int? = null, cursor: String? = null): ProviderBindingDriftListResponse? {
+        val query = buildQueryString(listOf(
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ))
+        val raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/ops/provider_bindings/drift"), query))
+        return client.convertValue(raw, object : TypeReference<ProviderBindingDriftListResponse>() {})
     }
 
     /** Retrieve diagnostics */
-    suspend fun diagnosticsRetrieve(): Map<String, Any>? {
+    suspend fun diagnosticsRetrieve(): DiagnosticsRetrieveResponse? {
         val raw = client.get(ApiPaths.backendPath("/ops/diagnostics"))
-        return client.convertValue(raw, object : TypeReference<Map<String, Any>>() {})
+        return client.convertValue(raw, object : TypeReference<DiagnosticsRetrieveResponse>() {})
     }
 
 
+    private data class QueryParameterSpec(
+        val name: String,
+        val value: Any?,
+        val style: String,
+        val explode: Boolean,
+        val allowReserved: Boolean,
+        val contentType: String?,
+    )
+
+    private val queryObjectMapper = ObjectMapper().registerKotlinModule()
+
+    private fun buildQueryString(parameters: List<QueryParameterSpec>): String {
+        val pairs = mutableListOf<String>()
+        parameters.forEach { appendSerializedParameter(pairs, it) }
+        return pairs.joinToString("&")
+    }
+
+    private fun appendSerializedParameter(pairs: MutableList<String>, parameter: QueryParameterSpec) {
+        val value = parameter.value ?: return
+        if (!parameter.contentType.isNullOrBlank()) {
+            val json = queryObjectMapper.writeValueAsString(value)
+            pairs += urlEncode(parameter.name) + "=" + encodeQueryValue(json, parameter.allowReserved)
+            return
+        }
+
+        val style = parameter.style.ifBlank { "form" }
+        when (value) {
+            is Iterable<*> -> appendArrayParameter(pairs, parameter.name, value, style, parameter.explode, parameter.allowReserved)
+            is Map<*, *> -> if (style == "deepObject") {
+                appendDeepObjectParameter(pairs, parameter.name, value, parameter.allowReserved)
+            } else {
+                appendObjectParameter(pairs, parameter.name, value, style, parameter.explode, parameter.allowReserved)
+            }
+            else -> pairs += urlEncode(parameter.name) + "=" + encodeQueryValue(value.toString(), parameter.allowReserved)
+        }
+    }
+
+    private fun appendArrayParameter(
+        pairs: MutableList<String>,
+        name: String,
+        values: Iterable<*>,
+        style: String,
+        explode: Boolean,
+        allowReserved: Boolean,
+    ) {
+        val serialized = values.mapNotNull { it?.toString() }
+        if (serialized.isEmpty()) return
+        if (style == "form" && explode) {
+            serialized.forEach { pairs += urlEncode(name) + "=" + encodeQueryValue(it, allowReserved) }
+            return
+        }
+        pairs += urlEncode(name) + "=" + encodeQueryValue(serialized.joinToString(","), allowReserved)
+    }
+
+    private fun appendObjectParameter(
+        pairs: MutableList<String>,
+        name: String,
+        values: Map<*, *>,
+        style: String,
+        explode: Boolean,
+        allowReserved: Boolean,
+    ) {
+        val serialized = mutableListOf<String>()
+        values.forEach { (key, value) ->
+            if (value == null) return@forEach
+            if (style == "form" && explode) {
+                pairs += urlEncode(key.toString()) + "=" + encodeQueryValue(value.toString(), allowReserved)
+            } else {
+                serialized += key.toString()
+                serialized += value.toString()
+            }
+        }
+        if (serialized.isNotEmpty()) {
+            pairs += urlEncode(name) + "=" + encodeQueryValue(serialized.joinToString(","), allowReserved)
+        }
+    }
+
+    private fun appendDeepObjectParameter(pairs: MutableList<String>, name: String, values: Map<*, *>, allowReserved: Boolean) {
+        values.forEach { (key, value) ->
+            if (value != null) {
+                pairs += urlEncode("$name[$key]") + "=" + encodeQueryValue(value.toString(), allowReserved)
+            }
+        }
+    }
+
+    private fun encodeQueryValue(value: String, allowReserved: Boolean): String {
+        var encoded = urlEncode(value)
+        if (!allowReserved) return encoded
+        mapOf(
+            "%3A" to ":", "%2F" to "/", "%3F" to "?", "%23" to "#",
+            "%5B" to "[", "%5D" to "]", "%40" to "@", "%21" to "!",
+            "%24" to "$", "%26" to "&", "%27" to "'", "%28" to "(",
+            "%29" to ")", "%2A" to "*", "%2B" to "+", "%2C" to ",",
+            "%3B" to ";", "%3D" to "=",
+        ).forEach { (escaped, reserved) -> encoded = encoded.replace(escaped, reserved) }
+        return encoded
+    }
+
+    private fun urlEncode(value: String): String {
+        return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8)
+    }
 
 }

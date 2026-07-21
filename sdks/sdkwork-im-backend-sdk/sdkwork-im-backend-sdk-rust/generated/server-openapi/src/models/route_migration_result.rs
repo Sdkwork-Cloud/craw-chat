@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct RouteMigrationResult {
     #[serde(rename = "migratedRouteCount")]
-    pub migrated_route_count: i64,
+    pub migrated_route_count: String,
 
     #[serde(rename = "sourceDrainStatus")]
     pub source_drain_status: String,

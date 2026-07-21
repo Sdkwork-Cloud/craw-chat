@@ -5,6 +5,8 @@
   "language": "kotlin",
   "sdkType": "backend",
   "packageName": "com.sdkwork:im-backend-api-generated",
+  "transportPackageName": "com.sdkwork:im-backend-api-generated",
+  "consumerPackageName": "com.sdkwork:im-backend-api-generated",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

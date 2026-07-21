@@ -156,12 +156,13 @@ fn test_agent_response_stream_and_tool_call_lifecycle_are_verifiable() {
         event_types,
         vec![
             "automation.execution_requested",
-            "automation.execution_completed",
+            "automation.execution_started",
             "automation.agent_response_started",
             "automation.agent_response_delta",
             "automation.agent_tool_call_requested",
             "automation.agent_tool_call_completed",
             "automation.agent_response_completed",
+            "automation.execution_completed",
         ]
     );
 
@@ -1124,7 +1125,7 @@ async fn test_restricted_tool_call_requires_operator_override_and_is_auditable()
         event_types,
         vec![
             "automation.execution_requested",
-            "automation.execution_completed",
+            "automation.execution_started",
             "automation.agent_response_started",
             "automation.guardrail_denied",
             "automation.operator_override_applied",

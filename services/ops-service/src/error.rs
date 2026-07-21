@@ -49,6 +49,14 @@ impl IntoResponse for OpsError {
 }
 
 impl OpsError {
+    pub(crate) fn invalid_parameter(message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::BAD_REQUEST,
+            code: "invalid_parameter",
+            message: message.into(),
+        }
+    }
+
     pub(crate) fn internal(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,

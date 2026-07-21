@@ -78,6 +78,35 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
 }
 
 #[tokio::test]
+async fn test_public_app_exports_bounded_runtime_metrics() {
+    let app = automation_http_test_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/metrics")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("metrics request should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("metrics body should collect")
+        .to_bytes();
+    let text = String::from_utf8(body.to_vec()).expect("metrics should be utf-8");
+    assert!(text.contains("im_automation_capacity_rejections_total"));
+    assert!(text.contains("im_automation_terminal_evictions_total"));
+    assert!(text.contains("im_automation_runtime_estimated_bytes"));
+    assert!(text.contains("im_automation_journal_append_failures_total"));
+    assert!(text.contains("sdkwork_http_requests_total"));
+}
+
+#[tokio::test]
 async fn test_request_and_get_execution_over_http() {
     let app = automation_route_http_test_app();
 
@@ -116,8 +145,8 @@ async fn test_request_and_get_execution_over_http() {
     let create_json: serde_json::Value =
         serde_json::from_slice(&create_body).expect("create body should be valid json");
     assert_eq!(create_json["data"]["item"]["executionId"], "ae_http_demo");
-    assert_eq!(create_json["data"]["item"]["state"], "succeeded");
-    assert_eq!(create_json["data"]["item"]["deliveryStatus"], "applied");
+    assert_eq!(create_json["data"]["item"]["state"], "requested");
+    assert_eq!(create_json["data"]["item"]["deliveryStatus"], "accepted");
     assert!(
         !create_json["data"]["item"]["requestKey"]
             .as_str()
@@ -194,7 +223,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first body should be valid json");
-    assert_eq!(first_json["data"]["item"]["deliveryStatus"], "applied");
+    assert_eq!(first_json["data"]["item"]["deliveryStatus"], "accepted");
 
     let idempotent_response = app
         .clone()
@@ -232,7 +261,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
         serde_json::from_slice(&idempotent_body).expect("idempotent body should be valid json");
     assert_eq!(
         idempotent_json["data"]["item"]["deliveryStatus"],
-        "replayed"
+        "accepted"
     );
     assert_eq!(
         idempotent_json["data"]["item"]["requestKey"],
@@ -331,7 +360,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         serde_json::from_slice(&user_body).expect("user body should be valid json");
     assert_eq!(
         user_json["data"]["item"]["requestKey"],
-        "6#1000014#user1#122#ae_http_kind_isolation"
+        "6#1000016#1000014#user1#122#ae_http_kind_isolation"
     );
     assert_eq!(user_json["data"]["item"]["principalKind"], "user");
 
@@ -371,7 +400,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         serde_json::from_slice(&system_body).expect("system body should be valid json");
     assert_eq!(
         system_json["data"]["item"]["requestKey"],
-        "6#1000016#system1#122#ae_http_kind_isolation"
+        "6#1000016#1000016#system1#122#ae_http_kind_isolation"
     );
     assert_eq!(system_json["data"]["item"]["principalKind"], "system");
 

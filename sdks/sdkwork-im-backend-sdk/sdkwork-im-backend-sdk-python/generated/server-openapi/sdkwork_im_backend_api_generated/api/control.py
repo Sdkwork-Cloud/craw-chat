@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import AcceptFriendRequestRequest, ActivateFriendshipRequest, ApplySharedChannelPolicyRequest, BindDirectChatRequest, BindExternalMemberLinkRequest, BlockUserRequest, CancelFriendRequestRequest, DeclineFriendRequestRequest, EstablishExternalConnectionRequest, MigrateRoutesRequest, ProtocolGovernanceResponse, ProtocolRegistryResponse, ProviderBindingCommitResponse, ProviderBindingsResponse, ProviderPolicyDiffResponse, ProviderPolicyHistoryResponse, ProviderPolicyRollbackRequest, ProviderRegistrySnapshotResponse, RemoveFriendshipRequest, RouteMigrationResult, RouteNodeLifecycle, SocialDirectChatCommitResponse, SocialDirectChatSnapshotResponse, SocialExternalConnectionCommitResponse, SocialExternalConnectionSnapshotResponse, SocialExternalMemberLinkCommitResponse, SocialExternalMemberLinkSnapshotResponse, SocialFriendRequestCommitResponse, SocialFriendRequestSnapshotResponse, SocialFriendshipCommitResponse, SocialFriendshipSnapshotResponse, SocialRuntimeRepairResponse, SocialSharedChannelPolicyCommitResponse, SocialSharedChannelPolicySnapshotResponse, SocialSharedChannelSyncDeadLetterInventoryResponse, SocialSharedChannelSyncDeadLetterRequeueResponse, SocialSharedChannelSyncDeadLetterTargetedRequeueRequest, SocialSharedChannelSyncDeadLetterTargetedRequeueResponse, SocialSharedChannelSyncDeliveredInventoryResponse, SocialSharedChannelSyncDeliveryStateInventoryResponse, SocialSharedChannelSyncPendingClaimResponse, SocialSharedChannelSyncPendingInventoryResponse, SocialSharedChannelSyncPendingReleaseResponse, SocialSharedChannelSyncPendingStaleReclaimResponse, SocialSharedChannelSyncPendingTakeoverResponse, SocialSharedChannelSyncPendingTargetedClaimRequest, SocialSharedChannelSyncPendingTargetedReleaseRequest, SocialSharedChannelSyncPendingTargetedTakeoverRequest, SocialSharedChannelSyncRepairResponse, SocialSharedChannelSyncTargetedRepublishRequest, SocialSharedChannelSyncTargetedRepublishResponse, SocialUserBlockCommitResponse, SocialUserBlockSnapshotResponse, SubmitFriendRequestRequest, UpsertProviderBindingPolicyRequest
+from ..models import AcceptFriendRequestRequest, ActivateFriendshipRequest, ApplySharedChannelPolicyRequest, BindDirectChatRequest, BindExternalMemberLinkRequest, BlockUserRequest, CancelFriendRequestRequest, ControlProviderBindingsCreateResponse201, DeclineFriendRequestRequest, EstablishExternalConnectionRequest, MigrateRoutesRequest, NodesActivateResponse, NodesDrainResponse, NodesRoutesMigrateResponse, ProtocolGovernanceRetrieveResponse, ProtocolRegistryRetrieveResponse, ProviderPoliciesPreviewResponse, ProviderPoliciesRollbackResponse, ProviderPolicyRollbackRequest, ProviderRegistryRetrieveResponse, RemoveFriendshipRequest, SdkWorkListResponse, SocialDirectChatsBindingsCreateResponse201, SocialDirectChatsRetrieveResponse, SocialExternalConnectionsCreateResponse201, SocialExternalConnectionsRetrieveResponse, SocialExternalMemberLinksCreateResponse201, SocialExternalMemberLinksRetrieveResponse, SocialFriendRequestsAcceptResponse, SocialFriendRequestsCancelResponse, SocialFriendRequestsCreateResponse201, SocialFriendRequestsDeclineResponse, SocialFriendRequestsRetrieveResponse, SocialFriendshipsCreateResponse201, SocialFriendshipsRemoveResponse, SocialFriendshipsRetrieveResponse, SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201, SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201, SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201, SocialRuntimeRepairDerivedSnapshotCreateResponse201, SocialRuntimeRepairSharedChannelSyncCreateResponse201, SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201, SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201, SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201, SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201, SocialSharedChannelPoliciesCreateResponse201, SocialSharedChannelPoliciesRetrieveResponse, SocialSharedChannelSyncDeadLetterTargetedRequeueRequest, SocialSharedChannelSyncPendingTargetedClaimRequest, SocialSharedChannelSyncPendingTargetedReleaseRequest, SocialSharedChannelSyncPendingTargetedTakeoverRequest, SocialSharedChannelSyncTargetedRepublishRequest, SocialUserBlocksCreateResponse201, SocialUserBlocksRetrieveResponse, SubmitFriendRequestRequest, UpsertProviderBindingPolicyRequest
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -206,11 +206,11 @@ class ControlNodesApi:
         self.routes = ControlNodesRoutesApi(client)
 
 
-    def activate(self, node_id: str) -> RouteNodeLifecycle:
+    def activate(self, node_id: str) -> NodesActivateResponse:
         """Activate a realtime node and clear drain state."""
         return self._client.post(f"/backend/v3/api/control/nodes/{serialize_path_parameter(node_id, {'name': 'nodeId', 'style': 'simple', 'explode': False})}/activate")
 
-    def drain(self, node_id: str) -> RouteNodeLifecycle:
+    def drain(self, node_id: str) -> NodesDrainResponse:
         """Mark a realtime node as draining."""
         return self._client.post(f"/backend/v3/api/control/nodes/{serialize_path_parameter(node_id, {'name': 'nodeId', 'style': 'simple', 'explode': False})}/drain")
 
@@ -221,7 +221,7 @@ class ControlNodesRoutesApi:
         self._client = client
 
 
-    def migrate(self, node_id: str, body: MigrateRoutesRequest) -> RouteMigrationResult:
+    def migrate(self, node_id: str, body: MigrateRoutesRequest) -> NodesRoutesMigrateResponse:
         """Migrate owned routes from the source node to the target node."""
         return self._client.post(f"/backend/v3/api/control/nodes/{serialize_path_parameter(node_id, {'name': 'nodeId', 'style': 'simple', 'explode': False})}/routes/migrate", json=body)
 
@@ -232,7 +232,7 @@ class ControlProtocolGovernanceApi:
         self._client = client
 
 
-    def retrieve(self) -> ProtocolGovernanceResponse:
+    def retrieve(self) -> ProtocolGovernanceRetrieveResponse:
         """Read the control-plane protocol governance snapshot."""
         return self._client.get(f"/backend/v3/api/control/protocol_governance")
 
@@ -243,7 +243,7 @@ class ControlProtocolRegistryApi:
         self._client = client
 
 
-    def retrieve(self) -> ProtocolRegistryResponse:
+    def retrieve(self) -> ProtocolRegistryRetrieveResponse:
         """Read the control-plane protocol registry snapshot."""
         return self._client.get(f"/backend/v3/api/control/protocol_registry")
 
@@ -255,15 +255,21 @@ class ControlProviderPoliciesApi:
         self.diff = ControlProviderPoliciesDiffApi(client)
 
 
-    def list(self) -> ProviderPolicyHistoryResponse:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """Read provider policy history."""
-        return self._client.get(f"/backend/v3/api/control/provider_policies")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/control/provider_policies", query))
 
-    def preview(self, body: UpsertProviderBindingPolicyRequest) -> ProviderBindingCommitResponse:
+    def preview(self, body: UpsertProviderBindingPolicyRequest) -> ProviderPoliciesPreviewResponse:
         """Preview the effective provider policy result before commit."""
         return self._client.post(f"/backend/v3/api/control/provider_policies/preview", json=body)
 
-    def rollback(self, body: ProviderPolicyRollbackRequest) -> ProviderBindingCommitResponse:
+    def rollback(self, body: ProviderPolicyRollbackRequest) -> ProviderPoliciesRollbackResponse:
         """Rollback provider policy history to a target version."""
         return self._client.post(f"/backend/v3/api/control/provider_policies/rollback", json=body)
 
@@ -274,11 +280,15 @@ class ControlProviderPoliciesDiffApi:
         self._client = client
 
 
-    def list(self, from_version: int, to_version: int) -> ProviderPolicyDiffResponse:
+    def list(self, from_version: str, to_version: str, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """Read provider policy diff between two versions."""
         query = build_query_string([
             {'name': 'fromVersion', 'value': from_version, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'toVersion', 'value': to_version, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/backend/v3/api/control/provider_policies/diff", query))
 
@@ -289,7 +299,7 @@ class ControlProviderRegistryApi:
         self._client = client
 
 
-    def retrieve(self) -> ProviderRegistrySnapshotResponse:
+    def retrieve(self) -> ProviderRegistryRetrieveResponse:
         """Read the provider registry snapshot."""
         return self._client.get(f"/backend/v3/api/control/provider_registry")
 
@@ -300,14 +310,18 @@ class ControlProviderBindingsApi:
         self._client = client
 
 
-    def list(self, tenant_id: Optional[str] = None) -> ProviderBindingsResponse:
+    def list(self, tenant_id: Optional[str] = None, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """Read effective provider bindings."""
         query = build_query_string([
             {'name': 'tenantId', 'value': tenant_id, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/backend/v3/api/control/provider_bindings", query))
 
-    def create(self, body: UpsertProviderBindingPolicyRequest) -> ProviderBindingCommitResponse:
+    def create(self, body: UpsertProviderBindingPolicyRequest) -> ControlProviderBindingsCreateResponse201:
         """Upsert a provider binding policy."""
         return self._client.post(f"/backend/v3/api/control/provider_bindings", json=body)
 
@@ -334,7 +348,7 @@ class ControlSocialDirectChatsApi:
         self.bindings = ControlSocialDirectChatsBindingsApi(client)
 
 
-    def retrieve(self, direct_chat_id: str) -> SocialDirectChatSnapshotResponse:
+    def retrieve(self, direct_chat_id: str) -> SocialDirectChatsRetrieveResponse:
         """Read a direct chat snapshot."""
         return self._client.get(f"/backend/v3/api/control/social/direct_chats/{serialize_path_parameter(direct_chat_id, {'name': 'directChatId', 'style': 'simple', 'explode': False})}")
 
@@ -345,7 +359,7 @@ class ControlSocialDirectChatsBindingsApi:
         self._client = client
 
 
-    def create(self, body: BindDirectChatRequest) -> SocialDirectChatCommitResponse:
+    def create(self, body: BindDirectChatRequest) -> SocialDirectChatsBindingsCreateResponse201:
         """Bind a direct chat to a conversation."""
         return self._client.post(f"/backend/v3/api/control/social/direct_chats/bindings", json=body)
 
@@ -356,11 +370,11 @@ class ControlSocialExternalConnectionsApi:
         self._client = client
 
 
-    def create(self, body: EstablishExternalConnectionRequest) -> SocialExternalConnectionCommitResponse:
+    def create(self, body: EstablishExternalConnectionRequest) -> SocialExternalConnectionsCreateResponse201:
         """Establish an external collaboration connection."""
         return self._client.post(f"/backend/v3/api/control/social/external_connections", json=body)
 
-    def retrieve(self, connection_id: str) -> SocialExternalConnectionSnapshotResponse:
+    def retrieve(self, connection_id: str) -> SocialExternalConnectionsRetrieveResponse:
         """Read an external connection snapshot."""
         return self._client.get(f"/backend/v3/api/control/social/external_connections/{serialize_path_parameter(connection_id, {'name': 'connectionId', 'style': 'simple', 'explode': False})}")
 
@@ -371,11 +385,11 @@ class ControlSocialExternalMemberLinksApi:
         self._client = client
 
 
-    def create(self, body: BindExternalMemberLinkRequest) -> SocialExternalMemberLinkCommitResponse:
+    def create(self, body: BindExternalMemberLinkRequest) -> SocialExternalMemberLinksCreateResponse201:
         """Bind an external member link."""
         return self._client.post(f"/backend/v3/api/control/social/external_member_links", json=body)
 
-    def retrieve(self, link_id: str) -> SocialExternalMemberLinkSnapshotResponse:
+    def retrieve(self, link_id: str) -> SocialExternalMemberLinksRetrieveResponse:
         """Read an external member link snapshot."""
         return self._client.get(f"/backend/v3/api/control/social/external_member_links/{serialize_path_parameter(link_id, {'name': 'linkId', 'style': 'simple', 'explode': False})}")
 
@@ -386,23 +400,23 @@ class ControlSocialFriendRequestsApi:
         self._client = client
 
 
-    def create(self, body: SubmitFriendRequestRequest) -> SocialFriendRequestCommitResponse:
+    def create(self, body: SubmitFriendRequestRequest) -> SocialFriendRequestsCreateResponse201:
         """Submit a friend request event."""
         return self._client.post(f"/backend/v3/api/control/social/friend_requests", json=body)
 
-    def retrieve(self, request_id: str) -> SocialFriendRequestSnapshotResponse:
+    def retrieve(self, request_id: str) -> SocialFriendRequestsRetrieveResponse:
         """Read a friend request snapshot."""
         return self._client.get(f"/backend/v3/api/control/social/friend_requests/{serialize_path_parameter(request_id, {'name': 'requestId', 'style': 'simple', 'explode': False})}")
 
-    def accept(self, request_id: str, body: AcceptFriendRequestRequest) -> SocialFriendRequestCommitResponse:
+    def accept(self, request_id: str, body: AcceptFriendRequestRequest) -> SocialFriendRequestsAcceptResponse:
         """Accept a friend request."""
         return self._client.post(f"/backend/v3/api/control/social/friend_requests/{serialize_path_parameter(request_id, {'name': 'requestId', 'style': 'simple', 'explode': False})}/accept", json=body)
 
-    def decline(self, request_id: str, body: DeclineFriendRequestRequest) -> SocialFriendRequestCommitResponse:
+    def decline(self, request_id: str, body: DeclineFriendRequestRequest) -> SocialFriendRequestsDeclineResponse:
         """Decline a friend request."""
         return self._client.post(f"/backend/v3/api/control/social/friend_requests/{serialize_path_parameter(request_id, {'name': 'requestId', 'style': 'simple', 'explode': False})}/decline", json=body)
 
-    def cancel(self, request_id: str, body: CancelFriendRequestRequest) -> SocialFriendRequestCommitResponse:
+    def cancel(self, request_id: str, body: CancelFriendRequestRequest) -> SocialFriendRequestsCancelResponse:
         """Cancel a friend request."""
         return self._client.post(f"/backend/v3/api/control/social/friend_requests/{serialize_path_parameter(request_id, {'name': 'requestId', 'style': 'simple', 'explode': False})}/cancel", json=body)
 
@@ -413,15 +427,15 @@ class ControlSocialFriendshipsApi:
         self._client = client
 
 
-    def create(self, body: ActivateFriendshipRequest) -> SocialFriendshipCommitResponse:
+    def create(self, body: ActivateFriendshipRequest) -> SocialFriendshipsCreateResponse201:
         """Activate a friendship event."""
         return self._client.post(f"/backend/v3/api/control/social/friendships", json=body)
 
-    def retrieve(self, friendship_id: str) -> SocialFriendshipSnapshotResponse:
+    def retrieve(self, friendship_id: str) -> SocialFriendshipsRetrieveResponse:
         """Read a friendship snapshot."""
         return self._client.get(f"/backend/v3/api/control/social/friendships/{serialize_path_parameter(friendship_id, {'name': 'friendshipId', 'style': 'simple', 'explode': False})}")
 
-    def remove(self, friendship_id: str, body: RemoveFriendshipRequest) -> SocialFriendshipCommitResponse:
+    def remove(self, friendship_id: str, body: RemoveFriendshipRequest) -> SocialFriendshipsRemoveResponse:
         """Remove a friendship."""
         return self._client.post(f"/backend/v3/api/control/social/friendships/{serialize_path_parameter(friendship_id, {'name': 'friendshipId', 'style': 'simple', 'explode': False})}/remove", json=body)
 
@@ -452,7 +466,7 @@ class ControlSocialRuntimeClaimPendingSharedChannelSyncTargetedApi:
         self._client = client
 
 
-    def create(self, body: SocialSharedChannelSyncPendingTargetedClaimRequest) -> SocialSharedChannelSyncPendingClaimResponse:
+    def create(self, body: SocialSharedChannelSyncPendingTargetedClaimRequest) -> SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201:
         """Claim selected pending shared-channel sync entries."""
         return self._client.post(f"/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted", json=body)
 
@@ -463,9 +477,15 @@ class ControlSocialRuntimeDeadLetterSharedChannelSyncApi:
         self._client = client
 
 
-    def list(self) -> SocialSharedChannelSyncDeadLetterInventoryResponse:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """Read the dead-letter shared-channel sync queue."""
-        return self._client.get(f"/backend/v3/api/control/social/runtime/dead_letter_shared_channel_sync")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/control/social/runtime/dead_letter_shared_channel_sync", query))
 
 class ControlSocialRuntimeDeliveredSharedChannelSyncApi:
     """control control.social.runtime.delivered_shared_channel_sync API client."""
@@ -474,9 +494,15 @@ class ControlSocialRuntimeDeliveredSharedChannelSyncApi:
         self._client = client
 
 
-    def list(self) -> SocialSharedChannelSyncDeliveredInventoryResponse:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """Read the delivered shared-channel sync ledger."""
-        return self._client.get(f"/backend/v3/api/control/social/runtime/delivered_shared_channel_sync")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/control/social/runtime/delivered_shared_channel_sync", query))
 
 class ControlSocialRuntimeDeliveryStateSharedChannelSyncApi:
     """control control.social.runtime.delivery_state_shared_channel_sync API client."""
@@ -485,9 +511,15 @@ class ControlSocialRuntimeDeliveryStateSharedChannelSyncApi:
         self._client = client
 
 
-    def list(self) -> SocialSharedChannelSyncDeliveryStateInventoryResponse:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """Read merged shared-channel sync delivery state."""
-        return self._client.get(f"/backend/v3/api/control/social/runtime/delivery_state_shared_channel_sync")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/control/social/runtime/delivery_state_shared_channel_sync", query))
 
 class ControlSocialRuntimePendingSharedChannelSyncApi:
     """control control.social.runtime.pending_shared_channel_sync API client."""
@@ -496,9 +528,15 @@ class ControlSocialRuntimePendingSharedChannelSyncApi:
         self._client = client
 
 
-    def list(self) -> SocialSharedChannelSyncPendingInventoryResponse:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, page: Optional[int] = None, q: Optional[str] = None) -> SdkWorkListResponse:
         """Read the pending shared-channel sync queue."""
-        return self._client.get(f"/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page', 'value': page, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/backend/v3/api/control/social/runtime/pending_shared_channel_sync", query))
 
 class ControlSocialRuntimeReclaimStalePendingSharedChannelSyncApi:
     """control control.social.runtime.reclaim_stale_pending_shared_channel_sync API client."""
@@ -507,7 +545,7 @@ class ControlSocialRuntimeReclaimStalePendingSharedChannelSyncApi:
         self._client = client
 
 
-    def create(self) -> SocialSharedChannelSyncPendingStaleReclaimResponse:
+    def create(self) -> SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201:
         """Reclaim stale shared-channel sync pending ownership."""
         return self._client.post(f"/backend/v3/api/control/social/runtime/reclaim_stale_pending_shared_channel_sync")
 
@@ -518,7 +556,7 @@ class ControlSocialRuntimeReleasePendingSharedChannelSyncTargetedApi:
         self._client = client
 
 
-    def create(self, body: SocialSharedChannelSyncPendingTargetedReleaseRequest) -> SocialSharedChannelSyncPendingReleaseResponse:
+    def create(self, body: SocialSharedChannelSyncPendingTargetedReleaseRequest) -> SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201:
         """Release selected pending shared-channel sync entries."""
         return self._client.post(f"/backend/v3/api/control/social/runtime/release_pending_shared_channel_sync_targeted", json=body)
 
@@ -529,7 +567,7 @@ class ControlSocialRuntimeRepairDerivedSnapshotApi:
         self._client = client
 
 
-    def create(self) -> SocialRuntimeRepairResponse:
+    def create(self) -> SocialRuntimeRepairDerivedSnapshotCreateResponse201:
         """Repair the persisted social runtime derived snapshot."""
         return self._client.post(f"/backend/v3/api/control/social/runtime/repair_derived_snapshot")
 
@@ -540,7 +578,7 @@ class ControlSocialRuntimeRepairSharedChannelSyncApi:
         self._client = client
 
 
-    def create(self) -> SocialSharedChannelSyncRepairResponse:
+    def create(self) -> SocialRuntimeRepairSharedChannelSyncCreateResponse201:
         """Repair shared-channel sync backlog state."""
         return self._client.post(f"/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
 
@@ -551,7 +589,7 @@ class ControlSocialRuntimeRepublishPendingSharedChannelSyncTargetedApi:
         self._client = client
 
 
-    def create(self, body: SocialSharedChannelSyncTargetedRepublishRequest) -> SocialSharedChannelSyncTargetedRepublishResponse:
+    def create(self, body: SocialSharedChannelSyncTargetedRepublishRequest) -> SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201:
         """Republish selected pending shared-channel sync entries."""
         return self._client.post(f"/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted", json=body)
 
@@ -562,7 +600,7 @@ class ControlSocialRuntimeRequeueDeadLetterSharedChannelSyncApi:
         self._client = client
 
 
-    def create(self) -> SocialSharedChannelSyncDeadLetterRequeueResponse:
+    def create(self) -> SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201:
         """Requeue all dead-letter shared-channel sync entries."""
         return self._client.post(f"/backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync")
 
@@ -573,7 +611,7 @@ class ControlSocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedApi:
         self._client = client
 
 
-    def create(self, body: SocialSharedChannelSyncDeadLetterTargetedRequeueRequest) -> SocialSharedChannelSyncDeadLetterTargetedRequeueResponse:
+    def create(self, body: SocialSharedChannelSyncDeadLetterTargetedRequeueRequest) -> SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201:
         """Requeue selected dead-letter shared-channel sync entries."""
         return self._client.post(f"/backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted", json=body)
 
@@ -584,7 +622,7 @@ class ControlSocialRuntimeTakeoverPendingSharedChannelSyncTargetedApi:
         self._client = client
 
 
-    def create(self, body: SocialSharedChannelSyncPendingTargetedTakeoverRequest) -> SocialSharedChannelSyncPendingTakeoverResponse:
+    def create(self, body: SocialSharedChannelSyncPendingTargetedTakeoverRequest) -> SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201:
         """Take over selected pending shared-channel sync entries."""
         return self._client.post(f"/backend/v3/api/control/social/runtime/takeover_pending_shared_channel_sync_targeted", json=body)
 
@@ -595,11 +633,11 @@ class ControlSocialSharedChannelPoliciesApi:
         self._client = client
 
 
-    def create(self, body: ApplySharedChannelPolicyRequest) -> SocialSharedChannelPolicyCommitResponse:
+    def create(self, body: ApplySharedChannelPolicyRequest) -> SocialSharedChannelPoliciesCreateResponse201:
         """Apply a shared-channel policy."""
         return self._client.post(f"/backend/v3/api/control/social/shared_channel_policies", json=body)
 
-    def retrieve(self, policy_id: str) -> SocialSharedChannelPolicySnapshotResponse:
+    def retrieve(self, policy_id: str) -> SocialSharedChannelPoliciesRetrieveResponse:
         """Read a shared-channel policy snapshot."""
         return self._client.get(f"/backend/v3/api/control/social/shared_channel_policies/{serialize_path_parameter(policy_id, {'name': 'policyId', 'style': 'simple', 'explode': False})}")
 
@@ -610,10 +648,10 @@ class ControlSocialUserBlocksApi:
         self._client = client
 
 
-    def create(self, body: BlockUserRequest) -> SocialUserBlockCommitResponse:
+    def create(self, body: BlockUserRequest) -> SocialUserBlocksCreateResponse201:
         """Block a user in the social graph."""
         return self._client.post(f"/backend/v3/api/control/social/user_blocks", json=body)
 
-    def retrieve(self, block_id: str) -> SocialUserBlockSnapshotResponse:
+    def retrieve(self, block_id: str) -> SocialUserBlocksRetrieveResponse:
         """Read a user block snapshot."""
         return self._client.get(f"/backend/v3/api/control/social/user_blocks/{serialize_path_parameter(block_id, {'name': 'blockId', 'style': 'simple', 'explode': False})}")

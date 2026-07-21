@@ -12,7 +12,7 @@ public class EstablishExternalConnectionRequest {
     public String getConnectionId() {
         return this.connectionId;
     }
-    
+
     public void setConnectionId(String connectionId) {
         this.connectionId = connectionId;
     }
@@ -20,7 +20,7 @@ public class EstablishExternalConnectionRequest {
     public String getConnectionKind() {
         return this.connectionKind;
     }
-    
+
     public void setConnectionKind(String connectionKind) {
         this.connectionKind = connectionKind;
     }
@@ -28,7 +28,7 @@ public class EstablishExternalConnectionRequest {
     public String getEstablishedAt() {
         return this.establishedAt;
     }
-    
+
     public void setEstablishedAt(String establishedAt) {
         this.establishedAt = establishedAt;
     }
@@ -36,7 +36,7 @@ public class EstablishExternalConnectionRequest {
     public String getEventId() {
         return this.eventId;
     }
-    
+
     public void setEventId(String eventId) {
         this.eventId = eventId;
     }
@@ -44,7 +44,7 @@ public class EstablishExternalConnectionRequest {
     public String getExternalOrgName() {
         return this.externalOrgName;
     }
-    
+
     public void setExternalOrgName(String externalOrgName) {
         this.externalOrgName = externalOrgName;
     }
@@ -52,7 +52,7 @@ public class EstablishExternalConnectionRequest {
     public String getExternalTenantId() {
         return this.externalTenantId;
     }
-    
+
     public void setExternalTenantId(String externalTenantId) {
         this.externalTenantId = externalTenantId;
     }

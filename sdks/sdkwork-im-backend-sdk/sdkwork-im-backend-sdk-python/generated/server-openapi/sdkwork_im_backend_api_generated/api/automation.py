@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
+from ..models import GovernanceRetrieveResponse
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -27,6 +28,6 @@ class AutomationGovernanceApi:
         self._client = client
 
 
-    def retrieve(self) -> Dict[str, Any]:
+    def retrieve(self) -> GovernanceRetrieveResponse:
         """Retrieve automation governance"""
         return self._client.get(f"/backend/v3/api/automation/governance")

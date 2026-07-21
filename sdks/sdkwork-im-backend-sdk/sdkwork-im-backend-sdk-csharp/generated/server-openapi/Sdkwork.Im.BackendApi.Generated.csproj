@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -14,7 +14,11 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="Exists('../../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-csharp/SDKwork.Common.csproj')">
+    <ProjectReference Include="../../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-csharp/SDKwork.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="!Exists('../../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-csharp/SDKwork.Common.csproj')">
     <PackageReference Include="SDKwork.Common" Version="1.0.0" />
   </ItemGroup>
 

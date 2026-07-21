@@ -28,7 +28,7 @@
 
 - `ops-service` 新增：
   - `ProviderBindingDriftItemView`
-  - `ProviderBindingDriftView`
+  - Current contract: `ProviderBindingDriftPageData` with `cursor + page_size` keyset pagination.
 - `OpsRuntime` 新增：
   - `provider_binding_drift_view()`
 - `ops-service` 新增 `GET /backend/v3/api/ops/provider_bindings/drift`
@@ -70,4 +70,3 @@
 
 1. 补 provider policy 写接口、审计 actor 和配置版本闭环
 2. 再把 drift 接到告警与回滚编排
-

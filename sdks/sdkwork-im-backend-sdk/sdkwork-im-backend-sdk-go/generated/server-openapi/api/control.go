@@ -18,440 +18,478 @@ func NewControlApi(client *sdkhttp.Client) *ControlApi {
 }
 
 // Activate a realtime node and clear drain state.
-func (a *ControlApi) NodesActivate(nodeId string) (sdktypes.RouteNodeLifecycle, error) {
+func (a *ControlApi) NodesActivate(nodeId string) (sdktypes.NodesActivateResponse, error) {
     raw, err := a.client.Post(BackendApiPath(fmt.Sprintf("/control/nodes/%s/activate", SerializePathParameter(nodeId, PathParameterSpec{Name: "nodeId", Style: "simple", Explode: false}))), nil, nil, nil, "")
     if err != nil {
-        var zero sdktypes.RouteNodeLifecycle
+        var zero sdktypes.NodesActivateResponse
         return zero, err
     }
-    return decodeResult[sdktypes.RouteNodeLifecycle](raw)
+    return decodeResult[sdktypes.NodesActivateResponse](raw)
 }
 
 // Mark a realtime node as draining.
-func (a *ControlApi) NodesDrain(nodeId string) (sdktypes.RouteNodeLifecycle, error) {
+func (a *ControlApi) NodesDrain(nodeId string) (sdktypes.NodesDrainResponse, error) {
     raw, err := a.client.Post(BackendApiPath(fmt.Sprintf("/control/nodes/%s/drain", SerializePathParameter(nodeId, PathParameterSpec{Name: "nodeId", Style: "simple", Explode: false}))), nil, nil, nil, "")
     if err != nil {
-        var zero sdktypes.RouteNodeLifecycle
+        var zero sdktypes.NodesDrainResponse
         return zero, err
     }
-    return decodeResult[sdktypes.RouteNodeLifecycle](raw)
+    return decodeResult[sdktypes.NodesDrainResponse](raw)
 }
 
 // Migrate owned routes from the source node to the target node.
-func (a *ControlApi) NodesRoutesMigrate(nodeId string, body sdktypes.MigrateRoutesRequest) (sdktypes.RouteMigrationResult, error) {
+func (a *ControlApi) NodesRoutesMigrate(nodeId string, body sdktypes.MigrateRoutesRequest) (sdktypes.NodesRoutesMigrateResponse, error) {
     raw, err := a.client.Post(BackendApiPath(fmt.Sprintf("/control/nodes/%s/routes/migrate", SerializePathParameter(nodeId, PathParameterSpec{Name: "nodeId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.RouteMigrationResult
+        var zero sdktypes.NodesRoutesMigrateResponse
         return zero, err
     }
-    return decodeResult[sdktypes.RouteMigrationResult](raw)
+    return decodeResult[sdktypes.NodesRoutesMigrateResponse](raw)
 }
 
 // Read the control-plane protocol governance snapshot.
-func (a *ControlApi) ProtocolGovernanceRetrieve() (sdktypes.ProtocolGovernanceResponse, error) {
+func (a *ControlApi) ProtocolGovernanceRetrieve() (sdktypes.ProtocolGovernanceRetrieveResponse, error) {
     raw, err := a.client.Get(BackendApiPath("/control/protocol_governance"), nil, nil)
     if err != nil {
-        var zero sdktypes.ProtocolGovernanceResponse
+        var zero sdktypes.ProtocolGovernanceRetrieveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.ProtocolGovernanceResponse](raw)
+    return decodeResult[sdktypes.ProtocolGovernanceRetrieveResponse](raw)
 }
 
 // Read the control-plane protocol registry snapshot.
-func (a *ControlApi) ProtocolRegistryRetrieve() (sdktypes.ProtocolRegistryResponse, error) {
+func (a *ControlApi) ProtocolRegistryRetrieve() (sdktypes.ProtocolRegistryRetrieveResponse, error) {
     raw, err := a.client.Get(BackendApiPath("/control/protocol_registry"), nil, nil)
     if err != nil {
-        var zero sdktypes.ProtocolRegistryResponse
+        var zero sdktypes.ProtocolRegistryRetrieveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.ProtocolRegistryResponse](raw)
+    return decodeResult[sdktypes.ProtocolRegistryRetrieveResponse](raw)
 }
 
 // Read provider policy history.
-func (a *ControlApi) ProviderPoliciesList() (sdktypes.ProviderPolicyHistoryResponse, error) {
-    raw, err := a.client.Get(BackendApiPath("/control/provider_policies"), nil, nil)
+func (a *ControlApi) ProviderPoliciesList(pageSize *int, cursor *string, page *int, q *string) (sdktypes.SdkWorkListResponse, error) {
+    query := BuildQueryString([]QueryParameterSpec{
+        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page", Value: func() interface{} { if page == nil { return nil }; return *page }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "q", Value: func() interface{} { if q == nil { return nil }; return *q }(), Style: "form", Explode: true, AllowReserved: false},
+    })
+    raw, err := a.client.Get(AppendQueryString(BackendApiPath("/control/provider_policies"), query), nil, nil)
     if err != nil {
-        var zero sdktypes.ProviderPolicyHistoryResponse
+        var zero sdktypes.SdkWorkListResponse
         return zero, err
     }
-    return decodeResult[sdktypes.ProviderPolicyHistoryResponse](raw)
+    return decodeResult[sdktypes.SdkWorkListResponse](raw)
 }
 
 // Read provider policy diff between two versions.
-func (a *ControlApi) ProviderPoliciesDiffList(fromVersion int, toVersion int) (sdktypes.ProviderPolicyDiffResponse, error) {
+func (a *ControlApi) ProviderPoliciesDiffList(fromVersion string, toVersion string, pageSize *int, cursor *string, page *int, q *string) (sdktypes.SdkWorkListResponse, error) {
     query := BuildQueryString([]QueryParameterSpec{
         {Name: "fromVersion", Value: fromVersion, Style: "form", Explode: true, AllowReserved: false},
         {Name: "toVersion", Value: toVersion, Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page", Value: func() interface{} { if page == nil { return nil }; return *page }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "q", Value: func() interface{} { if q == nil { return nil }; return *q }(), Style: "form", Explode: true, AllowReserved: false},
     })
     raw, err := a.client.Get(AppendQueryString(BackendApiPath("/control/provider_policies/diff"), query), nil, nil)
     if err != nil {
-        var zero sdktypes.ProviderPolicyDiffResponse
+        var zero sdktypes.SdkWorkListResponse
         return zero, err
     }
-    return decodeResult[sdktypes.ProviderPolicyDiffResponse](raw)
+    return decodeResult[sdktypes.SdkWorkListResponse](raw)
 }
 
 // Preview the effective provider policy result before commit.
-func (a *ControlApi) ProviderPoliciesPreview(body sdktypes.UpsertProviderBindingPolicyRequest) (sdktypes.ProviderBindingCommitResponse, error) {
+func (a *ControlApi) ProviderPoliciesPreview(body sdktypes.UpsertProviderBindingPolicyRequest) (sdktypes.ProviderPoliciesPreviewResponse, error) {
     raw, err := a.client.Post(BackendApiPath("/control/provider_policies/preview"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.ProviderBindingCommitResponse
+        var zero sdktypes.ProviderPoliciesPreviewResponse
         return zero, err
     }
-    return decodeResult[sdktypes.ProviderBindingCommitResponse](raw)
+    return decodeResult[sdktypes.ProviderPoliciesPreviewResponse](raw)
 }
 
 // Rollback provider policy history to a target version.
-func (a *ControlApi) ProviderPoliciesRollback(body sdktypes.ProviderPolicyRollbackRequest) (sdktypes.ProviderBindingCommitResponse, error) {
+func (a *ControlApi) ProviderPoliciesRollback(body sdktypes.ProviderPolicyRollbackRequest) (sdktypes.ProviderPoliciesRollbackResponse, error) {
     raw, err := a.client.Post(BackendApiPath("/control/provider_policies/rollback"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.ProviderBindingCommitResponse
+        var zero sdktypes.ProviderPoliciesRollbackResponse
         return zero, err
     }
-    return decodeResult[sdktypes.ProviderBindingCommitResponse](raw)
+    return decodeResult[sdktypes.ProviderPoliciesRollbackResponse](raw)
 }
 
 // Read the provider registry snapshot.
-func (a *ControlApi) ProviderRegistryRetrieve() (sdktypes.ProviderRegistrySnapshotResponse, error) {
+func (a *ControlApi) ProviderRegistryRetrieve() (sdktypes.ProviderRegistryRetrieveResponse, error) {
     raw, err := a.client.Get(BackendApiPath("/control/provider_registry"), nil, nil)
     if err != nil {
-        var zero sdktypes.ProviderRegistrySnapshotResponse
+        var zero sdktypes.ProviderRegistryRetrieveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.ProviderRegistrySnapshotResponse](raw)
+    return decodeResult[sdktypes.ProviderRegistryRetrieveResponse](raw)
 }
 
 // Read effective provider bindings.
-func (a *ControlApi) ProviderBindingsList(tenantId *string) (sdktypes.ProviderBindingsResponse, error) {
+func (a *ControlApi) ProviderBindingsList(tenantId *string, pageSize *int, cursor *string, page *int, q *string) (sdktypes.SdkWorkListResponse, error) {
     query := BuildQueryString([]QueryParameterSpec{
         {Name: "tenantId", Value: func() interface{} { if tenantId == nil { return nil }; return *tenantId }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page", Value: func() interface{} { if page == nil { return nil }; return *page }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "q", Value: func() interface{} { if q == nil { return nil }; return *q }(), Style: "form", Explode: true, AllowReserved: false},
     })
     raw, err := a.client.Get(AppendQueryString(BackendApiPath("/control/provider_bindings"), query), nil, nil)
     if err != nil {
-        var zero sdktypes.ProviderBindingsResponse
+        var zero sdktypes.SdkWorkListResponse
         return zero, err
     }
-    return decodeResult[sdktypes.ProviderBindingsResponse](raw)
+    return decodeResult[sdktypes.SdkWorkListResponse](raw)
 }
 
 // Upsert a provider binding policy.
-func (a *ControlApi) ProviderBindingsCreate(body sdktypes.UpsertProviderBindingPolicyRequest) (sdktypes.ProviderBindingCommitResponse, error) {
+func (a *ControlApi) ProviderBindingsCreate(body sdktypes.UpsertProviderBindingPolicyRequest) (sdktypes.ControlProviderBindingsCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/provider_bindings"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.ProviderBindingCommitResponse
+        var zero sdktypes.ControlProviderBindingsCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.ProviderBindingCommitResponse](raw)
+    return decodeResult[sdktypes.ControlProviderBindingsCreateResponse201](raw)
 }
 
 // Bind a direct chat to a conversation.
-func (a *ControlApi) SocialDirectChatsBindingsCreate(body sdktypes.BindDirectChatRequest) (sdktypes.SocialDirectChatCommitResponse, error) {
+func (a *ControlApi) SocialDirectChatsBindingsCreate(body sdktypes.BindDirectChatRequest) (sdktypes.SocialDirectChatsBindingsCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/direct_chats/bindings"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialDirectChatCommitResponse
+        var zero sdktypes.SocialDirectChatsBindingsCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialDirectChatCommitResponse](raw)
+    return decodeResult[sdktypes.SocialDirectChatsBindingsCreateResponse201](raw)
 }
 
 // Read a direct chat snapshot.
-func (a *ControlApi) SocialDirectChatsRetrieve(directChatId string) (sdktypes.SocialDirectChatSnapshotResponse, error) {
+func (a *ControlApi) SocialDirectChatsRetrieve(directChatId string) (sdktypes.SocialDirectChatsRetrieveResponse, error) {
     raw, err := a.client.Get(BackendApiPath(fmt.Sprintf("/control/social/direct_chats/%s", SerializePathParameter(directChatId, PathParameterSpec{Name: "directChatId", Style: "simple", Explode: false}))), nil, nil)
     if err != nil {
-        var zero sdktypes.SocialDirectChatSnapshotResponse
+        var zero sdktypes.SocialDirectChatsRetrieveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialDirectChatSnapshotResponse](raw)
+    return decodeResult[sdktypes.SocialDirectChatsRetrieveResponse](raw)
 }
 
 // Establish an external collaboration connection.
-func (a *ControlApi) SocialExternalConnectionsCreate(body sdktypes.EstablishExternalConnectionRequest) (sdktypes.SocialExternalConnectionCommitResponse, error) {
+func (a *ControlApi) SocialExternalConnectionsCreate(body sdktypes.EstablishExternalConnectionRequest) (sdktypes.SocialExternalConnectionsCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/external_connections"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialExternalConnectionCommitResponse
+        var zero sdktypes.SocialExternalConnectionsCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialExternalConnectionCommitResponse](raw)
+    return decodeResult[sdktypes.SocialExternalConnectionsCreateResponse201](raw)
 }
 
 // Read an external connection snapshot.
-func (a *ControlApi) SocialExternalConnectionsRetrieve(connectionId string) (sdktypes.SocialExternalConnectionSnapshotResponse, error) {
+func (a *ControlApi) SocialExternalConnectionsRetrieve(connectionId string) (sdktypes.SocialExternalConnectionsRetrieveResponse, error) {
     raw, err := a.client.Get(BackendApiPath(fmt.Sprintf("/control/social/external_connections/%s", SerializePathParameter(connectionId, PathParameterSpec{Name: "connectionId", Style: "simple", Explode: false}))), nil, nil)
     if err != nil {
-        var zero sdktypes.SocialExternalConnectionSnapshotResponse
+        var zero sdktypes.SocialExternalConnectionsRetrieveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialExternalConnectionSnapshotResponse](raw)
+    return decodeResult[sdktypes.SocialExternalConnectionsRetrieveResponse](raw)
 }
 
 // Bind an external member link.
-func (a *ControlApi) SocialExternalMemberLinksCreate(body sdktypes.BindExternalMemberLinkRequest) (sdktypes.SocialExternalMemberLinkCommitResponse, error) {
+func (a *ControlApi) SocialExternalMemberLinksCreate(body sdktypes.BindExternalMemberLinkRequest) (sdktypes.SocialExternalMemberLinksCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/external_member_links"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialExternalMemberLinkCommitResponse
+        var zero sdktypes.SocialExternalMemberLinksCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialExternalMemberLinkCommitResponse](raw)
+    return decodeResult[sdktypes.SocialExternalMemberLinksCreateResponse201](raw)
 }
 
 // Read an external member link snapshot.
-func (a *ControlApi) SocialExternalMemberLinksRetrieve(linkId string) (sdktypes.SocialExternalMemberLinkSnapshotResponse, error) {
+func (a *ControlApi) SocialExternalMemberLinksRetrieve(linkId string) (sdktypes.SocialExternalMemberLinksRetrieveResponse, error) {
     raw, err := a.client.Get(BackendApiPath(fmt.Sprintf("/control/social/external_member_links/%s", SerializePathParameter(linkId, PathParameterSpec{Name: "linkId", Style: "simple", Explode: false}))), nil, nil)
     if err != nil {
-        var zero sdktypes.SocialExternalMemberLinkSnapshotResponse
+        var zero sdktypes.SocialExternalMemberLinksRetrieveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialExternalMemberLinkSnapshotResponse](raw)
+    return decodeResult[sdktypes.SocialExternalMemberLinksRetrieveResponse](raw)
 }
 
 // Submit a friend request event.
-func (a *ControlApi) SocialFriendRequestsCreate(body sdktypes.SubmitFriendRequestRequest) (sdktypes.SocialFriendRequestCommitResponse, error) {
+func (a *ControlApi) SocialFriendRequestsCreate(body sdktypes.SubmitFriendRequestRequest) (sdktypes.SocialFriendRequestsCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/friend_requests"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialFriendRequestCommitResponse
+        var zero sdktypes.SocialFriendRequestsCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialFriendRequestCommitResponse](raw)
+    return decodeResult[sdktypes.SocialFriendRequestsCreateResponse201](raw)
 }
 
 // Read a friend request snapshot.
-func (a *ControlApi) SocialFriendRequestsRetrieve(requestId string) (sdktypes.SocialFriendRequestSnapshotResponse, error) {
+func (a *ControlApi) SocialFriendRequestsRetrieve(requestId string) (sdktypes.SocialFriendRequestsRetrieveResponse, error) {
     raw, err := a.client.Get(BackendApiPath(fmt.Sprintf("/control/social/friend_requests/%s", SerializePathParameter(requestId, PathParameterSpec{Name: "requestId", Style: "simple", Explode: false}))), nil, nil)
     if err != nil {
-        var zero sdktypes.SocialFriendRequestSnapshotResponse
+        var zero sdktypes.SocialFriendRequestsRetrieveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialFriendRequestSnapshotResponse](raw)
+    return decodeResult[sdktypes.SocialFriendRequestsRetrieveResponse](raw)
 }
 
 // Accept a friend request.
-func (a *ControlApi) SocialFriendRequestsAccept(requestId string, body sdktypes.AcceptFriendRequestRequest) (sdktypes.SocialFriendRequestCommitResponse, error) {
+func (a *ControlApi) SocialFriendRequestsAccept(requestId string, body sdktypes.AcceptFriendRequestRequest) (sdktypes.SocialFriendRequestsAcceptResponse, error) {
     raw, err := a.client.Post(BackendApiPath(fmt.Sprintf("/control/social/friend_requests/%s/accept", SerializePathParameter(requestId, PathParameterSpec{Name: "requestId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialFriendRequestCommitResponse
+        var zero sdktypes.SocialFriendRequestsAcceptResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialFriendRequestCommitResponse](raw)
+    return decodeResult[sdktypes.SocialFriendRequestsAcceptResponse](raw)
 }
 
 // Decline a friend request.
-func (a *ControlApi) SocialFriendRequestsDecline(requestId string, body sdktypes.DeclineFriendRequestRequest) (sdktypes.SocialFriendRequestCommitResponse, error) {
+func (a *ControlApi) SocialFriendRequestsDecline(requestId string, body sdktypes.DeclineFriendRequestRequest) (sdktypes.SocialFriendRequestsDeclineResponse, error) {
     raw, err := a.client.Post(BackendApiPath(fmt.Sprintf("/control/social/friend_requests/%s/decline", SerializePathParameter(requestId, PathParameterSpec{Name: "requestId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialFriendRequestCommitResponse
+        var zero sdktypes.SocialFriendRequestsDeclineResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialFriendRequestCommitResponse](raw)
+    return decodeResult[sdktypes.SocialFriendRequestsDeclineResponse](raw)
 }
 
 // Cancel a friend request.
-func (a *ControlApi) SocialFriendRequestsCancel(requestId string, body sdktypes.CancelFriendRequestRequest) (sdktypes.SocialFriendRequestCommitResponse, error) {
+func (a *ControlApi) SocialFriendRequestsCancel(requestId string, body sdktypes.CancelFriendRequestRequest) (sdktypes.SocialFriendRequestsCancelResponse, error) {
     raw, err := a.client.Post(BackendApiPath(fmt.Sprintf("/control/social/friend_requests/%s/cancel", SerializePathParameter(requestId, PathParameterSpec{Name: "requestId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialFriendRequestCommitResponse
+        var zero sdktypes.SocialFriendRequestsCancelResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialFriendRequestCommitResponse](raw)
+    return decodeResult[sdktypes.SocialFriendRequestsCancelResponse](raw)
 }
 
 // Activate a friendship event.
-func (a *ControlApi) SocialFriendshipsCreate(body sdktypes.ActivateFriendshipRequest) (sdktypes.SocialFriendshipCommitResponse, error) {
+func (a *ControlApi) SocialFriendshipsCreate(body sdktypes.ActivateFriendshipRequest) (sdktypes.SocialFriendshipsCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/friendships"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialFriendshipCommitResponse
+        var zero sdktypes.SocialFriendshipsCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialFriendshipCommitResponse](raw)
+    return decodeResult[sdktypes.SocialFriendshipsCreateResponse201](raw)
 }
 
 // Read a friendship snapshot.
-func (a *ControlApi) SocialFriendshipsRetrieve(friendshipId string) (sdktypes.SocialFriendshipSnapshotResponse, error) {
+func (a *ControlApi) SocialFriendshipsRetrieve(friendshipId string) (sdktypes.SocialFriendshipsRetrieveResponse, error) {
     raw, err := a.client.Get(BackendApiPath(fmt.Sprintf("/control/social/friendships/%s", SerializePathParameter(friendshipId, PathParameterSpec{Name: "friendshipId", Style: "simple", Explode: false}))), nil, nil)
     if err != nil {
-        var zero sdktypes.SocialFriendshipSnapshotResponse
+        var zero sdktypes.SocialFriendshipsRetrieveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialFriendshipSnapshotResponse](raw)
+    return decodeResult[sdktypes.SocialFriendshipsRetrieveResponse](raw)
 }
 
 // Remove a friendship.
-func (a *ControlApi) SocialFriendshipsRemove(friendshipId string, body sdktypes.RemoveFriendshipRequest) (sdktypes.SocialFriendshipCommitResponse, error) {
+func (a *ControlApi) SocialFriendshipsRemove(friendshipId string, body sdktypes.RemoveFriendshipRequest) (sdktypes.SocialFriendshipsRemoveResponse, error) {
     raw, err := a.client.Post(BackendApiPath(fmt.Sprintf("/control/social/friendships/%s/remove", SerializePathParameter(friendshipId, PathParameterSpec{Name: "friendshipId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialFriendshipCommitResponse
+        var zero sdktypes.SocialFriendshipsRemoveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialFriendshipCommitResponse](raw)
+    return decodeResult[sdktypes.SocialFriendshipsRemoveResponse](raw)
 }
 
 // Claim selected pending shared-channel sync entries.
-func (a *ControlApi) SocialRuntimeClaimPendingSharedChannelSyncTargetedCreate(body sdktypes.SocialSharedChannelSyncPendingTargetedClaimRequest) (sdktypes.SocialSharedChannelSyncPendingClaimResponse, error) {
+func (a *ControlApi) SocialRuntimeClaimPendingSharedChannelSyncTargetedCreate(body sdktypes.SocialSharedChannelSyncPendingTargetedClaimRequest) (sdktypes.SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/runtime/claim_pending_shared_channel_sync_targeted"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialSharedChannelSyncPendingClaimResponse
+        var zero sdktypes.SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelSyncPendingClaimResponse](raw)
+    return decodeResult[sdktypes.SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201](raw)
 }
 
 // Read the dead-letter shared-channel sync queue.
-func (a *ControlApi) SocialRuntimeDeadLetterSharedChannelSyncList() (sdktypes.SocialSharedChannelSyncDeadLetterInventoryResponse, error) {
-    raw, err := a.client.Get(BackendApiPath("/control/social/runtime/dead_letter_shared_channel_sync"), nil, nil)
+func (a *ControlApi) SocialRuntimeDeadLetterSharedChannelSyncList(pageSize *int, cursor *string, page *int, q *string) (sdktypes.SdkWorkListResponse, error) {
+    query := BuildQueryString([]QueryParameterSpec{
+        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page", Value: func() interface{} { if page == nil { return nil }; return *page }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "q", Value: func() interface{} { if q == nil { return nil }; return *q }(), Style: "form", Explode: true, AllowReserved: false},
+    })
+    raw, err := a.client.Get(AppendQueryString(BackendApiPath("/control/social/runtime/dead_letter_shared_channel_sync"), query), nil, nil)
     if err != nil {
-        var zero sdktypes.SocialSharedChannelSyncDeadLetterInventoryResponse
+        var zero sdktypes.SdkWorkListResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelSyncDeadLetterInventoryResponse](raw)
+    return decodeResult[sdktypes.SdkWorkListResponse](raw)
 }
 
 // Read the delivered shared-channel sync ledger.
-func (a *ControlApi) SocialRuntimeDeliveredSharedChannelSyncList() (sdktypes.SocialSharedChannelSyncDeliveredInventoryResponse, error) {
-    raw, err := a.client.Get(BackendApiPath("/control/social/runtime/delivered_shared_channel_sync"), nil, nil)
+func (a *ControlApi) SocialRuntimeDeliveredSharedChannelSyncList(pageSize *int, cursor *string, page *int, q *string) (sdktypes.SdkWorkListResponse, error) {
+    query := BuildQueryString([]QueryParameterSpec{
+        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page", Value: func() interface{} { if page == nil { return nil }; return *page }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "q", Value: func() interface{} { if q == nil { return nil }; return *q }(), Style: "form", Explode: true, AllowReserved: false},
+    })
+    raw, err := a.client.Get(AppendQueryString(BackendApiPath("/control/social/runtime/delivered_shared_channel_sync"), query), nil, nil)
     if err != nil {
-        var zero sdktypes.SocialSharedChannelSyncDeliveredInventoryResponse
+        var zero sdktypes.SdkWorkListResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelSyncDeliveredInventoryResponse](raw)
+    return decodeResult[sdktypes.SdkWorkListResponse](raw)
 }
 
 // Read merged shared-channel sync delivery state.
-func (a *ControlApi) SocialRuntimeDeliveryStateSharedChannelSyncList() (sdktypes.SocialSharedChannelSyncDeliveryStateInventoryResponse, error) {
-    raw, err := a.client.Get(BackendApiPath("/control/social/runtime/delivery_state_shared_channel_sync"), nil, nil)
+func (a *ControlApi) SocialRuntimeDeliveryStateSharedChannelSyncList(pageSize *int, cursor *string, page *int, q *string) (sdktypes.SdkWorkListResponse, error) {
+    query := BuildQueryString([]QueryParameterSpec{
+        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page", Value: func() interface{} { if page == nil { return nil }; return *page }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "q", Value: func() interface{} { if q == nil { return nil }; return *q }(), Style: "form", Explode: true, AllowReserved: false},
+    })
+    raw, err := a.client.Get(AppendQueryString(BackendApiPath("/control/social/runtime/delivery_state_shared_channel_sync"), query), nil, nil)
     if err != nil {
-        var zero sdktypes.SocialSharedChannelSyncDeliveryStateInventoryResponse
+        var zero sdktypes.SdkWorkListResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelSyncDeliveryStateInventoryResponse](raw)
+    return decodeResult[sdktypes.SdkWorkListResponse](raw)
 }
 
 // Read the pending shared-channel sync queue.
-func (a *ControlApi) SocialRuntimePendingSharedChannelSyncList() (sdktypes.SocialSharedChannelSyncPendingInventoryResponse, error) {
-    raw, err := a.client.Get(BackendApiPath("/control/social/runtime/pending_shared_channel_sync"), nil, nil)
+func (a *ControlApi) SocialRuntimePendingSharedChannelSyncList(pageSize *int, cursor *string, page *int, q *string) (sdktypes.SdkWorkListResponse, error) {
+    query := BuildQueryString([]QueryParameterSpec{
+        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page", Value: func() interface{} { if page == nil { return nil }; return *page }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "q", Value: func() interface{} { if q == nil { return nil }; return *q }(), Style: "form", Explode: true, AllowReserved: false},
+    })
+    raw, err := a.client.Get(AppendQueryString(BackendApiPath("/control/social/runtime/pending_shared_channel_sync"), query), nil, nil)
     if err != nil {
-        var zero sdktypes.SocialSharedChannelSyncPendingInventoryResponse
+        var zero sdktypes.SdkWorkListResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelSyncPendingInventoryResponse](raw)
+    return decodeResult[sdktypes.SdkWorkListResponse](raw)
 }
 
 // Reclaim stale shared-channel sync pending ownership.
-func (a *ControlApi) SocialRuntimeReclaimStalePendingSharedChannelSyncCreate() (sdktypes.SocialSharedChannelSyncPendingStaleReclaimResponse, error) {
+func (a *ControlApi) SocialRuntimeReclaimStalePendingSharedChannelSyncCreate() (sdktypes.SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/runtime/reclaim_stale_pending_shared_channel_sync"), nil, nil, nil, "")
     if err != nil {
-        var zero sdktypes.SocialSharedChannelSyncPendingStaleReclaimResponse
+        var zero sdktypes.SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelSyncPendingStaleReclaimResponse](raw)
+    return decodeResult[sdktypes.SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201](raw)
 }
 
 // Release selected pending shared-channel sync entries.
-func (a *ControlApi) SocialRuntimeReleasePendingSharedChannelSyncTargetedCreate(body sdktypes.SocialSharedChannelSyncPendingTargetedReleaseRequest) (sdktypes.SocialSharedChannelSyncPendingReleaseResponse, error) {
+func (a *ControlApi) SocialRuntimeReleasePendingSharedChannelSyncTargetedCreate(body sdktypes.SocialSharedChannelSyncPendingTargetedReleaseRequest) (sdktypes.SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/runtime/release_pending_shared_channel_sync_targeted"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialSharedChannelSyncPendingReleaseResponse
+        var zero sdktypes.SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelSyncPendingReleaseResponse](raw)
+    return decodeResult[sdktypes.SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201](raw)
 }
 
 // Repair the persisted social runtime derived snapshot.
-func (a *ControlApi) SocialRuntimeRepairDerivedSnapshotCreate() (sdktypes.SocialRuntimeRepairResponse, error) {
+func (a *ControlApi) SocialRuntimeRepairDerivedSnapshotCreate() (sdktypes.SocialRuntimeRepairDerivedSnapshotCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/runtime/repair_derived_snapshot"), nil, nil, nil, "")
     if err != nil {
-        var zero sdktypes.SocialRuntimeRepairResponse
+        var zero sdktypes.SocialRuntimeRepairDerivedSnapshotCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialRuntimeRepairResponse](raw)
+    return decodeResult[sdktypes.SocialRuntimeRepairDerivedSnapshotCreateResponse201](raw)
 }
 
 // Repair shared-channel sync backlog state.
-func (a *ControlApi) SocialRuntimeRepairSharedChannelSyncCreate() (sdktypes.SocialSharedChannelSyncRepairResponse, error) {
+func (a *ControlApi) SocialRuntimeRepairSharedChannelSyncCreate() (sdktypes.SocialRuntimeRepairSharedChannelSyncCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/runtime/repair_shared_channel_sync"), nil, nil, nil, "")
     if err != nil {
-        var zero sdktypes.SocialSharedChannelSyncRepairResponse
+        var zero sdktypes.SocialRuntimeRepairSharedChannelSyncCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelSyncRepairResponse](raw)
+    return decodeResult[sdktypes.SocialRuntimeRepairSharedChannelSyncCreateResponse201](raw)
 }
 
 // Republish selected pending shared-channel sync entries.
-func (a *ControlApi) SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreate(body sdktypes.SocialSharedChannelSyncTargetedRepublishRequest) (sdktypes.SocialSharedChannelSyncTargetedRepublishResponse, error) {
+func (a *ControlApi) SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreate(body sdktypes.SocialSharedChannelSyncTargetedRepublishRequest) (sdktypes.SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/runtime/republish_pending_shared_channel_sync_targeted"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialSharedChannelSyncTargetedRepublishResponse
+        var zero sdktypes.SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelSyncTargetedRepublishResponse](raw)
+    return decodeResult[sdktypes.SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201](raw)
 }
 
 // Requeue all dead-letter shared-channel sync entries.
-func (a *ControlApi) SocialRuntimeRequeueDeadLetterSharedChannelSyncCreate() (sdktypes.SocialSharedChannelSyncDeadLetterRequeueResponse, error) {
+func (a *ControlApi) SocialRuntimeRequeueDeadLetterSharedChannelSyncCreate() (sdktypes.SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/runtime/requeue_dead_letter_shared_channel_sync"), nil, nil, nil, "")
     if err != nil {
-        var zero sdktypes.SocialSharedChannelSyncDeadLetterRequeueResponse
+        var zero sdktypes.SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelSyncDeadLetterRequeueResponse](raw)
+    return decodeResult[sdktypes.SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201](raw)
 }
 
 // Requeue selected dead-letter shared-channel sync entries.
-func (a *ControlApi) SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreate(body sdktypes.SocialSharedChannelSyncDeadLetterTargetedRequeueRequest) (sdktypes.SocialSharedChannelSyncDeadLetterTargetedRequeueResponse, error) {
+func (a *ControlApi) SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreate(body sdktypes.SocialSharedChannelSyncDeadLetterTargetedRequeueRequest) (sdktypes.SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialSharedChannelSyncDeadLetterTargetedRequeueResponse
+        var zero sdktypes.SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelSyncDeadLetterTargetedRequeueResponse](raw)
+    return decodeResult[sdktypes.SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201](raw)
 }
 
 // Take over selected pending shared-channel sync entries.
-func (a *ControlApi) SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreate(body sdktypes.SocialSharedChannelSyncPendingTargetedTakeoverRequest) (sdktypes.SocialSharedChannelSyncPendingTakeoverResponse, error) {
+func (a *ControlApi) SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreate(body sdktypes.SocialSharedChannelSyncPendingTargetedTakeoverRequest) (sdktypes.SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/runtime/takeover_pending_shared_channel_sync_targeted"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialSharedChannelSyncPendingTakeoverResponse
+        var zero sdktypes.SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelSyncPendingTakeoverResponse](raw)
+    return decodeResult[sdktypes.SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201](raw)
 }
 
 // Apply a shared-channel policy.
-func (a *ControlApi) SocialSharedChannelPoliciesCreate(body sdktypes.ApplySharedChannelPolicyRequest) (sdktypes.SocialSharedChannelPolicyCommitResponse, error) {
+func (a *ControlApi) SocialSharedChannelPoliciesCreate(body sdktypes.ApplySharedChannelPolicyRequest) (sdktypes.SocialSharedChannelPoliciesCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/shared_channel_policies"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialSharedChannelPolicyCommitResponse
+        var zero sdktypes.SocialSharedChannelPoliciesCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelPolicyCommitResponse](raw)
+    return decodeResult[sdktypes.SocialSharedChannelPoliciesCreateResponse201](raw)
 }
 
 // Read a shared-channel policy snapshot.
-func (a *ControlApi) SocialSharedChannelPoliciesRetrieve(policyId string) (sdktypes.SocialSharedChannelPolicySnapshotResponse, error) {
+func (a *ControlApi) SocialSharedChannelPoliciesRetrieve(policyId string) (sdktypes.SocialSharedChannelPoliciesRetrieveResponse, error) {
     raw, err := a.client.Get(BackendApiPath(fmt.Sprintf("/control/social/shared_channel_policies/%s", SerializePathParameter(policyId, PathParameterSpec{Name: "policyId", Style: "simple", Explode: false}))), nil, nil)
     if err != nil {
-        var zero sdktypes.SocialSharedChannelPolicySnapshotResponse
+        var zero sdktypes.SocialSharedChannelPoliciesRetrieveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialSharedChannelPolicySnapshotResponse](raw)
+    return decodeResult[sdktypes.SocialSharedChannelPoliciesRetrieveResponse](raw)
 }
 
 // Block a user in the social graph.
-func (a *ControlApi) SocialUserBlocksCreate(body sdktypes.BlockUserRequest) (sdktypes.SocialUserBlockCommitResponse, error) {
+func (a *ControlApi) SocialUserBlocksCreate(body sdktypes.BlockUserRequest) (sdktypes.SocialUserBlocksCreateResponse201, error) {
     raw, err := a.client.Post(BackendApiPath("/control/social/user_blocks"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.SocialUserBlockCommitResponse
+        var zero sdktypes.SocialUserBlocksCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.SocialUserBlockCommitResponse](raw)
+    return decodeResult[sdktypes.SocialUserBlocksCreateResponse201](raw)
 }
 
 // Read a user block snapshot.
-func (a *ControlApi) SocialUserBlocksRetrieve(blockId string) (sdktypes.SocialUserBlockSnapshotResponse, error) {
+func (a *ControlApi) SocialUserBlocksRetrieve(blockId string) (sdktypes.SocialUserBlocksRetrieveResponse, error) {
     raw, err := a.client.Get(BackendApiPath(fmt.Sprintf("/control/social/user_blocks/%s", SerializePathParameter(blockId, PathParameterSpec{Name: "blockId", Style: "simple", Explode: false}))), nil, nil)
     if err != nil {
-        var zero sdktypes.SocialUserBlockSnapshotResponse
+        var zero sdktypes.SocialUserBlocksRetrieveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.SocialUserBlockSnapshotResponse](raw)
+    return decodeResult[sdktypes.SocialUserBlocksRetrieveResponse](raw)
 }
 
 type PathParameterSpec struct {

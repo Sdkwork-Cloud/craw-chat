@@ -191,11 +191,6 @@ impl ContactScopeStore {
         limit: usize,
     ) -> (Vec<ContactView>, bool) {
         let mut window = Vec::with_capacity(limit.saturating_add(1));
-        let legacy_offset = matches!(cursor, Some(ContactListCursor::Offset(_)));
-        let offset = match cursor {
-            Some(ContactListCursor::Offset(value)) => value,
-            _ => 0,
-        };
         let keyset_cursor = match cursor {
             Some(ContactListCursor::Keyset {
                 last_interaction_at,
@@ -203,7 +198,6 @@ impl ContactScopeStore {
             }) => Some((last_interaction_at, target_user_id)),
             _ => None,
         };
-        let mut skipped = 0usize;
         for key in self.ordered_keys.iter() {
             let Some(view) = self.by_key.get(key) else {
                 continue;
@@ -211,10 +205,6 @@ impl ContactScopeStore {
             if let Some(cursor_pair) = keyset_cursor.as_ref()
                 && !contact_entry_after_keyset_cursor(view, cursor_pair)
             {
-                continue;
-            }
-            if legacy_offset && skipped < offset {
-                skipped += 1;
                 continue;
             }
             window.push(view.clone());

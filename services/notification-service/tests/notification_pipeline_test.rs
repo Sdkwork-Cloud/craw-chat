@@ -44,7 +44,7 @@ fn auth_context(actor_id: &str, actor_kind: &str, session_id: &str) -> AppContex
 }
 
 #[test]
-fn test_request_notification_appends_requested_and_dispatched_events() {
+fn test_request_notification_persists_requested_without_fabricating_dispatch() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = notification_service::NotificationRuntime::with_journal(journal.clone());
     let auth = auth_context("1", "user", "s_demo");
@@ -68,19 +68,15 @@ fn test_request_notification_appends_requested_and_dispatched_events() {
         .expect("notification request should succeed");
 
     assert_eq!(task.notification_id, "ntf_demo");
-    assert_eq!(task.status.as_str(), "dispatched");
+    assert_eq!(task.status.as_str(), "requested");
+    assert!(task.dispatched_at.is_none());
 
     let events = journal.recorded();
-    assert_eq!(events.len(), 2);
+    assert_eq!(events.len(), 1);
     assert_eq!(events[0].event_type, "notification.requested");
-    assert_eq!(events[1].event_type, "notification.dispatched");
     assert_eq!(
         events[0].idempotency_key.as_deref(),
         Some("ntf_demo:notification.requested:1")
-    );
-    assert_eq!(
-        events[1].idempotency_key.as_deref(),
-        Some("ntf_demo:notification.dispatched:2")
     );
     assert_eq!(events[0].aggregate_type, AggregateType::Notification);
     assert_eq!(events[0].aggregate_id, "ntf_demo");
@@ -88,10 +84,10 @@ fn test_request_notification_appends_requested_and_dispatched_events() {
     assert_eq!(events[0].actor.actor_session_id.as_deref(), Some("s_demo"));
 
     let payload: serde_json::Value =
-        serde_json::from_str(&events[1].payload).expect("payload should be valid json");
+        serde_json::from_str(&events[0].payload).expect("payload should be valid json");
     assert_eq!(payload["notificationId"], "ntf_demo");
     assert_eq!(payload["recipientId"], "1105");
-    assert_eq!(payload["status"], "dispatched");
+    assert_eq!(payload["status"], "requested");
 }
 
 #[test]
@@ -137,14 +133,14 @@ fn test_duplicate_request_notification_is_idempotent_when_payload_matches() {
 
     assert!(first.is_new);
     assert!(!second.is_new);
-    assert_eq!(first.delivery_status.as_str(), "applied");
-    assert_eq!(second.delivery_status.as_str(), "replayed");
+    assert_eq!(first.delivery_status.as_str(), "accepted");
+    assert_eq!(second.delivery_status.as_str(), "accepted");
     assert_eq!(first.request_key, second.request_key);
     assert!(!first.request_key.is_empty());
     assert_eq!(second.task, first.task);
 
     let events = journal.recorded();
-    assert_eq!(events.len(), 2);
+    assert_eq!(events.len(), 1);
 }
 
 #[test]
@@ -191,8 +187,8 @@ fn test_duplicate_request_notification_across_principals_keeps_stable_request_ke
 
     assert!(first.is_new);
     assert!(!replayed.is_new);
-    assert_eq!(first.delivery_status.as_str(), "applied");
-    assert_eq!(replayed.delivery_status.as_str(), "replayed");
+    assert_eq!(first.delivery_status.as_str(), "accepted");
+    assert_eq!(replayed.delivery_status.as_str(), "accepted");
     assert_eq!(replayed.request_key, first.request_key);
 }
 
@@ -241,7 +237,7 @@ fn test_duplicate_request_notification_rejects_conflicting_payload() {
     assert_eq!(response.status(), axum::http::StatusCode::CONFLICT);
 
     let events = journal.recorded();
-    assert_eq!(events.len(), 2);
+    assert_eq!(events.len(), 1);
 }
 
 #[test]
@@ -374,11 +370,9 @@ fn test_request_notification_fanout_skips_actor_and_creates_notifications_for_ot
     );
 
     let events = journal.recorded();
-    assert_eq!(events.len(), 4);
+    assert_eq!(events.len(), 2);
     assert_eq!(events[0].event_type, "notification.requested");
-    assert_eq!(events[1].event_type, "notification.dispatched");
-    assert_eq!(events[2].event_type, "notification.requested");
-    assert_eq!(events[3].event_type, "notification.dispatched");
+    assert_eq!(events[1].event_type, "notification.requested");
 }
 
 #[test]
@@ -526,9 +520,8 @@ fn test_request_message_posted_notifications_resolves_current_active_recipients_
     );
 
     let events = journal.recorded();
-    assert_eq!(events.len(), 2);
+    assert_eq!(events.len(), 1);
     assert_eq!(events[0].event_type, "notification.requested");
-    assert_eq!(events[1].event_type, "notification.dispatched");
 }
 
 #[test]
@@ -664,11 +657,9 @@ fn test_request_message_posted_notifications_includes_shared_linked_recipients_f
     assert_eq!(recipient_ids, BTreeSet::from(["1108", "1100"]));
 
     let events = journal.recorded();
-    assert_eq!(events.len(), 4);
+    assert_eq!(events.len(), 2);
     assert_eq!(events[0].event_type, "notification.requested");
-    assert_eq!(events[1].event_type, "notification.dispatched");
-    assert_eq!(events[2].event_type, "notification.requested");
-    assert_eq!(events[3].event_type, "notification.dispatched");
+    assert_eq!(events[1].event_type, "notification.requested");
 }
 
 #[test]
@@ -715,9 +706,8 @@ fn test_request_automation_result_notification_targets_requesting_actor_idempote
     assert_eq!(notifications[0], first);
 
     let events = journal.recorded();
-    assert_eq!(events.len(), 2);
+    assert_eq!(events.len(), 1);
     assert_eq!(events[0].event_type, "notification.requested");
-    assert_eq!(events[1].event_type, "notification.dispatched");
 }
 
 #[test]
@@ -775,9 +765,9 @@ fn test_request_automation_result_notification_isolated_by_actor_kind_for_same_e
     assert_eq!(system_notifications, vec![system_task.clone()]);
 
     let events = journal.recorded();
-    assert_eq!(events.len(), 4);
+    assert_eq!(events.len(), 2);
     assert_eq!(events[0].aggregate_id, "ntf_automation_user_ae_shared");
-    assert_eq!(events[2].aggregate_id, "ntf_automation_system_ae_shared");
+    assert_eq!(events[1].aggregate_id, "ntf_automation_system_ae_shared");
 }
 
 #[test]
@@ -830,4 +820,56 @@ fn test_notification_queries_are_isolated_by_actor_kind() {
         );
     let response = axum::response::IntoResponse::into_response(error);
     assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
+}
+
+#[test]
+fn test_notification_requests_and_queries_are_isolated_by_organization() {
+    let journal = Arc::new(RecordingJournal::default());
+    let runtime = notification_service::NotificationRuntime::with_journal(journal.clone());
+    let organization_a = AppContext {
+        organization_id: "org-a".into(),
+        ..auth_context("1", "user", "s-org-a")
+    };
+    let organization_b = AppContext {
+        organization_id: "org-b".into(),
+        ..auth_context("1", "user", "s-org-b")
+    };
+    let request = |body: &str| notification_service::RequestNotification {
+        notification_id: "ntf-shared-id".into(),
+        source_event_id: "evt-shared-id".into(),
+        source_event_type: "message.posted".into(),
+        category: "message.new".into(),
+        channel: "inapp".into(),
+        recipient_id: "1".into(),
+        recipient_kind: "user".into(),
+        title: Some("organization notification".into()),
+        body: Some(body.into()),
+        payload: None,
+    };
+
+    let task_a = runtime
+        .request_notification(&organization_a, request("organization-a"))
+        .expect("organization A request should succeed");
+    let task_b = runtime
+        .request_notification(&organization_b, request("organization-b"))
+        .expect("organization B request with the same public id should succeed");
+
+    assert_eq!(task_a.body.as_deref(), Some("organization-a"));
+    assert_eq!(task_b.body.as_deref(), Some("organization-b"));
+    assert_eq!(
+        runtime
+            .list_notifications(&organization_a)
+            .expect("organization A list should succeed"),
+        vec![task_a]
+    );
+    assert_eq!(
+        runtime
+            .list_notifications(&organization_b)
+            .expect("organization B list should succeed"),
+        vec![task_b]
+    );
+    let events = journal.recorded();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0].organization_id, "org-a");
+    assert_eq!(events[1].organization_id, "org-b");
 }

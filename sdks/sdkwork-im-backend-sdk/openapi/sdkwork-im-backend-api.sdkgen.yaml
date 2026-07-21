@@ -125,26 +125,22 @@ paths:
         - ops
       operationId: lag.retrieve
       summary: Retrieve projection lag
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            type: object
-                            additionalProperties: true
+                $ref: '#/components/schemas/LagListResponse'
+        '400':
+          description: Invalid pagination query or cursor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
         '401':
           description: Problem detail response
           content:
@@ -332,15 +328,19 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
-        - $ref: '#/components/parameters/PageQuery'
-        - $ref: '#/components/parameters/QQuery'
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkListResponse'
+                $ref: '#/components/schemas/ProviderBindingSnapshotListResponse'
+        '400':
+          description: Invalid pagination query or cursor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
         '401':
           description: Problem detail response
           content:
@@ -372,26 +372,22 @@ paths:
         - ops
       operationId: ops.providerBindings.drift.retrieve
       summary: Retrieve provider binding drift
+      parameters:
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            type: object
-                            additionalProperties: true
+                $ref: '#/components/schemas/ProviderBindingDriftListResponse'
+        '400':
+          description: Invalid pagination query or cursor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
         '401':
           description: Problem detail response
           content:
@@ -6764,6 +6760,181 @@ components:
         - domain
         - pluginId
       type: object
+    LagItem:
+      type: object
+      additionalProperties: false
+      required:
+        - component
+        - scopeId
+        - currentOffset
+        - committedOffset
+        - lag
+      properties:
+        component:
+          type: string
+        scopeId:
+          type: string
+        currentOffset:
+          type: string
+          format: uint64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        committedOffset:
+          type: string
+          format: uint64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+        lag:
+          type: string
+          format: uint64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: u64
+    ProviderBindingItem:
+      type: object
+      additionalProperties: false
+      required:
+        - domain
+        - defaultPluginId
+        - selectedPluginId
+        - selectionSource
+        - tenantOverrideAllowed
+      properties:
+        domain:
+          type: string
+        defaultPluginId:
+          type:
+            - string
+            - 'null'
+        selectedPluginId:
+          type:
+            - string
+            - 'null'
+        selectionSource:
+          type: string
+        tenantOverrideAllowed:
+          type: boolean
+    ProviderBindingSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - interfaceVersion
+        - tenantId
+        - effectiveBindings
+        - precedence
+      properties:
+        interfaceVersion:
+          type: string
+        tenantId:
+          type:
+            - string
+            - 'null'
+        effectiveBindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderBindingItem'
+        precedence:
+          type: array
+          items:
+            type: string
+    ProviderBindingDriftItem:
+      type: object
+      additionalProperties: false
+      required:
+        - tenantId
+        - domain
+        - baselineSelectedPluginId
+        - selectedPluginId
+        - baselineSelectionSource
+        - selectionSource
+        - driftKind
+      properties:
+        tenantId:
+          type: string
+        domain:
+          type: string
+        baselineSelectedPluginId:
+          type:
+            - string
+            - 'null'
+        selectedPluginId:
+          type:
+            - string
+            - 'null'
+        baselineSelectionSource:
+          type: string
+        selectionSource:
+          type: string
+        driftKind:
+          type: string
+    LagPageData:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - pageInfo
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LagItem'
+        pageInfo:
+          $ref: '#/components/schemas/PageInfo'
+    ProviderBindingSnapshotPageData:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - pageInfo
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderBindingSnapshot'
+        pageInfo:
+          $ref: '#/components/schemas/PageInfo'
+    ProviderBindingDriftPageData:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - pageInfo
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderBindingDriftItem'
+        pageInfo:
+          $ref: '#/components/schemas/PageInfo'
+    LagListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/LagPageData'
+    ProviderBindingSnapshotListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/ProviderBindingSnapshotPageData'
+    ProviderBindingDriftListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/ProviderBindingDriftPageData'
     LooseJsonValue: {}
     LooseJsonObject:
       type: object
@@ -6875,5 +7046,46 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/SdkWorkPageData'
+    SdkWorkResourceData:
+      type: object
+      additionalProperties: false
+      required:
+        - item
+      properties:
+        item:
+          type: object
+          additionalProperties: true
+          description: Typed domain resource for the operation.
+    SdkWorkCommandData:
+      type: object
+      additionalProperties: false
+      required:
+        - accepted
+      properties:
+        accepted:
+          type: boolean
+          const: true
+        resourceId:
+          type: string
+        status:
+          type: string
+    SdkWorkResourceResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/SdkWorkResourceData'
+    SdkWorkCommandResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/SdkWorkCommandData'
 x-sdkwork-owner: sdkwork-im
 x-sdkwork-api-authority: sdkwork-im.backend

@@ -13,11 +13,14 @@ use thiserror::Error;
 pub type QueryParams = HashMap<String, Value>;
 pub type RequestHeaders = HashMap<String, String>;
 
+const SDKWORK_V3_ENVELOPE: bool = true;
+const DEFAULT_MAX_RESPONSE_BODY_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct SdkworkConfig {
     pub base_url: String,
     pub timeout_ms: u64,
+    pub max_response_body_bytes: usize,
     pub headers: RequestHeaders,
 }
 
@@ -26,6 +29,7 @@ impl SdkworkConfig {
         Self {
             base_url: base_url.into(),
             timeout_ms: 30_000,
+            max_response_body_bytes: DEFAULT_MAX_RESPONSE_BODY_BYTES,
             headers: RequestHeaders::new(),
         }
     }
@@ -45,6 +49,10 @@ pub enum SdkworkError {
     InvalidHttpMethod(#[from] http::method::InvalidMethod),
     #[error("http status {status}: {body}")]
     HttpStatus { status: u16, body: String },
+    #[error("response body exceeds {maximum_bytes} bytes")]
+    ResponseBodyTooLarge { maximum_bytes: usize },
+    #[error("SDKWork API returned code {code} (traceId={trace_id})")]
+    ApiStatus { code: i64, trace_id: String },
 }
 
 #[derive(Clone)]
@@ -52,6 +60,7 @@ pub struct SdkworkHttpClient {
     base_url: String,
     client: Client,
     headers: Arc<RwLock<RequestHeaders>>,
+    max_response_body_bytes: usize,
 }
 
 pub struct SseStream<T> {
@@ -74,6 +83,7 @@ impl SdkworkHttpClient {
             base_url: config.base_url.trim_end_matches('/').to_string(),
             client,
             headers: Arc::new(RwLock::new(config.headers)),
+            max_response_body_bytes: config.max_response_body_bytes.max(1),
         })
     }
     pub fn set_auth_token(&self, token: impl Into<String>) {
@@ -99,7 +109,7 @@ impl SdkworkHttpClient {
     where
         T: DeserializeOwned,
     {
-        self.request(Method::GET, path, query, Option::<&Value>::None, headers, None).await
+        self.request(Method::GET, path, query, Option::<&Value>::None, headers, None, false).await
     }
 
     pub async fn post<T, B>(
@@ -114,7 +124,7 @@ impl SdkworkHttpClient {
         T: DeserializeOwned,
         B: Serialize + ?Sized,
     {
-        self.request(Method::POST, path, query, body, headers, content_type).await
+        self.request(Method::POST, path, query, body, headers, content_type, false).await
     }
 
     pub async fn put<T, B>(
@@ -129,7 +139,7 @@ impl SdkworkHttpClient {
         T: DeserializeOwned,
         B: Serialize + ?Sized,
     {
-        self.request(Method::PUT, path, query, body, headers, content_type).await
+        self.request(Method::PUT, path, query, body, headers, content_type, false).await
     }
 
     pub async fn patch<T, B>(
@@ -144,7 +154,7 @@ impl SdkworkHttpClient {
         T: DeserializeOwned,
         B: Serialize + ?Sized,
     {
-        self.request(Method::PATCH, path, query, body, headers, content_type).await
+        self.request(Method::PATCH, path, query, body, headers, content_type, false).await
     }
 
     pub async fn delete<T>(
@@ -156,7 +166,7 @@ impl SdkworkHttpClient {
     where
         T: DeserializeOwned,
     {
-        self.request(Method::DELETE, path, query, Option::<&Value>::None, headers, None).await
+        self.request(Method::DELETE, path, query, Option::<&Value>::None, headers, None, false).await
     }
 
     pub async fn request_method<T, B>(
@@ -167,12 +177,13 @@ impl SdkworkHttpClient {
         query: Option<&QueryParams>,
         headers: Option<&RequestHeaders>,
         content_type: Option<&str>,
+        skip_auth: bool,
     ) -> Result<T, SdkworkError>
     where
         T: DeserializeOwned,
         B: Serialize + ?Sized,
     {
-        self.request(method, path, query, body, headers, content_type).await
+        self.request(method, path, query, body, headers, content_type, skip_auth).await
     }
 
     pub async fn stream<T, B>(
@@ -183,6 +194,7 @@ impl SdkworkHttpClient {
         query: Option<&QueryParams>,
         headers: Option<&RequestHeaders>,
         content_type: Option<&str>,
+        skip_auth: bool,
     ) -> Result<SseStream<T>, SdkworkError>
     where
         T: DeserializeOwned,
@@ -193,7 +205,7 @@ impl SdkworkHttpClient {
             request = request.query(&normalize_query(query_values));
         }
 
-        let mut merged_headers = self.merge_headers(headers)?;
+        let mut merged_headers = self.merge_headers(headers, skip_auth)?;
         merged_headers.insert(ACCEPT, HeaderValue::from_static("text/event-stream"));
         request = request.headers(merged_headers);
 
@@ -203,7 +215,8 @@ impl SdkworkHttpClient {
 
         let response = request.send().await?;
         let status = response.status();
-        let body = response.text().await?;
+        let body = read_response_body_bounded(response, self.max_response_body_bytes).await?;
+        let body = String::from_utf8_lossy(&body).to_string();
         if !status.is_success() {
             return Err(SdkworkError::HttpStatus {
                 status: status.as_u16(),
@@ -235,6 +248,7 @@ impl SdkworkHttpClient {
         body: Option<&B>,
         headers: Option<&RequestHeaders>,
         content_type: Option<&str>,
+        skip_auth: bool,
     ) -> Result<T, SdkworkError>
     where
         T: DeserializeOwned,
@@ -245,7 +259,7 @@ impl SdkworkHttpClient {
             request = request.query(&normalize_query(query_values));
         }
 
-        let merged_headers = self.merge_headers(headers)?;
+        let merged_headers = self.merge_headers(headers, skip_auth)?;
         request = request.headers(merged_headers);
 
         if let Some(payload) = body {
@@ -253,7 +267,7 @@ impl SdkworkHttpClient {
         }
 
         let response = request.send().await?;
-        decode_response(response).await
+        decode_response(response, self.max_response_body_bytes).await
     }
 
     fn build_url(&self, path: &str) -> String {
@@ -266,10 +280,12 @@ impl SdkworkHttpClient {
         format!("{}/{}", self.base_url, path)
     }
 
-    fn merge_headers(&self, headers: Option<&RequestHeaders>) -> Result<HeaderMap, SdkworkError> {
+    fn merge_headers(&self, headers: Option<&RequestHeaders>, skip_auth: bool) -> Result<HeaderMap, SdkworkError> {
         let mut merged = HeaderMap::new();
-        for (key, value) in self.headers.read().expect("sdk headers poisoned").iter() {
-            insert_header(&mut merged, key, value)?;
+        if !skip_auth {
+            for (key, value) in self.headers.read().expect("sdk headers poisoned").iter() {
+                insert_header(&mut merged, key, value)?;
+            }
         }
         if let Some(values) = headers {
             for (key, value) in values {
@@ -353,7 +369,30 @@ fn insert_header(headers: &mut HeaderMap, key: &str, value: &str) -> Result<(), 
     Ok(())
 }
 
-async fn decode_response<T>(response: Response) -> Result<T, SdkworkError>
+async fn read_response_body_bounded(
+    mut response: Response,
+    maximum_bytes: usize,
+) -> Result<Vec<u8>, SdkworkError> {
+    if response.content_length().is_some_and(|length| length > maximum_bytes as u64) {
+        return Err(SdkworkError::ResponseBodyTooLarge { maximum_bytes });
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        let next_length = body
+            .len()
+            .checked_add(chunk.len())
+            .ok_or(SdkworkError::ResponseBodyTooLarge { maximum_bytes })?;
+        if next_length > maximum_bytes {
+            return Err(SdkworkError::ResponseBodyTooLarge { maximum_bytes });
+        }
+        body.try_reserve(chunk.len())
+            .map_err(|_| SdkworkError::ResponseBodyTooLarge { maximum_bytes })?;
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
+async fn decode_response<T>(response: Response, maximum_bytes: usize) -> Result<T, SdkworkError>
 where
     T: DeserializeOwned,
 {
@@ -364,7 +403,7 @@ where
         .and_then(|value| value.to_str().ok())
         .unwrap_or("")
         .to_string();
-    let body = response.bytes().await?;
+    let body = read_response_body_bounded(response, maximum_bytes).await?;
 
     if !status.is_success() {
         return Err(SdkworkError::HttpStatus {
@@ -378,9 +417,46 @@ where
     }
 
     if content_type.to_ascii_lowercase().contains("json") {
-        return Ok(serde_json::from_slice(&body)?);
+        let payload: Value = serde_json::from_slice(&body)?;
+        if SDKWORK_V3_ENVELOPE {
+            return decode_sdkwork_v3_payload(payload);
+        }
+        return Ok(serde_json::from_value(payload)?);
     }
 
     let text = String::from_utf8_lossy(&body).to_string();
     Ok(serde_json::from_value(Value::String(text))?)
+}
+
+fn decode_sdkwork_v3_payload<T>(payload: Value) -> Result<T, SdkworkError>
+where
+    T: DeserializeOwned,
+{
+    let envelope = payload.as_object().ok_or_else(|| {
+        SdkworkError::Serialization(serde_json::Error::io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "SDKWork response envelope must be an object",
+        )))
+    })?;
+    let code = envelope.get("code").and_then(Value::as_i64).ok_or_else(|| {
+        SdkworkError::Serialization(serde_json::Error::io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "SDKWork response envelope must contain an integer code",
+        )))
+    })?;
+    let trace_id = envelope
+        .get("traceId")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    if code != 0 {
+        return Err(SdkworkError::ApiStatus { code, trace_id });
+    }
+    let data = envelope.get("data").cloned().unwrap_or(Value::Null);
+    let consumer_payload = data
+        .as_object()
+        .and_then(|object| object.get("item"))
+        .cloned()
+        .unwrap_or(data);
+    Ok(serde_json::from_value(consumer_payload)?)
 }

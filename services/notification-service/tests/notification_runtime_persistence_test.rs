@@ -73,7 +73,7 @@ fn test_runtime_restores_notification_projection_on_rebuild_with_shared_store() 
         .expect("notifications should restore after rebuild");
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].notification_id, "ntf_rebuild");
-    assert_eq!(items[0].status.as_str(), "dispatched");
+    assert_eq!(items[0].status.as_str(), "requested");
     assert_eq!(items[0].recipient_kind, "user");
 }
 

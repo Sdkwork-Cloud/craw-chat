@@ -33,6 +33,17 @@ async fn test_public_app_exports_live_openapi_json() {
     assert_eq!(value["info"]["title"], "Sdkwork IM Ops Service API");
     assert!(value["paths"]["/backend/v3/api/ops/health"].is_object());
     assert!(value["paths"]["/backend/v3/api/ops/retention/purge"].is_object());
+    let lag = &value["paths"]["/backend/v3/api/ops/lag"]["get"];
+    assert_eq!(lag["operationId"], "lag.retrieve");
+    assert_eq!(lag["parameters"].as_array().map(Vec::len), Some(2));
+    assert_eq!(
+        lag["responses"]["200"]["content"]["application/json"]["schema"]["$ref"],
+        "#/components/schemas/LagListResponse"
+    );
+    assert!(value["components"]["parameters"]["PageSizeQuery"].is_object());
+    assert!(value["components"]["parameters"]["CursorQuery"].is_object());
+    assert!(value["components"]["schemas"]["LagPageData"].is_object());
+    assert!(value["components"]["schemas"]["PageInfo"].is_object());
 }
 
 #[tokio::test]
@@ -242,10 +253,36 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     let lag_json: serde_json::Value =
         serde_json::from_slice(&lag_body).expect("lag body should be valid json");
     assert_eq!(
-        lag_json["data"]["item"]["items"].as_array().unwrap().len(),
+        lag_json["data"]["items"].as_array().unwrap().len(),
         0,
         "ops lag should start empty until governance publishes real lag items"
     );
+    assert_eq!(lag_json["data"]["pageInfo"]["mode"], "cursor");
+    assert_eq!(lag_json["data"]["pageInfo"]["pageSize"], 20);
+    assert_eq!(lag_json["data"]["pageInfo"]["hasMore"], false);
+
+    for invalid_query in ["limit=1", "pageSize=1", "page_size=201"] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/backend/v3/api/ops/lag?{invalid_query}"))
+                    .with_dual_token_tenant("100001")
+                    .with_dual_token_organization("100001")
+                    .with_dual_token_user("1")
+                    .with_dual_token_actor_kind("user")
+                    .with_dual_token_permission_scope("ops.read")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("invalid pagination query should return a response");
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "forbidden or out-of-range pagination query must fail: {invalid_query}",
+        );
+    }
 
     let replay_status_response = app
         .clone()
@@ -337,12 +374,13 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     let provider_bindings_json: serde_json::Value = serde_json::from_slice(&provider_bindings_body)
         .expect("provider_bindings body should be valid json");
     assert_eq!(
-        provider_bindings_json["data"]["item"]["items"]
+        provider_bindings_json["data"]["items"]
             .as_array()
             .unwrap()
             .len(),
         0
     );
+    assert_eq!(provider_bindings_json["data"]["pageInfo"]["mode"], "cursor");
 
     let provider_binding_drift_response = app
         .clone()
@@ -370,11 +408,15 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         serde_json::from_slice(&provider_binding_drift_body)
             .expect("provider_bindings drift body should be valid json");
     assert_eq!(
-        provider_binding_drift_json["data"]["item"]["items"]
+        provider_binding_drift_json["data"]["items"]
             .as_array()
             .unwrap()
             .len(),
         0
+    );
+    assert_eq!(
+        provider_binding_drift_json["data"]["pageInfo"]["mode"],
+        "cursor"
     );
 
     let diagnostics_response = app

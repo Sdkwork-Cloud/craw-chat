@@ -14,7 +14,7 @@ public class SdkCompatibilityBaselineResponse {
     public String getAppSdkFamily() {
         return this.appSdkFamily;
     }
-    
+
     public void setAppSdkFamily(String appSdkFamily) {
         this.appSdkFamily = appSdkFamily;
     }
@@ -22,7 +22,7 @@ public class SdkCompatibilityBaselineResponse {
     public String getBackendSdkFamily() {
         return this.backendSdkFamily;
     }
-    
+
     public void setBackendSdkFamily(String backendSdkFamily) {
         this.backendSdkFamily = backendSdkFamily;
     }
@@ -30,7 +30,7 @@ public class SdkCompatibilityBaselineResponse {
     public String getImSdkFamily() {
         return this.imSdkFamily;
     }
-    
+
     public void setImSdkFamily(String imSdkFamily) {
         this.imSdkFamily = imSdkFamily;
     }
@@ -38,7 +38,7 @@ public class SdkCompatibilityBaselineResponse {
     public String getRtcSdkFamily() {
         return this.rtcSdkFamily;
     }
-    
+
     public void setRtcSdkFamily(String rtcSdkFamily) {
         this.rtcSdkFamily = rtcSdkFamily;
     }
@@ -46,7 +46,7 @@ public class SdkCompatibilityBaselineResponse {
     public List<String> getMatrixClientTypes() {
         return this.matrixClientTypes;
     }
-    
+
     public void setMatrixClientTypes(List<String> matrixClientTypes) {
         this.matrixClientTypes = matrixClientTypes;
     }
@@ -54,7 +54,7 @@ public class SdkCompatibilityBaselineResponse {
     public String getProtocolGovernancePath() {
         return this.protocolGovernancePath;
     }
-    
+
     public void setProtocolGovernancePath(String protocolGovernancePath) {
         this.protocolGovernancePath = protocolGovernancePath;
     }
@@ -62,7 +62,7 @@ public class SdkCompatibilityBaselineResponse {
     public String getProtocolRegistryPath() {
         return this.protocolRegistryPath;
     }
-    
+
     public void setProtocolRegistryPath(String protocolRegistryPath) {
         this.protocolRegistryPath = protocolRegistryPath;
     }

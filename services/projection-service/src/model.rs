@@ -205,7 +205,6 @@ pub type InboxWindowView = SdkWorkPageData<ConversationInboxEntry>;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum InboxListCursor {
     Start,
-    Offset(usize),
     Keyset { activity_at: String, scope: String },
 }
 
@@ -258,7 +257,6 @@ pub type ContactWindowView = SdkWorkPageData<ContactView>;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ContactListCursor {
     Start,
-    Offset(usize),
     Keyset {
         last_interaction_at: String,
         target_user_id: String,
@@ -275,7 +273,6 @@ pub(crate) struct ContactKeysetCursorWire {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum MemberDirectoryListCursor {
     Start,
-    Offset(usize),
     Keyset {
         role_rank: u8,
         joined_at: String,
@@ -294,7 +291,6 @@ pub(crate) struct MemberDirectoryKeysetCursorWire {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum PinnedMessagesListCursor {
     Start,
-    Offset(usize),
     Keyset {
         pinned_at: String,
         message_seq: u64,
@@ -313,7 +309,6 @@ pub(crate) struct PinnedMessagesKeysetCursorWire {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum FavoriteMessagesListCursor {
     Start,
-    Offset(usize),
     Keyset {
         favorited_at: String,
         favorite_id: String,

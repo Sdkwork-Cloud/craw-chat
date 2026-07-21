@@ -15,7 +15,9 @@ use sdkwork_im_contract_core::{
 use sdkwork_im_contract_message::{
     CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionScope, TimelineProjectionStore,
 };
-use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
+use sdkwork_im_contract_notification::{
+    NotificationTaskListCursor, NotificationTaskRecord, NotificationTaskStore,
+};
 use sdkwork_im_contract_stream::{
     StreamAppendOutcome, StreamCreateOutcome, StreamScope, StreamSessionRecord, StreamStateStore,
     StreamTransitionOutcome,
@@ -320,6 +322,7 @@ impl NotificationTaskStore for NullNotificationStore {
     fn load_task(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _notification_id: &str,
     ) -> Result<Option<NotificationTaskRecord>, ContractError> {
         Ok(None)
@@ -329,11 +332,14 @@ impl NotificationTaskStore for NullNotificationStore {
         Ok(())
     }
 
-    fn list_tasks_for_recipient(
+    fn list_tasks_for_recipient_page(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _recipient_kind: &str,
         _recipient_id: &str,
+        _cursor: Option<&NotificationTaskListCursor>,
+        _page_size: usize,
     ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
         Ok(Vec::new())
     }
@@ -343,6 +349,7 @@ impl AutomationExecutionStore for NullAutomationStore {
     fn load_execution(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _principal_kind: &str,
         _principal_id: &str,
         _execution_id: &str,
@@ -480,9 +487,9 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
         .clear_state("100001", "rtc_demo")
         .expect("rtc clear should succeed");
     notification_store
-        .list_tasks_for_recipient("100001", "user", "1")
+        .list_tasks_for_recipient_page("100001", "default", "user", "1", None, 20)
         .expect("notification listing should succeed");
     automation_store
-        .load_execution("100001", "user", "1", "exec_demo")
+        .load_execution("100001", "default", "user", "1", "exec_demo")
         .expect("automation load should succeed");
 }

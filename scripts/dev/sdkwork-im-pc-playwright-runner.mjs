@@ -137,6 +137,42 @@ export async function assertPortAvailable({
   }
 }
 
+export function findAvailablePort({
+  createServer = net.createServer,
+  host = '127.0.0.1',
+} = {}) {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    const settle = (error, port) => {
+      server.removeAllListeners();
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(port);
+    };
+    server.unref?.();
+    server.once('error', () => {
+      settle(new Error(`failed to allocate an available TCP port on ${host}`));
+    });
+    server.listen({ exclusive: true, host, port: 0 }, () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        server.close(() => {
+          settle(new Error(`failed to resolve the allocated TCP port on ${host}`));
+        });
+        return;
+      }
+      server.close((error) => {
+        settle(
+          error ? new Error(`failed to release the allocated TCP port on ${host}`) : null,
+          address.port,
+        );
+      });
+    });
+  });
+}
+
 export function probeHttp(url, {
   getImpl = http.get,
   maxResponseBytes = DEFAULT_HTTP_RESPONSE_LIMIT_BYTES,
@@ -452,6 +488,9 @@ export async function stopServer(child, {
     if (!Number.isSafeInteger(child.pid) || child.pid <= 0) {
       return;
     }
+    if (await signalAndWait(child, 'SIGTERM', normalizedGrace)) {
+      return;
+    }
     const exit = waitForChildExit(child, normalizedExitTimeout);
     const result = spawnSyncImpl(
       'taskkill.exe',
@@ -465,8 +504,16 @@ export async function stopServer(child, {
     if (await exit) {
       return;
     }
+    // spawnSync blocks delivery of the child's exit event. A timed-out taskkill can still
+    // terminate the owned tree just after control returns, so observe one bounded grace
+    // window before classifying the cleanup as failed.
+    if (await waitForChildExit(child, normalizedGrace)) {
+      return;
+    }
     if (result?.error) {
-      throw new Error('failed to invoke taskkill for the Playwright server process tree');
+      throw new Error(
+        `failed to invoke taskkill for the Playwright server process tree: ${result.error.code ?? 'unknown'} ${result.error.message ?? ''}`.trim(),
+      );
     }
     throw new Error(`Playwright server process tree ${child.pid} did not exit after taskkill`);
   }

@@ -9,7 +9,7 @@ public class SocialSharedChannelSyncPendingTargetedTakeoverRequest {
     public Boolean getAllowLegacyUntracked() {
         return this.allowLegacyUntracked;
     }
-    
+
     public void setAllowLegacyUntracked(Boolean allowLegacyUntracked) {
         this.allowLegacyUntracked = allowLegacyUntracked;
     }
@@ -17,7 +17,7 @@ public class SocialSharedChannelSyncPendingTargetedTakeoverRequest {
     public List<String> getRequestKeys() {
         return this.requestKeys;
     }
-    
+
     public void setRequestKeys(List<String> requestKeys) {
         this.requestKeys = requestKeys;
     }

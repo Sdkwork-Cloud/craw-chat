@@ -1,6 +1,8 @@
 use std::thread::sleep;
 use std::time::Duration;
 
+use sdkwork_utils_rust::SdkWorkCursorListQuery;
+
 #[test]
 fn test_build_diagnostic_views_from_runtime() {
     let runtime = ops_service::OpsRuntime::new(
@@ -32,6 +34,94 @@ fn test_build_diagnostic_views_from_runtime() {
     assert_eq!(diagnostics.side_effect_outboxes.len(), 0);
     assert_eq!(diagnostics.realtime_inbox.status, "ok");
     assert_eq!(diagnostics.realtime_inbox.pending_event_count, 0);
+    assert_eq!(diagnostics.collection_limit, 200);
+    assert_eq!(diagnostics.collection_totals["clientRoutes"], 0);
+    assert!(diagnostics.truncated_collections.is_empty());
+}
+
+#[test]
+fn test_ops_lag_keyset_pages_are_bounded_and_resource_scoped() {
+    let runtime = ops_service::OpsRuntime::default();
+    runtime.update_projection_live_lag(
+        ["scope-3", "scope-1", "scope-2"]
+            .into_iter()
+            .map(|scope_id| ops_service::LagItem {
+                component: "projection_live".into(),
+                scope_id: scope_id.into(),
+                current_offset: 1,
+                committed_offset: 2,
+                lag: 1,
+            })
+            .collect(),
+    );
+
+    let first = runtime
+        .lag_page(SdkWorkCursorListQuery {
+            page_size: Some(2),
+            cursor: None,
+        })
+        .expect("first lag page should resolve");
+    assert_eq!(first.items.len(), 2);
+    assert_eq!(first.items[0].scope_id, "scope-1");
+    assert_eq!(first.items[1].scope_id, "scope-2");
+    assert_eq!(first.page_info.has_more, Some(true));
+    let next_cursor = first
+        .page_info
+        .next_cursor
+        .expect("first lag page should expose a continuation cursor");
+
+    let second = runtime
+        .lag_page(SdkWorkCursorListQuery {
+            page_size: Some(2),
+            cursor: Some(next_cursor.clone()),
+        })
+        .expect("second lag page should resolve");
+    assert_eq!(second.items.len(), 1);
+    assert_eq!(second.items[0].scope_id, "scope-3");
+    assert_eq!(second.page_info.has_more, Some(false));
+    assert!(second.page_info.next_cursor.is_none());
+
+    assert!(
+        runtime
+            .provider_bindings_page(SdkWorkCursorListQuery {
+                page_size: Some(2),
+                cursor: Some(next_cursor),
+            })
+            .is_err()
+    );
+}
+
+#[test]
+fn test_diagnostic_bundle_bounds_high_cardinality_routes_and_reports_truncation() {
+    let runtime = ops_service::OpsRuntime::new(
+        "node_local_1",
+        "standalone.development",
+        "127.0.0.1:18079",
+        vec!["conversation-runtime".into()],
+        vec!["conversation:*".into()],
+    );
+    runtime.update_route_ownership(
+        (0..250)
+            .map(|index| ops_service::RouteOwnershipView {
+                tenant_id: "100001".into(),
+                principal_id: index.to_string(),
+                device_id: format!("device-{index:03}"),
+                owner_node_id: "node_local_1".into(),
+                connection_kind: "websocket".into(),
+                bound_at: "2026-07-21T00:00:00.000Z".into(),
+            })
+            .collect(),
+    );
+
+    let diagnostics = runtime.diagnostic_bundle();
+
+    assert_eq!(diagnostics.client_routes.len(), 200);
+    assert_eq!(diagnostics.collection_totals["clientRoutes"], 250);
+    assert!(
+        diagnostics
+            .truncated_collections
+            .contains(&"clientRoutes".to_owned())
+    );
 }
 
 #[test]

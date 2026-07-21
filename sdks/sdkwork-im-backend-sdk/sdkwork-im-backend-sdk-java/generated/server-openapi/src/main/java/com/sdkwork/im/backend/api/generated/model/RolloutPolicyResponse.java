@@ -9,12 +9,12 @@ public class RolloutPolicyResponse {
     private String regionSelector;
     private String releaseChannel;
     private List<String> tenantAllowlist;
-    private Integer trafficPercent;
+    private String trafficPercent;
 
     public String getCellSelector() {
         return this.cellSelector;
     }
-    
+
     public void setCellSelector(String cellSelector) {
         this.cellSelector = cellSelector;
     }
@@ -22,7 +22,7 @@ public class RolloutPolicyResponse {
     public Boolean getOperatorOverride() {
         return this.operatorOverride;
     }
-    
+
     public void setOperatorOverride(Boolean operatorOverride) {
         this.operatorOverride = operatorOverride;
     }
@@ -30,7 +30,7 @@ public class RolloutPolicyResponse {
     public String getPolicyId() {
         return this.policyId;
     }
-    
+
     public void setPolicyId(String policyId) {
         this.policyId = policyId;
     }
@@ -38,7 +38,7 @@ public class RolloutPolicyResponse {
     public String getRegionSelector() {
         return this.regionSelector;
     }
-    
+
     public void setRegionSelector(String regionSelector) {
         this.regionSelector = regionSelector;
     }
@@ -46,7 +46,7 @@ public class RolloutPolicyResponse {
     public String getReleaseChannel() {
         return this.releaseChannel;
     }
-    
+
     public void setReleaseChannel(String releaseChannel) {
         this.releaseChannel = releaseChannel;
     }
@@ -54,16 +54,16 @@ public class RolloutPolicyResponse {
     public List<String> getTenantAllowlist() {
         return this.tenantAllowlist;
     }
-    
+
     public void setTenantAllowlist(List<String> tenantAllowlist) {
         this.tenantAllowlist = tenantAllowlist;
     }
 
-    public Integer getTrafficPercent() {
+    public String getTrafficPercent() {
         return this.trafficPercent;
     }
-    
-    public void setTrafficPercent(Integer trafficPercent) {
+
+    public void setTrafficPercent(String trafficPercent) {
         this.trafficPercent = trafficPercent;
     }
 }

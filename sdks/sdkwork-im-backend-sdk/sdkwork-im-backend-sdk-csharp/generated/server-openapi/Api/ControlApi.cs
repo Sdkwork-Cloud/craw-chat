@@ -18,354 +18,397 @@ namespace Sdkwork.Im.BackendApi.Generated.Api
         /// <summary>
         /// Activate a realtime node and clear drain state.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.RouteNodeLifecycle?> NodesActivateAsync(string nodeId)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.NodesActivateResponse?> NodesActivateAsync(string nodeId)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.RouteNodeLifecycle>(ApiPaths.BackendPath($"/control/nodes/{SerializePathParameter(nodeId, new PathParameterSpec("nodeId", "simple", false))}/activate"), null);
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.NodesActivateResponse>(ApiPaths.BackendPath($"/control/nodes/{SerializePathParameter(nodeId, new PathParameterSpec("nodeId", "simple", false))}/activate"), null);
         }
 
         /// <summary>
         /// Mark a realtime node as draining.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.RouteNodeLifecycle?> NodesDrainAsync(string nodeId)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.NodesDrainResponse?> NodesDrainAsync(string nodeId)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.RouteNodeLifecycle>(ApiPaths.BackendPath($"/control/nodes/{SerializePathParameter(nodeId, new PathParameterSpec("nodeId", "simple", false))}/drain"), null);
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.NodesDrainResponse>(ApiPaths.BackendPath($"/control/nodes/{SerializePathParameter(nodeId, new PathParameterSpec("nodeId", "simple", false))}/drain"), null);
         }
 
         /// <summary>
         /// Migrate owned routes from the source node to the target node.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.RouteMigrationResult?> NodesRoutesMigrateAsync(string nodeId, Sdkwork.Im.BackendApi.Generated.Models.MigrateRoutesRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.NodesRoutesMigrateResponse?> NodesRoutesMigrateAsync(string nodeId, Sdkwork.Im.BackendApi.Generated.Models.MigrateRoutesRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.RouteMigrationResult>(ApiPaths.BackendPath($"/control/nodes/{SerializePathParameter(nodeId, new PathParameterSpec("nodeId", "simple", false))}/routes/migrate"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.NodesRoutesMigrateResponse>(ApiPaths.BackendPath($"/control/nodes/{SerializePathParameter(nodeId, new PathParameterSpec("nodeId", "simple", false))}/routes/migrate"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Read the control-plane protocol governance snapshot.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProtocolGovernanceResponse?> ProtocolGovernanceRetrieveAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProtocolGovernanceRetrieveResponse?> ProtocolGovernanceRetrieveAsync()
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.ProtocolGovernanceResponse>(ApiPaths.BackendPath("/control/protocol_governance"));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.ProtocolGovernanceRetrieveResponse>(ApiPaths.BackendPath("/control/protocol_governance"));
         }
 
         /// <summary>
         /// Read the control-plane protocol registry snapshot.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProtocolRegistryResponse?> ProtocolRegistryRetrieveAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProtocolRegistryRetrieveResponse?> ProtocolRegistryRetrieveAsync()
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.ProtocolRegistryResponse>(ApiPaths.BackendPath("/control/protocol_registry"));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.ProtocolRegistryRetrieveResponse>(ApiPaths.BackendPath("/control/protocol_registry"));
         }
 
         /// <summary>
         /// Read provider policy history.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProviderPolicyHistoryResponse?> ProviderPoliciesListAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse?> ProviderPoliciesListAsync(int? pageSize = null, string? cursor = null, int? page = null, string? q = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.ProviderPolicyHistoryResponse>(ApiPaths.BackendPath("/control/provider_policies"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+                new QueryParameterSpec("page", page, "form", true, false, null),
+                new QueryParameterSpec("q", q, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse>(ApiPaths.AppendQueryString(ApiPaths.BackendPath("/control/provider_policies"), queryString));
         }
 
         /// <summary>
         /// Read provider policy diff between two versions.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProviderPolicyDiffResponse?> ProviderPoliciesDiffListAsync(int fromVersion, int toVersion)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse?> ProviderPoliciesDiffListAsync(string fromVersion, string toVersion, int? pageSize = null, string? cursor = null, int? page = null, string? q = null)
         {
             var queryString = BuildQueryString(new[]
             {
                 new QueryParameterSpec("fromVersion", fromVersion, "form", true, false, null),
                 new QueryParameterSpec("toVersion", toVersion, "form", true, false, null),
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+                new QueryParameterSpec("page", page, "form", true, false, null),
+                new QueryParameterSpec("q", q, "form", true, false, null),
             });
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.ProviderPolicyDiffResponse>(ApiPaths.AppendQueryString(ApiPaths.BackendPath("/control/provider_policies/diff"), queryString));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse>(ApiPaths.AppendQueryString(ApiPaths.BackendPath("/control/provider_policies/diff"), queryString));
         }
 
         /// <summary>
         /// Preview the effective provider policy result before commit.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProviderBindingCommitResponse?> ProviderPoliciesPreviewAsync(Sdkwork.Im.BackendApi.Generated.Models.UpsertProviderBindingPolicyRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProviderPoliciesPreviewResponse?> ProviderPoliciesPreviewAsync(Sdkwork.Im.BackendApi.Generated.Models.UpsertProviderBindingPolicyRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.ProviderBindingCommitResponse>(ApiPaths.BackendPath("/control/provider_policies/preview"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.ProviderPoliciesPreviewResponse>(ApiPaths.BackendPath("/control/provider_policies/preview"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Rollback provider policy history to a target version.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProviderBindingCommitResponse?> ProviderPoliciesRollbackAsync(Sdkwork.Im.BackendApi.Generated.Models.ProviderPolicyRollbackRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProviderPoliciesRollbackResponse?> ProviderPoliciesRollbackAsync(Sdkwork.Im.BackendApi.Generated.Models.ProviderPolicyRollbackRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.ProviderBindingCommitResponse>(ApiPaths.BackendPath("/control/provider_policies/rollback"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.ProviderPoliciesRollbackResponse>(ApiPaths.BackendPath("/control/provider_policies/rollback"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Read the provider registry snapshot.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProviderRegistrySnapshotResponse?> ProviderRegistryRetrieveAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProviderRegistryRetrieveResponse?> ProviderRegistryRetrieveAsync()
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.ProviderRegistrySnapshotResponse>(ApiPaths.BackendPath("/control/provider_registry"));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.ProviderRegistryRetrieveResponse>(ApiPaths.BackendPath("/control/provider_registry"));
         }
 
         /// <summary>
         /// Read effective provider bindings.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProviderBindingsResponse?> ProviderBindingsListAsync(string? tenantId = null)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse?> ProviderBindingsListAsync(string? tenantId = null, int? pageSize = null, string? cursor = null, int? page = null, string? q = null)
         {
             var queryString = BuildQueryString(new[]
             {
                 new QueryParameterSpec("tenantId", tenantId, "form", true, false, null),
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+                new QueryParameterSpec("page", page, "form", true, false, null),
+                new QueryParameterSpec("q", q, "form", true, false, null),
             });
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.ProviderBindingsResponse>(ApiPaths.AppendQueryString(ApiPaths.BackendPath("/control/provider_bindings"), queryString));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse>(ApiPaths.AppendQueryString(ApiPaths.BackendPath("/control/provider_bindings"), queryString));
         }
 
         /// <summary>
         /// Upsert a provider binding policy.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ProviderBindingCommitResponse?> ProviderBindingsCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.UpsertProviderBindingPolicyRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ControlProviderBindingsCreateResponse201?> ProviderBindingsCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.UpsertProviderBindingPolicyRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.ProviderBindingCommitResponse>(ApiPaths.BackendPath("/control/provider_bindings"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.ControlProviderBindingsCreateResponse201>(ApiPaths.BackendPath("/control/provider_bindings"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Bind a direct chat to a conversation.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialDirectChatCommitResponse?> SocialDirectChatsBindingsCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.BindDirectChatRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialDirectChatsBindingsCreateResponse201?> SocialDirectChatsBindingsCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.BindDirectChatRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialDirectChatCommitResponse>(ApiPaths.BackendPath("/control/social/direct_chats/bindings"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialDirectChatsBindingsCreateResponse201>(ApiPaths.BackendPath("/control/social/direct_chats/bindings"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Read a direct chat snapshot.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialDirectChatSnapshotResponse?> SocialDirectChatsRetrieveAsync(string directChatId)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialDirectChatsRetrieveResponse?> SocialDirectChatsRetrieveAsync(string directChatId)
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialDirectChatSnapshotResponse>(ApiPaths.BackendPath($"/control/social/direct_chats/{SerializePathParameter(directChatId, new PathParameterSpec("directChatId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialDirectChatsRetrieveResponse>(ApiPaths.BackendPath($"/control/social/direct_chats/{SerializePathParameter(directChatId, new PathParameterSpec("directChatId", "simple", false))}"));
         }
 
         /// <summary>
         /// Establish an external collaboration connection.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalConnectionCommitResponse?> SocialExternalConnectionsCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.EstablishExternalConnectionRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalConnectionsCreateResponse201?> SocialExternalConnectionsCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.EstablishExternalConnectionRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalConnectionCommitResponse>(ApiPaths.BackendPath("/control/social/external_connections"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalConnectionsCreateResponse201>(ApiPaths.BackendPath("/control/social/external_connections"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Read an external connection snapshot.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalConnectionSnapshotResponse?> SocialExternalConnectionsRetrieveAsync(string connectionId)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalConnectionsRetrieveResponse?> SocialExternalConnectionsRetrieveAsync(string connectionId)
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalConnectionSnapshotResponse>(ApiPaths.BackendPath($"/control/social/external_connections/{SerializePathParameter(connectionId, new PathParameterSpec("connectionId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalConnectionsRetrieveResponse>(ApiPaths.BackendPath($"/control/social/external_connections/{SerializePathParameter(connectionId, new PathParameterSpec("connectionId", "simple", false))}"));
         }
 
         /// <summary>
         /// Bind an external member link.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalMemberLinkCommitResponse?> SocialExternalMemberLinksCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.BindExternalMemberLinkRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalMemberLinksCreateResponse201?> SocialExternalMemberLinksCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.BindExternalMemberLinkRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalMemberLinkCommitResponse>(ApiPaths.BackendPath("/control/social/external_member_links"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalMemberLinksCreateResponse201>(ApiPaths.BackendPath("/control/social/external_member_links"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Read an external member link snapshot.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalMemberLinkSnapshotResponse?> SocialExternalMemberLinksRetrieveAsync(string linkId)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalMemberLinksRetrieveResponse?> SocialExternalMemberLinksRetrieveAsync(string linkId)
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalMemberLinkSnapshotResponse>(ApiPaths.BackendPath($"/control/social/external_member_links/{SerializePathParameter(linkId, new PathParameterSpec("linkId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialExternalMemberLinksRetrieveResponse>(ApiPaths.BackendPath($"/control/social/external_member_links/{SerializePathParameter(linkId, new PathParameterSpec("linkId", "simple", false))}"));
         }
 
         /// <summary>
         /// Submit a friend request event.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestCommitResponse?> SocialFriendRequestsCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.SubmitFriendRequestRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestsCreateResponse201?> SocialFriendRequestsCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.SubmitFriendRequestRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestCommitResponse>(ApiPaths.BackendPath("/control/social/friend_requests"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestsCreateResponse201>(ApiPaths.BackendPath("/control/social/friend_requests"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Read a friend request snapshot.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestSnapshotResponse?> SocialFriendRequestsRetrieveAsync(string requestId)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestsRetrieveResponse?> SocialFriendRequestsRetrieveAsync(string requestId)
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestSnapshotResponse>(ApiPaths.BackendPath($"/control/social/friend_requests/{SerializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestsRetrieveResponse>(ApiPaths.BackendPath($"/control/social/friend_requests/{SerializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false))}"));
         }
 
         /// <summary>
         /// Accept a friend request.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestCommitResponse?> SocialFriendRequestsAcceptAsync(string requestId, Sdkwork.Im.BackendApi.Generated.Models.AcceptFriendRequestRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestsAcceptResponse?> SocialFriendRequestsAcceptAsync(string requestId, Sdkwork.Im.BackendApi.Generated.Models.AcceptFriendRequestRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestCommitResponse>(ApiPaths.BackendPath($"/control/social/friend_requests/{SerializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false))}/accept"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestsAcceptResponse>(ApiPaths.BackendPath($"/control/social/friend_requests/{SerializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false))}/accept"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Decline a friend request.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestCommitResponse?> SocialFriendRequestsDeclineAsync(string requestId, Sdkwork.Im.BackendApi.Generated.Models.DeclineFriendRequestRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestsDeclineResponse?> SocialFriendRequestsDeclineAsync(string requestId, Sdkwork.Im.BackendApi.Generated.Models.DeclineFriendRequestRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestCommitResponse>(ApiPaths.BackendPath($"/control/social/friend_requests/{SerializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false))}/decline"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestsDeclineResponse>(ApiPaths.BackendPath($"/control/social/friend_requests/{SerializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false))}/decline"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Cancel a friend request.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestCommitResponse?> SocialFriendRequestsCancelAsync(string requestId, Sdkwork.Im.BackendApi.Generated.Models.CancelFriendRequestRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestsCancelResponse?> SocialFriendRequestsCancelAsync(string requestId, Sdkwork.Im.BackendApi.Generated.Models.CancelFriendRequestRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestCommitResponse>(ApiPaths.BackendPath($"/control/social/friend_requests/{SerializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false))}/cancel"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendRequestsCancelResponse>(ApiPaths.BackendPath($"/control/social/friend_requests/{SerializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false))}/cancel"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Activate a friendship event.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendshipCommitResponse?> SocialFriendshipsCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.ActivateFriendshipRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendshipsCreateResponse201?> SocialFriendshipsCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.ActivateFriendshipRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendshipCommitResponse>(ApiPaths.BackendPath("/control/social/friendships"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendshipsCreateResponse201>(ApiPaths.BackendPath("/control/social/friendships"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Read a friendship snapshot.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendshipSnapshotResponse?> SocialFriendshipsRetrieveAsync(string friendshipId)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendshipsRetrieveResponse?> SocialFriendshipsRetrieveAsync(string friendshipId)
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendshipSnapshotResponse>(ApiPaths.BackendPath($"/control/social/friendships/{SerializePathParameter(friendshipId, new PathParameterSpec("friendshipId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendshipsRetrieveResponse>(ApiPaths.BackendPath($"/control/social/friendships/{SerializePathParameter(friendshipId, new PathParameterSpec("friendshipId", "simple", false))}"));
         }
 
         /// <summary>
         /// Remove a friendship.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendshipCommitResponse?> SocialFriendshipsRemoveAsync(string friendshipId, Sdkwork.Im.BackendApi.Generated.Models.RemoveFriendshipRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendshipsRemoveResponse?> SocialFriendshipsRemoveAsync(string friendshipId, Sdkwork.Im.BackendApi.Generated.Models.RemoveFriendshipRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendshipCommitResponse>(ApiPaths.BackendPath($"/control/social/friendships/{SerializePathParameter(friendshipId, new PathParameterSpec("friendshipId", "simple", false))}/remove"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialFriendshipsRemoveResponse>(ApiPaths.BackendPath($"/control/social/friendships/{SerializePathParameter(friendshipId, new PathParameterSpec("friendshipId", "simple", false))}/remove"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Claim selected pending shared-channel sync entries.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingClaimResponse?> SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingTargetedClaimRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201?> SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingTargetedClaimRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingClaimResponse>(ApiPaths.BackendPath("/control/social/runtime/claim_pending_shared_channel_sync_targeted"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201>(ApiPaths.BackendPath("/control/social/runtime/claim_pending_shared_channel_sync_targeted"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Read the dead-letter shared-channel sync queue.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncDeadLetterInventoryResponse?> SocialRuntimeDeadLetterSharedChannelSyncListAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse?> SocialRuntimeDeadLetterSharedChannelSyncListAsync(int? pageSize = null, string? cursor = null, int? page = null, string? q = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncDeadLetterInventoryResponse>(ApiPaths.BackendPath("/control/social/runtime/dead_letter_shared_channel_sync"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+                new QueryParameterSpec("page", page, "form", true, false, null),
+                new QueryParameterSpec("q", q, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse>(ApiPaths.AppendQueryString(ApiPaths.BackendPath("/control/social/runtime/dead_letter_shared_channel_sync"), queryString));
         }
 
         /// <summary>
         /// Read the delivered shared-channel sync ledger.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncDeliveredInventoryResponse?> SocialRuntimeDeliveredSharedChannelSyncListAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse?> SocialRuntimeDeliveredSharedChannelSyncListAsync(int? pageSize = null, string? cursor = null, int? page = null, string? q = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncDeliveredInventoryResponse>(ApiPaths.BackendPath("/control/social/runtime/delivered_shared_channel_sync"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+                new QueryParameterSpec("page", page, "form", true, false, null),
+                new QueryParameterSpec("q", q, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse>(ApiPaths.AppendQueryString(ApiPaths.BackendPath("/control/social/runtime/delivered_shared_channel_sync"), queryString));
         }
 
         /// <summary>
         /// Read merged shared-channel sync delivery state.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncDeliveryStateInventoryResponse?> SocialRuntimeDeliveryStateSharedChannelSyncListAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse?> SocialRuntimeDeliveryStateSharedChannelSyncListAsync(int? pageSize = null, string? cursor = null, int? page = null, string? q = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncDeliveryStateInventoryResponse>(ApiPaths.BackendPath("/control/social/runtime/delivery_state_shared_channel_sync"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+                new QueryParameterSpec("page", page, "form", true, false, null),
+                new QueryParameterSpec("q", q, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse>(ApiPaths.AppendQueryString(ApiPaths.BackendPath("/control/social/runtime/delivery_state_shared_channel_sync"), queryString));
         }
 
         /// <summary>
         /// Read the pending shared-channel sync queue.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingInventoryResponse?> SocialRuntimePendingSharedChannelSyncListAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse?> SocialRuntimePendingSharedChannelSyncListAsync(int? pageSize = null, string? cursor = null, int? page = null, string? q = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingInventoryResponse>(ApiPaths.BackendPath("/control/social/runtime/pending_shared_channel_sync"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+                new QueryParameterSpec("page", page, "form", true, false, null),
+                new QueryParameterSpec("q", q, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SdkWorkListResponse>(ApiPaths.AppendQueryString(ApiPaths.BackendPath("/control/social/runtime/pending_shared_channel_sync"), queryString));
         }
 
         /// <summary>
         /// Reclaim stale shared-channel sync pending ownership.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingStaleReclaimResponse?> SocialRuntimeReclaimStalePendingSharedChannelSyncCreateAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201?> SocialRuntimeReclaimStalePendingSharedChannelSyncCreateAsync()
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingStaleReclaimResponse>(ApiPaths.BackendPath("/control/social/runtime/reclaim_stale_pending_shared_channel_sync"), null);
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201>(ApiPaths.BackendPath("/control/social/runtime/reclaim_stale_pending_shared_channel_sync"), null);
         }
 
         /// <summary>
         /// Release selected pending shared-channel sync entries.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingReleaseResponse?> SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingTargetedReleaseRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201?> SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingTargetedReleaseRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingReleaseResponse>(ApiPaths.BackendPath("/control/social/runtime/release_pending_shared_channel_sync_targeted"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeReleasePendingSharedChannelSyncTargetedCreateResponse201>(ApiPaths.BackendPath("/control/social/runtime/release_pending_shared_channel_sync_targeted"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Repair the persisted social runtime derived snapshot.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeRepairResponse?> SocialRuntimeRepairDerivedSnapshotCreateAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeRepairDerivedSnapshotCreateResponse201?> SocialRuntimeRepairDerivedSnapshotCreateAsync()
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeRepairResponse>(ApiPaths.BackendPath("/control/social/runtime/repair_derived_snapshot"), null);
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeRepairDerivedSnapshotCreateResponse201>(ApiPaths.BackendPath("/control/social/runtime/repair_derived_snapshot"), null);
         }
 
         /// <summary>
         /// Repair shared-channel sync backlog state.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncRepairResponse?> SocialRuntimeRepairSharedChannelSyncCreateAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeRepairSharedChannelSyncCreateResponse201?> SocialRuntimeRepairSharedChannelSyncCreateAsync()
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncRepairResponse>(ApiPaths.BackendPath("/control/social/runtime/repair_shared_channel_sync"), null);
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeRepairSharedChannelSyncCreateResponse201>(ApiPaths.BackendPath("/control/social/runtime/repair_shared_channel_sync"), null);
         }
 
         /// <summary>
         /// Republish selected pending shared-channel sync entries.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncTargetedRepublishResponse?> SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncTargetedRepublishRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201?> SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncTargetedRepublishRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncTargetedRepublishResponse>(ApiPaths.BackendPath("/control/social/runtime/republish_pending_shared_channel_sync_targeted"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeRepublishPendingSharedChannelSyncTargetedCreateResponse201>(ApiPaths.BackendPath("/control/social/runtime/republish_pending_shared_channel_sync_targeted"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Requeue all dead-letter shared-channel sync entries.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncDeadLetterRequeueResponse?> SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateAsync()
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201?> SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateAsync()
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncDeadLetterRequeueResponse>(ApiPaths.BackendPath("/control/social/runtime/requeue_dead_letter_shared_channel_sync"), null);
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeRequeueDeadLetterSharedChannelSyncCreateResponse201>(ApiPaths.BackendPath("/control/social/runtime/requeue_dead_letter_shared_channel_sync"), null);
         }
 
         /// <summary>
         /// Requeue selected dead-letter shared-channel sync entries.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncDeadLetterTargetedRequeueResponse?> SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncDeadLetterTargetedRequeueRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201?> SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncDeadLetterTargetedRequeueRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncDeadLetterTargetedRequeueResponse>(ApiPaths.BackendPath("/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201>(ApiPaths.BackendPath("/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Take over selected pending shared-channel sync entries.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingTakeoverResponse?> SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingTargetedTakeoverRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201?> SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingTargetedTakeoverRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelSyncPendingTakeoverResponse>(ApiPaths.BackendPath("/control/social/runtime/takeover_pending_shared_channel_sync_targeted"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201>(ApiPaths.BackendPath("/control/social/runtime/takeover_pending_shared_channel_sync_targeted"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Apply a shared-channel policy.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelPolicyCommitResponse?> SocialSharedChannelPoliciesCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.ApplySharedChannelPolicyRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelPoliciesCreateResponse201?> SocialSharedChannelPoliciesCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.ApplySharedChannelPolicyRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelPolicyCommitResponse>(ApiPaths.BackendPath("/control/social/shared_channel_policies"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelPoliciesCreateResponse201>(ApiPaths.BackendPath("/control/social/shared_channel_policies"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Read a shared-channel policy snapshot.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelPolicySnapshotResponse?> SocialSharedChannelPoliciesRetrieveAsync(string policyId)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelPoliciesRetrieveResponse?> SocialSharedChannelPoliciesRetrieveAsync(string policyId)
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelPolicySnapshotResponse>(ApiPaths.BackendPath($"/control/social/shared_channel_policies/{SerializePathParameter(policyId, new PathParameterSpec("policyId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialSharedChannelPoliciesRetrieveResponse>(ApiPaths.BackendPath($"/control/social/shared_channel_policies/{SerializePathParameter(policyId, new PathParameterSpec("policyId", "simple", false))}"));
         }
 
         /// <summary>
         /// Block a user in the social graph.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialUserBlockCommitResponse?> SocialUserBlocksCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.BlockUserRequest body)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialUserBlocksCreateResponse201?> SocialUserBlocksCreateAsync(Sdkwork.Im.BackendApi.Generated.Models.BlockUserRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialUserBlockCommitResponse>(ApiPaths.BackendPath("/control/social/user_blocks"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialUserBlocksCreateResponse201>(ApiPaths.BackendPath("/control/social/user_blocks"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Read a user block snapshot.
         /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialUserBlockSnapshotResponse?> SocialUserBlocksRetrieveAsync(string blockId)
+        public async Task<Sdkwork.Im.BackendApi.Generated.Models.SocialUserBlocksRetrieveResponse?> SocialUserBlocksRetrieveAsync(string blockId)
         {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialUserBlockSnapshotResponse>(ApiPaths.BackendPath($"/control/social/user_blocks/{SerializePathParameter(blockId, new PathParameterSpec("blockId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.SocialUserBlocksRetrieveResponse>(ApiPaths.BackendPath($"/control/social/user_blocks/{SerializePathParameter(blockId, new PathParameterSpec("blockId", "simple", false))}"));
         }
 
         private sealed record PathParameterSpec(string Name, string Style, bool Explode);

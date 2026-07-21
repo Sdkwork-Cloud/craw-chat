@@ -6,6 +6,6 @@ namespace Sdkwork.Im.BackendApi.Generated.Models
 {
     public class SocialSharedChannelSyncPendingTargetedReleaseRequest
     {
-        public List<string>? RequestKeys { get; set; }
+        public List<string> RequestKeys { get; set; }
     }
 }

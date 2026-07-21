@@ -19,16 +19,21 @@ pub(crate) const NOTIFICATION_MAX_CHANNEL_BYTES: usize = 64;
 pub(crate) const NOTIFICATION_MAX_RECIPIENT_ID_BYTES: usize = 256;
 pub(crate) const NOTIFICATION_MAX_RECIPIENT_KIND_BYTES: usize = 64;
 
-pub(crate) fn notification_scope_key(tenant_id: &str, notification_id: &str) -> String {
-    scope_key_parts(&[tenant_id, notification_id])
+pub(crate) fn notification_scope_key(
+    tenant_id: &str,
+    organization_id: &str,
+    notification_id: &str,
+) -> String {
+    scope_key_parts(&[tenant_id, organization_id, notification_id])
 }
 
 pub(crate) fn notification_recipient_scope_key(
     tenant_id: &str,
+    organization_id: &str,
     recipient_kind: &str,
     recipient_id: &str,
 ) -> String {
-    scope_key_parts(&[tenant_id, recipient_kind, recipient_id])
+    scope_key_parts(&[tenant_id, organization_id, recipient_kind, recipient_id])
 }
 
 pub(crate) fn scope_key_parts(parts: &[&str]) -> String {
@@ -42,6 +47,7 @@ pub(crate) fn scope_key_parts(parts: &[&str]) -> String {
 pub(crate) fn record_notification_recipient_scope_key(record: &NotificationTaskRecord) -> String {
     notification_recipient_scope_key(
         record.tenant_id.as_str(),
+        record.organization_id.as_str(),
         record.task.recipient_kind.as_str(),
         record.task.recipient_id.as_str(),
     )
@@ -51,16 +57,15 @@ pub(crate) type NotificationRecipientIndex =
     HashMap<String, BTreeMap<NotificationRecipientSortKey, String>>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub(crate) struct NotificationRecipientSortKey(pub Reverse<(String, String)>, pub String);
+pub(crate) struct NotificationRecipientSortKey(pub Reverse<(String, String)>);
 
 pub(crate) fn notification_recipient_sort_key(
-    task: &NotificationTask,
+    record: &NotificationTaskRecord,
 ) -> NotificationRecipientSortKey {
-    let (primary, secondary) = notification_sort_key(task);
-    NotificationRecipientSortKey(
-        Reverse((primary.to_owned(), secondary.to_owned())),
-        task.notification_id.clone(),
-    )
+    NotificationRecipientSortKey(Reverse((
+        record.updated_at.clone(),
+        record.notification_id.clone(),
+    )))
 }
 
 pub(crate) fn insert_notification_recipient_index(
@@ -68,7 +73,7 @@ pub(crate) fn insert_notification_recipient_index(
     notification_key: &str,
     record: &NotificationTaskRecord,
 ) {
-    let sort_key = notification_recipient_sort_key(&record.task);
+    let sort_key = notification_recipient_sort_key(record);
     index
         .entry(record_notification_recipient_scope_key(record))
         .or_default()
@@ -90,52 +95,12 @@ pub(crate) fn remove_notification_recipient_index(
     }
 }
 
-pub(crate) fn insert_runtime_notification_recipient_index(
-    index: &mut NotificationRecipientIndex,
-    notification_key: &str,
-    task: &NotificationTask,
-) {
-    let sort_key = notification_recipient_sort_key(task);
-    index
-        .entry(notification_recipient_scope_key(
-            task.tenant_id.as_str(),
-            task.recipient_kind.as_str(),
-            task.recipient_id.as_str(),
-        ))
-        .or_default()
-        .insert(sort_key, notification_key.to_owned());
-}
-
-pub(crate) fn remove_runtime_notification_recipient_index(
-    index: &mut NotificationRecipientIndex,
-    notification_key: &str,
-    task: &NotificationTask,
-) {
-    let recipient_key = notification_recipient_scope_key(
-        task.tenant_id.as_str(),
-        task.recipient_kind.as_str(),
-        task.recipient_id.as_str(),
-    );
-    let Some(task_keys) = index.get_mut(recipient_key.as_str()) else {
-        return;
-    };
-    task_keys.retain(|_, key| key != notification_key);
-    if task_keys.is_empty() {
-        index.remove(recipient_key.as_str());
-    }
-}
-
-pub(crate) fn notification_request_key(tenant_id: &str, notification_id: &str) -> String {
-    notification_scope_key(tenant_id, notification_id)
-}
-
-pub(crate) fn notification_sort_key(task: &NotificationTask) -> (&str, &str) {
-    (
-        task.dispatched_at
-            .as_deref()
-            .unwrap_or(task.requested_at.as_str()),
-        task.requested_at.as_str(),
-    )
+pub(crate) fn notification_request_key(
+    tenant_id: &str,
+    organization_id: &str,
+    notification_id: &str,
+) -> String {
+    notification_scope_key(tenant_id, organization_id, notification_id)
 }
 
 pub(crate) fn delivery_status_from_notification_status(

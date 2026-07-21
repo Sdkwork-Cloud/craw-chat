@@ -1,7 +1,7 @@
 package com.sdkwork.im.backend.api.generated
 
 data class RouteMigrationResult(
-    val migratedRouteCount: Int? = null,
+    val migratedRouteCount: String? = null,
     val sourceDrainStatus: String? = null,
     val sourceNodeId: String? = null,
     val sourceRebalanceState: String? = null,

@@ -26,6 +26,8 @@ use crate::error::ControlPlaneError;
 use crate::state::AppState;
 
 const CONTROL_PLANE_MAX_ID_BYTES: usize = 256;
+const OPS_ROUTE_MIRROR_LIMIT: usize = 200;
+const OPS_PROVIDER_BINDING_MIRROR_PAGE_SIZE: usize = 1_000;
 static CONTROL_PLANE_AUDIT_RECORD_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) fn mirror_node_into_ops_runtime(state: &AppState, node_id: &str) {
@@ -43,10 +45,13 @@ pub(crate) fn mirror_node_into_ops_runtime(state: &AppState, node_id: &str) {
         lifecycle.drain_status.as_str(),
         lifecycle.rebalance_state.as_str(),
     );
-    governance_loop.ops_runtime.update_route_ownership(
+    let route_page =
         state
             .realtime_cluster
-            .routes_for_node(node_id)
+            .routes_for_node_page(node_id, None, OPS_ROUTE_MIRROR_LIMIT);
+    governance_loop.ops_runtime.update_route_ownership_snapshot(
+        route_page
+            .items
             .into_iter()
             .map(|route| RouteOwnershipView {
                 tenant_id: route.tenant_id,
@@ -57,6 +62,7 @@ pub(crate) fn mirror_node_into_ops_runtime(state: &AppState, node_id: &str) {
                 bound_at: route.bound_at,
             })
             .collect(),
+        route_page.total,
     );
 }
 
@@ -81,13 +87,33 @@ pub(crate) fn mirror_all_provider_bindings_into_ops_runtime(
         return;
     };
 
-    let mut snapshots = vec![provider_binding_snapshot_view(&provider_bindings_response(
-        provider_registry,
-        None,
-    ))];
-    let mut tenant_ids = provider_registry.tenant_ids_with_overrides();
-    tenant_ids.sort();
-    snapshots.extend(tenant_ids.into_iter().map(|tenant_id| {
+    let global =
+        provider_binding_snapshot_view(&provider_bindings_response(provider_registry, None));
+    let mut cursor = None;
+    let mut tenant_page = Vec::new().into_iter();
+    let mut exhausted = false;
+    let tenant_ids = std::iter::from_fn(|| {
+        loop {
+            if let Some(tenant_id) = tenant_page.next() {
+                return Some(tenant_id);
+            }
+            if exhausted {
+                return None;
+            }
+            let page = provider_registry.tenant_ids_with_overrides_page(
+                cursor.as_deref(),
+                OPS_PROVIDER_BINDING_MIRROR_PAGE_SIZE,
+            );
+            if page.is_empty() {
+                exhausted = true;
+                return None;
+            }
+            exhausted = page.len() < OPS_PROVIDER_BINDING_MIRROR_PAGE_SIZE;
+            cursor = page.last().cloned();
+            tenant_page = page.into_iter();
+        }
+    });
+    let snapshots = std::iter::once(global).chain(tenant_ids.map(|tenant_id| {
         provider_binding_snapshot_view(&provider_bindings_response(
             provider_registry,
             Some(tenant_id),

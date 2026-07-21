@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 use tokio::task::JoinHandle;
 
 const DEFAULT_SESSION_GATEWAY_BIND_ADDR: &str = "127.0.0.1:28080";
+const ROUTE_DRAIN_BATCH_SIZE: usize = 256;
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -75,7 +76,7 @@ async fn run() -> Result<(), String> {
         .mark_node_draining(node_id.as_str())
         .err()
         .map(|error| error.message);
-    let routes_before = realtime_cluster.routes_for_node(node_id.as_str()).len();
+    let routes_before = realtime_cluster.route_count_for_node(node_id.as_str());
     tracing::info!(
         target: "sdkwork.im",
         event = "im.session_gateway.drain_started",
@@ -94,13 +95,12 @@ async fn run() -> Result<(), String> {
 
     let mut route_drain_error = None;
     loop {
-        if realtime_cluster
-            .routes_for_node(node_id.as_str())
-            .is_empty()
-        {
+        if !realtime_cluster.has_routes_for_node(node_id.as_str()) {
             break;
         }
-        match realtime_cluster.fence_and_release_node_routes(node_id.as_str()) {
+        match realtime_cluster
+            .fence_and_release_node_routes_batch(node_id.as_str(), ROUTE_DRAIN_BATCH_SIZE)
+        {
             Ok(_) => route_drain_error = None,
             Err(error) => route_drain_error = Some(error.message),
         }
@@ -132,7 +132,7 @@ async fn run() -> Result<(), String> {
         let _ = server_handle.await;
     }
 
-    let remaining_routes = realtime_cluster.routes_for_node(node_id.as_str()).len();
+    let remaining_routes = realtime_cluster.route_count_for_node(node_id.as_str());
     realtime_cluster.unbind_node_runtime(node_id.as_str());
     tracing::info!(
         target: "sdkwork.im",

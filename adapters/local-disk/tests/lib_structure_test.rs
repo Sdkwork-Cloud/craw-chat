@@ -107,8 +107,10 @@ fn test_local_disk_notification_task_store_uses_persisted_recipient_index() {
         "local disk notification task store should keep tasks by encoded notification key"
     );
     assert!(
-        source.contains("tasks_by_recipient: BTreeMap<String, BTreeSet<String>>"),
-        "local disk notification task store should persist a tenant/recipient-kind/recipient-id -> notification-key index"
+        source.contains(
+            "tasks_by_recipient: BTreeMap<String, BTreeSet<PersistedNotificationTaskSortEntry>>"
+        ),
+        "local disk notification task store should persist an organization-scoped keyset index"
     );
     assert!(
         source.contains("notification_recipient_scope_key("),

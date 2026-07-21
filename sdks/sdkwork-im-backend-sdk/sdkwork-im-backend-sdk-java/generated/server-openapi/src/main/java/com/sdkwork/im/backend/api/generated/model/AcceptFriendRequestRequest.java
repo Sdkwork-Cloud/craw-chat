@@ -9,7 +9,7 @@ public class AcceptFriendRequestRequest {
     public String getAcceptedAt() {
         return this.acceptedAt;
     }
-    
+
     public void setAcceptedAt(String acceptedAt) {
         this.acceptedAt = acceptedAt;
     }
@@ -17,7 +17,7 @@ public class AcceptFriendRequestRequest {
     public String getAcceptedByUserId() {
         return this.acceptedByUserId;
     }
-    
+
     public void setAcceptedByUserId(String acceptedByUserId) {
         this.acceptedByUserId = acceptedByUserId;
     }
@@ -25,7 +25,7 @@ public class AcceptFriendRequestRequest {
     public String getEventId() {
         return this.eventId;
     }
-    
+
     public void setEventId(String eventId) {
         this.eventId = eventId;
     }

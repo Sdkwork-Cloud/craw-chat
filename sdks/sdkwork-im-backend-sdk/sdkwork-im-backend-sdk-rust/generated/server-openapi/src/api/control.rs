@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::backend_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{AcceptFriendRequestRequest, ActivateFriendshipRequest, ApplySharedChannelPolicyRequest, BindDirectChatRequest, BindExternalMemberLinkRequest, BlockUserRequest, CancelFriendRequestRequest, DeclineFriendRequestRequest, EstablishExternalConnectionRequest, MigrateRoutesRequest, ProtocolGovernanceResponse, ProtocolRegistryResponse, ProviderBindingCommitResponse, ProviderBindingsResponse, ProviderPolicyDiffResponse, ProviderPolicyHistoryResponse, ProviderPolicyRollbackRequest, ProviderRegistrySnapshotResponse, RemoveFriendshipRequest, RouteMigrationResult, RouteNodeLifecycle, SocialDirectChatCommitResponse, SocialDirectChatSnapshotResponse, SocialExternalConnectionCommitResponse, SocialExternalConnectionSnapshotResponse, SocialExternalMemberLinkCommitResponse, SocialExternalMemberLinkSnapshotResponse, SocialFriendRequestCommitResponse, SocialFriendRequestSnapshotResponse, SocialFriendshipCommitResponse, SocialFriendshipSnapshotResponse, SocialRuntimeRepairResponse, SocialSharedChannelPolicyCommitResponse, SocialSharedChannelPolicySnapshotResponse, SocialSharedChannelSyncDeadLetterInventoryResponse, SocialSharedChannelSyncDeadLetterRequeueResponse, SocialSharedChannelSyncDeadLetterTargetedRequeueRequest, SocialSharedChannelSyncDeadLetterTargetedRequeueResponse, SocialSharedChannelSyncDeliveredInventoryResponse, SocialSharedChannelSyncDeliveryStateInventoryResponse, SocialSharedChannelSyncPendingClaimResponse, SocialSharedChannelSyncPendingInventoryResponse, SocialSharedChannelSyncPendingReleaseResponse, SocialSharedChannelSyncPendingStaleReclaimResponse, SocialSharedChannelSyncPendingTakeoverResponse, SocialSharedChannelSyncPendingTargetedClaimRequest, SocialSharedChannelSyncPendingTargetedReleaseRequest, SocialSharedChannelSyncPendingTargetedTakeoverRequest, SocialSharedChannelSyncRepairResponse, SocialSharedChannelSyncTargetedRepublishRequest, SocialSharedChannelSyncTargetedRepublishResponse, SocialUserBlockCommitResponse, SocialUserBlockSnapshotResponse, SubmitFriendRequestRequest, UpsertProviderBindingPolicyRequest};
+use crate::models::{AcceptFriendRequestRequest, ActivateFriendshipRequest, ApplySharedChannelPolicyRequest, BindDirectChatRequest, BindExternalMemberLinkRequest, BlockUserRequest, CancelFriendRequestRequest, DeclineFriendRequestRequest, EstablishExternalConnectionRequest, MigrateRoutesRequest, ProtocolGovernanceResponse, ProtocolRegistryResponse, ProviderBindingCommitResponse, ProviderPolicyRollbackRequest, ProviderRegistrySnapshotResponse, RemoveFriendshipRequest, RouteMigrationResult, RouteNodeLifecycle, SdkWorkPageData, SocialDirectChatCommitResponse, SocialDirectChatSnapshotResponse, SocialExternalConnectionCommitResponse, SocialExternalConnectionSnapshotResponse, SocialExternalMemberLinkCommitResponse, SocialExternalMemberLinkSnapshotResponse, SocialFriendRequestCommitResponse, SocialFriendRequestSnapshotResponse, SocialFriendshipCommitResponse, SocialFriendshipSnapshotResponse, SocialRuntimeRepairResponse, SocialSharedChannelPolicyCommitResponse, SocialSharedChannelPolicySnapshotResponse, SocialSharedChannelSyncDeadLetterRequeueResponse, SocialSharedChannelSyncDeadLetterTargetedRequeueRequest, SocialSharedChannelSyncDeadLetterTargetedRequeueResponse, SocialSharedChannelSyncPendingClaimResponse, SocialSharedChannelSyncPendingReleaseResponse, SocialSharedChannelSyncPendingStaleReclaimResponse, SocialSharedChannelSyncPendingTakeoverResponse, SocialSharedChannelSyncPendingTargetedClaimRequest, SocialSharedChannelSyncPendingTargetedReleaseRequest, SocialSharedChannelSyncPendingTargetedTakeoverRequest, SocialSharedChannelSyncRepairResponse, SocialSharedChannelSyncTargetedRepublishRequest, SocialSharedChannelSyncTargetedRepublishResponse, SocialUserBlockCommitResponse, SocialUserBlockSnapshotResponse, SubmitFriendRequestRequest, UpsertProviderBindingPolicyRequest};
 
 #[derive(Clone)]
 pub struct ControlApi {
@@ -46,16 +46,26 @@ impl ControlApi {
     }
 
     /// Read provider policy history.
-    pub async fn provider_policies_list(&self) -> Result<ProviderPolicyHistoryResponse, SdkworkError> {
-        let path = backend_path(&"/control/provider_policies".to_string());
+    pub async fn provider_policies_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/control/provider_policies".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// Read provider policy diff between two versions.
-    pub async fn provider_policies_diff_list(&self, from_version: i64, to_version: i64) -> Result<ProviderPolicyDiffResponse, SdkworkError> {
+    pub async fn provider_policies_diff_list(&self, from_version: &str, to_version: &str, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("fromVersion", from_version, "form", true, false, None),
             QueryParameterSpec::new("toVersion", to_version, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
         ]);
         let path = append_query_string(backend_path(&"/control/provider_policies/diff".to_string()), &query);
         self.client.get(&path, None, None).await
@@ -80,9 +90,13 @@ impl ControlApi {
     }
 
     /// Read effective provider bindings.
-    pub async fn provider_bindings_list(&self, tenant_id: Option<&str>) -> Result<ProviderBindingsResponse, SdkworkError> {
+    pub async fn provider_bindings_list(&self, tenant_id: Option<&str>, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("tenantId", tenant_id, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
         ]);
         let path = append_query_string(backend_path(&"/control/provider_bindings".to_string()), &query);
         self.client.get(&path, None, None).await
@@ -185,26 +199,50 @@ impl ControlApi {
     }
 
     /// Read the dead-letter shared-channel sync queue.
-    pub async fn social_runtime_dead_letter_shared_channel_sync_list(&self) -> Result<SocialSharedChannelSyncDeadLetterInventoryResponse, SdkworkError> {
-        let path = backend_path(&"/control/social/runtime/dead_letter_shared_channel_sync".to_string());
+    pub async fn social_runtime_dead_letter_shared_channel_sync_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/control/social/runtime/dead_letter_shared_channel_sync".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// Read the delivered shared-channel sync ledger.
-    pub async fn social_runtime_delivered_shared_channel_sync_list(&self) -> Result<SocialSharedChannelSyncDeliveredInventoryResponse, SdkworkError> {
-        let path = backend_path(&"/control/social/runtime/delivered_shared_channel_sync".to_string());
+    pub async fn social_runtime_delivered_shared_channel_sync_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/control/social/runtime/delivered_shared_channel_sync".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// Read merged shared-channel sync delivery state.
-    pub async fn social_runtime_delivery_state_shared_channel_sync_list(&self) -> Result<SocialSharedChannelSyncDeliveryStateInventoryResponse, SdkworkError> {
-        let path = backend_path(&"/control/social/runtime/delivery_state_shared_channel_sync".to_string());
+    pub async fn social_runtime_delivery_state_shared_channel_sync_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/control/social/runtime/delivery_state_shared_channel_sync".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// Read the pending shared-channel sync queue.
-    pub async fn social_runtime_pending_shared_channel_sync_list(&self) -> Result<SocialSharedChannelSyncPendingInventoryResponse, SdkworkError> {
-        let path = backend_path(&"/control/social/runtime/pending_shared_channel_sync".to_string());
+    pub async fn social_runtime_pending_shared_channel_sync_list(&self, page_size: Option<i64>, cursor: Option<&str>, page: Option<i64>, q: Option<&str>) -> Result<SdkWorkPageData, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
+        ]);
+        let path = append_query_string(backend_path(&"/control/social/runtime/pending_shared_channel_sync".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 

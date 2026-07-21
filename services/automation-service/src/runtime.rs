@@ -1,8 +1,10 @@
 //! Automation runtime: in-memory execution state, agent response streams, tool call tracking,
 //! event journaling, and the business logic that orchestrates the automation lifecycle.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
 use im_app_context::AppContext;
 use im_domain_core::automation::{
@@ -34,30 +36,195 @@ struct AgentResponseRuntimeState {
     agent: AgentSubject,
     member_id: Option<String>,
     frames: Vec<StreamFrame>,
+    frame_bytes: usize,
+    estimated_bytes: usize,
+    terminal_at: Option<Instant>,
 }
 
 pub struct AutomationRuntime {
-    executions: Mutex<HashMap<String, AutomationExecution>>,
+    executions: Mutex<AutomationExecutionRuntimeStore>,
     agent_responses: Mutex<AgentResponseRuntimeStore>,
     tool_calls: Mutex<AgentToolCallRuntimeStore>,
     event_orders: Mutex<HashMap<String, u64>>,
+    event_locks: [Mutex<()>; AUTOMATION_EVENT_LOCK_SHARDS],
+    limits: AutomationRuntimeLimits,
     journal: Arc<dyn CommitJournal + Send + Sync>,
     execution_store: Arc<dyn AutomationExecutionStore>,
+}
+
+const RUNTIME_ENTRY_OVERHEAD_BYTES: usize = 512;
+const AUTOMATION_EVENT_LOCK_SHARDS: usize = 256;
+
+#[derive(Clone, Debug)]
+struct AutomationRuntimeLimits {
+    max_executions: usize,
+    max_execution_bytes: usize,
+    max_agent_responses: usize,
+    max_agent_response_bytes: usize,
+    max_frames_per_response: usize,
+    max_frame_bytes_per_response: usize,
+    max_tool_calls: usize,
+    max_tool_call_bytes: usize,
+    terminal_ttl: Duration,
+}
+
+impl Default for AutomationRuntimeLimits {
+    fn default() -> Self {
+        Self {
+            max_executions: AUTOMATION_RUNTIME_MAX_EXECUTIONS,
+            max_execution_bytes: AUTOMATION_RUNTIME_MAX_EXECUTION_BYTES,
+            max_agent_responses: AUTOMATION_RUNTIME_MAX_AGENT_RESPONSES,
+            max_agent_response_bytes: AUTOMATION_RUNTIME_MAX_AGENT_RESPONSE_BYTES,
+            max_frames_per_response: AUTOMATION_RUNTIME_MAX_FRAMES_PER_RESPONSE,
+            max_frame_bytes_per_response: AUTOMATION_RUNTIME_MAX_FRAME_BYTES_PER_RESPONSE,
+            max_tool_calls: AUTOMATION_RUNTIME_MAX_TOOL_CALLS,
+            max_tool_call_bytes: AUTOMATION_RUNTIME_MAX_TOOL_CALL_BYTES,
+            terminal_ttl: Duration::from_secs(AUTOMATION_RUNTIME_TERMINAL_TTL_SECONDS),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct CachedAutomationExecution {
+    execution: AutomationExecution,
+    estimated_bytes: usize,
+    terminal_at: Option<Instant>,
+}
+
+#[derive(Default)]
+struct AutomationExecutionRuntimeStore {
+    by_execution: HashMap<String, CachedAutomationExecution>,
+    terminal_order: VecDeque<String>,
+    estimated_bytes: usize,
+}
+
+impl AutomationExecutionRuntimeStore {
+    fn contains_key(&self, execution_key: &str) -> bool {
+        self.by_execution.contains_key(execution_key)
+    }
+
+    fn get(&self, execution_key: &str) -> Option<&AutomationExecution> {
+        self.by_execution
+            .get(execution_key)
+            .map(|cached| &cached.execution)
+    }
+
+    fn remove(&mut self, execution_key: &str) {
+        if let Some(removed) = self.by_execution.remove(execution_key) {
+            self.estimated_bytes = self.estimated_bytes.saturating_sub(removed.estimated_bytes);
+        }
+    }
+
+    fn insert(
+        &mut self,
+        execution_key: String,
+        execution: AutomationExecution,
+        limits: &AutomationRuntimeLimits,
+    ) -> Result<Vec<String>, AutomationError> {
+        let previous = self.by_execution.remove(execution_key.as_str());
+        if let Some(previous) = previous.as_ref() {
+            self.estimated_bytes = self
+                .estimated_bytes
+                .saturating_sub(previous.estimated_bytes);
+        }
+        let estimated_bytes = estimate_execution_bytes(execution_key.as_str(), &execution);
+        if estimated_bytes > limits.max_execution_bytes {
+            self.restore(execution_key, previous);
+            return Err(AutomationError::runtime_capacity("executions"));
+        }
+
+        let now = Instant::now();
+        let mut evicted = self.prune_expired(now, limits.terminal_ttl);
+        crate::metrics::record_terminal_evictions("executions", "ttl", evicted.len());
+        while self.by_execution.len() >= limits.max_executions
+            || self.estimated_bytes.saturating_add(estimated_bytes) > limits.max_execution_bytes
+        {
+            let Some(evicted_key) = self.evict_oldest_terminal() else {
+                self.restore(execution_key, previous);
+                return Err(AutomationError::runtime_capacity("executions"));
+            };
+            evicted.push(evicted_key);
+            crate::metrics::record_terminal_evictions("executions", "capacity", 1);
+        }
+
+        let terminal_at = execution_is_terminal(&execution).then_some(now);
+        if terminal_at.is_some() {
+            self.terminal_order.push_back(execution_key.clone());
+        }
+        self.estimated_bytes = self.estimated_bytes.saturating_add(estimated_bytes);
+        self.by_execution.insert(
+            execution_key,
+            CachedAutomationExecution {
+                execution,
+                estimated_bytes,
+                terminal_at,
+            },
+        );
+        Ok(evicted)
+    }
+
+    fn restore(&mut self, execution_key: String, previous: Option<CachedAutomationExecution>) {
+        let Some(previous) = previous else {
+            return;
+        };
+        if previous.terminal_at.is_some() {
+            self.terminal_order.push_back(execution_key.clone());
+        }
+        self.estimated_bytes = self
+            .estimated_bytes
+            .saturating_add(previous.estimated_bytes);
+        self.by_execution.insert(execution_key, previous);
+    }
+
+    fn prune_expired(&mut self, now: Instant, ttl: Duration) -> Vec<String> {
+        let mut evicted = Vec::new();
+        loop {
+            let Some(key) = self.terminal_order.front().cloned() else {
+                break;
+            };
+            let expired = self
+                .by_execution
+                .get(key.as_str())
+                .and_then(|cached| cached.terminal_at)
+                .is_none_or(|terminal_at| now.saturating_duration_since(terminal_at) >= ttl);
+            if !expired {
+                break;
+            }
+            self.terminal_order.pop_front();
+            if self.by_execution.contains_key(key.as_str()) {
+                self.remove(key.as_str());
+                evicted.push(key);
+            }
+        }
+        evicted
+    }
+
+    fn evict_oldest_terminal(&mut self) -> Option<String> {
+        while let Some(key) = self.terminal_order.pop_front() {
+            let is_terminal = self
+                .by_execution
+                .get(key.as_str())
+                .is_some_and(|cached| cached.terminal_at.is_some());
+            if is_terminal {
+                self.remove(key.as_str());
+                return Some(key);
+            }
+        }
+        None
+    }
 }
 
 #[derive(Default)]
 struct AgentToolCallRuntimeStore {
     by_call: HashMap<String, AgentToolCall>,
     pending_tool_calls_by_execution: HashMap<String, BTreeSet<String>>,
+    terminal_order: VecDeque<(String, Instant)>,
+    estimated_bytes: usize,
 }
 
 impl AgentToolCallRuntimeStore {
     fn get(&self, tool_call_key: &str) -> Option<&AgentToolCall> {
         self.by_call.get(tool_call_key)
-    }
-
-    fn get_mut(&mut self, tool_call_key: &str) -> Option<&mut AgentToolCall> {
-        self.by_call.get_mut(tool_call_key)
     }
 
     fn pending_tool_call_for_execution(&self, execution_key: &str) -> Option<String> {
@@ -68,51 +235,92 @@ impl AgentToolCallRuntimeStore {
             .map(|tool_call| tool_call.tool_call_id.clone())
     }
 
-    fn insert(&mut self, execution_key: String, tool_call_key: String, tool_call: AgentToolCall) {
+    fn insert(
+        &mut self,
+        execution_key: String,
+        tool_call_key: String,
+        tool_call: AgentToolCall,
+        limits: &AutomationRuntimeLimits,
+    ) -> Result<(), AutomationError> {
         if let Some(previous) = self.by_call.get(tool_call_key.as_str()).cloned() {
             self.remove_pending_index(execution_key.as_str(), tool_call_key.as_str(), &previous);
+            self.estimated_bytes = self
+                .estimated_bytes
+                .saturating_sub(estimate_tool_call_bytes(tool_call_key.as_str(), &previous));
         }
+        let estimated_bytes = estimate_tool_call_bytes(tool_call_key.as_str(), &tool_call);
+        self.ensure_capacity(estimated_bytes, 1, limits)?;
         if tool_call.state == AgentToolCallState::Requested {
             self.pending_tool_calls_by_execution
                 .entry(execution_key)
                 .or_default()
                 .insert(tool_call_key.clone());
         }
+        self.estimated_bytes = self.estimated_bytes.saturating_add(estimated_bytes);
         self.by_call.insert(tool_call_key, tool_call);
+        Ok(())
     }
 
-    fn mark_completed(
+    fn prepare_completion(
         &mut self,
-        execution_key: &str,
         tool_call_key: &str,
         result_payload: String,
         completed_at: String,
+        limits: &AutomationRuntimeLimits,
     ) -> Result<AgentToolCall, AutomationError> {
-        let Some(tool_call) = self.get_mut(tool_call_key) else {
+        let Some(existing) = self.get(tool_call_key).cloned() else {
             return Err(AutomationError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "agent_tool_call_not_found",
                 message: format!("agent tool call not found: {tool_call_key}"),
             });
         };
-        if tool_call.state == AgentToolCallState::Completed {
-            if tool_call.result_payload.as_deref() == Some(result_payload.as_str()) {
-                return Ok(tool_call.clone());
+        if existing.state == AgentToolCallState::Completed {
+            if existing.result_payload.as_deref() == Some(result_payload.as_str()) {
+                return Ok(existing);
             }
             return Err(AutomationError {
                 status: axum::http::StatusCode::CONFLICT,
                 code: "agent_tool_call_conflict",
                 message: format!(
                     "agent tool call already completed: {}",
-                    tool_call.tool_call_id
+                    existing.tool_call_id
                 ),
             });
         }
-        let was_requested = tool_call.state == AgentToolCallState::Requested;
-        tool_call.result_payload = Some(result_payload);
-        tool_call.state = AgentToolCallState::Completed;
-        tool_call.completed_at = Some(completed_at);
-        let completed = tool_call.clone();
+        let previous_bytes = estimate_tool_call_bytes(tool_call_key, &existing);
+        let mut completed = existing;
+        completed.result_payload = Some(result_payload);
+        completed.state = AgentToolCallState::Completed;
+        completed.completed_at = Some(completed_at);
+        let completed_bytes = estimate_tool_call_bytes(tool_call_key, &completed);
+        let additional_bytes = completed_bytes.saturating_sub(previous_bytes);
+        self.ensure_capacity(additional_bytes, 0, limits)?;
+        Ok(completed)
+    }
+
+    fn commit_completion(
+        &mut self,
+        execution_key: &str,
+        tool_call_key: &str,
+        completed: AgentToolCall,
+    ) {
+        let previous = self.by_call.get(tool_call_key).cloned();
+        let was_requested = previous
+            .as_ref()
+            .is_some_and(|tool_call| tool_call.state == AgentToolCallState::Requested);
+        let previous_bytes = previous.as_ref().map_or(0, |tool_call| {
+            estimate_tool_call_bytes(tool_call_key, tool_call)
+        });
+        let completed_bytes = estimate_tool_call_bytes(tool_call_key, &completed);
+        self.estimated_bytes = self
+            .estimated_bytes
+            .saturating_sub(previous_bytes)
+            .saturating_add(completed_bytes);
+        self.by_call
+            .insert(tool_call_key.to_owned(), completed.clone());
+        self.terminal_order
+            .push_back((tool_call_key.to_owned(), Instant::now()));
         if was_requested
             && let Some(tool_call_keys) =
                 self.pending_tool_calls_by_execution.get_mut(execution_key)
@@ -122,7 +330,66 @@ impl AgentToolCallRuntimeStore {
                 self.pending_tool_calls_by_execution.remove(execution_key);
             }
         }
-        Ok(completed)
+    }
+
+    fn ensure_capacity(
+        &mut self,
+        additional_bytes: usize,
+        additional_entries: usize,
+        limits: &AutomationRuntimeLimits,
+    ) -> Result<(), AutomationError> {
+        if additional_bytes > limits.max_tool_call_bytes {
+            return Err(AutomationError::runtime_capacity("agent tool calls"));
+        }
+        let expired = self.prune_expired(Instant::now(), limits.terminal_ttl);
+        crate::metrics::record_terminal_evictions("agent_tool_calls", "ttl", expired);
+        while self.by_call.len().saturating_add(additional_entries) > limits.max_tool_calls
+            || self.estimated_bytes.saturating_add(additional_bytes) > limits.max_tool_call_bytes
+        {
+            if !self.evict_oldest_terminal() {
+                return Err(AutomationError::runtime_capacity("agent tool calls"));
+            }
+            crate::metrics::record_terminal_evictions("agent_tool_calls", "capacity", 1);
+        }
+        Ok(())
+    }
+
+    fn prune_expired(&mut self, now: Instant, ttl: Duration) -> usize {
+        let mut evicted = 0;
+        while let Some((key, terminal_at)) = self.terminal_order.front().cloned() {
+            if now.saturating_duration_since(terminal_at) < ttl {
+                break;
+            }
+            self.terminal_order.pop_front();
+            evicted += usize::from(self.remove_terminal(key.as_str()));
+        }
+        evicted
+    }
+
+    fn evict_oldest_terminal(&mut self) -> bool {
+        while let Some((key, _)) = self.terminal_order.pop_front() {
+            if self.remove_terminal(key.as_str()) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn remove_terminal(&mut self, tool_call_key: &str) -> bool {
+        let is_terminal = self
+            .by_call
+            .get(tool_call_key)
+            .is_some_and(|tool_call| tool_call.state != AgentToolCallState::Requested);
+        if !is_terminal {
+            return false;
+        }
+        if let Some(removed) = self.by_call.remove(tool_call_key) {
+            self.estimated_bytes = self
+                .estimated_bytes
+                .saturating_sub(estimate_tool_call_bytes(tool_call_key, &removed));
+            return true;
+        }
+        false
     }
 
     fn remove_pending_index(
@@ -147,6 +414,8 @@ impl AgentToolCallRuntimeStore {
 struct AgentResponseRuntimeStore {
     by_stream: HashMap<String, AgentResponseRuntimeState>,
     agent_responses_by_execution: HashMap<String, String>,
+    terminal_order: VecDeque<String>,
+    estimated_bytes: usize,
 }
 
 impl AgentResponseRuntimeStore {
@@ -170,11 +439,232 @@ impl AgentResponseRuntimeStore {
         stream_key: String,
         execution_key: String,
         response: AgentResponseRuntimeState,
-    ) {
+        limits: &AutomationRuntimeLimits,
+    ) -> Result<(), AutomationError> {
+        self.ensure_capacity(response.estimated_bytes, 1, limits)?;
         self.agent_responses_by_execution
             .insert(execution_key, stream_key.clone());
+        self.estimated_bytes = self
+            .estimated_bytes
+            .saturating_add(response.estimated_bytes);
         self.by_stream.insert(stream_key, response);
+        Ok(())
     }
+
+    fn ensure_capacity(
+        &mut self,
+        additional_bytes: usize,
+        additional_entries: usize,
+        limits: &AutomationRuntimeLimits,
+    ) -> Result<(), AutomationError> {
+        if additional_bytes > limits.max_agent_response_bytes {
+            return Err(AutomationError::runtime_capacity("agent response streams"));
+        }
+        let expired = self.prune_expired(Instant::now(), limits.terminal_ttl);
+        crate::metrics::record_terminal_evictions("agent_responses", "ttl", expired);
+        while self.by_stream.len().saturating_add(additional_entries) > limits.max_agent_responses
+            || self.estimated_bytes.saturating_add(additional_bytes)
+                > limits.max_agent_response_bytes
+        {
+            if !self.evict_oldest_terminal() {
+                return Err(AutomationError::runtime_capacity("agent response streams"));
+            }
+            crate::metrics::record_terminal_evictions("agent_responses", "capacity", 1);
+        }
+        Ok(())
+    }
+
+    fn mark_terminal(&mut self, stream_key: &str) {
+        if let Some(response) = self.by_stream.get_mut(stream_key) {
+            response.terminal_at = Some(Instant::now());
+            self.terminal_order.push_back(stream_key.to_owned());
+        }
+    }
+
+    fn prune_expired(&mut self, now: Instant, ttl: Duration) -> usize {
+        let mut evicted = 0;
+        loop {
+            let Some(key) = self.terminal_order.front().cloned() else {
+                break;
+            };
+            let expired = self
+                .by_stream
+                .get(key.as_str())
+                .and_then(|response| response.terminal_at)
+                .is_none_or(|terminal_at| now.saturating_duration_since(terminal_at) >= ttl);
+            if !expired {
+                break;
+            }
+            self.terminal_order.pop_front();
+            evicted += usize::from(self.remove_terminal(key.as_str()));
+        }
+        evicted
+    }
+
+    fn evict_oldest_terminal(&mut self) -> bool {
+        while let Some(key) = self.terminal_order.pop_front() {
+            if self.remove_terminal(key.as_str()) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn remove_terminal(&mut self, stream_key: &str) -> bool {
+        let is_terminal = self
+            .by_stream
+            .get(stream_key)
+            .is_some_and(|response| response.terminal_at.is_some());
+        if !is_terminal {
+            return false;
+        }
+        let Some(removed) = self.by_stream.remove(stream_key) else {
+            return false;
+        };
+        self.estimated_bytes = self.estimated_bytes.saturating_sub(removed.estimated_bytes);
+        let execution_key = self.agent_responses_by_execution.iter().find_map(
+            |(execution_key, candidate_stream_key)| {
+                (candidate_stream_key == stream_key).then(|| execution_key.clone())
+            },
+        );
+        if let Some(execution_key) = execution_key {
+            self.agent_responses_by_execution
+                .remove(execution_key.as_str());
+        }
+        true
+    }
+}
+
+fn estimate_optional_string_bytes(value: &Option<String>) -> usize {
+    value.as_ref().map_or(0, String::len)
+}
+
+fn estimate_string_map_bytes(values: &std::collections::BTreeMap<String, String>) -> usize {
+    values.iter().fold(0_usize, |estimated, (key, value)| {
+        estimated
+            .saturating_add(key.len())
+            .saturating_add(value.len())
+    })
+}
+
+fn estimate_execution_bytes(execution_key: &str, execution: &AutomationExecution) -> usize {
+    [
+        execution_key.len(),
+        execution.tenant_id.len(),
+        execution.principal_id.len(),
+        execution.principal_kind.len(),
+        execution.execution_id.len(),
+        execution.trigger_type.len(),
+        execution.target_kind.len(),
+        execution.target_ref.len(),
+        estimate_optional_string_bytes(&execution.input_payload),
+        estimate_optional_string_bytes(&execution.output_payload),
+        execution.requested_at.len(),
+        estimate_optional_string_bytes(&execution.completed_at),
+        estimate_optional_string_bytes(&execution.failure_reason),
+        RUNTIME_ENTRY_OVERHEAD_BYTES,
+    ]
+    .into_iter()
+    .fold(0_usize, usize::saturating_add)
+}
+
+fn estimate_execution_record_bytes(
+    execution_key: &str,
+    record: &AutomationExecutionRecord,
+) -> usize {
+    estimate_execution_bytes(execution_key, &record.execution)
+        .saturating_add(record.organization_id.len())
+        .saturating_add(record.updated_at.len())
+        .saturating_add(RUNTIME_ENTRY_OVERHEAD_BYTES)
+}
+
+fn estimate_tool_call_bytes(tool_call_key: &str, tool_call: &AgentToolCall) -> usize {
+    [
+        tool_call_key.len(),
+        tool_call.tenant_id.len(),
+        tool_call.execution_id.len(),
+        tool_call.agent_id.len(),
+        tool_call.tool_call_id.len(),
+        tool_call.tool_name.len(),
+        tool_call.arguments_payload.len(),
+        estimate_optional_string_bytes(&tool_call.result_payload),
+        tool_call.requested_at.len(),
+        estimate_optional_string_bytes(&tool_call.completed_at),
+        RUNTIME_ENTRY_OVERHEAD_BYTES,
+    ]
+    .into_iter()
+    .fold(0_usize, usize::saturating_add)
+}
+
+fn estimate_stream_session_bytes(session: &StreamSession) -> usize {
+    [
+        session.tenant_id.len(),
+        session.stream_id.len(),
+        session.owner_principal_id.len(),
+        session.owner_principal_kind.len(),
+        session.stream_type.len(),
+        session.scope_kind.len(),
+        session.scope_id.len(),
+        session.ordering_scope.len(),
+        estimate_optional_string_bytes(&session.schema_ref),
+        estimate_optional_string_bytes(&session.result_message_id),
+        estimate_optional_string_bytes(&session.abort_reason),
+        session.opened_at.len(),
+        estimate_optional_string_bytes(&session.closed_at),
+        estimate_optional_string_bytes(&session.expires_at),
+        RUNTIME_ENTRY_OVERHEAD_BYTES,
+    ]
+    .into_iter()
+    .fold(0_usize, usize::saturating_add)
+}
+
+fn estimate_stream_frame_bytes(frame: &StreamFrame) -> usize {
+    [
+        frame.tenant_id.len(),
+        frame.stream_id.len(),
+        frame.stream_type.len(),
+        frame.scope_kind.len(),
+        frame.scope_id.len(),
+        frame.frame_type.len(),
+        estimate_optional_string_bytes(&frame.schema_ref),
+        frame.encoding.len(),
+        frame.payload.len(),
+        frame.sender.id.len(),
+        frame.sender.kind.len(),
+        estimate_optional_string_bytes(&frame.sender.member_id),
+        estimate_optional_string_bytes(&frame.sender.device_id),
+        estimate_optional_string_bytes(&frame.sender.session_id),
+        estimate_string_map_bytes(&frame.sender.metadata),
+        estimate_string_map_bytes(&frame.attributes),
+        frame.occurred_at.len(),
+        RUNTIME_ENTRY_OVERHEAD_BYTES,
+    ]
+    .into_iter()
+    .fold(0_usize, usize::saturating_add)
+}
+
+fn estimate_agent_response_bytes(stream_key: &str, response: &AgentResponseRuntimeState) -> usize {
+    [
+        stream_key.len(),
+        response.principal_id.len(),
+        response.principal_kind.len(),
+        response.execution_id.len(),
+        response.agent.agent_id.len(),
+        estimate_optional_string_bytes(&response.agent.session_id),
+        estimate_string_map_bytes(&response.agent.metadata),
+        estimate_optional_string_bytes(&response.member_id),
+        estimate_stream_session_bytes(&response.session),
+        RUNTIME_ENTRY_OVERHEAD_BYTES,
+    ]
+    .into_iter()
+    .fold(0_usize, usize::saturating_add)
+}
+
+fn execution_is_terminal(execution: &AutomationExecution) -> bool {
+    matches!(
+        execution.state,
+        AutomationExecutionState::Succeeded | AutomationExecutionState::Failed
+    )
 }
 
 #[derive(Default)]
@@ -209,6 +699,29 @@ impl<T> AutomationMutexExt<T> for Mutex<T> {
 }
 
 impl AutomationRuntime {
+    pub fn render_runtime_metrics_prometheus(&self) -> String {
+        let (execution_entries, execution_bytes) = {
+            let executions = self.executions.lock_automation();
+            (executions.by_execution.len(), executions.estimated_bytes)
+        };
+        let (response_entries, response_bytes) = {
+            let responses = self.agent_responses.lock_automation();
+            (responses.by_stream.len(), responses.estimated_bytes)
+        };
+        let (tool_call_entries, tool_call_bytes) = {
+            let tool_calls = self.tool_calls.lock_automation();
+            (tool_calls.by_call.len(), tool_calls.estimated_bytes)
+        };
+        crate::metrics::render_prometheus(
+            execution_entries,
+            execution_bytes,
+            response_entries,
+            response_bytes,
+            tool_call_entries,
+            tool_call_bytes,
+        )
+    }
+
     pub fn with_journal<J>(journal: Arc<J>) -> Self
     where
         J: CommitJournal + Send + Sync + 'static,
@@ -224,11 +737,21 @@ impl AutomationRuntime {
         J: CommitJournal + Send + Sync + 'static,
         S: AutomationExecutionStore + 'static,
     {
+        Self::with_runtime_limits(journal, execution_store, AutomationRuntimeLimits::default())
+    }
+
+    fn with_runtime_limits(
+        journal: Arc<dyn CommitJournal + Send + Sync>,
+        execution_store: Arc<dyn AutomationExecutionStore>,
+        limits: AutomationRuntimeLimits,
+    ) -> Self {
         Self {
-            executions: Mutex::new(HashMap::new()),
+            executions: Mutex::new(AutomationExecutionRuntimeStore::default()),
             agent_responses: Mutex::new(AgentResponseRuntimeStore::default()),
             tool_calls: Mutex::new(AgentToolCallRuntimeStore::default()),
             event_orders: Mutex::new(HashMap::new()),
+            event_locks: std::array::from_fn(|_| Mutex::new(())),
+            limits,
             journal,
             execution_store,
         }
@@ -241,24 +764,24 @@ impl AutomationRuntime {
     where
         J: CommitJournal + Send + Sync + 'static,
     {
-        Self {
-            executions: Mutex::new(HashMap::new()),
-            agent_responses: Mutex::new(AgentResponseRuntimeStore::default()),
-            tool_calls: Mutex::new(AgentToolCallRuntimeStore::default()),
-            event_orders: Mutex::new(HashMap::new()),
-            journal,
-            execution_store,
-        }
+        Self::with_runtime_limits(journal, execution_store, AutomationRuntimeLimits::default())
     }
 
     fn ensure_execution_state(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         principal_kind: &str,
         principal_id: &str,
         execution_id: &str,
     ) -> Result<(), AutomationError> {
-        let scope_key = execution_scope_key(tenant_id, principal_kind, principal_id, execution_id);
+        let scope_key = execution_scope_key(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            execution_id,
+        );
         if self
             .executions
             .lock_automation()
@@ -269,12 +792,21 @@ impl AutomationRuntime {
 
         let restored = self
             .execution_store
-            .load_execution(tenant_id, principal_kind, principal_id, execution_id)
+            .load_execution(
+                tenant_id,
+                organization_id,
+                principal_kind,
+                principal_id,
+                execution_id,
+            )
             .map_err(AutomationError::automation_store)?;
         if let Some(record) = restored {
-            self.executions
-                .lock_automation()
-                .insert(scope_key, record.execution);
+            let evicted = self.executions.lock_automation().insert(
+                scope_key,
+                record.execution,
+                &self.limits,
+            )?;
+            self.clear_event_orders(evicted);
         }
 
         Ok(())
@@ -299,18 +831,21 @@ impl AutomationRuntime {
         validate_execution_request_payload_size(&request)?;
         self.ensure_execution_state(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             request.execution_id.as_str(),
         )?;
         let execution_key = execution_scope_key(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             request.execution_id.as_str(),
         );
         let request_key = automation_execution_request_key(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             request.execution_id.as_str(),
@@ -333,7 +868,7 @@ impl AutomationRuntime {
             failure_reason: None,
         };
 
-        {
+        let evicted = {
             let mut executions = self.executions.lock_automation();
 
             if let Some(existing) = executions.get(execution_key.as_str()).cloned() {
@@ -351,8 +886,9 @@ impl AutomationRuntime {
 
                 return Err(AutomationError::conflict(request.execution_id.as_str()));
             }
-            executions.insert(execution_key.clone(), requested.clone());
-        }
+            executions.insert(execution_key.clone(), requested.clone(), &self.limits)?
+        };
+        self.clear_event_orders(evicted);
 
         if let Err(error) = self.append_event(auth, &requested, "automation.execution_requested", 1)
         {
@@ -360,44 +896,20 @@ impl AutomationRuntime {
             return Err(error);
         }
 
-        let completed_at = utc_now_rfc3339_millis();
-        let output_payload = Some(
-            serde_json::json!({
-                "accepted": true,
-                "targetRef": request.target_ref,
-                "requestKey": request_key,
-                "deliveryStatus": "applied",
-            })
-            .to_string(),
-        );
-        let completed = AutomationExecution {
-            output_payload,
-            state: AutomationExecutionState::Succeeded,
-            completed_at: Some(completed_at),
-            ..requested
-        };
-        if let Err(error) = self.append_event(auth, &completed, "automation.execution_completed", 2)
-        {
-            self.clear_execution_state(execution_key.as_str());
-            return Err(error);
-        }
-        self.executions
-            .lock_automation()
-            .insert(execution_key.clone(), completed.clone());
         self.event_orders
             .lock_automation()
-            .insert(execution_key.clone(), 2);
+            .insert(execution_key.clone(), 1);
         if let Err(error) = self
             .execution_store
-            .save_execution(self.execution_record(&completed))
+            .save_execution(self.execution_record(auth, &requested))
         {
             self.clear_execution_state(execution_key.as_str());
             return Err(AutomationError::automation_store(error));
         }
 
         Ok(AutomationExecutionRequestResult {
-            delivery_status: AutomationExecutionDeliveryStatus::Applied,
-            execution: completed,
+            delivery_status: AutomationExecutionDeliveryStatus::Accepted,
+            execution: requested,
             is_new: true,
             request_key,
         })
@@ -418,9 +930,9 @@ impl AutomationRuntime {
     ) -> Result<StreamSession, AutomationError> {
         ensure_automation_execute_access(auth)?;
         validate_start_agent_response_request_payload_size(&request)?;
-        let execution = self.execution_for_actor(auth, request.execution_id.as_str())?;
         let scope_key = agent_response_scope_key(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             request.stream_id.as_str(),
@@ -447,6 +959,7 @@ impl AutomationRuntime {
         }
         let execution_response_key = agent_response_execution_scope_key(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             request.execution_id.as_str(),
@@ -496,20 +1009,28 @@ impl AutomationRuntime {
             "state": session.state.as_wire_value(),
             "sender": sender,
         });
-        responses.insert(
-            scope_key,
-            execution_response_key,
-            AgentResponseRuntimeState {
-                principal_id: auth.actor_id.clone(),
-                principal_kind: auth.actor_kind.clone(),
-                execution_id: execution.execution_id.clone(),
-                session: session.clone(),
-                agent: request.agent,
-                member_id: request.member_id,
-                frames: Vec::new(),
-            },
-        );
-        drop(responses);
+        let mut response = AgentResponseRuntimeState {
+            principal_id: auth.actor_id.clone(),
+            principal_kind: auth.actor_kind.clone(),
+            execution_id: request.execution_id.clone(),
+            session: session.clone(),
+            agent: request.agent,
+            member_id: request.member_id,
+            frames: Vec::new(),
+            frame_bytes: 0,
+            estimated_bytes: 0,
+            terminal_at: None,
+        };
+        response.estimated_bytes = estimate_agent_response_bytes(scope_key.as_str(), &response);
+        responses.ensure_capacity(response.estimated_bytes, 1, &self.limits)?;
+
+        let execution = self.transition_execution(
+            auth,
+            request.execution_id.as_str(),
+            AutomationExecutionState::Running,
+            None,
+            None,
+        )?;
         self.append_json_event(
             auth,
             &execution,
@@ -517,6 +1038,8 @@ impl AutomationRuntime {
             "automation.agent_response_stream.v1",
             &payload,
         )?;
+        responses.insert(scope_key, execution_response_key, response, &self.limits)?;
+        drop(responses);
 
         Ok(session)
     }
@@ -545,84 +1068,95 @@ impl AutomationRuntime {
         let mut responses = self.agent_responses.lock_automation();
         let scope_key = agent_response_scope_key(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             stream_id,
         );
-        let state = responses
-            .response_mut(scope_key.as_str())
-            .ok_or_else(|| AutomationError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "agent_response_not_found",
-                message: format!("agent response stream not found: {stream_id}"),
-            })?;
+        let (frame, execution_id, frame_bytes) = {
+            let state =
+                responses
+                    .response_mut(scope_key.as_str())
+                    .ok_or_else(|| AutomationError {
+                        status: axum::http::StatusCode::NOT_FOUND,
+                        code: "agent_response_not_found",
+                        message: format!("agent response stream not found: {stream_id}"),
+                    })?;
 
-        if matches!(
-            state.session.state,
-            StreamSessionState::Completed | StreamSessionState::Aborted
-        ) {
-            return Err(AutomationError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "agent_response_state_invalid",
-                message: format!("agent response stream is already closed: {stream_id}"),
-            });
-        }
-
-        let sender = state.agent.sender(state.member_id.clone());
-        if let Some(existing) = state
-            .frames
-            .iter()
-            .find(|frame| frame.frame_seq == request.frame_seq)
-        {
-            let is_same_retry = existing.frame_type == request.frame_type
-                && existing.schema_ref == request.schema_ref
-                && existing.encoding == request.encoding
-                && existing.payload == request.payload
-                && existing.sender == sender
-                && existing.attributes == request.attributes;
-            if is_same_retry {
-                return Ok(existing.clone());
+            if matches!(
+                state.session.state,
+                StreamSessionState::Completed | StreamSessionState::Aborted
+            ) {
+                return Err(AutomationError {
+                    status: axum::http::StatusCode::BAD_REQUEST,
+                    code: "agent_response_state_invalid",
+                    message: format!("agent response stream is already closed: {stream_id}"),
+                });
             }
-            return Err(AutomationError {
-                status: axum::http::StatusCode::CONFLICT,
-                code: "agent_response_frame_conflict",
-                message: format!("agent response frame seq conflict: {}", request.frame_seq),
-            });
-        }
 
-        if request.frame_seq != state.session.last_frame_seq + 1 {
-            return Err(AutomationError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "agent_response_frame_out_of_order",
-                message: format!(
-                    "expected next frame seq {}, got {}",
-                    state.session.last_frame_seq + 1,
-                    request.frame_seq
-                ),
-            });
-        }
+            let sender = state.agent.sender(state.member_id.clone());
+            if let Some(existing) = state
+                .frames
+                .iter()
+                .find(|frame| frame.frame_seq == request.frame_seq)
+            {
+                let is_same_retry = existing.frame_type == request.frame_type
+                    && existing.schema_ref == request.schema_ref
+                    && existing.encoding == request.encoding
+                    && existing.payload == request.payload
+                    && existing.sender == sender
+                    && existing.attributes == request.attributes;
+                if is_same_retry {
+                    return Ok(existing.clone());
+                }
+                return Err(AutomationError {
+                    status: axum::http::StatusCode::CONFLICT,
+                    code: "agent_response_frame_conflict",
+                    message: format!("agent response frame seq conflict: {}", request.frame_seq),
+                });
+            }
 
-        let frame = StreamFrame {
-            tenant_id: auth.tenant_id.clone(),
-            stream_id: state.session.stream_id.clone(),
-            stream_type: state.session.stream_type.clone(),
-            scope_kind: state.session.scope_kind.clone(),
-            scope_id: state.session.scope_id.clone(),
-            frame_seq: request.frame_seq,
-            frame_type: request.frame_type,
-            schema_ref: request.schema_ref,
-            encoding: request.encoding,
-            payload: request.payload,
-            sender,
-            attributes: request.attributes,
-            occurred_at: utc_now_rfc3339_millis(),
+            if request.frame_seq != state.session.last_frame_seq + 1 {
+                return Err(AutomationError {
+                    status: axum::http::StatusCode::BAD_REQUEST,
+                    code: "agent_response_frame_out_of_order",
+                    message: format!(
+                        "expected next frame seq {}, got {}",
+                        state.session.last_frame_seq + 1,
+                        request.frame_seq
+                    ),
+                });
+            }
+            if state.frames.len() >= self.limits.max_frames_per_response {
+                return Err(AutomationError::runtime_capacity("agent response frames"));
+            }
+
+            let frame = StreamFrame {
+                tenant_id: auth.tenant_id.clone(),
+                stream_id: state.session.stream_id.clone(),
+                stream_type: state.session.stream_type.clone(),
+                scope_kind: state.session.scope_kind.clone(),
+                scope_id: state.session.scope_id.clone(),
+                frame_seq: request.frame_seq,
+                frame_type: request.frame_type,
+                schema_ref: request.schema_ref,
+                encoding: request.encoding,
+                payload: request.payload,
+                sender,
+                attributes: request.attributes,
+                occurred_at: utc_now_rfc3339_millis(),
+            };
+            let frame_bytes = estimate_stream_frame_bytes(&frame);
+            if state.frame_bytes.saturating_add(frame_bytes)
+                > self.limits.max_frame_bytes_per_response
+            {
+                return Err(AutomationError::runtime_capacity(
+                    "agent response frame bytes",
+                ));
+            }
+            (frame, state.execution_id.clone(), frame_bytes)
         };
-        state.session.last_frame_seq = frame.frame_seq;
-        state.session.state = StreamSessionState::Active;
-        let execution_id = state.execution_id.clone();
-        state.frames.push(frame.clone());
-        drop(responses);
-
+        responses.ensure_capacity(frame_bytes, 0, &self.limits)?;
         let execution = self.execution_for_actor(auth, execution_id.as_str())?;
         self.append_json_event(
             auth,
@@ -631,6 +1165,18 @@ impl AutomationRuntime {
             "automation.agent_response_frame.v1",
             &frame,
         )?;
+        let state = responses.response_mut(scope_key.as_str()).ok_or_else(|| {
+            AutomationError::internal(
+                "agent_response_runtime_state_lost",
+                format!("agent response stream disappeared during append: {stream_id}"),
+            )
+        })?;
+        state.session.last_frame_seq = frame.frame_seq;
+        state.session.state = StreamSessionState::Active;
+        state.frames.push(frame.clone());
+        state.frame_bytes = state.frame_bytes.saturating_add(frame_bytes);
+        state.estimated_bytes = state.estimated_bytes.saturating_add(frame_bytes);
+        responses.estimated_bytes = responses.estimated_bytes.saturating_add(frame_bytes);
 
         Ok(frame)
     }
@@ -651,28 +1197,46 @@ impl AutomationRuntime {
         let mut responses = self.agent_responses.lock_automation();
         let scope_key = agent_response_scope_key(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             stream_id,
         );
         let state = responses
-            .response_mut(scope_key.as_str())
+            .by_stream
+            .get(scope_key.as_str())
             .ok_or_else(|| AutomationError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "agent_response_not_found",
                 message: format!("agent response stream not found: {stream_id}"),
             })?;
 
-        if matches!(
-            state.session.state,
-            StreamSessionState::Completed | StreamSessionState::Aborted
-        ) {
+        if state.session.state == StreamSessionState::Completed {
+            let session = state.session.clone();
+            let execution_id = state.execution_id.clone();
+            drop(responses);
+            self.transition_execution(
+                auth,
+                execution_id.as_str(),
+                AutomationExecutionState::Succeeded,
+                Some(serde_json::to_string(&session).map_err(|error| {
+                    AutomationError::internal(
+                        "automation_execution_output_serialize_failed",
+                        format!("failed to serialize completed agent response: {error}"),
+                    )
+                })?),
+                None,
+            )?;
+            return Ok(session);
+        }
+        if state.session.state == StreamSessionState::Aborted {
             return Ok(state.session.clone());
         }
 
         let execution_id = state.execution_id.clone();
         let tool_call_execution_key = agent_tool_call_execution_scope_key(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             execution_id.as_str(),
@@ -691,14 +1255,16 @@ impl AutomationRuntime {
             });
         }
 
-        state.session.last_frame_seq = state.session.last_frame_seq.max(request.frame_seq);
-        state.session.last_checkpoint_seq = Some(request.frame_seq);
-        state.session.result_message_id = request.result_message_id;
-        state.session.state = StreamSessionState::Completed;
-        state.session.closed_at = Some(utc_now_rfc3339_millis());
-        let session = state.session.clone();
-        let execution_id = state.execution_id.clone();
-        drop(responses);
+        let previous_session_bytes = estimate_stream_session_bytes(&state.session);
+        let mut session = state.session.clone();
+        session.last_frame_seq = session.last_frame_seq.max(request.frame_seq);
+        session.last_checkpoint_seq = Some(request.frame_seq);
+        session.result_message_id = request.result_message_id;
+        session.state = StreamSessionState::Completed;
+        session.closed_at = Some(utc_now_rfc3339_millis());
+        let session_bytes = estimate_stream_session_bytes(&session);
+        let additional_bytes = session_bytes.saturating_sub(previous_session_bytes);
+        responses.ensure_capacity(additional_bytes, 0, &self.limits)?;
 
         let execution = self.execution_for_actor(auth, execution_id.as_str())?;
         self.append_json_event(
@@ -708,6 +1274,28 @@ impl AutomationRuntime {
             "automation.agent_response_stream.v1",
             &session,
         )?;
+        self.transition_execution(
+            auth,
+            execution.execution_id.as_str(),
+            AutomationExecutionState::Succeeded,
+            Some(serde_json::to_string(&session).map_err(|error| {
+                AutomationError::internal(
+                    "automation_execution_output_serialize_failed",
+                    format!("failed to serialize completed agent response: {error}"),
+                )
+            })?),
+            None,
+        )?;
+        let state = responses.response_mut(scope_key.as_str()).ok_or_else(|| {
+            AutomationError::internal(
+                "agent_response_runtime_state_lost",
+                format!("agent response stream disappeared during completion: {stream_id}"),
+            )
+        })?;
+        state.session = session.clone();
+        state.estimated_bytes = state.estimated_bytes.saturating_add(additional_bytes);
+        responses.estimated_bytes = responses.estimated_bytes.saturating_add(additional_bytes);
+        responses.mark_terminal(scope_key.as_str());
 
         Ok(session)
     }
@@ -722,6 +1310,7 @@ impl AutomationRuntime {
         let execution = self.execution_for_actor(auth, request.execution_id.as_str())?;
         let execution_response_key = agent_response_execution_scope_key(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             request.execution_id.as_str(),
@@ -776,6 +1365,7 @@ impl AutomationRuntime {
 
         let scope_key = agent_tool_call_scope_key(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             request.execution_id.as_str(),
@@ -783,11 +1373,12 @@ impl AutomationRuntime {
         );
         let tool_call_execution_key = agent_tool_call_execution_scope_key(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             request.execution_id.as_str(),
         );
-        let tool_calls = self.tool_calls.lock_automation();
+        let mut tool_calls = self.tool_calls.lock_automation();
         if let Some(existing) = tool_calls.get(scope_key.as_str()).cloned() {
             if existing.tool_name == request.tool_name
                 && existing.arguments_payload == request.arguments_payload
@@ -800,8 +1391,6 @@ impl AutomationRuntime {
                 message: format!("agent tool call conflict: {}", request.tool_call_id),
             });
         }
-        drop(tool_calls);
-
         if tool_requires_override {
             self.append_guardrail_event(
                 auth,
@@ -811,8 +1400,6 @@ impl AutomationRuntime {
                 true,
             )?;
         }
-
-        let mut tool_calls = self.tool_calls.lock_automation();
 
         let tool_call = AgentToolCall {
             tenant_id: auth.tenant_id.clone(),
@@ -826,14 +1413,20 @@ impl AutomationRuntime {
             requested_at: utc_now_rfc3339_millis(),
             completed_at: None,
         };
-        tool_calls.insert(tool_call_execution_key, scope_key, tool_call.clone());
-        drop(tool_calls);
+        let estimated_bytes = estimate_tool_call_bytes(scope_key.as_str(), &tool_call);
+        tool_calls.ensure_capacity(estimated_bytes, 1, &self.limits)?;
         self.append_json_event(
             auth,
             &execution,
             "automation.agent_tool_call_requested",
             "automation.agent_tool_call.v1",
             &tool_call,
+        )?;
+        tool_calls.insert(
+            tool_call_execution_key,
+            scope_key,
+            tool_call.clone(),
+            &self.limits,
         )?;
 
         Ok(tool_call)
@@ -861,6 +1454,7 @@ impl AutomationRuntime {
         let execution = self.execution_for_actor(auth, execution_id)?;
         let scope_key = agent_tool_call_scope_key(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             execution_id,
@@ -868,18 +1462,18 @@ impl AutomationRuntime {
         );
         let tool_call_execution_key = agent_tool_call_execution_scope_key(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             execution_id,
         );
         let mut tool_calls = self.tool_calls.lock_automation();
-        let tool_call = tool_calls.mark_completed(
-            tool_call_execution_key.as_str(),
+        let tool_call = tool_calls.prepare_completion(
             scope_key.as_str(),
             request.result_payload,
             utc_now_rfc3339_millis(),
+            &self.limits,
         )?;
-        drop(tool_calls);
         self.append_json_event(
             auth,
             &execution,
@@ -887,6 +1481,11 @@ impl AutomationRuntime {
             "automation.agent_tool_call.v1",
             &tool_call,
         )?;
+        tool_calls.commit_completion(
+            tool_call_execution_key.as_str(),
+            scope_key.as_str(),
+            tool_call.clone(),
+        );
 
         Ok(tool_call)
     }
@@ -904,6 +1503,7 @@ impl AutomationRuntime {
         )?;
         self.ensure_execution_state(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             execution_id,
@@ -913,6 +1513,7 @@ impl AutomationRuntime {
             .get(
                 execution_scope_key(
                     auth.tenant_id.as_str(),
+                    auth.organization_id.as_str(),
                     auth.actor_kind.as_str(),
                     auth.actor_id.as_str(),
                     execution_id,
@@ -926,9 +1527,14 @@ impl AutomationRuntime {
             .ok_or_else(|| AutomationError::not_found(execution_id))
     }
 
-    fn execution_record(&self, execution: &AutomationExecution) -> AutomationExecutionRecord {
+    fn execution_record(
+        &self,
+        auth: &AppContext,
+        execution: &AutomationExecution,
+    ) -> AutomationExecutionRecord {
         AutomationExecutionRecord {
             tenant_id: execution.tenant_id.clone(),
+            organization_id: auth.organization_id.clone(),
             principal_id: execution.principal_id.clone(),
             execution_id: execution.execution_id.clone(),
             execution: execution.clone(),
@@ -941,6 +1547,23 @@ impl AutomationRuntime {
         self.event_orders.lock_automation().remove(execution_key);
     }
 
+    fn clear_event_orders(&self, execution_keys: Vec<String>) {
+        if execution_keys.is_empty() {
+            return;
+        }
+        let mut event_orders = self.event_orders.lock_automation();
+        for execution_key in execution_keys {
+            event_orders.remove(execution_key.as_str());
+        }
+    }
+
+    fn event_lock(&self, event_scope_key: &str) -> MutexGuard<'_, ()> {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        event_scope_key.hash(&mut hasher);
+        let shard = (hasher.finish() as usize) % AUTOMATION_EVENT_LOCK_SHARDS;
+        self.event_locks[shard].lock_automation()
+    }
+
     fn append_event(
         &self,
         auth: &AppContext,
@@ -948,8 +1571,9 @@ impl AutomationRuntime {
         event_type: &str,
         ordering_seq: u64,
     ) -> Result<(), AutomationError> {
-        let execution_identity = execution_event_identity(execution);
-        let event_identity = automation_event_key(execution, &[event_type]);
+        let execution_identity = execution_event_identity(execution, auth.organization_id.as_str());
+        let event_identity =
+            automation_event_key(execution, auth.organization_id.as_str(), &[event_type]);
         let committed_at = execution
             .completed_at
             .clone()
@@ -957,7 +1581,7 @@ impl AutomationRuntime {
         let envelope = CommitEnvelope {
             event_id: format!("evt_{event_identity}"),
             tenant_id: auth.tenant_id.clone(),
-            organization_id: "0".into(),
+            organization_id: auth.organization_id.clone(),
             event_type: event_type.into(),
             event_version: 1,
             aggregate_type: AggregateType::AutomationExecution,
@@ -989,7 +1613,10 @@ impl AutomationRuntime {
             retention_class: "standard".into(),
             audit_class: "default".into(),
         };
-        self.journal.append(envelope)?;
+        if let Err(error) = self.journal.append(envelope) {
+            crate::metrics::record_journal_append_failure();
+            return Err(error.into());
+        }
         Ok(())
     }
 
@@ -1001,21 +1628,26 @@ impl AutomationRuntime {
         payload_schema: &str,
         payload: &P,
     ) -> Result<(), AutomationError> {
-        let event_scope_key = execution_event_identity(execution);
-        let ordering_seq = {
-            let mut orders = self.event_orders.lock_automation();
-            let next = orders.get(event_scope_key.as_str()).copied().unwrap_or(2) + 1;
-            orders.insert(event_scope_key.clone(), next);
-            next
-        };
+        let event_scope_key = execution_event_identity(execution, auth.organization_id.as_str());
+        let _event_guard = self.event_lock(event_scope_key.as_str());
+        let ordering_seq = self
+            .event_orders
+            .lock_automation()
+            .get(event_scope_key.as_str())
+            .copied()
+            .unwrap_or(2)
+            .saturating_add(1);
         let occurred_at = utc_now_rfc3339_millis();
         let ordering_seq_segment = ordering_seq.to_string();
-        let event_identity =
-            automation_event_key(execution, &[event_type, ordering_seq_segment.as_str()]);
+        let event_identity = automation_event_key(
+            execution,
+            auth.organization_id.as_str(),
+            &[event_type, ordering_seq_segment.as_str()],
+        );
         let envelope = CommitEnvelope {
             event_id: format!("evt_{event_identity}"),
             tenant_id: auth.tenant_id.clone(),
-            organization_id: "0".into(),
+            organization_id: auth.organization_id.clone(),
             event_type: event_type.into(),
             event_version: 1,
             aggregate_type: AggregateType::AutomationExecution,
@@ -1025,7 +1657,7 @@ impl AutomationRuntime {
             ordering_key: CommitEnvelope::ordering_key(auth.tenant_id.as_str(), &event_scope_key),
             ordering_seq,
             causation_id: None,
-            correlation_id: Some(event_scope_key),
+            correlation_id: Some(event_scope_key.clone()),
             idempotency_key: Some(event_identity),
             actor: EventActor {
                 actor_id: auth.actor_id.clone(),
@@ -1044,7 +1676,13 @@ impl AutomationRuntime {
             retention_class: "standard".into(),
             audit_class: "default".into(),
         };
-        self.journal.append(envelope)?;
+        if let Err(error) = self.journal.append(envelope) {
+            crate::metrics::record_journal_append_failure();
+            return Err(error.into());
+        }
+        self.event_orders
+            .lock_automation()
+            .insert(event_scope_key, ordering_seq);
         Ok(())
     }
 
@@ -1079,6 +1717,7 @@ impl AutomationRuntime {
     ) -> Result<AutomationExecution, AutomationError> {
         self.ensure_execution_state(
             auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
             execution_id,
@@ -1088,6 +1727,7 @@ impl AutomationRuntime {
             .get(
                 execution_scope_key(
                     auth.tenant_id.as_str(),
+                    auth.organization_id.as_str(),
                     auth.actor_kind.as_str(),
                     auth.actor_id.as_str(),
                     execution_id,
@@ -1100,6 +1740,85 @@ impl AutomationRuntime {
             })
             .ok_or_else(|| AutomationError::not_found(execution_id))
     }
+
+    fn transition_execution(
+        &self,
+        auth: &AppContext,
+        execution_id: &str,
+        next_state: AutomationExecutionState,
+        output_payload: Option<String>,
+        failure_reason: Option<String>,
+    ) -> Result<AutomationExecution, AutomationError> {
+        let current = self.execution_for_actor(auth, execution_id)?;
+        if current.state == next_state {
+            return Ok(current);
+        }
+        let allowed = matches!(
+            (&current.state, &next_state),
+            (
+                AutomationExecutionState::Requested,
+                AutomationExecutionState::Running
+            ) | (
+                AutomationExecutionState::Requested,
+                AutomationExecutionState::Succeeded
+            ) | (
+                AutomationExecutionState::Requested,
+                AutomationExecutionState::Failed
+            ) | (
+                AutomationExecutionState::Running,
+                AutomationExecutionState::Succeeded
+            ) | (
+                AutomationExecutionState::Running,
+                AutomationExecutionState::Failed
+            )
+        );
+        if !allowed {
+            return Err(AutomationError::conflict(execution_id));
+        }
+        let terminal = matches!(
+            next_state,
+            AutomationExecutionState::Succeeded | AutomationExecutionState::Failed
+        );
+        let updated = AutomationExecution {
+            state: next_state.clone(),
+            output_payload,
+            failure_reason,
+            completed_at: terminal.then(utc_now_rfc3339_millis),
+            ..current
+        };
+        let event_type = match next_state {
+            AutomationExecutionState::Running => "automation.execution_started",
+            AutomationExecutionState::Succeeded => "automation.execution_completed",
+            AutomationExecutionState::Failed => "automation.execution_failed",
+            AutomationExecutionState::Requested => {
+                return Err(AutomationError::conflict(execution_id));
+            }
+        };
+        self.append_json_event(
+            auth,
+            &updated,
+            event_type,
+            "automation.execution.v1",
+            &updated,
+        )?;
+        self.execution_store
+            .save_execution(self.execution_record(auth, &updated))
+            .map_err(AutomationError::automation_store)?;
+        let execution_key = execution_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+            execution_id,
+        );
+        let evicted = self.executions.lock_automation().insert(
+            execution_key,
+            updated.clone(),
+            &self.limits,
+        )?;
+        self.clear_event_orders(evicted);
+        Ok(updated)
+    }
 }
 
 #[derive(Clone, Default)]
@@ -1111,6 +1830,7 @@ impl AutomationExecutionStore for RuntimeMemoryAutomationExecutionStore {
     fn load_execution(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         principal_kind: &str,
         principal_id: &str,
         execution_id: &str,
@@ -1119,7 +1839,14 @@ impl AutomationExecutionStore for RuntimeMemoryAutomationExecutionStore {
             .executions
             .lock_automation()
             .get(
-                execution_scope_key(tenant_id, principal_kind, principal_id, execution_id).as_str(),
+                execution_scope_key(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    execution_id,
+                )
+                .as_str(),
             )
             .cloned())
     }
@@ -1127,15 +1854,63 @@ impl AutomationExecutionStore for RuntimeMemoryAutomationExecutionStore {
     fn save_execution(&self, record: AutomationExecutionRecord) -> Result<(), ContractError> {
         let key = execution_scope_key(
             record.tenant_id.as_str(),
+            record.organization_id.as_str(),
             record.execution.principal_kind.as_str(),
             record.principal_id.as_str(),
             record.execution_id.as_str(),
         );
         let mut executions = self.executions.lock_automation();
-        let next = executions
-            .remove(key.as_str())
-            .map(|previous| previous.merge_monotonic(record.clone()))
+        let previous = executions.remove(key.as_str());
+        let next = previous
+            .clone()
+            .map(|current| current.merge_monotonic(record.clone()))
             .unwrap_or(record);
+        let next_bytes = estimate_execution_record_bytes(key.as_str(), &next);
+        if next_bytes > AUTOMATION_RUNTIME_MAX_EXECUTION_BYTES {
+            if let Some(previous) = previous {
+                executions.insert(key, previous);
+            }
+            return Err(ContractError::Unavailable(
+                "in-memory automation execution store byte capacity exhausted".into(),
+            ));
+        }
+        let mut current_bytes = executions
+            .iter()
+            .fold(0_usize, |estimated, (entry_key, entry)| {
+                estimated.saturating_add(estimate_execution_record_bytes(entry_key, entry))
+            });
+        loop {
+            let within_capacity = executions.len().saturating_add(1)
+                <= AUTOMATION_RUNTIME_MAX_EXECUTIONS
+                && current_bytes.saturating_add(next_bytes)
+                    <= AUTOMATION_RUNTIME_MAX_EXECUTION_BYTES;
+            if within_capacity {
+                break;
+            }
+            let terminal_key = executions
+                .iter()
+                .filter(|(_, candidate)| execution_is_terminal(&candidate.execution))
+                .min_by(|(left_key, left), (right_key, right)| {
+                    left.updated_at
+                        .cmp(&right.updated_at)
+                        .then_with(|| left_key.cmp(right_key))
+                })
+                .map(|(candidate_key, _)| candidate_key.clone());
+            let Some(terminal_key) = terminal_key else {
+                if let Some(previous) = previous {
+                    executions.insert(key, previous);
+                }
+                return Err(ContractError::Unavailable(
+                    "in-memory automation execution store entry capacity exhausted".into(),
+                ));
+            };
+            if let Some(removed) = executions.remove(terminal_key.as_str()) {
+                current_bytes = current_bytes.saturating_sub(estimate_execution_record_bytes(
+                    terminal_key.as_str(),
+                    &removed,
+                ));
+            }
+        }
         executions.insert(key, next);
         Ok(())
     }
@@ -1148,6 +1923,23 @@ mod tests {
     use std::collections::BTreeSet;
     use std::panic::{self, AssertUnwindSafe};
     use std::sync::Mutex;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[derive(Default)]
+    struct ToggleJournal {
+        fail: AtomicBool,
+    }
+
+    impl CommitJournal for ToggleJournal {
+        fn append(&self, _envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
+            if self.fail.load(Ordering::Relaxed) {
+                return Err(ContractError::Unavailable(
+                    "journal failure for test".into(),
+                ));
+            }
+            Ok(CommitPosition::new("test", 1))
+        }
+    }
 
     fn automation_execution_record(
         state: AutomationExecutionState,
@@ -1159,6 +1951,7 @@ mod tests {
     ) -> AutomationExecutionRecord {
         AutomationExecutionRecord {
             tenant_id: "100001".into(),
+            organization_id: "0".into(),
             principal_id: "1".into(),
             execution_id: "ae_demo".into(),
             execution: AutomationExecution {
@@ -1197,6 +1990,43 @@ mod tests {
             actor_kind: "user".into(),
             device_id: Some("d_demo".into()),
         }
+    }
+
+    fn execution_request(execution_id: &str) -> RequestAutomationExecution {
+        RequestAutomationExecution {
+            execution_id: execution_id.into(),
+            trigger_type: "agent.manual".into(),
+            target_kind: "conversation".into(),
+            target_ref: "c_demo".into(),
+            input_payload: Some(r#"{"prompt":"hello"}"#.into()),
+        }
+    }
+
+    fn agent_response_request(execution_id: &str, stream_id: &str) -> StartAgentResponseRequest {
+        StartAgentResponseRequest {
+            execution_id: execution_id.into(),
+            stream_id: stream_id.into(),
+            stream_type: "agent.response.delta".into(),
+            conversation_id: "c_demo".into(),
+            schema_ref: Some("schema://agent/response.delta".into()),
+            member_id: Some("cm_agent".into()),
+            agent: AgentSubject {
+                agent_id: "agent.demo".into(),
+                session_id: Some("s_agent".into()),
+                metadata: Default::default(),
+            },
+        }
+    }
+
+    fn runtime_with_limits(
+        journal: Arc<ToggleJournal>,
+        limits: AutomationRuntimeLimits,
+    ) -> AutomationRuntime {
+        AutomationRuntime::with_runtime_limits(
+            journal,
+            Arc::new(RuntimeMemoryAutomationExecutionStore::default()),
+            limits,
+        )
     }
 
     fn poison_mutex<T>(mutex: &Mutex<T>) {
@@ -1281,7 +2111,7 @@ mod tests {
         poison_mutex(&store.executions);
 
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-            store.load_execution("100001", "user", "1", "ae_poison_store")
+            store.load_execution("100001", "0", "user", "1", "ae_poison_store")
         }));
         assert!(
             result.is_ok(),
@@ -1319,7 +2149,7 @@ mod tests {
             .expect("stale automation execution save should not fail the caller");
 
         let restored = store
-            .load_execution("100001", "user", "1", "ae_demo")
+            .load_execution("100001", "0", "user", "1", "ae_demo")
             .expect("automation execution load should succeed")
             .expect("automation execution should be present");
         assert_eq!(
@@ -1336,5 +2166,222 @@ mod tests {
             Some("2026-05-06T00:00:02.000Z")
         );
         assert_eq!(restored.updated_at, "2026-05-06T00:00:02.000Z");
+    }
+
+    #[test]
+    fn test_runtime_capacity_never_evicts_active_execution() {
+        let mut limits = AutomationRuntimeLimits::default();
+        limits.max_executions = 1;
+        let runtime = runtime_with_limits(Arc::new(ToggleJournal::default()), limits);
+        let auth = demo_auth_context();
+
+        runtime
+            .request_execution(&auth, execution_request("ae_active_1"))
+            .expect("first active execution should fit");
+        let error = runtime
+            .request_execution(&auth, execution_request("ae_active_2"))
+            .expect_err("capacity must reject instead of evicting an active execution");
+
+        assert_eq!(error.code(), "automation_runtime_capacity_exhausted");
+        assert!(
+            runtime.executions.lock_automation().contains_key(
+                execution_scope_key("100001", "0", "user", "1", "ae_active_1").as_str()
+            )
+        );
+    }
+
+    #[test]
+    fn test_runtime_capacity_evicts_oldest_terminal_execution() {
+        let mut limits = AutomationRuntimeLimits::default();
+        limits.max_executions = 1;
+        let runtime = runtime_with_limits(Arc::new(ToggleJournal::default()), limits);
+        let auth = demo_auth_context();
+
+        runtime
+            .request_execution(&auth, execution_request("ae_terminal"))
+            .expect("terminal candidate should be requested");
+        runtime
+            .start_agent_response(&auth, agent_response_request("ae_terminal", "st_terminal"))
+            .expect("agent response should start");
+        runtime
+            .complete_agent_response(
+                &auth,
+                "st_terminal",
+                CompleteAgentResponseRequest {
+                    frame_seq: 0,
+                    result_message_id: Some("m_terminal".into()),
+                },
+            )
+            .expect("agent response should complete");
+        runtime
+            .request_execution(&auth, execution_request("ae_active"))
+            .expect("new active execution should evict the terminal cache entry");
+
+        let executions = runtime.executions.lock_automation();
+        assert!(
+            !executions.contains_key(
+                execution_scope_key("100001", "0", "user", "1", "ae_terminal").as_str()
+            )
+        );
+        assert!(
+            executions.contains_key(
+                execution_scope_key("100001", "0", "user", "1", "ae_active").as_str()
+            )
+        );
+    }
+
+    #[test]
+    fn test_agent_response_frame_limit_preserves_last_committed_frame() {
+        let mut limits = AutomationRuntimeLimits::default();
+        limits.max_frames_per_response = 1;
+        let runtime = runtime_with_limits(Arc::new(ToggleJournal::default()), limits);
+        let auth = demo_auth_context();
+        runtime
+            .request_execution(&auth, execution_request("ae_frame_limit"))
+            .expect("execution should be requested");
+        runtime
+            .start_agent_response(
+                &auth,
+                agent_response_request("ae_frame_limit", "st_frame_limit"),
+            )
+            .expect("agent response should start");
+
+        runtime
+            .append_agent_response_delta(
+                &auth,
+                "st_frame_limit",
+                AppendAgentResponseDeltaRequest {
+                    frame_seq: 1,
+                    frame_type: "delta".into(),
+                    schema_ref: None,
+                    encoding: "utf-8".into(),
+                    payload: "first".into(),
+                    attributes: Default::default(),
+                },
+            )
+            .expect("first frame should fit");
+        let error = runtime
+            .append_agent_response_delta(
+                &auth,
+                "st_frame_limit",
+                AppendAgentResponseDeltaRequest {
+                    frame_seq: 2,
+                    frame_type: "delta".into(),
+                    schema_ref: None,
+                    encoding: "utf-8".into(),
+                    payload: "second".into(),
+                    attributes: Default::default(),
+                },
+            )
+            .expect_err("second frame must be rejected by the per-response limit");
+        assert_eq!(error.code(), "automation_runtime_capacity_exhausted");
+
+        let responses = runtime.agent_responses.lock_automation();
+        let state = responses
+            .by_stream
+            .get(agent_response_scope_key("100001", "0", "user", "1", "st_frame_limit").as_str())
+            .expect("active response should remain cached");
+        assert_eq!(state.frames.len(), 1);
+        assert_eq!(state.session.last_frame_seq, 1);
+    }
+
+    #[test]
+    fn test_journal_failure_does_not_commit_agent_response_frame_to_memory() {
+        let journal = Arc::new(ToggleJournal::default());
+        let runtime = runtime_with_limits(journal.clone(), AutomationRuntimeLimits::default());
+        let auth = demo_auth_context();
+        runtime
+            .request_execution(&auth, execution_request("ae_journal_failure"))
+            .expect("execution should be requested");
+        runtime
+            .start_agent_response(
+                &auth,
+                agent_response_request("ae_journal_failure", "st_journal_failure"),
+            )
+            .expect("agent response should start");
+        journal.fail.store(true, Ordering::Relaxed);
+
+        runtime
+            .append_agent_response_delta(
+                &auth,
+                "st_journal_failure",
+                AppendAgentResponseDeltaRequest {
+                    frame_seq: 1,
+                    frame_type: "delta".into(),
+                    schema_ref: None,
+                    encoding: "utf-8".into(),
+                    payload: "must-not-commit".into(),
+                    attributes: Default::default(),
+                },
+            )
+            .expect_err("journal failure must fail the append");
+
+        let responses = runtime.agent_responses.lock_automation();
+        let state = responses
+            .by_stream
+            .get(
+                agent_response_scope_key("100001", "0", "user", "1", "st_journal_failure").as_str(),
+            )
+            .expect("response should remain active for a safe retry");
+        assert!(state.frames.is_empty());
+        assert_eq!(state.session.last_frame_seq, 0);
+        drop(responses);
+        assert_eq!(
+            runtime
+                .event_orders
+                .lock_automation()
+                .get(
+                    execution_scope_key("100001", "0", "user", "1", "ae_journal_failure",).as_str(),
+                )
+                .copied(),
+            Some(3),
+            "a failed journal append must not consume the next ordering sequence",
+        );
+    }
+
+    #[test]
+    fn test_journal_failure_does_not_commit_agent_tool_call_to_memory() {
+        let journal = Arc::new(ToggleJournal::default());
+        let runtime = runtime_with_limits(journal.clone(), AutomationRuntimeLimits::default());
+        let auth = demo_auth_context();
+        runtime
+            .request_execution(&auth, execution_request("ae_tool_journal_failure"))
+            .expect("execution should be requested");
+        runtime
+            .start_agent_response(
+                &auth,
+                agent_response_request("ae_tool_journal_failure", "st_tool_journal_failure"),
+            )
+            .expect("agent response should start");
+        journal.fail.store(true, Ordering::Relaxed);
+
+        runtime
+            .request_agent_tool_call(
+                &auth,
+                RequestAgentToolCallRequest {
+                    execution_id: "ae_tool_journal_failure".into(),
+                    tool_call_id: "tc_journal_failure".into(),
+                    tool_name: "knowledge.search".into(),
+                    arguments_payload: r#"{"query":"hello"}"#.into(),
+                },
+            )
+            .expect_err("journal failure must fail the tool-call request");
+
+        let tool_calls = runtime.tool_calls.lock_automation();
+        assert!(
+            tool_calls
+                .get(
+                    agent_tool_call_scope_key(
+                        "100001",
+                        "0",
+                        "user",
+                        "1",
+                        "ae_tool_journal_failure",
+                        "tc_journal_failure",
+                    )
+                    .as_str(),
+                )
+                .is_none()
+        );
     }
 }

@@ -5,8 +5,10 @@ data class ProblemDetail(
     val title: String? = null,
     val status: Int? = null,
     val detail: String? = null,
-    val code: String? = null,
-    val message: String? = null,
+    val instance: String? = null,
+    val code: Int? = null,
     val traceId: String? = null,
-    val retryable: Boolean? = null
+    val i18nKey: String? = null,
+    val locale: String? = null,
+    val errors: List<FieldError>? = null
 )

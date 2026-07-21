@@ -75,17 +75,16 @@ function formatCount(value: number): string {
   return String(Math.max(0, Math.round(value)));
 }
 
-function formatPercent(value: number): string {
+function formatPercent(value: number | null): string {
+  if (value === null) {
+    return '—';
+  }
   return `${Math.max(0, Math.min(100, Math.round(value)))}%`;
 }
 
-function resolveSystemLoad(health: UnknownRecord, diagnostics: UnknownRecord): number {
+function resolveSystemLoad(health: UnknownRecord): number | null {
   const direct = readNumber(health, ['systemLoad', 'loadPercent', 'cpuUsagePercent'], Number.NaN);
-  if (Number.isFinite(direct)) {
-    return direct;
-  }
-  const nodes = asRecordArray(diagnostics.clientRoutes);
-  return nodes.length > 0 ? Math.min(100, nodes.length * 8) : 0;
+  return Number.isFinite(direct) ? direct : null;
 }
 
 function resolveActiveConnections(health: UnknownRecord, cluster: UnknownRecord): number {
@@ -135,13 +134,26 @@ class AdminDashboardService {
     const normalizedDiagnostics = asRecord(diagnostics);
     const nodeCount = asRecordArray(normalizedCluster.nodes).length;
     const activeConnections = resolveActiveConnections(normalizedHealth, normalizedCluster);
-    const systemLoad = resolveSystemLoad(normalizedHealth, normalizedDiagnostics);
+    const systemLoad = resolveSystemLoad(normalizedHealth);
+    const activeTenants = readNumber(
+      normalizedHealth,
+      ['activeTenants', 'tenantCount'],
+      Number.NaN,
+    );
     const records = asRecordArray(asRecord(auditRecords).items);
 
     return {
       metrics: {
-        systemLoad: { value: formatPercent(systemLoad), trend: '', isUp: systemLoad < 80 },
-        activeTenants: { value: formatCount(readNumber(normalizedHealth, ['activeTenants', 'tenantCount'], 0)), trend: '', isUp: true },
+        systemLoad: {
+          value: formatPercent(systemLoad),
+          trend: '',
+          isUp: systemLoad !== null && systemLoad < 80,
+        },
+        activeTenants: {
+          value: Number.isFinite(activeTenants) ? formatCount(activeTenants) : '—',
+          trend: '',
+          isUp: Number.isFinite(activeTenants),
+        },
         activeConnections: { value: formatCount(activeConnections), trend: '', isUp: true },
         globalNodes: { value: String(nodeCount), trend: '', isUp: nodeCount > 0 },
       },

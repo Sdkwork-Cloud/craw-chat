@@ -12,6 +12,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as playwrightRunner from './sdkwork-im-pc-playwright-runner.mjs';
 import {
   assertPortAvailable,
+  findAvailablePort,
   probeHttp,
   stopServer,
   waitForOwnedHttpOk,
@@ -124,7 +125,10 @@ function isProcessAlive(pid) {
   }
 }
 
-function waitForProcessExit(child, timeoutMs = 10_000) {
+function waitForProcessExit(child, timeoutMs = 20_000, label = 'process') {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve([child.exitCode, child.signalCode]);
+  }
   return new Promise((resolve, reject) => {
     let timer;
     const finish = (error, result) => {
@@ -142,7 +146,7 @@ function waitForProcessExit(child, timeoutMs = 10_000) {
     child.once('error', onError);
     child.once('exit', onExit);
     timer = setTimeout(
-      () => finish(new Error(`process did not exit within ${timeoutMs}ms`)),
+      () => finish(new Error(`${label} ${child.pid} did not exit within ${timeoutMs}ms`)),
       timeoutMs,
     );
   });
@@ -217,6 +221,36 @@ function close(server) {
       resolve();
     });
   });
+}
+
+function listenOnPort(server, port, host = '127.0.0.1') {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, host, () => {
+      server.removeListener('error', reject);
+      resolve(server.address());
+    });
+  });
+}
+
+const allocatedPort = await findAvailablePort();
+assert.equal(Number.isSafeInteger(allocatedPort), true);
+assert.equal(allocatedPort > 0 && allocatedPort <= 65_535, true);
+const allocatedPortRebindServer = net.createServer();
+await listenOnPort(allocatedPortRebindServer, allocatedPort);
+await close(allocatedPortRebindServer);
+
+const allocationConflictServer = net.createServer();
+const allocationConflictAddress = await listen(allocationConflictServer);
+try {
+  const alternativePort = await findAvailablePort();
+  assert.notEqual(
+    alternativePort,
+    allocationConflictAddress.port,
+    'OS port allocation must not select a port that already has an exclusive listener',
+  );
+} finally {
+  await close(allocationConflictServer);
 }
 
 const occupiedServer = net.createServer();
@@ -337,6 +371,7 @@ windowsChild.killed = true;
 const taskkillCalls = [];
 await stopServer(windowsChild, {
   exitTimeoutMs: 50,
+  graceMs: 10,
   platform: 'win32',
   spawnSyncImpl(command, args) {
     taskkillCalls.push({ args, command });
@@ -348,6 +383,48 @@ assert.deepEqual(taskkillCalls, [{
   args: ['/PID', '9001', '/T', '/F'],
   command: 'taskkill.exe',
 }]);
+
+const gracefulWindowsChild = new FakeChild(9007);
+gracefulWindowsChild.kill = function kill(signal = 'SIGTERM') {
+  this.killed = true;
+  this.signals.push(signal);
+  this.finish(null, signal);
+  return true;
+};
+await stopServer(gracefulWindowsChild, {
+  exitTimeoutMs: 50,
+  graceMs: 50,
+  platform: 'win32',
+  spawnSyncImpl() {
+    throw new Error('taskkill must not run after graceful Windows child exit');
+  },
+});
+assert.deepEqual(gracefulWindowsChild.signals, ['SIGTERM']);
+
+const delayedWindowsExitChild = new FakeChild(9005);
+await stopServer(delayedWindowsExitChild, {
+  exitTimeoutMs: 10,
+  graceMs: 10,
+  platform: 'win32',
+  spawnSyncImpl() {
+    setTimeout(() => delayedWindowsExitChild.finish(null, 'SIGTERM'), 5);
+    return { error: Object.assign(new Error('taskkill timed out'), { code: 'ETIMEDOUT' }) };
+  },
+});
+
+const stuckWindowsChild = new FakeChild(9006);
+await assert.rejects(
+  stopServer(stuckWindowsChild, {
+    exitTimeoutMs: 10,
+    graceMs: 10,
+    platform: 'win32',
+    spawnSyncImpl() {
+      return { error: Object.assign(new Error('taskkill failed'), { code: 'EACCES' }) };
+    },
+  }),
+  /failed to invoke taskkill/u,
+  'a taskkill error must still fail cleanup when the owned child remains alive',
+);
 
 const unixChild = new FakeChild(9002);
 unixChild.killed = true;
@@ -595,6 +672,16 @@ assert.match(
   /runCommand[\s\S]*lifecycle\.track\s*\(/u,
   'the Playwright command child must be tracked in addition to the two HTTP servers',
 );
+assert.match(
+  e2eWrapperSource,
+  /configuredE2ePort\s*\?\?\s*await findAvailablePort/u,
+  'the Playwright gate must allocate its server port only when no explicit port is configured',
+);
+assert.match(
+  e2eWrapperSource,
+  /configuredComponentPort\s*\?\?\s*await findAvailablePort/u,
+  'the component gate must allocate its server port only when no explicit port is configured',
+);
 
 const runnerModuleUrl = pathToFileURL(
   path.join(scriptsDirectory, 'sdkwork-im-pc-playwright-runner.mjs'),
@@ -623,7 +710,9 @@ try {
       },
     ), { processGroup });
     process.send({ kind: 'ready', pid: child.pid });
-    await new Promise((resolve) => signal.addEventListener('abort', resolve, { once: true }));
+    if (!signal.aborted) {
+      await new Promise((resolve) => signal.addEventListener('abort', resolve, { once: true }));
+    }
   });
 } finally {
   process.removeListener('message', onMessage);
@@ -648,7 +737,15 @@ assert.equal(readyMessage.kind, 'ready');
 assert.equal(Number.isSafeInteger(readyMessage.pid), true);
 assert.equal(isProcessAlive(readyMessage.pid), true, 'the fixture grandchild must be live before signal cleanup');
 signalFixture.send({ signal: 'SIGTERM' });
-const [signalFixtureExitCode, signalFixtureExitSignal] = await waitForProcessExit(signalFixture);
+let signalFixtureExit;
+try {
+  signalFixtureExit = await waitForProcessExit(signalFixture, 20_000, 'signal fixture');
+} catch (error) {
+  throw new Error(`${error.message}\nsignal fixture stderr:\n${signalFixtureStderr}`, {
+    cause: error,
+  });
+}
+const [signalFixtureExitCode, signalFixtureExitSignal] = signalFixtureExit;
 assert.equal(signalFixtureExitSignal, null, signalFixtureStderr);
 assert.equal(signalFixtureExitCode, 143, signalFixtureStderr);
 await waitForCondition(() => !isProcessAlive(readyMessage.pid));
@@ -675,7 +772,11 @@ if (process.platform === 'win32') {
       'the hard-termination fixture child must be live before its parent is terminated',
     );
     hardTerminationFixture.kill('SIGTERM');
-    const [_exitCode, exitSignal] = await waitForProcessExit(hardTerminationFixture);
+    const [_exitCode, exitSignal] = await waitForProcessExit(
+      hardTerminationFixture,
+      20_000,
+      'hard termination fixture',
+    );
     assert.equal(exitSignal, 'SIGTERM', hardTerminationFixtureStderr);
     await waitForCondition(
       () => !isProcessAlive(hardTerminationReady.pid),

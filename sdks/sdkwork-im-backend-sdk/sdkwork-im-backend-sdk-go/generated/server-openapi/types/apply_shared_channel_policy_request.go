@@ -9,5 +9,5 @@ type ApplySharedChannelPolicyRequest struct {
 	EventId string `json:"eventId"`
 	HistoryVisibility string `json:"historyVisibility"`
 	PolicyId string `json:"policyId"`
-	PolicyVersion int `json:"policyVersion"`
+	PolicyVersion string `json:"policyVersion"`
 }

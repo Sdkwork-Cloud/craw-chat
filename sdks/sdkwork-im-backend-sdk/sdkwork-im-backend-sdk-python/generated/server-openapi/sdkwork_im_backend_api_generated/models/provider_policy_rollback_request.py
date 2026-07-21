@@ -5,4 +5,4 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 
 @dataclass
 class ProviderPolicyRollbackRequest:
-    target_version: int
+    target_version: str

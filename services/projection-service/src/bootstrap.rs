@@ -124,7 +124,6 @@ fn running_under_rust_test_harness() -> bool {
 }
 
 /// Whether `SDKWORK_IM_ENVIRONMENT` indicates production-like deployment (prod/staging/default).
-pub use im_app_context::is_production_like_im_environment;
 
 /// Whether projection may fall back to in-memory stores when Postgres bootstrap fails.
 ///
@@ -476,3 +475,5 @@ mod tests {
         assert!(!is_dev_or_test_environment());
     }
 }
+#[allow(unused_imports)]
+pub use im_app_context::is_production_like_im_environment;

@@ -177,10 +177,10 @@ fn main() {
         router_services.push((
             service_key.clone(),
             format!(
-                ".add_service({sdk_module}::{service_module}::{service_name}Server::new({adapter_name}::new(dispatcher.clone())))"
+                ".add_service({sdk_module}::{service_module}::{service_name}Server::new({adapter_name}::new(dispatcher.clone())).max_decoding_message_size(config.max_decoding_message_size).max_encoding_message_size(config.max_encoding_message_size))"
             ),
             format!(
-                ".add_service({sdk_module}::{service_module}::{service_name}Server::with_interceptor({adapter_name}::new(dispatcher.clone()), security.interceptor()))"
+                ".add_service(tonic::service::interceptor::InterceptedService::new({sdk_module}::{service_module}::{service_name}Server::new({adapter_name}::new(dispatcher.clone())).max_decoding_message_size(config.max_decoding_message_size).max_encoding_message_size(config.max_encoding_message_size), security.interceptor()))"
             ),
         ));
     }
@@ -213,7 +213,8 @@ fn main() {
     tonic_adapters.push_str(
         "    let mut server = tonic::transport::Server::builder().timeout(config.default_deadline.as_duration());\n",
     );
-    tonic_adapters.push_str("    let router = add_all_im_rpc_services(&mut server, dispatcher);\n");
+    tonic_adapters
+        .push_str("    let router = add_all_im_rpc_services(&mut server, dispatcher, config);\n");
     tonic_adapters.push_str("    if config.enable_health {\n");
     tonic_adapters.push_str("        router.add_service(crate::build_im_rpc_health_server())\n");
     tonic_adapters.push_str("    } else {\n");
@@ -242,7 +243,7 @@ fn main() {
     tonic_adapters.push_str("        tonic::transport::Server::builder().timeout(config.default_deadline.as_duration()),\n");
     tonic_adapters.push_str("        tls_config,\n");
     tonic_adapters.push_str("    )?;\n");
-    tonic_adapters.push_str("    let router = add_im_rpc_services_with_security(&mut server, dispatcher, service_keys, security);\n");
+    tonic_adapters.push_str("    let router = add_im_rpc_services_with_security(&mut server, dispatcher, service_keys, security, config);\n");
     tonic_adapters.push_str("    if config.enable_health {\n");
     tonic_adapters.push_str(
         "        Ok(router.add_service(tonic::service::interceptor::InterceptedService::new(\n",
@@ -266,8 +267,9 @@ fn main() {
     tonic_adapters.push_str(
         "    let mut server = tonic::transport::Server::builder().timeout(config.default_deadline.as_duration());\n",
     );
-    tonic_adapters
-        .push_str("    let router = add_im_rpc_services(&mut server, dispatcher, service_keys);\n");
+    tonic_adapters.push_str(
+        "    let router = add_im_rpc_services(&mut server, dispatcher, service_keys, config);\n",
+    );
     tonic_adapters.push_str("    if config.enable_health {\n");
     tonic_adapters.push_str("        router.add_service(crate::build_im_rpc_health_server())\n");
     tonic_adapters.push_str("    } else {\n");
@@ -278,17 +280,20 @@ fn main() {
     tonic_adapters.push_str("pub fn add_all_im_rpc_services<D>(\n");
     tonic_adapters.push_str("    server: &mut tonic::transport::Server,\n");
     tonic_adapters.push_str("    dispatcher: ::std::sync::Arc<D>,\n");
+    tonic_adapters.push_str("    config: &crate::ImRpcServerConfig,\n");
     tonic_adapters.push_str(") -> tonic::transport::server::Router\n");
     tonic_adapters.push_str("where\n");
     tonic_adapters.push_str("    D: crate::ImRpcRuntimeDispatcher,\n");
     tonic_adapters.push_str("{\n");
-    tonic_adapters.push_str("    add_im_rpc_services(server, dispatcher, IM_RPC_SERVICE_KEYS)\n");
+    tonic_adapters
+        .push_str("    add_im_rpc_services(server, dispatcher, IM_RPC_SERVICE_KEYS, config)\n");
     tonic_adapters.push_str("}\n\n");
 
     tonic_adapters.push_str("pub fn add_im_rpc_services<D>(\n");
     tonic_adapters.push_str("    server: &mut tonic::transport::Server,\n");
     tonic_adapters.push_str("    dispatcher: ::std::sync::Arc<D>,\n");
     tonic_adapters.push_str("    service_keys: &[&str],\n");
+    tonic_adapters.push_str("    config: &crate::ImRpcServerConfig,\n");
     tonic_adapters.push_str(") -> tonic::transport::server::Router\n");
     tonic_adapters.push_str("where\n");
     tonic_adapters.push_str("    D: crate::ImRpcRuntimeDispatcher,\n");
@@ -319,6 +324,7 @@ fn main() {
     tonic_adapters.push_str("    dispatcher: ::std::sync::Arc<D>,\n");
     tonic_adapters.push_str("    service_keys: &[&str],\n");
     tonic_adapters.push_str("    security: &sdkwork_rpc_server::RpcInternalServiceSecurity,\n");
+    tonic_adapters.push_str("    config: &crate::ImRpcServerConfig,\n");
     tonic_adapters.push_str(") -> tonic::transport::server::Router\n");
     tonic_adapters.push_str("where\n");
     tonic_adapters.push_str("    D: crate::ImRpcRuntimeDispatcher,\n");

@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-16
+Updated: 2026-07-21
 Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md, SECURITY_SPEC.md, DEPLOYMENT_SPEC.md, OBSERVABILITY_SPEC.md
 
 ## 1. System Overview
@@ -171,8 +171,8 @@ Contact directory and friend request management with `organization_id`-scoped qu
 | Service | Role |
 |---|---|
 | `projection-service` | Builds and serves read-model projections from journal events. |
-| `notification-service` | Push notification pipeline with outbox dispatch. |
-| `automation-service` | Agent/automation response lifecycle. |
+| `notification-service` | Durable notification request acceptance and cursor reads. Provider/device-token delivery is not implemented; requests remain `requested` until a real delivery worker and provider receipt authority exist. |
+| `automation-service` | Bounded agent/automation response lifecycle. Request acceptance creates `Requested`; response start creates `Running`; only real response completion creates `Succeeded`. A general target executor and crash-safe active-stream recovery remain release blockers. |
 | `audit-service` | Compliance audit trail. |
 | `governance-service` | Policy enforcement loop. |
 | `im-calls-service` | RTC call signaling lifecycle (`create`/`retrieve`/`invite`/`accept`/`reject`/`end`/`signals`/`credentials`), credential issuance, provider handoff to `../sdkwork-rtc`. **Architecture**: Uses `DashMap` for lock-free concurrent session storage with epoch-based fencing (`RtcSession.epoch: u64`) to reject stale concurrent writes. Each state transition increments epoch atomically via `AtomicU64::fetch_add`. Persistence layer (`RtcStateStore.save_state`) compares epoch before merging: higher epoch wins, equal epochs merge monotonically. Participant authorization enforced per SECURITY_SPEC §4.2. |
@@ -216,6 +216,18 @@ All organization-scoped tables enforce:
 3. Composite indexes prefixed with `(tenant_id, organization_id, ...)` — query performance
 4. Application-level contract test (`sdkwork-im-multi-tenant-isolation-contract.test.mjs`) validates SQL queries include `organization_id` filtering
 5. Projection stores scope every read/write by `(tenant_id, organization_id)` — the timeline/postgres projection port no longer hard-codes organization to `default`; cross-organization isolation is enforced at the store boundary (closes REVIEW-2026-0710 High: Projection tenant isolation)
+
+Notification projections and automation executions preserve tenant and organization scope in their durable keys and reads. PostgreSQL writes take transaction-scoped advisory locks before monotonic state merges so concurrent writers cannot regress a terminal state. Journal append and projection save are still separate commits for these services; recovery/materialization must therefore tolerate a committed event followed by a failed projection write. Automation active response streams and tool calls do not yet have durable claim/lease projections, so process-loss recovery is not production-complete.
+
+### 3.4 Bounded Operational State
+
+- Automation runtime budgets are fixed at 1,024 executions / 64 MiB, 256 response streams / 64 MiB, 1,024 frames and 16 MiB per response, and 1,024 tool calls / 64 MiB. Terminal entries expire after 15 minutes and are evicted deterministically; active entries are retained and new work fails closed at capacity.
+- Local JSON stores use bounded streaming serialization, refuse files larger than 32 MiB, and cap notification/automation indexes at 50,000 records. They are allowed only in `dev` and `test`; production requires PostgreSQL.
+- Ops lag, provider-binding, and drift endpoints use resource-bound base64url cursors and keyset pagination with `page_size` 1-200. They return `data.items` plus `data.pageInfo`; unknown aliases such as `limit` or URL `pageSize` fail with HTTP 400.
+- Projection contacts, inbox, member-directory, pinned-message, and favorite-message cursors are opaque keysets in every environment. Numeric offset parsing and the corresponding O(n) skip branches have been removed rather than retained as pre-launch compatibility.
+- Ops diagnostic bundles cap each collection at 200 entries and expose totals/truncation rather than allocating unbounded response snapshots.
+- Governance node inspection uses the RouteStore owner index through a bounded internal keyset page. Ops stores only the 200-entry diagnostic window plus the authoritative node route total; cluster counts remain exact and diagnostic truncation is explicit. Graceful shutdown fences and releases at most 256 routes per batch, and node-runtime cleanup plus Redis/PostgreSQL mirror scans use at most 1,000 routes per page. Node migration still moves realtime runtime state before one all-route commit and rewrites every target-node mirror entry; it is not approved for million-route operation until a bounded, durable, failure-recoverable migration protocol replaces that traversal.
+- Provider-binding mirror rebuilds scan the ordered tenant-override index in 1,000-entry keyset pages and stream entries into the replacement BTreeMap, eliminating the previous all-tenant ID Vec plus all-snapshot Vec. The provider policy registry and policy history remain process-local full snapshots without a production quota/durable authority; that separate issue blocks commercial sign-off.
 
 ## 4. WebSocket / Realtime Architecture
 
@@ -410,6 +422,7 @@ must be supplied by the owning environment before activation.
 ### 6.3 Database
 
 - **PostgreSQL**: Production, staging, and default development IM persistence authority (schema in `database/ddl/baseline/postgres/`)
+- **Current pre-GA migration state**: local status reports 8 pending migrations and 72 error-level drift differences. Production migration approval is blocked until those differences are classified and resolved against the authority; applying migrations merely to make a drift report disappear is forbidden.
 - **Stream authority**: `im_stream_sessions` is versioned by `(tenant_id, organization_id, stream_id)` and `im_stream_frames` is append-only by frame sequence. Create capacity checks serialize per tenant/organization, append locks the session row and commits the new frame plus session high-water mark atomically, state transitions use bounded compare-and-set retries, and frame history is read with SQL keyset `LIMIT`. The runtime keeps no unbounded stream snapshot cache and never reloads or rewrites all frames for a mutation. `/readyz` probes the authoritative store; `/metrics` exports low-cardinality append latency, CAS conflict, retry exhaustion, capacity rejection, store failure, readiness failure, and bounded page-volume counters.
 - **Server SQLite compatibility baseline**: Lifecycle validation and standalone gateway/sibling-module co-location checks only (schema in `database/ddl/baseline/sqlite/`); it is not PostgreSQL parity, and IM journal, projections, social materializer, and message search do not use SQLite as production persistence
 - **PC desktop SQLite**: A separate application-data database owned by the Tauri host is a bounded offline cache and pending-send queue, never a server source of truth. Schema v3 scopes every row by tenant, organization, principal kind, and principal id. Conversation, message, and cursor cache rows have TTL, row-count, and logical-byte budgets; pending sends have separate row/byte limits, a 60-second claim lease, claim-token fenced acknowledge/release/quarantine transitions, and a bounded 30-day corrupt-payload quarantine.
@@ -426,9 +439,11 @@ must be supplied by the owning environment before activation.
 - Pre-GA migrations in `database/migrations/{postgres,sqlite}/` currently cover conversation-id rewriting,
   managed group Knowledgebase binding, and Stream transactional authority/version indexing; baseline DDL
   remains the greenfield authority
-- All migrations are idempotent and safe to re-execute
+- Migration files are required to be idempotent, but the current database reports 8 pending migrations and 72 error-level drift differences. Re-execution safety and upgrade/rollback order must be established against a disposable, migration-complete PostgreSQL instance before production approval; it is not inferred from file naming or static SQL inspection.
 
 ## 7. Observability
+
+Automation `/metrics` exports low-cardinality capacity rejection and terminal eviction counters, current resident-entry/estimated-byte gauges, and journal append failure counters. Labels are restricted to fixed resource/reason vocabularies. Push-provider delivery metrics remain unavailable because the provider delivery plane is not implemented; dashboards and SLOs must not claim delivery coverage.
 
 - **Tracing**: `tracing` crate with `tracing-subscriber` env-filter
 - **Structured Events**: All gateway events use `target: "sdkwork.im.gateway"` with structured fields

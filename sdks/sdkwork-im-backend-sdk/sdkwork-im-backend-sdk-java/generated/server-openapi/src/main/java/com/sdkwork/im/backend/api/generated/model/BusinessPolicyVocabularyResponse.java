@@ -13,7 +13,7 @@ public class BusinessPolicyVocabularyResponse {
     public String getCapabilityFlagsField() {
         return this.capabilityFlagsField;
     }
-    
+
     public void setCapabilityFlagsField(String capabilityFlagsField) {
         this.capabilityFlagsField = capabilityFlagsField;
     }
@@ -21,7 +21,7 @@ public class BusinessPolicyVocabularyResponse {
     public String getHistoryVisibilityField() {
         return this.historyVisibilityField;
     }
-    
+
     public void setHistoryVisibilityField(String historyVisibilityField) {
         this.historyVisibilityField = historyVisibilityField;
     }
@@ -29,7 +29,7 @@ public class BusinessPolicyVocabularyResponse {
     public List<String> getHistoryVisibilityModes() {
         return this.historyVisibilityModes;
     }
-    
+
     public void setHistoryVisibilityModes(List<String> historyVisibilityModes) {
         this.historyVisibilityModes = historyVisibilityModes;
     }
@@ -37,7 +37,7 @@ public class BusinessPolicyVocabularyResponse {
     public String getPolicyVersionField() {
         return this.policyVersionField;
     }
-    
+
     public void setPolicyVersionField(String policyVersionField) {
         this.policyVersionField = policyVersionField;
     }
@@ -45,7 +45,7 @@ public class BusinessPolicyVocabularyResponse {
     public String getRetentionPolicyRefField() {
         return this.retentionPolicyRefField;
     }
-    
+
     public void setRetentionPolicyRefField(String retentionPolicyRefField) {
         this.retentionPolicyRefField = retentionPolicyRefField;
     }
@@ -53,7 +53,7 @@ public class BusinessPolicyVocabularyResponse {
     public List<String> getRetentionPolicyScopes() {
         return this.retentionPolicyScopes;
     }
-    
+
     public void setRetentionPolicyScopes(List<String> retentionPolicyScopes) {
         this.retentionPolicyScopes = retentionPolicyScopes;
     }

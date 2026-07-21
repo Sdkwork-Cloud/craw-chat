@@ -108,8 +108,10 @@ fn test_notification_service_cache_keys_are_length_prefixed() {
         "notification-service should use length-prefixed cache keys for internal notification indexes"
     );
     assert!(
-        source.contains("scope_key_parts(&[tenant_id, recipient_kind, recipient_id])"),
-        "notification recipient cache key should encode tenant_id, recipient_kind, and recipient_id as separate length-prefixed segments"
+        source.contains(
+            "scope_key_parts(&[tenant_id, organization_id, recipient_kind, recipient_id])"
+        ),
+        "notification recipient cache key should encode tenant, organization, recipient kind, and recipient id as separate length-prefixed segments"
     );
     assert!(
         !source.contains("format!(\"{tenant_id}:{notification_id}\")"),

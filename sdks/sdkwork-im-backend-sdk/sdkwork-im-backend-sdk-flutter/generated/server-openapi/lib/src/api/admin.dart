@@ -1,6 +1,9 @@
+import 'dart:convert';
 import '../http/client.dart';
+import '../models.dart';
 
 import 'paths.dart';
+import 'response_helpers.dart';
 
 
 class AdminApi {
@@ -9,304 +12,606 @@ class AdminApi {
   AdminApi(this._client);
 
   /// listApiKeyGroups
-  Future<dynamic> apiKeyGroupsList() async {
-    return _client.get(ApiPaths.backendPath('/admin/api_key_groups'));
+  Future<SdkWorkListResponse?> apiKeyGroupsList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/api_key_groups'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// createApiKeyGroup
-  Future<dynamic> apiKeyGroupsCreate(Map<String, dynamic> body) async {
+  Future<ApiKeyGroupsCreateResponse201?> apiKeyGroupsCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/api_key_groups'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/api_key_groups'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ApiKeyGroupsCreateResponse201.fromJson(map);
+    })();
   }
 
   /// updateApiKeyGroup
-  Future<dynamic> apiKeyGroupsUpdate(String groupId, Map<String, dynamic> body) async {
+  Future<ApiKeyGroupsUpdateResponse?> apiKeyGroupsUpdate(String groupId, Map<String, dynamic> body) async {
     final payload = body;
-    return _client.patch(ApiPaths.backendPath('/admin/api_key_groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}'), body: payload, contentType: 'application/json');
+    final response = await _client.patch(ApiPaths.backendPath('/admin/api_key_groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ApiKeyGroupsUpdateResponse.fromJson(map);
+    })();
   }
 
   /// deleteApiKeyGroup
-  Future<dynamic> apiKeyGroupsDelete(String groupId) async {
-    return _client.delete(ApiPaths.backendPath('/admin/api_key_groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}'));
+  Future<void> apiKeyGroupsDelete(String groupId) async {
+    await _client.delete(ApiPaths.backendPath('/admin/api_key_groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}'));
   }
 
   /// updateApiKeyGroupStatus
-  Future<dynamic> apiKeyGroupsStatus(String groupId, Map<String, dynamic> body) async {
+  Future<ApiKeyGroupsStatusResponse?> apiKeyGroupsStatus(String groupId, Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/api_key_groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}/status'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/api_key_groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}/status'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ApiKeyGroupsStatusResponse.fromJson(map);
+    })();
   }
 
   /// listApiKeys
-  Future<dynamic> apiKeysList() async {
-    return _client.get(ApiPaths.backendPath('/admin/api_keys'));
+  Future<SdkWorkListResponse?> apiKeysList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/api_keys'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// createApiKey
-  Future<dynamic> apiKeysCreate(Map<String, dynamic> body) async {
+  Future<ApiKeysCreateResponse201?> apiKeysCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/api_keys'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/api_keys'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ApiKeysCreateResponse201.fromJson(map);
+    })();
   }
 
   /// updateApiKey
-  Future<dynamic> apiKeysUpdate(String hashedKey, Map<String, dynamic> body) async {
+  Future<ApiKeysUpdateResponse?> apiKeysUpdate(String hashedKey, Map<String, dynamic> body) async {
     final payload = body;
-    return _client.put(ApiPaths.backendPath('/admin/api_keys/${serializePathParameter(hashedKey, const PathParameterSpec('hashedKey', 'simple', false))}'), body: payload, contentType: 'application/json');
+    final response = await _client.put(ApiPaths.backendPath('/admin/api_keys/${serializePathParameter(hashedKey, const PathParameterSpec('hashedKey', 'simple', false))}'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ApiKeysUpdateResponse.fromJson(map);
+    })();
   }
 
   /// deleteApiKey
-  Future<dynamic> apiKeysDelete(String hashedKey) async {
-    return _client.delete(ApiPaths.backendPath('/admin/api_keys/${serializePathParameter(hashedKey, const PathParameterSpec('hashedKey', 'simple', false))}'));
+  Future<void> apiKeysDelete(String hashedKey) async {
+    await _client.delete(ApiPaths.backendPath('/admin/api_keys/${serializePathParameter(hashedKey, const PathParameterSpec('hashedKey', 'simple', false))}'));
   }
 
   /// updateApiKeyStatus
-  Future<dynamic> apiKeysStatus(String hashedKey, Map<String, dynamic> body) async {
+  Future<ApiKeysStatusResponse?> apiKeysStatus(String hashedKey, Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/api_keys/${serializePathParameter(hashedKey, const PathParameterSpec('hashedKey', 'simple', false))}/status'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/api_keys/${serializePathParameter(hashedKey, const PathParameterSpec('hashedKey', 'simple', false))}/status'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ApiKeysStatusResponse.fromJson(map);
+    })();
   }
 
   /// listBillingEvents
-  Future<dynamic> billingEventsList() async {
-    return _client.get(ApiPaths.backendPath('/admin/billing/events'));
+  Future<SdkWorkListResponse?> billingEventsList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/billing/events'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// getBillingEventSummary
-  Future<dynamic> billingEventsSummaryRetrieve() async {
-    return _client.get(ApiPaths.backendPath('/admin/billing/events/summary'));
+  Future<BillingEventsSummaryRetrieveResponse?> billingEventsSummaryRetrieve() async {
+    final response = await _client.get(ApiPaths.backendPath('/admin/billing/events/summary'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BillingEventsSummaryRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// getBillingSummary
-  Future<dynamic> billingSummaryRetrieve() async {
-    return _client.get(ApiPaths.backendPath('/admin/billing/summary'));
+  Future<BillingSummaryRetrieveResponse?> billingSummaryRetrieve() async {
+    final response = await _client.get(ApiPaths.backendPath('/admin/billing/summary'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BillingSummaryRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// listChannelModels
-  Future<dynamic> channelModelsList() async {
-    return _client.get(ApiPaths.backendPath('/admin/channel_models'));
+  Future<SdkWorkListResponse?> channelModelsList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/channel_models'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// saveChannelModel
-  Future<dynamic> channelModelsCreate(Map<String, dynamic> body) async {
+  Future<ChannelModelsCreateResponse201?> channelModelsCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/channel_models'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/channel_models'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ChannelModelsCreateResponse201.fromJson(map);
+    })();
   }
 
   /// deleteChannelModel
-  Future<dynamic> channelModelsDelete(String channelId, String modelId) async {
-    return _client.delete(ApiPaths.backendPath('/admin/channel_models/${serializePathParameter(channelId, const PathParameterSpec('channelId', 'simple', false))}/models/${serializePathParameter(modelId, const PathParameterSpec('modelId', 'simple', false))}'));
+  Future<void> channelModelsDelete(String channelId, String modelId) async {
+    await _client.delete(ApiPaths.backendPath('/admin/channel_models/${serializePathParameter(channelId, const PathParameterSpec('channelId', 'simple', false))}/models/${serializePathParameter(modelId, const PathParameterSpec('modelId', 'simple', false))}'));
   }
 
   /// listChannels
-  Future<dynamic> channelsList() async {
-    return _client.get(ApiPaths.backendPath('/admin/channels'));
+  Future<SdkWorkListResponse?> channelsList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/channels'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// saveChannel
-  Future<dynamic> channelsCreate(Map<String, dynamic> body) async {
+  Future<ChannelsCreateResponse201?> channelsCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/channels'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/channels'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ChannelsCreateResponse201.fromJson(map);
+    })();
   }
 
   /// deleteChannel
-  Future<dynamic> channelsDelete(String channelId) async {
-    return _client.delete(ApiPaths.backendPath('/admin/channels/${serializePathParameter(channelId, const PathParameterSpec('channelId', 'simple', false))}'));
+  Future<void> channelsDelete(String channelId) async {
+    await _client.delete(ApiPaths.backendPath('/admin/channels/${serializePathParameter(channelId, const PathParameterSpec('channelId', 'simple', false))}'));
   }
 
   /// listCredentials
-  Future<dynamic> credentialsList() async {
-    return _client.get(ApiPaths.backendPath('/admin/credentials'));
+  Future<SdkWorkListResponse?> credentialsList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/credentials'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// saveCredential
-  Future<dynamic> credentialsCreate(Map<String, dynamic> body) async {
+  Future<CredentialsCreateResponse201?> credentialsCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/credentials'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/credentials'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : CredentialsCreateResponse201.fromJson(map);
+    })();
   }
 
   /// deleteCredential
-  Future<dynamic> credentialsProvidersKeysDelete(String tenantId, String providerId, String keyReference) async {
-    return _client.delete(ApiPaths.backendPath('/admin/credentials/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}/providers/${serializePathParameter(providerId, const PathParameterSpec('providerId', 'simple', false))}/keys/${serializePathParameter(keyReference, const PathParameterSpec('keyReference', 'simple', false))}'));
+  Future<void> credentialsProvidersKeysDelete(String tenantId, String providerId, String keyReference) async {
+    await _client.delete(ApiPaths.backendPath('/admin/credentials/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}/providers/${serializePathParameter(providerId, const PathParameterSpec('providerId', 'simple', false))}/keys/${serializePathParameter(keyReference, const PathParameterSpec('keyReference', 'simple', false))}'));
   }
 
   /// reloadExtensionRuntimes
-  Future<dynamic> extensionsRuntimeReloadsCreate(Map<String, dynamic> body) async {
+  Future<ExtensionsRuntimeReloadsCreateResponse201?> extensionsRuntimeReloadsCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/extensions/runtime_reloads'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/extensions/runtime_reloads'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ExtensionsRuntimeReloadsCreateResponse201.fromJson(map);
+    })();
   }
 
   /// listRuntimeStatuses
-  Future<dynamic> extensionsRuntimeStatusesList() async {
-    return _client.get(ApiPaths.backendPath('/admin/extensions/runtime_statuses'));
+  Future<SdkWorkListResponse?> extensionsRuntimeStatusesList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/extensions/runtime_statuses'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// listRateLimitPolicies
-  Future<dynamic> gatewayRateLimitPoliciesList() async {
-    return _client.get(ApiPaths.backendPath('/admin/gateway/rate_limit_policies'));
+  Future<SdkWorkListResponse?> gatewayRateLimitPoliciesList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/gateway/rate_limit_policies'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// createRateLimitPolicy
-  Future<dynamic> gatewayRateLimitPoliciesCreate(Map<String, dynamic> body) async {
+  Future<GatewayRateLimitPoliciesCreateResponse201?> gatewayRateLimitPoliciesCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/gateway/rate_limit_policies'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/gateway/rate_limit_policies'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : GatewayRateLimitPoliciesCreateResponse201.fromJson(map);
+    })();
   }
 
   /// listRateLimitWindows
-  Future<dynamic> gatewayRateLimitWindowsList() async {
-    return _client.get(ApiPaths.backendPath('/admin/gateway/rate_limit_windows'));
+  Future<SdkWorkListResponse?> gatewayRateLimitWindowsList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/gateway/rate_limit_windows'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// listMarketingCampaigns
-  Future<dynamic> marketingCampaignsList() async {
-    return _client.get(ApiPaths.backendPath('/admin/marketing/campaigns'));
+  Future<SdkWorkListResponse?> marketingCampaignsList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/marketing/campaigns'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// saveMarketingCampaign
-  Future<dynamic> marketingCampaignsCreate(Map<String, dynamic> body) async {
+  Future<MarketingCampaignsCreateResponse201?> marketingCampaignsCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/marketing/campaigns'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/marketing/campaigns'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : MarketingCampaignsCreateResponse201.fromJson(map);
+    })();
   }
 
   /// updateMarketingCampaignStatus
-  Future<dynamic> marketingCampaignsStatus(String marketingCampaignId, Map<String, dynamic> body) async {
+  Future<MarketingCampaignsStatusResponse?> marketingCampaignsStatus(String marketingCampaignId, Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/marketing/campaigns/${serializePathParameter(marketingCampaignId, const PathParameterSpec('marketingCampaignId', 'simple', false))}/status'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/marketing/campaigns/${serializePathParameter(marketingCampaignId, const PathParameterSpec('marketingCampaignId', 'simple', false))}/status'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : MarketingCampaignsStatusResponse.fromJson(map);
+    })();
   }
 
   /// listModelPrices
-  Future<dynamic> modelPricesList() async {
-    return _client.get(ApiPaths.backendPath('/admin/model_prices'));
+  Future<SdkWorkListResponse?> modelPricesList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/model_prices'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// saveModelPrice
-  Future<dynamic> modelPricesCreate(Map<String, dynamic> body) async {
+  Future<ModelPricesCreateResponse201?> modelPricesCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/model_prices'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/model_prices'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ModelPricesCreateResponse201.fromJson(map);
+    })();
   }
 
   /// deleteModelPrice
-  Future<dynamic> modelPricesProvidersDelete(String channelId, String modelId, String proxyProviderId) async {
-    return _client.delete(ApiPaths.backendPath('/admin/model_prices/${serializePathParameter(channelId, const PathParameterSpec('channelId', 'simple', false))}/models/${serializePathParameter(modelId, const PathParameterSpec('modelId', 'simple', false))}/providers/${serializePathParameter(proxyProviderId, const PathParameterSpec('proxyProviderId', 'simple', false))}'));
+  Future<void> modelPricesProvidersDelete(String channelId, String modelId, String proxyProviderId) async {
+    await _client.delete(ApiPaths.backendPath('/admin/model_prices/${serializePathParameter(channelId, const PathParameterSpec('channelId', 'simple', false))}/models/${serializePathParameter(modelId, const PathParameterSpec('modelId', 'simple', false))}/providers/${serializePathParameter(proxyProviderId, const PathParameterSpec('proxyProviderId', 'simple', false))}'));
   }
 
   /// listModels
-  Future<dynamic> modelsList() async {
-    return _client.get(ApiPaths.backendPath('/admin/models'));
+  Future<SdkWorkListResponse?> modelsList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/models'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// saveModel
-  Future<dynamic> modelsCreate(Map<String, dynamic> body) async {
+  Future<ModelsCreateResponse201?> modelsCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/models'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/models'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ModelsCreateResponse201.fromJson(map);
+    })();
   }
 
   /// deleteModel
-  Future<dynamic> modelsProvidersDelete(String externalName, String providerId) async {
-    return _client.delete(ApiPaths.backendPath('/admin/models/${serializePathParameter(externalName, const PathParameterSpec('externalName', 'simple', false))}/providers/${serializePathParameter(providerId, const PathParameterSpec('providerId', 'simple', false))}'));
+  Future<void> modelsProvidersDelete(String externalName, String providerId) async {
+    await _client.delete(ApiPaths.backendPath('/admin/models/${serializePathParameter(externalName, const PathParameterSpec('externalName', 'simple', false))}/providers/${serializePathParameter(providerId, const PathParameterSpec('providerId', 'simple', false))}'));
   }
 
   /// listProviders
-  Future<dynamic> providersList() async {
-    return _client.get(ApiPaths.backendPath('/admin/providers'));
+  Future<SdkWorkListResponse?> providersList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/providers'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// saveProvider
-  Future<dynamic> providersCreate(Map<String, dynamic> body) async {
+  Future<ProvidersCreateResponse201?> providersCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/providers'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/providers'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ProvidersCreateResponse201.fromJson(map);
+    })();
   }
 
   /// deleteProvider
-  Future<dynamic> providersDelete(String providerId) async {
-    return _client.delete(ApiPaths.backendPath('/admin/providers/${serializePathParameter(providerId, const PathParameterSpec('providerId', 'simple', false))}'));
+  Future<void> providersDelete(String providerId) async {
+    await _client.delete(ApiPaths.backendPath('/admin/providers/${serializePathParameter(providerId, const PathParameterSpec('providerId', 'simple', false))}'));
   }
 
   /// listRoutingDecisionLogs
-  Future<dynamic> routingDecisionLogsList() async {
-    return _client.get(ApiPaths.backendPath('/admin/routing/decision_logs'));
+  Future<SdkWorkListResponse?> routingDecisionLogsList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/routing/decision_logs'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// listProviderHealthSnapshots
-  Future<dynamic> routingHealthSnapshotsRetrieve() async {
-    return _client.get(ApiPaths.backendPath('/admin/routing/health_snapshots'));
+  Future<RoutingHealthSnapshotsRetrieveResponse?> routingHealthSnapshotsRetrieve() async {
+    final response = await _client.get(ApiPaths.backendPath('/admin/routing/health_snapshots'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : RoutingHealthSnapshotsRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// listRoutingProfiles
-  Future<dynamic> routingProfilesList() async {
-    return _client.get(ApiPaths.backendPath('/admin/routing/profiles'));
+  Future<SdkWorkListResponse?> routingProfilesList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/routing/profiles'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// createRoutingProfile
-  Future<dynamic> routingProfilesCreate(Map<String, dynamic> body) async {
+  Future<RoutingProfilesCreateResponse201?> routingProfilesCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/routing/profiles'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/routing/profiles'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : RoutingProfilesCreateResponse201.fromJson(map);
+    })();
   }
 
   /// listCompiledRoutingSnapshots
-  Future<dynamic> routingSnapshotsList() async {
-    return _client.get(ApiPaths.backendPath('/admin/routing/snapshots'));
+  Future<SdkWorkListResponse?> routingSnapshotsList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/routing/snapshots'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// listStorageAuditTrail
-  Future<dynamic> storageAuditList() async {
-    return _client.get(ApiPaths.backendPath('/admin/storage/audit'));
+  Future<SdkWorkListResponse?> storageAuditList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/storage/audit'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// getGlobalStorageConfig
-  Future<dynamic> storageConfigRetrieve() async {
-    return _client.get(ApiPaths.backendPath('/admin/storage/config'));
+  Future<StorageConfigRetrieveResponse?> storageConfigRetrieve() async {
+    final response = await _client.get(ApiPaths.backendPath('/admin/storage/config'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : StorageConfigRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// saveGlobalStorageConfig
-  Future<dynamic> storageConfigCreate(Map<String, dynamic> body) async {
+  Future<StorageConfigCreateResponse201?> storageConfigCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/storage/config'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/storage/config'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : StorageConfigCreateResponse201.fromJson(map);
+    })();
   }
 
   /// getTenantStorageConfig
-  Future<dynamic> storageConfigTenantsRetrieve(String tenantId) async {
-    return _client.get(ApiPaths.backendPath('/admin/storage/config/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}'));
+  Future<StorageConfigTenantsRetrieveResponse?> storageConfigTenantsRetrieve(String tenantId) async {
+    final response = await _client.get(ApiPaths.backendPath('/admin/storage/config/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : StorageConfigTenantsRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// saveTenantStorageConfig
-  Future<dynamic> storageConfigTenantsCreate(String tenantId, Map<String, dynamic> body) async {
+  Future<StorageConfigTenantsCreateResponse201?> storageConfigTenantsCreate(String tenantId, Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/storage/config/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/storage/config/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : StorageConfigTenantsCreateResponse201.fromJson(map);
+    })();
   }
 
   /// deleteTenantStorageConfig
-  Future<dynamic> storageConfigTenantsDelete(String tenantId) async {
-    return _client.delete(ApiPaths.backendPath('/admin/storage/config/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}'));
+  Future<void> storageConfigTenantsDelete(String tenantId) async {
+    await _client.delete(ApiPaths.backendPath('/admin/storage/config/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}'));
   }
 
   /// getTenantEffectiveStorageConfig
-  Future<dynamic> storageEffectiveTenantsRetrieve(String tenantId) async {
-    return _client.get(ApiPaths.backendPath('/admin/storage/effective/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}'));
+  Future<StorageEffectiveTenantsRetrieveResponse?> storageEffectiveTenantsRetrieve(String tenantId) async {
+    final response = await _client.get(ApiPaths.backendPath('/admin/storage/effective/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : StorageEffectiveTenantsRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// listStorageProviders
-  Future<dynamic> storageProvidersList() async {
-    return _client.get(ApiPaths.backendPath('/admin/storage/providers'));
+  Future<SdkWorkListResponse?> storageProvidersList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/storage/providers'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// validateGlobalStorageConfig
-  Future<dynamic> storageValidationCreate(Map<String, dynamic> body) async {
+  Future<StorageValidationCreateResponse201?> storageValidationCreate(Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/storage/validate'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/storage/validate'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : StorageValidationCreateResponse201.fromJson(map);
+    })();
   }
 
   /// validateTenantStorageConfig
-  Future<dynamic> storageValidationTenantsCreate(String tenantId, Map<String, dynamic> body) async {
+  Future<StorageValidationTenantsCreateResponse201?> storageValidationTenantsCreate(String tenantId, Map<String, dynamic> body) async {
     final payload = body;
-    return _client.post(ApiPaths.backendPath('/admin/storage/validate/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}'), body: payload, contentType: 'application/json');
+    final response = await _client.post(ApiPaths.backendPath('/admin/storage/validate/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : StorageValidationTenantsCreateResponse201.fromJson(map);
+    })();
   }
 
   /// listUsageRecords
-  Future<dynamic> usageRecordsList() async {
-    return _client.get(ApiPaths.backendPath('/admin/usage/records'));
+  Future<SdkWorkListResponse?> usageRecordsList([int? pageSize, String? cursor, int? page, String? q]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.backendPath('/admin/usage/records'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
+    })();
   }
 
   /// getUsageSummary
-  Future<dynamic> usageSummaryRetrieve() async {
-    return _client.get(ApiPaths.backendPath('/admin/usage/summary'));
+  Future<UsageSummaryRetrieveResponse?> usageSummaryRetrieve() async {
+    final response = await _client.get(ApiPaths.backendPath('/admin/usage/summary'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : UsageSummaryRetrieveResponse.fromJson(map);
+    })();
   }
 }
 
@@ -381,3 +686,135 @@ String pathPrefix(String name, String style) {
 String pathPrimitivePrefix(String name, String style) {
   return style == 'matrix' ? ';$name=' : pathPrefix(name, style);
 }
+class QueryParameterSpec {
+  final String name;
+  final dynamic value;
+  final String style;
+  final bool explode;
+  final bool allowReserved;
+  final String? contentType;
+
+  const QueryParameterSpec(
+    this.name,
+    this.value,
+    this.style,
+    this.explode,
+    this.allowReserved,
+    this.contentType,
+  );
+}
+
+String buildQueryString(List<QueryParameterSpec> parameters) {
+  final pairs = <String>[];
+  for (final parameter in parameters) {
+    appendSerializedParameter(pairs, parameter);
+  }
+  return pairs.join('&');
+}
+
+void appendSerializedParameter(List<String> pairs, QueryParameterSpec parameter) {
+  final value = parameter.value;
+  if (value == null) return;
+
+  final contentType = parameter.contentType;
+  if (contentType != null && contentType.trim().isNotEmpty) {
+    pairs.add('${urlEncode(parameter.name)}=${encodeQueryValue(jsonEncode(value), parameter.allowReserved)}');
+    return;
+  }
+
+  final style = parameter.style.trim().isEmpty ? 'form' : parameter.style;
+  if (style == 'deepObject' && value is Map) {
+    appendDeepObjectParameter(pairs, parameter.name, value, parameter.allowReserved);
+    return;
+  }
+  if (value is Iterable) {
+    appendArrayParameter(pairs, parameter.name, value, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+  if (value is Map) {
+    appendObjectParameter(pairs, parameter.name, value, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+  pairs.add('${urlEncode(parameter.name)}=${encodeQueryValue(value.toString(), parameter.allowReserved)}');
+}
+
+void appendArrayParameter(
+  List<String> pairs,
+  String name,
+  Iterable values,
+  String style,
+  bool explode,
+  bool allowReserved,
+) {
+  final serialized = values.where((item) => item != null).map((item) => item.toString()).toList();
+  if (serialized.isEmpty) return;
+  if (style == 'form' && explode) {
+    for (final item in serialized) {
+      pairs.add('${urlEncode(name)}=${encodeQueryValue(item, allowReserved)}');
+    }
+    return;
+  }
+  pairs.add('${urlEncode(name)}=${encodeQueryValue(serialized.join(','), allowReserved)}');
+}
+
+void appendObjectParameter(
+  List<String> pairs,
+  String name,
+  Map values,
+  String style,
+  bool explode,
+  bool allowReserved,
+) {
+  final serialized = <String>[];
+  values.forEach((key, value) {
+    if (value == null) return;
+    if (style == 'form' && explode) {
+      pairs.add('${urlEncode(key.toString())}=${encodeQueryValue(value.toString(), allowReserved)}');
+      return;
+    }
+    serialized.add(key.toString());
+    serialized.add(value.toString());
+  });
+  if (serialized.isNotEmpty) {
+    pairs.add('${urlEncode(name)}=${encodeQueryValue(serialized.join(','), allowReserved)}');
+  }
+}
+
+void appendDeepObjectParameter(List<String> pairs, String name, Map values, bool allowReserved) {
+  values.forEach((key, value) {
+    if (value != null) {
+      pairs.add('${urlEncode('$name[$key]')}=${encodeQueryValue(value.toString(), allowReserved)}');
+    }
+  });
+}
+
+String encodeQueryValue(String value, bool allowReserved) {
+  var encoded = urlEncode(value);
+  if (!allowReserved) return encoded;
+  const replacements = <String, String>{
+    '%3A': ':',
+    '%2F': '/',
+    '%3F': '?',
+    '%23': '#',
+    '%5B': '[',
+    '%5D': ']',
+    '%40': '@',
+    '%21': '!',
+    '%24': r'$',
+    '%26': '&',
+    '%27': "'",
+    '%28': '(',
+    '%29': ')',
+    '%2A': '*',
+    '%2B': '+',
+    '%2C': ',',
+    '%3B': ';',
+    '%3D': '=',
+  };
+  replacements.forEach((escaped, reserved) {
+    encoded = encoded.replaceAll(escaped, reserved);
+  });
+  return encoded;
+}
+
+String urlEncode(String value) => Uri.encodeQueryComponent(value);

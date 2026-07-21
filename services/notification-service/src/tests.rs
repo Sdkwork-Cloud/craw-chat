@@ -19,6 +19,7 @@ fn notification_task_record(
 ) -> NotificationTaskRecord {
     NotificationTaskRecord {
         tenant_id: "100001".into(),
+        organization_id: "0".into(),
         notification_id: notification_id.into(),
         task: NotificationTask {
             tenant_id: "100001".into(),
@@ -67,16 +68,16 @@ fn poison_mutex<T>(mutex: &Mutex<T>) {
 }
 
 #[test]
-fn test_notification_runtime_uses_recipient_index_for_listing() {
+fn test_notification_runtime_delegates_listing_to_bounded_store_page() {
     let source = include_str!("state.rs").replace("\r\n", "\n");
 
     assert!(
-        source.contains("tasks_by_recipient: NotificationRecipientIndex"),
-        "notification runtime should maintain a sorted tenant/recipient task index"
+        source.contains(".list_tasks_for_recipient_page("),
+        "notification runtime should delegate listing to the authoritative store"
     );
     assert!(
         source.contains("list_notifications_page("),
-        "list_notifications should page from the runtime recipient index"
+        "list_notifications should expose the standard cursor page"
     );
     assert!(
         !source.contains(".iter()\n            .filter(|(key, task)| {\n                key.starts_with(prefix.as_str()) && notification_visible_to_actor(task, auth)\n            })"),
@@ -123,30 +124,12 @@ fn test_get_notification_recovers_from_poisoned_tasks_lock() {
 }
 
 #[test]
-fn test_list_notifications_recovers_from_poisoned_restored_recipients_lock() {
-    let runtime = NotificationRuntime::default();
-    let auth = demo_auth_context();
-    poison_mutex(&runtime.restored_recipients);
-
-    let result = panic::catch_unwind(AssertUnwindSafe(|| runtime.list_notifications(&auth)));
-    assert!(
-        result.is_ok(),
-        "list_notifications should not panic when restored-recipient lock is poisoned"
-    );
-    let list_result = result.expect("panic status should be captured");
-    assert!(
-        list_result.is_ok(),
-        "list_notifications should recover from poisoned restored-recipient lock"
-    );
-}
-
-#[test]
 fn test_runtime_memory_task_store_load_recovers_from_poisoned_lock() {
     let store = RuntimeMemoryNotificationTaskStore::default();
     poison_mutex(&store.state);
 
     let result = panic::catch_unwind(AssertUnwindSafe(|| {
-        store.load_task("100001", "ntf_poison_store")
+        store.load_task("100001", "0", "ntf_poison_store")
     }));
     assert!(
         result.is_ok(),
@@ -200,7 +183,7 @@ fn test_runtime_memory_task_store_lists_only_matching_recipient_kind() {
         .expect("system notification save should succeed");
 
     let listed = store
-        .list_tasks_for_recipient("100001", "user", "shared_id")
+        .list_tasks_for_recipient_page("100001", "0", "user", "shared_id", None, 20)
         .expect("recipient listing should succeed");
 
     assert_eq!(
@@ -239,7 +222,7 @@ fn test_runtime_memory_task_store_rejects_stale_status_regression_writes() {
         .expect("stale notification save should not fail the caller");
 
     let restored = store
-        .load_task("100001", "ntf_demo")
+        .load_task("100001", "0", "ntf_demo")
         .expect("notification load should succeed")
         .expect("notification should be present");
     assert_eq!(restored.task.status, NotificationStatus::Dispatched);
@@ -248,4 +231,47 @@ fn test_runtime_memory_task_store_rejects_stale_status_regression_writes() {
         Some("2026-05-06T00:00:02.000Z")
     );
     assert_eq!(restored.updated_at, "2026-05-06T00:00:02.000Z");
+}
+
+#[test]
+fn test_runtime_memory_task_store_uses_keyset_page_boundaries() {
+    let store = RuntimeMemoryNotificationTaskStore::default();
+    for (notification_id, updated_at) in [
+        ("ntf-3", "2026-05-06T00:00:03.000Z"),
+        ("ntf-2", "2026-05-06T00:00:02.000Z"),
+        ("ntf-1", "2026-05-06T00:00:01.000Z"),
+    ] {
+        store
+            .save_task(notification_task_record(
+                notification_id,
+                "user",
+                "1",
+                NotificationStatus::Requested,
+                None,
+                None,
+                updated_at,
+            ))
+            .expect("notification save should succeed");
+    }
+
+    let first = store
+        .list_tasks_for_recipient_page("100001", "0", "user", "1", None, 2)
+        .expect("first page should load");
+    assert_eq!(first.len(), 3, "store returns one bounded lookahead row");
+    assert_eq!(first[0].notification_id, "ntf-3");
+    assert_eq!(first[1].notification_id, "ntf-2");
+    let cursor = sdkwork_im_contract_notification::NotificationTaskListCursor {
+        updated_at: first[1].updated_at.clone(),
+        notification_id: first[1].notification_id.clone(),
+    };
+    let second = store
+        .list_tasks_for_recipient_page("100001", "0", "user", "1", Some(&cursor), 2)
+        .expect("second page should load");
+    assert_eq!(
+        second
+            .iter()
+            .map(|record| record.notification_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["ntf-1"]
+    );
 }

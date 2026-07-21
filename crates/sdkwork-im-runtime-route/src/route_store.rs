@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    RouteBinding, RouteBindingRequest, RouteDirectory, RouteMigrationResult, RouteNodeLifecycle,
-    RouteRuntimeError,
+    RouteBinding, RouteBindingPage, RouteBindingRequest, RouteDirectory, RouteMigrationResult,
+    RouteNodeLifecycle, RouteRuntimeError,
 };
 
 /// Hot route ownership store for the Route Plane.
@@ -48,6 +48,12 @@ pub trait RouteStore: Send + Sync {
         restore_to: RouteBinding,
     ) -> Option<RouteBinding>;
     fn routes_for_node(&self, node_id: &str) -> Vec<RouteBinding>;
+    fn routes_for_node_page(
+        &self,
+        node_id: &str,
+        cursor: Option<&str>,
+        page_size: usize,
+    ) -> RouteBindingPage;
     fn node_lifecycle(&self, node_id: &str) -> Option<RouteNodeLifecycle>;
 }
 
@@ -133,6 +139,15 @@ impl RouteStore for RouteDirectory {
 
     fn routes_for_node(&self, node_id: &str) -> Vec<RouteBinding> {
         RouteDirectory::routes_for_node(self, node_id)
+    }
+
+    fn routes_for_node_page(
+        &self,
+        node_id: &str,
+        cursor: Option<&str>,
+        page_size: usize,
+    ) -> RouteBindingPage {
+        RouteDirectory::routes_for_node_page(self, node_id, cursor, page_size)
     }
 
     fn node_lifecycle(&self, node_id: &str) -> Option<RouteNodeLifecycle> {

@@ -198,11 +198,6 @@ impl TimelineProjectionService {
             return window;
         };
         let scope_favorites = favorites.get(key.as_str());
-        let legacy_offset = matches!(&query.cursor, FavoriteMessagesListCursor::Offset(_));
-        let offset = match &query.cursor {
-            FavoriteMessagesListCursor::Offset(value) => *value,
-            _ => 0,
-        };
         let keyset_cursor = match &query.cursor {
             FavoriteMessagesListCursor::Keyset {
                 favorited_at,
@@ -220,7 +215,6 @@ impl TimelineProjectionService {
             } else {
                 Box::new(scope_index.iter())
             };
-        let mut skipped = 0usize;
         for entry in index_iter {
             let Some(scope_favorites) = scope_favorites else {
                 break;
@@ -229,10 +223,6 @@ impl TimelineProjectionService {
                 continue;
             };
             if !favorite_matches_filters(favorite, query.favorite_type, query.search_query) {
-                continue;
-            }
-            if legacy_offset && skipped < offset {
-                skipped += 1;
                 continue;
             }
             window.push(favorite.clone());
