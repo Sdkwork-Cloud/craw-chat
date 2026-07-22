@@ -571,7 +571,11 @@ const schemas = {
     conversationId: nullable(stringSchema()),
     establishedAt: stringSchema({ format: 'date-time' }),
     lastInteractionAt: stringSchema({ format: 'date-time' }),
-  }, ['tenantId', 'ownerUserId', 'targetUserId', 'contactType', 'relationshipState', 'friendshipId', 'establishedAt', 'lastInteractionAt']),
+    isStarred: boolSchema(),
+    isBlocked: boolSchema(),
+    remark: nullable(stringSchema()),
+    updatedAt: stringSchema({ format: 'date-time' }),
+  }, ['tenantId', 'ownerUserId', 'targetUserId', 'contactType', 'relationshipState', 'friendshipId', 'establishedAt', 'lastInteractionAt', 'isStarred', 'isBlocked', 'updatedAt']),
   ContactsResponse: objectSchema({
     items: arrayOf(ref('ContactView')),
     nextCursor: nullable(stringSchema()),
@@ -1074,8 +1078,8 @@ const paths = Object.fromEntries([
     get: operation({ tag: 'social', operationId: 'social.contacts.preferences.retrieve', summary: 'Retrieve contact preferences', parameters: [p('TargetUserIdPath')], response: 'ContactPreferencesView' }),
     patch: operation({ tag: 'social', operationId: 'social.contacts.preferences.update', summary: 'Update contact preferences', parameters: [p('TargetUserIdPath')], request: 'UpdateContactPreferencesRequest', response: 'ContactPreferencesView' }),
   }),
-  pathItem('/chat/contacts', {
-    get: operation({ tag: 'chat', operationId: 'contacts.list', summary: 'List IM contacts', parameters: [p('PageSizeQuery'), p('CursorQuery')], response: 'ContactsResponse' }),
+  pathItem('/social/contacts', {
+    get: operation({ tag: 'social', operationId: 'social.contacts.list', summary: 'List social contacts', parameters: [p('PageSizeQuery'), p('CursorQuery')], response: 'ContactsResponse' }),
   }),
   pathItem('/chat/inbox', {
     get: operation({ tag: 'chat', operationId: 'inbox.list', summary: 'List current inbox window', parameters: [p('PageSizeQuery'), p('CursorQuery'), p('ConversationTypeQuery'), p('QQuery')], response: 'ConversationInboxPage' }),

@@ -217,7 +217,7 @@ mod tests {
         assert!(normalized.contains("order by f.updated_at desc, f.friendship_id asc"));
         assert!(normalized.contains("limit $6"));
         assert!(normalized.contains("from im_friendships"));
-        assert!(normalized.contains("left join im_direct_chats"));
+        assert!(normalized.contains("from im_direct_chats"));
         assert!(!normalized.contains("im_projection_"));
     }
 }
