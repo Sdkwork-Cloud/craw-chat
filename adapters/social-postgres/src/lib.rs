@@ -4,6 +4,7 @@
 //! user blocks, direct chats, external connections, and shared channel policies.
 
 pub mod config;
+pub mod contact_inventory_store;
 pub mod contact_store;
 pub mod direct_chat_store;
 pub mod external_store;

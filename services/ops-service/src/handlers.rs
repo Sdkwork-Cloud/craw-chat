@@ -217,7 +217,6 @@ fn retention_purge_response(
         message_media_refs_deleted: report.message_media_refs_deleted,
         outbox_events_deleted: report.outbox_events_deleted,
         inbox_events_deleted: report.inbox_events_deleted,
-        projection_timeline_entries_deleted: report.projection_timeline_entries_deleted,
         realtime_device_events_deleted: report.realtime_device_events_deleted,
         rtc_sessions_deleted: report.rtc_sessions_deleted,
         rtc_signals_deleted: report.rtc_signals_deleted,

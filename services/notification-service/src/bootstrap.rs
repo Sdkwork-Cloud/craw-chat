@@ -5,12 +5,13 @@ use std::sync::{Arc, OnceLock};
 use im_adapters_local_disk::FileNotificationTaskStore;
 use im_adapters_local_memory::MemoryNotificationTaskStore;
 use im_adapters_postgres_journal::{
-    PostgresCommitJournal, PostgresJournalConfig, PostgresNotificationTaskStore,
+    PostgresAggregateStore, PostgresCommitJournal, PostgresJournalConfig,
+    PostgresNotificationTaskStore,
 };
 use im_app_context::{
     allows_header_only_app_context_fallback, resolve_web_environment_from_process_env,
 };
-use projection_service::TimelineProjectionService;
+use conversation_runtime::conversation_state::ConversationStateService;
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitEnvelope, CommitJournal, CommitPosition};
@@ -51,13 +52,25 @@ pub fn ensure_durable_notification_runtime_from_env() -> Result<(), String> {
 pub fn build_runtime_from_env() -> Result<Arc<NotificationRuntime>, String> {
     let journal = resolve_notification_commit_journal_from_env()?;
     let store = resolve_notification_task_store_from_env(&journal)?;
-    Ok(Arc::new(
-        NotificationRuntime::with_dyn_task_store_and_projection(
-            journal,
-            store,
-            Arc::new(TimelineProjectionService::default()),
-        ),
-    ))
+    let runtime = match journal.as_ref() {
+        NotificationCommitJournal::Postgres(postgres_journal) => {
+            NotificationRuntime::with_dyn_task_store_and_aggregate_store(
+                journal.clone(),
+                store,
+                Arc::new(PostgresAggregateStore::from_pool(
+                    postgres_journal.pool().clone(),
+                )),
+            )
+        }
+        NotificationCommitJournal::Memory(_) => {
+            NotificationRuntime::with_dyn_task_store_and_conversation_state(
+                journal,
+                store,
+                Arc::new(ConversationStateService::default()),
+            )
+        }
+    };
+    Ok(Arc::new(runtime))
 }
 
 pub fn default_app_state() -> AppState {

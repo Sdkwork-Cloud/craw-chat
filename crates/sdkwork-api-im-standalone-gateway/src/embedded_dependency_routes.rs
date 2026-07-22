@@ -89,8 +89,9 @@ static EMBEDDED_INVOICE_HOST: OnceLock<Arc<sdkwork_invoice_service_host::Invoice
 static EMBEDDED_MEMBERSHIP_HOST: OnceLock<
     Arc<sdkwork_membership_service_host::MembershipServiceHost>,
 > = OnceLock::new();
-static EMBEDDED_MERCHANDISE_HOST: OnceLock<Arc<sdkwork_merchandise_service_host::ShopServiceHost>> =
-    OnceLock::new();
+static EMBEDDED_MERCHANDISE_HOST: OnceLock<
+    Arc<sdkwork_merchandise_service_host::MerchandiseServiceHost>,
+> = OnceLock::new();
 static EMBEDDED_ORDER_HOST: OnceLock<Arc<sdkwork_order_service_host::OrderServiceHost>> =
     OnceLock::new();
 static EMBEDDED_PAYMENT_HOST: OnceLock<Arc<sdkwork_payment_service_host::PaymentServiceHost>> =
@@ -172,12 +173,12 @@ async fn embedded_membership_service_host()
 }
 
 async fn embedded_merchandise_service_host()
--> Result<Arc<sdkwork_merchandise_service_host::ShopServiceHost>, String> {
+-> Result<Arc<sdkwork_merchandise_service_host::MerchandiseServiceHost>, String> {
     if let Some(host) = EMBEDDED_MERCHANDISE_HOST.get() {
         return Ok(host.clone());
     }
     let host = Arc::new(
-        sdkwork_merchandise_service_host::ShopServiceHost::from_env()
+        sdkwork_merchandise_service_host::MerchandiseServiceHost::from_env()
             .await
             .map_err(|error| format!("bootstrap merchandise service host failed: {error}"))?,
     );
@@ -737,12 +738,12 @@ async fn bootstrap_embedded_drive_routes() -> Result<Router, String> {
 
     ensure_drive_tenant_application_bootstrap_from_env().await?;
 
-    let assembly = sdkwork_api_drive_assembly::assemble_api_router(pool.clone()).await;
+    let assembly = sdkwork_api_drive_assembly::assemble_business_routes(pool).await;
     Ok(assembly.router)
 }
 
 async fn bootstrap_embedded_knowledgebase_routes() -> Result<Router, String> {
-    sdkwork_api_knowledgebase_assembly::assemble_api_router_from_environment()
+    sdkwork_api_knowledgebase_assembly::assemble_business_routes_from_environment()
         .await
         .map(|assembly| assembly.router)
         .map_err(|error| format!("compose embedded knowledgebase router failed: {error}"))

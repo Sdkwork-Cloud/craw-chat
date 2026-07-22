@@ -1,7 +1,7 @@
 //! Group knowledgebase orchestration owned by the Conversation aggregate.
 //!
 //! IM is deliberately not a second knowledgebase.  It persists only the
-//! conversation-to-space projection and the short-lived launch-ticket ledger;
+//! conversation-to-space conversation_state and the short-lived launch-ticket ledger;
 //! `sdkwork-knowledgebase` remains the authority for spaces, documents, and
 //! its group-space binding.  The coordinator has a narrow provider port so
 //! the production adapter can use the generated Knowledgebase internal RPC SDK
@@ -500,7 +500,7 @@ pub struct GroupKnowledgebaseMembership {
     pub principal_id: String,
     pub principal_kind: String,
     /// IM sends its authoritative role unchanged. Knowledgebase owns the
-    /// corresponding resource-permission projection, so there is one mapping
+    /// corresponding resource-permission conversation_state, so there is one mapping
     /// boundary rather than independently maintained role translations.
     pub role: MembershipRole,
 }
@@ -550,7 +550,7 @@ impl EnsureGroupKnowledgebaseRequest {
 
 /// Full, authoritative roster replacement request. IM preserves its canonical
 /// membership role (`owner|admin|member|guest`) and Knowledgebase owns the
-/// resource ACL projection, including guest grant revocation.
+/// resource ACL conversation_state, including guest grant revocation.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SynchronizeGroupKnowledgebaseMembersRequest {
@@ -3021,7 +3021,7 @@ impl GroupKnowledgebaseCoordinator {
             .map_err(group_knowledgebase_port_error_runtime_error)
     }
 
-    /// Rebuilds a bounded number of group-KB projections from the authoritative
+    /// Rebuilds a bounded number of group-KB conversation_states from the authoritative
     /// conversation journal. The cursor advances only after a link has been
     /// reconciled successfully, so a malformed or mismatched journal entry is
     /// retried and surfaced rather than skipped.
@@ -3164,7 +3164,7 @@ impl GroupKnowledgebaseCoordinator {
             // the remote space reference. An archived link may use this path
             // only when the authoritative conversation journal also contains
             // an archive event, so the recovered reference is immediately
-            // archived rather than recreating a KB for a corrupt projection.
+            // archived rather than recreating a KB for a corrupt conversation_state.
             return Ok(
                 GroupKnowledgebaseReconciliationLinkOutcome::ProvisioningRecovery(Box::new(
                     GroupKnowledgebaseProvisioningRecovery { link: link.clone() },
@@ -4054,7 +4054,7 @@ impl GroupKnowledgebaseCoordinator {
     }
 
     /// Applies the IM aggregate's already-committed archive event to the
-    /// local group-to-space projection and atomically queues the KB archive
+    /// local group-to-space conversation_state and atomically queues the KB archive
     /// handoff when a space exists. The source event id makes retries safe.
     pub fn archive_after_group_conversation_archive(
         &self,
@@ -4070,7 +4070,7 @@ impl GroupKnowledgebaseCoordinator {
         let scope = match GroupKnowledgebaseScope::from_auth_context(auth, conversation_id) {
             Ok(scope) => scope,
             // Archiving a conversation is independent of group-KB support.
-            // Deliberately do not enqueue a projection for a malformed
+            // Deliberately do not enqueue a conversation_state for a malformed
             // token-derived scope.
             Err(RuntimeError::PermissionDenied(_)) => return Ok(false),
             Err(error) => return Err(error),
@@ -4134,7 +4134,7 @@ fn group_knowledgebase_durable_snapshot(
 
     if !snapshot.created {
         return Err(RuntimeError::Conflict(
-            "group knowledgebase durable projection is missing conversation.created".into(),
+            "group knowledgebase durable conversation_state is missing conversation.created".into(),
         ));
     }
     Ok(snapshot)
@@ -4157,7 +4157,7 @@ fn apply_group_knowledgebase_durable_envelope(
                 })?;
             if payload.conversation_type != "group" {
                 return Err(RuntimeError::ConversationTypeInvalid(
-                    "group knowledgebase durable projection targets a non-group conversation"
+                    "group knowledgebase durable conversation_state targets a non-group conversation"
                         .into(),
                 ));
             }
@@ -4256,7 +4256,7 @@ fn apply_group_knowledgebase_durable_envelope(
                 && existing != &archive
             {
                 return Err(RuntimeError::Conflict(
-                    "group knowledgebase durable projection contains conflicting archive events"
+                    "group knowledgebase durable conversation_state contains conflicting archive events"
                         .into(),
                 ));
             }
@@ -4401,7 +4401,7 @@ where
 }
 
 /// Initial provisioning is a group-owner action. The roster is the
-/// authoritative ownership projection: group creation assigns its creator the
+/// authoritative ownership conversation_state: group creation assigns its creator the
 /// owner role, and an explicit ownership transfer updates that role before a
 /// later initialization attempt.
 fn ensure_group_knowledgebase_owner(member: &ConversationMember) -> Result<(), RuntimeError> {
@@ -5967,7 +5967,7 @@ mod tests {
         assert!(matches!(error, RuntimeError::Conflict(_)));
         assert!(
             cursor.pending_provisioning_recovery.is_none(),
-            "the relay must not schedule a remote ensure for a corrupt archived projection"
+            "the relay must not schedule a remote ensure for a corrupt archived conversation_state"
         );
     }
 

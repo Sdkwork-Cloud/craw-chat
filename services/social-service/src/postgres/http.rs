@@ -10,6 +10,8 @@ use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 #[derive(Clone)]
 pub struct PostgresAppState {
     pub postgres_pool: SocialPostgresPool,
+    pub contact_inventory_store:
+        Arc<dyn im_adapters_social_postgres::contact_inventory_store::ContactInventoryStore>,
     pub friend_request_store:
         Arc<dyn im_adapters_social_postgres::friend_request_store::FriendRequestStore>,
     pub friendship_store: Arc<dyn im_adapters_social_postgres::friendship_store::FriendshipStore>,

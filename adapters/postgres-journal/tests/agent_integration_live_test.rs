@@ -14,8 +14,8 @@ use im_platform_contracts::{AgentDispatchReplyCompletion, IdGenerator, StoredMes
 use sdkwork_im_contract_agent::{
     AGENT_MENTION_DISPATCH_SCHEMA_VERSION, AgentAssignmentSource, AgentBindingStatus,
     AgentIntegrationStore, AgentMentionDispatchRequest, AgentMentionDispatchTarget,
-    ConversationAgentBindingRecord, ConversationAgentProjectionItem,
-    ReplaceConversationAgentProjection,
+    ConversationAgentBindingRecord, ConversationAgentAssignmentItem,
+    ReplaceConversationAgentAssignments,
 };
 
 fn test_numeric_scope() -> u64 {
@@ -48,7 +48,7 @@ async fn agents_projection_binding_and_dispatch_are_idempotent_scoped_and_leased
     let now = chrono::Utc::now();
     let now_text = now.to_rfc3339();
 
-    let projection = ReplaceConversationAgentProjection {
+    let projection = ReplaceConversationAgentAssignments {
         tenant_id,
         organization_id,
         conversation_id: conversation_id.clone(),
@@ -59,7 +59,7 @@ async fn agents_projection_binding_and_dispatch_are_idempotent_scoped_and_leased
         source_event_id: format!("evt_agent_projection_{tenant_id}"),
         source_aggregate_version: 1,
         payload_hash: format!("projection-hash-{tenant_id}"),
-        items: vec![ConversationAgentProjectionItem {
+        items: vec![ConversationAgentAssignmentItem {
             agent_id: agent_id.into(),
             agent_revision_ref: None,
             position: 0,
@@ -255,7 +255,7 @@ async fn agents_projection_binding_and_dispatch_are_idempotent_scoped_and_leased
             .expect("binding cleanup");
         client
             .execute(
-                "delete from im_projection_conversation_agent where tenant_id = $1",
+                "delete from im_conversation_agent_assignments where tenant_id = $1",
                 &[&(tenant_id as i64)],
             )
             .expect("projection cleanup");

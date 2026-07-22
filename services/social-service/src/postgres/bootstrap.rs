@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use im_adapters_social_postgres::contact_inventory_store::PostgresContactInventoryStore;
 use im_adapters_social_postgres::direct_chat_store::PostgresDirectChatStore;
 use im_adapters_social_postgres::friend_request_store::PostgresFriendRequestStore;
 use im_adapters_social_postgres::friendship_store::PostgresFriendshipStore;
@@ -19,6 +20,7 @@ pub async fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> PostgresA
     let pool_arc = Arc::new(pool.inner().clone());
     PostgresAppState {
         postgres_pool: pool,
+        contact_inventory_store: Arc::new(PostgresContactInventoryStore::new(pool_arc.clone())),
         friend_request_store: Arc::new(PostgresFriendRequestStore::new(pool_arc.clone())),
         friendship_store: Arc::new(PostgresFriendshipStore::new(pool_arc.clone())),
         user_block_store: Arc::new(PostgresUserBlockStore::new(pool_arc.clone())),

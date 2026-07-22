@@ -30,7 +30,7 @@ impl PostgresAggregateStore {
 const LOAD_MEMBERS_SQL: &str = r#"
 select tenant_id, organization_id, conversation_id, principal_kind, principal_id,
     member_id, membership_role, membership_state, invited_by, joined_at, removed_at, attributes_json::text
-from im_projection_conversation_members
+from im_conversation_members
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
     and membership_state in ('joined', 'linked', 'invited')
     and ($4::text is null or (principal_kind, principal_id) > ($4, $5))
@@ -41,7 +41,7 @@ limit $6
 const LOAD_MEMBER_SQL: &str = r#"
 select tenant_id, organization_id, conversation_id, principal_kind, principal_id,
     member_id, membership_role, membership_state, invited_by, joined_at, removed_at, attributes_json::text
-from im_projection_conversation_members
+from im_conversation_members
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
     and principal_kind = $4 and principal_id = $5
 "#;
@@ -49,7 +49,7 @@ where tenant_id = $1 and organization_id = $2 and conversation_id = $3
 const LOAD_MEMBER_BY_ID_SQL: &str = r#"
 select tenant_id, organization_id, conversation_id, principal_kind, principal_id,
     member_id, membership_role, membership_state, invited_by, joined_at, removed_at, attributes_json::text
-from im_projection_conversation_members
+from im_conversation_members
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
     and member_id = $4
 "#;
@@ -57,7 +57,7 @@ where tenant_id = $1 and organization_id = $2 and conversation_id = $3
 const LOAD_EVENT_RECIPIENTS_SQL: &str = r#"
 select tenant_id, organization_id, conversation_id, principal_kind, principal_id,
     member_id, membership_role, membership_state, invited_by, joined_at, removed_at, attributes_json::text
-from im_projection_conversation_members
+from im_conversation_members
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
     and membership_state in ('joined', 'linked')
     and ($4::text is null or (principal_kind, principal_id) > ($4, $5))
@@ -67,7 +67,7 @@ limit $7
 "#;
 
 const UPSERT_MEMBER_SQL: &str = r#"
-insert into im_projection_conversation_members (
+insert into im_conversation_members (
     tenant_id, organization_id, conversation_id, principal_kind, principal_id,
     member_id, membership_role, membership_state, invited_by, joined_at, payload_json, payload_hash, created_at, updated_at
 ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '{}'::jsonb, '', $11, $11)
@@ -82,7 +82,7 @@ do update set
 "#;
 
 const REMOVE_MEMBER_SQL: &str = r#"
-update im_projection_conversation_members
+update im_conversation_members
 set membership_state = 'removed', removed_at = $6, updated_at = $6
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
     and principal_kind = $4 and principal_id = $5
@@ -91,7 +91,7 @@ where tenant_id = $1 and organization_id = $2 and conversation_id = $3
 const LOAD_READ_CURSORS_SQL: &str = r#"
 select tenant_id, organization_id, conversation_id, member_id, device_id, principal_kind, principal_id,
     read_seq, last_read_message_id, updated_at
-from im_projection_read_cursors
+from im_conversation_read_cursors
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
     and ($4::bigint is null or (member_id, device_id) > ($4, $5))
 order by member_id asc, device_id asc
@@ -101,12 +101,12 @@ limit $6
 const LOAD_READ_CURSOR_SQL: &str = r#"
 select tenant_id, organization_id, conversation_id, member_id, device_id, principal_kind, principal_id,
     read_seq, last_read_message_id, updated_at
-from im_projection_read_cursors
+from im_conversation_read_cursors
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3 and member_id = $4 and device_id = ''
 "#;
 
 const UPSERT_READ_CURSOR_SQL: &str = r#"
-insert into im_projection_read_cursors (
+insert into im_conversation_read_cursors (
     tenant_id, organization_id, conversation_id, member_id, device_id, principal_kind, principal_id,
     read_seq, last_read_message_id, payload_json, payload_hash, created_at, updated_at
 ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, '{}'::jsonb, '', $10, $10)
@@ -119,7 +119,7 @@ do update set
 
 const CONVERSATION_EXISTS_SQL: &str = r#"
 select exists (
-    select 1 from im_projection_conversation_members
+    select 1 from im_conversation_members
     where tenant_id = $1 and organization_id = $2 and conversation_id = $3
         and membership_state in ('joined', 'linked')
 )

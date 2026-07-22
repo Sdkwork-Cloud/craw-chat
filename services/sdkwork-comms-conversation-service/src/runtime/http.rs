@@ -1024,8 +1024,8 @@ impl From<QueryRejection> for ApiError {
     }
 }
 
-impl From<projection_service::ProjectionAccessError> for ApiError {
-    fn from(error: projection_service::ProjectionAccessError) -> Self {
+impl From<crate::conversation_state::ConversationStateAccessError> for ApiError {
+    fn from(error: crate::conversation_state::ConversationStateAccessError) -> Self {
         Self {
             status: error.status(),
             message: error.message().to_owned(),
@@ -3436,7 +3436,7 @@ mod tests {
         let state = AppState {
             runtime,
             principal_directory,
-            // Tests opt into the in-memory projection explicitly. Production
+            // Tests opt into the in-memory conversation_state explicitly. Production
             // composition remains PostgreSQL-backed and fail-closed.
             group_knowledgebase: Arc::new(GroupKnowledgebaseCoordinator::with_memory_store(
                 Arc::new(UnavailableGroupKnowledgebasePort),

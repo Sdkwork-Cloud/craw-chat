@@ -239,35 +239,35 @@ fn test_core_im_postgres_schema_defines_projection_hot_paths() {
             "constraint pk_im_projection_timeline_entries primary key (tenant_id, organization_id, conversation_id, message_seq)",
             "create index if not exists idx_im_projection_timeline_entries_message",
             "on im_projection_timeline_entries (tenant_id, organization_id, message_id)",
-            "create table if not exists im_projection_conversation_summaries",
-            "constraint pk_im_projection_conversation_summaries primary key (tenant_id, organization_id, conversation_id)",
-            "create index if not exists idx_im_projection_conversation_summaries_activity",
-            "on im_projection_conversation_summaries (tenant_id, organization_id, last_activity_at desc, conversation_id)",
-            "create table if not exists im_projection_conversation_members",
+            "create table if not exists im_conversations",
+            "constraint pk_im_conversations primary key (tenant_id, organization_id, conversation_id)",
+            "create index if not exists idx_im_conversations_activity",
+            "on im_conversations (tenant_id, organization_id, last_activity_at desc, conversation_id)",
+            "create table if not exists im_conversation_members",
             "principal_kind text not null",
-            "constraint pk_im_projection_conversation_members primary key (tenant_id, organization_id, conversation_id, principal_kind, principal_id)",
-            // The redundant uk_im_projection_conversation_members_member constraint was removed:
+            "constraint pk_im_conversation_members primary key (tenant_id, organization_id, conversation_id, principal_kind, principal_id)",
+            // The redundant uk_im_conversation_members_member constraint was removed:
             // the composite PK on principal_kind+principal_id already guarantees one row per
             // principal per conversation, and the UK collided with member_to_record's
             // parse<i64>.unwrap_or(0) for string member_id, blocking persist of additional members.
-            "create index if not exists idx_im_projection_conversation_members_principal",
-            "on im_projection_conversation_members (tenant_id, organization_id, principal_kind, principal_id, membership_state, conversation_id)",
-            "create index if not exists idx_im_projection_conversation_members_active",
+            "create index if not exists idx_im_conversation_members_principal",
+            "on im_conversation_members (tenant_id, organization_id, principal_kind, principal_id, membership_state, conversation_id)",
+            "create index if not exists idx_im_conversation_members_active",
             "where membership_state = 'joined'",
-            "create table if not exists im_projection_read_cursors",
+            "create table if not exists im_conversation_read_cursors",
             "principal_kind text not null",
-            "constraint pk_im_projection_read_cursors primary key (tenant_id, organization_id, conversation_id, member_id, device_id)",
-            "create index if not exists idx_im_projection_read_cursors_principal",
-            "on im_projection_read_cursors (tenant_id, organization_id, principal_kind, principal_id, conversation_id)",
-            "create table if not exists im_projection_registered_client_routes",
-            "constraint pk_im_projection_registered_client_routes primary key (tenant_id, organization_id, principal_kind, principal_id, device_id)",
-            "create table if not exists im_projection_client_route_sync_feeds",
-            "constraint pk_im_projection_client_route_sync_feeds primary key (tenant_id, organization_id, principal_kind, principal_id, device_id, sync_seq)",
-            "create index if not exists idx_im_projection_client_route_sync_feeds_window",
-            "on im_projection_client_route_sync_feeds (tenant_id, organization_id, principal_kind, principal_id, device_id, sync_seq)",
-            "create table if not exists im_projection_client_route_sync_checkpoints",
-            "constraint pk_im_projection_client_route_sync_checkpoints primary key (tenant_id, organization_id, principal_kind, principal_id, device_id)",
-            "constraint chk_im_projection_client_route_sync_checkpoints_order check (\n        trimmed_through_seq <= latest_sync_seq\n        and acked_through_sync_seq <= latest_sync_seq\n    )",
+            "constraint pk_im_conversation_read_cursors primary key (tenant_id, organization_id, conversation_id, member_id, device_id)",
+            "create index if not exists idx_im_conversation_read_cursors_principal",
+            "on im_conversation_read_cursors (tenant_id, organization_id, principal_kind, principal_id, conversation_id)",
+            "create table if not exists im_registered_client_routes",
+            "constraint pk_im_registered_client_routes primary key (tenant_id, organization_id, principal_kind, principal_id, device_id)",
+            "create table if not exists im_client_sync_events",
+            "constraint pk_im_client_sync_events primary key (tenant_id, organization_id, principal_kind, principal_id, device_id, sync_seq)",
+            "create index if not exists idx_im_client_sync_events_window",
+            "on im_client_sync_events (tenant_id, organization_id, principal_kind, principal_id, device_id, sync_seq)",
+            "create table if not exists im_client_sync_cursors",
+            "constraint pk_im_client_sync_cursors primary key (tenant_id, organization_id, principal_kind, principal_id, device_id)",
+            "constraint chk_im_client_sync_cursors_order check (\n        trimmed_through_seq <= latest_sync_seq\n        and acked_through_sync_seq <= latest_sync_seq\n    )",
             "create table if not exists im_projection_contacts",
             "constraint pk_im_projection_contacts primary key (tenant_id, organization_id, owner_user_id, contact_type, target_user_id)",
             "create index if not exists idx_im_projection_contacts_owner_activity",
@@ -288,11 +288,11 @@ fn test_core_im_sqlite_projection_read_cursor_contract_matches_postgres_device_s
     assert_contains_all(
         &schema,
         &[
-            "create table im_projection_read_cursors",
+            "create table im_conversation_read_cursors",
             "device_id text not null default ''",
-            "constraint pk_im_projection_read_cursors primary key (tenant_id, organization_id, conversation_id, member_id, device_id)",
-            "create index if not exists idx_im_projection_read_cursors_principal",
-            "on im_projection_read_cursors (tenant_id, organization_id, principal_kind, principal_id, conversation_id)",
+            "constraint pk_im_conversation_read_cursors primary key (tenant_id, organization_id, conversation_id, member_id, device_id)",
+            "create index if not exists idx_im_conversation_read_cursors_principal",
+            "on im_conversation_read_cursors (tenant_id, organization_id, principal_kind, principal_id, conversation_id)",
         ],
     );
 }
@@ -302,15 +302,15 @@ fn test_core_im_postgres_schema_allows_shared_history_linked_members() {
     let schema = postgres_core_schema();
     let conversation_members = schema_section(
         &schema,
-        "create table if not exists im_projection_conversation_members",
-        "create table if not exists im_projection_read_cursors",
+        "create table if not exists im_conversation_members",
+        "create table if not exists im_conversation_read_cursors",
     );
 
     assert!(
         conversation_members.contains(
-            "constraint chk_im_projection_conversation_members_state check (membership_state in ('invited', 'joined', 'linked', 'removed', 'left'))"
+            "constraint chk_im_conversation_members_state check (membership_state in ('invited', 'joined', 'linked', 'removed', 'left'))"
         ) || conversation_members.contains(
-            "constraint chk_im_projection_conversation_members_state check (membership_state in ('invited', 'joined', 'removed', 'left', 'linked'))"
+            "constraint chk_im_conversation_members_state check (membership_state in ('invited', 'joined', 'removed', 'left', 'linked'))"
         ),
         "conversation member projection must allow membership_state='linked' because shared-channel linked members are runtime/domain-valid readers"
     );
@@ -445,12 +445,12 @@ fn test_core_im_postgres_schema_indexes_retention_cleanup_paths() {
             "create index if not exists idx_im_notification_tasks_retention_until",
             "create index if not exists idx_im_automation_executions_retention_until",
             "create index if not exists idx_im_projection_timeline_entries_retention_until",
-            "create index if not exists idx_im_projection_conversation_summaries_retention_until",
-            "create index if not exists idx_im_projection_conversation_members_retention_until",
-            "create index if not exists idx_im_projection_read_cursors_retention_until",
-            "create index if not exists idx_im_projection_registered_client_routes_retention_until",
-            "create index if not exists idx_im_projection_client_route_sync_feeds_retention_until",
-            "create index if not exists idx_im_projection_client_route_sync_checkpoints_retention_until",
+            "create index if not exists idx_im_conversations_retention_until",
+            "create index if not exists idx_im_conversation_members_retention_until",
+            "create index if not exists idx_im_conversation_read_cursors_retention_until",
+            "create index if not exists idx_im_registered_client_routes_retention_until",
+            "create index if not exists idx_im_client_sync_events_retention_until",
+            "create index if not exists idx_im_client_sync_cursors_retention_until",
             "create index if not exists idx_im_projection_contacts_retention_until",
             "create index if not exists idx_im_projection_direct_chat_bindings_retention_until",
             "create index if not exists idx_im_stream_sessions_retention_until",

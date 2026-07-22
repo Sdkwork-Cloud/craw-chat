@@ -1,14 +1,14 @@
-//! Atomic PostgreSQL authority for social journal and relational read-model writes.
+//! Atomic PostgreSQL authority for the Social journal and normalized state writes.
 
 use std::sync::Arc;
 
 use im_adapters_postgres_journal::PostgresCommitJournal;
 use im_platform_contracts::{CommitEnvelope, ContractError};
 
-use crate::commit_materializer::SocialPostgresMaterializer;
+use crate::normalized_store::SocialPostgresNormalizedStore;
 
 pub(crate) trait SocialAtomicWriteAuthority: Send + Sync {
-    fn append_and_materialize(
+    fn append_and_write(
         &self,
         commits: Vec<CommitEnvelope>,
     ) -> Result<Vec<CommitEnvelope>, ContractError>;
@@ -16,23 +16,23 @@ pub(crate) trait SocialAtomicWriteAuthority: Send + Sync {
 
 pub(crate) struct SocialPostgresAtomicWriteAuthority {
     journal: PostgresCommitJournal,
-    materializer: Arc<SocialPostgresMaterializer>,
+    normalized_store: Arc<SocialPostgresNormalizedStore>,
 }
 
 impl SocialPostgresAtomicWriteAuthority {
     pub(crate) fn new(
         journal: PostgresCommitJournal,
-        materializer: Arc<SocialPostgresMaterializer>,
+        normalized_store: Arc<SocialPostgresNormalizedStore>,
     ) -> Self {
         Self {
             journal,
-            materializer,
+            normalized_store,
         }
     }
 }
 
 impl SocialAtomicWriteAuthority for SocialPostgresAtomicWriteAuthority {
-    fn append_and_materialize(
+    fn append_and_write(
         &self,
         commits: Vec<CommitEnvelope>,
     ) -> Result<Vec<CommitEnvelope>, ContractError> {
@@ -45,8 +45,8 @@ impl SocialAtomicWriteAuthority for SocialPostgresAtomicWriteAuthority {
             .append_batch_with_allocated_sequences_in_transaction(
                 commits,
                 |txn, sequenced_commits| {
-                    self.materializer
-                        .materialize_commits_on_transaction(txn, sequenced_commits)?;
+                    self.normalized_store
+                        .write_commits_on_transaction(txn, sequenced_commits)?;
                     inserted_commits.extend_from_slice(sequenced_commits);
                     Ok(())
                 },

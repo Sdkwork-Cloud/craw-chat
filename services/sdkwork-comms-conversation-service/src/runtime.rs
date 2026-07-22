@@ -76,7 +76,7 @@ mod postgres_direct_message_gate;
 mod recovery;
 mod room;
 pub mod rpc_dispatch;
-mod rpc_projection_dispatch;
+mod rpc_state_dispatch;
 mod runtime_metrics;
 mod support;
 
@@ -4967,7 +4967,7 @@ fn member_to_record(
         // The relational member_id column is bigint, but the in-memory ConversationMember.member_id
         // is a string composite (cm_<conv_id>_<principal_kind>_<principal_id>). Parsing the string
         // always fails and yields 0, which historically collided on the now-removed
-        // uk_im_projection_conversation_members_member unique constraint (see baseline DDL change).
+        // uk_im_conversation_members_member unique constraint (see baseline DDL change).
         // Since principal_id is the Snowflake i64 for user principals (the only kind that RTC
         // authorization and projections actually rely on), parse it directly so the stored
         // member_id is non-zero and unique per user within a conversation. For non-user principals

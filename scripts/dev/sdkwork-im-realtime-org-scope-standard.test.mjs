@@ -130,7 +130,7 @@ assert.match(
 );
 assert.match(
   projectionMigration,
-  /pk_im_projection_registered_client_routes PRIMARY KEY \(tenant_id, organization_id, principal_kind, principal_id, device_id\)/,
+  /pk_im_registered_client_routes PRIMARY KEY \(tenant_id, organization_id, principal_kind, principal_id, device_id\)/,
   'migration 011 must scope projection registered client routes by organization_id',
 );
 

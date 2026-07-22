@@ -5,8 +5,12 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use im_app_context::AppContext;
 use im_domain_core::notification::{NotificationStatus, NotificationTask};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
+use im_platform_contracts::{
+    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAggregateStore,
+    ConversationMemberPageCursor, normalize_realtime_organization_id,
+};
 use im_time::utc_now_rfc3339_millis;
-use projection_service::TimelineProjectionService;
+use conversation_runtime::conversation_state::ConversationStateService;
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitJournal, CommitPosition};
 use sdkwork_im_contract_notification::{
@@ -48,7 +52,12 @@ pub struct NotificationRuntime {
     pub(crate) tasks: Mutex<NotificationRuntimeTaskState>,
     journal: Arc<dyn CommitJournal + Send + Sync>,
     task_store: Arc<dyn NotificationTaskStore>,
-    projection_service: Arc<TimelineProjectionService>,
+    conversation_recipients: ConversationRecipientSource,
+}
+
+enum ConversationRecipientSource {
+    Aggregate(Arc<dyn ConversationAggregateStore>),
+    TestCache(Arc<ConversationStateService>),
 }
 
 #[derive(Default)]
@@ -147,10 +156,10 @@ impl NotificationRuntime {
     where
         J: CommitJournal + Send + Sync + 'static,
     {
-        Self::with_journal_and_store_and_projection(
+        Self::with_journal_and_store_and_conversation_state(
             journal,
             Arc::new(RuntimeMemoryNotificationTaskStore::default()),
-            Arc::new(TimelineProjectionService::default()),
+            Arc::new(ConversationStateService::default()),
         )
     }
 
@@ -159,31 +168,31 @@ impl NotificationRuntime {
         J: CommitJournal + Send + Sync + 'static,
         S: NotificationTaskStore + 'static,
     {
-        Self::with_journal_and_store_and_projection(
+        Self::with_journal_and_store_and_conversation_state(
             journal,
             task_store,
-            Arc::new(TimelineProjectionService::default()),
+            Arc::new(ConversationStateService::default()),
         )
     }
 
-    pub fn with_journal_and_projection<J>(
+    pub fn with_journal_and_conversation_state<J>(
         journal: Arc<J>,
-        projection_service: Arc<TimelineProjectionService>,
+        conversation_state_service: Arc<ConversationStateService>,
     ) -> Self
     where
         J: CommitJournal + Send + Sync + 'static,
     {
-        Self::with_journal_and_store_and_projection(
+        Self::with_journal_and_store_and_conversation_state(
             journal,
             Arc::new(RuntimeMemoryNotificationTaskStore::default()),
-            projection_service,
+            conversation_state_service,
         )
     }
 
-    pub fn with_journal_and_store_and_projection<J, S>(
+    pub fn with_journal_and_store_and_conversation_state<J, S>(
         journal: Arc<J>,
         task_store: Arc<S>,
-        projection_service: Arc<TimelineProjectionService>,
+        conversation_state_service: Arc<ConversationStateService>,
     ) -> Self
     where
         J: CommitJournal + Send + Sync + 'static,
@@ -193,14 +202,16 @@ impl NotificationRuntime {
             tasks: Mutex::new(NotificationRuntimeTaskState::default()),
             journal,
             task_store,
-            projection_service,
+            conversation_recipients: ConversationRecipientSource::TestCache(
+                conversation_state_service,
+            ),
         }
     }
 
-    pub fn with_dyn_task_store_and_projection<J>(
+    pub fn with_dyn_task_store_and_conversation_state<J>(
         journal: Arc<J>,
         task_store: Arc<dyn NotificationTaskStore>,
-        projection_service: Arc<TimelineProjectionService>,
+        conversation_state_service: Arc<ConversationStateService>,
     ) -> Self
     where
         J: CommitJournal + Send + Sync + 'static,
@@ -209,7 +220,25 @@ impl NotificationRuntime {
             tasks: Mutex::new(NotificationRuntimeTaskState::default()),
             journal,
             task_store,
-            projection_service,
+            conversation_recipients: ConversationRecipientSource::TestCache(
+                conversation_state_service,
+            ),
+        }
+    }
+
+    pub fn with_dyn_task_store_and_aggregate_store<J>(
+        journal: Arc<J>,
+        task_store: Arc<dyn NotificationTaskStore>,
+        aggregate_store: Arc<dyn ConversationAggregateStore>,
+    ) -> Self
+    where
+        J: CommitJournal + Send + Sync + 'static,
+    {
+        Self {
+            tasks: Mutex::new(NotificationRuntimeTaskState::default()),
+            journal,
+            task_store,
+            conversation_recipients: ConversationRecipientSource::Aggregate(aggregate_store),
         }
     }
 
@@ -402,18 +431,8 @@ impl NotificationRuntime {
         } else {
             "message.new"
         };
-        let recipients = self
-            .projection_service
-            .message_posted_notification_recipients_from_auth_context(
-                auth,
-                conversation_id.as_str(),
-            )?
-            .into_iter()
-            .map(|recipient| NotificationRecipient {
-                recipient_id: recipient.principal_id,
-                recipient_kind: recipient.principal_kind,
-            })
-            .collect::<BTreeSet<_>>();
+        let recipients =
+            self.message_posted_notification_recipients(auth, conversation_id.as_str())?;
         let notification_id_seed = message_id.clone();
         let payload = serde_json::json!({
             "conversationId": conversation_id,
@@ -437,6 +456,77 @@ impl NotificationRuntime {
                 payload: Some(payload),
             },
         )
+    }
+
+    fn message_posted_notification_recipients(
+        &self,
+        auth: &AppContext,
+        conversation_id: &str,
+    ) -> Result<BTreeSet<NotificationRecipient>, NotificationError> {
+        match &self.conversation_recipients {
+            ConversationRecipientSource::Aggregate(store) => {
+                let organization_id =
+                    normalize_realtime_organization_id(auth.organization_id.as_str());
+                let sender = store
+                    .load_member(
+                        auth.tenant_id.as_str(),
+                        organization_id.as_str(),
+                        conversation_id,
+                        auth.actor_kind.as_str(),
+                        auth.actor_id.as_str(),
+                    )
+                    .map_err(NotificationError::notification_store)?;
+                if !sender.is_some_and(|member| {
+                    matches!(member.membership_state.as_str(), "joined" | "linked")
+                }) {
+                    return Err(NotificationError::forbidden(
+                        "conversation_membership_required",
+                        "active conversation membership is required for notification fanout",
+                    ));
+                }
+
+                let joined_before_or_at = utc_now_rfc3339_millis();
+                let mut cursor: Option<ConversationMemberPageCursor> = None;
+                let mut recipients = BTreeSet::new();
+                loop {
+                    let page = store
+                        .load_event_recipients_page(
+                            auth.tenant_id.as_str(),
+                            organization_id.as_str(),
+                            conversation_id,
+                            joined_before_or_at.as_str(),
+                            cursor.as_ref(),
+                            CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
+                        )
+                        .map_err(NotificationError::notification_store)?;
+                    recipients.extend(page.items.into_iter().map(|member| {
+                        NotificationRecipient {
+                            recipient_id: member.principal_id,
+                            recipient_kind: member.principal_kind,
+                        }
+                    }));
+                    if !page.has_more {
+                        break;
+                    }
+                    cursor = page.next_cursor;
+                    if cursor.is_none() {
+                        return Err(NotificationError::internal(
+                            "conversation_recipient_cursor_missing",
+                            "conversation recipient page is incomplete without a continuation cursor",
+                        ));
+                    }
+                }
+                Ok(recipients)
+            }
+            ConversationRecipientSource::TestCache(service) => Ok(service
+                .message_posted_notification_recipients_from_auth_context(auth, conversation_id)?
+                .into_iter()
+                .map(|recipient| NotificationRecipient {
+                    recipient_id: recipient.principal_id,
+                    recipient_kind: recipient.principal_kind,
+                })
+                .collect()),
+        }
     }
 
     pub fn request_automation_result_notification(

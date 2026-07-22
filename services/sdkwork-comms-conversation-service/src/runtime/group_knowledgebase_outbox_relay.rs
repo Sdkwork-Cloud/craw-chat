@@ -1,6 +1,6 @@
 //! Reliable delivery worker for group knowledgebase ACL and archive events.
 //!
-//! The Conversation aggregate writes the link projection and an IM outbox row
+//! The Conversation aggregate writes the link conversation_state and an IM outbox row
 //! atomically. This worker is the only consumer for that aggregate type and
 //! invokes the injected generated Knowledgebase SDK adapter through the
 //! coordinator. It intentionally never logs payloads because roster snapshots

@@ -1,6 +1,6 @@
 BEGIN;
 
-CREATE TABLE im_projection_conversation_agent (
+CREATE TABLE im_conversation_agent_assignments (
     id BIGINT NOT NULL PRIMARY KEY,
     uuid VARCHAR(96) NOT NULL UNIQUE,
     tenant_id BIGINT NOT NULL,
@@ -21,32 +21,32 @@ CREATE TABLE im_projection_conversation_agent (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
-    CONSTRAINT uk_im_projection_conversation_agent_scope
+    CONSTRAINT uk_im_conversation_agent_assignments_scope
         UNIQUE (tenant_id, organization_id, conversation_id, agent_id),
-    CONSTRAINT ck_im_projection_conversation_agent_source CHECK (
+    CONSTRAINT ck_im_conversation_agent_assignments_source CHECK (
         assignment_source IN (0, 1)
     ),
-    CONSTRAINT ck_im_projection_conversation_agent_generation CHECK (
+    CONSTRAINT ck_im_conversation_agent_assignments_generation CHECK (
         assignment_generation > 0 AND source_aggregate_version > 0
     ),
-    CONSTRAINT ck_im_projection_conversation_agent_position CHECK (position >= 0),
-    CONSTRAINT ck_im_projection_conversation_agent_status CHECK (status IN (0, 1, 2))
+    CONSTRAINT ck_im_conversation_agent_assignments_position CHECK (position >= 0),
+    CONSTRAINT ck_im_conversation_agent_assignments_status CHECK (status IN (0, 1, 2))
 );
 
-CREATE UNIQUE INDEX uk_im_projection_conversation_agent_position
-    ON im_projection_conversation_agent (
+CREATE UNIQUE INDEX uk_im_conversation_agent_assignments_position
+    ON im_conversation_agent_assignments (
         tenant_id, organization_id, conversation_id, position
     ) WHERE enabled = TRUE AND status = 0;
-CREATE INDEX idx_im_projection_conversation_agent_list
-    ON im_projection_conversation_agent (
+CREATE INDEX idx_im_conversation_agent_assignments_list
+    ON im_conversation_agent_assignments (
         tenant_id, organization_id, conversation_id, status, position, id
     );
-CREATE INDEX idx_im_projection_conversation_agent_reverse
-    ON im_projection_conversation_agent (
+CREATE INDEX idx_im_conversation_agent_assignments_reverse
+    ON im_conversation_agent_assignments (
         tenant_id, organization_id, agent_id, status, updated_at DESC, id DESC
     );
-CREATE INDEX idx_im_projection_conversation_agent_retention
-    ON im_projection_conversation_agent (
+CREATE INDEX idx_im_conversation_agent_assignments_retention
+    ON im_conversation_agent_assignments (
         tenant_id, organization_id, retention_until, id
     ) WHERE retention_until IS NOT NULL;
 

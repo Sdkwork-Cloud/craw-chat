@@ -16,7 +16,7 @@ im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-time = { path = "../../crates/im-time" }
-projection-service = { path = "../projection-service" }
+conversation-runtime = { path = "../sdkwork-comms-conversation-service", package = "sdkwork-comms-conversation-service" }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

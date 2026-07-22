@@ -1,6 +1,6 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use projection_service::ProjectionAccessError;
+use conversation_runtime::conversation_state::ConversationStateAccessError;
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 use sdkwork_web_core::{
@@ -152,8 +152,8 @@ impl From<ContractError> for NotificationError {
     }
 }
 
-impl From<ProjectionAccessError> for NotificationError {
-    fn from(value: ProjectionAccessError) -> Self {
+impl From<ConversationStateAccessError> for NotificationError {
+    fn from(value: ConversationStateAccessError) -> Self {
         Self {
             status: value.status(),
             code: value.code(),

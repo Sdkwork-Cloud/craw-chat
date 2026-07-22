@@ -2140,7 +2140,7 @@ pub struct SocialRuntime {
     write_lock_path: Option<Arc<PathBuf>>,
     snapshot_failpoint_path: Option<Arc<PathBuf>>,
     journal_authority: bool,
-    postgres_materializer: Option<Arc<crate::commit_materializer::SocialPostgresMaterializer>>,
+    postgres_store: Option<Arc<crate::normalized_store::SocialPostgresNormalizedStore>>,
     postgres_atomic_write_authority:
         Option<Arc<dyn crate::postgres_write_authority::SocialAtomicWriteAuthority>>,
     outbox_store: Option<Arc<dyn im_platform_contracts::OutboxStore>>,
@@ -2200,7 +2200,7 @@ impl SocialRuntime {
             write_lock_path: None,
             snapshot_failpoint_path: snapshot_failpoint_path.map(Arc::new),
             journal_authority,
-            postgres_materializer: None,
+            postgres_store: None,
             postgres_atomic_write_authority: None,
             outbox_store: None,
             id_generator: None,
@@ -2224,30 +2224,20 @@ impl SocialRuntime {
         runtime
     }
 
-    pub fn with_postgres_materializer(
-        mut self,
-        pool: im_adapters_social_postgres::SocialPostgresPool,
-    ) -> Self {
-        self.postgres_materializer = Some(Arc::new(
-            crate::commit_materializer::SocialPostgresMaterializer::from_pool(pool),
-        ));
-        self
-    }
-
     pub fn with_postgres_write_authority(
         mut self,
         journal: im_adapters_postgres_journal::PostgresCommitJournal,
         pool: im_adapters_social_postgres::SocialPostgresPool,
     ) -> Self {
-        let materializer =
-            Arc::new(crate::commit_materializer::SocialPostgresMaterializer::from_pool(pool));
+        let normalized_store =
+            Arc::new(crate::normalized_store::SocialPostgresNormalizedStore::from_pool(pool));
         self.postgres_atomic_write_authority = Some(Arc::new(
             crate::postgres_write_authority::SocialPostgresAtomicWriteAuthority::new(
                 journal,
-                materializer.clone(),
+                normalized_store.clone(),
             ),
         ));
-        self.postgres_materializer = Some(materializer);
+        self.postgres_store = Some(normalized_store);
         self
     }
 
@@ -2268,46 +2258,25 @@ impl SocialRuntime {
         &self,
     ) -> Option<Arc<dyn im_adapters_social_postgres::friend_request_store::FriendRequestStore>>
     {
-        self.postgres_materializer
+        self.postgres_store
             .as_ref()
-            .map(|materializer| materializer.friend_request_store())
+            .map(|store| store.friend_request_store())
     }
 
     pub(crate) fn friendship_inventory_store(
         &self,
     ) -> Option<Arc<dyn im_adapters_social_postgres::friendship_store::FriendshipStore>> {
-        self.postgres_materializer
+        self.postgres_store
             .as_ref()
-            .map(|materializer| materializer.friendship_store())
+            .map(|store| store.friendship_store())
     }
 
     pub(crate) fn direct_chat_inventory_store(
         &self,
     ) -> Option<Arc<dyn im_adapters_social_postgres::direct_chat_store::DirectChatStore>> {
-        self.postgres_materializer
+        self.postgres_store
             .as_ref()
-            .map(|materializer| materializer.direct_chat_store())
-    }
-
-    pub(crate) fn postgres_materializer(
-        &self,
-    ) -> Option<Arc<crate::commit_materializer::SocialPostgresMaterializer>> {
-        self.postgres_materializer.clone()
-    }
-
-    pub fn replay_recorded_commit_pages(
-        &self,
-        mut consume: impl FnMut(&[CommitEnvelope]),
-    ) -> Result<usize, String> {
-        replay_commit_journal_pages(
-            self.commit_journal.as_ref(),
-            COMMIT_JOURNAL_REPLAY_BATCH_LIMIT,
-            |commits| {
-                consume(commits);
-                Ok(())
-            },
-        )
-        .map_err(contract_error_message)
+            .map(|store| store.direct_chat_store())
     }
 
     pub fn set_realtime_fanout(
@@ -2366,9 +2335,9 @@ impl SocialRuntime {
     ) -> Result<(Vec<CommitEnvelope>, bool), String> {
         if let Some(authority) = self.postgres_atomic_write_authority.as_ref() {
             let inserted = authority
-                .append_and_materialize(commits.to_vec())
+                .append_and_write(commits.to_vec())
                 .map_err(|error| {
-                    crate::social_materializer_metrics::record_postgres_atomic_write_failures(
+                    crate::social_write_metrics::record_postgres_atomic_write_failures(
                         commits.len() as u64,
                     );
                     tracing::error!(
@@ -2381,17 +2350,17 @@ impl SocialRuntime {
                         contract_error_message(error)
                     )
                 })?;
-            crate::projection_bridge::try_apply_social_commits_to_projection(&inserted);
+            crate::conversation_state_bridge::try_apply_social_commits_to_conversation_state(&inserted);
             return Ok((inserted, true));
         }
 
-        if self.postgres_materializer.is_some() {
-            crate::social_materializer_metrics::record_postgres_atomic_write_failures(
+        if self.postgres_store.is_some() {
+            crate::social_write_metrics::record_postgres_atomic_write_failures(
                 commits.len() as u64,
             );
             tracing::error!(
                 commit_count = commits.len(),
-                "social postgres materializer has no coordinated journal authority"
+                "social postgres normalized store has no coordinated journal authority"
             );
             return Err(
                 "social postgres writes require a coordinated postgres journal authority".into(),
@@ -2483,7 +2452,7 @@ impl SocialRuntime {
             write_lock_path: Some(Arc::new(write_lock_path)),
             snapshot_failpoint_path: Some(Arc::new(state_dir.join("social-failpoints.json"))),
             journal_authority: true,
-            postgres_materializer: None,
+            postgres_store: None,
             postgres_atomic_write_authority: None,
             outbox_store: None,
             id_generator: None,
@@ -3008,7 +2977,7 @@ impl SocialRuntime {
         commit: &CommitEnvelope,
     ) -> Result<SocialWritePersistence, String> {
         self.ensure_social_realtime_delivery(std::slice::from_ref(commit))?;
-        let (inserted_commits, _postgres_materialized) =
+        let (inserted_commits, _postgres_written) =
             self.persist_commits_to_authority(std::slice::from_ref(commit))?;
         self.finalize_persisted_commits(&inserted_commits);
         self.write_pending_tx_marker(commit.event_id.as_str())?;
@@ -3033,7 +3002,7 @@ impl SocialRuntime {
             return Ok(self.current_persistence());
         };
         self.ensure_social_realtime_delivery(commits)?;
-        let (inserted_commits, _postgres_materialized) =
+        let (inserted_commits, _postgres_written) =
             self.persist_commits_to_authority(commits)?;
         self.finalize_persisted_commits(&inserted_commits);
         self.write_pending_tx_marker(marker_event_id)?;
@@ -4691,7 +4660,7 @@ mod postgres_write_authority_tests {
     }
 
     impl SocialAtomicWriteAuthority for InjectedAtomicWriteAuthority {
-        fn append_and_materialize(
+        fn append_and_write(
             &self,
             mut commits: Vec<CommitEnvelope>,
         ) -> Result<Vec<CommitEnvelope>, ContractError> {
@@ -4749,11 +4718,11 @@ mod postgres_write_authority_tests {
         );
         runtime.postgres_atomic_write_authority = Some(authority.clone());
 
-        let (inserted, postgres_materialized) = runtime
+        let (inserted, postgres_written) = runtime
             .persist_commits_to_authority(&[sample_commit("evt-atomic-success")])
             .expect("injected atomic authority should succeed");
 
-        assert!(postgres_materialized);
+        assert!(postgres_written);
         assert_eq!(inserted.len(), 1);
         assert_eq!(inserted[0].ordering_seq, 41);
         assert_eq!(authority.calls.load(Ordering::Relaxed), 1);
@@ -4766,11 +4735,11 @@ mod postgres_write_authority_tests {
         let runtime = SocialRuntime::new(SocialStateStore::memory(), Arc::new(journal.clone()));
         let commit = sample_commit("evt-memory-authority");
 
-        let (inserted, postgres_materialized) = runtime
+        let (inserted, postgres_written) = runtime
             .persist_commits_to_authority(std::slice::from_ref(&commit))
-            .expect("memory authority should append without a postgres materializer");
+            .expect("memory authority should append without a postgres normalized store");
 
-        assert!(!postgres_materialized);
+        assert!(!postgres_written);
         assert_eq!(inserted, vec![commit.clone()]);
         assert_eq!(journal.recorded(), vec![commit]);
     }

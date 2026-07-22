@@ -19,10 +19,7 @@ use sdkwork_im_runtime_id::build_runtime_id_generator_blocking;
 use sdkwork_web_core::WebEnvironment;
 use tracing::info;
 
-use crate::projection_bridge::{
-    replay_social_journal_to_postgres_read_model, replay_social_journal_to_projection,
-    try_apply_social_commits_to_projection,
-};
+use crate::conversation_state_bridge::try_apply_social_commits_to_conversation_state;
 use crate::runtime::{SocialRuntime, SocialStateStore};
 use im_adapters_social_postgres::SocialPostgresConfig;
 
@@ -47,7 +44,7 @@ impl CommitJournal for SocialCommitJournal {
             Self::File(journal) => CommitJournal::append(journal, envelope.clone()),
             Self::Postgres(journal) => CommitJournal::append(journal, envelope.clone()),
         }?;
-        try_apply_social_commits_to_projection(std::slice::from_ref(&envelope));
+        try_apply_social_commits_to_conversation_state(std::slice::from_ref(&envelope));
         Ok(position)
     }
 
@@ -60,7 +57,7 @@ impl CommitJournal for SocialCommitJournal {
             Self::File(journal) => CommitJournal::append_batch(journal, envelopes.clone()),
             Self::Postgres(journal) => CommitJournal::append_batch(journal, envelopes.clone()),
         }?;
-        try_apply_social_commits_to_projection(&envelopes);
+        try_apply_social_commits_to_conversation_state(&envelopes);
         Ok(positions)
     }
 
@@ -140,10 +137,6 @@ pub fn build_social_runtime_from_env() -> Result<Arc<SocialRuntime>, String> {
                     crate::user_directory::resolve_social_user_directory_from_pool(Some(pool)),
                 )
                 .with_id_generator(id_generator);
-        }
-        replay_social_journal_to_projection(&runtime);
-        if let Some(materializer) = runtime.postgres_materializer() {
-            replay_social_journal_to_postgres_read_model(&runtime, materializer.as_ref());
         }
         return Ok(Arc::new(runtime));
     }

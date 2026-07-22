@@ -9,9 +9,9 @@ use im_platform_contracts::{
     AgentReplyCommitResult, ContractError, ConversationAgentBindingRecord, MessageStore,
 };
 use sdkwork_agents_runtime_facade::{
-    AgentsChatActor, AgentsChatFacade, AgentsChatTurnSnapshot, AgentsChatTurnStatus,
-    CompleteAgentsChatTurnRequest, GetAgentsChatTurnByIdempotencyRequest,
-    ResolveAgentsChatSessionRequest,
+    AgentsSessionActor, AgentsSessionEntrySurface, AgentsSessionFacade, AgentsSessionKind,
+    AgentsTurnSnapshot, AgentsTurnStatus, CompleteAgentsTurnRequest,
+    GetAgentsTurnByIdempotencyRequest, ResolveAgentsSessionRequest,
 };
 use sdkwork_im_contract_message::CommitJournal;
 use sdkwork_utils_rust::sha256_hash;
@@ -383,7 +383,7 @@ enum AgentDispatchExecution {
 
 pub struct AgentDispatchWorker {
     store: Arc<dyn AgentIntegrationStore>,
-    agents: Arc<dyn AgentsChatFacade>,
+    agents: Arc<dyn AgentsSessionFacade>,
     source_loader: Arc<dyn AgentDispatchSourceLoader>,
     reply_committer: Arc<dyn AgentReplyCommitter>,
     lease_owner: String,
@@ -392,7 +392,7 @@ pub struct AgentDispatchWorker {
 impl AgentDispatchWorker {
     pub fn new(
         store: Arc<dyn AgentIntegrationStore>,
-        agents: Arc<dyn AgentsChatFacade>,
+        agents: Arc<dyn AgentsSessionFacade>,
         source_loader: Arc<dyn AgentDispatchSourceLoader>,
         reply_committer: Arc<dyn AgentReplyCommitter>,
         lease_owner: impl Into<String>,
@@ -544,7 +544,7 @@ impl AgentDispatchWorker {
             }
         }
 
-        let request = CompleteAgentsChatTurnRequest {
+        let request = CompleteAgentsTurnRequest {
             tenant_id: dispatch.tenant_id,
             organization_id: dispatch.organization_id,
             owner_user_id: dispatch.requested_by,
@@ -588,9 +588,9 @@ impl AgentDispatchWorker {
         &self,
         dispatch: &AgentDispatchRecord,
         agents_session_id: &str,
-    ) -> sdkwork_agents_runtime_facade::RuntimeFacadeResult<Option<AgentsChatTurnSnapshot>> {
+    ) -> sdkwork_agents_runtime_facade::RuntimeFacadeResult<Option<AgentsTurnSnapshot>> {
         self.agents
-            .get_turn_by_idempotency(GetAgentsChatTurnByIdempotencyRequest {
+            .get_turn_by_idempotency(GetAgentsTurnByIdempotencyRequest {
                 tenant_id: dispatch.tenant_id,
                 organization_id: dispatch.organization_id,
                 owner_user_id: dispatch.requested_by,
@@ -605,19 +605,19 @@ impl AgentDispatchWorker {
         &self,
         dispatch: &AgentDispatchRecord,
         agents_session_id: &str,
-        snapshot: AgentsChatTurnSnapshot,
+        snapshot: AgentsTurnSnapshot,
     ) -> Result<AgentDispatchExecution, String> {
         if snapshot.session_id != agents_session_id {
             return Err("Agents turn snapshot session mismatch".into());
         }
         match snapshot.status {
-            AgentsChatTurnStatus::Requested | AgentsChatTurnStatus::Running => {
+            AgentsTurnStatus::Requested | AgentsTurnStatus::Running => {
                 Ok(AgentDispatchExecution::ReconciliationDeferred {
                     turn_id: Some(snapshot.turn_id),
                     detail: "Agents turn remains in progress".into(),
                 })
             }
-            AgentsChatTurnStatus::Completed => {
+            AgentsTurnStatus::Completed => {
                 let content = snapshot.response_content.as_deref().ok_or_else(|| {
                     "completed Agents turn snapshot is missing response content".to_string()
                 })?;
@@ -630,7 +630,7 @@ impl AgentDispatchWorker {
                 )?;
                 Ok(AgentDispatchExecution::Completed(snapshot.turn_id))
             }
-            AgentsChatTurnStatus::Failed => Err(format!(
+            AgentsTurnStatus::Failed => Err(format!(
                 "Agents turn reached failed state{}",
                 snapshot
                     .error_code
@@ -638,7 +638,7 @@ impl AgentDispatchWorker {
                     .map(|code| format!(" ({code})"))
                     .unwrap_or_default()
             )),
-            AgentsChatTurnStatus::Cancelled => Err("Agents turn reached cancelled state".into()),
+            AgentsTurnStatus::Cancelled => Err("Agents turn reached cancelled state".into()),
         }
     }
 
@@ -703,15 +703,24 @@ impl AgentDispatchWorker {
         let session_id = deterministic_agents_session_id(dispatch);
         let resolved = self
             .agents
-            .resolve_or_create_session(ResolveAgentsChatSessionRequest {
+            .resolve_or_create_session(ResolveAgentsSessionRequest {
                 tenant_id: dispatch.tenant_id,
                 organization_id: dispatch.organization_id,
                 owner_user_id: dispatch.requested_by,
                 agent_id: dispatch.agent_id.clone(),
                 session_id,
+                project_id: None,
+                session_kind: AgentsSessionKind::ImDispatch,
+                entry_surface: AgentsSessionEntrySurface::ImDispatch,
+                source_module: Some("sdkwork-im".into()),
+                source_context_kind: Some("conversation".into()),
+                source_context_id: Some(dispatch.conversation_id.clone()),
+                parent_session_id: None,
+                forked_from_turn_id: None,
                 title: format!("IM {}", dispatch.conversation_id),
                 idempotency_key: binding.idempotency_key.clone(),
                 payload_hash: binding.payload_hash.clone(),
+                runtime_binding: None,
                 actor: trusted_actor(),
                 requested_at: now.to_owned(),
             })
@@ -726,8 +735,8 @@ impl AgentDispatchWorker {
     }
 }
 
-fn trusted_actor() -> AgentsChatActor {
-    AgentsChatActor {
+fn trusted_actor() -> AgentsSessionActor {
+    AgentsSessionActor {
         subject_id: "service.sdkwork-im.agent-dispatch".into(),
         roles: vec!["ai.agents.manage".into()],
     }
@@ -776,11 +785,11 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use im_platform_contracts::{
-        AgentAssignmentSource, AgentDispatchStatus, ConversationAgentProjectionRecord,
-        MessageWindow, ReplaceConversationAgentProjection, StoredMessageRecord,
+        AgentAssignmentSource, AgentDispatchStatus, ConversationAgentConversationStateRecord,
+        MessageWindow, ReplaceConversationAgentConversationState, StoredMessageRecord,
     };
     use sdkwork_agents_runtime_facade::{
-        CompletedAgentsChatTurn, ResolvedAgentsChatSession, RuntimeFacadeError,
+        CompletedAgentsTurn, ResolvedAgentsSession, RuntimeFacadeError,
     };
 
     use super::*;
@@ -810,7 +819,7 @@ mod tests {
     impl AgentIntegrationStore for FakeStore {
         fn replace_conversation_agents(
             &self,
-            _command: ReplaceConversationAgentProjection,
+            _command: ReplaceConversationAgentConversationState,
         ) -> Result<(), ContractError> {
             Err(ContractError::UnsupportedCapability("test".into()))
         }
@@ -821,7 +830,7 @@ mod tests {
             _organization_id: u64,
             _conversation_id: &str,
             _limit: usize,
-        ) -> Result<Vec<ConversationAgentProjectionRecord>, ContractError> {
+        ) -> Result<Vec<ConversationAgentConversationStateRecord>, ContractError> {
             Err(ContractError::UnsupportedCapability("test".into()))
         }
 
@@ -941,21 +950,21 @@ mod tests {
 
     struct FakeAgents {
         fail_complete: bool,
-        lookup_snapshot: Option<AgentsChatTurnSnapshot>,
+        lookup_snapshot: Option<AgentsTurnSnapshot>,
         complete_calls: Arc<AtomicUsize>,
     }
 
-    impl AgentsChatFacade for FakeAgents {
+    impl AgentsSessionFacade for FakeAgents {
         fn resolve_or_create_session(
             &self,
-            request: ResolveAgentsChatSessionRequest,
-        ) -> Result<ResolvedAgentsChatSession, RuntimeFacadeError> {
+            request: ResolveAgentsSessionRequest,
+        ) -> Result<ResolvedAgentsSession, RuntimeFacadeError> {
             assert_eq!(
                 request.actor.subject_id,
                 "service.sdkwork-im.agent-dispatch"
             );
             assert_eq!(request.owner_user_id, 1001);
-            Ok(ResolvedAgentsChatSession {
+            Ok(ResolvedAgentsSession {
                 session_id: request.session_id,
                 created: true,
                 version: 1,
@@ -964,8 +973,8 @@ mod tests {
 
         fn complete_turn(
             &self,
-            request: CompleteAgentsChatTurnRequest,
-        ) -> Result<CompletedAgentsChatTurn, RuntimeFacadeError> {
+            request: CompleteAgentsTurnRequest,
+        ) -> Result<CompletedAgentsTurn, RuntimeFacadeError> {
             self.complete_calls.fetch_add(1, Ordering::SeqCst);
             assert_eq!(
                 request.actor.subject_id,
@@ -978,7 +987,7 @@ mod tests {
                     "x".repeat(4096)
                 )));
             }
-            Ok(CompletedAgentsChatTurn {
+            Ok(CompletedAgentsTurn {
                 session_id: request.session_id,
                 turn_id: "turn.worker.1".into(),
                 request_message_id: "message.request.1".into(),
@@ -989,8 +998,8 @@ mod tests {
 
         fn get_turn_by_idempotency(
             &self,
-            request: GetAgentsChatTurnByIdempotencyRequest,
-        ) -> Result<Option<AgentsChatTurnSnapshot>, RuntimeFacadeError> {
+            request: GetAgentsTurnByIdempotencyRequest,
+        ) -> Result<Option<AgentsTurnSnapshot>, RuntimeFacadeError> {
             assert_eq!(
                 request.actor.subject_id,
                 "service.sdkwork-im.agent-dispatch"
@@ -1002,7 +1011,7 @@ mod tests {
 
     fn fake_agents(
         fail_complete: bool,
-        lookup_snapshot: Option<AgentsChatTurnSnapshot>,
+        lookup_snapshot: Option<AgentsTurnSnapshot>,
     ) -> (Arc<FakeAgents>, Arc<AtomicUsize>) {
         let complete_calls = Arc::new(AtomicUsize::new(0));
         (
@@ -1168,10 +1177,10 @@ mod tests {
         });
         let (agents, complete_calls) = fake_agents(
             false,
-            Some(AgentsChatTurnSnapshot {
+            Some(AgentsTurnSnapshot {
                 session_id,
                 turn_id: "turn.worker.running".into(),
-                status: AgentsChatTurnStatus::Running,
+                status: AgentsTurnStatus::Running,
                 request_message_id: "message.request.running".into(),
                 response_message_id: None,
                 response_content: None,
@@ -1228,10 +1237,10 @@ mod tests {
         });
         let (agents, complete_calls) = fake_agents(
             false,
-            Some(AgentsChatTurnSnapshot {
+            Some(AgentsTurnSnapshot {
                 session_id,
                 turn_id: "turn.worker.reconciled".into(),
-                status: AgentsChatTurnStatus::Completed,
+                status: AgentsTurnStatus::Completed,
                 request_message_id: "message.request.reconciled".into(),
                 response_message_id: Some("message.response.reconciled".into()),
                 response_content: Some("reconciled answer".into()),

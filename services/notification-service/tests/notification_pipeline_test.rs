@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use im_app_context::AppContext;
 use im_domain_events::{AggregateType, CommitEnvelope};
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
-use projection_service::TimelineProjectionService;
+use conversation_runtime::conversation_state::ConversationStateService;
 
 #[derive(Clone, Default)]
 struct RecordingJournal {
@@ -376,13 +376,13 @@ fn test_request_notification_fanout_skips_actor_and_creates_notifications_for_ot
 }
 
 #[test]
-fn test_request_message_posted_notifications_resolves_current_active_recipients_from_projection_auth_context()
+fn test_request_message_posted_notifications_resolves_current_active_recipients_from_conversation_state_auth_context()
  {
     let journal = Arc::new(RecordingJournal::default());
-    let projection_service = Arc::new(TimelineProjectionService::default());
-    let runtime = notification_service::NotificationRuntime::with_journal_and_projection(
+    let conversation_state_service = Arc::new(ConversationStateService::default());
+    let runtime = notification_service::NotificationRuntime::with_journal_and_conversation_state(
         journal.clone(),
-        projection_service.clone(),
+        conversation_state_service.clone(),
     );
     let owner_joined = CommitEnvelope::minimal(
         "evt_notification_owner_joined",
@@ -481,9 +481,9 @@ fn test_request_message_posted_notifications_resolves_current_active_recipients_
         }"#,
     );
     for event in [owner_joined, member_joined, removed_joined, removed_member] {
-        projection_service
+        conversation_state_service
             .apply(&event)
-            .expect("projection should accept conversation membership event");
+            .expect("conversation_state should accept conversation membership event");
     }
     let auth = auth_context("1", "user", "s_owner");
 
@@ -525,12 +525,12 @@ fn test_request_message_posted_notifications_resolves_current_active_recipients_
 }
 
 #[test]
-fn test_request_message_posted_notifications_includes_shared_linked_recipients_from_projection() {
+fn test_request_message_posted_notifications_includes_shared_linked_recipients_from_conversation_state() {
     let journal = Arc::new(RecordingJournal::default());
-    let projection_service = Arc::new(TimelineProjectionService::default());
-    let runtime = notification_service::NotificationRuntime::with_journal_and_projection(
+    let conversation_state_service = Arc::new(ConversationStateService::default());
+    let runtime = notification_service::NotificationRuntime::with_journal_and_conversation_state(
         journal.clone(),
-        projection_service.clone(),
+        conversation_state_service.clone(),
     );
     let owner_joined = CommitEnvelope::minimal(
         "evt_notification_shared_owner_joined",
@@ -609,9 +609,9 @@ fn test_request_message_posted_notifications_includes_shared_linked_recipients_f
         }"#,
     );
     for event in [owner_joined, member_joined, shared_linked] {
-        projection_service
+        conversation_state_service
             .apply(&event)
-            .expect("projection should accept shared notification membership event");
+            .expect("conversation_state should accept shared notification membership event");
     }
     let policy_applied = CommitEnvelope::minimal(
         "evt_notification_shared_policy",
@@ -630,7 +630,7 @@ fn test_request_message_posted_notifications_includes_shared_linked_recipients_f
             "retentionPolicyRef":"tenant.standard"
         }"#,
     );
-    projection_service
+    conversation_state_service
         .apply(&policy_applied)
         .expect("shared history policy should project");
     let auth = auth_context("1", "user", "s_owner");

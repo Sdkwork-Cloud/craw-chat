@@ -223,7 +223,7 @@
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
-      "tableName": "im_projection_metadata_snapshots",
+      "tableName": "im_runtime_state_snapshots",
       "modulePrefix": "im",
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",
@@ -232,7 +232,7 @@
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
-      "tableName": "im_projection_conversation_summaries",
+      "tableName": "im_conversations",
       "modulePrefix": "im",
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",
@@ -241,7 +241,7 @@
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
-      "tableName": "im_projection_conversation_members",
+      "tableName": "im_conversation_members",
       "modulePrefix": "im",
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",
@@ -250,7 +250,7 @@
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
-      "tableName": "im_projection_read_cursors",
+      "tableName": "im_conversation_read_cursors",
       "modulePrefix": "im",
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",
@@ -259,7 +259,7 @@
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
-      "tableName": "im_projection_registered_client_routes",
+      "tableName": "im_registered_client_routes",
       "modulePrefix": "im",
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",
@@ -268,7 +268,7 @@
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
-      "tableName": "im_projection_client_route_sync_feeds",
+      "tableName": "im_client_sync_events",
       "modulePrefix": "im",
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",
@@ -277,7 +277,7 @@
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
-      "tableName": "im_projection_client_route_sync_checkpoints",
+      "tableName": "im_client_sync_cursors",
       "modulePrefix": "im",
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",
@@ -567,7 +567,7 @@
       "notes": "Short-lived one-time launch ticket hashes fenced by the immutable space/binding target and IM upstream link generation. Raw tickets are never persisted or included in IM audit payloads."
     },
     {
-      "tableName": "im_projection_conversation_agent",
+      "tableName": "im_conversation_agent_assignments",
       "modulePrefix": "im",
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",

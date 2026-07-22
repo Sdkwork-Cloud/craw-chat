@@ -255,7 +255,6 @@ fn run_retention_purge_tick(
             message_media_refs_deleted = aggregate.message_media_refs_deleted,
             outbox_events_deleted = aggregate.outbox_events_deleted,
             inbox_events_deleted = aggregate.inbox_events_deleted,
-            projection_timeline_entries_deleted = aggregate.projection_timeline_entries_deleted,
             realtime_device_events_deleted = aggregate.realtime_device_events_deleted,
             rtc_sessions_deleted = aggregate.rtc_sessions_deleted,
             rtc_signals_deleted = aggregate.rtc_signals_deleted,
@@ -356,7 +355,6 @@ impl RetentionCleanupReportExt for RetentionCleanupReport {
         self.message_media_refs_deleted += other.message_media_refs_deleted;
         self.outbox_events_deleted += other.outbox_events_deleted;
         self.inbox_events_deleted += other.inbox_events_deleted;
-        self.projection_timeline_entries_deleted += other.projection_timeline_entries_deleted;
         self.realtime_device_events_deleted += other.realtime_device_events_deleted;
         self.rtc_sessions_deleted += other.rtc_sessions_deleted;
         self.rtc_signals_deleted += other.rtc_signals_deleted;
@@ -372,7 +370,6 @@ impl RetentionCleanupReportExt for RetentionCleanupReport {
             + self.message_media_refs_deleted
             + self.outbox_events_deleted
             + self.inbox_events_deleted
-            + self.projection_timeline_entries_deleted
             + self.realtime_device_events_deleted
             + self.rtc_sessions_deleted
             + self.rtc_signals_deleted

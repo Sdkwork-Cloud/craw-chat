@@ -7,6 +7,12 @@ pub const API_SURFACE: &str = "open-api";
 const SOCIAL_OPEN_API_ROUTES: &[HttpRoute] = &[
     HttpRoute::open_api_flexible(
         HttpMethod::Get,
+        "/im/v3/api/social/contacts",
+        "social",
+        "social.contacts.list",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Get,
         "/im/v3/api/social/users",
         "social",
         "social.users.list",

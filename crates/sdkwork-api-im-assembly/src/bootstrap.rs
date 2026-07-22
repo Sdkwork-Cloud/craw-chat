@@ -28,7 +28,6 @@ struct ApiAssemblyBackground {
     /// Keep postgres-backed handler state alive when router merge replaces route handlers.
     _social_postgres_state: Option<social_service::PostgresAppState>,
     _space_state: Option<space_service::http::AppState>,
-    _projection_journal_consumer: Option<projection_service::ProjectionJournalConsumerHandle>,
 }
 
 pub async fn assemble_api_router() -> Result<ApiAssembly, String> {
@@ -46,7 +45,6 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
         _social_friend_request_expiration: None,
         _social_postgres_state: None,
         _space_state: None,
-        _projection_journal_consumer: None,
     };
 
     let conversation_state =
@@ -80,7 +78,6 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
     router = router.merge(sdkwork_routes_im_notification_app_api::gateway_mount());
     router = router.merge(sdkwork_routes_im_ops_backend_api::gateway_mount());
     router = router.merge(sdkwork_routes_im_portal_app_api::gateway_mount());
-    router = router.merge(sdkwork_routes_im_projection_open_api::build_supplemental_public_app());
     router = router.merge(match realtime_bootstrap {
         Some(bootstrap) => {
             sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap_from_env(
@@ -90,10 +87,6 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
         }
         None => sdkwork_routes_im_realtime_open_api::gateway_mount(),
     });
-    background._projection_journal_consumer =
-        projection_service::spawn_projection_journal_consumer_from_env(
-            projection_service::default_projection_runtime(),
-        );
     router = router.merge(
         sdkwork_routes_im_social_backend_api::build_control_embedded_public_app(
             social_runtime.clone(),

@@ -89,7 +89,7 @@ SET conversation_id =
     END
 WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
 
-UPDATE im_projection_conversation_summaries
+UPDATE im_conversations
 SET conversation_id =
     CASE
         WHEN conversation_id LIKE 'c_direct_%' THEN 'c_' || substr(conversation_id, 9)
@@ -98,7 +98,7 @@ SET conversation_id =
     END
 WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
 
-UPDATE im_projection_conversation_members
+UPDATE im_conversation_members
 SET conversation_id =
     CASE
         WHEN conversation_id LIKE 'c_direct_%' THEN 'c_' || substr(conversation_id, 9)
@@ -107,7 +107,7 @@ SET conversation_id =
     END
 WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
 
-UPDATE im_projection_read_cursors
+UPDATE im_conversation_read_cursors
 SET conversation_id =
     CASE
         WHEN conversation_id LIKE 'c_direct_%' THEN 'c_' || substr(conversation_id, 9)
@@ -116,7 +116,7 @@ SET conversation_id =
     END
 WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
 
-UPDATE im_projection_client_route_sync_feeds
+UPDATE im_client_sync_events
 SET conversation_id =
     CASE
         WHEN conversation_id LIKE 'c_direct_%' THEN 'c_' || substr(conversation_id, 9)

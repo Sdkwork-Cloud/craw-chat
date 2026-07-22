@@ -105,19 +105,19 @@ UPDATE im_projection_timeline_entries
 SET conversation_id = pg_temp.rewrite_conversation_id(conversation_id)
 WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
 
-UPDATE im_projection_conversation_summaries
+UPDATE im_conversations
 SET conversation_id = pg_temp.rewrite_conversation_id(conversation_id)
 WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
 
-UPDATE im_projection_conversation_members
+UPDATE im_conversation_members
 SET conversation_id = pg_temp.rewrite_conversation_id(conversation_id)
 WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
 
-UPDATE im_projection_read_cursors
+UPDATE im_conversation_read_cursors
 SET conversation_id = pg_temp.rewrite_conversation_id(conversation_id)
 WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
 
-UPDATE im_projection_client_route_sync_feeds
+UPDATE im_client_sync_events
 SET conversation_id = pg_temp.rewrite_conversation_id(conversation_id)
 WHERE conversation_id IS NOT NULL
   AND (conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%');
@@ -272,10 +272,10 @@ BEGIN
     END IF;
 
     SELECT COUNT(*) INTO stale_count
-    FROM im_projection_conversation_summaries
+    FROM im_conversations
     WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
     IF stale_count > 0 THEN
-        RAISE EXCEPTION 'im_projection_conversation_summaries still has % legacy conversation ids', stale_count;
+        RAISE EXCEPTION 'im_conversations still has % legacy conversation ids', stale_count;
     END IF;
 
     SELECT COUNT(*) INTO stale_count

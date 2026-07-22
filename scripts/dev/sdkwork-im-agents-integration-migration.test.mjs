@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const migrationRoot = path.join(repoRoot, 'database', 'migrations', 'postgres');
 const integrationTables = [
-  'im_projection_conversation_agent',
+  'im_conversation_agent_assignments',
   'im_conversation_agent_binding',
   'im_agent_dispatch',
 ];

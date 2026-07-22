@@ -1,69 +1,62 @@
-use im_domain_core::retention::retention_until_from_class;
 use im_platform_contracts::ContractError;
 use r2d2_postgres::postgres::types::Json;
 use sdkwork_im_contract_message::{
     TimelineProjectionBatch, TimelineProjectionRecord, TimelineProjectionScope,
     TimelineProjectionWindow,
 };
-use sdkwork_utils_rust::sha256_hash;
 use serde::Deserialize;
 
 use crate::{
-    PostgresProjectionPool, now_rfc3339, postgres_jsonb_payload, postgres_jsonb_payload_text,
-    postgres_pool_client, postgres_timestamptz, postgres_unavailable, run_postgres_io,
+    PostgresProjectionPool, postgres_jsonb_payload_text, postgres_pool_client,
+    postgres_unavailable, run_postgres_io,
 };
 
-const UPSERT_TIMELINE_ENTRY_SQL: &str = r#"
-insert into im_projection_timeline_entries (
-    tenant_id,
-    organization_id,
-    conversation_id,
-    message_seq,
-    message_id,
-    summary,
-    payload_json,
-    payload_hash,
-    created_at,
-    updated_at,
-    retention_until
-) values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $9, $10)
-on conflict (tenant_id, organization_id, conversation_id, message_seq) do update set
-    message_id = excluded.message_id,
-    summary = excluded.summary,
-    payload_json = excluded.payload_json,
-    payload_hash = excluded.payload_hash,
-    updated_at = excluded.updated_at,
-    retention_until = excluded.retention_until
+const VERIFY_CANONICAL_MESSAGE_SQL: &str = r#"
+select exists (
+    select 1
+    from im_conversation_messages
+    where tenant_id = $1
+      and organization_id = $2
+      and conversation_id = $3
+      and message_seq = $4
+      and message_id = $5
+      and deleted_at is null
+      and (retention_until is null or retention_until > now())
+)
 "#;
 
 const LOAD_TIMELINE_SQL: &str = r#"
 select message_seq, payload_json
-from im_projection_timeline_entries
+from im_conversation_messages
 where tenant_id = $1
   and organization_id = $2
   and conversation_id = $3
+  and deleted_at is null
   and (retention_until is null or retention_until > now())
 order by message_seq asc
 limit $4
 "#;
 
-/// Default row cap for unbounded timeline loads. Aligned with PAGINATION_SPEC
-/// maximum `page_size` (200) to prevent unbounded result sets at the SQL level
-/// instead of collecting then truncating in process memory.
 const LOAD_TIMELINE_DEFAULT_LIMIT: i64 = 200;
 
 const LOAD_TIMELINE_WINDOW_SQL: &str = r#"
 select message_seq, payload_json
-from im_projection_timeline_entries
+from im_conversation_messages
 where tenant_id = $1
   and organization_id = $2
   and conversation_id = $3
   and message_seq > $4
+  and deleted_at is null
   and (retention_until is null or retention_until > now())
 order by message_seq asc
 limit $5
 "#;
 
+/// Compatibility implementation of the old timeline-store port.
+///
+/// PostgreSQL no longer persists a second timeline. Reads come from the
+/// canonical `im_conversation_messages` table and write callbacks only verify
+/// that the canonical message transaction has committed.
 #[derive(Clone)]
 pub struct PostgresTimelineProjectionStore {
     pool: PostgresProjectionPool,
@@ -82,7 +75,7 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
         message_seq: u64,
         payload: &str,
     ) -> Result<(), ContractError> {
-        upsert_timeline_rows(
+        verify_canonical_messages(
             &self.pool,
             &[(scope.clone(), message_seq, payload.to_owned())],
         )
@@ -95,7 +88,7 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
         let pool = self.pool.clone();
         let scope = scope.clone();
         run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "timeline load")?;
+            let mut client = postgres_pool_client(&pool, "canonical timeline load")?;
             let rows = client
                 .query(
                     LOAD_TIMELINE_SQL,
@@ -106,17 +99,8 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
                         &LOAD_TIMELINE_DEFAULT_LIMIT,
                     ],
                 )
-                .map_err(|error| postgres_unavailable("timeline load select", error))?;
-            rows.into_iter()
-                .map(|row| {
-                    let message_seq: i64 = row.get(0);
-                    let Json(payload) = row.get::<_, Json<serde_json::Value>>(1);
-                    Ok((
-                        message_seq.max(0) as u64,
-                        postgres_jsonb_payload_text(payload, "timeline payload")?,
-                    ))
-                })
-                .collect::<Result<Vec<_>, ContractError>>()
+                .map_err(|error| postgres_unavailable("canonical timeline load", error))?;
+            timeline_rows(rows)
         })
     }
 
@@ -131,7 +115,7 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
         let fetch_limit = i64::try_from(limit.saturating_add(1)).unwrap_or(i64::MAX);
         let after_seq_i64 = i64::try_from(after_seq).unwrap_or(i64::MAX);
         run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "timeline window load")?;
+            let mut client = postgres_pool_client(&pool, "canonical timeline window")?;
             let rows = client
                 .query(
                     LOAD_TIMELINE_WINDOW_SQL,
@@ -143,18 +127,8 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
                         &fetch_limit,
                     ],
                 )
-                .map_err(|error| postgres_unavailable("timeline window select", error))?;
-            let mut items = rows
-                .into_iter()
-                .map(|row| {
-                    let message_seq: i64 = row.get(0);
-                    let Json(payload) = row.get::<_, Json<serde_json::Value>>(1);
-                    Ok((
-                        message_seq.max(0) as u64,
-                        postgres_jsonb_payload_text(payload, "timeline payload")?,
-                    ))
-                })
-                .collect::<Result<Vec<_>, ContractError>>()?;
+                .map_err(|error| postgres_unavailable("canonical timeline window", error))?;
+            let mut items = timeline_rows(rows)?;
             let has_more = items.len() > limit;
             items.truncate(limit);
             Ok(TimelineProjectionWindow { items, has_more })
@@ -170,28 +144,43 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
             .iter()
             .map(|record| (scope.clone(), record.message_seq, record.payload.clone()))
             .collect::<Vec<_>>();
-        upsert_timeline_rows(&self.pool, &rows)
+        verify_canonical_messages(&self.pool, &rows)
     }
 
     fn upsert_timeline_batches(
         &self,
         batches: &[TimelineProjectionBatch],
     ) -> Result<(), ContractError> {
-        let mut rows = Vec::new();
-        for batch in batches {
-            for record in &batch.records {
-                rows.push((
-                    batch.scope.clone(),
-                    record.message_seq,
-                    record.payload.clone(),
-                ));
-            }
-        }
-        upsert_timeline_rows(&self.pool, &rows)
+        let rows = batches
+            .iter()
+            .flat_map(|batch| {
+                batch.records.iter().map(|record| {
+                    (
+                        batch.scope.clone(),
+                        record.message_seq,
+                        record.payload.clone(),
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        verify_canonical_messages(&self.pool, &rows)
     }
 }
 
-fn upsert_timeline_rows(
+fn timeline_rows(rows: Vec<postgres::Row>) -> Result<Vec<(u64, String)>, ContractError> {
+    rows.into_iter()
+        .map(|row| {
+            let message_seq: i64 = row.get(0);
+            let Json(payload) = row.get::<_, Json<serde_json::Value>>(1);
+            Ok((
+                message_seq.max(0) as u64,
+                postgres_jsonb_payload_text(payload, "canonical message payload")?,
+            ))
+        })
+        .collect()
+}
+
+fn verify_canonical_messages(
     pool: &PostgresProjectionPool,
     rows: &[(TimelineProjectionScope, u64, String)],
 ) -> Result<(), ContractError> {
@@ -201,131 +190,51 @@ fn upsert_timeline_rows(
     let pool = pool.clone();
     let rows = rows.to_vec();
     run_postgres_io(move || {
-        let mut client = postgres_pool_client(&pool, "timeline upsert")?;
-        let mut transaction = client
-            .transaction()
-            .map_err(|error| postgres_unavailable("timeline upsert begin", error))?;
-        let created_at = postgres_timestamptz(&now_rfc3339(), "created_at")?;
+        let mut client = postgres_pool_client(&pool, "canonical timeline verification")?;
         for (scope, message_seq, payload) in rows {
-            let parsed = parse_timeline_payload(payload.as_str());
-            let json_payload = postgres_jsonb_payload(payload.as_str(), "timeline payload")?;
-            let retention_until = resolve_timeline_retention_until(&parsed)
-                .map(|value| postgres_timestamptz(value.as_str(), "retention_until"))
-                .transpose()?;
-            let message_id = parsed.message_id;
-            let summary = parsed.summary;
-            let payload_hash = sha256_hash(payload.as_bytes());
-            let message_seq_i64 = i64::try_from(message_seq).unwrap_or(i64::MAX);
-            transaction
-                .execute(
-                    UPSERT_TIMELINE_ENTRY_SQL,
+            let message_id = parse_timeline_message_id(payload.as_str())?;
+            let message_seq = i64::try_from(message_seq).map_err(|_| {
+                ContractError::Invalid("message sequence exceeds signed int64".into())
+            })?;
+            let row = client
+                .query_one(
+                    VERIFY_CANONICAL_MESSAGE_SQL,
                     &[
                         &scope.tenant_id(),
                         &scope.organization_id(),
                         &scope.timeline_scope(),
-                        &message_seq_i64,
+                        &message_seq,
                         &message_id,
-                        &summary,
-                        &Json(json_payload),
-                        &payload_hash,
-                        &created_at,
-                        &retention_until,
                     ],
                 )
-                .map_err(|error| postgres_unavailable("timeline upsert execute", error))?;
+                .map_err(|error| {
+                    postgres_unavailable("canonical timeline verification", error)
+                })?;
+            if !row.get::<_, bool>(0) {
+                return Err(ContractError::Unavailable(
+                    "canonical IM message is unavailable for timeline read".into(),
+                ));
+            }
         }
-        transaction
-            .commit()
-            .map_err(|error| postgres_unavailable("timeline upsert commit", error))?;
         Ok(())
     })
 }
 
-#[derive(Default)]
-struct ParsedTimelinePayload {
-    message_id: i64,
-    summary: Option<String>,
-    occurred_at: Option<String>,
-    retention_until: Option<String>,
-    retention_class: Option<String>,
-}
-
-fn parse_timeline_payload(payload: &str) -> ParsedTimelinePayload {
+fn parse_timeline_message_id(payload: &str) -> Result<i64, ContractError> {
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
-    struct TimelinePayloadFields {
+    struct TimelineIdentity {
         message_id: String,
-        summary: Option<String>,
-        occurred_at: Option<String>,
-        retention_until: Option<String>,
-        retention_class: Option<String>,
     }
 
-    let Ok(fields) = serde_json::from_str::<TimelinePayloadFields>(payload) else {
-        return ParsedTimelinePayload::default();
-    };
-    ParsedTimelinePayload {
-        message_id: fields.message_id.parse().unwrap_or(0),
-        summary: fields.summary,
-        occurred_at: fields.occurred_at,
-        retention_until: fields.retention_until,
-        retention_class: fields.retention_class,
-    }
-}
-
-fn resolve_timeline_retention_until(parsed: &ParsedTimelinePayload) -> Option<String> {
-    if let Some(until) = parsed
-        .retention_until
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        return Some(until.to_owned());
-    }
-    parsed.occurred_at.as_deref().and_then(|occurred_at| {
-        let retention_class = parsed
-            .retention_class
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .unwrap_or("standard");
-        retention_until_from_class(retention_class, occurred_at)
-    })
-}
-
-#[cfg(test)]
-mod retention_tests {
-    use super::*;
-
-    #[test]
-    fn test_resolve_timeline_retention_until_prefers_payload_value() {
-        let parsed = ParsedTimelinePayload {
-            message_id: 1,
-            summary: None,
-            occurred_at: Some("2026-01-01T00:00:00.000Z".into()),
-            retention_until: Some("2027-01-01T00:00:00.000Z".into()),
-            retention_class: Some("ephemeral".into()),
-        };
-        assert_eq!(
-            resolve_timeline_retention_until(&parsed).as_deref(),
-            Some("2027-01-01T00:00:00.000Z")
-        );
-    }
-
-    #[test]
-    fn test_resolve_timeline_retention_until_uses_retention_class() {
-        let parsed = ParsedTimelinePayload {
-            message_id: 1,
-            summary: None,
-            occurred_at: Some("2026-01-01T00:00:00.000Z".into()),
-            retention_until: None,
-            retention_class: Some("ephemeral".into()),
-        };
-        assert_eq!(
-            resolve_timeline_retention_until(&parsed).as_deref(),
-            Some("2026-01-08T00:00:00.000Z")
-        );
-    }
+    let identity = serde_json::from_str::<TimelineIdentity>(payload)
+        .map_err(|_| ContractError::Invalid("timeline payload has no valid messageId".into()))?;
+    identity
+        .message_id
+        .parse::<i64>()
+        .ok()
+        .filter(|message_id| *message_id > 0)
+        .ok_or_else(|| ContractError::Invalid("timeline messageId must be positive int64".into()))
 }
 
 #[cfg(test)]
@@ -333,10 +242,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_timeline_payload_extracts_message_id_and_summary() {
-        let payload = r#"{"messageId":"42","messageSeq":1,"summary":"hello"}"#;
-        let parsed = parse_timeline_payload(payload);
-        assert_eq!(parsed.message_id, 42);
-        assert_eq!(parsed.summary.as_deref(), Some("hello"));
+    fn timeline_payload_requires_a_positive_message_id() {
+        assert_eq!(
+            parse_timeline_message_id(r#"{"messageId":"42","messageSeq":1}"#)
+                .expect("message id"),
+            42
+        );
+        assert!(parse_timeline_message_id(r#"{"messageId":"0"}"#).is_err());
+        assert!(parse_timeline_message_id("{}").is_err());
+    }
+
+    #[test]
+    fn timeline_sql_reads_the_canonical_message_table() {
+        assert!(LOAD_TIMELINE_SQL.contains("from im_conversation_messages"));
+        assert!(LOAD_TIMELINE_WINDOW_SQL.contains("from im_conversation_messages"));
+        assert!(!LOAD_TIMELINE_SQL.contains("im_projection_"));
     }
 }

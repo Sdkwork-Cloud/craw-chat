@@ -37,7 +37,7 @@ fn auth_context(actor_id: &str, actor_kind: &str, session_id: &str) -> AppContex
 }
 
 #[test]
-fn test_runtime_restores_notification_projection_on_rebuild_with_shared_store() {
+fn test_runtime_restores_notification_conversation_state_on_rebuild_with_shared_store() {
     let journal = Arc::new(RecordingJournal::default());
     let task_store = Arc::new(MemoryNotificationTaskStore::default());
     let auth = auth_context("1", "user", "s_demo");

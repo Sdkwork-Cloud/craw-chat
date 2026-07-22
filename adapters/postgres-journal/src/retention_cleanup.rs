@@ -70,18 +70,6 @@ WHERE ctid IN (
 )
 "#;
 
-const PURGE_PROJECTION_TIMELINE_SQL: &str = r#"
-DELETE FROM im_projection_timeline_entries
-WHERE ctid IN (
-    SELECT ctid
-    FROM im_projection_timeline_entries
-    WHERE retention_until IS NOT NULL
-      AND retention_until <= NOW()
-    ORDER BY retention_until ASC
-    LIMIT $1
-)
-"#;
-
 const PURGE_REALTIME_DEVICE_EVENTS_SQL: &str = r#"
 DELETE FROM im_realtime_device_events
 WHERE ctid IN (
@@ -125,7 +113,6 @@ pub struct RetentionCleanupReport {
     pub message_media_refs_deleted: u64,
     pub outbox_events_deleted: u64,
     pub inbox_events_deleted: u64,
-    pub projection_timeline_entries_deleted: u64,
     pub realtime_device_events_deleted: u64,
     pub rtc_sessions_deleted: u64,
     pub rtc_signals_deleted: u64,
@@ -157,8 +144,6 @@ fn purge_batch(
         execute_retention_delete(&mut txn, PURGE_MESSAGE_MEDIA_REFS_SQL, limit)?;
     let outbox_events_deleted = execute_retention_delete(&mut txn, PURGE_OUTBOX_EVENTS_SQL, limit)?;
     let inbox_events_deleted = execute_retention_delete(&mut txn, PURGE_INBOX_EVENTS_SQL, limit)?;
-    let projection_timeline_entries_deleted =
-        execute_retention_delete(&mut txn, PURGE_PROJECTION_TIMELINE_SQL, limit)?;
     let realtime_device_events_deleted =
         execute_retention_delete(&mut txn, PURGE_REALTIME_DEVICE_EVENTS_SQL, limit)?;
     let rtc_sessions_deleted = execute_retention_delete(&mut txn, PURGE_RTC_SESSIONS_SQL, limit)?;
@@ -173,7 +158,6 @@ fn purge_batch(
         message_media_refs_deleted,
         outbox_events_deleted,
         inbox_events_deleted,
-        projection_timeline_entries_deleted,
         realtime_device_events_deleted,
         rtc_sessions_deleted,
         rtc_signals_deleted,
@@ -201,7 +185,6 @@ mod tests {
             PURGE_MESSAGE_MEDIA_REFS_SQL,
             PURGE_OUTBOX_EVENTS_SQL,
             PURGE_INBOX_EVENTS_SQL,
-            PURGE_PROJECTION_TIMELINE_SQL,
             PURGE_REALTIME_DEVICE_EVENTS_SQL,
             PURGE_RTC_SESSIONS_SQL,
             PURGE_RTC_SIGNALS_SQL,

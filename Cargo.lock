@@ -3392,7 +3392,7 @@ dependencies = [
  "im-domain-events",
  "im-platform-contracts",
  "im-time",
- "projection-service",
+ "sdkwork-comms-conversation-service",
  "sdkwork-database-config",
  "sdkwork-im-api-registry",
  "sdkwork-im-contract-core",
@@ -5342,7 +5342,6 @@ dependencies = [
  "axum 0.8.9",
  "sdkwork-catalog-service-host",
  "sdkwork-routes-catalog-app-api",
- "sdkwork-routes-catalog-backend-api",
  "tokio",
 ]
 
@@ -5371,6 +5370,7 @@ name = "sdkwork-api-drive-assembly"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "sdkwork-database-sqlx",
  "sdkwork-drive-config",
  "sdkwork-drive-http",
  "sdkwork-drive-security",
@@ -5412,7 +5412,6 @@ dependencies = [
  "im-app-context",
  "im-domain-core",
  "im-platform-contracts",
- "projection-service",
  "sdkwork-comms-conversation-service",
  "sdkwork-database-config",
  "sdkwork-im-database-pool",
@@ -5426,7 +5425,6 @@ dependencies = [
  "sdkwork-routes-im-notification-app-api",
  "sdkwork-routes-im-ops-backend-api",
  "sdkwork-routes-im-portal-app-api",
- "sdkwork-routes-im-projection-open-api",
  "sdkwork-routes-im-realtime-open-api",
  "sdkwork-routes-im-social-backend-api",
  "sdkwork-routes-im-social-open-api",
@@ -5522,7 +5520,6 @@ dependencies = [
  "axum 0.8.9",
  "sdkwork-invoice-service-host",
  "sdkwork-routes-invoice-app-api",
- "sdkwork-routes-invoice-backend-api",
  "tokio",
 ]
 
@@ -5537,6 +5534,7 @@ dependencies = [
  "sdkwork-intelligence-knowledgebase-service",
  "sdkwork-routes-knowledgebase-app-api",
  "sdkwork-routes-knowledgebase-backend-api",
+ "sdkwork-routes-knowledgebase-internal-api",
  "sdkwork-routes-knowledgebase-open-api",
  "sdkwork-utils-rust",
  "sdkwork-web-bootstrap",
@@ -5562,6 +5560,7 @@ name = "sdkwork-api-membership-assembly"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "sdkwork-database-sqlx",
  "sdkwork-membership-service-host",
  "sdkwork-routes-membership-app-api",
  "sdkwork-routes-membership-backend-api",
@@ -5574,7 +5573,6 @@ version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
  "sdkwork-merchandise-service-host",
- "sdkwork-routes-merchandise-app-api",
  "sdkwork-routes-merchandise-backend-api",
  "tokio",
 ]
@@ -5659,6 +5657,7 @@ name = "sdkwork-api-shop-assembly"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "sdkwork-api-merchandise-assembly",
  "sdkwork-routes-shop-app-api",
  "sdkwork-routes-shop-backend-api",
  "sdkwork-shop-service-host",
@@ -5755,7 +5754,6 @@ dependencies = [
  "im-platform-contracts",
  "im-time",
  "postgres",
- "projection-service",
  "prost 0.14.4",
  "r2d2",
  "rcgen",
@@ -6101,6 +6099,17 @@ dependencies = [
  "sqlx",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "sdkwork-drive-internal-sdk-generated-rust"
+version = "0.1.0"
+dependencies = [
+ "http 1.4.2",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -6770,6 +6779,7 @@ dependencies = [
  "sdkwork-agent-kernel",
  "sdkwork-agent-plugin-core",
  "sdkwork-agent-provider-rig",
+ "sdkwork-drive-contract",
  "sdkwork-knowledgebase-agent-provider",
  "sdkwork-knowledgebase-contract",
  "sdkwork-knowledgebase-observability",
@@ -6920,6 +6930,8 @@ dependencies = [
  "sdkwork-database-config",
  "sdkwork-database-sqlx",
  "sdkwork-drive-config",
+ "sdkwork-drive-internal-sdk-generated-rust",
+ "sdkwork-drive-object-runtime",
  "sdkwork-drive-storage-contract",
  "sdkwork-drive-uploader-service",
  "sdkwork-drive-workspace-service",
@@ -6928,6 +6940,7 @@ dependencies = [
  "sdkwork-utils-rust",
  "sqlx",
  "time",
+ "url",
  "uuid",
 ]
 
@@ -7283,11 +7296,25 @@ dependencies = [
 name = "sdkwork-merchandise-service-host"
 version = "0.1.0"
 dependencies = [
- "sdkwork-database-spi",
  "sdkwork-database-sqlx",
  "sdkwork-merchandise-database-host",
+]
+
+[[package]]
+name = "sdkwork-merchandise-web-support"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "sdkwork-contract-service",
+ "sdkwork-iam-context-service",
  "sdkwork-merchandise-repository-sqlx",
  "sdkwork-merchandise-service",
+ "sdkwork-utils-rust",
+ "sdkwork-web-core",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "uuid",
 ]
 
 [[package]]
@@ -7671,29 +7698,13 @@ dependencies = [
  "sdkwork-iam-web-adapter",
  "sdkwork-merchandise-repository-sqlx",
  "sdkwork-merchandise-service",
- "sdkwork-routes-merchandise-app-api",
+ "sdkwork-merchandise-web-support",
  "sdkwork-web-axum",
  "sdkwork-web-bootstrap",
  "sdkwork-web-core",
  "serde",
  "serde_json",
  "sqlx",
-]
-
-[[package]]
-name = "sdkwork-routes-catalog-backend-api"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "sdkwork-catalog-service-host",
- "sdkwork-iam-web-adapter",
- "sdkwork-merchandise-service",
- "sdkwork-routes-merchandise-app-api",
- "sdkwork-web-axum",
- "sdkwork-web-bootstrap",
- "sdkwork-web-core",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -8104,12 +8115,14 @@ dependencies = [
  "sdkwork-inventory-repository-sqlx",
  "sdkwork-inventory-service",
  "sdkwork-inventory-service-host",
+ "sdkwork-utils-rust",
  "sdkwork-web-axum",
  "sdkwork-web-bootstrap",
  "sdkwork-web-core",
  "serde",
  "serde_json",
  "sqlx",
+ "uuid",
 ]
 
 [[package]]
@@ -8120,11 +8133,17 @@ dependencies = [
  "sdkwork-contract-service",
  "sdkwork-database-sqlx",
  "sdkwork-iam-context-service",
+ "sdkwork-iam-web-adapter",
  "sdkwork-inventory-repository-sqlx",
  "sdkwork-inventory-service-host",
+ "sdkwork-utils-rust",
+ "sdkwork-web-axum",
+ "sdkwork-web-bootstrap",
+ "sdkwork-web-core",
  "serde",
  "serde_json",
  "sqlx",
+ "uuid",
 ]
 
 [[package]]
@@ -8139,27 +8158,14 @@ dependencies = [
  "sdkwork-invoice-repository-sqlx",
  "sdkwork-invoice-service",
  "sdkwork-invoice-service-host",
+ "sdkwork-utils-rust",
  "sdkwork-web-axum",
  "sdkwork-web-bootstrap",
  "sdkwork-web-core",
  "serde",
  "serde_json",
  "sqlx",
-]
-
-[[package]]
-name = "sdkwork-routes-invoice-backend-api"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "sdkwork-iam-web-adapter",
- "sdkwork-invoice-service",
- "sdkwork-invoice-service-host",
- "sdkwork-web-axum",
- "sdkwork-web-bootstrap",
- "sdkwork-web-core",
- "serde",
- "serde_json",
+ "uuid",
 ]
 
 [[package]]
@@ -8173,6 +8179,7 @@ dependencies = [
  "sdkwork-database-config",
  "sdkwork-database-id",
  "sdkwork-drive-storage-local",
+ "sdkwork-drive-workspace-service",
  "sdkwork-iam-web-adapter",
  "sdkwork-intelligence-knowledgebase-repository-sqlx",
  "sdkwork-intelligence-knowledgebase-service",
@@ -8192,6 +8199,7 @@ dependencies = [
  "sdkwork-knowledgebase-observability",
  "sdkwork-knowledgebase-provider-secret-adapter",
  "sdkwork-routes-knowledgebase-backend-api",
+ "sdkwork-routes-knowledgebase-internal-api",
  "sdkwork-routes-knowledgebase-open-api",
  "sdkwork-utils-rust",
  "sdkwork-web-axum",
@@ -8227,6 +8235,26 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tokio",
+]
+
+[[package]]
+name = "sdkwork-routes-knowledgebase-internal-api"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum 0.8.9",
+ "sdkwork-drive-contract",
+ "sdkwork-iam-web-adapter",
+ "sdkwork-intelligence-knowledgebase-service",
+ "sdkwork-knowledgebase-contract",
+ "sdkwork-knowledgebase-observability",
+ "sdkwork-routes-knowledgebase-backend-api",
+ "sdkwork-utils-rust",
+ "sdkwork-web-axum",
+ "sdkwork-web-core",
+ "serde",
+ "tokio",
+ "tower 0.5.3",
 ]
 
 [[package]]
@@ -8331,27 +8359,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-routes-merchandise-app-api"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "sdkwork-contract-service",
- "sdkwork-iam-context-service",
- "sdkwork-iam-web-adapter",
- "sdkwork-merchandise-repository-sqlx",
- "sdkwork-merchandise-service",
- "sdkwork-merchandise-service-host",
- "sdkwork-utils-rust",
- "sdkwork-web-axum",
- "sdkwork-web-bootstrap",
- "sdkwork-web-core",
- "serde",
- "serde_json",
- "sqlx",
- "uuid",
-]
-
-[[package]]
 name = "sdkwork-routes-merchandise-backend-api"
 version = "0.1.0"
 dependencies = [
@@ -8359,7 +8366,7 @@ dependencies = [
  "sdkwork-database-sqlx",
  "sdkwork-iam-web-adapter",
  "sdkwork-merchandise-service-host",
- "sdkwork-routes-merchandise-app-api",
+ "sdkwork-merchandise-web-support",
  "sdkwork-web-axum",
  "sdkwork-web-bootstrap",
  "sdkwork-web-core",
@@ -8559,7 +8566,7 @@ dependencies = [
  "sdkwork-iam-web-adapter",
  "sdkwork-merchandise-repository-sqlx",
  "sdkwork-merchandise-service",
- "sdkwork-routes-merchandise-app-api",
+ "sdkwork-merchandise-web-support",
  "sdkwork-shop-repository-sqlx",
  "sdkwork-shop-service",
  "sdkwork-shop-service-host",
@@ -9270,7 +9277,7 @@ dependencies = [
  "im-platform-contracts",
  "im-time",
  "postgres",
- "projection-service",
+ "sdkwork-comms-conversation-service",
  "sdkwork-database-config",
  "sdkwork-im-api-registry",
  "sdkwork-im-database-pool",

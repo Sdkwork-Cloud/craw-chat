@@ -189,7 +189,7 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                     let payload = RetrieveConversationPreferencesRequest::decode(
                         request.request_bytes.as_slice(),
                     )?;
-                    super::rpc_projection_dispatch::dispatch_retrieve_conversation_preferences(
+                    super::rpc_state_dispatch::dispatch_retrieve_conversation_preferences(
                         &auth, payload,
                     )
                     .await
@@ -198,7 +198,7 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                     let payload = UpdateConversationPreferencesRequest::decode(
                         request.request_bytes.as_slice(),
                     )?;
-                    super::rpc_projection_dispatch::dispatch_update_conversation_preferences(
+                    super::rpc_state_dispatch::dispatch_update_conversation_preferences(
                         &auth, payload,
                     )
                     .await
@@ -207,7 +207,7 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                     let payload = RetrieveConversationProfileRequest::decode(
                         request.request_bytes.as_slice(),
                     )?;
-                    super::rpc_projection_dispatch::dispatch_retrieve_conversation_profile(
+                    super::rpc_state_dispatch::dispatch_retrieve_conversation_profile(
                         &auth, payload,
                     )
                     .await
@@ -215,7 +215,7 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                 "conversations.profile.update" => {
                     let payload =
                         UpdateConversationProfileRequest::decode(request.request_bytes.as_slice())?;
-                    super::rpc_projection_dispatch::dispatch_update_conversation_profile(
+                    super::rpc_state_dispatch::dispatch_update_conversation_profile(
                         &state, &auth, payload,
                     )
                     .await
@@ -280,25 +280,25 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                 "messages.favorites.list" => {
                     let payload =
                         ListFavoriteMessagesRequest::decode(request.request_bytes.as_slice())?;
-                    super::rpc_projection_dispatch::dispatch_list_favorite_messages(&auth, payload)
+                    super::rpc_state_dispatch::dispatch_list_favorite_messages(&auth, payload)
                         .await
                 }
                 "messages.favorites.create" => {
                     let payload =
                         CreateMessageFavoriteRequest::decode(request.request_bytes.as_slice())?;
-                    super::rpc_projection_dispatch::dispatch_create_message_favorite(&auth, payload)
+                    super::rpc_state_dispatch::dispatch_create_message_favorite(&auth, payload)
                         .await
                 }
                 "messages.favorites.delete" => {
                     let payload =
                         DeleteMessageFavoriteRequest::decode(request.request_bytes.as_slice())?;
-                    super::rpc_projection_dispatch::dispatch_delete_message_favorite(&auth, payload)
+                    super::rpc_state_dispatch::dispatch_delete_message_favorite(&auth, payload)
                         .await
                 }
                 "messages.visibility.delete" => {
                     let payload =
                         DeleteMessageVisibilityRequest::decode(request.request_bytes.as_slice())?;
-                    super::rpc_projection_dispatch::dispatch_delete_message_visibility(
+                    super::rpc_state_dispatch::dispatch_delete_message_visibility(
                         &auth, payload,
                     )
                     .await

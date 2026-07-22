@@ -65,31 +65,22 @@ tables:
   - name: im_automation_executions
     lifecycle_status: active
     owner: im-platform
-  - name: im_projection_timeline_entries
+  - name: im_conversations
     lifecycle_status: active
     owner: im-platform
-  - name: im_projection_conversation_summaries
+  - name: im_conversation_members
     lifecycle_status: active
     owner: im-platform
-  - name: im_projection_conversation_members
+  - name: im_conversation_read_cursors
     lifecycle_status: active
     owner: im-platform
-  - name: im_projection_read_cursors
+  - name: im_registered_client_routes
     lifecycle_status: active
     owner: im-platform
-  - name: im_projection_registered_client_routes
+  - name: im_client_sync_events
     lifecycle_status: active
     owner: im-platform
-  - name: im_projection_client_route_sync_feeds
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_projection_client_route_sync_checkpoints
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_projection_contacts
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_projection_direct_chat_bindings
+  - name: im_client_sync_cursors
     lifecycle_status: active
     owner: im-platform
   - name: im_stream_sessions
@@ -173,7 +164,7 @@ tables:
   - name: im_ban_records
     lifecycle_status: active
     owner: im-platform
-  - name: im_projection_metadata_snapshots
+  - name: im_runtime_state_snapshots
     lifecycle_status: active
     owner: im-platform
   - name: im_rtc_outbox_events
@@ -191,7 +182,7 @@ tables:
   - name: im_group_knowledge_launch_tickets
     lifecycle_status: active
     owner: im-platform
-  - name: im_projection_conversation_agent
+  - name: im_conversation_agent_assignments
     lifecycle_status: active
     owner: im-platform
   - name: im_conversation_agent_binding

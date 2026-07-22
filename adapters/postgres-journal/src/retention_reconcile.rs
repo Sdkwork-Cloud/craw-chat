@@ -23,15 +23,6 @@ WHERE tenant_id = $1
   AND retention_until IS NOT NULL
 "#;
 
-const CLEAR_PROJECTION_TIMELINE_SQL: &str = r#"
-UPDATE im_projection_timeline_entries
-SET retention_until = NULL, updated_at = NOW()
-WHERE tenant_id = $1
-  AND organization_id = $2
-  AND conversation_id = $3
-  AND retention_until IS NOT NULL
-"#;
-
 const CLEAR_COMMIT_JOURNAL_SQL: &str = r#"
 UPDATE im_commit_journal
 SET retention_until = NULL
@@ -79,7 +70,6 @@ WHERE tenant_id = $1
 pub struct RetentionReconcileReport {
     pub conversation_messages_cleared: u64,
     pub message_media_refs_cleared: u64,
-    pub projection_timeline_entries_cleared: u64,
     pub commit_journal_cleared: u64,
     pub outbox_events_cleared: u64,
     pub inbox_events_cleared: u64,
@@ -90,7 +80,6 @@ impl RetentionReconcileReport {
     pub fn total_cleared(&self) -> u64 {
         self.conversation_messages_cleared
             + self.message_media_refs_cleared
-            + self.projection_timeline_entries_cleared
             + self.commit_journal_cleared
             + self.outbox_events_cleared
             + self.inbox_events_cleared
@@ -136,7 +125,6 @@ impl RetentionScopeStore for PostgresRetentionScopeStore {
                     conversation_id = conversation_id.as_str(),
                     conversation_messages_cleared = report.conversation_messages_cleared,
                     message_media_refs_cleared = report.message_media_refs_cleared,
-                    projection_timeline_entries_cleared = report.projection_timeline_entries_cleared,
                     commit_journal_cleared = report.commit_journal_cleared,
                     outbox_events_cleared = report.outbox_events_cleared,
                     inbox_events_cleared = report.inbox_events_cleared,
@@ -174,13 +162,6 @@ pub fn clear_conversation_retention_until(
         )
         .map_err(|error| postgres_unavailable("retention reconcile media refs", error))?
         as u64;
-    let projection_timeline_entries_cleared = txn
-        .execute(
-            CLEAR_PROJECTION_TIMELINE_SQL,
-            &[&tenant_id, &organization_id, &conversation_id],
-        )
-        .map_err(|error| postgres_unavailable("retention reconcile projection timeline", error))?
-        as u64;
     let commit_journal_cleared = txn
         .execute(CLEAR_COMMIT_JOURNAL_SQL, &[&tenant_id, &conversation_id])
         .map_err(|error| postgres_unavailable("retention reconcile commit journal", error))?
@@ -212,7 +193,6 @@ pub fn clear_conversation_retention_until(
     Ok(RetentionReconcileReport {
         conversation_messages_cleared,
         message_media_refs_cleared,
-        projection_timeline_entries_cleared,
         commit_journal_cleared,
         outbox_events_cleared,
         inbox_events_cleared,
@@ -229,12 +209,11 @@ mod tests {
         let report = RetentionReconcileReport {
             conversation_messages_cleared: 2,
             message_media_refs_cleared: 1,
-            projection_timeline_entries_cleared: 3,
             commit_journal_cleared: 4,
             outbox_events_cleared: 1,
             inbox_events_cleared: 0,
             realtime_device_events_cleared: 5,
         };
-        assert_eq!(report.total_cleared(), 16);
+        assert_eq!(report.total_cleared(), 13);
     }
 }

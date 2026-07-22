@@ -68,12 +68,12 @@ fn test_notification_runtime_exposes_message_posted_notification_owner_seam() {
 
     assert!(
         source.contains(".message_posted_notification_recipients_from_auth_context("),
-        "notification-service should resolve message-posted recipients through projection-service's message-posted principal-context owner seam instead of expecting service-edge recipient fanout input"
+        "notification-service should resolve message-posted recipients through conversation_state-service's message-posted principal-context owner seam instead of expecting service-edge recipient fanout input"
     );
 
     assert!(
         !source.contains("recipient_ids: request.recipient_ids"),
-        "notification-service should not keep threading message-posted recipient_ids from callers once notification-service owns the projection-backed recipient seam"
+        "notification-service should not keep threading message-posted recipient_ids from callers once notification-service owns the conversation_state-backed recipient seam"
     );
 }
 

@@ -1,6 +1,6 @@
 mod api_payload;
 pub mod block;
-pub mod commit_materializer;
+pub mod normalized_store;
 mod contact_open_api_backend;
 mod control_access;
 mod control_routes;
@@ -17,14 +17,14 @@ mod openapi;
 mod openapi_contacts;
 pub mod postgres;
 mod postgres_write_authority;
-pub mod projection_bridge;
+pub mod conversation_state_bridge;
 mod runtime;
 mod runtime_control;
 pub mod shared_channel;
 mod shared_channel_sync_metrics;
 mod shared_channel_sync_runtime;
 mod shared_channel_sync_scheduler;
-mod social_materializer_metrics;
+mod social_write_metrics;
 pub mod social_realtime;
 mod user_directory;
 
@@ -49,7 +49,7 @@ pub async fn init_id_generators() {
     init_contact_open_api_id_generator().await;
     contact_open_api_backend::init_contact_postgres_store().await;
 }
-pub use commit_materializer::SocialPostgresMaterializer;
+pub use normalized_store::SocialPostgresNormalizedStore;
 pub use direct_chat_binder::{BindDirectChatConversationInput, DirectChatConversationBinder};
 pub use friend_request_expiration::spawn_friend_request_expiration_scheduler_from_env;
 pub use journal_bootstrap::build_social_runtime_from_env;
@@ -63,10 +63,9 @@ pub use shared_channel_sync_scheduler::{
     spawn_shared_channel_sync_stale_reclaim_scheduler,
     spawn_shared_channel_sync_stale_reclaim_scheduler_from_env,
 };
-pub use social_materializer_metrics::{
-    postgres_atomic_write_failure_count, postgres_materialization_failure_count,
-    record_postgres_atomic_write_failures, record_postgres_materialization_failures,
-    render_prometheus as render_social_materializer_prometheus,
+pub use social_write_metrics::{
+    postgres_atomic_write_failure_count, record_postgres_atomic_write_failures,
+    render_prometheus as render_social_write_prometheus,
 };
 pub use social_realtime::{
     LoggingSocialRealtimeFanout, SOCIAL_OUTBOX_AGGREGATE_TYPE, SocialRealtimeFanout,

@@ -1753,7 +1753,7 @@ where
         }
 
         if let Some(history) = self
-            .list_messages_history_window_from_store_if_joined_member_projection_allows(request)?
+            .list_messages_history_window_from_store_if_joined_member_conversation_state_allows(request)?
         {
             return Ok(history);
         }
@@ -1868,7 +1868,7 @@ where
         )?))
     }
 
-    fn list_messages_history_window_from_store_if_joined_member_projection_allows(
+    fn list_messages_history_window_from_store_if_joined_member_conversation_state_allows(
         &self,
         request: MessageHistoryReadRequest<'_>,
     ) -> Result<Option<MessageHistoryResult>, RuntimeError> {

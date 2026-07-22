@@ -447,7 +447,7 @@ function assertDocumentation() {
     'IM Agents boundary spec must forbid the reverse Agents-to-IM dependency',
   );
   for (const targetTable of [
-    'im_projection_conversation_agent',
+    'im_conversation_agent_assignments',
     'im_conversation_agent_binding',
     'im_agent_dispatch',
   ]) {

@@ -117,55 +117,37 @@
       "lifecycle_status": "active"
     },
     {
-      "table_name": "im_projection_timeline_entries",
+      "table_name": "im_conversations",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"
     },
     {
-      "table_name": "im_projection_conversation_summaries",
+      "table_name": "im_conversation_members",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"
     },
     {
-      "table_name": "im_projection_conversation_members",
+      "table_name": "im_conversation_read_cursors",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"
     },
     {
-      "table_name": "im_projection_read_cursors",
+      "table_name": "im_registered_client_routes",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"
     },
     {
-      "table_name": "im_projection_registered_client_routes",
+      "table_name": "im_client_sync_events",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"
     },
     {
-      "table_name": "im_projection_client_route_sync_feeds",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active"
-    },
-    {
-      "table_name": "im_projection_client_route_sync_checkpoints",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active"
-    },
-    {
-      "table_name": "im_projection_contacts",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active"
-    },
-    {
-      "table_name": "im_projection_direct_chat_bindings",
+      "table_name": "im_client_sync_cursors",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"
@@ -333,7 +315,7 @@
       "lifecycle_status": "active"
     },
     {
-      "table_name": "im_projection_metadata_snapshots",
+      "table_name": "im_runtime_state_snapshots",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"

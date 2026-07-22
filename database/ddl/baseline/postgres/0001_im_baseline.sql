@@ -816,34 +816,11 @@ CREATE INDEX IF NOT EXISTS idx_im_automation_executions_retention_until
 -- 20. 投影：Timeline 条目
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS im_projection_timeline_entries (
-    tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT '0',
-    conversation_id TEXT NOT NULL,
-    message_seq BIGINT NOT NULL CHECK (message_seq > 0),
-    message_id BIGINT NOT NULL,
-    summary TEXT,
-    payload_json JSONB NOT NULL,
-    payload_hash TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_projection_timeline_entries PRIMARY KEY (tenant_id, organization_id, conversation_id, message_seq),
-    CONSTRAINT uk_im_projection_timeline_entries_message UNIQUE (tenant_id, organization_id, message_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_im_projection_timeline_entries_message
-    ON im_projection_timeline_entries (tenant_id, organization_id, message_id);
-
-CREATE INDEX IF NOT EXISTS idx_im_projection_timeline_entries_retention_until
-    ON im_projection_timeline_entries (tenant_id, organization_id, retention_until)
-    WHERE retention_until IS NOT NULL;
-
 -- ============================================================
 -- 21. 投影：会话摘要
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS im_projection_conversation_summaries (
+CREATE TABLE IF NOT EXISTS im_conversations (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
@@ -862,21 +839,21 @@ CREATE TABLE IF NOT EXISTS im_projection_conversation_summaries (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_projection_conversation_summaries PRIMARY KEY (tenant_id, organization_id, conversation_id)
+    CONSTRAINT pk_im_conversations PRIMARY KEY (tenant_id, organization_id, conversation_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_summaries_activity
-    ON im_projection_conversation_summaries (tenant_id, organization_id, last_activity_at DESC, conversation_id);
+CREATE INDEX IF NOT EXISTS idx_im_conversations_activity
+    ON im_conversations (tenant_id, organization_id, last_activity_at DESC, conversation_id);
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_summaries_retention_until
-    ON im_projection_conversation_summaries (tenant_id, organization_id, retention_until)
+CREATE INDEX IF NOT EXISTS idx_im_conversations_retention_until
+    ON im_conversations (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
 -- 22. 投影：会话成员
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS im_projection_conversation_members (
+CREATE TABLE IF NOT EXISTS im_conversation_members (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
@@ -900,26 +877,26 @@ CREATE TABLE IF NOT EXISTS im_projection_conversation_members (
     -- the composite PK on (tenant_id, organization_id, conversation_id, principal_kind, principal_id)
     -- is the sole uniqueness guarantee for conversation members, since principal already identifies a
     -- member uniquely within a conversation. See specs/database-table-registry.json writeOwner.
-    CONSTRAINT pk_im_projection_conversation_members PRIMARY KEY (tenant_id, organization_id, conversation_id, principal_kind, principal_id),
-    CONSTRAINT chk_im_projection_conversation_members_state CHECK (membership_state IN ('invited', 'joined', 'linked', 'removed', 'left'))
+    CONSTRAINT pk_im_conversation_members PRIMARY KEY (tenant_id, organization_id, conversation_id, principal_kind, principal_id),
+    CONSTRAINT chk_im_conversation_members_state CHECK (membership_state IN ('invited', 'joined', 'linked', 'removed', 'left'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_members_principal
-    ON im_projection_conversation_members (tenant_id, organization_id, principal_kind, principal_id, membership_state, conversation_id);
+CREATE INDEX IF NOT EXISTS idx_im_conversation_members_principal
+    ON im_conversation_members (tenant_id, organization_id, principal_kind, principal_id, membership_state, conversation_id);
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_members_active
-    ON im_projection_conversation_members (tenant_id, organization_id, conversation_id, principal_kind, principal_id)
+CREATE INDEX IF NOT EXISTS idx_im_conversation_members_active
+    ON im_conversation_members (tenant_id, organization_id, conversation_id, principal_kind, principal_id)
     WHERE membership_state = 'joined';
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_members_retention_until
-    ON im_projection_conversation_members (tenant_id, organization_id, retention_until)
+CREATE INDEX IF NOT EXISTS idx_im_conversation_members_retention_until
+    ON im_conversation_members (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
 -- 23. 投影：已读游标
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS im_projection_read_cursors (
+CREATE TABLE IF NOT EXISTS im_conversation_read_cursors (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
@@ -934,21 +911,21 @@ CREATE TABLE IF NOT EXISTS im_projection_read_cursors (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_projection_read_cursors PRIMARY KEY (tenant_id, organization_id, conversation_id, member_id, device_id)
+    CONSTRAINT pk_im_conversation_read_cursors PRIMARY KEY (tenant_id, organization_id, conversation_id, member_id, device_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_read_cursors_principal
-    ON im_projection_read_cursors (tenant_id, organization_id, principal_kind, principal_id, conversation_id);
+CREATE INDEX IF NOT EXISTS idx_im_conversation_read_cursors_principal
+    ON im_conversation_read_cursors (tenant_id, organization_id, principal_kind, principal_id, conversation_id);
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_read_cursors_retention_until
-    ON im_projection_read_cursors (tenant_id, organization_id, retention_until)
+CREATE INDEX IF NOT EXISTS idx_im_conversation_read_cursors_retention_until
+    ON im_conversation_read_cursors (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
 -- 24. 投影：注册客户端路由
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS im_projection_registered_client_routes (
+CREATE TABLE IF NOT EXISTS im_registered_client_routes (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
@@ -960,18 +937,18 @@ CREATE TABLE IF NOT EXISTS im_projection_registered_client_routes (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_projection_registered_client_routes PRIMARY KEY (tenant_id, organization_id, principal_kind, principal_id, device_id)
+    CONSTRAINT pk_im_registered_client_routes PRIMARY KEY (tenant_id, organization_id, principal_kind, principal_id, device_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_registered_client_routes_retention_until
-    ON im_projection_registered_client_routes (tenant_id, organization_id, retention_until)
+CREATE INDEX IF NOT EXISTS idx_im_registered_client_routes_retention_until
+    ON im_registered_client_routes (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
 -- 25. 投影：客户端路由同步 Feed
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS im_projection_client_route_sync_feeds (
+CREATE TABLE IF NOT EXISTS im_client_sync_events (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
@@ -995,25 +972,25 @@ CREATE TABLE IF NOT EXISTS im_projection_client_route_sync_feeds (
     occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_projection_client_route_sync_feeds PRIMARY KEY (tenant_id, organization_id, principal_kind, principal_id, device_id, sync_seq)
+    CONSTRAINT pk_im_client_sync_events PRIMARY KEY (tenant_id, organization_id, principal_kind, principal_id, device_id, sync_seq)
 );
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_feeds_window
-    ON im_projection_client_route_sync_feeds (tenant_id, organization_id, principal_kind, principal_id, device_id, sync_seq);
+CREATE INDEX IF NOT EXISTS idx_im_client_sync_events_window
+    ON im_client_sync_events (tenant_id, organization_id, principal_kind, principal_id, device_id, sync_seq);
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_feeds_conversation
-    ON im_projection_client_route_sync_feeds (tenant_id, organization_id, conversation_id, sync_seq)
+CREATE INDEX IF NOT EXISTS idx_im_client_sync_events_conversation
+    ON im_client_sync_events (tenant_id, organization_id, conversation_id, sync_seq)
     WHERE conversation_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_feeds_retention_until
-    ON im_projection_client_route_sync_feeds (tenant_id, organization_id, retention_until)
+CREATE INDEX IF NOT EXISTS idx_im_client_sync_events_retention_until
+    ON im_client_sync_events (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
 -- 26. 投影：客户端路由同步检查点
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS im_projection_client_route_sync_checkpoints (
+CREATE TABLE IF NOT EXISTS im_client_sync_cursors (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
@@ -1027,75 +1004,24 @@ CREATE TABLE IF NOT EXISTS im_projection_client_route_sync_checkpoints (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_projection_client_route_sync_checkpoints PRIMARY KEY (tenant_id, organization_id, principal_kind, principal_id, device_id),
-    CONSTRAINT chk_im_projection_client_route_sync_checkpoints_order CHECK (
+    CONSTRAINT pk_im_client_sync_cursors PRIMARY KEY (tenant_id, organization_id, principal_kind, principal_id, device_id),
+    CONSTRAINT chk_im_client_sync_cursors_order CHECK (
         trimmed_through_seq <= latest_sync_seq
         AND acked_through_sync_seq <= latest_sync_seq
     )
 );
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_checkpoints_retention_until
-    ON im_projection_client_route_sync_checkpoints (tenant_id, organization_id, retention_until)
+CREATE INDEX IF NOT EXISTS idx_im_client_sync_cursors_retention_until
+    ON im_client_sync_cursors (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
 -- 27. 投影：联系人
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS im_projection_contacts (
-    tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT '0',
-    owner_user_id TEXT NOT NULL,
-    contact_type TEXT NOT NULL,
-    target_user_id TEXT NOT NULL,
-    relationship_state TEXT NOT NULL,
-    friendship_id TEXT NOT NULL,
-    direct_chat_id TEXT,
-    conversation_id TEXT,
-    established_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    last_interaction_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    payload_json JSONB NOT NULL,
-    payload_hash TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_projection_contacts PRIMARY KEY (tenant_id, organization_id, owner_user_id, contact_type, target_user_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_im_projection_contacts_owner_activity
-    ON im_projection_contacts (tenant_id, organization_id, owner_user_id, last_interaction_at DESC, target_user_id);
-
-CREATE INDEX IF NOT EXISTS idx_im_projection_contacts_retention_until
-    ON im_projection_contacts (tenant_id, organization_id, retention_until)
-    WHERE retention_until IS NOT NULL;
-
 -- ============================================================
 -- 28. 投影：直接聊天绑定
 -- ============================================================
-
-CREATE TABLE IF NOT EXISTS im_projection_direct_chat_bindings (
-    tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT '0',
-    direct_chat_id TEXT NOT NULL,
-    conversation_id TEXT NOT NULL,
-    direct_chat_status TEXT NOT NULL DEFAULT 'active',
-    bound_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    payload_json JSONB NOT NULL,
-    payload_hash TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_projection_direct_chat_bindings PRIMARY KEY (tenant_id, organization_id, direct_chat_id),
-    CONSTRAINT uk_im_projection_direct_chat_bindings_conversation UNIQUE (tenant_id, organization_id, conversation_id),
-    CONSTRAINT chk_im_projection_direct_chat_bindings_status CHECK (direct_chat_status IN ('active', 'archived'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_im_projection_direct_chat_bindings_conversation
-    ON im_projection_direct_chat_bindings (tenant_id, organization_id, conversation_id, direct_chat_status);
-
-CREATE INDEX IF NOT EXISTS idx_im_projection_direct_chat_bindings_retention_until
-    ON im_projection_direct_chat_bindings (tenant_id, organization_id, retention_until)
-    WHERE retention_until IS NOT NULL;
 
 -- ============================================================
 -- 29. Stream Sessions
@@ -1924,20 +1850,20 @@ CREATE TRIGGER im_messages_search_update
 --     - EXPLAIN ANALYZE SELECT * FROM im_conversation_messages WHERE search_vector @@ plainto_tsquery('chinese_zh', '你好');
 -- ============================================================
 
--- source: database/migrations/postgres/0002_im_projection_metadata_snapshots.up.sql
+-- source: database/migrations/postgres/0002_im_runtime_state_snapshots.up.sql
 
-CREATE TABLE IF NOT EXISTS im_projection_metadata_snapshots (
+CREATE TABLE IF NOT EXISTS im_runtime_state_snapshots (
     snapshot_scope TEXT NOT NULL,
     snapshot_key TEXT NOT NULL,
     payload_json JSONB NOT NULL,
     payload_hash TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT pk_im_projection_metadata_snapshots PRIMARY KEY (snapshot_scope, snapshot_key)
+    CONSTRAINT pk_im_runtime_state_snapshots PRIMARY KEY (snapshot_scope, snapshot_key)
 );
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_metadata_snapshots_key
-    ON im_projection_metadata_snapshots (snapshot_key);
+CREATE INDEX IF NOT EXISTS idx_im_runtime_state_snapshots_key
+    ON im_runtime_state_snapshots (snapshot_key);
 
 -- ============================================================
 -- RTC Lifecycle Tables (migrations 0008-0010 consolidated)
@@ -2092,22 +2018,22 @@ CREATE INDEX IF NOT EXISTS idx_im_rtc_participant_credentials_retention_until
     ON im_rtc_participant_credentials (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
 
--- folded migration: migrations/postgres/0002_im_projection_metadata_snapshots.up.sql
+-- folded migration: migrations/postgres/0002_im_runtime_state_snapshots.up.sql
 -- Durable metadata snapshots for projection-service snapshot restore/persist.
 -- Aligns MetadataStore persistence with split-service PostgreSQL production profile.
 
-CREATE TABLE IF NOT EXISTS im_projection_metadata_snapshots (
+CREATE TABLE IF NOT EXISTS im_runtime_state_snapshots (
     snapshot_scope TEXT NOT NULL,
     snapshot_key TEXT NOT NULL,
     payload_json JSONB NOT NULL,
     payload_hash TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT pk_im_projection_metadata_snapshots PRIMARY KEY (snapshot_scope, snapshot_key)
+    CONSTRAINT pk_im_runtime_state_snapshots PRIMARY KEY (snapshot_scope, snapshot_key)
 );
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_metadata_snapshots_key
-    ON im_projection_metadata_snapshots (snapshot_key);
+CREATE INDEX IF NOT EXISTS idx_im_runtime_state_snapshots_key
+    ON im_runtime_state_snapshots (snapshot_key);
 
 -- folded migration: migrations/postgres/0003_im_commit_journal_organization_scope.up.sql
 -- Align im_commit_journal with organization-scoped journal writes.
@@ -2270,11 +2196,11 @@ CREATE INDEX IF NOT EXISTS idx_im_audit_records_actor
     ON im_audit_records (actor_id, actor_kind, occurred_at DESC);
 
 -- ============================================================================
--- 8. Conversation Membership (im_projection_conversation_members)
+-- 8. Conversation Membership (im_conversation_members)
 -- ============================================================================
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_members_principal
-    ON im_projection_conversation_members (tenant_id, organization_id, principal_kind, principal_id);
+CREATE INDEX IF NOT EXISTS idx_im_conversation_members_principal
+    ON im_conversation_members (tenant_id, organization_id, principal_kind, principal_id);
 
 -- folded migration: migrations/postgres/0008_im_rtc_state_machine_expansion.up.sql
 -- ============================================================================

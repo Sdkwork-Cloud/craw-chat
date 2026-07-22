@@ -621,10 +621,10 @@ where
                         .persist_conversation_event(event.clone(), outbox)
                         .map_err(RuntimeError::from)?;
                     // The ConversationCommitJournal wrapper applies the
-                    // projection for ordinary appends. The atomic writer
+                    // conversation_state for ordinary appends. The atomic writer
                     // bypasses that wrapper, so preserve the same best-effort
                     // derived-read-model update explicitly.
-                    projection_service::try_apply_commit_envelope(&event);
+                    crate::conversation_state::refresh_conversation_cache(&event);
                 } else {
                     self.journal.append(event.clone())?;
                 }
@@ -644,7 +644,7 @@ where
             result
         };
         // The journal append above is the authoritative commit. Persist the
-        // refreshed aggregate projection opportunistically so other runtime
+        // refreshed aggregate conversation_state opportunistically so other runtime
         // instances can resolve the latest roster/cursor state without a hot
         // in-memory cache; failures are intentionally non-fatal.
         self.best_effort_persist_aggregate_state(

@@ -1,5 +1,6 @@
 mod runtime;
 
+pub mod conversation_state;
 pub mod embedded_wiring;
 
 pub use embedded_wiring::{

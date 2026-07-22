@@ -8,7 +8,7 @@ use crate::{
 };
 
 const UPSERT_METADATA_SNAPSHOT_SQL: &str = r#"
-insert into im_projection_metadata_snapshots (
+insert into im_runtime_state_snapshots (
     snapshot_scope,
     snapshot_key,
     payload_json,
@@ -24,7 +24,7 @@ on conflict (snapshot_scope, snapshot_key) do update set
 
 const LOAD_METADATA_SNAPSHOT_SQL: &str = r#"
 select payload_json
-from im_projection_metadata_snapshots
+from im_runtime_state_snapshots
 where snapshot_scope = $1
   and snapshot_key = $2
 "#;

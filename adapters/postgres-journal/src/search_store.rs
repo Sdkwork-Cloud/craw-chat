@@ -73,7 +73,7 @@ where tenant_id = $1
 const COUNT_MEMBER_SQL: &str = r#"
 select count(*) as total
 from im_conversation_messages m
-inner join im_projection_conversation_members mem
+inner join im_conversation_members mem
   on mem.tenant_id = m.tenant_id
  and mem.organization_id = m.organization_id
  and mem.conversation_id = m.conversation_id
@@ -90,7 +90,7 @@ where m.tenant_id = $1
 const COUNT_MEMBER_PLAIN_SQL: &str = r#"
 select count(*) as total
 from im_conversation_messages m
-inner join im_projection_conversation_members mem
+inner join im_conversation_members mem
   on mem.tenant_id = m.tenant_id
  and mem.organization_id = m.organization_id
  and mem.conversation_id = m.conversation_id
@@ -107,7 +107,7 @@ where m.tenant_id = $1
 const SEARCH_MEMBER_KEYSET_SQL: &str = r#"
 select m.message_id, m.conversation_id, m.message_seq, m.created_at
 from im_conversation_messages m
-inner join im_projection_conversation_members mem
+inner join im_conversation_members mem
   on mem.tenant_id = m.tenant_id
  and mem.organization_id = m.organization_id
  and mem.conversation_id = m.conversation_id
@@ -131,7 +131,7 @@ limit $5
 const SEARCH_MEMBER_KEYSET_PLAIN_SQL: &str = r#"
 select m.message_id, m.conversation_id, m.message_seq, m.created_at
 from im_conversation_messages m
-inner join im_projection_conversation_members mem
+inner join im_conversation_members mem
   on mem.tenant_id = m.tenant_id
  and mem.organization_id = m.organization_id
  and mem.conversation_id = m.conversation_id

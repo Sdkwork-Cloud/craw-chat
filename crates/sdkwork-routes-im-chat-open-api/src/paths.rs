@@ -1,6 +1,8 @@
 pub const PREFIX: &str = "/im/v3/api/chat";
 
 pub const CONVERSATIONS: &str = "/im/v3/api/chat/conversations";
+pub const INBOX: &str = "/im/v3/api/chat/inbox";
+pub const CONVERSATION: &str = "/im/v3/api/chat/conversations/{conversationId}";
 pub const CONVERSATION_THREADS: &str = "/im/v3/api/chat/conversations/threads";
 pub const DIRECT_CHAT_BINDINGS: &str = "/im/v3/api/chat/conversations/direct_chats/bindings";
 pub const SHARED_CHANNEL_LINKS_SYNC: &str =
@@ -39,12 +41,27 @@ pub const CONVERSATION_MEMBERS_ACCEPT_INVITATION: &str =
     "/im/v3/api/chat/conversations/{conversationId}/members/accept_invitation";
 pub const CONVERSATION_READ_CURSOR: &str =
     "/im/v3/api/chat/conversations/{conversationId}/read_cursor";
+pub const CONVERSATION_MEMBER_DIRECTORY: &str =
+    "/im/v3/api/chat/conversations/{conversationId}/member_directory";
+pub const CONVERSATION_PINS: &str = "/im/v3/api/chat/conversations/{conversationId}/pins";
+pub const MESSAGE_INTERACTION_SUMMARY: &str =
+    "/im/v3/api/chat/conversations/{conversationId}/messages/{messageId}/interaction_summary";
+pub const CONVERSATION_PROFILE: &str =
+    "/im/v3/api/chat/conversations/{conversationId}/profile";
+pub const CONVERSATION_PREFERENCES: &str =
+    "/im/v3/api/chat/conversations/{conversationId}/preferences";
 pub const MESSAGE_EDIT: &str = "/im/v3/api/chat/messages/{messageId}/edit";
 pub const MESSAGE_RECALL: &str = "/im/v3/api/chat/messages/{messageId}/recall";
 pub const MESSAGE_REACTIONS: &str = "/im/v3/api/chat/messages/{messageId}/reactions";
 pub const MESSAGE_REACTIONS_REMOVE: &str = "/im/v3/api/chat/messages/{messageId}/reactions/remove";
 pub const MESSAGE_PIN: &str = "/im/v3/api/chat/messages/{messageId}/pin";
 pub const MESSAGE_UNPIN: &str = "/im/v3/api/chat/messages/{messageId}/unpin";
+pub const MESSAGE_SEARCH: &str = "/im/v3/api/chat/messages/search";
+pub const MESSAGE_FAVORITES: &str = "/im/v3/api/chat/messages/favorites";
+pub const MESSAGE_FAVORITE: &str = "/im/v3/api/chat/messages/favorites/{favoriteId}";
+pub const MESSAGE_FAVORITE_CREATE: &str =
+    "/im/v3/api/chat/messages/{messageId}/favorites";
+pub const MESSAGE_VISIBILITY: &str = "/im/v3/api/chat/messages/{messageId}/visibility";
 pub const CONVERSATION_MESSAGES: &str = "/im/v3/api/chat/conversations/{conversationId}/messages";
 pub const CONVERSATION_SYSTEM_CHANNEL_PUBLISH: &str =
     "/im/v3/api/chat/conversations/{conversationId}/system_channel/publish";

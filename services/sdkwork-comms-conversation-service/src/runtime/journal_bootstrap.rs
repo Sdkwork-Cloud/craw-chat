@@ -40,13 +40,9 @@ impl CommitJournal for ConversationCommitJournal {
             Self::Memory(journal) => CommitJournal::append(journal, envelope.clone()),
             Self::Postgres(journal) => CommitJournal::append(journal, envelope.clone()),
         }?;
-        // Apply the committed event to the embedded projection read-model on a best-effort
-        // basis. The journal is the source of truth; the projection is a derived read-model
-        // that must remain eventually consistent. If the projection store is temporarily
-        // unavailable, the write must still succeed — the projection will catch up via
-        // journal replay polling. Failing the journal commit here would cause cascading 503
-        // errors (code 50301) for every message send when the projection dependency blips.
-        projection_service::try_apply_commit_envelope(&envelope);
+        // Refresh the disposable process cache after the authoritative commit. Cache refresh is
+        // never part of transaction correctness and startup never replays the journal into it.
+        crate::conversation_state::refresh_conversation_cache(&envelope);
         Ok(position)
     }
 
@@ -58,10 +54,9 @@ impl CommitJournal for ConversationCommitJournal {
             Self::Memory(journal) => CommitJournal::append_batch(journal, envelopes.clone()),
             Self::Postgres(journal) => CommitJournal::append_batch(journal, envelopes.clone()),
         }?;
-        // Best-effort projection apply — see `append` for rationale on decoupling the
-        // projection read-model from the journal commit path.
+        // Best-effort cache refresh after the authoritative batch commit.
         for envelope in &envelopes {
-            projection_service::try_apply_commit_envelope(envelope);
+            crate::conversation_state::refresh_conversation_cache(envelope);
         }
         Ok(positions)
     }

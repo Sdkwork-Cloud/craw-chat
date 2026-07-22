@@ -36,7 +36,7 @@ async fn social_metrics_handler(http_metrics: Arc<HttpMetricsRegistry>) -> impl 
     output.push('\n');
     output.push_str(&render_shared_channel_sync_prometheus_from_env());
     output.push('\n');
-    output.push_str(&crate::render_social_materializer_prometheus());
+    output.push_str(&crate::render_social_write_prometheus());
     (
         axum::http::StatusCode::OK,
         [(

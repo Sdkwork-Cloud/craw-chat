@@ -1,0 +1,2322 @@
+use axum::body::Body;
+use axum::http::{Request, StatusCode, header::CONTENT_TYPE};
+use http_body_util::BodyExt;
+use im_app_context::DualTokenRequestBuilderExt;
+use tower::ServiceExt;
+
+fn percent_encode_query_component(value: &str) -> String {
+    value
+        .bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (byte as char).to_string()
+            }
+            _ => format!("%{byte:02X}"),
+        })
+        .collect()
+}
+
+fn cursor_list_uri(path: &str, page_size: usize, cursor: &str) -> String {
+    format!(
+        "{path}?page_size={page_size}&cursor={}",
+        percent_encode_query_component(cursor)
+    )
+}
+
+fn timeline_message_posted_event(
+    tenant_id: &str,
+    conversation_id: &str,
+    message_id: &str,
+    message_seq: u64,
+    sender_id: &str,
+    member_id: &str,
+    summary: &str,
+) -> im_domain_events::CommitEnvelope {
+    im_domain_events::CommitEnvelope::minimal(
+        &format!("evt_{message_id}"),
+        tenant_id,
+        "message.posted",
+        "conversation",
+        conversation_id,
+        message_seq,
+    )
+    .with_payload(
+        "message.posted.v1",
+        &serde_json::json!({
+            "tenantId": tenant_id,
+            "conversationId": conversation_id,
+            "messageId": message_id,
+            "messageSeq": message_seq,
+            "sender": {
+                "id": sender_id,
+                "kind": "user",
+                "memberId": member_id,
+                "deviceId": "d_demo",
+                "sessionId": "s_demo",
+                "metadata": {}
+            },
+            "messageType": "standard",
+            "deliveryMode": "discrete",
+            "clientMsgId": format!("client_{message_id}"),
+            "streamSessionId": null,
+            "rtcSessionId": null,
+            "body": {
+                "summary": summary,
+                "parts": [{"kind": "text", "text": summary}],
+                "renderHints": {}
+            },
+            "attributes": {},
+            "metadata": {},
+            "occurredAt": format!("2026-04-05T10:00:0{message_seq}Z"),
+            "committedAt": format!("2026-04-05T10:00:0{message_seq}Z")
+        })
+        .to_string(),
+    )
+}
+
+#[tokio::test]
+async fn test_public_app_exports_live_openapi_json() {
+    let app = conversation_runtime::conversation_state::build_public_app_with_service(std::sync::Arc::new(
+        conversation_runtime::conversation_state::ConversationStateService::default(),
+    ));
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/openapi.json")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("request should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("body should be valid json");
+
+    assert_eq!(value["openapi"], "3.1.0");
+    assert_eq!(value["info"]["title"], "Sdkwork IM ConversationState Service API");
+    assert!(value["paths"]["/im/v3/api/chat/inbox"].is_object());
+}
+
+#[tokio::test]
+async fn test_public_app_serves_docs_page_for_live_openapi() {
+    let app = conversation_runtime::conversation_state::build_public_app_with_service(std::sync::Arc::new(
+        conversation_runtime::conversation_state::ConversationStateService::default(),
+    ));
+
+    let response = app
+        .oneshot(Request::builder().uri("/docs").body(Body::empty()).unwrap())
+        .await
+        .expect("request should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let html = String::from_utf8(body.to_vec()).expect("docs should be valid utf-8");
+
+    assert!(html.contains("OpenAPI 3.1"));
+    assert!(html.contains("Sdkwork IM ConversationState Service API"));
+    assert!(html.contains("/openapi.json"));
+}
+
+fn friendship_activated_event(
+    tenant_id: &str,
+    friendship_id: &str,
+    user_low_id: &str,
+    user_high_id: &str,
+    direct_chat_id: Option<&str>,
+    established_at: &str,
+) -> im_domain_events::CommitEnvelope {
+    im_domain_events::CommitEnvelope::minimal(
+        &format!("evt_{tenant_id}_{friendship_id}_friendship"),
+        tenant_id,
+        "friendship.activated",
+        "friendship",
+        friendship_id,
+        1,
+    )
+    .with_payload(
+        "social.friendship.activated.v1",
+        &serde_json::json!({
+            "friendshipId": friendship_id,
+            "userLowId": user_low_id,
+            "userHighId": user_high_id,
+            "initiatorUserId": user_low_id,
+            "directChatId": direct_chat_id,
+            "establishedAt": established_at,
+        })
+        .to_string(),
+    )
+}
+
+fn direct_chat_bound_event(
+    tenant_id: &str,
+    direct_chat_id: &str,
+    conversation_id: &str,
+    bound_at: &str,
+) -> im_domain_events::CommitEnvelope {
+    im_domain_events::CommitEnvelope::minimal(
+        &format!("evt_{tenant_id}_{direct_chat_id}_bound"),
+        tenant_id,
+        "direct_chat.bound",
+        "direct_chat",
+        direct_chat_id,
+        1,
+    )
+    .with_payload(
+        "social.direct_chat.bound.v1",
+        &serde_json::json!({
+            "directChatId": direct_chat_id,
+            "conversationId": conversation_id,
+            "leftActorId": "actor_alice",
+            "rightActorId": "actor_bob",
+            "pairHash": "actor_alice:actor_bob",
+            "boundAt": bound_at,
+        })
+        .to_string(),
+    )
+}
+
+fn message_reaction_added_event(
+    tenant_id: &str,
+    conversation_id: &str,
+    message_id: &str,
+    message_seq: u64,
+    reaction_key: &str,
+    actor_id: &str,
+    reacted_at: &str,
+) -> im_domain_events::CommitEnvelope {
+    im_domain_events::CommitEnvelope::minimal(
+        &format!("evt_{tenant_id}_{message_id}_{reaction_key}_{actor_id}_reaction_added"),
+        tenant_id,
+        "message.reaction_added",
+        "conversation",
+        conversation_id,
+        message_seq + 1,
+    )
+    .with_payload(
+        "message.reaction_added.v1",
+        &serde_json::json!({
+            "tenantId": tenant_id,
+            "conversationId": conversation_id,
+            "messageId": message_id,
+            "messageSeq": message_seq,
+            "reactionKey": reaction_key,
+            "reactedBy": {
+                "id": actor_id,
+                "kind": "user",
+                "memberId": format!("cm_{actor_id}"),
+                "deviceId": format!("d_{actor_id}"),
+                "sessionId": format!("s_{actor_id}"),
+                "metadata": {}
+            },
+            "reactedAt": reacted_at
+        })
+        .to_string(),
+    )
+}
+
+fn message_pinned_event(
+    tenant_id: &str,
+    conversation_id: &str,
+    message_id: &str,
+    message_seq: u64,
+    actor_id: &str,
+    pinned_at: &str,
+) -> im_domain_events::CommitEnvelope {
+    im_domain_events::CommitEnvelope::minimal(
+        &format!("evt_{tenant_id}_{message_id}_{actor_id}_pin_added"),
+        tenant_id,
+        "message.pin_added",
+        "conversation",
+        conversation_id,
+        message_seq + 2,
+    )
+    .with_payload(
+        "message.pin_added.v1",
+        &serde_json::json!({
+            "tenantId": tenant_id,
+            "conversationId": conversation_id,
+            "messageId": message_id,
+            "messageSeq": message_seq,
+            "pinnedBy": {
+                "id": actor_id,
+                "kind": "user",
+                "memberId": format!("cm_{actor_id}"),
+                "deviceId": format!("d_{actor_id}"),
+                "sessionId": format!("s_{actor_id}"),
+                "metadata": {}
+            },
+            "pinnedAt": pinned_at
+        })
+        .to_string(),
+    )
+}
+
+#[tokio::test]
+async fn test_conversation_state_service_does_not_own_public_message_history_route_and_still_projects_summary()
+ {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_member",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                "c_demo",
+                0,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_demo",
+                    "memberId":"cm_demo",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-05T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_demo",
+                "100001",
+                "message.posted",
+                "conversation",
+                "c_demo",
+                1,
+            )
+            .with_payload(
+                "message.posted.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_demo",
+                    "messageId":"m_demo",
+                    "messageSeq":1,
+                    "sender":{"id":"1","kind":"user","memberId":"cm_demo","deviceId":"d_demo","sessionId":"s_demo","metadata":{}},
+                    "messageType":"standard",
+                    "deliveryMode":"discrete",
+                    "clientMsgId":"client_demo",
+                    "streamSessionId":null,
+                    "rtcSessionId":null,
+                    "body":{"summary":"hello","parts":[{"kind":"text","text":"hello"}],"renderHints":{}},
+                    "attributes":{},
+                    "metadata":{},
+                    "occurredAt":"2026-04-05T10:00:01Z",
+                    "committedAt":"2026-04-05T10:00:01Z"
+                }"#,
+            ),
+        )
+        .expect("conversation_state should succeed");
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+
+    let message_history_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/conversations/c_demo/messages")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("message history route request should return response");
+
+    assert_eq!(
+        message_history_response.status(),
+        StatusCode::NOT_FOUND,
+        "conversation_state-service must not register public conversations.messages.list; conversation-service owns message history"
+    );
+
+    let summary_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/conversations/c_demo")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("summary request should succeed");
+
+    assert_eq!(summary_response.status(), StatusCode::OK);
+    let summary_body = summary_response
+        .into_body()
+        .collect()
+        .await
+        .expect("summary body should collect")
+        .to_bytes();
+    let summary_value: serde_json::Value =
+        serde_json::from_slice(&summary_body).expect("summary should be valid json");
+
+    assert_eq!(summary_value["code"], 0);
+    assert_eq!(summary_value["data"]["messageCount"], 1);
+    assert_eq!(summary_value["data"]["lastMessageId"], "m_demo");
+    assert_eq!(summary_value["data"]["lastSender"]["id"], "1");
+
+    let summary_forbidden_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/conversations/c_demo")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1030")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("forbidden summary request should succeed");
+    assert_eq!(summary_forbidden_response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn test_message_visibility_delete_returns_no_content_and_hides_message() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    let conversation_id = "c_visibility_http";
+    let message_id = "m_visibility_http";
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_visibility_member",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                conversation_id,
+                0,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_visibility_http",
+                    "memberId":"cm_visibility",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-05T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member conversation_state should succeed");
+    service
+        .apply(&timeline_message_posted_event(
+            "100001",
+            conversation_id,
+            message_id,
+            1,
+            "1",
+            "cm_visibility",
+            "hide me",
+        ))
+        .expect("timeline conversation_state should succeed");
+
+    let service = std::sync::Arc::new(service);
+    let app = conversation_runtime::conversation_state::build_integration_test_app(service.clone());
+
+    let delete_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/im/v3/api/chat/messages/{message_id}/visibility"))
+                .with_dual_token_context("100001", "1", "user", None, ["*"])
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("visibility delete should return response");
+
+    assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);
+    let delete_body = delete_response
+        .into_body()
+        .collect()
+        .await
+        .expect("visibility delete body should collect")
+        .to_bytes();
+    assert!(
+        delete_body.is_empty(),
+        "204 visibility delete response must not serialize a JSON body"
+    );
+
+    let visibility = service
+        .message_visibility_for_principal("100001", "default", "user", "1", message_id)
+        .expect("visibility delete should record principal-scoped state");
+    assert_eq!(visibility.message_id, message_id);
+    assert_eq!(visibility.conversation_id.as_str(), conversation_id);
+    assert!(
+        visibility.is_deleted,
+        "visibility delete should hide the message for the current principal"
+    );
+}
+
+#[tokio::test]
+async fn test_read_cursor_query_returns_projected_cursor_view() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_member",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                "c_cursor",
+                0,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_cursor",
+                    "memberId":"cm_demo",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-05T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_peer_member",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                "c_cursor",
+                1,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_cursor",
+                    "memberId":"cm_peer",
+                    "principalId":"1029",
+                    "principalKind":"user",
+                    "role":"member",
+                    "state":"joined",
+                    "invitedBy":"1",
+                    "joinedAt":"2026-04-05T10:00:01Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("peer member conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_message",
+                "100001",
+                "message.posted",
+                "conversation",
+                "c_cursor",
+                2,
+            )
+            .with_payload(
+                "message.posted.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_cursor",
+                    "messageId":"m_demo_2",
+                    "messageSeq":2,
+                    "sender":{"id":"1029","kind":"user","memberId":"cm_peer","deviceId":null,"sessionId":"s_peer","metadata":{}},
+                    "messageType":"standard",
+                    "deliveryMode":"discrete",
+                    "clientMsgId":"client_demo_2",
+                    "streamSessionId":null,
+                    "rtcSessionId":null,
+                    "body":{"summary":"hello","parts":[{"kind":"text","text":"hello"}],"renderHints":{}},
+                    "attributes":{},
+                    "metadata":{},
+                    "occurredAt":"2026-04-05T10:00:02Z",
+                    "committedAt":"2026-04-05T10:00:02Z"
+                }"#,
+            ),
+        )
+        .expect("message conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_cursor",
+                "100001",
+                "conversation.read_cursor_updated",
+                "conversation",
+                "c_cursor",
+                1,
+            )
+            .with_payload(
+                "conversation.read_cursor.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_cursor",
+                    "memberId":"cm_demo",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "readSeq":1,
+                    "lastReadMessageId":"m_demo_1",
+                    "updatedAt":"2026-04-05T10:00:10Z"
+                }"#,
+            ),
+        )
+        .expect("read cursor conversation_state should succeed");
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/conversations/c_cursor/read_cursor")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("read cursor request should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+
+    assert_eq!(value["code"], 0);
+    assert_eq!(value["data"]["readSeq"], 1);
+    assert_eq!(value["data"]["unreadCount"], 1);
+    assert_eq!(value["data"]["memberId"], "cm_demo");
+}
+
+#[tokio::test]
+async fn test_inbox_query_returns_projected_entries() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_conversation",
+                "100001",
+                "conversation.created",
+                "conversation",
+                "c_inbox",
+                0,
+            )
+            .with_payload(
+                "conversation.created.v1",
+                r#"{
+                    "conversationId":"c_inbox",
+                    "conversationType":"group"
+                }"#,
+            ),
+        )
+        .expect("conversation conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_member",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                "c_inbox",
+                1,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_inbox",
+                    "memberId":"cm_demo",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-05T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_message",
+                "100001",
+                "message.posted",
+                "conversation",
+                "c_inbox",
+                2,
+            )
+            .with_payload(
+                "message.posted.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_inbox",
+                    "messageId":"m_demo_2",
+                    "messageSeq":2,
+                    "sender":{"id":"1013","kind":"user","memberId":"cm_other","deviceId":null,"sessionId":"s_other","metadata":{}},
+                    "messageType":"standard",
+                    "deliveryMode":"discrete",
+                    "clientMsgId":"client_demo_2",
+                    "streamSessionId":null,
+                    "rtcSessionId":null,
+                    "body":{"summary":"hello","parts":[{"kind":"text","text":"hello"}],"renderHints":{}},
+                    "attributes":{},
+                    "metadata":{},
+                    "occurredAt":"2026-04-05T10:00:02Z",
+                    "committedAt":"2026-04-05T10:00:02Z"
+                }"#,
+            ),
+        )
+        .expect("message conversation_state should succeed");
+    service.update_conversation_preferences(
+        "100001",
+        "0",
+        "c_inbox",
+        "user",
+        "1",
+        conversation_runtime::conversation_state::UpdateConversationPreferencesRequest {
+            is_pinned: Some(true),
+            is_muted: Some(true),
+            is_marked_unread: Some(true),
+            is_hidden: Some(false),
+        },
+    );
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/inbox")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("inbox request should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+
+    assert_eq!(value["code"], 0);
+    assert_eq!(value["data"]["items"][0]["conversationId"], "c_inbox");
+    assert_eq!(value["data"]["items"][0]["conversationType"], "group");
+    assert_eq!(value["data"]["items"][0]["messageCount"], 2);
+    assert_eq!(value["data"]["items"][0]["preferences"]["isPinned"], true);
+    assert_eq!(value["data"]["items"][0]["preferences"]["isMuted"], true);
+    assert_eq!(
+        value["data"]["items"][0]["preferences"]["isMarkedUnread"],
+        true
+    );
+    assert_eq!(value["data"]["items"][0]["preferences"]["isHidden"], false);
+}
+
+#[tokio::test]
+async fn test_inbox_query_returns_bounded_cursor_window() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+
+    for seq in 1..=3 {
+        let conversation_id = format!("c_inbox_page_{seq}");
+        service
+            .apply(
+                &im_domain_events::CommitEnvelope::minimal(
+                    &format!("evt_inbox_page_conversation_{seq}"),
+                    "100001",
+                    "conversation.created",
+                    "conversation",
+                    conversation_id.as_str(),
+                    seq,
+                )
+                .with_payload(
+                    "conversation.created.v1",
+                    &serde_json::json!({
+                        "conversationId": conversation_id,
+                        "conversationType": "group"
+                    })
+                    .to_string(),
+                ),
+            )
+            .expect("conversation conversation_state should succeed");
+        service
+            .apply(
+                &im_domain_events::CommitEnvelope::minimal(
+                    &format!("evt_inbox_page_member_{seq}"),
+                    "100001",
+                    "conversation.member_joined",
+                    "conversation",
+                    conversation_id.as_str(),
+                    seq,
+                )
+                .with_payload(
+                    "conversation.member.v1",
+                    &serde_json::json!({
+                        "tenantId":"100001",
+                        "conversationId": conversation_id,
+                        "memberId": format!("cm_inbox_page_{seq}"),
+                        "principalId":"1",
+                        "principalKind":"user",
+                        "role":"owner",
+                        "state":"joined",
+                        "invitedBy":null,
+                        "joinedAt":"2026-04-05T10:00:00Z",
+                        "removedAt":null,
+                        "attributes":{}
+                    })
+                    .to_string(),
+                ),
+            )
+            .expect("member conversation_state should succeed");
+        service
+            .apply(&timeline_message_posted_event(
+                "100001",
+                conversation_id.as_str(),
+                &format!("m_inbox_page_{seq}"),
+                seq,
+                "1",
+                &format!("cm_inbox_page_{seq}"),
+                &format!("page {seq}"),
+            ))
+            .expect("message conversation_state should succeed");
+    }
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let first = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/inbox?page_size=2")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first inbox page should return response");
+    assert_eq!(first.status(), StatusCode::OK);
+    let first_body = first
+        .into_body()
+        .collect()
+        .await
+        .expect("first inbox page body should collect")
+        .to_bytes();
+    let first_json: serde_json::Value =
+        serde_json::from_slice(&first_body).expect("first inbox page should be json");
+    assert_eq!(first_json["code"], 0);
+    assert_eq!(first_json["data"]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        first_json["data"]["items"][0]["conversationId"],
+        "c_inbox_page_3"
+    );
+    assert_eq!(
+        first_json["data"]["items"][1]["conversationId"],
+        "c_inbox_page_2"
+    );
+    assert_eq!(first_json["data"]["pageInfo"]["hasMore"], true);
+    let next_cursor = first_json["data"]["pageInfo"]["nextCursor"]
+        .as_str()
+        .expect("first inbox page should include nextCursor");
+
+    let second = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(cursor_list_uri("/im/v3/api/chat/inbox", 2, next_cursor))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second inbox page should return response");
+    assert_eq!(second.status(), StatusCode::OK);
+    let second_body = second
+        .into_body()
+        .collect()
+        .await
+        .expect("second inbox page body should collect")
+        .to_bytes();
+    let second_json: serde_json::Value =
+        serde_json::from_slice(&second_body).expect("second inbox page should be json");
+    assert_eq!(second_json["code"], 0);
+    assert_eq!(second_json["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        second_json["data"]["items"][0]["conversationId"],
+        "c_inbox_page_1"
+    );
+    assert_eq!(second_json["data"]["pageInfo"]["hasMore"], false);
+    assert_eq!(
+        second_json["data"]["pageInfo"]["nextCursor"],
+        serde_json::Value::Null
+    );
+
+    let invalid = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/inbox?page_size=0")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid inbox limit should return response");
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+    let invalid_body = invalid
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid inbox body should collect")
+        .to_bytes();
+    let invalid_json: serde_json::Value =
+        serde_json::from_slice(&invalid_body).expect("invalid inbox body should be json");
+    assert_eq!(invalid_json["code"].as_i64(), Some(40003));
+}
+
+#[tokio::test]
+async fn test_inbox_query_rejects_forbidden_pagination_aliases() {
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(
+        conversation_runtime::conversation_state::ConversationStateService::default(),
+    ));
+
+    for alias in ["pageSize", "limit", "page_no", "pageNo", "per_page", "size"] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/im/v3/api/chat/inbox?{alias}=20"))
+                    .with_dual_token_tenant("100001")
+                    .with_dual_token_user("1")
+                    .with_dual_token_actor_kind("user")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("pagination alias rejection should return response");
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{alias}");
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("application/problem+json"),
+            "{alias}"
+        );
+
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("pagination alias rejection body should collect")
+            .to_bytes();
+        let value: serde_json::Value =
+            serde_json::from_slice(&body).expect("pagination alias rejection body should be json");
+        assert_eq!(value["code"].as_i64(), Some(40003), "{alias}");
+    }
+}
+
+#[tokio::test]
+async fn test_inbox_query_rejects_page_and_cursor_combination() {
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(
+        conversation_runtime::conversation_state::ConversationStateService::default(),
+    ));
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/inbox?page=1&cursor=opaque")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("page and cursor rejection should return response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("page and cursor rejection body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("page and cursor rejection body should be json");
+    assert_eq!(value["code"].as_i64(), Some(40003));
+}
+
+#[tokio::test]
+async fn test_read_cursor_query_rejects_oversized_conversation_id_over_http() {
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(
+        conversation_runtime::conversation_state::ConversationStateService::default(),
+    ));
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{}/read_cursor",
+                    "c".repeat(2048)
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("oversized read cursor query should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"].as_i64(), Some(41301));
+    assert!(
+        value["detail"]
+            .as_str()
+            .expect("detail should be present")
+            .contains("conversationId")
+    );
+}
+
+#[tokio::test]
+async fn test_interaction_summary_rejects_oversized_message_id_over_http() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_member_interaction_limit",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                "c_limit_interaction",
+                1,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_limit_interaction",
+                    "memberId":"cm_demo",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-12T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member conversation_state should succeed");
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/c_limit_interaction/messages/{}/interaction_summary",
+                    "m".repeat(2048)
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("oversized interaction summary query should return response");
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"].as_i64(), Some(41301));
+    assert!(
+        value["detail"]
+            .as_str()
+            .expect("detail should be present")
+            .contains("messageId")
+    );
+}
+
+#[tokio::test]
+async fn test_member_directory_query_returns_projected_members() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_directory_owner",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                "c_directory",
+                1,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_directory",
+                    "memberId":"cm_directory_owner",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-05T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{"displayName":"Owner"}
+                }"#,
+            ),
+        )
+        .expect("owner conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_directory_member",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                "c_directory",
+                2,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_directory",
+                    "memberId":"cm_directory_member",
+                    "principalId":"1014",
+                    "principalKind":"user",
+                    "role":"member",
+                    "state":"joined",
+                    "invitedBy":"1",
+                    "joinedAt":"2026-04-05T10:01:00Z",
+                    "removedAt":null,
+                    "attributes":{"displayName":"Member"}
+                }"#,
+            ),
+        )
+        .expect("member conversation_state should succeed");
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/conversations/c_directory/member_directory")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("member directory request should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+
+    assert_eq!(value["code"], 0);
+    assert_eq!(value["data"]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(value["data"]["items"][0]["principalId"], "1");
+    assert_eq!(value["data"]["items"][0]["role"], "owner");
+    assert_eq!(value["data"]["items"][1]["principalId"], "1014");
+    assert_eq!(
+        value["data"]["items"][1]["attributes"]["displayName"],
+        "Member"
+    );
+}
+
+#[tokio::test]
+async fn test_contacts_query_returns_friendship_conversation_state_with_direct_chat_enrich() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    service
+        .apply(&friendship_activated_event(
+            "100001",
+            "fs_001",
+            "1016",
+            "1020",
+            Some("dc_001"),
+            "2026-04-10T12:00:00Z",
+        ))
+        .expect("friendship conversation_state should succeed");
+    service
+        .apply(&friendship_activated_event(
+            "100001",
+            "fs_002",
+            "1016",
+            "1031",
+            None,
+            "2026-04-10T11:00:00Z",
+        ))
+        .expect("second friendship conversation_state should succeed");
+    service
+        .apply(&direct_chat_bound_event(
+            "100001",
+            "dc_001",
+            "c_direct_001",
+            "2026-04-10T12:05:00Z",
+        ))
+        .expect("direct chat enrich should succeed");
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/contacts")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1016")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("contacts request should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("contacts body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("contacts body should be valid json");
+
+    assert_eq!(value["code"], 0);
+    let items = value["data"]["items"]
+        .as_array()
+        .expect("contacts items should be array");
+    assert_eq!(items.len(), 2);
+    assert_eq!(items[0]["ownerUserId"], "1016");
+    assert_eq!(items[0]["targetUserId"], "1020");
+    assert_eq!(items[0]["contactType"], "friendship");
+    assert_eq!(items[0]["relationshipState"], "active");
+    assert_eq!(items[0]["friendshipId"], "fs_001");
+    assert_eq!(items[0]["directChatId"], "dc_001");
+    assert_eq!(items[0]["conversationId"], "c_direct_001");
+    assert_eq!(items[0]["lastInteractionAt"], "2026-04-10T12:05:00Z");
+    assert_eq!(items[1]["targetUserId"], "1031");
+    assert_eq!(items[1]["conversationId"], serde_json::Value::Null);
+}
+
+#[tokio::test]
+async fn test_contacts_query_returns_bounded_cursor_window() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    for seq in 1..=3 {
+        service
+            .apply(&friendship_activated_event(
+                "100001",
+                &format!("fs_contact_page_{seq}"),
+                "1016",
+                &format!("{}", 1034 + seq),
+                None,
+                &format!("2026-04-10T12:0{seq}:00Z"),
+            ))
+            .expect("friendship conversation_state should succeed");
+    }
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let first = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/contacts?page_size=2")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1016")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first contacts page should return response");
+    assert_eq!(first.status(), StatusCode::OK);
+    let first_body = first
+        .into_body()
+        .collect()
+        .await
+        .expect("first contacts page body should collect")
+        .to_bytes();
+    let first_json: serde_json::Value =
+        serde_json::from_slice(&first_body).expect("first contacts page should be json");
+    assert_eq!(first_json["code"], 0);
+    assert_eq!(first_json["data"]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(first_json["data"]["items"][0]["targetUserId"], "1037");
+    assert_eq!(first_json["data"]["items"][1]["targetUserId"], "1036");
+    assert_eq!(first_json["data"]["pageInfo"]["hasMore"], true);
+    let next_cursor = first_json["data"]["pageInfo"]["nextCursor"]
+        .as_str()
+        .expect("first contacts page should include nextCursor");
+
+    let second = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(cursor_list_uri("/im/v3/api/chat/contacts", 2, next_cursor))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1016")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second contacts page should return response");
+    assert_eq!(second.status(), StatusCode::OK);
+    let second_body = second
+        .into_body()
+        .collect()
+        .await
+        .expect("second contacts page body should collect")
+        .to_bytes();
+    let second_json: serde_json::Value =
+        serde_json::from_slice(&second_body).expect("second contacts page should be json");
+    assert_eq!(second_json["code"], 0);
+    assert_eq!(second_json["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_json["data"]["items"][0]["targetUserId"], "1035");
+    assert_eq!(second_json["data"]["pageInfo"]["hasMore"], false);
+    assert_eq!(
+        second_json["data"]["pageInfo"]["nextCursor"],
+        serde_json::Value::Null
+    );
+
+    let invalid = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/contacts?page_size=0")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1016")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid contacts limit should return response");
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+    let invalid_body = invalid
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid contacts body should collect")
+        .to_bytes();
+    let invalid_json: serde_json::Value =
+        serde_json::from_slice(&invalid_body).expect("invalid contacts body should be json");
+    assert_eq!(invalid_json["code"].as_i64(), Some(40003));
+}
+
+#[tokio::test]
+async fn test_contacts_query_rejects_same_actor_id_with_different_actor_kind_over_http() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    service
+        .apply(&friendship_activated_event(
+            "100001",
+            "fs_actor_kind_contacts",
+            "1016",
+            "1020",
+            Some("dc_actor_kind_contacts"),
+            "2026-04-13T12:00:00Z",
+        ))
+        .expect("friendship conversation_state should succeed");
+    service
+        .apply(&direct_chat_bound_event(
+            "100001",
+            "dc_actor_kind_contacts",
+            "c_actor_kind_contacts",
+            "2026-04-13T12:05:00Z",
+        ))
+        .expect("direct chat enrich should succeed");
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/contacts")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1016")
+                .with_dual_token_actor_kind("system")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("actor-kind mismatch contacts request should return response");
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"].as_i64(), Some(40301));
+}
+
+#[tokio::test]
+async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_pin_views() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_interaction_owner_joined",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                "c_interaction_http",
+                1,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_interaction_http",
+                    "memberId":"cm_u_1",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-10T12:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("owner conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_interaction_member_joined",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                "c_interaction_http",
+                2,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_interaction_http",
+                    "memberId":"cm_u_member",
+                    "principalId":"1014",
+                    "principalKind":"user",
+                    "role":"member",
+                    "state":"joined",
+                    "invitedBy":"1",
+                    "joinedAt":"2026-04-10T12:00:01Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_interaction_posted",
+                "100001",
+                "message.posted",
+                "conversation",
+                "c_interaction_http",
+                3,
+            )
+            .with_payload(
+                "message.posted.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_interaction_http",
+                    "messageId":"msg_c_interaction_http_1",
+                    "messageSeq":1,
+                    "sender":{"id":"1","kind":"user","memberId":"cm_u_1","deviceId":"d_owner","sessionId":"s_owner","metadata":{}},
+                    "messageType":"standard",
+                    "deliveryMode":"discrete",
+                    "clientMsgId":"client_interaction_http_1",
+                    "streamSessionId":null,
+                    "rtcSessionId":null,
+                    "body":{"summary":"interaction http","parts":[{"kind":"text","text":"interaction http"}],"renderHints":{}},
+                    "attributes":{},
+                    "metadata":{},
+                    "occurredAt":"2026-04-10T12:00:02Z",
+                    "committedAt":"2026-04-10T12:00:02Z"
+                }"#,
+            ),
+        )
+        .expect("message conversation_state should succeed");
+    service
+        .apply(&message_reaction_added_event(
+            "100001",
+            "c_interaction_http",
+            "msg_c_interaction_http_1",
+            1,
+            "thumbs_up",
+            "1",
+            "2026-04-10T12:00:10Z",
+        ))
+        .expect("reaction conversation_state should succeed");
+    service
+        .apply(&message_reaction_added_event(
+            "100001",
+            "c_interaction_http",
+            "msg_c_interaction_http_1",
+            1,
+            "thumbs_up",
+            "1014",
+            "2026-04-10T12:00:11Z",
+        ))
+        .expect("second reaction conversation_state should succeed");
+    service
+        .apply(&message_pinned_event(
+            "100001",
+            "c_interaction_http",
+            "msg_c_interaction_http_1",
+            1,
+            "1",
+            "2026-04-10T12:00:20Z",
+        ))
+        .expect("pin conversation_state should succeed");
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let summary_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/conversations/c_interaction_http/messages/msg_c_interaction_http_1/interaction_summary")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                    .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("interaction summary request should succeed");
+
+    assert_eq!(summary_response.status(), StatusCode::OK);
+    let summary_body = summary_response
+        .into_body()
+        .collect()
+        .await
+        .expect("interaction summary body should collect")
+        .to_bytes();
+    let summary_value: serde_json::Value = serde_json::from_slice(&summary_body)
+        .expect("interaction summary body should be valid json");
+
+    assert_eq!(summary_value["code"], 0);
+    assert_eq!(
+        summary_value["data"]["messageId"],
+        "msg_c_interaction_http_1"
+    );
+    assert_eq!(summary_value["data"]["messageSeq"], 1);
+    assert_eq!(summary_value["data"]["totalReactionCount"], 2);
+    assert_eq!(
+        summary_value["data"]["reactionCounts"][0]["reactionKey"],
+        "thumbs_up"
+    );
+    assert_eq!(summary_value["data"]["reactionCounts"][0]["count"], 2);
+    assert_eq!(summary_value["data"]["pin"]["pinnedBy"]["id"], "1");
+    assert_eq!(
+        summary_value["data"]["pin"]["pinnedAt"],
+        "2026-04-10T12:00:20Z"
+    );
+
+    let pins_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/conversations/c_interaction_http/pins")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1014")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("pins request should succeed");
+
+    assert_eq!(pins_response.status(), StatusCode::OK);
+    let pins_body = pins_response
+        .into_body()
+        .collect()
+        .await
+        .expect("pins body should collect")
+        .to_bytes();
+    let pins_value: serde_json::Value =
+        serde_json::from_slice(&pins_body).expect("pins response should be valid json");
+
+    assert_eq!(pins_value["code"], 0);
+    let items = pins_value["data"]["items"]
+        .as_array()
+        .expect("pins items should be array");
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0]["messageId"], "msg_c_interaction_http_1");
+    assert_eq!(items[0]["pin"]["pinnedBy"]["id"], "1");
+}
+
+#[tokio::test]
+async fn test_conversation_profile_and_preferences_support_get_and_patch() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_profile_member",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                "c_agent_e7f6182d320811b42f4484f9",
+                0,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_agent_e7f6182d320811b42f4484f9",
+                    "memberId":"cm_agent",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-05T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member conversation_state should succeed");
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let conversation_id = "c_agent_e7f6182d320811b42f4484f9";
+
+    let patch_profile_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/profile"
+                ))
+                .header(CONTENT_TYPE, "application/json")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::from(
+                    serde_json::json!({
+                        "displayName": "SdkWork Assistant",
+                        "avatarUrl": "https://example.test/assistant.png"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("profile patch should succeed");
+
+    assert_eq!(patch_profile_response.status(), StatusCode::OK);
+    let patch_profile_body = patch_profile_response
+        .into_body()
+        .collect()
+        .await
+        .expect("profile patch body should collect")
+        .to_bytes();
+    let patch_profile_value: serde_json::Value =
+        serde_json::from_slice(&patch_profile_body).expect("profile patch should be valid json");
+    assert_eq!(patch_profile_value["code"], 0);
+    assert_eq!(
+        patch_profile_value["data"]["item"]["displayName"],
+        "SdkWork Assistant"
+    );
+    assert_eq!(
+        patch_profile_value["data"]["item"]["avatarUrl"],
+        "https://example.test/assistant.png"
+    );
+
+    let get_profile_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/profile"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("profile get should succeed");
+
+    assert_eq!(get_profile_response.status(), StatusCode::OK);
+    let get_profile_body = get_profile_response
+        .into_body()
+        .collect()
+        .await
+        .expect("profile get body should collect")
+        .to_bytes();
+    let get_profile_value: serde_json::Value =
+        serde_json::from_slice(&get_profile_body).expect("profile get should be valid json");
+    assert_eq!(
+        get_profile_value["data"]["item"]["displayName"],
+        "SdkWork Assistant"
+    );
+
+    let patch_preferences_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/preferences"
+                ))
+                .header(CONTENT_TYPE, "application/json")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::from(
+                    serde_json::json!({ "isPinned": true, "isHidden": false }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("preferences patch should succeed");
+
+    assert_eq!(patch_preferences_response.status(), StatusCode::OK);
+    let patch_preferences_body = patch_preferences_response
+        .into_body()
+        .collect()
+        .await
+        .expect("preferences patch body should collect")
+        .to_bytes();
+    let patch_preferences_value: serde_json::Value =
+        serde_json::from_slice(&patch_preferences_body)
+            .expect("preferences patch should be valid json");
+    assert_eq!(patch_preferences_value["code"], 0);
+    assert_eq!(patch_preferences_value["data"]["item"]["isPinned"], true);
+    assert_eq!(patch_preferences_value["data"]["item"]["isHidden"], false);
+}
+
+#[tokio::test]
+async fn test_group_conversation_profile_uses_created_title_before_profile_patch() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    let conversation_id = "g_profile_created_title";
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_profile_group_created",
+                "100001",
+                "conversation.created",
+                "conversation",
+                conversation_id,
+                0,
+            )
+            .with_payload(
+                "conversation.created.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"g_profile_created_title",
+                    "conversationType":"group",
+                    "title":"Backend Group"
+                }"#,
+            ),
+        )
+        .expect("group conversation conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_profile_group_owner",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                conversation_id,
+                1,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"g_profile_created_title",
+                    "memberId":"cm_profile_group_owner",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-07-09T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member conversation_state should succeed");
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/profile"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("profile get should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("profile body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("profile response should be valid json");
+    assert_eq!(value["code"], 0);
+    assert_eq!(value["data"]["item"]["displayName"], "Backend Group");
+}
+
+#[tokio::test]
+async fn test_legacy_pc_group_profile_uses_group_metadata_conversation_state() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    let conversation_id = "pc-group-24c6420e-fd13-4a85-9fa0-955e23d10e04";
+    let group_id = "4941";
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_legacy_pc_group_created",
+                "100001",
+                "group.created",
+                "chat_group",
+                group_id,
+                0,
+            )
+            .with_payload(
+                "space.group.created.v1",
+                &serde_json::json!({
+                    "groupId": group_id,
+                    "spaceId": null,
+                    "groupName": "Legacy PC Group",
+                    "groupType": "normal",
+                    "ownerUserId": "1",
+                    "conversationId": conversation_id,
+                    "maxMembers": 200,
+                    "description": "legacy group description",
+                    "avatarUrl": "https://example.test/legacy-group.png",
+                    "announcement": "legacy group notice",
+                    "settingsJson": "{}",
+                    "createdAt": "2026-07-09T15:19:08.782Z",
+                    "updatedAt": "2026-07-09T15:19:08.782Z"
+                })
+                .to_string(),
+            ),
+        )
+        .expect("group metadata conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_legacy_pc_conversation_created",
+                "100001",
+                "conversation.created",
+                "conversation",
+                conversation_id,
+                1,
+            )
+            .with_payload(
+                "conversation.created.v1",
+                &serde_json::json!({
+                    "tenantId": "100001",
+                    "conversationId": conversation_id,
+                    "conversationType": "group"
+                })
+                .to_string(),
+            ),
+        )
+        .expect("legacy conversation conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_legacy_pc_group_updated",
+                "100001",
+                "group.updated",
+                "chat_group",
+                group_id,
+                2,
+            )
+            .with_payload(
+                "space.group.updated.v1",
+                &serde_json::json!({
+                    "groupId": group_id,
+                    "groupName": "Renamed Legacy PC Group",
+                    "description": "renamed description",
+                    "avatarUrl": "https://example.test/renamed-group.png",
+                    "announcement": "renamed notice",
+                    "maxMembers": 200,
+                    "settingsJson": "{}",
+                    "updatedAt": "2026-07-09T15:20:08.782Z"
+                })
+                .to_string(),
+            ),
+        )
+        .expect("group update conversation_state should use stored conversation binding");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_legacy_pc_owner_joined",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                conversation_id,
+                3,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                &serde_json::json!({
+                    "tenantId": "100001",
+                    "conversationId": conversation_id,
+                    "memberId": "cm_legacy_pc_group_owner",
+                    "principalId": "1",
+                    "principalKind": "user",
+                    "role": "owner",
+                    "state": "joined",
+                    "invitedBy": null,
+                    "joinedAt": "2026-07-09T15:19:08.782Z",
+                    "removedAt": null,
+                    "attributes": {}
+                })
+                .to_string(),
+            ),
+        )
+        .expect("member conversation_state should succeed");
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/profile"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("profile get should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("profile body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("profile response should be valid json");
+    assert_eq!(value["code"], 0);
+    assert_eq!(
+        value["data"]["item"]["displayName"],
+        "Renamed Legacy PC Group"
+    );
+    assert_eq!(
+        value["data"]["item"]["avatarUrl"],
+        "https://example.test/renamed-group.png"
+    );
+    assert_eq!(value["data"]["item"]["notice"], "renamed notice");
+}
+
+#[tokio::test]
+async fn test_g_prefixed_group_profile_uses_group_metadata_without_explicit_conversation_id() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    let group_id = "4941c67e5ee0964744b02f55";
+    let conversation_id = "g_4941c67e5ee0964744b02f55";
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_g_group_created_without_conversation_id",
+                "100001",
+                "group.created",
+                "chat_group",
+                group_id,
+                0,
+            )
+            .with_payload(
+                "space.group.created.v1",
+                &serde_json::json!({
+                    "groupId": group_id,
+                    "spaceId": null,
+                    "groupName": "Recovered G Group",
+                    "groupType": "normal",
+                    "ownerUserId": "1",
+                    "maxMembers": 200,
+                    "description": "created g group description",
+                    "avatarUrl": "https://example.test/g-group-created.png",
+                    "announcement": "created g group notice",
+                    "settingsJson": "{}",
+                    "createdAt": "2026-07-10T00:27:16.163Z",
+                    "updatedAt": "2026-07-10T00:27:16.163Z"
+                })
+                .to_string(),
+            ),
+        )
+        .expect("group metadata conversation_state should infer g conversation binding");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_g_group_conversation_created_without_title",
+                "100001",
+                "conversation.created",
+                "conversation",
+                conversation_id,
+                1,
+            )
+            .with_payload(
+                "conversation.created.v1",
+                &serde_json::json!({
+                    "tenantId": "100001",
+                    "conversationId": conversation_id,
+                    "conversationType": "group"
+                })
+                .to_string(),
+            ),
+        )
+        .expect("g conversation conversation_state should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_g_group_updated_without_conversation_id",
+                "100001",
+                "group.updated",
+                "chat_group",
+                group_id,
+                2,
+            )
+            .with_payload(
+                "space.group.updated.v1",
+                &serde_json::json!({
+                    "groupId": group_id,
+                    "groupName": "Renamed Recovered G Group",
+                    "description": "renamed g group description",
+                    "avatarUrl": "https://example.test/g-group-renamed.png",
+                    "announcement": "renamed g group notice",
+                    "maxMembers": 200,
+                    "settingsJson": "{}",
+                    "updatedAt": "2026-07-10T00:30:16.163Z"
+                })
+                .to_string(),
+            ),
+        )
+        .expect("group update conversation_state should use inferred g conversation binding");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_g_group_owner_joined",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                conversation_id,
+                3,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                &serde_json::json!({
+                    "tenantId": "100001",
+                    "conversationId": conversation_id,
+                    "memberId": "cm_g_group_owner",
+                    "principalId": "1",
+                    "principalKind": "user",
+                    "role": "owner",
+                    "state": "joined",
+                    "invitedBy": null,
+                    "joinedAt": "2026-07-10T00:27:16.163Z",
+                    "removedAt": null,
+                    "attributes": {}
+                })
+                .to_string(),
+            ),
+        )
+        .expect("member conversation_state should succeed");
+
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/profile"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("profile get should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("profile body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("profile response should be valid json");
+    assert_eq!(value["code"], 0);
+    assert_eq!(
+        value["data"]["item"]["displayName"],
+        "Renamed Recovered G Group"
+    );
+    assert_eq!(
+        value["data"]["item"]["avatarUrl"],
+        "https://example.test/g-group-renamed.png"
+    );
+    assert_eq!(value["data"]["item"]["notice"], "renamed g group notice");
+}
+
+#[tokio::test]
+async fn test_message_favorites_support_list_create_and_delete() {
+    let service = conversation_runtime::conversation_state::ConversationStateService::default();
+    let conversation_id = "c_favorites_http";
+    let message_id = "msg_favorite_http_1";
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_favorites_member",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                conversation_id,
+                0,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_favorites_http",
+                    "memberId":"cm_favorites",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-05T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member conversation_state should succeed");
+    service
+        .apply(&timeline_message_posted_event(
+            "100001",
+            conversation_id,
+            message_id,
+            1,
+            "1",
+            "cm_favorites",
+            "favorite me",
+        ))
+        .expect("timeline conversation_state should succeed");
+
+    let app = sdkwork_routes_im_conversation_state_open_api::build_public_app_with_service(
+        std::sync::Arc::new(service),
+    );
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/im/v3/api/chat/messages/{message_id}/favorites"))
+                .header(CONTENT_TYPE, "application/json")
+                .header("Idempotency-Key", "fav-create-http-1")
+                .with_dual_token_context("100001", "1", "user", None, ["*"])
+                .body(Body::from(
+                    serde_json::json!({
+                        "conversationId": conversation_id,
+                        "favoriteType": "chat",
+                        "title": "Pinned context",
+                        "contentPreview": "favorite me",
+                        "sourceDisplayName": "Sarah Connor"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("favorite create should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("favorite create body should collect")
+        .to_bytes();
+    let create_value: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("favorite create should be valid json");
+    assert_eq!(create_value["code"], 0);
+    let favorite_id = create_value["data"]["item"]["favoriteId"]
+        .as_str()
+        .expect("favorite create should return favoriteId")
+        .to_owned();
+    assert_eq!(create_value["data"]["item"]["messageSeq"], 1);
+
+    let list_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/messages/favorites?page_size=100&favoriteType=chat")
+                .with_dual_token_context("100001", "1", "user", None, ["*"])
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("favorite list should succeed");
+    assert_eq!(list_response.status(), StatusCode::OK);
+    let list_body = list_response
+        .into_body()
+        .collect()
+        .await
+        .expect("favorite list body should collect")
+        .to_bytes();
+    let list_value: serde_json::Value =
+        serde_json::from_slice(&list_body).expect("favorite list should be valid json");
+    assert_eq!(list_value["code"], 0);
+    assert_eq!(list_value["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(list_value["data"]["items"][0]["favoriteId"], favorite_id);
+
+    let delete_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/im/v3/api/chat/messages/favorites/{favorite_id}"))
+                .header("Idempotency-Key", "fav-delete-http-1")
+                .with_dual_token_context("100001", "1", "user", None, ["*"])
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("favorite delete should succeed");
+    assert_eq!(delete_response.status(), StatusCode::OK);
+    let delete_body = delete_response
+        .into_body()
+        .collect()
+        .await
+        .expect("favorite delete body should collect")
+        .to_bytes();
+    let delete_value: serde_json::Value =
+        serde_json::from_slice(&delete_body).expect("favorite delete should be valid json");
+    assert_eq!(delete_value["code"], 0);
+    assert_eq!(delete_value["data"]["deleted"], true);
+}
+
+#[tokio::test]
+async fn test_message_search_rejects_empty_query_with_problem_detail() {
+    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(
+        conversation_runtime::conversation_state::ConversationStateService::default(),
+    ));
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/messages/search?page_size=20")
+                .with_dual_token_context("100001", "1", "user", None, ["*"])
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("message search should return response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("message search body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("message search error should be json");
+    assert_eq!(value["title"], "Validation failed");
+}

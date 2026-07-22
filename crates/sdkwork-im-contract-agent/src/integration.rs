@@ -18,14 +18,14 @@ impl AgentAssignmentSource {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ConversationAgentProjectionItem {
+pub struct ConversationAgentAssignmentItem {
     pub agent_id: String,
     pub agent_revision_ref: Option<String>,
     pub position: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ReplaceConversationAgentProjection {
+pub struct ReplaceConversationAgentAssignments {
     pub tenant_id: u64,
     pub organization_id: u64,
     pub conversation_id: String,
@@ -36,11 +36,11 @@ pub struct ReplaceConversationAgentProjection {
     pub source_event_id: String,
     pub source_aggregate_version: u64,
     pub payload_hash: String,
-    pub items: Vec<ConversationAgentProjectionItem>,
+    pub items: Vec<ConversationAgentAssignmentItem>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ConversationAgentProjectionRecord {
+pub struct ConversationAgentAssignmentRecord {
     pub tenant_id: u64,
     pub organization_id: u64,
     pub conversation_id: String,
@@ -204,7 +204,7 @@ pub struct AgentDispatchReplyCompletion {
 pub trait AgentIntegrationStore: Send + Sync {
     fn replace_conversation_agents(
         &self,
-        command: ReplaceConversationAgentProjection,
+        command: ReplaceConversationAgentAssignments,
     ) -> Result<(), ContractError>;
 
     fn list_conversation_agents(
@@ -213,7 +213,7 @@ pub trait AgentIntegrationStore: Send + Sync {
         organization_id: u64,
         conversation_id: &str,
         limit: usize,
-    ) -> Result<Vec<ConversationAgentProjectionRecord>, ContractError>;
+    ) -> Result<Vec<ConversationAgentAssignmentRecord>, ContractError>;
 
     fn enqueue_dispatches(
         &self,

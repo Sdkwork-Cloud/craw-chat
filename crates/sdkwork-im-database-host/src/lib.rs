@@ -66,18 +66,18 @@ DECLARE
     existing_pk_name text;
     existing_pk_columns text[];
 BEGIN
-    IF to_regclass('im_projection_read_cursors') IS NULL THEN
+    IF to_regclass('im_conversation_read_cursors') IS NULL THEN
         RETURN;
     END IF;
 
-    ALTER TABLE im_projection_read_cursors
+    ALTER TABLE im_conversation_read_cursors
         ADD COLUMN IF NOT EXISTS device_id TEXT;
 
-    UPDATE im_projection_read_cursors
+    UPDATE im_conversation_read_cursors
        SET device_id = ''
      WHERE device_id IS NULL;
 
-    ALTER TABLE im_projection_read_cursors
+    ALTER TABLE im_conversation_read_cursors
         ALTER COLUMN device_id SET DEFAULT '',
         ALTER COLUMN device_id SET NOT NULL;
 
@@ -89,7 +89,7 @@ BEGIN
       JOIN pg_attribute a
         ON a.attrelid = c.conrelid
        AND a.attnum = keys.attnum
-     WHERE c.conrelid = 'im_projection_read_cursors'::regclass
+     WHERE c.conrelid = 'im_conversation_read_cursors'::regclass
        AND c.contype = 'p'
      GROUP BY c.conname;
 
@@ -102,13 +102,13 @@ BEGIN
     ] THEN
         IF existing_pk_name IS NOT NULL THEN
             EXECUTE format(
-                'ALTER TABLE im_projection_read_cursors DROP CONSTRAINT %I',
+                'ALTER TABLE im_conversation_read_cursors DROP CONSTRAINT %I',
                 existing_pk_name
             );
         END IF;
 
-        ALTER TABLE im_projection_read_cursors
-            ADD CONSTRAINT pk_im_projection_read_cursors
+        ALTER TABLE im_conversation_read_cursors
+            ADD CONSTRAINT pk_im_conversation_read_cursors
             PRIMARY KEY (tenant_id, organization_id, conversation_id, member_id, device_id);
     END IF;
 END $$;
@@ -149,7 +149,7 @@ mod tests {
 
         for required in [
             "postgres_initialization_schema_repair_sql",
-            "to_regclass('im_projection_read_cursors')",
+            "to_regclass('im_conversation_read_cursors')",
             "add column if not exists device_id text",
             "alter column device_id set default ''",
             "alter column device_id set not null",

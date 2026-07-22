@@ -1,6 +1,7 @@
 mod access;
 pub mod block;
 pub mod bootstrap;
+pub mod contact;
 pub mod direct_chat;
 mod http;
 pub mod id;

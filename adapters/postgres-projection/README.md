@@ -8,7 +8,7 @@ Status: standardizing
 PostgreSQL-backed durable stores for `projection-service` snapshot persistence:
 
 - `PostgresTimelineProjectionStore` → `im_projection_timeline_entries`
-- `PostgresMetadataStore` → `im_projection_metadata_snapshots`
+- `PostgresMetadataStore` → `im_runtime_state_snapshots`
 
 ## Configuration
 

@@ -5,6 +5,7 @@ mod web_bootstrap;
 
 pub use manifest::{API_SURFACE, route_manifest};
 pub use paths::PREFIX;
+pub use routes::{build_api_router, build_api_router_with_query_service};
 
 use axum::Router;
 use conversation_runtime::http::{

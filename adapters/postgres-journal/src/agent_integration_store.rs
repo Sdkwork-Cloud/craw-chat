@@ -4,7 +4,7 @@ use im_platform_contracts::{ContractError, IdGenerator};
 use sdkwork_im_contract_agent::{
     AgentBindingStatus, AgentDispatchRecord, AgentDispatchStatus, AgentIntegrationStore,
     AgentMentionDispatchRequest, AgentReplyCommitResult, ConversationAgentBindingRecord,
-    ConversationAgentProjectionRecord, ReplaceConversationAgentProjection,
+    ConversationAgentAssignmentRecord, ReplaceConversationAgentAssignments,
 };
 use sdkwork_utils_rust::sha256_hash;
 
@@ -18,21 +18,21 @@ const MAX_CLAIM_BATCH: usize = 100;
 
 const LOCK_PROJECTION_SQL: &str = r#"
 select source_aggregate_version, payload_hash
-from im_projection_conversation_agent
+from im_conversation_agent_assignments
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
 order by source_aggregate_version desc, id desc
 limit 1 for update
 "#;
 
 const REMOVE_PROJECTION_SQL: &str = r#"
-update im_projection_conversation_agent
+update im_conversation_agent_assignments
 set enabled = false, status = 2, source_event_id = $4,
     source_aggregate_version = $5, payload_hash = $6, updated_at = $7
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
 "#;
 
 const UPSERT_PROJECTION_SQL: &str = r#"
-insert into im_projection_conversation_agent (
+insert into im_conversation_agent_assignments (
     id, uuid, tenant_id, organization_id, conversation_id, agent_id,
     agent_revision_ref, assignment_source, assignment_generation, position,
     enabled, status, assigned_by, assigned_at, source_event_id,
@@ -50,14 +50,14 @@ do update set agent_revision_ref = excluded.agent_revision_ref,
     source_event_id = excluded.source_event_id,
     source_aggregate_version = excluded.source_aggregate_version,
     payload_hash = excluded.payload_hash, updated_at = excluded.updated_at
-where im_projection_conversation_agent.source_aggregate_version <= excluded.source_aggregate_version
+where im_conversation_agent_assignments.source_aggregate_version <= excluded.source_aggregate_version
 "#;
 
 const LIST_PROJECTION_SQL: &str = r#"
 select tenant_id, organization_id, conversation_id, agent_id,
     agent_revision_ref, assignment_generation, position, enabled, status,
     source_aggregate_version
-from im_projection_conversation_agent
+from im_conversation_agent_assignments
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
     and enabled = true and status = 0
 order by position, id
@@ -284,7 +284,7 @@ impl PostgresAgentIntegrationStore {
 impl AgentIntegrationStore for PostgresAgentIntegrationStore {
     fn replace_conversation_agents(
         &self,
-        command: ReplaceConversationAgentProjection,
+        command: ReplaceConversationAgentAssignments,
     ) -> Result<(), ContractError> {
         validate_signed_id(command.tenant_id, "tenantId", false)?;
         validate_signed_id(command.organization_id, "organizationId", true)?;
@@ -385,7 +385,7 @@ impl AgentIntegrationStore for PostgresAgentIntegrationStore {
         organization_id: u64,
         conversation_id: &str,
         limit: usize,
-    ) -> Result<Vec<ConversationAgentProjectionRecord>, ContractError> {
+    ) -> Result<Vec<ConversationAgentAssignmentRecord>, ContractError> {
         validate_signed_id(tenant_id, "tenantId", false)?;
         validate_signed_id(organization_id, "organizationId", true)?;
         if limit == 0 || limit > MAX_ASSIGNMENTS {
@@ -1003,8 +1003,8 @@ fn parse_positive_id(value: &str, field: &str) -> Result<u64, ContractError> {
 
 fn projection_from_row(
     row: postgres::Row,
-) -> Result<ConversationAgentProjectionRecord, ContractError> {
-    Ok(ConversationAgentProjectionRecord {
+) -> Result<ConversationAgentAssignmentRecord, ContractError> {
+    Ok(ConversationAgentAssignmentRecord {
         tenant_id: row.get::<_, i64>(0) as u64,
         organization_id: row.get::<_, i64>(1) as u64,
         conversation_id: row.get(2),

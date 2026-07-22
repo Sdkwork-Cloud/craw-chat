@@ -7,12 +7,18 @@ use crate::paths;
 pub const API_SURFACE: &str = "open-api";
 
 pub const ROUTES: &[HttpRoute] = &[
-    HttpRoute::dual_token(HttpMethod::Get, paths::PREFIX, "chat", "chat.prefix"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::CONVERSATIONS,
         "chat",
         "conversations.create",
+    ),
+    HttpRoute::dual_token(HttpMethod::Get, paths::INBOX, "chat", "inbox.list"),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::CONVERSATION,
+        "chat",
+        "conversations.retrieve",
     ),
     HttpRoute::dual_token(
         HttpMethod::Post,
@@ -157,6 +163,48 @@ pub const ROUTES: &[HttpRoute] = &[
         "conversations.readCursor.update",
     ),
     HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::CONVERSATION_MEMBER_DIRECTORY,
+        "chat",
+        "conversations.memberDirectory.list",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::CONVERSATION_PINS,
+        "chat",
+        "conversations.pins.list",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::MESSAGE_INTERACTION_SUMMARY,
+        "chat",
+        "messages.interactionSummary.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::CONVERSATION_PROFILE,
+        "chat",
+        "conversations.profile.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Patch,
+        paths::CONVERSATION_PROFILE,
+        "chat",
+        "conversations.profile.update",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::CONVERSATION_PREFERENCES,
+        "chat",
+        "conversations.preferences.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Patch,
+        paths::CONVERSATION_PREFERENCES,
+        "chat",
+        "conversations.preferences.update",
+    ),
+    HttpRoute::dual_token(
         HttpMethod::Post,
         paths::MESSAGE_EDIT,
         "chat",
@@ -187,6 +235,39 @@ pub const ROUTES: &[HttpRoute] = &[
         "chat",
         "messages.unpin",
     ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::MESSAGE_SEARCH,
+        "chat",
+        "messages.search",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::MESSAGE_FAVORITES,
+        "chat",
+        "messages.favorites.list",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        paths::MESSAGE_FAVORITE_CREATE,
+        "chat",
+        "messages.favorites.create",
+    )
+    .with_idempotent(true),
+    HttpRoute::dual_token(
+        HttpMethod::Delete,
+        paths::MESSAGE_FAVORITE,
+        "chat",
+        "messages.favorites.delete",
+    )
+    .with_idempotent(true),
+    HttpRoute::dual_token(
+        HttpMethod::Delete,
+        paths::MESSAGE_VISIBILITY,
+        "chat",
+        "messages.visibility.delete",
+    )
+    .with_idempotent(true),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::CONVERSATION_MESSAGES,

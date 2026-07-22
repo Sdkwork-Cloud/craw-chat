@@ -21,9 +21,11 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 - [component.spec.json](./component.spec.json) is the machine-readable component contract.
 - [IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md](./IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md)
   defines the mandatory `sdkwork-im -> sdkwork-agents -> sdkwork-kernel`
-  dependency direction, bounded-context ownership, and the target IM database
-  contract for assignment projection, Agents session binding, and dispatch
-  correlation.
+  direction and the assignment, Agents Session binding, and dispatch correlation
+  contract without copying Agents execution state.
+- [IM_DOMAIN_AND_PERSISTENCE_SPEC.md](./IM_DOMAIN_AND_PERSISTENCE_SPEC.md)
+  defines the strict IM `Conversation -> Message -> Member -> ReadCursor`
+  vocabulary, normalized persistence authority, and transactional-outbox rules.
 - Shared foundation API composition targets `platform.api-gateway` through
   `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` and `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
   for cloud or external-upstream deployments. In `standalone.*`, the sibling
