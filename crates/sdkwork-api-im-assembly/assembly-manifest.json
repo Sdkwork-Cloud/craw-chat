@@ -117,23 +117,12 @@
       "sourceRef": "crates/sdkwork-routes-im-portal-app-api/Cargo.toml"
     },
     {
-      "packageName": "sdkwork-routes-im-projection-open-api",
-      "memberDir": "crates/sdkwork-routes-im-projection-open-api",
-      "libName": "sdkwork_routes_im_projection_open_api",
-      "surface": "open-api",
-      "pathPrefix": null,
-      "mountOrder": 10,
-      "componentRef": "crates/sdkwork-routes-im-projection-open-api/specs/component.spec.json",
-      "routeManifestRef": "crates/sdkwork-routes-im-projection-open-api/src/manifest.rs",
-      "sourceRef": "crates/sdkwork-routes-im-projection-open-api/Cargo.toml"
-    },
-    {
       "packageName": "sdkwork-routes-im-realtime-open-api",
       "memberDir": "crates/sdkwork-routes-im-realtime-open-api",
       "libName": "sdkwork_routes_im_realtime_open_api",
       "surface": "open-api",
       "pathPrefix": null,
-      "mountOrder": 11,
+      "mountOrder": 10,
       "componentRef": "crates/sdkwork-routes-im-realtime-open-api/specs/component.spec.json",
       "routeManifestRef": "crates/sdkwork-routes-im-realtime-open-api/src/manifest.rs",
       "sourceRef": "crates/sdkwork-routes-im-realtime-open-api/Cargo.toml"
@@ -144,7 +133,7 @@
       "libName": "sdkwork_routes_im_social_backend_api",
       "surface": "backend-api",
       "pathPrefix": null,
-      "mountOrder": 12,
+      "mountOrder": 11,
       "componentRef": "crates/sdkwork-routes-im-social-backend-api/specs/component.spec.json",
       "routeManifestRef": "crates/sdkwork-routes-im-social-backend-api/src/manifest.rs",
       "sourceRef": "crates/sdkwork-routes-im-social-backend-api/Cargo.toml"
@@ -155,7 +144,7 @@
       "libName": "sdkwork_routes_im_social_open_api",
       "surface": "open-api",
       "pathPrefix": null,
-      "mountOrder": 13,
+      "mountOrder": 12,
       "componentRef": "crates/sdkwork-routes-im-social-open-api/specs/component.spec.json",
       "routeManifestRef": "crates/sdkwork-routes-im-social-open-api/src/manifest.rs",
       "sourceRef": "crates/sdkwork-routes-im-social-open-api/Cargo.toml"
@@ -166,7 +155,7 @@
       "libName": "sdkwork_routes_im_space_open_api",
       "surface": "open-api",
       "pathPrefix": null,
-      "mountOrder": 14,
+      "mountOrder": 13,
       "componentRef": "crates/sdkwork-routes-im-space-open-api/specs/component.spec.json",
       "routeManifestRef": "crates/sdkwork-routes-im-space-open-api/src/manifest.rs",
       "sourceRef": "crates/sdkwork-routes-im-space-open-api/Cargo.toml"
@@ -177,7 +166,7 @@
       "libName": "sdkwork_routes_im_stream_app_api",
       "surface": "app-api",
       "pathPrefix": null,
-      "mountOrder": 15,
+      "mountOrder": 14,
       "componentRef": "crates/sdkwork-routes-im-stream-app-api/specs/component.spec.json",
       "routeManifestRef": "crates/sdkwork-routes-im-stream-app-api/src/manifest.rs",
       "sourceRef": "crates/sdkwork-routes-im-stream-app-api/Cargo.toml"

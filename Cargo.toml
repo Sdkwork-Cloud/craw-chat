@@ -5,7 +5,6 @@ members = [
     "adapters/local-memory",
     "adapters/postgres-realtime",
     "adapters/postgres-journal",
-    "adapters/postgres-projection",
     "adapters/postgres-rtc-state",
     "adapters/redis-cache",
     "adapters/social-postgres",
@@ -31,7 +30,6 @@ members = [
     "crates/sdkwork-routes-im-ops-backend-api",
     "crates/sdkwork-routes-im-governance-backend-api",
     "crates/sdkwork-routes-im-portal-app-api",
-    "crates/sdkwork-routes-im-projection-open-api",
     "crates/sdkwork-im-contract-admin",
     "crates/sdkwork-im-contract-agent",
     "crates/sdkwork-im-contract-control",
@@ -86,8 +84,6 @@ members = [
     "services/media-service",
     "services/media-service-bin",
     "services/portal-service",
-    "services/projection-service",
-    "services/projection-service-bin",
     "services/session-gateway",
     "services/session-gateway-bin",
     "services/session-gateway-rpc-bin",
@@ -147,7 +143,6 @@ r2d2 = "0.8.10"
 # Internal SDKWork workspace members - declared once at workspace root
 im-adapters-local-disk = { path = "adapters/local-disk" }
 im-adapters-postgres-journal = { path = "adapters/postgres-journal" }
-im-adapters-postgres-projection = { path = "adapters/postgres-projection" }
 im-app-context = { path = "crates/im-app-context" }
 im-storage-contracts = { path = "crates/im-storage-contracts" }
 im-storage-runtime = { path = "crates/im-storage-runtime" }
@@ -238,7 +233,6 @@ sdkwork_routes_im_media_app_api = { path = "crates/sdkwork-routes-im-media-app-a
 sdkwork_routes_im_notification_app_api = { path = "crates/sdkwork-routes-im-notification-app-api", package = "sdkwork-routes-im-notification-app-api" }
 sdkwork_routes_im_ops_backend_api = { path = "crates/sdkwork-routes-im-ops-backend-api", package = "sdkwork-routes-im-ops-backend-api" }
 sdkwork_routes_im_portal_app_api = { path = "crates/sdkwork-routes-im-portal-app-api", package = "sdkwork-routes-im-portal-app-api" }
-sdkwork_routes_im_projection_open_api = { path = "crates/sdkwork-routes-im-projection-open-api", package = "sdkwork-routes-im-projection-open-api" }
 sdkwork_routes_im_realtime_open_api = { path = "crates/sdkwork-routes-im-realtime-open-api", package = "sdkwork-routes-im-realtime-open-api" }
 sdkwork_routes_im_social_backend_api = { path = "crates/sdkwork-routes-im-social-backend-api", package = "sdkwork-routes-im-social-backend-api" }
 sdkwork_routes_im_social_open_api = { path = "crates/sdkwork-routes-im-social-open-api", package = "sdkwork-routes-im-social-open-api" }
