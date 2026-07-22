@@ -18,6 +18,17 @@ service SocialService {
   rpc RemoveFriendship(RemoveFriendshipRequest) returns (RemoveFriendshipResponse);
 }
 
+service ContactService {
+  rpc ListContacts(ListContactsRequest) returns (ListContactsResponse);
+  rpc ListContactTags(ListContactTagsRequest) returns (ListContactTagsResponse);
+  rpc CreateContactTag(CreateContactTagRequest) returns (CreateContactTagResponse);
+  rpc UpdateContactTag(UpdateContactTagRequest) returns (UpdateContactTagResponse);
+  rpc DeleteContactTag(DeleteContactTagRequest) returns (DeleteContactTagResponse);
+  rpc CreateContactRecommendation(CreateContactRecommendationRequest) returns (CreateContactRecommendationResponse);
+  rpc RetrieveContactPreferences(RetrieveContactPreferencesRequest) returns (RetrieveContactPreferencesResponse);
+  rpc UpdateContactPreferences(UpdateContactPreferencesRequest) returns (UpdateContactPreferencesResponse);
+}
+
 message SocialUserView {
   string user_id = 1;
   string display_name = 2;
@@ -31,6 +42,58 @@ message FriendRequestView {
   string target_user_id = 3;
   string state = 4;
   string message = 5;
+}
+
+message ContactView {
+  string tenant_id = 1;
+  string owner_user_id = 2;
+  string target_user_id = 3;
+  optional string display_name = 4;
+  optional string avatar_url = 5;
+  optional string chat_id = 6;
+  string contact_type = 7;
+  string relationship_state = 8;
+  string friendship_id = 9;
+  optional string direct_chat_id = 10;
+  optional string conversation_id = 11;
+  string established_at = 12;
+  string last_interaction_at = 13;
+  bool is_starred = 14;
+  bool is_blocked = 15;
+  optional string remark = 16;
+  string updated_at = 17;
+}
+
+message ContactTagView {
+  string tenant_id = 1;
+  string owner_user_id = 2;
+  string tag_id = 3;
+  string name = 4;
+  string color = 5;
+  uint32 count = 6;
+  string bg = 7;
+  string border = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message ContactPreferencesView {
+  string tenant_id = 1;
+  string owner_user_id = 2;
+  string target_user_id = 3;
+  bool is_starred = 4;
+  string remark = 5;
+  bool is_blocked = 6;
+  string updated_at = 7;
+}
+
+message ContactRecommendationView {
+  string tenant_id = 1;
+  string owner_user_id = 2;
+  string target_user_id = 3;
+  string recommendation_id = 4;
+  optional string target_conversation_id = 5;
+  string created_at = 6;
 }
 
 message ListSocialUsersRequest {
@@ -108,5 +171,101 @@ message RemoveFriendshipRequest {
 message RemoveFriendshipResponse {
   string friendship_id = 1;
   string status = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message ListContactsRequest {
+  sdkwork.common.v1.PageRequest page = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ListContactsResponse {
+  repeated ContactView contacts = 1;
+  sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message ListContactTagsRequest {
+  sdkwork.common.v1.PageRequest page = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ListContactTagsResponse {
+  repeated ContactTagView tags = 1;
+  sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CreateContactTagRequest {
+  string name = 1;
+  string color = 2;
+  optional uint32 count = 3;
+  optional string bg = 4;
+  optional string border = 5;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateContactTagResponse {
+  ContactTagView tag = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message UpdateContactTagRequest {
+  string tag_id = 1;
+  optional string name = 2;
+  optional string color = 3;
+  optional uint32 count = 4;
+  optional string bg = 5;
+  optional string border = 6;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message UpdateContactTagResponse {
+  ContactTagView tag = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message DeleteContactTagRequest {
+  string tag_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message DeleteContactTagResponse {
+  string tag_id = 1;
+  string status = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CreateContactRecommendationRequest {
+  string target_user_id = 1;
+  optional string target_conversation_id = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateContactRecommendationResponse {
+  ContactRecommendationView recommendation = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RetrieveContactPreferencesRequest {
+  string target_user_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RetrieveContactPreferencesResponse {
+  ContactPreferencesView preferences = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message UpdateContactPreferencesRequest {
+  string target_user_id = 1;
+  optional bool is_starred = 2;
+  optional string remark = 3;
+  optional bool is_blocked = 4;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message UpdateContactPreferencesResponse {
+  ContactPreferencesView preferences = 1;
   sdkwork.common.v1.ResponseMetadata metadata = 15;
 }

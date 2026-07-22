@@ -184,6 +184,15 @@ entries:
     rpcSurface: app
     parityStatus: full
     owner: im-open-api
+  - operationId: social.contacts.list
+    httpSurface: open-api
+    httpPath: /im/v3/api/social/contacts
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ContactService
+    rpcMethod: ListContacts
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
   - operationId: internal.messages.dispatch
     httpSurface: null
     httpPath: null

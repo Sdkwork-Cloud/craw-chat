@@ -36,17 +36,6 @@ service ConversationService {
   rpc ListPinnedMessages(ListPinnedMessagesRequest) returns (ListPinnedMessagesResponse);
 }
 
-service ContactService {
-  rpc ListContacts(ListContactsRequest) returns (ListContactsResponse);
-  rpc ListContactTags(ListContactTagsRequest) returns (ListContactTagsResponse);
-  rpc CreateContactTag(CreateContactTagRequest) returns (CreateContactTagResponse);
-  rpc UpdateContactTag(UpdateContactTagRequest) returns (UpdateContactTagResponse);
-  rpc DeleteContactTag(DeleteContactTagRequest) returns (DeleteContactTagResponse);
-  rpc CreateContactRecommendation(CreateContactRecommendationRequest) returns (CreateContactRecommendationResponse);
-  rpc RetrieveContactPreferences(RetrieveContactPreferencesRequest) returns (RetrieveContactPreferencesResponse);
-  rpc UpdateContactPreferences(UpdateContactPreferencesRequest) returns (UpdateContactPreferencesResponse);
-}
-
 message ConversationView {
   string conversation_id = 1;
   string conversation_type = 2;
@@ -95,24 +84,6 @@ message ReadCursorView {
   string user_id = 2;
   string message_id = 3;
   string event_cursor = 4;
-}
-
-message ContactView {
-  string contact_id = 1;
-  string user_id = 2;
-  string display_name = 3;
-  string relation_state = 4;
-}
-
-message ContactTagView {
-  string tag_id = 1;
-  string name = 2;
-  string color = 3;
-}
-
-message ContactPreferencesView {
-  bool allow_recommendations = 1;
-  bool allow_friend_requests = 2;
 }
 
 message CreateConversationRequest {
@@ -395,91 +366,5 @@ message ListPinnedMessagesRequest {
 message ListPinnedMessagesResponse {
   repeated string message_ids = 1;
   sdkwork.common.v1.PageResponse page = 2;
-  sdkwork.common.v1.ResponseMetadata metadata = 15;
-}
-
-message ListContactsRequest {
-  sdkwork.common.v1.PageRequest page = 1;
-  sdkwork.common.v1.RequestMetadata metadata = 15;
-}
-
-message ListContactsResponse {
-  repeated ContactView contacts = 1;
-  sdkwork.common.v1.PageResponse page = 2;
-  sdkwork.common.v1.ResponseMetadata metadata = 15;
-}
-
-message ListContactTagsRequest {
-  sdkwork.common.v1.PageRequest page = 1;
-  sdkwork.common.v1.RequestMetadata metadata = 15;
-}
-
-message ListContactTagsResponse {
-  repeated ContactTagView tags = 1;
-  sdkwork.common.v1.PageResponse page = 2;
-  sdkwork.common.v1.ResponseMetadata metadata = 15;
-}
-
-message CreateContactTagRequest {
-  string name = 1;
-  string color = 2;
-  sdkwork.common.v1.RequestMetadata metadata = 15;
-}
-
-message CreateContactTagResponse {
-  ContactTagView tag = 1;
-  sdkwork.common.v1.ResponseMetadata metadata = 15;
-}
-
-message UpdateContactTagRequest {
-  string tag_id = 1;
-  string name = 2;
-  string color = 3;
-  sdkwork.common.v1.RequestMetadata metadata = 15;
-}
-
-message UpdateContactTagResponse {
-  ContactTagView tag = 1;
-  sdkwork.common.v1.ResponseMetadata metadata = 15;
-}
-
-message DeleteContactTagRequest {
-  string tag_id = 1;
-  sdkwork.common.v1.RequestMetadata metadata = 15;
-}
-
-message DeleteContactTagResponse {
-  string tag_id = 1;
-  string status = 2;
-  sdkwork.common.v1.ResponseMetadata metadata = 15;
-}
-
-message CreateContactRecommendationRequest {
-  string basis = 1;
-  sdkwork.common.v1.RequestMetadata metadata = 15;
-}
-
-message CreateContactRecommendationResponse {
-  repeated ContactView contacts = 1;
-  sdkwork.common.v1.ResponseMetadata metadata = 15;
-}
-
-message RetrieveContactPreferencesRequest {
-  sdkwork.common.v1.RequestMetadata metadata = 15;
-}
-
-message RetrieveContactPreferencesResponse {
-  ContactPreferencesView preferences = 1;
-  sdkwork.common.v1.ResponseMetadata metadata = 15;
-}
-
-message UpdateContactPreferencesRequest {
-  bool allow_recommendations = 1;
-  bool allow_friend_requests = 2;
-  sdkwork.common.v1.RequestMetadata metadata = 15;
-}
-
-message UpdateContactPreferencesResponse {
-  ContactPreferencesView preferences = 1;
   sdkwork.common.v1.ResponseMetadata metadata = 15;
 }

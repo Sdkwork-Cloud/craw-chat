@@ -64,7 +64,7 @@
       "service": "ContactService",
       "surface": "app",
       "methods": [
-        { "method": "ListContacts", "operationId": "contacts.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "ListContacts", "operationId": "social.contacts.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "ListContactTags", "operationId": "social.contacts.tags.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "CreateContactTag", "operationId": "social.contacts.tags.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "UpdateContactTag", "operationId": "social.contacts.tags.update", "auth": "app-session", "idempotency": "optional", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
