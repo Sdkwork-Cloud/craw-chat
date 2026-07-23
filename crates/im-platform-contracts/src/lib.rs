@@ -2,6 +2,7 @@ mod cluster_bus;
 mod conversation_aggregate_store;
 mod conversation_member_access_gate;
 mod id_generator;
+mod message_mutation;
 mod message_store;
 mod outbox_store;
 mod provider;
@@ -30,9 +31,7 @@ pub use sdkwork_im_contract_core::{
 pub use sdkwork_im_contract_message::{
     COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitEnvelope, CommitJournal,
     CommitJournalAggregateEventTypeQuery, CommitJournalAggregateScope, CommitJournalReplayCursor,
-    CommitJournalReplayPage, CommitPosition, TimelineProjectionBatch, TimelineProjectionRecord,
-    TimelineProjectionScope, TimelineProjectionStore, TimelineProjectionWindow,
-    replay_commit_journal_pages,
+    CommitJournalReplayPage, CommitPosition, replay_commit_journal_pages,
 };
 pub use sdkwork_im_contract_notification::{
     NotificationTaskListCursor, NotificationTaskRecord, NotificationTaskStore,
@@ -51,15 +50,19 @@ pub use seq_allocator::ConversationSeqAllocator;
 pub use conversation_aggregate_store::{
     CONVERSATION_AGGREGATE_PAGE_SIZE_DEFAULT, CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
     ConversationAggregateState, ConversationAggregateStore, ConversationMemberPage,
-    ConversationMemberPageCursor, ConversationMemberRecord, ReadCursorPage, ReadCursorPageCursor,
-    ReadCursorRecord,
+    ConversationMemberPageCursor, ConversationMemberRecord, NormalizedConversationCommit,
+    NormalizedConversationRecord, ReadCursorPage, ReadCursorPageCursor, ReadCursorRecord,
 };
 pub use conversation_member_access_gate::{
     AggregateStoreConversationMemberAccessGate, ConversationMemberAccessGate,
     DenyConversationMemberAccessGate,
 };
 pub use id_generator::{IdGenerator, IdGeneratorConfig};
-pub use message_store::{MessageStore, MessageWindow, StoredMessageRecord};
+pub use message_mutation::{StoredMessageMutation, StoredMessageMutationTarget};
+pub use message_store::{
+    MessageStore, MessageWindow, StoredMessagePinRecord, StoredMessageReactionRecord,
+    StoredMessageRecord,
+};
 pub use outbox_store::{OutboxEventClaim, OutboxEventRecord, OutboxPublishStatus, OutboxStore};
 pub use realtime_publisher::{
     RealtimeEventPublisher, RealtimeEventRecipient, RealtimeScopeEventPublishCommand,

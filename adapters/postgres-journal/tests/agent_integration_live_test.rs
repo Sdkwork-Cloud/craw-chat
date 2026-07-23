@@ -1,4 +1,4 @@
-//! Live PostgreSQL coverage for IM-owned Agents projection, binding, and dispatch state.
+//! Live PostgreSQL coverage for IM-owned Agent assignment, binding, and dispatch state.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Barrier};
@@ -14,7 +14,7 @@ use im_platform_contracts::{AgentDispatchReplyCompletion, IdGenerator, StoredMes
 use sdkwork_im_contract_agent::{
     AGENT_MENTION_DISPATCH_SCHEMA_VERSION, AgentAssignmentSource, AgentBindingStatus,
     AgentIntegrationStore, AgentMentionDispatchRequest, AgentMentionDispatchTarget,
-    ConversationAgentBindingRecord, ConversationAgentAssignmentItem,
+    ConversationAgentAssignmentItem, ConversationAgentBindingRecord,
     ReplaceConversationAgentAssignments,
 };
 
@@ -27,7 +27,7 @@ fn test_numeric_scope() -> u64 {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
-async fn agents_projection_binding_and_dispatch_are_idempotent_scoped_and_leased() {
+async fn agent_assignments_binding_and_dispatch_are_idempotent_scoped_and_leased() {
     let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
         .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
     sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
@@ -48,7 +48,7 @@ async fn agents_projection_binding_and_dispatch_are_idempotent_scoped_and_leased
     let now = chrono::Utc::now();
     let now_text = now.to_rfc3339();
 
-    let projection = ReplaceConversationAgentAssignments {
+    let assignments = ReplaceConversationAgentAssignments {
         tenant_id,
         organization_id,
         conversation_id: conversation_id.clone(),
@@ -56,9 +56,9 @@ async fn agents_projection_binding_and_dispatch_are_idempotent_scoped_and_leased
         assignment_generation: 1,
         assigned_by: tenant_id,
         assigned_at: now_text.clone(),
-        source_event_id: format!("evt_agent_projection_{tenant_id}"),
+        source_event_id: format!("evt_agent_assignments_{tenant_id}"),
         source_aggregate_version: 1,
-        payload_hash: format!("projection-hash-{tenant_id}"),
+        payload_hash: format!("assignment-hash-{tenant_id}"),
         items: vec![ConversationAgentAssignmentItem {
             agent_id: agent_id.into(),
             agent_revision_ref: None,
@@ -66,19 +66,19 @@ async fn agents_projection_binding_and_dispatch_are_idempotent_scoped_and_leased
         }],
     };
     store
-        .replace_conversation_agents(projection.clone())
-        .expect("projection should apply");
+        .replace_conversation_agents(assignments.clone())
+        .expect("assignments should apply");
     store
-        .replace_conversation_agents(projection.clone())
-        .expect("same projection should replay");
-    let mut stale = projection.clone();
+        .replace_conversation_agents(assignments.clone())
+        .expect("same assignments should replay");
+    let mut stale = assignments.clone();
     stale.source_aggregate_version = 0;
     stale.payload_hash = "stale".into();
     assert!(store.replace_conversation_agents(stale).is_err());
     assert_eq!(
         store
             .list_conversation_agents(tenant_id, organization_id, &conversation_id, 20)
-            .expect("projection should list")
+            .expect("assignments should list")
             .len(),
         1
     );
@@ -258,7 +258,7 @@ async fn agents_projection_binding_and_dispatch_are_idempotent_scoped_and_leased
                 "delete from im_conversation_agent_assignments where tenant_id = $1",
                 &[&(tenant_id as i64)],
             )
-            .expect("projection cleanup");
+            .expect("assignment cleanup");
     })
     .await
     .expect("cleanup should not panic");
@@ -398,6 +398,8 @@ async fn agent_reply_and_dispatch_completion_commit_and_rollback_atomically() {
                 updated_at: now_text.clone(),
                 deleted_at: None,
                 retention_until: None,
+                reactions: Vec::new(),
+                pin: None,
             },
             Vec::new(),
             Some(request),
@@ -481,6 +483,8 @@ async fn agent_reply_and_dispatch_completion_commit_and_rollback_atomically() {
         updated_at: now_text.clone(),
         deleted_at: None,
         retention_until: None,
+        reactions: Vec::new(),
+        pin: None,
     };
     writer
         .persist_agent_reply_and_complete_dispatch(
@@ -552,6 +556,8 @@ async fn agent_reply_and_dispatch_completion_commit_and_rollback_atomically() {
             updated_at: now_text.clone(),
             deleted_at: None,
             retention_until: None,
+            reactions: Vec::new(),
+            pin: None,
         },
         Vec::new(),
         AgentDispatchReplyCompletion {

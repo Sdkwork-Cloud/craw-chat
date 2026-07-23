@@ -2,7 +2,7 @@ import type { SocialSharedChannelSyncDeadLetterTargetedRequeueResponse } from '.
 
 export interface SocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialSharedChannelSyncDeadLetterTargetedRequeueResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

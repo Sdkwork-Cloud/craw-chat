@@ -544,8 +544,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_disconnect_fences_retention_until
     ON im_realtime_disconnect_fences (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
 
--- source: deployments/database/postgres/migrations/011_im_projections_rtc_streams.sql
--- Migration 011: RTC Sessions, Signals, Audit, Notifications, Automations, Projections
+-- RTC sessions, signals, audit, notifications, automations, and normalized state
 -- 继续重建剩余表，引入 organization_id
 
 -- ============================================================
@@ -784,11 +783,7 @@ CREATE INDEX IF NOT EXISTS idx_im_automation_executions_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 20. 投影：Timeline 条目
--- ============================================================
-
--- ============================================================
--- 21. 投影：会话摘�?
+-- Conversation normalized state authority
 -- ============================================================
 
 DROP TABLE IF EXISTS im_conversations;
@@ -796,7 +791,10 @@ CREATE TABLE im_conversations (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
-    conversation_type TEXT,
+    conversation_type TEXT NOT NULL,
+    lifecycle_state TEXT NOT NULL DEFAULT 'active',
+    commit_seq INTEGER NOT NULL DEFAULT 0 CHECK (commit_seq >= 0),
+    member_epoch INTEGER NOT NULL DEFAULT 0 CHECK (member_epoch >= 0),
     message_count INTEGER NOT NULL DEFAULT 0 CHECK (message_count >= 0),
     last_message_id INTEGER,
     last_message_seq INTEGER NOT NULL DEFAULT 0 CHECK (last_message_seq >= 0),
@@ -805,13 +803,13 @@ CREATE TABLE im_conversations (
     last_summary TEXT,
     last_message_at TEXT,
     last_activity_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    agent_handoff_json TEXT,
     payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
     payload_hash TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     retention_until TEXT,
-    CONSTRAINT pk_im_conversations PRIMARY KEY (tenant_id, organization_id, conversation_id)
+    CONSTRAINT pk_im_conversations PRIMARY KEY (tenant_id, organization_id, conversation_id),
+    CONSTRAINT chk_im_conversations_lifecycle CHECK (lifecycle_state IN ('active', 'archived'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_conversations_activity
@@ -822,7 +820,7 @@ CREATE INDEX IF NOT EXISTS idx_im_conversations_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 22. 投影：会话成�?
+-- Conversation member authority
 -- ============================================================
 
 DROP TABLE IF EXISTS im_conversation_members;
@@ -846,7 +844,7 @@ CREATE TABLE im_conversation_members (
     retention_until TEXT,
     -- member_id is the principal's Snowflake i64 (parsed from principal_id); principal already
     -- identifies a member uniquely within a conversation, so no separate UK on member_id is needed.
-    -- See specs/database-table-registry.json writeOwner for ownership of this table.
+    -- See database/contract/table-registry.json write_owner for ownership of this table.
     CONSTRAINT pk_im_conversation_members PRIMARY KEY (tenant_id, organization_id, conversation_id, principal_kind, principal_id),
     CONSTRAINT chk_im_conversation_members_state CHECK (membership_state IN ('invited', 'joined', 'linked', 'removed', 'left'))
 );
@@ -863,7 +861,7 @@ CREATE INDEX IF NOT EXISTS idx_im_conversation_members_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 23. 投影：已读游�?
+-- Conversation read cursor authority
 -- ============================================================
 
 DROP TABLE IF EXISTS im_conversation_read_cursors;
@@ -893,7 +891,7 @@ CREATE INDEX IF NOT EXISTS idx_im_conversation_read_cursors_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 24. 投影：注册客户端路由
+-- Realtime registered client route authority
 -- ============================================================
 
 DROP TABLE IF EXISTS im_registered_client_routes;
@@ -917,7 +915,7 @@ CREATE INDEX IF NOT EXISTS idx_im_registered_client_routes_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 25. 投影：客户端路由同步 Feed
+-- Realtime client sync event log
 -- ============================================================
 
 DROP TABLE IF EXISTS im_client_sync_events;
@@ -960,7 +958,7 @@ CREATE INDEX IF NOT EXISTS idx_im_client_sync_events_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 26. 投影：客户端路由同步检查点
+-- Realtime client sync cursor authority
 -- ============================================================
 
 DROP TABLE IF EXISTS im_client_sync_cursors;
@@ -986,15 +984,7 @@ CREATE INDEX IF NOT EXISTS idx_im_client_sync_cursors_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 27. 投影：联系人
--- ============================================================
-
--- ============================================================
--- 28. 投影：直接聊天绑�?
--- ============================================================
-
--- ============================================================
--- 29. Stream Sessions
+-- Stream sessions
 -- ============================================================
 
 DROP TABLE IF EXISTS im_stream_sessions;
@@ -1657,21 +1647,6 @@ CREATE INDEX IF NOT EXISTS idx_im_ban_records_user
 
 -- 注册新表�?database-table-registry.json
 -- 注册新表�?database-prefix-registry.json
-
--- source: database/migrations/postgres/0002_im_runtime_state_snapshots.up.sql
-
-CREATE TABLE IF NOT EXISTS im_runtime_state_snapshots (
-    snapshot_scope TEXT NOT NULL,
-    snapshot_key TEXT NOT NULL,
-    payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
-    payload_hash TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT pk_im_runtime_state_snapshots PRIMARY KEY (snapshot_scope, snapshot_key)
-);
-
-CREATE INDEX IF NOT EXISTS idx_im_runtime_state_snapshots_key
-    ON im_runtime_state_snapshots (snapshot_key);
 
 -- folded migration: migrations/sqlite/0003_im_commit_journal_organization_scope.up.sql
 -- Align im_commit_journal with organization-scoped journal writes.

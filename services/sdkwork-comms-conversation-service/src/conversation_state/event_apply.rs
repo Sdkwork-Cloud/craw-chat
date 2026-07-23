@@ -110,18 +110,15 @@ pub(super) fn handoff_view_from_created_payload(
         return Ok(None);
     }
 
-    let source = payload
-        .source
-        .as_ref()
-        .ok_or_else(|| ConversationStateError::InvalidEvent("agent_handoff source missing".into()))?;
-    let target = payload
-        .target
-        .as_ref()
-        .ok_or_else(|| ConversationStateError::InvalidEvent("agent_handoff target missing".into()))?;
-    let handoff = payload
-        .handoff
-        .as_ref()
-        .ok_or_else(|| ConversationStateError::InvalidEvent("agent_handoff payload missing".into()))?;
+    let source = payload.source.as_ref().ok_or_else(|| {
+        ConversationStateError::InvalidEvent("agent_handoff source missing".into())
+    })?;
+    let target = payload.target.as_ref().ok_or_else(|| {
+        ConversationStateError::InvalidEvent("agent_handoff target missing".into())
+    })?;
+    let handoff = payload.handoff.as_ref().ok_or_else(|| {
+        ConversationStateError::InvalidEvent("agent_handoff payload missing".into())
+    })?;
 
     Ok(Some(ConversationAgentHandoffView {
         status: handoff.status.clone(),
@@ -190,11 +187,20 @@ pub(super) fn handoff_view_from_state_payload(
         handoff_session_id: state.handoff_session_id.clone(),
         handoff_reason: state.handoff_reason.clone(),
         accepted_at: state.accepted_at.clone(),
-        accepted_by: state.accepted_by.as_ref().map(conversation_state_actor_to_view),
+        accepted_by: state
+            .accepted_by
+            .as_ref()
+            .map(conversation_state_actor_to_view),
         resolved_at: state.resolved_at.clone(),
-        resolved_by: state.resolved_by.as_ref().map(conversation_state_actor_to_view),
+        resolved_by: state
+            .resolved_by
+            .as_ref()
+            .map(conversation_state_actor_to_view),
         closed_at: state.closed_at.clone(),
-        closed_by: state.closed_by.as_ref().map(conversation_state_actor_to_view),
+        closed_by: state
+            .closed_by
+            .as_ref()
+            .map(conversation_state_actor_to_view),
     }
 }
 

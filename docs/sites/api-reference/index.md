@@ -53,7 +53,7 @@
 
 Read the API docs in this order:
 
-1. Start with [Authentication and Errors](/api-reference/auth-and-errors) for SDKWork dual-token, AppContext projection, and error-envelope rules.
+1. Start with [Authentication and Errors](/api-reference/auth-and-errors) for SDKWork dual-token, resolved request-context, and error-envelope rules.
 2. Open the domain overview that matches the runtime surface you are integrating: IM standard, app, or backend.
 3. Use operation pages for the exact request and response contract.
 4. Switch to the SDK docs only when your next question becomes package names, language parity,
@@ -73,7 +73,7 @@ That split keeps HTTP semantics and consumer package surfaces from being mixed t
 
 <div class="api-link-list">
   <a href="/api-reference/gateway-openapi"><code>Gateway</code> Aggregate schema, schema index, and service-level docs discovery</a>
-  <a href="/api-reference/auth-and-errors"><code>Auth</code> Authentication, AppContext projection headers, and the error envelope</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> Authentication, resolved request context, and the error envelope</a>
   <a href="/api-reference/im/session-and-realtime"><code>IM</code> Realtime Presence transport semantics</a>
   <a href="/api-reference/im/conversations"><code>IM</code> Conversation creation and handoff flows</a>
   <a href="/api-reference/app/portal-access"><code>App</code> Portal sign-in and tenant portal snapshot endpoints</a>

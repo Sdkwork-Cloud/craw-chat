@@ -22,7 +22,7 @@ Snapshot builders consume injected `OpsRuntime` and optional `AuditRuntime` hand
 
 ## SaaS/Private/Local Behavior
 
-`dataAvailability` remains false until ops health is `ok` and projection or lag wiring reports non-empty runtime metrics.
+`dataAvailability` remains false until ops health is `ok` and the relevant realtime, operational lag, or transactional outbox source is wired. Snapshot builders never synthesize missing metrics.
 
 ## Security
 

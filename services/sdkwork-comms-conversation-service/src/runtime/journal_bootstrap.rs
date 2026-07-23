@@ -1,7 +1,8 @@
 use im_adapters_postgres_journal::{
     PostgresAggregateStore, PostgresCommitJournal, PostgresConversationSeqAllocator,
-    PostgresDurableConversationEventWriter, PostgresDurableMessagePostWriter,
-    PostgresJournalConfig, PostgresMessageStore, PostgresOutboxStore, PostgresRetentionScopeStore,
+    PostgresDurableConversationEventWriter, PostgresDurableMessageMutationWriter,
+    PostgresDurableMessagePostWriter, PostgresJournalConfig, PostgresMessageStore,
+    PostgresOutboxStore, PostgresRetentionScopeStore,
 };
 use im_adapters_redis_cache::RedisSeqAllocator;
 use im_adapters_social_postgres::user_block_store::PostgresUserBlockStore;
@@ -21,7 +22,8 @@ use std::sync::Arc;
 use tracing::info;
 
 use super::{
-    ConversationRuntime, DurableConversationEventWriter, DurableMessagePostWriter, InMemoryJournal,
+    ConversationRuntime, DurableConversationEventWriter, DurableMessageMutationWriter,
+    DurableMessagePostWriter, InMemoryJournal,
     postgres_direct_message_gate::PostgresDirectMessageAccessGate,
 };
 
@@ -180,12 +182,19 @@ pub fn build_conversation_runtime_from_env()
                 as Arc<dyn ConversationAggregateStore>)
             .with_retention_scope_store(Arc::new(PostgresRetentionScopeStore::from_pool(pool))
                 as Arc<dyn RetentionScopeStore>)
-            .with_id_generator(id_generator)
+            .with_id_generator(id_generator.clone())
             .with_durable_message_post_writer(Arc::new(
                 PostgresDurableMessagePostWriter::from_journal(&postgres_journal),
-            ) as Arc<dyn DurableMessagePostWriter>);
+            ) as Arc<dyn DurableMessagePostWriter>)
+            .with_durable_message_mutation_writer(Arc::new(
+                PostgresDurableMessageMutationWriter::from_journal(&postgres_journal),
+            )
+                as Arc<dyn DurableMessageMutationWriter>);
         runtime = runtime.with_durable_conversation_event_writer(Arc::new(
-            PostgresDurableConversationEventWriter::from_journal(&postgres_journal),
+            PostgresDurableConversationEventWriter::from_journal_with_id_generator(
+                &postgres_journal,
+                id_generator,
+            ),
         )
             as Arc<dyn DurableConversationEventWriter>);
         if let Ok(shared_pool) = sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool() {

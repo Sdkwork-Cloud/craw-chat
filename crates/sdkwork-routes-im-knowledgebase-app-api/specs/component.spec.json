@@ -83,7 +83,8 @@
     "routeManifest": "src/manifest.rs",
     "sdkClients": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [],
+    "layerRole": "backend-route"
   },
   "integration": {
     "authority": "The authored App API OpenAPI contract and route manifest own the public HTTP surface.",

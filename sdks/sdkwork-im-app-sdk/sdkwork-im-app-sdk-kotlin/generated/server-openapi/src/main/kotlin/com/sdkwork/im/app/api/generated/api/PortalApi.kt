@@ -8,7 +8,7 @@ import com.sdkwork.im.app.api.generated.http.HttpClient
 
 class PortalApi(private val client: HttpClient) {
 
-    /** Read the tenant portal sign-in snapshot */
+    /** Read the tenant portal access snapshot */
     suspend fun accessRetrieve(): AccessRetrieveResponse? {
         val raw = client.get(ApiPaths.appPath("/portal/access"))
         return client.convertValue(raw, object : TypeReference<AccessRetrieveResponse>() {})

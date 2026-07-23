@@ -13,7 +13,7 @@ func NewPortalApi(client *sdkhttp.Client) *PortalApi {
     return &PortalApi{client: client}
 }
 
-// Read the tenant portal sign-in snapshot
+// Read the tenant portal access snapshot
 func (a *PortalApi) AccessRetrieve() (sdktypes.AccessRetrieveResponse, error) {
     raw, err := a.client.Get(AppApiPath("/portal/access"), nil, nil)
     if err != nil {

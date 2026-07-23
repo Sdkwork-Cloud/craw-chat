@@ -229,16 +229,12 @@ fn test_core_im_postgres_schema_defines_notification_and_automation_hot_paths() 
 }
 
 #[test]
-fn test_core_im_postgres_schema_defines_projection_hot_paths() {
+fn test_core_im_postgres_schema_defines_normalized_im_hot_paths() {
     let schema = postgres_core_schema();
 
     assert_contains_all(
         &schema,
         &[
-            "create table if not exists im_projection_timeline_entries",
-            "constraint pk_im_projection_timeline_entries primary key (tenant_id, organization_id, conversation_id, message_seq)",
-            "create index if not exists idx_im_projection_timeline_entries_message",
-            "on im_projection_timeline_entries (tenant_id, organization_id, message_id)",
             "create table if not exists im_conversations",
             "constraint pk_im_conversations primary key (tenant_id, organization_id, conversation_id)",
             "create index if not exists idx_im_conversations_activity",
@@ -268,21 +264,19 @@ fn test_core_im_postgres_schema_defines_projection_hot_paths() {
             "create table if not exists im_client_sync_cursors",
             "constraint pk_im_client_sync_cursors primary key (tenant_id, organization_id, principal_kind, principal_id, device_id)",
             "constraint chk_im_client_sync_cursors_order check (\n        trimmed_through_seq <= latest_sync_seq\n        and acked_through_sync_seq <= latest_sync_seq\n    )",
-            "create table if not exists im_projection_contacts",
-            "constraint pk_im_projection_contacts primary key (tenant_id, organization_id, owner_user_id, contact_type, target_user_id)",
-            "create index if not exists idx_im_projection_contacts_owner_activity",
-            "on im_projection_contacts (tenant_id, organization_id, owner_user_id, last_interaction_at desc, target_user_id)",
-            "create table if not exists im_projection_direct_chat_bindings",
-            "constraint pk_im_projection_direct_chat_bindings primary key (tenant_id, organization_id, direct_chat_id)",
-            "constraint uk_im_projection_direct_chat_bindings_conversation unique (tenant_id, organization_id, conversation_id)",
-            "create index if not exists idx_im_projection_direct_chat_bindings_conversation",
-            "on im_projection_direct_chat_bindings (tenant_id, organization_id, conversation_id, direct_chat_status)",
+            "create table if not exists im_friendships",
+            "constraint uk_im_friendships_pair unique (tenant_id, organization_id, user_low_id, user_high_id)",
+            "create index if not exists idx_im_friendships_user_low_inventory",
+            "create index if not exists idx_im_friendships_user_high_inventory",
+            "create table if not exists im_direct_chats",
+            "constraint uk_im_direct_chats_pair unique (tenant_id, organization_id, pair_hash)",
+            "create index if not exists idx_im_direct_chats_conversation",
         ],
     );
 }
 
 #[test]
-fn test_core_im_sqlite_projection_read_cursor_contract_matches_postgres_device_scope() {
+fn test_core_im_sqlite_read_cursor_contract_matches_postgres_device_scope() {
     let schema = sqlite_core_schema();
 
     assert_contains_all(
@@ -312,7 +306,7 @@ fn test_core_im_postgres_schema_allows_shared_history_linked_members() {
         ) || conversation_members.contains(
             "constraint chk_im_conversation_members_state check (membership_state in ('invited', 'joined', 'removed', 'left', 'linked'))"
         ),
-        "conversation member projection must allow membership_state='linked' because shared-channel linked members are runtime/domain-valid readers"
+        "conversation member authority must allow membership_state='linked' because shared-channel linked members are runtime/domain-valid readers"
     );
 }
 
@@ -444,15 +438,12 @@ fn test_core_im_postgres_schema_indexes_retention_cleanup_paths() {
             "create index if not exists idx_im_audit_records_retention_until",
             "create index if not exists idx_im_notification_tasks_retention_until",
             "create index if not exists idx_im_automation_executions_retention_until",
-            "create index if not exists idx_im_projection_timeline_entries_retention_until",
             "create index if not exists idx_im_conversations_retention_until",
             "create index if not exists idx_im_conversation_members_retention_until",
             "create index if not exists idx_im_conversation_read_cursors_retention_until",
             "create index if not exists idx_im_registered_client_routes_retention_until",
             "create index if not exists idx_im_client_sync_events_retention_until",
             "create index if not exists idx_im_client_sync_cursors_retention_until",
-            "create index if not exists idx_im_projection_contacts_retention_until",
-            "create index if not exists idx_im_projection_direct_chat_bindings_retention_until",
             "create index if not exists idx_im_stream_sessions_retention_until",
             "create index if not exists idx_im_stream_frames_retention_until",
             "where retention_until is not null",

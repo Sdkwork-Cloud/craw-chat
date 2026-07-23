@@ -4,7 +4,7 @@ use im_adapters_local_memory::{
     MemoryAutomationExecutionStore, MemoryCommitJournal, MemoryMetadataStore,
     MemoryNotificationTaskStore, MemoryPresenceStateStore, MemoryRealtimeCheckpointStore,
     MemoryRealtimeDisconnectFenceStore, MemoryRealtimeSubscriptionStore,
-    MemoryStorageDomainSnapshotStore, MemoryStreamStateStore, MemoryTimelineProjectionStore,
+    MemoryStorageDomainSnapshotStore, MemoryStreamStateStore,
 };
 use im_domain_core::{
     automation::{AutomationExecution, AutomationExecutionState},
@@ -20,7 +20,7 @@ use im_platform_contracts::{
     RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
     RealtimeDisconnectFenceStore, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
     StreamAppendOutcome, StreamCreateOutcome, StreamScope, StreamSessionRecord, StreamStateStore,
-    StreamTransitionOutcome, TimelineProjectionScope, TimelineProjectionStore,
+    StreamTransitionOutcome,
 };
 use im_storage_contracts::{
     StorageBindingRecord, StorageCatalog, StorageConfigRecord, StorageCredentialMode,
@@ -552,95 +552,6 @@ fn test_memory_metadata_store_does_not_collapse_delimiter_shaped_scope_and_key()
             .snapshot("tenant:100001:conversation", "c_demo")
             .as_deref(),
         Some("{\"state\":\"two\"}")
-    );
-}
-
-#[test]
-fn test_memory_timeline_projection_store_upserts_by_sequence() {
-    let projection = MemoryTimelineProjectionStore::default();
-    let scope = TimelineProjectionScope::new("100001", "0", "c_demo")
-        .expect("timeline scope should be valid");
-
-    projection
-        .upsert_timeline_entry(&scope, 1, "{\"summary\":\"first\"}")
-        .expect("first upsert should succeed");
-    projection
-        .upsert_timeline_entry(&scope, 2, "{\"summary\":\"second\"}")
-        .expect("second upsert should succeed");
-    projection
-        .upsert_timeline_entry(&scope, 2, "{\"summary\":\"second-v2\"}")
-        .expect("idempotent upsert should succeed");
-
-    assert_eq!(
-        projection.entries(&scope),
-        vec![
-            (1, "{\"summary\":\"first\"}".to_string()),
-            (2, "{\"summary\":\"second-v2\"}".to_string()),
-        ]
-    );
-}
-
-#[test]
-fn test_memory_timeline_projection_store_loads_bounded_keyset_windows() {
-    let projection = MemoryTimelineProjectionStore::default();
-    let scope = TimelineProjectionScope::new("100001", "0", "c_window")
-        .expect("timeline scope should be valid");
-    for sequence in 1..=4 {
-        projection
-            .upsert_timeline_entry(
-                &scope,
-                sequence,
-                format!("{{\"sequence\":{sequence}}}").as_str(),
-            )
-            .expect("timeline upsert should succeed");
-    }
-
-    assert_eq!(
-        projection
-            .load_timeline_window(&scope, 1, 2)
-            .expect("bounded timeline window should load"),
-        im_platform_contracts::TimelineProjectionWindow {
-            items: vec![
-                (2, "{\"sequence\":2}".to_string()),
-                (3, "{\"sequence\":3}".to_string()),
-            ],
-            has_more: true,
-        }
-    );
-    assert_eq!(
-        projection
-            .load_timeline_window(&scope, 1, 0)
-            .expect("zero-sized timeline window should load"),
-        im_platform_contracts::TimelineProjectionWindow {
-            items: Vec::new(),
-            has_more: true,
-        },
-        "the memory adapter must match the PostgreSQL zero-limit semantics"
-    );
-}
-
-#[test]
-fn test_memory_timeline_projection_store_isolates_same_scope_across_organizations() {
-    let projection = MemoryTimelineProjectionStore::default();
-    let org_a = TimelineProjectionScope::new("t_shared", "org_a", "c_shared")
-        .expect("organization A scope should be valid");
-    let org_b = TimelineProjectionScope::new("t_shared", "org_b", "c_shared")
-        .expect("organization B scope should be valid");
-
-    projection
-        .upsert_timeline_entry(&org_a, 1, "{\"summary\":\"alpha\"}")
-        .expect("organization A timeline upsert should succeed");
-    projection
-        .upsert_timeline_entry(&org_b, 1, "{\"summary\":\"beta\"}")
-        .expect("organization B timeline upsert should succeed");
-
-    assert_eq!(
-        projection.entries(&org_a),
-        vec![(1, "{\"summary\":\"alpha\"}".to_string())]
-    );
-    assert_eq!(
-        projection.entries(&org_b),
-        vec![(1, "{\"summary\":\"beta\"}".to_string())]
     );
 }
 

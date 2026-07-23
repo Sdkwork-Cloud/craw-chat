@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 class PortalWorkspaceView:
     name: str
     slug: str
-    tier: str
-    region: str
-    support_plan: str
-    seats: int
-    active_brands: int
-    uptime: str
+    environment: str
+    tier: Optional[str] = None
+    region: Optional[str] = None
+    support_plan: Optional[str] = None
+    seats: Optional[str] = None
+    active_brands: Optional[str] = None

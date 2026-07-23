@@ -8,7 +8,6 @@
     "media-service": { "package": "media-service-bin", "binary": "media-service", "port": 18086 },
     "notification-service": { "package": "notification-service-bin", "binary": "notification-service", "port": 18087 },
     "ops-service": { "package": "ops-service-bin", "binary": "ops-service", "port": 18096 },
-    "projection-service": { "package": "projection-service-bin", "binary": "projection-service", "port": 18083 },
     "session-gateway": { "package": "session-gateway-bin", "binary": "session-gateway", "port": 28080 },
     "social-service": { "package": "comms-social-service-bin", "binary": "comms-social-service", "port": 28092 },
     "space-service": { "package": "space-service-bin", "binary": "space-service", "port": 28093 },

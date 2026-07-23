@@ -2909,6 +2909,9 @@ class ContactView {
   final String tenantId;
   final String ownerUserId;
   final String targetUserId;
+  final String? displayName;
+  final String? avatarUrl;
+  final String? chatId;
   final String contactType;
   final String relationshipState;
   final String friendshipId;
@@ -2916,18 +2919,29 @@ class ContactView {
   final String? conversationId;
   final String establishedAt;
   final String lastInteractionAt;
+  final bool isStarred;
+  final bool isBlocked;
+  final String? remark;
+  final String updatedAt;
 
   ContactView({
     required this.tenantId,
     required this.ownerUserId,
     required this.targetUserId,
+    this.displayName,
+    this.avatarUrl,
+    this.chatId,
     required this.contactType,
     required this.relationshipState,
     required this.friendshipId,
     this.directChatId,
     this.conversationId,
     required this.establishedAt,
-    required this.lastInteractionAt
+    required this.lastInteractionAt,
+    required this.isStarred,
+    required this.isBlocked,
+    this.remark,
+    required this.updatedAt
   });
 
   factory ContactView.fromJson(Map<String, dynamic> json) {
@@ -2953,6 +2967,9 @@ class ContactView {
         }
         return value;
       })(),
+      displayName: json['displayName']?.toString(),
+      avatarUrl: json['avatarUrl']?.toString(),
+      chatId: json['chatId']?.toString(),
       contactType: (() {
         final value = json['contactType']?.toString();
         if (value == null) {
@@ -2989,6 +3006,28 @@ class ContactView {
           throw FormatException('ContactView.lastInteractionAt is required');
         }
         return value;
+      })(),
+      isStarred: (() {
+        final value = json['isStarred'];
+        if (value is! bool) {
+          throw FormatException('ContactView.isStarred is required');
+        }
+        return value;
+      })(),
+      isBlocked: (() {
+        final value = json['isBlocked'];
+        if (value is! bool) {
+          throw FormatException('ContactView.isBlocked is required');
+        }
+        return value;
+      })(),
+      remark: json['remark']?.toString(),
+      updatedAt: (() {
+        final value = json['updatedAt']?.toString();
+        if (value == null) {
+          throw FormatException('ContactView.updatedAt is required');
+        }
+        return value;
       })()
     );
   }
@@ -2998,6 +3037,9 @@ class ContactView {
       'tenantId': tenantId,
       'ownerUserId': ownerUserId,
       'targetUserId': targetUserId,
+      'displayName': displayName,
+      'avatarUrl': avatarUrl,
+      'chatId': chatId,
       'contactType': contactType,
       'relationshipState': relationshipState,
       'friendshipId': friendshipId,
@@ -3005,6 +3047,10 @@ class ContactView {
       'conversationId': conversationId,
       'establishedAt': establishedAt,
       'lastInteractionAt': lastInteractionAt,
+      'isStarred': isStarred,
+      'isBlocked': isBlocked,
+      'remark': remark,
+      'updatedAt': updatedAt,
     };
   }
 }
@@ -8335,37 +8381,37 @@ class SocialContactsPreferencesUpdateResponse {
   }
 }
 
-class ContactsListResponse {
+class SocialContactsListResponse {
   final int code;
   final dynamic data;
   final String traceId;
 
-  ContactsListResponse({
+  SocialContactsListResponse({
     required this.code,
     required this.data,
     required this.traceId
   });
 
-  factory ContactsListResponse.fromJson(Map<String, dynamic> json) {
-    return ContactsListResponse(
+  factory SocialContactsListResponse.fromJson(Map<String, dynamic> json) {
+    return SocialContactsListResponse(
       code: (() {
         final value = json['code'];
         if (value is! int) {
-          throw FormatException('ContactsListResponse.code is required');
+          throw FormatException('SocialContactsListResponse.code is required');
         }
         return value;
       })(),
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
-          throw FormatException('ContactsListResponse.data is required');
+          throw FormatException('SocialContactsListResponse.data is required');
         }
         return map;
       })(),
       traceId: (() {
         final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('ContactsListResponse.traceId is required');
+          throw FormatException('SocialContactsListResponse.traceId is required');
         }
         return value;
       })()

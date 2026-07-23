@@ -2,7 +2,7 @@ import type { SocialSharedChannelSyncRepairResponse } from './social-shared-chan
 
 export interface SocialRuntimeRepairSharedChannelSyncCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialSharedChannelSyncRepairResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

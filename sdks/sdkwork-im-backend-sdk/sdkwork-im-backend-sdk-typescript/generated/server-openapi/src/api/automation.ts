@@ -18,11 +18,11 @@ export class AutomationGovernanceApi {
 }
 
 export class AutomationApi {
-  private client: HttpClient;
+
   public readonly governance: AutomationGovernanceApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.governance = new AutomationGovernanceApi(client);
   }
 
@@ -30,12 +30,4 @@ export class AutomationApi {
 
 export function createAutomationApi(client: HttpClient): AutomationApi {
   return new AutomationApi(client);
-}
-
-function appendQueryString(path: string, rawQueryString: string): string {
-  const query = rawQueryString.replace(/^\?+/, '');
-  if (!query) {
-    return path;
-  }
-  return path.includes('?') ? `${path}&${query}` : `${path}?${query}`;
 }

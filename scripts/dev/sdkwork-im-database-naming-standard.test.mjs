@@ -39,16 +39,20 @@ function extractRustRawStrings(source) {
   return [...source.matchAll(/r#"(.*?)"#/gsu)].map((match) => match[1]);
 }
 
-const prefixRegistry = readJson('specs/database-prefix-registry.json');
-const tableRegistry = readJson('specs/database-table-registry.json');
-const activeMigrationDir = 'database/ddl/baseline/postgres';
-const canonicalBaselineMigration = `${activeMigrationDir}/0001_im_baseline.sql`;
-const activeMigrationFiles = fs
-  .readdirSync(path.join(repoRoot, ...activeMigrationDir.split('/')))
-  .filter((entry) => entry.endsWith('.sql'))
-  .sort((left, right) => left.localeCompare(right));
+const prefixRegistry = readJson('database/contract/prefix-registry.json');
+const tableRegistry = readJson('database/contract/table-registry.json');
+const canonicalBaselineMigration = 'database/ddl/baseline/postgres/0001_im_baseline.sql';
+const activeMigrationFiles = [
+  canonicalBaselineMigration,
+  ...fs
+    .readdirSync(path.join(repoRoot, 'database', 'migrations', 'postgres'))
+    .filter((entry) => entry.endsWith('.up.sql'))
+    .sort((left, right) => left.localeCompare(right))
+    .map((entry) => `database/migrations/postgres/${entry}`),
+];
+const baselineSchema = read(canonicalBaselineMigration).toLowerCase();
 const schema = activeMigrationFiles
-  .map((entry) => read(`${activeMigrationDir}/${entry}`))
+  .map((entry) => read(entry))
   .join('\n')
   .toLowerCase();
 const databaseSpec = readWorkspace('sdkwork-specs/DATABASE_SPEC.md');
@@ -64,42 +68,39 @@ const localSpecReadme = read('specs/README.md');
 const namingDoc = readDeployment(DEPLOYMENT_DOC_FILES.databaseNaming);
 const ubuntuWslGuide = readDeployment(DEPLOYMENT_DOC_FILES.ubuntuWslGuide);
 
-assert.equal(prefixRegistry.appCode, 'chat');
-assert.equal(prefixRegistry.product, 'sdkwork-chat');
-assert.equal(prefixRegistry.authority, '../../../specs/DATABASE_SPEC.md');
+assert.equal(prefixRegistry.kind, 'sdkwork.database.prefix-registry');
+const imPrefix = prefixRegistry.prefixes.find((entry) => entry.prefix === 'im_');
+assert.ok(imPrefix, 'canonical prefix registry must register im_ for instant-messaging tables');
+assert.equal(imPrefix.status, 'active');
+assert.equal(imPrefix.business_domain, 'instant_messaging');
+assert.match(imPrefix.allowed_table_name_pattern, /\^im_/u);
+assert.ok(imPrefix.forbidden_aliases.includes('chat'));
+assert.ok(imPrefix.forbidden_aliases.includes('comms'));
 
-const imPrefix = prefixRegistry.prefixes.find((entry) => entry.prefix === 'im');
-assert.ok(imPrefix, 'database prefix registry must register im for chat instant messaging tables');
-assert.equal(imPrefix.status, 'ACTIVE');
-assert.equal(imPrefix.businessDomain, 'instant_messaging');
-assert.match(imPrefix.allowedTableNamePattern, /\^im_/u);
-assert.ok(imPrefix.forbiddenAliases.includes('chat'));
-assert.ok(imPrefix.forbiddenAliases.includes('comms'));
-
-assert.equal(prefixRegistry.nonImPrefixPolicy.mustNotUseImPrefix, true);
-assert.equal(prefixRegistry.nonImPrefixPolicy.keepExistingBusinessPrefix, true);
+assert.equal(prefixRegistry.non_im_prefix_policy.must_not_use_im_prefix, true);
+assert.equal(prefixRegistry.non_im_prefix_policy.keep_existing_business_prefix, true);
 assert.match(
-  prefixRegistry.nonImPrefixPolicy.description,
+  prefixRegistry.non_im_prefix_policy.description,
   /outside the instant messaging bounded context/u,
   'non-IM tables must not be swept into the im_ prefix',
 );
 
-assert.equal(tableRegistry.appCode, 'chat');
-assert.equal(tableRegistry.prefixRegistry, './database-prefix-registry.json');
-assert.ok(tableRegistry.databaseProfiles.includes('postgresql'));
+assert.equal(tableRegistry.kind, 'sdkwork.database.table-registry');
 
-const registeredTables = tableRegistry.tables.map((entry) => entry.tableName);
+const registeredTables = tableRegistry.tables.map((entry) => entry.table_name);
 const baselineRegisteredTables = tableRegistry.tables
   .filter((entry) => entry.migration.startsWith('database/ddl/baseline/postgres/'))
-  .map((entry) => entry.tableName);
+  .map((entry) => entry.table_name);
 assert.equal(
   registeredTables.length,
   unique(registeredTables).length,
   'database table registry must not contain duplicate table names',
 );
+assert.equal(registeredTables.length, 60, 'canonical IM table registry must contain 60 tables');
+assert.equal(baselineRegisteredTables.length, 57, 'immutable PostgreSQL baseline must own 57 tables');
 
 for (const entry of tableRegistry.tables) {
-  assert.equal(entry.modulePrefix, 'im', `${entry.tableName} must register modulePrefix=im`);
+  assert.equal(entry.module_prefix, 'im', `${entry.table_name} must register module_prefix=im`);
   const allowedBoundedContexts = new Set([
     'instant_messaging',
     'social',
@@ -108,51 +109,51 @@ for (const entry of tableRegistry.tables) {
     'user',
   ]);
   assert.ok(
-    allowedBoundedContexts.has(entry.boundedContext),
-    `${entry.tableName} must belong to a registered IM bounded context`,
+    allowedBoundedContexts.has(entry.bounded_context),
+    `${entry.table_name} must belong to a registered IM bounded context`,
   );
-  assert.match(entry.tableName, /^im_[a-z0-9]+(?:_[a-z0-9]+)*$/u);
-  assert.ok(entry.tableProfile, `${entry.tableName} must declare a table profile`);
-  assert.ok(entry.writeOwner, `${entry.tableName} must declare a write owner`);
+  assert.match(entry.table_name, /^im_[a-z0-9]+(?:_[a-z0-9]+)*$/u);
+  assert.ok(entry.table_profile, `${entry.table_name} must declare a table profile`);
+  assert.ok(entry.write_owner, `${entry.table_name} must declare a write owner`);
   const migrationPath = entry.migration;
-  const lifecycleStatus = entry.lifecycleStatus ?? 'active';
+  const lifecycleStatus = entry.lifecycle_status;
   assert.ok(
     lifecycleStatus === 'active' || lifecycleStatus === 'expanding',
-    `${entry.tableName} has unsupported lifecycleStatus=${lifecycleStatus}`,
+    `${entry.table_name} has unsupported lifecycle_status=${lifecycleStatus}`,
   );
   if (lifecycleStatus === 'active') {
     assert.match(
       migrationPath,
       /^database\/(?:ddl\/baseline\/postgres\/[0-9]{4}_[a-z0-9_]+\.sql|migrations\/postgres\/[0-9]{4}_[a-z0-9_]+\.up\.sql)$/u,
-      `${entry.tableName} must point to its immutable PostgreSQL baseline or versioned up migration`,
+      `${entry.table_name} must point to its immutable PostgreSQL baseline or versioned up migration`,
     );
   } else {
     assert.match(
       migrationPath,
       /^database\/migrations\/postgres\/[0-9]{4}_[a-z0-9_]+\.up\.sql$/u,
-      `${entry.tableName} expanding lifecycle must point to a PostgreSQL up migration`,
+      `${entry.table_name} expanding lifecycle must point to a PostgreSQL up migration`,
     );
   }
   assert.ok(
     fs.existsSync(path.join(repoRoot, ...migrationPath.split('/'))),
-    `${entry.tableName} migration file must exist: ${migrationPath}`,
+    `${entry.table_name} migration file must exist: ${migrationPath}`,
   );
   const migrationSource = read(migrationPath).toLowerCase();
   assert.ok(
-    migrationSource.includes(`create table`) && migrationSource.includes(entry.tableName),
-    `${entry.tableName} must be created in its registered migration ${migrationPath}`,
+    migrationSource.includes(`create table`) && migrationSource.includes(entry.table_name),
+    `${entry.table_name} must be created in its registered migration ${migrationPath}`,
   );
   if (migrationPath.includes('/migrations/postgres/')) {
     const downMigrationPath = migrationPath.replace(/\.up\.sql$/u, '.down.sql');
     assert.ok(
       fs.existsSync(path.join(repoRoot, ...downMigrationPath.split('/'))),
-      `${entry.tableName} expanding migration must have a paired down migration: ${downMigrationPath}`,
+      `${entry.table_name} migration must have a paired down migration: ${downMigrationPath}`,
     );
     const downMigrationSource = read(downMigrationPath).toLowerCase();
     assert.match(
       downMigrationSource,
-      new RegExp(`\\bdrop\\s+table(?:\\s+if\\s+exists)?\\s+${entry.tableName}\\b`, 'u'),
-      `${entry.tableName} must be dropped in its paired down migration ${downMigrationPath}`,
+      new RegExp(`\\bdrop\\s+table(?:\\s+if\\s+exists)?\\s+${entry.table_name}\\b`, 'u'),
+      `${entry.table_name} must be dropped in its paired down migration ${downMigrationPath}`,
     );
   }
 }
@@ -162,6 +163,7 @@ const migrationTables = extractAll(
   schema,
 );
 assert.ok(migrationTables.length > 0, 'core IM schema must define database tables');
+assert.equal(migrationTables.length, 60, 'baseline plus PostgreSQL migrations must define 60 IM tables');
 for (const table of migrationTables) {
   assert.match(
     table,
@@ -170,7 +172,7 @@ for (const table of migrationTables) {
   );
   assert.ok(
     registeredTables.includes(table),
-    `instant messaging migration table ${table} must be listed in specs/database-table-registry.json`,
+    `instant messaging migration table ${table} must be listed in database/contract/table-registry.json`,
   );
   assert.ok(table.length <= 63, `${table} should fit PostgreSQL's default identifier length`);
 }
@@ -190,14 +192,14 @@ assert.ok(
   'manual smoke check tables must not be registered as IM business tables',
 );
 
-for (const forbiddenPrefix of imPrefix.forbiddenAliases) {
+for (const forbiddenPrefix of imPrefix.forbidden_aliases) {
   assert.ok(
     !migrationTables.some((table) => table.startsWith(`${forbiddenPrefix}_`)),
     `IM migration must not use product/project/generic prefix ${forbiddenPrefix}_`,
   );
 }
 
-const schemaWithoutComments = schema.replace(/^--[^\n]*$/gmu, '');
+const schemaWithoutComments = baselineSchema.replace(/^--[^\n]*$/gmu, '');
 const constraintNames = extractAll(
   /\bconstraint\s+(?!if\b)([a-z_][a-z0-9_]*)\b/giu,
   schemaWithoutComments,
@@ -216,7 +218,7 @@ for (const constraintName of constraintNames) {
 
 const indexNames = extractAll(
   /\bcreate\s+(?:unique\s+)?index\s+if\s+not\s+exists\s+([a-z_][a-z0-9_]*)\b/giu,
-  schema,
+  baselineSchema,
 );
 for (const indexName of indexNames) {
   assert.match(
@@ -258,17 +260,21 @@ assert.ok(
   'component spec must reference the root DATABASE_SPEC authority',
 );
 assert.ok(
-  componentSpec.localExtensionSpecs.some((entry) => entry.file === 'database-prefix-registry.json'),
-  'component spec must expose the local database prefix registry',
+  componentSpec.localExtensionSpecs.some(
+    (entry) => entry.path === '../database/contract/prefix-registry.json',
+  ),
+  'component spec must expose the canonical database prefix registry',
 );
 assert.ok(
-  componentSpec.localExtensionSpecs.some((entry) => entry.file === 'database-table-registry.json'),
-  'component spec must expose the local database table registry',
+  componentSpec.localExtensionSpecs.some(
+    (entry) => entry.path === '../database/contract/table-registry.json',
+  ),
+  'component spec must expose the canonical database table registry',
 );
 
 for (const required of [
-  'database-prefix-registry.json',
-  'database-table-registry.json',
+  'database/contract/prefix-registry.json',
+  'database/contract/table-registry.json',
   'database-table-naming-standard.md',
   'im_',
   'non-IM',
@@ -277,8 +283,8 @@ for (const required of [
 }
 
 for (const required of [
-  'database-prefix-registry.json',
-  'database-table-registry.json',
+  'database/contract/prefix-registry.json',
+  'database/contract/table-registry.json',
   'im_',
 ]) {
   assert.ok(namingDoc.includes(required), `database naming documentation must mention ${required}`);

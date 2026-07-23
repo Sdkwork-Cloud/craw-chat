@@ -1092,7 +1092,7 @@ async function runContactServiceContracts(): Promise<void> {
   const listPageSizes: number[] = [];
   const operations: string[] = [];
   const client = {
-    chat: {
+    social: {
       contacts: {
         list: async ({ pageSize }: { pageSize: number }) => {
           listPageSizes.push(pageSize);
@@ -1103,10 +1103,6 @@ async function runContactServiceContracts(): Promise<void> {
             },
           };
         },
-      },
-    },
-    social: {
-      contacts: {
         preferences: {
           update: async (userId: string, update: { isBlocked?: boolean }) => {
             operations.push(`preference:${userId}:${String(update.isBlocked)}`);

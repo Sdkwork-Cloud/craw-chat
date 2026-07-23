@@ -19,7 +19,7 @@ fn http_route(service_id: &str, method: HttpMethod, path_pattern: &str) -> Route
 fn registry_rejects_duplicate_method_path_owner() {
     let result = build_registry(vec![
         http_route(
-            "projection-service",
+            "comms-conversation-service",
             HttpMethod::Get,
             "/im/v3/api/chat/conversations/{conversationId}/messages",
         ),
@@ -45,7 +45,7 @@ fn registry_rejects_duplicate_method_path_owner() {
 fn registry_allows_method_level_split_ownership_on_same_path() {
     let registry = build_registry(vec![
         http_route(
-            "projection-service",
+            "comms-conversation-service",
             HttpMethod::Get,
             "/im/v3/api/chat/conversations/{conversationId}/messages",
         ),
@@ -63,7 +63,7 @@ fn registry_allows_method_level_split_ownership_on_same_path() {
             "/im/v3/api/chat/conversations/{conversationId}/messages",
         )
         .expect("read owner should exist");
-    assert_eq!(read_owner.service_id, "projection-service");
+    assert_eq!(read_owner.service_id, "comms-conversation-service");
 
     let write_owner = registry
         .resolve(
@@ -77,7 +77,7 @@ fn registry_allows_method_level_split_ownership_on_same_path() {
 #[test]
 fn registry_resolves_templated_paths_against_runtime_paths() {
     let registry = build_registry(vec![http_route(
-        "projection-service",
+        "comms-conversation-service",
         HttpMethod::Get,
         "/im/v3/api/chat/conversations/{conversationId}/messages",
     )])
@@ -89,7 +89,7 @@ fn registry_resolves_templated_paths_against_runtime_paths() {
             "/im/v3/api/chat/conversations/c_1/messages",
         )
         .expect("templated route should resolve for runtime path");
-    assert_eq!(route.service_id, "projection-service");
+    assert_eq!(route.service_id, "comms-conversation-service");
 }
 
 #[test]

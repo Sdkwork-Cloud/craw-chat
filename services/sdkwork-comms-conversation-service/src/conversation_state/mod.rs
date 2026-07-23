@@ -21,6 +21,7 @@ pub mod embedded_bridge;
 pub mod http;
 pub use http::build_integration_test_app;
 mod delivery_receipts;
+mod event_apply;
 mod event_fanout;
 mod group_metadata;
 mod inbox;
@@ -32,33 +33,34 @@ mod message_delivery_index;
 mod message_favorites;
 mod message_visibilities;
 mod model;
-mod event_apply;
 mod read_receipts;
 mod received_message_index;
 mod scope;
 mod summary_updates;
 mod timeline_cache;
 
-use member_store::ConversationStateMemberRuntimeStore;
-use model::ConversationCatalogEntry;
 use event_apply::{
     AgentHandoffStatusChangedConversationStatePayload, ConversationMemberRoleChangedPayload,
     handoff_view_from_state_payload,
 };
+use member_store::ConversationStateMemberRuntimeStore;
+use model::ConversationCatalogEntry;
 use received_message_index::ReceivedMessageIndex;
 use scope::{
     ClientRouteFeedScopeKey, ClientRoutePrincipalScopeKey, ContactOwnerScopeKey, GroupScopeKey,
-    is_conversation_conversation_state_event_type, conversation_state_organization_id_for_event, scope_key,
-    scope_key_for_event_conversation,
-    validate_conversation_conversation_state_envelope, validate_conversation_conversation_state_payload_scope,
+    conversation_state_organization_id_for_event, is_conversation_conversation_state_event_type,
+    scope_key, scope_key_for_event_conversation, validate_conversation_conversation_state_envelope,
+    validate_conversation_conversation_state_payload_scope,
 };
 
 pub use access::{ClientRouteSyncStateView, ConversationStateAccessError};
 pub use bootstrap::{
-    ConversationStateRuntime, build_conversation_state_runtime_from_env, try_init_conversation_state_runtime,
+    ConversationStateRuntime, build_conversation_state_runtime_from_env,
+    try_init_conversation_state_runtime,
 };
 pub use client_route_sync::{ClientRouteSyncAckStateView, ClientRouteSyncFeedWindowQuery};
 pub use embedded_bridge::refresh_conversation_cache;
+pub use event_apply::ConversationStateError;
 pub use http::{
     build_app, build_conversation_query_api_router, build_default_app, build_public_app,
     build_public_app_with_service, default_conversation_state_runtime,
@@ -77,7 +79,6 @@ pub use model::{
     RealtimeFanoutTarget, RegisteredClientRouteView, SummarySenderView, TimelineViewEntry,
     TimelineWindowView, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
 };
-pub use event_apply::ConversationStateError;
 
 pub const CONVERSATION_STATE_TIMELINE_DEFAULT_LIMIT: usize = 100;
 pub const CONVERSATION_STATE_TIMELINE_MAX_LIMIT: usize = 1000;
@@ -192,7 +193,8 @@ impl ConversationStateService {
             "contact direct chat binding store",
         )
         .clear();
-        lock_conversation_state_mutex(&self.message_interactions, "message interaction store").clear();
+        lock_conversation_state_mutex(&self.message_interactions, "message interaction store")
+            .clear();
         lock_conversation_state_mutex(&self.pinned_messages_index, "pinned message index").clear();
         lock_conversation_state_mutex(
             &self.registered_client_routes,
@@ -219,15 +221,18 @@ impl ConversationStateService {
             "message delivery offer store",
         )
         .clear();
-        lock_conversation_state_mutex(&self.conversation_profiles, "conversation profile store").clear();
+        lock_conversation_state_mutex(&self.conversation_profiles, "conversation profile store")
+            .clear();
         lock_conversation_state_mutex(
             &self.conversation_preferences,
             "conversation preferences store",
         )
         .clear();
         lock_conversation_state_mutex(&self.message_favorites, "message favorites store").clear();
-        lock_conversation_state_mutex(&self.message_favorites_index, "message favorites index").clear();
-        lock_conversation_state_mutex(&self.message_visibilities, "message visibility store").clear();
+        lock_conversation_state_mutex(&self.message_favorites_index, "message favorites index")
+            .clear();
+        lock_conversation_state_mutex(&self.message_visibilities, "message visibility store")
+            .clear();
     }
 
     pub fn is_active_member_for_principal_kind(
@@ -402,12 +407,13 @@ impl ConversationStateService {
             ),
             conversation_id.clone(),
         );
-        lock_conversation_state_mutex(&self.received_messages, "received message index").append_message(
-            key.as_str(),
-            message_seq,
-            sender_id.as_str(),
-            sender_kind.as_str(),
-        );
+        lock_conversation_state_mutex(&self.received_messages, "received message index")
+            .append_message(
+                key.as_str(),
+                message_seq,
+                sender_id.as_str(),
+                sender_kind.as_str(),
+            );
 
         let mut summaries = lock_conversation_state_mutex(&self.summaries, "summary store");
         let existing_handoff = summaries
@@ -434,15 +440,16 @@ impl ConversationStateService {
         );
         drop(summaries);
 
-        lock_conversation_state_mutex(&self.members, "member store").refresh_inbox_activity_for_scope(
-            scope_key(
-                message.tenant_id.as_str(),
-                organization_id.as_str(),
-                message.conversation_id.as_str(),
-            )
-            .as_str(),
-            last_message_at.as_str(),
-        );
+        lock_conversation_state_mutex(&self.members, "member store")
+            .refresh_inbox_activity_for_scope(
+                scope_key(
+                    message.tenant_id.as_str(),
+                    organization_id.as_str(),
+                    message.conversation_id.as_str(),
+                )
+                .as_str(),
+                last_message_at.as_str(),
+            );
 
         self.fan_out_message_to_client_route_sync_feeds(event, &message);
         Ok(())
@@ -572,7 +579,10 @@ impl ConversationStateService {
         Ok(())
     }
 
-    fn apply_member_role_changed(&self, event: &CommitEnvelope) -> Result<(), ConversationStateError> {
+    fn apply_member_role_changed(
+        &self,
+        event: &CommitEnvelope,
+    ) -> Result<(), ConversationStateError> {
         let payload: ConversationMemberRoleChangedPayload =
             serde_json::from_str(&event.payload).map_err(ConversationStateError::InvalidPayload)?;
         let member = payload.updated_member;
@@ -582,7 +592,8 @@ impl ConversationStateService {
             member.conversation_id.as_str(),
         )?;
         let key = scope_key_for_event_conversation(event, member.conversation_id.as_str());
-        lock_conversation_state_mutex(&self.members, "member store").insert_member(key, member.clone());
+        lock_conversation_state_mutex(&self.members, "member store")
+            .insert_member(key, member.clone());
 
         self.fan_out_member_governance_to_client_route_sync_feeds(
             event,
@@ -659,7 +670,10 @@ impl ConversationStateService {
         Ok(())
     }
 
-    fn apply_read_cursor_updated(&self, event: &CommitEnvelope) -> Result<(), ConversationStateError> {
+    fn apply_read_cursor_updated(
+        &self,
+        event: &CommitEnvelope,
+    ) -> Result<(), ConversationStateError> {
         let cursor: ConversationReadCursor =
             serde_json::from_str(&event.payload).map_err(ConversationStateError::InvalidPayload)?;
         validate_conversation_conversation_state_payload_scope(
@@ -700,17 +714,24 @@ impl ConversationStateService {
         conversation_id: &str,
         after_seq: Option<u64>,
         limit: usize,
-    ) -> Result<TimelineWindowView, crate::conversation_state::event_apply::ConversationStateError> {
+    ) -> Result<TimelineWindowView, crate::conversation_state::event_apply::ConversationStateError>
+    {
         let after_seq = after_seq.unwrap_or_default();
         let scope = scope_key(tenant_id, organization_id, conversation_id);
-        let memory_timeline = lock_conversation_state_mutex(&self.entries, "conversation_state store")
-            .get(scope.as_str())
-            .cloned();
+        let memory_timeline =
+            lock_conversation_state_mutex(&self.entries, "conversation_state store")
+                .get(scope.as_str())
+                .cloned();
         Ok(memory_timeline
             .as_ref()
             .map(|timeline| timeline_cache::timeline_window_from_memory(timeline, after_seq, limit))
             .unwrap_or_else(|| {
-                crate::conversation_state::list_page::seq_cursor_page(Vec::new(), limit, None, false)
+                crate::conversation_state::list_page::seq_cursor_page(
+                    Vec::new(),
+                    limit,
+                    None,
+                    false,
+                )
             }))
     }
 
@@ -781,13 +802,14 @@ impl ConversationStateService {
             })
             .cloned()?;
 
-        let unread_count = lock_conversation_state_mutex(&self.received_messages, "received message index")
-            .unread_count_after(
-                key.as_str(),
-                member.principal_id.as_str(),
-                member.principal_kind.as_str(),
-                cursor.read_seq,
-            );
+        let unread_count =
+            lock_conversation_state_mutex(&self.received_messages, "received message index")
+                .unread_count_after(
+                    key.as_str(),
+                    member.principal_id.as_str(),
+                    member.principal_kind.as_str(),
+                    cursor.read_seq,
+                );
 
         Some(ConversationReadCursorView::from_cursor(
             &cursor,
@@ -814,7 +836,10 @@ impl ConversationStateService {
     }
 }
 
-fn lock_conversation_state_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexGuard<'a, T> {
+fn lock_conversation_state_mutex<'a, T>(
+    mutex: &'a Mutex<T>,
+    lock_name: &'static str,
+) -> MutexGuard<'a, T> {
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {

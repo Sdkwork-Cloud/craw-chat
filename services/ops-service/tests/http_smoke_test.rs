@@ -174,17 +174,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         serde_json::from_slice(&health_body).expect("health body should be valid json");
     let health = &health_json["data"]["item"];
     assert_eq!(health["status"], "ok");
-    assert_eq!(health["projectionPlane"]["status"], "idle");
-    assert_eq!(
-        health["projectionPlane"]["metrics"]["conversationSnapshotPersist"]["successCount"],
-        0
-    );
-    assert_eq!(health["projectionPlane"]["replay"]["backlogSize"], 0);
-    assert_eq!(health["projectionPlane"]["replay"]["replayedEventCount"], 0);
-    assert_eq!(health["projectionPlane"]["replay"]["durationMs"], 0);
-    assert_eq!(health["projectionPlane"]["rebuildDurationMs"], 0);
-    assert_eq!(health["projectionPlane"]["updateDelay"]["timelineMs"], 0);
-    assert_eq!(health["projectionPlane"]["updateDelay"]["inboxMs"], 0);
+    assert!(health.get("projectionPlane").is_none());
     assert_eq!(health["realtimeInbox"]["status"], "ok");
     assert_eq!(health["realtimeInbox"]["pendingEventCount"], 0);
     assert_eq!(
@@ -283,38 +273,6 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
             "forbidden or out-of-range pagination query must fail: {invalid_query}",
         );
     }
-
-    let replay_status_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/backend/v3/api/ops/replay_status")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("ops.read")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("ops replay_status should succeed");
-    assert_eq!(replay_status_response.status(), StatusCode::OK);
-    let replay_status_body = replay_status_response
-        .into_body()
-        .collect()
-        .await
-        .expect("replay_status body should collect")
-        .to_bytes();
-    let replay_status_json: serde_json::Value = serde_json::from_slice(&replay_status_body)
-        .expect("replay_status body should be valid json");
-    let replay_status = &replay_status_json["data"]["item"];
-    assert_eq!(replay_status["status"], "idle");
-    assert_eq!(replay_status["replay"]["backlogSize"], 0);
-    assert_eq!(replay_status["replay"]["replayedEventCount"], 0);
-    assert_eq!(replay_status["replay"]["durationMs"], 0);
-    assert_eq!(replay_status["replayThroughputPerSecond"], 0);
-    assert_eq!(replay_status["lag"].as_array().unwrap().len(), 0);
 
     let runtime_dir_response = app
         .clone()
@@ -445,26 +403,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     let diagnostics = &diagnostics_json["data"]["item"];
     assert_eq!(diagnostics["profile"], "standalone");
     assert_eq!(diagnostics["clientRoutes"].as_array().unwrap().len(), 0);
-    assert_eq!(diagnostics["projectionPlane"]["status"], "idle");
-    assert_eq!(diagnostics["projectionPlane"]["replay"]["backlogSize"], 0);
-    assert_eq!(
-        diagnostics["projectionPlane"]["replay"]["replayedEventCount"],
-        0
-    );
-    assert_eq!(diagnostics["projectionPlane"]["replay"]["durationMs"], 0);
-    assert_eq!(diagnostics["projectionPlane"]["rebuildDurationMs"], 0);
-    assert_eq!(
-        diagnostics["projectionPlane"]["updateDelay"]["timelineMs"],
-        0
-    );
-    assert_eq!(diagnostics["projectionPlane"]["updateDelay"]["inboxMs"], 0);
-    assert_eq!(
-        diagnostics["projectionPlane"]["traces"]
-            .as_array()
-            .unwrap()
-            .len(),
-        0
-    );
+    assert!(diagnostics.get("projectionPlane").is_none());
     assert_eq!(diagnostics["providerBindings"].as_array().unwrap().len(), 0);
     assert_eq!(
         diagnostics["providerBindingDrift"]["items"]

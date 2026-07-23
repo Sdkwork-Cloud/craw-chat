@@ -115,11 +115,10 @@ const prefixCoverage = [
     prefix: '/im/v3/api/chat',
     routeSources: [
       'crates/sdkwork-routes-im-chat-open-api/src/routes.rs',
-      'crates/sdkwork-routes-im-projection-open-api/src/routes.rs',
-      'services/projection-service/src/http.rs',
+      'services/sdkwork-comms-conversation-service/src/conversation_state/http.rs',
       'services/sdkwork-comms-conversation-service/src/runtime/http.rs',
     ],
-    required: false,
+    required: true,
   },
   {
     prefix: '/im/v3/api/realtime',
@@ -127,12 +126,12 @@ const prefixCoverage = [
       'services/session-gateway/src/lib.rs',
       'crates/sdkwork-routes-im-realtime-open-api/src/lib.rs',
     ],
-    required: false,
+    required: true,
   },
   {
     prefix: '/im/v3/api/spaces',
     routeSources: ['crates/sdkwork-routes-im-space-open-api/src/routes.rs', 'services/space-service/src/http.rs'],
-    required: false,
+    required: true,
   },
 ];
 

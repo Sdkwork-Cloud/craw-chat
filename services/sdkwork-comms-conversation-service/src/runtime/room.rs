@@ -196,12 +196,7 @@ where
         )?;
 
         let owner_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(
-            &mut state.actor_inbox,
-            command.organization_id.as_str(),
-            &mut conversation,
-            owner_member.clone(),
-        );
+        upsert_roster_member(&mut conversation, owner_member.clone());
         upsert_read_cursor(&mut conversation, build_default_read_cursor(&owner_member));
         let mut created_payload = json!({
             "conversationId": command.conversation_id.clone(),
@@ -260,7 +255,21 @@ where
             command.creator_id.as_str(),
             creator_kind,
         );
-        self.journal.append_batch(vec![envelope, member_envelope])?;
+        let assignment_change = self
+            .durable_conversation_event_writer
+            .as_ref()
+            .and(conversation.aggregate.agent_assignments())
+            .map(|assignments| build_normalized_agent_assignment_change(&envelope, assignments))
+            .transpose()?;
+        self.persist_normalized_conversation_commit_with_assignments(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+            &conversation,
+            assignment_change,
+            vec![envelope, member_envelope],
+        )?;
+        state.sync_actor_inbox_member(command.organization_id.as_str(), &owner_member);
         state.insert_conversation(scope_key, conversation);
         state
             .business_index
@@ -377,8 +386,9 @@ where
                     participant_attributes,
                 );
 
-                let member_epoch = conversation.aggregate.next_member_epoch();
-                let retention_class = conversation_retention_class(conversation);
+                let mut candidate = conversation.clone();
+                let member_epoch = candidate.aggregate.next_member_epoch();
+                let retention_class = conversation_retention_class(&candidate);
                 let envelope = build_member_envelope(
                     command.tenant_id.as_str(),
                     command.organization_id.as_str(),
@@ -390,21 +400,34 @@ where
                     command.principal_id.as_str(),
                     command.principal_kind.as_str(),
                 );
-                self.journal.append(envelope)?;
-                upsert_roster_member(conversation, participant.clone());
-                upsert_read_cursor(conversation, build_default_read_cursor(&participant));
+                let read_cursor = build_default_read_cursor(&participant);
+                upsert_roster_member(&mut candidate, participant.clone());
+                upsert_read_cursor(&mut candidate, read_cursor.clone());
+                self.persist_normalized_conversation_changes(
+                    command.tenant_id.as_str(),
+                    command.organization_id.as_str(),
+                    conversation_id.as_str(),
+                    &candidate,
+                    vec![member_to_record(
+                        command.tenant_id.as_str(),
+                        command.organization_id.as_str(),
+                        conversation_id.as_str(),
+                        &participant,
+                    )],
+                    vec![cursor_to_record(
+                        command.tenant_id.as_str(),
+                        command.organization_id.as_str(),
+                        conversation_id.as_str(),
+                        &read_cursor,
+                    )],
+                    vec![envelope],
+                )?;
+                *conversation = candidate;
                 participant
             };
             state.sync_actor_inbox_member(organization_id.as_str(), &member);
             member
         };
-
-        self.best_effort_persist_aggregate_state(
-            command.tenant_id.as_str(),
-            command.organization_id.as_str(),
-            conversation_id.as_str(),
-        );
-
         Ok(member)
     }
 

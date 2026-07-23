@@ -2,7 +2,7 @@ import type { RealtimeSubscriptionSyncResponse } from './realtime-subscription-s
 
 export interface RealtimeSubscriptionsSyncResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: RealtimeSubscriptionSyncResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

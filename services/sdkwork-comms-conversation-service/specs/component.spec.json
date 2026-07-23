@@ -117,7 +117,8 @@
       "SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_CREDENTIAL_TTL_SECONDS",
       "SDKWORK_IM_KNOWLEDGEBASE_RPC_CLIENT_TIMEOUT_MS"
     ],
-    "routeManifest": null
+    "routeManifest": null,
+    "layerRole": "runtime-service-host"
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",

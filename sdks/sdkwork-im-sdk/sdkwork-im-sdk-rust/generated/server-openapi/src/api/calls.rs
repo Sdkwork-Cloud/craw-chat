@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::im_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{CallsSessionsAcceptResponse, CallsSessionsCreateResponse201, CallsSessionsCredentialsCreateResponse201, CallsSessionsCredentialsRefreshResponse, CallsSessionsEndResponse, CallsSessionsInviteResponse, CallsSessionsRejectResponse, CallsSessionsRetrieveResponse, CallsSessionsSignalsCreateResponse201, CallsSessionsSignalsListResponse, CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, PostRtcSignalRequest, UpdateRtcSessionRequest};
+use crate::models::{CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, PostRtcSignalRequest, RtcParticipantCredential, RtcSession, RtcSessionMutationResponse, RtcSignalEvent, UpdateRtcSessionRequest};
 
 #[derive(Clone)]
 pub struct CallsApi {
@@ -16,43 +16,43 @@ impl CallsApi {
     }
 
     /// Create an IM call signaling session
-    pub async fn sessions_create(&self, body: &CreateRtcSessionRequest) -> Result<CallsSessionsCreateResponse201, SdkworkError> {
+    pub async fn sessions_create(&self, body: &CreateRtcSessionRequest) -> Result<RtcSessionMutationResponse, SdkworkError> {
         let path = im_path(&"/calls/sessions".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Retrieve IM call signaling session state
-    pub async fn sessions_retrieve(&self, rtc_session_id: &str) -> Result<CallsSessionsRetrieveResponse, SdkworkError> {
+    pub async fn sessions_retrieve(&self, rtc_session_id: &str) -> Result<RtcSession, SdkworkError> {
         let path = im_path(&format!("/calls/sessions/{}", serialize_path_parameter(rtc_session_id, PathParameterSpec::new("rtcSessionId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Invite participants into an IM call signaling session
-    pub async fn sessions_invite(&self, rtc_session_id: &str, body: &InviteRtcSessionRequest) -> Result<CallsSessionsInviteResponse, SdkworkError> {
+    pub async fn sessions_invite(&self, rtc_session_id: &str, body: &InviteRtcSessionRequest) -> Result<RtcSessionMutationResponse, SdkworkError> {
         let path = im_path(&format!("/calls/sessions/{}/invite", serialize_path_parameter(rtc_session_id, PathParameterSpec::new("rtcSessionId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Accept an IM call signaling session
-    pub async fn sessions_accept(&self, rtc_session_id: &str, body: &UpdateRtcSessionRequest) -> Result<CallsSessionsAcceptResponse, SdkworkError> {
+    pub async fn sessions_accept(&self, rtc_session_id: &str, body: &UpdateRtcSessionRequest) -> Result<RtcSessionMutationResponse, SdkworkError> {
         let path = im_path(&format!("/calls/sessions/{}/accept", serialize_path_parameter(rtc_session_id, PathParameterSpec::new("rtcSessionId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Reject an IM call signaling session
-    pub async fn sessions_reject(&self, rtc_session_id: &str, body: &UpdateRtcSessionRequest) -> Result<CallsSessionsRejectResponse, SdkworkError> {
+    pub async fn sessions_reject(&self, rtc_session_id: &str, body: &UpdateRtcSessionRequest) -> Result<RtcSessionMutationResponse, SdkworkError> {
         let path = im_path(&format!("/calls/sessions/{}/reject", serialize_path_parameter(rtc_session_id, PathParameterSpec::new("rtcSessionId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// End an IM call signaling session
-    pub async fn sessions_end(&self, rtc_session_id: &str, body: &UpdateRtcSessionRequest) -> Result<CallsSessionsEndResponse, SdkworkError> {
+    pub async fn sessions_end(&self, rtc_session_id: &str, body: &UpdateRtcSessionRequest) -> Result<RtcSessionMutationResponse, SdkworkError> {
         let path = im_path(&format!("/calls/sessions/{}/end", serialize_path_parameter(rtc_session_id, PathParameterSpec::new("rtcSessionId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List IM call signaling events
-    pub async fn sessions_signals_list(&self, rtc_session_id: &str, after_signal_seq: Option<i64>, cursor: Option<&str>, page_size: Option<i64>) -> Result<CallsSessionsSignalsListResponse, SdkworkError> {
+    pub async fn sessions_signals_list(&self, rtc_session_id: &str, after_signal_seq: Option<i64>, cursor: Option<&str>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("afterSignalSeq", after_signal_seq, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
@@ -63,19 +63,19 @@ impl CallsApi {
     }
 
     /// Post an IM call signaling event
-    pub async fn sessions_signals_create(&self, rtc_session_id: &str, body: &PostRtcSignalRequest) -> Result<CallsSessionsSignalsCreateResponse201, SdkworkError> {
+    pub async fn sessions_signals_create(&self, rtc_session_id: &str, body: &PostRtcSignalRequest) -> Result<RtcSignalEvent, SdkworkError> {
         let path = im_path(&format!("/calls/sessions/{}/signals", serialize_path_parameter(rtc_session_id, PathParameterSpec::new("rtcSessionId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Issue an RTC media participant credential for an IM call
-    pub async fn sessions_credentials_create(&self, rtc_session_id: &str, body: &IssueRtcParticipantCredentialRequest) -> Result<CallsSessionsCredentialsCreateResponse201, SdkworkError> {
+    pub async fn sessions_credentials_create(&self, rtc_session_id: &str, body: &IssueRtcParticipantCredentialRequest) -> Result<RtcParticipantCredential, SdkworkError> {
         let path = im_path(&format!("/calls/sessions/{}/credentials", serialize_path_parameter(rtc_session_id, PathParameterSpec::new("rtcSessionId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Refresh an expiring RTC media participant credential
-    pub async fn sessions_credentials_refresh(&self, rtc_session_id: &str, body: &IssueRtcParticipantCredentialRequest) -> Result<CallsSessionsCredentialsRefreshResponse, SdkworkError> {
+    pub async fn sessions_credentials_refresh(&self, rtc_session_id: &str, body: &IssueRtcParticipantCredentialRequest) -> Result<RtcParticipantCredential, SdkworkError> {
         let path = im_path(&format!("/calls/sessions/{}/credentials/refresh", serialize_path_parameter(rtc_session_id, PathParameterSpec::new("rtcSessionId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }

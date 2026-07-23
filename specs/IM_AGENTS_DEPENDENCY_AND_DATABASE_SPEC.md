@@ -1,6 +1,6 @@
 # SDKWork IM To Agents Dependency And Database Contract
 
-- Version: `2.1.0`
+- Version: `2.2.0`
 - Status: active
 - Owner: `im-platform`
 - Requirement: `REQ-2026-0722`
@@ -38,13 +38,13 @@ IM owns communication:
 
 Agents owns execution:
 
-- Agent Project, Session, Turn, Item, Interaction, and Task;
+- Agent Project, Session, Turn, SessionItem, Interaction, and Task;
 - Agent identity, revision, composition, model/provider binding, tool execution,
   inference state, checkpoint, usage, and execution audit;
 - execution transcript and provider failure details.
 
-An IM Message and an Agents Item are two different facts. When an IM user invokes an
-Agent, IM records the user-visible Message, Agents records the Turn and Items, and IM
+An IM Message and an Agents SessionItem are two different facts. When an IM user invokes an
+Agent, IM records the user-visible Message, Agents records the Turn and SessionItems, and IM
 records a new visible reply Message only after publication. Neither record is a
 projection of the other and their deletion/retention lifecycles are independent.
 
@@ -88,7 +88,7 @@ Canonical IM delivery workflow from one source IM Message to one Agent target an
 when successful, one visible reply IM Message.
 
 It may store opaque `agents_session_id` and `agents_turn_id` references. It must not
-store Agent Items, reasoning, tool calls, model metadata, provider credentials, or
+store Agent SessionItems, reasoning, tool calls, model metadata, provider credentials, or
 the Agents transcript.
 
 Transitions:
@@ -149,6 +149,6 @@ database migrations retained for local environment safety.
 - migration tests validate forward/down behavior, tenant isolation, unique
   assignments, dispatch claims, and stable identifier bounds;
 - integration tests prove normalized state + journal + outbox atomicity;
-- API/SDK contracts keep Conversation/Message separate from Session/Turn/Item;
+- API/SDK contracts keep Conversation/Message separate from Session/Turn/SessionItem;
 - canonical PRD and technical architecture link this contract and contain no stale
   projection-authority or already-released claim.

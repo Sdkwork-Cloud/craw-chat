@@ -1,16 +1,7 @@
-# Platform Audit
+# Backend Audit Compatibility Link
 
-This page keeps the platform audit documentation anchor stable for operators and release checks.
-The canonical backend audit API page is [Backend Audit](../backend/audit.md).
+This page keeps the former platform-audit documentation path stable. The current authored Backend
+API exposes audit record creation, cursor-paginated record reads, and audit export under
+`/backend/v3/api/audit/*`.
 
-## Chain Verification
-
-`GET /backend/v3/api/audit/verify` verifies the visible audit hash chain.
-
-Response schema: `AuditChainVerification`
-
-Key fields:
-
-- `chainHeadHash`: latest chain hash at verification time.
-- `chainValid`: whether the tenant audit chain is currently valid.
-
+See [Backend Audit](../backend/audit.md) for the active operations and generated Backend SDK family.

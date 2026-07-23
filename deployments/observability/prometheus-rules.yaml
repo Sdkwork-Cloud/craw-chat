@@ -19,15 +19,6 @@ groups:
         annotations:
           summary: Conversation service has no ready replicas
           description: Deployment conversation-service in namespace sdkwork-im has zero ready replicas for 5 minutes.
-      - alert: SdkworkImProjectionServiceNotReady
-        expr: kube_deployment_status_replicas_ready{namespace="sdkwork-im", deployment="projection-service"} < 1
-        for: 5m
-        labels:
-          severity: critical
-          service: projection-service
-        annotations:
-          summary: Projection service has no ready replicas
-          description: Deployment projection-service in namespace sdkwork-im has zero ready replicas for 5 minutes.
       - alert: SdkworkImMediaServiceNotReady
         expr: kube_deployment_status_replicas_ready{namespace="sdkwork-im", deployment="media-service"} < 1
         for: 5m

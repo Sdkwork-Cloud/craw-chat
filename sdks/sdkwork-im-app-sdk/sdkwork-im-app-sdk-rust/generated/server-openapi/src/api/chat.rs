@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::base::{RequestHeaders};
 use crate::api::paths::app_path;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{ArchiveGroupConversationRequest, ConversationsArchiveResponse, ConversationsKnowledgebaseCreateResponse, ConversationsKnowledgebaseLaunchResponse, ConversationsKnowledgebaseRetrieveResponse, CreateGroupKnowledgebaseRequest, LaunchGroupKnowledgebaseRequest};
+use crate::models::{ArchiveGroupConversationRequest, ArchiveGroupConversationResponse, CreateGroupKnowledgebaseRequest, GroupKnowledgebaseLaunchResponse, GroupKnowledgebaseLinkView, LaunchGroupKnowledgebaseRequest};
 
 #[derive(Clone)]
 pub struct ChatApi {
@@ -16,13 +16,13 @@ impl ChatApi {
     }
 
     /// Retrieve the group knowledgebase link
-    pub async fn conversations_knowledgebase_retrieve(&self, conversation_id: &str) -> Result<ConversationsKnowledgebaseRetrieveResponse, SdkworkError> {
+    pub async fn conversations_knowledgebase_retrieve(&self, conversation_id: &str) -> Result<GroupKnowledgebaseLinkView, SdkworkError> {
         let path = app_path(&format!("/chat/conversations/{}/knowledgebase", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Lazily create the group knowledgebase
-    pub async fn conversations_knowledgebase_create(&self, conversation_id: &str, body: &CreateGroupKnowledgebaseRequest, idempotency_key: &str) -> Result<ConversationsKnowledgebaseCreateResponse, SdkworkError> {
+    pub async fn conversations_knowledgebase_create(&self, conversation_id: &str, body: &CreateGroupKnowledgebaseRequest, idempotency_key: &str) -> Result<GroupKnowledgebaseLinkView, SdkworkError> {
         let path = app_path(&format!("/chat/conversations/{}/knowledgebase", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         let headers = build_request_headers(
             &[
@@ -34,7 +34,7 @@ impl ChatApi {
     }
 
     /// Issue a one-time group knowledgebase launch ticket
-    pub async fn conversations_knowledgebase_launch(&self, conversation_id: &str, body: &LaunchGroupKnowledgebaseRequest, idempotency_key: &str) -> Result<ConversationsKnowledgebaseLaunchResponse, SdkworkError> {
+    pub async fn conversations_knowledgebase_launch(&self, conversation_id: &str, body: &LaunchGroupKnowledgebaseRequest, idempotency_key: &str) -> Result<GroupKnowledgebaseLaunchResponse, SdkworkError> {
         let path = app_path(&format!("/chat/conversations/{}/knowledgebase/launch", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         let headers = build_request_headers(
             &[
@@ -46,7 +46,7 @@ impl ChatApi {
     }
 
     /// Archive a group conversation and schedule its knowledgebase archive
-    pub async fn conversations_archive(&self, conversation_id: &str, body: &ArchiveGroupConversationRequest, idempotency_key: &str) -> Result<ConversationsArchiveResponse, SdkworkError> {
+    pub async fn conversations_archive(&self, conversation_id: &str, body: &ArchiveGroupConversationRequest, idempotency_key: &str) -> Result<ArchiveGroupConversationResponse, SdkworkError> {
         let path = app_path(&format!("/chat/conversations/{}/archive", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         let headers = build_request_headers(
             &[

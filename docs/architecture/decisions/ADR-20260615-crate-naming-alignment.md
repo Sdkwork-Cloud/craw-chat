@@ -19,7 +19,7 @@ Specs: NAMING_SPEC.md, RUST_CODE_SPEC.md, ARCHITECTURE_DECISION_SPEC.md, GOVERNA
 declares `component.domain = "communication"`, `component.capability = "chat"`, and the
 product/app key is `chat`. The IM domain vocabulary across the codebase is `im`
 (every `im-*` crate, the `im_` database table prefix in
-`specs/database-prefix-registry.json`, and the `im` capability references in
+`database/contract/prefix-registry.json`, and the `im` capability references in
 `specs/im-app-api-sdk-integration.spec.md`).
 
 The Rust workspace currently names its 55 crates with three non-standard prefixes:

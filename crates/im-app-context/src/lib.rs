@@ -522,14 +522,14 @@ pub fn resolve_app_context_with_signature_config(
     resolve_app_context_for_request_inner(headers, "", "").map(|resolved| resolved.app_context)
 }
 
-pub fn resolve_orchestration_app_context_from_projection_headers(
+pub fn resolve_orchestration_app_context_from_trusted_headers(
     headers: &HeaderMap,
 ) -> Result<AppContext, AppContextError> {
     require_app_context_signature(headers, &AppContextSignatureConfig::from_env())?;
-    app_context_from_projection_headers(headers)
+    app_context_from_trusted_headers(headers)
 }
 
-pub fn build_signed_orchestration_projection_headers(
+pub fn build_signed_orchestration_context_headers(
     tenant_id: &str,
     organization_id: &str,
     actor_id: &str,
@@ -600,7 +600,7 @@ pub fn require_app_context_signature(
         .filter(|value| !value.is_empty())
         .ok_or_else(|| {
             AppContextError::invalid(format!(
-                "{SDKWORK_CONTEXT_SIGNATURE_HEADER} header is required when signed AppContext projection is required"
+                "{SDKWORK_CONTEXT_SIGNATURE_HEADER} header is required when signed AppContext context is required"
             ))
         })?;
     let expected_signature = sign_app_context_headers(headers, shared_secret)?;
@@ -613,7 +613,7 @@ pub fn require_app_context_signature(
     Ok(())
 }
 
-pub fn signed_app_context_projection_header_names() -> &'static [&'static str] {
+pub fn signed_app_context_header_names() -> &'static [&'static str] {
     SIGNED_APP_CONTEXT_HEADER_NAMES
 }
 
@@ -621,34 +621,34 @@ pub fn app_context_signature_header_name() -> &'static str {
     SDKWORK_CONTEXT_SIGNATURE_HEADER
 }
 
-fn app_context_from_projection_headers(headers: &HeaderMap) -> Result<AppContext, AppContextError> {
-    let tenant_id = required_projection_header(headers, "x-sdkwork-tenant-id")?;
-    let organization_id = projection_header_value(headers, "x-sdkwork-organization-id")
+fn app_context_from_trusted_headers(headers: &HeaderMap) -> Result<AppContext, AppContextError> {
+    let tenant_id = required_trusted_context_header(headers, "x-sdkwork-tenant-id")?;
+    let organization_id = trusted_context_header_value(headers, "x-sdkwork-organization-id")
         .unwrap_or_else(|| "0".to_owned());
-    let actor_id = required_projection_header(headers, "x-sdkwork-actor-id")
-        .or_else(|_| required_projection_header(headers, "x-sdkwork-user-id"))?;
-    let user_id =
-        projection_header_value(headers, "x-sdkwork-user-id").unwrap_or_else(|| actor_id.clone());
-    let actor_kind = projection_header_value(headers, "x-sdkwork-actor-kind")
+    let actor_id = required_trusted_context_header(headers, "x-sdkwork-actor-id")
+        .or_else(|_| required_trusted_context_header(headers, "x-sdkwork-user-id"))?;
+    let user_id = trusted_context_header_value(headers, "x-sdkwork-user-id")
+        .unwrap_or_else(|| actor_id.clone());
+    let actor_kind = trusted_context_header_value(headers, "x-sdkwork-actor-kind")
         .unwrap_or_else(|| "user".to_owned());
     Ok(AppContext {
         tenant_id,
         organization_id,
         user_id,
-        session_id: projection_header_value(headers, "x-sdkwork-session-id"),
-        app_id: projection_header_value(headers, "x-sdkwork-app-id"),
-        environment: projection_header_value(headers, "x-sdkwork-environment"),
-        deployment_mode: projection_header_value(headers, "x-sdkwork-deployment-mode"),
-        auth_level: projection_header_value(headers, "x-sdkwork-auth-level"),
-        data_scope: projection_scope_header(headers, "x-sdkwork-data-scope"),
-        permission_scope: projection_scope_header(headers, "x-sdkwork-permission-scope"),
+        session_id: trusted_context_header_value(headers, "x-sdkwork-session-id"),
+        app_id: trusted_context_header_value(headers, "x-sdkwork-app-id"),
+        environment: trusted_context_header_value(headers, "x-sdkwork-environment"),
+        deployment_mode: trusted_context_header_value(headers, "x-sdkwork-deployment-mode"),
+        auth_level: trusted_context_header_value(headers, "x-sdkwork-auth-level"),
+        data_scope: trusted_context_scope_header(headers, "x-sdkwork-data-scope"),
+        permission_scope: trusted_context_scope_header(headers, "x-sdkwork-permission-scope"),
         actor_id,
         actor_kind,
-        device_id: projection_header_value(headers, "x-sdkwork-device-id"),
+        device_id: trusted_context_header_value(headers, "x-sdkwork-device-id"),
     })
 }
 
-fn projection_header_value(headers: &HeaderMap, name: &'static str) -> Option<String> {
+fn trusted_context_header_value(headers: &HeaderMap, name: &'static str) -> Option<String> {
     headers
         .get(name)
         .and_then(|value| value.to_str().ok())
@@ -657,16 +657,16 @@ fn projection_header_value(headers: &HeaderMap, name: &'static str) -> Option<St
         .map(str::to_owned)
 }
 
-fn required_projection_header(
+fn required_trusted_context_header(
     headers: &HeaderMap,
     name: &'static str,
 ) -> Result<String, AppContextError> {
-    projection_header_value(headers, name)
+    trusted_context_header_value(headers, name)
         .ok_or_else(|| AppContextError::invalid(format!("{name} header is required")))
 }
 
-fn projection_scope_header(headers: &HeaderMap, name: &'static str) -> BTreeSet<String> {
-    projection_header_value(headers, name)
+fn trusted_context_scope_header(headers: &HeaderMap, name: &'static str) -> BTreeSet<String> {
+    trusted_context_header_value(headers, name)
         .map(|value| {
             value
                 .split([',', ' ', '\n', '\t'])

@@ -5,11 +5,13 @@ use im_domain_core::conversation::{
     legacy_group_agent_assignment_set,
 };
 
-use crate::conversation_state::model::{ConversationCatalogEntry, ConversationProfileView, ConversationSummaryView};
 use crate::conversation_state::event_apply::{
     ConversationAgentsReplacedConversationStatePayload, ConversationCreatedPayload,
-    ConversationPolicyAppliedConversationStatePayload, ConversationStateError, handoff_view_from_created_payload,
-    title_from_created_payload,
+    ConversationPolicyAppliedConversationStatePayload, ConversationStateError,
+    handoff_view_from_created_payload, title_from_created_payload,
+};
+use crate::conversation_state::model::{
+    ConversationCatalogEntry, ConversationProfileView, ConversationSummaryView,
 };
 use crate::conversation_state::scope::{scope_key, scope_key_for_event};
 use crate::conversation_state::{ConversationStateService, lock_conversation_state_mutex};
@@ -127,7 +129,9 @@ impl ConversationStateService {
             ));
         }
         let expected_generation = payload.previous_generation.checked_add(1).ok_or_else(|| {
-            ConversationStateError::InvalidEvent("conversation.agents_replaced generation overflow".into())
+            ConversationStateError::InvalidEvent(
+                "conversation.agents_replaced generation overflow".into(),
+            )
         })?;
         if payload.agent_assignments.generation != expected_generation {
             return Err(ConversationStateError::InvalidEvent(format!(
@@ -139,7 +143,8 @@ impl ConversationStateService {
         validate_resolved_agent_assignments(&next_assignments)?;
 
         let key = scope_key_for_event(event);
-        let mut conversations = lock_conversation_state_mutex(&self.conversations, "conversation store");
+        let mut conversations =
+            lock_conversation_state_mutex(&self.conversations, "conversation store");
         let entry = conversations.get_mut(key.as_str()).ok_or_else(|| {
             ConversationStateError::InvalidEvent(format!(
                 "conversation.agents_replaced requires conversation.created for {}",
@@ -199,7 +204,8 @@ impl ConversationStateService {
             ));
         }
         let key = scope_key_for_event(event);
-        let mut conversations = lock_conversation_state_mutex(&self.conversations, "conversation store");
+        let mut conversations =
+            lock_conversation_state_mutex(&self.conversations, "conversation store");
         let entry = conversations
             .entry(key.clone())
             .or_insert_with(|| ConversationCatalogEntry {
@@ -216,7 +222,8 @@ impl ConversationStateService {
             )
             .as_str(),
         ) {
-            let mut entries = lock_conversation_state_mutex(&self.entries, "conversation_state store");
+            let mut entries =
+                lock_conversation_state_mutex(&self.entries, "conversation_state store");
             if let Some(entry) = entries.get_mut(key.as_str()) {
                 for item in entry.values_mut() {
                     item.retention_until = None;
@@ -240,8 +247,10 @@ impl ConversationStateService {
             return;
         };
 
-        let mut profiles =
-            lock_conversation_state_mutex(&self.conversation_profiles, "conversation profile store");
+        let mut profiles = lock_conversation_state_mutex(
+            &self.conversation_profiles,
+            "conversation profile store",
+        );
         let profile = profiles
             .entry(scope.to_owned())
             .or_insert_with(|| ConversationProfileView {
@@ -270,7 +279,8 @@ impl ConversationStateService {
     ) -> String {
         let scope = scope_key(tenant_id, organization_id, conversation_id);
         if let Some(entry) =
-            lock_conversation_state_mutex(&self.conversations, "conversation store").get(scope.as_str())
+            lock_conversation_state_mutex(&self.conversations, "conversation store")
+                .get(scope.as_str())
         {
             return entry.history_visibility.clone();
         }
@@ -284,9 +294,10 @@ impl ConversationStateService {
         conversation_id: &str,
     ) -> Option<ConversationAgentAssignmentSet> {
         let scope = scope_key(tenant_id, organization_id, conversation_id);
-        if let Some(assignments) = lock_conversation_state_mutex(&self.conversations, "conversation store")
-            .get(scope.as_str())
-            .and_then(agent_assignments_from_catalog_entry)
+        if let Some(assignments) =
+            lock_conversation_state_mutex(&self.conversations, "conversation store")
+                .get(scope.as_str())
+                .and_then(agent_assignments_from_catalog_entry)
         {
             return Some(assignments);
         }
@@ -302,7 +313,9 @@ impl ConversationStateService {
             return Ok(());
         };
         let tenant_id = event.tenant_id.parse::<u64>().map_err(|_| {
-            ConversationStateError::InvalidEvent("agent conversation_state tenant id must be int64".into())
+            ConversationStateError::InvalidEvent(
+                "agent conversation_state tenant id must be int64".into(),
+            )
         })?;
         let organization_id = event
             .normalized_organization_id()
@@ -548,7 +561,10 @@ mod agent_assignment_catalog_tests {
 
         event.actor.actor_kind = "user".into();
         event.actor.actor_id = "330339707122622464".into();
-        assert_eq!(conversation_state_assigned_by(&event).unwrap(), 330339707122622464);
+        assert_eq!(
+            conversation_state_assigned_by(&event).unwrap(),
+            330339707122622464
+        );
 
         event.actor.actor_id = "system".into();
         assert!(conversation_state_assigned_by(&event).is_err());

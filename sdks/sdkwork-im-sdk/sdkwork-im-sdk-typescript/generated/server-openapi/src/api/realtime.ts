@@ -23,12 +23,12 @@ export class RealtimeEventsApi {
   }
 
 /** List pending realtime events */
-  async list(params?: RealtimeEventsListParams): Promise<Record<string, unknown>> {
+  async list(params?: RealtimeEventsListParams): Promise<{ items: RealtimeEventView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/realtime/events`), query));
+    return this.client.get<{ items: RealtimeEventView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/realtime/events`), query));
   }
 }
 
@@ -47,12 +47,12 @@ export class RealtimeSubscriptionsApi {
 }
 
 export class RealtimeApi {
-  private client: HttpClient;
+
   public readonly subscriptions: RealtimeSubscriptionsApi;
   public readonly events: RealtimeEventsApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.subscriptions = new RealtimeSubscriptionsApi(client);
     this.events = new RealtimeEventsApi(client);
   }

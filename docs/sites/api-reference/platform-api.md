@@ -46,7 +46,7 @@
 
 ## How To Use This Page
 
-- Start with [Authentication and Errors](/api-reference/auth-and-errors) for SDKWork dual-token, AppContext projection, and permission rules.
+- Start with [Authentication and Errors](/api-reference/auth-and-errors) for SDKWork dual-token, resolved request-context, and permission rules.
 - Use the linked operation groups below for exact route semantics.
 - Switch to [SDK Overview](/sdk/index) only when you need to understand whether a backend-facing
   package surface is documented as published or only present as repo workspace state.
@@ -62,6 +62,6 @@
   <a href="/api-reference/app/notifications"><code>Notifications</code> Request, list, and inspect notification tasks</a>
   <a href="/api-reference/app/automation"><code>Automation</code> Request and inspect automation executions</a>
   <a href="/api-reference/backend/audit"><code>Audit</code> Record audit anchors, list audit records, and export bundles</a>
-  <a href="/api-reference/backend/ops"><code>Ops</code> Cluster health, lag, replay status, runtime directory, provider bindings, and diagnostics</a>
+  <a href="/api-reference/backend/ops"><code>Ops</code> Cluster health, operational lag, commercial readiness, runtime directory, provider bindings, and diagnostics</a>
   <a href="/api-reference/app/provider-health"><code>Health</code> Provider plugin health snapshots for active integrations</a>
 </div>

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::im_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{AppendStreamFrameRequest, OpenStreamRequest, StreamsAbortResponse, StreamsCheckpointResponse, StreamsCompleteResponse, StreamsCreateResponse201, StreamsFramesCreateResponse201, StreamsFramesListResponse};
+use crate::models::{AppendStreamFrameRequest, OpenStreamRequest, StreamFrameView, StreamView};
 
 #[derive(Clone)]
 pub struct StreamsApi {
@@ -16,13 +16,13 @@ impl StreamsApi {
     }
 
     /// Open a stream
-    pub async fn create(&self, body: &OpenStreamRequest) -> Result<StreamsCreateResponse201, SdkworkError> {
+    pub async fn create(&self, body: &OpenStreamRequest) -> Result<StreamView, SdkworkError> {
         let path = im_path(&"/streams".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List stream frames
-    pub async fn frames_list(&self, stream_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<StreamsFramesListResponse, SdkworkError> {
+    pub async fn frames_list(&self, stream_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
@@ -32,25 +32,25 @@ impl StreamsApi {
     }
 
     /// Append a stream frame
-    pub async fn frames_create(&self, stream_id: &str, body: &AppendStreamFrameRequest) -> Result<StreamsFramesCreateResponse201, SdkworkError> {
+    pub async fn frames_create(&self, stream_id: &str, body: &AppendStreamFrameRequest) -> Result<StreamFrameView, SdkworkError> {
         let path = im_path(&format!("/streams/{}/frames", serialize_path_parameter(stream_id, PathParameterSpec::new("streamId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Checkpoint a stream
-    pub async fn checkpoint(&self, stream_id: &str) -> Result<StreamsCheckpointResponse, SdkworkError> {
+    pub async fn checkpoint(&self, stream_id: &str) -> Result<StreamView, SdkworkError> {
         let path = im_path(&format!("/streams/{}/checkpoint", serialize_path_parameter(stream_id, PathParameterSpec::new("streamId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Complete a stream
-    pub async fn complete(&self, stream_id: &str) -> Result<StreamsCompleteResponse, SdkworkError> {
+    pub async fn complete(&self, stream_id: &str) -> Result<StreamView, SdkworkError> {
         let path = im_path(&format!("/streams/{}/complete", serialize_path_parameter(stream_id, PathParameterSpec::new("streamId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Abort a stream
-    pub async fn abort(&self, stream_id: &str) -> Result<StreamsAbortResponse, SdkworkError> {
+    pub async fn abort(&self, stream_id: &str) -> Result<StreamView, SdkworkError> {
         let path = im_path(&format!("/streams/{}/abort", serialize_path_parameter(stream_id, PathParameterSpec::new("streamId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }

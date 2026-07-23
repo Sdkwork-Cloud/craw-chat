@@ -18,7 +18,7 @@ Most IM backends were designed for person-to-person chat and later patched for b
 | **Stream-native, not AI-patched** | `/im/v3/api/streams/*` is a generic frame transport (open → delta/patch → checkpoint → finalize/abort). It carries LLM tokens, task progress, audio transcription, device telemetry, and structured patches through the same lifecycle as messages. |
 | **Actor model, not `senderId` string** | Realtime subjects are typed `user`, `agent`, `device`, `bot`, `system` with an explicit `actor/sender` model. No more guessing whether a `senderId` is a human or a webhook. |
 | **IM owns signaling, RTC owns media** | Call lifecycle and signaling live here (`/im/v3/api/calls/*`); media/provider runtime comes from the sibling [`../sdkwork-rtc`](../sdkwork-rtc) workspace. The boundary is enforced by contract tests. |
-| **Durable truth vs query truth** | Writes hit durable storage before acknowledgement; timelines, inboxes, and summaries are rebuildable projections. Cache is never the source of truth. |
+| **One normalized authority** | Conversation, Message, Member, and ReadCursor queries read their normalized PostgreSQL authorities. Cache is disposable, and the journal is audit evidence rather than a second state model. |
 | **Topology v5 as a contract** | Deployment profile, environment, runtime target, and connectivity planes are versioned in [`specs/topology.spec.json`](./specs/topology.spec.json). Retired vocabulary is rejected by governance tests. |
 | **9-language SDK matrix** | Four SDK families (IM / App / Backend / RTC) each ship across TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python — generated from OpenAPI authorities, not hand-written. |
 
@@ -26,15 +26,14 @@ Most IM backends were designed for person-to-person chat and later patched for b
 
 | Domain | Service | API prefix | Highlights |
 | --- | --- | --- | --- |
-| **Conversations** | `conversation-runtime` | `/im/v3/api/chat/conversations/*` | Standard + agent conversations, handoff, system channels, membership governance (list/add/remove/transfer/role/leave) |
-| **Messages** | `conversation-runtime` | `/im/v3/api/chat/messages/*` | Send, edit, recall, timeline read, system-channel publish |
+| **Conversations** | `sdkwork-comms-conversation-service` | `/im/v3/api/chat/conversations/*` | Standard + agent conversations, handoff, system channels, membership governance (list/add/remove/transfer/role/leave) |
+| **Messages** | `sdkwork-comms-conversation-service` | `/im/v3/api/chat/messages/*` | Send, edit, recall, ordered history, reactions, pins, and system-channel publish |
 | **Realtime** | `session-gateway` | `/im/v3/api/realtime/*`, `/im/v3/api/realtime/ws` | Presence, subscribe/sync, WebSocket delivery, ACK, compensation, disconnect recovery |
 | **Streams** | `streaming-service` | `/im/v3/api/streams/*` | Full lifecycle: open, frame append, list, checkpoint, complete, abort |
 | **Call signaling** | `im-calls-service` | `/im/v3/api/calls/sessions/*` | IM-owned signaling lifecycle (`create`/`retrieve`/`invite`/`accept`/`reject`/`end`/`signals`/`credentials`), RTC media handoff (media via `../sdkwork-rtc`) |
 | **Media** | `media-service` | `/im/v3/api/media/*` | Upload lifecycle, lookup, signed download, attachment binding (file truth in `sdkwork-drive`) |
 | **Social** | `social-service` | `/im/v3/api/social/*` | Friend requests, friendships, user blocks, external collaboration |
 | **Spaces** | `space-service` | `/im/v3/api/spaces/*` | Space/member/role containers, groups, channels, channel access rules |
-| **Projection** | `projection-service` | `/im/v3/api/chat/inbox`, `contacts`, `conversations` (GET) | Inbox, timeline, summary, read-model projections |
 | **Notifications** | `notification-service` | `/app/v3/api/notifications/*` | Notification task submission and retrieval |
 | **Automation** | `automation-service` | `/app/v3/api/automation/*` | Automation execution submission and retrieval |
 | **Audit** | `audit-service` | `/backend/v3/api/audit/*` | Audit record storage and export |
@@ -57,7 +56,7 @@ Six primary planes carry traffic; two cross-cutting planes govern and observe th
 │  Route Plane     session ownership, epoch + fencing, handoff    │
 │  Messaging Plane send / edit / recall, durable truth, outbox    │
 │  Stream Plane    open / delta / checkpoint / finalize / abort   │
-│  Projection Plane inbox / timeline / summary / read-model      │
+│  Query Plane      normalized inbox / history / member state    │
 │  Storage Plane   PostgreSQL / Redis / S3 / adapters             │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -68,9 +67,9 @@ Six primary planes carry traffic; two cross-cutting planes govern and observe th
 | --- | --- | --- |
 | **Contracts** | `crates/sdkwork-im-contract-*`, `crates/sdkwork-im-ccp-*`, `crates/im-platform-contracts`, `crates/im-storage-contracts` | Stable DTOs, event envelopes, protocol schemas, provider traits |
 | **Domain** | `crates/im-domain-core`, `crates/im-domain-events` | Aggregate models, invariants, state machines, domain events |
-| **Runtime** | `crates/sdkwork-im-runtime-{link,route,id}`, `crates/im-storage-runtime`, `crates/im-app-context` | Use-case orchestration, connection runtime, storage runtime, AppContext projection |
+| **Runtime** | `crates/sdkwork-im-runtime-{link,route,id}`, `crates/im-storage-runtime`, `crates/im-app-context` | Use-case orchestration, connection runtime, storage runtime, trusted AppContext propagation |
 | **Adapters** | `adapters/local-disk`, `local-memory`, `redis-cache`, `postgres-journal`, `postgres-realtime`, `social-postgres`, `object-storage-s3`, `push-providers/*` | Storage and provider integrations |
-| **Services** | `crates/sdkwork-api-im-standalone-gateway`, `session-gateway`, `conversation-runtime`, `streaming-service`, `im-calls-service`, `media-service`, `notification-service`, `automation-service`, `audit-service`, `ops-service`, `governance-service`, `projection-service`, `social-service`, `space-service` | Runnable HTTP service processes |
+| **Services** | `crates/sdkwork-api-im-standalone-gateway`, `session-gateway`, `sdkwork-comms-conversation-service`, `streaming-service`, `im-calls-service`, `media-service`, `notification-service`, `automation-service`, `audit-service`, `ops-service`, `governance-service`, `social-service`, `space-service` | Runnable HTTP service processes |
 
 ### CCP — Client Connect Protocol
 
@@ -196,7 +195,7 @@ Three API prefixes, each owned by a distinct SDK family:
 
 **OpenAPI discovery:** `GET /openapi.json` (aggregated), `GET /openapi/index.json`, `GET /openapi/runtime-summary.json`, `GET /openapi/services/{id}.openapi.json`, `GET /docs`.
 
-**Auth boundary:** public clients use dual-token headers (`Authorization: Bearer <auth-token>` + `Access-Token: <access-token>`); control-plane routes require `control.read` / `control.write` from the AppContext projection.
+**Auth boundary:** public clients use dual-token headers (`Authorization: Bearer <auth-token>` + `Access-Token: <access-token>`); control-plane routes require `control.read` / `control.write` from verified AppContext permissions.
 
 Reference: [docs/sites/api-reference/im-api.md](./docs/sites/api-reference/im-api.md), [docs/sites/api-reference/app-api.md](./docs/sites/api-reference/app-api.md), [docs/sites/api-reference/backend-api.md](./docs/sites/api-reference/backend-api.md).
 
@@ -337,7 +336,7 @@ Key reliability mechanisms:
   - **Concurrency**: `CallingRuntime` uses `DashMap` for lock-free concurrent access, eliminating `std::sync::Mutex` blocking in async context.
 - Node shutdown uses `graceful drain`; no forceful removal.
 - Single-writer per session; multi-node handoff via explicit ownership transfer.
-- Backup recovery order: metadata → message log/stream checkpoint → projection rebuild → route/presence hot state → object storage reference consistency.
+- Backup recovery order: normalized PostgreSQL state and journals → message/stream checkpoints → route/presence hot-state refresh → object-storage reference consistency.
 - **Authorization**: Session mutations (accept/reject/end) require initiator or invited participant authorization per SECURITY_SPEC §4.2.
 
 Full scenarios: [docs/部署/性能与灾备演练场景.md](./docs/部署/性能与灾备演练场景.md).
@@ -360,7 +359,7 @@ services remain behind the selected ingress. Single-region single-writer per ses
 **Roadmap (design targets, not yet shipped):**
 
 - End-to-end encryption for the privacy track (device key exchange, content visibility controls).
-- Five-dimension tenant isolation: quota (connection / send TPS / stream throughput / media upload / automation / AI token), scheduling (fair queue, shuffle sharding, noisy-neighbor control), data (shared logical / dedicated cell / dedicated storage lane / tenant-scoped backup), fault (projection failure isolation, automation worker isolation, agent/IoT sidecar isolation).
+- Five-dimension tenant isolation: quota (connection / send TPS / stream throughput / media upload / automation / AI token), scheduling (fair queue, shuffle sharding, noisy-neighbor control), data (shared logical / dedicated cell / dedicated storage lane / tenant-scoped backup), fault (conversation-query isolation, automation worker isolation, agent/IoT sidecar isolation).
 - Deployment forms: SaaS Shared Cell, SaaS Dedicated Cell, Private Standard, Private Restricted, Private Air-Gapped. Cell-based architecture where each cell is a fault, deployment, scaling, and ops domain; cross-region writes are controlled; no multi-master for the same session.
 
 Deep dive: [docs/架构/08-安全-多租户-SaaS-私有化-部署设计.md](./docs/架构/08-安全-多租户-SaaS-私有化-部署设计.md).

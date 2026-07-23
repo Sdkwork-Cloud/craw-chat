@@ -85,7 +85,7 @@ println!("{result:?}");
 ### portal
 
 ```rust
-// Read the tenant portal sign-in snapshot
+// Read the tenant portal access snapshot
 let result = client.portal().access_retrieve().await?;
 println!("{result:?}");
 ```

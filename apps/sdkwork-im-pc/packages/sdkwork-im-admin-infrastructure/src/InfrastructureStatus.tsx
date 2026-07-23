@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Network, ServerIcon, Database, ShieldCheck, Activity, MemoryStick, Cpu, HardDrive } from 'lucide-react';
+import { Network, ServerIcon, Send, MemoryStick, Cpu } from 'lucide-react';
 import { cn } from '@sdkwork/im-pc-commons';
 import { infraStatusService, InfraStatusData } from './services/InfraStatusService';
 
@@ -45,7 +45,7 @@ export const InfrastructureStatus = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <ServerMetric title={data.metrics.connectionPool.title} value={data.metrics.connectionPool.value} usage={data.metrics.connectionPool.usage} icon={Network} color="indigo" />
-        <ServerMetric title={data.metrics.dbIops.title} value={data.metrics.dbIops.value} usage={data.metrics.dbIops.usage} icon={Database} color="emerald" />
+        <ServerMetric title={data.metrics.deliveryBacklog.title} value={data.metrics.deliveryBacklog.value} usage={data.metrics.deliveryBacklog.usage} icon={Send} color="emerald" />
         <ServerMetric title={data.metrics.realtimeWindowHealth.title} value={data.metrics.realtimeWindowHealth.value} usage={data.metrics.realtimeWindowHealth.usage} icon={MemoryStick} color="amber" reverse />
       </div>
 

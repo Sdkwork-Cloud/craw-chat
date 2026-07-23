@@ -1,9 +1,9 @@
 -- Group knowledgebase immutable-binding upgrade.
 --
--- IM stores only its Conversation-to-Knowledgebase projection and opaque
+-- IM stores only its Conversation-to-Knowledgebase relationship and opaque
 -- launch-ticket state. The four remote identifiers are one immutable target
 -- fence: space id/uuid and Knowledgebase binding id/uuid. This migration never
--- invents a missing remote UUID. A legacy active projection or launch ticket
+-- invents a missing remote UUID. A legacy active link or launch ticket
 -- lacking that fence stops cutover and requires explicit pre-launch cleanup.
 
 BEGIN;
@@ -191,7 +191,7 @@ END
 $$;
 
 -- Fail closed instead of manufacturing immutable target identity. This is a
--- pre-launch migration: stale tickets and partial active/archived projections
+-- pre-launch migration: stale tickets and partial active/archived links
 -- must be remediated before the capability is enabled.
 DO $$
 BEGIN

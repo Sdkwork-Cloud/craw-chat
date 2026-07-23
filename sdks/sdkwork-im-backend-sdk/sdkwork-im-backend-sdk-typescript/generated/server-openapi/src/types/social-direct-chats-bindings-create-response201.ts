@@ -2,7 +2,7 @@ import type { SocialDirectChatCommitResponse } from './social-direct-chat-commit
 
 export interface SocialDirectChatsBindingsCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialDirectChatCommitResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

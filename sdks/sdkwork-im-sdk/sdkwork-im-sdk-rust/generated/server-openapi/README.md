@@ -100,11 +100,13 @@ println!("{result:?}");
 
 ```rust
 use std::collections::HashMap;
-// List IM contacts
+// List current inbox window
 let mut query = HashMap::new();
 query.insert("page_size".to_string(), serde_json::json!(1));
 query.insert("cursor".to_string(), serde_json::json!("cursor"));
-let result = client.chat().contacts_list(Some(&query)).await?;
+query.insert("conversation_type".to_string(), serde_json::json!("conversation-type"));
+query.insert("q".to_string(), serde_json::json!("q"));
+let result = client.chat().inbox_list(Some(&query)).await?;
 println!("{result:?}");
 ```
 

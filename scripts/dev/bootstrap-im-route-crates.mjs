@@ -26,7 +26,6 @@ const SERVICE_DEPS = {
   'audit-service': { key: 'audit-service', path: '../../services/audit-service' },
   'ops-service': { key: 'ops-service', path: '../../services/ops-service' },
   'governance-service': { key: 'governance-service', path: '../../services/governance-service' },
-  'projection-service': { key: 'projection-service', path: '../../services/projection-service' },
 };
 
 function capabilityFromPackage(packageName) {
@@ -218,22 +217,12 @@ function libRs(entry) {
       '    )',
       '}',
     );
-  } else if (
-    entry.serviceCrate === 'projection-service' ||
-    entry.serviceCrate === 'space-service'
-  ) {
-    const stateType =
-      entry.serviceCrate === 'space-service' ? 'space_service::http::AppState' : '';
-    const arg = entry.serviceCrate === 'space-service' ? 'state: space_service::http::AppState' : '';
-    const call =
-      entry.serviceCrate === 'space-service'
-        ? 'routes::build_api_router(state)'
-        : 'routes::build_api_router()';
+  } else if (entry.serviceCrate === 'space-service') {
     lines.push(
       'use axum::Router;',
       '',
-      `pub fn ${entry.buildFn}(${arg}) -> Router {`,
-      `    web_bootstrap::wrap_router(${call})`,
+      `pub fn ${entry.buildFn}(state: space_service::http::AppState) -> Router {`,
+      '    web_bootstrap::wrap_router(routes::build_api_router(state))',
       '}',
     );
   } else {

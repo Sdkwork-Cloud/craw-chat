@@ -898,6 +898,9 @@ public struct ContactView: Codable {
     public let tenantId: String?
     public let ownerUserId: String?
     public let targetUserId: String?
+    public let displayName: String?
+    public let avatarUrl: String?
+    public let chatId: String?
     public let contactType: String?
     public let relationshipState: String?
     public let friendshipId: String?
@@ -905,12 +908,19 @@ public struct ContactView: Codable {
     public let conversationId: String?
     public let establishedAt: String?
     public let lastInteractionAt: String?
+    public let isStarred: Bool?
+    public let isBlocked: Bool?
+    public let remark: String?
+    public let updatedAt: String?
 
 
-    public init(tenantId: String? = nil, ownerUserId: String? = nil, targetUserId: String? = nil, contactType: String? = nil, relationshipState: String? = nil, friendshipId: String? = nil, directChatId: String? = nil, conversationId: String? = nil, establishedAt: String? = nil, lastInteractionAt: String? = nil) {
+    public init(tenantId: String? = nil, ownerUserId: String? = nil, targetUserId: String? = nil, displayName: String? = nil, avatarUrl: String? = nil, chatId: String? = nil, contactType: String? = nil, relationshipState: String? = nil, friendshipId: String? = nil, directChatId: String? = nil, conversationId: String? = nil, establishedAt: String? = nil, lastInteractionAt: String? = nil, isStarred: Bool? = nil, isBlocked: Bool? = nil, remark: String? = nil, updatedAt: String? = nil) {
         self.tenantId = tenantId
         self.ownerUserId = ownerUserId
         self.targetUserId = targetUserId
+        self.displayName = displayName
+        self.avatarUrl = avatarUrl
+        self.chatId = chatId
         self.contactType = contactType
         self.relationshipState = relationshipState
         self.friendshipId = friendshipId
@@ -918,6 +928,10 @@ public struct ContactView: Codable {
         self.conversationId = conversationId
         self.establishedAt = establishedAt
         self.lastInteractionAt = lastInteractionAt
+        self.isStarred = isStarred
+        self.isBlocked = isBlocked
+        self.remark = remark
+        self.updatedAt = updatedAt
     }
 }
 
@@ -2503,7 +2517,7 @@ public struct SocialContactsPreferencesUpdateResponse: Codable {
     }
 }
 
-public struct ContactsListResponse: Codable {
+public struct SocialContactsListResponse: Codable {
     public let code: Int?
     public let data: Any?
     public let traceId: String?

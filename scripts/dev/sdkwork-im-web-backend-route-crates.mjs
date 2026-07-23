@@ -121,15 +121,6 @@ export const IM_ROUTE_CRATES = [
     buildFn: 'build_public_app',
   },
   {
-    crateDir: 'crates/sdkwork-routes-im-projection-open-api',
-    packageName: 'sdkwork-routes-im-projection-open-api',
-    libName: 'sdkwork_routes_im_projection_open_api',
-    apiSurface: 'open-api',
-    pathPrefix: '/im/v3/api/chat',
-    serviceCrate: 'projection-service',
-    buildFn: 'build_public_app',
-  },
-  {
     crateDir: 'crates/sdkwork-routes-im-calls-open-api',
     packageName: 'sdkwork-routes-im-calls-open-api',
     libName: 'sdkwork_routes_im_calls_open_api',

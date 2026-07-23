@@ -93,7 +93,7 @@ println(result)
 ### portal
 
 ```kotlin
-// Read the tenant portal sign-in snapshot
+// Read the tenant portal access snapshot
 val result = client.portal.accessRetrieve()
 println(result)
 ```

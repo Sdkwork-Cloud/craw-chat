@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsListResponse, ConversationMessageListResponse, ConversationsAgentDialogsCreateResponse201, ConversationsAgentHandoffAcceptResponse, ConversationsAgentHandoffCloseResponse, ConversationsAgentHandoffResolveResponse, ConversationsAgentHandoffRetrieveResponse, ConversationsAgentHandoffsCreateResponse201, ConversationsAgentsRetrieveResponse, ConversationsAgentsUpdateResponse, ConversationsCreateResponse201, ConversationsDirectChatsBindingsCreateResponse201, ConversationsMemberDirectoryListResponse, ConversationsMembersAcceptInvitationResponse, ConversationsMembersAddResponse, ConversationsMembersChangeRoleResponse, ConversationsMembersCurrentRetrieveResponse, ConversationsMembersLeaveResponse, ConversationsMembersListResponse, ConversationsMembersRemoveResponse, ConversationsMembersTransferOwnerResponse, ConversationsMessagesCreateResponse201, ConversationsMessagesInteractionSummaryRetrieveResponse, ConversationsPinsListResponse, ConversationsPreferencesRetrieveResponse, ConversationsPreferencesUpdateResponse, ConversationsProfileRetrieveResponse, ConversationsProfileUpdateResponse, ConversationsReadCursorRetrieveResponse, ConversationsReadCursorUpdateResponse, ConversationsRetrieveResponse, ConversationsSystemChannelPublishResponse, ConversationsSystemChannelsCreateResponse201, ConversationsThreadsCreateResponse201, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, FavoriteMessageRequest, InboxListResponse, MessageReactionRequest, MessagesEditResponse, MessagesFavoritesCreateResponse201, MessagesFavoritesListResponse, MessagesPinResponse, MessagesReactionsCreateResponse201, MessagesReactionsRemoveResponse, MessagesRecallResponse, MessagesUnpinResponse, PostMessageRequest, RecallMessageRequest, RemoveConversationMemberRequest, RoomsCreateResponse201, RoomsEnterResponse, RoomsLeaveResponse, RoomsRetrieveResponse, TransferConversationOwnerRequest, UpdateConversationAgentsRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest
+from ..models import AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ConversationMessageListResponse, ConversationsAgentDialogsCreateResponse201, ConversationsAgentHandoffAcceptResponse, ConversationsAgentHandoffCloseResponse, ConversationsAgentHandoffResolveResponse, ConversationsAgentHandoffRetrieveResponse, ConversationsAgentHandoffsCreateResponse201, ConversationsAgentsRetrieveResponse, ConversationsAgentsUpdateResponse, ConversationsCreateResponse201, ConversationsDirectChatsBindingsCreateResponse201, ConversationsMemberDirectoryListResponse, ConversationsMembersAcceptInvitationResponse, ConversationsMembersAddResponse, ConversationsMembersChangeRoleResponse, ConversationsMembersCurrentRetrieveResponse, ConversationsMembersLeaveResponse, ConversationsMembersListResponse, ConversationsMembersRemoveResponse, ConversationsMembersTransferOwnerResponse, ConversationsMessagesCreateResponse201, ConversationsMessagesInteractionSummaryRetrieveResponse, ConversationsPinsListResponse, ConversationsPreferencesRetrieveResponse, ConversationsPreferencesUpdateResponse, ConversationsProfileRetrieveResponse, ConversationsProfileUpdateResponse, ConversationsReadCursorRetrieveResponse, ConversationsReadCursorUpdateResponse, ConversationsRetrieveResponse, ConversationsSystemChannelPublishResponse, ConversationsSystemChannelsCreateResponse201, ConversationsThreadsCreateResponse201, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, FavoriteMessageRequest, InboxListResponse, MessageReactionRequest, MessagesEditResponse, MessagesFavoritesCreateResponse201, MessagesFavoritesListResponse, MessagesPinResponse, MessagesReactionsCreateResponse201, MessagesReactionsRemoveResponse, MessagesRecallResponse, MessagesUnpinResponse, PostMessageRequest, RecallMessageRequest, RemoveConversationMemberRequest, RoomsCreateResponse201, RoomsEnterResponse, RoomsLeaveResponse, RoomsRetrieveResponse, TransferConversationOwnerRequest, UpdateConversationAgentsRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -189,27 +189,11 @@ class ChatApi:
 
     def __init__(self, client: HttpClient):
         self._client = client
-        self.contacts = ChatContactsApi(client)
         self.inbox = ChatInboxApi(client)
         self.conversations = ChatConversationsApi(client)
         self.messages = ChatMessagesApi(client)
         self.rooms = ChatRoomsApi(client)
 
-
-class ChatContactsApi:
-    """chat chat.contacts API client."""
-
-    def __init__(self, client: HttpClient):
-        self._client = client
-
-
-    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None) -> ContactsListResponse:
-        """List IM contacts"""
-        query = build_query_string([
-            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
-            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
-        ])
-        return self._client.get(_append_query_string(f"/im/v3/api/chat/contacts", query))
 
 class ChatInboxApi:
     """chat chat.inbox API client."""
@@ -218,12 +202,13 @@ class ChatInboxApi:
         self._client = client
 
 
-    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, conversation_type: Optional[str] = None) -> InboxListResponse:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, conversation_type: Optional[str] = None, q: Optional[str] = None) -> InboxListResponse:
         """List current inbox window"""
         query = build_query_string([
             {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'conversation_type', 'value': conversation_type, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/chat/inbox", query))
 

@@ -92,7 +92,7 @@ Console.WriteLine(result);
 ### portal
 
 ```csharp
-// Read the tenant portal sign-in snapshot
+// Read the tenant portal access snapshot
 var result = await client.Portal.AccessRetrieveAsync();
 Console.WriteLine(result);
 ```

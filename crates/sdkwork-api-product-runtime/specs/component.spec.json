@@ -116,7 +116,8 @@
       "SDKWORK_IM_PORTAL_SITE_DIR",
       "SDKWORK_PORTAL_SITE_DIR"
     ],
-    "routeManifest": null
+    "routeManifest": null,
+    "layerRole": "runtime-composition"
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",

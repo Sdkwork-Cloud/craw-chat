@@ -13,7 +13,7 @@ export type { PortalDataAvailability } from './portal-data-availability';
 export type { PortalModuleSnapshot } from './portal-module-snapshot';
 export type { PortalOperationalMetrics } from './portal-operational-metrics';
 export type { PortalDashboardSnapshot } from './portal-dashboard-snapshot';
-export type { PortalConversationProjectionMetrics } from './portal-conversation-projection-metrics';
+export type { PortalConversationOperationalMetrics } from './portal-conversation-operational-metrics';
 export type { PortalConversationSnapshot } from './portal-conversation-snapshot';
 export type { PortalAuditRecordView } from './portal-audit-record-view';
 export type { PortalAccessSnapshot } from './portal-access-snapshot';

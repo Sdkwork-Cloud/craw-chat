@@ -89,7 +89,15 @@
       "sdkwork-community-app-sdk"
     ],
     "events": [],
-    "configKeys": []
+    "configKeys": [],
+    "layerRole": "frontend-feature",
+    "providedPorts": [
+      {
+        "name": "imPcCommunityFeature",
+        "export": "."
+      }
+    ],
+    "requiredPorts": []
   },
   "verification": {
     "commands": [

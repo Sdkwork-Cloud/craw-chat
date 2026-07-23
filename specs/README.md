@@ -1,152 +1,173 @@
-# Sdkwork IM Component Specs
+# SDKWork IM Component Contract
 
-This directory is the local standards index for `sdkwork-im`.
+This directory is the local contract index for `sdkwork-im`. The sibling
+[`sdkwork-specs`](../../sdkwork-specs/README.md) repository remains the global
+authority. Local contracts narrow those standards for IM; they do not copy or
+override them.
 
-Root SDKWork standards remain authoritative. Local component specs can narrow or document this component, but they must not contradict [the root standards](../sdkwork-specs/README.md).
-
-## Component
+## Component Identity
 
 | Field | Value |
 | --- | --- |
-| Name | `sdkwork-im` |
-| Type | `app` |
-| Root | `sdkwork-im` |
+| Component | `sdkwork-im` |
 | Domain | `communication` |
 | Capability | `chat` |
-| Languages | `javascript, rust` |
-| Status | `ACTIVE` |
+| Layer role | `runtime-composition` |
+| Product surfaces | PC, H5, Flutter mobile, App API, Backend API, Open API, RPC |
+| Lifecycle | pre-launch, direct contract correction allowed |
 
-## Contract Manifest
+The machine-readable root contract is
+[`component.spec.json`](./component.spec.json). Every authored subcomponent has
+its own `specs/component.spec.json` with an explicit layer role, public exports,
+and composable ports where applicable. Paths in `canonicalSpecs` and permission
+composition are resolved relative to the component root.
 
-- [component.spec.json](./component.spec.json) is the machine-readable component contract.
-- [IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md](./IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md)
-  defines the mandatory `sdkwork-im -> sdkwork-agents -> sdkwork-kernel`
-  direction and the assignment, Agents Session binding, and dispatch correlation
-  contract without copying Agents execution state.
-- [IM_DOMAIN_AND_PERSISTENCE_SPEC.md](./IM_DOMAIN_AND_PERSISTENCE_SPEC.md)
-  defines the strict IM `Conversation -> Message -> Member -> ReadCursor`
-  vocabulary, normalized persistence authority, and transactional-outbox rules.
-- Shared foundation API composition targets `platform.api-gateway` through
-  `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` and `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
-  for cloud or external-upstream deployments. In `standalone.*`, the sibling
-  `sdkwork-api-im-standalone-gateway` collapses platform ingress on one bind and mounts Drive,
-  Knowledgebase, Commerce, Mail, and Notary dependency APIs in-process via Cargo-linked route crates.
-- Application HTTP/WebSocket traffic uses `SDKWORK_IM_APPLICATION_PUBLIC_*` and
-  `VITE_SDKWORK_IM_APPLICATION_PUBLIC_*`. `crates/sdkwork-api-im-standalone-gateway` and
-  `crates/sdkwork-api-im-standalone-gateway` keep product-owned IM routing only; cloud
-  platform API routing is owned by the shared gateway boundary.
-- Local PC development starts through `scripts/im-dev.mjs` (`pnpm dev`), which loads topology
-  profiles from `etc/topology/` and starts `sdkwork-api-im-standalone-gateway` only. It does
-  not spawn a separate `platform.api-gateway` process in the default `standalone.development`
-  profile.
-- `crates/sdkwork-api-im-standalone-gateway` omits HTTP upstream targets for standalone-embedded
-  dependency APIs in standalone profiles. Direct module URLs remain explicit cloud/external-upstream
-  overrides through `SDKWORK_IM_*_APP_API_UPSTREAM` keys documented in `component.spec.json`.
-- Consumers should integrate through public exports, runtime entrypoints, SDK clients, or adapters declared in the manifest.
-- Generated SDK language outputs are represented at their SDK family root instead of duplicating local specs in generated folders.
+## Domain Ownership
 
-## Platform Framework Alignment
+IM owns communication facts:
 
-| Framework | Status | Integration point |
-| --- | --- | --- |
-| `sdkwork-web-framework` | **Integrated** | Gateway (`crates/sdkwork-api-im-standalone-gateway`) and upstream HTTP services wrap routers through `crates/sdkwork-im-web-bootstrap` (`WebFrameworkLayer`, `ImAppContextInjector`, IAM resolver). OpenAPI authorities materialize `x-sdkwork-request-context` / `x-sdkwork-api-surface`. Verified by `pnpm test:web-framework-standard`. |
-| `sdkwork-database` | **Integrated** | `Cargo.toml` workspace deps (`sdkwork-database-config`, `sdkwork-database-sqlx`); pool bootstrap in `crates/sdkwork-im-database-pool`; postgres adapters consume unified pool config. Verified by `pnpm test:database-framework-standard`. |
-| `sdkwork-utils` | **Integrated** | `Cargo.toml` workspace dep (`sdkwork-utils-rust`); PC core and H5 core consume `@sdkwork/utils`; Flutter mobile consumes `sdkwork_common_flutter` through generated IM SDK HTTP stack. Crypto/encoding helpers must not duplicate `sha2` or ad-hoc base64url in shared runtime paths. Verified by `pnpm test:utils-standard` and `pnpm test:h5-utils-standard`. |
-| `sdkwork-drive` | **Integrated** | File upload/download delegated to sibling `sdkwork-drive` at `/app/v3/api/drive/*`. PC/H5/Flutter chat media uploads share canonical attribution (`im_conversation`, `scene=im`, `source=chat_message`) per `specs/im-app-api-sdk-integration.spec.md`. PC uses `@sdkwork/drive-app-sdk` through `@sdkwork/im-pc-core`; H5 through `sdkwork-im-h5-core`; Flutter through IM-composed `drive_app_sdk_client.dart`. Verified by PC/H5 drive integration contract tests, `pnpm test:chat-drive-upload-attribution-standard`, and `services/media-service/tests/provider_integration_test.rs`. |
+- `Conversation -> Message -> Member -> ReadCursor`;
+- conversation membership, authorization, invitations, channel/thread semantics;
+- visible message history and monotonic per-conversation sequence;
+- reactions, pins, read state, presence, routing, realtime delivery, and signaling;
+- IM-side Agent assignment intent, dispatch state, reply publication, and opaque
+  cross-domain correlation identifiers.
 
-## Client App Composition
+[`sdkwork-agents`](../../sdkwork-agents/specs/README.md) owns Agent execution
+facts:
 
-| Surface | App root | Core package | Composition verification |
-| --- | --- | --- | --- |
-| PC | `apps/sdkwork-im-pc` | `@sdkwork/im-pc-core` | `pnpm test:sdkwork-im-pc-architecture-standard` |
-| H5 | `apps/sdkwork-im-h5` | `@sdkwork/im-h5-core` | `pnpm test:sdkwork-im-h5-architecture-standard` |
-| Flutter mobile | `apps/sdkwork-im-flutter-mobile` | `sdkwork_im_flutter_mobile_core` | `pnpm test:sdkwork-im-flutter-mobile-architecture-standard`, `pnpm test:flutter-drive-standard` |
+- `Project -> Session -> Turn -> SessionItem -> Interaction`;
+- Agent identity and revision, model/provider bindings, inference, tools,
+  checkpoints, usage, tasks, and execution audit.
 
-PC/H5 app roots stay thin: sibling SDK paths register once in repository-root `pnpm-workspace.yaml`; feature packages declare import closure in local `package.json`; cross-repository SDK access flows through each surface core package per `APP_COMPOSITION_SPEC.md`.
+An IM `Message` and an Agents `SessionItem` are different business facts. Neither
+is a projection, cache, alias, or replacement for the other. IM may publish an
+Agents result as a new visible Message and retain opaque Session/Turn correlation,
+but it must not copy the Agents transcript or create another Session/Item model.
+There is no dual write between IM and Agents authorities.
 
-| `sdkwork-discovery` | **Phase 2 Deferred** | Phase 1 RPC hosts are complete: three `*-rpc-bin` services (`session-gateway-rpc-bin`/50051, `sdkwork-comms-conversation-rpc-bin`/50052, `sdkwork-comms-conversation-internal-rpc-bin`/50053) ship through `sdkwork-rpc-framework` with optional `SDKWORK_IM_DISCOVERY_ENDPOINT` registration. The `sdkwork-discovery` product control plane itself is not integrated and remains Phase 2. Phased adoption plan: [ADR-20260619-im-rpc-discovery-integration-deferred](../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md). Verified by `pnpm test:rpc-contract`, `cargo test -p sdkwork-im-rpc-service-rust`, `pnpm test:sdkwork-im-session-gateway-rpc-bin`, and `pnpm test:session-gateway-rpc-bin-rust`. |
+The normative dependency and persistence boundary is
+[`IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md`](./IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md).
+The normalized IM aggregate contract is
+[`IM_DOMAIN_AND_PERSISTENCE_SPEC.md`](./IM_DOMAIN_AND_PERSISTENCE_SPEC.md).
 
-Sibling checkout and release refs are declared in `sdkwork.workflow.json` (`sdkwork-web-framework`, `sdkwork-database`, `sdkwork-utils`, `sdkwork-drive`, `sdkwork-iam`, `sdkwork-rpc-framework`).
+## Persistence Authority
 
-## Canonical Specs
+PostgreSQL is the production authority. IM owns exactly the tables declared in
+the following machine-readable registries:
 
-| Spec | Applies Because |
+| Contract | Authority |
 | --- | --- |
-| [APP_MANIFEST_SPEC.md](../sdkwork-specs/APP_MANIFEST_SPEC.md) | sdkwork.app.config.json application registration rules. |
-| [APPLICATION_SPEC.md](../sdkwork-specs/APPLICATION_SPEC.md) | Application shell and module composition. |
-| [COMPONENT_SPEC.md](../sdkwork-specs/COMPONENT_SPEC.md) | Local component specs directory and manifest rules. |
-| [CONFIG_SPEC.md](../sdkwork-specs/CONFIG_SPEC.md) | Runtime configuration, environment, SDK bootstrap, and feature flag rules. |
-| [DATABASE_SPEC.md](../sdkwork-specs/DATABASE_SPEC.md) | Database table naming, table profiles, schema registry, and prefix governance. |
-| [WEB_FRAMEWORK_SPEC.md](../sdkwork-specs/WEB_FRAMEWORK_SPEC.md) | Mandatory `sdkwork-web-framework` integration for HTTP gateway and API runtimes. |
-| [WEB_BACKEND_SPEC.md](../sdkwork-specs/WEB_BACKEND_SPEC.md) | HTTP handler/service/repository layering after the web framework boundary. |
-| [DEPENDENCY_MANAGEMENT_SPEC.md](../sdkwork-specs/DEPENDENCY_MANAGEMENT_SPEC.md) | Native workspace dependency declarations, sibling SDKWork source paths, and Git-backed release dependency refs. |
-| [DEPLOYMENT_SPEC.md](../sdkwork-specs/DEPLOYMENT_SPEC.md) | SaaS/private/local runtime parity and deployment rules. |
-| [DOCUMENTATION_SPEC.md](../sdkwork-specs/DOCUMENTATION_SPEC.md) | Module README, examples, ADR, changelog, and runbook rules. |
-| [DOMAIN_SPEC.md](../sdkwork-specs/DOMAIN_SPEC.md) | Canonical domain ownership and naming. |
-| [FRONTEND_SPEC.md](../sdkwork-specs/FRONTEND_SPEC.md) | UI, service, SDK, accessibility, and frontend runtime rules. |
-| [GOVERNANCE_SPEC.md](../sdkwork-specs/GOVERNANCE_SPEC.md) | Standard ownership, exception, compatibility, and migration rules. |
-| [I18N_SPEC.md](../sdkwork-specs/I18N_SPEC.md) | User-facing language, locale, message catalog, and fallback rules. |
-| [MODULE_SPEC.md](../sdkwork-specs/MODULE_SPEC.md) | Reusable package contract and dependency direction. |
-| [README.md](../sdkwork-specs/README.md) | SDKWork root standards entrypoint. |
-| [SDK_SPEC.md](../sdkwork-specs/SDK_SPEC.md) | SDK generation and SDK integration rules. |
-| [TEST_SPEC.md](../sdkwork-specs/TEST_SPEC.md) | Contract, frontend, SDK, security, parity, and documentation verification rules. |
+| [`prefix-registry.json`](../database/contract/prefix-registry.json) | Canonical `im_` prefix and forbidden aliases |
+| [`table-registry.json`](../database/contract/table-registry.json) | 60 IM-owned tables, profiles, write owners, and migration provenance |
+| [`schema.yaml`](../database/contract/schema.yaml) | Schema registry and migration roots |
 
-## Public Exports
+Normalized aggregate tables are the only current-state authority. The journal is
+immutable audit evidence, and the outbox is a delivery mechanism. Neither is a
+read projection. Cache is disposable and cannot be required for correctness.
+Ordinary reads and startup must not replay a projector.
 
-- Public exports are not declared in the package manifest.
+IM migrations must not create or write `ai_agent_*`, `studio_*`,
+`chat_conversation`, `chat_message`, `ai_coding_session`, or
+`im_projection_*` tables. Cross-domain identifiers remain bounded opaque values
+without database foreign keys into another product's schema.
 
-## SDK Clients
+## API Authority
 
-- No generated SDK client class is declared at this component boundary.
+Only the following OpenAPI sources define SDKWork IM HTTP operations. Generated
+SDK output and generated documentation are consumers, not parallel authorities.
 
-## Local Extension Specs
+| Surface | Prefix | Operations | Canonical source |
+| --- | --- | ---: | --- |
+| Open API | `/im/v3/api` | 125 | [`sdkwork-im-im.openapi.yaml`](../apis/open-api/im/sdkwork-im-im.openapi.yaml) |
+| App API | `/app/v3/api` | 25 | [`sdkwork-im-app-api.openapi.yaml`](../apis/app-api/communication/sdkwork-im-app-api.openapi.yaml) |
+| Backend API | `/backend/v3/api` | 111 | [`sdkwork-im-backend-api.openapi.yaml`](../apis/backend-api/communication/sdkwork-im-backend-api.openapi.yaml) |
+| Total | - | 261 | [`docs/api-reference.md`](../docs/api-reference.md) |
 
-- [im-app-api-sdk-integration.spec.md](./im-app-api-sdk-integration.spec.md) defines Sdkwork IM's IM API, IM app API, IM backend API, product SDK ownership, IAM login integration, shared database, local source-link development, and git-backed release dependency rules.
-- [im-web-ingress-domain.spec.json](./im-web-ingress-domain.spec.json) defines adaptive PC/H5 web ingress ownership and points to the root app manifest as the four-environment public-domain authority.
-- [../docs/architecture/decisions/ADR-20260617-comms-service-naming-boundaries.md](../docs/architecture/decisions/ADR-20260617-comms-service-naming-boundaries.md) records canonical communication service ids, social/space ownership, and deprecated contact/interaction HTTP surfaces.
-- [../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md](../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md) records Phase 1 RPC host completion (three `*-rpc-bin` services) and deferred Phase 2 `sdkwork-discovery` product integration.
-- [database-prefix-registry.json](./database-prefix-registry.json) registers `im` as the controlled prefix for instant-messaging tables in the `im` app.
-- [database-table-registry.json](./database-table-registry.json) lists the checked-in IM table contracts, table profiles, write owners, and migration source.
-- [database-table-naming-standard.md](../docs/部署/database-table-naming-standard.md) documents the local naming policy: IM tables use `im_`; non-IM tables keep their own business prefix or approved legacy name.
+Requests use verified request context for tenant, organization, and actor scope.
+Responses use the SDKWork success/error envelopes. List and search endpoints use
+the canonical pagination contract. Consumers integrate through generated SDK
+families; handwritten HTTP clients, manual authorization headers, and local SDK
+forks are forbidden.
 
-## PC Client Packages
+## Composition And Dependencies
 
-The PC client app lives under `apps/sdkwork-im-pc` and is composed of capability
-packages following the SDKWork PC architecture segment. Canonical package naming:
+The only valid Agent dependency direction is:
 
-- Console surface: `sdkwork-im-console-*` (normalized PC target `sdkwork-im-pc-console-*`).
-- Admin surface: `sdkwork-im-admin-*` (normalized PC target `sdkwork-im-pc-admin-*`).
-- PC-native capabilities: `sdkwork-im-pc-*`.
+```text
+sdkwork-im -> sdkwork-agents -> sdkwork-kernel
+```
 
-Historical `sdkwork-clawchat-*` package names were retired by the
-`sdkwork-clawchat ? sdkwork-im` rebrand and must not be reintroduced.
+Agents and Kernel do not depend on IM. IM integrates through generated Agents SDK
+families, approved public facades, or a declared runtime assembly. It does not
+import Agents repositories, SQL, private crates, transport internals, or copied
+OpenAPI models.
+
+Frontend composition follows these explicit roles:
+
+| Role | Responsibility |
+| --- | --- |
+| `frontend-host` | PC/H5/Flutter application or native host boundary |
+| `frontend-shell` | Navigation, layout, auth gate, and route assembly |
+| `frontend-core` | SDK registry, session/runtime composition, and host contracts |
+| `frontend-feature` | One user-facing capability and its state/services/routes |
+| `frontend-commons` | Domain-neutral UI primitives and helpers |
+
+Backend crates distinguish `contract`, `backend-domain`, `backend-service`,
+`backend-repository`, `backend-provider`, `backend-route`, and runtime composition
+roles. SDK families distinguish generated transports from authored facades. The
+strict component-port validator rejects missing or invalid declarations.
+
+Shared product dependencies are consumed through their SDK or route-composition
+contracts. `sdkwork-utils` is preferred for shared validation, encoding, crypto,
+time, and collection helpers; domain rules remain inside the owning IM module.
+
+## Local Contracts
+
+- [`im-app-api-sdk-integration.spec.md`](./im-app-api-sdk-integration.spec.md): API,
+  generated SDK, IAM, source-link, and release dependency boundaries.
+- [`SDKWORK_APPBASE_IAM_INTEGRATION_SPEC.md`](./SDKWORK_APPBASE_IAM_INTEGRATION_SPEC.md):
+  request context and IAM integration.
+- [`process-database-pool.spec.json`](./process-database-pool.spec.json): shared
+  process-level PostgreSQL pool ownership.
+- [`topology.spec.json`](./topology.spec.json): standalone and cloud runtime
+  composition.
+- [`im-web-ingress-domain.spec.json`](./im-web-ingress-domain.spec.json): PC/H5
+  public ingress ownership.
+- [`im-member-capability.spec.json`](./im-member-capability.spec.json): member and
+  authorization capability boundaries.
+
+## Canonical Standards
+
+- [`DOMAIN_SPEC.md`](../../sdkwork-specs/DOMAIN_SPEC.md)
+- [`COMPOSABLE_ARCHITECTURE_SPEC.md`](../../sdkwork-specs/COMPOSABLE_ARCHITECTURE_SPEC.md)
+- [`COMPONENT_SPEC.md`](../../sdkwork-specs/COMPONENT_SPEC.md)
+- [`DATABASE_SPEC.md`](../../sdkwork-specs/DATABASE_SPEC.md)
+- [`SCHEMA_REGISTRY_SPEC.md`](../../sdkwork-specs/SCHEMA_REGISTRY_SPEC.md)
+- [`API_SPEC.md`](../../sdkwork-specs/API_SPEC.md)
+- [`PAGINATION_SPEC.md`](../../sdkwork-specs/PAGINATION_SPEC.md)
+- [`SDK_SPEC.md`](../../sdkwork-specs/SDK_SPEC.md)
+- [`APP_SDK_INTEGRATION_SPEC.md`](../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md)
+- [`DEPENDENCY_MANAGEMENT_SPEC.md`](../../sdkwork-specs/DEPENDENCY_MANAGEMENT_SPEC.md)
+- [`DOCUMENTATION_SPEC.md`](../../sdkwork-specs/DOCUMENTATION_SPEC.md)
+- [`SECURITY_SPEC.md`](../../sdkwork-specs/SECURITY_SPEC.md)
 
 ## Verification
 
-- `cargo test --workspace`
-- `pnpm test:sdkwork-workspace-structure-standard`
-- `node scripts/sdkwork-workspace-structure-standard.test.mjs`
-- `pnpm test:web-framework-standard`
-- `pnpm test:database-framework-standard`
-- `pnpm test:utils-standard`
-- `pnpm test:h5-utils-standard`
-- `pnpm test:h5-drive-app-sdk-integration`
-- `pnpm test:flutter-drive-standard`
-- `pnpm check:api-response-envelope`
-- `pnpm test:topology-baggage`
-- `pnpm test:runtime-standard`
-- `pnpm test:rtc-signaling-boundary`
-- `pnpm test:rpc-contract`
-- `pnpm check:dependency-management`
-- `pnpm test:database-naming-standard`
-- `pnpm test:component-spec-consistency`
-- `pnpm test:runtime-id-standard`
-- `pnpm test:deprecated-service-boundary`
-- `pnpm test:apis-authority-standard`
-- `pnpm test:deployment-docs-encoding`
-- `pnpm test:governed-docs-encoding`
-- `pnpm test:review-step-docs-encoding`
-- `pnpm test:release-docs-encoding`
-- `pnpm test:architecture-docs-encoding`
-- `pnpm test:docs-strip-damage`
-- `node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root . --spec specs/topology.spec.json`
+Run the narrow contract gates before broader repository verification:
+
+```powershell
+pnpm test:component-spec-consistency
+pnpm test:normalized-im-authority-standard
+pnpm test:agents-integration-migration
+pnpm test:database-naming-standard
+pnpm db:validate
+pnpm test:apis-authority-standard
+pnpm check:api-response-envelope
+pnpm check:pagination
+pnpm check:app-composition
+```
+
+`test:component-spec-consistency` includes strict component layer/port validation
+and verifies all canonical standard and permission manifest paths from the real
+component root.

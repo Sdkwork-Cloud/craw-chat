@@ -13,16 +13,18 @@ use crate::conversation_state::message_favorites::MessageFavoritesWindowQuery;
 use crate::conversation_state::message_visibilities::TimelineWindowForPrincipalQuery;
 
 use super::{
-    ClientRouteSyncFeedWindowQuery, ClientRouteSyncFeedWindowView, ContactView, ContactWindowView,
-    ConversationMemberDirectoryEntry, ConversationPreferencesView, ConversationProfileView,
-    ConversationSummaryView, DeleteMessageFavoriteResponse, FavoriteMessageRequest,
-    FavoriteMessagesWindowView, MessageFavoriteView, MessageInteractionSummaryView,
-    MessageSearchHitView, MessageSearchWindowView, MessageVisibilityMutationResult,
-    NotificationRecipientView, CONVERSATION_STATE_CLIENT_ROUTE_SYNC_FEED_DEFAULT_LIMIT,
+    CONVERSATION_STATE_CLIENT_ROUTE_SYNC_FEED_DEFAULT_LIMIT,
     CONVERSATION_STATE_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT, CONVERSATION_STATE_LIST_DEFAULT_LIMIT,
-    CONVERSATION_STATE_LIST_MAX_LIMIT, CONVERSATION_STATE_TIMELINE_DEFAULT_LIMIT, CONVERSATION_STATE_TIMELINE_MAX_LIMIT,
-    RealtimeFanoutTarget, RegisteredClientRouteView, ConversationStateService, TimelineWindowView,
-    UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
+    CONVERSATION_STATE_LIST_MAX_LIMIT, CONVERSATION_STATE_TIMELINE_DEFAULT_LIMIT,
+    CONVERSATION_STATE_TIMELINE_MAX_LIMIT, ClientRouteSyncFeedWindowQuery,
+    ClientRouteSyncFeedWindowView, ContactView, ContactWindowView,
+    ConversationMemberDirectoryEntry, ConversationPreferencesView, ConversationProfileView,
+    ConversationStateService, ConversationSummaryView, DeleteMessageFavoriteResponse,
+    FavoriteMessageRequest, FavoriteMessagesWindowView, MessageFavoriteView,
+    MessageInteractionSummaryView, MessageSearchHitView, MessageSearchWindowView,
+    MessageVisibilityMutationResult, NotificationRecipientView, RealtimeFanoutTarget,
+    RegisteredClientRouteView, TimelineWindowView, UpdateConversationPreferencesRequest,
+    UpdateConversationProfileRequest,
 };
 
 const CONVERSATION_STATE_MAX_DEVICE_ID_BYTES: usize = 256;
@@ -1019,13 +1021,14 @@ impl ConversationStateService {
             self.ensure_active_member_from_auth_context(auth, conversation_id)?;
         }
         let limit = validate_search_limit(limit)?;
-        let search_provider = crate::conversation_state::bootstrap::shared_conversation_state_runtime()
-            .search_provider()
-            .ok_or_else(|| ConversationStateAccessError {
-                status: StatusCode::SERVICE_UNAVAILABLE,
-                code: "message_search_unconfigured",
-                message: "message search provider is not configured".into(),
-            })?;
+        let search_provider =
+            crate::conversation_state::bootstrap::shared_conversation_state_runtime()
+                .search_provider()
+                .ok_or_else(|| ConversationStateAccessError {
+                    status: StatusCode::SERVICE_UNAVAILABLE,
+                    code: "message_search_unconfigured",
+                    message: "message search provider is not configured".into(),
+                })?;
         let organization_id = Self::auth_organization_id(auth);
         let principal_kind = auth.actor_kind.as_str();
         let principal_id = auth.social_principal_user_id();
@@ -1070,13 +1073,15 @@ impl ConversationStateService {
                 message_seq: hit.message_seq,
             })
             .collect();
-        Ok(crate::conversation_state::list_page::cursor_page_with_total(
-            items,
-            limit,
-            result.next_cursor,
-            has_more,
-            result.total_count,
-        ))
+        Ok(
+            crate::conversation_state::list_page::cursor_page_with_total(
+                items,
+                limit,
+                result.next_cursor,
+                has_more,
+                result.total_count,
+            ),
+        )
     }
 }
 
@@ -1111,7 +1116,10 @@ fn resolve_requested_device_id(
     }
 }
 
-fn validate_device_scope(auth: &AppContext, device_id: &str) -> Result<(), ConversationStateAccessError> {
+fn validate_device_scope(
+    auth: &AppContext,
+    device_id: &str,
+) -> Result<(), ConversationStateAccessError> {
     validate_device_id(device_id)?;
     if let Some(bound_device_id) = auth.device_id.as_deref() {
         validate_device_id(bound_device_id)?;
@@ -1196,7 +1204,9 @@ fn ensure_user_contact_owner(auth: &AppContext) -> Result<&str, ConversationStat
     })
 }
 
-fn conversation_state_social_principal(auth: &AppContext) -> Result<&str, ConversationStateAccessError> {
+fn conversation_state_social_principal(
+    auth: &AppContext,
+) -> Result<&str, ConversationStateAccessError> {
     ensure_user_contact_owner(auth)
 }
 
@@ -1247,7 +1257,9 @@ fn validate_search_limit(limit: Option<usize>) -> Result<usize, ConversationStat
     if limit == 0 || limit > CONVERSATION_STATE_SEARCH_MAX_LIMIT {
         return Err(ConversationStateAccessError::bad_request(
             "limit_invalid",
-            format!("search limit must be between 1 and {CONVERSATION_STATE_SEARCH_MAX_LIMIT}: {limit}"),
+            format!(
+                "search limit must be between 1 and {CONVERSATION_STATE_SEARCH_MAX_LIMIT}: {limit}"
+            ),
         ));
     }
     Ok(limit)
@@ -1286,7 +1298,9 @@ fn validate_list_limit(limit: Option<usize>) -> Result<usize, ConversationStateA
     if limit == 0 || limit > CONVERSATION_STATE_LIST_MAX_LIMIT {
         return Err(ConversationStateAccessError::bad_request(
             "limit_invalid",
-            format!("list limit must be between 1 and {CONVERSATION_STATE_LIST_MAX_LIMIT}: {limit}"),
+            format!(
+                "list limit must be between 1 and {CONVERSATION_STATE_LIST_MAX_LIMIT}: {limit}"
+            ),
         ));
     }
     Ok(limit)
@@ -1305,8 +1319,11 @@ fn parse_contact_list_cursor(
         ));
     }
     let wire: super::model::ContactKeysetCursorWire = if cursor.contains('.') {
-        let payload = crate::conversation_state::cursor_auth::decode_signed_conversation_state_cursor(cursor)
-            .map_err(|error| ConversationStateAccessError::bad_request("cursor_invalid", error))?;
+        let payload =
+            crate::conversation_state::cursor_auth::decode_signed_conversation_state_cursor(cursor)
+                .map_err(|error| {
+                    ConversationStateAccessError::bad_request("cursor_invalid", error)
+                })?;
         serde_json::from_value(payload).map_err(|_| {
             ConversationStateAccessError::bad_request(
                 "cursor_invalid",
@@ -1346,8 +1363,11 @@ fn parse_inbox_list_cursor(
         ));
     }
     let wire: super::model::InboxKeysetCursorWire = if cursor.contains('.') {
-        let payload = crate::conversation_state::cursor_auth::decode_signed_conversation_state_cursor(cursor)
-            .map_err(|error| ConversationStateAccessError::bad_request("cursor_invalid", error))?;
+        let payload =
+            crate::conversation_state::cursor_auth::decode_signed_conversation_state_cursor(cursor)
+                .map_err(|error| {
+                    ConversationStateAccessError::bad_request("cursor_invalid", error)
+                })?;
         serde_json::from_value(payload).map_err(|_| {
             ConversationStateAccessError::bad_request(
                 "cursor_invalid",
@@ -1473,8 +1493,11 @@ where
         ));
     }
     let wire: Wire = if cursor.contains('.') {
-        let payload = crate::conversation_state::cursor_auth::decode_signed_conversation_state_cursor(cursor)
-            .map_err(|error| ConversationStateAccessError::bad_request("cursor_invalid", error))?;
+        let payload =
+            crate::conversation_state::cursor_auth::decode_signed_conversation_state_cursor(cursor)
+                .map_err(|error| {
+                    ConversationStateAccessError::bad_request("cursor_invalid", error)
+                })?;
         serde_json::from_value(payload).map_err(|_| {
             ConversationStateAccessError::bad_request(
                 "cursor_invalid",

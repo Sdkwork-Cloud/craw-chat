@@ -51,6 +51,21 @@
       "purpose": "Database table naming, table profiles, schema registry, and prefix governance."
     },
     {
+      "file": "SCHEMA_REGISTRY_SPEC.md",
+      "path": "../sdkwork-specs/SCHEMA_REGISTRY_SPEC.md",
+      "purpose": "Canonical schema, prefix, table registry, and migration composition."
+    },
+    {
+      "file": "API_SPEC.md",
+      "path": "../sdkwork-specs/API_SPEC.md",
+      "purpose": "App, backend, and open API request, response, error, and version contracts."
+    },
+    {
+      "file": "PAGINATION_SPEC.md",
+      "path": "../sdkwork-specs/PAGINATION_SPEC.md",
+      "purpose": "Interactive list and search pagination contracts."
+    },
+    {
       "file": "WEB_FRAMEWORK_SPEC.md",
       "path": "../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
       "purpose": "Mandatory sdkwork-web-framework integration for HTTP gateway and API runtimes."
@@ -86,6 +101,11 @@
       "purpose": "Canonical domain ownership and naming."
     },
     {
+      "file": "COMPOSABLE_ARCHITECTURE_SPEC.md",
+      "path": "../sdkwork-specs/COMPOSABLE_ARCHITECTURE_SPEC.md",
+      "purpose": "Layer roles, public exports, ports, and dependency direction."
+    },
+    {
       "file": "FRONTEND_SPEC.md",
       "path": "../sdkwork-specs/FRONTEND_SPEC.md",
       "purpose": "UI, service, SDK, accessibility, and frontend runtime rules."
@@ -114,6 +134,21 @@
       "file": "SDK_SPEC.md",
       "path": "../sdkwork-specs/SDK_SPEC.md",
       "purpose": "SDK generation and SDK integration rules."
+    },
+    {
+      "file": "APP_SDK_INTEGRATION_SPEC.md",
+      "path": "../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
+      "purpose": "Generated SDK consumption and credential composition boundaries."
+    },
+    {
+      "file": "DEPENDENCY_MANAGEMENT_SPEC.md",
+      "path": "../sdkwork-specs/DEPENDENCY_MANAGEMENT_SPEC.md",
+      "purpose": "Workspace dependency direction and source/release integration rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Authentication, authorization, secret, input, and audit requirements."
     },
     {
       "file": "TEST_SPEC.md",
@@ -153,17 +188,26 @@
       "purpose": "Mandatory IM-to-Agents dependency direction and target assignment/session/dispatch database contract."
     },
     {
-      "file": "database-prefix-registry.json",
-      "path": "./database-prefix-registry.json",
-      "purpose": "Registers im as the controlled prefix for instant-messaging tables in the chat app."
+      "file": "domain-ownership.spec.json",
+      "path": "./domain-ownership.spec.json",
+      "purpose": "Machine-readable IM persistence, API, dependency, and semantic ownership."
     },
     {
-      "file": "database-table-registry.json",
-      "path": "./database-table-registry.json",
-      "purpose": "Lists checked-in IM table contracts, table profiles, write owners, and migration source."
+      "file": "prefix-registry.json",
+      "path": "../database/contract/prefix-registry.json",
+      "purpose": "Canonical registry for the IM-owned database prefix and forbidden aliases."
+    },
+    {
+      "file": "table-registry.json",
+      "path": "../database/contract/table-registry.json",
+      "purpose": "Canonical registry for IM-owned tables, profiles, write owners, and migration provenance."
     }
   ],
   "contracts": {
+    "layerRole": "runtime-composition",
+    "providedPorts": [],
+    "requiredPorts": [],
+    "iamModuleManifest": "specs/iam.module.manifest.json",
     "publicExports": [],
     "runtimeEntrypoints": [
       "sdkwork.app.config.json",
@@ -175,10 +219,21 @@
       "sdkwork.app.config.json"
     ],
     "databasePrefixRegistries": [
-      "specs/database-prefix-registry.json"
+      "database/contract/prefix-registry.json"
     ],
     "databaseTableRegistries": [
-      "specs/database-table-registry.json"
+      "database/contract/table-registry.json"
+    ],
+    "apiAuthorities": [
+      "apis/open-api/im/sdkwork-im-im.openapi.yaml",
+      "apis/app-api/communication/sdkwork-im-app-api.openapi.yaml",
+      "apis/backend-api/communication/sdkwork-im-backend-api.openapi.yaml"
+    ],
+    "sdkFamilies": [
+      "sdkwork-im-sdk",
+      "sdkwork-im-app-sdk",
+      "sdkwork-im-backend-sdk",
+      "sdkwork-im-rpc-sdk"
     ],
     "routeManifest": null,
     "dependencyApiSurfaces": [
@@ -417,6 +472,14 @@
         }
       }
     ]
+  },
+  "ownership": {
+    "boundedContext": "communication/chat",
+    "domainContract": "specs/domain-ownership.spec.json",
+    "databaseTableCount": 60,
+    "openApiOperationCount": 125,
+    "appApiOperationCount": 25,
+    "backendApiOperationCount": 111
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",

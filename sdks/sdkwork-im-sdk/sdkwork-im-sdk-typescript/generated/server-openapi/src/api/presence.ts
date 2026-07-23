@@ -37,11 +37,3 @@ export class PresenceApi {
 export function createPresenceApi(client: HttpClient): PresenceApi {
   return new PresenceApi(client);
 }
-
-function appendQueryString(path: string, rawQueryString: string): string {
-  const query = rawQueryString.replace(/^\?+/, '');
-  if (!query) {
-    return path;
-  }
-  return path.includes('?') ? `${path}&${query}` : `${path}?${query}`;
-}

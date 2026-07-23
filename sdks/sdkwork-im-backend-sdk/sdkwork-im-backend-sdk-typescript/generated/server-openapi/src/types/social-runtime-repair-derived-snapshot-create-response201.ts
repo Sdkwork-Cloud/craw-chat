@@ -2,7 +2,7 @@ import type { SocialRuntimeRepairResponse } from './social-runtime-repair-respon
 
 export interface SocialRuntimeRepairDerivedSnapshotCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialRuntimeRepairResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

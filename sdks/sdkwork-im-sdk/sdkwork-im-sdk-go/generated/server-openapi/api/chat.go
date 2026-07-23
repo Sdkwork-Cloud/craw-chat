@@ -17,26 +17,13 @@ func NewChatApi(client *sdkhttp.Client) *ChatApi {
     return &ChatApi{client: client}
 }
 
-// List IM contacts
-func (a *ChatApi) ContactsList(pageSize *int, cursor *string) (sdktypes.ContactsListResponse, error) {
-    query := BuildQueryString([]QueryParameterSpec{
-        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
-        {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
-    })
-    raw, err := a.client.Get(AppendQueryString(ImApiPath("/chat/contacts"), query), nil, nil)
-    if err != nil {
-        var zero sdktypes.ContactsListResponse
-        return zero, err
-    }
-    return decodeResult[sdktypes.ContactsListResponse](raw)
-}
-
 // List current inbox window
-func (a *ChatApi) InboxList(pageSize *int, cursor *string, conversationType *string) (sdktypes.InboxListResponse, error) {
+func (a *ChatApi) InboxList(pageSize *int, cursor *string, conversationType *string, q *string) (sdktypes.InboxListResponse, error) {
     query := BuildQueryString([]QueryParameterSpec{
         {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
         {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
         {Name: "conversation_type", Value: func() interface{} { if conversationType == nil { return nil }; return *conversationType }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "q", Value: func() interface{} { if q == nil { return nil }; return *q }(), Style: "form", Explode: true, AllowReserved: false},
     })
     raw, err := a.client.Get(AppendQueryString(ImApiPath("/chat/inbox"), query), nil, nil)
     if err != nil {

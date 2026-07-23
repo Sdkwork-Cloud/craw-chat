@@ -3,7 +3,7 @@ import type { SpaceInviteView } from './space-invite-view';
 
 export interface SpacesInvitesListResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { items: SpaceInviteView[]; pageInfo: PageInfo; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

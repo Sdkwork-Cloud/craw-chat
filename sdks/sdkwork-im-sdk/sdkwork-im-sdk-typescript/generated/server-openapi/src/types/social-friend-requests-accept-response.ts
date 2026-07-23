@@ -2,7 +2,7 @@ import type { SocialFriendRequestAcceptanceResponse } from './social-friend-requ
 
 export interface SocialFriendRequestsAcceptResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialFriendRequestAcceptanceResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

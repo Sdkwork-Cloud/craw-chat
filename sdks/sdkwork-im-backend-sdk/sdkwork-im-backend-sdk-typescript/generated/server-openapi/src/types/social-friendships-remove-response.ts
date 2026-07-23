@@ -2,7 +2,7 @@ import type { SocialFriendshipCommitResponse } from './social-friendship-commit-
 
 export interface SocialFriendshipsRemoveResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialFriendshipCommitResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

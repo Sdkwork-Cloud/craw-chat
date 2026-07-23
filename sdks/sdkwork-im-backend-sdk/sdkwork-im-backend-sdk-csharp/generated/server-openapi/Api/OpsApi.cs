@@ -32,7 +32,7 @@ namespace Sdkwork.Im.BackendApi.Generated.Api
         }
 
         /// <summary>
-        /// Retrieve projection lag
+        /// Retrieve operational lag
         /// </summary>
         public async Task<Sdkwork.Im.BackendApi.Generated.Models.LagListResponse?> LagRetrieveAsync(int? pageSize = null, string? cursor = null)
         {
@@ -42,14 +42,6 @@ namespace Sdkwork.Im.BackendApi.Generated.Api
                 new QueryParameterSpec("cursor", cursor, "form", true, false, null),
             });
             return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.LagListResponse>(ApiPaths.AppendQueryString(ApiPaths.BackendPath("/ops/lag"), queryString));
-        }
-
-        /// <summary>
-        /// Retrieve replay status
-        /// </summary>
-        public async Task<Sdkwork.Im.BackendApi.Generated.Models.ReplayStatusRetrieveResponse?> ReplayStatusRetrieveAsync()
-        {
-            return await _client.GetAsync<Sdkwork.Im.BackendApi.Generated.Models.ReplayStatusRetrieveResponse>(ApiPaths.BackendPath("/ops/replay_status"));
         }
 
         /// <summary>

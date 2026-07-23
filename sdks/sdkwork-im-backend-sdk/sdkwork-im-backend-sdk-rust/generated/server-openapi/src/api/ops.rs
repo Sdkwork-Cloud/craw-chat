@@ -27,19 +27,13 @@ impl OpsApi {
         self.client.get(&path, None, None).await
     }
 
-    /// Retrieve projection lag
+    /// Retrieve operational lag
     pub async fn lag_retrieve(&self, page_size: Option<i64>, cursor: Option<&str>) -> Result<LagPageData, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
         ]);
         let path = append_query_string(backend_path(&"/ops/lag".to_string()), &query);
-        self.client.get(&path, None, None).await
-    }
-
-    /// Retrieve replay status
-    pub async fn replay_status_retrieve(&self) -> Result<std::collections::HashMap<String, serde_json::Value>, SdkworkError> {
-        let path = backend_path(&"/ops/replay_status".to_string());
         self.client.get(&path, None, None).await
     }
 

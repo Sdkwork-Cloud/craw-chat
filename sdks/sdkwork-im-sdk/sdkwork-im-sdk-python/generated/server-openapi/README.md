@@ -102,12 +102,14 @@ print(result)
 ### chat
 
 ```python
-# List IM contacts
+# List current inbox window
 params = {
     'page_size': 1,
     'cursor': 'cursor',
+    'conversation_type': 'conversation_type',
+    'q': 'q',
 }
-result = client.chat.contacts.list(params)
+result = client.chat.inbox.list(params)
 print(result)
 ```
 

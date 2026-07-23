@@ -22,7 +22,7 @@ documentation is easiest to understand through five architectural lenses:
 | Production IM host | `im.sdkwork.com` |
 | Production platform gateway | `api.sdkwork.com` |
 | Standalone control-plane bind address | `127.0.0.1:18081` |
-| Public auth model | SDKWork dual token at appbase boundary; verified AppContext projection inside sdkwork-im |
+| Public auth model | SDKWork dual token at appbase boundary; framework-resolved AppContext inside SDKWork IM |
 | Control-plane permissions | `control.read` and `control.write` |
 
 ## Application Ingress
@@ -34,7 +34,7 @@ assembled runtime in one process for smoke and local verification.
 Domains exposed through the ingress include:
 
 - client route recovery, presence, and realtime delivery
-- conversation lifecycle, inbox projection, membership, and read state
+- conversation lifecycle, normalized inbox queries, membership, and read state
 - messages, media, streams, and RTC
 - notifications, automation, audit, and operator diagnostics
 - principal-profile, object-storage, RTC, and IoT-related provider health surfaces
@@ -60,14 +60,18 @@ binary that binds `127.0.0.1:18081` in `services/control-plane-api/src/main.rs`.
 includes `GET /openapi.json`, `GET /openapi/index.json`, and `GET /openapi/runtime-summary.json`,
 along with rendered docs and per-service OpenAPI proxies.
 
-## Runtime Directory Is Architectural, Not Auxiliary
+## Runtime Directory Boundary
 
-When `SDKWORK_IM_RUNTIME_DIR` is set, the app node switches from in-memory defaults to file-backed
-stores for replay, realtime checkpoints, subscriptions, presence, streams, RTC, notifications,
-automation, and projection snapshots.
+`SDKWORK_IM_RUNTIME_DIR` identifies deployment-owned process files, diagnostics, and bounded
+temporary runtime material. It is not an IM business database and does not contain an authoritative
+copy of current Conversation, Message, Member, or ReadCursor state. Normalized IM business state is
+stored in PostgreSQL.
 
-That means the runtime directory is part of the runtime contract, not just a convenience folder for
-logs.
+Some services still expose explicitly configured file-backed facilities for development and test
+profiles, including the social runtime fallback. Those facilities are single-node test aids, not a
+production persistence option. Production profiles use the required durable PostgreSQL adapters and
+fail closed when those adapters are unavailable. The runtime directory never provides state
+reconstruction or a second business-state authority.
 
 ## Storage Management Is Now A Shared Module Baseline
 

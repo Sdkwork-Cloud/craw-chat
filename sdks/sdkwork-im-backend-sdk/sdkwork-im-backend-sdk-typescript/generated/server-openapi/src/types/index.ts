@@ -81,7 +81,6 @@ export type { SdkWorkResourceResponse } from './sdk-work-resource-response';
 export type { SdkWorkCommandResponse } from './sdk-work-command-response';
 export type { HealthRetrieveResponse } from './health-retrieve-response';
 export type { ClusterRetrieveResponse } from './cluster-retrieve-response';
-export type { ReplayStatusRetrieveResponse } from './replay-status-retrieve-response';
 export type { CommercialReadinessRetrieveResponse } from './commercial-readiness-retrieve-response';
 export type { RuntimeDirRetrieveResponse } from './runtime-dir-retrieve-response';
 export type { DiagnosticsRetrieveResponse } from './diagnostics-retrieve-response';

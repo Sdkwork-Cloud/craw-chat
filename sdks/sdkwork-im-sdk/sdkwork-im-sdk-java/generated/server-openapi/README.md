@@ -113,11 +113,13 @@ System.out.println(result);
 ### chat
 
 ```java
-// List IM contacts
+// List current inbox window
 Map<String, Object> params = new LinkedHashMap<>();
 params.put("page_size", 1);
 params.put("cursor", "cursor");
-ContactsListResponse result = client.getChat().contactsList(params);
+params.put("conversation_type", "conversation-type");
+params.put("q", "q");
+InboxListResponse result = client.getChat().inboxList(params);
 System.out.println(result);
 ```
 

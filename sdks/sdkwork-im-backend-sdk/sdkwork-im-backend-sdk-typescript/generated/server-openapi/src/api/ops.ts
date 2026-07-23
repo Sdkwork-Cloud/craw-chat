@@ -94,20 +94,6 @@ export class OpsCommercialReadinessApi {
   }
 }
 
-export class OpsReplayStatusApi {
-  private client: HttpClient;
-
-  constructor(client: HttpClient) {
-    this.client = client;
-  }
-
-
-/** Retrieve replay status */
-  async retrieve(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/replay_status`));
-  }
-}
-
 export interface OpsLagRetrieveParams {
   pageSize?: number;
   cursor?: string;
@@ -121,7 +107,7 @@ export class OpsLagApi {
   }
 
 
-/** Retrieve projection lag */
+/** Retrieve operational lag */
   async retrieve(params?: OpsLagRetrieveParams): Promise<LagPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
@@ -160,22 +146,20 @@ export class OpsHealthApi {
 }
 
 export class OpsApi {
-  private client: HttpClient;
+
   public readonly health: OpsHealthApi;
   public readonly cluster: OpsClusterApi;
   public readonly lag: OpsLagApi;
-  public readonly replayStatus: OpsReplayStatusApi;
   public readonly commercialReadiness: OpsCommercialReadinessApi;
   public readonly runtimeDir: OpsRuntimeDirApi;
   public readonly providerBindings: OpsProviderBindingsApi;
   public readonly diagnostics: OpsDiagnosticsApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.health = new OpsHealthApi(client);
     this.cluster = new OpsClusterApi(client);
     this.lag = new OpsLagApi(client);
-    this.replayStatus = new OpsReplayStatusApi(client);
     this.commercialReadiness = new OpsCommercialReadinessApi(client);
     this.runtimeDir = new OpsRuntimeDirApi(client);
     this.providerBindings = new OpsProviderBindingsApi(client);

@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.application-domain-ownership",
+  "application": "sdkwork-im",
+  "status": "active",
+  "updatedAt": "2026-07-23",
+  "authority": {
+    "globalSpecs": [
+      "../../sdkwork-specs/DOMAIN_SPEC.md",
+      "../../sdkwork-specs/COMPOSABLE_ARCHITECTURE_SPEC.md",
+      "../../sdkwork-specs/DATABASE_SPEC.md",
+      "../../sdkwork-specs/SCHEMA_REGISTRY_SPEC.md",
+      "../../sdkwork-specs/API_SPEC.md",
+      "../../sdkwork-specs/SDK_SPEC.md",
+      "../../sdkwork-specs/MIGRATION_SPEC.md"
+    ],
+    "domainContract": "specs/IM_DOMAIN_AND_PERSISTENCE_SPEC.md",
+    "agentsBoundary": "specs/IM_AGENTS_DEPENDENCY_AND_DATABASE_SPEC.md",
+    "schemaRegistry": "database/contract/schema.yaml"
+  },
+  "principles": {
+    "preLaunchDirectCutover": true,
+    "singleWriteOwnerPerBusinessFact": true,
+    "crossDomainReferencesByStableId": true,
+    "crossDomainForeignKeys": false,
+    "persistentProjections": false,
+    "shadowTables": false,
+    "synchronizedCacheTables": false,
+    "dualWrite": false,
+    "compatibilityFacade": false
+  },
+  "ownedBoundedContext": {
+    "domain": "communication",
+    "capability": "chat",
+    "owner": "sdkwork-im",
+    "databasePrefix": "im",
+    "aggregateVocabulary": [
+      "Conversation",
+      "Message",
+      "Member",
+      "ReadCursor"
+    ],
+    "businessFacts": [
+      "conversation identity, lifecycle, membership, and authorization",
+      "visible ordered message history",
+      "message reactions, pins, media references, and thread relationships",
+      "read state, presence, routing, realtime delivery, and signaling",
+      "social relationships, spaces, groups, channels, invitations, and bans",
+      "IM-side Agent assignment, dispatch, publication, and opaque correlation"
+    ]
+  },
+  "persistence": {
+    "systemOfRecord": "sdkwork-im",
+    "engine": "postgres",
+    "schemaRegistry": "database/contract/schema.yaml",
+    "prefixRegistry": "database/contract/prefix-registry.json",
+    "tableRegistry": "database/contract/table-registry.json",
+    "baseline": "database/ddl/baseline/postgres/0001_im_baseline.sql",
+    "tableCount": 60,
+    "readAuthority": "normalized aggregate tables",
+    "auditAuthority": "im_commit_journal",
+    "deliveryAuthority": "transactional inbox and outbox tables",
+    "forbiddenTablePatterns": [
+      "ai_agent_*",
+      "studio_*",
+      "chat_conversation",
+      "chat_message",
+      "ai_coding_session*",
+      "im_projection_*"
+    ],
+    "externalReferences": [
+      {
+        "contract": "Agents Session and Turn identifiers",
+        "owner": "sdkwork-agents",
+        "storage": "im_conversation_agent_binding and im_agent_dispatch correlation columns",
+        "foreignKey": false
+      },
+      {
+        "contract": "Drive node or object reference",
+        "owner": "sdkwork-drive",
+        "storage": "im_message_media_refs",
+        "foreignKey": false
+      },
+      {
+        "contract": "Knowledge space identifier",
+        "owner": "sdkwork-knowledgebase",
+        "storage": "im_conversation_knowledge_space_link",
+        "foreignKey": false
+      },
+      {
+        "contract": "IAM subject and organization identifiers",
+        "owner": "sdkwork-iam",
+        "storage": "tenant, organization, actor, user, and member scope columns",
+        "foreignKey": false
+      }
+    ]
+  },
+  "apiOwnership": {
+    "openApi": {
+      "authority": "sdkwork-im-open-api",
+      "sdkFamily": "sdkwork-im-sdk",
+      "authorityFile": "apis/open-api/im/sdkwork-im-im.openapi.yaml",
+      "operationCount": 125
+    },
+    "appApi": {
+      "authority": "sdkwork-im-app-api",
+      "sdkFamily": "sdkwork-im-app-sdk",
+      "authorityFile": "apis/app-api/communication/sdkwork-im-app-api.openapi.yaml",
+      "operationCount": 25
+    },
+    "backendApi": {
+      "authority": "sdkwork-im-backend-api",
+      "sdkFamily": "sdkwork-im-backend-sdk",
+      "authorityFile": "apis/backend-api/communication/sdkwork-im-backend-api.openapi.yaml",
+      "operationCount": 111
+    }
+  },
+  "dependencies": [
+    {
+      "owner": "sdkwork-agents",
+      "capabilities": [
+        "agent projects",
+        "sessions",
+        "turns",
+        "session items",
+        "interactions",
+        "tasks and execution audit"
+      ],
+      "consumerBoundary": "generated Agents SDK, public runtime facade, or approved assembly",
+      "allowedLocalFacts": [
+        "assignment intent",
+        "dispatch lifecycle",
+        "opaque session and turn correlation",
+        "separately published visible reply Message"
+      ],
+      "forbiddenLocalFacts": [
+        "Agent Session",
+        "Agent Turn",
+        "Agent SessionItem",
+        "Agent Interaction",
+        "execution transcript",
+        "model, provider, tool, checkpoint, and usage state"
+      ]
+    },
+    {
+      "owner": "sdkwork-drive",
+      "capabilities": [
+        "file bytes",
+        "object storage lifecycle",
+        "upload and download authorization"
+      ],
+      "consumerBoundary": "generated Drive SDK and stable Drive reference",
+      "forbiddenLocalFacts": [
+        "file bytes",
+        "storage credentials",
+        "presigned URL authority",
+        "Drive node lifecycle"
+      ]
+    },
+    {
+      "owner": "sdkwork-iam",
+      "capabilities": [
+        "authentication",
+        "users",
+        "organizations",
+        "roles and permissions"
+      ],
+      "consumerBoundary": "verified request context and generated IAM SDK",
+      "forbiddenLocalFacts": [
+        "credential authority",
+        "token issuance",
+        "IAM account or role persistence"
+      ]
+    }
+  ],
+  "dependencyDirection": [
+    "sdkwork-im -> sdkwork-agents -> sdkwork-kernel",
+    "sdkwork-im -> sdkwork-drive",
+    "sdkwork-im -> sdkwork-iam",
+    "sdkwork-agents -/-> sdkwork-im",
+    "sdkwork-kernel -/-> sdkwork-im"
+  ]
+}

@@ -5,6 +5,9 @@ public class ContactView {
     private String tenantId;
     private String ownerUserId;
     private String targetUserId;
+    private String displayName;
+    private String avatarUrl;
+    private String chatId;
     private String contactType;
     private String relationshipState;
     private String friendshipId;
@@ -12,6 +15,10 @@ public class ContactView {
     private String conversationId;
     private String establishedAt;
     private String lastInteractionAt;
+    private Boolean isStarred;
+    private Boolean isBlocked;
+    private String remark;
+    private String updatedAt;
 
     public String getTenantId() {
         return this.tenantId;
@@ -35,6 +42,30 @@ public class ContactView {
 
     public void setTargetUserId(String targetUserId) {
         this.targetUserId = targetUserId;
+    }
+
+    public String getDisplayName() {
+        return this.displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getAvatarUrl() {
+        return this.avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
+
+    public String getChatId() {
+        return this.chatId;
+    }
+
+    public void setChatId(String chatId) {
+        this.chatId = chatId;
     }
 
     public String getContactType() {
@@ -91,5 +122,37 @@ public class ContactView {
 
     public void setLastInteractionAt(String lastInteractionAt) {
         this.lastInteractionAt = lastInteractionAt;
+    }
+
+    public Boolean getIsStarred() {
+        return this.isStarred;
+    }
+
+    public void setIsStarred(Boolean isStarred) {
+        this.isStarred = isStarred;
+    }
+
+    public Boolean getIsBlocked() {
+        return this.isBlocked;
+    }
+
+    public void setIsBlocked(Boolean isBlocked) {
+        this.isBlocked = isBlocked;
+    }
+
+    public String getRemark() {
+        return this.remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
+
+    public String getUpdatedAt() {
+        return this.updatedAt;
+    }
+
+    public void setUpdatedAt(String updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

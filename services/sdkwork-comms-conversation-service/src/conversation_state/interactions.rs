@@ -10,14 +10,16 @@ use im_domain_events::CommitEnvelope;
 use serde::{Deserialize, Serialize};
 
 use crate::conversation_state::client_route_sync::ClientRouteSyncEntryDraft;
-use crate::conversation_state::model::{InteractionActorView, MessagePinView, MessageReadReceiptSummaryView};
+use crate::conversation_state::model::{
+    InteractionActorView, MessagePinView, MessageReadReceiptSummaryView,
+};
 use crate::conversation_state::scope::{
     conversation_state_organization_id_for_event, scope_key,
     validate_conversation_conversation_state_payload_scope,
 };
 use crate::conversation_state::{
-    MessageInteractionSummaryView, MessageReactionCountView, RealtimeFanoutTarget,
-    ConversationStateService,
+    ConversationStateService, MessageInteractionSummaryView, MessageReactionCountView,
+    RealtimeFanoutTarget,
 };
 
 use super::event_apply::ConversationStateError;
@@ -95,16 +97,18 @@ impl ConversationStateService {
                 entry.reaction_counts = stored
                     .reactions
                     .iter()
-                    .map(
-                        |(reaction_key, actor_ids)| crate::conversation_state::MessageReactionCountView {
+                    .map(|(reaction_key, actor_ids)| {
+                        crate::conversation_state::MessageReactionCountView {
                             reaction_key: reaction_key.clone(),
                             count: actor_ids.len() as u64,
-                        },
-                    )
+                        }
+                    })
                     .collect::<Vec<_>>();
-                entry.pin = stored.pin.as_ref().map(|pin| crate::conversation_state::model::MessagePinView {
-                    pinned_by: pin.pinned_by.clone(),
-                    pinned_at: pin.pinned_at.clone(),
+                entry.pin = stored.pin.as_ref().map(|pin| {
+                    crate::conversation_state::model::MessagePinView {
+                        pinned_by: pin.pinned_by.clone(),
+                        pinned_at: pin.pinned_at.clone(),
+                    }
                 });
             }
         }
@@ -118,11 +122,13 @@ impl ConversationStateService {
         message_id: &str,
     ) -> Option<MessageInteractionSummaryView> {
         let scope = scope_key(tenant_id, organization_id, conversation_id);
-        let view = if let Some(view) =
-            super::lock_conversation_state_mutex(&self.message_interactions, "message interaction store")
-                .get(scope.as_str())
-                .and_then(|scope_items| scope_items.get(message_id))
-                .map(stored_interaction_to_view)
+        let view = if let Some(view) = super::lock_conversation_state_mutex(
+            &self.message_interactions,
+            "message interaction store",
+        )
+        .get(scope.as_str())
+        .and_then(|scope_items| scope_items.get(message_id))
+        .map(stored_interaction_to_view)
         {
             view
         } else {
@@ -229,8 +235,10 @@ impl ConversationStateService {
     ) -> Vec<MessageInteractionSummaryView> {
         let scope = scope_key(tenant_id, organization_id, conversation_id);
         let index_keys = {
-            let index =
-                super::lock_conversation_state_mutex(&self.pinned_messages_index, "pinned message index");
+            let index = super::lock_conversation_state_mutex(
+                &self.pinned_messages_index,
+                "pinned message index",
+            );
             index.get(scope.as_str()).cloned().unwrap_or_default()
         };
         let scope_items = {
@@ -265,10 +273,14 @@ impl ConversationStateService {
             crate::conversation_state::model::PinnedMessagesListCursor::Start => None,
             other => Some(other),
         };
-        let index =
-            super::lock_conversation_state_mutex(&self.pinned_messages_index, "pinned message index");
-        let store =
-            super::lock_conversation_state_mutex(&self.message_interactions, "message interaction store");
+        let index = super::lock_conversation_state_mutex(
+            &self.pinned_messages_index,
+            "pinned message index",
+        );
+        let store = super::lock_conversation_state_mutex(
+            &self.message_interactions,
+            "message interaction store",
+        );
         let index_keys = index.get(scope.as_str()).cloned().unwrap_or_default();
         let scope_items = store.get(scope.as_str()).cloned().unwrap_or_default();
         drop(index);
@@ -288,7 +300,10 @@ impl ConversationStateService {
                     "messageSeq": item.message_seq,
                     "messageId": item.message_id,
                 });
-                crate::conversation_state::cursor_auth::encode_signed_conversation_state_cursor(&payload).ok()
+                crate::conversation_state::cursor_auth::encode_signed_conversation_state_cursor(
+                    &payload,
+                )
+                .ok()
             })
         } else {
             None
@@ -485,11 +500,13 @@ impl ConversationStateService {
             organization_id.as_str(),
             pin.conversation_id.as_str(),
         );
-        let removed_pin_at =
-            super::lock_conversation_state_mutex(&self.message_interactions, "message interaction store")
-                .get(scope.as_str())
-                .and_then(|scope_items| scope_items.get(pin.message_id.as_str()))
-                .and_then(|stored| stored.pin.as_ref().map(|summary| summary.pinned_at.clone()));
+        let removed_pin_at = super::lock_conversation_state_mutex(
+            &self.message_interactions,
+            "message interaction store",
+        )
+        .get(scope.as_str())
+        .and_then(|scope_items| scope_items.get(pin.message_id.as_str()))
+        .and_then(|stored| stored.pin.as_ref().map(|summary| summary.pinned_at.clone()));
         let changed = self.mutate_existing_message_interaction(
             pin.tenant_id.as_str(),
             organization_id.as_str(),
@@ -559,8 +576,10 @@ impl ConversationStateService {
         F: FnOnce(&mut StoredMessageInteractionSummary) -> bool,
     {
         let scope = scope_key(tenant_id, organization_id, conversation_id);
-        let mut store =
-            super::lock_conversation_state_mutex(&self.message_interactions, "message interaction store");
+        let mut store = super::lock_conversation_state_mutex(
+            &self.message_interactions,
+            "message interaction store",
+        );
         let changed = mutate(
             store
                 .entry(scope)
@@ -604,8 +623,10 @@ impl ConversationStateService {
         message_seq: u64,
         pinned_at: &str,
     ) {
-        let mut index_store =
-            super::lock_conversation_state_mutex(&self.pinned_messages_index, "pinned message index");
+        let mut index_store = super::lock_conversation_state_mutex(
+            &self.pinned_messages_index,
+            "pinned message index",
+        );
         if let Some(index) = index_store.get_mut(scope) {
             index.remove(&PinnedMessageIndexKey {
                 pinned_at: Reverse(pinned_at.to_owned()),
@@ -630,8 +651,10 @@ impl ConversationStateService {
         F: FnOnce(&mut StoredMessageInteractionSummary) -> bool,
     {
         let scope = scope_key(tenant_id, organization_id, conversation_id);
-        let mut store =
-            super::lock_conversation_state_mutex(&self.message_interactions, "message interaction store");
+        let mut store = super::lock_conversation_state_mutex(
+            &self.message_interactions,
+            "message interaction store",
+        );
         let changed = store
             .get_mut(scope.as_str())
             .and_then(|scope_items| scope_items.get_mut(message_id))
@@ -649,8 +672,10 @@ impl ConversationStateService {
         message_id: &str,
     ) {
         let scope = scope_key(tenant_id, organization_id, conversation_id);
-        let mut store =
-            super::lock_conversation_state_mutex(&self.message_interactions, "message interaction store");
+        let mut store = super::lock_conversation_state_mutex(
+            &self.message_interactions,
+            "message interaction store",
+        );
         let remove_scope = if let Some(scope_items) = store.get_mut(scope.as_str()) {
             let remove_item = scope_items
                 .get(message_id)
@@ -684,7 +709,10 @@ impl ConversationStateService {
         let actor_kind = actor.principal_kind.clone();
         let draft = ClientRouteSyncEntryDraft {
             tenant_id: tenant_id.clone(),
-            organization_id: crate::conversation_state::scope::conversation_state_organization_id_for_event(event),
+            organization_id:
+                crate::conversation_state::scope::conversation_state_organization_id_for_event(
+                    event,
+                ),
             origin_event_id: event.event_id.clone(),
             origin_event_type: event.event_type.clone(),
             conversation_id: Some(conversation_id.clone()),
@@ -708,7 +736,8 @@ impl ConversationStateService {
 
         for target in self.client_route_sync_fanout_targets_for_conversation(
             tenant_id.as_str(),
-            crate::conversation_state::scope::conversation_state_organization_id_for_event(event).as_str(),
+            crate::conversation_state::scope::conversation_state_organization_id_for_event(event)
+                .as_str(),
             conversation_id.as_str(),
             vec![crate::conversation_state::NotificationRecipientView {
                 principal_id: actor.principal_id,

@@ -5,7 +5,32 @@
     {
       "prefix": "im_",
       "owner": "im-platform",
-      "domain": "im"
+      "domain": "im",
+      "status": "active",
+      "business_domain": "instant_messaging",
+      "bounded_context": "conversation messages, normalized conversation state, realtime delivery, presence, routing, IM call signaling, IM notifications, IM automation, and IM stream frames",
+      "allowed_table_name_pattern": "^im_[a-z0-9]+(_[a-z0-9]+)*$",
+      "forbidden_aliases": [
+        "chat",
+        "craw",
+        "sdkwork_im",
+        "sdkwork",
+        "app",
+        "sys",
+        "common",
+        "comms"
+      ],
+      "valid_from": "2026-06-04",
+      "notes": [
+        "Use im_ only for instant-messaging-owned tables.",
+        "Do not rename unrelated IAM, Drive, integration, ops, or platform tables to im_.",
+        "Desktop SQLite compatibility tables must use the same im_ logical table names."
+      ]
     }
-  ]
+  ],
+  "non_im_prefix_policy": {
+    "must_not_use_im_prefix": true,
+    "keep_existing_business_prefix": true,
+    "description": "Tables outside the instant messaging bounded context keep their own business-domain prefix or existing approved legacy name. The im_ prefix is not a product-wide default."
+  }
 }

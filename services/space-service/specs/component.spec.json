@@ -1,16 +1,124 @@
 {
   "schemaVersion": 1,
-  "kind": "sdkwork.component",
-  "name": "space-service",
-  "domain": "communication",
-  "capability": "space",
-  "status": "active",
-  "gatewayServiceId": "comms-space-service",
-  "description": "Space service for spaces, groups, channels, members, invitations, and bans on /im/v3/api/spaces/*",
-  "dependencies": [
-    "im-adapters-social-postgres",
-    "im-domain-core",
-    "im-platform-contracts",
-    "im-app-context"
-  ]
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "space-service",
+    "gatewayServiceId": "comms-space-service",
+    "displayName": "Space Service",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-im/services/space-service",
+    "domain": "communication",
+    "declaredDomain": "communication",
+    "capability": "space",
+    "status": "active",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": false,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated-code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming and public symbol rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate, module, error, and concurrency rules."
+    },
+    {
+      "file": "WEB_BACKEND_SPEC.md",
+      "path": "../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
+      "purpose": "HTTP handler, service, repository, and request-context layering."
+    },
+    {
+      "file": "API_SPEC.md",
+      "path": "../../../sdkwork-specs/API_SPEC.md",
+      "purpose": "API route, request, response, error, and versioning contracts."
+    },
+    {
+      "file": "PAGINATION_SPEC.md",
+      "path": "../../../sdkwork-specs/PAGINATION_SPEC.md",
+      "purpose": "Space, group, channel, member, invitation, and ban list pagination."
+    },
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component contract and local specification rules."
+    },
+    {
+      "file": "COMPOSABLE_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPOSABLE_ARCHITECTURE_SPEC.md",
+      "purpose": "Layer roles, public exports, and composable port rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Focused contract and implementation verification requirements."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-service",
+    "publicExports": [
+      "AppState",
+      "build_app",
+      "build_domain_api_router",
+      "build_embedded_app",
+      "build_public_app",
+      "try_build_embedded_app_from_database_url_env",
+      "try_build_public_app_from_database_url_env"
+    ],
+    "providedPorts": [
+      {
+        "name": "spaceServiceRouter",
+        "export": "build_domain_api_router"
+      },
+      {
+        "name": "spaceServiceRuntime",
+        "export": "build_embedded_app"
+      }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [
+      "build_embedded_app",
+      "build_public_app",
+      "try_build_embedded_app_from_database_url_env",
+      "try_build_public_app_from_database_url_env"
+    ],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",
+    "dependencyPolicy": "The service owns space lifecycle use cases and consumes domain, persistence, context, and runtime services only through crate dependencies and public builders.",
+    "sdkPolicy": "External HTTP consumers use generated SDK families; this service does not expose handwritten client wrappers.",
+    "languagePolicy": "Rust service code follows workspace manifests and preserves handler, service, domain, and repository boundaries."
+  },
+  "verification": {
+    "commands": [
+      "cargo check -p space-service",
+      "cargo test -p space-service"
+    ]
+  },
+  "metadata": {
+    "managedBy": "manual",
+    "standardVersion": "2026-07-23"
+  }
 }

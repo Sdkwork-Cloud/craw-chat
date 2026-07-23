@@ -52,14 +52,14 @@ console.log(frames.items.length);
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/streams</code>
-  <span class="api-op-id">operationId: openStream</span>
+  <span class="api-op-id">operationId: streams.create</span>
 </div>
 
 Opens a new stream session.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.stream.open(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.open` capability.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`201 StreamSession in data.item`</span></div>
@@ -92,7 +92,7 @@ Opens a new stream session.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -107,14 +107,14 @@ Opens a new stream session.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/streams/{streamId}/frames</code>
-  <span class="api-op-id">operationId: appendStreamFrame</span>
+  <span class="api-op-id">operationId: streams.frames.create</span>
 </div>
 
 Appends a frame to an open stream.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.stream.appendStreamFrame(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.append` capability.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`201 StreamFrame in data.item`</span></div>
@@ -140,7 +140,7 @@ Appends a frame to an open stream.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -155,14 +155,14 @@ Appends a frame to an open stream.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/im/v3/api/streams/{streamId}/frames</code>
-  <span class="api-op-id">operationId: listStreamFrames</span>
+  <span class="api-op-id">operationId: streams.frames.list</span>
 </div>
 
 Reads a paged window of frames for a stream.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.stream.listStreamFrames(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation member or stream owner scope.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamFrameWindow`</span></div>
@@ -190,7 +190,7 @@ Reads a paged window of frames for a stream.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -205,14 +205,14 @@ Reads a paged window of frames for a stream.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/streams/{streamId}/checkpoint</code>
-  <span class="api-op-id">operationId: checkpointStream</span>
+  <span class="api-op-id">operationId: streams.checkpoint</span>
 </div>
 
 Updates the consumer checkpoint for the stream.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.stream.checkpoint(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.checkpoint` capability.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>
@@ -238,7 +238,7 @@ Updates the consumer checkpoint for the stream.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -253,14 +253,14 @@ Updates the consumer checkpoint for the stream.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/streams/{streamId}/complete</code>
-  <span class="api-op-id">operationId: completeStream</span>
+  <span class="api-op-id">operationId: streams.complete</span>
 </div>
 
 Marks the stream as completed.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.stream.complete(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.complete` capability.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>
@@ -286,7 +286,7 @@ Marks the stream as completed.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -301,14 +301,14 @@ Marks the stream as completed.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/streams/{streamId}/abort</code>
-  <span class="api-op-id">operationId: abortStream</span>
+  <span class="api-op-id">operationId: streams.abort</span>
 </div>
 
 Aborts the stream lifecycle.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.stream.abort(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.abort` capability.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>
@@ -333,7 +333,7 @@ Aborts the stream lifecycle.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |

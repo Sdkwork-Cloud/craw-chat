@@ -79,7 +79,7 @@ ingress (`18079`). Those routes accept `Access-Token: <bootstrap JWT>` only; do 
 before the PC renderer starts. See `specs/SDKWORK_APPBASE_IAM_INTEGRATION_SPEC.md`.
 
 Tenant, user, session, device, actor, and permission context comes from those token claims. Do not
-send client-controlled identity projection headers.
+send client-controlled identity-context headers.
 
 ## 6. First SDK Integration
 

@@ -7,7 +7,7 @@ public class PortalApi {
         self.client = client
     }
 
-    /// Read the tenant portal sign-in snapshot
+    /// Read the tenant portal access snapshot
     public func accessRetrieve() async throws -> AccessRetrieveResponse? {
         return try await client.get(ApiPaths.appPath("/portal/access"), responseType: AccessRetrieveResponse.self)
     }

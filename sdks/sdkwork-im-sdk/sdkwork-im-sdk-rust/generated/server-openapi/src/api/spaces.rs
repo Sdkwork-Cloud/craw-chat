@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::im_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{SdkWorkCommandResponse, SpaceBanCreateRequest, SpaceChannelAccessRuleCreateRequest, SpaceChannelCreateRequest, SpaceChannelUpdateRequest, SpaceCreateRequest, SpaceGroupCreateRequest, SpaceGroupMemberCreateRequest, SpaceGroupMemberUpdateRequest, SpaceGroupUpdateRequest, SpaceInviteCreateRequest, SpaceMemberCreateRequest, SpaceMemberUpdateRequest, SpaceUpdateRequest, SpacesBansCreateResponse201, SpacesBansListResponse, SpacesBansRetrieveResponse, SpacesChannelsAccessRulesCreateResponse201, SpacesChannelsAccessRulesListResponse, SpacesChannelsCreateResponse201, SpacesChannelsListResponse, SpacesChannelsRetrieveResponse, SpacesChannelsUpdateResponse, SpacesCreateResponse201, SpacesGroupsCreateResponse201, SpacesGroupsListResponse, SpacesGroupsMembersCreateResponse201, SpacesGroupsMembersListResponse, SpacesGroupsMembersRetrieveResponse, SpacesGroupsMembersUpdateResponse, SpacesGroupsRetrieveResponse, SpacesGroupsUpdateResponse, SpacesInvitesCreateResponse201, SpacesInvitesListResponse, SpacesInvitesRetrieveResponse, SpacesListResponse, SpacesMembersCreateResponse201, SpacesMembersListResponse, SpacesMembersRetrieveResponse, SpacesMembersUpdateResponse, SpacesRetrieveResponse, SpacesUpdateResponse};
+use crate::models::{SdkWorkCommandData, SpaceBanCreateRequest, SpaceBanView, SpaceChannelAccessRuleCreateRequest, SpaceChannelAccessRuleView, SpaceChannelCreateRequest, SpaceChannelUpdateRequest, SpaceChannelView, SpaceCreateRequest, SpaceGroupCreateRequest, SpaceGroupMemberCreateRequest, SpaceGroupMemberUpdateRequest, SpaceGroupMemberView, SpaceGroupUpdateRequest, SpaceGroupView, SpaceInviteCreateRequest, SpaceInviteView, SpaceMemberCreateRequest, SpaceMemberUpdateRequest, SpaceMemberView, SpaceUpdateRequest, SpaceView};
 
 #[derive(Clone)]
 pub struct SpacesApi {
@@ -16,13 +16,13 @@ impl SpacesApi {
     }
 
     /// Create a space
-    pub async fn create(&self, body: &SpaceCreateRequest) -> Result<SpacesCreateResponse201, SdkworkError> {
+    pub async fn create(&self, body: &SpaceCreateRequest) -> Result<SpaceView, SdkworkError> {
         let path = im_path(&"/spaces".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List spaces
-    pub async fn list(&self, page_size: Option<i64>, cursor: Option<&str>) -> Result<SpacesListResponse, SdkworkError> {
+    pub async fn list(&self, page_size: Option<i64>, cursor: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
@@ -32,13 +32,13 @@ impl SpacesApi {
     }
 
     /// Retrieve a space
-    pub async fn retrieve(&self, space_id: &str) -> Result<SpacesRetrieveResponse, SdkworkError> {
+    pub async fn retrieve(&self, space_id: &str) -> Result<SpaceView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update a space
-    pub async fn update(&self, space_id: &str, body: &SpaceUpdateRequest) -> Result<SpacesUpdateResponse, SdkworkError> {
+    pub async fn update(&self, space_id: &str, body: &SpaceUpdateRequest) -> Result<SpaceView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -50,7 +50,7 @@ impl SpacesApi {
     }
 
     /// List spaces members
-    pub async fn members_list(&self, space_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<SpacesMembersListResponse, SdkworkError> {
+    pub async fn members_list(&self, space_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
@@ -60,19 +60,19 @@ impl SpacesApi {
     }
 
     /// Create spaces members
-    pub async fn members_create(&self, space_id: &str, body: &SpaceMemberCreateRequest) -> Result<SpacesMembersCreateResponse201, SdkworkError> {
+    pub async fn members_create(&self, space_id: &str, body: &SpaceMemberCreateRequest) -> Result<SpaceMemberView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/members", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// retrieve spaces members
-    pub async fn members_retrieve(&self, space_id: &str, user_id: &str) -> Result<SpacesMembersRetrieveResponse, SdkworkError> {
+    pub async fn members_retrieve(&self, space_id: &str, user_id: &str) -> Result<SpaceMemberView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/members/{}", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(user_id, PathParameterSpec::new("userId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update spaces members
-    pub async fn members_update(&self, space_id: &str, user_id: &str, body: &SpaceMemberUpdateRequest) -> Result<SpacesMembersUpdateResponse, SdkworkError> {
+    pub async fn members_update(&self, space_id: &str, user_id: &str, body: &SpaceMemberUpdateRequest) -> Result<SpaceMemberView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/members/{}", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(user_id, PathParameterSpec::new("userId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -84,7 +84,7 @@ impl SpacesApi {
     }
 
     /// List spaces groups
-    pub async fn groups_list(&self, space_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<SpacesGroupsListResponse, SdkworkError> {
+    pub async fn groups_list(&self, space_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
@@ -94,19 +94,19 @@ impl SpacesApi {
     }
 
     /// Create spaces groups
-    pub async fn groups_create(&self, space_id: &str, body: &SpaceGroupCreateRequest) -> Result<SpacesGroupsCreateResponse201, SdkworkError> {
+    pub async fn groups_create(&self, space_id: &str, body: &SpaceGroupCreateRequest) -> Result<SpaceGroupView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/groups", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// retrieve spaces groups
-    pub async fn groups_retrieve(&self, space_id: &str, group_id: &str) -> Result<SpacesGroupsRetrieveResponse, SdkworkError> {
+    pub async fn groups_retrieve(&self, space_id: &str, group_id: &str) -> Result<SpaceGroupView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/groups/{}", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(group_id, PathParameterSpec::new("groupId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update spaces groups
-    pub async fn groups_update(&self, space_id: &str, group_id: &str, body: &SpaceGroupUpdateRequest) -> Result<SpacesGroupsUpdateResponse, SdkworkError> {
+    pub async fn groups_update(&self, space_id: &str, group_id: &str, body: &SpaceGroupUpdateRequest) -> Result<SpaceGroupView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/groups/{}", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(group_id, PathParameterSpec::new("groupId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -118,7 +118,7 @@ impl SpacesApi {
     }
 
     /// List spaces groups members
-    pub async fn groups_members_list(&self, space_id: &str, group_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<SpacesGroupsMembersListResponse, SdkworkError> {
+    pub async fn groups_members_list(&self, space_id: &str, group_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
@@ -128,19 +128,19 @@ impl SpacesApi {
     }
 
     /// Create spaces groups members
-    pub async fn groups_members_create(&self, space_id: &str, group_id: &str, body: &SpaceGroupMemberCreateRequest) -> Result<SpacesGroupsMembersCreateResponse201, SdkworkError> {
+    pub async fn groups_members_create(&self, space_id: &str, group_id: &str, body: &SpaceGroupMemberCreateRequest) -> Result<SpaceGroupMemberView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/groups/{}/members", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(group_id, PathParameterSpec::new("groupId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// retrieve spaces groups members
-    pub async fn groups_members_retrieve(&self, space_id: &str, group_id: &str, user_id: &str) -> Result<SpacesGroupsMembersRetrieveResponse, SdkworkError> {
+    pub async fn groups_members_retrieve(&self, space_id: &str, group_id: &str, user_id: &str) -> Result<SpaceGroupMemberView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/groups/{}/members/{}", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(group_id, PathParameterSpec::new("groupId", "simple", false)), serialize_path_parameter(user_id, PathParameterSpec::new("userId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update spaces groups members
-    pub async fn groups_members_update(&self, space_id: &str, group_id: &str, user_id: &str, body: &SpaceGroupMemberUpdateRequest) -> Result<SpacesGroupsMembersUpdateResponse, SdkworkError> {
+    pub async fn groups_members_update(&self, space_id: &str, group_id: &str, user_id: &str, body: &SpaceGroupMemberUpdateRequest) -> Result<SpaceGroupMemberView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/groups/{}/members/{}", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(group_id, PathParameterSpec::new("groupId", "simple", false)), serialize_path_parameter(user_id, PathParameterSpec::new("userId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -152,7 +152,7 @@ impl SpacesApi {
     }
 
     /// List spaces channels
-    pub async fn channels_list(&self, space_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<SpacesChannelsListResponse, SdkworkError> {
+    pub async fn channels_list(&self, space_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
@@ -162,19 +162,19 @@ impl SpacesApi {
     }
 
     /// Create spaces channels
-    pub async fn channels_create(&self, space_id: &str, body: &SpaceChannelCreateRequest) -> Result<SpacesChannelsCreateResponse201, SdkworkError> {
+    pub async fn channels_create(&self, space_id: &str, body: &SpaceChannelCreateRequest) -> Result<SpaceChannelView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/channels", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// retrieve spaces channels
-    pub async fn channels_retrieve(&self, space_id: &str, channel_id: &str) -> Result<SpacesChannelsRetrieveResponse, SdkworkError> {
+    pub async fn channels_retrieve(&self, space_id: &str, channel_id: &str) -> Result<SpaceChannelView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/channels/{}", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(channel_id, PathParameterSpec::new("channelId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update spaces channels
-    pub async fn channels_update(&self, space_id: &str, channel_id: &str, body: &SpaceChannelUpdateRequest) -> Result<SpacesChannelsUpdateResponse, SdkworkError> {
+    pub async fn channels_update(&self, space_id: &str, channel_id: &str, body: &SpaceChannelUpdateRequest) -> Result<SpaceChannelView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/channels/{}", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(channel_id, PathParameterSpec::new("channelId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -186,7 +186,7 @@ impl SpacesApi {
     }
 
     /// List spaces channels access Rules
-    pub async fn channels_access_rules_list(&self, space_id: &str, channel_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<SpacesChannelsAccessRulesListResponse, SdkworkError> {
+    pub async fn channels_access_rules_list(&self, space_id: &str, channel_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
@@ -196,7 +196,7 @@ impl SpacesApi {
     }
 
     /// Create spaces channels access Rules
-    pub async fn channels_access_rules_create(&self, space_id: &str, channel_id: &str, body: &SpaceChannelAccessRuleCreateRequest) -> Result<SpacesChannelsAccessRulesCreateResponse201, SdkworkError> {
+    pub async fn channels_access_rules_create(&self, space_id: &str, channel_id: &str, body: &SpaceChannelAccessRuleCreateRequest) -> Result<SpaceChannelAccessRuleView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/channels/{}/access_rules", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(channel_id, PathParameterSpec::new("channelId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -208,7 +208,7 @@ impl SpacesApi {
     }
 
     /// List spaces invites
-    pub async fn invites_list(&self, space_id: &str, status: Option<&str>, page_size: Option<i64>, cursor: Option<&str>) -> Result<SpacesInvitesListResponse, SdkworkError> {
+    pub async fn invites_list(&self, space_id: &str, status: Option<&str>, page_size: Option<i64>, cursor: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("status", status, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
@@ -219,13 +219,13 @@ impl SpacesApi {
     }
 
     /// Create spaces invites
-    pub async fn invites_create(&self, space_id: &str, body: &SpaceInviteCreateRequest) -> Result<SpacesInvitesCreateResponse201, SdkworkError> {
+    pub async fn invites_create(&self, space_id: &str, body: &SpaceInviteCreateRequest) -> Result<SpaceInviteView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/invites", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// retrieve spaces invites
-    pub async fn invites_retrieve(&self, space_id: &str, invite_code: &str) -> Result<SpacesInvitesRetrieveResponse, SdkworkError> {
+    pub async fn invites_retrieve(&self, space_id: &str, invite_code: &str) -> Result<SpaceInviteView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/invites/{}", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(invite_code, PathParameterSpec::new("inviteCode", "simple", false))));
         self.client.get(&path, None, None).await
     }
@@ -237,13 +237,13 @@ impl SpacesApi {
     }
 
     /// Accept spaces invites
-    pub async fn invites_accept(&self, space_id: &str, invite_code: &str) -> Result<SdkWorkCommandResponse, SdkworkError> {
+    pub async fn invites_accept(&self, space_id: &str, invite_code: &str) -> Result<SdkWorkCommandData, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/invites/{}/accept", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(invite_code, PathParameterSpec::new("inviteCode", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// List spaces bans
-    pub async fn bans_list(&self, space_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<SpacesBansListResponse, SdkworkError> {
+    pub async fn bans_list(&self, space_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
@@ -253,13 +253,13 @@ impl SpacesApi {
     }
 
     /// Create spaces bans
-    pub async fn bans_create(&self, space_id: &str, body: &SpaceBanCreateRequest) -> Result<SpacesBansCreateResponse201, SdkworkError> {
+    pub async fn bans_create(&self, space_id: &str, body: &SpaceBanCreateRequest) -> Result<SpaceBanView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/bans", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// retrieve spaces bans
-    pub async fn bans_retrieve(&self, space_id: &str, user_id: &str) -> Result<SpacesBansRetrieveResponse, SdkworkError> {
+    pub async fn bans_retrieve(&self, space_id: &str, user_id: &str) -> Result<SpaceBanView, SdkworkError> {
         let path = im_path(&format!("/spaces/{}/bans/{}", serialize_path_parameter(space_id, PathParameterSpec::new("spaceId", "simple", false)), serialize_path_parameter(user_id, PathParameterSpec::new("userId", "simple", false))));
         self.client.get(&path, None, None).await
     }

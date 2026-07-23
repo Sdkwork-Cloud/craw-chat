@@ -281,7 +281,7 @@ fn test_signature_config_compatibility_resolves_dual_token_claims() {
 }
 
 #[test]
-fn test_app_context_signature_verifies_canonical_projection_headers() {
+fn test_app_context_signature_verifies_canonical_context_headers() {
     let mut headers = HeaderMap::new();
     headers.insert("x-sdkwork-app-id", HeaderValue::from_static("sdkwork-im"));
     headers.insert("x-sdkwork-tenant-id", HeaderValue::from_static("100001"));

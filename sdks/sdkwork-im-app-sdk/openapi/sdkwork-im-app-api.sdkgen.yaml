@@ -1868,22 +1868,10 @@ components:
       required:
         - clientRouteWindowCount
         - pendingRealtimeEventCount
-        - conversationSnapshotPersistSuccessCount
-        - conversationSnapshotPersistFailureCount
-        - projectionReplayBacklogSize
-        - projectionReplayedEventCount
       properties:
         clientRouteWindowCount:
           $ref: '#/components/schemas/PortalInt64Count'
         pendingRealtimeEventCount:
-          $ref: '#/components/schemas/PortalInt64Count'
-        conversationSnapshotPersistSuccessCount:
-          $ref: '#/components/schemas/PortalInt64Count'
-        conversationSnapshotPersistFailureCount:
-          $ref: '#/components/schemas/PortalInt64Count'
-        projectionReplayBacklogSize:
-          $ref: '#/components/schemas/PortalInt64Count'
-        projectionReplayedEventCount:
           $ref: '#/components/schemas/PortalInt64Count'
     PortalDashboardSnapshot:
       type: object
@@ -1898,25 +1886,22 @@ components:
           $ref: '#/components/schemas/PortalDataAvailability'
         metrics:
           $ref: '#/components/schemas/PortalOperationalMetrics'
-    PortalConversationProjectionMetrics:
+    PortalConversationOperationalMetrics:
       type: object
       additionalProperties: false
       required:
-        - persistSuccessCount
-        - persistFailureCount
-        - restoreSuccessCount
-        - replayBacklogSize
-        - replayedEventCount
+        - laggingScopeCount
+        - maxOperationalLag
+        - pendingOutboxEventCount
+        - failedOutboxAttemptCount
       properties:
-        persistSuccessCount:
+        laggingScopeCount:
           $ref: '#/components/schemas/PortalInt64Count'
-        persistFailureCount:
+        maxOperationalLag:
           $ref: '#/components/schemas/PortalInt64Count'
-        restoreSuccessCount:
+        pendingOutboxEventCount:
           $ref: '#/components/schemas/PortalInt64Count'
-        replayBacklogSize:
-          $ref: '#/components/schemas/PortalInt64Count'
-        replayedEventCount:
+        failedOutboxAttemptCount:
           $ref: '#/components/schemas/PortalInt64Count'
     PortalConversationSnapshot:
       type: object
@@ -1929,8 +1914,8 @@ components:
           $ref: '#/components/schemas/PortalSnapshotMeta'
         availability:
           $ref: '#/components/schemas/PortalDataAvailability'
-        projection:
-          $ref: '#/components/schemas/PortalConversationProjectionMetrics'
+        metrics:
+          $ref: '#/components/schemas/PortalConversationOperationalMetrics'
     PortalAuditRecordView:
       type: object
       additionalProperties: false

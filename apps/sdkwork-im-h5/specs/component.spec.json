@@ -10,27 +10,40 @@
     "domain": "chat",
     "capability": "chat",
     "surface": "app",
-    "languages": ["typescript"],
+    "languages": [
+      "typescript"
+    ],
     "generated": false,
-    "manifests": ["package.json", "sdkwork.app.config.json"]
+    "manifests": [
+      "package.json",
+      "sdkwork.app.config.json"
+    ]
   },
   "canonicalSpecs": [
     {
       "file": "APP_H5_ARCHITECTURE_SPEC.md",
-      "path": "../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
       "purpose": "H5 mobile application root architecture standard."
     },
     {
       "file": "APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
-      "path": "../../../../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
       "purpose": "Cross-client architecture alignment."
     }
   ],
   "contracts": {
-    "publicExports": ["src/main.tsx"],
-    "runtimeEntrypoints": ["package.json#scripts.dev"],
-    "sdkClients": ["@sdkwork/im-sdk"],
-    "sdkDependencies": ["sdkwork-im-sdk"],
+    "publicExports": [
+      "src/main.tsx"
+    ],
+    "runtimeEntrypoints": [
+      "package.json#scripts.dev"
+    ],
+    "sdkClients": [
+      "@sdkwork/im-sdk"
+    ],
+    "sdkDependencies": [
+      "sdkwork-im-sdk"
+    ],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "permissionComposition": {
@@ -38,61 +51,61 @@
       "moduleCatalogRefs": [
         {
           "moduleId": "iam-kernel",
-          "manifestRef": "../../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
+          "manifestRef": "../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": false
         },
         {
           "moduleId": "drive",
-          "manifestRef": "../../../../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
+          "manifestRef": "../../../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "courses",
-          "manifestRef": "../../../../sdkwork-iam/iam/modules/courses/iam.module.manifest.json",
+          "manifestRef": "../../../sdkwork-iam/iam/modules/courses/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "commerce",
-          "manifestRef": "../../../../sdkwork-iam/iam/modules/commerce/iam.module.manifest.json",
+          "manifestRef": "../../../sdkwork-iam/iam/modules/commerce/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "ai",
-          "manifestRef": "../../../../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
+          "manifestRef": "../../../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "apps",
-          "manifestRef": "../../../../sdkwork-iam/iam/modules/apps/iam.module.manifest.json",
+          "manifestRef": "../../../sdkwork-iam/iam/modules/apps/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": false
         },
         {
           "moduleId": "messaging",
-          "manifestRef": "../../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
+          "manifestRef": "../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "notary",
-          "manifestRef": "../../../../sdkwork-notary/specs/iam.module.manifest.json",
+          "manifestRef": "../../../sdkwork-notary/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "knowledge",
-          "manifestRef": "../../../../sdkwork-knowledgebase/specs/iam.module.manifest.json",
+          "manifestRef": "../../../sdkwork-knowledgebase/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "mail",
-          "manifestRef": "../../../../sdkwork-mail/specs/iam.module.manifest.json",
+          "manifestRef": "../../../sdkwork-mail/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         }
@@ -112,9 +125,20 @@
         "allowExplicitOverridesOnly": true,
         "allowFrontendHintsWithoutServerDuplication": true
       }
-    }
+    },
+    "layerRole": "frontend-host",
+    "providedPorts": [
+      {
+        "name": "imH5Host",
+        "export": "src/main.tsx"
+      }
+    ],
+    "requiredPorts": []
   },
   "verification": {
-    "commands": ["pnpm run lint", "pnpm run build"]
+    "commands": [
+      "pnpm run lint",
+      "pnpm run build"
+    ]
   }
 }

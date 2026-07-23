@@ -262,7 +262,7 @@
         "content": "Initial SDKWork App Standard v3 manifest for Sdkwork IM PC.",
         "highlights": [
           "SDKWork App Standard v3 configuration initialized",
-          "platform_app projection metadata standardized",
+          "application registration metadata standardized",
           "Download package matrix normalized"
         ],
         "packageIds": [

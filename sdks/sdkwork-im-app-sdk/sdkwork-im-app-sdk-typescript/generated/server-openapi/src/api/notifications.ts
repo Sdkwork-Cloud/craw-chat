@@ -34,12 +34,12 @@ export class NotificationsApi {
 
 
 /** List notifications for the current principal */
-  async list(params?: NotificationsListParams): Promise<Record<string, unknown>> {
+  async list(params?: NotificationsListParams): Promise<{ items: NotificationTask[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/notifications`), query));
+    return this.client.get<{ items: NotificationTask[]; pageInfo: PageInfo; }>(appendQueryString(appApiPath(`/notifications`), query));
   }
 
 /** Get a notification task */

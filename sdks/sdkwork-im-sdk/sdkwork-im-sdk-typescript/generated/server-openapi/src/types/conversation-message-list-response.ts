@@ -3,7 +3,7 @@ import type { PageInfo } from './page-info';
 
 export interface ConversationMessageListResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { items: ConversationMessageEntry[]; pageInfo: PageInfo; highWatermark: number; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

@@ -12,9 +12,8 @@ use sdkwork_web_core::WebRequestContext;
 use serde::Deserialize;
 
 use crate::dto::{
-    ClusterView, DiagnosticBundle, LagItem, OpsHealthResponse, ProjectionReplayStatusView,
-    ProviderBindingDriftItemView, ProviderBindingSnapshotView, RetentionPurgeResponse,
-    RuntimeDirInspectionView,
+    ClusterView, DiagnosticBundle, LagItem, OpsHealthResponse, ProviderBindingDriftItemView,
+    ProviderBindingSnapshotView, RetentionPurgeResponse, RuntimeDirInspectionView,
 };
 use crate::error::OpsError;
 use crate::helpers::{ensure_ops_read_access, ensure_ops_write_access};
@@ -130,20 +129,6 @@ pub(crate) async fn get_provider_binding_drift(
         Ok(state
             .runtime
             .provider_binding_drift_page(resolve_ops_query(query)?)?)
-    })();
-    finish_api_json(&ctx, result)
-}
-
-pub(crate) async fn get_replay_status(
-    Extension(ctx): Extension<WebRequestContext>,
-    Extension(auth): Extension<AppContext>,
-    State(state): State<AppState>,
-) -> Response {
-    let result: ApiResult<SdkWorkResourceData<ProjectionReplayStatusView>> = (|| {
-        ensure_ops_read_access(&auth)?;
-        Ok(SdkWorkResourceData {
-            item: state.runtime.replay_status_view(),
-        })
     })();
     finish_api_json(&ctx, result)
 }

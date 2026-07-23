@@ -2,7 +2,9 @@ use im_platform_contracts::{ContractError, OutboxEventRecord, OutboxPublishStatu
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_utils_rust::sha256_hash;
 
-use crate::conversation_state::{ConversationProfileView, ConversationStateError, ConversationStateService};
+use crate::conversation_state::{
+    ConversationProfileView, ConversationStateError, ConversationStateService,
+};
 
 const CONVERSATION_OUTBOX_AGGREGATE_TYPE: &str = "conversation";
 const CONVERSATION_UPDATED_EVENT_TYPE: &str = "conversation.updated";
@@ -35,12 +37,12 @@ impl ConversationStateService {
                 {
                     Ok(())
                 } else {
-                    Err(ConversationStateError::StoreFailure(ContractError::Conflict(
-                        format!(
+                    Err(ConversationStateError::StoreFailure(
+                        ContractError::Conflict(format!(
                             "conversation profile event identity conflicts with another payload: {}",
                             record.event_id
-                        ),
-                    )))
+                        )),
+                    ))
                 }
             }
             Err(error) => Err(ConversationStateError::StoreFailure(error)),

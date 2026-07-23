@@ -2,7 +2,7 @@ import type { SocialSharedChannelSyncPendingClaimResponse } from './social-share
 
 export interface SocialRuntimeClaimPendingSharedChannelSyncTargetedCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialSharedChannelSyncPendingClaimResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

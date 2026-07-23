@@ -164,9 +164,6 @@ tables:
   - name: im_ban_records
     lifecycle_status: active
     owner: im-platform
-  - name: im_runtime_state_snapshots
-    lifecycle_status: active
-    owner: im-platform
   - name: im_rtc_outbox_events
     lifecycle_status: active
     owner: im-platform

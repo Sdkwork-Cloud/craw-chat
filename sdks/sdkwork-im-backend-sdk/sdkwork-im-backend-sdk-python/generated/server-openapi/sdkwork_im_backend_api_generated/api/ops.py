@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import ClusterRetrieveResponse, CommercialReadinessRetrieveResponse, DiagnosticsRetrieveResponse, HealthRetrieveResponse, LagListResponse, ProviderBindingDriftListResponse, ProviderBindingSnapshotListResponse, ReplayStatusRetrieveResponse, RuntimeDirRetrieveResponse
+from ..models import ClusterRetrieveResponse, CommercialReadinessRetrieveResponse, DiagnosticsRetrieveResponse, HealthRetrieveResponse, LagListResponse, ProviderBindingDriftListResponse, ProviderBindingSnapshotListResponse, RuntimeDirRetrieveResponse
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -131,7 +131,6 @@ class OpsApi:
         self.health = OpsHealthApi(client)
         self.cluster = OpsClusterApi(client)
         self.lag = OpsLagApi(client)
-        self.replay_status = OpsReplayStatusApi(client)
         self.commercial_readiness = OpsCommercialReadinessApi(client)
         self.runtime_dir = OpsRuntimeDirApi(client)
         self.provider_bindings = OpsProviderBindingsApi(client)
@@ -168,23 +167,12 @@ class OpsLagApi:
 
 
     def retrieve(self, page_size: Optional[int] = None, cursor: Optional[str] = None) -> LagListResponse:
-        """Retrieve projection lag"""
+        """Retrieve operational lag"""
         query = build_query_string([
             {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/backend/v3/api/ops/lag", query))
-
-class OpsReplayStatusApi:
-    """ops ops.replay_status API client."""
-
-    def __init__(self, client: HttpClient):
-        self._client = client
-
-
-    def retrieve(self) -> ReplayStatusRetrieveResponse:
-        """Retrieve replay status"""
-        return self._client.get(f"/backend/v3/api/ops/replay_status")
 
 class OpsCommercialReadinessApi:
     """ops ops.commercial_readiness API client."""

@@ -441,7 +441,8 @@ where
             audit_class: "default".into(),
         };
         append_conversation_creation_batch(
-            &self.journal,
+            self,
+            &conversation,
             envelope,
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -460,16 +461,6 @@ where
         state.insert_conversation(scope_key, conversation);
         drop(state);
 
-        // 创建后立即持久化聚合状态（成员 + 已读游标）到 AggregateStore，
-        // 使 RTC 鉴权、session-gateway 订阅校验、消息搜索等只读该关系表的读取方
-        // 在会话创建后即可见全部成员，避免首次 mutation 前 peer 不在投影表导致 40301。
-        // 必须在 maybe_evict_after_write 之前执行：驱逐后该会话可能不在内存，
-        // persist_aggregate_state 会因 ConversationNotFound 失败。
-        self.best_effort_persist_aggregate_state(
-            command.tenant_id.as_str(),
-            command.organization_id.as_str(),
-            command.conversation_id.as_str(),
-        );
         self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
@@ -1042,7 +1033,8 @@ where
             audit_class: "default".into(),
         };
         append_conversation_creation_batch(
-            &self.journal,
+            self,
+            &thread_conversation,
             envelope,
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -1058,11 +1050,6 @@ where
             .insert(business_scope_key, command.conversation_id.clone());
         drop(state);
 
-        self.best_effort_persist_aggregate_state(
-            command.tenant_id.as_str(),
-            command.organization_id.as_str(),
-            command.conversation_id.as_str(),
-        );
         self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
@@ -1271,11 +1258,6 @@ where
                 ) {
                     let replay_event_id = existing.event_id.clone();
                     drop(state);
-                    self.persist_aggregate_state_if_configured(
-                        command.tenant_id.as_str(),
-                        command.organization_id.as_str(),
-                        conversation_id.as_str(),
-                    )?;
                     return Ok(CreateConversationResult::replayed_with_request_key(
                         conversation_id,
                         replay_event_id,
@@ -1384,7 +1366,8 @@ where
             audit_class: "default".into(),
         };
         append_conversation_creation_batch(
-            &self.journal,
+            self,
+            &conversation,
             envelope,
             command.tenant_id.as_str(),
             conversation_id.as_str(),
@@ -1398,11 +1381,6 @@ where
             .insert(business_scope_key, conversation_id.clone());
         drop(state);
 
-        self.persist_aggregate_state_if_configured(
-            command.tenant_id.as_str(),
-            command.organization_id.as_str(),
-            conversation_id.as_str(),
-        )?;
         self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             conversation_id,
@@ -1663,7 +1641,8 @@ where
             audit_class: "default".into(),
         };
         append_conversation_creation_batch(
-            &self.journal,
+            self,
+            &conversation,
             envelope,
             command.tenant_id.as_str(),
             conversation_id.as_str(),
@@ -1677,11 +1656,6 @@ where
             .insert(business_scope_key, conversation_id.clone());
         drop(state);
 
-        self.best_effort_persist_aggregate_state(
-            command.tenant_id.as_str(),
-            command.organization_id.as_str(),
-            conversation_id.as_str(),
-        );
         self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             conversation_id,
@@ -1923,7 +1897,8 @@ where
             audit_class: "default".into(),
         };
         append_conversation_creation_batch(
-            &self.journal,
+            self,
+            &conversation,
             envelope,
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -1934,11 +1909,6 @@ where
         state.insert_conversation(scope_key, conversation);
         drop(state);
 
-        self.best_effort_persist_aggregate_state(
-            command.tenant_id.as_str(),
-            command.organization_id.as_str(),
-            command.conversation_id.as_str(),
-        );
         self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
@@ -2255,7 +2225,8 @@ where
             audit_class: "default".into(),
         };
         append_conversation_creation_batch(
-            &self.journal,
+            self,
+            &conversation,
             envelope,
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -2266,11 +2237,6 @@ where
         state.insert_conversation(scope_key, conversation);
         drop(state);
 
-        self.best_effort_persist_aggregate_state(
-            command.tenant_id.as_str(),
-            command.organization_id.as_str(),
-            command.conversation_id.as_str(),
-        );
         self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
@@ -2281,7 +2247,8 @@ where
 }
 
 fn append_conversation_creation_batch<J>(
-    journal: &J,
+    runtime: &ConversationRuntime<J>,
+    conversation: &ConversationState,
     created_envelope: CommitEnvelope,
     tenant_id: &str,
     conversation_id: &str,
@@ -2293,6 +2260,12 @@ where
     J: CommitJournal,
 {
     let organization_id = created_envelope.organization_id.clone();
+    let agent_assignments = runtime
+        .durable_conversation_event_writer
+        .as_ref()
+        .and(conversation.aggregate.agent_assignments())
+        .map(|assignments| build_normalized_agent_assignment_change(&created_envelope, assignments))
+        .transpose()?;
     let mut envelopes = Vec::with_capacity(members.len() + 1);
     envelopes.push(created_envelope);
     for (member, ordering_seq) in members {
@@ -2308,6 +2281,12 @@ where
             actor_kind,
         ));
     }
-    journal.append_batch(envelopes)?;
-    Ok(())
+    runtime.persist_normalized_conversation_commit_with_assignments(
+        tenant_id,
+        organization_id.as_str(),
+        conversation_id,
+        conversation,
+        agent_assignments,
+        envelopes,
+    )
 }

@@ -1,12 +1,12 @@
 //! RPC dispatch for inbox/conversation_state-owned conversation and message surfaces.
 
-use im_app_context::AppContext;
 use crate::conversation_state::{
-    FavoriteMessageRequest, ConversationStateAccessError,
+    ConversationStateAccessError, FavoriteMessageRequest,
     UpdateConversationPreferencesRequest as ConversationStateUpdateConversationPreferencesRequest,
     UpdateConversationProfileRequest as ConversationStateUpdateConversationProfileRequest,
     default_conversation_state_service,
 };
+use im_app_context::AppContext;
 use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::{
     ConversationPreferencesView as RpcConversationPreferencesView,
     ConversationProfileView as RpcConversationProfileView, CreateMessageFavoriteRequest,
@@ -23,7 +23,8 @@ use sdkwork_im_rpc_service_rust::{ImRpcError, ImRpcUnaryResponse};
 use super::message_realtime::ConversationRealtimeEvent;
 use super::rpc_dispatch::{map_api_error, page_request, page_response, required_field};
 
-fn conversation_state_service() -> std::sync::Arc<crate::conversation_state::ConversationStateService> {
+fn conversation_state_service()
+-> std::sync::Arc<crate::conversation_state::ConversationStateService> {
     default_conversation_state_service()
 }
 
@@ -52,7 +53,9 @@ fn rpc_profile_view(
     }
 }
 
-fn rpc_favorite_view(view: crate::conversation_state::MessageFavoriteView) -> RpcMessageFavoriteView {
+fn rpc_favorite_view(
+    view: crate::conversation_state::MessageFavoriteView,
+) -> RpcMessageFavoriteView {
     RpcMessageFavoriteView {
         favorite_id: view.favorite_id,
         message_id: view.message_id,

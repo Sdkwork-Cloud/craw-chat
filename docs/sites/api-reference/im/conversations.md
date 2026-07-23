@@ -59,16 +59,16 @@ must not use it as a list, retrieve, or reuse endpoint.
   <span class="api-op-id">operationId: inbox.list</span>
 </div>
 
-Returns the cursor-paginated unified conversation list for the current principal. The list is served
-by `projection-service` from the maintained inbox projection and includes ordinary human chats,
-groups, system conversations, handoffs, and agent dialogs visible to the caller.
+Returns the cursor-paginated unified Conversation list for the current principal. The list is read
+from normalized Conversation, membership, and preference state and includes ordinary human chats,
+groups, system Conversations, handoffs, and agent dialogs visible to the caller.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.transport.chat.inbox.list()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 SdkWorkPageData<ConversationInboxEntry>`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 SdkWorkPageData&lt;ConversationInboxEntry&gt;`</span></div>
 </div>
 
 ### Response `200`
@@ -84,7 +84,7 @@ groups, system conversations, handoffs, and agent dialogs visible to the caller.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -99,14 +99,14 @@ groups, system conversations, handoffs, and agent dialogs visible to the caller.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations</code>
-  <span class="api-op-id">operationId: createConversation</span>
+  <span class="api-op-id">operationId: conversations.create</span>
 </div>
 
 Creates a regular conversation.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`201 CreateConversationResult in data.item`</span></div>
@@ -126,7 +126,7 @@ Creates a regular conversation.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -141,7 +141,7 @@ Creates a regular conversation.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/agent_dialogs</code>
-  <span class="api-op-id">operationId: createAgentDialog</span>
+  <span class="api-op-id">operationId: conversations.agentDialogs.create</span>
 </div>
 
 Creates a one-to-one conversation with a specific agent. Before calling this command, app clients
@@ -151,7 +151,7 @@ result; conflicting reuse of an idempotency key returns `40901`.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`201 CreateConversationResult in data.item`</span></div>
@@ -171,7 +171,7 @@ result; conflicting reuse of an idempotency key returns `40901`.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -186,14 +186,14 @@ result; conflicting reuse of an idempotency key returns `40901`.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/agent_handoffs</code>
-  <span class="api-op-id">operationId: createAgentHandoff</span>
+  <span class="api-op-id">operationId: conversations.agentHandoffs.create</span>
 </div>
 
 Creates a handoff conversation and initializes handoff state.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`201 CreateConversationResult in data.item`</span></div>
@@ -213,7 +213,7 @@ Creates a handoff conversation and initializes handoff state.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -228,14 +228,14 @@ Creates a handoff conversation and initializes handoff state.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/system_channels</code>
-  <span class="api-op-id">operationId: createSystemChannel</span>
+  <span class="api-op-id">operationId: conversations.systemChannels.create</span>
 </div>
 
 Creates a system channel for the specified subscriber principal.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`201 CreateConversationResult in data.item`</span></div>
@@ -255,7 +255,7 @@ Creates a system channel for the specified subscriber principal.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -270,14 +270,14 @@ Creates a system channel for the specified subscriber principal.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/im/v3/api/chat/conversations/{conversationId}</code>
-  <span class="api-op-id">operationId: getConversationSummary</span>
+  <span class="api-op-id">operationId: conversations.retrieve</span>
 </div>
 
-Reads the conversation summary projection.
+Reads the normalized Conversation summary owned by the Conversation service.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationSummaryView`</span></div>
@@ -297,7 +297,7 @@ Reads the conversation summary projection.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -313,14 +313,14 @@ Reads the conversation summary projection.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/agent_handoff</code>
-  <span class="api-op-id">operationId: getAgentHandoffState</span>
+  <span class="api-op-id">operationId: conversations.agentHandoff.retrieve</span>
 </div>
 
 Reads the current handoff state for the conversation.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AgentHandoffStateView`</span></div>
@@ -341,7 +341,7 @@ Reads the current handoff state for the conversation.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -356,14 +356,14 @@ Reads the current handoff state for the conversation.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/agent_handoff/accept</code>
-  <span class="api-op-id">operationId: acceptAgentHandoff</span>
+  <span class="api-op-id">operationId: conversations.agentHandoff.accept</span>
 </div>
 
 Accepts the handoff from the target side. No JSON request body is required.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AgentHandoffStateView`</span></div>
@@ -389,7 +389,7 @@ None. This operation does not accept a JSON request body.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -404,14 +404,14 @@ None. This operation does not accept a JSON request body.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/agent_handoff/resolve</code>
-  <span class="api-op-id">operationId: resolveAgentHandoff</span>
+  <span class="api-op-id">operationId: conversations.agentHandoff.resolve</span>
 </div>
 
 Marks the handoff as resolved. No JSON request body is required.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AgentHandoffStateView`</span></div>
@@ -437,7 +437,7 @@ None. This operation does not accept a JSON request body.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -452,14 +452,14 @@ None. This operation does not accept a JSON request body.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/agent_handoff/close</code>
-  <span class="api-op-id">operationId: closeAgentHandoff</span>
+  <span class="api-op-id">operationId: conversations.agentHandoff.close</span>
 </div>
 
 Closes the handoff. No JSON request body is required.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 AgentHandoffStateView`</span></div>
@@ -485,7 +485,7 @@ None. This operation does not accept a JSON request body.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |

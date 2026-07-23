@@ -1,10 +1,13 @@
 use im_app_context::AppContext;
 use im_domain_core::retention::retention_until_from_envelope;
 use im_platform_contracts::{
-    AgentDispatchReplyCompletion, AgentReplyCommitResult, CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
+    AgentAssignmentSource, AgentDispatchReplyCompletion, AgentReplyCommitResult,
+    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAgentAssignmentItem,
     ConversationAggregateStore, ConversationMemberRecord, ConversationSeqAllocator, IdGenerator,
-    MessageStore, OutboxStore, ReadCursorRecord, RealtimeEventPublisher, RetentionScopeStore,
-    StoredMessageRecord,
+    MessageStore, NormalizedConversationCommit, NormalizedConversationRecord, OutboxStore,
+    ReadCursorRecord, RealtimeEventPublisher, ReplaceConversationAgentAssignments,
+    RetentionScopeStore, StoredMessageMutation, StoredMessageMutationTarget,
+    StoredMessagePinRecord, StoredMessageReactionRecord, StoredMessageRecord,
 };
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{
@@ -21,11 +24,12 @@ pub use im_domain_core::conversation::{
 };
 use im_domain_core::conversation::{
     ConversationAgentAssignment, ConversationAgentAssignmentError, ConversationAgentAssignmentSet,
-    ConversationAgentAssignmentSource, ConversationAggregateState, ConversationMember,
-    ConversationPolicy, ConversationReadCursor, ConversationReadCursorView, ConversationRoster,
-    LEGACY_GROUP_AGENT_DEFAULT_POLICY_ID, LEGACY_GROUP_AGENT_DEFAULT_POLICY_VERSION,
-    MembershipRole, MembershipState, build_conversation_member_with_attributes,
-    build_default_read_cursor, legacy_group_agent_assignment_set, member_episode_id, member_id,
+    ConversationAgentAssignmentSource, ConversationAggregateState, ConversationLifecycleState,
+    ConversationMember, ConversationPolicy, ConversationReadCursor, ConversationReadCursorView,
+    ConversationRoster, LEGACY_GROUP_AGENT_DEFAULT_POLICY_ID,
+    LEGACY_GROUP_AGENT_DEFAULT_POLICY_VERSION, MembershipRole, MembershipState,
+    build_conversation_member_with_attributes, build_default_read_cursor,
+    legacy_group_agent_assignment_set, member_episode_id, member_id,
 };
 use im_domain_core::media::{DriveReference, MediaResource, MediaSource};
 use im_domain_core::message::{
@@ -56,6 +60,7 @@ mod creation;
 mod cursor_signing;
 mod direct_message_access;
 mod durable_conversation_event;
+mod durable_message_mutation;
 mod durable_message_post;
 mod governance;
 mod group_knowledgebase_outbox_relay;
@@ -82,6 +87,7 @@ mod support;
 
 use self::governance::ConversationPolicyAppliedPayload;
 use self::group_lifecycle::ensure_conversation_write_allowed;
+use self::message_realtime::ConversationRealtimeEvent;
 use self::policy::MessagePostPolicy;
 use self::runtime_metrics::ConversationRuntimeMetrics;
 pub use self::runtime_metrics::ConversationRuntimeMetricsSnapshot;
@@ -106,6 +112,7 @@ pub use agent_dispatch_worker::{
 };
 pub use direct_message_access::DirectMessageAccessGate;
 pub use durable_conversation_event::DurableConversationEventWriter;
+pub use durable_message_mutation::DurableMessageMutationWriter;
 pub use durable_message_post::DurableMessagePostWriter;
 pub use group_knowledgebase_outbox_relay::{
     GroupKnowledgebaseOutboxRelayHandle, spawn_group_knowledgebase_outbox_relay,
@@ -855,6 +862,7 @@ fn estimated_json_bytes(value: &impl serde::Serialize) -> usize {
         .unwrap_or(MESSAGE_BODY_MAX_BYTES)
 }
 
+#[derive(Clone)]
 struct BoundedReplayCache<V> {
     entries: HashMap<String, V>,
     insertion_order: VecDeque<String>,
@@ -1628,7 +1636,7 @@ fn runtime_json_string<T: serde::Serialize>(value: &T) -> Result<String, Runtime
     })
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct ConversationState {
     aggregate: ConversationAggregateState,
     roster: ConversationRoster,
@@ -2506,22 +2514,6 @@ fn validate_agent_dispatch_reply(
     Ok(())
 }
 
-// This internal transition result keeps the full idempotent view and mutation
-// payload inline because the runtime immediately pattern-matches and forwards it
-// within a single command path; boxing would add indirection without changing
-// release behavior.
-#[allow(clippy::large_enum_variant)]
-enum AgentHandoffStatusTransitionOutcome {
-    Idempotent(AgentHandoffStateView),
-    Mutated {
-        payload: AgentHandoffStatusChangedPayload,
-        ordering_seq: u64,
-        actor_id: String,
-        actor_kind: String,
-        retention_class: String,
-    },
-}
-
 const IN_MEMORY_JOURNAL_MAX_EVENTS_DEFAULT: usize = 100_000;
 const IN_MEMORY_JOURNAL_MAX_EVENTS_ENV: &str = "SDKWORK_IM_JOURNAL_MAX_EVENTS";
 
@@ -2772,6 +2764,7 @@ pub struct ConversationRuntime<J> {
     direct_message_access_gate: Option<Arc<dyn DirectMessageAccessGate>>,
     /// 可选的原子消息写入器（Postgres journal + message + outbox 单事务）。
     durable_message_post_writer: Option<Arc<dyn DurableMessagePostWriter>>,
+    durable_message_mutation_writer: Option<Arc<dyn DurableMessageMutationWriter>>,
     durable_conversation_event_writer: Option<Arc<dyn DurableConversationEventWriter>>,
 }
 
@@ -2794,6 +2787,7 @@ where
             realtime_publisher: None,
             direct_message_access_gate: None,
             durable_message_post_writer: None,
+            durable_message_mutation_writer: None,
             durable_conversation_event_writer: None,
         }
     }
@@ -2840,6 +2834,14 @@ where
         writer: Arc<dyn DurableMessagePostWriter>,
     ) -> Self {
         self.durable_message_post_writer = Some(writer);
+        self
+    }
+
+    pub fn with_durable_message_mutation_writer(
+        mut self,
+        writer: Arc<dyn DurableMessageMutationWriter>,
+    ) -> Self {
+        self.durable_message_mutation_writer = Some(writer);
         self
     }
 
@@ -3267,8 +3269,8 @@ where
         self.evict_idle_conversations_with_limits(max, max_bytes);
     }
 
-    /// 将会话的当前内存聚合状态（成员 + 已读游标）持久化到 AggregateStore。
-    /// 多实例部署时在成员变更/已读游标更新后调用，使其他实例可见。
+    /// Persists cached members and read cursors for explicit local recovery
+    /// and test workflows. Production commands use the normalized writer.
     pub fn persist_aggregate_state(
         &self,
         tenant_id: &str,
@@ -3284,53 +3286,188 @@ where
             .conversations
             .get(conversation_scope_key(tenant_id, organization_id, conversation_id).as_str())
             .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
-        for member in conversation.roster.members().values() {
-            let record = member_to_record(tenant_id, organization_id, conversation_id, member);
-            store.upsert_member(record).map_err(RuntimeError::from)?;
-        }
-        for cursor in conversation.roster.read_cursors().values() {
-            let record = cursor_to_record(tenant_id, organization_id, conversation_id, cursor);
-            store
-                .upsert_read_cursor(record)
-                .map_err(RuntimeError::from)?;
+        let members = conversation
+            .roster
+            .members()
+            .values()
+            .map(|member| member_to_record(tenant_id, organization_id, conversation_id, member))
+            .collect();
+        let read_cursors = conversation
+            .roster
+            .read_cursors()
+            .values()
+            .map(|cursor| cursor_to_record(tenant_id, organization_id, conversation_id, cursor))
+            .collect();
+        persist_aggregate_records(store.as_ref(), members, read_cursors)
+    }
+
+    fn persist_normalized_conversation_commit_with_assignments(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        conversation: &ConversationState,
+        agent_assignments: Option<ReplaceConversationAgentAssignments>,
+        envelopes: Vec<CommitEnvelope>,
+    ) -> Result<(), RuntimeError> {
+        let members = conversation
+            .roster
+            .members()
+            .values()
+            .map(|member| member_to_record(tenant_id, organization_id, conversation_id, member))
+            .collect();
+        let read_cursors = conversation
+            .roster
+            .read_cursors()
+            .values()
+            .map(|cursor| cursor_to_record(tenant_id, organization_id, conversation_id, cursor))
+            .collect();
+        self.persist_normalized_conversation_changes_with_assignments(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            conversation,
+            members,
+            read_cursors,
+            agent_assignments,
+            envelopes,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn persist_normalized_conversation_changes(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        conversation: &ConversationState,
+        members: Vec<ConversationMemberRecord>,
+        read_cursors: Vec<ReadCursorRecord>,
+        envelopes: Vec<CommitEnvelope>,
+    ) -> Result<(), RuntimeError> {
+        self.persist_normalized_conversation_changes_with_assignments(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            conversation,
+            members,
+            read_cursors,
+            None,
+            envelopes,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn persist_normalized_conversation_changes_with_assignments(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        conversation: &ConversationState,
+        members: Vec<ConversationMemberRecord>,
+        read_cursors: Vec<ReadCursorRecord>,
+        agent_assignments: Option<ReplaceConversationAgentAssignments>,
+        envelopes: Vec<CommitEnvelope>,
+    ) -> Result<(), RuntimeError> {
+        let Some(writer) = self.durable_conversation_event_writer.as_ref() else {
+            if self.outbox_store.is_some() {
+                return Err(RuntimeError::Conflict(
+                    "durable conversation outbox persistence requires an atomic normalized conversation writer"
+                        .into(),
+                ));
+            }
+            self.journal.append_batch(envelopes)?;
+            if let Some(store) = self.aggregate_store.as_ref() {
+                persist_aggregate_records(store.as_ref(), members, read_cursors)?;
+            }
+            return Ok(());
+        };
+        let last_activity_at = envelopes
+            .last()
+            .map(|envelope| envelope.committed_at.clone())
+            .ok_or_else(|| RuntimeError::InvalidInput("conversation commit is empty".into()))?;
+        let lifecycle_state = match conversation.aggregate.lifecycle_state() {
+            ConversationLifecycleState::Active => "active",
+            ConversationLifecycleState::Archived => "archived",
+        };
+        let outboxes = envelopes
+            .iter()
+            .map(|envelope| {
+                self.build_conversation_event_outbox_record(ConversationRealtimeEvent {
+                    tenant_id,
+                    organization_id,
+                    conversation_id,
+                    event_type: envelope.event_type.as_str(),
+                    journal_event_id: envelope.event_id.as_str(),
+                    payload_json: envelope.payload.clone(),
+                    occurred_at: envelope.occurred_at.as_str(),
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        writer
+            .persist_normalized_conversation_commit(NormalizedConversationCommit {
+                conversation: NormalizedConversationRecord {
+                    tenant_id: tenant_id.to_owned(),
+                    organization_id: organization_id.to_owned(),
+                    conversation_id: conversation_id.to_owned(),
+                    conversation_type: conversation.aggregate.conversation_type().to_owned(),
+                    lifecycle_state: lifecycle_state.into(),
+                    commit_seq: conversation.aggregate.commit_seq(),
+                    member_epoch: conversation.aggregate.member_epoch(),
+                    last_activity_at,
+                    retention_until: None,
+                },
+                members,
+                read_cursors,
+                agent_assignments,
+                envelopes: envelopes.clone(),
+                outboxes,
+            })
+            .map_err(RuntimeError::from)?;
+        for envelope in &envelopes {
+            crate::conversation_state::refresh_conversation_cache(envelope);
         }
         Ok(())
     }
 
-    fn best_effort_persist_aggregate_state(
+    fn persist_message_mutation_commit(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-    ) {
-        if self.aggregate_store.is_some()
-            && let Err(error) =
-                self.persist_aggregate_state(tenant_id, organization_id, conversation_id)
-        {
-            tracing::warn!(
-                tenant_id,
-                organization_id,
-                conversation_id,
-                error = ?error,
-                "failed to persist conversation aggregate state"
-            );
+        envelope: CommitEnvelope,
+        mutation: StoredMessageMutation,
+        realtime_payload_json: String,
+        local_change: bool,
+    ) -> Result<bool, RuntimeError> {
+        if let Some(writer) = self.durable_message_mutation_writer.as_ref() {
+            let outbox = self
+                .build_message_mutation_outbox_record(
+                    envelope.tenant_id.as_str(),
+                    envelope.organization_id.as_str(),
+                    envelope.aggregate_id.as_str(),
+                    envelope.event_type.as_str(),
+                    envelope.event_id.as_str(),
+                    realtime_payload_json,
+                )?
+                .ok_or_else(|| {
+                    RuntimeError::Conflict(
+                        "durable message mutation requires transactional outbox configuration"
+                            .into(),
+                    )
+                })?;
+            return writer
+                .persist_message_mutation(envelope, mutation, outbox)
+                .map(|position| position.is_some())
+                .map_err(RuntimeError::from);
         }
-        let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
-        write_runtime_state(&self.state, "runtime.state.aggregate_persisted")
-            .touch_conversation(scope_key.as_str());
-        self.maybe_evict_after_write();
-    }
-
-    fn persist_aggregate_state_if_configured(
-        &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-    ) -> Result<(), RuntimeError> {
-        if self.aggregate_store.is_none() {
-            return Ok(());
+        if !local_change {
+            return Ok(false);
         }
-        self.persist_aggregate_state(tenant_id, organization_id, conversation_id)
+        if self.message_store.is_some() || self.outbox_store.is_some() {
+            return Err(RuntimeError::Conflict(
+                "durable message mutation requires an atomic normalized message writer".into(),
+            ));
+        }
+        self.journal.append(envelope)?;
+        Ok(true)
     }
 
     pub fn post_message(
@@ -3732,6 +3869,8 @@ where
                             updated_at: message.occurred_at.clone(),
                             deleted_at: None,
                             retention_until,
+                            reactions: Vec::new(),
+                            pin: None,
                         };
 
                         if let Some(writer) = &self.durable_message_post_writer {
@@ -3756,30 +3895,18 @@ where
                                     .map_err(RuntimeError::from)?;
                             }
                         } else {
+                            if self.message_store.is_some() || self.outbox_store.is_some() {
+                                return Err(RuntimeError::Conflict(
+                                    "durable message or outbox persistence requires an atomic durable message writer"
+                                        .into(),
+                                ));
+                            }
                             if dispatch_completion.is_some() {
                                 return Err(RuntimeError::Conflict(
                                     "agent dispatch reply requires an atomic durable writer".into(),
                                 ));
                             }
                             self.journal.append_batch(journal_envelopes)?;
-
-                            if let Some(store) = &self.message_store {
-                                store
-                                    .insert_message(stored_record)
-                                    .map_err(RuntimeError::from)?;
-                            }
-                            if let Some(outbox_store) = &self.outbox_store {
-                                for outbox in outboxes {
-                                    if let Err(error) = outbox_store.enqueue(outbox) {
-                                        tracing::warn!(
-                                            conversation_id = %message.conversation_id,
-                                            message_id = %message.message_id,
-                                            error = ?error,
-                                            "agent/message outbox enqueue failed after journal commit; durable dispatch event remains replayable"
-                                        );
-                                    }
-                                }
-                            }
                         }
 
                         // Publish the in-memory watermark only after the
@@ -3894,11 +4021,12 @@ where
                 command.organization_id.as_str(),
                 conversation_id.as_str(),
             );
-            state.touch_conversation(scope_key.as_str());
-            let conversation = state
+            let live_conversation = state
                 .conversations
                 .get_mut(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
+            let mut candidate = live_conversation.clone();
+            let conversation = &mut candidate;
             let editor_member = resolve_active_member_with_kind(
                 conversation,
                 command.editor.id.as_str(),
@@ -3957,37 +4085,79 @@ where
                 edited_at,
             };
             let retention_class = conversation_retention_class(conversation);
-            let ordering_seq = conversation.aggregate.next_commit_seq();
+            let ordering_seq = conversation
+                .aggregate
+                .commit_seq()
+                .checked_add(1)
+                .ok_or_else(|| {
+                    RuntimeError::Conflict("conversation journal ordering sequence overflow".into())
+                })?;
             let event_id = format!("evt_{}_edited_{ordering_seq}", edited.message_id);
-            self.journal.append(build_message_edited_envelope(
+            let mut envelope = build_message_edited_envelope(
                 &edited,
                 command.organization_id.as_str(),
                 event_id.as_str(),
                 ordering_seq,
                 retention_class.as_str(),
-            ))?;
+            );
+            envelope.idempotency_key = command.idempotency_key.clone();
+            let normalized_body = edited.body.clone().with_derived_summary();
+            let mutation = StoredMessageMutation::Edited {
+                target: StoredMessageMutationTarget {
+                    tenant_id: command.tenant_id.clone(),
+                    organization_id: command.organization_id.clone(),
+                    conversation_id: edited.conversation_id.clone(),
+                    message_id: edited.message_id.clone(),
+                    message_seq: edited.message_seq,
+                },
+                payload_json: runtime_json_string(&normalized_body)?,
+                payload_hash: sha256_message_hash(&normalized_body),
+                edited_at: edited.edited_at.clone(),
+            };
+            let realtime_payload = runtime_json_string(&json!({
+                "conversationId": edited.conversation_id,
+                "messageId": edited.message_id,
+                "messageSeq": edited.message_seq,
+                "summary": normalized_body
+                    .summary_or_derived()
+                    .unwrap_or_else(|| "[message]".into()),
+            }))?;
             let evicted_message_ids = conversation
                 .message_log
                 .apply_edited(&edited)
                 .ok_or_else(|| RuntimeError::MessageNotFound(edited.message_id.clone()))?
                 .evicted_message_ids;
+            if !self.persist_message_mutation_commit(
+                envelope,
+                mutation,
+                realtime_payload.clone(),
+                true,
+            )? {
+                return Err(RuntimeError::Conflict(
+                    "message edit did not advance normalized state".into(),
+                ));
+            }
+            conversation.aggregate.observe_commit_seq(ordering_seq);
+            *live_conversation = candidate;
             self.metrics
                 .record_message_evictions(evicted_message_ids.len());
-            for message_id in evicted_message_ids {
+            for message_id in &evicted_message_ids {
                 state
                     .message_locator
                     .remove(command.tenant_id.as_str(), message_id.as_str());
             }
-            (edited, event_id)
+            state.touch_conversation(scope_key.as_str());
+            (edited, event_id, realtime_payload)
         };
 
-        let (edited, event_id) = edited;
+        let (edited, event_id, realtime_payload) = edited;
 
-        self.publish_message_edited_realtime(
+        self.publish_message_mutation_realtime_after_commit(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
-            &edited,
-            event_id.as_str(),
+            edited.conversation_id.as_str(),
+            "message.edited",
+            realtime_payload,
         )?;
         if let Some(idempotency_key) = command
             .idempotency_key
@@ -4057,11 +4227,12 @@ where
                 command.organization_id.as_str(),
                 conversation_id.as_str(),
             );
-            state.touch_conversation(scope_key.as_str());
-            let conversation = state
+            let live_conversation = state
                 .conversations
                 .get_mut(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
+            let mut candidate = live_conversation.clone();
+            let conversation = &mut candidate;
             let recalled_member = resolve_active_member_with_kind(
                 conversation,
                 command.recalled_by.id.as_str(),
@@ -4123,37 +4294,77 @@ where
                 recalled_at,
             };
             let retention_class = conversation_retention_class(conversation);
-            let ordering_seq = conversation.aggregate.next_commit_seq();
+            let ordering_seq = conversation
+                .aggregate
+                .commit_seq()
+                .checked_add(1)
+                .ok_or_else(|| {
+                    RuntimeError::Conflict("conversation journal ordering sequence overflow".into())
+                })?;
             let event_id = format!("evt_{}_recalled_{ordering_seq}", recalled.message_id);
-            self.journal.append(build_message_recalled_envelope(
+            let mut envelope = build_message_recalled_envelope(
                 &recalled,
                 command.organization_id.as_str(),
                 event_id.as_str(),
                 ordering_seq,
                 retention_class.as_str(),
-            ))?;
+            );
+            envelope.idempotency_key = command.idempotency_key.clone();
+            let mutation = StoredMessageMutation::Recalled {
+                target: StoredMessageMutationTarget {
+                    tenant_id: command.tenant_id.clone(),
+                    organization_id: command.organization_id.clone(),
+                    conversation_id: recalled.conversation_id.clone(),
+                    message_id: recalled.message_id.clone(),
+                    message_seq: recalled.message_seq,
+                },
+                recalled_at: recalled.recalled_at.clone(),
+            };
+            let realtime_payload = runtime_json_string(&json!({
+                "conversationId": recalled.conversation_id.clone(),
+                "messageId": recalled.message_id.clone(),
+                "messageSeq": recalled.message_seq,
+                "summary": "[recalled]",
+            }))?;
             let evicted_message_ids = conversation
                 .message_log
                 .apply_recalled(&recalled)
                 .ok_or_else(|| RuntimeError::MessageNotFound(recalled.message_id.clone()))?
                 .evicted_message_ids;
+            let applied = self.persist_message_mutation_commit(
+                envelope,
+                mutation,
+                realtime_payload.clone(),
+                true,
+            )?;
+            if applied {
+                conversation.aggregate.observe_commit_seq(ordering_seq);
+            }
+            *live_conversation = candidate;
             self.metrics
                 .record_message_evictions(evicted_message_ids.len());
-            for message_id in evicted_message_ids {
+            for message_id in &evicted_message_ids {
                 state
                     .message_locator
                     .remove(command.tenant_id.as_str(), message_id.as_str());
             }
-            (recalled, event_id)
+            state.touch_conversation(scope_key.as_str());
+            if !applied {
+                return Err(RuntimeError::MessageAlreadyRecalled(
+                    recalled.message_id.clone(),
+                ));
+            }
+            (recalled, event_id, realtime_payload)
         };
 
-        let (recalled, event_id) = recalled;
+        let (recalled, event_id, realtime_payload) = recalled;
 
-        self.publish_message_recalled_realtime(
+        self.publish_message_mutation_realtime_after_commit(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
-            &recalled,
-            event_id.as_str(),
+            recalled.conversation_id.as_str(),
+            "message.recalled",
+            realtime_payload,
         )?;
         if let Some(idempotency_key) = command
             .idempotency_key
@@ -4220,7 +4431,7 @@ where
             command.reacted_by.kind.as_str(),
             command.reacted_by.id.as_str(),
         )?;
-        let (reaction, changed) = {
+        let (reaction, changed, event_id, realtime_payload) = {
             let mut state = write_runtime_state(
                 &self.state,
                 "conversation-runtime.state.add_message_reaction",
@@ -4230,11 +4441,12 @@ where
                 command.organization_id.as_str(),
                 conversation_id.as_str(),
             );
-            state.touch_conversation(scope_key.as_str());
-            let conversation = state
+            let live_conversation = state
                 .conversations
                 .get_mut(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
+            let mut candidate = live_conversation.clone();
+            let conversation = &mut candidate;
             let reacted_member = resolve_active_member_with_kind(
                 conversation,
                 command.reacted_by.id.as_str(),
@@ -4276,50 +4488,85 @@ where
                 .is_some_and(|actors| {
                     actors.contains(&ReactionActorIdentity::from_sender(&reaction.reacted_by))
                 });
-            if changed {
-                let retention_class = conversation_retention_class(conversation);
-                let ordering_seq = conversation.aggregate.next_commit_seq();
-                self.journal.append(build_message_reaction_added_envelope(
-                    &reaction,
-                    command.organization_id.as_str(),
-                    format!(
-                        "evt_{}_reaction_added_{}_{}_{}",
-                        reaction.message_id,
-                        event_id_component(reaction.reaction_key.as_str()),
-                        event_id_component(reaction.reacted_by.id.as_str()),
-                        event_id_component(reaction.reacted_at.as_str())
-                    )
-                    .as_str(),
-                    ordering_seq,
-                    retention_class.as_str(),
-                ))?;
-                let evicted_message_ids = conversation
-                    .message_log
-                    .apply_reaction_added(&reaction)
-                    .ok_or_else(|| RuntimeError::MessageNotFound(reaction.message_id.clone()))?
-                    .evicted_message_ids;
-                self.metrics
-                    .record_message_evictions(evicted_message_ids.len());
-                for message_id in evicted_message_ids {
-                    state
-                        .message_locator
-                        .remove(command.tenant_id.as_str(), message_id.as_str());
-                }
-            }
-            (reaction, changed)
-        };
-
-        let event_id = if changed {
-            Some(format!(
-                "evt_{}_reaction_added_{}_{}_{}",
+            let retention_class = conversation_retention_class(conversation);
+            let ordering_seq = conversation
+                .aggregate
+                .commit_seq()
+                .checked_add(1)
+                .ok_or_else(|| {
+                    RuntimeError::Conflict("conversation journal ordering sequence overflow".into())
+                })?;
+            let candidate_event_id = format!(
+                "evt_{}_reaction_added_{}_{}_{}_{}",
                 reaction.message_id,
                 event_id_component(reaction.reaction_key.as_str()),
+                event_id_component(reaction.reacted_by.kind.as_str()),
                 event_id_component(reaction.reacted_by.id.as_str()),
                 event_id_component(reaction.reacted_at.as_str())
-            ))
-        } else {
-            None
+            );
+            let envelope = build_message_reaction_added_envelope(
+                &reaction,
+                command.organization_id.as_str(),
+                candidate_event_id.as_str(),
+                ordering_seq,
+                retention_class.as_str(),
+            );
+            let mutation = StoredMessageMutation::ReactionAdded {
+                target: StoredMessageMutationTarget {
+                    tenant_id: command.tenant_id.clone(),
+                    organization_id: command.organization_id.clone(),
+                    conversation_id: reaction.conversation_id.clone(),
+                    message_id: reaction.message_id.clone(),
+                    message_seq: reaction.message_seq,
+                },
+                reaction: StoredMessageReactionRecord {
+                    actor_principal_kind: reaction.reacted_by.kind.clone(),
+                    actor_principal_id: reaction.reacted_by.id.clone(),
+                    reaction_key: reaction.reaction_key.clone(),
+                    reacted_at: reaction.reacted_at.clone(),
+                },
+            };
+            let realtime_payload = runtime_json_string(&reaction)?;
+            let evicted_message_ids = conversation
+                .message_log
+                .apply_reaction_added(&reaction)
+                .ok_or_else(|| RuntimeError::MessageNotFound(reaction.message_id.clone()))?
+                .evicted_message_ids;
+            let applied = self.persist_message_mutation_commit(
+                envelope,
+                mutation,
+                realtime_payload.clone(),
+                changed,
+            )?;
+            if applied {
+                conversation.aggregate.observe_commit_seq(ordering_seq);
+            }
+            *live_conversation = candidate;
+            self.metrics
+                .record_message_evictions(evicted_message_ids.len());
+            for message_id in &evicted_message_ids {
+                state
+                    .message_locator
+                    .remove(command.tenant_id.as_str(), message_id.as_str());
+            }
+            state.touch_conversation(scope_key.as_str());
+            (
+                reaction,
+                applied,
+                applied.then_some(candidate_event_id),
+                realtime_payload,
+            )
         };
+
+        if changed {
+            self.publish_message_mutation_realtime_after_commit(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                reaction.conversation_id.as_str(),
+                "message.reaction_added",
+                realtime_payload,
+            )?;
+        }
 
         self.maybe_evict_after_write();
         Ok(MessageReactionMutationResult {
@@ -4359,7 +4606,7 @@ where
             command.removed_by.kind.as_str(),
             command.removed_by.id.as_str(),
         )?;
-        let (reaction, changed) = {
+        let (reaction, changed, event_id, realtime_payload) = {
             let mut state = write_runtime_state(
                 &self.state,
                 "conversation-runtime.state.remove_message_reaction",
@@ -4369,11 +4616,12 @@ where
                 command.organization_id.as_str(),
                 conversation_id.as_str(),
             );
-            state.touch_conversation(scope_key.as_str());
-            let conversation = state
+            let live_conversation = state
                 .conversations
                 .get_mut(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
+            let mut candidate = live_conversation.clone();
+            let conversation = &mut candidate;
             let removed_member = resolve_active_member_with_kind(
                 conversation,
                 command.removed_by.id.as_str(),
@@ -4415,51 +4663,85 @@ where
                 .is_some_and(|actors| {
                     actors.contains(&ReactionActorIdentity::from_sender(&reaction.removed_by))
                 });
-            if changed {
-                let retention_class = conversation_retention_class(conversation);
-                let ordering_seq = conversation.aggregate.next_commit_seq();
-                self.journal
-                    .append(build_message_reaction_removed_envelope(
-                        &reaction,
-                        command.organization_id.as_str(),
-                        format!(
-                            "evt_{}_reaction_removed_{}_{}_{}",
-                            reaction.message_id,
-                            event_id_component(reaction.reaction_key.as_str()),
-                            event_id_component(reaction.removed_by.id.as_str()),
-                            event_id_component(reaction.removed_at.as_str())
-                        )
-                        .as_str(),
-                        ordering_seq,
-                        retention_class.as_str(),
-                    ))?;
-                let evicted_message_ids = conversation
-                    .message_log
-                    .apply_reaction_removed(&reaction)
-                    .ok_or_else(|| RuntimeError::MessageNotFound(reaction.message_id.clone()))?
-                    .evicted_message_ids;
-                self.metrics
-                    .record_message_evictions(evicted_message_ids.len());
-                for message_id in evicted_message_ids {
-                    state
-                        .message_locator
-                        .remove(command.tenant_id.as_str(), message_id.as_str());
-                }
-            }
-            (reaction, changed)
-        };
-
-        let event_id = if changed {
-            Some(format!(
-                "evt_{}_reaction_removed_{}_{}_{}",
+            let retention_class = conversation_retention_class(conversation);
+            let ordering_seq = conversation
+                .aggregate
+                .commit_seq()
+                .checked_add(1)
+                .ok_or_else(|| {
+                    RuntimeError::Conflict("conversation journal ordering sequence overflow".into())
+                })?;
+            let candidate_event_id = format!(
+                "evt_{}_reaction_removed_{}_{}_{}_{}",
                 reaction.message_id,
                 event_id_component(reaction.reaction_key.as_str()),
+                event_id_component(reaction.removed_by.kind.as_str()),
                 event_id_component(reaction.removed_by.id.as_str()),
                 event_id_component(reaction.removed_at.as_str())
-            ))
-        } else {
-            None
+            );
+            let envelope = build_message_reaction_removed_envelope(
+                &reaction,
+                command.organization_id.as_str(),
+                candidate_event_id.as_str(),
+                ordering_seq,
+                retention_class.as_str(),
+            );
+            let mutation = StoredMessageMutation::ReactionRemoved {
+                target: StoredMessageMutationTarget {
+                    tenant_id: command.tenant_id.clone(),
+                    organization_id: command.organization_id.clone(),
+                    conversation_id: reaction.conversation_id.clone(),
+                    message_id: reaction.message_id.clone(),
+                    message_seq: reaction.message_seq,
+                },
+                reaction: StoredMessageReactionRecord {
+                    actor_principal_kind: reaction.removed_by.kind.clone(),
+                    actor_principal_id: reaction.removed_by.id.clone(),
+                    reaction_key: reaction.reaction_key.clone(),
+                    reacted_at: reaction.removed_at.clone(),
+                },
+            };
+            let realtime_payload = runtime_json_string(&reaction)?;
+            let evicted_message_ids = conversation
+                .message_log
+                .apply_reaction_removed(&reaction)
+                .ok_or_else(|| RuntimeError::MessageNotFound(reaction.message_id.clone()))?
+                .evicted_message_ids;
+            let applied = self.persist_message_mutation_commit(
+                envelope,
+                mutation,
+                realtime_payload.clone(),
+                changed,
+            )?;
+            if applied {
+                conversation.aggregate.observe_commit_seq(ordering_seq);
+            }
+            *live_conversation = candidate;
+            self.metrics
+                .record_message_evictions(evicted_message_ids.len());
+            for message_id in &evicted_message_ids {
+                state
+                    .message_locator
+                    .remove(command.tenant_id.as_str(), message_id.as_str());
+            }
+            state.touch_conversation(scope_key.as_str());
+            (
+                reaction,
+                applied,
+                applied.then_some(candidate_event_id),
+                realtime_payload,
+            )
         };
+
+        if changed {
+            self.publish_message_mutation_realtime_after_commit(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                reaction.conversation_id.as_str(),
+                "message.reaction_removed",
+                realtime_payload,
+            )?;
+        }
 
         self.maybe_evict_after_write();
         Ok(MessageReactionMutationResult {
@@ -4494,7 +4776,7 @@ where
             command.pinned_by.kind.as_str(),
             command.pinned_by.id.as_str(),
         )?;
-        let (pin, changed) = {
+        let (pin, changed, event_id, realtime_payload) = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.pin_message");
             let scope_key = conversation_scope_key(
@@ -4502,11 +4784,12 @@ where
                 command.organization_id.as_str(),
                 conversation_id.as_str(),
             );
-            state.touch_conversation(scope_key.as_str());
-            let conversation = state
+            let live_conversation = state
                 .conversations
                 .get_mut(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
+            let mut candidate = live_conversation.clone();
+            let conversation = &mut candidate;
             let pinned_member = resolve_active_member_with_kind(
                 conversation,
                 command.pinned_by.id.as_str(),
@@ -4542,48 +4825,83 @@ where
                 pinned_at: conversation_timestamp(),
             };
             let changed = stored.pin.is_none();
-            if changed {
-                let retention_class = conversation_retention_class(conversation);
-                let ordering_seq = conversation.aggregate.next_commit_seq();
-                self.journal.append(build_message_pinned_envelope(
-                    &pin,
-                    command.organization_id.as_str(),
-                    format!(
-                        "evt_{}_pin_added_{}_{}",
-                        pin.message_id,
-                        event_id_component(pin.pinned_by.id.as_str()),
-                        event_id_component(pin.pinned_at.as_str())
-                    )
-                    .as_str(),
-                    ordering_seq,
-                    retention_class.as_str(),
-                ))?;
-                let evicted_message_ids = conversation
-                    .message_log
-                    .apply_pinned(&pin)
-                    .ok_or_else(|| RuntimeError::MessageNotFound(pin.message_id.clone()))?
-                    .evicted_message_ids;
-                self.metrics
-                    .record_message_evictions(evicted_message_ids.len());
-                for message_id in evicted_message_ids {
-                    state
-                        .message_locator
-                        .remove(command.tenant_id.as_str(), message_id.as_str());
-                }
-            }
-            (pin, changed)
-        };
-
-        let event_id = if changed {
-            Some(format!(
-                "evt_{}_pin_added_{}_{}",
+            let retention_class = conversation_retention_class(conversation);
+            let ordering_seq = conversation
+                .aggregate
+                .commit_seq()
+                .checked_add(1)
+                .ok_or_else(|| {
+                    RuntimeError::Conflict("conversation journal ordering sequence overflow".into())
+                })?;
+            let candidate_event_id = format!(
+                "evt_{}_pin_added_{}_{}_{}",
                 pin.message_id,
+                event_id_component(pin.pinned_by.kind.as_str()),
                 event_id_component(pin.pinned_by.id.as_str()),
                 event_id_component(pin.pinned_at.as_str())
-            ))
-        } else {
-            None
+            );
+            let envelope = build_message_pinned_envelope(
+                &pin,
+                command.organization_id.as_str(),
+                candidate_event_id.as_str(),
+                ordering_seq,
+                retention_class.as_str(),
+            );
+            let mutation = StoredMessageMutation::Pinned {
+                target: StoredMessageMutationTarget {
+                    tenant_id: command.tenant_id.clone(),
+                    organization_id: command.organization_id.clone(),
+                    conversation_id: pin.conversation_id.clone(),
+                    message_id: pin.message_id.clone(),
+                    message_seq: pin.message_seq,
+                },
+                pin: StoredMessagePinRecord {
+                    pinned_by_principal_kind: pin.pinned_by.kind.clone(),
+                    pinned_by_principal_id: pin.pinned_by.id.clone(),
+                    pinned_at: pin.pinned_at.clone(),
+                },
+            };
+            let realtime_payload = runtime_json_string(&pin)?;
+            let evicted_message_ids = conversation
+                .message_log
+                .apply_pinned(&pin)
+                .ok_or_else(|| RuntimeError::MessageNotFound(pin.message_id.clone()))?
+                .evicted_message_ids;
+            let applied = self.persist_message_mutation_commit(
+                envelope,
+                mutation,
+                realtime_payload.clone(),
+                changed,
+            )?;
+            if applied {
+                conversation.aggregate.observe_commit_seq(ordering_seq);
+            }
+            *live_conversation = candidate;
+            self.metrics
+                .record_message_evictions(evicted_message_ids.len());
+            for message_id in &evicted_message_ids {
+                state
+                    .message_locator
+                    .remove(command.tenant_id.as_str(), message_id.as_str());
+            }
+            state.touch_conversation(scope_key.as_str());
+            (
+                pin,
+                applied,
+                applied.then_some(candidate_event_id),
+                realtime_payload,
+            )
         };
+
+        if changed {
+            self.publish_message_mutation_realtime_after_commit(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                pin.conversation_id.as_str(),
+                "message.pin_added",
+                realtime_payload,
+            )?;
+        }
 
         self.maybe_evict_after_write();
         Ok(MessagePinMutationResult {
@@ -4617,7 +4935,7 @@ where
             command.unpinned_by.kind.as_str(),
             command.unpinned_by.id.as_str(),
         )?;
-        let (pin, changed) = {
+        let (pin, changed, event_id, realtime_payload) = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.unpin_message");
             let scope_key = conversation_scope_key(
@@ -4625,11 +4943,12 @@ where
                 command.organization_id.as_str(),
                 conversation_id.as_str(),
             );
-            state.touch_conversation(scope_key.as_str());
-            let conversation = state
+            let live_conversation = state
                 .conversations
                 .get_mut(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
+            let mut candidate = live_conversation.clone();
+            let conversation = &mut candidate;
             let unpinned_member = resolve_active_member_with_kind(
                 conversation,
                 command.unpinned_by.id.as_str(),
@@ -4665,48 +4984,78 @@ where
                 unpinned_at: conversation_timestamp(),
             };
             let changed = stored.pin.is_some();
-            if changed {
-                let retention_class = conversation_retention_class(conversation);
-                let ordering_seq = conversation.aggregate.next_commit_seq();
-                self.journal.append(build_message_unpinned_envelope(
-                    &pin,
-                    command.organization_id.as_str(),
-                    format!(
-                        "evt_{}_pin_removed_{}_{}",
-                        pin.message_id,
-                        event_id_component(pin.unpinned_by.id.as_str()),
-                        event_id_component(pin.unpinned_at.as_str())
-                    )
-                    .as_str(),
-                    ordering_seq,
-                    retention_class.as_str(),
-                ))?;
-                let evicted_message_ids = conversation
-                    .message_log
-                    .apply_unpinned(&pin)
-                    .ok_or_else(|| RuntimeError::MessageNotFound(pin.message_id.clone()))?
-                    .evicted_message_ids;
-                self.metrics
-                    .record_message_evictions(evicted_message_ids.len());
-                for message_id in evicted_message_ids {
-                    state
-                        .message_locator
-                        .remove(command.tenant_id.as_str(), message_id.as_str());
-                }
-            }
-            (pin, changed)
-        };
-
-        let event_id = if changed {
-            Some(format!(
-                "evt_{}_pin_removed_{}_{}",
+            let retention_class = conversation_retention_class(conversation);
+            let ordering_seq = conversation
+                .aggregate
+                .commit_seq()
+                .checked_add(1)
+                .ok_or_else(|| {
+                    RuntimeError::Conflict("conversation journal ordering sequence overflow".into())
+                })?;
+            let candidate_event_id = format!(
+                "evt_{}_pin_removed_{}_{}_{}",
                 pin.message_id,
+                event_id_component(pin.unpinned_by.kind.as_str()),
                 event_id_component(pin.unpinned_by.id.as_str()),
                 event_id_component(pin.unpinned_at.as_str())
-            ))
-        } else {
-            None
+            );
+            let envelope = build_message_unpinned_envelope(
+                &pin,
+                command.organization_id.as_str(),
+                candidate_event_id.as_str(),
+                ordering_seq,
+                retention_class.as_str(),
+            );
+            let mutation = StoredMessageMutation::Unpinned {
+                target: StoredMessageMutationTarget {
+                    tenant_id: command.tenant_id.clone(),
+                    organization_id: command.organization_id.clone(),
+                    conversation_id: pin.conversation_id.clone(),
+                    message_id: pin.message_id.clone(),
+                    message_seq: pin.message_seq,
+                },
+            };
+            let realtime_payload = runtime_json_string(&pin)?;
+            let evicted_message_ids = conversation
+                .message_log
+                .apply_unpinned(&pin)
+                .ok_or_else(|| RuntimeError::MessageNotFound(pin.message_id.clone()))?
+                .evicted_message_ids;
+            let applied = self.persist_message_mutation_commit(
+                envelope,
+                mutation,
+                realtime_payload.clone(),
+                changed,
+            )?;
+            if applied {
+                conversation.aggregate.observe_commit_seq(ordering_seq);
+            }
+            *live_conversation = candidate;
+            self.metrics
+                .record_message_evictions(evicted_message_ids.len());
+            for message_id in &evicted_message_ids {
+                state
+                    .message_locator
+                    .remove(command.tenant_id.as_str(), message_id.as_str());
+            }
+            state.touch_conversation(scope_key.as_str());
+            (
+                pin,
+                applied,
+                applied.then_some(candidate_event_id),
+                realtime_payload,
+            )
         };
+
+        if changed {
+            self.publish_message_mutation_realtime_after_commit(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                pin.conversation_id.as_str(),
+                "message.pin_removed",
+                realtime_payload,
+            )?;
+        }
 
         self.maybe_evict_after_write();
         Ok(MessagePinMutationResult {
@@ -4891,6 +5240,22 @@ where
 // Aggregate store conversion helpers
 // ---------------------------------------------------------------------------
 
+fn persist_aggregate_records(
+    store: &dyn ConversationAggregateStore,
+    members: Vec<ConversationMemberRecord>,
+    read_cursors: Vec<ReadCursorRecord>,
+) -> Result<(), RuntimeError> {
+    for member in members {
+        store.upsert_member(member).map_err(RuntimeError::from)?;
+    }
+    for cursor in read_cursors {
+        store
+            .upsert_read_cursor(cursor)
+            .map_err(RuntimeError::from)?;
+    }
+    Ok(())
+}
+
 fn conversation_member_from_record(record: &ConversationMemberRecord) -> ConversationMember {
     use im_domain_core::conversation::{MembershipRole, MembershipState};
     let role = match record.membership_role.as_str() {
@@ -4964,17 +5329,7 @@ fn member_to_record(
         conversation_id: conversation_id.to_owned(),
         principal_kind: member.principal_kind.clone(),
         principal_id: member.principal_id.clone(),
-        // The relational member_id column is bigint, but the in-memory ConversationMember.member_id
-        // is a string composite (cm_<conv_id>_<principal_kind>_<principal_id>). Parsing the string
-        // always fails and yields 0, which historically collided on the now-removed
-        // uk_im_conversation_members_member unique constraint (see baseline DDL change).
-        // Since principal_id is the Snowflake i64 for user principals (the only kind that RTC
-        // authorization and projections actually rely on), parse it directly so the stored
-        // member_id is non-zero and unique per user within a conversation. For non-user principals
-        // (agents/system) the value falls back to 0, which is acceptable because the composite
-        // primary key on (tenant, org, conversation, principal_kind, principal_id) remains the
-        // sole uniqueness guarantee.
-        member_id: member.principal_id.parse::<i64>().unwrap_or(0),
+        member_id: normalized_member_storage_id(member.member_id.as_str()),
         membership_role: membership_role.into(),
         membership_state: membership_state.into(),
         invited_by: member.invited_by.clone(),
@@ -4994,10 +5349,7 @@ fn cursor_to_record(
         tenant_id: tenant_id.to_owned(),
         organization_id: organization_id.to_owned(),
         conversation_id: conversation_id.to_owned(),
-        // Same rationale as member_to_record: cursor.member_id is a string composite, while the
-        // relational member_id column is bigint. Parse principal_id (Snowflake i64 for users) so
-        // the value is unique per member and matches the conversation_members row.
-        member_id: cursor.principal_id.parse::<i64>().unwrap_or(0),
+        member_id: normalized_member_storage_id(cursor.member_id.as_str()),
         device_id: cursor.device_id.clone().unwrap_or_default(),
         principal_kind: cursor.principal_kind.clone(),
         principal_id: cursor.principal_id.clone(),
@@ -5008,6 +5360,77 @@ fn cursor_to_record(
             .map(|id| id.parse::<i64>().unwrap_or(0)),
         updated_at: cursor.updated_at.clone(),
     }
+}
+
+fn normalized_member_storage_id(member_id: &str) -> i64 {
+    let digest = sha256_hash(member_id.as_bytes());
+    let value = u64::from_str_radix(&digest[..16], 16)
+        .expect("sha256_hash must return at least sixteen hexadecimal characters")
+        & i64::MAX as u64;
+    if value == 0 { 1 } else { value as i64 }
+}
+
+fn build_normalized_agent_assignment_change(
+    envelope: &CommitEnvelope,
+    assignments: &ConversationAgentAssignmentSet,
+) -> Result<ReplaceConversationAgentAssignments, RuntimeError> {
+    let tenant_id =
+        parse_normalized_assignment_scope_id(envelope.tenant_id.as_str(), "tenantId", false)?;
+    let organization_id = parse_normalized_assignment_scope_id(
+        envelope.normalized_organization_id().as_str(),
+        "organizationId",
+        true,
+    )?;
+    let assigned_by = if envelope.actor.actor_kind == "system" {
+        0
+    } else {
+        parse_normalized_assignment_scope_id(envelope.actor.actor_id.as_str(), "assignedBy", false)?
+    };
+    let assignment_source = match assignments.source {
+        ConversationAgentAssignmentSource::DefaultPolicy => AgentAssignmentSource::DefaultPolicy,
+        ConversationAgentAssignmentSource::ConversationOverride => {
+            AgentAssignmentSource::ConversationOverride
+        }
+    };
+    let items = assignments
+        .agents
+        .iter()
+        .enumerate()
+        .map(|(position, assignment)| ConversationAgentAssignmentItem {
+            agent_id: assignment.agent_id.clone(),
+            agent_revision_ref: assignment.revision_id.clone(),
+            position: position as i32,
+        })
+        .collect();
+    Ok(ReplaceConversationAgentAssignments {
+        tenant_id,
+        organization_id,
+        conversation_id: envelope.aggregate_id.clone(),
+        assignment_source,
+        assignment_generation: assignments.generation,
+        assigned_by,
+        assigned_at: envelope.occurred_at.clone(),
+        source_event_id: envelope.event_id.clone(),
+        source_aggregate_version: envelope.ordering_seq,
+        payload_hash: sha256_hash(envelope.payload.as_bytes()),
+        items,
+    })
+}
+
+fn parse_normalized_assignment_scope_id(
+    value: &str,
+    field: &str,
+    allow_zero: bool,
+) -> Result<u64, RuntimeError> {
+    let parsed = value.parse::<u64>().map_err(|_| {
+        RuntimeError::InvalidInput(format!("{field} must be a signed int64 string"))
+    })?;
+    if parsed > i64::MAX as u64 || (!allow_zero && parsed == 0) {
+        return Err(RuntimeError::InvalidInput(format!(
+            "{field} is outside the signed int64 range"
+        )));
+    }
+    Ok(parsed)
 }
 
 #[cfg(test)]

@@ -1,117 +1,94 @@
-# Authentication and Errors
+# Authentication And Errors
 
 <p class="api-page-intro">
-  This page defines the security model and error envelope shared across the Sdkwork IM HTTP APIs.
-  Individual operation pages document only endpoint-specific authorization requirements or conflict
-  conditions on top of these defaults.
+  Shared authentication, request-context, success-envelope, and RFC 9457 error rules for every
+  SDKWork IM Open, App, and Backend HTTP operation.
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/app/portal-access"><code>App</code> Portal access snapshots, SDKWork credentials, and AppContext projection rules</a>
-  <a href="/api-reference/app-api"><code>App</code> User-facing runtime domains and their operation groups</a>
-  <a href="/api-reference/control-plane-api"><code>Control Plane</code> Administrative endpoints that use the same SDKWork dual-token and AppContext model with <code>control.read</code> and <code>control.write</code></a>
+  <a href="/api-reference/im-api"><code>Open API</code> IM communication operations under <code>/im/v3/api</code></a>
+  <a href="/api-reference/app-api"><code>App API</code> User-facing application operations under <code>/app/v3/api</code></a>
+  <a href="/api-reference/backend-api"><code>Backend API</code> Operator and management operations under <code>/backend/v3/api</code></a>
 </div>
 
-## How To Use This Page
+## Credential Model
 
-Use this page for the shared contract first:
+`sdkwork-appbase` and `sdkwork-iam` own login, token issuance, token refresh, Sessions, users,
+tenants, organizations, and permission catalogs. SDKWork IM only validates credentials and consumes
+the resolved request context.
 
-1. Start here when you need AppContext projection rules, SDKWork token semantics, or the common error
-   envelope.
-2. Switch to operation pages when your next question is endpoint-specific permission, conflict, or
-   resource-not-found behavior.
-3. Switch to the SDK docs only when your next question is language surface, package naming, or
-   publication state.
+Protected App and Backend operations use both SDKWork tokens:
 
-## Security Schemes
+```http
+Authorization: Bearer <auth-token>
+Access-Token: <access-token>
+```
 
-### `SdkworkDualToken`
-
-`sdkwork-appbase` owns login, IAM sessions, users, tenants, organizations, dual-token validation,
-and the authoritative IAM context. Public clients authenticate with the SDKWork auth token and
-access token:
-
-- `Authorization: Bearer <auth-token>`
-- `Access-Token: <access-token>`
-
-Tenant, user, session, app, device, actor, data-scope, and permission-scope context is resolved from
-those token claims. `sdkwork-im` does not own login or token issuance.
-
-| Item | Value |
+| Item | Contract |
 | --- | --- |
-| External auth owner | `sdkwork-appbase` |
-| Required public token model | SDKWork dual token |
-| Sdkwork IM input | Dual-token claims, or private signed trusted-edge projection |
-| Resolver | `resolve_app_context()` |
+| Identity owner | `sdkwork-iam` / `sdkwork-appbase` |
+| Public credential model | SDKWork dual token |
+| Request framework | `sdkwork-web-framework` |
+| Resolved context | Typed `AppContext` |
+| IM input | Verified tenant, organization, principal, Session, application, device, data scope, and permission scope |
 
-### `AppContextProjection`
+Protected Open API operations use the security scheme declared by their authored OpenAPI operation.
+IM client SDKs obtain credentials through their approved credential provider; application code must
+not handcraft auth headers when a generated SDK client is available.
 
-AppContext projection is an internal trusted-edge or service-to-service contract. Public SDKs and
-manual API callers must not send identity projection headers for tenant, user, session, device,
-actor, or permission scope. The trusted edge may create a private signed projection only after it has
-validated the SDKWork dual tokens and discarded any client-supplied projection values.
+## Request Context Boundary
 
-The private projection carries the same context represented in the dual-token claims: tenant,
-organization, login scope, user, session, app, environment, deployment mode, auth level, actor,
-device, data scope, and permission scope.
+After validating credentials, `sdkwork-web-framework` resolves a typed `AppContext`. Tenant,
+organization, principal, Session, application, device, actor, data scope, and permission scope are
+derived from verified credentials and trusted server configuration, not request payload fields.
+
+Public SDKs and manual callers must not send identity-context headers. A trusted edge may pass a
+private signed context only after it has validated the public credentials and discarded any
+client-supplied identity values. Internal services verify the signature and the resolved scope before
+handling a protected operation.
+
+Resources such as Conversation, Message, Agent, Drive file, RTC Session, or Knowledgebase space IDs
+are never authorization evidence. The owning service checks tenant, organization, membership, role,
+permission, and resource lifecycle for every read or mutation.
 
 ## Permission Model
 
-### Control Plane permissions
-
 | Permission | Grants |
 | --- | --- |
-| `control.read` | Read protocol registry, governance state, provider registry, bindings, and policy history |
-| `control.write` | Mutate provider policies and execute node lifecycle operations |
+| `ops.read` | Read health, cluster, operational lag, runtime inspection, provider state, diagnostics, and readiness evidence |
+| `audit.read` | Read audit records and export evidence |
+| `audit.write` | Record audit anchors |
+| `control.read` | Read protocol, provider, social, and node governance state |
+| `control.write` | Mutate governed provider, social, and node state |
+| `conversation.shared_channel.sync` | Execute the shared-channel synchronization command as the trusted system actor |
 
-### Platform and operator permissions
+Conversation and Message operations additionally enforce active membership and capability checks
+defined by the operation contract.
 
-| Permission | Grants |
-| --- | --- |
-| `audit.read` | Read audit records and export bundles |
-| `audit.write` | Write audit anchors |
-| `ops.read` | Read operator health, cluster, lag, and diagnostics endpoints |
-| `conversation.shared_channel.sync` | Execute shared-channel linked-member sync. Reserved for system actor `control-plane-sync`. |
+## Success Envelope
 
-## Security-Specific Error Codes
-
-| HTTP | `code` | When it appears |
-| --- | --- | --- |
-| `401` | `40101` | Required AppContext projection headers are missing after SDKWork auth validation. |
-| `401` | `40102` | AppContext projection is malformed or incomplete. |
-| `403` | `40301` | Missing permission `conversation.shared_channel.sync` for shared-channel sync endpoint. |
-| `403` | `40302` | Caller actor is not the system actor `control-plane-sync`. |
-| `429` | `42901` | Shared-channel sync exceeded per-tenant rate limit window. |
-
-## Response Envelope
-
-All IM, App, and Backend HTTP contracts follow the canonical `SdkWorkApiResponse` /
-`ProblemDetail` envelope defined in `sdkwork-specs/API_SPEC.md` §4.5, §14, and §15.
-
-### Success Responses (`HTTP 2xx`)
-
-Success responses use `application/json` with the `SdkWorkApiResponse` envelope:
+JSON success responses use the canonical `SdkWorkApiResponse` envelope:
 
 ```json
 {
   "code": 0,
-  "data": { },
+  "data": {
+    "item": {}
+  },
   "traceId": "01HXY..."
 }
 ```
 
-- `code` is numeric `int32` and **MUST** be `0` for all `HTTP 2xx` JSON bodies.
-- `data` carries the operation payload:
-  - Single resource: `data.item`
-  - Lists: `data.items` + `data.pageInfo` (`PageInfo.mode` is `offset` or `cursor`)
-  - Commands: `data.accepted` plus optional `resourceId` / `status`
-  - Async accept (`202`): `data.operationId`, `data.status`, optional `pollUrl`
-- `traceId` is a server-issued correlation identifier (UUID/ULID).
+- `code` is numeric `int32` and is always `0` for an HTTP `2xx` JSON body.
+- Single-resource data uses `data.item`.
+- List data uses `data.items` and `data.pageInfo`.
+- Command data uses `data.accepted` and may include `resourceId` or `status`.
+- Async acceptance uses HTTP `202` and an operation resource.
+- HTTP `204` has no body.
 
-### Error Responses (`HTTP 4xx` / `HTTP 5xx`)
+## Error Envelope
 
-Error responses use `application/problem+json` (`ProblemDetail`, RFC 9457) with a
-numeric `code`, `traceId`, route correlation, and an i18n key:
+HTTP `4xx` and `5xx` failures use `application/problem+json` with RFC 9457 `ProblemDetail`:
 
 ```json
 {
@@ -119,89 +96,60 @@ numeric `code`, `traceId`, route correlation, and an i18n key:
   "title": "Bad Request",
   "status": 400,
   "code": 40001,
-  "detail": "rtcSessionId must be a non-empty string",
+  "detail": "page_size must be between 1 and 200",
   "instance": "GET /im/v3/api/chat/conversations/{conversationId}/messages",
-  "operationId": "conversations",
+  "operationId": "conversations.messages.list",
   "traceId": "01HXY...",
   "i18nKey": "errors.result.40001"
 }
 ```
 
-- `code` is a numeric non-zero platform error code (see table below).
-- `traceId` correlates with the success envelope's `traceId` and is propagated
-  from request headers in priority order: `x-sdkwork-trace-id`,
-  `traceparent` (W3C Trace Context `trace-id`), then `x-request-id`.
-- `instance` is the RFC 9457 problem instance. It **MUST** use the resolved
-  route template (`{METHOD} {routeTemplate}`, e.g.
-  `GET /im/v3/api/chat/conversations/{conversationId}/messages`) and **MUST
-  NOT** contain raw business resource identifiers (user, tenant, conversation,
-  message, file, object, token, or provider ids). When no route template is
-  available, the gateway redacts identifiable path segments before emitting
-  `instance` (see `OBSERVABILITY_SPEC.md` §2).
-- `operationId` is emitted when the gateway or handler resolved the matched
-  route's operation group; it is omitted only when routing context is
-  unavailable (e.g. malformed path that matches no registered route).
-- `i18nKey` is the canonical localization key, always derived from the numeric
-  `code` as `errors.result.<code>` (e.g. `errors.result.50301`). Clients
-  **MUST** use `i18nKey` for localization and **MUST NOT** parse `detail` or
-  `title` for translatable text (see `I18N_SPEC.md`).
-- Business failures **MUST NOT** use `HTTP 2xx` with a non-zero `code`,
-  string wire codes, a `success` boolean, or a human `message` field.
+- `code` is a numeric non-zero platform result code.
+- `instance` uses the resolved route template and never contains raw tenant, principal, Conversation,
+  Message, file, token, or provider identifiers.
+- `operationId` is copied from the matched authored OpenAPI operation.
+- `traceId` is server-issued or propagated from approved trace headers.
+- `i18nKey` is always `errors.result.<code>`; clients localize from this key and never parse `detail`.
+- A business failure never uses HTTP `2xx`, a string wire code, a `success` boolean, or a human
+  `message` field.
 
-### Platform Error Code Registry
+## Platform Result Codes
 
-| HTTP | `code` | Category |
+| HTTP | `code` | Meaning |
 | --- | --- | --- |
-| `400` | `40001` | Bad request — malformed body, invalid query, or validation failure |
-| `401` | `40101` | Missing AppContext projection |
-| `401` | `40102` | Invalid AppContext projection |
-| `403` | `40301` | Permission denied (missing required permission) |
-| `403` | `40302` | Principal-to-resource binding violation |
-| `404` | `40401` | Referenced resource (conversation, message, media asset, node, policy) not found |
-| `409` | `40901` | Version conflict, membership conflict, or invalid lifecycle transition |
-| `413` | `41301` | Payload too large |
-| `429` | `42901` | Rate limited |
+| `400` | `40001` | Malformed body, invalid query, or validation failure |
+| `401` | `40101` | Required credentials are missing |
+| `401` | `40102` | Credentials are invalid, expired, or cannot resolve a valid request context |
+| `403` | `40301` | Required permission is missing |
+| `403` | `40302` | Principal-to-resource binding, membership, or actor rule failed |
+| `404` | `40401` | Referenced resource does not exist in the caller's scope |
+| `409` | `40901` | Version, idempotency, membership, or lifecycle conflict |
+| `413` | `41301` | Payload exceeds the configured limit |
+| `429` | `42901` | Rate limit exceeded |
 | `501` | `50101` | Requested provider capability is not implemented |
-| `503` | `50301` | Provider, registry, or runtime dependency unavailable |
+| `503` | `50301` | Required database, provider, registry, or runtime dependency is unavailable |
 
-### Generated SDK Consumption
+Endpoint pages narrow these codes with operation-specific conflict and not-found conditions. They do
+not redefine the envelope.
 
-Generated HTTP SDKs (`--standard-profile sdkwork-v3`) unwrap `data` by default
-and expose typed numeric `ProblemDetail.code` / `traceId` on errors. Use `.raw`
-when the full envelope is required.
+## Generated SDK Behavior
 
-## Common HTTP Statuses
+Generated SDKs use the OpenAPI-declared security schemes and unwrap `data` by default. Typed errors
+expose numeric `ProblemDetail.code`, `traceId`, `operationId`, and `i18nKey`. Use the generated raw
+response option only when an application needs the complete envelope or response headers.
 
-| HTTP | Meaning |
-| --- | --- |
-| `200` | Success (single resource or list) |
-| `201` | Resource created |
-| `202` | Async command accepted |
-| `204` | No content |
-| `400` | Validation failure, malformed request body, or invalid query value |
-| `401` | Missing or invalid SDKWork auth context, or incomplete AppContext projection |
-| `403` | Permission denied or principal-to-resource binding violation |
-| `404` | Referenced conversation, message, media asset, node, or policy version does not exist |
-| `409` | Version conflict, membership conflict, route migration conflict, or invalid lifecycle transition |
-| `413` | Request payload exceeds the configured size limit |
-| `429` | Rate limit exceeded |
-| `501` | Requested provider capability is not implemented |
-| `503` | Provider, registry, or runtime dependency is unavailable |
+## Client Rules
 
-## Client Guidance
-
-1. Branch on the numeric `code` for application handling. Do not depend on the
-   exact wording of `detail` or `title`.
-2. Localize user-facing error messages from `i18nKey` (`errors.result.<code>`),
-   never from `detail` or `title`.
-3. Correlate client-side telemetry with the server-issued `traceId`.
-4. Treat operation pages as the source for endpoint-specific conflicts and
-   resource-not-found cases.
-5. Use the SDK pages as the source for language-surface questions, and this
-   page as the source for shared auth and error semantics.
+1. Construct clients once at bootstrap and inject the approved TokenManager or credential provider.
+2. Branch on numeric `code`; never branch on localized or provider text.
+3. Correlate client telemetry with `traceId` and retain no credential value in logs.
+4. Treat `401` as an authentication lifecycle event and `403` as an authorization decision.
+5. Retry only operations whose idempotency and concurrency contract permits retry.
 
 ## What To Read Next
 
+- [Complete IM-owned HTTP API inventory](/api-reference/index)
+- [IM Open API Overview](/api-reference/im-api)
 - [App API Overview](/api-reference/app-api)
-- [Control Plane API Overview](/api-reference/control-plane-api)
+- [Backend API Overview](/api-reference/backend-api)
 - [SDK Overview](/sdk/index)

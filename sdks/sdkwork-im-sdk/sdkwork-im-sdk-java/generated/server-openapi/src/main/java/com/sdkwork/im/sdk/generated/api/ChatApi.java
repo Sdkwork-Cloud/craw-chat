@@ -13,22 +13,13 @@ public class ChatApi {
         this.client = client;
     }
 
-    /** List IM contacts */
-    public ContactsListResponse contactsList(Integer pageSize, String cursor) throws Exception {
-        String query = buildQueryString(List.of(
-            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
-            new QueryParameterSpec("cursor", cursor, "form", true, false, null)
-        ));
-        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/contacts"), query));
-        return client.convertValue(raw, new TypeReference<ContactsListResponse>() {});
-    }
-
     /** List current inbox window */
-    public InboxListResponse inboxList(Integer pageSize, String cursor, String conversationType) throws Exception {
+    public InboxListResponse inboxList(Integer pageSize, String cursor, String conversationType, String q) throws Exception {
         String query = buildQueryString(List.of(
             new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             new QueryParameterSpec("cursor", cursor, "form", true, false, null),
-            new QueryParameterSpec("conversation_type", conversationType, "form", true, false, null)
+            new QueryParameterSpec("conversation_type", conversationType, "form", true, false, null),
+            new QueryParameterSpec("q", q, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/inbox"), query));
         return client.convertValue(raw, new TypeReference<InboxListResponse>() {});

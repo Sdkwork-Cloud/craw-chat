@@ -135,14 +135,14 @@ Returns process readiness for the app runtime.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/presence/heartbeat</code>
-  <span class="api-op-id">operationId: heartbeatPresence</span>
+  <span class="api-op-id">operationId: presence.heartbeat</span>
 </div>
 
 Refreshes the presence heartbeat for the current client route.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.presence.heartbeat(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; Client route ownership and client route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
@@ -162,7 +162,7 @@ Refreshes the presence heartbeat for the current client route.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -177,14 +177,14 @@ Refreshes the presence heartbeat for the current client route.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/im/v3/api/presence/me</code>
-  <span class="api-op-id">operationId: getPresenceMe</span>
+  <span class="api-op-id">operationId: presence.me.retrieve</span>
 </div>
 
 Reads the current principal's presence snapshot.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.presence.getPresenceMe()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; Client route ownership and client route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
@@ -199,7 +199,7 @@ Reads the current principal's presence snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -214,14 +214,14 @@ Reads the current principal's presence snapshot.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/realtime/subscriptions/sync</code>
-  <span class="api-op-id">operationId: syncRealtimeSubscriptions</span>
+  <span class="api-op-id">operationId: realtime.subscriptions.sync</span>
 </div>
 
 Replaces the realtime subscription set for the current client route.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.connect(...)`, `sdk.generated.realtime.syncRealtimeSubscriptions(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; Client route ownership and client route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RealtimeSubscriptionSnapshot`</span></div>
@@ -241,7 +241,7 @@ Replaces the realtime subscription set for the current client route.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -256,14 +256,14 @@ Replaces the realtime subscription set for the current client route.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/im/v3/api/realtime/events</code>
-  <span class="api-op-id">operationId: listRealtimeEvents</span>
+  <span class="api-op-id">operationId: realtime.events.list</span>
 </div>
 
 Fetches realtime events from the realtime event window.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.sync.catchUp(...)`, `sdk.generated.realtime.listRealtimeEvents(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; Client route ownership and client route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RealtimeEventWindow`</span></div>
@@ -285,7 +285,7 @@ Fetches realtime events from the realtime event window.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -300,14 +300,14 @@ Fetches realtime events from the realtime event window.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/realtime/events/ack</code>
-  <span class="api-op-id">operationId: ackRealtimeEvents</span>
+  <span class="api-op-id">operationId: realtime.events.ack</span>
 </div>
 
 Acknowledges the highest realtime event sequence consumed by the client.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.sync.ack(...)`, `context.ack()`, `sdk.generated.realtime.ackRealtimeEvents(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; Client route ownership and client route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RealtimeAckState`</span></div>
@@ -327,7 +327,7 @@ Acknowledges the highest realtime event sequence consumed by the client.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -342,7 +342,7 @@ Acknowledges the highest realtime event sequence consumed by the client.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/im/v3/api/realtime/ws</code>
-  <span class="api-op-id">operationId: realtimeWebsocket</span>
+  <span class="api-op-id">operationId: realtime.ws.retrieve</span>
 </div>
 
 Upgrades the connection to WebSocket. This page documents the HTTP handshake surface only; it does
@@ -350,7 +350,7 @@ not expand the full realtime frame protocol.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.connect(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; active client route is prepared before upgrade.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
@@ -358,7 +358,7 @@ not expand the full realtime frame protocol.
 
 ### Security
 
-- SDKWork dual token validated at the appbase boundary, then AppContext projection headers
+- SDKWork dual token validated at the appbase boundary, then a server-resolved request context
 - Client route ownership and client route binding are validated before upgrade
 - Browser runtimes that cannot send upgrade headers should prefer a gateway-issued short-lived
   realtime ticket or pre-signed `wss://` URL instead of a long-lived query credential
@@ -390,7 +390,7 @@ not expand the full realtime frame protocol.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |

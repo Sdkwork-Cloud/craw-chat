@@ -9,9 +9,13 @@
     "root": "sdkwork-im/apps/sdkwork-im-pc/packages/sdkwork-im-pc-shell",
     "domain": "communication",
     "capability": "shell",
-    "languages": ["typescript"],
+    "languages": [
+      "typescript"
+    ],
     "generated": false,
-    "manifests": ["package.json"]
+    "manifests": [
+      "package.json"
+    ]
   },
   "routeManifest": null,
   "canonicalSpecs": [
@@ -25,5 +29,19 @@
       "path": "../../../../../sdkwork-specs/MODULE_SPEC.md",
       "purpose": "Reusable module catalog and dependency direction."
     }
-  ]
+  ],
+  "contracts": {
+    "layerRole": "frontend-shell",
+    "publicExports": [
+      ".",
+      "./moduleRegistry"
+    ],
+    "providedPorts": [
+      {
+        "name": "imPcShellShell",
+        "export": "."
+      }
+    ],
+    "requiredPorts": []
+  }
 }

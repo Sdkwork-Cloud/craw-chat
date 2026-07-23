@@ -2,7 +2,7 @@ import type { EnterRoomResponse } from './enter-room-response';
 
 export interface RoomsEnterResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: EnterRoomResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

@@ -68,14 +68,6 @@ const sessionStorageMap = new Map<string, string>();
 const calls: Array<{ method: string; params?: Record<string, unknown> }> = [];
 
 const fakeClient = {
-  chat: {
-    contacts: {
-      async list() {
-        calls.push({ method: 'chat.contacts.list' });
-        return { items: [], hasMore: false };
-      },
-    },
-  },
   social: {
     contacts: {
       async list() {
@@ -108,15 +100,15 @@ const fakeClient = {
 } as unknown as ImSdkClient;
 
 const profileOnlyFakeClient = {
-  chat: {
+  social: {
+    ...fakeClient.social,
     contacts: {
       async list() {
-        calls.push({ method: 'chat.contacts.list' });
+        calls.push({ method: 'social.contacts.list' });
         throw new Error('contacts unavailable');
       },
     },
   },
-  social: fakeClient.social,
 } as unknown as ImSdkClient;
 
 async function main(): Promise<void> {

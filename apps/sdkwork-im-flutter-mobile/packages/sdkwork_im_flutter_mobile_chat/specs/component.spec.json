@@ -10,65 +10,72 @@
     "domain": "chat",
     "capability": "chat",
     "surface": "app",
-    "languages": ["dart", "flutter"],
+    "languages": [
+      "dart",
+      "flutter"
+    ],
     "generated": false,
-    "manifests": ["pubspec.yaml"]
+    "manifests": [
+      "pubspec.yaml"
+    ]
   },
   "canonicalSpecs": [
     {
       "file": "CODE_STYLE_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
       "purpose": "Authored code organization, public exports, and SDK bypass rules."
     },
     {
       "file": "NAMING_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
       "purpose": "Flutter mobile package naming and SDKWork identity vocabulary."
     },
     {
       "file": "FRONTEND_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "path": "../../../../../sdkwork-specs/FRONTEND_SPEC.md",
       "purpose": "UI-service-SDK flow, pagination, SDK injection, and frontend state rules."
     },
     {
       "file": "UI_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
       "purpose": "Flutter mobile app surface selection and frontend package role rules."
     },
     {
       "file": "FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md",
       "purpose": "Flutter mobile package taxonomy and feature package ownership."
     },
     {
       "file": "APP_FLUTTER_UI_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/APP_FLUTTER_UI_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_FLUTTER_UI_SPEC.md",
       "purpose": "Flutter app feature package UI, service, and SDK integration rules."
     },
     {
       "file": "APP_SDK_INTEGRATION_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
       "purpose": "Generated SDK and dependency composition boundaries."
     },
     {
       "file": "SDK_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/SDK_SPEC.md",
+      "path": "../../../../../sdkwork-specs/SDK_SPEC.md",
       "purpose": "Generated SDK consumption, pagination helper, and no raw HTTP fallback rules."
     },
     {
       "file": "PAGINATION_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/PAGINATION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/PAGINATION_SPEC.md",
       "purpose": "Interactive list/search pagination requirements for inbox and message history."
     },
     {
       "file": "TEST_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/TEST_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TEST_SPEC.md",
       "purpose": "Frontend package, pagination, and SDK integration verification requirements."
     }
   ],
   "contracts": {
     "layerRole": "frontend-feature",
-    "publicExports": ["lib/sdkwork_im_flutter_mobile_chat.dart"],
+    "publicExports": [
+      "lib/sdkwork_im_flutter_mobile_chat.dart"
+    ],
     "providedPorts": [
       {
         "name": "imFlutterMobileChatRoutes",
@@ -91,7 +98,9 @@
         "package": "im_sdk_generated"
       }
     ],
-    "runtimeEntrypoints": ["pubspec.yaml"],
+    "runtimeEntrypoints": [
+      "pubspec.yaml"
+    ],
     "routeManifest": null,
     "sdkClients": [],
     "sdkDependencies": [
@@ -106,7 +115,7 @@
       "moduleCatalogRefs": [
         {
           "moduleId": "im",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
+          "manifestRef": "../../../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         }

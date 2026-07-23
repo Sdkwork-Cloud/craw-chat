@@ -2,7 +2,7 @@ import type { NotificationRequestResponse } from './notification-request-respons
 
 export interface NotificationsRequestsCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: NotificationRequestResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

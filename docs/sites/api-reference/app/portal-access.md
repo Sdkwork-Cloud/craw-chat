@@ -7,7 +7,7 @@
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token and AppContext projection rules are documented separately</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token and resolved request-context rules are documented separately</a>
   <a href="/api-reference/app-api"><code>App API</code> Return to the app-business domain overview</a>
   <a href="/sdk/app-sdk"><code>App SDK</code> <code>sdkwork-im-app-sdk</code> exposes portal snapshots through generated <code>SdkworkAppClient.portal</code> transport modules</a>
 </div>
@@ -20,13 +20,13 @@
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/app/v3/api/portal/home</code>
-  <span class="api-op-id">operationId: getHome</span>
+  <span class="api-op-id">operationId: home.retrieve</span>
 </div>
 
 Reads the public tenant-portal home snapshot used for the landing experience.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-app-sdk` / `client.portal.home.retrieve()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
@@ -40,7 +40,7 @@ Reads the public tenant-portal home snapshot used for the landing experience.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -56,13 +56,13 @@ Reads the public tenant-portal home snapshot used for the landing experience.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/app/v3/api/portal/access</code>
-  <span class="api-op-id">operationId: getAccess</span>
+  <span class="api-op-id">operationId: access.retrieve</span>
 </div>
 
 Reads the public portal access snapshot. Login, token refresh, tenant, user, and organization context are supplied by sdkwork-appbase.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-app-sdk` / `client.portal.access.retrieve()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
@@ -76,7 +76,7 @@ Reads the public portal access snapshot. Login, token refresh, tenant, user, and
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -92,13 +92,13 @@ Reads the public portal access snapshot. Login, token refresh, tenant, user, and
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/app/v3/api/portal/workspace</code>
-  <span class="api-op-id">operationId: getWorkspace</span>
+  <span class="api-op-id">operationId: workspace.retrieve</span>
 </div>
 
 Reads the current authenticated tenant workspace summary used by the portal shell.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-app-sdk` / `client.portal.workspace.retrieve()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalWorkspaceView`</span></div>
@@ -127,7 +127,7 @@ Reads the current authenticated tenant workspace summary used by the portal shel
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -143,13 +143,13 @@ Reads the current authenticated tenant workspace summary used by the portal shel
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/app/v3/api/portal/dashboard</code>
-  <span class="api-op-id">operationId: getDashboard</span>
+  <span class="api-op-id">operationId: dashboard.retrieve</span>
 </div>
 
 Reads the authenticated dashboard snapshot for tenant operations.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-app-sdk` / `client.portal.dashboard.retrieve()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
@@ -163,7 +163,7 @@ Reads the authenticated dashboard snapshot for tenant operations.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -179,13 +179,13 @@ Reads the authenticated dashboard snapshot for tenant operations.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/app/v3/api/portal/conversations</code>
-  <span class="api-op-id">operationId: getConversations</span>
+  <span class="api-op-id">operationId: conversationSnapshot.retrieve</span>
 </div>
 
 Reads the portal conversations module snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-app-sdk` / `client.portal.conversationSnapshot.retrieve()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
@@ -199,7 +199,7 @@ Reads the portal conversations module snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -215,13 +215,13 @@ Reads the portal conversations module snapshot.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/app/v3/api/portal/realtime</code>
-  <span class="api-op-id">operationId: getRealtime</span>
+  <span class="api-op-id">operationId: realtime.retrieve</span>
 </div>
 
 Reads the portal realtime posture snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-app-sdk` / `client.portal.realtime.retrieve()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
@@ -235,7 +235,7 @@ Reads the portal realtime posture snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -251,13 +251,13 @@ Reads the portal realtime posture snapshot.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/app/v3/api/portal/media</code>
-  <span class="api-op-id">operationId: getMedia</span>
+  <span class="api-op-id">operationId: media.retrieve</span>
 </div>
 
 Reads the portal media and RTC snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-app-sdk` / `client.portal.media.retrieve()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
@@ -271,7 +271,7 @@ Reads the portal media and RTC snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -287,13 +287,13 @@ Reads the portal media and RTC snapshot.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/app/v3/api/portal/automation</code>
-  <span class="api-op-id">operationId: getAutomation</span>
+  <span class="api-op-id">operationId: automation.retrieve</span>
 </div>
 
 Reads the portal automation and notification posture snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-app-sdk` / `client.portal.automation.retrieve()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
@@ -307,7 +307,7 @@ Reads the portal automation and notification posture snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -323,13 +323,13 @@ Reads the portal automation and notification posture snapshot.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/app/v3/api/portal/governance</code>
-  <span class="api-op-id">operationId: getGovernance</span>
+  <span class="api-op-id">operationId: governance.retrieve</span>
 </div>
 
 Reads the portal governance and compliance snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-app-sdk` / `client.portal.governance.retrieve()`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PortalSnapshot`</span></div>
@@ -343,7 +343,7 @@ Reads the portal governance and compliance snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |

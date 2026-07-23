@@ -10,7 +10,7 @@ Implementation-aligned capability map for the current Sdkwork IM repository.
 | Rooms | Live, chat, and game room binding with enter/leave orchestration | `services/comms-conversation-service` |
 | Membership | List, add, remove, transfer owner, change role, leave | OpenAPI `/im/v3/api/chat/*` |
 | Messages | Send, edit, recall, message history reads | `services/sdkwork-comms-conversation-service` |
-| Read models | Inbox, conversation summary, read cursor | `services/projection-service` |
+| Conversation reads | Inbox, conversation summary, member state, read cursor | `services/sdkwork-comms-conversation-service` backed by normalized PostgreSQL tables |
 
 ## Realtime
 

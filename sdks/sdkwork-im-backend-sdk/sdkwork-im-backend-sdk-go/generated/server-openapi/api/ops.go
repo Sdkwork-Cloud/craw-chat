@@ -37,7 +37,7 @@ func (a *OpsApi) ClusterRetrieve() (sdktypes.ClusterRetrieveResponse, error) {
     return decodeResult[sdktypes.ClusterRetrieveResponse](raw)
 }
 
-// Retrieve projection lag
+// Retrieve operational lag
 func (a *OpsApi) LagRetrieve(pageSize *int, cursor *string) (sdktypes.LagListResponse, error) {
     query := BuildQueryString([]QueryParameterSpec{
         {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
@@ -49,16 +49,6 @@ func (a *OpsApi) LagRetrieve(pageSize *int, cursor *string) (sdktypes.LagListRes
         return zero, err
     }
     return decodeResult[sdktypes.LagListResponse](raw)
-}
-
-// Retrieve replay status
-func (a *OpsApi) ReplayStatusRetrieve() (sdktypes.ReplayStatusRetrieveResponse, error) {
-    raw, err := a.client.Get(BackendApiPath("/ops/replay_status"), nil, nil)
-    if err != nil {
-        var zero sdktypes.ReplayStatusRetrieveResponse
-        return zero, err
-    }
-    return decodeResult[sdktypes.ReplayStatusRetrieveResponse](raw)
 }
 
 // Retrieve commercial readiness

@@ -413,18 +413,10 @@ class PortalModuleSnapshot {
 class PortalOperationalMetrics {
   final String clientRouteWindowCount;
   final String pendingRealtimeEventCount;
-  final String conversationSnapshotPersistSuccessCount;
-  final String conversationSnapshotPersistFailureCount;
-  final String projectionReplayBacklogSize;
-  final String projectionReplayedEventCount;
 
   PortalOperationalMetrics({
     required this.clientRouteWindowCount,
-    required this.pendingRealtimeEventCount,
-    required this.conversationSnapshotPersistSuccessCount,
-    required this.conversationSnapshotPersistFailureCount,
-    required this.projectionReplayBacklogSize,
-    required this.projectionReplayedEventCount
+    required this.pendingRealtimeEventCount
   });
 
   factory PortalOperationalMetrics.fromJson(Map<String, dynamic> json) {
@@ -442,34 +434,6 @@ class PortalOperationalMetrics {
           throw FormatException('PortalOperationalMetrics.pendingRealtimeEventCount is required');
         }
         return value;
-      })(),
-      conversationSnapshotPersistSuccessCount: (() {
-        final value = json['conversationSnapshotPersistSuccessCount']?.toString();
-        if (value == null) {
-          throw FormatException('PortalOperationalMetrics.conversationSnapshotPersistSuccessCount is required');
-        }
-        return value;
-      })(),
-      conversationSnapshotPersistFailureCount: (() {
-        final value = json['conversationSnapshotPersistFailureCount']?.toString();
-        if (value == null) {
-          throw FormatException('PortalOperationalMetrics.conversationSnapshotPersistFailureCount is required');
-        }
-        return value;
-      })(),
-      projectionReplayBacklogSize: (() {
-        final value = json['projectionReplayBacklogSize']?.toString();
-        if (value == null) {
-          throw FormatException('PortalOperationalMetrics.projectionReplayBacklogSize is required');
-        }
-        return value;
-      })(),
-      projectionReplayedEventCount: (() {
-        final value = json['projectionReplayedEventCount']?.toString();
-        if (value == null) {
-          throw FormatException('PortalOperationalMetrics.projectionReplayedEventCount is required');
-        }
-        return value;
       })()
     );
   }
@@ -478,10 +442,6 @@ class PortalOperationalMetrics {
     return <String, dynamic>{
       'clientRouteWindowCount': clientRouteWindowCount,
       'pendingRealtimeEventCount': pendingRealtimeEventCount,
-      'conversationSnapshotPersistSuccessCount': conversationSnapshotPersistSuccessCount,
-      'conversationSnapshotPersistFailureCount': conversationSnapshotPersistFailureCount,
-      'projectionReplayBacklogSize': projectionReplayBacklogSize,
-      'projectionReplayedEventCount': projectionReplayedEventCount,
     };
   }
 }
@@ -529,55 +489,46 @@ class PortalDashboardSnapshot {
   }
 }
 
-class PortalConversationProjectionMetrics {
-  final String persistSuccessCount;
-  final String persistFailureCount;
-  final String restoreSuccessCount;
-  final String replayBacklogSize;
-  final String replayedEventCount;
+class PortalConversationOperationalMetrics {
+  final String laggingScopeCount;
+  final String maxOperationalLag;
+  final String pendingOutboxEventCount;
+  final String failedOutboxAttemptCount;
 
-  PortalConversationProjectionMetrics({
-    required this.persistSuccessCount,
-    required this.persistFailureCount,
-    required this.restoreSuccessCount,
-    required this.replayBacklogSize,
-    required this.replayedEventCount
+  PortalConversationOperationalMetrics({
+    required this.laggingScopeCount,
+    required this.maxOperationalLag,
+    required this.pendingOutboxEventCount,
+    required this.failedOutboxAttemptCount
   });
 
-  factory PortalConversationProjectionMetrics.fromJson(Map<String, dynamic> json) {
-    return PortalConversationProjectionMetrics(
-      persistSuccessCount: (() {
-        final value = json['persistSuccessCount']?.toString();
+  factory PortalConversationOperationalMetrics.fromJson(Map<String, dynamic> json) {
+    return PortalConversationOperationalMetrics(
+      laggingScopeCount: (() {
+        final value = json['laggingScopeCount']?.toString();
         if (value == null) {
-          throw FormatException('PortalConversationProjectionMetrics.persistSuccessCount is required');
+          throw FormatException('PortalConversationOperationalMetrics.laggingScopeCount is required');
         }
         return value;
       })(),
-      persistFailureCount: (() {
-        final value = json['persistFailureCount']?.toString();
+      maxOperationalLag: (() {
+        final value = json['maxOperationalLag']?.toString();
         if (value == null) {
-          throw FormatException('PortalConversationProjectionMetrics.persistFailureCount is required');
+          throw FormatException('PortalConversationOperationalMetrics.maxOperationalLag is required');
         }
         return value;
       })(),
-      restoreSuccessCount: (() {
-        final value = json['restoreSuccessCount']?.toString();
+      pendingOutboxEventCount: (() {
+        final value = json['pendingOutboxEventCount']?.toString();
         if (value == null) {
-          throw FormatException('PortalConversationProjectionMetrics.restoreSuccessCount is required');
+          throw FormatException('PortalConversationOperationalMetrics.pendingOutboxEventCount is required');
         }
         return value;
       })(),
-      replayBacklogSize: (() {
-        final value = json['replayBacklogSize']?.toString();
+      failedOutboxAttemptCount: (() {
+        final value = json['failedOutboxAttemptCount']?.toString();
         if (value == null) {
-          throw FormatException('PortalConversationProjectionMetrics.replayBacklogSize is required');
-        }
-        return value;
-      })(),
-      replayedEventCount: (() {
-        final value = json['replayedEventCount']?.toString();
-        if (value == null) {
-          throw FormatException('PortalConversationProjectionMetrics.replayedEventCount is required');
+          throw FormatException('PortalConversationOperationalMetrics.failedOutboxAttemptCount is required');
         }
         return value;
       })()
@@ -586,11 +537,10 @@ class PortalConversationProjectionMetrics {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'persistSuccessCount': persistSuccessCount,
-      'persistFailureCount': persistFailureCount,
-      'restoreSuccessCount': restoreSuccessCount,
-      'replayBacklogSize': replayBacklogSize,
-      'replayedEventCount': replayedEventCount,
+      'laggingScopeCount': laggingScopeCount,
+      'maxOperationalLag': maxOperationalLag,
+      'pendingOutboxEventCount': pendingOutboxEventCount,
+      'failedOutboxAttemptCount': failedOutboxAttemptCount,
     };
   }
 }
@@ -598,12 +548,12 @@ class PortalConversationProjectionMetrics {
 class PortalConversationSnapshot {
   final PortalSnapshotMeta meta;
   final PortalDataAvailability availability;
-  final PortalConversationProjectionMetrics? projection;
+  final PortalConversationOperationalMetrics? metrics;
 
   PortalConversationSnapshot({
     required this.meta,
     required this.availability,
-    this.projection
+    this.metrics
   });
 
   factory PortalConversationSnapshot.fromJson(Map<String, dynamic> json) {
@@ -622,9 +572,9 @@ class PortalConversationSnapshot {
         }
         return PortalDataAvailability.fromJson(map);
       })(),
-      projection: (() {
-        final map = _sdkworkAsMap(json['projection']);
-        return map == null ? null : PortalConversationProjectionMetrics.fromJson(map);
+      metrics: (() {
+        final map = _sdkworkAsMap(json['metrics']);
+        return map == null ? null : PortalConversationOperationalMetrics.fromJson(map);
       })()
     );
   }
@@ -633,7 +583,7 @@ class PortalConversationSnapshot {
     return <String, dynamic>{
       'meta': meta.toJson(),
       'availability': availability.toJson(),
-      'projection': projection?.toJson(),
+      'metrics': metrics?.toJson(),
     };
   }
 }

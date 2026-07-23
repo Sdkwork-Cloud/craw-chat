@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import BlockUserRequest, CreateContactRecommendationRequest, CreateContactTagRequest, SdkWorkListResponse, SocialContactsPreferencesRetrieveResponse, SocialContactsPreferencesUpdateResponse, SocialContactsRecommendationsCreateResponse201, SocialContactsTagsCreateResponse201, SocialContactsTagsUpdateResponse, SocialFriendRequestsAcceptResponse, SocialFriendRequestsCancelResponse, SocialFriendRequestsCreateResponse201, SocialFriendRequestsDeclineResponse, SocialFriendRequestsPendingCountRetrieveResponse, SocialFriendshipsRemoveResponse, SocialUserBlocksCreateResponse201, SocialUsersListResponse, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest
+from ..models import BlockUserRequest, CreateContactRecommendationRequest, CreateContactTagRequest, SdkWorkListResponse, SocialContactsListResponse, SocialContactsPreferencesRetrieveResponse, SocialContactsPreferencesUpdateResponse, SocialContactsRecommendationsCreateResponse201, SocialContactsTagsCreateResponse201, SocialContactsTagsUpdateResponse, SocialFriendRequestsAcceptResponse, SocialFriendRequestsCancelResponse, SocialFriendRequestsCreateResponse201, SocialFriendRequestsDeclineResponse, SocialFriendRequestsPendingCountRetrieveResponse, SocialFriendshipsRemoveResponse, SocialUserBlocksCreateResponse201, SocialUsersListResponse, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -300,6 +300,14 @@ class SocialContactsApi:
         self.recommendations = SocialContactsRecommendationsApi(client)
         self.preferences = SocialContactsPreferencesApi(client)
 
+
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None) -> SocialContactsListResponse:
+        """List social contacts"""
+        query = build_query_string([
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
+        ])
+        return self._client.get(_append_query_string(f"/im/v3/api/social/contacts", query))
 
 class SocialContactsTagsApi:
     """social social.contacts.tags API client."""

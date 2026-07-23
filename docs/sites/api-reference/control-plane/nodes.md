@@ -19,13 +19,13 @@
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/backend/v3/api/control/nodes/{nodeId}/drain</code>
-  <span class="api-op-id">operationId: drainNode</span>
+  <span class="api-op-id">operationId: nodes.drain</span>
 </div>
 
 Marks the node as draining.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.nodes</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RouteNodeLifecycle`</span></div>
@@ -51,7 +51,7 @@ None. This operation does not accept a JSON request body.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The mutation payload is invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `control.write`. |
 | `404` | `40401` | The requested node, plugin, or target resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the mutation. |
@@ -66,13 +66,13 @@ None. This operation does not accept a JSON request body.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/backend/v3/api/control/nodes/{nodeId}/activate</code>
-  <span class="api-op-id">operationId: activateNode</span>
+  <span class="api-op-id">operationId: nodes.activate</span>
 </div>
 
 Reactivates a previously drained node.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.nodes</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RouteNodeLifecycle`</span></div>
@@ -98,7 +98,7 @@ None. This operation does not accept a JSON request body.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The mutation payload is invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `control.write`. |
 | `404` | `40401` | The requested node, plugin, or target resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the mutation. |
@@ -113,13 +113,13 @@ None. This operation does not accept a JSON request body.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/backend/v3/api/control/nodes/{nodeId}/routes/migrate</code>
-  <span class="api-op-id">operationId: migrateNodeRoutes</span>
+  <span class="api-op-id">operationId: nodes.routes.migrate</span>
 </div>
 
 Migrates owned realtime routes from the source node to a target node.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.nodes</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RouteMigrationResult`</span></div>
@@ -145,7 +145,7 @@ Migrates owned realtime routes from the source node to a target node.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The mutation payload is invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `control.write`. |
 | `404` | `40401` | The requested node, plugin, or target resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the mutation. |

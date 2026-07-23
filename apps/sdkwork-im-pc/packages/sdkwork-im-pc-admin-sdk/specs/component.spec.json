@@ -84,7 +84,15 @@
         "surface": "backend-api",
         "credentialMode": "authenticated-backend-admin"
       }
-    ]
+    ],
+    "layerRole": "sdk-facade",
+    "providedPorts": [
+      {
+        "name": "imPcAdminSdkSdkFacade",
+        "export": "."
+      }
+    ],
+    "requiredPorts": []
   },
   "verification": {
     "commands": [

@@ -1,12 +1,11 @@
 use im_platform_contracts::{
     CommitEnvelope, CommitJournal, CommitPosition, ContractError, LeaseGrant, LeaseStore,
     MetadataStore, ObjectDescriptor, ObjectPutRequest, ObjectStore, RealtimeDisconnectFenceRecord,
-    RealtimeDisconnectFenceStore, TimelineProjectionScope, TimelineProjectionStore,
+    RealtimeDisconnectFenceStore,
 };
 
 struct NullJournal;
 struct NullMetadata;
-struct NullProjection;
 struct NullLeaseStore;
 struct NullObjectStore;
 struct NullDisconnectFenceStore;
@@ -24,24 +23,6 @@ impl MetadataStore for NullMetadata {
 
     fn load_snapshot(&self, _scope: &str, _key: &str) -> Result<Option<String>, ContractError> {
         Ok(None)
-    }
-}
-
-impl TimelineProjectionStore for NullProjection {
-    fn upsert_timeline_entry(
-        &self,
-        _scope: &TimelineProjectionScope,
-        _message_seq: u64,
-        _payload: &str,
-    ) -> Result<(), ContractError> {
-        Ok(())
-    }
-
-    fn load_timeline(
-        &self,
-        _scope: &TimelineProjectionScope,
-    ) -> Result<Vec<(u64, String)>, ContractError> {
-        Ok(Vec::new())
     }
 }
 
@@ -111,7 +92,6 @@ impl ObjectStore for NullObjectStore {
 fn test_contract_types_are_usable_without_binding_to_a_vendor() {
     let journal = NullJournal;
     let metadata = NullMetadata;
-    let projection = NullProjection;
     let disconnect_fence_store = NullDisconnectFenceStore;
     let lease_store = NullLeaseStore;
     let position = journal.append(CommitEnvelope::minimal(
@@ -139,14 +119,6 @@ fn test_contract_types_are_usable_without_binding_to_a_vendor() {
     metadata
         .load_snapshot("tenant", "demo")
         .expect("metadata load should succeed");
-    let timeline_scope = TimelineProjectionScope::new("100001", "0", "c_demo")
-        .expect("timeline projection scope should be valid");
-    projection
-        .upsert_timeline_entry(&timeline_scope, 1, "{}")
-        .expect("projection upsert should succeed");
-    projection
-        .load_timeline(&timeline_scope)
-        .expect("projection load should succeed");
     disconnect_fence_store
         .save_fence(RealtimeDisconnectFenceRecord {
             tenant_id: "100001".into(),

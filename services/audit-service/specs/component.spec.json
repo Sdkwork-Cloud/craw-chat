@@ -106,7 +106,8 @@
       "SDKWORK_IM_DATABASE_URL",
       "SDKWORK_IM_ENVIRONMENT"
     ],
-    "routeManifest": null
+    "routeManifest": null,
+    "layerRole": "backend-service"
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",

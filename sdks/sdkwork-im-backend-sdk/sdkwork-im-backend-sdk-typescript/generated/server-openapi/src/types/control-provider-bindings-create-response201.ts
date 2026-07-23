@@ -2,7 +2,7 @@ import type { ProviderBindingCommitResponse } from './provider-binding-commit-re
 
 export interface ControlProviderBindingsCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: ProviderBindingCommitResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

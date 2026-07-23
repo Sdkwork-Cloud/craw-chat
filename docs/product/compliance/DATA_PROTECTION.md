@@ -16,9 +16,9 @@ Specs: PRIVACY_SPEC.md, SECURITY_SPEC.md
 
 ## 2. Retention
 
-- Conversation and projection data honor configured retention classes.
+- Normalized conversation, message, journal, outbox, and realtime delivery data honor configured retention classes.
 - Automated purge jobs run through postgres-journal retention scheduler.
-- Legal hold flows are validated in projection-service retention tests.
+- Legal hold flows are validated by the PostgreSQL retention contract tests.
 
 ## 3. Export and Deletion
 

@@ -92,7 +92,7 @@ print(result)
 ### portal
 
 ```python
-# Read the tenant portal sign-in snapshot
+# Read the tenant portal access snapshot
 result = client.portal.access.retrieve()
 print(result)
 ```

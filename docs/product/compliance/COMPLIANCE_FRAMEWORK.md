@@ -183,7 +183,7 @@ detailed investigation procedures.
 
 ### 7.2 Purge Workflow
 
-1. **Schedule**: Retention scheduler runs daily at 02:00 UTC via `projection-service`.
+1. **Schedule**: The PostgreSQL retention scheduler runs daily at 02:00 UTC through the governed Ops retention job.
 2. **Identify**: Select records where `expires_at < NOW()` per tenant retention class.
 3. **Soft purge**: Mark records as `purged=true` (recoverable for 7 days).
 4. **Hard purge**: Delete records after 7-day recovery window.
@@ -213,7 +213,7 @@ When a legal hold is placed on a tenant:
 
 - **RBAC**: Role-based access control with tenant-scoped roles.
 - **Permission scopes**: Fine-grained permissions per resource type (conversation, message, media).
-- **Multi-tenant isolation**: Enforced at IAM, database schema, and AppContext projection layers.
+- **Multi-tenant isolation**: Enforced at IAM, database schema, and verified AppContext boundaries.
 - **Tenant isolation verification**: See
   [RUNBOOK-tenant-isolation-verification](../../runbooks/RUNBOOK-tenant-isolation-verification.md).
 

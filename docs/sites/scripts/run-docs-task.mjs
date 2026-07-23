@@ -28,6 +28,7 @@ function runNodeScript(relativePath, args = []) {
 }
 
 function prepareApiDocs() {
+  runNodeScript('scripts/generate-contract-inventories.mjs', ['--write']);
   runNodeScript('scripts/standardize-api-docs.mjs');
   runNodeScript('scripts/generate-operation-pages.mjs');
 }
@@ -78,11 +79,13 @@ async function main() {
       break;
     case 'verify':
       prepareApiDocs();
+      runNodeScript('scripts/generate-contract-inventories.mjs', ['--check']);
       runNodeScript('scripts/verify-api-docs.mjs');
       runNodeScript('sdk/verify-sdk-site-docs.mjs');
       break;
     case 'build':
       prepareApiDocs();
+      runNodeScript('scripts/generate-contract-inventories.mjs', ['--check']);
       runNodeScript('scripts/verify-api-docs.mjs');
       runNodeScript('sdk/verify-sdk-site-docs.mjs');
       await assertEsbuildRuntime();

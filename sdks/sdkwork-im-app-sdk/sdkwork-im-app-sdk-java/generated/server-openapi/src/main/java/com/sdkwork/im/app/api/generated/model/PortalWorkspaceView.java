@@ -4,12 +4,12 @@ package com.sdkwork.im.app.api.generated.model;
 public class PortalWorkspaceView {
     private String name;
     private String slug;
+    private String environment;
     private String tier;
     private String region;
     private String supportPlan;
-    private Integer seats;
-    private Integer activeBrands;
-    private String uptime;
+    private String seats;
+    private String activeBrands;
 
     public String getName() {
         return this.name;
@@ -25,6 +25,14 @@ public class PortalWorkspaceView {
 
     public void setSlug(String slug) {
         this.slug = slug;
+    }
+
+    public String getEnvironment() {
+        return this.environment;
+    }
+
+    public void setEnvironment(String environment) {
+        this.environment = environment;
     }
 
     public String getTier() {
@@ -51,27 +59,19 @@ public class PortalWorkspaceView {
         this.supportPlan = supportPlan;
     }
 
-    public Integer getSeats() {
+    public String getSeats() {
         return this.seats;
     }
 
-    public void setSeats(Integer seats) {
+    public void setSeats(String seats) {
         this.seats = seats;
     }
 
-    public Integer getActiveBrands() {
+    public String getActiveBrands() {
         return this.activeBrands;
     }
 
-    public void setActiveBrands(Integer activeBrands) {
+    public void setActiveBrands(String activeBrands) {
         this.activeBrands = activeBrands;
-    }
-
-    public String getUptime() {
-        return this.uptime;
-    }
-
-    public void setUptime(String uptime) {
-        this.uptime = uptime;
     }
 }

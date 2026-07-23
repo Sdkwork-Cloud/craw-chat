@@ -10,6 +10,7 @@
     "docs:verify": "%ComSpec% /d /s /c \"\"%npm_node_execpath%\" ./scripts/run-docs-task.mjs verify\" || \"$npm_node_execpath\" ./scripts/run-docs-task.mjs verify || node ./scripts/run-docs-task.mjs verify"
   },
   "devDependencies": {
-    "vitepress": "^1.6.4"
+    "vitepress": "^1.6.4",
+    "yaml": "^2.8.3"
   }
 }

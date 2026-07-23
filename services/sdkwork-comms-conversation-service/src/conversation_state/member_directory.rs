@@ -42,8 +42,10 @@ impl ConversationStateService {
         conversation_id: &str,
         page_size: usize,
         cursor: MemberDirectoryListCursor,
-    ) -> Result<SdkWorkPageData<ConversationMemberDirectoryEntry>, crate::conversation_state::event_apply::ConversationStateError>
-    {
+    ) -> Result<
+        SdkWorkPageData<ConversationMemberDirectoryEntry>,
+        crate::conversation_state::event_apply::ConversationStateError,
+    > {
         let scope = scope_key(tenant_id, organization_id, conversation_id);
         let keyset_cursor = match cursor {
             MemberDirectoryListCursor::Start => None,
@@ -53,8 +55,14 @@ impl ConversationStateService {
                 principal_id,
             } => Some((role_rank, joined_at, principal_id)),
         };
-        let (members, has_more) = super::lock_conversation_state_mutex(&self.members, "member store")
-            .collect_member_directory_window(scope.as_str(), tenant_id, keyset_cursor, page_size);
+        let (members, has_more) =
+            super::lock_conversation_state_mutex(&self.members, "member store")
+                .collect_member_directory_window(
+                    scope.as_str(),
+                    tenant_id,
+                    keyset_cursor,
+                    page_size,
+                );
         let items = members
             .into_iter()
             .map(|member| ConversationMemberDirectoryEntry::from_member(&member))
@@ -68,7 +76,9 @@ impl ConversationStateService {
                         "joinedAt": entry.joined_at,
                         "principalId": entry.principal_id,
                     });
-                    crate::conversation_state::cursor_auth::encode_conversation_state_list_cursor(&payload)
+                    crate::conversation_state::cursor_auth::encode_conversation_state_list_cursor(
+                        &payload,
+                    )
                 })
                 .transpose()?
         } else {

@@ -2,7 +2,7 @@ import type { SocialUserBlockCommitResponse } from './social-user-block-commit-r
 
 export interface SocialUserBlocksCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialUserBlockCommitResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

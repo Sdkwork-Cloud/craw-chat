@@ -8,7 +8,12 @@
 //! [`ConversationSeqAllocator`] (Redis batch prefetch or Postgres counter).
 //! Snowflake IDs are reserved for `message_id` / `event_id` only.
 
-use im_platform_contracts::{ContractError, MessageStore, MessageWindow, StoredMessageRecord};
+use std::collections::HashMap;
+
+use im_platform_contracts::{
+    ContractError, MessageStore, MessageWindow, StoredMessagePinRecord,
+    StoredMessageReactionRecord, StoredMessageRecord,
+};
 
 use crate::{
     PostgresJournalPool, now_rfc3339, postgres_jsonb_payload, postgres_pool_client,
@@ -85,6 +90,22 @@ const READ_HIGH_WATERMARK_SQL: &str = r#"
 select coalesce(max(message_seq), 0) as high_watermark
 from im_conversation_messages
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+"#;
+
+const READ_MESSAGE_REACTIONS_SQL: &str = r#"
+select message_id, actor_principal_kind, actor_principal_id, reaction_type, created_at
+from im_message_reactions
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+  and message_id = any($4)
+order by message_id, reaction_type, actor_principal_kind, actor_principal_id
+"#;
+
+const READ_MESSAGE_PINS_SQL: &str = r#"
+select message_id, pinned_by_principal_kind, pinned_by_principal_id, pinned_at
+from im_message_pins
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+  and message_id = any($4)
+order by message_id
 "#;
 
 impl MessageStore for PostgresMessageStore {
@@ -196,8 +217,9 @@ impl MessageStore for PostgresMessageStore {
                     ],
                 )
                 .map_err(|error| postgres_unavailable("read_history_window", error))?;
-            let records: Vec<StoredMessageRecord> =
+            let mut records: Vec<StoredMessageRecord> =
                 rows.iter().map(stored_message_from_row).collect();
+            hydrate_message_interactions(&mut client, &mut records)?;
             let row = client
                 .query_one(
                     READ_HIGH_WATERMARK_SQL,
@@ -227,7 +249,12 @@ impl MessageStore for PostgresMessageStore {
             let row = client
                 .query_opt(READ_BY_ID_SQL, &[&tenant_id, &message_id])
                 .map_err(|error| postgres_unavailable("read_by_id", error))?;
-            Ok(row.map(|row| stored_message_from_row(&row)))
+            let mut records = row
+                .map(|row| stored_message_from_row(&row))
+                .into_iter()
+                .collect::<Vec<_>>();
+            hydrate_message_interactions(&mut client, &mut records)?;
+            Ok(records.pop())
         })
     }
 
@@ -262,7 +289,12 @@ impl MessageStore for PostgresMessageStore {
                     ],
                 )
                 .map_err(|error| postgres_unavailable("read_by_client_id", error))?;
-            Ok(row.map(|row| stored_message_from_row(&row)))
+            let mut records = row
+                .map(|row| stored_message_from_row(&row))
+                .into_iter()
+                .collect::<Vec<_>>();
+            hydrate_message_interactions(&mut client, &mut records)?;
+            Ok(records.pop())
         })
     }
 
@@ -308,7 +340,82 @@ fn stored_message_from_row(row: &postgres::Row) -> StoredMessageRecord {
         updated_at: timestamptz_string_from_row(row, 13),
         deleted_at: optional_timestamptz_string_from_row(row, 14),
         retention_until: optional_timestamptz_string_from_row(row, 15),
+        reactions: Vec::new(),
+        pin: None,
     }
+}
+
+fn hydrate_message_interactions(
+    client: &mut postgres::Client,
+    messages: &mut [StoredMessageRecord],
+) -> Result<(), ContractError> {
+    let Some(scope) = messages.first() else {
+        return Ok(());
+    };
+    let tenant_id = scope.tenant_id.clone();
+    let organization_id = scope.organization_id.clone();
+    let conversation_id = scope.conversation_id.clone();
+    if messages.iter().any(|message| {
+        message.tenant_id != tenant_id
+            || message.organization_id != organization_id
+            || message.conversation_id != conversation_id
+    }) {
+        return Err(ContractError::Invalid(
+            "message interaction hydration requires one conversation scope".into(),
+        ));
+    }
+
+    let message_ids = messages
+        .iter()
+        .map(|message| message.message_id)
+        .collect::<Vec<_>>();
+    let indexes = messages
+        .iter()
+        .enumerate()
+        .map(|(index, message)| (message.message_id, index))
+        .collect::<HashMap<_, _>>();
+
+    let reaction_rows = client
+        .query(
+            READ_MESSAGE_REACTIONS_SQL,
+            &[&tenant_id, &organization_id, &conversation_id, &message_ids],
+        )
+        .map_err(|error| postgres_unavailable("read_message_reactions", error))?;
+    for row in reaction_rows {
+        let message_id: i64 = row.get(0);
+        let Some(index) = indexes.get(&message_id).copied() else {
+            return Err(ContractError::Unavailable(
+                "message reaction query returned an out-of-scope message".into(),
+            ));
+        };
+        messages[index].reactions.push(StoredMessageReactionRecord {
+            actor_principal_kind: row.get(1),
+            actor_principal_id: row.get(2),
+            reaction_key: row.get(3),
+            reacted_at: timestamptz_string_from_row(&row, 4),
+        });
+    }
+
+    let pin_rows = client
+        .query(
+            READ_MESSAGE_PINS_SQL,
+            &[&tenant_id, &organization_id, &conversation_id, &message_ids],
+        )
+        .map_err(|error| postgres_unavailable("read_message_pins", error))?;
+    for row in pin_rows {
+        let message_id: i64 = row.get(0);
+        let Some(index) = indexes.get(&message_id).copied() else {
+            return Err(ContractError::Unavailable(
+                "message pin query returned an out-of-scope message".into(),
+            ));
+        };
+        messages[index].pin = Some(StoredMessagePinRecord {
+            pinned_by_principal_kind: row.get(1),
+            pinned_by_principal_id: row.get(2),
+            pinned_at: timestamptz_string_from_row(&row, 3),
+        });
+    }
+    Ok(())
 }
 
 fn timestamptz_string_from_row(row: &postgres::Row, column: usize) -> String {
@@ -372,6 +479,8 @@ mod tests {
             updated_at: "2026-07-09T00:00:00.000Z".into(),
             deleted_at: None,
             retention_until: None,
+            reactions: Vec::new(),
+            pin: None,
         }
     }
 

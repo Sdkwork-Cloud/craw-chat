@@ -25,7 +25,7 @@ public class OpsApi {
         return client.convertValue(raw, new TypeReference<ClusterRetrieveResponse>() {});
     }
 
-    /** Retrieve projection lag */
+    /** Retrieve operational lag */
     public LagListResponse lagRetrieve(Integer pageSize, String cursor) throws Exception {
         String query = buildQueryString(List.of(
             new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
@@ -33,12 +33,6 @@ public class OpsApi {
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/ops/lag"), query));
         return client.convertValue(raw, new TypeReference<LagListResponse>() {});
-    }
-
-    /** Retrieve replay status */
-    public ReplayStatusRetrieveResponse replayStatusRetrieve() throws Exception {
-        Object raw = client.get(ApiPaths.backendPath("/ops/replay_status"));
-        return client.convertValue(raw, new TypeReference<ReplayStatusRetrieveResponse>() {});
     }
 
     /** Retrieve commercial readiness */

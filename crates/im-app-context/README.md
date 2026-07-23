@@ -5,7 +5,7 @@ Capability: im
 Package type: rust-crate  
 Status: active
 
-Single-source Rust crate for IM domain `AppContext` projection, internal dual-token utilities,
+Single-source Rust crate for the IM domain `AppContext`, internal dual-token utilities,
 JWT validation, and trusted orchestration context used across IM services and gateways. HTTP
 routers resolve credentials once through `sdkwork-web-framework`; this crate must not install a
 parallel request-context middleware.

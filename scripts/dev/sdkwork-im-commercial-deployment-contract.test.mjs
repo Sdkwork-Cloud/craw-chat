@@ -69,7 +69,6 @@ const requiredManifests = [
   'conversation-service/deployment.yaml',
   'governance-service/deployment.yaml',
   'notification-service/deployment.yaml',
-  'projection-service/deployment.yaml',
   'media-service/deployment.yaml',
   'streaming-service/deployment.yaml',
 ];
@@ -188,7 +187,6 @@ const activeCloudServices = [
   'conversation-service',
   'governance-service',
   'notification-service',
-  'projection-service',
   'media-service',
   'streaming-service',
   'audit-service',
@@ -221,7 +219,6 @@ const deploymentManifestPaths = [
   'conversation-service/deployment.yaml',
   'governance-service/deployment.yaml',
   'notification-service/deployment.yaml',
-  'projection-service/deployment.yaml',
   'media-service/deployment.yaml',
   'streaming-service/deployment.yaml',
 ];

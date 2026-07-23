@@ -7,7 +7,7 @@
 <div class="api-link-list">
   <a href="/api-reference/im/messages"><code>Messages</code> Return to the group page for workflow context and related operations</a>
   <a href="/api-reference/im-api"><code>IM Standard API</code> Return to the domain overview</a>
-  <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, AppContext projection, and error-envelope rules</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, resolved request-context, and error-envelope rules</a>
 </div>
 
 <section class="api-op api-op-single">
@@ -18,11 +18,9 @@
   <span class="api-op-id">operationId: conversations.messages.list</span>
 </div>
 
-Lists a durable, store-backed message history window for the conversation. This public route is
-owned by `sdkwork-comms-conversation-service`; `projection-service` does not register or serve
-`GET /im/v3/api/chat/conversations/{conversationId}/messages`. Projection remains responsible for
-inbox, conversation summaries, read cursors, message search, pins, visibility, and interaction
-summary reads.
+Lists a durable, normalized Message history window owned by
+`sdkwork-comms-conversation-service`. Inbox, Conversation summaries, read cursors, Message search,
+pins, visibility, and interaction summaries are read from their typed normalized repositories.
 
 Production deployments read from `message_store.read_window` on `PostgresMessageStore` with
 `message_seq > afterSeq`, ascending sequence order, and `page_size + 1` fetch-ahead. Startup is
@@ -37,8 +35,8 @@ only when the user explicitly loads more history.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations.listMessages(...)`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationMessageListResponse`</span></div>
 </div>
@@ -68,14 +66,14 @@ returned `messageSeq` as `afterSeq`.
 sequence, sender, message body, summary, type, delivery mode, and timestamps. It intentionally does
 not inline `reactionCounts` or `pin` state; clients must not issue hidden per-message
 `interaction_summary` requests while loading history. Reactions, pins, and other interaction state
-remain explicit projection operations.
+remain explicit typed Message operations.
 
 
 ### Error Responses
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |

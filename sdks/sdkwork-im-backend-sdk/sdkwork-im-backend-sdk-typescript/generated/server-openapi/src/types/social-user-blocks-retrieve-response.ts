@@ -2,7 +2,7 @@ import type { SocialUserBlockSnapshotResponse } from './social-user-block-snapsh
 
 export interface SocialUserBlocksRetrieveResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialUserBlockSnapshotResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

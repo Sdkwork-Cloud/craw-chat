@@ -8,7 +8,7 @@ BEGIN
         WHERE source_aggregate_version = 0
     ) THEN
         RAISE EXCEPTION
-            'rollback refused: zero-based source aggregate projections exist';
+            'rollback refused: zero-based source aggregate assignments exist';
     END IF;
 END;
 $$;

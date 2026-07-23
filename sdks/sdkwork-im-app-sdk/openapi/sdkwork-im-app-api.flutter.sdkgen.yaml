@@ -1863,10 +1863,6 @@ components:
       required:
         - clientRouteWindowCount
         - pendingRealtimeEventCount
-        - conversationSnapshotPersistSuccessCount
-        - conversationSnapshotPersistFailureCount
-        - projectionReplayBacklogSize
-        - projectionReplayedEventCount
       properties:
         clientRouteWindowCount:
           type: string
@@ -1875,30 +1871,6 @@ components:
           x-sdkwork-int64-string: true
           x-sdkwork-rust-type: u64
         pendingRealtimeEventCount:
-          type: string
-          format: int64
-          pattern: ^[0-9]+$
-          x-sdkwork-int64-string: true
-          x-sdkwork-rust-type: u64
-        conversationSnapshotPersistSuccessCount:
-          type: string
-          format: int64
-          pattern: ^[0-9]+$
-          x-sdkwork-int64-string: true
-          x-sdkwork-rust-type: u64
-        conversationSnapshotPersistFailureCount:
-          type: string
-          format: int64
-          pattern: ^[0-9]+$
-          x-sdkwork-int64-string: true
-          x-sdkwork-rust-type: u64
-        projectionReplayBacklogSize:
-          type: string
-          format: int64
-          pattern: ^[0-9]+$
-          x-sdkwork-int64-string: true
-          x-sdkwork-rust-type: u64
-        projectionReplayedEventCount:
           type: string
           format: int64
           pattern: ^[0-9]+$
@@ -1917,41 +1889,34 @@ components:
           $ref: '#/components/schemas/PortalDataAvailability'
         metrics:
           $ref: '#/components/schemas/PortalOperationalMetrics'
-    PortalConversationProjectionMetrics:
+    PortalConversationOperationalMetrics:
       type: object
       additionalProperties: false
       required:
-        - persistSuccessCount
-        - persistFailureCount
-        - restoreSuccessCount
-        - replayBacklogSize
-        - replayedEventCount
+        - laggingScopeCount
+        - maxOperationalLag
+        - pendingOutboxEventCount
+        - failedOutboxAttemptCount
       properties:
-        persistSuccessCount:
+        laggingScopeCount:
           type: string
           format: int64
           pattern: ^[0-9]+$
           x-sdkwork-int64-string: true
           x-sdkwork-rust-type: u64
-        persistFailureCount:
+        maxOperationalLag:
           type: string
           format: int64
           pattern: ^[0-9]+$
           x-sdkwork-int64-string: true
           x-sdkwork-rust-type: u64
-        restoreSuccessCount:
+        pendingOutboxEventCount:
           type: string
           format: int64
           pattern: ^[0-9]+$
           x-sdkwork-int64-string: true
           x-sdkwork-rust-type: u64
-        replayBacklogSize:
-          type: string
-          format: int64
-          pattern: ^[0-9]+$
-          x-sdkwork-int64-string: true
-          x-sdkwork-rust-type: u64
-        replayedEventCount:
+        failedOutboxAttemptCount:
           type: string
           format: int64
           pattern: ^[0-9]+$
@@ -1968,8 +1933,8 @@ components:
           $ref: '#/components/schemas/PortalSnapshotMeta'
         availability:
           $ref: '#/components/schemas/PortalDataAvailability'
-        projection:
-          $ref: '#/components/schemas/PortalConversationProjectionMetrics'
+        metrics:
+          $ref: '#/components/schemas/PortalConversationOperationalMetrics'
     PortalAuditRecordView:
       type: object
       additionalProperties: false

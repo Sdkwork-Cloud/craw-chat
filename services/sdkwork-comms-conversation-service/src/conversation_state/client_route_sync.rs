@@ -5,7 +5,9 @@ use im_domain_core::conversation::ClientRouteSyncFeedEntry;
 use im_platform_contracts::normalize_realtime_organization_id;
 
 use crate::conversation_state::message_delivery_index::MessageDeliveryOfferCommand;
-use crate::conversation_state::model::{NotificationRecipientView, RealtimeFanoutTarget, RegisteredClientRouteView};
+use crate::conversation_state::model::{
+    NotificationRecipientView, RealtimeFanoutTarget, RegisteredClientRouteView,
+};
 use crate::conversation_state::scope::{
     ClientRoutePrincipalScopeKey, client_route_feed_scope_key, client_route_principal_scope_key,
     registered_client_route_at, scope_key,

@@ -2658,17 +2658,17 @@ assert.ok(listContactsPageSource, 'contact service listContactsPage block must s
 assert.match(
   contactServiceSource,
   /getContacts\s*\([\s\S]*?this\.listContactsPage\s*\(/u,
-  'contact service getContacts must list contacts through the generated IM chat contacts SDK',
+  'contact service getContacts must list contacts through the generated IM social contacts SDK',
 );
 assert.match(
   contactServiceSource,
   /syncContactsFromServer\s*\([\s\S]*?this\.listContactsPage\s*\(/u,
-  'contact service syncContacts must refresh a single bounded contact page through the generated IM chat contacts SDK',
+  'contact service syncContacts must refresh a single bounded contact page through the generated IM social contacts SDK',
 );
 assert.match(
   contactServiceSource,
-  /\.chat\.contacts\.list\s*\(/u,
-  'contact service must page contacts through chat.contacts.list',
+  /\.social\.contacts\.list\s*\(/u,
+  'contact service must page contacts through social.contacts.list',
 );
 assert.doesNotMatch(
   listContactsPageSource,

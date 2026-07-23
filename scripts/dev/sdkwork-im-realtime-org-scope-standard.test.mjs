@@ -106,32 +106,33 @@ assert.match(
   'postgres route binding must bind nullable session_id as Option<&str>',
 );
 assert.doesNotMatch(
-  read('adapters/local-memory/src/lib.rs').split('impl PresenceStateStore')[1]?.split('impl MemoryTimelineProjectionStore')[0] ?? '',
+  read('adapters/local-memory/src/lib.rs').split('impl PresenceStateStore')[1]?.split('#[cfg(test)]')[0] ?? '',
   /"default"/,
   'memory presence store must not hardcode default organization_id in production paths',
 );
 
-const projectionScope = read('services/projection-service/src/scope.rs');
-const projectionMigration = baselineDdl;
+const conversationStateScope = read(
+  'services/sdkwork-comms-conversation-service/src/conversation_state/scope.rs',
+);
 assert.match(
-  projectionScope,
+  conversationStateScope,
   /pub\(super\) organization_id: String,/,
-  'projection client route scope keys must include organization_id',
+  'normalized client route scope keys must include organization_id',
 );
 assert.match(
-  projectionScope,
+  conversationStateScope,
   /organization_id: &str,\s*\n\s*principal_kind: &str,\s*\n\s*principal_id: &str,/,
-  'projection client route scope keys must order principal_kind before principal_id',
+  'normalized client route scope keys must order principal_kind before principal_id',
 );
 assert.match(
-  read('services/projection-service/src/client_route_sync.rs'),
+  read('services/sdkwork-comms-conversation-service/src/conversation_state/client_route_sync.rs'),
   /test_registered_client_routes_isolate_organizations/,
-  'projection client route runtime must test organization isolation',
+  'normalized client route runtime must test organization isolation',
 );
 assert.match(
-  projectionMigration,
+  baselineDdl,
   /pk_im_registered_client_routes PRIMARY KEY \(tenant_id, organization_id, principal_kind, principal_id, device_id\)/,
-  'migration 011 must scope projection registered client routes by organization_id',
+  'baseline must scope registered client routes by organization_id',
 );
 
 assert.match(
@@ -140,9 +141,9 @@ assert.match(
   'CommitEnvelope must carry organization_id for tenant/org scoped fanout',
 );
 assert.match(
-  read('services/projection-service/src/scope.rs'),
-  /projection_organization_id_for_event/,
-  'projection fanout must resolve organization_id from commit envelopes',
+  conversationStateScope,
+  /conversation_state_organization_id_for_event/,
+  'normalized state fanout must resolve organization_id from commit envelopes',
 );
 
 const conversationRuntime = read(
@@ -174,14 +175,14 @@ assert.match(
   'conversation runtime scope keys must include organization_id',
 );
 assert.match(
-  read('services/projection-service/src/scope.rs'),
+  conversationStateScope,
   /pub\(super\) fn scope_key\([\s\S]*organization_id: &str,[\s\S]*conversation_id: &str,/,
-  'projection conversation scope keys must include organization_id',
+  'normalized conversation scope keys must include organization_id',
 );
 assert.match(
-  read('services/projection-service/src/scope.rs'),
+  conversationStateScope,
   /test_conversation_scope_keys_isolate_organizations/,
-  'projection scope must test conversation organization isolation',
+  'normalized state must test conversation organization isolation',
 );
 assert.doesNotMatch(
   read('services/sdkwork-comms-conversation-service/src/runtime/creation.rs'),
@@ -190,29 +191,29 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  read('services/projection-service/src/scope.rs'),
+  conversationStateScope,
   /test_contact_owner_scope_keys_isolate_organizations/,
-  'projection scope must test contact owner organization isolation',
+  'normalized state must test contact owner organization isolation',
 );
 assert.match(
-  read('services/projection-service/src/contacts.rs'),
+  read('services/sdkwork-comms-conversation-service/src/conversation_state/contacts.rs'),
   /organization_id: &str,\s*\n\s*owner_user_id: &str,/,
-  'projection contacts API must scope reads by organization_id',
+  'conversation state contact integration must scope reads by organization_id',
 );
 assert.match(
-  read('services/projection-service/src/access.rs'),
+  read('services/sdkwork-comms-conversation-service/src/conversation_state/access.rs'),
   /direct_chat_binding_for_conversation\([\s\S]*organization_id: &str,/,
-  'projection direct-chat binding lookup must include organization_id',
+  'direct-chat binding lookup must include organization_id',
 );
 assert.match(
-  projectionMigration,
-  /pk_im_projection_contacts PRIMARY KEY \(tenant_id, organization_id, owner_user_id, contact_type, target_user_id\)/,
-  'migration 011 must scope projection contacts by organization_id',
+  baselineDdl,
+  /pk_im_friendships PRIMARY KEY \(tenant_id, organization_id, friendship_id\)/,
+  'baseline must scope canonical friendships by organization_id',
 );
 assert.match(
-  projectionMigration,
-  /pk_im_projection_direct_chat_bindings PRIMARY KEY \(tenant_id, organization_id, direct_chat_id\)/,
-  'migration 011 must scope projection direct-chat bindings by organization_id',
+  baselineDdl,
+  /pk_im_direct_chats PRIMARY KEY \(tenant_id, organization_id, direct_chat_id\)/,
+  'baseline must scope canonical direct-chat bindings by organization_id',
 );
 
 assert.doesNotMatch(

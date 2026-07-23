@@ -20,7 +20,7 @@ class OpsApi(private val client: HttpClient) {
         return client.convertValue(raw, object : TypeReference<ClusterRetrieveResponse>() {})
     }
 
-    /** Retrieve projection lag */
+    /** Retrieve operational lag */
     suspend fun lagRetrieve(pageSize: Int? = null, cursor: String? = null): LagListResponse? {
         val query = buildQueryString(listOf(
             QueryParameterSpec("page_size", pageSize, "form", true, false, null),
@@ -28,12 +28,6 @@ class OpsApi(private val client: HttpClient) {
         ))
         val raw = client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/ops/lag"), query))
         return client.convertValue(raw, object : TypeReference<LagListResponse>() {})
-    }
-
-    /** Retrieve replay status */
-    suspend fun replayStatusRetrieve(): ReplayStatusRetrieveResponse? {
-        val raw = client.get(ApiPaths.backendPath("/ops/replay_status"))
-        return client.convertValue(raw, object : TypeReference<ReplayStatusRetrieveResponse>() {})
     }
 
     /** Retrieve commercial readiness */

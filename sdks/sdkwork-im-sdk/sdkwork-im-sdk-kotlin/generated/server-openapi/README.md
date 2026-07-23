@@ -107,12 +107,14 @@ println(result)
 ### chat
 
 ```kotlin
-// List IM contacts
+// List current inbox window
 val params = linkedMapOf<String, Any>(
     "page_size" to 1,
-    "cursor" to "cursor"
+    "cursor" to "cursor",
+    "conversation_type" to "conversation-type",
+    "q" to "q"
 )
-val result = client.chat.contactsList(params)
+val result = client.chat.inboxList(params)
 println(result)
 ```
 

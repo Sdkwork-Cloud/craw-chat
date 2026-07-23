@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::api::paths::app_path;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{AppendAgentResponseDeltaRequest, AutomationAgentResponsesCompleteResponse, AutomationAgentResponsesCreateResponse201, AutomationAgentResponsesFramesCreateResponse201, AutomationAgentToolCallsCompleteResponse, AutomationAgentToolCallsCreateResponse201, AutomationExecutionsCreateResponse201, AutomationExecutionsRetrieveResponse, CompleteAgentResponseRequest, CompleteAgentToolCallRequest, RequestAgentToolCallRequest, RequestAutomationExecution, StartAgentResponseRequest};
+use crate::models::{AgentToolCall, AppendAgentResponseDeltaRequest, AutomationExecution, AutomationExecutionRequestResponse, CompleteAgentResponseRequest, CompleteAgentToolCallRequest, RequestAgentToolCallRequest, RequestAutomationExecution, StartAgentResponseRequest, StreamFrame, StreamSession};
 
 #[derive(Clone)]
 pub struct AutomationApi {
@@ -15,43 +15,43 @@ impl AutomationApi {
     }
 
     /// Start an agent response stream
-    pub async fn agent_responses_create(&self, body: &StartAgentResponseRequest) -> Result<AutomationAgentResponsesCreateResponse201, SdkworkError> {
+    pub async fn agent_responses_create(&self, body: &StartAgentResponseRequest) -> Result<StreamSession, SdkworkError> {
         let path = app_path(&"/automation/agent_responses".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Complete an agent response stream
-    pub async fn agent_responses_complete(&self, stream_id: &str, body: &CompleteAgentResponseRequest) -> Result<AutomationAgentResponsesCompleteResponse, SdkworkError> {
+    pub async fn agent_responses_complete(&self, stream_id: &str, body: &CompleteAgentResponseRequest) -> Result<StreamSession, SdkworkError> {
         let path = app_path(&format!("/automation/agent_responses/{}/complete", serialize_path_parameter(stream_id, PathParameterSpec::new("streamId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Append a frame to an agent response stream
-    pub async fn agent_responses_frames_create(&self, stream_id: &str, body: &AppendAgentResponseDeltaRequest) -> Result<AutomationAgentResponsesFramesCreateResponse201, SdkworkError> {
+    pub async fn agent_responses_frames_create(&self, stream_id: &str, body: &AppendAgentResponseDeltaRequest) -> Result<StreamFrame, SdkworkError> {
         let path = app_path(&format!("/automation/agent_responses/{}/frames", serialize_path_parameter(stream_id, PathParameterSpec::new("streamId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Request an agent tool call
-    pub async fn agent_tool_calls_create(&self, body: &RequestAgentToolCallRequest) -> Result<AutomationAgentToolCallsCreateResponse201, SdkworkError> {
+    pub async fn agent_tool_calls_create(&self, body: &RequestAgentToolCallRequest) -> Result<AgentToolCall, SdkworkError> {
         let path = app_path(&"/automation/agent_tool_calls".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Request an automation execution
-    pub async fn executions_create(&self, body: &RequestAutomationExecution) -> Result<AutomationExecutionsCreateResponse201, SdkworkError> {
+    pub async fn executions_create(&self, body: &RequestAutomationExecution) -> Result<AutomationExecutionRequestResponse, SdkworkError> {
         let path = app_path(&"/automation/executions".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Get an automation execution
-    pub async fn executions_retrieve(&self, execution_id: &str) -> Result<AutomationExecutionsRetrieveResponse, SdkworkError> {
+    pub async fn executions_retrieve(&self, execution_id: &str) -> Result<AutomationExecution, SdkworkError> {
         let path = app_path(&format!("/automation/executions/{}", serialize_path_parameter(execution_id, PathParameterSpec::new("executionId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Complete an agent tool call
-    pub async fn agent_tool_calls_complete(&self, execution_id: &str, tool_call_id: &str, body: &CompleteAgentToolCallRequest) -> Result<AutomationAgentToolCallsCompleteResponse, SdkworkError> {
+    pub async fn agent_tool_calls_complete(&self, execution_id: &str, tool_call_id: &str, body: &CompleteAgentToolCallRequest) -> Result<AgentToolCall, SdkworkError> {
         let path = app_path(&format!("/automation/executions/{}/agent_tool_calls/{}/complete", serialize_path_parameter(execution_id, PathParameterSpec::new("executionId", "simple", false)), serialize_path_parameter(tool_call_id, PathParameterSpec::new("toolCallId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }

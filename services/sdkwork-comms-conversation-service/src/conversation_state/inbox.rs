@@ -6,8 +6,8 @@ use sdkwork_utils_rust::SdkWorkPageData;
 
 use super::list_page;
 
-use crate::conversation_state::member_store::ConversationStateMemberRuntimeStore;
 use crate::conversation_state::event_apply::latest_summary_activity_at;
+use crate::conversation_state::member_store::ConversationStateMemberRuntimeStore;
 use crate::conversation_state::{ConversationStateService, lock_conversation_state_mutex};
 
 /// Member conversation_state fields captured under a short `members` lock so inbox reads
@@ -32,9 +32,13 @@ pub(crate) struct InboxWindowQuery<'a> {
     pub cursor: crate::conversation_state::model::InboxListCursor,
 }
 
-fn decode_inbox_keyset_cursor(cursor: &str) -> Option<crate::conversation_state::model::InboxListCursor> {
+fn decode_inbox_keyset_cursor(
+    cursor: &str,
+) -> Option<crate::conversation_state::model::InboxListCursor> {
     let wire: crate::conversation_state::model::InboxKeysetCursorWire = if cursor.contains('.') {
-        let payload = crate::conversation_state::cursor_auth::decode_signed_conversation_state_cursor(cursor).ok()?;
+        let payload =
+            crate::conversation_state::cursor_auth::decode_signed_conversation_state_cursor(cursor)
+                .ok()?;
         serde_json::from_value(payload).ok()?
     } else {
         serde_json::from_str(cursor).ok()?
@@ -57,7 +61,10 @@ impl ConversationStateService {
         organization_id: &str,
         principal_id: &str,
         principal_kind: &str,
-    ) -> Result<Vec<ConversationInboxEntry>, crate::conversation_state::event_apply::ConversationStateError> {
+    ) -> Result<
+        Vec<ConversationInboxEntry>,
+        crate::conversation_state::event_apply::ConversationStateError,
+    > {
         const INBOX_EXPORT_PAGE_SIZE: usize = 200;
         const INBOX_EXPORT_MAX_ITEMS: usize = 10_000;
         let mut items = Vec::new();
@@ -100,7 +107,10 @@ impl ConversationStateService {
         &self,
         query: InboxWindowQuery<'_>,
         mut filter: F,
-    ) -> Result<SdkWorkPageData<ConversationInboxEntry>, crate::conversation_state::event_apply::ConversationStateError>
+    ) -> Result<
+        SdkWorkPageData<ConversationInboxEntry>,
+        crate::conversation_state::event_apply::ConversationStateError,
+    >
     where
         F: FnMut(&ConversationInboxEntry) -> bool,
     {
@@ -185,9 +195,11 @@ impl ConversationStateService {
             None
         };
         if has_more && next_cursor.is_none() {
-            return Err(crate::conversation_state::event_apply::ConversationStateError::InvalidEvent(
-                "failed to encode inbox list cursor".into(),
-            ));
+            return Err(
+                crate::conversation_state::event_apply::ConversationStateError::InvalidEvent(
+                    "failed to encode inbox list cursor".into(),
+                ),
+            );
         }
         Ok(list_page::cursor_page(window, limit, next_cursor, has_more))
     }
@@ -229,7 +241,8 @@ impl ConversationStateService {
         } = member_context;
         // Snapshot each store under a single lock to avoid AB-BA deadlocks with journal writers.
         let conversation = {
-            let conversations = lock_conversation_state_mutex(&self.conversations, "conversation store");
+            let conversations =
+                lock_conversation_state_mutex(&self.conversations, "conversation store");
             conversations.get(scope).cloned()
         };
         let summary = {
@@ -848,7 +861,8 @@ mod deadlock_regression_tests {
                                     principal_id: "user_inbox_deadlock",
                                     principal_kind: "user",
                                     limit: 20,
-                                    cursor: crate::conversation_state::model::InboxListCursor::Start,
+                                    cursor:
+                                        crate::conversation_state::model::InboxListCursor::Start,
                                 },
                                 |_| true,
                             )

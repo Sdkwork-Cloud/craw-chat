@@ -1,31 +1,26 @@
 #!/usr/bin/env node
 /**
- * Component-spec ↔ workspace crate consistency check.
+ * Component-spec to workspace implementation consistency check.
  *
- * Validates that the authored workspace stays aligned with `specs/component.spec.json`
- * and the SDKWork standards it references. This complements
- * `sdkwork-workspace-structure-standard.test.mjs` (which owns the directory dictionary
- * and governance artifacts) by focusing on the contract ↔ implementation boundary:
+ * The check owns the contract-to-implementation boundary:
  *
- *  1. Every Cargo workspace member under crates/, services/, adapters/, tools/ ships a
- *     module README (DOCUMENTATION_SPEC.md module README rule).
- *  2. `specs/component.spec.json` `canonicalSpecs[].path` entries resolve to real files
- *     under `../sdkwork-specs/` (COMPONENT_SPEC.md authority-chain rule).
- *  3. `component.manifests` entries (sdkwork.app.config.json, package.json, Cargo.toml)
- *     exist at the repository root (COMPONENT_SPEC.md manifest rule).
- *  4. `verification.commands` referenced by the spec are non-empty and look executable.
- * Naming-alignment (the legacy sdkwork-im and im crate prefixes were consolidated to
- * sdkwork-im-) is governed by ADR-20260615-sdkwork-im-to-sdkwork-im-rebrand; the batched
- * rename is complete and intentionally NOT enforced here as a hard failure. This test only
- * hard-fails on structural drift that has no governance escape hatch.
+ *  1. Every Cargo workspace member under crates/, services/, adapters/, and tools/
+ *     ships a module README.
+ *  2. Every component's canonical standard and permission manifest references resolve
+ *     relative to the component root, as required by COMPONENT_SPEC.md.
+ *  3. The repository component manifests exist at the repository root.
+ *  4. Repository verification commands are non-empty, executable, and registered.
+ *  5. Application and workflow security declarations remain aligned.
  */
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
+const ignoredDirectories = new Set(['.git', 'build', 'dist', 'node_modules', 'target']);
 
 function abs(relativePath) {
   return path.join(repoRoot, relativePath);
@@ -45,9 +40,27 @@ function exists(relativePath) {
   return fs.existsSync(abs(relativePath));
 }
 
+function toPosix(value) {
+  return value.replaceAll('\\', '/');
+}
+
+function listComponentSpecPaths(directory = repoRoot, records = []) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (!ignoredDirectories.has(entry.name)) {
+        listComponentSpecPaths(path.join(directory, entry.name), records);
+      }
+      continue;
+    }
+    if (entry.name === 'component.spec.json') {
+      records.push(path.join(directory, entry.name));
+    }
+  }
+  return records.sort();
+}
+
 /**
- * Parse the workspace `Cargo.toml` members list and return each member directory
- * relative to the repo root. Handles quoted and bare member paths.
+ * Parse the workspace Cargo members list and return paths relative to the repo root.
  */
 function parseWorkspaceMembers() {
   const cargoText = readText('Cargo.toml');
@@ -84,27 +97,78 @@ assert.deepEqual(
   `every Cargo workspace member must ship a module README (DOCUMENTATION_SPEC.md); missing for: ${membersWithoutReadme.join(', ') || '(none)'}`,
 );
 
-// --- 2. component.spec.json canonicalSpecs paths resolve --------------------
+// --- 2. Component-local authority and permission paths resolve -------------
 
-const componentSpec = readJson('specs/component.spec.json');
+const componentSpecPaths = listComponentSpecPaths();
+assert.ok(componentSpecPaths.length > 0, 'repository must declare component specs');
+
+const missingCanonicalContracts = [];
 const unresolvedSpecs = [];
-for (const entry of componentSpec.canonicalSpecs ?? []) {
-  // Spec paths in component.spec.json are relative to the repository root
-  // (e.g. "../sdkwork-specs/README.md" resolves to the sibling sdkwork-specs
-  // checkout at <workspace>/sdkwork-specs), not relative to specs/.
-  const resolved = path.resolve(repoRoot, entry.path);
-  if (!fs.existsSync(resolved)) {
-    unresolvedSpecs.push(entry.path);
+const unresolvedPermissionManifests = [];
+for (const componentSpecPath of componentSpecPaths) {
+  const componentSpec = JSON.parse(fs.readFileSync(componentSpecPath, 'utf8'));
+  const componentRoot = path.dirname(path.dirname(componentSpecPath));
+  const relativeSpecPath = toPosix(path.relative(repoRoot, componentSpecPath));
+  const canonicalSpecs = componentSpec.canonicalSpecs ?? [];
+
+  if (componentSpec.component?.generated !== true && canonicalSpecs.length === 0) {
+    missingCanonicalContracts.push(relativeSpecPath);
+  }
+  for (const entry of canonicalSpecs) {
+    const resolved = path.resolve(componentRoot, entry.path);
+    if (!fs.existsSync(resolved)) {
+      unresolvedSpecs.push(`${relativeSpecPath}: ${entry.path}`);
+    }
+  }
+
+  const permissionComposition = componentSpec.contracts?.permissionComposition;
+  const permissionManifestRefs = [
+    ...(permissionComposition?.moduleCatalogRefs ?? []).map((entry) => entry.manifestRef),
+    permissionComposition?.applicationModule?.manifestRef,
+  ].filter(Boolean);
+  for (const manifestRef of permissionManifestRefs) {
+    const manifestPath = manifestRef.split('#')[0];
+    if (!fs.existsSync(path.resolve(componentRoot, manifestPath))) {
+      unresolvedPermissionManifests.push(`${relativeSpecPath}: ${manifestRef}`);
+    }
   }
 }
+
+assert.deepEqual(
+  missingCanonicalContracts,
+  [],
+  `authored component specs must declare canonicalSpecs; missing: ${missingCanonicalContracts.join(', ') || '(none)'}`,
+);
 assert.deepEqual(
   unresolvedSpecs,
   [],
-  `specs/component.spec.json canonicalSpecs paths must resolve under ../sdkwork-specs/; unresolved: ${unresolvedSpecs.join(', ') || '(none)'}`,
+  `component canonicalSpecs paths must resolve from each component root; unresolved: ${unresolvedSpecs.join(', ') || '(none)'}`,
+);
+assert.deepEqual(
+  unresolvedPermissionManifests,
+  [],
+  `permission manifest references must resolve from each component root; unresolved: ${unresolvedPermissionManifests.join(', ') || '(none)'}`,
 );
 
-// --- 3. component.manifests entries exist at repo root ----------------------
+const componentPortBindingCheck = spawnSync(
+  process.execPath,
+  [
+    path.resolve(repoRoot, '..', 'sdkwork-specs', 'tools', 'check-component-port-bindings.mjs'),
+    '--root',
+    repoRoot,
+    '--strict',
+  ],
+  { cwd: repoRoot, encoding: 'utf8' },
+);
+assert.equal(
+  componentPortBindingCheck.status,
+  0,
+  componentPortBindingCheck.stderr || componentPortBindingCheck.stdout,
+);
 
+// --- 3. Repository component manifests exist -------------------------------
+
+const componentSpec = readJson('specs/component.spec.json');
 const manifests = componentSpec.component?.manifests ?? [];
 assert.ok(
   manifests.length > 0,
@@ -117,7 +181,7 @@ assert.deepEqual(
   `specs/component.spec.json component.manifests must exist at the repo root; missing: ${missingManifests.join(', ') || '(none)'}`,
 );
 
-// --- 4. verification.commands are declared and shaped -----------------------
+// --- 4. Verification commands are declared and shaped ----------------------
 
 const verificationCommands = componentSpec.verification?.commands ?? [];
 assert.ok(
@@ -131,8 +195,6 @@ for (const command of verificationCommands) {
     `specs/component.spec.json verification command must start with a known runner (cargo|node|pnpm): ${command}`,
   );
 }
-
-// --- 5. verification.commands resolve to package.json scripts when using pnpm ---
 
 const rootPackageJson = readJson('package.json');
 const rootScripts = rootPackageJson.scripts ?? {};
@@ -148,7 +210,7 @@ for (const command of verificationCommands) {
   );
 }
 
-// --- 6. sdkwork.app.config.json security aligns with sdkwork.workflow.json --------
+// --- 5. Application and workflow security declarations align ---------------
 
 const appManifest = readJson('sdkwork.app.config.json');
 const workflowManifest = readJson('sdkwork.workflow.json');
@@ -182,4 +244,4 @@ if (workflowSecurity.signingRequired === true) {
   );
 }
 
-process.stdout.write('sdkwork-chat component-spec consistency passed\n');
+process.stdout.write('sdkwork-im component-spec consistency passed\n');

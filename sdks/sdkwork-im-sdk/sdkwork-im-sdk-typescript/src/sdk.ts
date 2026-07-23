@@ -187,16 +187,6 @@ function toGeneratedConfig(options: ImSdkClientOptions): SdkworkImConfig {
   };
 }
 
-function createSocialFacade(transportClient: ImTransportClientLike): ImTransportClientLike['social'] {
-  return {
-    ...transportClient.social,
-    contacts: {
-      ...transportClient.social.contacts,
-      list: (params?: QueryParams) => transportClient.chat.contacts.list(params),
-    },
-  };
-}
-
 export class ImSdkClient {
   readonly chat: ImTransportClientLike['chat'];
   readonly calls: ImCallsModule;
@@ -214,7 +204,7 @@ export class ImSdkClient {
     this.websocketBaseUrl = resolveWebsocketBaseUrl(options);
     this.transportClient = new GeneratedSdkworkImClient(toGeneratedConfig(options)) as unknown as ImTransportClientLike;
     this.chat = this.transportClient.chat;
-    this.social = createSocialFacade(this.transportClient);
+    this.social = this.transportClient.social;
     this.messages = new ImMessagesModule(this.transportClient);
     this.conversations = new ImConversationsModule(this.transportClient);
     this.rooms = new ImRoomsModule(this.transportClient);

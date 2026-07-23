@@ -65,10 +65,6 @@ pub struct PortalModuleSnapshot {
 pub struct PortalOperationalMetrics {
     pub client_route_window_count: String,
     pub pending_realtime_event_count: String,
-    pub conversation_snapshot_persist_success_count: String,
-    pub conversation_snapshot_persist_failure_count: String,
-    pub projection_replay_backlog_size: String,
-    pub projection_replayed_event_count: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -86,17 +82,16 @@ pub struct PortalConversationSnapshot {
     pub meta: PortalSnapshotMeta,
     pub availability: PortalDataAvailability,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub projection: Option<PortalConversationProjectionMetrics>,
+    pub metrics: Option<PortalConversationOperationalMetrics>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PortalConversationProjectionMetrics {
-    pub persist_success_count: String,
-    pub persist_failure_count: String,
-    pub restore_success_count: String,
-    pub replay_backlog_size: String,
-    pub replayed_event_count: String,
+pub struct PortalConversationOperationalMetrics {
+    pub lagging_scope_count: String,
+    pub max_operational_lag: String,
+    pub pending_outbox_event_count: String,
+    pub failed_outbox_attempt_count: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -218,7 +213,7 @@ pub fn build_portal_access_snapshot(ops: &OpsRuntime, auth: Option<&AppContext>)
 
 pub fn build_portal_dashboard_snapshot(ops: &OpsRuntime) -> PortalSnapshot {
     let health = ops.health_view();
-    let available = ops_metrics_data_available(ops);
+    let available = realtime_metrics_data_available(&health);
     PortalSnapshot::Dashboard(PortalDashboardSnapshot {
         meta: snapshot_meta("dashboard", &health, available),
         availability: metrics_availability(available),
@@ -228,31 +223,11 @@ pub fn build_portal_dashboard_snapshot(ops: &OpsRuntime) -> PortalSnapshot {
 
 pub fn build_portal_conversations_snapshot(ops: &OpsRuntime) -> PortalSnapshot {
     let health = ops.health_view();
-    let available = ops_metrics_data_available(ops);
-    let metrics = &health.projection_plane.metrics;
+    let available = conversation_metrics_data_available(ops, &health);
     PortalSnapshot::Conversation(PortalConversationSnapshot {
         meta: snapshot_meta("conversations", &health, available),
         availability: metrics_availability(available),
-        projection: available.then(|| PortalConversationProjectionMetrics {
-            persist_success_count: metrics
-                .conversation_snapshot_persist
-                .success_count
-                .to_string(),
-            persist_failure_count: metrics
-                .conversation_snapshot_persist
-                .failure_count
-                .to_string(),
-            restore_success_count: metrics
-                .conversation_snapshot_restore
-                .success_count
-                .to_string(),
-            replay_backlog_size: health.projection_plane.replay.backlog_size.to_string(),
-            replayed_event_count: health
-                .projection_plane
-                .replay
-                .replayed_event_count
-                .to_string(),
-        }),
+        metrics: available.then(|| conversation_operational_metrics(ops)),
     })
 }
 
@@ -295,7 +270,7 @@ pub fn build_portal_media_snapshot(ops: &OpsRuntime) -> PortalSnapshot {
 
 pub fn build_portal_realtime_snapshot(ops: &OpsRuntime) -> PortalSnapshot {
     let health = ops.health_view();
-    let available = ops_metrics_data_available(ops);
+    let available = realtime_metrics_data_available(&health);
     let realtime = &health.realtime_inbox;
     PortalSnapshot::Realtime(PortalRealtimeSnapshot {
         meta: snapshot_meta("realtime", &health, available),
@@ -418,42 +393,40 @@ fn operational_metrics(health: &OpsHealthResponse) -> PortalOperationalMetrics {
     PortalOperationalMetrics {
         client_route_window_count: health.realtime_inbox.client_route_window_count.to_string(),
         pending_realtime_event_count: health.realtime_inbox.pending_event_count.to_string(),
-        conversation_snapshot_persist_success_count: health
-            .projection_plane
-            .metrics
-            .conversation_snapshot_persist
-            .success_count
+    }
+}
+
+fn conversation_operational_metrics(ops: &OpsRuntime) -> PortalConversationOperationalMetrics {
+    let lag = ops.lag_view().items;
+    let outboxes = ops.side_effect_outboxes_view();
+    PortalConversationOperationalMetrics {
+        lagging_scope_count: lag.iter().filter(|item| item.lag > 0).count().to_string(),
+        max_operational_lag: lag
+            .iter()
+            .map(|item| item.lag)
+            .max()
+            .unwrap_or(0)
             .to_string(),
-        conversation_snapshot_persist_failure_count: health
-            .projection_plane
-            .metrics
-            .conversation_snapshot_persist
-            .failure_count
+        pending_outbox_event_count: outboxes
+            .iter()
+            .map(|item| item.pending_count)
+            .sum::<u64>()
             .to_string(),
-        projection_replay_backlog_size: health.projection_plane.replay.backlog_size.to_string(),
-        projection_replayed_event_count: health
-            .projection_plane
-            .replay
-            .replayed_event_count
+        failed_outbox_attempt_count: outboxes
+            .iter()
+            .map(|item| item.failed_attempt_count)
+            .sum::<u64>()
             .to_string(),
     }
 }
 
-fn ops_metrics_data_available(ops: &OpsRuntime) -> bool {
-    let health = ops.health_view();
-    if health.status != "ok" {
-        return false;
-    }
-    let lag_wired = !ops.lag_view().items.is_empty();
-    health
-        .projection_plane
-        .metrics
-        .conversation_snapshot_persist
-        .attempt_count
-        > 0
-        || health.projection_plane.replay.replayed_event_count > 0
-        || health.realtime_inbox.client_route_window_count > 0
-        || lag_wired
+fn realtime_metrics_data_available(health: &OpsHealthResponse) -> bool {
+    health.status == "ok" && health.realtime_inbox.client_route_window_capacity > 0
+}
+
+fn conversation_metrics_data_available(ops: &OpsRuntime, health: &OpsHealthResponse) -> bool {
+    health.status == "ok"
+        && (!ops.lag_view().items.is_empty() || !ops.side_effect_outboxes_view().is_empty())
 }
 
 fn governance_risk_sample(records: &[AuditRecord]) -> PortalGovernanceRiskSample {

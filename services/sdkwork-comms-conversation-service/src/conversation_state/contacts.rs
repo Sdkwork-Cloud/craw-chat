@@ -17,11 +17,11 @@ use crate::conversation_state::model::ContactDirectChatBindingView;
 use crate::conversation_state::model::ContactListCursor;
 use crate::conversation_state::{ContactView, ConversationStateService};
 
-use super::lock_conversation_state_mutex;
 use super::event_apply::ConversationStateError;
+use super::lock_conversation_state_mutex;
 use super::scope::{
-    ContactOwnerScopeKey, contact_owner_scope_key, encode_conversation_state_key_segments,
-    conversation_state_organization_id_for_event, scope_key,
+    ContactOwnerScopeKey, contact_owner_scope_key, conversation_state_organization_id_for_event,
+    encode_conversation_state_key_segments, scope_key,
 };
 
 #[derive(Default)]
@@ -285,10 +285,12 @@ impl ConversationStateService {
                 exhausted = true;
                 break;
             };
-            scan_cursor = Some(crate::conversation_state::model::ContactListCursor::Keyset {
-                last_interaction_at: last_scanned.last_interaction_at.clone(),
-                target_user_id: last_scanned.target_user_id.clone(),
-            });
+            scan_cursor = Some(
+                crate::conversation_state::model::ContactListCursor::Keyset {
+                    last_interaction_at: last_scanned.last_interaction_at.clone(),
+                    target_user_id: last_scanned.target_user_id.clone(),
+                },
+            );
             self.enrich_contact_profiles(tenant_id, organization_id, &mut batch);
             for contact in batch {
                 if requested_query
@@ -323,7 +325,10 @@ impl ConversationStateService {
                         "lastInteractionAt": last_interaction_at,
                         "targetUserId": target_user_id,
                     });
-                    crate::conversation_state::cursor_auth::encode_signed_conversation_state_cursor(&payload).ok()
+                    crate::conversation_state::cursor_auth::encode_signed_conversation_state_cursor(
+                        &payload,
+                    )
+                    .ok()
                 })
         } else {
             None
@@ -479,7 +484,10 @@ impl ConversationStateService {
         Ok(())
     }
 
-    pub(super) fn apply_user_blocked(&self, event: &CommitEnvelope) -> Result<(), ConversationStateError> {
+    pub(super) fn apply_user_blocked(
+        &self,
+        event: &CommitEnvelope,
+    ) -> Result<(), ConversationStateError> {
         let payload: UserBlockedPayload =
             serde_json::from_str(&event.payload).map_err(ConversationStateError::InvalidPayload)?;
         let organization_id = conversation_state_organization_id_for_event(event);
@@ -752,13 +760,17 @@ impl ConversationStateService {
         for device in registered_client_routes_for_principal_kind(
             self,
             event.tenant_id.as_str(),
-            crate::conversation_state::scope::conversation_state_organization_id_for_event(event).as_str(),
+            crate::conversation_state::scope::conversation_state_organization_id_for_event(event)
+                .as_str(),
             principal_id,
             "user",
         ) {
             self.append_client_route_sync_entry(
                 event.tenant_id.as_str(),
-                crate::conversation_state::scope::conversation_state_organization_id_for_event(event).as_str(),
+                crate::conversation_state::scope::conversation_state_organization_id_for_event(
+                    event,
+                )
+                .as_str(),
                 principal_id,
                 "user",
                 device.device_id.as_str(),

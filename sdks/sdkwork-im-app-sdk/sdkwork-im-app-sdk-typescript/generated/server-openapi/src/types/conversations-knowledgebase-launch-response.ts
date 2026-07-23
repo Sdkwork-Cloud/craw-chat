@@ -2,7 +2,7 @@ import type { GroupKnowledgebaseLaunchResponse } from './group-knowledgebase-lau
 
 export interface ConversationsKnowledgebaseLaunchResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: GroupKnowledgebaseLaunchResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

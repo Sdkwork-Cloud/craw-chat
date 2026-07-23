@@ -7,7 +7,7 @@
 <div class="api-link-list">
   <a href="/api-reference/im/conversations"><code>Conversations and Handoff</code> Return to the group page for workflow context and related operations</a>
   <a href="/api-reference/im-api"><code>IM Standard API</code> Return to the domain overview</a>
-  <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, AppContext projection, and error-envelope rules</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, resolved request-context, and error-envelope rules</a>
 </div>
 
 <section class="api-op api-op-single">
@@ -15,20 +15,17 @@
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/agent_dialogs</code>
-  <span class="api-op-id">operationId: createAgentDialog</span>
+  <span class="api-op-id">operationId: conversations.agentDialogs.create</span>
 </div>
 
-Creates a one-to-one conversation with a specific agent. This operation is a create/idempotency
-command only; it is not the agent conversation list or retrieve entrypoint.
-
-Before calling this command, app clients should use `sdk.conversations.list()` / `GET
-/im/v3/api/chat/inbox` to find and reuse an existing agent-dialog conversation in the unified
-conversation list. Duplicate creates with the same idempotency key replay the original result;
-conflicting reuse of an idempotency key returns `40901`.
+Creates a one-to-one conversation with a specific agent. Before calling this command, app clients
+should use `sdk.conversations.list()` / `GET /im/v3/api/chat/inbox` to find and reuse an existing
+agent-dialog conversation. Duplicate creates with the same idempotency key replay the original
+result; conflicting reuse of an idempotency key returns `40901`.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`201 CreateConversationResult in data.item`</span></div>
@@ -48,7 +45,7 @@ conflicting reuse of an idempotency key returns `40901`.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |

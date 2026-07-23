@@ -78,13 +78,13 @@ export class AutomationAgentResponsesApi {
 }
 
 export class AutomationApi {
-  private client: HttpClient;
+
   public readonly agentResponses: AutomationAgentResponsesApi;
   public readonly agentToolCalls: AutomationAgentToolCallsApi;
   public readonly executions: AutomationExecutionsApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.agentResponses = new AutomationAgentResponsesApi(client);
     this.agentToolCalls = new AutomationAgentToolCallsApi(client);
     this.executions = new AutomationExecutionsApi(client);
@@ -96,13 +96,7 @@ export function createAutomationApi(client: HttpClient): AutomationApi {
   return new AutomationApi(client);
 }
 
-function appendQueryString(path: string, rawQueryString: string): string {
-  const query = rawQueryString.replace(/^\?+/, '');
-  if (!query) {
-    return path;
-  }
-  return path.includes('?') ? `${path}&${query}` : `${path}?${query}`;
-}
+
 
 interface PathParameterSpec {
   name: string;

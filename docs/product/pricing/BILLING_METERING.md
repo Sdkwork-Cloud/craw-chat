@@ -36,8 +36,8 @@ User Action
             -> Billing system (invoice generation)
 ```
 
-Current implementation: metering events are written directly to PostgreSQL through the
-`projection-service` durable journal, ensuring at-least-once delivery. A daily aggregation
+Current implementation: metering events are written to PostgreSQL through the
+conversation transaction's durable journal and outbox, ensuring at-least-once delivery. A daily aggregation
 job computes per-tenant usage summaries.
 
 ## 3. Metering Event Types
@@ -47,7 +47,7 @@ job computes per-tenant usage summaries.
 | Event Type | Source Service | Unit | Billable | Description |
 | --- | --- | --- | --- | --- |
 | `message.sent` | conversation-service | count | Yes | Message created by user |
-| `message.delivered` | projection-service | count | No | Delivery confirmation (operational metric) |
+| `message.delivered` | session-gateway | count | No | Delivery confirmation (operational metric) |
 | `connection.active` | session-gateway | seconds | Yes | WebSocket connection duration |
 | `conversation.created` | conversation-service | count | Yes | New conversation created |
 | `storage.used` | drive-app-sdk | bytes | Yes | Media storage consumed |

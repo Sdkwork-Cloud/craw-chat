@@ -36,9 +36,10 @@ detected, contained, and recovered* in production.
 
 ## 2. Current Architecture Limitations
 
-Sdkwork IM is a multi-tenant real-time messaging platform built in Rust. It uses CQRS with Event
-Sourcing, where `im_commit_journal` (PostgreSQL) is the append-only durable event log and
-projections are rebuilt from the journal. Redis holds session state, presence, and sequence caches.
+Sdkwork IM is a multi-tenant real-time messaging platform built in Rust. PostgreSQL normalized
+tables are the current-state authority; each mutation commits that state together with the immutable
+`im_commit_journal` audit record and `im_outbox_events`. Redis holds ephemeral session state,
+presence, and sequence caches and is never the durable conversation authority.
 The governed cloud topology defines 13 active microservices on Kubernetes.
 
 ### 2.1 Single-Region Topology
@@ -88,8 +89,8 @@ archival interval (best case 1 hour for Professional tier).
   full governed microservice fleet (13 services).
 - **DR region**: hot standby. PostgreSQL promoted-as-replica (logical subscriber), independent
   Redis cluster, full microservice fleet running at minimum replica count. No client traffic.
-- **Replication**: asynchronous PostgreSQL logical replication (publication/subscription) for
-  `im_commit_journal` and projection tables. Eventual consistency for DR region.
+- **Replication**: asynchronous PostgreSQL logical replication (publication/subscription) for all
+  normalized IM tables, `im_commit_journal`, and `im_outbox_events`. Eventual consistency for DR region.
 - **Failover**: manual decision, DNS switch, promote DR PostgreSQL, shift ingress.
 - **Fallback**: planned switch-back after primary region is repaired and re-synced.
 
@@ -133,7 +134,7 @@ is likely a dependency (PostgreSQL or Redis), not the pod itself.
 ### 4.2 Component Failure (PostgreSQL Primary Down)
 
 The PostgreSQL primary becomes unreachable or fails write queries. This affects every
-microservice that appends to `im_commit_journal` or reads projections.
+microservice that commits or reads normalized IM state.
 
 | Attribute | Value |
 | --- | --- |
@@ -171,13 +172,13 @@ Recovery path: see section 7 Failover Procedure.
 
 ### 4.4 Data Corruption (Logical or Accidental)
 
-A bad migration, buggy write path, or operator error corrupts rows in `im_commit_journal` or a
-projection. The cluster is up, but the data is wrong.
+A bad migration, buggy write path, or operator error corrupts normalized state, journal, or outbox
+rows. The cluster is up, but the data is wrong.
 
 | Attribute | Value |
 | --- | --- |
-| Detection | Audit log anomaly, projection checksum mismatch, user reports of missing/wrong messages |
-| Recovery mechanism | Point-in-time recovery (PITR) from WAL archives; journal replay to rebuild projections |
+| Detection | Audit log anomaly, normalized-state integrity check failure, user reports of missing/wrong messages |
+| Recovery mechanism | Point-in-time recovery (PITR) of the transactional PostgreSQL authority from WAL archives |
 | Owner | SRE + on-call engineer |
 | Typical recovery time | 30-90 minutes depending on database size |
 | Data loss | Transactions between PITR target and now must be re-applied manually or lost |
@@ -192,10 +193,7 @@ kubectl -n sdkwork-im scale deployment im-gateway --replicas=0
 #    (uses the base backup + archived WAL in s3://backup-sdkwork-im/db-wal/)
 scripts/restore-pitr.sh --target-time "2026-07-03 09:15:00+00"
 
-# 3. Replay journal into projections to rebuild derived state
-scripts/rebuild-projections.sh --from <journal-cursor>
-
-# 4. Verify with checksums, then restore write traffic
+# 3. Verify normalized state, journal, and outbox transaction boundaries, then restore write traffic
 kubectl -n sdkwork-im scale deployment im-gateway --replicas=3
 ```
 
@@ -308,7 +306,6 @@ digests, health evidence, replication evidence, and a successful failover drill 
 | im-gateway | 3+ | 1 | Scale to 3+ |
 | session-gateway | 3+ | 1 | Scale to 3+ |
 | conversation-service | 3+ | 1 | Scale to 3+ |
-| projection-service | 3+ | 1 | Scale to 3+ |
 | streaming-service | 3+ | 1 | Scale to 3+ |
 | media-service | 2+ | 1 | Scale to 2+ |
 | notification-service | 2+ | 1 | Scale to 2+ |
@@ -422,7 +419,7 @@ Primary Region                          DR Region (Standby)
 |  publisher)      | publication/sub    |  promotable)     |
 +------------------+                    +------------------+
         |                                      |
-        | same-tx write                        | projection rebuild
+        | same-tx normalized write             | PITR restore
         v                                      v
 +------------------+                    +------------------+
 | im_commit_journal|                    | im_commit_journal|
@@ -441,7 +438,7 @@ Primary Region                          DR Region (Standby)
 ### 8.2 PostgreSQL - Logical Replication
 
 - **Method**: publication/subscription (see section 6.2).
-- **What is replicated**: `im_commit_journal`, `im_outbox_events`, and all projection tables
+- **What is replicated**: `im_commit_journal`, `im_outbox_events`, and all normalized IM tables
   listed in the publication. Schema changes (DDL) are **not** replicated by logical replication;
   migrations must be applied to both regions in a coordinated rollout.
 - **Consistency**: eventual. The DR region may lag by seconds. Reads from DR during steady state
@@ -659,7 +656,7 @@ in order, top to bottom, without skipping steps.
 - [ ] Write gate: test message appended to im_commit_journal in DR
 - [ ] Realtime gate: WebSocket handshake stable for 60s
 - [ ] Read gate: inbox + message history return expected data
-- [ ] Consistency gate: projection checksum matches journal cursor
+- [ ] Consistency gate: normalized state, journal, and outbox commit identities agree
 - [ ] Monitoring gate: Prometheus scraping all DR targets
 
 ## Communicate
@@ -681,7 +678,7 @@ in order, top to bottom, without skipping steps.
 # Runbook: Data Corruption
 
 ## Detect
-- [ ] Audit log anomaly or projection checksum mismatch
+- [ ] Audit log anomaly or normalized-state integrity mismatch
 - [ ] User reports of missing/wrong messages
 - [ ] Identify corrupted table and time window
 
@@ -693,8 +690,7 @@ in order, top to bottom, without skipping steps.
 ## Recover
 - [ ] Restore from base backup + WAL to target time:
       `scripts/restore-pitr.sh --target-time "<timestamp>"`
-- [ ] Replay journal into projections: `scripts/rebuild-projections.sh`
-- [ ] Verify data integrity: checksums, row counts, sample queries
+- [ ] Verify normalized state, journal, and outbox integrity: constraints, row counts, and sample queries
 
 ## Verify
 - [ ] Corrupted rows are correct

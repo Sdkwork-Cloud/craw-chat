@@ -18,12 +18,12 @@ export class StreamsFramesApi {
 
 
 /** List stream frames */
-  async list(streamId: string, params?: StreamsFramesListParams): Promise<Record<string, unknown>> {
+  async list(streamId: string, params?: StreamsFramesListParams): Promise<{ items: StreamFrameView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), query));
+    return this.client.get<{ items: StreamFrameView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), query));
   }
 
 /** Append a stream frame */

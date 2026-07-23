@@ -23,7 +23,7 @@ Architecture decision: [ADR-20260617-comms-service-naming-boundaries](../archite
 | `realtime` | `session-gateway` | `/im/v3/api/realtime/` |
 | `calls` | `im-calls-service` | `/im/v3/api/calls/` |
 | `social` | `comms-social-service` (`social-service` legacy alias) | `/im/v3/api/social/` |
-| `chat` | `comms-conversation-service` (write), `projection-service` (read) | `/im/v3/api/chat/` |
+| `chat` | `comms-conversation-service` (normalized command and query authority) | `/im/v3/api/chat/` |
 | `spaces` | `comms-space-service` (`space-service` legacy alias) | `/im/v3/api/spaces/` |
 | `streams` | `streaming-service` | `/im/v3/api/streams/` |
 
@@ -48,4 +48,3 @@ Reactions, pins, threads, and conversation settings are **`chat` resources** und
 ```bash
 node sdks/materialize-im-v3-openapi-boundaries.mjs
 ```
-

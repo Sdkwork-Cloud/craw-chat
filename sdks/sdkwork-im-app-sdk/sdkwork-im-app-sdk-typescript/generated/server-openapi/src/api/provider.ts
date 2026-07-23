@@ -32,12 +32,12 @@ export class ProviderMediaHealthApi {
 }
 
 export class ProviderApi {
-  private client: HttpClient;
+
   public readonly mediaHealth: ProviderMediaHealthApi;
   public readonly principalProfileHealth: ProviderPrincipalProfileHealthApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.mediaHealth = new ProviderMediaHealthApi(client);
     this.principalProfileHealth = new ProviderPrincipalProfileHealthApi(client);
   }
@@ -46,12 +46,4 @@ export class ProviderApi {
 
 export function createProviderApi(client: HttpClient): ProviderApi {
   return new ProviderApi(client);
-}
-
-function appendQueryString(path: string, rawQueryString: string): string {
-  const query = rawQueryString.replace(/^\?+/, '');
-  if (!query) {
-    return path;
-  }
-  return path.includes('?') ? `${path}&${query}` : `${path}?${query}`;
 }

@@ -2,7 +2,7 @@ import type { ConversationAgentAssignments } from './conversation-agent-assignme
 
 export interface ConversationsAgentsUpdateResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: ConversationAgentAssignments; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

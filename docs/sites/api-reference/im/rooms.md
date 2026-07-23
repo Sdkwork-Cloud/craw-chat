@@ -54,7 +54,7 @@ await sdk.rooms.leave(room.roomId);
 Creates a live, chat, or game room bound to a group conversation.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rooms.create(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`201 CreateConversationResult in data.item`</span></div>
@@ -73,7 +73,7 @@ Creates a live, chat, or game room bound to a group conversation.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -95,7 +95,7 @@ Creates a live, chat, or game room bound to a group conversation.
 Returns room metadata and the active member count.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rooms.get(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RoomView`</span></div>
@@ -115,7 +115,7 @@ Returns room metadata and the active member count.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -137,7 +137,7 @@ Returns room metadata and the active member count.
 Enters the room as the authenticated principal.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rooms.enter(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; room capacity and enter policy are enforced.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 EnterRoomResponse`</span></div>
@@ -162,7 +162,7 @@ None. This operation does not accept a JSON request body.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -184,7 +184,7 @@ None. This operation does not accept a JSON request body.
 Leaves the room as the authenticated principal.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.rooms.leave(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active room member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 EnterRoomResponse`</span></div>
@@ -209,7 +209,7 @@ None. This operation does not accept a JSON request body.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |

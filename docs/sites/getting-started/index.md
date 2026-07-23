@@ -42,7 +42,7 @@ Cloud development starts no local gateway, API listener, PostgreSQL, Redis, migr
 Public clients authenticate through SDKWork dual-token headers:
 `Authorization: Bearer <auth-token>` and `Access-Token: <access-token>`.
 
-Control-plane routes require `control.read` or `control.write` permissions from AppContext projection.
+Control-plane routes require `control.read` or `control.write` permissions from the verified request context.
 
 ## What To Read Next
 

@@ -8,7 +8,7 @@ directories are stable enough to document as product surfaces.
 | Directory | Current responsibility |
 | --- | --- |
 | `adapters/` | Provider and storage adapters such as local disk, local memory, IoT access, IoT MQTT, object storage, and RTC providers |
-| `crates/` | Shared contracts, CCP protocol crates, AppContext projection, runtime links, route ownership models, and domain primitives |
+| `crates/` | Shared contracts, CCP protocol crates, trusted AppContext propagation, runtime links, route ownership models, and domain primitives |
 | `services/` | App runtime services, control-plane API, operator services, and business subsystems |
 | `crates/sdkwork-api-im-standalone-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `sdkwork-im-server` binary |
 | `tools/` | Local verification tools such as `chat-cli` and smoke workflows |
@@ -25,7 +25,6 @@ directories are stable enough to document as product surfaces.
 | `sdkwork-api-im-standalone-gateway` | Unified application ingress, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `sdkwork-im-server` binary |
 | `comms-conversation-service` | Conversation, membership, message, and handoff behavior |
 | `session-gateway` | client route heartbeat, presence, realtime route ownership, disconnect fences, and websocket handling |
-| `projection-service` | Inbox, summaries, read cursors, member directories, pins, search, visibility, and interaction read-model projection support |
 | `media-service` | Media upload lifecycle, lookup, attachment, and provider-aware download URLs |
 | `streaming-service` | Stream sessions, frames, checkpoints, completion, and abort flow |
 | `im_calls` / `calls` | IM-owned call lifecycle, signaling, credentials, and RTC media handoff |
@@ -43,7 +42,7 @@ directories are stable enough to document as product surfaces.
 | `sdkwork-im-ccp-*` | CCP binding, codec, control, core, and registry surfaces |
 | `im-platform-contracts` | Provider registry, effective binding, and platform integration contracts |
 | `im-storage-*` | Shared storage provider schema, validation, fallback resolution, audit, and snapshot persistence seams |
-| `im-app-context` | Shared SDKWork AppContext projection parsing from trusted `x-sdkwork-*` headers |
+| `im-app-context` | Shared SDKWork AppContext parsing and signature verification for trusted `x-sdkwork-*` headers |
 | `sdkwork-im-runtime-*` | Runtime linking and route-ownership contracts |
 | `im-domain-*` | Core domain and event-level models reused by services |
 

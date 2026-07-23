@@ -277,7 +277,7 @@ export class ControlSocialRuntimeClaimPendingSharedChannelSyncTargetedApi {
 }
 
 export class ControlSocialRuntimeApi {
-  private client: HttpClient;
+
   public readonly claimPendingSharedChannelSyncTargeted: ControlSocialRuntimeClaimPendingSharedChannelSyncTargetedApi;
   public readonly deadLetterSharedChannelSync: ControlSocialRuntimeDeadLetterSharedChannelSyncApi;
   public readonly deliveredSharedChannelSync: ControlSocialRuntimeDeliveredSharedChannelSyncApi;
@@ -293,7 +293,7 @@ export class ControlSocialRuntimeApi {
   public readonly takeoverPendingSharedChannelSyncTargeted: ControlSocialRuntimeTakeoverPendingSharedChannelSyncTargetedApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.claimPendingSharedChannelSyncTargeted = new ControlSocialRuntimeClaimPendingSharedChannelSyncTargetedApi(client);
     this.deadLetterSharedChannelSync = new ControlSocialRuntimeDeadLetterSharedChannelSyncApi(client);
     this.deliveredSharedChannelSync = new ControlSocialRuntimeDeliveredSharedChannelSyncApi(client);
@@ -438,7 +438,7 @@ export class ControlSocialDirectChatsApi {
 }
 
 export class ControlSocialApi {
-  private client: HttpClient;
+
   public readonly directChats: ControlSocialDirectChatsApi;
   public readonly externalConnections: ControlSocialExternalConnectionsApi;
   public readonly externalMemberLinks: ControlSocialExternalMemberLinksApi;
@@ -449,7 +449,7 @@ export class ControlSocialApi {
   public readonly userBlocks: ControlSocialUserBlocksApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.directChats = new ControlSocialDirectChatsApi(client);
     this.externalConnections = new ControlSocialExternalConnectionsApi(client);
     this.externalMemberLinks = new ControlSocialExternalMemberLinksApi(client);
@@ -644,7 +644,7 @@ export class ControlNodesApi {
 }
 
 export class ControlApi {
-  private client: HttpClient;
+
   public readonly nodes: ControlNodesApi;
   public readonly protocolGovernance: ControlProtocolGovernanceApi;
   public readonly protocolRegistry: ControlProtocolRegistryApi;
@@ -654,7 +654,7 @@ export class ControlApi {
   public readonly social: ControlSocialApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.nodes = new ControlNodesApi(client);
     this.protocolGovernance = new ControlProtocolGovernanceApi(client);
     this.protocolRegistry = new ControlProtocolRegistryApi(client);

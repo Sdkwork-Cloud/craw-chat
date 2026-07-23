@@ -39,7 +39,7 @@ Sdkwork IM is a multi-tenant real-time messaging platform designed for commercia
 | Component | Cost driver | Scaling factor |
 | --- | --- | --- |
 | session-gateway | WebSocket connections, message throughput | Linear with active users |
-| projection-service | Read query volume, snapshot size | Linear with conversation count |
+| conversation-service | Transactional reads/writes, message throughput | Linear with conversation and message volume |
 | Postgres | Storage, IOPS, connections | Linear with message volume |
 | Redis | Connections, memory | Linear with realtime cluster size |
 | Media storage (SDKWork Drive) | File storage, bandwidth | Linear with file sharing volume |
@@ -63,7 +63,7 @@ Sdkwork IM is a multi-tenant real-time messaging platform designed for commercia
 
 Billing is handled through the SDKWork platform billing system. Tenant usage metrics are collected via:
 - WebSocket connection duration (session-gateway)
-- Message volume (projection-service)
+- Message volume (conversation-service transactional journal/outbox)
 - Storage consumption (SDKWork Drive)
 - API call count (all services)
 

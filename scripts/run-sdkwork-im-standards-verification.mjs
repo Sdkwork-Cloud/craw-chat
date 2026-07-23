@@ -28,7 +28,7 @@ const standardChecks = [
   'test:runtime-standard',
   'test:stream-transactional-authority-standard',
   'test:retention-enforcement-standard',
-  'test:projection-tier-standard',
+  'test:normalized-im-authority-standard',
   'test:social-materializer-standard',
   'test:space-materializer-standard',
   'test:monorepo-frozen-install-standard',

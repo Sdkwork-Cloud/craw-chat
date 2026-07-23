@@ -164,7 +164,7 @@ export const pageOperationGroups = {
   ],
   "/api-reference/app/notifications": [
     { text: "Submission", anchors: ["request-notification"] },
-    { text: "Read Models", anchors: ["list-notifications", "get-notification"] },
+    { text: "Queries", anchors: ["list-notifications", "get-notification"] },
   ],
   "/api-reference/app/automation": [
     { text: "Executions", anchors: ["request-automation-execution", "get-automation-execution"] },
@@ -189,8 +189,8 @@ export const pageOperationGroups = {
     },
   ],
   "/api-reference/backend/ops": [
-    { text: "Health and Topology", anchors: ["get-ops-health", "get-ops-cluster", "get-ops-lag", "get-ops-replay-status"] },
-    { text: "Runtime and Provider Mirrors", anchors: ["get-ops-runtime-dir", "get-ops-provider-bindings", "get-ops-provider-binding-drift"] },
+    { text: "Health and Topology", anchors: ["get-ops-health", "get-ops-cluster", "get-ops-lag", "get-ops-commercial-readiness"] },
+    { text: "Runtime and Provider State", anchors: ["get-ops-runtime-dir", "get-ops-provider-bindings", "get-ops-provider-binding-drift"] },
     { text: "Diagnostics", anchors: ["get-ops-diagnostics"] },
   ],
   "/api-reference/app/provider-health": [

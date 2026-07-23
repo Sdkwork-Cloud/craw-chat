@@ -1998,12 +1998,12 @@ paths:
       x-sdkwork-api-surface: open-api
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-  /im/v3/api/chat/contacts:
+  /im/v3/api/social/contacts:
     get:
       tags:
-        - chat
-      operationId: contacts.list
-      summary: List IM contacts
+        - social
+      operationId: social.contacts.list
+      summary: List social contacts
       parameters:
         - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
@@ -8111,6 +8111,16 @@ components:
         lastInteractionAt:
           type: string
           format: date-time
+        isStarred:
+          type: boolean
+        isBlocked:
+          type: boolean
+        remark:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
       required:
         - tenantId
         - ownerUserId
@@ -8120,6 +8130,9 @@ components:
         - friendshipId
         - establishedAt
         - lastInteractionAt
+        - isStarred
+        - isBlocked
+        - updatedAt
     ContactPreferencesView:
       type: object
       additionalProperties: false

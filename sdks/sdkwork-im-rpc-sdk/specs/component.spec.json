@@ -195,7 +195,8 @@
     "events": [],
     "configKeys": [
       "sdk-manifest.json"
-    ]
+    ],
+    "layerRole": "sdk-facade"
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",

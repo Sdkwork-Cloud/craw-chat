@@ -586,7 +586,7 @@ class SdkworkContactService implements ContactService {
 
   async listContactsPage(params?: { cursor?: string; pageSize?: number }): Promise<ContactListPage> {
     const generation = this.authSessionGeneration;
-    const response = await this.client().chat.contacts.list({
+    const response = await this.client().social.contacts.list({
       pageSize: normalizePageSize(params?.pageSize, CONTACTS_PAGE_LIMIT),
       ...(params?.cursor ? { cursor: params.cursor } : {}),
     });

@@ -88,7 +88,15 @@
     "routeManifest": null,
     "sdkClients": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [],
+    "layerRole": "sdk-facade",
+    "providedPorts": [
+      {
+        "name": "imAppSdkSdkFacade",
+        "export": "."
+      }
+    ],
+    "requiredPorts": []
   },
   "verification": {
     "commands": [

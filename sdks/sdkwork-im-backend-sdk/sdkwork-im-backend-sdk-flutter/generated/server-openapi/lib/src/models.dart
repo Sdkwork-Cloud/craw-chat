@@ -3486,52 +3486,6 @@ class ClusterRetrieveResponse {
   }
 }
 
-class ReplayStatusRetrieveResponse {
-  final int code;
-  final dynamic data;
-  final String traceId;
-
-  ReplayStatusRetrieveResponse({
-    required this.code,
-    required this.data,
-    required this.traceId
-  });
-
-  factory ReplayStatusRetrieveResponse.fromJson(Map<String, dynamic> json) {
-    return ReplayStatusRetrieveResponse(
-      code: (() {
-        final value = json['code'];
-        if (value is! int) {
-          throw FormatException('ReplayStatusRetrieveResponse.code is required');
-        }
-        return value;
-      })(),
-      data: (() {
-        final map = _sdkworkAsMap(json['data']);
-        if (map == null) {
-          throw FormatException('ReplayStatusRetrieveResponse.data is required');
-        }
-        return map;
-      })(),
-      traceId: (() {
-        final value = json['traceId']?.toString();
-        if (value == null) {
-          throw FormatException('ReplayStatusRetrieveResponse.traceId is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'code': code,
-      'data': data,
-      'traceId': traceId,
-    };
-  }
-}
-
 class CommercialReadinessRetrieveResponse {
   final int code;
   final dynamic data;

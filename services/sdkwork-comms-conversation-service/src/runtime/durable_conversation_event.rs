@@ -1,5 +1,7 @@
 use im_domain_events::CommitEnvelope;
-use im_platform_contracts::{CommitPosition, ContractError, OutboxEventRecord};
+use im_platform_contracts::{
+    CommitPosition, ContractError, NormalizedConversationCommit, OutboxEventRecord,
+};
 
 /// Atomic persistence boundary for a conversation journal event and its
 /// ordinary conversation outbox record.
@@ -10,6 +12,16 @@ use im_platform_contracts::{CommitPosition, ContractError, OutboxEventRecord};
 /// process crash cannot leave a committed assignment change without a relay
 /// record.
 pub trait DurableConversationEventWriter: Send + Sync {
+    fn persist_normalized_conversation_commit(
+        &self,
+        commit: NormalizedConversationCommit,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        let _ = commit;
+        Err(ContractError::UnsupportedCapability(
+            "normalized conversation commit is not implemented".into(),
+        ))
+    }
+
     fn persist_conversation_event(
         &self,
         envelope: CommitEnvelope,
@@ -20,6 +32,15 @@ pub trait DurableConversationEventWriter: Send + Sync {
 impl DurableConversationEventWriter
     for im_adapters_postgres_journal::PostgresDurableConversationEventWriter
 {
+    fn persist_normalized_conversation_commit(
+        &self,
+        commit: NormalizedConversationCommit,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        im_adapters_postgres_journal::PostgresDurableConversationEventWriter::persist_normalized_conversation_commit(
+            self, commit,
+        )
+    }
+
     fn persist_conversation_event(
         &self,
         envelope: CommitEnvelope,

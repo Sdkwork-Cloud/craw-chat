@@ -57,7 +57,15 @@
     "routeManifest": null,
     "sdkClients": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [],
+    "layerRole": "tooling",
+    "providedPorts": [
+      {
+        "name": "imDocsPort",
+        "export": "."
+      }
+    ],
+    "requiredPorts": []
   },
   "verification": {
     "commands": [

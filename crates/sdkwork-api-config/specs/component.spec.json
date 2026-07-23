@@ -111,7 +111,8 @@
       "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
       "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND"
     ],
-    "routeManifest": null
+    "routeManifest": null,
+    "layerRole": "contract"
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",

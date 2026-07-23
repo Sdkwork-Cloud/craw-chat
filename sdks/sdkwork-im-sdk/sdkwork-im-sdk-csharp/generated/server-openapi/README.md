@@ -106,13 +106,15 @@ Console.WriteLine(result);
 ### chat
 
 ```csharp
-// List IM contacts
+// List current inbox window
 var query = new Dictionary<string, object>
 {
     ["page_size"] = 1,
     ["cursor"] = "cursor",
+    ["conversation_type"] = "conversation-type",
+    ["q"] = "q",
 };
-var result = await client.Chat.ContactsListAsync(query);
+var result = await client.Chat.InboxListAsync(query);
 Console.WriteLine(result);
 ```
 

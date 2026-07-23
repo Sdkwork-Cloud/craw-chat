@@ -82,26 +82,217 @@ public struct ArchiveGroupConversationResponse: Codable {
     }
 }
 
+public struct PortalSnapshotMeta: Codable {
+    public let section: String?
+    public let generatedAt: String?
+    public let opsStatus: String?
+
+
+    public init(section: String? = nil, generatedAt: String? = nil, opsStatus: String? = nil) {
+        self.section = section
+        self.generatedAt = generatedAt
+        self.opsStatus = opsStatus
+    }
+}
+
+public struct PortalDataAvailability: Codable {
+    public let state: String?
+    public let source: String?
+    public let complete: Bool?
+    public let reason: String?
+
+
+    public init(state: String? = nil, source: String? = nil, complete: Bool? = nil, reason: String? = nil) {
+        self.state = state
+        self.source = source
+        self.complete = complete
+        self.reason = reason
+    }
+}
+
+public struct PortalModuleSnapshot: Codable {
+    public let meta: PortalSnapshotMeta?
+    public let availability: PortalDataAvailability?
+
+
+    public init(meta: PortalSnapshotMeta? = nil, availability: PortalDataAvailability? = nil) {
+        self.meta = meta
+        self.availability = availability
+    }
+}
+
+public struct PortalOperationalMetrics: Codable {
+    public let clientRouteWindowCount: String?
+    public let pendingRealtimeEventCount: String?
+
+
+    public init(clientRouteWindowCount: String? = nil, pendingRealtimeEventCount: String? = nil) {
+        self.clientRouteWindowCount = clientRouteWindowCount
+        self.pendingRealtimeEventCount = pendingRealtimeEventCount
+    }
+}
+
+public struct PortalDashboardSnapshot: Codable {
+    public let meta: PortalSnapshotMeta?
+    public let availability: PortalDataAvailability?
+    public let metrics: PortalOperationalMetrics?
+
+
+    public init(meta: PortalSnapshotMeta? = nil, availability: PortalDataAvailability? = nil, metrics: PortalOperationalMetrics? = nil) {
+        self.meta = meta
+        self.availability = availability
+        self.metrics = metrics
+    }
+}
+
+public struct PortalConversationOperationalMetrics: Codable {
+    public let laggingScopeCount: String?
+    public let maxOperationalLag: String?
+    public let pendingOutboxEventCount: String?
+    public let failedOutboxAttemptCount: String?
+
+
+    public init(laggingScopeCount: String? = nil, maxOperationalLag: String? = nil, pendingOutboxEventCount: String? = nil, failedOutboxAttemptCount: String? = nil) {
+        self.laggingScopeCount = laggingScopeCount
+        self.maxOperationalLag = maxOperationalLag
+        self.pendingOutboxEventCount = pendingOutboxEventCount
+        self.failedOutboxAttemptCount = failedOutboxAttemptCount
+    }
+}
+
+public struct PortalConversationSnapshot: Codable {
+    public let meta: PortalSnapshotMeta?
+    public let availability: PortalDataAvailability?
+    public let metrics: PortalConversationOperationalMetrics?
+
+
+    public init(meta: PortalSnapshotMeta? = nil, availability: PortalDataAvailability? = nil, metrics: PortalConversationOperationalMetrics? = nil) {
+        self.meta = meta
+        self.availability = availability
+        self.metrics = metrics
+    }
+}
+
+public struct PortalAuditRecordView: Codable {
+    public let recordId: String?
+    public let action: String?
+    public let actorId: String?
+    public let recordedAt: String?
+    public let severity: String?
+
+
+    public init(recordId: String? = nil, action: String? = nil, actorId: String? = nil, recordedAt: String? = nil, severity: String? = nil) {
+        self.recordId = recordId
+        self.action = action
+        self.actorId = actorId
+        self.recordedAt = recordedAt
+        self.severity = severity
+    }
+}
+
+public struct PortalAccessSnapshot: Codable {
+    public let meta: PortalSnapshotMeta?
+    public let availability: PortalDataAvailability?
+    public let tenantId: String?
+    public let principalId: String?
+    public let recentItems: [PortalAuditRecordView]?
+    public let hasMore: Bool?
+
+
+    public init(meta: PortalSnapshotMeta? = nil, availability: PortalDataAvailability? = nil, tenantId: String? = nil, principalId: String? = nil, recentItems: [PortalAuditRecordView]? = nil, hasMore: Bool? = nil) {
+        self.meta = meta
+        self.availability = availability
+        self.tenantId = tenantId
+        self.principalId = principalId
+        self.recentItems = recentItems
+        self.hasMore = hasMore
+    }
+}
+
+public struct PortalGovernanceRiskSample: Codable {
+    public let criticalCount: String?
+    public let highCount: String?
+    public let warningCount: String?
+    public let informationalCount: String?
+
+
+    public init(criticalCount: String? = nil, highCount: String? = nil, warningCount: String? = nil, informationalCount: String? = nil) {
+        self.criticalCount = criticalCount
+        self.highCount = highCount
+        self.warningCount = warningCount
+        self.informationalCount = informationalCount
+    }
+}
+
+public struct PortalGovernanceSnapshot: Codable {
+    public let meta: PortalSnapshotMeta?
+    public let availability: PortalDataAvailability?
+    public let sampledEventCount: String?
+    public let riskSample: PortalGovernanceRiskSample?
+
+
+    public init(meta: PortalSnapshotMeta? = nil, availability: PortalDataAvailability? = nil, sampledEventCount: String? = nil, riskSample: PortalGovernanceRiskSample? = nil) {
+        self.meta = meta
+        self.availability = availability
+        self.sampledEventCount = sampledEventCount
+        self.riskSample = riskSample
+    }
+}
+
+public struct PortalRealtimeMetrics: Codable {
+    public let clientRouteWindowCount: String?
+    public let pendingEventCount: String?
+    public let maxClientRouteWindowEventCount: String?
+    public let clientRouteWindowCapacity: String?
+    public let maxClientRouteWindowUsagePermille: Int?
+    public let capacityTrimmedEventCount: String?
+    public let oldestPendingOccurredAt: String?
+
+
+    public init(clientRouteWindowCount: String? = nil, pendingEventCount: String? = nil, maxClientRouteWindowEventCount: String? = nil, clientRouteWindowCapacity: String? = nil, maxClientRouteWindowUsagePermille: Int? = nil, capacityTrimmedEventCount: String? = nil, oldestPendingOccurredAt: String? = nil) {
+        self.clientRouteWindowCount = clientRouteWindowCount
+        self.pendingEventCount = pendingEventCount
+        self.maxClientRouteWindowEventCount = maxClientRouteWindowEventCount
+        self.clientRouteWindowCapacity = clientRouteWindowCapacity
+        self.maxClientRouteWindowUsagePermille = maxClientRouteWindowUsagePermille
+        self.capacityTrimmedEventCount = capacityTrimmedEventCount
+        self.oldestPendingOccurredAt = oldestPendingOccurredAt
+    }
+}
+
+public struct PortalRealtimeSnapshot: Codable {
+    public let meta: PortalSnapshotMeta?
+    public let availability: PortalDataAvailability?
+    public let metrics: PortalRealtimeMetrics?
+
+
+    public init(meta: PortalSnapshotMeta? = nil, availability: PortalDataAvailability? = nil, metrics: PortalRealtimeMetrics? = nil) {
+        self.meta = meta
+        self.availability = availability
+        self.metrics = metrics
+    }
+}
+
 public struct PortalWorkspaceView: Codable {
     public let name: String?
     public let slug: String?
+    public let environment: String?
     public let tier: String?
     public let region: String?
     public let supportPlan: String?
-    public let seats: Int?
-    public let activeBrands: Int?
-    public let uptime: String?
+    public let seats: String?
+    public let activeBrands: String?
 
 
-    public init(name: String? = nil, slug: String? = nil, tier: String? = nil, region: String? = nil, supportPlan: String? = nil, seats: Int? = nil, activeBrands: Int? = nil, uptime: String? = nil) {
+    public init(name: String? = nil, slug: String? = nil, environment: String? = nil, tier: String? = nil, region: String? = nil, supportPlan: String? = nil, seats: String? = nil, activeBrands: String? = nil) {
         self.name = name
         self.slug = slug
+        self.environment = environment
         self.tier = tier
         self.region = region
         self.supportPlan = supportPlan
         self.seats = seats
         self.activeBrands = activeBrands
-        self.uptime = uptime
     }
 }
 

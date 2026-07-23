@@ -534,8 +534,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_disconnect_fences_retention_until
     ON im_realtime_disconnect_fences (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
 
--- source: deployments/database/postgres/migrations/011_im_projections_rtc_streams.sql
--- Migration 011: RTC Sessions, Signals, Audit, Notifications, Automations, Projections
+-- RTC sessions, signals, audit, notifications, automations, and normalized state
 -- 继续重建剩余表，引入 organization_id
 
 -- ============================================================
@@ -813,18 +812,17 @@ CREATE INDEX IF NOT EXISTS idx_im_automation_executions_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 20. 投影：Timeline 条目
--- ============================================================
-
--- ============================================================
--- 21. 投影：会话摘要
+-- Conversation normalized state authority
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS im_conversations (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
-    conversation_type TEXT,
+    conversation_type TEXT NOT NULL,
+    lifecycle_state TEXT NOT NULL DEFAULT 'active',
+    commit_seq BIGINT NOT NULL DEFAULT 0 CHECK (commit_seq >= 0),
+    member_epoch BIGINT NOT NULL DEFAULT 0 CHECK (member_epoch >= 0),
     message_count BIGINT NOT NULL DEFAULT 0 CHECK (message_count >= 0),
     last_message_id BIGINT,
     last_message_seq BIGINT NOT NULL DEFAULT 0 CHECK (last_message_seq >= 0),
@@ -833,13 +831,13 @@ CREATE TABLE IF NOT EXISTS im_conversations (
     last_summary TEXT,
     last_message_at TIMESTAMPTZ,
     last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    agent_handoff_json JSONB,
     payload_json JSONB NOT NULL,
     payload_hash TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_conversations PRIMARY KEY (tenant_id, organization_id, conversation_id)
+    CONSTRAINT pk_im_conversations PRIMARY KEY (tenant_id, organization_id, conversation_id),
+    CONSTRAINT chk_im_conversations_lifecycle CHECK (lifecycle_state IN ('active', 'archived'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_conversations_activity
@@ -850,7 +848,7 @@ CREATE INDEX IF NOT EXISTS idx_im_conversations_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 22. 投影：会话成员
+-- Conversation member authority
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS im_conversation_members (
@@ -876,7 +874,7 @@ CREATE TABLE IF NOT EXISTS im_conversation_members (
     -- member_id is effectively the principal's Snowflake i64. There is no separate UK on member_id:
     -- the composite PK on (tenant_id, organization_id, conversation_id, principal_kind, principal_id)
     -- is the sole uniqueness guarantee for conversation members, since principal already identifies a
-    -- member uniquely within a conversation. See specs/database-table-registry.json writeOwner.
+    -- member uniquely within a conversation. See database/contract/table-registry.json write_owner.
     CONSTRAINT pk_im_conversation_members PRIMARY KEY (tenant_id, organization_id, conversation_id, principal_kind, principal_id),
     CONSTRAINT chk_im_conversation_members_state CHECK (membership_state IN ('invited', 'joined', 'linked', 'removed', 'left'))
 );
@@ -893,7 +891,7 @@ CREATE INDEX IF NOT EXISTS idx_im_conversation_members_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 23. 投影：已读游标
+-- Conversation read cursor authority
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS im_conversation_read_cursors (
@@ -922,7 +920,7 @@ CREATE INDEX IF NOT EXISTS idx_im_conversation_read_cursors_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 24. 投影：注册客户端路由
+-- Realtime registered client route authority
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS im_registered_client_routes (
@@ -945,7 +943,7 @@ CREATE INDEX IF NOT EXISTS idx_im_registered_client_routes_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 25. 投影：客户端路由同步 Feed
+-- Realtime client sync event log
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS im_client_sync_events (
@@ -987,7 +985,7 @@ CREATE INDEX IF NOT EXISTS idx_im_client_sync_events_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 26. 投影：客户端路由同步检查点
+-- Realtime client sync cursor authority
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS im_client_sync_cursors (
@@ -1016,15 +1014,7 @@ CREATE INDEX IF NOT EXISTS idx_im_client_sync_cursors_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 27. 投影：联系人
--- ============================================================
-
--- ============================================================
--- 28. 投影：直接聊天绑定
--- ============================================================
-
--- ============================================================
--- 29. Stream Sessions
+-- Stream sessions
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS im_stream_sessions (
@@ -1513,17 +1503,28 @@ CREATE TABLE IF NOT EXISTS im_message_reactions (
     organization_id     TEXT NOT NULL DEFAULT '0',
     conversation_id     TEXT NOT NULL,
     message_id          BIGINT NOT NULL,
-    user_id             TEXT NOT NULL,              -- 引用 iam_user.user_id
+    actor_principal_kind TEXT NOT NULL,
+    actor_principal_id  TEXT NOT NULL,
     reaction_type       TEXT NOT NULL,              -- emoji 类型（如 👍, ❤️, 😂）
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT pk_im_message_reactions PRIMARY KEY (tenant_id, organization_id, conversation_id, message_id, user_id, reaction_type)
+    CONSTRAINT pk_im_message_reactions PRIMARY KEY (
+        tenant_id, organization_id, conversation_id, message_id,
+        actor_principal_kind, actor_principal_id, reaction_type
+    ),
+    CONSTRAINT fk_im_message_reactions_message FOREIGN KEY (tenant_id, message_id)
+        REFERENCES im_conversation_messages (tenant_id, message_id) ON DELETE CASCADE,
+    CONSTRAINT chk_im_message_reactions_actor_kind CHECK (btrim(actor_principal_kind) <> ''),
+    CONSTRAINT chk_im_message_reactions_actor_id CHECK (btrim(actor_principal_id) <> ''),
+    CONSTRAINT chk_im_message_reactions_type CHECK (btrim(reaction_type) <> '')
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_message_reactions_message
     ON im_message_reactions (tenant_id, organization_id, conversation_id, message_id, reaction_type);
 
-CREATE INDEX IF NOT EXISTS idx_im_message_reactions_user
-    ON im_message_reactions (tenant_id, organization_id, user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_im_message_reactions_actor
+    ON im_message_reactions (
+        tenant_id, organization_id, actor_principal_kind, actor_principal_id, created_at DESC
+    );
 
 -- 15. 消息 Pin 表
 CREATE TABLE IF NOT EXISTS im_message_pins (
@@ -1531,17 +1532,24 @@ CREATE TABLE IF NOT EXISTS im_message_pins (
     organization_id     TEXT NOT NULL DEFAULT '0',
     conversation_id     TEXT NOT NULL,
     message_id          BIGINT NOT NULL,
-    pinned_by_user_id   TEXT NOT NULL,              -- 引用 iam_user.user_id
+    pinned_by_principal_kind TEXT NOT NULL,
+    pinned_by_principal_id TEXT NOT NULL,
     pin_reason          TEXT,
     pinned_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT pk_im_message_pins PRIMARY KEY (tenant_id, organization_id, conversation_id, message_id)
+    CONSTRAINT pk_im_message_pins PRIMARY KEY (tenant_id, organization_id, conversation_id, message_id),
+    CONSTRAINT fk_im_message_pins_message FOREIGN KEY (tenant_id, message_id)
+        REFERENCES im_conversation_messages (tenant_id, message_id) ON DELETE CASCADE,
+    CONSTRAINT chk_im_message_pins_actor_kind CHECK (btrim(pinned_by_principal_kind) <> ''),
+    CONSTRAINT chk_im_message_pins_actor_id CHECK (btrim(pinned_by_principal_id) <> '')
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_message_pins_conversation
     ON im_message_pins (tenant_id, organization_id, conversation_id, pinned_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_im_message_pins_user
-    ON im_message_pins (tenant_id, organization_id, pinned_by_user_id, pinned_at DESC);
+CREATE INDEX IF NOT EXISTS idx_im_message_pins_actor
+    ON im_message_pins (
+        tenant_id, organization_id, pinned_by_principal_kind, pinned_by_principal_id, pinned_at DESC
+    );
 
 -- 16. Thread 表
 CREATE TABLE IF NOT EXISTS im_threads (
@@ -1732,8 +1740,8 @@ CREATE INDEX IF NOT EXISTS idx_im_ban_records_user
 -- 完成
 -- ============================================================
 
--- 注册新表到 database-table-registry.json
--- 注册新表到 database-prefix-registry.json
+-- Register every active table in database/contract/table-registry.json.
+-- Keep the owned prefix in database/contract/prefix-registry.json.
 
 -- source: deployments/database/postgres/migrations/014_im_search_cjk.sql
 -- Migration 014: Chinese / CJK Full-Text Search
@@ -1849,21 +1857,6 @@ CREATE TRIGGER im_messages_search_update
 --     - SELECT to_tsvector('chinese_zh', '你好世界') @@ to_tsquery('chinese_zh', '世界');
 --     - EXPLAIN ANALYZE SELECT * FROM im_conversation_messages WHERE search_vector @@ plainto_tsquery('chinese_zh', '你好');
 -- ============================================================
-
--- source: database/migrations/postgres/0002_im_runtime_state_snapshots.up.sql
-
-CREATE TABLE IF NOT EXISTS im_runtime_state_snapshots (
-    snapshot_scope TEXT NOT NULL,
-    snapshot_key TEXT NOT NULL,
-    payload_json JSONB NOT NULL,
-    payload_hash TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT pk_im_runtime_state_snapshots PRIMARY KEY (snapshot_scope, snapshot_key)
-);
-
-CREATE INDEX IF NOT EXISTS idx_im_runtime_state_snapshots_key
-    ON im_runtime_state_snapshots (snapshot_key);
 
 -- ============================================================
 -- RTC Lifecycle Tables (migrations 0008-0010 consolidated)
@@ -2017,23 +2010,6 @@ CREATE INDEX IF NOT EXISTS idx_im_rtc_participant_credentials_expiry
 CREATE INDEX IF NOT EXISTS idx_im_rtc_participant_credentials_retention_until
     ON im_rtc_participant_credentials (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
-
--- folded migration: migrations/postgres/0002_im_runtime_state_snapshots.up.sql
--- Durable metadata snapshots for projection-service snapshot restore/persist.
--- Aligns MetadataStore persistence with split-service PostgreSQL production profile.
-
-CREATE TABLE IF NOT EXISTS im_runtime_state_snapshots (
-    snapshot_scope TEXT NOT NULL,
-    snapshot_key TEXT NOT NULL,
-    payload_json JSONB NOT NULL,
-    payload_hash TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT pk_im_runtime_state_snapshots PRIMARY KEY (snapshot_scope, snapshot_key)
-);
-
-CREATE INDEX IF NOT EXISTS idx_im_runtime_state_snapshots_key
-    ON im_runtime_state_snapshots (snapshot_key);
 
 -- folded migration: migrations/postgres/0003_im_commit_journal_organization_scope.up.sql
 -- Align im_commit_journal with organization-scoped journal writes.
@@ -2614,7 +2590,7 @@ COMMENT ON COLUMN im_audit_records.retention_class IS
 -- ============================================================
 -- 32. Group knowledgebase orchestration
 -- ============================================================
--- IM owns only the conversation-to-space projection and launch-ticket state.
+-- IM owns only the conversation-to-space relationship and launch-ticket state.
 -- The knowledge-space resource and its documents remain owned by
 -- sdkwork-knowledgebase.  `conversation_id`, not `im_chat_groups.group_id`,
 -- is the group authority because every PC/H5 group conversation has it while
@@ -2711,7 +2687,7 @@ CREATE TABLE IF NOT EXISTS im_conversation_knowledge_space_link (
     )
 );
 
--- IM-side protection against a KB space being accidentally projected onto two
+-- IM-side protection against a Knowledgebase space being accidentally linked to two
 -- group conversations.  The KB binding has the corresponding authoritative
 -- uniqueness constraint; this is a defensive local invariant only.
 CREATE UNIQUE INDEX IF NOT EXISTS uk_im_conversation_knowledge_space_link_space
@@ -2819,6 +2795,6 @@ CREATE INDEX IF NOT EXISTS idx_im_group_knowledge_launch_tickets_actor
     );
 
 COMMENT ON TABLE im_conversation_knowledge_space_link IS
-    'IM projection/saga state for one group Conversation to one sdkwork-knowledgebase space. KB binding is the external resource authority.';
+    'IM relationship state for one group Conversation to one sdkwork-knowledgebase space. The Knowledgebase binding is the external resource authority.';
 COMMENT ON TABLE im_group_knowledge_launch_tickets IS
     'One-time short-lived opaque group knowledgebase launch tickets bound to a delegated user principal and authenticated session. A SHA-256 verifier and encrypted replay ciphertext support exactly-once Idempotency-Key replay; plaintext tickets are never persisted.';

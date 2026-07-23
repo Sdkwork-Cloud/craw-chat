@@ -4,6 +4,21 @@
 use sdkwork_im_contract_core::ContractError;
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StoredMessageReactionRecord {
+    pub actor_principal_kind: String,
+    pub actor_principal_id: String,
+    pub reaction_key: String,
+    pub reacted_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StoredMessagePinRecord {
+    pub pinned_by_principal_kind: String,
+    pub pinned_by_principal_id: String,
+    pub pinned_at: String,
+}
+
 /// 消息记录（存储层表示）
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StoredMessageRecord {
@@ -24,6 +39,10 @@ pub struct StoredMessageRecord {
     pub deleted_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retention_until: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reactions: Vec<StoredMessageReactionRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pin: Option<StoredMessagePinRecord>,
 }
 
 /// 消息窗口（查询结果）

@@ -13,7 +13,7 @@ public class PortalApi {
         this.client = client;
     }
 
-    /** Read the tenant portal sign-in snapshot */
+    /** Read the tenant portal access snapshot */
     public AccessRetrieveResponse accessRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.appPath("/portal/access"));
         return client.convertValue(raw, new TypeReference<AccessRetrieveResponse>() {});

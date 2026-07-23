@@ -2,7 +2,7 @@ import type { SocialExternalConnectionCommitResponse } from './social-external-c
 
 export interface SocialExternalConnectionsCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialExternalConnectionCommitResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

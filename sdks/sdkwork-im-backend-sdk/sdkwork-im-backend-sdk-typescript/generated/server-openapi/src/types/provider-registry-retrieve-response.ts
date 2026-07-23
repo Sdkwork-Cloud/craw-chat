@@ -2,7 +2,7 @@ import type { ProviderRegistrySnapshotResponse } from './provider-registry-snaps
 
 export interface ProviderRegistryRetrieveResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: ProviderRegistrySnapshotResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

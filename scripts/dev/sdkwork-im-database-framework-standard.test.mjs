@@ -71,18 +71,38 @@ assert.equal(
   'postgres',
   'IM runtime persistence must default to PostgreSQL',
 );
+assert.equal(
+  databaseManifest.baselineStrategy,
+  'baseline-plus-migrations',
+  'IM lifecycle must keep the immutable baseline plus versioned migrations',
+);
 
 const rootPackage = readJson('package.json');
 const materializeContractCommand = rootPackage.scripts?.['db:materialize:contract'] ?? '';
-assert.match(
+assert.equal(
   materializeContractCommand,
-  /--engines\s+postgres(?:\s|$)/u,
-  'db:materialize:contract must materialize the PostgreSQL runtime authority',
+  'node tools/materialize_im_database_contract.mjs --write',
+  'db:materialize:contract must compose the IM baseline and PostgreSQL migrations',
 );
-assert.doesNotMatch(
-  materializeContractCommand,
-  /--engines\s+postgres,sqlite(?:\s|$)/u,
-  'db:materialize:contract must not imply durable SQLite IM runtime support from the PostgreSQL baseline',
+assert.equal(
+  rootPackage.scripts?.['db:contract:check'],
+  'node tools/materialize_im_database_contract.mjs',
+  'db:contract:check must verify the composed database contract without writing it',
 );
+
+const materializer = read('tools/materialize_im_database_contract.mjs');
+assert.match(materializer, /databaseRoot, 'migrations', 'postgres'/u);
+assert.match(materializer, /\.up\.sql/u);
+assert.match(materializer, /baseline-plus-migrations/u);
+for (const retiredRegistry of [
+  'specs/database-prefix-registry.json',
+  'specs/database-table-registry.json',
+]) {
+  assert.equal(
+    fs.existsSync(path.join(repoRoot, retiredRegistry)),
+    false,
+    `${retiredRegistry} must remain deleted; database/contract is the single authority`,
+  );
+}
 
 process.stdout.write('sdkwork-im database framework standard contract passed\n');

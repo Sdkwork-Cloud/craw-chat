@@ -2,7 +2,7 @@
 
 use axum::http::HeaderMap;
 use im_app_context::{
-    AppContext, AppContextError, resolve_orchestration_app_context_from_projection_headers,
+    AppContext, AppContextError, resolve_orchestration_app_context_from_trusted_headers,
 };
 use sdkwork_rpc_framework_core::{
     RpcCallerActorKind, VerifiedRpcCallerContext, VerifiedRpcServiceIdentity,
@@ -48,7 +48,7 @@ impl VerifiedInternalRpcContext {
 }
 
 /// User principal context derived only from [`VerifiedInternalRpcContext`].
-/// It deliberately does not preserve arbitrary app-context projection fields:
+/// It deliberately does not preserve arbitrary app-context fields:
 /// ticket consumption needs only the delegated identity that was signed by the
 /// verified Knowledgebase mTLS peer.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -150,7 +150,7 @@ pub fn resolve_internal_orchestration_context(
         )
     })?;
     let headers = orchestration_headers_from_rpc_metadata(metadata);
-    let app_context = resolve_orchestration_app_context_from_projection_headers(&headers)
+    let app_context = resolve_orchestration_app_context_from_trusted_headers(&headers)
         .map_err(map_app_context_error)?;
     Ok(InternalOrchestrationContext {
         tenant_id: app_context.tenant_id.clone(),
@@ -205,7 +205,7 @@ fn map_app_context_error(error: AppContextError) -> ImRpcError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use im_app_context::build_signed_orchestration_projection_headers;
+    use im_app_context::build_signed_orchestration_context_headers;
 
     #[test]
     fn body_tenant_must_match_authoritative_context() {
@@ -232,10 +232,9 @@ mod tests {
     }
 
     #[test]
-    fn orchestration_context_resolves_from_projection_headers() {
-        let headers =
-            build_signed_orchestration_projection_headers("100001", "org_a", "1040", "user")
-                .expect("orchestration headers should build in test env");
+    fn orchestration_context_resolves_from_trusted_headers() {
+        let headers = build_signed_orchestration_context_headers("100001", "org_a", "1040", "user")
+            .expect("orchestration headers should build in test env");
         let metadata = RpcMetadata::from_orchestration_http_headers(
             &headers,
             Some("sdkwork-game-runtime".into()),

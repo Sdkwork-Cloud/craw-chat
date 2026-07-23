@@ -87,7 +87,8 @@
     "routeManifest": null,
     "sdkClients": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [],
+    "layerRole": "runtime-native-host"
   },
   "verification": {
     "commands": [

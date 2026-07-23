@@ -16,7 +16,7 @@ namespace Sdkwork.Im.AppApi.Generated.Api
         }
 
         /// <summary>
-        /// Read the tenant portal sign-in snapshot
+        /// Read the tenant portal access snapshot
         /// </summary>
         public async Task<Sdkwork.Im.AppApi.Generated.Models.AccessRetrieveResponse?> AccessRetrieveAsync()
         {

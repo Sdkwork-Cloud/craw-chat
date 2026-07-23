@@ -38,13 +38,13 @@ export class CallsSessionsSignalsApi {
 
 
 /** List IM call signaling events */
-  async list(rtcSessionId: string, params?: CallsSessionsSignalsListParams): Promise<Record<string, unknown>> {
+  async list(rtcSessionId: string, params?: CallsSessionsSignalsListParams): Promise<{ items: RtcSignalEvent[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
     const query = buildQueryString([
       { name: 'afterSignalSeq', value: params?.afterSignalSeq, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/signals`), query));
+    return this.client.get<{ items: RtcSignalEvent[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/signals`), query));
   }
 
 /** Post an IM call signaling event */
@@ -97,11 +97,11 @@ export class CallsSessionsApi {
 }
 
 export class CallsApi {
-  private client: HttpClient;
+
   public readonly sessions: CallsSessionsApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.sessions = new CallsSessionsApi(client);
   }
 

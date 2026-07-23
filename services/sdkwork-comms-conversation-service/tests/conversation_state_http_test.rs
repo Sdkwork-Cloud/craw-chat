@@ -76,9 +76,11 @@ fn timeline_message_posted_event(
 
 #[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
-    let app = conversation_runtime::conversation_state::build_public_app_with_service(std::sync::Arc::new(
-        conversation_runtime::conversation_state::ConversationStateService::default(),
-    ));
+    let app = conversation_runtime::conversation_state::build_public_app_with_service(
+        std::sync::Arc::new(
+            conversation_runtime::conversation_state::ConversationStateService::default(),
+        ),
+    );
 
     let response = app
         .oneshot(
@@ -102,15 +104,20 @@ async fn test_public_app_exports_live_openapi_json() {
         serde_json::from_slice(&body).expect("body should be valid json");
 
     assert_eq!(value["openapi"], "3.1.0");
-    assert_eq!(value["info"]["title"], "Sdkwork IM ConversationState Service API");
+    assert_eq!(
+        value["info"]["title"],
+        "Sdkwork IM ConversationState Service API"
+    );
     assert!(value["paths"]["/im/v3/api/chat/inbox"].is_object());
 }
 
 #[tokio::test]
 async fn test_public_app_serves_docs_page_for_live_openapi() {
-    let app = conversation_runtime::conversation_state::build_public_app_with_service(std::sync::Arc::new(
-        conversation_runtime::conversation_state::ConversationStateService::default(),
-    ));
+    let app = conversation_runtime::conversation_state::build_public_app_with_service(
+        std::sync::Arc::new(
+            conversation_runtime::conversation_state::ConversationStateService::default(),
+        ),
+    );
 
     let response = app
         .oneshot(Request::builder().uri("/docs").body(Body::empty()).unwrap())
@@ -331,7 +338,9 @@ async fn test_conversation_state_service_does_not_own_public_message_history_rou
         )
         .expect("conversation_state should succeed");
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
 
     let message_history_response = app
         .clone()
@@ -599,7 +608,9 @@ async fn test_read_cursor_query_returns_projected_cursor_view() {
         )
         .expect("read cursor conversation_state should succeed");
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let response = app
         .oneshot(
             Request::builder()
@@ -725,7 +736,9 @@ async fn test_inbox_query_returns_projected_entries() {
         },
     );
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let response = app
         .oneshot(
             Request::builder()
@@ -830,7 +843,9 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
             .expect("message conversation_state should succeed");
     }
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let first = app
         .clone()
         .oneshot(
@@ -928,9 +943,10 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
 
 #[tokio::test]
 async fn test_inbox_query_rejects_forbidden_pagination_aliases() {
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(
-        conversation_runtime::conversation_state::ConversationStateService::default(),
-    ));
+    let app =
+        conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(
+            conversation_runtime::conversation_state::ConversationStateService::default(),
+        ));
 
     for alias in ["pageSize", "limit", "page_no", "pageNo", "per_page", "size"] {
         let response = app
@@ -971,9 +987,10 @@ async fn test_inbox_query_rejects_forbidden_pagination_aliases() {
 
 #[tokio::test]
 async fn test_inbox_query_rejects_page_and_cursor_combination() {
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(
-        conversation_runtime::conversation_state::ConversationStateService::default(),
-    ));
+    let app =
+        conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(
+            conversation_runtime::conversation_state::ConversationStateService::default(),
+        ));
 
     let response = app
         .oneshot(
@@ -1002,9 +1019,10 @@ async fn test_inbox_query_rejects_page_and_cursor_combination() {
 
 #[tokio::test]
 async fn test_read_cursor_query_rejects_oversized_conversation_id_over_http() {
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(
-        conversation_runtime::conversation_state::ConversationStateService::default(),
-    ));
+    let app =
+        conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(
+            conversation_runtime::conversation_state::ConversationStateService::default(),
+        ));
 
     let response = app
         .oneshot(
@@ -1072,7 +1090,9 @@ async fn test_interaction_summary_rejects_oversized_message_id_over_http() {
         )
         .expect("member conversation_state should succeed");
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let response = app
         .oneshot(
             Request::builder()
@@ -1167,7 +1187,9 @@ async fn test_member_directory_query_returns_projected_members() {
         )
         .expect("member conversation_state should succeed");
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let response = app
         .oneshot(
             Request::builder()
@@ -1234,11 +1256,13 @@ async fn test_contacts_query_returns_friendship_conversation_state_with_direct_c
         ))
         .expect("direct chat enrich should succeed");
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/contacts")
+                .uri("/im/v3/api/social/contacts")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1016")
                 .with_dual_token_actor_kind("user")
@@ -1291,12 +1315,14 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
             .expect("friendship conversation_state should succeed");
     }
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let first = app
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/contacts?page_size=2")
+                .uri("/im/v3/api/social/contacts?page_size=2")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1016")
                 .with_dual_token_actor_kind("user")
@@ -1327,7 +1353,11 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri(cursor_list_uri("/im/v3/api/chat/contacts", 2, next_cursor))
+                .uri(cursor_list_uri(
+                    "/im/v3/api/social/contacts",
+                    2,
+                    next_cursor,
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1016")
                 .with_dual_token_actor_kind("user")
@@ -1357,7 +1387,7 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
     let invalid = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/contacts?page_size=0")
+                .uri("/im/v3/api/social/contacts?page_size=0")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1016")
                 .with_dual_token_actor_kind("user")
@@ -1400,11 +1430,13 @@ async fn test_contacts_query_rejects_same_actor_id_with_different_actor_kind_ove
         ))
         .expect("direct chat enrich should succeed");
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/contacts")
+                .uri("/im/v3/api/social/contacts")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1016")
                 .with_dual_token_actor_kind("system")
@@ -1550,7 +1582,9 @@ async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_p
         ))
         .expect("pin conversation_state should succeed");
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let summary_response = app
         .clone()
         .oneshot(
@@ -1657,7 +1691,9 @@ async fn test_conversation_profile_and_preferences_support_get_and_patch() {
         )
         .expect("member conversation_state should succeed");
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let conversation_id = "c_agent_e7f6182d320811b42f4484f9";
 
     let patch_profile_response = app
@@ -1823,7 +1859,9 @@ async fn test_group_conversation_profile_uses_created_title_before_profile_patch
         )
         .expect("member conversation_state should succeed");
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let response = app
         .oneshot(
             Request::builder()
@@ -1966,7 +2004,9 @@ async fn test_legacy_pc_group_profile_uses_group_metadata_conversation_state() {
         )
         .expect("member conversation_state should succeed");
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let response = app
         .oneshot(
             Request::builder()
@@ -2116,7 +2156,9 @@ async fn test_g_prefixed_group_profile_uses_group_metadata_without_explicit_conv
         )
         .expect("member conversation_state should succeed");
 
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(service));
+    let app = conversation_runtime::conversation_state::build_integration_test_app(
+        std::sync::Arc::new(service),
+    );
     let response = app
         .oneshot(
             Request::builder()
@@ -2199,7 +2241,7 @@ async fn test_message_favorites_support_list_create_and_delete() {
         ))
         .expect("timeline conversation_state should succeed");
 
-    let app = sdkwork_routes_im_conversation_state_open_api::build_public_app_with_service(
+    let app = conversation_runtime::conversation_state::build_public_app_with_service(
         std::sync::Arc::new(service),
     );
 
@@ -2294,9 +2336,10 @@ async fn test_message_favorites_support_list_create_and_delete() {
 
 #[tokio::test]
 async fn test_message_search_rejects_empty_query_with_problem_detail() {
-    let app = conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(
-        conversation_runtime::conversation_state::ConversationStateService::default(),
-    ));
+    let app =
+        conversation_runtime::conversation_state::build_integration_test_app(std::sync::Arc::new(
+            conversation_runtime::conversation_state::ConversationStateService::default(),
+        ));
 
     let response = app
         .oneshot(

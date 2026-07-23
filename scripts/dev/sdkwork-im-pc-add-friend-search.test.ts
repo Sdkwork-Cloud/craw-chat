@@ -5,14 +5,6 @@ import { createSdkworkContactService } from '../../apps/sdkwork-im-pc/packages/s
 const calls: Array<{ body?: Record<string, unknown>; method: string; params?: Record<string, unknown> }> = [];
 
 const fakeClient = {
-  chat: {
-    contacts: {
-      async list() {
-        calls.push({ method: 'chat.contacts.list' });
-        return { items: [], hasMore: false };
-      },
-    },
-  },
   social: {
     users: {
       async list(params: Record<string, unknown>) {

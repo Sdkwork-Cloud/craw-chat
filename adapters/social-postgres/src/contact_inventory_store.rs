@@ -218,6 +218,6 @@ mod tests {
         assert!(normalized.contains("limit $6"));
         assert!(normalized.contains("from im_friendships"));
         assert!(normalized.contains("from im_direct_chats"));
-        assert!(!normalized.contains("im_projection_"));
+        assert!(!normalized.contains(["im", "projection", ""].join("_").as_str()));
     }
 }

@@ -7,7 +7,7 @@
 <div class="api-link-list">
   <a href="/api-reference/app/notifications"><code>Notifications</code> Return to the group page for workflow context and related operations</a>
   <a href="/api-reference/app-api"><code>App API</code> Return to the domain overview</a>
-  <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, AppContext projection, and error-envelope rules</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, resolved request-context, and error-envelope rules</a>
 </div>
 
 <section class="api-op api-op-single">
@@ -15,14 +15,14 @@
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/app/v3/api/notifications/{notificationId}</code>
-  <span class="api-op-id">operationId: getNotification</span>
+  <span class="api-op-id">operationId: notifications.retrieve</span>
 </div>
 
 Reads a single notification task by identifier.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-app-sdk` / `client.notification`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Current recipient scope.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 NotificationTask`</span></div>
@@ -43,7 +43,7 @@ Reads a single notification task by identifier.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to read the target notification scope. |
 | `404` | `40401` | The requested notification task does not exist. |
 

@@ -261,17 +261,8 @@ jobs:
         working-directory: docs/sites
         run: node ./scripts/docs-verify.mjs
 
-      - name: Test projection-service
-        run: cargo test -p projection-service --tests
-
-      - name: Test projection timeline actor-kind isolation
-        run: cargo test -p projection-service --test http_smoke_test test_timeline_query_rejects_same_actor_id_with_different_actor_kind_over_http -- --exact
-
-      - name: Test projection contacts actor-kind isolation
-        run: cargo test -p projection-service --test http_smoke_test test_contacts_query_rejects_same_actor_id_with_different_actor_kind_over_http -- --exact
-
-      - name: Test projection retention legal-hold reconcile
-        run: cargo test -p projection-service --test timeline_projection_test retention
+      - name: Test normalized IM authority
+        run: pnpm test:normalized-im-authority-standard
 
       - name: Test ops retention purge and metrics contract
         run: cargo test -p ops-service --test http_smoke_test retention
@@ -294,9 +285,6 @@ jobs:
         run: |
           cargo test -p im-domain-core retention
           cargo test -p im-adapters-postgres-journal retention
-
-      - name: Test projection tier and cursor standard
-        run: node scripts/dev/sdkwork-im-projection-tier-standard.test.mjs
 
       - name: Test social materializer transactional batch standard
         run: node scripts/dev/sdkwork-im-social-materializer-standard.test.mjs

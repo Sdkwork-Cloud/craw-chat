@@ -1,6 +1,8 @@
 use sdkwork_im_contract_core::ContractError;
 use serde::{Deserialize, Serialize};
 
+use crate::{CommitEnvelope, OutboxEventRecord, ReplaceConversationAgentAssignments};
+
 pub const CONVERSATION_AGGREGATE_PAGE_SIZE_DEFAULT: usize = 20;
 pub const CONVERSATION_AGGREGATE_PAGE_SIZE_MAX: usize = 200;
 
@@ -69,6 +71,36 @@ pub struct ConversationAggregateState {
     pub members: Vec<ConversationMemberRecord>,
     pub read_cursors: Vec<ReadCursorRecord>,
     pub high_watermark: u64,
+}
+
+/// Typed current-state row for the normalized `im_conversations` authority.
+/// Journal payloads are deliberately absent: callers must provide current
+/// state directly instead of asking persistence to derive it from events.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NormalizedConversationRecord {
+    pub tenant_id: String,
+    pub organization_id: String,
+    pub conversation_id: String,
+    pub conversation_type: String,
+    pub lifecycle_state: String,
+    pub commit_seq: u64,
+    pub member_epoch: u64,
+    pub last_activity_at: String,
+    pub retention_until: Option<String>,
+}
+
+/// One command-side PostgreSQL unit of work. Every collection contains only
+/// facts produced by the command being committed; this is not a replay or
+/// materialization contract.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NormalizedConversationCommit {
+    pub conversation: NormalizedConversationRecord,
+    pub members: Vec<ConversationMemberRecord>,
+    pub read_cursors: Vec<ReadCursorRecord>,
+    #[serde(default)]
+    pub agent_assignments: Option<ReplaceConversationAgentAssignments>,
+    pub envelopes: Vec<CommitEnvelope>,
+    pub outboxes: Vec<OutboxEventRecord>,
 }
 
 /// Durable repository boundary for conversation membership, read cursors, and

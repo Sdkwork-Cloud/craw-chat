@@ -25,7 +25,7 @@ workspace admin runtimes rather than a published control-plane service.
 | Concern | Current rule |
 | --- | --- |
 | Route prefix | `/backend/v3/api/admin/storage/*` |
-| Auth | Same SDKWork appbase credential and AppContext projection model used by the rest of `/backend/v3/api/admin/*` |
+| Auth | Same SDKWork appbase credential and resolved request-context model used by the rest of `/backend/v3/api/admin/*` |
 | Read permission | `admin.storage.read` |
 | Write permission | `admin.storage.write` |
 | Secret reads | Responses expose `StorageSecretSummaryRecord`, never raw `encryptedSecretPayload` |

@@ -8,10 +8,10 @@ The current Sdkwork IM repository already has several capabilities that can be w
 
 | Existing capability | Current owner | RPC service group | Notes |
 | --- | --- | --- | --- |
-| Conversation lifecycle, members, read cursors, profiles, inbox | `comms-conversation-service`, `projection-service`, `sdkwork-api-im-standalone-gateway` | `ConversationService` | App-facing commands and queries for conversations and membership. |
-| Message posting, edits, recalls, reactions, pins, favorites | `comms-conversation-service`, `projection-service`, `sdkwork-api-im-standalone-gateway` | `MessageService` | Uses Drive-backed `MediaResource` for uploaded media instead of redefining upload. |
-| Presence, realtime event list/ack/watch, route registration | `session-gateway`, `projection-service`, `web-gateway` | `PresenceService`, `RealtimeService` | Server-streaming methods are intended for backend/private clients and native hosts. |
-| Contacts, friend requests, friendships, social graph | `projection-service`, `control-plane-api`, `social-service` | `ContactService`, `SocialService`, `SocialAdminService` | App RPC and backend admin RPC stay separated. |
+| Conversation lifecycle, members, read cursors, profiles, inbox | `comms-conversation-service`, `sdkwork-api-im-standalone-gateway` | `ConversationService` | App-facing commands and queries use normalized Conversation state. |
+| Message posting, edits, recalls, reactions, pins, favorites | `comms-conversation-service`, `sdkwork-api-im-standalone-gateway` | `MessageService` | Uses Drive-backed `MediaResource` for uploaded media instead of redefining upload. |
+| Presence, realtime event list/ack/watch, route registration | `session-gateway`, `web-gateway` | `PresenceService`, `RealtimeService` | Server-streaming methods are intended for backend/private clients and native hosts. |
+| Contacts, friend requests, friendships, social graph | `control-plane-api`, `social-service` | `ContactService`, `SocialService`, `SocialAdminService` | App RPC and backend admin RPC stay separated; Social owns contact semantics. |
 | Durable streams, frames, checkpoints, completion, abort | `streaming-service`, `automation-service` | `StreamService` | Supports unary mutation plus server-streaming frame watch. |
 | RTC/calls signaling and credentials | `sdkwork-api-im-standalone-gateway calls runtime`, `sdkwork-rtc-sdk` provider adapters | `CallService` | The RPC service exposes communication signaling; provider SDK remains separate. |
 | Notifications and notification request fanout | `notification-service` | `NotificationService` | App-facing notification list/request/watch surface. |

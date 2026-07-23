@@ -36,6 +36,8 @@ fn message(tenant_id: &str, conversation_id: &str, message_seq: u64) -> StoredMe
         updated_at: now,
         deleted_at: None,
         retention_until: None,
+        reactions: Vec::new(),
+        pin: None,
     }
 }
 

@@ -17,18 +17,13 @@ public class OpsApi {
         return try await client.get(ApiPaths.backendPath("/ops/cluster"), responseType: ClusterRetrieveResponse.self)
     }
 
-    /// Retrieve projection lag
+    /// Retrieve operational lag
     public func lagRetrieve(pageSize: Int? = nil, cursor: String? = nil) async throws -> LagListResponse? {
         let query = buildQueryString([
             QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil),
             QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil)
         ])
         return try await client.get(ApiPaths.appendQueryString(ApiPaths.backendPath("/ops/lag"), query), responseType: LagListResponse.self)
-    }
-
-    /// Retrieve replay status
-    public func replayStatusRetrieve() async throws -> ReplayStatusRetrieveResponse? {
-        return try await client.get(ApiPaths.backendPath("/ops/replay_status"), responseType: ReplayStatusRetrieveResponse.self)
     }
 
     /// Retrieve commercial readiness

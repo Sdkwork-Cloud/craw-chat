@@ -123,6 +123,16 @@ class SocialApi(private val client: HttpClient) {
         return client.convertValue(raw, object : TypeReference<SocialContactsPreferencesUpdateResponse>() {})
     }
 
+    /** List social contacts */
+    suspend fun contactsList(pageSize: Int? = null, cursor: String? = null): SocialContactsListResponse? {
+        val query = buildQueryString(listOf(
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ))
+        val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/social/contacts"), query))
+        return client.convertValue(raw, object : TypeReference<SocialContactsListResponse>() {})
+    }
+
     private data class PathParameterSpec(val name: String, val style: String, val explode: Boolean)
 
     private fun serializePathParameter(value: Any?, spec: PathParameterSpec): String {

@@ -140,7 +140,6 @@ assert.match(
 
 const commercialGates = readExists('.github/workflows/im-commercial-gates.yml');
 for (const required of [
-  'cargo test -p projection-service --test timeline_projection_test retention',
   'cargo test -p ops-service --test http_smoke_test retention',
   'cargo test -p social-service shared_channel_sync',
   'cargo test -p social-service --test http_smoke_test',

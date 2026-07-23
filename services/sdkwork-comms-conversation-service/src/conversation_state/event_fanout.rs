@@ -3,8 +3,8 @@ use im_domain_core::message::{ContentPart, Message};
 use im_domain_events::CommitEnvelope;
 
 use crate::conversation_state::client_route_sync::ClientRouteSyncEntryDraft;
-use crate::conversation_state::model::NotificationRecipientView;
 use crate::conversation_state::event_apply::AgentHandoffStatusChangedConversationStatePayload;
+use crate::conversation_state::model::NotificationRecipientView;
 use crate::conversation_state::{ConversationStateService, client_route_sync, scope};
 
 impl ConversationStateService {

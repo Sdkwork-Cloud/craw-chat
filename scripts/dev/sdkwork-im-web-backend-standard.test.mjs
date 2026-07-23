@@ -103,7 +103,6 @@ for (const relativePath of [
   'services/audit-service/src/lib.rs',
   'services/ops-service/src/lib.rs',
   'services/governance-service/src/lib.rs',
-  'services/projection-service/src/http.rs',
   'services/im-calls-service/src/app.rs',
 ]) {
   const source = read(relativePath);

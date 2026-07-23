@@ -4,13 +4,15 @@ use chrono::{DateTime, Utc};
 use im_domain_events::{AggregateType, CommitEnvelope};
 use im_platform_contracts::{
     AGENT_MENTION_DISPATCH_EVENT_TYPE, AgentDispatchReplyCompletion, CommitPosition, ContractError,
-    IdGenerator, OutboxEventRecord, OutboxPublishStatus, StoredMessageRecord,
+    IdGenerator, NormalizedConversationCommit, OutboxEventRecord, OutboxPublishStatus,
+    StoredMessageMutation, StoredMessageMutationTarget, StoredMessageRecord,
 };
 use r2d2_postgres::postgres::Transaction;
 use sdkwork_im_contract_agent::AgentMentionDispatchRequest;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use crate::agent_integration_store::replace_conversation_agents_in_transaction;
 use crate::{
     PostgresJournalPool, compose_partition_key, journal_aggregate_seq, journal_position_conflict,
     journal_retention_until, postgres_bigint_input, postgres_bigint_output, postgres_jsonb_payload,
@@ -24,6 +26,150 @@ insert into im_conversation_messages (
     sender_principal_kind, sender_principal_id, sender_device_id, client_msg_id,
     message_type, payload_json, payload_hash, created_at, updated_at, retention_until
 ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14, $15)
+"#;
+
+const UPDATE_CONVERSATION_AFTER_MESSAGE_SQL: &str = r#"
+update im_conversations
+set message_count = message_count + 1,
+    last_message_id = $4,
+    last_message_seq = $5,
+    last_sender_kind = $6,
+    last_sender_id = $7,
+    last_summary = $8::jsonb ->> 'summary',
+    last_message_at = $9,
+    last_activity_at = $9,
+    commit_seq = greatest(commit_seq, $10),
+    updated_at = $9
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+  and last_message_seq < $5
+"#;
+
+const LOCK_MESSAGE_MUTATION_TARGET_SQL: &str = r#"
+select deleted_at
+from im_conversation_messages
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+  and message_id = $4 and message_seq = $5
+for update
+"#;
+
+const UPDATE_EDITED_MESSAGE_SQL: &str = r#"
+update im_conversation_messages
+set payload_json = $6::jsonb,
+    payload_hash = $7,
+    updated_at = $8
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+  and message_id = $4 and message_seq = $5 and deleted_at is null
+"#;
+
+const UPDATE_RECALLED_MESSAGE_SQL: &str = r#"
+update im_conversation_messages
+set deleted_at = $6,
+    updated_at = $6
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+  and message_id = $4 and message_seq = $5 and deleted_at is null
+"#;
+
+const LOAD_MESSAGE_REACTION_SQL: &str = r#"
+select 1
+from im_message_reactions
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+  and message_id = $4 and actor_principal_kind = $5
+  and actor_principal_id = $6 and reaction_type = $7
+"#;
+
+const INSERT_MESSAGE_REACTION_SQL: &str = r#"
+insert into im_message_reactions (
+    tenant_id, organization_id, conversation_id, message_id,
+    actor_principal_kind, actor_principal_id, reaction_type, created_at
+) values ($1, $2, $3, $4, $5, $6, $7, $8)
+"#;
+
+const DELETE_MESSAGE_REACTION_SQL: &str = r#"
+delete from im_message_reactions
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+  and message_id = $4 and actor_principal_kind = $5
+  and actor_principal_id = $6 and reaction_type = $7
+"#;
+
+const LOAD_MESSAGE_PIN_SQL: &str = r#"
+select 1
+from im_message_pins
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+  and message_id = $4
+"#;
+
+const INSERT_MESSAGE_PIN_SQL: &str = r#"
+insert into im_message_pins (
+    tenant_id, organization_id, conversation_id, message_id,
+    pinned_by_principal_kind, pinned_by_principal_id, pinned_at
+) values ($1, $2, $3, $4, $5, $6, $7)
+"#;
+
+const DELETE_MESSAGE_PIN_SQL: &str = r#"
+delete from im_message_pins
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+  and message_id = $4
+"#;
+
+const UPDATE_CONVERSATION_AFTER_MESSAGE_MUTATION_SQL: &str = r#"
+update im_conversations
+set commit_seq = greatest(commit_seq, $4),
+    updated_at = greatest(updated_at, $5)
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+"#;
+
+const UPSERT_NORMALIZED_CONVERSATION_SQL: &str = r#"
+insert into im_conversations (
+    tenant_id, organization_id, conversation_id, conversation_type, lifecycle_state,
+    commit_seq, member_epoch, last_activity_at, payload_json, payload_hash,
+    created_at, updated_at, retention_until
+) values ($1, $2, $3, $4, $5, $6, $7, $8, '{}'::jsonb, $9, $8, $8, $10)
+on conflict (tenant_id, organization_id, conversation_id)
+do update set
+    conversation_type = excluded.conversation_type,
+    lifecycle_state = excluded.lifecycle_state,
+    commit_seq = excluded.commit_seq,
+    member_epoch = excluded.member_epoch,
+    last_activity_at = excluded.last_activity_at,
+    updated_at = excluded.updated_at,
+    retention_until = excluded.retention_until
+where im_conversations.commit_seq <= excluded.commit_seq
+"#;
+
+const UPSERT_NORMALIZED_MEMBER_SQL: &str = r#"
+insert into im_conversation_members (
+    tenant_id, organization_id, conversation_id, principal_kind, principal_id,
+    member_id, membership_role, membership_state, invited_by, joined_at, removed_at,
+    attributes_json, payload_json, payload_hash, created_at, updated_at
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, '{}'::jsonb, $13, $10, $14)
+on conflict (tenant_id, organization_id, conversation_id, principal_kind, principal_id)
+do update set
+    member_id = excluded.member_id,
+    membership_role = excluded.membership_role,
+    membership_state = excluded.membership_state,
+    invited_by = excluded.invited_by,
+    joined_at = excluded.joined_at,
+    removed_at = excluded.removed_at,
+    attributes_json = excluded.attributes_json,
+    updated_at = excluded.updated_at
+"#;
+
+const UPSERT_NORMALIZED_READ_CURSOR_SQL: &str = r#"
+insert into im_conversation_read_cursors (
+    tenant_id, organization_id, conversation_id, member_id, device_id, principal_kind,
+    principal_id, read_seq, last_read_message_id, payload_json, payload_hash, created_at, updated_at
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, '{}'::jsonb, $10, $11, $11)
+on conflict (tenant_id, organization_id, conversation_id, member_id, device_id)
+do update set
+    principal_kind = excluded.principal_kind,
+    principal_id = excluded.principal_id,
+    read_seq = greatest(im_conversation_read_cursors.read_seq, excluded.read_seq),
+    last_read_message_id = case
+        when excluded.read_seq >= im_conversation_read_cursors.read_seq
+            then excluded.last_read_message_id
+        else im_conversation_read_cursors.last_read_message_id
+    end,
+    updated_at = greatest(im_conversation_read_cursors.updated_at, excluded.updated_at)
 "#;
 
 const ENQUEUE_OUTBOX_SQL: &str = r#"
@@ -303,18 +449,45 @@ impl ConversationOutboxFingerprint {
 pub struct PostgresDurableConversationEventWriter {
     pool: PostgresJournalPool,
     partition_prefix: std::sync::Arc<str>,
+    id_generator: Arc<dyn IdGenerator>,
 }
 
 impl PostgresDurableConversationEventWriter {
     pub fn new(pool: PostgresJournalPool, partition_prefix: std::sync::Arc<str>) -> Self {
+        Self::with_id_generator(
+            pool,
+            partition_prefix,
+            sdkwork_im_runtime_id::build_runtime_id_generator_blocking(
+                "im-durable-conversation-event",
+            ),
+        )
+    }
+
+    pub fn with_id_generator(
+        pool: PostgresJournalPool,
+        partition_prefix: std::sync::Arc<str>,
+        id_generator: Arc<dyn IdGenerator>,
+    ) -> Self {
         Self {
             pool,
             partition_prefix,
+            id_generator,
         }
     }
 
     pub fn from_journal(journal: &crate::PostgresCommitJournal) -> Self {
         Self::new(journal.pool().clone(), journal.partition_prefix().clone())
+    }
+
+    pub fn from_journal_with_id_generator(
+        journal: &crate::PostgresCommitJournal,
+        id_generator: Arc<dyn IdGenerator>,
+    ) -> Self {
+        Self::with_id_generator(
+            journal.pool().clone(),
+            journal.partition_prefix().clone(),
+            id_generator,
+        )
     }
 
     pub fn persist_conversation_event(
@@ -327,6 +500,24 @@ impl PostgresDurableConversationEventWriter {
         let prefix = self.partition_prefix.clone();
         run_postgres_io(move || {
             persist_conversation_event_txn(&pool, prefix.as_ref(), &envelope, &outbox)
+        })
+    }
+
+    pub fn persist_normalized_conversation_commit(
+        &self,
+        commit: NormalizedConversationCommit,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        validate_normalized_conversation_commit(&commit)?;
+        let pool = self.pool.clone();
+        let prefix = self.partition_prefix.clone();
+        let id_generator = self.id_generator.clone();
+        run_postgres_io(move || {
+            persist_normalized_conversation_commit_txn(
+                &pool,
+                prefix.as_ref(),
+                &commit,
+                id_generator.as_ref(),
+            )
         })
     }
 }
@@ -439,6 +630,161 @@ impl PostgresDurableMessagePostWriter {
     }
 }
 
+/// PostgreSQL writer for one authoritative message mutation commit.
+///
+/// The target message row is locked before the change decision so concurrent
+/// add/remove and pin/unpin commands are serialized by normalized state rather
+/// than by journal replay.
+#[derive(Clone)]
+pub struct PostgresDurableMessageMutationWriter {
+    pool: PostgresJournalPool,
+    partition_prefix: std::sync::Arc<str>,
+}
+
+impl PostgresDurableMessageMutationWriter {
+    pub fn new(pool: PostgresJournalPool, partition_prefix: std::sync::Arc<str>) -> Self {
+        Self {
+            pool,
+            partition_prefix,
+        }
+    }
+
+    pub fn from_journal(journal: &crate::PostgresCommitJournal) -> Self {
+        Self::new(journal.pool().clone(), journal.partition_prefix().clone())
+    }
+
+    /// Returns the durable journal position when the command changed state.
+    /// A normalized-state no-op returns `None` and writes neither journal nor
+    /// outbox rows.
+    pub fn persist_message_mutation(
+        &self,
+        envelope: CommitEnvelope,
+        mutation: StoredMessageMutation,
+        outbox: OutboxEventRecord,
+    ) -> Result<Option<CommitPosition>, ContractError> {
+        validate_message_mutation_commit(&envelope, &mutation, &outbox)?;
+        let pool = self.pool.clone();
+        let prefix = self.partition_prefix.clone();
+        run_postgres_io(move || {
+            persist_message_mutation_txn(&pool, prefix.as_ref(), &envelope, &mutation, &outbox)
+        })
+    }
+}
+
+fn validate_message_mutation_commit(
+    envelope: &CommitEnvelope,
+    mutation: &StoredMessageMutation,
+    outbox: &OutboxEventRecord,
+) -> Result<(), ContractError> {
+    let target = mutation.target();
+    let organization_id =
+        im_domain_events::normalize_commit_organization_id(target.organization_id.as_str());
+    let payload = postgres_jsonb_payload(envelope.payload.as_str())?;
+    let outbox_payload = postgres_jsonb_payload(outbox.payload_json.as_str())?;
+    let expected_outbox_event_id = format!(
+        "conversation:{}:{}",
+        mutation.event_type(),
+        envelope.event_id
+    );
+    let actor_field = match mutation {
+        StoredMessageMutation::Edited { .. } => "editor",
+        StoredMessageMutation::Recalled { .. } => "recalledBy",
+        StoredMessageMutation::ReactionAdded { .. } => "reactedBy",
+        StoredMessageMutation::ReactionRemoved { .. } => "removedBy",
+        StoredMessageMutation::Pinned { .. } => "pinnedBy",
+        StoredMessageMutation::Unpinned { .. } => "unpinnedBy",
+    };
+    let payload_message_id = payload.get("messageId").and_then(serde_json::Value::as_str);
+    let payload_message_seq = payload
+        .get("messageSeq")
+        .and_then(serde_json::Value::as_u64);
+    let payload_actor = payload.get(actor_field);
+    let payload_actor_identity_matches = payload_actor
+        .and_then(|actor| actor.get("kind"))
+        .and_then(serde_json::Value::as_str)
+        == Some(envelope.actor.actor_kind.as_str())
+        && payload_actor
+            .and_then(|actor| actor.get("id"))
+            .and_then(serde_json::Value::as_str)
+            == Some(envelope.actor.actor_id.as_str());
+    let normalized_actor_identity_matches = match mutation {
+        StoredMessageMutation::ReactionAdded { reaction, .. }
+        | StoredMessageMutation::ReactionRemoved { reaction, .. } => {
+            envelope.actor.actor_kind == reaction.actor_principal_kind
+                && envelope.actor.actor_id == reaction.actor_principal_id
+                && payload
+                    .get("reactionKey")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(reaction.reaction_key.as_str())
+        }
+        StoredMessageMutation::Pinned { pin, .. } => {
+            envelope.actor.actor_kind == pin.pinned_by_principal_kind
+                && envelope.actor.actor_id == pin.pinned_by_principal_id
+        }
+        _ => true,
+    };
+    if target.tenant_id.trim().is_empty()
+        || target.organization_id.trim().is_empty()
+        || target.conversation_id.trim().is_empty()
+        || target.message_id.trim().is_empty()
+        || target.message_seq == 0
+        || target.message_id.parse::<i64>().is_err()
+        || envelope.tenant_id != target.tenant_id
+        || envelope.normalized_organization_id() != organization_id
+        || envelope.aggregate_type != AggregateType::Conversation
+        || envelope.aggregate_id != target.conversation_id
+        || envelope.scope_type != CONVERSATION_SCOPE_TYPE
+        || envelope.scope_id != target.conversation_id
+        || envelope.ordering_key
+            != CommitEnvelope::ordering_key(
+                target.tenant_id.as_str(),
+                target.conversation_id.as_str(),
+            )
+        || envelope.event_type != mutation.event_type()
+        || envelope.event_id.trim().is_empty()
+        || envelope.ordering_seq == 0
+        || payload.get("tenantId").and_then(serde_json::Value::as_str)
+            != Some(target.tenant_id.as_str())
+        || payload
+            .get("conversationId")
+            .and_then(serde_json::Value::as_str)
+            != Some(target.conversation_id.as_str())
+        || payload_message_id != Some(target.message_id.as_str())
+        || payload_message_seq != Some(target.message_seq)
+        || !payload_actor_identity_matches
+        || !normalized_actor_identity_matches
+        || outbox.tenant_id != target.tenant_id
+        || im_domain_events::normalize_commit_organization_id(outbox.organization_id.as_str())
+            != organization_id
+        || outbox.aggregate_type != CONVERSATION_OUTBOX_AGGREGATE_TYPE
+        || outbox.aggregate_id != target.conversation_id
+        || outbox.event_type != mutation.event_type()
+        || outbox.outbox_id.trim().is_empty()
+        || outbox.event_id != expected_outbox_event_id
+        || outbox_payload
+            .get("conversationId")
+            .and_then(serde_json::Value::as_str)
+            != Some(target.conversation_id.as_str())
+        || outbox_payload
+            .get("messageId")
+            .and_then(serde_json::Value::as_str)
+            != Some(target.message_id.as_str())
+        || outbox_payload
+            .get("messageSeq")
+            .and_then(serde_json::Value::as_u64)
+            != Some(target.message_seq)
+        || outbox.payload_hash != sdkwork_utils_rust::sha256_hash(outbox.payload_json.as_bytes())
+        || outbox.publish_status != OutboxPublishStatus::Pending
+        || outbox.attempt_count != 0
+        || outbox.published_at.is_some()
+    {
+        return Err(ContractError::Invalid(
+            "durable message mutation identity is invalid".into(),
+        ));
+    }
+    Ok(())
+}
+
 fn validate_agent_reply_completion(
     message: &StoredMessageRecord,
     completion: &AgentDispatchReplyCompletion,
@@ -514,6 +860,275 @@ fn validate_message_post_batch(
     Ok(())
 }
 
+fn persist_message_mutation_txn(
+    pool: &PostgresJournalPool,
+    prefix: &str,
+    envelope: &CommitEnvelope,
+    mutation: &StoredMessageMutation,
+    outbox: &OutboxEventRecord,
+) -> Result<Option<CommitPosition>, ContractError> {
+    let mut client = postgres_pool_client(pool, "persist_message_mutation")?;
+    let mut txn = client
+        .transaction()
+        .map_err(|error| postgres_unavailable_db("persist_message_mutation begin", error))?;
+    let target = mutation.target();
+    let message_id = target_message_id(target)?;
+    let message_seq = postgres_bigint_input(target.message_seq, "message sequence")?;
+    let target_row = txn
+        .query_opt(
+            LOCK_MESSAGE_MUTATION_TARGET_SQL,
+            &[
+                &target.tenant_id,
+                &target.organization_id,
+                &target.conversation_id,
+                &message_id,
+                &message_seq,
+            ],
+        )
+        .map_err(|error| postgres_unavailable_db("lock message mutation target", error))?
+        .ok_or_else(|| ContractError::Conflict("message mutation target is missing".into()))?;
+    let deleted_at: Option<DateTime<Utc>> = target_row.get(0);
+    let should_apply =
+        message_mutation_requires_change(&mut txn, mutation, message_id, deleted_at.is_some())?;
+    if !should_apply {
+        txn.rollback()
+            .map_err(|error| postgres_unavailable_db("message mutation no-op rollback", error))?;
+        return Ok(None);
+    }
+
+    let outcome = append_journal_in_transaction(&mut txn, prefix, envelope)?;
+    if matches!(outcome, JournalAppendOutcome::Inserted(_, _)) {
+        apply_message_mutation_in_transaction(&mut txn, mutation, message_id, message_seq)?;
+        update_conversation_after_message_mutation_in_transaction(&mut txn, target, envelope)?;
+    }
+    ensure_conversation_outbox_in_transaction(&mut txn, outbox)?;
+    let position = outcome.into_commit_position()?;
+    txn.commit()
+        .map_err(|error| postgres_unavailable_db("persist_message_mutation commit", error))?;
+    Ok(Some(position))
+}
+
+fn target_message_id(target: &StoredMessageMutationTarget) -> Result<i64, ContractError> {
+    target
+        .message_id
+        .parse::<i64>()
+        .map_err(|_| ContractError::Invalid("message id must be a signed int64 string".into()))
+}
+
+fn message_mutation_requires_change(
+    txn: &mut Transaction<'_>,
+    mutation: &StoredMessageMutation,
+    message_id: i64,
+    recalled: bool,
+) -> Result<bool, ContractError> {
+    let target = mutation.target();
+    match mutation {
+        StoredMessageMutation::Edited { .. } => {
+            if recalled {
+                return Err(ContractError::Conflict(
+                    "recalled messages cannot be edited".into(),
+                ));
+            }
+            Ok(true)
+        }
+        StoredMessageMutation::Recalled { .. } => Ok(!recalled),
+        StoredMessageMutation::ReactionAdded { reaction, .. }
+        | StoredMessageMutation::ReactionRemoved { reaction, .. } => {
+            if recalled {
+                return Err(ContractError::Conflict(
+                    "recalled messages cannot change reactions".into(),
+                ));
+            }
+            let exists = txn
+                .query_opt(
+                    LOAD_MESSAGE_REACTION_SQL,
+                    &[
+                        &target.tenant_id,
+                        &target.organization_id,
+                        &target.conversation_id,
+                        &message_id,
+                        &reaction.actor_principal_kind,
+                        &reaction.actor_principal_id,
+                        &reaction.reaction_key,
+                    ],
+                )
+                .map_err(|error| postgres_unavailable_db("load message reaction", error))?
+                .is_some();
+            Ok(match mutation {
+                StoredMessageMutation::ReactionAdded { .. } => !exists,
+                StoredMessageMutation::ReactionRemoved { .. } => exists,
+                _ => unreachable!("reaction variants matched above"),
+            })
+        }
+        StoredMessageMutation::Pinned { .. } | StoredMessageMutation::Unpinned { .. } => {
+            if recalled {
+                return Err(ContractError::Conflict(
+                    "recalled messages cannot change pins".into(),
+                ));
+            }
+            let exists = txn
+                .query_opt(
+                    LOAD_MESSAGE_PIN_SQL,
+                    &[
+                        &target.tenant_id,
+                        &target.organization_id,
+                        &target.conversation_id,
+                        &message_id,
+                    ],
+                )
+                .map_err(|error| postgres_unavailable_db("load message pin", error))?
+                .is_some();
+            Ok(match mutation {
+                StoredMessageMutation::Pinned { .. } => !exists,
+                StoredMessageMutation::Unpinned { .. } => exists,
+                _ => unreachable!("pin variants matched above"),
+            })
+        }
+    }
+}
+
+fn apply_message_mutation_in_transaction(
+    txn: &mut Transaction<'_>,
+    mutation: &StoredMessageMutation,
+    message_id: i64,
+    message_seq: i64,
+) -> Result<(), ContractError> {
+    let target = mutation.target();
+    let affected = match mutation {
+        StoredMessageMutation::Edited {
+            payload_json,
+            payload_hash,
+            edited_at,
+            ..
+        } => {
+            let payload_json = postgres_jsonb_payload(payload_json.as_str())?;
+            let edited_at = postgres_timestamptz(edited_at.as_str(), "edited_at")?;
+            txn.execute(
+                UPDATE_EDITED_MESSAGE_SQL,
+                &[
+                    &target.tenant_id,
+                    &target.organization_id,
+                    &target.conversation_id,
+                    &message_id,
+                    &message_seq,
+                    &payload_json,
+                    payload_hash,
+                    &edited_at,
+                ],
+            )
+            .map_err(|error| postgres_unavailable_db("update edited message", error))?
+        }
+        StoredMessageMutation::Recalled { recalled_at, .. } => {
+            let recalled_at = postgres_timestamptz(recalled_at.as_str(), "recalled_at")?;
+            txn.execute(
+                UPDATE_RECALLED_MESSAGE_SQL,
+                &[
+                    &target.tenant_id,
+                    &target.organization_id,
+                    &target.conversation_id,
+                    &message_id,
+                    &message_seq,
+                    &recalled_at,
+                ],
+            )
+            .map_err(|error| postgres_unavailable_db("update recalled message", error))?
+        }
+        StoredMessageMutation::ReactionAdded { reaction, .. } => {
+            let reacted_at = postgres_timestamptz(reaction.reacted_at.as_str(), "reacted_at")?;
+            txn.execute(
+                INSERT_MESSAGE_REACTION_SQL,
+                &[
+                    &target.tenant_id,
+                    &target.organization_id,
+                    &target.conversation_id,
+                    &message_id,
+                    &reaction.actor_principal_kind,
+                    &reaction.actor_principal_id,
+                    &reaction.reaction_key,
+                    &reacted_at,
+                ],
+            )
+            .map_err(|error| postgres_unavailable_db("insert message reaction", error))?
+        }
+        StoredMessageMutation::ReactionRemoved { reaction, .. } => txn
+            .execute(
+                DELETE_MESSAGE_REACTION_SQL,
+                &[
+                    &target.tenant_id,
+                    &target.organization_id,
+                    &target.conversation_id,
+                    &message_id,
+                    &reaction.actor_principal_kind,
+                    &reaction.actor_principal_id,
+                    &reaction.reaction_key,
+                ],
+            )
+            .map_err(|error| postgres_unavailable_db("delete message reaction", error))?,
+        StoredMessageMutation::Pinned { pin, .. } => {
+            let pinned_at = postgres_timestamptz(pin.pinned_at.as_str(), "pinned_at")?;
+            txn.execute(
+                INSERT_MESSAGE_PIN_SQL,
+                &[
+                    &target.tenant_id,
+                    &target.organization_id,
+                    &target.conversation_id,
+                    &message_id,
+                    &pin.pinned_by_principal_kind,
+                    &pin.pinned_by_principal_id,
+                    &pinned_at,
+                ],
+            )
+            .map_err(|error| postgres_unavailable_db("insert message pin", error))?
+        }
+        StoredMessageMutation::Unpinned { .. } => txn
+            .execute(
+                DELETE_MESSAGE_PIN_SQL,
+                &[
+                    &target.tenant_id,
+                    &target.organization_id,
+                    &target.conversation_id,
+                    &message_id,
+                ],
+            )
+            .map_err(|error| postgres_unavailable_db("delete message pin", error))?,
+    };
+    if affected != 1 {
+        return Err(ContractError::Conflict(
+            "message mutation lost its normalized-state fence".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn update_conversation_after_message_mutation_in_transaction(
+    txn: &mut Transaction<'_>,
+    target: &StoredMessageMutationTarget,
+    envelope: &CommitEnvelope,
+) -> Result<(), ContractError> {
+    let commit_seq = postgres_bigint_input(envelope.ordering_seq, "conversation commit sequence")?;
+    let committed_at = postgres_timestamptz(envelope.committed_at.as_str(), "committed_at")?;
+    let affected = txn
+        .execute(
+            UPDATE_CONVERSATION_AFTER_MESSAGE_MUTATION_SQL,
+            &[
+                &target.tenant_id,
+                &target.organization_id,
+                &target.conversation_id,
+                &commit_seq,
+                &committed_at,
+            ],
+        )
+        .map_err(|error| {
+            postgres_unavailable_db("update conversation after message mutation", error)
+        })?;
+    if affected != 1 {
+        return Err(ContractError::Conflict(
+            "normalized conversation is missing for message mutation".into(),
+        ));
+    }
+    Ok(())
+}
+
 fn persist_message_post_txn(
     pool: &PostgresJournalPool,
     prefix: &str,
@@ -539,6 +1154,7 @@ fn persist_message_post_txn(
         .count();
     if inserted_count == outcomes.len() {
         insert_message_in_transaction(&mut txn, message)?;
+        update_conversation_after_message_in_transaction(&mut txn, message, envelopes)?;
         for outbox in outboxes {
             if enqueue_outbox_in_transaction(&mut txn, outbox)?
                 == OutboxEnqueueOutcome::IdentityConflict
@@ -600,6 +1216,7 @@ fn persist_agent_reply_txn(
         .count();
     if inserted_count == outcomes.len() {
         insert_message_in_transaction(&mut txn, message)?;
+        update_conversation_after_message_in_transaction(&mut txn, message, envelopes)?;
         for outbox in outboxes {
             if enqueue_outbox_in_transaction(&mut txn, outbox)?
                 == OutboxEnqueueOutcome::IdentityConflict
@@ -719,6 +1336,202 @@ fn validate_conversation_event(
         return Err(ContractError::Invalid(
             "durable conversation event journal/outbox identity is invalid".into(),
         ));
+    }
+    Ok(())
+}
+
+fn validate_normalized_conversation_commit(
+    commit: &NormalizedConversationCommit,
+) -> Result<(), ContractError> {
+    let conversation = &commit.conversation;
+    if conversation.tenant_id.trim().is_empty()
+        || conversation.organization_id.trim().is_empty()
+        || conversation.conversation_id.trim().is_empty()
+        || conversation.conversation_type.trim().is_empty()
+        || !matches!(conversation.lifecycle_state.as_str(), "active" | "archived")
+        || commit.envelopes.is_empty()
+        || commit.envelopes.len() != commit.outboxes.len()
+    {
+        return Err(ContractError::Invalid(
+            "normalized conversation commit identity is invalid".into(),
+        ));
+    }
+    let max_ordering_seq = commit
+        .envelopes
+        .iter()
+        .map(|envelope| envelope.ordering_seq)
+        .max()
+        .unwrap_or_default();
+    if conversation.commit_seq < max_ordering_seq
+        || conversation.member_epoch > conversation.commit_seq
+    {
+        return Err(ContractError::Invalid(
+            "normalized conversation commit sequence is invalid".into(),
+        ));
+    }
+    for (envelope, outbox) in commit.envelopes.iter().zip(&commit.outboxes) {
+        validate_conversation_event(envelope, outbox)?;
+        if envelope.tenant_id != conversation.tenant_id
+            || envelope.normalized_organization_id() != conversation.organization_id
+            || envelope.aggregate_id != conversation.conversation_id
+        {
+            return Err(ContractError::Invalid(
+                "normalized conversation journal scope is invalid".into(),
+            ));
+        }
+    }
+    for member in &commit.members {
+        if member.tenant_id != conversation.tenant_id
+            || member.organization_id != conversation.organization_id
+            || member.conversation_id != conversation.conversation_id
+        {
+            return Err(ContractError::Invalid(
+                "normalized conversation member scope is invalid".into(),
+            ));
+        }
+    }
+    for cursor in &commit.read_cursors {
+        if cursor.tenant_id != conversation.tenant_id
+            || cursor.organization_id != conversation.organization_id
+            || cursor.conversation_id != conversation.conversation_id
+        {
+            return Err(ContractError::Invalid(
+                "normalized conversation read cursor scope is invalid".into(),
+            ));
+        }
+    }
+    if let Some(assignments) = commit.agent_assignments.as_ref() {
+        if assignments.tenant_id.to_string() != conversation.tenant_id
+            || assignments.organization_id.to_string() != conversation.organization_id
+            || assignments.conversation_id != conversation.conversation_id
+            || !commit
+                .envelopes
+                .iter()
+                .any(|envelope| envelope.event_id == assignments.source_event_id)
+        {
+            return Err(ContractError::Invalid(
+                "normalized conversation agent assignment scope is invalid".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn persist_normalized_conversation_commit_txn(
+    pool: &PostgresJournalPool,
+    prefix: &str,
+    commit: &NormalizedConversationCommit,
+    id_generator: &dyn IdGenerator,
+) -> Result<Vec<CommitPosition>, ContractError> {
+    let mut client = postgres_pool_client(pool, "persist_normalized_conversation_commit")?;
+    let mut txn = client.transaction().map_err(|error| {
+        postgres_unavailable_db("persist_normalized_conversation_commit begin", error)
+    })?;
+    upsert_normalized_conversation_in_transaction(&mut txn, commit)?;
+    if let Some(assignments) = commit.agent_assignments.as_ref() {
+        replace_conversation_agents_in_transaction(&mut txn, assignments, id_generator)?;
+    }
+    let mut positions = Vec::with_capacity(commit.envelopes.len());
+    for envelope in &commit.envelopes {
+        positions.push(
+            append_journal_in_transaction(&mut txn, prefix, envelope)?.into_commit_position()?,
+        );
+    }
+    for outbox in &commit.outboxes {
+        ensure_conversation_outbox_in_transaction(&mut txn, outbox)?;
+    }
+    txn.commit().map_err(|error| {
+        postgres_unavailable_db("persist_normalized_conversation_commit commit", error)
+    })?;
+    Ok(positions)
+}
+
+fn upsert_normalized_conversation_in_transaction(
+    txn: &mut Transaction<'_>,
+    commit: &NormalizedConversationCommit,
+) -> Result<(), ContractError> {
+    let conversation = &commit.conversation;
+    let commit_seq =
+        postgres_bigint_input(conversation.commit_seq, "conversation commit sequence")?;
+    let member_epoch =
+        postgres_bigint_input(conversation.member_epoch, "conversation member epoch")?;
+    let last_activity_at =
+        postgres_timestamptz(&conversation.last_activity_at, "last_activity_at")?;
+    let retention_until = conversation
+        .retention_until
+        .as_deref()
+        .map(|value| postgres_timestamptz(value, "retention_until"))
+        .transpose()?;
+    let empty_payload_hash = sdkwork_utils_rust::sha256_hash(b"{}");
+    txn.execute(
+        UPSERT_NORMALIZED_CONVERSATION_SQL,
+        &[
+            &conversation.tenant_id,
+            &conversation.organization_id,
+            &conversation.conversation_id,
+            &conversation.conversation_type,
+            &conversation.lifecycle_state,
+            &commit_seq,
+            &member_epoch,
+            &last_activity_at,
+            &empty_payload_hash,
+            &retention_until,
+        ],
+    )
+    .map_err(|error| postgres_unavailable_db("upsert normalized conversation", error))?;
+
+    for member in &commit.members {
+        let joined_at = postgres_timestamptz(&member.joined_at, "joined_at")?;
+        let removed_at = member
+            .removed_at
+            .as_deref()
+            .map(|value| postgres_timestamptz(value, "removed_at"))
+            .transpose()?;
+        let updated_at = removed_at.as_ref().unwrap_or(&joined_at);
+        let attributes = postgres_jsonb_payload(&member.attributes_json)?;
+        txn.execute(
+            UPSERT_NORMALIZED_MEMBER_SQL,
+            &[
+                &member.tenant_id,
+                &member.organization_id,
+                &member.conversation_id,
+                &member.principal_kind,
+                &member.principal_id,
+                &member.member_id,
+                &member.membership_role,
+                &member.membership_state,
+                &member.invited_by,
+                &joined_at,
+                &removed_at,
+                &attributes,
+                &empty_payload_hash,
+                updated_at,
+            ],
+        )
+        .map_err(|error| postgres_unavailable_db("upsert normalized conversation member", error))?;
+    }
+
+    for cursor in &commit.read_cursors {
+        let member_id = cursor.member_id;
+        let read_seq = postgres_bigint_input(cursor.read_seq, "read sequence")?;
+        let updated_at = postgres_timestamptz(&cursor.updated_at, "updated_at")?;
+        txn.execute(
+            UPSERT_NORMALIZED_READ_CURSOR_SQL,
+            &[
+                &cursor.tenant_id,
+                &cursor.organization_id,
+                &cursor.conversation_id,
+                &member_id,
+                &cursor.device_id,
+                &cursor.principal_kind,
+                &cursor.principal_id,
+                &read_seq,
+                &cursor.last_read_message_id,
+                &empty_payload_hash,
+                &updated_at,
+            ],
+        )
+        .map_err(|error| postgres_unavailable_db("upsert normalized read cursor", error))?;
     }
     Ok(())
 }
@@ -1065,6 +1878,47 @@ fn insert_message_in_transaction(
     }
 }
 
+fn update_conversation_after_message_in_transaction(
+    txn: &mut Transaction<'_>,
+    message: &StoredMessageRecord,
+    envelopes: &[CommitEnvelope],
+) -> Result<(), ContractError> {
+    let message_seq = postgres_bigint_input(message.message_seq, "message sequence")?;
+    let payload_json = postgres_jsonb_payload(message.payload_json.as_str())?;
+    let created_at = postgres_timestamptz(message.created_at.as_str(), "created_at")?;
+    let commit_seq = envelopes
+        .iter()
+        .map(|envelope| envelope.ordering_seq)
+        .max()
+        .ok_or_else(|| ContractError::Invalid("message journal batch is empty".into()))?;
+    let commit_seq = postgres_bigint_input(commit_seq, "conversation commit sequence")?;
+    let affected = txn
+        .execute(
+            UPDATE_CONVERSATION_AFTER_MESSAGE_SQL,
+            &[
+                &message.tenant_id,
+                &message.organization_id,
+                &message.conversation_id,
+                &message.message_id,
+                &message_seq,
+                &message.sender_principal_kind,
+                &message.sender_principal_id,
+                &payload_json,
+                &created_at,
+                &commit_seq,
+            ],
+        )
+        .map_err(|error| {
+            postgres_unavailable_db("update normalized conversation message state", error)
+        })?;
+    if affected != 1 {
+        return Err(ContractError::Conflict(
+            "normalized conversation is missing or message sequence is stale".into(),
+        ));
+    }
+    Ok(())
+}
+
 fn enqueue_outbox_in_transaction(
     txn: &mut Transaction<'_>,
     event: &OutboxEventRecord,
@@ -1178,6 +2032,198 @@ mod tests {
             updated_at: occurred_at.into(),
         };
         (envelope, outbox)
+    }
+
+    fn message_mutation_fixture() -> (CommitEnvelope, StoredMessageMutation, OutboxEventRecord) {
+        let tenant_id = "tenant-message-mutation";
+        let organization_id = "0";
+        let conversation_id = "group-message-mutation";
+        let message_id = "9001";
+        let event_id = "evt_message_reaction_added";
+        let event_type = "message.reaction_added";
+        let occurred_at = "2026-07-23T10:00:00.000Z";
+        let payload = json!({
+            "tenantId": tenant_id,
+            "conversationId": conversation_id,
+            "messageId": message_id,
+            "messageSeq": 7,
+            "reactionKey": "thumbs_up",
+            "reactedBy": {
+                "id": "agent-1",
+                "kind": "agent"
+            },
+            "reactedAt": occurred_at
+        })
+        .to_string();
+        let envelope = CommitEnvelope {
+            event_id: event_id.into(),
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            event_type: event_type.into(),
+            event_version: 1,
+            aggregate_type: AggregateType::Conversation,
+            aggregate_id: conversation_id.into(),
+            scope_type: CONVERSATION_SCOPE_TYPE.into(),
+            scope_id: conversation_id.into(),
+            ordering_key: CommitEnvelope::ordering_key(tenant_id, conversation_id),
+            ordering_seq: 8,
+            causation_id: None,
+            correlation_id: None,
+            idempotency_key: None,
+            actor: EventActor {
+                actor_id: "agent-1".into(),
+                actor_kind: "agent".into(),
+                actor_session_id: None,
+            },
+            occurred_at: occurred_at.into(),
+            committed_at: occurred_at.into(),
+            payload_schema: Some("message.reaction_added.v1".into()),
+            payload: payload.clone(),
+            retention_class: "standard".into(),
+            audit_class: "default".into(),
+        };
+        let mutation = StoredMessageMutation::ReactionAdded {
+            target: StoredMessageMutationTarget {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.into(),
+                message_id: message_id.into(),
+                message_seq: 7,
+            },
+            reaction: im_platform_contracts::StoredMessageReactionRecord {
+                actor_principal_kind: "agent".into(),
+                actor_principal_id: "agent-1".into(),
+                reaction_key: "thumbs_up".into(),
+                reacted_at: occurred_at.into(),
+            },
+        };
+        let outbox = OutboxEventRecord {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            outbox_id: "outbox-message-reaction-added".into(),
+            aggregate_type: CONVERSATION_OUTBOX_AGGREGATE_TYPE.into(),
+            aggregate_id: conversation_id.into(),
+            event_id: format!("conversation:{event_type}:{event_id}"),
+            event_type: event_type.into(),
+            payload_hash: sdkwork_utils_rust::sha256_hash(payload.as_bytes()),
+            payload_json: payload,
+            publish_status: OutboxPublishStatus::Pending,
+            attempt_count: 0,
+            available_at: occurred_at.into(),
+            published_at: None,
+            created_at: occurred_at.into(),
+            updated_at: occurred_at.into(),
+        };
+        (envelope, mutation, outbox)
+    }
+
+    #[test]
+    fn message_mutation_validation_accepts_one_canonical_commit() {
+        let (envelope, mutation, outbox) = message_mutation_fixture();
+
+        validate_message_mutation_commit(&envelope, &mutation, &outbox)
+            .expect("canonical message mutation commit should validate");
+    }
+
+    #[test]
+    fn message_mutation_validation_rejects_scope_event_and_message_drift() {
+        let (envelope, mutation, outbox) = message_mutation_fixture();
+
+        let mut invalid_scope = envelope.clone();
+        invalid_scope.scope_id = "different-conversation".into();
+        assert!(validate_message_mutation_commit(&invalid_scope, &mutation, &outbox).is_err());
+
+        let mut invalid_ordering_key = envelope.clone();
+        invalid_ordering_key.ordering_key = "different-ordering-key".into();
+        assert!(
+            validate_message_mutation_commit(&invalid_ordering_key, &mutation, &outbox).is_err()
+        );
+
+        let mut invalid_event_type = envelope.clone();
+        invalid_event_type.event_type = "message.reaction_removed".into();
+        assert!(validate_message_mutation_commit(&invalid_event_type, &mutation, &outbox).is_err());
+
+        let mut invalid_target = mutation.clone();
+        if let StoredMessageMutation::ReactionAdded { target, .. } = &mut invalid_target {
+            target.message_seq = 9;
+        }
+        assert!(validate_message_mutation_commit(&envelope, &invalid_target, &outbox).is_err());
+
+        let mut invalid_payload = envelope.clone();
+        let mut payload: serde_json::Value =
+            serde_json::from_str(invalid_payload.payload.as_str()).expect("fixture JSON");
+        payload["messageId"] = json!("9002");
+        invalid_payload.payload = payload.to_string();
+        assert!(validate_message_mutation_commit(&invalid_payload, &mutation, &outbox).is_err());
+    }
+
+    #[test]
+    fn message_mutation_validation_rejects_actor_and_outbox_drift() {
+        let (envelope, mutation, outbox) = message_mutation_fixture();
+
+        let mut invalid_actor_kind = envelope.clone();
+        invalid_actor_kind.actor.actor_kind = "user".into();
+        assert!(validate_message_mutation_commit(&invalid_actor_kind, &mutation, &outbox).is_err());
+
+        let mut invalid_actor_id = envelope.clone();
+        invalid_actor_id.actor.actor_id = "agent-2".into();
+        assert!(validate_message_mutation_commit(&invalid_actor_id, &mutation, &outbox).is_err());
+
+        let mut invalid_mutation_actor = mutation.clone();
+        if let StoredMessageMutation::ReactionAdded { reaction, .. } = &mut invalid_mutation_actor {
+            reaction.actor_principal_id = "agent-2".into();
+        }
+        assert!(
+            validate_message_mutation_commit(&envelope, &invalid_mutation_actor, &outbox).is_err()
+        );
+
+        let mut invalid_event_id = outbox.clone();
+        invalid_event_id.event_id = "conversation:message.reaction_added:unrelated".into();
+        assert!(validate_message_mutation_commit(&envelope, &mutation, &invalid_event_id).is_err());
+
+        let mut invalid_lifecycle = outbox.clone();
+        invalid_lifecycle.publish_status = OutboxPublishStatus::Published;
+        invalid_lifecycle.attempt_count = 1;
+        invalid_lifecycle.published_at = Some("2026-07-23T10:01:00.000Z".into());
+        assert!(
+            validate_message_mutation_commit(&envelope, &mutation, &invalid_lifecycle).is_err()
+        );
+
+        let mut invalid_payload = outbox;
+        invalid_payload.payload_json = json!({
+            "conversationId": "different-conversation",
+            "messageId": "9001",
+            "messageSeq": 7
+        })
+        .to_string();
+        invalid_payload.payload_hash =
+            sdkwork_utils_rust::sha256_hash(invalid_payload.payload_json.as_bytes());
+        assert!(validate_message_mutation_commit(&envelope, &mutation, &invalid_payload).is_err());
+    }
+
+    #[test]
+    fn message_interaction_sql_uses_typed_principal_columns_only() {
+        for sql in [
+            LOAD_MESSAGE_REACTION_SQL,
+            INSERT_MESSAGE_REACTION_SQL,
+            DELETE_MESSAGE_REACTION_SQL,
+        ] {
+            let sql = sql.to_ascii_lowercase();
+            assert!(sql.contains("actor_principal_kind"));
+            assert!(sql.contains("actor_principal_id"));
+            assert!(!sql.contains("user_id"));
+        }
+        let insert_pin = INSERT_MESSAGE_PIN_SQL.to_ascii_lowercase();
+        assert!(insert_pin.contains("pinned_by_principal_kind"));
+        assert!(insert_pin.contains("pinned_by_principal_id"));
+        for sql in [
+            LOAD_MESSAGE_PIN_SQL,
+            INSERT_MESSAGE_PIN_SQL,
+            DELETE_MESSAGE_PIN_SQL,
+        ] {
+            let sql = sql.to_ascii_lowercase();
+            assert!(!sql.contains("pinned_by_user_id"));
+        }
     }
 
     #[test]

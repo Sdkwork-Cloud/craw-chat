@@ -18,12 +18,12 @@ export class SpacesBansApi {
 
 
 /** List spaces bans */
-  async list(spaceId: string, params?: SpacesBansListParams): Promise<Record<string, unknown>> {
+  async list(spaceId: string, params?: SpacesBansListParams): Promise<{ items: SpaceBanView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), query));
+    return this.client.get<{ items: SpaceBanView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), query));
   }
 
 /** Create spaces bans */
@@ -57,13 +57,13 @@ export class SpacesInvitesApi {
 
 
 /** List spaces invites */
-  async list(spaceId: string, params?: SpacesInvitesListParams): Promise<Record<string, unknown>> {
+  async list(spaceId: string, params?: SpacesInvitesListParams): Promise<{ items: SpaceInviteView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'status', value: params?.status, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), query));
+    return this.client.get<{ items: SpaceInviteView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), query));
   }
 
 /** Create spaces invites */
@@ -101,12 +101,12 @@ export class SpacesChannelsAccessRulesApi {
 
 
 /** List spaces channels access Rules */
-  async list(spaceId: string, channelId: string, params?: SpacesChannelsAccessRulesListParams): Promise<Record<string, unknown>> {
+  async list(spaceId: string, channelId: string, params?: SpacesChannelsAccessRulesListParams): Promise<{ items: SpaceChannelAccessRuleView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`), query));
+    return this.client.get<{ items: SpaceChannelAccessRuleView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`), query));
   }
 
 /** Create spaces channels access Rules */
@@ -136,12 +136,12 @@ export class SpacesChannelsApi {
 
 
 /** List spaces channels */
-  async list(spaceId: string, params?: SpacesChannelsListParams): Promise<Record<string, unknown>> {
+  async list(spaceId: string, params?: SpacesChannelsListParams): Promise<{ items: SpaceChannelView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), query));
+    return this.client.get<{ items: SpaceChannelView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), query));
   }
 
 /** Create spaces channels */
@@ -179,12 +179,12 @@ export class SpacesGroupsMembersApi {
 
 
 /** List spaces groups members */
-  async list(spaceId: string, groupId: string, params?: SpacesGroupsMembersListParams): Promise<Record<string, unknown>> {
+  async list(spaceId: string, groupId: string, params?: SpacesGroupsMembersListParams): Promise<{ items: SpaceGroupMemberView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), query));
+    return this.client.get<{ items: SpaceGroupMemberView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), query));
   }
 
 /** Create spaces groups members */
@@ -224,12 +224,12 @@ export class SpacesGroupsApi {
 
 
 /** List spaces groups */
-  async list(spaceId: string, params?: SpacesGroupsListParams): Promise<Record<string, unknown>> {
+  async list(spaceId: string, params?: SpacesGroupsListParams): Promise<{ items: SpaceGroupView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), query));
+    return this.client.get<{ items: SpaceGroupView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), query));
   }
 
 /** Create spaces groups */
@@ -267,12 +267,12 @@ export class SpacesMembersApi {
 
 
 /** List spaces members */
-  async list(spaceId: string, params?: SpacesMembersListParams): Promise<Record<string, unknown>> {
+  async list(spaceId: string, params?: SpacesMembersListParams): Promise<{ items: SpaceMemberView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), query));
+    return this.client.get<{ items: SpaceMemberView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), query));
   }
 
 /** Create spaces members */
@@ -325,12 +325,12 @@ export class SpacesApi {
   }
 
 /** List spaces */
-  async list(params?: SpacesListParams): Promise<Record<string, unknown>> {
+  async list(params?: SpacesListParams): Promise<{ items: SpaceView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces`), query));
+    return this.client.get<{ items: SpaceView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces`), query));
   }
 
 /** Retrieve a space */

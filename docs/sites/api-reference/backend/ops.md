@@ -1,14 +1,15 @@
 # Operations
 
 <p class="api-page-intro">
-  Operator endpoints expose service health, cluster topology, lag, replay status, runtime directory
-  inspection, provider binding mirrors, and diagnostic bundles from the active node.
+  Backend operations report health, topology, authoritative runtime lag, commercial readiness,
+  runtime-directory state, provider-binding state, and bounded diagnostics. No endpoint rebuilds
+  business state or exposes a state-reconstruction control plane.
 </p>
 
 <div class="api-link-list">
-  <a href="/deployment/runtime-operations"><code>Runtime Ops</code> Local runtime inspection, repair, preview, and restore workflows are documented separately</a>
-  <a href="/reference/runtime-directory"><code>Runtime Dir</code> Managed state files and restore semantics are documented in the reference section</a>
-  <a href="/sdk/index"><code>SDK</code> Treat these routes as HTTP-first operational surfaces unless a repo consumer layer is documented elsewhere</a>
+  <a href="/deployment/runtime-operations"><code>Runtime Ops</code> Deployment-owned inspection and recovery workflows</a>
+  <a href="/reference/runtime-directory"><code>Runtime Dir</code> Managed runtime-directory contract</a>
+  <a href="/sdk/index"><code>SDK</code> Generated Backend SDK family and client construction</a>
 </div>
 
 <a id="get-ops-health"></a>
@@ -19,28 +20,27 @@
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/ops/health</code>
-  <span class="api-op-id">operationId: getOpsHealth</span>
+  <span class="api-op-id">operationId: health.retrieve</span>
 </div>
 
-Returns service-level health and projection-plane health.
+Returns current service, dependency, database, relay, and readiness health.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / ops</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 OpsHealthResponse`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 SdkWorkApiResponse`</span></div>
 </div>
 
 ### Response `200`
 
-<ApiSchemaTable schema="OpsHealthResponse" />
-
+<ApiSchemaTable schema="SdkWorkApiResponse" />
 
 ### Error Responses
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `ops.read`. |
 | `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
@@ -53,29 +53,27 @@ Returns service-level health and projection-plane health.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/ops/cluster</code>
-  <span class="api-op-id">operationId: getOpsCluster</span>
+  <span class="api-op-id">operationId: cluster.retrieve</span>
 </div>
 
-Returns the cluster topology as seen by the current node.
-
+Returns bounded cluster topology and authoritative route totals visible to the current node.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / ops</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 ClusterView`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 SdkWorkApiResponse`</span></div>
 </div>
 
 ### Response `200`
 
-<ApiSchemaTable schema="ClusterView" />
-
+<ApiSchemaTable schema="SdkWorkApiResponse" />
 
 ### Error Responses
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `ops.read`. |
 | `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
@@ -88,64 +86,67 @@ Returns the cluster topology as seen by the current node.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/ops/lag</code>
-  <span class="api-op-id">operationId: getOpsLag</span>
+  <span class="api-op-id">operationId: lag.retrieve</span>
 </div>
 
-Returns lag measurements for runtime components.
-
+Lists real operational lag measurements from registered runtime components.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / ops</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 LagPageData`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 LagListResponse`</span></div>
 </div>
+
+### Query Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `page_size` | integer | No | Page size from 1 through 200 |
+| `cursor` | string | No | Opaque continuation cursor |
 
 ### Response `200`
 
-<ApiSchemaTable schema="LagPageData" />
-
+<ApiSchemaTable schema="LagListResponse" />
 
 ### Error Responses
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `ops.read`. |
 | `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
 </section>
-<a id="get-ops-replay-status"></a>
+<a id="get-ops-commercial-readiness"></a>
 <section class="api-op">
 
-## `GET /backend/v3/api/ops/replay_status`
+## `GET /backend/v3/api/ops/commercial_readiness`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
-  <code>/backend/v3/api/ops/replay_status</code>
-  <span class="api-op-id">operationId: getOpsReplayStatus</span>
+  <code>/backend/v3/api/ops/commercial_readiness</code>
+  <span class="api-op-id">operationId: commercialReadiness.retrieve</span>
 </div>
 
-Returns projection replay state and replay lag metrics.
-
+Returns current release-gate evidence without converting missing evidence into a successful state.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / ops</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 ProjectionReplayStatusView`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 SdkWorkApiResponse`</span></div>
 </div>
 
 ### Response `200`
 
-<ApiSchemaTable schema="ProjectionReplayStatusView" />
-
+<ApiSchemaTable schema="SdkWorkApiResponse" />
 
 ### Error Responses
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `ops.read`. |
 | `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
@@ -158,29 +159,27 @@ Returns projection replay state and replay lag metrics.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/ops/runtime_dir</code>
-  <span class="api-op-id">operationId: getOpsRuntimeDir</span>
+  <span class="api-op-id">operationId: runtimeDir.retrieve</span>
 </div>
 
-Returns runtime directory inspection results.
-
+Returns redacted runtime-directory inspection results for the active node.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / ops</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 RuntimeDirInspectionView`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 SdkWorkApiResponse`</span></div>
 </div>
 
 ### Response `200`
 
-<ApiSchemaTable schema="RuntimeDirInspectionView" />
-
+<ApiSchemaTable schema="SdkWorkApiResponse" />
 
 ### Error Responses
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `ops.read`. |
 | `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
@@ -193,29 +192,34 @@ Returns runtime directory inspection results.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/ops/provider_bindings</code>
-  <span class="api-op-id">operationId: getOpsProviderBindings</span>
+  <span class="api-op-id">operationId: ops.providerBindings.list</span>
 </div>
 
-Returns the node-local mirror of provider binding snapshots.
-
+Lists the bounded effective provider-binding state available to the current node.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / ops</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingSnapshotPageData`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingSnapshotListResponse`</span></div>
 </div>
+
+### Query Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `page_size` | integer | No | Page size from 1 through 200 |
+| `cursor` | string | No | Opaque continuation cursor |
 
 ### Response `200`
 
-<ApiSchemaTable schema="ProviderBindingSnapshotPageData" />
-
+<ApiSchemaTable schema="ProviderBindingSnapshotListResponse" />
 
 ### Error Responses
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `ops.read`. |
 | `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
@@ -228,29 +232,34 @@ Returns the node-local mirror of provider binding snapshots.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/ops/provider_bindings/drift</code>
-  <span class="api-op-id">operationId: getOpsProviderBindingDrift</span>
+  <span class="api-op-id">operationId: ops.providerBindings.drift.retrieve</span>
 </div>
 
-Returns tenant drift relative to the baseline provider binding selection.
-
+Lists bounded tenant drift against the governed provider-binding baseline.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / ops</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingDriftPageData`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingDriftListResponse`</span></div>
 </div>
+
+### Query Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `page_size` | integer | No | Page size from 1 through 200 |
+| `cursor` | string | No | Opaque continuation cursor |
 
 ### Response `200`
 
-<ApiSchemaTable schema="ProviderBindingDriftPageData" />
-
+<ApiSchemaTable schema="ProviderBindingDriftListResponse" />
 
 ### Error Responses
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `ops.read`. |
 | `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
@@ -263,29 +272,27 @@ Returns tenant drift relative to the baseline provider binding selection.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/ops/diagnostics</code>
-  <span class="api-op-id">operationId: getOpsDiagnostics</span>
+  <span class="api-op-id">operationId: diagnostics.retrieve</span>
 </div>
 
-Returns the aggregated diagnostic bundle for the current node.
-
+Returns a redacted, bounded diagnostic bundle for the current node.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / ops</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`ops.read`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 DiagnosticBundle`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 SdkWorkApiResponse`</span></div>
 </div>
 
 ### Response `200`
 
-<ApiSchemaTable schema="DiagnosticBundle" />
-
+<ApiSchemaTable schema="SdkWorkApiResponse" />
 
 ### Error Responses
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `ops.read`. |
 | `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 

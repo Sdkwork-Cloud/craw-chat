@@ -46,12 +46,12 @@ export class AdminUsageRecordsApi {
 }
 
 export class AdminUsageApi {
-  private client: HttpClient;
+
   public readonly records: AdminUsageRecordsApi;
   public readonly summary: AdminUsageSummaryApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.records = new AdminUsageRecordsApi(client);
     this.summary = new AdminUsageSummaryApi(client);
   }
@@ -130,11 +130,11 @@ export class AdminStorageEffectiveTenantsApi {
 }
 
 export class AdminStorageEffectiveApi {
-  private client: HttpClient;
+
   public readonly tenants: AdminStorageEffectiveTenantsApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.tenants = new AdminStorageEffectiveTenantsApi(client);
   }
 
@@ -213,7 +213,7 @@ export class AdminStorageAuditApi {
 }
 
 export class AdminStorageApi {
-  private client: HttpClient;
+
   public readonly audit: AdminStorageAuditApi;
   public readonly config: AdminStorageConfigApi;
   public readonly effective: AdminStorageEffectiveApi;
@@ -221,7 +221,7 @@ export class AdminStorageApi {
   public readonly validation: AdminStorageValidationApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.audit = new AdminStorageAuditApi(client);
     this.config = new AdminStorageConfigApi(client);
     this.effective = new AdminStorageEffectiveApi(client);
@@ -332,14 +332,14 @@ export class AdminRoutingDecisionLogsApi {
 }
 
 export class AdminRoutingApi {
-  private client: HttpClient;
+
   public readonly decisionLogs: AdminRoutingDecisionLogsApi;
   public readonly healthSnapshots: AdminRoutingHealthSnapshotsApi;
   public readonly profiles: AdminRoutingProfilesApi;
   public readonly snapshots: AdminRoutingSnapshotsApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.decisionLogs = new AdminRoutingDecisionLogsApi(client);
     this.healthSnapshots = new AdminRoutingHealthSnapshotsApi(client);
     this.profiles = new AdminRoutingProfilesApi(client);
@@ -448,11 +448,11 @@ export class AdminModelPricesModelsProvidersApi {
 }
 
 export class AdminModelPricesModelsApi {
-  private client: HttpClient;
+
   public readonly providers: AdminModelPricesModelsProvidersApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.providers = new AdminModelPricesModelsProvidersApi(client);
   }
 
@@ -530,11 +530,11 @@ export class AdminMarketingCampaignsApi {
 }
 
 export class AdminMarketingApi {
-  private client: HttpClient;
+
   public readonly campaigns: AdminMarketingCampaignsApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.campaigns = new AdminMarketingCampaignsApi(client);
   }
 
@@ -600,12 +600,12 @@ export class AdminGatewayRateLimitPoliciesApi {
 }
 
 export class AdminGatewayApi {
-  private client: HttpClient;
+
   public readonly rateLimitPolicies: AdminGatewayRateLimitPoliciesApi;
   public readonly rateLimitWindows: AdminGatewayRateLimitWindowsApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.rateLimitPolicies = new AdminGatewayRateLimitPoliciesApi(client);
     this.rateLimitWindows = new AdminGatewayRateLimitWindowsApi(client);
   }
@@ -654,12 +654,12 @@ export class AdminExtensionsRuntimeReloadsApi {
 }
 
 export class AdminExtensionsApi {
-  private client: HttpClient;
+
   public readonly runtimeReloads: AdminExtensionsRuntimeReloadsApi;
   public readonly runtimeStatuses: AdminExtensionsRuntimeStatusesApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.runtimeReloads = new AdminExtensionsRuntimeReloadsApi(client);
     this.runtimeStatuses = new AdminExtensionsRuntimeStatusesApi(client);
   }
@@ -681,11 +681,11 @@ export class AdminCredentialsProvidersKeysApi {
 }
 
 export class AdminCredentialsProvidersApi {
-  private client: HttpClient;
+
   public readonly keys: AdminCredentialsProvidersKeysApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.keys = new AdminCredentialsProvidersKeysApi(client);
   }
 
@@ -868,12 +868,12 @@ export class AdminBillingEventsApi {
 }
 
 export class AdminBillingApi {
-  private client: HttpClient;
+
   public readonly events: AdminBillingEventsApi;
   public readonly summary: AdminBillingSummaryApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.events = new AdminBillingEventsApi(client);
     this.summary = new AdminBillingSummaryApi(client);
   }
@@ -975,7 +975,7 @@ export class AdminApiKeyGroupsApi {
 }
 
 export class AdminApi {
-  private client: HttpClient;
+
   public readonly apiKeyGroups: AdminApiKeyGroupsApi;
   public readonly apiKeys: AdminApiKeysApi;
   public readonly billing: AdminBillingApi;
@@ -993,7 +993,7 @@ export class AdminApi {
   public readonly usage: AdminUsageApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.apiKeyGroups = new AdminApiKeyGroupsApi(client);
     this.apiKeys = new AdminApiKeysApi(client);
     this.billing = new AdminBillingApi(client);

@@ -8,7 +8,7 @@ SDKs.
 The public IM consumer SDK contract is SDKWork appbase based.
 
 - `sdkwork-appbase` owns login, IAM sessions, tenants, users, organizations, and dual-token validation.
-- Sdkwork IM receives only verified `x-sdkwork-*` AppContext projection headers from the trusted edge.
+- The SDKWork request framework resolves a verified typed `AppContext` after dual-token validation.
 - local Sdkwork IM deployments do not generate or verify Sdkwork IM-owned public tokens.
 
 If you are documenting or implementing a public consumer path, route authentication through the

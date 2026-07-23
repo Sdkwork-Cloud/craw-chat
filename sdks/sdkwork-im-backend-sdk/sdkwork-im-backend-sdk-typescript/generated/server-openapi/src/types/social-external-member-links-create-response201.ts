@@ -2,7 +2,7 @@ import type { SocialExternalMemberLinkCommitResponse } from './social-external-m
 
 export interface SocialExternalMemberLinksCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialExternalMemberLinkCommitResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

@@ -124,7 +124,7 @@ paths:
       tags:
         - ops
       operationId: lag.retrieve
-      summary: Retrieve projection lag
+      summary: Retrieve operational lag
       parameters:
         - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
@@ -141,57 +141,6 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-        '401':
-          description: Problem detail response
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '403':
-          description: Problem detail response
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '503':
-          description: Problem detail response
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-      security:
-        - AuthToken: []
-          AccessToken: []
-      x-sdkwork-owner: sdkwork-im
-      x-sdkwork-api-authority: sdkwork-im.backend
-      x-sdkwork-request-context: WebRequestContext
-      x-sdkwork-api-surface: backend-api
-  /backend/v3/api/ops/replay_status:
-    get:
-      tags:
-        - ops
-      operationId: replayStatus.retrieve
-      summary: Retrieve replay status
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            type: object
-                            additionalProperties: true
         '401':
           description: Problem detail response
           content:

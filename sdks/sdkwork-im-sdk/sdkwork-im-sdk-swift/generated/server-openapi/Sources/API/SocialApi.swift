@@ -107,6 +107,15 @@ public class SocialApi {
         return try await client.patch(ApiPaths.imPath("/social/contacts/\(serializePathParameter(targetUserId, PathParameterSpec(name: "targetUserId", style: "simple", explode: false)))/preferences"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: SocialContactsPreferencesUpdateResponse.self)
     }
 
+    /// List social contacts
+    public func contactsList(pageSize: Int? = nil, cursor: String? = nil) async throws -> SocialContactsListResponse? {
+        let query = buildQueryString([
+            QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil),
+            QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil)
+        ])
+        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/social/contacts"), query), responseType: SocialContactsListResponse.self)
+    }
+
     private struct PathParameterSpec {
         let name: String
         let style: String

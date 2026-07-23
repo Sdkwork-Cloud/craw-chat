@@ -2,7 +2,7 @@ import type { SocialFriendRequestCommitResponse } from './social-friend-request-
 
 export interface SocialFriendRequestsCancelResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialFriendRequestCommitResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

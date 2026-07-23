@@ -2,7 +2,7 @@ import type { SpaceChannelAccessRuleView } from './space-channel-access-rule-vie
 
 export interface SpacesChannelsAccessRulesCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SpaceChannelAccessRuleView; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

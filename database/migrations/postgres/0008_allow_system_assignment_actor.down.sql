@@ -8,7 +8,7 @@ BEGIN
         WHERE assigned_by = 0
     ) THEN
         RAISE EXCEPTION
-            'rollback refused: system actor assignment projections exist';
+            'rollback refused: system actor assignments exist';
     END IF;
 END;
 $$;

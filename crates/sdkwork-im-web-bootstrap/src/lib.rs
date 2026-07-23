@@ -89,7 +89,7 @@ fn im_app_context_from_framework_request(
     // parser has verified it and every standard identity dimension agrees with
     // WebRequestContext. Tenant, organization, user, session, app, and scopes
     // always remain framework-owned. App-api/backend-api never enter this
-    // compatibility projection.
+    // compatibility context.
     let Ok(delegated) = resolve_app_context(request.headers()) else {
         return Some(projected);
     };

@@ -93,12 +93,14 @@ print(result);
 
 ### chat
 ```dart
-// List IM contacts
+// List current inbox window
 final params = <String, dynamic>{
   'page_size': 1,
   'cursor': 'cursor',
+  'conversation_type': 'conversation-type',
+  'q': 'q',
 };
-final result = await client.chat.contactsList(params);
+final result = await client.chat.inboxList(params);
 print(result);
 ```
 

@@ -14,8 +14,7 @@ use im_platform_contracts::{
     RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowRecord, RealtimeEventWindowStore,
     RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
     StreamAppendOutcome, StreamCreateOutcome, StreamScope, StreamSessionRecord, StreamStateStore,
-    StreamTransitionOutcome, TimelineProjectionBatch, TimelineProjectionRecord,
-    TimelineProjectionScope, TimelineProjectionStore, TimelineProjectionWindow,
+    StreamTransitionOutcome,
 };
 use im_storage_contracts::{StorageDomainSnapshot, StorageDomainSnapshotStore};
 use im_time::rfc3339_le;
@@ -1160,100 +1159,6 @@ impl PresenceStateStore for MemoryPresenceStateStore {
     }
 }
 
-#[derive(Clone, Default)]
-pub struct MemoryTimelineProjectionStore {
-    entries: Arc<Mutex<HashMap<String, BTreeMap<u64, String>>>>,
-}
-
-impl MemoryTimelineProjectionStore {
-    pub fn entries(&self, scope: &TimelineProjectionScope) -> Vec<(u64, String)> {
-        lock_memory_mutex(&self.entries, "timeline projection store")
-            .get(timeline_projection_scope_key(scope).as_str())
-            .map(|items| {
-                items
-                    .iter()
-                    .map(|(message_seq, payload)| (*message_seq, payload.clone()))
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-}
-
-impl TimelineProjectionStore for MemoryTimelineProjectionStore {
-    fn upsert_timeline_entry(
-        &self,
-        scope: &TimelineProjectionScope,
-        message_seq: u64,
-        payload: &str,
-    ) -> Result<(), ContractError> {
-        lock_memory_mutex(&self.entries, "timeline projection store")
-            .entry(timeline_projection_scope_key(scope))
-            .or_default()
-            .insert(message_seq, payload.to_string());
-        Ok(())
-    }
-
-    fn load_timeline(
-        &self,
-        scope: &TimelineProjectionScope,
-    ) -> Result<Vec<(u64, String)>, ContractError> {
-        Ok(self.entries(scope))
-    }
-
-    fn load_timeline_window(
-        &self,
-        scope: &TimelineProjectionScope,
-        after_seq: u64,
-        limit: usize,
-    ) -> Result<TimelineProjectionWindow, ContractError> {
-        let entries = lock_memory_mutex(&self.entries, "timeline projection store");
-        let mut items = entries
-            .get(timeline_projection_scope_key(scope).as_str())
-            .map(|scope_entries| {
-                scope_entries
-                    .range((Excluded(after_seq), Unbounded))
-                    .take(limit.saturating_add(1))
-                    .map(|(message_seq, payload)| (*message_seq, payload.clone()))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        let has_more = items.len() > limit;
-        items.truncate(limit);
-        Ok(TimelineProjectionWindow { items, has_more })
-    }
-
-    fn upsert_timeline_entries(
-        &self,
-        scope: &TimelineProjectionScope,
-        records: &[TimelineProjectionRecord],
-    ) -> Result<(), ContractError> {
-        let mut entries = lock_memory_mutex(&self.entries, "timeline projection store");
-        let scope_entries = entries
-            .entry(timeline_projection_scope_key(scope))
-            .or_default();
-        for record in records {
-            scope_entries.insert(record.message_seq, record.payload.clone());
-        }
-        Ok(())
-    }
-
-    fn upsert_timeline_batches(
-        &self,
-        batches: &[TimelineProjectionBatch],
-    ) -> Result<(), ContractError> {
-        let mut entries = lock_memory_mutex(&self.entries, "timeline projection store");
-        for batch in batches {
-            let scope_entries = entries
-                .entry(timeline_projection_scope_key(&batch.scope))
-                .or_default();
-            for record in &batch.records {
-                scope_entries.insert(record.message_seq, record.payload.clone());
-            }
-        }
-        Ok(())
-    }
-}
-
 fn scope_key_parts(parts: &[&str]) -> String {
     parts
         .iter()
@@ -1351,14 +1256,6 @@ fn notification_recipient_scope_key(
     recipient_id: &str,
 ) -> String {
     scope_key_parts(&[tenant_id, organization_id, recipient_kind, recipient_id])
-}
-
-fn timeline_projection_scope_key(scope: &TimelineProjectionScope) -> String {
-    scope_key_parts(&[
-        scope.tenant_id(),
-        scope.organization_id(),
-        scope.timeline_scope(),
-    ])
 }
 
 fn record_notification_recipient_scope_key(record: &NotificationTaskRecord) -> String {

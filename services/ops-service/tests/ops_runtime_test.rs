@@ -42,11 +42,11 @@ fn test_build_diagnostic_views_from_runtime() {
 #[test]
 fn test_ops_lag_keyset_pages_are_bounded_and_resource_scoped() {
     let runtime = ops_service::OpsRuntime::default();
-    runtime.update_projection_live_lag(
+    runtime.replace_lag_items(
         ["scope-3", "scope-1", "scope-2"]
             .into_iter()
             .map(|scope_id| ops_service::LagItem {
-                component: "projection_live".into(),
+                component: "conversation_delivery".into(),
                 scope_id: scope_id.into(),
                 current_offset: 1,
                 committed_offset: 2,
@@ -170,42 +170,6 @@ fn test_diagnostic_bundle_generated_at_advances_between_calls() {
     let second = runtime.diagnostic_bundle();
 
     assert!(first.generated_at < second.generated_at);
-}
-
-#[test]
-fn test_runtime_exposes_projection_replay_status_with_derived_throughput() {
-    let runtime = ops_service::OpsRuntime::new(
-        "node_local_1",
-        "standalone.development",
-        "127.0.0.1:18079",
-        vec!["conversation-runtime".into()],
-        vec!["conversation:*".into()],
-    );
-    runtime.update_projection_plane(ops_service::ProjectionPlaneDiagnosticsView {
-        status: "ok".into(),
-        replay: ops_service::ProjectionReplayMetricsView {
-            backlog_size: 4,
-            replayed_event_count: 20,
-            duration_ms: 5,
-        },
-        ..Default::default()
-    });
-    runtime.update_projection_replay_lag(vec![ops_service::LagItem {
-        component: "projection_replay".into(),
-        scope_id: "100001:c_demo".into(),
-        current_offset: 10,
-        committed_offset: 6,
-        lag: 4,
-    }]);
-
-    let replay_status = runtime.replay_status_view();
-    assert_eq!(replay_status.status, "replayed");
-    assert_eq!(replay_status.replay.backlog_size, 4);
-    assert_eq!(replay_status.replay.replayed_event_count, 20);
-    assert_eq!(replay_status.replay.duration_ms, 5);
-    assert_eq!(replay_status.replay_throughput_per_second, 4000);
-    assert_eq!(replay_status.lag.len(), 1);
-    assert_eq!(replay_status.lag[0].scope_id, "100001:c_demo");
 }
 
 #[test]

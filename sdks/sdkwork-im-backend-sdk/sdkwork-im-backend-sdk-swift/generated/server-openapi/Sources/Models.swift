@@ -965,19 +965,6 @@ public struct ClusterRetrieveResponse: Codable {
     }
 }
 
-public struct ReplayStatusRetrieveResponse: Codable {
-    public let code: Int?
-    public let data: Any?
-    public let traceId: String?
-
-
-    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
-        self.code = code
-        self.data = data
-        self.traceId = traceId
-    }
-}
-
 public struct CommercialReadinessRetrieveResponse: Codable {
     public let code: Int?
     public let data: Any?

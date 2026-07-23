@@ -2,7 +2,7 @@ import type { SocialFriendRequestPendingCountResponse } from './social-friend-re
 
 export interface SocialFriendRequestsPendingCountRetrieveResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialFriendRequestPendingCountResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

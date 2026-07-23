@@ -6,7 +6,6 @@
 
 - `MemoryCommitJournal`
 - `MemoryMetadataStore`
-- `MemoryTimelineProjectionStore`
 - `MemoryRealtimeCheckpointStore`
 - `MemoryRealtimeDisconnectFenceStore`
 - `MemoryRealtimeSubscriptionStore`
@@ -38,6 +37,10 @@ The semantics are intentionally simple:
 This crate is not durable storage. It is a fast local adapter for tests, local runtime assembly,
 and reference behavior. Production backends still need persistent storage adapters built on the same
 `StorageDomainSnapshotStore` contract.
+
+Message history is intentionally not duplicated here. The development conversation runtime keeps
+its disposable hot cache, while the only durable Message authority is the normalized
+`im_conversation_messages` repository.
 
 ## SDKWork Documentation Contract
 

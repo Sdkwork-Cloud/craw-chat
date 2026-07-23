@@ -105,7 +105,7 @@ fmt.Println(result)
 ### portal
 
 ```go
-// Read the tenant portal sign-in snapshot
+// Read the tenant portal access snapshot
 result, err := client.Portal.AccessRetrieve()
 if err != nil {
     panic(err)

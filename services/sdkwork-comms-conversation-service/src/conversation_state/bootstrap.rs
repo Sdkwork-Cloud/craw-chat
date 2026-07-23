@@ -1,8 +1,7 @@
 use std::sync::{Arc, OnceLock};
 
 use im_adapters_postgres_journal::{
-    PostgresAgentIntegrationStore, PostgresJournalPool, PostgresOutboxStore,
-    PostgresSearchProvider,
+    PostgresAgentIntegrationStore, PostgresJournalPool, PostgresOutboxStore, PostgresSearchProvider,
 };
 use im_platform_contracts::{AgentIntegrationStore, OutboxStore};
 
@@ -56,9 +55,9 @@ pub fn build_conversation_state_runtime_from_env() -> ConversationStateRuntime {
     };
 
     let pool = PostgresJournalPool::from_pool(shared_pool);
-    service.configure_conversation_event_outbox(
-        Arc::new(PostgresOutboxStore::from_pool(pool.clone())) as Arc<dyn OutboxStore>,
-    );
+    service.configure_conversation_event_outbox(Arc::new(PostgresOutboxStore::from_pool(
+        pool.clone(),
+    )) as Arc<dyn OutboxStore>);
     service.configure_agent_integration_store(Arc::new(
         PostgresAgentIntegrationStore::from_pool_with_runtime_ids(pool.clone()),
     ) as Arc<dyn AgentIntegrationStore>);

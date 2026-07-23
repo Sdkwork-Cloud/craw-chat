@@ -104,12 +104,14 @@ const result = await client.social.friendRequests.pending.count.retrieve();
 ### chat
 
 ```typescript
-// List IM contacts
+// List current inbox window
 const params = {
   page_size: 1,
   cursor: 'cursor',
+  conversation_type: 'conversation_type',
+  q: 'q',
 };
-const result = await client.chat.contacts.list(params);
+const result = await client.chat.inbox.list(params);
 ```
 
 ### streams

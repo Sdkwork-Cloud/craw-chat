@@ -123,21 +123,18 @@ fn test_local_disk_notification_task_store_uses_persisted_recipient_index() {
 }
 
 #[test]
-fn test_local_disk_metadata_and_projection_store_surface_moves_out_of_lib_impl() {
+fn test_local_disk_metadata_store_surface_moves_out_of_lib_impl() {
     let lib_source = include_str!("../src/lib.rs");
 
     for forbidden_symbol in [
         "pub struct FileMetadataStore {",
-        "pub struct FileTimelineProjectionStore {",
         "impl MetadataStore for FileMetadataStore {",
-        "impl TimelineProjectionStore for FileTimelineProjectionStore {",
         "pub fn validate_metadata_store_file(",
-        "pub fn validate_timeline_projection_store_file(",
         "fn snapshot_key(",
     ] {
         assert!(
             !lib_source.contains(forbidden_symbol),
-            "adapters/local-disk/src/lib.rs should not keep metadata/projection-store symbol: {forbidden_symbol}"
+            "adapters/local-disk/src/lib.rs should not keep metadata-store symbol: {forbidden_symbol}"
         );
     }
 }

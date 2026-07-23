@@ -12,7 +12,8 @@ impl ConversationStateService {
     ) {
         let key = scope_key(tenant_id, organization_id, conversation_id);
         if let Some(entries) =
-            lock_conversation_state_mutex(&self.entries, "conversation_state store").get_mut(key.as_str())
+            lock_conversation_state_mutex(&self.entries, "conversation_state store")
+                .get_mut(key.as_str())
             && let Some(entry) = entries
                 .values_mut()
                 .find(|item| item.message_id.as_str() == message_id)

@@ -6,17 +6,22 @@ pub struct PortalWorkspaceView {
 
     pub slug: String,
 
-    pub tier: String,
+    pub environment: String,
 
-    pub region: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tier: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
 
     #[serde(rename = "supportPlan")]
-    pub support_plan: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub support_plan: Option<String>,
 
-    pub seats: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seats: Option<String>,
 
     #[serde(rename = "activeBrands")]
-    pub active_brands: i64,
-
-    pub uptime: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_brands: Option<String>,
 }

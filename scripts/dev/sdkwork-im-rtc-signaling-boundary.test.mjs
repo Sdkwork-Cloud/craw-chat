@@ -208,7 +208,11 @@ for (const relativePath of [
   );
 }
 
-for (const relativePath of ['README.md', 'specs/database-prefix-registry.json', 'specs/database-table-registry.json']) {
+for (const relativePath of [
+  'README.md',
+  'database/contract/prefix-registry.json',
+  'database/contract/table-registry.json',
+]) {
   const source = read(relativePath);
   assert.doesNotMatch(
     source,
@@ -217,12 +221,12 @@ for (const relativePath of ['README.md', 'specs/database-prefix-registry.json', 
   );
 }
 
-const tableRegistry = JSON.parse(read('specs/database-table-registry.json'));
+const tableRegistry = JSON.parse(read('database/contract/table-registry.json'));
 for (const tableName of ['im_rtc_sessions', 'im_rtc_signals']) {
-  const entry = tableRegistry.tables.find((table) => table.tableName === tableName);
+  const entry = tableRegistry.tables.find((table) => table.table_name === tableName);
   assert.ok(entry, `${tableName} must remain registered as an IM-owned table`);
   assert.equal(
-    entry.writeOwner,
+    entry.write_owner,
     'im-call-runtime',
     `${tableName} must be written by the IM-owned call runtime`,
   );

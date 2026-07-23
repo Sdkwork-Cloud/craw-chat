@@ -176,6 +176,19 @@ class SocialApi {
       return map == null ? null : SocialContactsPreferencesUpdateResponse.fromJson(map);
     })();
   }
+
+  /// List social contacts
+  Future<SocialContactsListResponse?> contactsList([int? pageSize, String? cursor]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/social/contacts'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SocialContactsListResponse.fromJson(map);
+    })();
+  }
 }
 
 class PathParameterSpec {

@@ -11,25 +11,13 @@ class ChatApi {
 
   ChatApi(this._client);
 
-  /// List IM contacts
-  Future<ContactsListResponse?> contactsList([int? pageSize, String? cursor]) async {
-    final query = buildQueryString([
-      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
-      QueryParameterSpec('cursor', cursor, 'form', true, false, null)
-    ]);
-    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/chat/contacts'), query));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ContactsListResponse.fromJson(map);
-    })();
-  }
-
   /// List current inbox window
-  Future<InboxListResponse?> inboxList([int? pageSize, String? cursor, String? conversationType]) async {
+  Future<InboxListResponse?> inboxList([int? pageSize, String? cursor, String? conversationType, String? q]) async {
     final query = buildQueryString([
       QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
       QueryParameterSpec('cursor', cursor, 'form', true, false, null),
-      QueryParameterSpec('conversation_type', conversationType, 'form', true, false, null)
+      QueryParameterSpec('conversation_type', conversationType, 'form', true, false, null),
+      QueryParameterSpec('q', q, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/chat/inbox'), query));
     return (() {

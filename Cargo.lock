@@ -2668,29 +2668,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "im-adapters-postgres-projection"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "im-domain-core",
- "im-platform-contracts",
- "im-time",
- "native-tls",
- "postgres",
- "postgres-native-tls",
- "r2d2",
- "r2d2_postgres",
- "sdkwork-database-config",
- "sdkwork-im-contract-core",
- "sdkwork-im-contract-message",
- "sdkwork-im-database-pool",
- "sdkwork-utils-rust",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "im-adapters-postgres-realtime"
 version = "0.1.0"
 dependencies = [
@@ -4106,52 +4083,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "projection-service"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "getrandom 0.3.4",
- "http-body-util",
- "im-adapters-local-memory",
- "im-adapters-postgres-journal",
- "im-adapters-postgres-projection",
- "im-app-context",
- "im-domain-core",
- "im-domain-events",
- "im-platform-contracts",
- "im-time",
- "sdkwork-database-config",
- "sdkwork-im-api-registry",
- "sdkwork-im-contract-message",
- "sdkwork-im-database-pool",
- "sdkwork-im-openapi",
- "sdkwork-im-service-readiness",
- "sdkwork-im-web-bootstrap",
- "sdkwork-routes-im-projection-open-api",
- "sdkwork-routes-web-framework-backend-api",
- "sdkwork-utils-rust",
- "sdkwork-web-core",
- "serde",
- "serde_json",
- "tokio",
- "tower 0.5.3",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "projection-service-bin"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "projection-service",
- "sdkwork-im-service-readiness",
- "sdkwork-routes-im-projection-open-api",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -8030,17 +7961,6 @@ version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
  "portal-service",
- "sdkwork-im-web-bootstrap",
- "sdkwork-web-contract",
- "sdkwork-web-core",
-]
-
-[[package]]
-name = "sdkwork-routes-im-projection-open-api"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "projection-service",
  "sdkwork-im-web-bootstrap",
  "sdkwork-web-contract",
  "sdkwork-web-core",

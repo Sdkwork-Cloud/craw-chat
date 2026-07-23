@@ -36,13 +36,13 @@
       "moduleCatalogRefs": [
         {
           "moduleId": "drive",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
+          "manifestRef": "../../../../../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "im",
-          "manifestRef": "../../../../../specs/iam.module.manifest.json",
+          "manifestRef": "../../../../specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         }
@@ -63,10 +63,93 @@
         "allowFrontendHintsWithoutServerDuplication": true
       },
       "applicationModule": {
-        "manifestRef": "../../../../../specs/iam.module.manifest.json"
+        "manifestRef": "../../../../specs/iam.module.manifest.json"
       }
     },
     "dependencyApiExports": [],
-    "dependencyApiSurfaces": []
-  }
+    "dependencyApiSurfaces": [],
+    "layerRole": "frontend-core",
+    "publicExports": [
+      ".",
+      "./session",
+      "./sdk",
+      "./modules",
+      "./host",
+      "./composition"
+    ],
+    "providedPorts": [
+      {
+        "name": "imH5CoreRuntime",
+        "export": "."
+      }
+    ],
+    "requiredPorts": []
+  },
+  "canonicalSpecs": [
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated-code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming and public symbol rules."
+    },
+    {
+      "file": "TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "TypeScript package, typing, and export rules."
+    },
+    {
+      "file": "FRONTEND_SPEC.md",
+      "path": "../../../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "purpose": "Frontend service, state, SDK, and composition boundaries."
+    },
+    {
+      "file": "UI_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
+      "purpose": "Frontend package roles and application composition."
+    },
+    {
+      "file": "APP_H5_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
+      "purpose": "H5 application root and package taxonomy."
+    },
+    {
+      "file": "APP_MOBILE_REACT_UI_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md",
+      "purpose": "Mobile React UI package rules."
+    },
+    {
+      "file": "APP_SDK_INTEGRATION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
+      "purpose": "Generated SDK consumption and credential composition."
+    },
+    {
+      "file": "SDK_SPEC.md",
+      "path": "../../../../../sdkwork-specs/SDK_SPEC.md",
+      "purpose": "Generated SDK ownership and integration rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Authentication, secret, and input-boundary requirements."
+    },
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component contract and local specification rules."
+    },
+    {
+      "file": "COMPOSABLE_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/COMPOSABLE_ARCHITECTURE_SPEC.md",
+      "purpose": "Layer roles, public exports, and composable port rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Focused contract and implementation verification requirements."
+    }
+  ]
 }

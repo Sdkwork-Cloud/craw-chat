@@ -1,6 +1,8 @@
 use im_domain_core::conversation::{ConversationReadCursor, best_read_cursor_for_member_at_seq};
 
-use crate::conversation_state::model::{MessageReadReceiptReaderView, MessageReadReceiptSummaryView};
+use crate::conversation_state::model::{
+    MessageReadReceiptReaderView, MessageReadReceiptSummaryView,
+};
 use crate::conversation_state::scope::scope_key;
 use crate::conversation_state::{ConversationStateService, lock_conversation_state_mutex};
 

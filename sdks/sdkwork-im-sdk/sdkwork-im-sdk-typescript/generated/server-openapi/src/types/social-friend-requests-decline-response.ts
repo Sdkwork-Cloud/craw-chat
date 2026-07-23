@@ -2,7 +2,7 @@ import type { SocialFriendRequestMutationResponse } from './social-friend-reques
 
 export interface SocialFriendRequestsDeclineResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialFriendRequestMutationResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

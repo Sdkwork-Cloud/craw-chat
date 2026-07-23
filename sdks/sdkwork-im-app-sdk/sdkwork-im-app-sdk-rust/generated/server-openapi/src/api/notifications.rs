@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{NotificationsListResponse, NotificationsRequestsCreateResponse201, NotificationsRetrieveResponse, RequestNotification};
+use crate::models::{NotificationRequestResponse, NotificationTask, RequestNotification};
 
 #[derive(Clone)]
 pub struct NotificationsApi {
@@ -16,7 +16,7 @@ impl NotificationsApi {
     }
 
     /// List notifications for the current principal
-    pub async fn list(&self, page_size: Option<i64>, cursor: Option<&str>) -> Result<NotificationsListResponse, SdkworkError> {
+    pub async fn list(&self, page_size: Option<i64>, cursor: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
@@ -26,13 +26,13 @@ impl NotificationsApi {
     }
 
     /// Request a notification task
-    pub async fn requests_create(&self, body: &RequestNotification) -> Result<NotificationsRequestsCreateResponse201, SdkworkError> {
+    pub async fn requests_create(&self, body: &RequestNotification) -> Result<NotificationRequestResponse, SdkworkError> {
         let path = app_path(&"/notifications/requests".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Get a notification task
-    pub async fn retrieve(&self, notification_id: &str) -> Result<NotificationsRetrieveResponse, SdkworkError> {
+    pub async fn retrieve(&self, notification_id: &str) -> Result<NotificationTask, SdkworkError> {
         let path = app_path(&format!("/notifications/{}", serialize_path_parameter(notification_id, PathParameterSpec::new("notificationId", "simple", false))));
         self.client.get(&path, None, None).await
     }

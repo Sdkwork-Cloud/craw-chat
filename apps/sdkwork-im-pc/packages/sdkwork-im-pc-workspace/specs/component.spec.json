@@ -89,7 +89,14 @@
     "routeManifest": null,
     "sdkClients": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [],
+    "providedPorts": [
+      {
+        "name": "imPcWorkspaceFeature",
+        "export": "."
+      }
+    ],
+    "requiredPorts": []
   },
   "verification": {
     "commands": [

@@ -10,9 +10,14 @@
     "domain": "chat",
     "capability": "chat-host",
     "surface": "native-host",
-    "languages": ["typescript"],
+    "languages": [
+      "typescript"
+    ],
     "generated": false,
-    "manifests": ["package.json", "capacitor.config.ts"]
+    "manifests": [
+      "package.json",
+      "capacitor.config.ts"
+    ]
   },
   "canonicalSpecs": [
     {
@@ -27,16 +32,28 @@
     }
   ],
   "contracts": {
-    "publicExports": ["capacitor.config.ts"],
+    "publicExports": [
+      "capacitor.config.ts"
+    ],
     "runtimeEntrypoints": [
       "package.json#scripts.build:capacitor-ios",
       "package.json#scripts.build:capacitor-android"
     ],
     "sdkClients": [],
     "sdkDependencies": [],
-    "events": []
+    "events": [],
+    "layerRole": "frontend-host",
+    "providedPorts": [
+      {
+        "name": "imH5CapacitorHost",
+        "export": "capacitor.config.ts"
+      }
+    ],
+    "requiredPorts": []
   },
   "verification": {
-    "commands": ["pnpm check"]
+    "commands": [
+      "pnpm check"
+    ]
   }
 }

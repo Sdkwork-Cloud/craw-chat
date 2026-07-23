@@ -75,11 +75,11 @@ export class ChatConversationsApi {
 }
 
 export class ChatApi {
-  private client: HttpClient;
+
   public readonly conversations: ChatConversationsApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.conversations = new ChatConversationsApi(client);
   }
 
@@ -89,13 +89,7 @@ export function createChatApi(client: HttpClient): ChatApi {
   return new ChatApi(client);
 }
 
-function appendQueryString(path: string, rawQueryString: string): string {
-  const query = rawQueryString.replace(/^\?+/, '');
-  if (!query) {
-    return path;
-  }
-  return path.includes('?') ? `${path}&${query}` : `${path}?${query}`;
-}
+
 
 interface PathParameterSpec {
   name: string;

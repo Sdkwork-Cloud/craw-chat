@@ -167,7 +167,7 @@ export type { SocialContactsTagsUpdateResponse } from './social-contacts-tags-up
 export type { SocialContactsRecommendationsCreateResponse201 } from './social-contacts-recommendations-create-response201';
 export type { SocialContactsPreferencesRetrieveResponse } from './social-contacts-preferences-retrieve-response';
 export type { SocialContactsPreferencesUpdateResponse } from './social-contacts-preferences-update-response';
-export type { ContactsListResponse } from './contacts-list-response';
+export type { SocialContactsListResponse } from './social-contacts-list-response';
 export type { InboxListResponse } from './inbox-list-response';
 export type { ConversationsCreateResponse201 } from './conversations-create-response201';
 export type { ConversationsAgentDialogsCreateResponse201 } from './conversations-agent-dialogs-create-response201';

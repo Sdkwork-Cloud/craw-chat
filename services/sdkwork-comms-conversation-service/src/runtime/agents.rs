@@ -519,8 +519,8 @@ where
             command.organization_id.as_str(),
             command.conversation_id.as_str(),
         );
-        let durable_event_writer = self.durable_conversation_event_writer.clone();
-        let (result, realtime_payload, needs_post_commit_delivery) = {
+        let needs_post_commit_delivery = self.durable_conversation_event_writer.is_none();
+        let (result, realtime_payload) = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.agents.replace");
             let result = {
@@ -606,29 +606,24 @@ where
                     },
                 )?;
 
-                if let Some(writer) = durable_event_writer.as_ref() {
-                    let outbox =
-                        self.build_conversation_event_outbox_record(ConversationRealtimeEvent {
-                            tenant_id: command.tenant_id.as_str(),
-                            organization_id: command.organization_id.as_str(),
-                            conversation_id: command.conversation_id.as_str(),
-                            event_type: "conversation.agents_replaced",
-                            journal_event_id: event.event_id.as_str(),
-                            payload_json: realtime_payload.clone(),
-                            occurred_at: replaced_at.as_str(),
-                        })?;
-                    writer
-                        .persist_conversation_event(event.clone(), outbox)
-                        .map_err(RuntimeError::from)?;
-                    // The ConversationCommitJournal wrapper applies the
-                    // conversation_state for ordinary appends. The atomic writer
-                    // bypasses that wrapper, so preserve the same best-effort
-                    // derived-read-model update explicitly.
-                    crate::conversation_state::refresh_conversation_cache(&event);
-                } else {
-                    self.journal.append(event.clone())?;
-                }
-                conversation.aggregate = next_aggregate;
+                let mut candidate = conversation.clone();
+                candidate.aggregate = next_aggregate;
+                let assignment_change = self
+                    .durable_conversation_event_writer
+                    .as_ref()
+                    .map(|_| build_normalized_agent_assignment_change(&event, &assignments))
+                    .transpose()?;
+                self.persist_normalized_conversation_changes_with_assignments(
+                    command.tenant_id.as_str(),
+                    command.organization_id.as_str(),
+                    command.conversation_id.as_str(),
+                    &candidate,
+                    Vec::new(),
+                    Vec::new(),
+                    assignment_change,
+                    vec![event.clone()],
+                )?;
+                *conversation = candidate;
                 (
                     ReplaceConversationAgentsResult {
                         event_id: event.event_id,
@@ -637,21 +632,11 @@ where
                         replaced_at,
                     },
                     realtime_payload,
-                    durable_event_writer.is_none(),
                 )
             };
             state.touch_conversation(scope_key.as_str());
             result
         };
-        // The journal append above is the authoritative commit. Persist the
-        // refreshed aggregate conversation_state opportunistically so other runtime
-        // instances can resolve the latest roster/cursor state without a hot
-        // in-memory cache; failures are intentionally non-fatal.
-        self.best_effort_persist_aggregate_state(
-            command.tenant_id.as_str(),
-            command.organization_id.as_str(),
-            command.conversation_id.as_str(),
-        );
         // PostgreSQL production wiring persists the outbox in the same
         // transaction as the journal event; the relay then owns delivery. The
         // in-memory/test path keeps the low-latency publisher and post-commit

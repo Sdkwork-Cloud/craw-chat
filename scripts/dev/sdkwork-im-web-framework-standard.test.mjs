@@ -280,7 +280,6 @@ for (const relativePath of [
   'crates/sdkwork-routes-im-audit-backend-api/src/web_bootstrap.rs',
   'crates/sdkwork-routes-im-ops-backend-api/src/web_bootstrap.rs',
   'crates/sdkwork-routes-im-governance-backend-api/src/web_bootstrap.rs',
-  'crates/sdkwork-routes-im-projection-open-api/src/web_bootstrap.rs',
   'crates/sdkwork-routes-im-calls-open-api/src/web_bootstrap.rs',
 ]) {
   const source = read(relativePath);
@@ -303,7 +302,6 @@ for (const relativePath of [
   'services/media-service/src/lib.rs',
   'services/streaming-service/src/lib.rs',
   'services/governance-service/src/lib.rs',
-  'services/projection-service/src/http.rs',
   'services/im-calls-service/src/app.rs',
   'services/automation-service/src/lib.rs',
 ]) {

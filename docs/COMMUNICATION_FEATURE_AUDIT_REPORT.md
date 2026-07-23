@@ -54,7 +54,7 @@
 |---|---|---|
 | `portal-service` | Console/Workspace portal 快照 HTTP | 无状态；读 ops/audit |
 | `sdkwork-comms-conversation-service` | 会话写路径 + RPC unary | PostgreSQL journal；`spawn_blocking` 写路径 |
-| `projection-service` | Inbox/timeline 读模型 | PostgreSQL + 热缓存 cap |
+| `sdkwork-comms-conversation-service` | Inbox/timeline 规范化读写模型 | PostgreSQL + 有界热缓存 |
 | `session-gateway` | WebSocket + RPC realtime | Redis/PG realtime stores；生产 fail-closed |
 | `im-calls-service` | RTC 信令 HTTP | Postgres/Redis durable state；`spawn_blocking` handlers |
 | `audit-service` | 审计记录 | PostgreSQL；生产 fail-closed panic |
@@ -89,7 +89,7 @@
 node ../sdkwork-specs/tools/check-pagination.mjs --workspace .
 node ../sdkwork-specs/tools/check-api-response-envelope.mjs --workspace .
 node scripts/dev/sdkwork-im-production-security-standard.test.mjs
-cargo check -p session-gateway -p im-calls-service -p projection-service
+cargo check -p session-gateway -p im-calls-service -p sdkwork-comms-conversation-service
 pnpm run check:commercial-readiness
 ```
 
@@ -103,7 +103,7 @@ pnpm run check:commercial-readiness
 | Outbox at-least-once | ✅ |
 | PG materialize + 单事务多 commit | ✅ |
 | 核心列表 keyset 分页 + SdkWorkPageData | ✅ |
-| 生产 fail-closed（audit/projection/session-gateway） | ✅ |
+| 生产 fail-closed（audit/conversation/session-gateway） | ✅ |
 | 桌面 + H5 + Flutter 离线待发 claim/lease | ✅ |
 | gRPC 全 manifest 托管 | ❌ Phase 2 |
 | E2EE / FEC Phase 2 / 超大群 | 📋 路线图 |

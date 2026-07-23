@@ -1,66 +1,61 @@
-# SDKWork Chat database table naming standard
+# SDKWork IM Database Table Naming Standard
 
-This document narrows the root SDKWork `DATABASE_SPEC.md` for the `chat` app.
+This document narrows the root SDKWork `DATABASE_SPEC.md` for the `im` module.
 
-## Canonical prefix
+## Canonical Prefix
 
-`im_` is the controlled business module prefix for SDKWork Chat tables whose
-source of truth is instant messaging: conversations, messages, realtime
-delivery, presence, route binding, RTC signaling, message projections,
-IM-specific notifications, IM-specific automation, and stream frames.
-
-Examples:
+`im_` is the controlled prefix for tables whose system of record belongs to instant messaging:
+Conversation, Message, Member, ReadCursor, realtime delivery, presence, routing, call signaling,
+IM-specific notification/automation state, social relationships, and ordered streams.
 
 | Table family | Purpose |
 | --- | --- |
-| `im_conversation_*` | conversation and message facts |
-| `im_message_*` | message attachments and media references |
-| `im_realtime_*` | device event windows, checkpoints, subscriptions, and disconnect fences |
-| `im_presence_*` | online/offline device presence |
-| `im_route_*` | realtime route ownership |
-| `im_rtc_*` | RTC session and signal state |
-| `im_projection_*` | IM read models and sync projections |
-| `im_stream_*` | streaming response sessions and frames |
+| `im_conversation_*` | Conversation, Message, membership, sequence, preference, and read state |
+| `im_message_*` | Message media references and typed interactions |
+| `im_realtime_*` | Device event windows, checkpoints, subscriptions, and disconnect fences |
+| `im_presence_*` | Online/offline device presence |
+| `im_route_*` | Realtime route ownership |
+| `im_rtc_*` | IM call-signaling state; media runtime remains owned by `sdkwork-rtc` |
+| `im_stream_*` | Ordered application-data stream sessions and frames |
 
-## Non-IM tables
+No active table uses the retired `im_projection_*` prefix. Normalized IM tables are business
+authorities, not persisted projections, mirrors, compatibility views, or a second Message timeline.
 
-Tables that are not owned by the instant messaging bounded context must not be
-renamed to `im_`. IAM, Drive, integration, ops, billing, notification-platform,
-or other product/platform tables keep their own business-domain prefix or
-approved legacy name. The `im_` prefix is a business-domain marker, not a
-product-wide or app-wide default.
+## Non-IM Tables
 
-When a table is ambiguous, use the system of record:
+Tables outside the instant-messaging bounded context must keep the owning domain prefix. IAM,
+Agents, Drive, Knowledgebase, RTC media/provider runtime, billing, and generic platform tables are
+external authorities and are not registered or created by this repository.
 
-| System of record | Prefix |
+| System of record | Prefix policy |
 | --- | --- |
-| Chat message/realtime state | `im_` |
-| Platform IAM/user/session authority | IAM-owned prefix, not `im_` |
-| Drive file/object lifecycle authority | Drive-owned prefix, not `im_` |
-| Generic notification platform queue | notification-owned prefix, not `im_` |
-| IM notification derived from chat delivery | `im_notification_*` |
-| Generic automation platform history | automation-owned prefix, not `im_` |
-| IM automation execution against chat flows | `im_automation_*` |
+| IM communication and realtime state | `im_` |
+| IAM user, token, or Session authority | IAM-owned prefix |
+| Agents Project, Session, Turn, Item, or Interaction | Agents-owned prefix |
+| Drive file/object lifecycle | Drive-owned prefix |
+| Knowledgebase content and binding authority | Knowledgebase-owned prefix |
+| Generic notification or automation platform state | Owning platform prefix |
 
-## Registry artifacts
+## Canonical Registry
 
-The local registry artifacts are the source of truth for this app:
+The only authored database registries are:
 
-- `specs/database-prefix-registry.json` registers `im` as the active
-  instant-messaging prefix and records forbidden aliases such as `chat_`,
-  `craw_`, `sdkwork_`, `app_`, `sys_`, `common_`, and `comms_`.
-- `specs/database-table-registry.json` lists every checked-in IM table, table
-  profile, write owner, and migration path.
-- `scripts/dev/sdkwork-im-database-naming-standard.test.mjs` scans the
-  PostgreSQL migration and Rust SQL contracts so new IM tables cannot drift away
-  from `im_` or skip registry registration.
+- `database/contract/prefix-registry.json` for the `im_` prefix, ownership, pattern, and forbidden aliases.
+- `database/contract/table-registry.json` for all 60 active IM tables, profiles, write owners, and migration provenance.
+- `database/contract/schema.yaml` for the portable active schema inventory.
 
-Desktop 本地用户数据使用浏览器本地存储(IndexedDB / localStorage),不在本地物化 IM 表;服务端表前缀策略仅在 PostgreSQL 中生效。
+`specs/` must not contain copied table or prefix registries. The effective table set is the 57-table
+PostgreSQL baseline plus the three IM-to-Agents integration tables from migration `0005`; every
+canonical contract must describe exactly the same 60 names.
 
-## Temporary checks
+## Verification
 
-Deployment guides may use a short-lived table such as
-`sdkwork_ai_dev.__manual_smoke_check` only for manual PostgreSQL connectivity
-verification. These tables are not IM business tables, must not be registered
-in `specs/database-table-registry.json`, must not be created by checked-in
-migrations, and must be dropped by the same manual smoke procedure.
+```bash
+pnpm db:contract:check
+pnpm test:database-naming-standard
+pnpm test:database-framework-standard
+```
+
+Deployment guides may create `sdkwork_ai_dev.__manual_smoke_check` only for a short-lived manual
+connectivity test. It is not an IM business table, must not be registered, and must be dropped by
+the same procedure.

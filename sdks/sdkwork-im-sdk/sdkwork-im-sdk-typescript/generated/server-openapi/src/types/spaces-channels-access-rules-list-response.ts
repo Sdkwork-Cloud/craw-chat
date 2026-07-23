@@ -3,7 +3,7 @@ import type { SpaceChannelAccessRuleView } from './space-channel-access-rule-vie
 
 export interface SpacesChannelsAccessRulesListResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { items: SpaceChannelAccessRuleView[]; pageInfo: PageInfo; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

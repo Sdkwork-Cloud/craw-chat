@@ -102,7 +102,7 @@ Posts a regular conversation message.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`201 PostMessageResult in data.item`</span></div>
@@ -138,7 +138,7 @@ Posts a regular conversation message.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -156,11 +156,9 @@ Posts a regular conversation message.
   <span class="api-op-id">operationId: conversations.messages.list</span>
 </div>
 
-Lists a durable, store-backed message history window for the conversation. This public route is
-owned by `sdkwork-comms-conversation-service`; `projection-service` does not register or serve
-`GET /im/v3/api/chat/conversations/{conversationId}/messages`. Projection remains responsible for
-inbox, conversation summaries, read cursors, message search, pins, visibility, and interaction
-summary reads.
+Lists a durable, normalized Message history window owned by
+`sdkwork-comms-conversation-service`. Inbox, Conversation summaries, read cursors, Message search,
+pins, visibility, and interaction summaries are read from their typed normalized repositories.
 
 Production deployments read from `message_store.read_window` on `PostgresMessageStore` with
 `message_seq > afterSeq`, ascending sequence order, and `page_size + 1` fetch-ahead. Startup is
@@ -175,8 +173,8 @@ only when the user explicitly loads more history.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations.listMessages(...)`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationMessageListResponse`</span></div>
 </div>
@@ -206,14 +204,14 @@ returned `messageSeq` as `afterSeq`.
 sequence, sender, message body, summary, type, delivery mode, and timestamps. It intentionally does
 not inline `reactionCounts` or `pin` state; clients must not issue hidden per-message
 `interaction_summary` requests while loading history. Reactions, pins, and other interaction state
-remain explicit projection operations.
+remain explicit typed Message operations.
 
 
 ### Error Responses
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -235,7 +233,7 @@ Publishes a system message to the conversation's system channel.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult`</span></div>
@@ -263,7 +261,7 @@ Uses the same request schema as regular message submission.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -285,7 +283,7 @@ Edits a previously posted message.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 MessageMutationResult`</span></div>
@@ -311,7 +309,7 @@ Edits a previously posted message.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -333,7 +331,7 @@ Recalls a message. This operation does not require a JSON request body.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 MessageMutationResult`</span></div>
@@ -359,7 +357,7 @@ None. This operation does not accept a JSON request body.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |

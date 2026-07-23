@@ -88,7 +88,7 @@ print(result)
 ### portal
 
 ```swift
-// Read the tenant portal sign-in snapshot
+// Read the tenant portal access snapshot
 let result = try await client.portal.accessRetrieve()
 print(result)
 ```

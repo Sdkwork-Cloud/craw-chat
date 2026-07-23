@@ -1,8 +1,8 @@
 # Membership and Read State
 
 <p class="api-page-intro">
-  Membership endpoints manage roster state and read cursors for a conversation. The wire shapes on
-  this page follow the conversation runtime and projection models used by the current app profile.
+  Membership endpoints manage normalized roster state and read cursors for a Conversation. The wire
+  shapes on this page follow the current Conversation service contract.
 </p>
 
 <div class="api-note">
@@ -38,14 +38,14 @@ Membership and read-cursor routes are part of the TypeScript `sdk.conversations`
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/members</code>
-  <span class="api-op-id">operationId: listMembers</span>
+  <span class="api-op-id">operationId: conversations.members.list</span>
 </div>
 
 Lists conversation members visible to the current principal.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ListMembersResponse`</span></div>
@@ -66,7 +66,7 @@ Lists conversation members visible to the current principal.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -81,14 +81,14 @@ Lists conversation members visible to the current principal.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/members/add</code>
-  <span class="api-op-id">operationId: addMember</span>
+  <span class="api-op-id">operationId: conversations.members.add</span>
 </div>
 
 Adds a principal to the conversation roster.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationMember`</span></div>
@@ -113,7 +113,7 @@ Adds a principal to the conversation roster.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -129,14 +129,14 @@ Adds a principal to the conversation roster.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/members/remove</code>
-  <span class="api-op-id">operationId: removeMember</span>
+  <span class="api-op-id">operationId: conversations.members.remove</span>
 </div>
 
 Removes a member by membership identifier.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationMember`</span></div>
@@ -162,7 +162,7 @@ Removes a member by membership identifier.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -177,14 +177,14 @@ Removes a member by membership identifier.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/members/transfer_owner</code>
-  <span class="api-op-id">operationId: transferConversationOwner</span>
+  <span class="api-op-id">operationId: conversations.members.transferOwner</span>
 </div>
 
 Transfers ownership to another active member.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 TransferConversationOwnerResult`</span></div>
@@ -210,7 +210,7 @@ Transfers ownership to another active member.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -225,14 +225,14 @@ Transfers ownership to another active member.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/members/change_role</code>
-  <span class="api-op-id">operationId: changeConversationMemberRole</span>
+  <span class="api-op-id">operationId: conversations.members.changeRole</span>
 </div>
 
 Changes the role assigned to an existing member.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ChangeConversationMemberRoleResult`</span></div>
@@ -258,7 +258,7 @@ Changes the role assigned to an existing member.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -273,14 +273,14 @@ Changes the role assigned to an existing member.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/members/leave</code>
-  <span class="api-op-id">operationId: leaveConversation</span>
+  <span class="api-op-id">operationId: conversations.members.leave</span>
 </div>
 
 Marks the current principal as having left the conversation.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationMember`</span></div>
@@ -306,7 +306,7 @@ None. This operation does not accept a JSON request body.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
@@ -321,14 +321,14 @@ None. This operation does not accept a JSON request body.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/read_cursor</code>
-  <span class="api-op-id">operationId: getReadCursor</span>
+  <span class="api-op-id">operationId: conversations.readCursor.retrieve</span>
 </div>
 
 Returns the read cursor for the current principal in the target conversation.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationReadCursorView`</span></div>
@@ -349,7 +349,7 @@ Returns the read cursor for the current principal in the target conversation.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to access the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the read or handshake flow. |
@@ -359,19 +359,19 @@ Returns the read cursor for the current principal in the target conversation.
 <a id="update-read-cursor"></a>
 <section class="api-op">
 
-## `POST /im/v3/api/chat/conversations/{conversationId}/read_cursor`
+## `PATCH /im/v3/api/chat/conversations/{conversationId}/read_cursor`
 
 <div class="api-op-header">
-  <span class="endpoint-tag endpoint-post">POST</span>
+  <span class="endpoint-tag endpoint-patch">PATCH</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/read_cursor</code>
-  <span class="api-op-id">operationId: updateReadCursor</span>
+  <span class="api-op-id">operationId: conversations.readCursor.update</span>
 </div>
 
 Updates the read cursor for the current principal.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationReadCursorView`</span></div>
@@ -381,7 +381,7 @@ Updates the read cursor for the current principal.
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `conversation_id` | `string` | Yes | Conversation identifier. |
+| `conversationId` | `string` | Yes | Conversation identifier. |
 
 ### Request Body
 
@@ -397,7 +397,7 @@ Updates the read cursor for the current principal.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |

@@ -16,28 +16,16 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         }
 
         /// <summary>
-        /// List IM contacts
-        /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ContactsListResponse?> ContactsListAsync(int? pageSize = null, string? cursor = null)
-        {
-            var queryString = BuildQueryString(new[]
-            {
-                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
-                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
-            });
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.ContactsListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/chat/contacts"), queryString));
-        }
-
-        /// <summary>
         /// List current inbox window
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.InboxListResponse?> InboxListAsync(int? pageSize = null, string? cursor = null, string? conversationType = null)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.InboxListResponse?> InboxListAsync(int? pageSize = null, string? cursor = null, string? conversationType = null, string? q = null)
         {
             var queryString = BuildQueryString(new[]
             {
                 new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
                 new QueryParameterSpec("cursor", cursor, "form", true, false, null),
                 new QueryParameterSpec("conversation_type", conversationType, "form", true, false, null),
+                new QueryParameterSpec("q", q, "form", true, false, null),
             });
             return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.InboxListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/chat/inbox"), queryString));
         }

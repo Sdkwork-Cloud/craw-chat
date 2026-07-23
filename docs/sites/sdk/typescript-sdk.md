@@ -77,7 +77,7 @@ normal use.
 ## Authentication
 
 Authentication is issued by `sdkwork-appbase`. The IM SDK passes the resulting appbase-issued credential
-through constructor `authToken`; Sdkwork IM receives the verified AppContext projection and does not implement login, token refresh,
+through constructor `authToken`; SDKWork IM consumes the verified resolved request context and does not implement login, token refresh,
 tenant, organization, or current-account resolution.
 
 ```ts
@@ -161,7 +161,7 @@ experience. Use `sdk.messages` when you want the same behavior through a namespa
 | Create a one-to-one agent dialog | `sdk.conversations.createAgentDialog(...)` |
 | Create an agent handoff conversation | `sdk.conversations.createAgentHandoff(...)` |
 | Create a system channel conversation | `sdk.conversations.createSystemChannel(...)` |
-| Read the current summary projection | `sdk.conversations.get(...)` |
+| Read the current normalized Conversation summary | `sdk.conversations.get(...)` |
 | Read handoff state | `sdk.conversations.getAgentHandoffState(...)` |
 | Accept a handoff | `sdk.conversations.acceptAgentHandoff(...)` |
 | Resolve a handoff | `sdk.conversations.resolveAgentHandoff(...)` |

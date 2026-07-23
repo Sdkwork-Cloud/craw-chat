@@ -8,11 +8,11 @@ namespace Sdkwork.Im.AppApi.Generated.Models
     {
         public string Name { get; set; }
         public string Slug { get; set; }
-        public string Tier { get; set; }
-        public string Region { get; set; }
-        public string SupportPlan { get; set; }
-        public int Seats { get; set; }
-        public int ActiveBrands { get; set; }
-        public string Uptime { get; set; }
+        public string Environment { get; set; }
+        public string? Tier { get; set; }
+        public string? Region { get; set; }
+        public string? SupportPlan { get; set; }
+        public string? Seats { get; set; }
+        public string? ActiveBrands { get; set; }
     }
 }

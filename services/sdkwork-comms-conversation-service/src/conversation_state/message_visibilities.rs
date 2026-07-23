@@ -150,7 +150,8 @@ impl ConversationStateService {
     pub fn timeline_window_for_principal(
         &self,
         query: TimelineWindowForPrincipalQuery<'_>,
-    ) -> Result<TimelineWindowView, crate::conversation_state::event_apply::ConversationStateError> {
+    ) -> Result<TimelineWindowView, crate::conversation_state::event_apply::ConversationStateError>
+    {
         let limit = query.limit.max(1);
         let mut visible_after_seq = query.after_seq;
         let mut visible_items = Vec::new();
@@ -239,8 +240,14 @@ mod tests {
         let conversation_state = ConversationStateService::default();
         let (tenant, org, kind, id) = sample_principal();
 
-        let result =
-            conversation_state.delete_message_visibility(tenant, org, kind, id, "m_1", Some("c_demo"));
+        let result = conversation_state.delete_message_visibility(
+            tenant,
+            org,
+            kind,
+            id,
+            "m_1",
+            Some("c_demo"),
+        );
 
         assert!(result.is_deleted);
         assert_eq!(result.tenant_id, tenant);
@@ -261,12 +268,24 @@ mod tests {
         let conversation_state = ConversationStateService::default();
         let (tenant, org, kind, id) = sample_principal();
 
-        let first =
-            conversation_state.delete_message_visibility(tenant, org, kind, id, "m_1", Some("c_demo"));
+        let first = conversation_state.delete_message_visibility(
+            tenant,
+            org,
+            kind,
+            id,
+            "m_1",
+            Some("c_demo"),
+        );
         // Simulate time passage by ensuring updated_at differs on re-apply.
         std::thread::sleep(std::time::Duration::from_millis(2));
-        let second =
-            conversation_state.delete_message_visibility(tenant, org, kind, id, "m_1", Some("c_demo"));
+        let second = conversation_state.delete_message_visibility(
+            tenant,
+            org,
+            kind,
+            id,
+            "m_1",
+            Some("c_demo"),
+        );
 
         assert!(first.is_deleted);
         assert!(second.is_deleted);
@@ -281,7 +300,14 @@ mod tests {
         let conversation_state = ConversationStateService::default();
         let (tenant, org, kind, id) = sample_principal();
 
-        let _ = conversation_state.delete_message_visibility(tenant, org, kind, id, "m_1", Some("c_demo"));
+        let _ = conversation_state.delete_message_visibility(
+            tenant,
+            org,
+            kind,
+            id,
+            "m_1",
+            Some("c_demo"),
+        );
 
         // A different principal must not see the first principal's mutation.
         assert!(

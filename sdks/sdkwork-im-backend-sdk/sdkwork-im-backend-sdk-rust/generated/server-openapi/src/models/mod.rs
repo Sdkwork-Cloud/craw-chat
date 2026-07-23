@@ -158,8 +158,6 @@ pub mod health_retrieve_response;
 pub use health_retrieve_response::HealthRetrieveResponse;
 pub mod cluster_retrieve_response;
 pub use cluster_retrieve_response::ClusterRetrieveResponse;
-pub mod replay_status_retrieve_response;
-pub use replay_status_retrieve_response::ReplayStatusRetrieveResponse;
 pub mod commercial_readiness_retrieve_response;
 pub use commercial_readiness_retrieve_response::CommercialReadinessRetrieveResponse;
 pub mod runtime_dir_retrieve_response;

@@ -1,7 +1,5 @@
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
-use im_app_context::{
-    app_context_signature_header_name, signed_app_context_projection_header_names,
-};
+use im_app_context::{app_context_signature_header_name, signed_app_context_header_names};
 use tonic::metadata::MetadataMap;
 use tonic::metadata::MetadataValue;
 
@@ -85,7 +83,7 @@ impl RpcMetadata {
         trace_id: Option<String>,
     ) -> Self {
         let mut orchestration_headers = Vec::new();
-        for name in signed_app_context_projection_header_names()
+        for name in signed_app_context_header_names()
             .iter()
             .copied()
             .chain(std::iter::once(app_context_signature_header_name()))
@@ -132,7 +130,7 @@ fn signed_orchestration_headers_from_metadata(
     metadata: &MetadataMap,
 ) -> Result<Vec<(String, String)>, ImRpcError> {
     let mut headers = Vec::new();
-    for name in signed_app_context_projection_header_names()
+    for name in signed_app_context_header_names()
         .iter()
         .copied()
         .chain(std::iter::once(app_context_signature_header_name()))

@@ -131,7 +131,7 @@ export class PortalAccessApi {
 }
 
 export class PortalApi {
-  private client: HttpClient;
+
   public readonly access: PortalAccessApi;
   public readonly automation: PortalAutomationApi;
   public readonly conversationSnapshot: PortalConversationSnapshotApi;
@@ -143,7 +143,7 @@ export class PortalApi {
   public readonly workspace: PortalWorkspaceApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.access = new PortalAccessApi(client);
     this.automation = new PortalAutomationApi(client);
     this.conversationSnapshot = new PortalConversationSnapshotApi(client);
@@ -159,12 +159,4 @@ export class PortalApi {
 
 export function createPortalApi(client: HttpClient): PortalApi {
   return new PortalApi(client);
-}
-
-function appendQueryString(path: string, rawQueryString: string): string {
-  const query = rawQueryString.replace(/^\?+/, '');
-  if (!query) {
-    return path;
-  }
-  return path.includes('?') ? `${path}&${query}` : `${path}?${query}`;
 }

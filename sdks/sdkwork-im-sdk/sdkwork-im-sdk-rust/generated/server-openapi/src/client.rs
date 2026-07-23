@@ -28,6 +28,7 @@ impl SdkworkImClient {
         self
     }
 
+
     pub fn set_header(&self, key: impl Into<String>, value: impl Into<String>) -> &Self {
         self.http.set_header(key, value);
         self

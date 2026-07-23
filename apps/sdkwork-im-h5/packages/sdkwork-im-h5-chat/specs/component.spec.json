@@ -23,47 +23,47 @@
   "canonicalSpecs": [
     {
       "file": "CODE_STYLE_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
       "purpose": "Authored code organization, public exports, generated-code boundaries, and SDK bypass rules."
     },
     {
       "file": "NAMING_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
       "purpose": "SDKWork H5 package and public symbol naming rules."
     },
     {
       "file": "FRONTEND_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "path": "../../../../../sdkwork-specs/FRONTEND_SPEC.md",
       "purpose": "UI-service-SDK flow, frontend state, and SDK client injection rules."
     },
     {
       "file": "UI_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
       "purpose": "Frontend package role and architecture selection rules."
     },
     {
       "file": "APP_H5_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
       "purpose": "H5 app package taxonomy, root composition, and runtime boundaries."
     },
     {
       "file": "APP_MOBILE_REACT_UI_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md",
       "purpose": "Mobile React package UI, service, state, and host-adapter rules."
     },
     {
       "file": "SDK_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/SDK_SPEC.md",
+      "path": "../../../../../sdkwork-specs/SDK_SPEC.md",
       "purpose": "Generated SDK consumption and no raw HTTP fallback rules."
     },
     {
       "file": "PAGINATION_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/PAGINATION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/PAGINATION_SPEC.md",
       "purpose": "Interactive inbox and message-history pagination requirements."
     },
     {
       "file": "TEST_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/TEST_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TEST_SPEC.md",
       "purpose": "Frontend package, SDK integration, pagination, and contract verification requirements."
     }
   ],
@@ -117,7 +117,7 @@
       "moduleCatalogRefs": [
         {
           "moduleId": "im",
-          "manifestRef": "../../../../../specs/iam.module.manifest.json",
+          "manifestRef": "../../../../specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         }

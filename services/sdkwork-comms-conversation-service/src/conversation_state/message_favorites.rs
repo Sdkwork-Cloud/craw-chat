@@ -137,9 +137,10 @@ impl ConversationStateService {
     ) -> bool {
         let key =
             message_favorites_scope_key(tenant_id, organization_id, principal_kind, principal_id);
-        let removed = lock_conversation_state_mutex(&self.message_favorites, "message favorites store")
-            .get_mut(key.as_str())
-            .is_some_and(|favorites| favorites.remove(favorite_id).is_some());
+        let removed =
+            lock_conversation_state_mutex(&self.message_favorites, "message favorites store")
+                .get_mut(key.as_str())
+                .is_some_and(|favorites| favorites.remove(favorite_id).is_some());
         if removed {
             self.remove_message_favorite_index_entry(key.as_str(), favorite_id);
         }
@@ -149,8 +150,10 @@ impl ConversationStateService {
     pub(crate) fn message_favorites_window_for_principal(
         &self,
         query: MessageFavoritesWindowQuery<'_>,
-    ) -> Result<SdkWorkPageData<super::MessageFavoriteView>, crate::conversation_state::event_apply::ConversationStateError>
-    {
+    ) -> Result<
+        SdkWorkPageData<super::MessageFavoriteView>,
+        crate::conversation_state::event_apply::ConversationStateError,
+    > {
         let limit = query.limit;
         let mut items = self.collect_message_favorites_index_window(&query);
         let has_more = items.len() > limit;
@@ -165,7 +168,9 @@ impl ConversationStateService {
                         "favoritedAt": favorite.favorited_at,
                         "favoriteId": favorite.favorite_id,
                     });
-                    crate::conversation_state::cursor_auth::encode_conversation_state_list_cursor(&payload)
+                    crate::conversation_state::cursor_auth::encode_conversation_state_list_cursor(
+                        &payload,
+                    )
                 })
                 .transpose()?
         } else {
@@ -191,8 +196,10 @@ impl ConversationStateService {
         );
         let limit = query.limit.max(1);
         let mut window = Vec::with_capacity(limit.saturating_add(1));
-        let favorites = lock_conversation_state_mutex(&self.message_favorites, "message favorites store");
-        let index = lock_conversation_state_mutex(&self.message_favorites_index, "message favorites index");
+        let favorites =
+            lock_conversation_state_mutex(&self.message_favorites, "message favorites store");
+        let index =
+            lock_conversation_state_mutex(&self.message_favorites_index, "message favorites index");
         let Some(scope_index) = index.get(key.as_str()) else {
             return window;
         };

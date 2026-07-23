@@ -33,7 +33,7 @@ This section answers two practical questions:
 
 - notifications and automation execution
 - audit record creation, listing, and export
-- ops health, cluster, lag, replay status, runtime directory, provider bindings, drift, and diagnostics
+- ops health, cluster, lag, commercial readiness, runtime directory, provider bindings, drift, and diagnostics
 
 ### Governance and extension
 

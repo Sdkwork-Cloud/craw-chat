@@ -1,8 +1,9 @@
 use sdkwork_im_contract_core::ContractError;
+use serde::{Deserialize, Serialize};
 
 use crate::AgentMentionDispatchRequest;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AgentAssignmentSource {
     DefaultPolicy,
     ConversationOverride,
@@ -17,14 +18,14 @@ impl AgentAssignmentSource {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConversationAgentAssignmentItem {
     pub agent_id: String,
     pub agent_revision_ref: Option<String>,
     pub position: i32,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReplaceConversationAgentAssignments {
     pub tenant_id: u64,
     pub organization_id: u64,

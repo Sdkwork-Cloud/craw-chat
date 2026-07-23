@@ -20,9 +20,8 @@
 --     order to avoid orphaned rows.
 --
 -- Run order: baseline 0001 must already be applied.  This migration is safe
--- to run on a live database during a maintenance window; concurrent writers
--- that still emit legacy ids will be handled by the backwards-compatible
--- resolver functions in projection-service until the next deploy.
+-- to run during a maintenance window with legacy writers stopped. The
+-- pre-launch cutover has no compatibility resolver or dual-write path.
 
 BEGIN;
 
@@ -99,11 +98,7 @@ SET conversation_id = pg_temp.rewrite_conversation_id(conversation_id)
 WHERE conversation_id IS NOT NULL
   AND (conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%');
 
--- Projection tables -----------------------------------------------------------
-
-UPDATE im_projection_timeline_entries
-SET conversation_id = pg_temp.rewrite_conversation_id(conversation_id)
-WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
+-- Conversation and client sync authority --------------------------------------
 
 UPDATE im_conversations
 SET conversation_id = pg_temp.rewrite_conversation_id(conversation_id)
@@ -121,15 +116,6 @@ UPDATE im_client_sync_events
 SET conversation_id = pg_temp.rewrite_conversation_id(conversation_id)
 WHERE conversation_id IS NOT NULL
   AND (conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%');
-
-UPDATE im_projection_contacts
-SET conversation_id = pg_temp.rewrite_conversation_id(conversation_id)
-WHERE conversation_id IS NOT NULL
-  AND (conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%');
-
-UPDATE im_projection_direct_chat_bindings
-SET conversation_id = pg_temp.rewrite_conversation_id(conversation_id)
-WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
 
 -- Business association tables -------------------------------------------------
 

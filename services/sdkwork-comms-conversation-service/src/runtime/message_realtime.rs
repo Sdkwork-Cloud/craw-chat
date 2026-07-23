@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use im_domain_core::message::{Message, MessageEdited, MessageRecalled};
+use im_domain_core::message::Message;
 use im_platform_contracts::{
     CommitJournal, ContractError, OutboxEventRecord, OutboxPublishStatus, RealtimeEventPublisher,
     RealtimeEventRecipient, RealtimeScopeEventPublishCommand,
@@ -25,24 +25,6 @@ struct MessagePostedRealtimePayload {
     message_id: String,
     message_seq: u64,
     message_type: String,
-    summary: String,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct MessageEditedRealtimePayload {
-    conversation_id: String,
-    message_id: String,
-    message_seq: u64,
-    summary: String,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct MessageRecalledRealtimePayload {
-    conversation_id: String,
-    message_id: String,
-    message_seq: u64,
     summary: String,
 }
 
@@ -273,65 +255,6 @@ where
         Ok(())
     }
 
-    pub(crate) fn publish_message_edited_realtime(
-        &self,
-        tenant_id: &str,
-        organization_id: &str,
-        edited: &MessageEdited,
-        event_id: &str,
-    ) -> Result<(), RuntimeError> {
-        let payload_body = MessageEditedRealtimePayload {
-            conversation_id: edited.conversation_id.clone(),
-            message_id: edited.message_id.clone(),
-            message_seq: edited.message_seq,
-            summary: edited
-                .body
-                .summary_or_derived()
-                .unwrap_or_else(|| "[message]".into()),
-        };
-        let payload_json = serde_json::to_string(&payload_body).map_err(|error| {
-            RuntimeError::InvalidInput(format!(
-                "message.edited realtime payload encode failed: {error}"
-            ))
-        })?;
-        self.publish_or_enqueue_message_mutation_realtime(
-            tenant_id,
-            organization_id,
-            edited.conversation_id.as_str(),
-            "message.edited",
-            event_id,
-            payload_json,
-        )
-    }
-
-    pub(crate) fn publish_message_recalled_realtime(
-        &self,
-        tenant_id: &str,
-        organization_id: &str,
-        recalled: &MessageRecalled,
-        event_id: &str,
-    ) -> Result<(), RuntimeError> {
-        let payload_body = MessageRecalledRealtimePayload {
-            conversation_id: recalled.conversation_id.clone(),
-            message_id: recalled.message_id.clone(),
-            message_seq: recalled.message_seq,
-            summary: "[recalled]".into(),
-        };
-        let payload_json = serde_json::to_string(&payload_body).map_err(|error| {
-            RuntimeError::InvalidInput(format!(
-                "message.recalled realtime payload encode failed: {error}"
-            ))
-        })?;
-        self.publish_or_enqueue_message_mutation_realtime(
-            tenant_id,
-            organization_id,
-            recalled.conversation_id.as_str(),
-            "message.recalled",
-            event_id,
-            payload_json,
-        )
-    }
-
     fn publish_durable_scope_event_to_active_members_in_batches(
         &self,
         publisher: &dyn RealtimeEventPublisher,
@@ -389,13 +312,12 @@ where
         Ok(())
     }
 
-    fn publish_or_enqueue_message_mutation_realtime(
+    pub(crate) fn publish_message_mutation_realtime_after_commit(
         &self,
         tenant_id: &str,
         organization_id: &str,
         conversation_id: &str,
         event_type: &str,
-        event_id: &str,
         payload_json: String,
     ) -> Result<(), RuntimeError> {
         if let Some(publisher) = self.resolve_realtime_publisher() {
@@ -421,34 +343,10 @@ where
             }
             return Ok(());
         }
-
-        if let Some(record) = self.build_message_mutation_outbox_record(
-            tenant_id,
-            organization_id,
-            conversation_id,
-            event_type,
-            event_id,
-            payload_json,
-        )? {
-            self.outbox_store
-                .as_ref()
-                .expect("outbox record built only when outbox store is configured")
-                .enqueue(record)
-                .map_err(RuntimeError::from)?;
-            return Ok(());
-        }
-
-        if self.requires_realtime_delivery_fail_closed() {
-            return Err(RuntimeError::Contract(
-                sdkwork_im_contract_core::ContractError::Unavailable(
-                    "realtime publisher or outbox store is required in production".into(),
-                ),
-            ));
-        }
         Ok(())
     }
 
-    fn build_message_mutation_outbox_record(
+    pub(crate) fn build_message_mutation_outbox_record(
         &self,
         tenant_id: &str,
         organization_id: &str,
@@ -457,9 +355,6 @@ where
         event_id: &str,
         payload_body_json: String,
     ) -> Result<Option<OutboxEventRecord>, RuntimeError> {
-        if self.resolve_realtime_publisher().is_some() {
-            return Ok(None);
-        }
         if self.outbox_store.is_none() || self.id_generator.is_none() {
             return Ok(None);
         }
@@ -628,7 +523,8 @@ mod tests {
 
     use im_domain_core::conversation::{ConversationAgentAssignment, MembershipRole};
     use im_platform_contracts::{
-        CommitPosition, ContractError, IdGenerator, OutboxEventClaim, OutboxStore,
+        CommitPosition, ContractError, IdGenerator, NormalizedConversationCommit, OutboxEventClaim,
+        OutboxStore,
     };
 
     use super::*;
@@ -851,6 +747,30 @@ mod tests {
     }
 
     impl DurableConversationEventWriter for RecordingDurableConversationEventWriter {
+        fn persist_normalized_conversation_commit(
+            &self,
+            commit: NormalizedConversationCommit,
+        ) -> Result<Vec<CommitPosition>, ContractError> {
+            if commit.envelopes.len() != commit.outboxes.len() {
+                return Err(ContractError::Invalid(
+                    "test normalized commit cardinality mismatch".into(),
+                ));
+            }
+            let positions = commit
+                .envelopes
+                .iter()
+                .enumerate()
+                .map(|(index, _)| {
+                    CommitPosition::new("atomic-conversation-event-test", (index + 1) as u64)
+                })
+                .collect();
+            self.commits
+                .lock()
+                .expect("writer should lock")
+                .extend(commit.envelopes.into_iter().zip(commit.outboxes));
+            Ok(positions)
+        }
+
         fn persist_conversation_event(
             &self,
             envelope: im_domain_events::CommitEnvelope,
@@ -867,6 +787,27 @@ mod tests {
     struct FailingDurableConversationEventWriter;
 
     impl DurableConversationEventWriter for FailingDurableConversationEventWriter {
+        fn persist_normalized_conversation_commit(
+            &self,
+            commit: NormalizedConversationCommit,
+        ) -> Result<Vec<CommitPosition>, ContractError> {
+            if commit
+                .envelopes
+                .iter()
+                .any(|envelope| envelope.event_type == "conversation.agents_replaced")
+            {
+                return Err(ContractError::Unavailable(
+                    "atomic conversation event write failed".into(),
+                ));
+            }
+            Ok(commit
+                .envelopes
+                .iter()
+                .enumerate()
+                .map(|(index, _)| CommitPosition::new("atomic-create-test", (index + 1) as u64))
+                .collect())
+        }
+
         fn persist_conversation_event(
             &self,
             _envelope: im_domain_events::CommitEnvelope,
@@ -1009,7 +950,7 @@ mod tests {
                 tenant_id: "100001".into(),
                 organization_id: "200001".into(),
                 conversation_id: "c_agents_outbox".into(),
-                creator_id: "user.owner".into(),
+                creator_id: "300001".into(),
                 conversation_type: "group".into(),
             })
             .expect("outbox test group should be created");
@@ -1019,7 +960,7 @@ mod tests {
                 tenant_id: "100001".into(),
                 organization_id: "200001".into(),
                 conversation_id: "c_agents_outbox".into(),
-                replaced_by: "user.owner".into(),
+                replaced_by: "300001".into(),
                 expected_generation: 1,
                 agents: vec![
                     ConversationAgentAssignment::new("agent.im.reviewer", None),
@@ -1112,7 +1053,7 @@ mod tests {
                 tenant_id: "100001".into(),
                 organization_id: "200001".into(),
                 conversation_id: "c_agents_atomic_writer".into(),
-                creator_id: "user.owner".into(),
+                creator_id: "300001".into(),
                 conversation_type: "group".into(),
             })
             .expect("atomic writer test group should be created");
@@ -1122,7 +1063,7 @@ mod tests {
                 tenant_id: "100001".into(),
                 organization_id: "200001".into(),
                 conversation_id: "c_agents_atomic_writer".into(),
-                replaced_by: "user.owner".into(),
+                replaced_by: "300001".into(),
                 expected_generation: 1,
                 agents: vec![ConversationAgentAssignment::new(
                     "agent.im.reviewer",
@@ -1132,8 +1073,12 @@ mod tests {
             .expect("owner should replace group agents through the atomic writer");
 
         let commits = writer.recorded();
-        assert_eq!(commits.len(), 1);
-        let (event, outbox) = &commits[0];
+        let matching = commits
+            .iter()
+            .filter(|(event, _)| event.event_type == "conversation.agents_replaced")
+            .collect::<Vec<_>>();
+        assert_eq!(matching.len(), 1);
+        let (event, outbox) = matching[0];
         assert_eq!(event.event_id, replaced.event_id);
         assert_eq!(event.event_type, "conversation.agents_replaced");
         assert_eq!(outbox.event_type, event.event_type);
@@ -1161,7 +1106,7 @@ mod tests {
                 tenant_id: "100001".into(),
                 organization_id: "200001".into(),
                 conversation_id: "c_agents_atomic_failure".into(),
-                creator_id: "user.owner".into(),
+                creator_id: "300001".into(),
                 conversation_type: "group".into(),
             })
             .expect("atomic failure test group should be created");
@@ -1170,7 +1115,7 @@ mod tests {
             tenant_id: "100001".into(),
             organization_id: "200001".into(),
             conversation_id: "c_agents_atomic_failure".into(),
-            replaced_by: "user.owner".into(),
+            replaced_by: "300001".into(),
             expected_generation: 1,
             agents: vec![ConversationAgentAssignment::new("agent.im.reviewer", None)],
         });

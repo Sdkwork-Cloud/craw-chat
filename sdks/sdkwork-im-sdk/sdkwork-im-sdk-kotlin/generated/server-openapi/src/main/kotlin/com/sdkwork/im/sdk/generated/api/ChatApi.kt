@@ -8,22 +8,13 @@ import com.sdkwork.im.sdk.generated.http.HttpClient
 
 class ChatApi(private val client: HttpClient) {
 
-    /** List IM contacts */
-    suspend fun contactsList(pageSize: Int? = null, cursor: String? = null): ContactsListResponse? {
-        val query = buildQueryString(listOf(
-            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
-            QueryParameterSpec("cursor", cursor, "form", true, false, null)
-        ))
-        val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/contacts"), query))
-        return client.convertValue(raw, object : TypeReference<ContactsListResponse>() {})
-    }
-
     /** List current inbox window */
-    suspend fun inboxList(pageSize: Int? = null, cursor: String? = null, conversationType: String? = null): InboxListResponse? {
+    suspend fun inboxList(pageSize: Int? = null, cursor: String? = null, conversationType: String? = null, q: String? = null): InboxListResponse? {
         val query = buildQueryString(listOf(
             QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             QueryParameterSpec("cursor", cursor, "form", true, false, null),
-            QueryParameterSpec("conversation_type", conversationType, "form", true, false, null)
+            QueryParameterSpec("conversation_type", conversationType, "form", true, false, null),
+            QueryParameterSpec("q", q, "form", true, false, null)
         ))
         val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/inbox"), query))
         return client.convertValue(raw, object : TypeReference<InboxListResponse>() {})

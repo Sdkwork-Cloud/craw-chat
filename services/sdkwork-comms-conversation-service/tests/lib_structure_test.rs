@@ -28,7 +28,7 @@ fn test_conversation_runtime_http_surface_moves_out_of_runtime_impl() {
 
 #[test]
 fn test_conversation_profile_rpc_update_fans_out_realtime_refresh() {
-    let source = include_str!("../src/runtime/rpc_projection_dispatch.rs");
+    let source = include_str!("../src/runtime/rpc_state_dispatch.rs");
 
     assert!(
         source.contains("event_type: \"conversation.updated\""),

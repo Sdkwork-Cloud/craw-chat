@@ -45,11 +45,18 @@ assert.match(
 const spaceDomainText = readText('crates', 'im-domain-core', 'src', 'space.rs');
 const memberDirectoryText = readText(
   'services',
-  'projection-service',
+  'sdkwork-comms-conversation-service',
   'src',
+  'conversation_state',
   'member_directory.rs',
 );
-const memberStoreText = readText('services', 'projection-service', 'src', 'member_store.rs');
+const memberStoreText = readText(
+  'services',
+  'sdkwork-comms-conversation-service',
+  'src',
+  'conversation_state',
+  'member_store.rs',
+);
 
 assert.match(
   spaceDomainText,
@@ -64,7 +71,7 @@ assert.match(
 assert.match(
   memberStoreText,
   /member_directory_by_scope/u,
-  'projection member store must maintain per-scope member directory index',
+  'conversation state must maintain a per-scope member directory index',
 );
 
 // Track C — desktop offline persistence
@@ -117,13 +124,13 @@ assert.match(
   'ChatService must write fetched messages into desktop offline cache',
 );
 
-// Production alignment — RPC projection plane + favorites index pagination
-const rpcProjectionDispatchText = readText(
+// Production alignment: RPC normalized state + favorites index pagination
+const rpcStateDispatchText = readText(
   'services',
   'sdkwork-comms-conversation-service',
   'src',
   'runtime',
-  'rpc_projection_dispatch.rs',
+  'rpc_state_dispatch.rs',
 );
 const rpcDispatchText = readText(
   'services',
@@ -134,8 +141,9 @@ const rpcDispatchText = readText(
 );
 const messageFavoritesText = readText(
   'services',
-  'projection-service',
+  'sdkwork-comms-conversation-service',
   'src',
+  'conversation_state',
   'message_favorites.rs',
 );
 const offlineSendQueueText = readText(
@@ -149,19 +157,19 @@ const offlineSendQueueText = readText(
 );
 
 assert.match(
-  rpcProjectionDispatchText,
+  rpcStateDispatchText,
   /dispatch_retrieve_conversation_preferences/u,
-  'conversation RPC host must serve preferences.retrieve via projection-service',
+  'conversation RPC host must serve preferences.retrieve through normalized state',
 );
 assert.match(
-  rpcProjectionDispatchText,
+  rpcStateDispatchText,
   /dispatch_create_message_favorite/u,
-  'conversation RPC host must serve messages.favorites.create via projection-service',
+  'conversation RPC host must serve messages.favorites.create through normalized state',
 );
 assert.doesNotMatch(
   rpcDispatchText,
-  /dispatch_projection_boundary/u,
-  'conversation RPC dispatch must not retain projection boundary stubs',
+  /dispatch_read_model_boundary/u,
+  'conversation RPC dispatch must not retain retired read-model boundary stubs',
 );
 assert.match(
   messageFavoritesText,

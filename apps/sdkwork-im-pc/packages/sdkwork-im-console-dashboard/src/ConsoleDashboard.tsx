@@ -3,11 +3,11 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
-  Database,
-  History,
+  Clock3,
+  Gauge,
   Radio,
   RefreshCw,
-  ServerCog,
+  Send,
   XCircle,
 } from 'lucide-react';
 import { dashboardService, DashboardMetricKey, DashboardViewModel } from './services/DashboardService';
@@ -15,10 +15,10 @@ import { dashboardService, DashboardMetricKey, DashboardViewModel } from './serv
 const metricIcons: Record<DashboardMetricKey, React.ComponentType<{ size?: number; className?: string }>> = {
   clientRouteWindows: Radio,
   pendingRealtimeEvents: Activity,
-  persistedConversationSnapshots: Database,
-  failedConversationSnapshotPersists: XCircle,
-  projectionReplayBacklog: History,
-  projectionReplayedEvents: ServerCog,
+  laggingConversationScopes: Clock3,
+  maxConversationLag: Gauge,
+  pendingOutboxEvents: Send,
+  failedOutboxAttempts: XCircle,
 };
 
 function errorMessage(error: unknown): string {
@@ -89,9 +89,7 @@ export const ConsoleDashboard: React.FC = () => {
         </button>
       </header>
 
-      {error && (
-        <StatusBand icon={AlertTriangle} tone="warning" title="刷新失败" detail={error} />
-      )}
+      {error && <StatusBand icon={AlertTriangle} tone="warning" title="刷新失败" detail={error} />}
       {unavailable && (
         <StatusBand
           icon={XCircle}
@@ -121,16 +119,12 @@ export const ConsoleDashboard: React.FC = () => {
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="运行指标">
           {view.metrics.map((metric) => {
             const Icon = metricIcons[metric.key];
-            const isFailure = metric.key === 'failedConversationSnapshotPersists';
+            const isFailure = metric.key === 'failedOutboxAttempts';
             return (
               <article className="rounded-lg border border-console-border bg-console-bg-panel p-5" key={metric.key}>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm text-console-text-muted">{metric.label}</span>
-                  <Icon
-                    aria-hidden="true"
-                    className={isFailure ? 'text-red-500' : 'text-blue-500'}
-                    size={18}
-                  />
+                  <Icon aria-hidden="true" className={isFailure ? 'text-red-500' : 'text-blue-500'} size={18} />
                 </div>
                 <div className="mt-4 break-all text-2xl font-semibold text-console-text-main">
                   {metric.value}

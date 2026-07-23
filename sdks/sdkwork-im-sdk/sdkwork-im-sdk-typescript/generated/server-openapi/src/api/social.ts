@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BlockUserRequest, ContactPreferencesView, ContactRecommendationView, ContactTagView, CreateContactRecommendationRequest, CreateContactTagRequest, OpenApiUserBlockResponse, SdkWorkPageData, SocialFriendRequestAcceptanceResponse, SocialFriendRequestMutationResponse, SocialFriendRequestPendingCountResponse, SocialFriendshipMutationResponse, SocialUserSearchResult, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest } from '../types';
+import type { BlockUserRequest, ContactPreferencesView, ContactRecommendationView, ContactTagView, ContactView, CreateContactRecommendationRequest, CreateContactTagRequest, OpenApiUserBlockResponse, SdkWorkPageData, SocialFriendRequestAcceptanceResponse, SocialFriendRequestMutationResponse, SocialFriendRequestPendingCountResponse, SocialFriendshipMutationResponse, SocialUserSearchResult, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest } from '../types';
 
 
 export class SocialContactsPreferencesApi {
@@ -75,6 +75,11 @@ export class SocialContactsTagsApi {
   }
 }
 
+export interface SocialContactsListParams {
+  pageSize?: number;
+  cursor?: string;
+}
+
 export class SocialContactsApi {
   private client: HttpClient;
   public readonly tags: SocialContactsTagsApi;
@@ -88,6 +93,15 @@ export class SocialContactsApi {
     this.preferences = new SocialContactsPreferencesApi(client);
   }
 
+
+/** List social contacts */
+  async list(params?: SocialContactsListParams): Promise<{ items: ContactView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
+    const query = buildQueryString([
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<{ items: ContactView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/social/contacts`), query));
+  }
 }
 
 export class SocialUserBlocksApi {
@@ -138,11 +152,11 @@ export class SocialFriendRequestsPendingCountApi {
 }
 
 export class SocialFriendRequestsPendingApi {
-  private client: HttpClient;
+
   public readonly count: SocialFriendRequestsPendingCountApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.count = new SocialFriendRequestsPendingCountApi(client);
   }
 
@@ -212,18 +226,18 @@ export class SocialUsersApi {
 
 
 /** Search social users */
-  async list(params?: SocialUsersListParams): Promise<Record<string, unknown>> {
+  async list(params?: SocialUsersListParams): Promise<{ items: SocialUserSearchResult[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
     const query = buildQueryString([
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/social/users`), query));
+    return this.client.get<{ items: SocialUserSearchResult[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/social/users`), query));
   }
 }
 
 export class SocialApi {
-  private client: HttpClient;
+
   public readonly users: SocialUsersApi;
   public readonly friendRequests: SocialFriendRequestsApi;
   public readonly friendships: SocialFriendshipsApi;
@@ -231,7 +245,7 @@ export class SocialApi {
   public readonly contacts: SocialContactsApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.users = new SocialUsersApi(client);
     this.friendRequests = new SocialFriendRequestsApi(client);
     this.friendships = new SocialFriendshipsApi(client);

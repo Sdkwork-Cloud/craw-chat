@@ -72,7 +72,7 @@ test('IM Agents database contract 2.0 is active and range-safe', () => {
     'utf8',
   );
   const registry = JSON.parse(
-    readFileSync(path.join(repoRoot, 'specs', 'database-table-registry.json'), 'utf8'),
+    readFileSync(path.join(repoRoot, 'database', 'contract', 'table-registry.json'), 'utf8'),
   );
   const adapter = readFileSync(
     path.join(repoRoot, 'adapters', 'postgres-journal', 'src', 'agent_integration_store.rs'),
@@ -89,8 +89,8 @@ test('IM Agents database contract 2.0 is active and range-safe', () => {
         'u',
       ),
     );
-    const entry = registry.tables.find((candidate) => candidate.tableName === table);
-    assert.equal(entry?.lifecycleStatus, 'active', `${table} must be active in the table registry`);
+    const entry = registry.tables.find((candidate) => candidate.table_name === table);
+    assert.equal(entry?.lifecycle_status, 'active', `${table} must be active in the table registry`);
     assert.equal(
       entry?.migration,
       'database/migrations/postgres/0005_agents_integration_expand.up.sql',

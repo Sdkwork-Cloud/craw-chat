@@ -2,7 +2,7 @@ import type { SocialFriendshipMutationResponse } from './social-friendship-mutat
 
 export interface SocialFriendshipsRemoveResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialFriendshipMutationResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

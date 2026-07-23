@@ -102,7 +102,8 @@
     "configKeys": [
       "SDKWORK_IM_SESSION_GATEWAY_WS_RATE_MAX_BUCKETS"
     ],
-    "routeManifest": null
+    "routeManifest": null,
+    "layerRole": "runtime-service-host"
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",

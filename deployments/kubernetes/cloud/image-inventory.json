@@ -8,7 +8,6 @@
     "media-service": "ghcr.io/sdkwork/media-service",
     "notification-service": "ghcr.io/sdkwork/notification-service",
     "ops-service": "ghcr.io/sdkwork/ops-service",
-    "projection-service": "ghcr.io/sdkwork/projection-service",
     "session-gateway": "ghcr.io/sdkwork/session-gateway",
     "social-service": "ghcr.io/sdkwork/social-service",
     "space-service": "ghcr.io/sdkwork/space-service",

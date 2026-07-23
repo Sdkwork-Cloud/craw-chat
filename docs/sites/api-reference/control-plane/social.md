@@ -23,23 +23,23 @@ should be treated as opaque JSON and consumed through the generated admin SDK su
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/backend/v3/api/control/social/direct_chats/bindings</code>
-  <span class="api-op-id">operationId: bindDirectChat</span>
+  <span class="api-op-id">operationId: social.directChats.bindings.create</span>
 </div>
 
 Bind a direct chat to a conversation.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="BindDirectChatRequest" />
 
-### Response `200`
+### Response `201`
 
 `SocialDirectChatCommitResponse` is currently modeled as an open-ended social commit payload in the
 checked-in control-plane authority. Treat it as opaque JSON.
@@ -49,7 +49,7 @@ checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The mutation payload is invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `control.write`. |
 | `404` | `40401` | The requested node, plugin, or target resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the mutation. |
@@ -64,23 +64,23 @@ checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/backend/v3/api/control/social/friend_requests</code>
-  <span class="api-op-id">operationId: submitFriendRequest</span>
+  <span class="api-op-id">operationId: social.friendRequests.create</span>
 </div>
 
 Submit a friend request event.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="SubmitFriendRequestRequest" />
 
-### Response `200`
+### Response `201`
 
 `SocialFriendRequestCommitResponse` is currently modeled as an open-ended social commit payload in
 the checked-in control-plane authority. Treat it as opaque JSON.
@@ -90,7 +90,7 @@ the checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The mutation payload is invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `control.write`. |
 | `404` | `40401` | The requested node, plugin, or target resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the mutation. |
@@ -105,13 +105,13 @@ the checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/control/social/friend_requests/{requestId}</code>
-  <span class="api-op-id">operationId: getFriendRequestSnapshot</span>
+  <span class="api-op-id">operationId: social.friendRequests.retrieve</span>
 </div>
 
 Read a friend request snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
@@ -133,7 +133,7 @@ in the checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40003` | Query or path parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks the required control-plane permission. |
 | `404` | `40401` | The requested control-plane resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the read. |
@@ -148,23 +148,23 @@ in the checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/backend/v3/api/control/social/friendships</code>
-  <span class="api-op-id">operationId: activateFriendship</span>
+  <span class="api-op-id">operationId: social.friendships.create</span>
 </div>
 
 Activate a friendship event.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="ActivateFriendshipRequest" />
 
-### Response `200`
+### Response `201`
 
 `SocialFriendshipCommitResponse` is currently modeled as an open-ended social commit payload in the
 checked-in control-plane authority. Treat it as opaque JSON.
@@ -174,7 +174,7 @@ checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The mutation payload is invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `control.write`. |
 | `404` | `40401` | The requested node, plugin, or target resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the mutation. |
@@ -189,13 +189,13 @@ checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/control/social/friendships/{friendshipId}</code>
-  <span class="api-op-id">operationId: getFriendshipSnapshot</span>
+  <span class="api-op-id">operationId: social.friendships.retrieve</span>
 </div>
 
 Read a friendship snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
@@ -217,7 +217,7 @@ the checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40003` | Query or path parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks the required control-plane permission. |
 | `404` | `40401` | The requested control-plane resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the read. |
@@ -232,23 +232,23 @@ the checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/backend/v3/api/control/social/shared_channel_policies</code>
-  <span class="api-op-id">operationId: applySharedChannelPolicy</span>
+  <span class="api-op-id">operationId: social.sharedChannelPolicies.create</span>
 </div>
 
 Apply a shared-channel policy.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="ApplySharedChannelPolicyRequest" />
 
-### Response `200`
+### Response `201`
 
 `SocialSharedChannelPolicyCommitResponse` is currently modeled as an open-ended social commit
 payload in the checked-in control-plane authority. Treat it as opaque JSON.
@@ -258,7 +258,7 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The mutation payload is invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `control.write`. |
 | `404` | `40401` | The requested node, plugin, or target resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the mutation. |
@@ -273,13 +273,13 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/control/social/shared_channel_policies/{policyId}</code>
-  <span class="api-op-id">operationId: getSharedChannelPolicySnapshot</span>
+  <span class="api-op-id">operationId: social.sharedChannelPolicies.retrieve</span>
 </div>
 
 Read a shared-channel policy snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
@@ -301,7 +301,7 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40003` | Query or path parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks the required control-plane permission. |
 | `404` | `40401` | The requested control-plane resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the read. |
@@ -316,23 +316,23 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/backend/v3/api/control/social/user_blocks</code>
-  <span class="api-op-id">operationId: blockUser</span>
+  <span class="api-op-id">operationId: social.userBlocks.create</span>
 </div>
 
 Block a user in the social graph.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="BlockUserRequest" />
 
-### Response `200`
+### Response `201`
 
 `SocialUserBlockCommitResponse` is currently modeled as an open-ended social commit payload in the
 checked-in control-plane authority. Treat it as opaque JSON.
@@ -342,7 +342,7 @@ checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The mutation payload is invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `control.write`. |
 | `404` | `40401` | The requested node, plugin, or target resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the mutation. |
@@ -357,13 +357,13 @@ checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/control/social/user_blocks/{blockId}</code>
-  <span class="api-op-id">operationId: getUserBlockSnapshot</span>
+  <span class="api-op-id">operationId: social.userBlocks.retrieve</span>
 </div>
 
 Read a user block snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
@@ -385,7 +385,7 @@ the checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40003` | Query or path parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks the required control-plane permission. |
 | `404` | `40401` | The requested control-plane resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the read. |
@@ -400,13 +400,13 @@ the checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/control/social/direct_chats/{directChatId}</code>
-  <span class="api-op-id">operationId: getDirectChatSnapshot</span>
+  <span class="api-op-id">operationId: social.directChats.retrieve</span>
 </div>
 
 Read a direct chat snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
@@ -428,7 +428,7 @@ the checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40003` | Query or path parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks the required control-plane permission. |
 | `404` | `40401` | The requested control-plane resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the read. |
@@ -443,23 +443,23 @@ the checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/backend/v3/api/control/social/external_connections</code>
-  <span class="api-op-id">operationId: establishExternalConnection</span>
+  <span class="api-op-id">operationId: social.externalConnections.create</span>
 </div>
 
 Establish an external collaboration connection.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="EstablishExternalConnectionRequest" />
 
-### Response `200`
+### Response `201`
 
 `SocialExternalConnectionCommitResponse` is currently modeled as an open-ended social commit payload
 in the checked-in control-plane authority. Treat it as opaque JSON.
@@ -469,7 +469,7 @@ in the checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The mutation payload is invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `control.write`. |
 | `404` | `40401` | The requested node, plugin, or target resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the mutation. |
@@ -484,13 +484,13 @@ in the checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/control/social/external_connections/{connectionId}</code>
-  <span class="api-op-id">operationId: getExternalConnectionSnapshot</span>
+  <span class="api-op-id">operationId: social.externalConnections.retrieve</span>
 </div>
 
 Read an external connection snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
@@ -512,7 +512,7 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40003` | Query or path parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks the required control-plane permission. |
 | `404` | `40401` | The requested control-plane resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the read. |
@@ -527,23 +527,23 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/backend/v3/api/control/social/external_member_links</code>
-  <span class="api-op-id">operationId: bindExternalMemberLink</span>
+  <span class="api-op-id">operationId: social.externalMemberLinks.create</span>
 </div>
 
 Bind an external member link.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="BindExternalMemberLinkRequest" />
 
-### Response `200`
+### Response `201`
 
 `SocialExternalMemberLinkCommitResponse` is currently modeled as an open-ended social commit payload
 in the checked-in control-plane authority. Treat it as opaque JSON.
@@ -553,7 +553,7 @@ in the checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The mutation payload is invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks `control.write`. |
 | `404` | `40401` | The requested node, plugin, or target resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the mutation. |
@@ -568,13 +568,13 @@ in the checked-in control-plane authority. Treat it as opaque JSON.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/control/social/external_member_links/{linkId}</code>
-  <span class="api-op-id">operationId: getExternalMemberLinkSnapshot</span>
+  <span class="api-op-id">operationId: social.externalMemberLinks.retrieve</span>
 </div>
 
 Read an external member link snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.social</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
@@ -596,7 +596,7 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40003` | Query or path parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks the required control-plane permission. |
 | `404` | `40401` | The requested control-plane resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the read. |

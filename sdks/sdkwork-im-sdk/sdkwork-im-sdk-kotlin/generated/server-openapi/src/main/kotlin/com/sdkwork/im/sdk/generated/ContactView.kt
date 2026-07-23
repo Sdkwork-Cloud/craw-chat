@@ -4,11 +4,18 @@ data class ContactView(
     val tenantId: String? = null,
     val ownerUserId: String? = null,
     val targetUserId: String? = null,
+    val displayName: String? = null,
+    val avatarUrl: String? = null,
+    val chatId: String? = null,
     val contactType: String? = null,
     val relationshipState: String? = null,
     val friendshipId: String? = null,
     val directChatId: String? = null,
     val conversationId: String? = null,
     val establishedAt: String? = null,
-    val lastInteractionAt: String? = null
+    val lastInteractionAt: String? = null,
+    val isStarred: Boolean? = null,
+    val isBlocked: Boolean? = null,
+    val remark: String? = null,
+    val updatedAt: String? = null
 )

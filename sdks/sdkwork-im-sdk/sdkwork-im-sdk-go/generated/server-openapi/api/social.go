@@ -202,6 +202,20 @@ func (a *SocialApi) ContactsPreferencesUpdate(targetUserId string, body sdktypes
     return decodeResult[sdktypes.SocialContactsPreferencesUpdateResponse](raw)
 }
 
+// List social contacts
+func (a *SocialApi) ContactsList(pageSize *int, cursor *string) (sdktypes.SocialContactsListResponse, error) {
+    query := BuildQueryString([]QueryParameterSpec{
+        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
+    })
+    raw, err := a.client.Get(AppendQueryString(ImApiPath("/social/contacts"), query), nil, nil)
+    if err != nil {
+        var zero sdktypes.SocialContactsListResponse
+        return zero, err
+    }
+    return decodeResult[sdktypes.SocialContactsListResponse](raw)
+}
+
 type PathParameterSpec struct {
     Name    string
     Style   string

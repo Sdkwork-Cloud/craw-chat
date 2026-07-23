@@ -29,7 +29,7 @@ class OpsApi {
     })();
   }
 
-  /// Retrieve projection lag
+  /// Retrieve operational lag
   Future<LagListResponse?> lagRetrieve([int? pageSize, String? cursor]) async {
     final query = buildQueryString([
       QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
@@ -39,15 +39,6 @@ class OpsApi {
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : LagListResponse.fromJson(map);
-    })();
-  }
-
-  /// Retrieve replay status
-  Future<ReplayStatusRetrieveResponse?> replayStatusRetrieve() async {
-    final response = await _client.get(ApiPaths.backendPath('/ops/replay_status'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ReplayStatusRetrieveResponse.fromJson(map);
     })();
   }
 

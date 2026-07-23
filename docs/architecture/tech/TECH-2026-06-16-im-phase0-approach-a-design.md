@@ -53,7 +53,7 @@ Derived `*.sdkgen.yaml` is regenerated via `node sdks/materialize-im-v3-openapi-
 
 ## Registry alignment
 
-`specs/database-table-registry.json` migration fields point to the owning migration file (`010`, `011`, or `012`).  
+`database/contract/table-registry.json` migration fields point to the owning migration file.
 `im_conversation_seq_counters` is registered under migration `010`.
 
 ## Verification
@@ -71,4 +71,3 @@ cargo fmt --all --check
 - `013` expand-contract partitioning and dual-write
 - Kafka / Elasticsearch
 - Full removal of in-memory runtime fallback paths
-

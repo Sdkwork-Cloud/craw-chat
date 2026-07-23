@@ -62,7 +62,7 @@ test('workspace donor roots include the canonical docs site when local docs node
   );
 });
 
-test('api reference docs use SDKWork dual-token and AppContext security terminology', () => {
+test('api reference docs use SDKWork dual-token and resolved request-context terminology', () => {
   const apiReferenceRoot = path.join(docsRoot, 'api-reference');
   const forbiddenPatterns = [
     /Security<\/strong><span>Bearer token<\/span>/,
@@ -80,13 +80,13 @@ test('api reference docs use SDKWork dual-token and AppContext security terminol
       assert.doesNotMatch(
         source,
         forbidden,
-        `${relativePath} must describe SDKWork dual-token validation plus AppContext projection, not legacy bearer/trusted-header auth`,
+        `${relativePath} must describe SDKWork dual-token validation plus resolved request context, not legacy bearer/trusted-header auth`,
       );
     }
   }
 });
 
-test('api reference generation scripts preserve AppContext security terminology', () => {
+test('api reference generation scripts preserve resolved request-context terminology', () => {
   const scriptPaths = [
     path.join(docsRoot, 'scripts', 'generate-operation-pages.mjs'),
     path.join(docsRoot, 'scripts', 'standardize-api-docs.mjs'),
@@ -109,7 +109,7 @@ test('api reference generation scripts preserve AppContext security terminology'
       assert.doesNotMatch(
         source,
         forbidden,
-        `${relativePath} must generate SDKWork dual-token and AppContext terminology`,
+        `${relativePath} must generate SDKWork dual-token and resolved request-context terminology`,
       );
     }
   }
@@ -471,7 +471,7 @@ test('language support guide explains workspace boundaries, official package nam
   assert.match(languageSupportDoc, /repo contract/i);
   assert.match(languageSupportDoc, /generated\/server-openapi/);
   assert.match(languageSupportDoc, /composed/);
-  assert.match(languageSupportDoc, /\.sdkwork-assembly\.json/);
+  assert.doesNotMatch(languageSupportDoc, /\.sdkwork-assembly\.json/);
   assert.match(languageSupportDoc, /@sdkwork\/im-sdk/);
   assert.match(languageSupportDoc, /im_sdk_composed/);
   assert.match(languageSupportDoc, /sdkwork-im-app-sdk/);

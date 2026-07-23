@@ -23,37 +23,37 @@
   "canonicalSpecs": [
     {
       "file": "CODE_STYLE_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
       "purpose": "Authored code organization and public export rules."
     },
     {
       "file": "NAMING_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
       "purpose": "SDKWork H5 shell package and public symbol naming rules."
     },
     {
       "file": "FRONTEND_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "path": "../../../../../sdkwork-specs/FRONTEND_SPEC.md",
       "purpose": "Frontend shell composition and UI-service-SDK flow rules."
     },
     {
       "file": "UI_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
       "purpose": "Frontend package role and architecture selection rules."
     },
     {
       "file": "APP_H5_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
       "purpose": "H5 shell package, route assembly, and app-root composition rules."
     },
     {
       "file": "APP_MOBILE_REACT_UI_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md",
       "purpose": "Mobile React shell UI package rules."
     },
     {
       "file": "TEST_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/TEST_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TEST_SPEC.md",
       "purpose": "Frontend package verification requirements."
     }
   ],

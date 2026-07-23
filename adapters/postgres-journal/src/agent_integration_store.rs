@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use im_platform_contracts::{ContractError, IdGenerator};
+use r2d2_postgres::postgres::Transaction;
 use sdkwork_im_contract_agent::{
     AgentBindingStatus, AgentDispatchRecord, AgentDispatchStatus, AgentIntegrationStore,
-    AgentMentionDispatchRequest, AgentReplyCommitResult, ConversationAgentBindingRecord,
-    ConversationAgentAssignmentRecord, ReplaceConversationAgentAssignments,
+    AgentMentionDispatchRequest, AgentReplyCommitResult, ConversationAgentAssignmentRecord,
+    ConversationAgentBindingRecord, ReplaceConversationAgentAssignments,
 };
 use sdkwork_utils_rust::sha256_hash;
 
@@ -16,7 +17,7 @@ use crate::{
 const MAX_ASSIGNMENTS: usize = 200;
 const MAX_CLAIM_BATCH: usize = 100;
 
-const LOCK_PROJECTION_SQL: &str = r#"
+const LOCK_ASSIGNMENTS_SQL: &str = r#"
 select source_aggregate_version, payload_hash
 from im_conversation_agent_assignments
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
@@ -24,14 +25,14 @@ order by source_aggregate_version desc, id desc
 limit 1 for update
 "#;
 
-const REMOVE_PROJECTION_SQL: &str = r#"
+const REMOVE_ASSIGNMENTS_SQL: &str = r#"
 update im_conversation_agent_assignments
 set enabled = false, status = 2, source_event_id = $4,
     source_aggregate_version = $5, payload_hash = $6, updated_at = $7
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
 "#;
 
-const UPSERT_PROJECTION_SQL: &str = r#"
+const UPSERT_ASSIGNMENT_SQL: &str = r#"
 insert into im_conversation_agent_assignments (
     id, uuid, tenant_id, organization_id, conversation_id, agent_id,
     agent_revision_ref, assignment_source, assignment_generation, position,
@@ -53,7 +54,7 @@ do update set agent_revision_ref = excluded.agent_revision_ref,
 where im_conversation_agent_assignments.source_aggregate_version <= excluded.source_aggregate_version
 "#;
 
-const LIST_PROJECTION_SQL: &str = r#"
+const LIST_ASSIGNMENTS_SQL: &str = r#"
 select tenant_id, organization_id, conversation_id, agent_id,
     agent_revision_ref, assignment_generation, position, enabled, status,
     source_aggregate_version
@@ -286,96 +287,16 @@ impl AgentIntegrationStore for PostgresAgentIntegrationStore {
         &self,
         command: ReplaceConversationAgentAssignments,
     ) -> Result<(), ContractError> {
-        validate_signed_id(command.tenant_id, "tenantId", false)?;
-        validate_signed_id(command.organization_id, "organizationId", true)?;
-        validate_signed_id(command.assigned_by, "assignedBy", true)?;
-        validate_signed_id(command.assignment_generation, "assignmentGeneration", false)?;
-        validate_signed_id(
-            command.source_aggregate_version,
-            "sourceAggregateVersion",
-            true,
-        )?;
-        if command.items.len() > MAX_ASSIGNMENTS || command.assignment_generation == 0 {
-            return Err(ContractError::Invalid(
-                "invalid conversation agent projection".into(),
-            ));
-        }
         let pool = self.pool.clone();
         let generator = self.id_generator.clone();
         run_postgres_io(move || {
-            let assigned_at = postgres_timestamptz(&command.assigned_at, "assigned_at")?;
             let mut client = postgres_pool_client(&pool, "replace conversation agents")?;
             let mut tx = client
                 .transaction()
-                .map_err(|error| postgres_unavailable("projection transaction begin", error))?;
-            if let Some(row) = tx
-                .query_opt(
-                    LOCK_PROJECTION_SQL,
-                    &[
-                        &(command.tenant_id as i64),
-                        &(command.organization_id as i64),
-                        &command.conversation_id,
-                    ],
-                )
-                .map_err(|error| postgres_unavailable("projection version lock", error))?
-            {
-                let current_version: i64 = row.get(0);
-                let current_hash: String = row.get(1);
-                let next_version = command.source_aggregate_version as i64;
-                if current_version > next_version {
-                    return Err(ContractError::Conflict(
-                        "stale assignment projection".into(),
-                    ));
-                }
-                if current_version == next_version {
-                    if current_hash == command.payload_hash {
-                        return Ok(());
-                    }
-                    return Err(ContractError::Conflict(
-                        "assignment projection version payload conflict".into(),
-                    ));
-                }
-            }
-            tx.execute(
-                REMOVE_PROJECTION_SQL,
-                &[
-                    &(command.tenant_id as i64),
-                    &(command.organization_id as i64),
-                    &command.conversation_id,
-                    &command.source_event_id,
-                    &(command.source_aggregate_version as i64),
-                    &command.payload_hash,
-                    &assigned_at,
-                ],
-            )
-            .map_err(|error| postgres_unavailable("projection remove previous", error))?;
-            for item in &command.items {
-                let id = generator.next_id()?;
-                let uuid = storage_uuid("projection", id, &item.agent_id);
-                tx.execute(
-                    UPSERT_PROJECTION_SQL,
-                    &[
-                        &id,
-                        &uuid,
-                        &(command.tenant_id as i64),
-                        &(command.organization_id as i64),
-                        &command.conversation_id,
-                        &item.agent_id,
-                        &item.agent_revision_ref,
-                        &command.assignment_source.db_code(),
-                        &(command.assignment_generation as i64),
-                        &item.position,
-                        &(command.assigned_by as i64),
-                        &assigned_at,
-                        &command.source_event_id,
-                        &(command.source_aggregate_version as i64),
-                        &command.payload_hash,
-                    ],
-                )
-                .map_err(|error| postgres_unavailable("projection upsert", error))?;
-            }
+                .map_err(|error| postgres_unavailable("assignment transaction begin", error))?;
+            replace_conversation_agents_in_transaction(&mut tx, &command, generator.as_ref())?;
             tx.commit()
-                .map_err(|error| postgres_unavailable("projection transaction commit", error))
+                .map_err(|error| postgres_unavailable("assignment transaction commit", error))
         })
     }
 
@@ -399,7 +320,7 @@ impl AgentIntegrationStore for PostgresAgentIntegrationStore {
             let mut client = postgres_pool_client(&pool, "list conversation agents")?;
             client
                 .query(
-                    LIST_PROJECTION_SQL,
+                    LIST_ASSIGNMENTS_SQL,
                     &[
                         &(tenant_id as i64),
                         &(organization_id as i64),
@@ -409,7 +330,7 @@ impl AgentIntegrationStore for PostgresAgentIntegrationStore {
                 )
                 .map_err(|error| postgres_unavailable("list conversation agents", error))?
                 .into_iter()
-                .map(projection_from_row)
+                .map(assignment_from_row)
                 .collect()
         })
     }
@@ -875,6 +796,97 @@ impl AgentIntegrationStore for PostgresAgentIntegrationStore {
     }
 }
 
+pub(crate) fn replace_conversation_agents_in_transaction(
+    tx: &mut Transaction<'_>,
+    command: &ReplaceConversationAgentAssignments,
+    id_generator: &dyn IdGenerator,
+) -> Result<(), ContractError> {
+    validate_signed_id(command.tenant_id, "tenantId", false)?;
+    validate_signed_id(command.organization_id, "organizationId", true)?;
+    validate_signed_id(command.assigned_by, "assignedBy", true)?;
+    validate_signed_id(command.assignment_generation, "assignmentGeneration", false)?;
+    validate_signed_id(
+        command.source_aggregate_version,
+        "sourceAggregateVersion",
+        true,
+    )?;
+    if command.items.len() > MAX_ASSIGNMENTS || command.assignment_generation == 0 {
+        return Err(ContractError::Invalid(
+            "invalid conversation agent assignments".into(),
+        ));
+    }
+
+    let assigned_at = postgres_timestamptz(&command.assigned_at, "assigned_at")?;
+    if let Some(row) = tx
+        .query_opt(
+            LOCK_ASSIGNMENTS_SQL,
+            &[
+                &(command.tenant_id as i64),
+                &(command.organization_id as i64),
+                &command.conversation_id,
+            ],
+        )
+        .map_err(|error| postgres_unavailable("assignment version lock", error))?
+    {
+        let current_version: i64 = row.get(0);
+        let current_hash: String = row.get(1);
+        let next_version = command.source_aggregate_version as i64;
+        if current_version > next_version {
+            return Err(ContractError::Conflict(
+                "stale assignment aggregate version".into(),
+            ));
+        }
+        if current_version == next_version {
+            if current_hash == command.payload_hash {
+                return Ok(());
+            }
+            return Err(ContractError::Conflict(
+                "assignment aggregate version payload conflict".into(),
+            ));
+        }
+    }
+
+    tx.execute(
+        REMOVE_ASSIGNMENTS_SQL,
+        &[
+            &(command.tenant_id as i64),
+            &(command.organization_id as i64),
+            &command.conversation_id,
+            &command.source_event_id,
+            &(command.source_aggregate_version as i64),
+            &command.payload_hash,
+            &assigned_at,
+        ],
+    )
+    .map_err(|error| postgres_unavailable("assignment remove previous", error))?;
+    for item in &command.items {
+        let id = id_generator.next_id()?;
+        let uuid = storage_uuid("assignment", id, &item.agent_id);
+        tx.execute(
+            UPSERT_ASSIGNMENT_SQL,
+            &[
+                &id,
+                &uuid,
+                &(command.tenant_id as i64),
+                &(command.organization_id as i64),
+                &command.conversation_id,
+                &item.agent_id,
+                &item.agent_revision_ref,
+                &command.assignment_source.db_code(),
+                &(command.assignment_generation as i64),
+                &item.position,
+                &(command.assigned_by as i64),
+                &assigned_at,
+                &command.source_event_id,
+                &(command.source_aggregate_version as i64),
+                &command.payload_hash,
+            ],
+        )
+        .map_err(|error| postgres_unavailable("assignment upsert", error))?;
+    }
+    Ok(())
+}
+
 fn storage_uuid(kind: &str, id: i64, resource_id: &str) -> String {
     let digest = sha256_hash(format!("{kind}:{id}:{resource_id}").as_bytes());
     format!("im-{kind}-{}", &digest[..48])
@@ -1001,7 +1013,7 @@ fn parse_positive_id(value: &str, field: &str) -> Result<u64, ContractError> {
     Ok(value)
 }
 
-fn projection_from_row(
+fn assignment_from_row(
     row: postgres::Row,
 ) -> Result<ConversationAgentAssignmentRecord, ContractError> {
     Ok(ConversationAgentAssignmentRecord {
@@ -1079,9 +1091,9 @@ mod tests {
 
     #[test]
     fn integration_sql_is_scoped_leased_and_store_paginated() {
-        assert!(LIST_PROJECTION_SQL.contains("tenant_id = $1"));
-        assert!(LIST_PROJECTION_SQL.contains("organization_id = $2"));
-        assert!(LIST_PROJECTION_SQL.contains("limit $4"));
+        assert!(LIST_ASSIGNMENTS_SQL.contains("tenant_id = $1"));
+        assert!(LIST_ASSIGNMENTS_SQL.contains("organization_id = $2"));
+        assert!(LIST_ASSIGNMENTS_SQL.contains("limit $4"));
         assert!(CLAIM_DISPATCH_SQL.contains("for update skip locked"));
         assert!(CLAIM_DISPATCH_SQL.contains("attempt_count < max_attempts"));
         assert!(

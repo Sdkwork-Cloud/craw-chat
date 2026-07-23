@@ -48,9 +48,9 @@ cargo test -p im-adapters-postgres-journal --test agent_integration_migration_li
 
 This module uses an immutable baseline plus versioned migrations:
 
-1. **Baseline** — `database/ddl/baseline/postgres/0001_im_baseline.sql` is the **runtime authority** for IM core (journal, projection, social materializer, search).
+1. **Baseline** — `database/ddl/baseline/postgres/0001_im_baseline.sql` is the immutable 57-table PostgreSQL bootstrap base for normalized Conversation, Message, Member, ReadCursor, realtime, Social, stream, call-signaling, journal, outbox, and search state. It is not the complete contract by itself.
 2. **SQLite compatibility baseline** — `database/ddl/baseline/sqlite/0001_im_baseline.sql` exists only for lifecycle validation and desktop gateway co-location checks. It is not engine parity. **IM services do not persist to SQLite**; `SDKWORK_IM_DATABASE_ENGINE=sqlite` uses in-memory ephemeral IM state in dev/test. Desktop `chat.sqlite` hosts gateway webstore and sibling module databases, not the IM event log.
-3. **Migrations** — `database/migrations/{engine}/` contains the conversation-id rewrite, managed group Knowledgebase binding, stream authority, and the active IM-to-Agents integration migration. PostgreSQL is the runtime authority; SQLite migration files validate the explicitly limited compatibility surface.
+3. **Migrations** — `database/migrations/postgres/` completes the active contract, including the three IM-to-Agents assignment/binding/dispatch tables introduced by `0005`, and evolves installed databases in version order. The effective PostgreSQL authority is always baseline plus migrations; SQLite migration files validate only the explicitly limited compatibility surface.
 
 Contract `2.0.0` activates the three IM-to-Agents tables from paired PostgreSQL
 migration `0005`; paired migration `0006` adds validated scope/sign guards.
@@ -59,11 +59,9 @@ Snowflake fields were BIGINT from creation; the adapter rejects non-decimal,
 zero where forbidden, and values above signed int64 before persistence. The
 table registry retains migration provenance instead of rewriting the historical
 baseline.
-Migration `0007` normalizes legacy projection metadata and timeline rows that
-stored serialized JSON as JSONB strings; current adapters persist JSONB values directly.
 Migration `0008` preserves positive signed-int64 IAM user actors while reserving
 `assigned_by = 0` for trusted system and other non-user assignment events.
-Migration `0009` aligns the Agents projection stale-write guard with the IM
+Migration `0009` aligns the IM-to-Agents assignment stale-write guard with the IM
 journal's zero-based aggregate sequence while keeping assignment generations positive.
 4. **Drift** — run `pnpm db:drift:check` before release.
 
@@ -78,6 +76,7 @@ silently drift apart.
 ```bash
 pnpm run db:validate
 pnpm run db:materialize:contract
+pnpm run db:contract:check
 pnpm run db:plan
 pnpm run db:init
 pnpm run db:migrate
@@ -86,4 +85,7 @@ pnpm run db:status
 pnpm run db:drift:check
 ```
 
-`db:materialize:contract` materializes the PostgreSQL runtime authority only. SQLite compatibility assets are maintained under `database/ddl/baseline/sqlite/` for checker coverage and desktop co-location validation; they are not a production IM persistence profile and must not be presented as PostgreSQL-equivalent support.
+`db:materialize:contract` deterministically composes the PostgreSQL baseline and every ordered
+`database/migrations/postgres/*.up.sql` file, then aligns the canonical schema and table registry.
+`db:contract:check` performs the same 60-table equality check without writing. Neither command reads
+the SQLite compatibility baseline or treats it as a production IM persistence profile.

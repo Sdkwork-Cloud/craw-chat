@@ -63,7 +63,8 @@ pub use aggregate_store::PostgresAggregateStore;
 pub use automation_execution_store::PostgresAutomationExecutionStore;
 pub use im_platform_contracts::CommitJournalReplayCursor as JournalReplayCursor;
 pub use message_post_persistence::{
-    PostgresDurableConversationEventWriter, PostgresDurableMessagePostWriter,
+    PostgresDurableConversationEventWriter, PostgresDurableMessageMutationWriter,
+    PostgresDurableMessagePostWriter,
 };
 pub use message_store::PostgresMessageStore;
 pub use notification_task_store::PostgresNotificationTaskStore;

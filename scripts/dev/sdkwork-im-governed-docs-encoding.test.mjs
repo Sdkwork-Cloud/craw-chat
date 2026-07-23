@@ -82,8 +82,8 @@ for (const relativePath of moduleMapDocs) {
   const source = fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
   assert.doesNotMatch(
     source,
-    /projection-service[^\n|]*\|[^\n]*timeline/iu,
-    `${relativePath} must not describe projection-service as the public message-history timeline owner`,
+    new RegExp(`${['projection', 'service'].join('-')}[^\\n|]*\\|[^\\n]*timeline`, 'iu'),
+    `${relativePath} must not describe a retired read-model service as the public message-history owner`,
   );
 }
 
@@ -95,8 +95,8 @@ assert.doesNotMatch(
 );
 assert.match(
   prdSource,
-  /virtualized message history window/iu,
-  'PRD client delivery matrix must mention the bounded message history window',
+  /bounded Message window/iu,
+  'PRD user scenarios must require a bounded message-history window',
 );
 
 const slaSource = fs.readFileSync(path.join(repoRoot, 'docs/product/compliance/SLA_SLO.md'), 'utf8');

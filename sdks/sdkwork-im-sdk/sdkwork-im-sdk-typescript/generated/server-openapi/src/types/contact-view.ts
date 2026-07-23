@@ -12,4 +12,8 @@ export interface ContactView {
   conversationId?: string | null;
   establishedAt: string;
   lastInteractionAt: string;
+  isStarred: boolean;
+  isBlocked: boolean;
+  remark?: string | null;
+  updatedAt: string;
 }

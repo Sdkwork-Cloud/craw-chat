@@ -2,7 +2,7 @@ import type { SocialSharedChannelPolicyCommitResponse } from './social-shared-ch
 
 export interface SocialSharedChannelPoliciesCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialSharedChannelPolicyCommitResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

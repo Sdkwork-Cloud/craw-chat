@@ -48,8 +48,8 @@ and the authoritative IAM context. Public clients send `Authorization: Bearer <a
 `Access-Token: <access-token>` only.
 
 For trusted gateway or service-to-service traffic, the gateway validates appbase dual tokens,
-drops any client-supplied identity projection, and signs the private forwarded AppContext projection
-with `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET`. Protected service routes should run with
+drops any client-supplied identity context, and signs the private forwarded request context with
+`SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET`. Protected service routes should run with
 `SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE=true`.
 
 ## Security Hardening Variables
@@ -57,7 +57,7 @@ with `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET`. Protected service routes should 
 | Variable | Purpose |
 | --- | --- |
 | `SDKWORK_IM_BROWSER_ORIGINS` | Comma-separated explicit browser origins allowed to call the public app routes. |
-| `SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE` | Set to `true` so standalone services reject unsigned AppContext projection headers. |
+| `SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE` | Set to `true` so standalone services reject unsigned private request-context headers. |
 | `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET` | Non-public HMAC secret shared only between the trusted gateway and internal services. |
 | `SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID` | Tenant id bound to the bootstrap IAM signing key used to verify dual-token JWTs at realtime boundaries. |
 | `SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID` | JWT header `kid` for the bootstrap signing key (defaults to `bootstrap`). |

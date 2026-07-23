@@ -57,7 +57,7 @@ function operationFileContent(pageLink, operationTitle, body) {
 <div class="api-link-list">
   <a href="${pageLink}"><code>${page}</code> Return to the group page for workflow context and related operations</a>
   <a href="${domainOverviewLink}"><code>${domain}</code> Return to the domain overview</a>
-  <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, AppContext projection, and error-envelope rules</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, resolved request-context, and error-envelope rules</a>
 </div>
 
 <section class="api-op api-op-single">

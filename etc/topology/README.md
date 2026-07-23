@@ -172,7 +172,7 @@ IAM database pool (`SDKWORK_IM_DATABASE_*` / `SDKWORK_IM_DATABASE_URL`) enables 
 | Service | Backend | Config switch | Production behavior |
 | --- | --- | --- | --- |
 | session-gateway | PostgreSQL + Redis (realtime stores, route store) | `SDKWORK_IM_DATABASE_URL`, `SDKWORK_IM_REDIS_URL` | **Fail-closed** in production without Postgres pools and membership-gated realtime scopes |
-| projection-service | Postgres (durable) + in-memory hot path | `SDKWORK_IM_DATABASE_URL` | Hard-fails without Postgres; snapshots restored on startup |
+| conversation-service | PostgreSQL normalized Conversation/Message authority + bounded cache | `SDKWORK_IM_DATABASE_URL` | **Fail-closed** in production without the normalized repository; cache never determines correctness |
 | audit-service | PostgreSQL (durable) | `SDKWORK_IM_DATABASE_URL` | **Fail-closed panic** in production without durable Postgres storage |
 | ops-service | In-memory diagnostics (transient by design) | None needed | Diagnostic views are rebuilt from live services; no persistence required |
 

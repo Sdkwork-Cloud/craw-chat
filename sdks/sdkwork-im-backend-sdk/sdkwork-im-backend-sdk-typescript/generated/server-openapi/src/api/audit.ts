@@ -51,12 +51,12 @@ export class AuditRecordsApi {
 }
 
 export class AuditApi {
-  private client: HttpClient;
+
   public readonly records: AuditRecordsApi;
   public readonly export: AuditExportApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
+
     this.records = new AuditRecordsApi(client);
     this.export = new AuditExportApi(client);
   }

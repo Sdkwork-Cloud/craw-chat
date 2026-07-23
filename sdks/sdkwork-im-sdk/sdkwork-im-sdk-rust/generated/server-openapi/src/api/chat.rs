@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::im_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsListResponse, ConversationMessageListResponse, ConversationsAgentDialogsCreateResponse201, ConversationsAgentHandoffAcceptResponse, ConversationsAgentHandoffCloseResponse, ConversationsAgentHandoffResolveResponse, ConversationsAgentHandoffRetrieveResponse, ConversationsAgentHandoffsCreateResponse201, ConversationsAgentsRetrieveResponse, ConversationsAgentsUpdateResponse, ConversationsCreateResponse201, ConversationsDirectChatsBindingsCreateResponse201, ConversationsMemberDirectoryListResponse, ConversationsMembersAcceptInvitationResponse, ConversationsMembersAddResponse, ConversationsMembersChangeRoleResponse, ConversationsMembersCurrentRetrieveResponse, ConversationsMembersLeaveResponse, ConversationsMembersListResponse, ConversationsMembersRemoveResponse, ConversationsMembersTransferOwnerResponse, ConversationsMessagesCreateResponse201, ConversationsMessagesInteractionSummaryRetrieveResponse, ConversationsPinsListResponse, ConversationsPreferencesRetrieveResponse, ConversationsPreferencesUpdateResponse, ConversationsProfileRetrieveResponse, ConversationsProfileUpdateResponse, ConversationsReadCursorRetrieveResponse, ConversationsReadCursorUpdateResponse, ConversationsRetrieveResponse, ConversationsSystemChannelPublishResponse, ConversationsSystemChannelsCreateResponse201, ConversationsThreadsCreateResponse201, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, FavoriteMessageRequest, InboxListResponse, MessageReactionRequest, MessagesEditResponse, MessagesFavoritesCreateResponse201, MessagesFavoritesListResponse, MessagesPinResponse, MessagesReactionsCreateResponse201, MessagesReactionsRemoveResponse, MessagesRecallResponse, MessagesUnpinResponse, PostMessageRequest, RecallMessageRequest, RemoveConversationMemberRequest, RoomsCreateResponse201, RoomsEnterResponse, RoomsLeaveResponse, RoomsRetrieveResponse, TransferConversationOwnerRequest, UpdateConversationAgentsRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest};
+use crate::models::{AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ConversationAgentAssignments, ConversationMember, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, MessageFavoriteView, MessageInteractionSummaryView, MessageMutationResult, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, PostMessageRequest, PostMessageResult, ReadCursorView, RecallMessageRequest, RemoveConversationMemberRequest, RoomView, TransferConversationOwnerRequest, UpdateConversationAgentsRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest};
 
 #[derive(Clone)]
 pub struct ChatApi {
@@ -15,95 +15,86 @@ impl ChatApi {
         Self { client }
     }
 
-    /// List IM contacts
-    pub async fn contacts_list(&self, page_size: Option<i64>, cursor: Option<&str>) -> Result<ContactsListResponse, SdkworkError> {
-        let query = build_query_string(&[
-            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
-            QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
-        ]);
-        let path = append_query_string(im_path(&"/chat/contacts".to_string()), &query);
-        self.client.get(&path, None, None).await
-    }
-
     /// List current inbox window
-    pub async fn inbox_list(&self, page_size: Option<i64>, cursor: Option<&str>, conversation_type: Option<&str>) -> Result<InboxListResponse, SdkworkError> {
+    pub async fn inbox_list(&self, page_size: Option<i64>, cursor: Option<&str>, conversation_type: Option<&str>, q: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
             QueryParameterSpec::new("conversation_type", conversation_type, "form", true, false, None),
+            QueryParameterSpec::new("q", q, "form", true, false, None),
         ]);
         let path = append_query_string(im_path(&"/chat/inbox".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// Create a conversation
-    pub async fn conversations_create(&self, body: &CreateConversationRequest) -> Result<ConversationsCreateResponse201, SdkworkError> {
+    pub async fn conversations_create(&self, body: &CreateConversationRequest) -> Result<CreateConversationResult, SdkworkError> {
         let path = im_path(&"/chat/conversations".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Create an agent dialog
-    pub async fn conversations_agent_dialogs_create(&self, body: &CreateAgentDialogRequest) -> Result<ConversationsAgentDialogsCreateResponse201, SdkworkError> {
+    pub async fn conversations_agent_dialogs_create(&self, body: &CreateAgentDialogRequest) -> Result<CreateConversationResult, SdkworkError> {
         let path = im_path(&"/chat/conversations/agent_dialogs".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Create an agent handoff
-    pub async fn conversations_agent_handoffs_create(&self, body: &CreateAgentHandoffRequest) -> Result<ConversationsAgentHandoffsCreateResponse201, SdkworkError> {
+    pub async fn conversations_agent_handoffs_create(&self, body: &CreateAgentHandoffRequest) -> Result<CreateConversationResult, SdkworkError> {
         let path = im_path(&"/chat/conversations/agent_handoffs".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Create a system channel
-    pub async fn conversations_system_channels_create(&self, body: &CreateSystemChannelRequest) -> Result<ConversationsSystemChannelsCreateResponse201, SdkworkError> {
+    pub async fn conversations_system_channels_create(&self, body: &CreateSystemChannelRequest) -> Result<CreateConversationResult, SdkworkError> {
         let path = im_path(&"/chat/conversations/system_channels".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Create a thread conversation
-    pub async fn conversations_threads_create(&self, body: &CreateThreadConversationRequest) -> Result<ConversationsThreadsCreateResponse201, SdkworkError> {
+    pub async fn conversations_threads_create(&self, body: &CreateThreadConversationRequest) -> Result<CreateConversationResult, SdkworkError> {
         let path = im_path(&"/chat/conversations/threads".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Create a direct chat conversation binding
-    pub async fn conversations_direct_chats_bindings_create(&self, body: &BindDirectChatRequest) -> Result<ConversationsDirectChatsBindingsCreateResponse201, SdkworkError> {
+    pub async fn conversations_direct_chats_bindings_create(&self, body: &BindDirectChatRequest) -> Result<CreateConversationResult, SdkworkError> {
         let path = im_path(&"/chat/conversations/direct_chats/bindings".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Retrieve agent handoff state
-    pub async fn conversations_agent_handoff_retrieve(&self, conversation_id: &str) -> Result<ConversationsAgentHandoffRetrieveResponse, SdkworkError> {
+    pub async fn conversations_agent_handoff_retrieve(&self, conversation_id: &str) -> Result<AckResponse, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/agent_handoff", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Accept agent handoff
-    pub async fn conversations_agent_handoff_accept(&self, conversation_id: &str) -> Result<ConversationsAgentHandoffAcceptResponse, SdkworkError> {
+    pub async fn conversations_agent_handoff_accept(&self, conversation_id: &str) -> Result<AckResponse, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/agent_handoff/accept", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Resolve agent handoff
-    pub async fn conversations_agent_handoff_resolve(&self, conversation_id: &str) -> Result<ConversationsAgentHandoffResolveResponse, SdkworkError> {
+    pub async fn conversations_agent_handoff_resolve(&self, conversation_id: &str) -> Result<AckResponse, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/agent_handoff/resolve", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Close agent handoff
-    pub async fn conversations_agent_handoff_close(&self, conversation_id: &str) -> Result<ConversationsAgentHandoffCloseResponse, SdkworkError> {
+    pub async fn conversations_agent_handoff_close(&self, conversation_id: &str) -> Result<AckResponse, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/agent_handoff/close", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Retrieve conversation summary
-    pub async fn conversations_retrieve(&self, conversation_id: &str) -> Result<ConversationsRetrieveResponse, SdkworkError> {
+    pub async fn conversations_retrieve(&self, conversation_id: &str) -> Result<ConversationSummaryView, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// List conversation members
-    pub async fn conversations_members_list(&self, conversation_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<ConversationsMembersListResponse, SdkworkError> {
+    pub async fn conversations_members_list(&self, conversation_id: &str, page_size: Option<i64>, cursor: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
@@ -113,97 +104,97 @@ impl ChatApi {
     }
 
     /// Retrieve the current conversation member
-    pub async fn conversations_members_current_retrieve(&self, conversation_id: &str) -> Result<ConversationsMembersCurrentRetrieveResponse, SdkworkError> {
+    pub async fn conversations_members_current_retrieve(&self, conversation_id: &str) -> Result<ConversationMember, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/members/current", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Retrieve assigned group agents
-    pub async fn conversations_agents_retrieve(&self, conversation_id: &str) -> Result<ConversationsAgentsRetrieveResponse, SdkworkError> {
+    pub async fn conversations_agents_retrieve(&self, conversation_id: &str) -> Result<ConversationAgentAssignments, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/agents", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update assigned group agents
-    pub async fn conversations_agents_update(&self, conversation_id: &str, body: &UpdateConversationAgentsRequest) -> Result<ConversationsAgentsUpdateResponse, SdkworkError> {
+    pub async fn conversations_agents_update(&self, conversation_id: &str, body: &UpdateConversationAgentsRequest) -> Result<ConversationAgentAssignments, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/agents", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.put(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Add a conversation member
-    pub async fn conversations_members_add(&self, conversation_id: &str, body: &AddConversationMemberRequest) -> Result<ConversationsMembersAddResponse, SdkworkError> {
+    pub async fn conversations_members_add(&self, conversation_id: &str, body: &AddConversationMemberRequest) -> Result<ConversationMember, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/members/add", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Remove a conversation member
-    pub async fn conversations_members_remove(&self, conversation_id: &str, body: &RemoveConversationMemberRequest) -> Result<ConversationsMembersRemoveResponse, SdkworkError> {
+    pub async fn conversations_members_remove(&self, conversation_id: &str, body: &RemoveConversationMemberRequest) -> Result<AckResponse, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/members/remove", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Transfer conversation owner
-    pub async fn conversations_members_transfer_owner(&self, conversation_id: &str, body: &TransferConversationOwnerRequest) -> Result<ConversationsMembersTransferOwnerResponse, SdkworkError> {
+    pub async fn conversations_members_transfer_owner(&self, conversation_id: &str, body: &TransferConversationOwnerRequest) -> Result<ConversationMember, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/members/transfer_owner", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Change conversation member role
-    pub async fn conversations_members_change_role(&self, conversation_id: &str, body: &ChangeConversationMemberRoleRequest) -> Result<ConversationsMembersChangeRoleResponse, SdkworkError> {
+    pub async fn conversations_members_change_role(&self, conversation_id: &str, body: &ChangeConversationMemberRoleRequest) -> Result<ConversationMember, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/members/change_role", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Leave a conversation
-    pub async fn conversations_members_leave(&self, conversation_id: &str) -> Result<ConversationsMembersLeaveResponse, SdkworkError> {
+    pub async fn conversations_members_leave(&self, conversation_id: &str) -> Result<AckResponse, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/members/leave", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Accept a conversation invitation
-    pub async fn conversations_members_accept_invitation(&self, conversation_id: &str) -> Result<ConversationsMembersAcceptInvitationResponse, SdkworkError> {
+    pub async fn conversations_members_accept_invitation(&self, conversation_id: &str) -> Result<ConversationMember, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/members/accept_invitation", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Retrieve conversation preferences
-    pub async fn conversations_preferences_retrieve(&self, conversation_id: &str) -> Result<ConversationsPreferencesRetrieveResponse, SdkworkError> {
+    pub async fn conversations_preferences_retrieve(&self, conversation_id: &str) -> Result<ConversationPreferencesView, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/preferences", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update conversation preferences
-    pub async fn conversations_preferences_update(&self, conversation_id: &str, body: &UpdateConversationPreferencesRequest) -> Result<ConversationsPreferencesUpdateResponse, SdkworkError> {
+    pub async fn conversations_preferences_update(&self, conversation_id: &str, body: &UpdateConversationPreferencesRequest) -> Result<ConversationPreferencesView, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/preferences", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Retrieve conversation profile
-    pub async fn conversations_profile_retrieve(&self, conversation_id: &str) -> Result<ConversationsProfileRetrieveResponse, SdkworkError> {
+    pub async fn conversations_profile_retrieve(&self, conversation_id: &str) -> Result<ConversationProfileView, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/profile", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update conversation profile
-    pub async fn conversations_profile_update(&self, conversation_id: &str, body: &UpdateConversationProfileRequest) -> Result<ConversationsProfileUpdateResponse, SdkworkError> {
+    pub async fn conversations_profile_update(&self, conversation_id: &str, body: &UpdateConversationProfileRequest) -> Result<ConversationProfileView, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/profile", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Retrieve read cursor
-    pub async fn conversations_read_cursor_retrieve(&self, conversation_id: &str) -> Result<ConversationsReadCursorRetrieveResponse, SdkworkError> {
+    pub async fn conversations_read_cursor_retrieve(&self, conversation_id: &str) -> Result<ReadCursorView, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/read_cursor", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update read cursor
-    pub async fn conversations_read_cursor_update(&self, conversation_id: &str, body: &UpdateReadCursorRequest) -> Result<ConversationsReadCursorUpdateResponse, SdkworkError> {
+    pub async fn conversations_read_cursor_update(&self, conversation_id: &str, body: &UpdateReadCursorRequest) -> Result<ReadCursorView, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/read_cursor", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List member directory
-    pub async fn conversations_member_directory_list(&self, conversation_id: &str, cursor: Option<&str>, page_size: Option<i64>) -> Result<ConversationsMemberDirectoryListResponse, SdkworkError> {
+    pub async fn conversations_member_directory_list(&self, conversation_id: &str, cursor: Option<&str>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
@@ -213,7 +204,7 @@ impl ChatApi {
     }
 
     /// List conversation message history
-    pub async fn conversations_messages_list(&self, conversation_id: &str, cursor: Option<&str>, page_size: Option<i64>) -> Result<ConversationMessageListResponse, SdkworkError> {
+    pub async fn conversations_messages_list(&self, conversation_id: &str, cursor: Option<&str>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
@@ -223,19 +214,19 @@ impl ChatApi {
     }
 
     /// Post a conversation message
-    pub async fn conversations_messages_create(&self, conversation_id: &str, body: &PostMessageRequest) -> Result<ConversationsMessagesCreateResponse201, SdkworkError> {
+    pub async fn conversations_messages_create(&self, conversation_id: &str, body: &PostMessageRequest) -> Result<PostMessageResult, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/messages", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Publish a system channel message
-    pub async fn conversations_system_channel_publish(&self, conversation_id: &str, body: &PostMessageRequest) -> Result<ConversationsSystemChannelPublishResponse, SdkworkError> {
+    pub async fn conversations_system_channel_publish(&self, conversation_id: &str, body: &PostMessageRequest) -> Result<PostMessageResult, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/system_channel/publish", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List pinned messages
-    pub async fn conversations_pins_list(&self, conversation_id: &str, cursor: Option<&str>, page_size: Option<i64>) -> Result<ConversationsPinsListResponse, SdkworkError> {
+    pub async fn conversations_pins_list(&self, conversation_id: &str, cursor: Option<&str>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
@@ -245,25 +236,25 @@ impl ChatApi {
     }
 
     /// Retrieve message interaction summary
-    pub async fn conversations_messages_interaction_summary_retrieve(&self, conversation_id: &str, message_id: &str) -> Result<ConversationsMessagesInteractionSummaryRetrieveResponse, SdkworkError> {
+    pub async fn conversations_messages_interaction_summary_retrieve(&self, conversation_id: &str, message_id: &str) -> Result<MessageInteractionSummaryView, SdkworkError> {
         let path = im_path(&format!("/chat/conversations/{}/messages/{}/interaction_summary", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false)), serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Edit a message
-    pub async fn messages_edit(&self, message_id: &str, body: &EditMessageRequest) -> Result<MessagesEditResponse, SdkworkError> {
+    pub async fn messages_edit(&self, message_id: &str, body: &EditMessageRequest) -> Result<MessageMutationResult, SdkworkError> {
         let path = im_path(&format!("/chat/messages/{}/edit", serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Recall a message
-    pub async fn messages_recall(&self, message_id: &str, body: &RecallMessageRequest) -> Result<MessagesRecallResponse, SdkworkError> {
+    pub async fn messages_recall(&self, message_id: &str, body: &RecallMessageRequest) -> Result<MessageMutationResult, SdkworkError> {
         let path = im_path(&format!("/chat/messages/{}/recall", serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List message favorites
-    pub async fn messages_favorites_list(&self, page_size: Option<i64>, cursor: Option<&str>, favorite_type: Option<&str>, q: Option<&str>) -> Result<MessagesFavoritesListResponse, SdkworkError> {
+    pub async fn messages_favorites_list(&self, page_size: Option<i64>, cursor: Option<&str>, favorite_type: Option<&str>, q: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
@@ -275,7 +266,7 @@ impl ChatApi {
     }
 
     /// Favorite a message
-    pub async fn messages_favorites_create(&self, message_id: &str, body: &FavoriteMessageRequest) -> Result<MessagesFavoritesCreateResponse201, SdkworkError> {
+    pub async fn messages_favorites_create(&self, message_id: &str, body: &FavoriteMessageRequest) -> Result<MessageFavoriteView, SdkworkError> {
         let path = im_path(&format!("/chat/messages/{}/favorites", serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -293,49 +284,49 @@ impl ChatApi {
     }
 
     /// Add a message reaction
-    pub async fn messages_reactions_create(&self, message_id: &str, body: &MessageReactionRequest) -> Result<MessagesReactionsCreateResponse201, SdkworkError> {
+    pub async fn messages_reactions_create(&self, message_id: &str, body: &MessageReactionRequest) -> Result<MessageReactionMutationResult, SdkworkError> {
         let path = im_path(&format!("/chat/messages/{}/reactions", serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Remove a message reaction
-    pub async fn messages_reactions_remove(&self, message_id: &str, body: &MessageReactionRequest) -> Result<MessagesReactionsRemoveResponse, SdkworkError> {
+    pub async fn messages_reactions_remove(&self, message_id: &str, body: &MessageReactionRequest) -> Result<MessageReactionMutationResult, SdkworkError> {
         let path = im_path(&format!("/chat/messages/{}/reactions/remove", serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Pin a message
-    pub async fn messages_pin(&self, message_id: &str) -> Result<MessagesPinResponse, SdkworkError> {
+    pub async fn messages_pin(&self, message_id: &str) -> Result<MessagePinMutationResult, SdkworkError> {
         let path = im_path(&format!("/chat/messages/{}/pin", serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Unpin a message
-    pub async fn messages_unpin(&self, message_id: &str) -> Result<MessagesUnpinResponse, SdkworkError> {
+    pub async fn messages_unpin(&self, message_id: &str) -> Result<MessagePinMutationResult, SdkworkError> {
         let path = im_path(&format!("/chat/messages/{}/unpin", serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Create a live, chat, or game room bound to a group conversation
-    pub async fn rooms_create(&self, body: &CreateRoomRequest) -> Result<RoomsCreateResponse201, SdkworkError> {
+    pub async fn rooms_create(&self, body: &CreateRoomRequest) -> Result<CreateConversationResult, SdkworkError> {
         let path = im_path(&"/chat/rooms".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Retrieve room metadata and active member count
-    pub async fn rooms_retrieve(&self, room_id: &str) -> Result<RoomsRetrieveResponse, SdkworkError> {
+    pub async fn rooms_retrieve(&self, room_id: &str) -> Result<RoomView, SdkworkError> {
         let path = im_path(&format!("/chat/rooms/{}", serialize_path_parameter(room_id, PathParameterSpec::new("roomId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Enter a room as the authenticated principal
-    pub async fn rooms_enter(&self, room_id: &str) -> Result<RoomsEnterResponse, SdkworkError> {
+    pub async fn rooms_enter(&self, room_id: &str) -> Result<EnterRoomResponse, SdkworkError> {
         let path = im_path(&format!("/chat/rooms/{}/enter", serialize_path_parameter(room_id, PathParameterSpec::new("roomId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Leave a room as the authenticated principal
-    pub async fn rooms_leave(&self, room_id: &str) -> Result<RoomsLeaveResponse, SdkworkError> {
+    pub async fn rooms_leave(&self, room_id: &str) -> Result<EnterRoomResponse, SdkworkError> {
         let path = im_path(&format!("/chat/rooms/{}/leave", serialize_path_parameter(room_id, PathParameterSpec::new("roomId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }

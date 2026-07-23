@@ -2,7 +2,7 @@ import type { SocialSharedChannelSyncPendingStaleReclaimResponse } from './socia
 
 export interface SocialRuntimeReclaimStalePendingSharedChannelSyncCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialSharedChannelSyncPendingStaleReclaimResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

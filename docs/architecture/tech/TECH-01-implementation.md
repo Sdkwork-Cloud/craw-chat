@@ -84,7 +84,7 @@
 
 #### 3.1.1 `deployments/database/postgres/migrations/010_im_tenant_organization_isolation.sql`
 
-为所有 `im_*` 业务表引入 `organization_id`，并将主键/索引前置 `tenant_id, organization_id`。覆盖表清单（来自 `specs/database-table-registry.json`）：
+为所有 `im_*` 业务表引入 `organization_id`，并将主键/索引前置 `tenant_id, organization_id`。覆盖表清单（来自 `database/contract/table-registry.json`）：
 
 - `im_conversation_messages`、`im_message_media_refs`
 - `im_realtime_device_events`、`im_realtime_checkpoints`、`im_realtime_subscriptions`、`im_realtime_subscription_scopes`
@@ -306,8 +306,8 @@ impl IdGenerator for SnowflakeIdGeneratorAdapter { /* delegate */ }
 
 ### 3.6 表注册表与 schema 契约测试同步
 
-- `specs/database-table-registry.json`：为每张表补 `organizationId` 字段语义说明；新增 `im_conversation_seq_counters` 条目。
-- `specs/database-prefix-registry.json`：无变化（`im_` 前缀不变）。
+- `database/contract/table-registry.json`：登记完整表契约；新增 `im_conversation_seq_counters` 条目。
+- `database/contract/prefix-registry.json`：`im_` 前缀不变。
 - `database_schema_contract_test.rs`：重写为校验 `010+` 迁移产物，强制断言每张业务表含 `organization_id` 列且相关索引前置。
 
 ## 4. 实施顺序（可独立验证的 6 个提交）

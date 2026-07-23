@@ -76,7 +76,7 @@ For most new integrations, the fastest reading order is:
   </div>
   <div class="fact-card">
     <h3>Public Auth Model</h3>
-    <p>Public clients authenticate through SDKWork dual tokens; sdkwork-im receives only verified <code>x-sdkwork-*</code> AppContext projection headers.</p>
+    <p>Public clients authenticate through SDKWork dual tokens; the server framework resolves a verified typed <code>AppContext</code>.</p>
   </div>
   <div class="fact-card">
     <h3>SDK Delivery State</h3>

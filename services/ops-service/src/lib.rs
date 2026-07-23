@@ -21,9 +21,6 @@ pub use app::{
 };
 pub use dto::{
     ClusterNodeView, ClusterView, DiagnosticBundle, LagItem, LagView, OpsHealthResponse,
-    ProjectionPlaneDiagnosticsView, ProjectionPlaneHealthView, ProjectionPlaneLogView,
-    ProjectionPlaneMetricCounterView, ProjectionPlaneMetricsView, ProjectionPlaneTraceView,
-    ProjectionReplayMetricsView, ProjectionReplayStatusView, ProjectionUpdateDelayView,
     ProviderBindingDriftItemView, ProviderBindingDriftView, ProviderBindingItemView,
     ProviderBindingSnapshotView, ProviderBindingsView, RealtimeInboxDiagnosticsView,
     RealtimeInboxHighRiskWindowView, RetentionPurgeResponse, RouteOwnershipView,

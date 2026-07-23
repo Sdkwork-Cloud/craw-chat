@@ -1,10 +1,10 @@
-use im_app_context::AppContext;
-use im_domain_core::conversation::{ConversationAgentAssignmentSource, MembershipRole};
 use conversation_runtime::conversation_state::{
-    ClientRouteSyncFeedWindowQuery, MessageReactionCountView, NotificationRecipientView,
-    RealtimeFanoutTarget, ConversationStateService, TimelineViewEntry,
+    ClientRouteSyncFeedWindowQuery, ConversationStateService, MessageReactionCountView,
+    NotificationRecipientView, RealtimeFanoutTarget, TimelineViewEntry,
     UpdateConversationPreferencesRequest,
 };
+use im_app_context::AppContext;
+use im_domain_core::conversation::{ConversationAgentAssignmentSource, MembershipRole};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -85,7 +85,9 @@ fn test_message_posted_event_projects_into_timeline_view() {
         }"#,
     );
 
-    service.apply(&event).expect("conversation_state should succeed");
+    service
+        .apply(&event)
+        .expect("conversation_state should succeed");
 
     assert_eq!(
         service.timeline("100001", "default", "c_demo"),
@@ -185,7 +187,9 @@ fn test_timeline_window_returns_cursor_metadata_and_rejects_oversized_limit() {
             })
             .to_string(),
         );
-        service.apply(&event).expect("conversation_state should succeed");
+        service
+            .apply(&event)
+            .expect("conversation_state should succeed");
     }
 
     let first = service
@@ -257,7 +261,9 @@ fn test_timeline_conversation_state_stores_entries_in_message_sequence_order() {
             })
             .to_string(),
         );
-        service.apply(&event).expect("conversation_state should succeed");
+        service
+            .apply(&event)
+            .expect("conversation_state should succeed");
     }
 
     assert_eq!(
@@ -671,7 +677,8 @@ fn test_group_agent_assignments_project_as_metadata_without_synthetic_recipients
 }
 
 #[test]
-fn test_group_agent_conversation_state_rejects_invalid_created_policy_and_future_replacement_schema() {
+fn test_group_agent_conversation_state_rejects_invalid_created_policy_and_future_replacement_schema()
+ {
     let service = ConversationStateService::default();
     let mut invalid_created = im_domain_events::CommitEnvelope::minimal(
         "evt_group_agents_invalid_created",
@@ -1174,7 +1181,9 @@ fn test_inbox_view_projects_direct_peer_display_from_member_attributes() {
         &current_member_joined,
         &peer_member_joined,
     ] {
-        service.apply(event).expect("conversation_state event should apply");
+        service
+            .apply(event)
+            .expect("conversation_state event should apply");
     }
 
     let inbox = service
@@ -1340,7 +1349,9 @@ fn test_inbox_unread_count_excludes_messages_sent_by_current_principal() {
         &owner_message,
         &friend_message,
     ] {
-        service.apply(event).expect("conversation_state event should apply");
+        service
+            .apply(event)
+            .expect("conversation_state event should apply");
     }
 
     let owner_inbox = service

@@ -87,7 +87,15 @@
     "routeManifest": null,
     "sdkClients": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [],
+    "layerRole": "frontend-feature",
+    "providedPorts": [
+      {
+        "name": "imConsoleDashboardFeature",
+        "export": "."
+      }
+    ],
+    "requiredPorts": []
   },
   "verification": {
     "commands": [

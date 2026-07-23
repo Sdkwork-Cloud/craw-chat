@@ -785,8 +785,8 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use im_platform_contracts::{
-        AgentAssignmentSource, AgentDispatchStatus, ConversationAgentConversationStateRecord,
-        MessageWindow, ReplaceConversationAgentConversationState, StoredMessageRecord,
+        AgentAssignmentSource, AgentDispatchStatus, ConversationAgentAssignmentRecord,
+        MessageWindow, ReplaceConversationAgentAssignments, StoredMessageRecord,
     };
     use sdkwork_agents_runtime_facade::{
         CompletedAgentsTurn, ResolvedAgentsSession, RuntimeFacadeError,
@@ -819,7 +819,7 @@ mod tests {
     impl AgentIntegrationStore for FakeStore {
         fn replace_conversation_agents(
             &self,
-            _command: ReplaceConversationAgentConversationState,
+            _command: ReplaceConversationAgentAssignments,
         ) -> Result<(), ContractError> {
             Err(ContractError::UnsupportedCapability("test".into()))
         }
@@ -830,7 +830,7 @@ mod tests {
             _organization_id: u64,
             _conversation_id: &str,
             _limit: usize,
-        ) -> Result<Vec<ConversationAgentConversationStateRecord>, ContractError> {
+        ) -> Result<Vec<ConversationAgentAssignmentRecord>, ContractError> {
             Err(ContractError::UnsupportedCapability("test".into()))
         }
 
@@ -990,8 +990,8 @@ mod tests {
             Ok(CompletedAgentsTurn {
                 session_id: request.session_id,
                 turn_id: "turn.worker.1".into(),
-                request_message_id: "message.request.1".into(),
-                response_message_id: "message.response.1".into(),
+                request_item_id: "item.request.1".into(),
+                response_item_id: "item.response.1".into(),
                 response_content: "agent answer".into(),
             })
         }
@@ -1181,8 +1181,8 @@ mod tests {
                 session_id,
                 turn_id: "turn.worker.running".into(),
                 status: AgentsTurnStatus::Running,
-                request_message_id: "message.request.running".into(),
-                response_message_id: None,
+                request_item_id: "item.request.running".into(),
+                response_item_id: None,
                 response_content: None,
                 error_code: None,
             }),
@@ -1241,8 +1241,8 @@ mod tests {
                 session_id,
                 turn_id: "turn.worker.reconciled".into(),
                 status: AgentsTurnStatus::Completed,
-                request_message_id: "message.request.reconciled".into(),
-                response_message_id: Some("message.response.reconciled".into()),
+                request_item_id: "item.request.reconciled".into(),
+                response_item_id: Some("item.response.reconciled".into()),
                 response_content: Some("reconciled answer".into()),
                 error_code: None,
             }),
@@ -1373,6 +1373,8 @@ mod tests {
                 updated_at: "2026-07-19T00:00:00Z".into(),
                 deleted_at: None,
                 retention_until: None,
+                reactions: Vec::new(),
+                pin: None,
             },
         }));
 

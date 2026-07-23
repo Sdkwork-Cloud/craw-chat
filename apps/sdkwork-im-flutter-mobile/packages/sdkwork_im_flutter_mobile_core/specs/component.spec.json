@@ -22,57 +22,57 @@
   "canonicalSpecs": [
     {
       "file": "CODE_STYLE_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
       "purpose": "Authored code organization, generated-output boundary, and SDK bypass rules."
     },
     {
       "file": "NAMING_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
       "purpose": "Flutter mobile package naming and SDKWork identity vocabulary."
     },
     {
       "file": "FRONTEND_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "path": "../../../../../sdkwork-specs/FRONTEND_SPEC.md",
       "purpose": "Architecture-neutral UI-service-SDK and frontend runtime rules."
     },
     {
       "file": "UI_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
       "purpose": "Flutter mobile app surface and SDK boundary selection."
     },
     {
       "file": "FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md",
       "purpose": "Flutter mobile application root and package taxonomy."
     },
     {
       "file": "APP_FLUTTER_UI_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/APP_FLUTTER_UI_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_FLUTTER_UI_SPEC.md",
       "purpose": "Flutter app package UI, service, SDK, and platform integration rules."
     },
     {
       "file": "APP_SDK_INTEGRATION_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
       "purpose": "Generated SDK, appbase IAM, and global credential topology integration."
     },
     {
       "file": "SDK_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/SDK_SPEC.md",
+      "path": "../../../../../sdkwork-specs/SDK_SPEC.md",
       "purpose": "Generated SDK consumption and no raw HTTP/manual header fallback rules."
     },
     {
       "file": "IAM_LOGIN_INTEGRATION_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/IAM_LOGIN_INTEGRATION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/IAM_LOGIN_INTEGRATION_SPEC.md",
       "purpose": "Dual-token session, Appbase callback, and logout/session safety rules."
     },
     {
       "file": "SECURITY_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "path": "../../../../../sdkwork-specs/SECURITY_SPEC.md",
       "purpose": "Token handling, secret safety, and frontend security requirements."
     },
     {
       "file": "TEST_SPEC.md",
-      "path": "../../../../../../sdkwork-specs/TEST_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TEST_SPEC.md",
       "purpose": "Required verification for frontend SDK and IAM session behavior."
     }
   ],
@@ -120,7 +120,7 @@
       "moduleCatalogRefs": [
         {
           "moduleId": "im",
-          "manifestRef": "../../../../../specs/iam.module.manifest.json",
+          "manifestRef": "../../../../specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         }
@@ -141,7 +141,7 @@
         "allowFrontendHintsWithoutServerDuplication": true
       },
       "applicationModule": {
-        "manifestRef": "../../../../../specs/iam.module.manifest.json"
+        "manifestRef": "../../../../specs/iam.module.manifest.json"
       }
     },
     "dependencyApiExports": [],

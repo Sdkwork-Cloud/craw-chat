@@ -9,7 +9,8 @@ use sdkwork_utils_rust::{
 };
 use serde_json::Value;
 
-const CONVERSATION_STATE_CURSOR_HS256_SECRET_ENV: &str = "SDKWORK_IM_CONVERSATION_STATE_CURSOR_HS256_SECRET";
+const CONVERSATION_STATE_CURSOR_HS256_SECRET_ENV: &str =
+    "SDKWORK_IM_CONVERSATION_STATE_CURSOR_HS256_SECRET";
 const CURSOR_VERSION: u32 = 1;
 
 pub(crate) fn encode_conversation_state_list_cursor(

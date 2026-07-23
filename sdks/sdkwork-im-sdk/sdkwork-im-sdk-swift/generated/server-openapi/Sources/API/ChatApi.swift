@@ -7,21 +7,13 @@ public class ChatApi {
         self.client = client
     }
 
-    /// List IM contacts
-    public func contactsList(pageSize: Int? = nil, cursor: String? = nil) async throws -> ContactsListResponse? {
-        let query = buildQueryString([
-            QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil),
-            QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil)
-        ])
-        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/contacts"), query), responseType: ContactsListResponse.self)
-    }
-
     /// List current inbox window
-    public func inboxList(pageSize: Int? = nil, cursor: String? = nil, conversationType: String? = nil) async throws -> InboxListResponse? {
+    public func inboxList(pageSize: Int? = nil, cursor: String? = nil, conversationType: String? = nil, q: String? = nil) async throws -> InboxListResponse? {
         let query = buildQueryString([
             QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil),
             QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil),
-            QueryParameterSpec(name: "conversation_type", value: conversationType, style: "form", explode: true, allowReserved: false, contentType: nil)
+            QueryParameterSpec(name: "conversation_type", value: conversationType, style: "form", explode: true, allowReserved: false, contentType: nil),
+            QueryParameterSpec(name: "q", value: q, style: "form", explode: true, allowReserved: false, contentType: nil)
         ])
         return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/inbox"), query), responseType: InboxListResponse.self)
     }

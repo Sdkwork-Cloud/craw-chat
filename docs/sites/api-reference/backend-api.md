@@ -10,7 +10,7 @@
 <div class="api-overview-grid">
   <div class="api-card">
     <h3>Operations</h3>
-    <p>Inspect health, cluster topology, lag, replay status, runtime directory state, provider bindings, and diagnostic bundles.</p>
+    <p>Inspect health, cluster topology, operational lag, commercial readiness, runtime directory state, provider bindings, and diagnostic bundles.</p>
     <p><a href="/api-reference/backend/ops">Open Operator APIs</a></p>
   </div>
   <div class="api-card">
@@ -36,7 +36,7 @@
 ## Backend API Domains
 
 <div class="api-link-list">
-  <a href="/api-reference/backend/ops"><code>Ops</code> Cluster health, lag, replay status, runtime directory, provider bindings, and diagnostics</a>
+  <a href="/api-reference/backend/ops"><code>Ops</code> Cluster health, operational lag, commercial readiness, runtime directory, provider bindings, and diagnostics</a>
   <a href="/api-reference/backend/audit"><code>Audit</code> Record audit anchors, list audit records, verify hash-chain state, and export bundles</a>
   <a href="/api-reference/control-plane/protocol"><code>Control Protocol</code> Protocol registry and governance snapshots</a>
   <a href="/api-reference/control-plane/providers"><code>Control Providers</code> Provider registry, binding policies, previews, and rollback</a>

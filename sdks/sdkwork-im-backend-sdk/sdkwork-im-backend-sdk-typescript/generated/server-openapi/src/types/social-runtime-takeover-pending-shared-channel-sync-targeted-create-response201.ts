@@ -2,7 +2,7 @@ import type { SocialSharedChannelSyncPendingTakeoverResponse } from './social-sh
 
 export interface SocialRuntimeTakeoverPendingSharedChannelSyncTargetedCreateResponse201 {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialSharedChannelSyncPendingTakeoverResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

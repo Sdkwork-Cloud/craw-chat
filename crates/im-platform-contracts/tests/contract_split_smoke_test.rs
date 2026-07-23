@@ -12,9 +12,7 @@ use sdkwork_im_contract_control::{
 use sdkwork_im_contract_core::{
     ContractError, MetadataStore, ObjectDescriptor, ObjectPutRequest, ObjectStore,
 };
-use sdkwork_im_contract_message::{
-    CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionScope, TimelineProjectionStore,
-};
+use sdkwork_im_contract_message::{CommitEnvelope, CommitJournal, CommitPosition};
 use sdkwork_im_contract_notification::{
     NotificationTaskListCursor, NotificationTaskRecord, NotificationTaskStore,
 };
@@ -27,7 +25,6 @@ struct NullAdminStore;
 struct NullMetadataStore;
 struct NullObjectStore;
 struct NullCommitJournal;
-struct NullProjectionStore;
 struct NullCheckpointStore;
 struct NullDisconnectFenceStore;
 struct NullSubscriptionStore;
@@ -73,24 +70,6 @@ impl ObjectStore for NullObjectStore {
 impl CommitJournal for NullCommitJournal {
     fn append(&self, _envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
         Ok(CommitPosition::new("message", 1))
-    }
-}
-
-impl TimelineProjectionStore for NullProjectionStore {
-    fn upsert_timeline_entry(
-        &self,
-        _scope: &TimelineProjectionScope,
-        _message_seq: u64,
-        _payload: &str,
-    ) -> Result<(), ContractError> {
-        Ok(())
-    }
-
-    fn load_timeline(
-        &self,
-        _scope: &TimelineProjectionScope,
-    ) -> Result<Vec<(u64, String)>, ContractError> {
-        Ok(Vec::new())
     }
 }
 
@@ -371,7 +350,6 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
     let metadata = NullMetadataStore;
     let object_store = NullObjectStore;
     let journal = NullCommitJournal;
-    let projection = NullProjectionStore;
     let checkpoint_store = NullCheckpointStore;
     let disconnect_fence_store = NullDisconnectFenceStore;
     let subscription_store = NullSubscriptionStore;
@@ -413,14 +391,6 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
             1,
         ))
         .expect("journal append should succeed");
-    let timeline_scope = TimelineProjectionScope::new("100001", "0", "c_demo")
-        .expect("timeline projection scope should be valid");
-    projection
-        .upsert_timeline_entry(&timeline_scope, 1, "{}")
-        .expect("projection update should succeed");
-    projection
-        .load_timeline(&timeline_scope)
-        .expect("projection load should succeed");
 
     assert_eq!(descriptor.object_key, "media/demo.png");
     assert_eq!(position.cursor(), "message:1");

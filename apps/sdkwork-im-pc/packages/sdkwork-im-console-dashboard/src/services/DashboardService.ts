@@ -2,14 +2,15 @@ import { getAppSdkClientWithSession } from '@sdkwork/im-pc-core';
 
 type AppSdkClient = ReturnType<typeof getAppSdkClientWithSession>;
 type PortalDashboardSnapshot = Awaited<ReturnType<AppSdkClient['portal']['dashboard']['retrieve']>>;
+type PortalConversationSnapshot = Awaited<ReturnType<AppSdkClient['portal']['conversationSnapshot']['retrieve']>>;
 
 export type DashboardMetricKey =
   | 'clientRouteWindows'
   | 'pendingRealtimeEvents'
-  | 'persistedConversationSnapshots'
-  | 'failedConversationSnapshotPersists'
-  | 'projectionReplayBacklog'
-  | 'projectionReplayedEvents';
+  | 'laggingConversationScopes'
+  | 'maxConversationLag'
+  | 'pendingOutboxEvents'
+  | 'failedOutboxAttempts';
 
 export interface DashboardMetric {
   key: DashboardMetricKey;
@@ -35,55 +36,91 @@ function formatInt64Count(value: string): string {
   return value.replace(/\B(?=(\d{3})+(?!\d))/gu, ',');
 }
 
-function toDashboardView(snapshot: PortalDashboardSnapshot): DashboardViewModel {
-  const metrics = snapshot.metrics;
+function resolveState(
+  dashboard: PortalDashboardSnapshot,
+  conversations: PortalConversationSnapshot,
+): DashboardViewModel['state'] {
+  const states = [dashboard.availability.state, conversations.availability.state];
+  if (states.every((state) => state === 'unavailable')) {
+    return 'unavailable';
+  }
+  if (states.some((state) => state !== 'available')) {
+    return 'partial';
+  }
+  return 'available';
+}
 
-  return {
-    state: snapshot.availability.state,
-    source: snapshot.availability.source,
-    complete: snapshot.availability.complete,
-    reason: snapshot.availability.reason,
-    generatedAt: snapshot.meta.generatedAt,
-    opsStatus: snapshot.meta.opsStatus,
-    metrics: metrics ? [
+function toDashboardView(
+  dashboard: PortalDashboardSnapshot,
+  conversations: PortalConversationSnapshot,
+): DashboardViewModel {
+  const realtimeMetrics = dashboard.metrics;
+  const conversationMetrics = conversations.metrics;
+  const reasons = [dashboard.availability.reason, conversations.availability.reason]
+    .filter((reason): reason is string => Boolean(reason));
+  const sources = [...new Set([dashboard.availability.source, conversations.availability.source])];
+  const opsStatuses = [...new Set([dashboard.meta.opsStatus, conversations.meta.opsStatus])];
+  const metrics: DashboardMetric[] = [];
+
+  if (realtimeMetrics) {
+    metrics.push(
       {
         key: 'clientRouteWindows',
         label: '客户端路由窗口',
-        value: formatInt64Count(metrics.clientRouteWindowCount),
+        value: formatInt64Count(realtimeMetrics.clientRouteWindowCount),
       },
       {
         key: 'pendingRealtimeEvents',
         label: '待投递实时事件',
-        value: formatInt64Count(metrics.pendingRealtimeEventCount),
+        value: formatInt64Count(realtimeMetrics.pendingRealtimeEventCount),
+      },
+    );
+  }
+
+  if (conversationMetrics) {
+    metrics.push(
+      {
+        key: 'laggingConversationScopes',
+        label: '存在延迟的会话范围',
+        value: formatInt64Count(conversationMetrics.laggingScopeCount),
       },
       {
-        key: 'persistedConversationSnapshots',
-        label: '会话快照持久化成功',
-        value: formatInt64Count(metrics.conversationSnapshotPersistSuccessCount),
+        key: 'maxConversationLag',
+        label: '最大运行延迟',
+        value: formatInt64Count(conversationMetrics.maxOperationalLag),
       },
       {
-        key: 'failedConversationSnapshotPersists',
-        label: '会话快照持久化失败',
-        value: formatInt64Count(metrics.conversationSnapshotPersistFailureCount),
+        key: 'pendingOutboxEvents',
+        label: '待投递事务事件',
+        value: formatInt64Count(conversationMetrics.pendingOutboxEventCount),
       },
       {
-        key: 'projectionReplayBacklog',
-        label: '投影重放积压',
-        value: formatInt64Count(metrics.projectionReplayBacklogSize),
+        key: 'failedOutboxAttempts',
+        label: '事务事件失败尝试',
+        value: formatInt64Count(conversationMetrics.failedOutboxAttemptCount),
       },
-      {
-        key: 'projectionReplayedEvents',
-        label: '已重放投影事件',
-        value: formatInt64Count(metrics.projectionReplayedEventCount),
-      },
-    ] : [],
+    );
+  }
+
+  return {
+    state: resolveState(dashboard, conversations),
+    source: sources.join(', '),
+    complete: dashboard.availability.complete && conversations.availability.complete,
+    reason: reasons.length > 0 ? reasons.join('; ') : undefined,
+    generatedAt: dashboard.meta.generatedAt,
+    opsStatus: opsStatuses.join(', '),
+    metrics,
   };
 }
 
 class DashboardService {
   async retrieve(): Promise<DashboardViewModel> {
-    const snapshot = await getAppSdkClientWithSession().portal.dashboard.retrieve();
-    return toDashboardView(snapshot);
+    const client = getAppSdkClientWithSession();
+    const [dashboard, conversations] = await Promise.all([
+      client.portal.dashboard.retrieve(),
+      client.portal.conversationSnapshot.retrieve(),
+    ]);
+    return toDashboardView(dashboard, conversations);
   }
 }
 

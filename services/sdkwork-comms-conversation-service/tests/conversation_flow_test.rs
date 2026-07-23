@@ -11,12 +11,13 @@ use conversation_runtime::{
     ConversationBusinessBinding, ConversationRuntime, CreateAgentDialogCommand,
     CreateAgentHandoffCommand, CreateConversationCommand, CreateGroupConversationCommand,
     CreateRoomCommand, CreateSystemChannelCommand, CreateThreadConversationCommand,
-    DirectMessageAccessGate, EditMessageCommand, LeaveConversationCommand,
-    MessageHistoryReadRequest, PinMessageCommand, PostMessageCommand, PostMessageDeliveryStatus,
-    PublishSystemChannelMessageCommand, RecallMessageCommand, RemoveConversationMemberCommand,
-    RemoveMessageReactionCommand, ReplaceConversationAgentsCommand, ResolveAgentHandoffCommand,
-    RuntimeError, SyncSharedChannelLinkedMemberCommand, TransferConversationOwnerCommand,
-    UnpinMessageCommand, UpdateReadCursorCommand,
+    DirectMessageAccessGate, DurableMessageMutationWriter, EditMessageCommand,
+    LeaveConversationCommand, MessageHistoryReadRequest, PinMessageCommand, PostMessageCommand,
+    PostMessageDeliveryStatus, PublishSystemChannelMessageCommand, RecallMessageCommand,
+    RemoveConversationMemberCommand, RemoveMessageReactionCommand,
+    ReplaceConversationAgentsCommand, ResolveAgentHandoffCommand, RuntimeError,
+    SyncSharedChannelLinkedMemberCommand, TransferConversationOwnerCommand, UnpinMessageCommand,
+    UpdateReadCursorCommand,
 };
 use im_domain_core::conversation::{
     ConversationAgentAssignment, ConversationAgentAssignmentSource, ConversationMember,
@@ -30,8 +31,9 @@ use im_platform_contracts::{
     CommitJournal, CommitJournalAggregateScope, CommitJournalReplayCursor, CommitJournalReplayPage,
     CommitPosition, ContractError,
     ConversationAggregateState as PersistedConversationAggregateState, ConversationAggregateStore,
-    ConversationMemberPage, ConversationMemberPageCursor, ConversationMemberRecord, MessageStore,
-    MessageWindow, ReadCursorPage, ReadCursorPageCursor, ReadCursorRecord, StoredMessageRecord,
+    ConversationMemberPage, ConversationMemberPageCursor, ConversationMemberRecord, IdGenerator,
+    MessageStore, MessageWindow, OutboxEventClaim, OutboxEventRecord, OutboxStore, ReadCursorPage,
+    ReadCursorPageCursor, ReadCursorRecord, StoredMessageMutation, StoredMessageRecord,
 };
 
 fn ensure_conversation_cursor_test_secret() {
@@ -328,6 +330,133 @@ impl CommitJournal for FailAfterNJournal {
         }
         drop(append_count);
         self.inner.append(envelope)
+    }
+}
+
+#[derive(Default)]
+struct NoopMessageMutationOutboxStore;
+
+impl OutboxStore for NoopMessageMutationOutboxStore {
+    fn enqueue(&self, _event: OutboxEventRecord) -> Result<(), ContractError> {
+        Ok(())
+    }
+
+    fn claim_pending(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _aggregate_type: &str,
+        _batch_size: usize,
+        _lease_duration: Duration,
+    ) -> Result<Vec<OutboxEventClaim>, ContractError> {
+        Ok(Vec::new())
+    }
+
+    fn mark_published(&self, _claim: &OutboxEventClaim) -> Result<(), ContractError> {
+        Ok(())
+    }
+
+    fn mark_failed(&self, _claim: &OutboxEventClaim, _reason: &str) -> Result<(), ContractError> {
+        Ok(())
+    }
+
+    fn retry_failed(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _outbox_id: &str,
+    ) -> Result<(), ContractError> {
+        Ok(())
+    }
+
+    fn read_by_event_id(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _event_id: &str,
+    ) -> Result<Option<OutboxEventRecord>, ContractError> {
+        Ok(None)
+    }
+
+    fn count_pending(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+    ) -> Result<u64, ContractError> {
+        Ok(0)
+    }
+
+    fn list_pending_scopes(
+        &self,
+        _aggregate_type: &str,
+        _limit: usize,
+    ) -> Result<Vec<(String, String)>, ContractError> {
+        Ok(Vec::new())
+    }
+}
+
+#[derive(Default)]
+struct MessageMutationTestIdGenerator {
+    next: Mutex<i64>,
+}
+
+impl IdGenerator for MessageMutationTestIdGenerator {
+    fn next_id(&self) -> Result<i64, ContractError> {
+        let mut next = self.next.lock().expect("test id generator should lock");
+        *next += 1;
+        Ok(*next)
+    }
+
+    fn node_id(&self) -> u16 {
+        0
+    }
+
+    fn next_id_at(&self, _timestamp_millis: u64) -> Result<i64, ContractError> {
+        self.next_id()
+    }
+}
+
+#[derive(Default)]
+struct NormalizedNoopMessageMutationWriter {
+    mutations: Mutex<Vec<StoredMessageMutation>>,
+}
+
+impl NormalizedNoopMessageMutationWriter {
+    fn call_count(&self) -> usize {
+        self.mutations
+            .lock()
+            .expect("recorded mutations should lock")
+            .len()
+    }
+}
+
+impl DurableMessageMutationWriter for NormalizedNoopMessageMutationWriter {
+    fn persist_message_mutation(
+        &self,
+        _envelope: CommitEnvelope,
+        mutation: StoredMessageMutation,
+        _outbox: OutboxEventRecord,
+    ) -> Result<Option<CommitPosition>, ContractError> {
+        self.mutations
+            .lock()
+            .expect("recorded mutations should lock")
+            .push(mutation);
+        Ok(None)
+    }
+}
+
+struct FailingMessageMutationWriter;
+
+impl DurableMessageMutationWriter for FailingMessageMutationWriter {
+    fn persist_message_mutation(
+        &self,
+        _envelope: CommitEnvelope,
+        _mutation: StoredMessageMutation,
+        _outbox: OutboxEventRecord,
+    ) -> Result<Option<CommitPosition>, ContractError> {
+        Err(ContractError::Unavailable(
+            "forced durable message mutation failure".into(),
+        ))
     }
 }
 
@@ -938,6 +1067,8 @@ fn stored_message_record(
         updated_at: "2026-07-08T00:00:00.000Z".into(),
         deleted_at: None,
         retention_until: None,
+        reactions: Vec::new(),
+        pin: None,
     }
 }
 
@@ -7282,6 +7413,58 @@ fn test_post_message_does_not_leak_message_when_journal_append_fails() {
 }
 
 #[test]
+fn test_post_message_fails_before_journal_commit_without_atomic_durable_writer() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone())
+        .with_message_store(Arc::new(TestMessageStore::new(Vec::new())));
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_missing_atomic_writer".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+    let committed_before_post = journal.recorded().len();
+
+    let post_attempt = runtime.post_message(PostMessageCommand {
+        tenant_id: "100001".into(),
+        organization_id: "0".into(),
+        conversation_id: "c_missing_atomic_writer".into(),
+        sender: Sender {
+            id: "1".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: Some("d_owner".into()),
+            session_id: Some("s_owner".into()),
+            metadata: Default::default(),
+        },
+        client_msg_id: Some("client_missing_atomic_writer".into()),
+        message_type: MessageType::Standard,
+        body: MessageBody {
+            summary: Some("hello".into()),
+            parts: vec![ContentPart::text("hello")],
+            render_hints: Default::default(),
+            reply_to: None,
+        },
+    });
+
+    assert!(matches!(
+        post_attempt,
+        Err(RuntimeError::Conflict(message))
+            if message
+                == "durable message or outbox persistence requires an atomic durable message writer"
+    ));
+    assert_eq!(journal.recorded().len(), committed_before_post);
+    let history = list_all_messages(&runtime, "100001", "c_missing_atomic_writer", "1")
+        .expect("history should remain readable");
+    assert!(history.page.items.is_empty());
+    assert_eq!(history.high_watermark, 0);
+}
+
+#[test]
 fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
     let journal = FailAfterNJournal::new(4);
     let runtime = ConversationRuntime::new(journal.clone());
@@ -7360,6 +7543,92 @@ fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
 }
 
 #[test]
+fn test_edit_message_does_not_advance_hot_state_when_durable_transaction_fails() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_edit_durable_commit_fail".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_edit_durable_commit_fail".into(),
+            sender: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_edit_durable_commit_fail".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("original".into()),
+                parts: vec![ContentPart::text("original")],
+                render_hints: Default::default(),
+                reply_to: None,
+            },
+        })
+        .expect("post should succeed");
+    let committed_before_edit = journal.recorded().len();
+    let runtime = runtime
+        .with_outbox_store(Arc::new(NoopMessageMutationOutboxStore))
+        .with_id_generator(Arc::new(MessageMutationTestIdGenerator::default()))
+        .with_durable_message_mutation_writer(Arc::new(FailingMessageMutationWriter));
+
+    let edit = runtime.edit_message(EditMessageCommand {
+        tenant_id: "100001".into(),
+        organization_id: "0".into(),
+        message_id: posted.message_id,
+        editor: Sender {
+            id: "1".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: Some("d_owner".into()),
+            session_id: Some("s_owner".into()),
+            metadata: Default::default(),
+        },
+        body: MessageBody {
+            summary: Some("edited".into()),
+            parts: vec![ContentPart::text("edited")],
+            render_hints: Default::default(),
+            reply_to: None,
+        },
+        idempotency_key: None,
+    });
+    assert!(matches!(
+        edit,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced durable message mutation failure"
+    ));
+
+    let history = list_all_messages(&runtime, "100001", "c_edit_durable_commit_fail", "1")
+        .expect("history should remain readable after durable failure");
+    assert_eq!(
+        history.page.items[0].message.body.summary.as_deref(),
+        Some("original")
+    );
+    assert_eq!(journal.recorded().len(), committed_before_edit);
+    assert_eq!(
+        journal
+            .recorded()
+            .iter()
+            .filter(|event| event.event_type == "message.edited")
+            .count(),
+        0
+    );
+}
+
+#[test]
 fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() {
     let journal = FailAfterNJournal::new(4);
     let runtime = ConversationRuntime::new(journal.clone());
@@ -7426,6 +7695,93 @@ fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() 
         Some("hello")
     );
     assert_eq!(journal.recorded().len(), 3);
+}
+
+#[test]
+fn test_recall_message_converges_hot_state_when_normalized_state_is_already_recalled() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_recall_normalized_noop".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_recall_normalized_noop".into(),
+            sender: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_recall_normalized_noop".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![ContentPart::text("hello")],
+                render_hints: Default::default(),
+                reply_to: None,
+            },
+        })
+        .expect("post should succeed");
+
+    let writer = Arc::new(NormalizedNoopMessageMutationWriter::default());
+    let runtime = runtime
+        .with_outbox_store(Arc::new(NoopMessageMutationOutboxStore))
+        .with_id_generator(Arc::new(MessageMutationTestIdGenerator::default()))
+        .with_durable_message_mutation_writer(writer.clone());
+    let recall_command = RecallMessageCommand {
+        tenant_id: "100001".into(),
+        organization_id: "0".into(),
+        message_id: posted.message_id,
+        recalled_by: Sender {
+            id: "1".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: Some("d_owner".into()),
+            session_id: Some("s_owner".into()),
+            metadata: Default::default(),
+        },
+        idempotency_key: None,
+    };
+
+    assert!(matches!(
+        runtime.recall_message(recall_command.clone()),
+        Err(RuntimeError::MessageAlreadyRecalled(_))
+    ));
+    assert_eq!(writer.call_count(), 1);
+    let history = list_all_messages(&runtime, "100001", "c_recall_normalized_noop", "1")
+        .expect("history should remain readable after normalized no-op");
+    assert!(history.page.items[0].recalled);
+
+    assert!(matches!(
+        runtime.recall_message(recall_command),
+        Err(RuntimeError::MessageAlreadyRecalled(_))
+    ));
+    assert_eq!(
+        writer.call_count(),
+        1,
+        "converged hot state must short-circuit the second recall"
+    );
+    assert_eq!(
+        journal
+            .recorded()
+            .iter()
+            .filter(|event| event.event_type == "message.recalled")
+            .count(),
+        0,
+        "normalized no-op must not append a second journal event"
+    );
 }
 
 #[test]

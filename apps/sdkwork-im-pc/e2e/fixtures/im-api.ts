@@ -141,7 +141,7 @@ export async function installPlaywrightImApiMocks(
       return;
     }
 
-    if (request.method() === 'GET' && pathname.endsWith('/chat/contacts')) {
+    if (request.method() === 'GET' && pathname.endsWith('/social/contacts')) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

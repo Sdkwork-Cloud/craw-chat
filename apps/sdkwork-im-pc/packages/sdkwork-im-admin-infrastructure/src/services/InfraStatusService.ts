@@ -17,7 +17,7 @@ export interface MetricItem {
 export interface InfraStatusData {
   metrics: {
     connectionPool: MetricItem;
-    dbIops: MetricItem;
+    deliveryBacklog: MetricItem;
     realtimeWindowHealth: MetricItem;
   };
   nodes: ServerNode[];
@@ -118,18 +118,22 @@ class InfraStatusService {
           : Number(node.connections);
       return total + (Number.isFinite(value) ? value : 0);
     }, 0);
-    const projectionMetrics = asRecord(asRecord(normalizedHealth.projectionPlane).metrics);
-    const conversationPersist = asRecord(projectionMetrics.conversationSnapshotPersist);
-    const clientRoutePersist = asRecord(projectionMetrics.clientRouteSyncSnapshotPersist);
-    const dbIops = readNumber(conversationPersist, ['successCount'], 0)
-      + readNumber(clientRoutePersist, ['successCount'], 0);
+    const outboxes = asRecordArray(normalizedDiagnostics.sideEffectOutboxes);
+    const pendingOutboxEvents = outboxes.reduce(
+      (total, outbox) => total + readNumber(outbox, ['pendingCount'], 0),
+      0,
+    );
     const realtimeInbox = asRecord(normalizedHealth.realtimeInbox);
     const redisHitRate = 100 - normalizeUsage(readNumber(realtimeInbox, ['maxClientRouteWindowUsagePermille'], 0) / 10);
 
     return {
       metrics: {
         connectionPool: { title: 'Global Connection Pool', value: formatCount(activeConnections), usage: normalizeUsage(activeConnections / 10_000) },
-        dbIops: { title: 'Projection Persist Ops', value: formatCount(dbIops), usage: normalizeUsage(dbIops / 1_000) },
+        deliveryBacklog: {
+          title: 'Transactional Outbox Pending',
+          value: formatCount(pendingOutboxEvents),
+          usage: normalizeUsage(pendingOutboxEvents / 1_000),
+        },
         realtimeWindowHealth: { title: 'Realtime Window Health', value: `${redisHitRate}%`, usage: redisHitRate },
       },
       nodes: nodes.length > 0 ? nodes : asRecordArray(normalizedDiagnostics.clientRoutes).map(mapNode),

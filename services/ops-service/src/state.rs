@@ -11,7 +11,6 @@ use tokio::sync::Semaphore;
 
 use crate::dto::{
     ClusterNodeView, ClusterView, DiagnosticBundle, LagItem, LagView, OpsHealthResponse,
-    ProjectionPlaneDiagnosticsView, ProjectionReplayMetricsView, ProjectionReplayStatusView,
     ProviderBindingDriftItemView, ProviderBindingDriftView, ProviderBindingItemView,
     ProviderBindingSnapshotView, ProviderBindingsView, RealtimeInboxDiagnosticsView,
     RouteOwnershipView, RuntimeDirInspectionView, ServiceHealthView,
@@ -42,7 +41,6 @@ pub struct OpsRuntime {
     client_route_total: Mutex<usize>,
     provider_bindings: Mutex<BTreeMap<String, ProviderBindingSnapshotView>>,
     runtime_dir_inspection: Mutex<RuntimeDirInspectionView>,
-    projection_plane: Mutex<ProjectionPlaneDiagnosticsView>,
     side_effect_outboxes: Mutex<Vec<SideEffectOutboxDiagnosticsView>>,
     realtime_inbox: Mutex<RealtimeInboxDiagnosticsView>,
 }
@@ -148,7 +146,6 @@ impl OpsRuntime {
             client_route_total: Mutex::new(0),
             provider_bindings: Mutex::new(BTreeMap::new()),
             runtime_dir_inspection: Mutex::new(RuntimeDirInspectionView::unmanaged()),
-            projection_plane: Mutex::new(ProjectionPlaneDiagnosticsView::default()),
             side_effect_outboxes: Mutex::new(Vec::new()),
             realtime_inbox: Mutex::new(RealtimeInboxDiagnosticsView::default()),
         }
@@ -207,10 +204,6 @@ impl OpsRuntime {
         }
     }
 
-    pub fn update_projection_plane(&self, projection_plane: ProjectionPlaneDiagnosticsView) {
-        *lock_ops_mutex(&self.projection_plane, "ops projection-plane") = projection_plane;
-    }
-
     pub fn update_side_effect_outboxes(
         &self,
         mut side_effect_outboxes: Vec<SideEffectOutboxDiagnosticsView>,
@@ -220,46 +213,21 @@ impl OpsRuntime {
             side_effect_outboxes;
     }
 
+    pub fn side_effect_outboxes_view(&self) -> Vec<SideEffectOutboxDiagnosticsView> {
+        lock_ops_mutex(&self.side_effect_outboxes, "ops side-effect outboxes").clone()
+    }
+
     pub fn update_realtime_inbox(&self, realtime_inbox: RealtimeInboxDiagnosticsView) {
         *lock_ops_mutex(&self.realtime_inbox, "ops realtime inbox") = realtime_inbox;
     }
 
-    pub fn update_projection_replay_lag(&self, mut projection_lag_items: Vec<LagItem>) {
-        projection_lag_items.retain(|item| item.component == "projection_replay");
-        projection_lag_items.sort_by(|left, right| left.scope_id.cmp(&right.scope_id));
-
-        let mut lag_items = lock_ops_mutex(&self.lag_items, "ops lag items");
-        let mut merged = lag_items
-            .iter()
-            .filter(|item| item.component != "projection_replay")
-            .cloned()
-            .collect::<Vec<_>>();
-        merged.extend(projection_lag_items);
-        merged.sort_by(|left, right| {
+    pub fn replace_lag_items(&self, mut lag_items: Vec<LagItem>) {
+        lag_items.sort_by(|left, right| {
             left.component
                 .cmp(&right.component)
                 .then_with(|| left.scope_id.cmp(&right.scope_id))
         });
-        *lag_items = merged;
-    }
-
-    pub fn update_projection_live_lag(&self, mut projection_lag_items: Vec<LagItem>) {
-        projection_lag_items.retain(|item| item.component == "projection_live");
-        projection_lag_items.sort_by(|left, right| left.scope_id.cmp(&right.scope_id));
-
-        let mut lag_items = lock_ops_mutex(&self.lag_items, "ops lag items");
-        let mut merged = lag_items
-            .iter()
-            .filter(|item| item.component != "projection_live")
-            .cloned()
-            .collect::<Vec<_>>();
-        merged.extend(projection_lag_items);
-        merged.sort_by(|left, right| {
-            left.component
-                .cmp(&right.component)
-                .then_with(|| left.scope_id.cmp(&right.scope_id))
-        });
-        *lag_items = merged;
+        *lock_ops_mutex(&self.lag_items, "ops lag items") = lag_items;
     }
 
     pub fn node_id(&self) -> &str {
@@ -267,23 +235,17 @@ impl OpsRuntime {
     }
 
     pub fn health_view(&self) -> OpsHealthResponse {
-        let projection_plane =
-            lock_ops_mutex(&self.projection_plane, "ops projection-plane").clone();
         let realtime_inbox = lock_ops_mutex(&self.realtime_inbox, "ops realtime inbox").clone();
         let status = rollup_health_status(
             self.services
                 .iter()
                 .map(|service| service.status.as_str())
-                .chain([
-                    projection_plane.status.as_str(),
-                    realtime_inbox.status.as_str(),
-                ]),
+                .chain([realtime_inbox.status.as_str()]),
         )
         .into();
         OpsHealthResponse {
             status,
             items: self.services.clone(),
-            projection_plane: projection_plane.into(),
             realtime_inbox,
         }
     }
@@ -510,25 +472,6 @@ impl OpsRuntime {
         ))
     }
 
-    pub fn replay_status_view(&self) -> ProjectionReplayStatusView {
-        let projection_plane =
-            lock_ops_mutex(&self.projection_plane, "ops projection-plane").clone();
-        let lag = lock_ops_mutex(&self.lag_items, "ops lag items")
-            .iter()
-            .filter(|item| item.component == "projection_replay")
-            .cloned()
-            .collect::<Vec<_>>();
-        ProjectionReplayStatusView {
-            generated_at: utc_now_rfc3339_millis(),
-            status: projection_replay_status(&projection_plane.replay).into(),
-            replay_throughput_per_second: projection_replay_throughput_per_second(
-                &projection_plane.replay,
-            ),
-            replay: projection_plane.replay,
-            lag,
-        }
-    }
-
     pub fn diagnostic_bundle(&self) -> DiagnosticBundle {
         let drain_status = lock_ops_mutex(&self.drain_status, "ops drain status").clone();
         let rebalance_state = lock_ops_mutex(&self.rebalance_state, "ops rebalance state").clone();
@@ -558,8 +501,6 @@ impl OpsRuntime {
         provider_binding_drift
             .items
             .truncate(DIAGNOSTIC_COLLECTION_LIMIT);
-        let projection_plane =
-            lock_ops_mutex(&self.projection_plane, "ops projection-plane").clone();
         let side_effect_outboxes =
             lock_ops_mutex(&self.side_effect_outboxes, "ops side-effect outboxes").clone();
         let realtime_inbox = lock_ops_mutex(&self.realtime_inbox, "ops realtime inbox").clone();
@@ -600,7 +541,6 @@ impl OpsRuntime {
             client_routes,
             provider_bindings,
             provider_binding_drift,
-            projection_plane,
             side_effect_outboxes,
             realtime_inbox,
             collection_limit: DIAGNOSTIC_COLLECTION_LIMIT as u32,
@@ -647,22 +587,6 @@ fn health_status_severity(status: &str) -> u8 {
     }
 }
 
-fn projection_replay_status(replay: &ProjectionReplayMetricsView) -> &'static str {
-    if replay.backlog_size == 0 && replay.replayed_event_count == 0 {
-        "idle"
-    } else {
-        "replayed"
-    }
-}
-
-fn projection_replay_throughput_per_second(replay: &ProjectionReplayMetricsView) -> u64 {
-    if replay.duration_ms == 0 {
-        0
-    } else {
-        replay.replayed_event_count.saturating_mul(1000) / replay.duration_ms
-    }
-}
-
 fn provider_binding_drift_item(
     tenant_id: &str,
     baseline: &ProviderBindingItemView,
@@ -697,17 +621,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_health_view_recovers_from_poisoned_projection_plane_lock() {
+    fn test_lag_view_recovers_from_poisoned_lag_lock() {
         let runtime = OpsRuntime::default();
         let _ = std::panic::catch_unwind(|| {
-            let _guard = runtime
-                .projection_plane
-                .lock()
-                .expect("ops projection-plane should lock");
-            panic!("poison ops projection-plane lock");
+            let _guard = runtime.lag_items.lock().expect("ops lag items should lock");
+            panic!("poison ops lag-items lock");
         });
 
-        let health = runtime.health_view();
-        assert_eq!(health.projection_plane.status, "idle");
+        assert!(runtime.lag_view().items.is_empty());
     }
 }

@@ -102,12 +102,14 @@ print(result)
 ### chat
 
 ```swift
-// List IM contacts
+// List current inbox window
 let params: [String: Any] = [
     "page_size": 1,
-    "cursor": "cursor"
+    "cursor": "cursor",
+    "conversation_type": "conversation-type",
+    "q": "q"
 ]
-let result = try await client.chat.contactsList(params: params)
+let result = try await client.chat.inboxList(params: params)
 print(result)
 ```
 

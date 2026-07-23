@@ -3,7 +3,7 @@ import type { SpaceChannelView } from './space-channel-view';
 
 export interface SpacesChannelsListResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { items: SpaceChannelView[]; pageInfo: PageInfo; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

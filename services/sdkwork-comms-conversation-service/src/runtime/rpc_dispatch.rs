@@ -280,8 +280,7 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                 "messages.favorites.list" => {
                     let payload =
                         ListFavoriteMessagesRequest::decode(request.request_bytes.as_slice())?;
-                    super::rpc_state_dispatch::dispatch_list_favorite_messages(&auth, payload)
-                        .await
+                    super::rpc_state_dispatch::dispatch_list_favorite_messages(&auth, payload).await
                 }
                 "messages.favorites.create" => {
                     let payload =
@@ -298,10 +297,8 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                 "messages.visibility.delete" => {
                     let payload =
                         DeleteMessageVisibilityRequest::decode(request.request_bytes.as_slice())?;
-                    super::rpc_state_dispatch::dispatch_delete_message_visibility(
-                        &auth, payload,
-                    )
-                    .await
+                    super::rpc_state_dispatch::dispatch_delete_message_visibility(&auth, payload)
+                        .await
                 }
                 "messages.reactions.create" => {
                     let payload =

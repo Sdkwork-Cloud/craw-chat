@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 
-use crate::conversation_state::model::{MessageDeliveryReceiptDeviceView, MessageDeliveryReceiptSummaryView};
+use crate::conversation_state::model::{
+    MessageDeliveryReceiptDeviceView, MessageDeliveryReceiptSummaryView,
+};
 use crate::conversation_state::{ConversationStateService, lock_conversation_state_mutex};
 
 pub(crate) const DELIVERY_RECEIPT_MAX_DEVICES: usize = 50;
@@ -14,7 +16,11 @@ impl ConversationStateService {
         message_id: &str,
         exclude_principal: Option<(&str, &str)>,
     ) -> MessageDeliveryReceiptSummaryView {
-        let scope = crate::conversation_state::scope::scope_key(tenant_id, organization_id, conversation_id);
+        let scope = crate::conversation_state::scope::scope_key(
+            tenant_id,
+            organization_id,
+            conversation_id,
+        );
         let members = lock_conversation_state_mutex(&self.members, "member store")
             .get(scope.as_str())
             .map(|scope_members| {

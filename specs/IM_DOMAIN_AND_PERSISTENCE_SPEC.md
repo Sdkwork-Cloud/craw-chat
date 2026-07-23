@@ -1,6 +1,6 @@
 # SDKWork IM Domain And Persistence Contract
 
-- Version: `2.1.0`
+- Version: `2.2.0`
 - Status: active
 - Owner: `im-platform`
 - Requirement: `REQ-2026-0722`
@@ -10,13 +10,13 @@
 
 IM uses `Conversation -> Message -> Member -> ReadCursor`.
 
-Agents uses `Project -> Session -> Turn -> Item -> Interaction`.
+Agents uses `Project -> Session -> Turn -> SessionItem -> Interaction`.
 
 Kernel uses `Run -> Step -> ToolExecution`.
 
 UI copy may use the word "chat", but database, API, SDK, DTO, event, and service
 contracts must use the owning domain vocabulary. An IM Message is never an Agents
-Item, and an IM Conversation is never an Agents Session.
+SessionItem, and an IM Conversation is never an Agents Session.
 
 ## Ownership
 
@@ -24,8 +24,8 @@ IM owns Conversation identity and lifecycle, membership, visible Message history
 message sequence, read state, reactions, pins, threads, presence, routing, realtime
 delivery, and IM-side Agent assignment/dispatch correlation.
 
-IM does not own Agent identity, Session, Turn, Item, inference, tool execution,
-provider configuration, prompt, model, or Agent transcript data.
+IM does not own Agent identity, Session, Turn, SessionItem, Interaction, inference,
+tool execution, provider configuration, prompt, model, or Agent transcript data.
 
 ## Canonical Persistence
 

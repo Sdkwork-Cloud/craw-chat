@@ -1,9 +1,11 @@
 use im_domain_events::CommitEnvelope;
 use serde::{Deserialize, Serialize};
 
-use crate::conversation_state::model::ConversationCatalogEntry;
 use crate::conversation_state::event_apply::ConversationStateError;
-use crate::conversation_state::scope::{group_scope_key, conversation_state_organization_id_for_event, scope_key};
+use crate::conversation_state::model::ConversationCatalogEntry;
+use crate::conversation_state::scope::{
+    conversation_state_organization_id_for_event, group_scope_key, scope_key,
+};
 use crate::conversation_state::{ConversationStateService, lock_conversation_state_mutex};
 const CANONICAL_GROUP_CONVERSATION_ID_PREFIX: &str = "g_";
 const CANONICAL_GROUP_CONVERSATION_ID_DIGEST_LEN: usize = 24;
@@ -230,11 +232,12 @@ impl ConversationStateService {
             }
         }
 
-        let mut profiles =
-            lock_conversation_state_mutex(&self.conversation_profiles, "conversation profile store");
-        let profile = profiles
-            .entry(scope)
-            .or_insert_with(|| crate::conversation_state::ConversationProfileView {
+        let mut profiles = lock_conversation_state_mutex(
+            &self.conversation_profiles,
+            "conversation profile store",
+        );
+        let profile = profiles.entry(scope).or_insert_with(|| {
+            crate::conversation_state::ConversationProfileView {
                 tenant_id: event.tenant_id.clone(),
                 conversation_id: conversation_id.to_owned(),
                 display_name: String::new(),
@@ -243,7 +246,8 @@ impl ConversationStateService {
                 updated_at: metadata.updated_at.to_owned(),
                 updated_by_principal_kind: Some(event.actor.actor_kind.clone()),
                 updated_by_principal_id: Some(event.actor.actor_id.clone()),
-            });
+            }
+        });
         if overwrite_existing || profile.display_name.trim().is_empty() {
             profile.display_name = display_name.to_owned();
         }

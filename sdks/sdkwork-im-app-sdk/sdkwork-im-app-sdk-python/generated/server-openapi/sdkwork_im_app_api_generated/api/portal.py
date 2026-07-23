@@ -37,7 +37,7 @@ class PortalAccessApi:
 
 
     def retrieve(self) -> AccessRetrieveResponse:
-        """Read the tenant portal sign-in snapshot"""
+        """Read the tenant portal access snapshot"""
         return self._client.get(f"/app/v3/api/portal/access")
 
 class PortalAutomationApi:

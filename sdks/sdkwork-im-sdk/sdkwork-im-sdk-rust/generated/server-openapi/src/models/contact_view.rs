@@ -11,6 +11,18 @@ pub struct ContactView {
     #[serde(rename = "targetUserId")]
     pub target_user_id: String,
 
+    #[serde(rename = "displayName")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+
+    #[serde(rename = "avatarUrl")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+
+    #[serde(rename = "chatId")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_id: Option<String>,
+
     #[serde(rename = "contactType")]
     pub contact_type: String,
 
@@ -33,4 +45,16 @@ pub struct ContactView {
 
     #[serde(rename = "lastInteractionAt")]
     pub last_interaction_at: String,
+
+    #[serde(rename = "isStarred")]
+    pub is_starred: bool,
+
+    #[serde(rename = "isBlocked")]
+    pub is_blocked: bool,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remark: Option<String>,
+
+    #[serde(rename = "updatedAt")]
+    pub updated_at: String,
 }

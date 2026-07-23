@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse } from "yaml";
 import {
   apiReferenceOperationLinks,
   groupedPages,
@@ -59,8 +60,51 @@ const forbiddenRetiredSdkMarkers = [
   marker("/sdk", "/im", "-admin", "-sdk"),
 ];
 
+const forbiddenRetiredArchitectureMarkers = [
+  "AppContext projection",
+  "projection-service",
+  "/backend/v3/api/ops/replay_status",
+  "projection-plane health",
+  "conversation summary projection",
+  "maintained inbox projection",
+];
+
 const blockPattern =
   /<a id="([^"]+)"><\/a>[\s\S]*?<section class="api-op">([\s\S]*?)(?=<a id="|$)/g;
+const rawHtmlGenericPattern =
+  /<span\b[^>]*>[^\n]*<[A-Z][A-Za-z0-9_]*(?:\s*,\s*[A-Z][A-Za-z0-9_]*)*>/;
+
+function readAuthoredOperations() {
+  const operations = new Map();
+  for (const relativePath of [
+    "apis/open-api/im/sdkwork-im-im.openapi.yaml",
+    "apis/app-api/communication/sdkwork-im-app-api.openapi.yaml",
+    "apis/backend-api/communication/sdkwork-im-backend-api.openapi.yaml",
+  ]) {
+    const document = parse(fs.readFileSync(path.join(docsRoot, "..", "..", relativePath), "utf8"));
+    for (const [route, pathItem] of Object.entries(document.paths ?? {})) {
+      if (!/^\/(?:im|app|backend)\/v3\/api(?:\/|$)/u.test(route)) {
+        continue;
+      }
+      for (const method of ["get", "post", "put", "patch", "delete", "options", "head", "trace"]) {
+        const operation = pathItem?.[method];
+        if (!operation) {
+          continue;
+        }
+        const successStatus = Object.keys(operation.responses ?? {})
+          .filter((status) => /^2\d{2}$/u.test(status))
+          .sort((left, right) => Number(left) - Number(right))[0];
+        operations.set(`${method.toUpperCase()} ${route}`, {
+          operationId: operation.operationId,
+          successStatus,
+        });
+      }
+    }
+  }
+  return operations;
+}
+
+const authoredOperations = readAuthoredOperations();
 
 function read(relativePath) {
   return fs.readFileSync(path.join(docsRoot, relativePath), "utf8");
@@ -180,9 +224,30 @@ function verifySourceOperationBlock(filePath, anchor, block) {
   const isPost = title.startsWith("POST ");
   const hasPathParams = title.includes("{");
   const isOpenProbe = route === "/healthz" || route === "/readyz";
+  const authoredOperation = authoredOperations.get(`${title.replace(/\s.+$/u, "")} ${route}`);
 
   if (!block.includes("operationId:")) {
     issues.push(`${location}: missing operationId`);
+  }
+
+  if (/^\/(?:im|app|backend)\/v3\/api(?:\/|$)/u.test(route)) {
+    if (!authoredOperation) {
+      issues.push(`${location}: operation is absent from the authored OpenAPI authority`);
+    } else {
+      if (!block.includes(`operationId: ${authoredOperation.operationId}`)) {
+        issues.push(
+          `${location}: operationId must be ${authoredOperation.operationId} from authored OpenAPI`,
+        );
+      }
+      if (
+        authoredOperation.successStatus &&
+        !block.includes(`### Response \`${authoredOperation.successStatus}\``)
+      ) {
+        issues.push(
+          `${location}: success response must be ${authoredOperation.successStatus} from authored OpenAPI`,
+        );
+      }
+    }
   }
 
   if (!/### Response `\d+`/.test(block)) {
@@ -224,9 +289,9 @@ function verifySourceOperationBlock(filePath, anchor, block) {
       );
     }
 
-    if (!isOpenProbe && !metaText.includes("SDKWork dual token + AppContext")) {
+    if (!isOpenProbe && !metaText.includes("SDKWork dual token + resolved request context")) {
       issues.push(
-        `${location}: public Security metadata must describe SDKWork dual-token validation plus AppContext projection`,
+        `${location}: public Security metadata must describe SDKWork dual-token validation plus resolved request context`,
       );
     }
   }
@@ -338,6 +403,16 @@ for (const markdownFile of collectMarkdownFiles(docsRoot)) {
     if (content.includes(marker)) {
       issues.push(`${relativePath}: contains retired public SDK marker "${marker}"`);
     }
+  }
+  for (const marker of forbiddenRetiredArchitectureMarkers) {
+    if (content.includes(marker)) {
+      issues.push(`${relativePath}: contains retired architecture marker "${marker}"`);
+    }
+  }
+  if (rawHtmlGenericPattern.test(content)) {
+    issues.push(
+      `${relativePath}: raw HTML contains an unescaped generic type; use &lt; and &gt; inside HTML blocks`,
+    );
   }
 }
 

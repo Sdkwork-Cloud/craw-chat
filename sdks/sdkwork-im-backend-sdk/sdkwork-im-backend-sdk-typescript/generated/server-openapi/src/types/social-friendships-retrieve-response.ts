@@ -2,7 +2,7 @@ import type { SocialFriendshipSnapshotResponse } from './social-friendship-snaps
 
 export interface SocialFriendshipsRetrieveResponse {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: SocialFriendshipSnapshotResponse; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

@@ -48,7 +48,7 @@
     {
       "file": "WEB_BACKEND_SPEC.md",
       "path": "../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
-      "purpose": "HTTP handler and domain-context projection boundaries."
+      "purpose": "HTTP handler and trusted domain-context boundaries."
     },
     {
       "file": "IAM_SPEC.md",
@@ -79,13 +79,14 @@
     "routeManifest": null,
     "sdkClients": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [],
+    "layerRole": "runtime-composition"
   },
   "integration": {
     "authority": "WebRequestContext resolved by sdkwork-web-framework and sdkwork-iam-web-adapter is the sole HTTP request identity authority.",
     "dependencyPolicy": "Route crates consume this crate through its public bootstrap functions only.",
     "sdkPolicy": "This infrastructure crate does not consume generated business SDKs.",
-    "languagePolicy": "Domain AppContext projection derives only from the injected WebRequestContext and never reparses credential headers."
+    "languagePolicy": "Domain AppContext derives only from the injected WebRequestContext and never reparses credential headers."
   },
   "verification": {
     "commands": [

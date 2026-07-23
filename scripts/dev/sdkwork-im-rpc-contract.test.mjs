@@ -572,7 +572,6 @@ for (const requiredText of [
   'session-gateway',
   'streaming-service',
   'notification-service',
-  'projection-service',
   'automation-service',
   'control-plane-api',
   'ops-service',

@@ -334,27 +334,26 @@ for (const [scriptPath, source] of [
   assert.doesNotMatch(source, /dataRoot:/u);
 }
 
-const databasePrefixRegistry = readJson('specs/database-prefix-registry.json');
-const databaseTableRegistry = readJson('specs/database-table-registry.json');
-assert.equal(databasePrefixRegistry.appCode, 'chat');
-assert.equal(databasePrefixRegistry.product, 'sdkwork-chat');
+const databasePrefixRegistry = readJson('database/contract/prefix-registry.json');
+const databaseTableRegistry = readJson('database/contract/table-registry.json');
+assert.equal(databasePrefixRegistry.kind, 'sdkwork.database.prefix-registry');
 assert.ok(
   databasePrefixRegistry.prefixes.some(
     (entry) =>
-      entry.prefix === 'im' &&
-      entry.businessDomain === 'instant_messaging' &&
-      entry.status === 'ACTIVE',
+      entry.prefix === 'im_' &&
+      entry.business_domain === 'instant_messaging' &&
+      entry.status === 'active',
   ),
   'chat database prefix registry must register im for instant messaging tables',
 );
-assert.equal(databasePrefixRegistry.nonImPrefixPolicy.mustNotUseImPrefix, true);
+assert.equal(databasePrefixRegistry.non_im_prefix_policy.must_not_use_im_prefix, true);
 assert.ok(
   databaseTableRegistry.tables.every(
     (entry) =>
-      entry.tableName.startsWith('im_') &&
-      entry.modulePrefix === 'im' &&
+      entry.table_name.startsWith('im_') &&
+      entry.module_prefix === 'im' &&
       ['instant_messaging', 'social', 'organization', 'messaging', 'user'].includes(
-        entry.boundedContext,
+        entry.bounded_context,
       ),
   ),
   'checked-in chat IM table registry entries must all use the im_ prefix and registered bounded contexts',

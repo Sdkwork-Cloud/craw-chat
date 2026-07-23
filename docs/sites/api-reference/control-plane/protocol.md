@@ -45,13 +45,13 @@ Returns the liveness state of the control-plane process.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/control/protocol_registry</code>
-  <span class="api-op-id">operationId: getProtocolRegistry</span>
+  <span class="api-op-id">operationId: protocolRegistry.retrieve</span>
 </div>
 
 Returns the active protocol registry snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.protocol</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProtocolRegistryResponse`</span></div>
@@ -67,7 +67,7 @@ Returns the active protocol registry snapshot.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40003` | Query or path parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks the required control-plane permission. |
 | `404` | `40401` | The requested control-plane resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the read. |
@@ -82,13 +82,13 @@ Returns the active protocol registry snapshot.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/backend/v3/api/control/protocol_governance</code>
-  <span class="api-op-id">operationId: getProtocolGovernance</span>
+  <span class="api-op-id">operationId: protocolGovernance.retrieve</span>
 </div>
 
 Returns the effective control-plane governance snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + resolved request context</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.protocol</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProtocolGovernanceResponse`</span></div>
@@ -104,7 +104,7 @@ Returns the effective control-plane governance snapshot.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40003` | Query or path parameters are invalid. |
-| `401` | `40101` | AppContext projection is missing or invalid. |
+| `401` | `40101` | SDKWork authentication or request-context resolution failed. |
 | `403` | `40301` | The caller lacks the required control-plane permission. |
 | `404` | `40401` | The requested control-plane resource does not exist. |
 | `409` | `40901` | Current control-plane state blocks the read. |

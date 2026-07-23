@@ -364,11 +364,11 @@ export function buildCommercialReadinessChecks({
       args: ['scripts/dev/sdkwork-im-rtc-signaling-boundary.test.mjs'],
     },
     {
-      id: 'projection-tier-standard',
-      label: 'Sdkwork IM projection tier standard',
+      id: 'normalized-im-authority-standard',
+      label: 'Sdkwork IM normalized authority standard',
       cwd: repoRoot,
       command: pnpmExecutable,
-      args: ['run', 'test:projection-tier-standard'],
+      args: ['run', 'test:normalized-im-authority-standard'],
       env: pnpmRuntimeEnv,
     },
     {

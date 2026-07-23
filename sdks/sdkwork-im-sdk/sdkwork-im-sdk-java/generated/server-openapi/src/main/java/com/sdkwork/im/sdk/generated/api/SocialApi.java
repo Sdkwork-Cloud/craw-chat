@@ -130,6 +130,16 @@ public class SocialApi {
         return client.convertValue(raw, new TypeReference<SocialContactsPreferencesUpdateResponse>() {});
     }
 
+    /** List social contacts */
+    public SocialContactsListResponse contactsList(Integer pageSize, String cursor) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/social/contacts"), query));
+        return client.convertValue(raw, new TypeReference<SocialContactsListResponse>() {});
+    }
+
     private record PathParameterSpec(String name, String style, boolean explode) {}
 
     private static String serializePathParameter(Object value, PathParameterSpec spec) {

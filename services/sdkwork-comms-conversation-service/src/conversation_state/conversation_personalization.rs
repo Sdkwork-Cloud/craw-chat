@@ -122,8 +122,10 @@ impl ConversationStateService {
         update: UpdateConversationProfileRequest,
     ) -> ConversationProfileView {
         let key = scope_key(tenant_id, organization_id, conversation_id);
-        let mut profiles =
-            lock_conversation_state_mutex(&self.conversation_profiles, "conversation profile store");
+        let mut profiles = lock_conversation_state_mutex(
+            &self.conversation_profiles,
+            "conversation profile store",
+        );
         let mut profile = profiles
             .get(key.as_str())
             .cloned()

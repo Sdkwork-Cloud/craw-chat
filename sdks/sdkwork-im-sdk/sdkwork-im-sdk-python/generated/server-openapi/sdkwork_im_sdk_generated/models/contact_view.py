@@ -13,5 +13,12 @@ class ContactView:
     friendship_id: str
     established_at: str
     last_interaction_at: str
+    is_starred: bool
+    is_blocked: bool
+    updated_at: str
+    display_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    chat_id: Optional[str] = None
     direct_chat_id: Optional[str] = None
     conversation_id: Optional[str] = None
+    remark: Optional[str] = None

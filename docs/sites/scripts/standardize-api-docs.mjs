@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse } from "yaml";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const docsRoot = path.resolve(currentDir, "..");
@@ -45,65 +46,50 @@ function isRoute(route, suffix) {
   return routeSuffix(route) === suffix;
 }
 
-function readTextIfExists(filePath) {
-  return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
-}
-
-function extractOpenApiSuccessStatuses(yaml) {
-  const statuses = new Map();
-  const lines = yaml.split(/\r?\n/u);
-  let currentPath = null;
-  let currentMethod = null;
-  let inResponses = false;
-
-  for (const line of lines) {
-    const pathMatch = line.match(/^  (\/(?:im|app|backend)\/v3\/api\/[^\s:]+):\s*$/u);
-    if (pathMatch) {
-      currentPath = pathMatch[1];
-      currentMethod = null;
-      inResponses = false;
-      continue;
-    }
-
-    const methodMatch = line.match(/^    (get|post|put|patch|delete):\s*$/u);
-    if (methodMatch) {
-      currentMethod = methodMatch[1].toUpperCase();
-      inResponses = false;
-      continue;
-    }
-
-    if (!currentPath || !currentMethod) {
-      continue;
-    }
-
-    if (/^      responses:\s*$/u.test(line)) {
-      inResponses = true;
-      continue;
-    }
-
-    if (!inResponses) {
-      continue;
-    }
-
-    const statusMatch = line.match(/^        '(\d{3})':\s*$/u);
-    if (statusMatch) {
-      const status = statusMatch[1];
-      if (status.startsWith("2")) {
-        statuses.set(`${currentMethod} ${currentPath}`, status);
+function extractOpenApiOperations(relativePaths) {
+  const operations = new Map();
+  for (const relativePath of relativePaths) {
+    const absolutePath = path.join(repoRoot, relativePath);
+    const document = parse(fs.readFileSync(absolutePath, "utf8"));
+    for (const [route, pathItem] of Object.entries(document.paths ?? {})) {
+      for (const method of ["get", "post", "put", "patch", "delete", "options", "head", "trace"]) {
+        const operation = pathItem?.[method];
+        if (!operation) {
+          continue;
+        }
+        const successStatus = Object.keys(operation.responses ?? {})
+          .filter((status) => /^2\d{2}$/u.test(status))
+          .sort((left, right) => Number(left) - Number(right))[0];
+        if (successStatus && /^\/(?:im|app|backend)\/v3\/api(?:\/|$)/u.test(route)) {
+          operations.set(`${method.toUpperCase()} ${route}`, {
+            operationId: operation.operationId,
+            successStatus,
+          });
+        }
       }
-      inResponses = false;
     }
   }
-
-  return statuses;
+  return operations;
 }
 
-const openApiSuccessStatuses = extractOpenApiSuccessStatuses(
-  readTextIfExists(path.join(repoRoot, "sdks", "sdkwork-im-sdk", "openapi", "sdkwork-im-im.openapi.yaml")),
+const openApiOperations = extractOpenApiOperations(
+  [
+    "apis/open-api/im/sdkwork-im-im.openapi.yaml",
+    "apis/app-api/communication/sdkwork-im-app-api.openapi.yaml",
+    "apis/backend-api/communication/sdkwork-im-backend-api.openapi.yaml",
+  ],
 );
 
 function canonicalSuccessStatus(method, route) {
-  return openApiSuccessStatuses.get(`${method} ${route}`) ?? null;
+  return openApiOperations.get(`${method} ${route}`)?.successStatus ?? null;
+}
+
+function normalizeOperationId(block, method, route) {
+  const operationId = openApiOperations.get(`${method} ${route}`)?.operationId;
+  if (!operationId) {
+    return block;
+  }
+  return block.replace(/operationId:\s*[^<\r\n]+/u, `operationId: ${operationId}`);
 }
 
 function normalizeSuccessResponse(block, method, route) {
@@ -142,6 +128,13 @@ function inferSuccessLabel(method, route, block) {
   }
 
   return status;
+}
+
+function escapeHtmlText(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 function sdkLabel(page, route, method) {
@@ -299,7 +292,7 @@ function securityLabel(route, page) {
     return "Open endpoint";
   }
 
-  return "SDKWork dual token + AppContext";
+  return "SDKWork dual token + resolved request context";
 }
 
 function permissionLabel(page, method, route) {
@@ -438,15 +431,18 @@ function metaGrid(method, route, block, filePath) {
     '<div class="api-meta-grid">',
     ...cards.map(
       ([label, value]) =>
-        `  <div class="api-meta-card"><strong>${label}</strong><span>${value}</span></div>`,
+        `  <div class="api-meta-card"><strong>${label}</strong><span>${escapeHtmlText(value)}</span></div>`,
     ),
     "</div>",
   ].join("\n");
 }
 
+const authenticationContextError =
+  "SDKWork authentication or request-context resolution failed.";
+
 function appReadErrors() {
   return [
-    ["401", "`40101`", "AppContext projection is missing or invalid."],
+    ["401", "`40101`", authenticationContextError],
     [
       "403",
       "`40301`",
@@ -465,7 +461,7 @@ function appReadErrors() {
 function appWriteErrors() {
   return [
     ["400", "`40001`", "The request payload or parameters are invalid."],
-    ["401", "`40101`", "AppContext projection is missing or invalid."],
+    ["401", "`40101`", authenticationContextError],
     [
       "403",
       "`40301`",
@@ -489,7 +485,7 @@ function errorRows(page, method, route) {
   switch (page) {
     case "backend/ops":
       return [
-        ["401", "`40101`", "AppContext projection is missing or invalid."],
+        ["401", "`40101`", authenticationContextError],
         ["403", "`40301`", "The caller lacks `ops.read`."],
         ["503", "`50301`", "Operational diagnostics are temporarily unavailable."],
       ];
@@ -497,24 +493,24 @@ function errorRows(page, method, route) {
       return method === "POST"
         ? [
             ["400", "`40001`", "The audit anchor payload is invalid."],
-            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["401", "`40101`", authenticationContextError],
             ["403", "`40301`", "The caller lacks `audit.write`."],
           ]
         : [
-            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["401", "`40101`", authenticationContextError],
             ["403", "`40301`", "The caller lacks `audit.read`."],
           ];
     case "app/automation":
       return method === "POST"
         ? [
             ["400", "`40001`", "The automation execution request is invalid."],
-            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["401", "`40101`", authenticationContextError],
             ["403", "`40301`", "The caller lacks `automation.execute`."],
             ["409", "`40901`", "The execution id conflicts with an existing request."],
             ["503", "`50301`", "Automation persistence is unavailable."],
           ]
         : [
-            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["401", "`40101`", authenticationContextError],
             ["403", "`40301`", "The caller lacks `automation.read`."],
             ["404", "`40401`", "The requested automation execution does not exist."],
             ["503", "`50301`", "Automation persistence is unavailable."],
@@ -523,18 +519,18 @@ function errorRows(page, method, route) {
       return method === "POST"
         ? [
             ["400", "`40001`", "The notification request is invalid."],
-            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["401", "`40101`", authenticationContextError],
             ["403", "`40301`", "The caller lacks delegated notification authority."],
             ["409", "`40901`", "The idempotent notification request conflicts with existing state."],
           ]
         : [
-            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["401", "`40101`", authenticationContextError],
             ["403", "`40301`", "The caller is not allowed to read the target notification scope."],
             ["404", "`40401`", "The requested notification task does not exist."],
           ];
     case "app/provider-health":
       return [
-        ["401", "`40101`", "AppContext projection is missing or invalid."],
+        ["401", "`40101`", authenticationContextError],
         ["503", "`50301`", "The provider health source is unavailable."],
       ];
     case "control-plane/protocol":
@@ -545,7 +541,7 @@ function errorRows(page, method, route) {
       return method === "GET"
         ? [
             ["400", "`40003`", "Query or path parameters are invalid."],
-            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["401", "`40101`", authenticationContextError],
             ["403", "`40301`", "The caller lacks the required control-plane permission."],
             ["404", "`40401`", "The requested control-plane resource does not exist."],
             ["409", "`40901`", "Current control-plane state blocks the read."],
@@ -553,7 +549,7 @@ function errorRows(page, method, route) {
           ]
         : [
             ["400", "`40001`", "The mutation payload is invalid."],
-            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["401", "`40101`", authenticationContextError],
             ["403", "`40301`", "The caller lacks `control.write`."],
             ["404", "`40401`", "The requested node, plugin, or target resource does not exist."],
             ["409", "`40901`", "Current control-plane state blocks the mutation."],
@@ -628,6 +624,7 @@ function normalizeBlock(block, filePath) {
   const [, method, route] = titleMatch;
   let nextBlock = block;
 
+  nextBlock = normalizeOperationId(nextBlock, method, route);
   nextBlock = normalizeSuccessResponse(nextBlock, method, route);
   const meta = metaGrid(method, route, nextBlock, filePath);
 

@@ -160,6 +160,8 @@ fn fixture(tenant_id: &str, scenario: &str, suffix: &str, message_id: i64) -> Me
             updated_at: now.clone(),
             deleted_at: None,
             retention_until: None,
+            reactions: Vec::new(),
+            pin: None,
         },
         outbox: OutboxEventRecord {
             tenant_id: tenant_id.to_owned(),

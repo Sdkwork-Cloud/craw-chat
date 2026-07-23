@@ -14,7 +14,7 @@ URL keys or mixed `/sdkwork/chat` mount roots.
 
 ## Single-host production example
 
-```env
+```text
 SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18079
 SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com
 SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com

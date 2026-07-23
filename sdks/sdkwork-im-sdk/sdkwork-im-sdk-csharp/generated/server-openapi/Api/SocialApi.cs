@@ -169,6 +169,19 @@ namespace Sdkwork.Im.Sdk.Generated.Api
             return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.SocialContactsPreferencesUpdateResponse>(ApiPaths.ImPath($"/social/contacts/{SerializePathParameter(targetUserId, new PathParameterSpec("targetUserId", "simple", false))}/preferences"), body, null, null, "application/json");
         }
 
+        /// <summary>
+        /// List social contacts
+        /// </summary>
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialContactsListResponse?> ContactsListAsync(int? pageSize = null, string? cursor = null)
+        {
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SocialContactsListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/social/contacts"), queryString));
+        }
+
         private sealed record PathParameterSpec(string Name, string Style, bool Explode);
 
         private static string SerializePathParameter(object? value, PathParameterSpec spec)

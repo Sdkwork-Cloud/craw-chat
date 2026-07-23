@@ -68,7 +68,8 @@
       "SESSION_GATEWAY_BIND_ADDR",
       "SDKWORK_IM_INTERNAL_SESSION_GATEWAY_BIND",
       "SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT_SECS"
-    ]
+    ],
+    "layerRole": "runtime-service-host"
   },
   "verification": {
     "commands": [

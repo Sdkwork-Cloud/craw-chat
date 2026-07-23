@@ -11,7 +11,7 @@ use conversation_runtime::internal_rpc_dispatch::{
 use conversation_runtime::rpc_dispatch::{
     CONVERSATION_RPC_SERVICE_KEYS, ConversationRpcDispatcher, rpc_metadata_from_app_context,
 };
-use im_app_context::{build_signed_orchestration_projection_headers, local_service_app_context};
+use im_app_context::{build_signed_orchestration_context_headers, local_service_app_context};
 use im_domain_core::room::game_move_schema_ref;
 use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::{
     CreateRoomRequest, EnterRoomRequest, RetrieveCurrentConversationMemberRequest,
@@ -626,16 +626,15 @@ async fn group_knowledgebase_ticket_rpc_rejects_spoofed_headers_without_verified
         "x-sdkwork-trace-id",
         MetadataValue::from_static("trace-spoofed-ticket-consume"),
     );
-    let projected_headers =
-        build_signed_orchestration_projection_headers("100001", "0", "1", "user")
-            .expect("test projection headers should build");
+    let projected_headers = build_signed_orchestration_context_headers("100001", "0", "1", "user")
+        .expect("test context headers should build");
     apply_header_map_to_rpc_metadata(&mut request, &projected_headers);
 
     let error = client
         .consume_group_knowledgebase_launch_ticket(request)
         .await
         .expect_err(
-            "x-sdkwork-service and signed app-context projection headers must not substitute for verified mTLS extensions",
+            "x-sdkwork-service and signed app-context headers must not substitute for verified mTLS extensions",
         );
     assert_eq!(error.code(), Code::Unauthenticated);
 
@@ -662,9 +661,8 @@ async fn group_knowledgebase_ticket_rpc_requires_signed_context_after_valid_mtls
         "idempotency-key",
         MetadataValue::from_static("idem-mtls-missing-signed-context"),
     );
-    let projected_headers =
-        build_signed_orchestration_projection_headers("100001", "0", "1", "user")
-            .expect("test projection headers should build");
+    let projected_headers = build_signed_orchestration_context_headers("100001", "0", "1", "user")
+        .expect("test context headers should build");
     apply_header_map_to_rpc_metadata(&mut request, &projected_headers);
 
     let error = client

@@ -149,7 +149,8 @@ where
             });
         }
 
-        let ordering_seq = conversation
+        let mut candidate = conversation.clone();
+        let ordering_seq = candidate
             .aggregate
             .commit_seq()
             .checked_add(1)
@@ -166,7 +167,7 @@ where
             archived_by_kind: actor_kind.to_owned(),
             archived_at: archived_at.clone(),
         };
-        let retention_class = conversation_retention_class(conversation);
+        let retention_class = conversation_retention_class(&candidate);
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -197,10 +198,19 @@ where
             retention_class,
             audit_class: "default".into(),
         };
-        self.journal.append(envelope)?;
-        conversation
+        candidate
             .aggregate
             .apply_archive(archived_at.clone(), event_id.clone(), ordering_seq);
+        self.persist_normalized_conversation_changes(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+            &candidate,
+            Vec::new(),
+            Vec::new(),
+            vec![envelope],
+        )?;
+        *conversation = candidate;
 
         Ok(ArchiveGroupConversationResult {
             conversation_id: command.conversation_id,

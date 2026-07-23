@@ -1,7 +1,6 @@
 mod journal;
 mod metadata;
 mod ops;
-mod projection;
 mod realtime;
 mod shared;
 mod state;
@@ -13,7 +12,6 @@ pub use ops::{
     FileAutomationExecutionStore, FileNotificationTaskStore,
     validate_automation_execution_store_file, validate_notification_task_store_file,
 };
-pub use projection::{FileTimelineProjectionStore, validate_timeline_projection_store_file};
 pub use realtime::{
     FileRealtimeCheckpointStore, FileRealtimeDisconnectFenceStore, FileRealtimeEventWindowStore,
     FileRealtimeSubscriptionStore, validate_realtime_checkpoint_store_file,

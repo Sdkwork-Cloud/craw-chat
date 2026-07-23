@@ -28,9 +28,9 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
 use super::{
-    ConversationPreferencesView, ConversationProfileView, FavoriteMessageRequest,
-    MessageFavoriteView, ConversationStateAccessError, ConversationStateRuntime, ConversationStateService,
-    UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
+    ConversationPreferencesView, ConversationProfileView, ConversationStateAccessError,
+    ConversationStateRuntime, ConversationStateService, FavoriteMessageRequest,
+    MessageFavoriteView, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
 };
 
 #[derive(Debug, Deserialize, Default)]
@@ -77,10 +77,12 @@ struct MessageFavoriteItemResponse {
     item: MessageFavoriteView,
 }
 
-const CONVERSATION_STATE_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_CONVERSATION_STATE_MAX_IN_FLIGHT_REQUESTS";
+const CONVERSATION_STATE_MAX_IN_FLIGHT_REQUESTS_ENV: &str =
+    "SDKWORK_IM_CONVERSATION_STATE_MAX_IN_FLIGHT_REQUESTS";
 const CONVERSATION_STATE_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
 const CONVERSATION_STATE_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 50_000;
-const CONVERSATION_STATE_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_CONVERSATION_STATE_MAX_REQUEST_BODY_BYTES";
+const CONVERSATION_STATE_MAX_REQUEST_BODY_BYTES_ENV: &str =
+    "SDKWORK_IM_CONVERSATION_STATE_MAX_REQUEST_BODY_BYTES";
 const CONVERSATION_STATE_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const CONVERSATION_STATE_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 const FORBIDDEN_PAGINATION_QUERY_ALIASES: &[&str] =
@@ -172,7 +174,9 @@ impl IntoResponse for ConversationStateApiError {
 }
 
 fn map_blocking_join_error(error: tokio::task::JoinError) -> ApiProblem {
-    ApiProblem::internal_server_error(format!("conversation_state_runtime_blocking_join_failed: {error}"))
+    ApiProblem::internal_server_error(format!(
+        "conversation_state_runtime_blocking_join_failed: {error}"
+    ))
 }
 
 /// Run in-memory conversation_state reads and writes off the Tokio async worker pool.
@@ -295,9 +299,7 @@ pub fn build_default_app() -> Router {
 ///
 /// These routes remain under the Conversation service boundary. Social contact
 /// inventory is intentionally excluded and is served by `social-service`.
-pub fn build_conversation_query_api_router(
-    service: Arc<ConversationStateService>,
-) -> Router {
+pub fn build_conversation_query_api_router(service: Arc<ConversationStateService>) -> Router {
     Router::new()
         .route("/im/v3/api/chat/inbox", get(get_inbox))
         .route(
@@ -501,9 +503,11 @@ async fn enforce_in_flight_gate(
 }
 
 async fn openapi_json() -> Result<Json<serde_json::Value>, ConversationStateApiError> {
-    Ok(Json(build_conversation_state_service_openapi_document().map_err(
-        |message| ConversationStateApiError::internal("openapi_export_failed", message),
-    )?))
+    Ok(Json(
+        build_conversation_state_service_openapi_document().map_err(|message| {
+            ConversationStateApiError::internal("openapi_export_failed", message)
+        })?,
+    ))
 }
 
 async fn docs() -> Html<String> {

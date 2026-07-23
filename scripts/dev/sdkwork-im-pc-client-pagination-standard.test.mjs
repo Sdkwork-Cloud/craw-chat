@@ -192,11 +192,18 @@ assert.doesNotMatch(commercialBlock, /"enterprise"/u, 'enterprise must stay out 
 
 assert.match(chatService, /LOCAL_MESSAGES_PER_CONVERSATION_CAP = SDKWORK_MAX_PAGE_SIZE/u);
 
-const projectionBootstrap = fs.readFileSync(
-  path.join(repoRoot, 'services', 'projection-service', 'src', 'bootstrap.rs'),
+const conversationCursorAuth = fs.readFileSync(
+  path.join(
+    repoRoot,
+    'services',
+    'sdkwork-comms-conversation-service',
+    'src',
+    'conversation_state',
+    'cursor_auth.rs',
+  ),
   'utf8',
 );
-assert.match(projectionBootstrap, /pub use im_app_context::is_production_like_im_environment/u);
+assert.match(conversationCursorAuth, /use im_app_context::is_production_like_im_environment/u);
 
 const spaceRuntimeEnv = fs.readFileSync(
   path.join(repoRoot, 'services', 'space-service', 'src', 'runtime_env.rs'),

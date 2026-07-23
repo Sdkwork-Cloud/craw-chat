@@ -78,16 +78,7 @@ SET conversation_id =
 WHERE conversation_id IS NOT NULL
   AND (conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%');
 
--- Projection tables -----------------------------------------------------------
-
-UPDATE im_projection_timeline_entries
-SET conversation_id =
-    CASE
-        WHEN conversation_id LIKE 'c_direct_%' THEN 'c_' || substr(conversation_id, 9)
-        WHEN conversation_id LIKE 'c_agent_%'  THEN 'a_' || substr(conversation_id, 8)
-        ELSE conversation_id
-    END
-WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
+-- Conversation and client sync authority --------------------------------------
 
 UPDATE im_conversations
 SET conversation_id =
@@ -125,25 +116,6 @@ SET conversation_id =
     END
 WHERE conversation_id IS NOT NULL
   AND (conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%');
-
-UPDATE im_projection_contacts
-SET conversation_id =
-    CASE
-        WHEN conversation_id LIKE 'c_direct_%' THEN 'c_' || substr(conversation_id, 9)
-        WHEN conversation_id LIKE 'c_agent_%'  THEN 'a_' || substr(conversation_id, 8)
-        ELSE conversation_id
-    END
-WHERE conversation_id IS NOT NULL
-  AND (conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%');
-
-UPDATE im_projection_direct_chat_bindings
-SET conversation_id =
-    CASE
-        WHEN conversation_id LIKE 'c_direct_%' THEN 'c_' || substr(conversation_id, 9)
-        WHEN conversation_id LIKE 'c_agent_%'  THEN 'a_' || substr(conversation_id, 8)
-        ELSE conversation_id
-    END
-WHERE conversation_id LIKE 'c_direct_%' OR conversation_id LIKE 'c_agent_%';
 
 -- Business association tables -------------------------------------------------
 

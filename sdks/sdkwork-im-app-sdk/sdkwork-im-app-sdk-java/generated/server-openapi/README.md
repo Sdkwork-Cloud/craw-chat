@@ -99,7 +99,7 @@ System.out.println(result);
 ### portal
 
 ```java
-// Read the tenant portal sign-in snapshot
+// Read the tenant portal access snapshot
 AccessRetrieveResponse result = client.getPortal().accessRetrieve();
 System.out.println(result);
 ```

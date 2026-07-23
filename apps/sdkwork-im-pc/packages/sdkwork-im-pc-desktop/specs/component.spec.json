@@ -89,7 +89,15 @@
     "routeManifest": null,
     "sdkClients": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [],
+    "layerRole": "frontend-host",
+    "providedPorts": [
+      {
+        "name": "imPcDesktopHost",
+        "export": "."
+      }
+    ],
+    "requiredPorts": []
   },
   "verification": {
     "commands": [

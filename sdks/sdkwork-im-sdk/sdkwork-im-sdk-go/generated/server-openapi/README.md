@@ -121,12 +121,14 @@ fmt.Println(result)
 ### chat
 
 ```go
-// List IM contacts
+// List current inbox window
 params := map[string]interface{}{
     "page_size": 1,
     "cursor": "cursor",
+    "conversation_type": "conversation_type",
+    "q": "q",
 }
-result, err := client.Chat.ContactsList(params)
+result, err := client.Chat.InboxList(params)
 if err != nil {
     panic(err)
 }

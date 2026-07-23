@@ -87,7 +87,15 @@
     "routeManifest": null,
     "sdkClients": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [],
+    "layerRole": "frontend-core",
+    "providedPorts": [
+      {
+        "name": "imAdminInfraRuntime",
+        "export": "."
+      }
+    ],
+    "requiredPorts": []
   },
   "verification": {
     "commands": [
