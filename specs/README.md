@@ -122,8 +122,21 @@ Shared product dependencies are consumed through their SDK or route-composition
 contracts. `sdkwork-utils` is preferred for shared validation, encoding, crypto,
 time, and collection helpers; domain rules remain inside the owning IM module.
 
+## RPC And Discovery Status
+
+| Dependency | Status | Authority |
+| --- | --- | --- |
+| `sdkwork-rpc-framework` | Active | Versioned IM RPC hosts and SDK contracts |
+| `sdkwork-discovery` | Deferred | [`ADR-20260619-im-rpc-discovery-integration-deferred.md`](../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md) |
+
+Until the deferred decision is superseded, cloud internal RPC routing uses the
+profile-resolved static topology documented by that ADR. IM must not describe
+the Discovery control plane as shipped or required runtime authority.
+
 ## Local Contracts
 
+- [`database-table-naming-standard.md`](../docs/architecture/tech/TECH-database-table-naming-standard.md):
+  canonical `im_` table-prefix ownership, registry, and non-IM exclusion rules.
 - [`im-app-api-sdk-integration.spec.md`](./im-app-api-sdk-integration.spec.md): API,
   generated SDK, IAM, source-link, and release dependency boundaries.
 - [`SDKWORK_APPBASE_IAM_INTEGRATION_SPEC.md`](./SDKWORK_APPBASE_IAM_INTEGRATION_SPEC.md):

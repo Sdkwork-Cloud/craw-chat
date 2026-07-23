@@ -25,6 +25,11 @@ Agents generated transport internals, repositories, SQL, private crates, provide
 implementations, or copied OpenAPI contracts. IM migrations must never create or
 write an `ai_agent_*` table.
 
+IM code and migrations MUST NOT write any `ai_agent_*` table.
+Agents MUST NOT import IM packages, SDKs, repositories, routes, tables, or
+transport contracts. Both directions integrate only through the public boundary
+declared above.
+
 ## Semantic Boundary
 
 IM owns communication:
@@ -68,6 +73,10 @@ Required invariants:
 Canonical IM correlation between one assignment generation and an Agents Session.
 It stores `agents_session_id` as an opaque reference and has no foreign key to
 Agents persistence.
+
+The durable identity tuple is `id, uuid, binding_id`. `binding_id` is the stable
+opaque correlation key used by dispatch records and retries; it is not an Agents
+resource identifier. There is no foreign key to an `ai_agent_*` table.
 
 Transitions:
 
