@@ -175,7 +175,7 @@ fn wrap_im_open_api_service_router_inner(
 ) -> Router {
     let environment = resolve_web_environment_from_process_env();
     let security_policy = im_service_security_policy(&environment);
-    let authorization_policy = Arc::new(IamAuthorizationPolicy::new(route_manifest));
+    let authorization_policy = Arc::new(IamAuthorizationPolicy::new(route_manifest.clone()));
     let tenant_isolation_policy = Arc::new(EnforcePrincipalTenantIsolationPolicy);
     let layer = WebFrameworkLayer::new(resolver)
         .with_profile(im_service_context_profile())
@@ -295,6 +295,7 @@ mod tests {
                 auth_token_present: true,
                 access_token_present: true,
                 api_key_present: false,
+                ingress_token_present: false,
                 oauth_bearer_present: false,
                 agent_token_present: false,
             },

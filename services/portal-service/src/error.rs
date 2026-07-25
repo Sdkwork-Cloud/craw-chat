@@ -53,6 +53,9 @@ impl From<PortalError> for ApiProblem {
             kind: portal_error_kind(&error.status),
             message: error.message,
             retry_after_seconds: None,
+            auth_profile: None,
+            failed_stage: None,
+            reason: None,
         })
     }
 }
@@ -63,6 +66,9 @@ impl IntoResponse for PortalError {
             kind: portal_error_kind(&self.status),
             message: self.message,
             retry_after_seconds: None,
+            auth_profile: None,
+            failed_stage: None,
+            reason: None,
         };
         problem_response(&error, ProblemCorrelation::from(None))
     }

@@ -131,6 +131,9 @@ impl From<MediaError> for ApiProblem {
             kind: media_error_kind(&error.status),
             message: error.message,
             retry_after_seconds: None,
+            auth_profile: None,
+            failed_stage: None,
+            reason: None,
         };
         ApiProblem::from_web_framework(framework_error)
     }
@@ -145,6 +148,9 @@ impl IntoResponse for MediaError {
             kind: media_error_kind(&self.status),
             message: self.message,
             retry_after_seconds: None,
+            auth_profile: None,
+            failed_stage: None,
+            reason: None,
         };
         problem_response(&error, ProblemCorrelation::from(None))
     }
