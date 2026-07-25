@@ -1,0 +1,4 @@
+# Local runtime state and generated artifacts are not source-controlled.
+cache/
+tmp/
+*.local.json

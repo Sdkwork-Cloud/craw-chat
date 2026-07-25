@@ -6,7 +6,7 @@ import {
   hasStructuredAgentMentionParts,
   mentionLabelForAgent,
   resolveActiveAgentMentionQuery,
-} from '../packages/sdkwork-im-pc-chat/src/services/AgentMentionService';
+} from '../packages/sdkwork-im-pc-chat/src/services/AgentMentionService.ts';
 
 const agents = [
   { agentId: 'agent.writer', name: 'Writer', enabled: true },
@@ -265,13 +265,13 @@ const sendMessageMethod = chatServiceSource.slice(
   chatServiceSource.indexOf('async sendMessage('),
   chatServiceSource.indexOf('async forwardMessages('),
 );
-const successfulMessageProjection = sendMessageMethod.match(
+const successfulMessageState = sendMessageMethod.match(
   /const message:\s*Message\s*=\s*\{([\s\S]*?)\n\s*\};/u,
 )?.[1] ?? '';
 assert.match(
-  successfulMessageProjection,
+  successfulMessageState,
   /\.\.\.\(parts\s*\?\s*\{\s*parts\s*\}\s*:\s*\{\}\)/u,
-  'an accepted send must retain structured parts in the local message projection',
+  'an accepted send must retain structured parts in local message state',
 );
 assert.match(
   chatServiceSource,

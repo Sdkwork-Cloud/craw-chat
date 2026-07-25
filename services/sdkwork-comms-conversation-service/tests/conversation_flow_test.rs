@@ -6,7 +6,8 @@ use std::time::Duration;
 use conversation_runtime::{
     AGENT_MENTION_DISPATCH_EVENT_TYPE, AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA,
     AcceptAgentHandoffCommand, AddConversationMemberCommand, AddMessageReactionCommand,
-    AgentMentionDispatchRequest, ApplyConversationPolicyCommand, BindDirectChatConversationCommand,
+    AgentHandoffStateView, AgentMentionDispatchRequest, ApplyConversationPolicyCommand,
+    ArchiveGroupConversationCommand, BindDirectChatConversationCommand,
     ChangeAgentHandoffStatusView, ChangeConversationMemberRoleCommand, CloseAgentHandoffCommand,
     ConversationBusinessBinding, ConversationRuntime, CreateAgentDialogCommand,
     CreateAgentHandoffCommand, CreateConversationCommand, CreateGroupConversationCommand,
@@ -32,8 +33,11 @@ use im_platform_contracts::{
     CommitPosition, ContractError,
     ConversationAggregateState as PersistedConversationAggregateState, ConversationAggregateStore,
     ConversationMemberPage, ConversationMemberPageCursor, ConversationMemberRecord, IdGenerator,
-    MessageStore, MessageWindow, OutboxEventClaim, OutboxEventRecord, OutboxStore, ReadCursorPage,
-    ReadCursorPageCursor, ReadCursorRecord, StoredMessageMutation, StoredMessageRecord,
+    MessageStore, MessageWindow, NormalizedConversationBusinessBindingRecord,
+    NormalizedConversationCurrentState, NormalizedConversationHandoffRecord,
+    NormalizedConversationPolicyRecord, NormalizedConversationRecord, OutboxEventClaim,
+    OutboxEventRecord, OutboxStore, ReadCursorPage, ReadCursorPageCursor, ReadCursorRecord,
+    StoredMessageMutation, StoredMessageRecord,
 };
 
 fn ensure_conversation_cursor_test_secret() {
@@ -44,19 +48,6 @@ fn ensure_conversation_cursor_test_secret() {
             "test-conversation-cursor-secret-at-least-32-bytes",
         );
     });
-}
-
-fn postgres_materialized_replay_envelope(mut envelope: CommitEnvelope) -> CommitEnvelope {
-    envelope.event_version = 1;
-    envelope.payload_schema = None;
-    envelope.causation_id = None;
-    envelope.correlation_id = None;
-    envelope.actor = EventActor {
-        actor_id: String::new(),
-        actor_kind: String::new(),
-        actor_session_id: None,
-    };
-    envelope
 }
 
 #[derive(Clone, Default)]
@@ -113,129 +104,6 @@ impl CommitJournal for InMemoryJournal {
         };
         Ok(CommitJournalReplayPage {
             items: page_items,
-            next_cursor,
-        })
-    }
-}
-
-#[derive(Clone)]
-struct CursorObservedJournalRow {
-    envelope: CommitEnvelope,
-    commit_offset: u64,
-}
-
-/// Models the PostgreSQL replay contract where the storage keyset cursor is
-/// independent from the aggregate's domain ordering sequence.
-#[derive(Clone)]
-struct CursorObservedJournal {
-    rows: Arc<Mutex<Vec<CursorObservedJournalRow>>>,
-    requested_cursors: Arc<Mutex<Vec<Option<CommitJournalReplayCursor>>>>,
-    next_commit_offset: Arc<Mutex<u64>>,
-}
-
-impl Default for CursorObservedJournal {
-    fn default() -> Self {
-        Self {
-            rows: Arc::new(Mutex::new(Vec::new())),
-            requested_cursors: Arc::new(Mutex::new(Vec::new())),
-            next_commit_offset: Arc::new(Mutex::new(10_000)),
-        }
-    }
-}
-
-impl CursorObservedJournal {
-    const PARTITION_KEY: &'static str = "postgres-conversation-partition";
-
-    fn recorded_envelopes(&self) -> Vec<CommitEnvelope> {
-        self.rows
-            .lock()
-            .expect("cursor-observed journal rows should lock")
-            .iter()
-            .map(|row| row.envelope.clone())
-            .collect()
-    }
-
-    fn last_commit_offset(&self) -> u64 {
-        self.rows
-            .lock()
-            .expect("cursor-observed journal rows should lock")
-            .last()
-            .expect("cursor-observed journal should contain a row")
-            .commit_offset
-    }
-
-    fn take_requested_cursors(&self) -> Vec<Option<CommitJournalReplayCursor>> {
-        std::mem::take(
-            &mut *self
-                .requested_cursors
-                .lock()
-                .expect("cursor observations should lock"),
-        )
-    }
-}
-
-impl CommitJournal for CursorObservedJournal {
-    fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
-        let commit_offset = {
-            let mut next_commit_offset = self
-                .next_commit_offset
-                .lock()
-                .expect("next commit offset should lock");
-            let commit_offset = *next_commit_offset;
-            *next_commit_offset = next_commit_offset.saturating_add(97);
-            commit_offset
-        };
-        self.rows
-            .lock()
-            .expect("cursor-observed journal rows should lock")
-            .push(CursorObservedJournalRow {
-                envelope,
-                commit_offset,
-            });
-        Ok(CommitPosition::new(Self::PARTITION_KEY, commit_offset))
-    }
-
-    fn recorded_page_for_aggregate(
-        &self,
-        scope: &CommitJournalAggregateScope,
-        cursor: Option<&CommitJournalReplayCursor>,
-        limit: usize,
-    ) -> Result<CommitJournalReplayPage, ContractError> {
-        self.requested_cursors
-            .lock()
-            .expect("cursor observations should lock")
-            .push(cursor.cloned());
-        if let Some(cursor) = cursor
-            && cursor.partition_key != Self::PARTITION_KEY
-        {
-            return Err(ContractError::Invalid(
-                "cursor partition does not match the journal partition".into(),
-            ));
-        }
-        let start_after = cursor
-            .map(|cursor| cursor.commit_offset)
-            .unwrap_or_default();
-        let rows = self
-            .rows
-            .lock()
-            .expect("cursor-observed journal rows should lock");
-        let page_rows = rows
-            .iter()
-            .filter(|row| {
-                row.commit_offset > start_after
-                    && row.envelope.tenant_id == scope.tenant_id
-                    && (row.envelope.aggregate_id == scope.aggregate_id
-                        || row.envelope.scope_id == scope.aggregate_id)
-            })
-            .take(limit.max(1))
-            .cloned()
-            .collect::<Vec<_>>();
-        let next_cursor = page_rows.last().map(|row| CommitJournalReplayCursor {
-            partition_key: Self::PARTITION_KEY.into(),
-            commit_offset: row.commit_offset,
-        });
-        Ok(CommitJournalReplayPage {
-            items: page_rows.into_iter().map(|row| row.envelope).collect(),
             next_cursor,
         })
     }
@@ -467,10 +335,19 @@ enum TestAggregateStore {
     WriteUnavailable(String),
     Snapshot {
         state: PersistedConversationAggregateState,
+        conversation_type: String,
+        lifecycle_state: String,
+        archived_at: Option<String>,
+        archive_event_id: Option<String>,
+        commit_seq: Arc<Mutex<u64>>,
+        member_epoch: u64,
+        policy: Option<NormalizedConversationPolicyRecord>,
+        business_binding: Option<NormalizedConversationBusinessBindingRecord>,
+        handoff: Option<NormalizedConversationHandoffRecord>,
     },
     MemberOnly {
         member: ConversationMemberRecord,
-        _aggregate_error: String,
+        conversation_error: String,
         aggregate_loads: Arc<Mutex<usize>>,
     },
     Recording {
@@ -493,13 +370,62 @@ impl TestAggregateStore {
     }
 
     fn snapshot(state: PersistedConversationAggregateState) -> Self {
-        Self::Snapshot { state }
+        let commit_seq = state.high_watermark;
+        Self::normalized_snapshot(state, "group", "active", commit_seq, 0)
+    }
+
+    fn normalized_snapshot(
+        state: PersistedConversationAggregateState,
+        conversation_type: &str,
+        lifecycle_state: &str,
+        commit_seq: u64,
+        member_epoch: u64,
+    ) -> Self {
+        Self::Snapshot {
+            state,
+            conversation_type: conversation_type.into(),
+            lifecycle_state: lifecycle_state.into(),
+            archived_at: (lifecycle_state == "archived").then(|| "2026-07-08T00:00:00.000Z".into()),
+            archive_event_id: (lifecycle_state == "archived")
+                .then(|| "evt_normalized_archived".into()),
+            commit_seq: Arc::new(Mutex::new(commit_seq)),
+            member_epoch,
+            policy: None,
+            business_binding: None,
+            handoff: None,
+        }
+    }
+
+    fn current_state_snapshot(
+        state: PersistedConversationAggregateState,
+        current_state: NormalizedConversationCurrentState,
+    ) -> Self {
+        Self::Snapshot {
+            state,
+            conversation_type: current_state.conversation.conversation_type,
+            lifecycle_state: current_state.conversation.lifecycle_state,
+            archived_at: current_state.conversation.archived_at,
+            archive_event_id: current_state.conversation.archive_event_id,
+            commit_seq: Arc::new(Mutex::new(current_state.conversation.commit_seq)),
+            member_epoch: current_state.conversation.member_epoch,
+            policy: current_state.policy,
+            business_binding: current_state.business_binding,
+            handoff: current_state.handoff,
+        }
+    }
+
+    fn set_commit_seq(&self, value: u64) {
+        if let Self::Snapshot { commit_seq, .. } = self {
+            *commit_seq
+                .lock()
+                .expect("normalized conversation commit sequence should lock") = value;
+        }
     }
 
     fn member_only(member: ConversationMemberRecord, aggregate_error: impl Into<String>) -> Self {
         Self::MemberOnly {
             member,
-            _aggregate_error: aggregate_error.into(),
+            conversation_error: aggregate_error.into(),
             aggregate_loads: Arc::new(Mutex::new(0)),
         }
     }
@@ -559,6 +485,91 @@ impl TestAggregateStore {
 }
 
 impl ConversationAggregateStore for TestAggregateStore {
+    fn load_conversation(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<Option<NormalizedConversationRecord>, ContractError> {
+        if let Some(error) = self.load_error() {
+            return Err(error);
+        }
+        match self {
+            Self::Snapshot {
+                state,
+                conversation_type,
+                lifecycle_state,
+                archived_at,
+                archive_event_id,
+                commit_seq,
+                member_epoch,
+                ..
+            } if state.tenant_id == tenant_id
+                && state.organization_id == organization_id
+                && state.conversation_id == conversation_id =>
+            {
+                Ok(Some(NormalizedConversationRecord {
+                    tenant_id: state.tenant_id.clone(),
+                    organization_id: state.organization_id.clone(),
+                    conversation_id: state.conversation_id.clone(),
+                    conversation_type: conversation_type.clone(),
+                    lifecycle_state: lifecycle_state.clone(),
+                    archived_at: archived_at.clone(),
+                    archive_event_id: archive_event_id.clone(),
+                    commit_seq: *commit_seq
+                        .lock()
+                        .expect("normalized conversation commit sequence should lock"),
+                    member_epoch: *member_epoch,
+                    last_activity_at: "2026-07-08T00:00:00.000Z".into(),
+                    retention_until: None,
+                }))
+            }
+            Self::MemberOnly {
+                conversation_error,
+                aggregate_loads,
+                ..
+            } => {
+                *aggregate_loads
+                    .lock()
+                    .expect("aggregate load counter should lock") += 1;
+                Err(ContractError::Unavailable(conversation_error.clone()))
+            }
+            Self::Empty
+            | Self::WriteUnavailable(_)
+            | Self::Recording { .. }
+            | Self::Snapshot { .. } => Ok(None),
+            Self::Unavailable(_) => unreachable!("load error handled above"),
+        }
+    }
+
+    fn load_conversation_current_state(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<Option<NormalizedConversationCurrentState>, ContractError> {
+        let Some(conversation) =
+            self.load_conversation(tenant_id, organization_id, conversation_id)?
+        else {
+            return Ok(None);
+        };
+        let (policy, business_binding, handoff) = match self {
+            Self::Snapshot {
+                policy,
+                business_binding,
+                handoff,
+                ..
+            } => (policy.clone(), business_binding.clone(), handoff.clone()),
+            _ => (None, None, None),
+        };
+        Ok(Some(NormalizedConversationCurrentState {
+            conversation,
+            policy,
+            business_binding,
+            handoff,
+        }))
+    }
+
     fn load_members_page(
         &self,
         tenant_id: &str,
@@ -580,7 +591,7 @@ impl ConversationAggregateStore for TestAggregateStore {
         }
         let mut members = match self {
             Self::MemberOnly { member, .. } => vec![member.clone()],
-            Self::Snapshot { state } => state.members.clone(),
+            Self::Snapshot { state, .. } => state.members.clone(),
             _ => Vec::new(),
         };
         members.retain(|member| {
@@ -626,7 +637,7 @@ impl ConversationAggregateStore for TestAggregateStore {
         }
         let members = match self {
             Self::MemberOnly { member, .. } => vec![member.clone()],
-            Self::Snapshot { state } => state.members.clone(),
+            Self::Snapshot { state, .. } => state.members.clone(),
             Self::Recording { members, .. } => members
                 .lock()
                 .expect("recording members should lock")
@@ -654,7 +665,7 @@ impl ConversationAggregateStore for TestAggregateStore {
         }
         let members = match self {
             Self::MemberOnly { member, .. } => vec![member.clone()],
-            Self::Snapshot { state } => state.members.clone(),
+            Self::Snapshot { state, .. } => state.members.clone(),
             _ => Vec::new(),
         };
         Ok(members.into_iter().find(|member| {
@@ -739,7 +750,7 @@ impl ConversationAggregateStore for TestAggregateStore {
             return Err(error);
         }
         let mut cursors = match self {
-            Self::Snapshot { state } => state.read_cursors.clone(),
+            Self::Snapshot { state, .. } => state.read_cursors.clone(),
             _ => Vec::new(),
         };
         cursors.retain(|read_cursor| {
@@ -783,7 +794,7 @@ impl ConversationAggregateStore for TestAggregateStore {
             return Err(error);
         }
         match self {
-            Self::Snapshot { state } => Ok(state
+            Self::Snapshot { state, .. } => Ok(state
                 .read_cursors
                 .iter()
                 .find(|cursor| {
@@ -825,7 +836,7 @@ impl ConversationAggregateStore for TestAggregateStore {
         if let Some(error) = self.load_error() {
             return Err(error);
         }
-        if let Self::Snapshot { state } = self {
+        if let Self::Snapshot { state, .. } = self {
             return Ok(state.high_watermark);
         }
         Ok(0)
@@ -1089,7 +1100,12 @@ fn runtime_with_current_durable_message(
     durable_message.updated_at = current_time;
     let message_id = durable_message.message_id.to_string();
     let runtime = ConversationRuntime::new(InMemoryJournal::default())
-        .with_message_store(Arc::new(TestMessageStore::new(vec![durable_message])));
+        .with_message_store(Arc::new(TestMessageStore::new(vec![durable_message])))
+        .with_outbox_store(Arc::new(NoopMessageMutationOutboxStore))
+        .with_id_generator(Arc::new(MessageMutationTestIdGenerator::default()))
+        .with_durable_message_mutation_writer(Arc::new(
+            NormalizedNoopMessageMutationWriter::default(),
+        ));
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "100001".into(),
@@ -1168,7 +1184,7 @@ fn test_aggregate_store_load_failure_does_not_cache_empty_roster_as_permission_d
 }
 
 #[test]
-fn test_message_history_uses_member_projection_and_message_store_without_full_aggregate_load() {
+fn test_message_history_uses_normalized_member_and_message_stores_without_conversation_load() {
     let tenant_id = "100001";
     let organization_id = "0";
     let conversation_id = "c_direct_lightweight_history";
@@ -1208,7 +1224,7 @@ fn test_message_history_uses_member_projection_and_message_store_without_full_ag
             20,
         ))
         .expect(
-            "message history should read through the message store after member projection auth",
+            "message history should read through the message store after normalized member auth",
         );
 
     assert_eq!(history.page.items.len(), 1);
@@ -1220,7 +1236,7 @@ fn test_message_history_uses_member_projection_and_message_store_without_full_ag
     assert_eq!(
         aggregate_store.aggregate_load_count(),
         0,
-        "message history reads must not require full aggregate restore when member projection and message store are available"
+        "message history reads must not require a Conversation load when targeted member and message stores are available"
     );
 }
 
@@ -1384,7 +1400,12 @@ fn test_high_cardinality_message_edit_hydrates_page_external_sender() {
                 high_watermark: 1,
             },
         )))
-        .with_message_store(Arc::new(TestMessageStore::new(vec![durable_message])));
+        .with_message_store(Arc::new(TestMessageStore::new(vec![durable_message])))
+        .with_outbox_store(Arc::new(NoopMessageMutationOutboxStore))
+        .with_id_generator(Arc::new(MessageMutationTestIdGenerator::default()))
+        .with_durable_message_mutation_writer(Arc::new(
+            NormalizedNoopMessageMutationWriter::default(),
+        ));
 
     let edited = runtime
         .edit_message(EditMessageCommand {
@@ -1414,14 +1435,14 @@ fn test_high_cardinality_message_edit_hydrates_page_external_sender() {
 }
 
 #[test]
-fn test_hot_message_history_uses_loaded_conversation_when_member_projection_is_unavailable() {
+fn test_hot_message_history_uses_loaded_conversation_when_normalized_member_store_is_unavailable() {
     let tenant_id = "100001";
     let organization_id = "0";
-    let conversation_id = "c_hot_history_projection_unavailable";
+    let conversation_id = "c_hot_history_normalized_member_store_unavailable";
     let principal_id = "330339707122622464";
     let runtime = ConversationRuntime::new(InMemoryJournal::default())
         .with_aggregate_store(Arc::new(TestAggregateStore::unavailable(
-            "forced member projection outage for hot message history",
+            "forced normalized member store outage for hot message history",
         )))
         .with_message_store(Arc::new(TestMessageStore::new(vec![
             stored_message_record(
@@ -1454,7 +1475,7 @@ fn test_hot_message_history_uses_loaded_conversation_when_member_projection_is_u
             None,
             20,
         ))
-        .expect("hot message history should not require the member projection dependency");
+        .expect("hot message history should not require the normalized member store dependency");
 
     assert_eq!(history.page.items.len(), 1);
     assert_eq!(
@@ -1733,7 +1754,7 @@ fn test_read_cursor_update_uses_message_store_high_watermark_when_cache_is_stale
 }
 
 #[test]
-fn test_read_cursor_update_after_cold_aggregate_load_uses_journal_watermark() {
+fn test_read_cursor_update_after_cold_load_uses_normalized_commit_sequence() {
     let tenant_id = "100001";
     let organization_id = "0";
     let conversation_id = "c_cursor_journal_watermark";
@@ -1763,14 +1784,20 @@ fn test_read_cursor_update_after_cold_aggregate_load_uses_journal_watermark() {
             .expect("seed event should append");
     }
     let runtime = ConversationRuntime::new(journal.clone()).with_aggregate_store(Arc::new(
-        TestAggregateStore::snapshot(PersistedConversationAggregateState {
-            tenant_id: tenant_id.into(),
-            organization_id: organization_id.into(),
-            conversation_id: conversation_id.into(),
-            members: vec![member],
-            read_cursors: Vec::new(),
-            high_watermark: 1,
-        }),
+        TestAggregateStore::normalized_snapshot(
+            PersistedConversationAggregateState {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.into(),
+                members: vec![member],
+                read_cursors: Vec::new(),
+                high_watermark: 1,
+            },
+            "group",
+            "active",
+            5,
+            0,
+        ),
     ));
 
     let cursor = runtime
@@ -1793,12 +1820,12 @@ fn test_read_cursor_update_after_cold_aggregate_load_uses_journal_watermark() {
         .expect("read cursor event should be appended");
     assert_eq!(
         read_event.ordering_seq, 6,
-        "cold aggregate load must restore the journal watermark before allocating read cursor events"
+        "cold Conversation load must restore normalized commit_seq before allocating read cursor events"
     );
 }
 
 #[test]
-fn test_read_cursor_update_refreshes_journal_watermark_when_loaded_aggregate_is_stale() {
+fn test_read_cursor_update_refreshes_normalized_commit_sequence_after_conflict() {
     let tenant_id = "100001";
     let organization_id = "0";
     let conversation_id = "c_cursor_loaded_journal_watermark";
@@ -1825,16 +1852,22 @@ fn test_read_cursor_update_refreshes_journal_watermark_when_loaded_aggregate_is_
             ))
             .expect("seed event should append");
     }
-    let runtime = ConversationRuntime::new(journal.clone()).with_aggregate_store(Arc::new(
-        TestAggregateStore::snapshot(PersistedConversationAggregateState {
+    let aggregate_store = TestAggregateStore::normalized_snapshot(
+        PersistedConversationAggregateState {
             tenant_id: tenant_id.into(),
             organization_id: organization_id.into(),
             conversation_id: conversation_id.into(),
             members: vec![member],
             read_cursors: Vec::new(),
             high_watermark: 2,
-        }),
-    ));
+        },
+        "group",
+        "active",
+        1,
+        0,
+    );
+    let runtime = ConversationRuntime::new(journal.clone())
+        .with_aggregate_store(Arc::new(aggregate_store.clone()));
 
     runtime
         .update_read_cursor(UpdateReadCursorCommand {
@@ -1857,6 +1890,7 @@ fn test_read_cursor_update_refreshes_journal_watermark_when_loaded_aggregate_is_
             3,
         ))
         .expect("external member event should append after the runtime loaded the aggregate");
+    aggregate_store.set_commit_seq(3);
 
     let cursor = runtime
         .update_read_cursor(UpdateReadCursorCommand {
@@ -1868,7 +1902,7 @@ fn test_read_cursor_update_refreshes_journal_watermark_when_loaded_aggregate_is_
             read_seq: 2,
             last_read_message_id: Some("9002".into()),
         })
-        .expect("read cursor update must refresh journal watermark after a stale in-memory aggregate conflict");
+        .expect("read cursor update must refresh normalized commit_seq after a stale in-memory conflict");
 
     assert_eq!(cursor.read_seq, 2);
     let read_events: Vec<_> = journal
@@ -1879,12 +1913,12 @@ fn test_read_cursor_update_refreshes_journal_watermark_when_loaded_aggregate_is_
     assert_eq!(read_events.len(), 2);
     assert_eq!(
         read_events[1].ordering_seq, 4,
-        "loaded aggregate retry must observe the journal watermark before allocating the replacement read cursor event"
+        "loaded aggregate retry must observe normalized commit_seq before allocating the replacement read cursor event"
     );
 }
 
 #[test]
-fn test_empty_durable_member_projection_fails_closed_after_journal_recovery() {
+fn test_missing_normalized_conversation_is_not_inferred_from_journal() {
     let source_journal = InMemoryJournal::default();
     let source_runtime = ConversationRuntime::new(source_journal.clone());
     let created = source_runtime
@@ -1909,9 +1943,311 @@ fn test_empty_durable_member_projection_fails_closed_after_journal_recovery() {
             "330339707122622464",
             "user",
         )
-        .expect_err("configured durable membership must fail closed when the exact row is absent");
+        .expect_err("a journal history must not substitute for a missing normalized Conversation");
 
-    assert!(matches!(error, RuntimeError::PermissionDenied(_)));
+    assert!(matches!(error, RuntimeError::ConversationNotFound(_)));
+}
+
+#[test]
+fn test_typed_policy_binding_and_archive_survive_restart() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_typed_group_restart";
+    let principal_id = "330339707122622464";
+    let archived_at = "2026-07-24T08:00:00.000Z";
+    let archive_event_id = "evt_typed_group_archived";
+    let mut owner = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        "user",
+        principal_id,
+    );
+    owner.membership_role = "owner".into();
+    let expected_policy = ConversationPolicy {
+        policy_version: "group.enterprise.v3".into(),
+        capability_flags: Some(vec!["member.invite".into(), "message.post".into()]),
+        history_visibility: "shared".into(),
+        retention_policy_ref: "tenant.enterprise".into(),
+        max_members: Some(200),
+    };
+    let expected_binding = ConversationBusinessBinding {
+        business_type: "workspace".into(),
+        business_id: "workspace-42".into(),
+    };
+    let store = TestAggregateStore::current_state_snapshot(
+        PersistedConversationAggregateState {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            conversation_id: conversation_id.into(),
+            members: vec![owner],
+            read_cursors: Vec::new(),
+            high_watermark: 0,
+        },
+        NormalizedConversationCurrentState {
+            conversation: NormalizedConversationRecord {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.into(),
+                conversation_type: "group".into(),
+                lifecycle_state: "archived".into(),
+                archived_at: Some(archived_at.into()),
+                archive_event_id: Some(archive_event_id.into()),
+                commit_seq: 7,
+                member_epoch: 3,
+                last_activity_at: archived_at.into(),
+                retention_until: None,
+            },
+            policy: Some(NormalizedConversationPolicyRecord {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.into(),
+                policy_epoch: 5,
+                policy_version: expected_policy.policy_version.clone(),
+                capability_flags: expected_policy.capability_flags.clone(),
+                history_visibility: expected_policy.history_visibility.clone(),
+                retention_policy_ref: expected_policy.retention_policy_ref.clone(),
+                max_members: expected_policy.max_members,
+            }),
+            business_binding: Some(NormalizedConversationBusinessBindingRecord {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.into(),
+                business_type: expected_binding.business_type.clone(),
+                business_id: expected_binding.business_id.clone(),
+            }),
+            handoff: None,
+        },
+    );
+
+    let assert_parity = |runtime: &ConversationRuntime<InMemoryJournal>| {
+        assert_eq!(
+            runtime
+                .conversation_policy_snapshot(tenant_id, organization_id, conversation_id)
+                .expect("typed policy should hydrate"),
+            Some(expected_policy.clone())
+        );
+        assert_eq!(
+            runtime
+                .conversation_business_binding(tenant_id, organization_id, conversation_id)
+                .expect("typed binding should hydrate"),
+            expected_binding
+        );
+        let archived = runtime
+            .archive_group_conversation_with_actor_kind(
+                ArchiveGroupConversationCommand {
+                    tenant_id: tenant_id.into(),
+                    organization_id: organization_id.into(),
+                    conversation_id: conversation_id.into(),
+                    archived_by: principal_id.into(),
+                    idempotency_key: "typed-archive-replay".into(),
+                },
+                "user",
+            )
+            .expect("typed archive state should hydrate");
+        assert!(!archived.applied);
+        assert_eq!(archived.event_id, archive_event_id);
+        assert_eq!(archived.archived_at, archived_at);
+    };
+
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(store.clone()));
+    assert_parity(&runtime);
+
+    let restarted =
+        ConversationRuntime::new(InMemoryJournal::default()).with_aggregate_store(Arc::new(store));
+    assert_parity(&restarted);
+}
+
+#[test]
+fn test_typed_handoff_survives_restart() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_typed_handoff_restart";
+    let source_id = "330339707122622464";
+    let target_id = "330339707122622465";
+    let source = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        "user",
+        source_id,
+    );
+    let mut target = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        "agent",
+        target_id,
+    );
+    target.member_id = 1002;
+    let accepted_at = "2026-07-24T08:05:00.000Z";
+    let store = TestAggregateStore::current_state_snapshot(
+        PersistedConversationAggregateState {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            conversation_id: conversation_id.into(),
+            members: vec![source, target],
+            read_cursors: Vec::new(),
+            high_watermark: 0,
+        },
+        NormalizedConversationCurrentState {
+            conversation: NormalizedConversationRecord {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.into(),
+                conversation_type: "agent_handoff".into(),
+                lifecycle_state: "active".into(),
+                archived_at: None,
+                archive_event_id: None,
+                commit_seq: 5,
+                member_epoch: 2,
+                last_activity_at: accepted_at.into(),
+                retention_until: None,
+            },
+            policy: None,
+            business_binding: None,
+            handoff: Some(NormalizedConversationHandoffRecord {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.into(),
+                handoff_status_epoch: 4,
+                status: "accepted".into(),
+                source_principal_kind: "user".into(),
+                source_principal_id: source_id.into(),
+                target_principal_kind: "agent".into(),
+                target_principal_id: target_id.into(),
+                handoff_session_id: "agents-session-42".into(),
+                handoff_reason: Some("manual_escalation".into()),
+                accepted_at: Some(accepted_at.into()),
+                accepted_by_principal_kind: Some("agent".into()),
+                accepted_by_principal_id: Some(target_id.into()),
+                resolved_at: None,
+                resolved_by_principal_kind: None,
+                resolved_by_principal_id: None,
+                closed_at: None,
+                closed_by_principal_kind: None,
+                closed_by_principal_id: None,
+            }),
+        },
+    );
+    let expected = AgentHandoffStateView {
+        tenant_id: tenant_id.into(),
+        conversation_id: conversation_id.into(),
+        status: "accepted".into(),
+        source: ChangeAgentHandoffStatusView {
+            id: source_id.into(),
+            kind: "user".into(),
+        },
+        target: ChangeAgentHandoffStatusView {
+            id: target_id.into(),
+            kind: "agent".into(),
+        },
+        handoff_session_id: "agents-session-42".into(),
+        handoff_reason: Some("manual_escalation".into()),
+        accepted_at: Some(accepted_at.into()),
+        accepted_by: Some(ChangeAgentHandoffStatusView {
+            id: target_id.into(),
+            kind: "agent".into(),
+        }),
+        resolved_at: None,
+        resolved_by: None,
+        closed_at: None,
+        closed_by: None,
+    };
+    let assert_parity = |runtime: &ConversationRuntime<InMemoryJournal>| {
+        assert_eq!(
+            runtime
+                .get_agent_handoff_state_with_actor_kind(
+                    tenant_id,
+                    organization_id,
+                    conversation_id,
+                    target_id,
+                    "agent",
+                )
+                .expect("typed handoff should hydrate"),
+            expected
+        );
+    };
+
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(store.clone()));
+    assert_parity(&runtime);
+
+    let restarted =
+        ConversationRuntime::new(InMemoryJournal::default()).with_aggregate_store(Arc::new(store));
+    assert_parity(&restarted);
+}
+
+#[test]
+fn test_cold_membership_commands_target_load_actor_and_member_before_locking() {
+    let runtime_for = |conversation_id: &str| {
+        let mut owner = joined_member_record("100001", "0", conversation_id, "user", "owner-1");
+        owner.member_id = 1001;
+        owner.membership_role = "owner".into();
+        let mut target = joined_member_record("100001", "0", conversation_id, "user", "member-2");
+        target.member_id = 1002;
+        ConversationRuntime::new(InMemoryJournal::default()).with_aggregate_store(Arc::new(
+            TestAggregateStore::normalized_snapshot(
+                PersistedConversationAggregateState {
+                    tenant_id: "100001".into(),
+                    organization_id: "0".into(),
+                    conversation_id: conversation_id.into(),
+                    members: vec![owner, target],
+                    read_cursors: Vec::new(),
+                    high_watermark: 0,
+                },
+                "group",
+                "active",
+                0,
+                0,
+            ),
+        ))
+    };
+
+    let removed = runtime_for("c_cold_remove")
+        .remove_member_with_actor_kind(
+            RemoveConversationMemberCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_cold_remove".into(),
+                member_id: "1002".into(),
+                removed_by: "owner-1".into(),
+            },
+            "user",
+        )
+        .expect("cold remove should target-load actor and member");
+    assert_eq!(removed.state, MembershipState::Removed);
+
+    let transferred = runtime_for("c_cold_transfer")
+        .transfer_conversation_owner_with_actor_kind(
+            TransferConversationOwnerCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_cold_transfer".into(),
+                target_member_id: "1002".into(),
+                transferred_by: "owner-1".into(),
+            },
+            "user",
+        )
+        .expect("cold owner transfer should target-load actor and member");
+    assert_eq!(transferred.previous_owner.role, MembershipRole::Admin);
+    assert_eq!(transferred.new_owner.role, MembershipRole::Owner);
+
+    let changed = runtime_for("c_cold_role_change")
+        .change_conversation_member_role_with_actor_kind(
+            ChangeConversationMemberRoleCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_cold_role_change".into(),
+                target_member_id: "1002".into(),
+                new_role: MembershipRole::Admin,
+                changed_by: "owner-1".into(),
+            },
+            "user",
+        )
+        .expect("cold role change should target-load actor and member");
+    assert_eq!(changed.updated_member.role, MembershipRole::Admin);
 }
 
 #[test]
@@ -2141,38 +2477,6 @@ fn test_group_initial_members_and_agent_selection_are_atomic_idempotent_and_conf
         0
     );
 
-    let recovered = ConversationRuntime::new(InMemoryJournal::default());
-    for envelope in journal.recorded() {
-        recovered
-            .apply_recovered_envelope(&postgres_materialized_replay_envelope(envelope))
-            .expect("PostgreSQL-materialized v3 group creation batch should replay");
-    }
-    let recovered_assignments = recovered
-        .conversation_agent_assignments_snapshot("100001", "0", created.conversation_id.as_str())
-        .expect("v3 group assignments should survive replay");
-    assert_eq!(recovered_assignments.generation, 1);
-    assert_eq!(recovered_assignments.agents, selected);
-    let mut recovered_member_ids = recovered
-        .list_members("100001", "0", created.conversation_id.as_str())
-        .expect("v3 group members should survive replay")
-        .into_iter()
-        .map(|member| member.principal_id)
-        .collect::<Vec<_>>();
-    recovered_member_ids.sort_unstable();
-    assert_eq!(recovered_member_ids, vec!["1", "2", "3"]);
-    let recovered_metrics = recovered.runtime_metrics_snapshot();
-    assert_eq!(recovered_metrics.actor_inbox_actor_entries, 3);
-    assert_eq!(recovered_metrics.actor_inbox_conversation_entries, 3);
-    let recovered_replay = recovered
-        .create_group_conversation_with_creator_kind_members_and_agent_assignments(
-            command.clone(),
-            "user",
-            vec!["3".into(), "2".into(), "1".into(), "2".into()],
-            selected.clone(),
-        )
-        .expect("recovered v3 replay fence should accept the normalized request");
-    assert!(!recovered_replay.is_applied());
-
     let replay = runtime
         .create_group_conversation_with_creator_kind_members_and_agent_assignments(
             command.clone(),
@@ -2319,8 +2623,7 @@ fn test_create_thread_does_not_leak_state_when_batch_commit_fails() {
     ));
     assert!(matches!(
         runtime.conversation_business_binding("100001", "default", "c_thread_batch_fail"),
-        Err(RuntimeError::ConversationNotFound(conversation_id))
-            if conversation_id == "c_thread_batch_fail"
+        Err(RuntimeError::Contract(ContractError::Unavailable(_)))
     ));
     assert_eq!(
         journal.recorded().len(),
@@ -2939,86 +3242,6 @@ fn test_rtc_signal_message_backfills_top_level_rtc_session_id_from_signal_payloa
 }
 
 #[test]
-fn test_runtime_replays_recorded_conversation_events_after_rebuild() {
-    let source_journal = InMemoryJournal::default();
-    let source_runtime = ConversationRuntime::new(source_journal.clone());
-
-    source_runtime
-        .create_conversation(CreateConversationCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_replay".into(),
-            creator_id: "1".into(),
-            conversation_type: "group".into(),
-        })
-        .expect("create conversation should succeed");
-
-    source_runtime
-        .post_message(PostMessageCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_replay".into(),
-            sender: Sender {
-                id: "1".into(),
-                kind: "user".into(),
-                member_id: None,
-                device_id: None,
-                session_id: Some("s_demo".into()),
-                metadata: Default::default(),
-            },
-            client_msg_id: Some("client_replay_1".into()),
-            message_type: MessageType::Standard,
-            body: MessageBody {
-                summary: Some("first".into()),
-                parts: vec![ContentPart::text("first")],
-                render_hints: Default::default(),
-                reply_to: None,
-            },
-        })
-        .expect("first post should succeed");
-
-    let replay_journal = InMemoryJournal::default();
-    let replay_runtime = ConversationRuntime::new(replay_journal);
-    for envelope in source_journal.recorded() {
-        replay_runtime
-            .apply_recovered_envelope(&envelope)
-            .expect("replay should succeed");
-    }
-
-    let members = replay_runtime
-        .list_members("100001", "default", "c_replay")
-        .expect("members should exist after replay");
-    assert_eq!(members.len(), 1);
-    assert_eq!(members[0].principal_id, "1");
-
-    let posted = replay_runtime
-        .post_message(PostMessageCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_replay".into(),
-            sender: Sender {
-                id: "1".into(),
-                kind: "user".into(),
-                member_id: None,
-                device_id: None,
-                session_id: Some("s_demo_new".into()),
-                metadata: Default::default(),
-            },
-            client_msg_id: Some("client_replay_2".into()),
-            message_type: MessageType::Standard,
-            body: MessageBody {
-                summary: Some("second".into()),
-                parts: vec![ContentPart::text("second")],
-                render_hints: Default::default(),
-                reply_to: None,
-            },
-        })
-        .expect("post after replay should succeed");
-    assert_eq!(posted.message_seq, 2);
-    assert_eq!(posted.message_id, "msg_c_replay_2");
-}
-
-#[test]
 fn test_same_conversation_id_is_isolated_per_tenant() {
     let journal = InMemoryJournal::default();
     let runtime = ConversationRuntime::new(journal);
@@ -3402,30 +3625,6 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
         Err(RuntimeError::InvalidInput(_))
     ));
 
-    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
-    for envelope in source_journal.recorded() {
-        replay_runtime
-            .apply_recovered_envelope(&envelope)
-            .expect("agent dialog replay should succeed");
-    }
-
-    let recovered_duplicate = replay_runtime
-        .create_agent_dialog_with_requester_kind(
-            canonical_agent_dialog_command("1", "agent.demo"),
-            "user",
-        )
-        .expect("recovered duplicate agent dialog create should replay");
-    assert_eq!(recovered_duplicate.event_id, first.event_id);
-    assert_eq!(recovered_duplicate.request_key, first.request_key);
-    assert_eq!(
-        recovered_duplicate
-            .delivery_status
-            .as_ref()
-            .unwrap()
-            .as_str(),
-        "replayed"
-    );
-
     let events = source_journal.recorded();
     assert_eq!(
         events.len(),
@@ -3599,36 +3798,6 @@ fn test_duplicate_create_system_channel_is_idempotent_and_conflicting_retry_is_r
         "system",
     );
     assert!(matches!(conflicting_retry, Err(RuntimeError::Conflict(_))));
-
-    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
-    for envelope in source_journal.recorded() {
-        replay_runtime
-            .apply_recovered_envelope(&envelope)
-            .expect("system channel replay should succeed");
-    }
-
-    let recovered_duplicate = replay_runtime
-        .create_system_channel_with_requester_kind(
-            CreateSystemChannelCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_system_channel_retry".into(),
-                requester_id: "svc_ops".into(),
-                subscriber_id: "1".into(),
-            },
-            "system",
-        )
-        .expect("recovered duplicate system channel create should replay");
-    assert_eq!(recovered_duplicate.event_id, first.event_id);
-    assert_eq!(recovered_duplicate.request_key, first.request_key);
-    assert_eq!(
-        recovered_duplicate
-            .delivery_status
-            .as_ref()
-            .unwrap()
-            .as_str(),
-        "replayed"
-    );
 
     let events = source_journal.recorded();
     assert_eq!(
@@ -3813,39 +3982,6 @@ fn test_duplicate_create_agent_handoff_is_idempotent_and_conflicting_retry_is_re
         "agent",
     );
     assert!(matches!(conflicting_retry, Err(RuntimeError::Conflict(_))));
-
-    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
-    for envelope in source_journal.recorded() {
-        replay_runtime
-            .apply_recovered_envelope(&envelope)
-            .expect("agent handoff replay should succeed");
-    }
-
-    let recovered_duplicate = replay_runtime
-        .create_agent_handoff_with_source_kind(
-            CreateAgentHandoffCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_agent_handoff_retry".into(),
-                source_id: "ag_source".into(),
-                target_id: "1".into(),
-                target_kind: "user".into(),
-                handoff_session_id: "hs_retry".into(),
-                handoff_reason: Some("manual_escalation".into()),
-            },
-            "agent",
-        )
-        .expect("recovered duplicate agent handoff create should replay");
-    assert_eq!(recovered_duplicate.event_id, first.event_id);
-    assert_eq!(recovered_duplicate.request_key, first.request_key);
-    assert_eq!(
-        recovered_duplicate
-            .delivery_status
-            .as_ref()
-            .unwrap()
-            .as_str(),
-        "replayed"
-    );
 
     let events = source_journal.recorded();
     assert_eq!(
@@ -4802,314 +4938,11 @@ fn test_group_agent_mentions_emit_one_durable_dispatch_event_and_replay_once() {
         request.targets[1].dispatch_id
     );
 
-    let tampered_recovery = ConversationRuntime::new(InMemoryJournal::default());
-    for mut event in events_after_first.iter().cloned() {
-        if event.event_type == AGENT_MENTION_DISPATCH_EVENT_TYPE {
-            let mut tampered_request: AgentMentionDispatchRequest =
-                serde_json::from_str(event.payload.as_str())
-                    .expect("dispatch payload should decode for tampering");
-            tampered_request.targets[0].revision_id = Some("revision.im.reviewer.999".into());
-            event.payload = serde_json::to_string(&tampered_request)
-                .expect("tampered dispatch payload should serialize");
-            let result = tampered_recovery
-                .apply_recovered_envelope(&postgres_materialized_replay_envelope(event));
-            assert!(matches!(result, Err(RuntimeError::Conflict(_))));
-        } else {
-            tampered_recovery
-                .apply_recovered_envelope(&postgres_materialized_replay_envelope(event))
-                .expect("dispatch prerequisites should replay");
-        }
-    }
-
     let replay = runtime
         .post_message(command)
         .expect("same client message should replay idempotently");
     assert_eq!(replay.delivery_status, PostMessageDeliveryStatus::Replayed);
     assert_eq!(journal.recorded().len(), events_after_first.len());
-
-    // The dispatch event is part of the conversation journal even when no
-    // outbox is configured (the in-memory/test mode). Recovery must retain its
-    // ordering watermark so the next message cannot reuse its journal seq.
-    let recovered = ConversationRuntime::new(journal.clone());
-    for event in journal.recorded() {
-        recovered
-            .apply_recovered_envelope(&postgres_materialized_replay_envelope(event))
-            .expect("PostgreSQL-materialized recovery should accept the dispatch contract");
-    }
-    let next = recovered
-        .post_message(PostMessageCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_group_agent_dispatch".into(),
-            sender: Sender {
-                id: "1".into(),
-                kind: "user".into(),
-                member_id: None,
-                device_id: None,
-                session_id: Some("session_agent_dispatch".into()),
-                metadata: BTreeMap::new(),
-            },
-            client_msg_id: Some("client_agent_dispatch_followup".into()),
-            message_type: MessageType::Standard,
-            body: MessageBody {
-                summary: Some("follow up".into()),
-                parts: vec![ContentPart::text("follow up")],
-                render_hints: BTreeMap::new(),
-                reply_to: None,
-            },
-        })
-        .expect("follow-up message should post after recovery");
-    assert!(next.message_seq > first.message_seq);
-    assert_eq!(
-        journal
-            .recorded()
-            .iter()
-            .filter(|event| event.event_type == AGENT_MENTION_DISPATCH_EVENT_TYPE)
-            .count(),
-        1
-    );
-}
-
-#[test]
-fn test_group_agent_replacement_survives_recovery_with_the_same_generation() {
-    let journal = InMemoryJournal::default();
-    let source = ConversationRuntime::new(journal.clone());
-    source
-        .create_conversation(CreateConversationCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_group_agent_recovery".into(),
-            creator_id: "1".into(),
-            conversation_type: "group".into(),
-        })
-        .expect("group conversation should be created");
-    let replaced = source
-        .replace_conversation_agents(ReplaceConversationAgentsCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_group_agent_recovery".into(),
-            replaced_by: "1".into(),
-            expected_generation: 1,
-            agents: vec![
-                ConversationAgentAssignment::new("agent.im.reviewer", None),
-                ConversationAgentAssignment::new("agent.im.writer", None),
-            ],
-        })
-        .expect("owner should replace group agents");
-
-    let recovered = ConversationRuntime::new(InMemoryJournal::default());
-    for envelope in journal.recorded() {
-        recovered
-            .apply_recovered_envelope(&envelope)
-            .expect("journal replay should recover group agents");
-    }
-    assert_eq!(
-        recovered
-            .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_recovery",)
-            .expect("recovered assignments should be readable"),
-        replaced.assignments
-    );
-}
-
-#[test]
-fn test_cold_aggregate_load_hydrates_group_agent_assignments_from_journal() {
-    let journal = InMemoryJournal::default();
-    let source = ConversationRuntime::new(journal.clone());
-    source
-        .create_conversation(CreateConversationCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_group_agent_cold_load".into(),
-            creator_id: "1".into(),
-            conversation_type: "group".into(),
-        })
-        .expect("group conversation should be created");
-    let replaced = source
-        .replace_conversation_agents(ReplaceConversationAgentsCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_group_agent_cold_load".into(),
-            replaced_by: "1".into(),
-            expected_generation: 1,
-            agents: vec![ConversationAgentAssignment::new(
-                "agent.im.reviewer",
-                Some("revision.im.reviewer.5".into()),
-            )],
-        })
-        .expect("group agents should be replaced");
-
-    let mut owner = joined_member_record("100001", "0", "c_group_agent_cold_load", "user", "1");
-    owner.membership_role = "owner".into();
-    let runtime = ConversationRuntime::new(journal).with_aggregate_store(Arc::new(
-        TestAggregateStore::snapshot(PersistedConversationAggregateState {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_group_agent_cold_load".into(),
-            members: vec![owner],
-            read_cursors: Vec::new(),
-            high_watermark: 0,
-        }),
-    ));
-
-    let assignments = runtime
-        .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_cold_load")
-        .expect("cold aggregate load should hydrate assignments from the journal");
-    assert_eq!(assignments, replaced.assignments);
-    assert_eq!(
-        runtime
-            .list_members("100001", "0", "c_group_agent_cold_load")
-            .expect("durable members should remain available")
-            .len(),
-        1
-    );
-}
-
-#[test]
-fn test_hot_runtime_refreshes_agent_assignments_written_by_another_instance() {
-    let journal = InMemoryJournal::default();
-    let cached_runtime = ConversationRuntime::new(journal.clone());
-    cached_runtime
-        .create_conversation(CreateConversationCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_group_agent_cross_instance_refresh".into(),
-            creator_id: "1".into(),
-            conversation_type: "group".into(),
-        })
-        .expect("group conversation should be created");
-    assert_eq!(
-        cached_runtime
-            .conversation_agent_assignments_snapshot(
-                "100001",
-                "0",
-                "c_group_agent_cross_instance_refresh",
-            )
-            .expect("initial assignments should be cached")
-            .generation,
-        1
-    );
-
-    let updater = ConversationRuntime::new(journal.clone());
-    for envelope in journal.recorded() {
-        updater
-            .apply_recovered_envelope(&envelope)
-            .expect("second runtime should recover the conversation");
-    }
-    let replaced = updater
-        .replace_conversation_agents_with_actor_kind(
-            ReplaceConversationAgentsCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_group_agent_cross_instance_refresh".into(),
-                replaced_by: "1".into(),
-                expected_generation: 1,
-                agents: vec![ConversationAgentAssignment::new(
-                    "agent.im.reviewer",
-                    Some("revision.im.reviewer.7".into()),
-                )],
-            },
-            "user",
-        )
-        .expect("second runtime should replace assignments");
-
-    let refreshed = cached_runtime
-        .conversation_agent_assignments_snapshot(
-            "100001",
-            "0",
-            "c_group_agent_cross_instance_refresh",
-        )
-        .expect("hot runtime should refresh from the journal");
-    assert_eq!(refreshed, replaced.assignments);
-    assert_eq!(refreshed.generation, 2);
-}
-
-#[test]
-fn test_agent_assignment_hydration_reuses_the_authoritative_store_cursor() {
-    let journal = CursorObservedJournal::default();
-    let cached_runtime = ConversationRuntime::new(journal.clone());
-    cached_runtime
-        .create_conversation(CreateConversationCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_group_agent_cursor_coordinates".into(),
-            creator_id: "1".into(),
-            conversation_type: "group".into(),
-        })
-        .expect("group conversation should be created");
-    let initial_store_cursor = journal.last_commit_offset();
-    let initial_max_ordering_seq = journal
-        .recorded_envelopes()
-        .iter()
-        .map(|envelope| envelope.ordering_seq)
-        .max()
-        .expect("creation events should have an aggregate ordering sequence");
-    assert_ne!(
-        initial_store_cursor, initial_max_ordering_seq,
-        "test journal must keep commit_offset distinct from ordering_seq"
-    );
-
-    cached_runtime
-        .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_cursor_coordinates")
-        .expect("initial assignment hydration should succeed");
-    assert_eq!(journal.take_requested_cursors(), vec![None]);
-
-    let updater = ConversationRuntime::new(journal.clone());
-    for envelope in journal.recorded_envelopes() {
-        updater
-            .apply_recovered_envelope(&envelope)
-            .expect("second runtime should recover the conversation");
-    }
-    let replaced = updater
-        .replace_conversation_agents_with_actor_kind(
-            ReplaceConversationAgentsCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_group_agent_cursor_coordinates".into(),
-                replaced_by: "1".into(),
-                expected_generation: 1,
-                agents: vec![ConversationAgentAssignment::new(
-                    "agent.im.reviewer",
-                    Some("revision.im.reviewer.9".into()),
-                )],
-            },
-            "user",
-        )
-        .expect("second runtime should replace assignments");
-    // Ignore the updater's own first hydration; the following assertions are
-    // about the cursor retained by the already-hot runtime.
-    journal.take_requested_cursors();
-    let replacement_store_cursor = journal.last_commit_offset();
-    let replacement_ordering_seq = journal
-        .recorded_envelopes()
-        .last()
-        .expect("replacement event should be stored")
-        .ordering_seq;
-    assert_ne!(replacement_store_cursor, replacement_ordering_seq);
-
-    let refreshed = cached_runtime
-        .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_cursor_coordinates")
-        .expect("hot runtime should read after its saved store cursor");
-    assert_eq!(refreshed, replaced.assignments);
-    assert_eq!(
-        journal.take_requested_cursors(),
-        vec![Some(CommitJournalReplayCursor {
-            partition_key: CursorObservedJournal::PARTITION_KEY.into(),
-            commit_offset: initial_store_cursor,
-        })],
-        "hydration must pass the prior commit_offset, not the aggregate ordering_seq"
-    );
-
-    cached_runtime
-        .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_cursor_coordinates")
-        .expect("unchanged assignment snapshot should remain readable");
-    assert_eq!(
-        journal.take_requested_cursors(),
-        vec![Some(CommitJournalReplayCursor {
-            partition_key: CursorObservedJournal::PARTITION_KEY.into(),
-            commit_offset: replacement_store_cursor,
-        })],
-        "a completed refresh must resume after the replacement instead of scanning it again"
-    );
 }
 
 #[test]
@@ -5171,7 +5004,7 @@ fn test_authoritative_role_refresh_blocks_stale_owner_agent_mutation() {
                 && member.principal_kind == "user"
                 && member.principal_id == "1"
         })
-        .expect("creator projection should be persisted");
+        .expect("creator normalized member row should be persisted");
     downgraded.membership_role = "member".into();
     aggregate_store
         .upsert_member(downgraded)
@@ -5191,113 +5024,6 @@ fn test_authoritative_role_refresh_blocks_stale_owner_agent_mutation() {
         )
         .expect_err("durably downgraded owner must not mutate group agents");
     assert!(matches!(error, RuntimeError::PermissionDenied(_)));
-}
-
-#[test]
-fn test_legacy_v1_group_creation_recovers_the_fixed_compatibility_default() {
-    let runtime = ConversationRuntime::new(InMemoryJournal::default());
-    let mut created = journal_event(
-        "100001",
-        "0",
-        "c_group_agent_legacy_v1",
-        "conversation.created",
-        0,
-    );
-    created.actor = EventActor {
-        actor_id: "1".into(),
-        actor_kind: "user".into(),
-        actor_session_id: None,
-    };
-    created.payload_schema = Some("conversation.created.v1".into());
-    created.payload = serde_json::json!({
-        "conversationId": "c_group_agent_legacy_v1",
-        "conversationType": "group",
-        "agentAssignments": {
-            "generation": 99,
-            "source": "conversation_override",
-            "agents": [{"agentId": "agent.im.injected"}]
-        }
-    })
-    .to_string();
-
-    runtime
-        .apply_recovered_envelope(&created)
-        .expect("legacy group creation should replay");
-    let assignments = runtime
-        .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_legacy_v1")
-        .expect("legacy group should receive its fixed compatibility default");
-    assert_eq!(assignments.generation, 1);
-    assert_eq!(assignments.agents[0].agent_id, "agent.im.default");
-    assert_eq!(
-        assignments.agents[0].revision_id.as_deref(),
-        Some("revision.im.default.1")
-    );
-}
-
-#[test]
-fn test_group_created_v2_recovery_requires_an_explicit_assignment_snapshot() {
-    let runtime = ConversationRuntime::new(InMemoryJournal::default());
-    let mut created = journal_event(
-        "100001",
-        "0",
-        "c_group_agent_invalid_v2",
-        "conversation.created",
-        0,
-    );
-    created.event_version = 2;
-    created.payload_schema = Some("conversation.created.v2".into());
-    created.payload = serde_json::json!({
-        "conversationId": "c_group_agent_invalid_v2",
-        "conversationType": "group"
-    })
-    .to_string();
-
-    let result = runtime.apply_recovered_envelope(&created);
-    assert!(matches!(result, Err(RuntimeError::Conflict(_))));
-    assert!(matches!(
-        runtime.conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_invalid_v2"),
-        Err(RuntimeError::ConversationNotFound(_))
-    ));
-}
-
-#[test]
-fn test_postgres_materialized_group_created_v2_requires_initial_generation_one() {
-    let runtime = ConversationRuntime::new(InMemoryJournal::default());
-    let mut created = journal_event(
-        "100001",
-        "0",
-        "c_group_agent_invalid_v2_generation",
-        "conversation.created",
-        0,
-    );
-    created.event_version = 2;
-    created.payload_schema = Some("conversation.created.v2".into());
-    created.payload = serde_json::json!({
-        "conversationId": "c_group_agent_invalid_v2_generation",
-        "conversationType": "group",
-        "agentAssignments": {
-            "generation": 2,
-            "source": "default_policy",
-            "agents": [{
-                "agentId": "agent.im.default",
-                "revisionId": "revision.im.default.1"
-            }],
-            "policyId": "policy.im.group.default",
-            "policyVersion": 1
-        }
-    })
-    .to_string();
-
-    let result = runtime.apply_recovered_envelope(&postgres_materialized_replay_envelope(created));
-    assert!(matches!(result, Err(RuntimeError::Conflict(_))));
-    assert!(matches!(
-        runtime.conversation_agent_assignments_snapshot(
-            "100001",
-            "0",
-            "c_group_agent_invalid_v2_generation"
-        ),
-        Err(RuntimeError::ConversationNotFound(_))
-    ));
 }
 
 #[test]
@@ -5787,7 +5513,7 @@ fn test_conversation_bound_write_capability_gate_rejects_actor_kind_mismatch() {
 }
 
 #[test]
-fn test_conversation_bound_write_gate_rejects_member_removed_from_durable_projection() {
+fn test_conversation_bound_write_gate_rejects_member_removed_from_normalized_state() {
     let aggregate_store = TestAggregateStore::recording();
     let runtime = ConversationRuntime::new(InMemoryJournal::default())
         .with_aggregate_store(Arc::new(aggregate_store.clone()));
@@ -5840,7 +5566,7 @@ fn test_conversation_bound_write_gate_rejects_member_removed_from_durable_projec
 }
 
 #[test]
-fn test_recovered_conversation_policy_capability_flags_disable_pin_after_replay() {
+fn test_conversation_policy_capability_flags_disable_pin() {
     let source_journal = InMemoryJournal::default();
     let source_runtime = ConversationRuntime::new(source_journal.clone());
 
@@ -5878,53 +5604,26 @@ fn test_recovered_conversation_policy_capability_flags_disable_pin_after_replay(
         })
         .expect("post message should succeed");
 
-    let replay_journal = InMemoryJournal::default();
-    let replay_runtime = ConversationRuntime::new(replay_journal);
-    let policy_event = CommitEnvelope {
-        event_id: "evt_c_policy_replay_policy_1".into(),
-        tenant_id: "100001".into(),
-        organization_id: "0".into(),
-        event_type: "conversation.policy_applied".into(),
-        event_version: 1,
-        aggregate_type: AggregateType::Conversation,
-        aggregate_id: "c_policy_replay".into(),
-        scope_type: "conversation".into(),
-        scope_id: "c_policy_replay".into(),
-        ordering_key: CommitEnvelope::ordering_key("100001", "c_policy_replay"),
-        ordering_seq: 1,
-        causation_id: None,
-        correlation_id: None,
-        idempotency_key: None,
-        actor: EventActor {
-            actor_id: "1".into(),
-            actor_kind: "user".into(),
-            actor_session_id: None,
-        },
-        occurred_at: "2026-04-10T00:00:00.000Z".into(),
-        committed_at: "2026-04-10T00:00:00.000Z".into(),
-        payload_schema: Some("conversation.policy_applied.v1".into()),
-        payload: serde_json::json!({
-            "conversationId": "c_policy_replay",
-            "policyVersion": "group.policy.v1",
-            "capabilityFlags": ["message.reaction"],
-            "historyVisibility": "joined",
-            "retentionPolicyRef": "tenant.standard"
-        })
-        .to_string(),
-        retention_class: "standard".into(),
-        audit_class: "default".into(),
-    };
+    source_runtime
+        .apply_conversation_policy_with_actor_kind(
+            ApplyConversationPolicyCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_policy_replay".into(),
+                applied_by: "1".into(),
+                policy: ConversationPolicy {
+                    policy_version: "group.policy.v1".into(),
+                    capability_flags: Some(vec!["message.reaction".into()]),
+                    history_visibility: "joined".into(),
+                    retention_policy_ref: "tenant.standard".into(),
+                    max_members: None,
+                },
+            },
+            "user",
+        )
+        .expect("policy should apply");
 
-    for envelope in source_journal.recorded() {
-        replay_runtime
-            .apply_recovered_envelope(&envelope)
-            .expect("replay should succeed");
-    }
-    replay_runtime
-        .apply_recovered_envelope(&policy_event)
-        .expect("policy replay should succeed");
-
-    let reaction = replay_runtime
+    let reaction = source_runtime
         .add_message_reaction(AddMessageReactionCommand {
             tenant_id: "100001".into(),
             organization_id: "0".into(),
@@ -5942,7 +5641,7 @@ fn test_recovered_conversation_policy_capability_flags_disable_pin_after_replay(
         .expect("reaction should stay enabled");
     assert!(reaction.changed);
 
-    let denied_pin = replay_runtime.pin_message(PinMessageCommand {
+    let denied_pin = source_runtime.pin_message(PinMessageCommand {
         tenant_id: "100001".into(),
         organization_id: "0".into(),
         message_id: posted.message_id,
@@ -6030,45 +5729,6 @@ fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_env
         })
         .expect("posted event should exist");
     assert_eq!(posted_event.retention_class, "compliance");
-
-    let replay_journal = InMemoryJournal::default();
-    let replay_runtime = ConversationRuntime::new(replay_journal.clone());
-    for envelope in recorded {
-        replay_runtime
-            .apply_recovered_envelope(&envelope)
-            .expect("replay should succeed");
-    }
-
-    replay_runtime
-        .post_message(PostMessageCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_retention_policy".into(),
-            sender: Sender {
-                id: "1".into(),
-                kind: "user".into(),
-                member_id: None,
-                device_id: Some("d_owner".into()),
-                session_id: Some("s_owner_replay".into()),
-                metadata: Default::default(),
-            },
-            client_msg_id: Some("client_retention_policy_2".into()),
-            message_type: MessageType::Standard,
-            body: MessageBody {
-                summary: Some("retained after replay".into()),
-                parts: vec![ContentPart::text("retained after replay")],
-                render_hints: Default::default(),
-                reply_to: None,
-            },
-        })
-        .expect("post after replay should succeed");
-
-    let replay_posted_event = replay_journal
-        .recorded()
-        .into_iter()
-        .find(|event| event.event_type == "message.posted")
-        .expect("replay posted event should exist");
-    assert_eq!(replay_posted_event.retention_class, "compliance");
 }
 
 #[test]
@@ -9814,7 +9474,7 @@ fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
 }
 
 #[test]
-fn test_reaction_and_pin_state_survive_recovery_replay() {
+fn test_reaction_and_pin_state_remains_idempotent() {
     let source_journal = InMemoryJournal::default();
     let source_runtime = ConversationRuntime::new(source_journal.clone());
 
@@ -9884,15 +9544,7 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
         })
         .expect("pin should succeed");
 
-    let replay_journal = InMemoryJournal::default();
-    let replay_runtime = ConversationRuntime::new(replay_journal.clone());
-    for envelope in source_journal.recorded() {
-        replay_runtime
-            .apply_recovered_envelope(&envelope)
-            .expect("replay should succeed");
-    }
-
-    let duplicate_reaction = replay_runtime
+    let duplicate_reaction = source_runtime
         .add_message_reaction(AddMessageReactionCommand {
             tenant_id: "100001".into(),
             organization_id: "0".into(),
@@ -9907,10 +9559,10 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
                 metadata: Default::default(),
             },
         })
-        .expect("replayed reaction should be idempotent");
+        .expect("duplicate reaction should be idempotent");
     assert!(!duplicate_reaction.changed);
 
-    let duplicate_pin = replay_runtime
+    let duplicate_pin = source_runtime
         .pin_message(PinMessageCommand {
             tenant_id: "100001".into(),
             organization_id: "0".into(),
@@ -9924,10 +9576,10 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
                 metadata: Default::default(),
             },
         })
-        .expect("replayed pin should be idempotent");
+        .expect("duplicate pin should be idempotent");
     assert!(!duplicate_pin.changed);
 
-    let removed = replay_runtime
+    let removed = source_runtime
         .remove_message_reaction(RemoveMessageReactionCommand {
             tenant_id: "100001".into(),
             organization_id: "0".into(),
@@ -9942,10 +9594,10 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
                 metadata: Default::default(),
             },
         })
-        .expect("remove reaction after replay should succeed");
+        .expect("remove reaction should succeed");
     assert!(removed.changed);
 
-    let unpinned = replay_runtime
+    let unpinned = source_runtime
         .unpin_message(UnpinMessageCommand {
             tenant_id: "100001".into(),
             organization_id: "0".into(),
@@ -9959,33 +9611,33 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
                 metadata: Default::default(),
             },
         })
-        .expect("unpin after replay should succeed");
+        .expect("unpin should succeed");
     assert!(unpinned.changed);
 
-    let replay_events = replay_journal.recorded();
+    let events = source_journal.recorded();
     assert_eq!(
-        replay_events
+        events
             .iter()
             .filter(|event| event.event_type == "message.reaction_added")
             .count(),
-        0
+        1
     );
     assert_eq!(
-        replay_events
+        events
             .iter()
             .filter(|event| event.event_type == "message.pin_added")
             .count(),
-        0
+        1
     );
     assert_eq!(
-        replay_events
+        events
             .iter()
             .filter(|event| event.event_type == "message.reaction_removed")
             .count(),
         1
     );
     assert_eq!(
-        replay_events
+        events
             .iter()
             .filter(|event| event.event_type == "message.pin_removed")
             .count(),
@@ -10106,7 +9758,7 @@ fn test_user_cannot_bind_direct_chat_for_other_participants() {
 }
 
 #[test]
-fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_recovery_replay() {
+fn test_create_thread_conversation_binds_parent_message_runtime() {
     let source_journal = InMemoryJournal::default();
     let runtime = ConversationRuntime::new(source_journal.clone());
 
@@ -10233,34 +9885,6 @@ fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_rec
     assert_eq!(created_payload["conversationType"], "thread");
     assert_eq!(created_payload["businessType"], "thread");
     assert_eq!(created_payload["businessId"], root_message.message_id);
-
-    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
-    for envelope in source_journal.recorded() {
-        replay_runtime
-            .apply_recovered_envelope(&envelope)
-            .expect("replay should succeed");
-    }
-
-    let replay_binding = replay_runtime
-        .conversation_business_binding("100001", "default", "c_thread_runtime")
-        .expect("replayed thread binding should exist");
-    assert_eq!(replay_binding.business_type, "thread");
-    assert_eq!(
-        replay_binding.business_id,
-        created_payload["businessId"].as_str().unwrap()
-    );
-
-    let replay_members = replay_runtime
-        .list_members("100001", "default", "c_thread_runtime")
-        .expect("replayed thread members should exist");
-    assert_eq!(replay_members.len(), 1);
-    assert_eq!(
-        replay_members[0]
-            .attributes
-            .get("parentConversationId")
-            .map(String::as_str),
-        Some("c_parent_thread")
-    );
 }
 
 #[test]
@@ -10385,37 +10009,6 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
         "user",
     );
     assert!(matches!(conflicting_retry, Err(RuntimeError::Conflict(_))));
-
-    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
-    for envelope in source_journal.recorded() {
-        replay_runtime
-            .apply_recovered_envelope(&envelope)
-            .expect("thread replay should succeed");
-    }
-
-    let recovered_duplicate = replay_runtime
-        .create_thread_conversation_with_creator_kind(
-            CreateThreadConversationCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_thread_retry".into(),
-                parent_conversation_id: "c_parent_thread_retry".into(),
-                root_message_id: first_root.message_id.clone(),
-                creator_id: "1".into(),
-            },
-            "user",
-        )
-        .expect("recovered duplicate thread create should replay");
-    assert_eq!(recovered_duplicate.event_id, first.event_id);
-    assert_eq!(recovered_duplicate.request_key, first.request_key);
-    assert_eq!(
-        recovered_duplicate
-            .delivery_status
-            .as_ref()
-            .unwrap()
-            .as_str(),
-        "replayed"
-    );
 
     let events = source_journal.recorded();
     assert_eq!(
@@ -10554,23 +10147,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
         payload["principalId"] == "1051" && payload["attributes"]["threadRole"] == "root_author"
     }));
 
-    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
-    for envelope in &source_events {
-        replay_runtime
-            .apply_recovered_envelope(envelope)
-            .expect("replay should succeed");
-    }
-
-    let replay_members = replay_runtime
-        .list_members("100001", "default", "c_thread_notify")
-        .expect("replayed thread members should exist");
-    assert_eq!(replay_members.len(), 2);
-    assert!(replay_members.iter().any(|member| {
-        member.principal_id == "1051"
-            && member.attributes.get("threadRole").map(String::as_str) == Some("root_author")
-    }));
-
-    let reply = replay_runtime
+    let reply = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
             organization_id: "0".into(),
@@ -10592,13 +10169,12 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
                 reply_to: None,
             },
         })
-        .expect("replayed thread should allow auto-subscribed root author to reply");
+        .expect("thread should allow the auto-subscribed root author to reply");
     assert_eq!(reply.message_seq, 1);
 }
 
 #[test]
-fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survives_recovery_replay()
-{
+fn test_sync_shared_channel_linked_member_materializes_runtime_truth() {
     let source_journal = InMemoryJournal::default();
     let runtime = ConversationRuntime::new(source_journal.clone());
 
@@ -10723,26 +10299,6 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
                         && payload["attributes"]["sharedChannelPolicyId"] == "scp_runtime"
                 })
     }));
-
-    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
-    for envelope in &source_events {
-        replay_runtime
-            .apply_recovered_envelope(envelope)
-            .expect("replay should succeed");
-    }
-
-    let replay_linked_history =
-        list_all_messages(&replay_runtime, "100001", "c_shared_sync_runtime", "1064")
-            .expect("replayed linked member should still read shared history");
-    assert_eq!(replay_linked_history.page.items.len(), 1);
-    assert_eq!(
-        replay_linked_history.page.items[0]
-            .message
-            .body
-            .summary
-            .as_deref(),
-        Some("hello runtime sync")
-    );
 }
 
 #[test]
@@ -10826,30 +10382,6 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
         Err(RuntimeError::InvalidInput(_))
     ));
 
-    let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
-    for envelope in source_journal.recorded() {
-        replay_runtime
-            .apply_recovered_envelope(&envelope)
-            .expect("direct chat replay should succeed");
-    }
-
-    let recovered_duplicate = replay_runtime
-        .bind_direct_chat_conversation_with_binder_kind(
-            canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
-            "system",
-        )
-        .expect("recovered duplicate direct chat binding should replay");
-    assert_eq!(recovered_duplicate.event_id, first.event_id);
-    assert_eq!(recovered_duplicate.request_key, first.request_key);
-    assert_eq!(
-        recovered_duplicate
-            .delivery_status
-            .as_ref()
-            .unwrap()
-            .as_str(),
-        "replayed"
-    );
-
     let events = source_journal.recorded();
     assert_eq!(
         events
@@ -10890,55 +10422,6 @@ fn test_direct_chat_business_scope_key_is_segment_safe_for_delimiter_bearing_ids
     assert_ne!(first_binding.business_id, second_binding.business_id);
     assert!(first_binding.business_id.contains('#'));
     assert!(second_binding.business_id.contains('#'));
-}
-
-#[test]
-fn test_direct_chat_business_binding_survives_recovery_replay() {
-    let source_journal = InMemoryJournal::default();
-    let source_runtime = ConversationRuntime::new(source_journal.clone());
-
-    let created = source_runtime
-        .bind_direct_chat_conversation_with_binder_kind(
-            canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
-            "system",
-        )
-        .expect("direct chat binding should succeed");
-    let conversation_id = created.conversation_id.clone();
-    let direct_chat_id = source_runtime
-        .conversation_business_binding("100001", "default", conversation_id.as_str())
-        .expect("binding should exist")
-        .business_id;
-
-    let replay_journal = InMemoryJournal::default();
-    let replay_runtime = ConversationRuntime::new(replay_journal);
-    for envelope in source_journal.recorded() {
-        replay_runtime
-            .apply_recovered_envelope(&envelope)
-            .expect("replay should succeed");
-    }
-
-    let binding = replay_runtime
-        .conversation_business_binding("100001", "default", conversation_id.as_str())
-        .expect("replayed binding should exist");
-    assert_eq!(binding.business_type, "direct_chat");
-    assert_eq!(binding.business_id, direct_chat_id);
-
-    let duplicate_after_replay = replay_runtime
-        .bind_direct_chat_conversation_with_binder_kind(
-            canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
-            "system",
-        )
-        .expect("replayed direct chat binding should be idempotent");
-
-    assert_eq!(duplicate_after_replay.conversation_id, conversation_id);
-    assert_eq!(
-        duplicate_after_replay
-            .delivery_status
-            .as_ref()
-            .unwrap()
-            .as_str(),
-        "replayed"
-    );
 }
 
 #[test]
@@ -11144,10 +10627,10 @@ fn test_direct_chat_creation_persists_both_members_to_aggregate_store() {
 }
 
 #[test]
-fn test_direct_chat_binding_fails_when_member_projection_cannot_persist() {
+fn test_direct_chat_binding_fails_when_normalized_member_state_cannot_persist() {
     let runtime =
         ConversationRuntime::new(InMemoryJournal::default()).with_aggregate_store(Arc::new(
-            TestAggregateStore::write_unavailable("forced direct chat member projection failure"),
+            TestAggregateStore::write_unavailable("forced direct chat normalized member failure"),
         ));
 
     let error = runtime
@@ -11155,15 +10638,15 @@ fn test_direct_chat_binding_fails_when_member_projection_cannot_persist() {
             canonical_bind_direct_chat_command("100001", "anchor_user", "peer_user"),
             "system",
         )
-        .expect_err("direct chat binding must fail when member projection cannot be persisted");
+        .expect_err("direct chat binding must fail when normalized members cannot be persisted");
 
     assert!(
         matches!(
             error,
             RuntimeError::Contract(ContractError::Unavailable(ref message))
-                if message.contains("forced direct chat member projection failure")
+                if message.contains("forced direct chat normalized member failure")
         ),
-        "direct chat binding must surface aggregate projection persistence failure: {error:?}"
+        "direct chat binding must surface normalized member persistence failure: {error:?}"
     );
 }
 
@@ -11272,7 +10755,7 @@ fn test_change_member_role_persists_aggregate_state() {
     let members = aggregate_store.upserted_members();
     assert!(
         !members.is_empty(),
-        "role change must persist aggregate state to the member projection table"
+        "role change must persist aggregate state to the normalized member table"
     );
     assert!(
         members
@@ -11327,7 +10810,7 @@ fn test_transfer_owner_persists_aggregate_state() {
     let members = aggregate_store.upserted_members();
     assert!(
         !members.is_empty(),
-        "owner transfer must persist aggregate state to the member projection table"
+        "owner transfer must persist aggregate state to the normalized member table"
     );
     assert!(
         members

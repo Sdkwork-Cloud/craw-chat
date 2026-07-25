@@ -1,3 +1,23 @@
+-- sdkwork:migration
+-- id: 0002_rewrite_legacy_conversation_id_prefixes
+-- engine: postgres
+-- module: im
+-- purpose: Rewrite legacy Conversation identifiers to canonical prefixes
+-- reversible: false
+-- rollback: restore-cutover
+-- transactional: true
+-- lock: access-exclusive
+-- lock_timeout: 5s
+-- statement_timeout: 15m
+-- rewrite: expected for rows carrying legacy Conversation identifiers
+-- backfill: one bounded maintenance-window transaction with legacy writers stopped
+-- write_traffic: blocked for affected Conversation tables during cutover
+-- replication_wal: proportional to rewritten rows and JSON event payloads
+-- observability: monitor migration duration, blocked locks, WAL growth, and replica lag
+-- cancellation: cancel before commit; PostgreSQL rolls back the complete transaction
+-- recovery: restore the verified pre-cutover backup, correct the blocker, and rerun
+-- contract_version: 1.1.0
+
 -- Migration: Rewrite legacy conversation id prefixes to canonical form.
 --
 -- Background:
@@ -24,6 +44,9 @@
 -- pre-launch cutover has no compatibility resolver or dual-write path.
 
 BEGIN;
+
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '15min';
 
 -- Helpers ---------------------------------------------------------------------
 --

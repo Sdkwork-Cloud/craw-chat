@@ -6,6 +6,40 @@ import {
   partitionDesktopPendingSendRows,
   waitForDesktopPendingSendBackoff,
 } from '../packages/sdkwork-im-pc-core/src/sdk/desktopOfflineSendQueue';
+import {
+  desktopOfflineScopeKey,
+  desktopOfflineScopesEqual,
+  type DesktopOfflinePrincipalScope,
+} from '../packages/sdkwork-im-pc-core/src/sdk/desktopOfflineScope';
+
+const principalScope: DesktopOfflinePrincipalScope = {
+  environment: 'development',
+  deploymentProfile: 'standalone',
+  deploymentMode: 'local',
+  apiOrigin: 'http://127.0.0.1:18079',
+  tenantId: '100001',
+  organizationId: 'org-a',
+  accountId: 'account-1',
+  principalKind: 'user',
+  principalId: 'user-1',
+};
+
+assert.equal(desktopOfflineScopesEqual(principalScope, { ...principalScope }), true);
+for (const [field, value] of [
+  ['environment', 'test'],
+  ['deploymentProfile', 'cloud'],
+  ['deploymentMode', 'private'],
+  ['apiOrigin', 'https://im.example.com'],
+  ['tenantId', '100002'],
+  ['organizationId', 'org-b'],
+  ['accountId', 'account-2'],
+  ['principalKind', 'agent'],
+  ['principalId', 'agent-2'],
+] as const) {
+  const changed = { ...principalScope, [field]: value } as DesktopOfflinePrincipalScope;
+  assert.equal(desktopOfflineScopesEqual(principalScope, changed), false, `${field} must isolate scope`);
+  assert.notEqual(desktopOfflineScopeKey(principalScope), desktopOfflineScopeKey(changed));
+}
 
 const queued = Array.from({ length: 125 }, (_, index) => index + 1);
 const flushed: number[] = [];
@@ -115,10 +149,7 @@ assert.equal(abortListenersRemoved, 1, 'completed backoff must release its abort
 const partitioned = partitionDesktopPendingSendRows([
   {
     scope: {
-      tenantId: '100001',
-      organizationId: '0',
-      principalKind: 'user',
-      principalId: 'user-1',
+      ...principalScope,
     },
     clientMsgId: 'valid',
     conversationId: 'conversation',
@@ -133,10 +164,7 @@ const partitioned = partitionDesktopPendingSendRows([
   },
   {
     scope: {
-      tenantId: '100001',
-      organizationId: '0',
-      principalKind: 'user',
-      principalId: 'user-1',
+      ...principalScope,
     },
     clientMsgId: 'corrupt',
     conversationId: 'conversation',
@@ -180,5 +208,37 @@ assert.doesNotMatch(
   'SQLite-backed Tauri commands must not block the command dispatch thread',
 );
 assert.match(offlineStoreRustSource, /tauri::async_runtime::spawn_blocking/u);
+
+const offlineStoreSource = fs.readFileSync(
+  new URL('../packages/sdkwork-im-pc-core/src/sdk/desktopOfflineStore.ts', import.meta.url),
+  'utf8',
+);
+assert.match(offlineStoreSource, /initDesktopOfflineStore\(\s*scope: DesktopOfflinePrincipalScope/u);
+assert.match(
+  offlineStoreSource,
+  /invoke\('sdkwork_im_pc_offline_init', \{ scope \}\)/u,
+  'desktop initialization must bind the complete scope in native code',
+);
+
+const offlineScopeSource = fs.readFileSync(
+  new URL('../packages/sdkwork-im-pc-core/src/sdk/desktopOfflineScope.ts', import.meta.url),
+  'utf8',
+);
+for (const field of [
+  'environment',
+  'deploymentProfile',
+  'deploymentMode',
+  'apiOrigin',
+  'tenantId',
+  'organizationId',
+  'accountId',
+  'principalKind',
+  'principalId',
+]) {
+  assert.match(offlineScopeSource, new RegExp(`scope\\.${field}`, 'u'));
+}
+assert.match(offlineScopeSource, /VITE_SDKWORK_IM_DEPLOYMENT_PROFILE/u);
+assert.match(offlineScopeSource, /resolveImApiBaseUrl\(\)/u);
+assert.doesNotMatch(offlineScopeSource, /organizationId\s*\?\?\s*['"]0['"]/u);
 
 console.log('desktop offline send queue contract passed');

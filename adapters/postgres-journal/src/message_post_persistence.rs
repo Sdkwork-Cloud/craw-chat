@@ -122,18 +122,112 @@ const UPSERT_NORMALIZED_CONVERSATION_SQL: &str = r#"
 insert into im_conversations (
     tenant_id, organization_id, conversation_id, conversation_type, lifecycle_state,
     commit_seq, member_epoch, last_activity_at, payload_json, payload_hash,
-    created_at, updated_at, retention_until
-) values ($1, $2, $3, $4, $5, $6, $7, $8, '{}'::jsonb, $9, $8, $8, $10)
+    created_at, updated_at, retention_until, archived_at, archive_event_id,
+    commit_fingerprint
+) values ($1, $2, $3, $4, $5, $6, $7, $8, '{}'::jsonb, $9, $8, $8, $10, $11, $12, $13)
 on conflict (tenant_id, organization_id, conversation_id)
 do update set
     conversation_type = excluded.conversation_type,
     lifecycle_state = excluded.lifecycle_state,
+    archived_at = excluded.archived_at,
+    archive_event_id = excluded.archive_event_id,
     commit_seq = excluded.commit_seq,
     member_epoch = excluded.member_epoch,
     last_activity_at = excluded.last_activity_at,
+    payload_hash = excluded.payload_hash,
+    commit_fingerprint = excluded.commit_fingerprint,
     updated_at = excluded.updated_at,
     retention_until = excluded.retention_until
-where im_conversations.commit_seq <= excluded.commit_seq
+where im_conversations.commit_seq = $14
+returning commit_seq
+"#;
+
+const LOAD_NORMALIZED_CONVERSATION_REPLAY_MATCH_SQL: &str = r#"
+select conversation_type = $4
+    and lifecycle_state = $5
+    and commit_seq = $6
+    and member_epoch = $7
+    and last_activity_at = $8
+    and retention_until is not distinct from $9
+    and archived_at is not distinct from $10
+    and archive_event_id is not distinct from $11
+    and commit_fingerprint = $12 as exact_replay
+from im_conversations
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+for update
+"#;
+
+const UPSERT_NORMALIZED_POLICY_SQL: &str = r#"
+insert into im_conversation_policies (
+    tenant_id, organization_id, conversation_id, policy_epoch, policy_version,
+    capability_flags, history_visibility, retention_policy_ref, max_members, created_at, updated_at
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+on conflict (tenant_id, organization_id, conversation_id)
+do update set policy_epoch = excluded.policy_epoch,
+    policy_version = excluded.policy_version,
+    capability_flags = excluded.capability_flags,
+    history_visibility = excluded.history_visibility,
+    retention_policy_ref = excluded.retention_policy_ref,
+    max_members = excluded.max_members,
+    updated_at = excluded.updated_at
+"#;
+
+const DELETE_NORMALIZED_POLICY_SQL: &str = r#"
+delete from im_conversation_policies
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+"#;
+
+const UPSERT_NORMALIZED_BUSINESS_BINDING_SQL: &str = r#"
+insert into im_conversation_business_bindings (
+    tenant_id, organization_id, conversation_id, business_type, business_id, created_at, updated_at
+) values ($1, $2, $3, $4, $5, $6, $6)
+on conflict (tenant_id, organization_id, conversation_id)
+do update set business_type = excluded.business_type,
+    business_id = excluded.business_id,
+    updated_at = excluded.updated_at
+"#;
+
+const DELETE_NORMALIZED_BUSINESS_BINDING_SQL: &str = r#"
+delete from im_conversation_business_bindings
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+"#;
+
+const UPSERT_NORMALIZED_HANDOFF_SQL: &str = r#"
+insert into im_conversation_handoffs (
+    tenant_id, organization_id, conversation_id, handoff_status_epoch, status,
+    source_principal_kind, source_principal_id, target_principal_kind, target_principal_id,
+    handoff_session_id, handoff_reason, accepted_at, accepted_by_principal_kind,
+    accepted_by_principal_id, resolved_at, resolved_by_principal_kind,
+    resolved_by_principal_id, closed_at, closed_by_principal_kind, closed_by_principal_id,
+    created_at, updated_at
+) values (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+    $16, $17, $18, $19, $20, $21, $21
+)
+on conflict (tenant_id, organization_id, conversation_id)
+do update set handoff_status_epoch = excluded.handoff_status_epoch,
+    status = excluded.status,
+    source_principal_kind = excluded.source_principal_kind,
+    source_principal_id = excluded.source_principal_id,
+    target_principal_kind = excluded.target_principal_kind,
+    target_principal_id = excluded.target_principal_id,
+    handoff_session_id = excluded.handoff_session_id,
+    handoff_reason = excluded.handoff_reason,
+    accepted_at = excluded.accepted_at,
+    accepted_by_principal_kind = excluded.accepted_by_principal_kind,
+    accepted_by_principal_id = excluded.accepted_by_principal_id,
+    resolved_at = excluded.resolved_at,
+    resolved_by_principal_kind = excluded.resolved_by_principal_kind,
+    resolved_by_principal_id = excluded.resolved_by_principal_id,
+    closed_at = excluded.closed_at,
+    closed_by_principal_kind = excluded.closed_by_principal_kind,
+    closed_by_principal_id = excluded.closed_by_principal_id,
+    updated_at = excluded.updated_at
+"#;
+
+const DELETE_NORMALIZED_HANDOFF_SQL: &str = r#"
+delete from im_conversation_handoffs
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
 "#;
 
 const UPSERT_NORMALIZED_MEMBER_SQL: &str = r#"
@@ -1356,14 +1450,28 @@ fn validate_normalized_conversation_commit(
             "normalized conversation commit identity is invalid".into(),
         ));
     }
-    let max_ordering_seq = commit
-        .envelopes
-        .iter()
-        .map(|envelope| envelope.ordering_seq)
-        .max()
-        .unwrap_or_default();
-    if conversation.commit_seq < max_ordering_seq
+    let mut expected_ordering_seq = commit.expected_commit_seq;
+    for envelope in &commit.envelopes {
+        expected_ordering_seq = expected_ordering_seq.checked_add(1).ok_or_else(|| {
+            ContractError::Invalid("normalized conversation commit sequence overflow".into())
+        })?;
+        if envelope.ordering_seq != expected_ordering_seq {
+            return Err(ContractError::Invalid(
+                "normalized conversation journal sequence is not contiguous".into(),
+            ));
+        }
+    }
+    if conversation.commit_seq != expected_ordering_seq
         || conversation.member_epoch > conversation.commit_seq
+        || match conversation.lifecycle_state.as_str() {
+            "active" => {
+                conversation.archived_at.is_some() || conversation.archive_event_id.is_some()
+            }
+            "archived" => {
+                conversation.archived_at.is_none() || conversation.archive_event_id.is_none()
+            }
+            _ => true,
+        }
     {
         return Err(ContractError::Invalid(
             "normalized conversation commit sequence is invalid".into(),
@@ -1400,6 +1508,72 @@ fn validate_normalized_conversation_commit(
             ));
         }
     }
+    if let Some(policy) = commit.policy.as_ref() {
+        if policy.tenant_id != conversation.tenant_id
+            || policy.organization_id != conversation.organization_id
+            || policy.conversation_id != conversation.conversation_id
+            || policy.policy_epoch > conversation.commit_seq
+            || policy.policy_version.trim().is_empty()
+            || policy.history_visibility.trim().is_empty()
+            || policy.retention_policy_ref.trim().is_empty()
+            || policy.max_members.is_some_and(|value| value <= 0)
+        {
+            return Err(ContractError::Invalid(
+                "normalized conversation policy is invalid".into(),
+            ));
+        }
+    }
+    if let Some(binding) = commit.business_binding.as_ref() {
+        if binding.tenant_id != conversation.tenant_id
+            || binding.organization_id != conversation.organization_id
+            || binding.conversation_id != conversation.conversation_id
+            || binding.business_type.trim().is_empty()
+            || binding.business_id.trim().is_empty()
+        {
+            return Err(ContractError::Invalid(
+                "normalized conversation business binding is invalid".into(),
+            ));
+        }
+    }
+    if let Some(handoff) = commit.handoff.as_ref() {
+        let actor_pair_is_valid = |kind: &Option<String>, id: &Option<String>| {
+            kind.is_some() == id.is_some()
+                && kind.as_ref().is_none_or(|value| !value.trim().is_empty())
+                && id.as_ref().is_none_or(|value| !value.trim().is_empty())
+        };
+        if handoff.tenant_id != conversation.tenant_id
+            || handoff.organization_id != conversation.organization_id
+            || handoff.conversation_id != conversation.conversation_id
+            || conversation.conversation_type != "agent_handoff"
+            || handoff.handoff_status_epoch > conversation.commit_seq
+            || !matches!(handoff.status.as_str(), "open" | "accepted" | "resolved" | "closed")
+            || handoff.source_principal_kind.trim().is_empty()
+            || handoff.source_principal_id.trim().is_empty()
+            || handoff.target_principal_kind.trim().is_empty()
+            || handoff.target_principal_id.trim().is_empty()
+            || handoff.handoff_session_id.trim().is_empty()
+            || !actor_pair_is_valid(
+                &handoff.accepted_by_principal_kind,
+                &handoff.accepted_by_principal_id,
+            )
+            || !actor_pair_is_valid(
+                &handoff.resolved_by_principal_kind,
+                &handoff.resolved_by_principal_id,
+            )
+            || !actor_pair_is_valid(
+                &handoff.closed_by_principal_kind,
+                &handoff.closed_by_principal_id,
+            )
+        {
+            return Err(ContractError::Invalid(
+                "normalized conversation handoff is invalid".into(),
+            ));
+        }
+    } else if conversation.conversation_type == "agent_handoff" {
+        return Err(ContractError::Invalid(
+            "agent handoff conversation requires normalized handoff state".into(),
+        ));
+    }
     if let Some(assignments) = commit.agent_assignments.as_ref() {
         if assignments.tenant_id.to_string() != conversation.tenant_id
             || assignments.organization_id.to_string() != conversation.organization_id
@@ -1427,9 +1601,12 @@ fn persist_normalized_conversation_commit_txn(
     let mut txn = client.transaction().map_err(|error| {
         postgres_unavailable_db("persist_normalized_conversation_commit begin", error)
     })?;
-    upsert_normalized_conversation_in_transaction(&mut txn, commit)?;
-    if let Some(assignments) = commit.agent_assignments.as_ref() {
-        replace_conversation_agents_in_transaction(&mut txn, assignments, id_generator)?;
+    let normalized_state_applied =
+        upsert_normalized_conversation_in_transaction(&mut txn, commit)?;
+    if normalized_state_applied {
+        if let Some(assignments) = commit.agent_assignments.as_ref() {
+            replace_conversation_agents_in_transaction(&mut txn, assignments, id_generator)?;
+        }
     }
     let mut positions = Vec::with_capacity(commit.envelopes.len());
     for envelope in &commit.envelopes {
@@ -1446,11 +1623,37 @@ fn persist_normalized_conversation_commit_txn(
     Ok(positions)
 }
 
+fn normalized_conversation_commit_fingerprint(
+    commit: &NormalizedConversationCommit,
+) -> Result<String, ContractError> {
+    // Outbox transport ids and retry timestamps are excluded. Their logical
+    // event identity and payload are already validated against `envelopes`.
+    let canonical_business_commit = (
+        commit.expected_commit_seq,
+        &commit.conversation,
+        &commit.policy,
+        &commit.business_binding,
+        &commit.handoff,
+        &commit.members,
+        &commit.read_cursors,
+        &commit.agent_assignments,
+        &commit.envelopes,
+    );
+    let payload = serde_json::to_vec(&canonical_business_commit).map_err(|error| {
+        ContractError::Invalid(format!(
+            "normalized conversation commit fingerprint encode failed: {error}"
+        ))
+    })?;
+    Ok(sdkwork_utils_rust::sha256_hash(payload.as_slice()))
+}
+
 fn upsert_normalized_conversation_in_transaction(
     txn: &mut Transaction<'_>,
     commit: &NormalizedConversationCommit,
-) -> Result<(), ContractError> {
+) -> Result<bool, ContractError> {
     let conversation = &commit.conversation;
+    let expected_commit_seq =
+        postgres_bigint_input(commit.expected_commit_seq, "expected conversation commit sequence")?;
     let commit_seq =
         postgres_bigint_input(conversation.commit_seq, "conversation commit sequence")?;
     let member_epoch =
@@ -1462,25 +1665,68 @@ fn upsert_normalized_conversation_in_transaction(
         .as_deref()
         .map(|value| postgres_timestamptz(value, "retention_until"))
         .transpose()?;
+    let archived_at = conversation
+        .archived_at
+        .as_deref()
+        .map(|value| postgres_timestamptz(value, "archived_at"))
+        .transpose()?;
     let empty_payload_hash = sdkwork_utils_rust::sha256_hash(b"{}");
-    txn.execute(
-        UPSERT_NORMALIZED_CONVERSATION_SQL,
-        &[
-            &conversation.tenant_id,
-            &conversation.organization_id,
-            &conversation.conversation_id,
-            &conversation.conversation_type,
-            &conversation.lifecycle_state,
-            &commit_seq,
-            &member_epoch,
-            &last_activity_at,
-            &empty_payload_hash,
-            &retention_until,
-        ],
-    )
-    .map_err(|error| postgres_unavailable_db("upsert normalized conversation", error))?;
+    let commit_fingerprint = normalized_conversation_commit_fingerprint(commit)?;
+    let params: &[&(dyn postgres::types::ToSql + Sync)] = &[
+        &conversation.tenant_id,
+        &conversation.organization_id,
+        &conversation.conversation_id,
+        &conversation.conversation_type,
+        &conversation.lifecycle_state,
+        &commit_seq,
+        &member_epoch,
+        &last_activity_at,
+        &empty_payload_hash,
+        &retention_until,
+        &archived_at,
+        &conversation.archive_event_id,
+        &commit_fingerprint,
+        &expected_commit_seq,
+    ];
+    let applied = txn
+        .query_opt(UPSERT_NORMALIZED_CONVERSATION_SQL, params)
+        .map_err(|error| postgres_unavailable_db("upsert normalized conversation", error))?
+        .is_some();
+    if !applied {
+        let replay_match = txn
+            .query_opt(
+                LOAD_NORMALIZED_CONVERSATION_REPLAY_MATCH_SQL,
+                &[
+                    &conversation.tenant_id,
+                    &conversation.organization_id,
+                    &conversation.conversation_id,
+                    &conversation.conversation_type,
+                    &conversation.lifecycle_state,
+                    &commit_seq,
+                    &member_epoch,
+                    &last_activity_at,
+                    &retention_until,
+                    &archived_at,
+                    &conversation.archive_event_id,
+                    &commit_fingerprint,
+                ],
+            )
+            .map_err(|error| {
+                postgres_unavailable_db("load normalized conversation replay state", error)
+            })?
+            .is_some_and(|row| row.get::<_, bool>(0));
+        if !replay_match {
+            return Err(ContractError::Conflict(
+                "normalized conversation commit sequence conflict".into(),
+            ));
+        }
+        return Ok(false);
+    }
+
+    persist_normalized_conversation_capabilities(txn, commit, &last_activity_at)?;
 
     for member in &commit.members {
+        let empty_payload_hash = sdkwork_utils_rust::sha256_hash(b"{}");
         let joined_at = postgres_timestamptz(&member.joined_at, "joined_at")?;
         let removed_at = member
             .removed_at
@@ -1512,6 +1758,7 @@ fn upsert_normalized_conversation_in_transaction(
     }
 
     for cursor in &commit.read_cursors {
+        let empty_payload_hash = sdkwork_utils_rust::sha256_hash(b"{}");
         let member_id = cursor.member_id;
         let read_seq = postgres_bigint_input(cursor.read_seq, "read sequence")?;
         let updated_at = postgres_timestamptz(&cursor.updated_at, "updated_at")?;
@@ -1533,6 +1780,124 @@ fn upsert_normalized_conversation_in_transaction(
         )
         .map_err(|error| postgres_unavailable_db("upsert normalized read cursor", error))?;
     }
+    Ok(true)
+}
+
+fn persist_normalized_conversation_capabilities(
+    txn: &mut Transaction<'_>,
+    commit: &NormalizedConversationCommit,
+    updated_at: &DateTime<Utc>,
+) -> Result<(), ContractError> {
+    let conversation = &commit.conversation;
+    let scope_params: &[&(dyn postgres::types::ToSql + Sync)] = &[
+        &conversation.tenant_id,
+        &conversation.organization_id,
+        &conversation.conversation_id,
+    ];
+
+    if let Some(policy) = commit.policy.as_ref() {
+        let policy_epoch = postgres_bigint_input(policy.policy_epoch, "conversation policy epoch")?;
+        txn.execute(
+            UPSERT_NORMALIZED_POLICY_SQL,
+            &[
+                &policy.tenant_id,
+                &policy.organization_id,
+                &policy.conversation_id,
+                &policy_epoch,
+                &policy.policy_version,
+                &policy.capability_flags,
+                &policy.history_visibility,
+                &policy.retention_policy_ref,
+                &policy.max_members,
+                updated_at,
+            ],
+        )
+        .map_err(|error| postgres_unavailable_db("upsert normalized conversation policy", error))?;
+    } else {
+        txn.execute(DELETE_NORMALIZED_POLICY_SQL, scope_params)
+            .map_err(|error| {
+                postgres_unavailable_db("delete normalized conversation policy", error)
+            })?;
+    }
+
+    if let Some(binding) = commit.business_binding.as_ref() {
+        txn.execute(
+            UPSERT_NORMALIZED_BUSINESS_BINDING_SQL,
+            &[
+                &binding.tenant_id,
+                &binding.organization_id,
+                &binding.conversation_id,
+                &binding.business_type,
+                &binding.business_id,
+                updated_at,
+            ],
+        )
+        .map_err(|error| {
+            postgres_unavailable_db("upsert normalized conversation business binding", error)
+        })?;
+    } else {
+        txn.execute(DELETE_NORMALIZED_BUSINESS_BINDING_SQL, scope_params)
+            .map_err(|error| {
+                postgres_unavailable_db("delete normalized conversation business binding", error)
+            })?;
+    }
+
+    if let Some(handoff) = commit.handoff.as_ref() {
+        let handoff_status_epoch = postgres_bigint_input(
+            handoff.handoff_status_epoch,
+            "conversation handoff status epoch",
+        )?;
+        let accepted_at = handoff
+            .accepted_at
+            .as_deref()
+            .map(|value| postgres_timestamptz(value, "handoff accepted_at"))
+            .transpose()?;
+        let resolved_at = handoff
+            .resolved_at
+            .as_deref()
+            .map(|value| postgres_timestamptz(value, "handoff resolved_at"))
+            .transpose()?;
+        let closed_at = handoff
+            .closed_at
+            .as_deref()
+            .map(|value| postgres_timestamptz(value, "handoff closed_at"))
+            .transpose()?;
+        txn.execute(
+            UPSERT_NORMALIZED_HANDOFF_SQL,
+            &[
+                &handoff.tenant_id,
+                &handoff.organization_id,
+                &handoff.conversation_id,
+                &handoff_status_epoch,
+                &handoff.status,
+                &handoff.source_principal_kind,
+                &handoff.source_principal_id,
+                &handoff.target_principal_kind,
+                &handoff.target_principal_id,
+                &handoff.handoff_session_id,
+                &handoff.handoff_reason,
+                &accepted_at,
+                &handoff.accepted_by_principal_kind,
+                &handoff.accepted_by_principal_id,
+                &resolved_at,
+                &handoff.resolved_by_principal_kind,
+                &handoff.resolved_by_principal_id,
+                &closed_at,
+                &handoff.closed_by_principal_kind,
+                &handoff.closed_by_principal_id,
+                updated_at,
+            ],
+        )
+        .map_err(|error| {
+            postgres_unavailable_db("upsert normalized conversation handoff", error)
+        })?;
+    } else {
+        txn.execute(DELETE_NORMALIZED_HANDOFF_SQL, scope_params)
+            .map_err(|error| {
+                postgres_unavailable_db("delete normalized conversation handoff", error)
+            })?;
+    }
+
     Ok(())
 }
 
@@ -2034,6 +2399,76 @@ mod tests {
         (envelope, outbox)
     }
 
+    fn normalized_conversation_commit_fixture() -> NormalizedConversationCommit {
+        let (envelope, outbox) = conversation_event_fixture();
+        NormalizedConversationCommit {
+            expected_commit_seq: 1,
+            conversation: im_platform_contracts::NormalizedConversationRecord {
+                tenant_id: envelope.tenant_id.clone(),
+                organization_id: envelope.organization_id.clone(),
+                conversation_id: envelope.aggregate_id.clone(),
+                conversation_type: "group".into(),
+                lifecycle_state: "active".into(),
+                archived_at: None,
+                archive_event_id: None,
+                commit_seq: envelope.ordering_seq,
+                member_epoch: 1,
+                last_activity_at: envelope.committed_at.clone(),
+                retention_until: None,
+            },
+            policy: Some(im_platform_contracts::NormalizedConversationPolicyRecord {
+                tenant_id: envelope.tenant_id.clone(),
+                organization_id: envelope.organization_id.clone(),
+                conversation_id: envelope.aggregate_id.clone(),
+                policy_epoch: 1,
+                policy_version: "group.v1".into(),
+                capability_flags: Some(vec!["message.post".into()]),
+                history_visibility: "joined".into(),
+                retention_policy_ref: "tenant.standard".into(),
+                max_members: Some(200),
+            }),
+            business_binding: Some(
+                im_platform_contracts::NormalizedConversationBusinessBindingRecord {
+                    tenant_id: envelope.tenant_id.clone(),
+                    organization_id: envelope.organization_id.clone(),
+                    conversation_id: envelope.aggregate_id.clone(),
+                    business_type: "workspace".into(),
+                    business_id: "workspace-42".into(),
+                },
+            ),
+            handoff: None,
+            members: vec![im_platform_contracts::ConversationMemberRecord {
+                tenant_id: envelope.tenant_id.clone(),
+                organization_id: envelope.organization_id.clone(),
+                conversation_id: envelope.aggregate_id.clone(),
+                principal_kind: "user".into(),
+                principal_id: "user-1".into(),
+                member_id: 1001,
+                membership_role: "owner".into(),
+                membership_state: "joined".into(),
+                invited_by: None,
+                joined_at: envelope.committed_at.clone(),
+                removed_at: None,
+                attributes_json: "{}".into(),
+            }],
+            read_cursors: vec![im_platform_contracts::ReadCursorRecord {
+                tenant_id: envelope.tenant_id.clone(),
+                organization_id: envelope.organization_id.clone(),
+                conversation_id: envelope.aggregate_id.clone(),
+                member_id: 1001,
+                device_id: String::new(),
+                principal_kind: "user".into(),
+                principal_id: "user-1".into(),
+                read_seq: 0,
+                last_read_message_id: None,
+                updated_at: envelope.committed_at.clone(),
+            }],
+            agent_assignments: None,
+            envelopes: vec![envelope],
+            outboxes: vec![outbox],
+        }
+    }
+
     fn message_mutation_fixture() -> (CommitEnvelope, StoredMessageMutation, OutboxEventRecord) {
         let tenant_id = "tenant-message-mutation";
         let organization_id = "0";
@@ -2328,6 +2763,67 @@ mod tests {
                 .expect("hash drift should still produce a fingerprint"),
             expected
         );
+    }
+
+    #[test]
+    fn normalized_commit_fingerprint_covers_all_typed_current_state() {
+        let commit = normalized_conversation_commit_fixture();
+        validate_normalized_conversation_commit(&commit)
+            .expect("normalized fixture should validate");
+        let expected = normalized_conversation_commit_fingerprint(&commit)
+            .expect("normalized fixture should hash");
+
+        let mut changed_policy = commit.clone();
+        changed_policy
+            .policy
+            .as_mut()
+            .expect("fixture policy")
+            .history_visibility = "shared".into();
+        assert_ne!(
+            normalized_conversation_commit_fingerprint(&changed_policy)
+                .expect("changed policy should hash"),
+            expected
+        );
+
+        let mut changed_binding = commit.clone();
+        changed_binding
+            .business_binding
+            .as_mut()
+            .expect("fixture binding")
+            .business_id = "workspace-43".into();
+        assert_ne!(
+            normalized_conversation_commit_fingerprint(&changed_binding)
+                .expect("changed binding should hash"),
+            expected
+        );
+
+        let mut changed_member = commit.clone();
+        changed_member.members[0].membership_role = "admin".into();
+        assert_ne!(
+            normalized_conversation_commit_fingerprint(&changed_member)
+                .expect("changed member should hash"),
+            expected
+        );
+
+        let mut changed_cursor = commit;
+        changed_cursor.read_cursors[0].read_seq = 1;
+        assert_ne!(
+            normalized_conversation_commit_fingerprint(&changed_cursor)
+                .expect("changed cursor should hash"),
+            expected
+        );
+    }
+
+    #[test]
+    fn normalized_conversation_cas_uses_dedicated_complete_fingerprint() {
+        let upsert = UPSERT_NORMALIZED_CONVERSATION_SQL.to_ascii_lowercase();
+        assert!(upsert.contains("commit_fingerprint"));
+        assert!(upsert.contains("where im_conversations.commit_seq = $14"));
+
+        let replay = LOAD_NORMALIZED_CONVERSATION_REPLAY_MATCH_SQL.to_ascii_lowercase();
+        assert!(replay.contains("commit_fingerprint = $12"));
+        assert!(replay.contains("for update"));
+        assert!(!replay.contains("payload_json"));
     }
 
     #[test]

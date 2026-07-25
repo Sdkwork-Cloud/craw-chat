@@ -1,11 +1,8 @@
 {
-  "schemaVersion": 1,
-  "environment": "staging",
-  "runtimeTargets": ["capacitor-ios", "capacitor-android"],
   "appId": "com.sdkwork.im.h5",
-  "appName": "SDKWork IM",
-  "signingReferences": {
-    "ios": null,
-    "android": null
+  "appName": "Sdkwork IM H5",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
   }
 }

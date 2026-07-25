@@ -1,4 +1,4 @@
-//! Transactional space/group commit materialization for multi-commit write batches.
+//! Normalized Space and group writes executed inside the journal-owned transaction.
 
 use im_domain_events::space::{
     GroupCreatedPayload, GroupDeletedPayload, GroupMemberJoinedPayload, GroupMemberRemovedPayload,
@@ -10,8 +10,11 @@ use im_platform_contracts::CommitEnvelope;
 
 use crate::governance_store::SpaceMemberRecord;
 use crate::organization_store::{GroupMemberRecord, GroupRecord, SpaceRecord};
-use crate::wire_id::social_entity_id_to_i64;
-use crate::{SocialPostgresPool, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::wire_id::parse_social_entity_id;
+
+fn space_entity_id(value: &str) -> Result<i64, String> {
+    parse_social_entity_id(value).map_err(|error| format!("{error:?}"))
+}
 
 const SPACE_MEMBER_CAPACITY_FULL: &str = "space member capacity full during materialization";
 const GROUP_MEMBER_CAPACITY_FULL: &str = "group member capacity full during materialization";
@@ -165,33 +168,6 @@ DELETE FROM im_group_members
 WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3 AND user_id = $4
 "#;
 
-/// Materialize a multi-commit space/group batch inside one PostgreSQL transaction.
-pub fn materialize_space_commits_in_transaction(
-    pool: &SocialPostgresPool,
-    commits: &[CommitEnvelope],
-) -> Result<(), String> {
-    if commits.len() <= 1 {
-        return Err(
-            "materialize_space_commits_in_transaction requires at least two commits".to_owned(),
-        );
-    }
-    let pool = pool.inner().clone();
-    let commits = commits.to_vec();
-    run_postgres_io(move || {
-        let mut client = postgres_pool_client(&pool, "materialize_space_commits_batch")?;
-        let mut txn = client
-            .transaction()
-            .map_err(|error| postgres_unavailable("materialize_space_commits_batch", error))?;
-        materialize_space_commits_on_transaction(&mut txn, &commits).map_err(|error| {
-            im_platform_contracts::ContractError::Unavailable(error.to_string())
-        })?;
-        txn.commit()
-            .map_err(|error| postgres_unavailable("materialize_space_commits_batch", error))?;
-        Ok(())
-    })
-    .map_err(|error| format!("{error:?}"))
-}
-
 pub fn materialize_space_commits_on_transaction(
     txn: &mut postgres::Transaction<'_>,
     commits: &[CommitEnvelope],
@@ -228,7 +204,9 @@ fn materialize_space_commit_on(
         "group.member_updated" => materialize_group_member_updated(txn, commit),
         "group.member_removed" => materialize_group_member_removed(txn, commit),
         "group.owner_transferred" => materialize_group_owner_transferred(txn, commit),
-        _ => Ok(()),
+        event_type => Err(format!(
+            "unsupported space normalized write event type {event_type}"
+        )),
     }
 }
 
@@ -243,7 +221,7 @@ fn materialize_space_created(
         &[
             &commit.tenant_id,
             &commit.organization_id,
-            &social_entity_id_to_i64(payload.space_id.as_str()),
+            &space_entity_id(payload.space_id.as_str())?,
             &payload.space_name,
             &payload.space_type,
             &payload.owner_user_id,
@@ -265,7 +243,7 @@ fn materialize_space_updated(
 ) -> Result<(), String> {
     let payload: SpaceUpdatedPayload = serde_json::from_str(commit.payload.as_str())
         .map_err(|error| format!("invalid space.updated payload: {error}"))?;
-    let space_id = social_entity_id_to_i64(payload.space_id.as_str());
+    let space_id = space_entity_id(payload.space_id.as_str())?;
     let existing = load_space(
         txn,
         commit.tenant_id.as_str(),
@@ -302,7 +280,7 @@ fn materialize_space_deleted(
         &[
             &commit.tenant_id,
             &commit.organization_id,
-            &social_entity_id_to_i64(payload.space_id.as_str()),
+            &space_entity_id(payload.space_id.as_str())?,
         ],
     )
     .map_err(|error| format!("space delete failed: {error}"))
@@ -318,7 +296,7 @@ fn materialize_space_member_joined(
     let record = SpaceMemberRecord {
         tenant_id: commit.tenant_id.clone(),
         organization_id: commit.organization_id.clone(),
-        space_id: social_entity_id_to_i64(payload.space_id.as_str()),
+        space_id: space_entity_id(payload.space_id.as_str())?,
         user_id: payload.user_id,
         role: payload.role,
         nickname: payload.nickname,
@@ -334,7 +312,7 @@ fn materialize_space_member_updated(
 ) -> Result<(), String> {
     let payload: SpaceMemberUpdatedPayload = serde_json::from_str(commit.payload.as_str())
         .map_err(|error| format!("invalid space.member_updated payload: {error}"))?;
-    let space_id = social_entity_id_to_i64(payload.space_id.as_str());
+    let space_id = space_entity_id(payload.space_id.as_str())?;
     let _existing = load_space_member(
         txn,
         commit.tenant_id.as_str(),
@@ -369,7 +347,7 @@ fn materialize_space_member_removed(
         &[
             &commit.tenant_id,
             &commit.organization_id,
-            &social_entity_id_to_i64(payload.space_id.as_str()),
+            &space_entity_id(payload.space_id.as_str())?,
             &payload.user_id,
         ],
     )
@@ -383,14 +361,19 @@ fn materialize_group_created(
 ) -> Result<(), String> {
     let payload: GroupCreatedPayload = serde_json::from_str(commit.payload.as_str())
         .map_err(|error| format!("invalid group.created payload: {error}"))?;
-    let group_id = social_entity_id_to_i64(payload.group_id.as_str());
+    let group_id = space_entity_id(payload.group_id.as_str())?;
+    let space_id = payload
+        .space_id
+        .as_deref()
+        .map(space_entity_id)
+        .transpose()?;
     txn.execute(
         GROUP_INSERT_SQL,
         &[
             &commit.tenant_id,
             &commit.organization_id,
             &group_id,
-            &payload.space_id.as_deref().map(social_entity_id_to_i64),
+            &space_id,
             &payload.group_name,
             &payload.group_type,
             &payload.owner_user_id,
@@ -429,7 +412,7 @@ fn materialize_group_updated(
 ) -> Result<(), String> {
     let payload: GroupUpdatedPayload = serde_json::from_str(commit.payload.as_str())
         .map_err(|error| format!("invalid group.updated payload: {error}"))?;
-    let group_id = social_entity_id_to_i64(payload.group_id.as_str());
+    let group_id = space_entity_id(payload.group_id.as_str())?;
     let _existing = load_group(
         txn,
         commit.tenant_id.as_str(),
@@ -466,7 +449,7 @@ fn materialize_group_deleted(
         &[
             &commit.tenant_id,
             &commit.organization_id,
-            &social_entity_id_to_i64(payload.group_id.as_str()),
+            &space_entity_id(payload.group_id.as_str())?,
         ],
     )
     .map_err(|error| format!("group delete failed: {error}"))
@@ -482,7 +465,7 @@ fn materialize_group_member_joined(
     let record = GroupMemberRecord {
         tenant_id: commit.tenant_id.clone(),
         organization_id: commit.organization_id.clone(),
-        group_id: social_entity_id_to_i64(payload.group_id.as_str()),
+        group_id: space_entity_id(payload.group_id.as_str())?,
         user_id: payload.user_id,
         role: payload.role,
         nickname: payload.nickname,
@@ -499,7 +482,7 @@ fn materialize_group_member_updated(
 ) -> Result<(), String> {
     let payload: GroupMemberUpdatedPayload = serde_json::from_str(commit.payload.as_str())
         .map_err(|error| format!("invalid group.member_updated payload: {error}"))?;
-    let group_id = social_entity_id_to_i64(payload.group_id.as_str());
+    let group_id = space_entity_id(payload.group_id.as_str())?;
     let _existing = load_group_member(
         txn,
         commit.tenant_id.as_str(),
@@ -535,7 +518,7 @@ fn materialize_group_member_removed(
         &[
             &commit.tenant_id,
             &commit.organization_id,
-            &social_entity_id_to_i64(payload.group_id.as_str()),
+            &space_entity_id(payload.group_id.as_str())?,
             &payload.user_id,
         ],
     )
@@ -549,7 +532,7 @@ fn materialize_group_owner_transferred(
 ) -> Result<(), String> {
     let payload: GroupOwnerTransferredPayload = serde_json::from_str(commit.payload.as_str())
         .map_err(|error| format!("invalid group.owner_transferred payload: {error}"))?;
-    let group_id = social_entity_id_to_i64(payload.group_id.as_str());
+    let group_id = space_entity_id(payload.group_id.as_str())?;
     let updated_rows = txn
         .execute(
             GROUP_TRANSFER_OWNER_SQL,

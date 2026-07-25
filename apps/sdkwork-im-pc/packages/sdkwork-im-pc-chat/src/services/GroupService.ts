@@ -356,16 +356,16 @@ function mergeCachedGroupViewState(group: Chat, state: GroupViewState | undefine
 function mapConversationEntryToGroup(entry: ConversationListEntry): Chat {
   const updatedAt = new Date(entry.lastActivityAt).getTime();
   const entryRecord = toRecord(entry);
-  const projectedName = pickString(entryRecord.displayName, entryRecord.display_name);
-  const projectedAvatar = pickString(entryRecord.avatarUrl, entryRecord.avatar_url);
-  const projectedAgentAssignments = entryRecord.agentAssignments ?? entryRecord.agent_assignments;
-  const agentAssignments = projectedAgentAssignments === undefined
+  const inboxName = pickString(entryRecord.displayName, entryRecord.display_name);
+  const inboxAvatar = pickString(entryRecord.avatarUrl, entryRecord.avatar_url);
+  const inboxAgentAssignments = entryRecord.agentAssignments ?? entryRecord.agent_assignments;
+  const agentAssignments = inboxAgentAssignments === undefined
     ? undefined
-    : normalizeAgentAssignments(projectedAgentAssignments);
+    : normalizeAgentAssignments(inboxAgentAssignments);
   return {
     id: entry.conversationId,
-    name: projectedName ?? 'Group chat',
-    avatar: projectedAvatar ?? createGroupAvatar(),
+    name: inboxName ?? 'Group chat',
+    avatar: inboxAvatar ?? createGroupAvatar(),
     type: 'group',
     unreadCount: entry.unreadCount,
     updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(),
@@ -373,18 +373,18 @@ function mapConversationEntryToGroup(entry: ConversationListEntry): Chat {
   };
 }
 
-function readGroupPreferencesProjection(entry: ConversationListEntry): Record<string, unknown> {
+function readGroupPreferencesState(entry: ConversationListEntry): Record<string, unknown> {
   return toRecord(toRecord(entry).preferences);
 }
 
-function hasGroupPreferencesProjection(entry: ConversationListEntry): boolean {
-  const preferences = readGroupPreferencesProjection(entry);
+function hasGroupPreferencesState(entry: ConversationListEntry): boolean {
+  const preferences = readGroupPreferencesState(entry);
   return ['isPinned', 'isMuted', 'isMarkedUnread', 'isHidden']
     .every((field) => typeof preferences[field] === 'boolean');
 }
 
-function isGroupHiddenByProjection(entry: ConversationListEntry): boolean {
-  return readGroupPreferencesProjection(entry).isHidden === true;
+function isGroupHiddenByPreferences(entry: ConversationListEntry): boolean {
+  return readGroupPreferencesState(entry).isHidden === true;
 }
 
 function normalizeGroupPageSize(pageSize: number | undefined): number {
@@ -772,13 +772,13 @@ class SdkworkGroupService implements GroupService {
       mapConversationEntryToGroup(entry),
       this.groupViewState.get(entry.conversationId),
     );
-    if (hasGroupPreferencesProjection(entry)) {
-      if (isGroupHiddenByProjection(entry)) {
+    if (hasGroupPreferencesState(entry)) {
+      if (isGroupHiddenByPreferences(entry)) {
         return null;
       }
     }
 
-    // Inbox projections may omit the profile name. Hydrate the authoritative
+    // Inbox state may omit the profile name. Hydrate the authoritative
     // profile before returning the page so the conversation list does not
     // expose a technical conversation id as the visible title.
     try {
@@ -799,7 +799,7 @@ class SdkworkGroupService implements GroupService {
         });
       }
     } catch {
-      // Keep the inbox projection fallback when profile hydration is unavailable.
+      // Keep the inbox-state fallback when profile hydration is unavailable.
     }
 
     if (group.agentAssignments !== undefined && group.agentAssignmentGeneration !== undefined) {
@@ -995,7 +995,7 @@ class SdkworkGroupService implements GroupService {
         notice: profile.notice,
       };
     } catch {
-      // Keep cached projection when profile hydration is temporarily unavailable.
+      // Keep cached view state when profile hydration is temporarily unavailable.
     }
 
     try {

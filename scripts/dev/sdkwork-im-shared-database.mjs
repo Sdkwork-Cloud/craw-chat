@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -128,28 +127,27 @@ const AGENTS_DATABASE_ENV_KEYS = [
 ];
 
 const COMMERCE_T1_DATABASE_PREFIXES = [
-  { prefix: 'SDKWORK_ACCOUNT', sqliteFile: 'account.sqlite' },
-  { prefix: 'SDKWORK_CATALOG', sqliteFile: 'catalog.sqlite' },
-  { prefix: 'SDKWORK_INVENTORY', sqliteFile: 'inventory.sqlite' },
-  { prefix: 'SDKWORK_INVOICE', sqliteFile: 'invoice.sqlite' },
-  { prefix: 'SDKWORK_MEMBERSHIP', sqliteFile: 'membership.sqlite' },
-  { prefix: 'SDKWORK_MERCHANDISE', sqliteFile: 'merchandise.sqlite' },
-  { prefix: 'SDKWORK_ORDER', sqliteFile: 'order.sqlite' },
-  { prefix: 'SDKWORK_PAYMENT', sqliteFile: 'payment.sqlite' },
-  { prefix: 'SDKWORK_PROMOTION', sqliteFile: 'promotion.sqlite' },
-  { prefix: 'SDKWORK_SHOP', sqliteFile: 'shop.sqlite' },
+  'SDKWORK_ACCOUNT',
+  'SDKWORK_CATALOG',
+  'SDKWORK_INVENTORY',
+  'SDKWORK_INVOICE',
+  'SDKWORK_MEMBERSHIP',
+  'SDKWORK_MERCHANDISE',
+  'SDKWORK_ORDER',
+  'SDKWORK_PAYMENT',
+  'SDKWORK_PROMOTION',
+  'SDKWORK_SHOP',
 ];
 
 function databaseBridgeEnv({
   databaseUrl,
   env,
-  engine,
   maxConnections,
 }) {
   const resolvedMaxConnections = maxConnections
     ?? envValue(env, 'SDKWORK_IM_DATABASE_MAX_CONNECTIONS', 'SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS');
   const bridged = {
-    SDKWORK_IM_DATABASE_ENGINE: engine,
+    SDKWORK_IM_DATABASE_ENGINE: 'postgresql',
     SDKWORK_IM_DATABASE_URL: databaseUrl,
     SDKWORK_CLAW_DATABASE_URL: databaseUrl,
     ...(resolvedMaxConnections
@@ -159,42 +157,18 @@ function databaseBridgeEnv({
       }
       : {}),
   };
-    if (/^postgres(?:ql)?:\/\//iu.test(databaseUrl)) {
-    bridged.SDKWORK_IAM_DATABASE_URL = databaseUrl;
-    bridged.SDKWORK_DATABASE_URL = databaseUrl;
-    bridged.SDKWORK_DRIVE_DATABASE_URL = databaseUrl;
-    bridged.SDKWORK_KNOWLEDGEBASE_DATABASE_URL = databaseUrl;
-    for (const key of AGENTS_DATABASE_ENV_KEYS) {
-      bridged[key] = databaseUrl;
-    }
-    for (const module of COMMERCE_T1_DATABASE_PREFIXES) {
-      bridged[`${module.prefix}_DATABASE_URL`] = databaseUrl;
-    }
-    bridged.SDKWORK_MAIL_DATABASE_URL = databaseUrl;
-    bridged.SDKWORK_NOTARY_DATABASE_URL = databaseUrl;
+  bridged.SDKWORK_IAM_DATABASE_URL = databaseUrl;
+  bridged.SDKWORK_DATABASE_URL = databaseUrl;
+  bridged.SDKWORK_DRIVE_DATABASE_URL = databaseUrl;
+  bridged.SDKWORK_KNOWLEDGEBASE_DATABASE_URL = databaseUrl;
+  for (const key of AGENTS_DATABASE_ENV_KEYS) {
+    bridged[key] = databaseUrl;
   }
-  if (/^sqlite:\/\//iu.test(databaseUrl)) {
-    const sqlitePath = databaseUrl.replace(/^sqlite:\/\//iu, '');
-    const absoluteSqlitePath = path.resolve(sqlitePath);
-    const dataDir = path.dirname(absoluteSqlitePath);
-    const driveSqlitePath = path.join(dataDir, 'drive.sqlite').replaceAll('\\', '/');
-    const knowledgebaseSqlitePath = path.join(dataDir, 'knowledgebase.db').replaceAll('\\', '/');
-    const mailSqlitePath = path.join(dataDir, 'mail.sqlite').replaceAll('\\', '/');
-    const notarySqlitePath = path.join(dataDir, 'notary.sqlite').replaceAll('\\', '/');
-    bridged.SDKWORK_DRIVE_DATABASE_ENGINE = 'sqlite';
-    bridged.SDKWORK_DRIVE_DATABASE_SQLITE_URL = `sqlite://${driveSqlitePath}`;
-    bridged.SDKWORK_DRIVE_DATABASE_URL = `sqlite://${driveSqlitePath}`;
-    bridged.SDKWORK_KNOWLEDGEBASE_DATABASE_URL = `sqlite://${knowledgebaseSqlitePath}?mode=rwc`;
-    for (const key of AGENTS_DATABASE_ENV_KEYS) {
-      bridged[key] = databaseUrl;
-    }
-    for (const module of COMMERCE_T1_DATABASE_PREFIXES) {
-      const sqlitePath = path.join(dataDir, module.sqliteFile).replaceAll('\\', '/');
-      bridged[`${module.prefix}_DATABASE_URL`] = `sqlite://${sqlitePath}`;
-    }
-    bridged.SDKWORK_MAIL_DATABASE_URL = `sqlite://${mailSqlitePath}`;
-    bridged.SDKWORK_NOTARY_DATABASE_URL = `sqlite://${notarySqlitePath}`;
+  for (const prefix of COMMERCE_T1_DATABASE_PREFIXES) {
+    bridged[`${prefix}_DATABASE_URL`] = databaseUrl;
   }
+  bridged.SDKWORK_MAIL_DATABASE_URL = databaseUrl;
+  bridged.SDKWORK_NOTARY_DATABASE_URL = databaseUrl;
   return bridged;
 }
 
@@ -213,33 +187,12 @@ export function resolveSdkworkImSharedDatabaseConfig({
     );
   }
 
-  if (/^sqlite:\/\//iu.test(databaseUrl)) {
-    const sqlitePath = databaseUrl.replace(/^sqlite:\/\//iu, '');
-    const absoluteSqlitePath = path.resolve(sqlitePath);
-    fs.mkdirSync(path.dirname(absoluteSqlitePath), { recursive: true });
-    return {
-      databaseUrl,
-      env: databaseBridgeEnv({
-        databaseUrl,
-        engine: 'sqlite',
-        env,
-        maxConnections: envValue(
-          env,
-          'SDKWORK_IM_DATABASE_MAX_CONNECTIONS',
-          'SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS',
-        ) ?? '1',
-      }),
-      kind: 'sqlite',
-    };
-  }
-
   if (/^postgres(?:ql)?:\/\//iu.test(databaseUrl)) {
     const parsed = new URL(databaseUrl);
     return {
       databaseUrl,
       env: databaseBridgeEnv({
         databaseUrl,
-        engine: 'postgresql',
         env,
       }),
       kind: 'postgresql',
@@ -254,13 +207,5 @@ export function resolveSdkworkImSharedDatabaseConfig({
     };
   }
 
-  return {
-    databaseUrl,
-    env: databaseBridgeEnv({
-      databaseUrl,
-      engine: 'custom',
-      env,
-    }),
-    kind: 'custom',
-  };
+  throw new Error(`unsupported Sdkwork IM database URL; PostgreSQL is required: ${databaseUrl}`);
 }

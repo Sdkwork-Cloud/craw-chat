@@ -103,7 +103,7 @@ assert.match(
 assert.doesNotMatch(
   chatServiceSource,
   /name:\s*viewState\.name\s*\?\?\s*chatId|name:\s*viewState\.name\s*\?\?\s*entry\.conversationId/u,
-  'cached conversation projections must not fall back to displaying a technical id as the conversation name.',
+  'cached conversation view state must not fall back to displaying a technical id as the conversation name.',
 );
 
 assert.match(

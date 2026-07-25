@@ -27,12 +27,12 @@ and other sibling databases are external dependencies and are intentionally excl
 - Module: `im`
 - Contract version: `2.0.0`
 - Lifecycle strategy: `baseline-plus-migrations`
-- Registered IM tables: 60
+- Registered IM tables: 63
 - Runtime engines: `postgres`
 
 ## Table Inventory
 
-### instant_messaging (35)
+### instant_messaging (38)
 
 | Table | Profile | Write owner | Authority role | Migration / DDL source |
 | --- | --- | --- | --- | --- |
@@ -44,9 +44,12 @@ and other sibling databases are external dependencies and are intentionally excl
 | `im_commit_journal` | `event_log` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_conversation_agent_assignments` | `conversation_agent_assignment` | `comms-conversation-service` | system of record | `database/migrations/postgres/0005_agents_integration_expand.up.sql` |
 | `im_conversation_agent_binding` | `relation_entity` | `comms-conversation-service` | system of record | `database/migrations/postgres/0005_agents_integration_expand.up.sql` |
+| `im_conversation_business_bindings` | `relation_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
+| `im_conversation_handoffs` | `tenant_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_conversation_knowledge_space_link` | `relation_entity` | `comms-conversation-service` | owned relation / operational state | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_conversation_members` | `conversation_member_authority` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_conversation_messages` | `tenant_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
+| `im_conversation_policies` | `tenant_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_conversation_read_cursors` | `read_cursor_authority` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_conversation_seq_counters` | `sequence_allocator` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_conversations` | `conversation_authority` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |

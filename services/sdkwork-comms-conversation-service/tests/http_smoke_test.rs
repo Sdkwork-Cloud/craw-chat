@@ -14,13 +14,10 @@ static UNIQUE_CATALOG_COUNTER: AtomicU64 = AtomicU64::new(0);
 fn ensure_http_smoke_test_environment() {
     static TEST_ENVIRONMENT: OnceLock<()> = OnceLock::new();
     TEST_ENVIRONMENT.get_or_init(|| {
-        // The production runtime intentionally defaults to fail-closed. These
-        // smoke tests exercise HTTP behavior with the in-memory journal, so the
-        // process environment must be pinned before any app state is built.
+        // These handler tests use the explicit local AppState fixture. Server
+        // environment bootstrap is covered separately with PostgreSQL.
         unsafe {
             std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
-            std::env::set_var("SDKWORK_IM_DATABASE_ENGINE", "sqlite");
-            std::env::set_var("SDKWORK_IM_DATABASE_URL", "sqlite::memory:");
         }
     });
 }

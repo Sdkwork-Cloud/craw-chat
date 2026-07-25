@@ -615,7 +615,7 @@ class SdkworkContactService implements ContactService {
   private hydrateContactUsers(contacts: ContactView[]): User[] {
     const users: User[] = [];
     for (const contact of contacts) {
-      const preferences = this.readProjectedContactPreferences(contact);
+      const preferences = this.readContactPreferencesState(contact);
       if (preferences?.isBlocked) {
         continue;
       }
@@ -1254,7 +1254,7 @@ class SdkworkContactService implements ContactService {
     return request;
   }
 
-  private readProjectedContactPreferences(contact: ContactView): ContactPreferencesView | undefined {
+  private readContactPreferencesState(contact: ContactView): ContactPreferencesView | undefined {
     const cached = this.preferenceByUserId.get(contact.targetUserId);
     const contactRecord = toRecord(contact);
     const preferencesRecord = toRecord(contactRecord.preferences ?? contactRecord.preference);
@@ -1274,7 +1274,7 @@ class SdkworkContactService implements ContactService {
     if (isBlocked === undefined && isStarred === undefined && remark === undefined) {
       return cached;
     }
-    const projected: ContactPreferencesView = {
+    const resolvedPreferences: ContactPreferencesView = {
       isBlocked: isBlocked ?? cached?.isBlocked ?? false,
       isStarred: isStarred ?? cached?.isStarred ?? false,
       ownerUserId: contact.ownerUserId,
@@ -1285,8 +1285,8 @@ class SdkworkContactService implements ContactService {
         ?? cached?.updatedAt
         ?? contact.lastInteractionAt,
     };
-    this.preferenceByUserId.set(contact.targetUserId, projected);
-    return projected;
+    this.preferenceByUserId.set(contact.targetUserId, resolvedPreferences);
+    return resolvedPreferences;
   }
 
   private mapContactViewToUser(contact: ContactView, preferences?: ContactPreferencesView): User {

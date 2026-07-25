@@ -1,5 +1,6 @@
 use super::message_realtime::ConversationRealtimeEvent;
 use super::*;
+use im_domain_core::conversation::CONVERSATION_AGENT_ASSIGNMENT_MAX_COUNT;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct GroupAgentDefaultPolicy {
@@ -61,77 +62,6 @@ pub(super) fn apply_current_group_agent_default(
         policy_id: Some(policy.policy_id.clone()),
         policy_version: Some(policy.policy_version),
     })
-}
-
-pub(super) fn legacy_v1_group_agent_default() -> ConversationAgentAssignmentsEventPayload {
-    let assignments = legacy_group_agent_assignment_set();
-    ConversationAgentAssignmentsEventPayload {
-        generation: assignments.generation,
-        source: assignments.source,
-        agents: assignments.agents,
-        policy_id: Some(LEGACY_GROUP_AGENT_DEFAULT_POLICY_ID.into()),
-        policy_version: Some(LEGACY_GROUP_AGENT_DEFAULT_POLICY_VERSION),
-    }
-}
-
-pub(super) fn validate_created_group_agent_assignments(
-    payload: &ConversationAgentAssignmentsEventPayload,
-) -> Result<(), RuntimeError> {
-    if payload.generation != 1 {
-        return Err(RuntimeError::Conflict(
-            "conversation.created.v2 agent assignment generation must be 1".into(),
-        ));
-    }
-    if payload.source != ConversationAgentAssignmentSource::DefaultPolicy {
-        return Err(RuntimeError::Conflict(
-            "conversation.created.v2 agent assignment source must be default_policy".into(),
-        ));
-    }
-    if payload
-        .policy_id
-        .as_deref()
-        .is_none_or(|value| value.trim().is_empty())
-        || payload.policy_version.is_none_or(|value| value == 0)
-    {
-        return Err(RuntimeError::Conflict(
-            "conversation.created.v2 requires a versioned agent assignment policy".into(),
-        ));
-    }
-    let mut aggregate = ConversationAggregateState::new("group");
-    aggregate
-        .restore_agent_assignments(
-            payload.generation,
-            payload.source.clone(),
-            payload.agents.clone(),
-        )
-        .map_err(agent_assignment_error_to_runtime)
-}
-
-pub(super) fn validate_created_group_agent_override_assignments(
-    payload: &ConversationAgentAssignmentsEventPayload,
-) -> Result<(), RuntimeError> {
-    if payload.generation != 1 {
-        return Err(RuntimeError::Conflict(
-            "conversation.created.v3 override assignment generation must be 1".into(),
-        ));
-    }
-    if payload.source != ConversationAgentAssignmentSource::ConversationOverride
-        || payload.policy_id.is_some()
-        || payload.policy_version.is_some()
-    {
-        return Err(RuntimeError::Conflict(
-            "conversation.created.v3 requires a policy-free conversation_override assignment snapshot"
-                .into(),
-        ));
-    }
-    let mut aggregate = ConversationAggregateState::new("group");
-    aggregate
-        .restore_agent_assignments(
-            payload.generation,
-            payload.source.clone(),
-            payload.agents.clone(),
-        )
-        .map_err(agent_assignment_error_to_runtime)
 }
 
 pub(super) fn agent_assignment_error_to_runtime(
@@ -314,88 +244,148 @@ where
         conversation_id: &str,
     ) -> Result<(), RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
-        let (needs_created_event, last_journal_cursor) = {
+        {
             let state = read_runtime_state(
                 &self.state,
-                "conversation-runtime.state.agents.hydration-check",
+                "conversation-runtime.state.agents.normalized-refresh-check",
             );
             let conversation = state
                 .conversations
                 .get(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
-            (
-                conversation.aggregate.conversation_type().is_empty()
-                    || (conversation.aggregate.conversation_type() == "group"
-                        && conversation.aggregate.agent_assignments().is_none()),
-                conversation.agent_metadata_journal_cursor.clone(),
-            )
-        };
+            if conversation.aggregate.conversation_type() != "group" {
+                return Err(RuntimeError::ConversationTypeInvalid(format!(
+                    "agent assignments require a group conversation, got {}",
+                    conversation.aggregate.conversation_type()
+                )));
+            }
+            if self.agent_integration_store.is_none()
+                && conversation.aggregate.agent_assignments().is_some()
+            {
+                return Ok(());
+            }
+        }
 
-        let scope = CommitJournalAggregateScope {
-            tenant_id: tenant_id.into(),
-            aggregate_id: conversation_id.into(),
-        };
-        let mut cursor = last_journal_cursor;
         let normalized_organization_id =
             im_domain_events::normalize_commit_organization_id(organization_id);
-        loop {
-            let page = match self.journal.recorded_page_for_aggregate(
-                &scope,
-                cursor.as_ref(),
-                COMMIT_JOURNAL_REPLAY_BATCH_LIMIT,
-            ) {
-                Ok(page) => page,
-                Err(ContractError::UnsupportedCapability(_)) if !needs_created_event => {
-                    // Lightweight in-memory/custom journals may support
-                    // writes without aggregate replay.  An already hydrated
-                    // assignment remains usable there; production durable
-                    // journals provide this paged read and take the freshness
-                    // path above.
-                    return Ok(());
-                }
-                Err(error) => return Err(RuntimeError::from(error)),
-            };
-            if page.items.is_empty() {
-                break;
-            }
-            let batch_len = page.items.len();
-            for envelope in &page.items {
-                if im_domain_events::normalize_commit_organization_id(
-                    envelope.organization_id.as_str(),
-                ) != normalized_organization_id
-                {
-                    return Err(RuntimeError::Conflict(format!(
-                        "conversation agent metadata crossed organization scope for {conversation_id}"
-                    )));
-                }
-                if envelope.event_type == "conversation.agents_replaced"
-                    || (needs_created_event && envelope.event_type == "conversation.created")
-                {
-                    self.apply_recovered_envelope(envelope)?;
-                }
-            }
-            // `next_cursor` is the authoritative store cursor. In the
-            // PostgreSQL adapter it carries the global commit offset, which
-            // must never be reconstructed from aggregate ordering_seq.
-            if page.next_cursor.is_some() {
-                cursor = page.next_cursor;
-            }
-            if batch_len < COMMIT_JOURNAL_REPLAY_BATCH_LIMIT {
-                break;
-            }
-        }
+        let normalized_conversation = self.load_normalized_conversation(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+        )?;
+        if normalized_conversation.tenant_id != tenant_id
+            || normalized_conversation.organization_id != normalized_organization_id
+            || normalized_conversation.conversation_id != conversation_id
+            || normalized_conversation.conversation_type != "group"
         {
-            let mut state = write_runtime_state(
-                &self.state,
-                "conversation-runtime.state.agents.hydration-watermark",
-            );
-            let conversation = state
-                .conversations
-                .get_mut(scope_key.as_str())
-                .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
-            conversation.agent_metadata_journal_cursor = cursor;
-            state.touch_conversation(scope_key.as_str());
+            return Err(RuntimeError::Conflict(format!(
+                "normalized conversation agent assignment scope is invalid for {conversation_id}"
+            )));
         }
+        if !matches!(
+            normalized_conversation.lifecycle_state.as_str(),
+            "active" | "archived"
+        ) {
+            return Err(RuntimeError::Conflict(format!(
+                "normalized conversation lifecycle is invalid for agent assignments: {conversation_id}"
+            )));
+        }
+
+        let store = self.agent_integration_store.as_ref().ok_or_else(|| {
+            RuntimeError::Contract(ContractError::Unavailable(
+                "normalized Agent integration store is required for assignment reads".into(),
+            ))
+        })?;
+        let normalized_tenant_id =
+            parse_normalized_assignment_scope_id(tenant_id, "tenantId", false)?;
+        let normalized_organization_numeric_id = parse_normalized_assignment_scope_id(
+            normalized_organization_id.as_str(),
+            "organizationId",
+            true,
+        )?;
+        let records = store.list_conversation_agents(
+            normalized_tenant_id,
+            normalized_organization_numeric_id,
+            conversation_id,
+            CONVERSATION_AGENT_ASSIGNMENT_MAX_COUNT.saturating_add(1),
+        )?;
+        if records.is_empty() {
+            return Err(RuntimeError::Conflict(format!(
+                "group conversation is missing normalized agent assignments: {conversation_id}"
+            )));
+        }
+        if records.len() > CONVERSATION_AGENT_ASSIGNMENT_MAX_COUNT {
+            return Err(RuntimeError::Conflict(format!(
+                "normalized agent assignment count exceeds the domain limit for {conversation_id}"
+            )));
+        }
+
+        let first = records.first().ok_or_else(|| {
+            RuntimeError::Conflict(format!(
+                "group conversation is missing normalized agent assignments: {conversation_id}"
+            ))
+        })?;
+        let assignment_generation = first.assignment_generation;
+        let assignment_source = first.assignment_source;
+        let source_aggregate_version = first.source_aggregate_version;
+        if assignment_generation == 0
+            || source_aggregate_version == 0
+            || source_aggregate_version > normalized_conversation.commit_seq
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "normalized agent assignment version is invalid for {conversation_id}"
+            )));
+        }
+        let mut agents = Vec::with_capacity(records.len());
+        for (position, record) in records.into_iter().enumerate() {
+            if record.tenant_id != normalized_tenant_id
+                || record.organization_id != normalized_organization_numeric_id
+                || record.conversation_id != conversation_id
+                || record.assignment_source != assignment_source
+                || record.assignment_generation != assignment_generation
+                || record.source_aggregate_version != source_aggregate_version
+                || record.position != position as i32
+                || !record.enabled
+                || record.status != 0
+            {
+                return Err(RuntimeError::Conflict(format!(
+                    "normalized agent assignment rows are inconsistent for {conversation_id}"
+                )));
+            }
+            agents.push(ConversationAgentAssignment::new(
+                record.agent_id,
+                record.agent_revision_ref,
+            ));
+        }
+        let assignment_source = match assignment_source {
+            AgentAssignmentSource::DefaultPolicy => {
+                ConversationAgentAssignmentSource::DefaultPolicy
+            }
+            AgentAssignmentSource::ConversationOverride => {
+                ConversationAgentAssignmentSource::ConversationOverride
+            }
+        };
+
+        let mut state = write_runtime_state(
+            &self.state,
+            "conversation-runtime.state.agents.normalized-refresh",
+        );
+        let conversation = state
+            .conversations
+            .get_mut(scope_key.as_str())
+            .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+        conversation
+            .aggregate
+            .observe_commit_seq(normalized_conversation.commit_seq);
+        conversation
+            .aggregate
+            .restore_agent_assignments(assignment_generation, assignment_source, agents)
+            .map_err(|error| {
+                RuntimeError::Conflict(format!(
+                    "normalized agent assignments are invalid for {conversation_id}: {error:?}"
+                ))
+            })?;
+        state.touch_conversation(scope_key.as_str());
         Ok(())
     }
 
@@ -664,18 +654,527 @@ where
         Ok(result)
     }
 
-    #[cfg(test)]
-    pub(super) fn with_group_agent_default_policy_for_test(
-        mut self,
-        policy_id: &str,
-        policy_version: u32,
-        agents: Vec<ConversationAgentAssignment>,
-    ) -> Self {
-        self.group_agent_default_policy = GroupAgentDefaultPolicy {
-            policy_id: policy_id.into(),
-            policy_version,
-            agents,
-        };
-        self
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use im_platform_contracts::{
+        AgentDispatchRecord, AgentDispatchStatus, AgentReplyCommitResult,
+        ConversationAgentAssignmentRecord, ConversationAgentBindingRecord,
+        ConversationAggregateStore, ConversationMemberPage, ConversationMemberPageCursor,
+        ConversationMemberRecord, NormalizedConversationRecord, ReadCursorPage,
+        ReadCursorPageCursor, ReadCursorRecord, ReplaceConversationAgentAssignments,
+    };
+    use sdkwork_im_contract_message::{
+        CommitJournalAggregateEventTypeQuery, CommitJournalAggregateScope,
+        CommitJournalReplayCursor, CommitJournalReplayPage, CommitPosition,
+    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[derive(Clone, Default)]
+    struct ReadCountingJournal {
+        inner: InMemoryJournal,
+        read_calls: Arc<AtomicUsize>,
+    }
+
+    impl ReadCountingJournal {
+        fn read_calls(&self) -> usize {
+            self.read_calls.load(Ordering::SeqCst)
+        }
+
+        fn record_read(&self) {
+            self.read_calls.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    impl CommitJournal for ReadCountingJournal {
+        fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
+            self.inner.append(envelope)
+        }
+
+        fn append_batch(
+            &self,
+            envelopes: Vec<CommitEnvelope>,
+        ) -> Result<Vec<CommitPosition>, ContractError> {
+            self.inner.append_batch(envelopes)
+        }
+
+        fn recorded(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
+            self.record_read();
+            Ok(self.inner.recorded())
+        }
+
+        fn recorded_page(
+            &self,
+            cursor: Option<&CommitJournalReplayCursor>,
+            limit: usize,
+        ) -> Result<CommitJournalReplayPage, ContractError> {
+            self.record_read();
+            CommitJournal::recorded_page(&self.inner, cursor, limit)
+        }
+
+        fn recorded_page_for_aggregate(
+            &self,
+            scope: &CommitJournalAggregateScope,
+            cursor: Option<&CommitJournalReplayCursor>,
+            limit: usize,
+        ) -> Result<CommitJournalReplayPage, ContractError> {
+            self.record_read();
+            CommitJournal::recorded_page_for_aggregate(&self.inner, scope, cursor, limit)
+        }
+
+        fn recorded_page_for_aggregate_event_types(
+            &self,
+            query: &CommitJournalAggregateEventTypeQuery,
+            cursor: Option<&CommitJournalReplayCursor>,
+            limit: usize,
+        ) -> Result<CommitJournalReplayPage, ContractError> {
+            self.record_read();
+            CommitJournal::recorded_page_for_aggregate_event_types(
+                &self.inner,
+                query,
+                cursor,
+                limit,
+            )
+        }
+    }
+
+    struct AgentAssignmentTestAggregateStore {
+        conversation: Option<NormalizedConversationRecord>,
+    }
+
+    impl ConversationAggregateStore for AgentAssignmentTestAggregateStore {
+        fn load_conversation(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+        ) -> Result<Option<NormalizedConversationRecord>, ContractError> {
+            Ok(self.conversation.clone())
+        }
+
+        fn load_members_page(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _cursor: Option<&ConversationMemberPageCursor>,
+            _page_size: usize,
+        ) -> Result<ConversationMemberPage, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn load_member(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _principal_kind: &str,
+            _principal_id: &str,
+        ) -> Result<Option<ConversationMemberRecord>, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn load_member_by_id(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _member_id: i64,
+        ) -> Result<Option<ConversationMemberRecord>, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn load_event_recipients_page(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _joined_before_or_at: &str,
+            _cursor: Option<&ConversationMemberPageCursor>,
+            _page_size: usize,
+        ) -> Result<ConversationMemberPage, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn upsert_member(&self, _member: ConversationMemberRecord) -> Result<(), ContractError> {
+            unsupported_test_store()
+        }
+
+        fn remove_member(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _principal_kind: &str,
+            _principal_id: &str,
+            _removed_at: &str,
+        ) -> Result<(), ContractError> {
+            unsupported_test_store()
+        }
+
+        fn load_read_cursors_page(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _cursor: Option<&ReadCursorPageCursor>,
+            _page_size: usize,
+        ) -> Result<ReadCursorPage, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn load_read_cursor(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _member_id: i64,
+        ) -> Result<Option<ReadCursorRecord>, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn upsert_read_cursor(&self, _cursor: ReadCursorRecord) -> Result<(), ContractError> {
+            unsupported_test_store()
+        }
+
+        fn load_high_watermark(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+        ) -> Result<u64, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn allocate_member_id(&self) -> Result<i64, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn conversation_exists(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+        ) -> Result<bool, ContractError> {
+            unsupported_test_store()
+        }
+    }
+
+    struct AgentAssignmentTestStore {
+        records: Vec<ConversationAgentAssignmentRecord>,
+    }
+
+    impl AgentIntegrationStore for AgentAssignmentTestStore {
+        fn replace_conversation_agents(
+            &self,
+            _command: ReplaceConversationAgentAssignments,
+        ) -> Result<(), ContractError> {
+            unsupported_test_store()
+        }
+
+        fn list_conversation_agents(
+            &self,
+            _tenant_id: u64,
+            _organization_id: u64,
+            _conversation_id: &str,
+            limit: usize,
+        ) -> Result<Vec<ConversationAgentAssignmentRecord>, ContractError> {
+            Ok(self.records.iter().take(limit).cloned().collect())
+        }
+
+        fn enqueue_dispatches(
+            &self,
+            _request: &AgentMentionDispatchRequest,
+            _max_attempts: u32,
+        ) -> Result<Vec<AgentDispatchRecord>, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn claim_dispatches(
+            &self,
+            _tenant_id: u64,
+            _organization_id: u64,
+            _lease_owner: &str,
+            _now: &str,
+            _lease_expires_at: &str,
+            _limit: usize,
+        ) -> Result<Vec<AgentDispatchRecord>, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn claim_dispatches_global(
+            &self,
+            _lease_owner: &str,
+            _now: &str,
+            _lease_expires_at: &str,
+            _limit: usize,
+        ) -> Result<Vec<AgentDispatchRecord>, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn resolve_binding(
+            &self,
+            _tenant_id: u64,
+            _organization_id: u64,
+            _conversation_id: &str,
+            _agent_id: &str,
+            _assignment_generation: u64,
+        ) -> Result<Option<ConversationAgentBindingRecord>, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn save_binding(
+            &self,
+            _binding: ConversationAgentBindingRecord,
+        ) -> Result<ConversationAgentBindingRecord, ContractError> {
+            unsupported_test_store()
+        }
+
+        fn mark_dispatch_running(
+            &self,
+            _dispatch: &AgentDispatchRecord,
+            _lease_owner: &str,
+            _binding_id: &str,
+            _agents_session_id: &str,
+            _updated_at: &str,
+        ) -> Result<(), ContractError> {
+            unsupported_test_store()
+        }
+
+        fn complete_dispatch(
+            &self,
+            _dispatch: &AgentDispatchRecord,
+            _lease_owner: &str,
+            _agents_turn_id: &str,
+            _reply: AgentReplyCommitResult,
+            _completed_at: &str,
+        ) -> Result<(), ContractError> {
+            unsupported_test_store()
+        }
+
+        fn defer_dispatch_reconciliation(
+            &self,
+            _dispatch: &AgentDispatchRecord,
+            _lease_owner: &str,
+            _agents_turn_id: Option<&str>,
+            _detail: &str,
+            _next_attempt_at: &str,
+            _updated_at: &str,
+        ) -> Result<(), ContractError> {
+            unsupported_test_store()
+        }
+
+        fn fail_dispatch(
+            &self,
+            _dispatch: &AgentDispatchRecord,
+            _lease_owner: &str,
+            _error_code: &str,
+            _error_detail: &str,
+            _next_attempt_at: &str,
+            _updated_at: &str,
+        ) -> Result<AgentDispatchStatus, ContractError> {
+            unsupported_test_store()
+        }
+    }
+
+    fn unsupported_test_store<T>() -> Result<T, ContractError> {
+        Err(ContractError::UnsupportedCapability(
+            "operation is not used by normalized assignment tests".into(),
+        ))
+    }
+
+    fn normalized_conversation(conversation_type: &str) -> NormalizedConversationRecord {
+        NormalizedConversationRecord {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: format!("c_normalized_agent_{conversation_type}"),
+            conversation_type: conversation_type.into(),
+            lifecycle_state: "active".into(),
+            archived_at: None,
+            archive_event_id: None,
+            commit_seq: 5,
+            member_epoch: 1,
+            last_activity_at: "2026-07-24T00:00:00Z".into(),
+            retention_until: None,
+        }
+    }
+
+    fn normalized_assignment(
+        conversation_id: &str,
+        position: i32,
+    ) -> ConversationAgentAssignmentRecord {
+        ConversationAgentAssignmentRecord {
+            tenant_id: 100001,
+            organization_id: 0,
+            conversation_id: conversation_id.into(),
+            agent_id: format!("agent.im.normalized.{position}"),
+            agent_revision_ref: Some(format!("revision.im.normalized.{position}.1")),
+            assignment_source: AgentAssignmentSource::ConversationOverride,
+            assignment_generation: 2,
+            position,
+            enabled: true,
+            status: 0,
+            source_aggregate_version: 4,
+        }
+    }
+
+    fn assignment_runtime(
+        conversation: Option<NormalizedConversationRecord>,
+        records: Vec<ConversationAgentAssignmentRecord>,
+    ) -> (
+        ConversationRuntime<ReadCountingJournal>,
+        ReadCountingJournal,
+    ) {
+        let conversation_type = conversation
+            .as_ref()
+            .map(|conversation| conversation.conversation_type.as_str())
+            .unwrap_or("group");
+        let conversation_id = conversation
+            .as_ref()
+            .map(|conversation| conversation.conversation_id.clone())
+            .unwrap_or_else(|| "c_normalized_agent_group".into());
+        let journal = ReadCountingJournal::default();
+        let runtime = ConversationRuntime::new(journal.clone());
+        runtime
+            .create_conversation(CreateConversationCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id,
+                creator_id: "42".into(),
+                conversation_type: conversation_type.into(),
+            })
+            .expect("test conversation should be created");
+        (
+            runtime
+                .with_aggregate_store(Arc::new(AgentAssignmentTestAggregateStore { conversation }))
+                .with_agent_integration_store(Arc::new(AgentAssignmentTestStore { records })),
+            journal,
+        )
+    }
+
+    #[test]
+    fn normalized_assignment_snapshot_refreshes_without_reading_the_journal() {
+        let conversation = normalized_conversation("group");
+        let records = vec![normalized_assignment(
+            conversation.conversation_id.as_str(),
+            0,
+        )];
+        let (runtime, journal) = assignment_runtime(Some(conversation.clone()), records);
+
+        let snapshot = runtime
+            .conversation_agent_assignments_snapshot(
+                conversation.tenant_id.as_str(),
+                conversation.organization_id.as_str(),
+                conversation.conversation_id.as_str(),
+            )
+            .expect("normalized assignment snapshot should load");
+
+        assert_eq!(snapshot.generation, 2);
+        assert_eq!(
+            snapshot.source,
+            ConversationAgentAssignmentSource::ConversationOverride
+        );
+        assert_eq!(snapshot.agents[0].agent_id, "agent.im.normalized.0");
+        assert_eq!(journal.read_calls(), 0);
+    }
+
+    #[test]
+    fn normalized_assignment_snapshot_fails_closed_for_missing_rows_and_store() {
+        let conversation = normalized_conversation("group");
+        let (runtime, journal) = assignment_runtime(Some(conversation.clone()), Vec::new());
+        assert!(matches!(
+            runtime.conversation_agent_assignments_snapshot(
+                conversation.tenant_id.as_str(),
+                conversation.organization_id.as_str(),
+                conversation.conversation_id.as_str(),
+            ),
+            Err(RuntimeError::Conflict(_))
+        ));
+        assert_eq!(journal.read_calls(), 0);
+
+        let journal = ReadCountingJournal::default();
+        let runtime = ConversationRuntime::new(journal.clone());
+        runtime
+            .create_conversation(CreateConversationCommand {
+                tenant_id: conversation.tenant_id.clone(),
+                organization_id: conversation.organization_id.clone(),
+                conversation_id: conversation.conversation_id.clone(),
+                creator_id: "42".into(),
+                conversation_type: "group".into(),
+            })
+            .expect("test group should be created");
+        let runtime = runtime.with_aggregate_store(Arc::new(AgentAssignmentTestAggregateStore {
+            conversation: Some(conversation.clone()),
+        }));
+        assert!(matches!(
+            runtime.conversation_agent_assignments_snapshot(
+                conversation.tenant_id.as_str(),
+                conversation.organization_id.as_str(),
+                conversation.conversation_id.as_str(),
+            ),
+            Err(RuntimeError::Contract(ContractError::Unavailable(_)))
+        ));
+        assert_eq!(journal.read_calls(), 0);
+    }
+
+    #[test]
+    fn normalized_assignment_snapshot_rejects_scope_generation_and_source_mismatch() {
+        let conversation = normalized_conversation("group");
+        let mut wrong_scope = normalized_assignment(conversation.conversation_id.as_str(), 0);
+        wrong_scope.organization_id = 7;
+        let (runtime, journal) = assignment_runtime(Some(conversation.clone()), vec![wrong_scope]);
+        assert!(matches!(
+            runtime.conversation_agent_assignments_snapshot(
+                conversation.tenant_id.as_str(),
+                conversation.organization_id.as_str(),
+                conversation.conversation_id.as_str(),
+            ),
+            Err(RuntimeError::Conflict(_))
+        ));
+        assert_eq!(journal.read_calls(), 0);
+
+        for mutate in [
+            |record: &mut ConversationAgentAssignmentRecord| record.assignment_generation = 3,
+            |record: &mut ConversationAgentAssignmentRecord| {
+                record.assignment_source = AgentAssignmentSource::DefaultPolicy
+            },
+        ] {
+            let first = normalized_assignment(conversation.conversation_id.as_str(), 0);
+            let mut second = normalized_assignment(conversation.conversation_id.as_str(), 1);
+            mutate(&mut second);
+            let (runtime, journal) =
+                assignment_runtime(Some(conversation.clone()), vec![first, second]);
+            assert!(matches!(
+                runtime.conversation_agent_assignments_snapshot(
+                    conversation.tenant_id.as_str(),
+                    conversation.organization_id.as_str(),
+                    conversation.conversation_id.as_str(),
+                ),
+                Err(RuntimeError::Conflict(_))
+            ));
+            assert_eq!(journal.read_calls(), 0);
+        }
+    }
+
+    #[test]
+    fn normalized_assignment_snapshot_rejects_non_group_conversations_without_journal_reads() {
+        let conversation = normalized_conversation("direct");
+        let records = vec![normalized_assignment(
+            conversation.conversation_id.as_str(),
+            0,
+        )];
+        let (runtime, journal) = assignment_runtime(Some(conversation.clone()), records);
+
+        assert!(matches!(
+            runtime.conversation_agent_assignments_snapshot(
+                conversation.tenant_id.as_str(),
+                conversation.organization_id.as_str(),
+                conversation.conversation_id.as_str(),
+            ),
+            Err(RuntimeError::ConversationTypeInvalid(_))
+        ));
+        assert_eq!(journal.read_calls(), 0);
     }
 }

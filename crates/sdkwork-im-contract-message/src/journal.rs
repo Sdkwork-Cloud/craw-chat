@@ -42,9 +42,9 @@ pub struct CommitJournalAggregateScope {
     pub aggregate_id: String,
 }
 
-/// A bounded, organization-scoped event-type projection query for one
-/// aggregate. Consumers use this when rebuilding a narrow durable projection
-/// and must not scan unrelated messages in process memory.
+/// A bounded, organization-scoped event-type audit query for one aggregate.
+/// Explicit recovery and audit tools use it without scanning unrelated
+/// messages; ordinary business reads do not.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CommitJournalAggregateEventTypeQuery {
     pub tenant_id: String,

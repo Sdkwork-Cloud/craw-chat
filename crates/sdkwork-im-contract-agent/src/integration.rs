@@ -16,6 +16,16 @@ impl AgentAssignmentSource {
             Self::ConversationOverride => 1,
         }
     }
+
+    pub fn from_db_code(value: i16) -> Result<Self, ContractError> {
+        match value {
+            0 => Ok(Self::DefaultPolicy),
+            1 => Ok(Self::ConversationOverride),
+            _ => Err(ContractError::Invalid(
+                "invalid agent assignment source".into(),
+            )),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,6 +57,7 @@ pub struct ConversationAgentAssignmentRecord {
     pub conversation_id: String,
     pub agent_id: String,
     pub agent_revision_ref: Option<String>,
+    pub assignment_source: AgentAssignmentSource,
     pub assignment_generation: u64,
     pub position: i32,
     pub enabled: bool,
@@ -312,5 +323,17 @@ mod tests {
             assert_eq!(status.db_code(), code);
             assert_eq!(AgentDispatchStatus::from_db_code(code), Ok(status));
         }
+    }
+
+    #[test]
+    fn assignment_source_codes_match_database_constraints() {
+        for (source, code) in [
+            (AgentAssignmentSource::DefaultPolicy, 0),
+            (AgentAssignmentSource::ConversationOverride, 1),
+        ] {
+            assert_eq!(source.db_code(), code);
+            assert_eq!(AgentAssignmentSource::from_db_code(code), Ok(source));
+        }
+        assert!(AgentAssignmentSource::from_db_code(2).is_err());
     }
 }

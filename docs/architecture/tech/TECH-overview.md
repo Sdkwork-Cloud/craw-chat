@@ -37,7 +37,7 @@ assembled runtime in one process for smoke and local verification.
 Domains exposed through the ingress include:
 
 - client route recovery, presence, and realtime delivery
-- conversation lifecycle, inbox projection, membership, and read state
+- conversation lifecycle, normalized inbox queries, membership, and read state
 - messages, media, streams, and RTC
 - notifications, automation, audit, and operator diagnostics
 - principal-profile, object-storage, RTC, and IoT-related provider health surfaces
@@ -114,4 +114,3 @@ Pre-topology-v2 minimal-node/minimal/default profile ids are removed. Use topolo
 - [Runtime Topology](/architecture/runtime-topology)
 - [Module Map](/architecture/module-map)
 - [Runtime Directory](/reference/runtime-directory)
-

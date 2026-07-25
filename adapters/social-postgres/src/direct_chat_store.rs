@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use im_domain_core::social::{DirectChat, DirectChatStatus};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
@@ -37,33 +36,6 @@ pub struct DirectChatActorListQuery<'a> {
     pub cursor_updated_at: Option<&'a str>,
     pub cursor_direct_chat_id: Option<i64>,
     pub limit: i64,
-}
-
-impl DirectChatRecord {
-    pub fn from_domain(dc: &DirectChat, organization_id: &str) -> Self {
-        Self {
-            tenant_id: dc.tenant_id.clone(),
-            organization_id: organization_id.to_string(),
-            direct_chat_id: dc.direct_chat_id.parse().unwrap_or(0),
-            left_actor_kind: "user".to_string(),
-            left_actor_id: dc.left_actor_id.clone(),
-            right_actor_kind: "user".to_string(),
-            right_actor_id: dc.right_actor_id.clone(),
-            pair_hash: dc.pair_hash.clone(),
-            status: direct_chat_status_to_str(&dc.status).to_string(),
-            conversation_id: dc.conversation_id.clone(),
-            created_at: dc.created_at.clone(),
-            updated_at: dc.updated_at.clone(),
-        }
-    }
-}
-
-fn direct_chat_status_to_str(status: &DirectChatStatus) -> &'static str {
-    match status {
-        DirectChatStatus::Active => "active",
-        DirectChatStatus::Archived => "archived",
-        DirectChatStatus::Closed => "closed",
-    }
 }
 
 /// Trait for direct chat persistence.

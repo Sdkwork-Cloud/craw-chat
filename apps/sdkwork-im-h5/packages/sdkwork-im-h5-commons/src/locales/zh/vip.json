@@ -1,0 +1,19 @@
+{
+  "auto_prop_n6ab83221": "积分与Token超市",
+  "auto_n3de724c2": "Token 充值",
+  "auto_134f670": "优惠券",
+  "auto_2151cf93": "当前 Token",
+  "auto_6138b2c3": "选择充值金额",
+  "auto_a3346": "内含",
+  "auto_391c36eb": "立即购买",
+  "auto_n1b21cb20": "有效期至 {coupon.validTo}",
+  "auto_391d9c18": "立即领取",
+  "auto_n2c8bf51c": "确认支付 ¥{TOKEN_AMOUNTS.find(t => t.id === selectedSku)?.price}",
+  "auto_prop_n6732b65a": "Vip 订阅",
+  "auto_70e3199d": "超级会员 VIP",
+  "auto_4ecfdde3": "尊享特权，体验飞升",
+  "auto_7cbfa07c": "选择订阅套餐",
+  "auto_n5586cfe8": "VIP 专属特权",
+  "auto_fn_171eb670": "订阅支付即将开发",
+  "auto_3916e122": "立即开通"
+}

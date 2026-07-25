@@ -1,0 +1,75 @@
+{
+  "title": "审批",
+  "tabs": {
+    "pending": "待我审批",
+    "initiated": "我发起的",
+    "cc": "抄送我的"
+  },
+  "stats": {
+    "pending": "待处理审批 (件)",
+    "initiated": "我发起的",
+    "cc": "抄送我的"
+  },
+  "allRecords": "全部记录",
+  "status": {
+    "pending": "待审批",
+    "approved": "已同意",
+    "rejected": "已拒绝",
+    "withdrawn": "已撤回"
+  },
+  "types": {
+    "leave": "请假",
+    "expense": "报销",
+    "purchase": "采购"
+  },
+  "loading": "加载中...",
+  "empty": "暂无审批记录",
+  "of": "的",
+  "create": "发起审批",
+  "createFrom": "发起{{type}}",
+  "createForm": {
+    "type": "审批类型",
+    "title": "标题",
+    "titlePlaceholder": "请输入标题 (如: 张三的请假申请)",
+    "titleEmpty": "请输入审批标题",
+    "content": "详细内容",
+    "contentPlaceholder": "请输入详细的审批内容、时长或报销明细...",
+    "contentEmpty": "请输入审批内容",
+    "attachments": "附件图片",
+    "approvers": "审批人",
+    "enterApprover": "请输入审批人姓名",
+    "addedApprover": "已添加审批人: {{name}}",
+    "submit": "提交审批",
+    "submitting": "提交中...",
+    "submitSuccess": "提交成功",
+    "submitFailed": "提交失败",
+    "selectType": "选择审批类型",
+    "typeLeave": "请假",
+    "typeExpense": "报销",
+    "typePurchase": "采购",
+    "typeCar": "用车",
+    "typeGeneral": "通用审批"
+  },
+  "detail": {
+    "title": "审批详情",
+    "agree": "同意",
+    "reject": "拒绝",
+    "revoke": "撤销",
+    "applicant": "申请人",
+    "type": "审批类型",
+    "time": "申请时间",
+    "reason": "申请事由",
+    "duration": "时长/金额",
+    "approvers": "审批流程",
+    "cc": "抄送人"
+  },
+  "auto_fn_2f078e83": "操作失败",
+  "auto_prop_2b29ee97": "审批详情",
+  "auto_7f6f37e": "加载中...",
+  "auto_2b2651e2": "审批流程",
+  "auto_53d1": "发",
+  "auto_bb3a6ac": "{approval.applicant} (发起申请)",
+  "auto_418a1c0c": "当前审批轮到你",
+  "auto_c764b": "拒绝",
+  "auto_a8e83": "同意"
+}

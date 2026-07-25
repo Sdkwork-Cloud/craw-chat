@@ -306,7 +306,7 @@ impl SocialRuntime {
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
-            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+            self.resolve_committed_social_event_retry(&state, &commit, |existing, persistence| {
                 match existing {
                     crate::runtime::SocialCommittedEvent::DirectChat { record, commit } => {
                         Ok(BoundDirectChat {

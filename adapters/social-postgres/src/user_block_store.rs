@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use im_domain_core::social::{BlockScope, UserBlock};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
@@ -25,32 +24,6 @@ pub struct UserBlockRecord {
     pub expires_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
-}
-
-impl UserBlockRecord {
-    pub fn from_domain(ub: &UserBlock, organization_id: &str) -> Self {
-        Self {
-            tenant_id: ub.tenant_id.clone(),
-            organization_id: organization_id.to_string(),
-            block_id: ub.block_id.parse().unwrap_or(0),
-            blocker_user_id: ub.blocker_user_id.clone(),
-            blocked_user_id: ub.blocked_user_id.clone(),
-            scope: block_scope_to_str(&ub.scope).to_string(),
-            direct_chat_id: ub.direct_chat_id.as_ref().and_then(|s| s.parse().ok()),
-            reason: None,
-            expires_at: ub.expires_at.clone(),
-            created_at: ub.created_at.clone(),
-            updated_at: ub.updated_at.clone(),
-        }
-    }
-}
-
-fn block_scope_to_str(scope: &BlockScope) -> &'static str {
-    match scope {
-        BlockScope::All => "all",
-        BlockScope::Friendship => "friendship",
-        BlockScope::DirectChat => "direct_chat",
-    }
 }
 
 /// Trait for user block persistence.

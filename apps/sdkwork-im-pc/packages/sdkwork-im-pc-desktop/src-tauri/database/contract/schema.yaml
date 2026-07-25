@@ -1,0 +1,55 @@
+schema_version: 1
+kind: sdkwork.database.schema
+database_role: client-local
+module_id: im-pc-client-local
+contract_version: 1.0.0
+owner_team: im-client
+compliance_level: L2
+engines:
+  - sqlite
+table_prefix: im_local_
+tables:
+  - name: im_local_installation
+    profile: operational_state
+    authority: exact client-local file identity only
+    primary_key: installation_key
+    columns:
+      - installation_key:text:not-null
+      - schema_version:integer:not-null
+      - scope_fingerprint:text:not-null
+      - environment:text:not-null
+      - deployment_profile:text:not-null
+      - deployment_mode:text:not-null
+      - api_origin:text:not-null
+      - tenant_id:text:not-null
+      - organization_id:text:not-null
+      - account_id:text:not-null
+      - principal_kind:text:not-null
+      - principal_id:text:not-null
+      - created_at:text:not-null
+      - updated_at:text:not-null
+  - name: im_local_conversation_cache
+    profile: operational_state
+    authority: bounded encrypted cache of IM app-api responses
+    primary_key: tenant_id,organization_id,principal_kind,principal_id,conversation_id
+    payload: AES-256-GCM ciphertext
+  - name: im_local_message_cache
+    profile: operational_state
+    authority: bounded encrypted cache of IM app-api responses
+    primary_key: tenant_id,organization_id,principal_kind,principal_id,conversation_id,message_seq
+    payload: AES-256-GCM ciphertext
+  - name: im_local_cache_cursor
+    profile: operational_state
+    authority: client refresh continuation only
+    primary_key: tenant_id,organization_id,principal_kind,principal_id,cursor_scope
+    payload: AES-256-GCM ciphertext
+  - name: im_local_pending_send
+    profile: operational_state
+    authority: resumable local command intent only; server revalidates every send
+    primary_key: tenant_id,organization_id,principal_kind,principal_id,client_msg_id
+    payload: AES-256-GCM ciphertext
+    idempotency: identical client_msg_id requires identical SHA-256 payload_hash
+    states:
+      - pending
+      - quarantined
+

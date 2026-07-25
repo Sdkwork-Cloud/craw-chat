@@ -1,4 +1,4 @@
-//! Journal-backed write authority for space and group mutations.
+//! Atomic PostgreSQL write authority for Space normalized state and audit events.
 
 use std::sync::Arc;
 
@@ -7,8 +7,9 @@ use im_adapters_social_postgres::member_capacity::MemberInsertOutcome;
 use im_adapters_social_postgres::organization_store::{
     GroupMemberRecord, GroupRecord, SpaceRecord,
 };
+use im_adapters_postgres_journal::PostgresCommitJournal;
 use im_adapters_social_postgres::{
-    SpaceMaterializationError, SpacePostgresMaterializer, materialize_space_commits_on_transaction,
+    SpaceMaterializationError, materialize_space_commits_on_transaction,
 };
 use im_app_context::AppContext;
 use im_domain_events::space::{
@@ -19,17 +20,14 @@ use im_domain_events::space::{
     SpaceUpdatedPayload, space_commit_envelope,
 };
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
-use im_platform_contracts::{CommitJournal, ContractError, IdGenerator};
+use im_platform_contracts::{ContractError, IdGenerator};
 use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 
 use crate::http::AppState;
-use crate::journal_bootstrap::SpaceCommitJournal;
-
 const MEMBER_CAPACITY_CONFLICT: &str = "space-write-member-capacity-full";
 
 pub struct SpaceWriteAuthority {
-    journal: SpaceCommitJournal,
-    materializer: Option<Arc<SpacePostgresMaterializer>>,
+    journal: PostgresCommitJournal,
 }
 
 struct SpaceCommitBuildCommand<'a> {
@@ -43,18 +41,8 @@ struct SpaceCommitBuildCommand<'a> {
 }
 
 impl SpaceWriteAuthority {
-    pub fn new(
-        journal: SpaceCommitJournal,
-        materializer: Option<Arc<SpacePostgresMaterializer>>,
-    ) -> Self {
-        Self {
-            journal,
-            materializer,
-        }
-    }
-
-    pub fn journal(&self) -> &SpaceCommitJournal {
-        &self.journal
+    pub fn new(journal: PostgresCommitJournal) -> Self {
+        Self { journal }
     }
 
     pub fn persist_space_created(
@@ -456,18 +444,10 @@ impl SpaceWriteAuthority {
             return Ok(());
         }
 
-        if self.materializer.is_some() {
-            let SpaceCommitJournal::Postgres(journal) = &self.journal else {
-                tracing::error!(
-                    commit_count = commits.len(),
-                    "space postgres read model requires a postgres journal for atomic writes"
-                );
-                return Err(ApiProblem::dependency_unavailable(
-                    "atomic postgres space write authority is unavailable",
-                ));
-            };
-            let commit_count = commits.len();
-            let result = journal.append_batch_with_allocated_sequences_in_transaction(
+        let commit_count = commits.len();
+        let result = self
+            .journal
+            .append_batch_with_allocated_sequences_in_transaction(
                 commits,
                 |txn, sequenced_commits| {
                     materialize_space_commits_on_transaction(txn, sequenced_commits).map_err(
@@ -477,32 +457,20 @@ impl SpaceWriteAuthority {
                             }
                             SpaceMaterializationError::Persistence(message) => {
                                 ContractError::Unavailable(format!(
-                                    "space postgres materialization failed: {message}"
+                                    "space normalized PostgreSQL write failed: {message}"
                                 ))
                             }
                         },
                     )
                 },
             );
-            if let Err(error) = result {
-                if !is_member_capacity_conflict(&error) {
-                    crate::space_materializer_metrics::record_postgres_atomic_write_failures(
-                        commit_count as u64,
-                    );
-                }
-                return Err(coordinated_write_error(error));
+        if let Err(error) = result {
+            if !is_member_capacity_conflict(&error) {
+                crate::space_materializer_metrics::record_postgres_atomic_write_failures(
+                    commit_count as u64,
+                );
             }
-            return Ok(());
-        }
-
-        if commits.len() == 1 {
-            self.journal
-                .append(commits[0].clone())
-                .map_err(journal_append_error)?;
-        } else {
-            self.journal
-                .append_batch(commits)
-                .map_err(journal_append_error)?;
+            return Err(coordinated_write_error(error));
         }
         Ok(())
     }
@@ -521,19 +489,14 @@ fn serialize_error(error: serde_json::Error) -> ApiProblem {
     ApiProblem::internal_server_error("space commit payload serialization failed")
 }
 
-fn journal_append_error(error: ContractError) -> ApiProblem {
-    tracing::error!(?error, "space commit journal append failed");
-    ApiProblem::dependency_unavailable("space commit journal append failed")
-}
-
 fn coordinated_write_error(error: ContractError) -> ApiProblem {
     match error {
         ContractError::Conflict(message) if message == MEMBER_CAPACITY_CONFLICT => {
             ApiProblem::bad_request("member limit reached")
         }
         other => {
-            tracing::error!(?other, "atomic space postgres write failed");
-            ApiProblem::dependency_unavailable("atomic space postgres write failed")
+            tracing::error!(?other, "atomic space PostgreSQL write failed");
+            ApiProblem::dependency_unavailable("atomic space PostgreSQL write failed")
         }
     }
 }

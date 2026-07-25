@@ -1,91 +1,92 @@
-# Database
+# IM Database
 
 ## Purpose
 
-Canonical database lifecycle assets for `sdkwork-im`: contract schema, DDL baseline, migrations,
-seeds, drift policy, and bootstrap metadata governed by `DATABASE_FRAMEWORK_SPEC.md`.
+This directory is the canonical database lifecycle root for `sdkwork-im`. It contains the
+PostgreSQL schema contract, bootstrap baseline, ordered migrations, seeds, drift policy, and
+module manifest governed by `DATABASE_SPEC.md` and `DATABASE_FRAMEWORK_SPEC.md`.
 
 - moduleId: `im`
 - serviceCode: `IM`
+- databaseRole: `authoritative-server`
+- engine: `postgres`
 - tablePrefix: `im_`
+- contractVersion: `2.1.0`
 
-## Owner
+## Ownership Boundary
 
-Sdkwork IM maintainers.
+The IM platform owns only the tables registered in `contract/table-registry.json`. IAM, Agents,
+Drive, Knowledgebase, RTC media, and other sibling products own their databases independently.
+Cross-domain identifiers in IM are bounded opaque references and do not create cross-database
+foreign keys.
 
-## Allowed Content
+This root must remain PostgreSQL-only. A PC client-local store, when present, owns an independent
+manifest, schema, migrations, retention policy, and synchronization contract. Client-local assets
+must not mirror this server schema or appear under this directory.
 
-- `database.manifest.json`, `contract/`, `ddl/`, `migrations/`, and `seeds/` lifecycle assets.
-- Contract-first schema definitions and versioned migration pairs.
-- Database validation fixtures and module-local README guidance.
+## Lifecycle
 
-## Forbidden Content
+The module uses `baseline-plus-migrations`:
 
-- Runtime service binaries, HTTP handlers, or repository business logic.
-- Generated SDK output or secrets committed to Git.
-- Ad-hoc SQL executed outside the `sdkwork-database-cli` lifecycle.
+1. `ddl/baseline/postgres/0001_im_baseline.sql` is the current 60-table bootstrap snapshot.
+2. `migrations/postgres/` upgrades installed databases in version order and adds three
+   IM-to-Agents assignment, binding, and dispatch tables.
+3. Baseline plus migrations is the complete 63-table IM contract.
+4. `lifecycle.autoMigrate` defaults to `false`; deployment runs an explicit, elected migration
+   step before application traffic.
 
-## Related Specs
+Contract `2.0.0` introduced the IM-owned Agents assignment, binding, and dispatch records through
+migration `0005`; later migrations harden their signed-int64 subject scope and concurrency rules.
+Contract `2.1.0` introduces typed Conversation policy, business binding, handoff, archive metadata,
+and commit fingerprint authority through migration `0012`.
 
-- `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`
-- `../sdkwork-specs/DATABASE_SPEC.md`
-- `../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md`
-- `../sdkwork-specs/TEST_SPEC.md`
+Existing pre-launch databases that cannot satisfy the typed archive or handoff invariants must be
+reset or restored from a verified PostgreSQL backup. Journal replay, JSON snapshot reconstruction,
+and fabricated archive metadata are not migration strategies.
 
-## Verification
+## Rules
+
+- Normalized tables are current-state authority.
+- `im_commit_journal` is immutable audit and integration evidence, not a current-state recovery
+  source.
+- Business state, journal evidence, and required outbox rows commit in one PostgreSQL transaction.
+- Migrations are ordered, checksum-governed, and PostgreSQL-specific.
+- Seeds are separate from structural migrations.
+- Secrets and production row data must not be committed to this directory.
+- Ad hoc SQL outside the database lifecycle is forbidden.
+
+## Commands
 
 Run from the repository root:
 
 ```bash
 pnpm db:validate
+pnpm db:materialize:contract
+pnpm db:contract:check
+pnpm db:plan
+pnpm db:init
+pnpm db:migrate
+pnpm db:seed
+pnpm db:status
+pnpm db:drift:check
 pnpm test:database-framework-standard
 pnpm test:database-naming-standard
-pnpm test:contract:database
+```
+
+`db:materialize:contract` deterministically composes the PostgreSQL baseline and ordered up
+migrations, then aligns the schema and table registry. `db:contract:check` verifies the same
+63-table contract without writing files.
+
+PostgreSQL repository and migration changes also require their focused live tests when a test
+database is available:
+
+```bash
 cargo test -p im-adapters-postgres-journal --test agent_integration_migration_live_test -- --ignored --nocapture
 ```
 
-## Initialization state
+## Related Standards
 
-This module uses an immutable baseline plus versioned migrations:
-
-1. **Baseline** — `database/ddl/baseline/postgres/0001_im_baseline.sql` is the immutable 57-table PostgreSQL bootstrap base for normalized Conversation, Message, Member, ReadCursor, realtime, Social, stream, call-signaling, journal, outbox, and search state. It is not the complete contract by itself.
-2. **SQLite compatibility baseline** — `database/ddl/baseline/sqlite/0001_im_baseline.sql` exists only for lifecycle validation and desktop gateway co-location checks. It is not engine parity. **IM services do not persist to SQLite**; `SDKWORK_IM_DATABASE_ENGINE=sqlite` uses in-memory ephemeral IM state in dev/test. Desktop `chat.sqlite` hosts gateway webstore and sibling module databases, not the IM event log.
-3. **Migrations** — `database/migrations/postgres/` completes the active contract, including the three IM-to-Agents assignment/binding/dispatch tables introduced by `0005`, and evolves installed databases in version order. The effective PostgreSQL authority is always baseline plus migrations; SQLite migration files validate only the explicitly limited compatibility surface.
-
-Contract `2.0.0` activates the three IM-to-Agents tables from paired PostgreSQL
-migration `0005`; paired migration `0006` adds validated scope/sign guards.
-Their tenant, organization, end-user subject, message, and
-Snowflake fields were BIGINT from creation; the adapter rejects non-decimal,
-zero where forbidden, and values above signed int64 before persistence. The
-table registry retains migration provenance instead of rewriting the historical
-baseline.
-Migration `0008` preserves positive signed-int64 IAM user actors while reserving
-`assigned_by = 0` for trusted system and other non-user assignment events.
-Migration `0009` aligns the IM-to-Agents assignment stale-write guard with the IM
-journal's zero-based aggregate sequence while keeping assignment generations positive.
-4. **Drift** — run `pnpm db:drift:check` before release.
-
-The PostgreSQL baseline is tenant-and-organization isolated: primary keys, unique
-constraints, and hot-path indexes include `tenant_id, organization_id` where
-business data is scoped. Realtime device event windows also keep a deferrable
-foreign key to realtime checkpoints so trim/ack state and event windows cannot
-silently drift apart.
-
-## Commands
-
-```bash
-pnpm run db:validate
-pnpm run db:materialize:contract
-pnpm run db:contract:check
-pnpm run db:plan
-pnpm run db:init
-pnpm run db:migrate
-pnpm run db:seed
-pnpm run db:status
-pnpm run db:drift:check
-```
-
-`db:materialize:contract` deterministically composes the PostgreSQL baseline and every ordered
-`database/migrations/postgres/*.up.sql` file, then aligns the canonical schema and table registry.
-`db:contract:check` performs the same 60-table equality check without writing. Neither command reads
-the SQLite compatibility baseline or treats it as a production IM persistence profile.
+- `../../sdkwork-specs/DATABASE_SPEC.md`
+- `../../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md`
+- `../../sdkwork-specs/MIGRATION_SPEC.md`
+- `../../sdkwork-specs/TEST_SPEC.md`

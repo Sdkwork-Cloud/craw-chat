@@ -3303,12 +3303,6 @@ importers:
         specifier: ^8.18.1
         version: 8.21.0
 
-  sdks/sdkwork-skills-app-sdk-generated-typescript:
-    dependencies:
-      '@sdkwork/agents-app-sdk':
-        specifier: workspace:*
-        version: link:../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript
-
 packages:
 
   '@adobe/css-tools@4.5.0':

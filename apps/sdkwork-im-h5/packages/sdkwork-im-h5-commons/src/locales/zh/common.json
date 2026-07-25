@@ -1,0 +1,16 @@
+{
+  "hot": "HOT",
+  "search": "搜索",
+  "cancel": "取消",
+  "tabs": {
+    "chat": "聊天",
+    "agents": "智能体",
+    "workspace": "工作台",
+    "discover": "发现",
+    "me": "我"
+  },
+  "publish": "Publish",
+  "create": "Create",
+  "rename": "Rename",
+  "delete": "Delete"
+}

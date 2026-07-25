@@ -221,13 +221,13 @@ assert.equal(
 assert.equal(
   searchModel.isChatHistoryNotificationMessage(messages.find((message) => message.id === 'message-member-notification') as Message),
   true,
-  'Conversation member lifecycle event rows must be classified as notification rows even when projected as text.',
+  'Conversation member lifecycle event rows must be classified as notification rows even when rendered as text.',
 );
 
 assert.equal(
   searchModel.isChatHistoryNotificationMessage(messages.find((message) => message.id === 'message-localized-group-notification') as Message),
   true,
-  'Localized group notice lifecycle rows must be classified as notification rows even when projected as text from a member sender.',
+  'Localized group notice lifecycle rows must be classified as notification rows even when rendered as text from a member sender.',
 );
 
 assert.deepEqual(
@@ -373,7 +373,7 @@ for (const marker of [
   'CHAT_HISTORY_SEARCH_TABS',
   'resolveChatHistoryMessageSender',
   'createChatHistorySenderProfileIndex',
-  'contactService.getContacts',
+  'contactService.listContactsPage',
   'filterChatHistoryMessages',
   'getChatHistorySearchPlaceholderKey',
   'renderHistoryMessagePlainText',
@@ -440,14 +440,16 @@ assert.doesNotMatch(
   'ChatLayout must not keep the legacy one-input search modal for activeModal=search.',
 );
 
-for (const localeName of ['zh-CN.json', 'en-US.json']) {
+for (const localeName of ['zh-CN', 'en-US']) {
   const locale = readJson(
     'packages',
     'sdkwork-im-pc-chat',
     'src',
     'i18n',
-    'locales',
     localeName,
+    'communication',
+    'im-pc-chat',
+    'chat.json',
   ) as {
     chat?: {
       historySearch?: {
@@ -461,7 +463,7 @@ for (const localeName of ['zh-CN.json', 'en-US.json']) {
     assert.equal(
       typeof locale.chat?.historySearch?.tabs?.[tabId],
       'string',
-      `${localeName} must define chat.historySearch.tabs.${tabId}.`,
+      `${localeName}/chat.json must define chat.historySearch.tabs.${tabId}.`,
     );
     assert.equal(
       typeof locale.chat?.historySearch?.placeholder?.[tabId],

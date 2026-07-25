@@ -1,0 +1,43 @@
+{
+  "header_title": "AI 智能写作",
+  "history_not_found": "暂无历史记录",
+  "settings": {
+    "topic_title": "主题或内容要求",
+    "topic_placeholder": "例如：写一段关于未来远程办公的有趣段落...",
+    "length": "篇幅",
+    "language": "语言",
+    "tone_style": "语气 & 风格",
+    "generate_error": "请输入写作主题或要求",
+    "generate_success": "创作完成！",
+    "generate_failed": "生成失败，请重试",
+    "generating": "起草中...",
+    "generate_button": "开始写作"
+  },
+  "result": {
+    "regenerate": "重新生成",
+    "copy": "复制文本",
+    "copy_success": "已复制到剪贴板",
+    "analyzing": "分析要求中..."
+  },
+  "history": {
+    "title": "历史记录",
+    "empty": "暂无历史记录。可以试试这些："
+  },
+  "styles": {
+    "Professional": "职业的",
+    "Casual": "随意的",
+    "Creative": "富有创意的",
+    "Academic": "学术的",
+    "Humorous": "幽默的",
+    "Persuasive": "有说服力的"
+  },
+  "lengths": {
+    "short": "短",
+    "medium": "中",
+    "long": "长"
+  },
+  "languages": {
+    "Chinese": "中文",
+    "English": "英文"
+  }
+}

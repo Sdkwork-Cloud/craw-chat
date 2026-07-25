@@ -1,0 +1,37 @@
+{
+  "title": "AI 视频创作",
+  "history": "历史记录",
+  "settings": {
+    "model_selection": "生成模型",
+    "prompt": "提示词 (Prompt)",
+    "prompt_placeholder": "输入你想生成的视频描述...",
+    "style": "风格 (Style)",
+    "format": "比例格式 (Format)",
+    "professional_settings": "专业控制参数",
+    "camera_motion": "镜头运镜",
+    "duration": "生成时长",
+    "fps": "帧率",
+    "generate_video": "立即生成视频",
+    "generating": "视频生成中..."
+  },
+  "result": {
+    "title": "生成结果",
+    "processing": "生成中 {{progress}}%",
+    "save": "保存视频",
+    "saving": "保存成功",
+    "save_browser": "将在新标签页中打开",
+    "delete_success": "删除成功",
+    "generate_success": "视频生成成功！",
+    "generate_failed": "视频生成失败，请重试。"
+  },
+  "history_section": {
+    "empty_title": "暂无历史视频，试试以下灵感：",
+    "suggestions": [
+      "夜晚赛博朋克城市，飞行汽车穿梭",
+      "阳光下的宁静森林小溪，水流清澈",
+      "唯美震撼的大海波浪，慢动作",
+      "一朵黄色的花朵在春天盛开，延时摄影",
+      "一只可爱的小狗在水里欢快地玩"
+    ]
+  }
+}

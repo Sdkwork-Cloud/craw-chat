@@ -1325,9 +1325,9 @@ fn append_many_on_transaction(
 ///
 /// Only the columns needed to rehydrate a [`CommitEnvelope`] are selected;
 /// the full event payload is round-tripped as text to preserve its original
-/// JSON encoding. Envelopes reconstructed here are best-effort projections —
-/// callers that need the authoritative aggregate state should replay through
-/// the domain layer rather than consume this projection directly.
+/// JSON encoding. Envelopes reconstructed here are best-effort compatibility
+/// representations for explicit recovery and audit tooling; callers must not
+/// consume them as current business state.
 fn load_recorded_page(
     pool: &PostgresJournalPool,
     prefix: &str,
@@ -1841,7 +1841,7 @@ pub(crate) fn journal_retention_until(envelope: &CommitEnvelope) -> Option<Strin
     )
 }
 
-/// Build a conversation member access gate backed by projection membership rows.
+/// Build a conversation member access gate backed by normalized membership rows.
 pub fn conversation_member_access_gate_from_pool(
     pool: PostgresJournalPool,
 ) -> std::sync::Arc<dyn im_platform_contracts::ConversationMemberAccessGate> {

@@ -1,11 +1,13 @@
 # sdkwork-api-im-standalone-gateway Specs
 
-This directory defines the local component contract for
-`sdkwork-api-im-standalone-gateway`.
+`component.spec.json` is the machine-readable contract for the canonical SDKWork IM standalone
+gateway. It declares the `runtime-gateway` role, single `application.public-ingress` surface,
+source-config keys, global standards, and verification commands.
 
-The component owns only the thin HTTP host around `sdkwork-api-im-assembly`. The full SDKWork IM
-standalone application gateway, dependency composition, and lifecycle authority remain outside
-this crate.
+The gateway owns process startup, one HTTP listener, framework infrastructure, assembly composition,
+required dependency readiness, and graceful shutdown. API contracts, business rules, persistence
+schemas, and generated SDKs remain in their owning components.
 
-Global SDKWork standards remain authoritative. This local spec records the component boundary,
-runtime entrypoint, required assembly dependency, and verification command.
+The framework-owned readiness surface must compose IM database, configured Redis, embedded Agents,
+registered worker, and realtime plane checks. This directory narrows no global health or security
+rule; `HEALTH_CHECK_SPEC.md` and `SECURITY_SPEC.md` remain authoritative.

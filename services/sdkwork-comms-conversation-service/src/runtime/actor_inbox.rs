@@ -3,7 +3,6 @@ use std::collections::{BTreeSet, HashMap};
 use im_domain_core::conversation::ConversationMember;
 use sdkwork_utils_rust::{OffsetLimitPage, offset_limit_page_from_iter};
 
-use super::support::decode_conversation_scope_key;
 use super::{ConversationState, RuntimeState, encode_conversation_key_segments};
 
 #[derive(Default)]
@@ -55,16 +54,6 @@ impl ActorInboxRuntimeStore {
         conversation_ids.remove(member.conversation_id.as_str());
         if conversation_ids.is_empty() {
             self.conversation_ids_by_actor.remove(actor_key.as_str());
-        }
-    }
-
-    pub(super) fn rebuild_for_conversation(
-        &mut self,
-        organization_id: &str,
-        conversation: &ConversationState,
-    ) {
-        for member in conversation.roster.members().values() {
-            self.sync_member(organization_id, member);
         }
     }
 
@@ -129,22 +118,6 @@ impl RuntimeState {
     ) {
         for member in members {
             self.actor_inbox.sync_member(organization_id, member);
-        }
-    }
-
-    pub(super) fn rebuild_all_actor_inboxes(&mut self) {
-        let scope_keys: Vec<String> = self.conversations.keys().cloned().collect();
-        self.actor_inbox = ActorInboxRuntimeStore::default();
-        for scope_key in scope_keys {
-            let Some((_, organization_id, _)) = decode_conversation_scope_key(scope_key.as_str())
-            else {
-                continue;
-            };
-            let Some(conversation) = self.conversations.get(scope_key.as_str()) else {
-                continue;
-            };
-            self.actor_inbox
-                .rebuild_for_conversation(organization_id.as_str(), conversation);
         }
     }
 

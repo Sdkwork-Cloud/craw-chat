@@ -1,0 +1,43 @@
+{
+  "header_title": "AI Writing",
+  "history_not_found": "No history found",
+  "settings": {
+    "topic_title": "Topic or Instructions",
+    "topic_placeholder": "E.g., Write a highly engaging paragraph about the future of remote work...",
+    "length": "Length",
+    "language": "Language",
+    "tone_style": "Tone & Style",
+    "generate_error": "Please enter a topic or instruction",
+    "generate_success": "Writing completed!",
+    "generate_failed": "Generation failed, please try again",
+    "generating": "Drafting...",
+    "generate_button": "Start Writing"
+  },
+  "result": {
+    "regenerate": "Regenerate",
+    "copy": "Copy Text",
+    "copy_success": "Copied to clipboard",
+    "analyzing": "Analyzing requirements..."
+  },
+  "history": {
+    "title": "History",
+    "empty": "No recent history. Try these:"
+  },
+  "styles": {
+    "Professional": "Professional",
+    "Casual": "Casual",
+    "Creative": "Creative",
+    "Academic": "Academic",
+    "Humorous": "Humorous",
+    "Persuasive": "Persuasive"
+  },
+  "lengths": {
+    "short": "short",
+    "medium": "medium",
+    "long": "long"
+  },
+  "languages": {
+    "Chinese": "Chinese",
+    "English": "English"
+  }
+}

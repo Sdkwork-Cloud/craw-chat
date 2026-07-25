@@ -1,0 +1,45 @@
+{
+  "title": "Book Meeting",
+  "stats": {
+    "upcoming": "Upcoming Today"
+  },
+  "tabs": {
+    "upcoming": "Upcoming",
+    "finished": "Finished"
+  },
+  "loading": "Loading...",
+  "empty": "No meeting records",
+  "status": {
+    "upcoming": "Upcoming",
+    "ongoing": "Ongoing",
+    "finished": "Finished"
+  },
+  "participants": "{{count}} participants",
+  "join": "Join",
+  "detail": {
+    "title": "Meeting Detail",
+    "topic": "Topic",
+    "time": "Time",
+    "room": "Room",
+    "organizer": "Organizer",
+    "description": "Description",
+    "attendees": "Attendees",
+    "startCall": "Start Video Call"
+  },
+  "create": {
+    "title": "Create Meeting",
+    "topicLabel": "Topic",
+    "topicPlaceholder": "Enter meeting topic",
+    "dateLabel": "Date",
+    "timeLabel": "Time",
+    "startTime": "Start",
+    "endTime": "End",
+    "roomLabel": "Location",
+    "roomPlaceholder": "Room or location",
+    "attendeesLabel": "Attendees",
+    "attendeesPlaceholder": "Add attendees",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Meeting agenda...",
+    "submit": "Book Now"
+  }
+}

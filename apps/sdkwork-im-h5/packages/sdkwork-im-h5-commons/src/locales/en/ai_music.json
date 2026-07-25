@@ -1,0 +1,44 @@
+{
+  "tabs": {
+    "create": "Create",
+    "library": "Library"
+  },
+  "create": {
+    "model_selection": "Engine",
+    "prompt_title": "Song Description",
+    "instrumental": "Instrumental",
+    "prompt_placeholder": "Describe the music you want, e.g. 'An upbeat pop song for a road trip...'",
+    "lyrics_title": "Custom Lyrics",
+    "optional": "Optional",
+    "lyrics_placeholder": "Enter the lyrics you want the AI to sing here...",
+    "style_title": "Music Style",
+    "professional_settings": "Advanced Settings",
+    "vocal_style": "Vocal Style",
+    "tempo": "Tempo",
+    "generate_button": "Create Music (50 Credits)",
+    "generating": "Generating...",
+    "generate_success": "Music generated successfully!",
+    "generate_error": "Please enter a simple description to generate music"
+  },
+  "library": {
+    "rendering": "Rendering audio track...",
+    "empty_text": "No music creations yet",
+    "go_create": "Go Create"
+  },
+  "model_page_title": "Select Music Engine",
+  "styles": {
+    "Pop": "Pop",
+    "Rock": "Rock",
+    "Electronic": "Electronic",
+    "Hip Hop": "Hip Hop",
+    "Classical": "Classical",
+    "Jazz": "Jazz",
+    "Lo-Fi": "Lo-Fi"
+  },
+  "vocal_styles": {
+    "auto": "Auto",
+    "male": "Male",
+    "female": "Female",
+    "robot": "Robot"
+  }
+}

@@ -1,6 +1,6 @@
 # ADR-20260617 Comms Service Naming Boundaries
 
-Status: accepted and implemented
+Status: accepted; Conversation read ownership superseded by ADR-20260722
 Owner: sdkwork-im  
 Date: 2026-06-17  
 Finalized: 2026-07-16
@@ -22,11 +22,11 @@ family and HTTP stem remain `im` and `/im/v3/api`.
 | Social graph | `comms-social-service` | `social` | `/im/v3/api/social/*` |
 | Spaces and organizations | `comms-space-service` | `spaces` | `/im/v3/api/spaces/*` |
 | Conversation writes | `comms-conversation-service` | `chat` | `/im/v3/api/chat/*` write operations |
-| Conversation reads | `projection-service` | `chat` | `/im/v3/api/chat/*` read operations |
+| Conversation reads | `sdkwork-comms-conversation-service` | `chat` | `/im/v3/api/chat/*` normalized read operations |
 
 `social-service` owns the social PostgreSQL handlers and standalone assembly. Reactions, pins, threads,
-and conversation settings are chat resources owned by conversation/projection services. There is no
-separate contacts or interactions runtime service.
+and conversation settings are chat resources owned by the normalized Conversation service. There is
+no separate contacts, interactions, or persisted query-model runtime service.
 
 The authored OpenAPI under `sdks/sdkwork-im-sdk/openapi/` is the HTTP source of truth. Handwritten API
 documentation is an index only and must not introduce `/api/v1/*` or `/im/v3/api/interactions/*` paths.
@@ -61,3 +61,9 @@ node sdks/materialize-im-v3-openapi-boundaries.mjs
 
 This decision supersedes informal `/api/v1` path documentation and all duplicate pre-release service
 scaffolds.
+
+## Superseded By
+
+`ADR-20260722-normalized-im-authority` supersedes this ADR's former Conversation-read owner. The
+pre-launch `projection-service` was retired; normalized PostgreSQL tables are the sole current-state
+authority and `sdkwork-comms-conversation-service` owns both commands and normalized queries.

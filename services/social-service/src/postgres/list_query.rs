@@ -1,5 +1,6 @@
 //! Shared list query types for social-service Postgres HTTP handlers.
 
+use im_adapters_social_postgres::wire_id::parse_social_entity_id;
 use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 
 pub use sdkwork_utils_rust::SdkWorkCursorListQuery as ListQuery;
@@ -48,13 +49,52 @@ pub fn resolve_keyset_page(query: &ListQuery) -> Result<KeysetPageParams, ApiPro
         _ => (None, None),
     };
 
-    let cursor_block_id = cursor_entity_id.as_ref().and_then(|s| s.parse().ok());
-    let cursor_direct_chat_id = cursor_entity_id.as_ref().and_then(|s| s.parse().ok());
+    let cursor_entity_id = cursor_entity_id
+        .as_deref()
+        .map(parse_social_entity_id)
+        .transpose()
+        .map_err(|_| {
+            ApiProblem::bad_request(
+                "cursor entity_id must be a canonical positive signed int64 string",
+            )
+        })?;
 
     Ok(KeysetPageParams {
         page_size,
         cursor_created_at,
-        cursor_block_id,
-        cursor_direct_chat_id,
+        cursor_block_id: cursor_entity_id,
+        cursor_direct_chat_id: cursor_entity_id,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ListQuery, resolve_keyset_page};
+
+    #[test]
+    fn rejects_non_canonical_cursor_entity_ids() {
+        for entity_id in ["0", "01", "-1", "block_1", "9223372036854775808"] {
+            let query = ListQuery {
+                cursor: Some(format!("2026-07-24T00:00:00Z|{entity_id}")),
+                ..Default::default()
+            };
+            assert!(
+                resolve_keyset_page(&query).is_err(),
+                "cursor entity id {entity_id:?} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn preserves_canonical_cursor_entity_id() {
+        let query = ListQuery {
+            cursor: Some("2026-07-24T00:00:00Z|330339707122622464".to_owned()),
+            ..Default::default()
+        };
+
+        let paging = resolve_keyset_page(&query).expect("canonical cursor");
+
+        assert_eq!(paging.cursor_block_id, Some(330339707122622464));
+        assert_eq!(paging.cursor_direct_chat_id, Some(330339707122622464));
+    }
 }

@@ -1,0 +1,25 @@
+schema_version: 1
+kind: sdkwork.database.client-local-policy
+mode: cache
+scope: environment-deployment-profile-mode-origin-tenant-organization-account-principal
+authoritative_source: sdkwork-im-app-api
+sync_contract: contract/cache-lifecycle.v1.yaml
+security:
+  encryption_at_rest: AES-256-GCM payload encryption with a random key per exact scope
+  key_store: OS credential vault through keyring; keys never enter SQLite or renderer state
+  backup: excluded; copied ciphertext is unusable without the non-exported OS-vault key
+  export: forbidden; this module exposes bounded application records only through typed Tauri commands
+  lock_state: fail closed when the OS credential vault is locked or unavailable
+retention:
+  policy: fetched cache and rejected queue items are age-row-byte bounded; active pending sends are row-byte-retry bounded
+  max_age_or_event: cache 30 days; quarantine 30 days; logout/account switch purges fetched cache for the old scope
+lifecycle:
+  logout: purge fetched conversation/message/cursor cache; retain encrypted pending sends only in the exact logged-out scope
+  account_switch: close the active handle, purge old fetched cache, and open a distinct fingerprinted file/key for the new scope
+  uninstall: platform uninstaller removes application-private files; credential-vault key cleanup is an installer responsibility
+recovery:
+  migration_interruption: transactional migration under a per-scope OS file lock; non-current pre-launch schemas are deleted and rebuilt on the next open
+  disk_full: fail the current write without acknowledging or deleting a pending send
+  corruption: fail closed, discard the untrusted local file, and refetch cache; pending sends require user-visible resend recovery
+  projection_rebuild: forbidden; cache mode does not materialize or rebuild projections
+  cache_refill: fetched data is refilled only through normal generated-SDK reads

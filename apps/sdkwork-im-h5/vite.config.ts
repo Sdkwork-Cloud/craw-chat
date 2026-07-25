@@ -1,91 +1,41 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createSdkworkCredentialEntryBootstrapVitePlugin } from "../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry/src/vite.ts";
-import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import {defineConfig, loadEnv} from 'vite';
 
-const imH5Root = path.dirname(fileURLToPath(import.meta.url));
-const imRoot = path.resolve(imH5Root, "../..");
-const appbaseRoot = path.resolve(imRoot, "../sdkwork-appbase");
-const iamRoot = path.resolve(imRoot, "../sdkwork-iam");
-const uiRoot = path.resolve(imRoot, "../sdkwork-ui/sdkwork-ui-pc-react");
-const driveRoot = path.resolve(imRoot, "../sdkwork-drive");
-const utilsRoot = path.resolve(imRoot, "../sdkwork-utils");
-const sdkCommonRoot = path.resolve(imRoot, "../sdkwork-sdk-commons/sdkwork-sdk-common-typescript");
-const sdkCommonSourceRoot = path.resolve(sdkCommonRoot, "src");
+const repoRoot = path.resolve(__dirname, '../..');
 
-export default defineConfig(({ mode }) => {
+function dependencyRoot(dependencyId: string): string {
+  return path.resolve(repoRoot, '..', dependencyId);
+}
+
+const sdkworkUtilsSourceRoot = path.resolve(
+  dependencyRoot('sdkwork-utils'),
+  'packages/sdkwork-utils-typescript/src',
+);
+const sdkworkUtilsEntry = path.resolve(sdkworkUtilsSourceRoot, 'index.ts');
+
+export default defineConfig(({mode}) => {
+  const env = loadEnv(mode, '.', '');
   return {
-    plugins: [
-      createSdkworkCredentialEntryBootstrapVitePlugin({
-        accessToken: process.env.SDKWORK_ACCESS_TOKEN,
-        environment: mode,
-      }),
-      react(),
-    ],
-    resolve: {
-      alias: {
-        "@sdkwork/iam-credential-entry/vite": path.resolve(
-          iamRoot,
-          "apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry/src/vite.ts",
-        ),
-        "@sdkwork/auth-pc-react": path.resolve(
-          iamRoot,
-          "apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/index.ts",
-        ),
-        "@sdkwork/ui-pc-react": path.resolve(uiRoot, "src/index.ts"),
-        "@sdkwork/auth-runtime-pc-react": path.resolve(
-          iamRoot,
-          "apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/index.ts",
-        ),
-        "@sdkwork/iam-app-sdk": path.resolve(
-          iamRoot,
-          "sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts",
-        ),
-        "@sdkwork/iam-contracts": path.resolve(
-          iamRoot,
-          "apps/sdkwork-iam-common/packages/sdkwork-iam-contracts/src/index.ts",
-        ),
-        "@sdkwork/iam-runtime": path.resolve(
-          iamRoot,
-          "apps/sdkwork-iam-common/packages/sdkwork-iam-runtime/src/index.ts",
-        ),
-        "@sdkwork/iam-sdk-ports": path.resolve(
-          iamRoot,
-          "apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports/src/index.ts",
-        ),
-        "@sdkwork/iam-service": path.resolve(
-          iamRoot,
-          "apps/sdkwork-iam-common/packages/sdkwork-iam-service/src/index.ts",
-        ),
-        "@sdkwork/runtime-bootstrap": path.resolve(
-          appbaseRoot,
-          "packages/common/foundation/sdkwork-runtime-bootstrap/src/index.ts",
-        ),
-        "@sdkwork/im-sdk": path.resolve(
-          imRoot,
-          "sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts",
-        ),
-        "@sdkwork/drive-app-sdk": path.resolve(
-          driveRoot,
-          "sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts",
-        ),
-        "@sdkwork/utils": path.resolve(
-          utilsRoot,
-          "packages/sdkwork-utils-typescript/src/index.ts",
-        ),
-        "@sdkwork/sdk-common/core": path.resolve(sdkCommonSourceRoot, "core/index.ts"),
-        "@sdkwork/sdk-common/auth": path.resolve(sdkCommonSourceRoot, "auth/index.ts"),
-        "@sdkwork/sdk-common/http": path.resolve(sdkCommonSourceRoot, "http/index.ts"),
-        "@sdkwork/sdk-common/errors": path.resolve(sdkCommonSourceRoot, "errors/index.ts"),
-        "@sdkwork/sdk-common/utils": path.resolve(sdkCommonSourceRoot, "utils/index.ts"),
-        "@sdkwork/sdk-common": path.resolve(sdkCommonSourceRoot, "index.ts"),
-        "@sdkwork/im-h5-commons": path.resolve(imH5Root, "packages/sdkwork-im-h5-commons/src"),
-        "@sdkwork/im-h5-core": path.resolve(imH5Root, "packages/sdkwork-im-h5-core/src"),
-        "@sdkwork/im-h5-shell": path.resolve(imH5Root, "packages/sdkwork-im-h5-shell/src"),
-        "@sdkwork/im-h5-chat": path.resolve(imH5Root, "packages/sdkwork-im-h5-chat/src"),
-      },
+    plugins: [react(), tailwindcss()],
+    define: {
+// Replaced define to avoid passing server secrets to client
     },
-    server: { port: 3010 },
+    resolve: {
+      alias: [
+        { find: /^@\/(.*)/, replacement: path.resolve(__dirname, 'src/$1') },
+        { find: /^@sdkwork\/im-h5-(.*)/, replacement: path.resolve(__dirname, 'packages/sdkwork-im-h5-$1/src') },
+        { find: /^@sdkwork\/utils\/(.+)$/, replacement: `${sdkworkUtilsSourceRoot}/$1` },
+        { find: /^@sdkwork\/utils$/, replacement: sdkworkUtilsEntry },
+      ],
+    },
+    server: {
+      // HMR is disabled in automated environments via DISABLE_HMR env var.
+      hmr: process.env.DISABLE_HMR !== 'true',
+    },
+    optimizeDeps: {
+      exclude: ['@sdkwork/utils'],
+    },
   };
 });

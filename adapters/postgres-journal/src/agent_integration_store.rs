@@ -3,9 +3,10 @@ use std::sync::Arc;
 use im_platform_contracts::{ContractError, IdGenerator};
 use r2d2_postgres::postgres::Transaction;
 use sdkwork_im_contract_agent::{
-    AgentBindingStatus, AgentDispatchRecord, AgentDispatchStatus, AgentIntegrationStore,
-    AgentMentionDispatchRequest, AgentReplyCommitResult, ConversationAgentAssignmentRecord,
-    ConversationAgentBindingRecord, ReplaceConversationAgentAssignments,
+    AgentAssignmentSource, AgentBindingStatus, AgentDispatchRecord, AgentDispatchStatus,
+    AgentIntegrationStore, AgentMentionDispatchRequest, AgentReplyCommitResult,
+    ConversationAgentAssignmentRecord, ConversationAgentBindingRecord,
+    ReplaceConversationAgentAssignments,
 };
 use sdkwork_utils_rust::sha256_hash;
 
@@ -56,8 +57,8 @@ where im_conversation_agent_assignments.source_aggregate_version <= excluded.sou
 
 const LIST_ASSIGNMENTS_SQL: &str = r#"
 select tenant_id, organization_id, conversation_id, agent_id,
-    agent_revision_ref, assignment_generation, position, enabled, status,
-    source_aggregate_version
+    agent_revision_ref, assignment_source, assignment_generation, position,
+    enabled, status, source_aggregate_version
 from im_conversation_agent_assignments
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
     and enabled = true and status = 0
@@ -1022,11 +1023,12 @@ fn assignment_from_row(
         conversation_id: row.get(2),
         agent_id: row.get(3),
         agent_revision_ref: row.get(4),
-        assignment_generation: row.get::<_, i64>(5) as u64,
-        position: row.get(6),
-        enabled: row.get(7),
-        status: row.get(8),
-        source_aggregate_version: row.get::<_, i64>(9) as u64,
+        assignment_source: AgentAssignmentSource::from_db_code(row.get(5))?,
+        assignment_generation: row.get::<_, i64>(6) as u64,
+        position: row.get(7),
+        enabled: row.get(8),
+        status: row.get(9),
+        source_aggregate_version: row.get::<_, i64>(10) as u64,
     })
 }
 

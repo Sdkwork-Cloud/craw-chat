@@ -83,10 +83,66 @@ pub struct NormalizedConversationRecord {
     pub conversation_id: String,
     pub conversation_type: String,
     pub lifecycle_state: String,
+    pub archived_at: Option<String>,
+    pub archive_event_id: Option<String>,
     pub commit_seq: u64,
     pub member_epoch: u64,
     pub last_activity_at: String,
     pub retention_until: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NormalizedConversationPolicyRecord {
+    pub tenant_id: String,
+    pub organization_id: String,
+    pub conversation_id: String,
+    pub policy_epoch: u64,
+    pub policy_version: String,
+    pub capability_flags: Option<Vec<String>>,
+    pub history_visibility: String,
+    pub retention_policy_ref: String,
+    pub max_members: Option<i32>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NormalizedConversationBusinessBindingRecord {
+    pub tenant_id: String,
+    pub organization_id: String,
+    pub conversation_id: String,
+    pub business_type: String,
+    pub business_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NormalizedConversationHandoffRecord {
+    pub tenant_id: String,
+    pub organization_id: String,
+    pub conversation_id: String,
+    pub handoff_status_epoch: u64,
+    pub status: String,
+    pub source_principal_kind: String,
+    pub source_principal_id: String,
+    pub target_principal_kind: String,
+    pub target_principal_id: String,
+    pub handoff_session_id: String,
+    pub handoff_reason: Option<String>,
+    pub accepted_at: Option<String>,
+    pub accepted_by_principal_kind: Option<String>,
+    pub accepted_by_principal_id: Option<String>,
+    pub resolved_at: Option<String>,
+    pub resolved_by_principal_kind: Option<String>,
+    pub resolved_by_principal_id: Option<String>,
+    pub closed_at: Option<String>,
+    pub closed_by_principal_kind: Option<String>,
+    pub closed_by_principal_id: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NormalizedConversationCurrentState {
+    pub conversation: NormalizedConversationRecord,
+    pub policy: Option<NormalizedConversationPolicyRecord>,
+    pub business_binding: Option<NormalizedConversationBusinessBindingRecord>,
+    pub handoff: Option<NormalizedConversationHandoffRecord>,
 }
 
 /// One command-side PostgreSQL unit of work. Every collection contains only
@@ -94,7 +150,13 @@ pub struct NormalizedConversationRecord {
 /// materialization contract.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NormalizedConversationCommit {
+    /// Exact normalized version observed before this command was evaluated.
+    /// PostgreSQL must advance from this value atomically or reject the write.
+    pub expected_commit_seq: u64,
     pub conversation: NormalizedConversationRecord,
+    pub policy: Option<NormalizedConversationPolicyRecord>,
+    pub business_binding: Option<NormalizedConversationBusinessBindingRecord>,
+    pub handoff: Option<NormalizedConversationHandoffRecord>,
     pub members: Vec<ConversationMemberRecord>,
     pub read_cursors: Vec<ReadCursorRecord>,
     #[serde(default)]
@@ -110,6 +172,30 @@ pub struct NormalizedConversationCommit {
 /// must either request one bounded page or use targeted member/cursor lookups;
 /// the contract intentionally exposes no load-all aggregate operation.
 pub trait ConversationAggregateStore: Send + Sync {
+    fn load_conversation(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<Option<NormalizedConversationRecord>, ContractError>;
+
+    fn load_conversation_current_state(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<Option<NormalizedConversationCurrentState>, ContractError> {
+        self.load_conversation(tenant_id, organization_id, conversation_id)
+            .map(|conversation| {
+                conversation.map(|conversation| NormalizedConversationCurrentState {
+                    conversation,
+                    policy: None,
+                    business_binding: None,
+                    handoff: None,
+                })
+            })
+    }
+
     fn load_members_page(
         &self,
         tenant_id: &str,
@@ -176,6 +262,27 @@ pub trait ConversationAggregateStore: Send + Sync {
         conversation_id: &str,
         member_id: i64,
     ) -> Result<Option<ReadCursorRecord>, ContractError>;
+
+    fn load_read_cursor_for_device(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        member_id: i64,
+        device_id: &str,
+    ) -> Result<Option<ReadCursorRecord>, ContractError> {
+        if device_id.is_empty() {
+            return self.load_read_cursor(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                member_id,
+            );
+        }
+        Err(ContractError::UnsupportedCapability(
+            "device-scoped normalized read cursor lookup is not implemented".into(),
+        ))
+    }
 
     fn upsert_read_cursor(&self, cursor: ReadCursorRecord) -> Result<(), ContractError>;
 

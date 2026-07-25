@@ -106,10 +106,6 @@ impl ContactDirectChatBindingRuntimeStore {
         }
     }
 
-    pub(crate) fn clear(&mut self) {
-        self.by_direct_chat_id.clear();
-        self.direct_chat_id_by_conversation.clear();
-    }
 }
 
 /// Per-owner contact index with incrementally maintained sort order for paginated reads.

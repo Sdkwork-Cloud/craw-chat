@@ -20,10 +20,6 @@ struct ConversationReceivedMessageIndex {
 }
 
 impl ReceivedMessageIndex {
-    pub(crate) fn clear(&mut self) {
-        self.by_conversation.clear();
-    }
-
     pub(crate) fn append_message(
         &mut self,
         scope: &str,

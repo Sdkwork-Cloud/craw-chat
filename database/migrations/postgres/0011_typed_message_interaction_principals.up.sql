@@ -1,4 +1,27 @@
+-- sdkwork:migration
+-- id: 0011_typed_message_interaction_principals
+-- engine: postgres
+-- module: im
+-- purpose: Replace user-only reaction and pin principals with typed IM principals
+-- reversible: false
+-- rollback: forward-fix
+-- transactional: true
+-- lock: access-exclusive
+-- lock_timeout: 5s
+-- statement_timeout: 5m
+-- rewrite: existing user principals are explicitly typed as user
+-- backfill: bounded in-transaction updates over reaction and pin rows
+-- write_traffic: reaction and pin writes must be stopped during cutover
+-- replication_wal: proportional to existing reaction and pin rows plus replacement indexes
+-- observability: monitor updated row counts, index builds, lock wait, WAL growth, and replica lag
+-- cancellation: cancel before commit; PostgreSQL rolls back the complete transaction
+-- recovery: correct through a forward migration; principal kinds must never be discarded
+-- contract_version: 2.1.0
+
 BEGIN;
+
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '5min';
 
 ALTER TABLE im_message_reactions
     DROP CONSTRAINT pk_im_message_reactions;

@@ -26,7 +26,7 @@ pub trait ConversationMemberAccessGate: Send + Sync {
     ) -> Result<(), ContractError>;
 }
 
-/// PostgreSQL projection-backed member access gate.
+/// PostgreSQL normalized-member access gate.
 #[derive(Clone)]
 pub struct AggregateStoreConversationMemberAccessGate {
     store: Arc<dyn ConversationAggregateStore>,

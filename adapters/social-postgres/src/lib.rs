@@ -16,21 +16,16 @@ pub mod member_capacity;
 pub mod organization_store;
 pub mod shared_channel_store;
 pub mod space_materialize_writes;
-pub mod space_materializer;
 pub mod user_block_store;
 pub mod user_profile_store;
 pub mod user_settings_store;
 pub mod wire_id;
 
-pub use materialize_writes::{
-    materialize_commits_in_transaction, materialize_commits_on_transaction,
-};
+pub use materialize_writes::materialize_commits_on_transaction;
 pub use member_capacity::MemberInsertOutcome;
 pub use space_materialize_writes::{
-    SpaceMaterializationError, materialize_space_commits_in_transaction,
-    materialize_space_commits_on_transaction,
+    SpaceMaterializationError, materialize_space_commits_on_transaction,
 };
-pub use space_materializer::SpacePostgresMaterializer;
 
 pub use config::SocialPostgresConfig;
 

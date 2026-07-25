@@ -33,18 +33,18 @@ assert.notEqual(
 );
 assert.match(
   startDirectChatSource,
-  /const projectedConversationId = user\.conversationId\?\.trim\(\);[\s\S]*?if \(projectedConversationId\) \{[\s\S]*?return \{/u,
-  'startDirectChat must reuse the server-projected contact conversation id and avoid privileged rebinding when it already exists',
+  /const existingConversationId = user\.conversationId\?\.trim\(\);[\s\S]*?if \(existingConversationId\) \{[\s\S]*?return \{/u,
+  'startDirectChat must reuse the server-provided contact conversation id and avoid privileged rebinding when it already exists',
 );
 assert.match(
   startDirectChatSource,
-  /if \(projectedConversationId\) \{[\s\S]*?conversations\.updatePreferences\(projectedConversationId,\s*\{\s*isHidden:\s*false\s*\}\)/u,
-  'startDirectChat must unhide the server-projected contact conversation instead of synthesizing a local id',
+  /if \(existingConversationId\) \{[\s\S]*?conversations\.updatePreferences\(existingConversationId,\s*\{\s*isHidden:\s*false\s*\}\)/u,
+  'startDirectChat must unhide the server-provided contact conversation instead of synthesizing a local id',
 );
 assert.match(
   startDirectChatSource,
   /const result = await[\s\S]*?conversations\.bindDirectChat\([\s\S]*?const boundConversationId = result\.conversationId;[\s\S]*?conversations\.updatePreferences\(boundConversationId,\s*\{\s*isHidden:\s*false\s*\}\)/u,
-  'startDirectChat must bind missing direct-chat projections and unhide the returned server-owned conversation id',
+  'startDirectChat must bind missing normalized direct-chat state and unhide the returned server-owned conversation id',
 );
 
 console.log('sdkwork im pc direct chat binding contract passed.');

@@ -895,6 +895,19 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
+        self.ensure_member_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+            actor_kind,
+            command.removed_by.as_str(),
+        )?;
+        self.ensure_member_by_id_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+            command.member_id.as_str(),
+        )?;
         let scope_key = conversation_scope_key(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
@@ -1012,6 +1025,13 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
+        self.ensure_member_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+            actor_kind,
+            command.principal_id.as_str(),
+        )?;
         let scope_key = conversation_scope_key(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
@@ -1134,6 +1154,19 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
+        self.ensure_member_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+            actor_kind,
+            command.transferred_by.as_str(),
+        )?;
+        self.ensure_member_by_id_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+            command.target_member_id.as_str(),
+        )?;
         let scope_key = conversation_scope_key(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
@@ -1294,6 +1327,19 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
+        self.ensure_member_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+            actor_kind,
+            command.changed_by.as_str(),
+        )?;
+        self.ensure_member_by_id_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+            command.target_member_id.as_str(),
+        )?;
         let scope_key = conversation_scope_key(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
@@ -1396,6 +1442,21 @@ where
         organization_id: &str,
         conversation_id: &str,
     ) -> Result<Vec<ConversationMember>, RuntimeError> {
+        if self.aggregate_store.is_some() {
+            let page = self.list_members_window(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                Some(CONVERSATION_MEMBER_LIST_MAX_LIMIT),
+                None,
+            )?;
+            if page.page_info.has_more == Some(true) {
+                return Err(RuntimeError::InvalidInput(format!(
+                    "unpaginated member reads are limited to {CONVERSATION_MEMBER_LIST_MAX_LIMIT}; use the cursor-paginated member API"
+                )));
+            }
+            return Ok(page.items);
+        }
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(&self.state, "conversation-runtime.state.membership");
         let conversation = state
@@ -1434,6 +1495,7 @@ where
             .map_err(member_list_cursor_runtime_error)?;
 
         if let Some(aggregate_store) = self.aggregate_store.as_ref() {
+            self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
             let page = aggregate_store
                 .load_members_page(
                     tenant_id,
@@ -1561,10 +1623,13 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
-        self.ensure_conversation_loaded(
+        self.ensure_read_cursor_loaded(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
             command.conversation_id.as_str(),
+            actor_kind,
+            command.principal_id.as_str(),
+            command.device_id.as_deref(),
         )?;
         let normalized_organization_id =
             im_domain_events::normalize_commit_organization_id(command.organization_id.as_str());
@@ -1586,7 +1651,7 @@ where
             command.organization_id.as_str(),
             command.conversation_id.as_str(),
         );
-        let mut refreshed_journal_watermark = None;
+        let mut refreshed_current_commit_seq = None;
         let mut append_attempt = 0usize;
         let cursor = loop {
             append_attempt += 1;
@@ -1603,8 +1668,8 @@ where
                 if let Some(high_watermark) = store_high_watermark {
                     candidate.message_log.observe_high_watermark(high_watermark);
                 }
-                if let Some(journal_watermark) = refreshed_journal_watermark.take() {
-                    candidate.aggregate.observe_commit_seq(journal_watermark);
+                if let Some(current_commit_seq) = refreshed_current_commit_seq.take() {
+                    candidate.aggregate.observe_commit_seq(current_commit_seq);
                 }
                 let high_watermark = candidate.message_log.high_watermark();
                 if command.read_seq > high_watermark {
@@ -1699,13 +1764,14 @@ where
                     if append_attempt < READ_CURSOR_JOURNAL_APPEND_MAX_ATTEMPTS
                         && is_journal_position_conflict(&error) =>
                 {
-                    refreshed_journal_watermark = self.load_journal_watermark_for_conversation(
-                        command.tenant_id.as_str(),
-                        command.conversation_id.as_str(),
-                    )?;
-                    if refreshed_journal_watermark.is_none() {
-                        return Err(error);
-                    }
+                    refreshed_current_commit_seq = Some(
+                        self.load_normalized_conversation(
+                            command.tenant_id.as_str(),
+                            normalized_organization_id.as_str(),
+                            command.conversation_id.as_str(),
+                        )?
+                        .commit_seq,
+                    );
                 }
                 Err(error) => return Err(error),
             }
@@ -1775,7 +1841,14 @@ where
         principal_kind: &str,
         device_id: Option<&str>,
     ) -> Result<ConversationReadCursorView, RuntimeError> {
-        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
+        self.ensure_read_cursor_loaded(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_kind,
+            principal_id,
+            device_id,
+        )?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(&self.state, "conversation-runtime.state.membership");
         let conversation = state

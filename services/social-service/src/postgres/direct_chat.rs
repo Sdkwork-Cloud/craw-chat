@@ -11,7 +11,10 @@ use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
-use im_adapters_social_postgres::direct_chat_store::{DirectChatActorListQuery, DirectChatRecord};
+use im_adapters_social_postgres::{
+    direct_chat_store::{DirectChatActorListQuery, DirectChatRecord},
+    wire_id::parse_social_entity_id,
+};
 
 use crate::api_payload::{keyset_list_page, resource_item};
 use crate::postgres::access::{ensure_direct_chat_participant, social_principal_user_id};
@@ -26,6 +29,8 @@ pub struct CreateDirectChatRequest {
 #[derive(Debug, Serialize)]
 pub struct DirectChatResponse {
     pub direct_chat_id: String,
+    #[serde(skip)]
+    sort_id: i64,
     pub left_actor_id: String,
     pub right_actor_id: String,
     pub status: String,
@@ -38,6 +43,7 @@ impl From<DirectChatRecord> for DirectChatResponse {
     fn from(record: DirectChatRecord) -> Self {
         Self {
             direct_chat_id: record.direct_chat_id.to_string(),
+            sort_id: record.direct_chat_id,
             left_actor_id: record.left_actor_id,
             right_actor_id: record.right_actor_id,
             status: record.status,
@@ -90,12 +96,7 @@ pub async fn list_direct_chats(
             Ok(keyset_list_page(
                 items,
                 paging.page_size,
-                |item: &DirectChatResponse| {
-                    (
-                        item.updated_at.clone(),
-                        item.direct_chat_id.parse().unwrap_or(0),
-                    )
-                },
+                |item: &DirectChatResponse| (item.updated_at.clone(), item.sort_id),
             ))
         })
         .await;
@@ -110,7 +111,11 @@ pub async fn get_direct_chat(
 ) -> Response {
     let result: ApiResult<SdkWorkResourceData<DirectChatResponse>> =
         crate::postgres::http::run_blocking_postgres_call(state, move |state| {
-            let dcid: i64 = direct_chat_id.parse().unwrap_or(0);
+            let dcid = parse_social_entity_id(direct_chat_id.as_str()).map_err(|_| {
+                ApiProblem::bad_request(
+                    "direct_chat_id must be a canonical positive signed int64 string",
+                )
+            })?;
             let record = state
                 .direct_chat_store
                 .get_by_id(auth.tenant_id.as_str(), auth.organization_id.as_str(), dcid)

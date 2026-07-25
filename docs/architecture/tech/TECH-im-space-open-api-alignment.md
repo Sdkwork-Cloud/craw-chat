@@ -5,16 +5,16 @@
 
 ## Authority Model
 
-Space and group mutations are event-sourced through `im_commit_journal`. PostgreSQL tables such as `im_spaces`, `im_chat_groups`, `im_space_members`, and `im_group_members` are query read models materialized from the same commit envelopes.
+PostgreSQL tables such as `im_spaces`, `im_chat_groups`, `im_space_members`, and `im_group_members` are the only current-state authority for Space and Group. `im_commit_journal` retains immutable audit evidence; it is not replayed to rebuild current state. Core normalized rows and their audit rows are written in one transaction.
 
 | Layer | Responsibility |
 | --- | --- |
 | `space-service` | Open API handlers for `/im/v3/api/spaces/*` |
 | `im-domain-events::space` | Versioned `space.*` and `group.*` commit envelopes |
-| `SpaceCommitJournal` | PostgreSQL authority built from the same process-wide pool as the Space read model |
-| `SpacePostgresMaterializer` | Maps commit envelopes to supplemental `im_*` read-model tables |
-| `organization_store` | Durable query model for spaces, groups, and channels |
-| `governance_store` | Durable query model for space members, invitations, bans, and channel access rules |
+| `SpaceCommitJournal` | Immutable audit evidence using the same process-wide PostgreSQL pool as normalized state |
+| journal-owned normalized Space writer | Applies commit envelopes to authoritative `im_*` rows in the same PostgreSQL transaction |
+| `organization_store` | Authoritative normalized state for spaces, groups, and channels |
+| `governance_store` | Authoritative normalized state for space members, invitations, bans, and channel access rules |
 | `conversation-runtime` | Group and system-channel conversation binding when the conversation service is available |
 
 The PostgreSQL write path for Space and Group core mutations is:
@@ -24,17 +24,17 @@ handler -> SpaceWriteAuthority
   -> acquire deterministic per-partition PostgreSQL advisory locks
   -> allocate contiguous aggregate sequences
   -> append one or more rows to im_commit_journal
-  -> validate member capacity and materialize read-model rows
-  -> commit Journal and read model in one PostgreSQL transaction
+  -> validate member capacity and write normalized rows
+  -> commit audit Journal and normalized state in one PostgreSQL transaction
 ```
 
-Any Journal insert, payload validation, capacity check, read-model mutation, or final commit failure rolls back the entire transaction. There is no materialize-first compensation path. Failed atomic transactions increment `im_space_postgres_atomic_write_failures_total`.
+Any Journal insert, payload validation, capacity check, normalized-state mutation, or final commit failure rolls back the entire transaction. There is no alternate normalized writer or materialize-first compensation path. Failed atomic transactions increment `im_space_postgres_atomic_write_failures_total`.
 
-The runtime constructs both adapters from the same process-wide PostgreSQL pool in `space_service::app_state_from_postgres_pool()`. It does not disable the Journal and fall back to direct read-model writes when a second Journal pool cannot be created.
+The runtime constructs both adapters from the same process-wide PostgreSQL pool in `space_service::app_state_from_postgres_pool()`. It does not create a service-local pool or fall back to a second current-state authority.
 
-Startup replay uses bounded keyset pages through `replay_space_journal_to_read_model()` and `recorded_page()`. It never loads the complete Journal into one in-process collection. Replay-only materialization failures increment `im_space_postgres_materialization_failures_total`.
+Startup validates database authority and begins serving normalized PostgreSQL state directly. It never replays the Journal or reconstructs current state in process memory.
 
-Channel, invitation, ban, and channel-access-rule mutations remain direct supplemental writes until their event contracts are implemented.
+Channel, invitation, ban, and channel-access-rule stores are normalized PostgreSQL state; they are not projections or Journal-derived read models.
 
 ## Concurrency And Capacity
 
@@ -68,7 +68,7 @@ Banned users are rejected by the Space membership access checks through `ban_sto
 ### Groups
 
 1. Independent `group_id` and `conversation_id` Snowflake values are allocated.
-2. The `group.created` Journal row, group read-model row, and owner member row commit atomically.
+2. The `group.created` Journal row, normalized group row, and owner member row commit atomically.
 3. The binder creates the corresponding `group` conversation after the database transaction commits.
 4. A binder failure triggers a Journal-backed `group.deleted` compensation command. Failure of that command is logged and returned as an error rather than reported as success.
 5. Member add/remove and owner transfer synchronize the conversation-service roster through the configured binder.
@@ -105,7 +105,7 @@ The wire view types must remain aligned with `apis/open-api/im/sdkwork-im-im.ope
 - Durable outbox or saga delivery for group conversation creation, roster changes, and owner transfer.
 - Live PostgreSQL concurrency certification in CI using `SDKWORK_IM_DATABASE_URL`.
 
-SQLite remains a local/development compatibility profile. PostgreSQL is the production authority for the atomic Space/Group write path described here.
+PostgreSQL is the only server authority for the atomic Space/Group write path described here. Client-local storage does not implement or mirror this write authority.
 
 ## Verification
 

@@ -35,6 +35,7 @@ where
         organization_id: &str,
         conversation_id: &str,
     ) -> Result<Option<ConversationPolicy>, RuntimeError> {
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(&self.state, "conversation-runtime.state.governance");
         let conversation = state
@@ -76,21 +77,24 @@ where
         command: ApplyConversationPolicyCommand,
         actor_kind: &str,
     ) -> Result<ConversationPolicy, RuntimeError> {
+        self.ensure_member_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+            actor_kind,
+            command.applied_by.as_str(),
+        )?;
         let scope_key = conversation_scope_key(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
             command.conversation_id.as_str(),
         );
-        let (payload, ordering_seq, actor_kind, applied_at) = {
+        let payload = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.governance");
-            let conversation =
-                state
-                    .conversations
-                    .get_mut(scope_key.as_str())
-                    .ok_or_else(|| {
-                        RuntimeError::ConversationNotFound(command.conversation_id.clone())
-                    })?;
+            let conversation = state.conversations.get(scope_key.as_str()).ok_or_else(|| {
+                RuntimeError::ConversationNotFound(command.conversation_id.clone())
+            })?;
             let actor_member = resolve_active_member_with_kind(
                 conversation,
                 command.applied_by.as_str(),
@@ -100,37 +104,39 @@ where
             policy::ensure_conversation_policy_write_allowed(conversation, &actor_member)?;
 
             let normalized = command.policy.normalize().map_err(RuntimeError::Conflict)?;
-            conversation
-                .aggregate
-                .replace_policy(Some(normalized.clone()));
-            let ordering_seq = conversation.aggregate.next_policy_epoch();
+            let mut candidate = conversation.clone();
+            candidate.aggregate.replace_policy(Some(normalized.clone()));
+            let ordering_seq = candidate.aggregate.next_policy_epoch();
             let applied_at = conversation_timestamp();
-
-            (
-                ConversationPolicyAppliedPayload {
-                    conversation_id: command.conversation_id.clone(),
-                    policy_version: normalized.policy_version.clone(),
-                    capability_flags: normalized.capability_flags.clone(),
-                    history_visibility: normalized.history_visibility.clone(),
-                    retention_policy_ref: normalized.retention_policy_ref.clone(),
-                    max_members: normalized.max_members,
-                },
-                ordering_seq,
-                actor_member.principal_kind.clone(),
-                applied_at,
-            )
-        };
-
-        self.journal
-            .append(build_conversation_policy_applied_envelope(
+            let payload = ConversationPolicyAppliedPayload {
+                conversation_id: command.conversation_id.clone(),
+                policy_version: normalized.policy_version.clone(),
+                capability_flags: normalized.capability_flags.clone(),
+                history_visibility: normalized.history_visibility.clone(),
+                retention_policy_ref: normalized.retention_policy_ref.clone(),
+                max_members: normalized.max_members,
+            };
+            let envelope = build_conversation_policy_applied_envelope(
                 command.tenant_id.as_str(),
                 command.organization_id.as_str(),
                 payload.clone(),
                 ordering_seq,
                 applied_at.as_str(),
                 command.applied_by.as_str(),
-                actor_kind.as_str(),
-            ))?;
+                actor_member.principal_kind.as_str(),
+            );
+            self.persist_normalized_conversation_changes(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                command.conversation_id.as_str(),
+                &candidate,
+                Vec::new(),
+                Vec::new(),
+                vec![envelope],
+            )?;
+            state.insert_conversation(scope_key.clone(), candidate);
+            payload
+        };
 
         let retention_class =
             super::support::retention_class_from_policy_ref(payload.retention_policy_ref.as_str());

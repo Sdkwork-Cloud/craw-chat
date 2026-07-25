@@ -11,7 +11,9 @@ use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
-use im_adapters_social_postgres::user_block_store::UserBlockRecord;
+use im_adapters_social_postgres::{
+    user_block_store::UserBlockRecord, wire_id::parse_social_entity_id,
+};
 
 use crate::api_payload::{keyset_list_page, resource_item};
 use crate::postgres::access::{ensure_block_owner, social_principal_user_id};
@@ -28,6 +30,8 @@ pub struct BlockUserRequest {
 #[derive(Debug, Serialize)]
 pub struct BlockResponse {
     pub block_id: String,
+    #[serde(skip)]
+    sort_id: i64,
     pub blocker_user_id: String,
     pub blocked_user_id: String,
     pub scope: String,
@@ -38,6 +42,7 @@ impl From<UserBlockRecord> for BlockResponse {
     fn from(record: UserBlockRecord) -> Self {
         Self {
             block_id: record.block_id.to_string(),
+            sort_id: record.block_id,
             blocker_user_id: record.blocker_user_id,
             blocked_user_id: record.blocked_user_id,
             scope: record.scope,
@@ -81,9 +86,7 @@ pub async fn list_blocks(
             Ok(keyset_list_page(
                 items,
                 paging.page_size,
-                |item: &BlockResponse| {
-                    (item.created_at.clone(), item.block_id.parse().unwrap_or(0))
-                },
+                |item: &BlockResponse| (item.created_at.clone(), item.sort_id),
             ))
         })
         .await;
@@ -98,7 +101,9 @@ pub async fn get_block(
 ) -> Response {
     let result: ApiResult<SdkWorkResourceData<BlockResponse>> =
         crate::postgres::http::run_blocking_postgres_call(state, move |state| {
-            let bid: i64 = block_id.parse().unwrap_or(0);
+            let bid = parse_social_entity_id(block_id.as_str()).map_err(|_| {
+                ApiProblem::bad_request("block_id must be a canonical positive signed int64 string")
+            })?;
             let record = state
                 .user_block_store
                 .get_by_id(auth.tenant_id.as_str(), auth.organization_id.as_str(), bid)

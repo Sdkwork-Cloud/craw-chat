@@ -44,12 +44,14 @@ export function isDesktopOfflineStoreEnabled(): boolean {
   return isSdkworkChatDesktopRuntime() && Boolean(resolveTauriInvoke());
 }
 
-export async function initDesktopOfflineStore(): Promise<boolean> {
+export async function initDesktopOfflineStore(
+  scope: DesktopOfflinePrincipalScope,
+): Promise<boolean> {
   const invoke = resolveTauriInvoke();
   if (!invoke) {
     return false;
   }
-  await invoke('sdkwork_im_pc_offline_init');
+  await invoke('sdkwork_im_pc_offline_init', { scope });
   return true;
 }
 

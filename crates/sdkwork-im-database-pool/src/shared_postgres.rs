@@ -10,11 +10,11 @@ use std::time::Duration;
 
 use r2d2::{HandleError, Pool};
 use r2d2_postgres::PostgresConnectionManager;
-use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
+use sdkwork_database_config::DatabaseConfig;
 use sdkwork_im_database_host::ImDatabaseHost;
 use tracing::info;
 
-use crate::bootstrap_im_database;
+use crate::{bootstrap_im_database, ensure_im_core_postgres_authority};
 
 /// TLS connector type for the shared IM PostgreSQL r2d2 pool.
 pub type ImSharedPostgresTlsConnector = postgres_native_tls::MakeTlsConnector;
@@ -86,34 +86,6 @@ pub fn clone_shared_im_postgres_r2d2_pool() -> Option<ImSharedPostgresR2d2Pool> 
     shared_im_postgres_r2d2_pool().map(|pool| (*pool).clone())
 }
 
-fn im_database_url_configured() -> bool {
-    std::env::var("SDKWORK_IM_DATABASE_URL")
-        .ok()
-        .map(|value| !value.trim().is_empty())
-        .unwrap_or(false)
-        || DatabaseConfig::from_env("IM").is_ok_and(|config| {
-            config.engine == DatabaseEngine::Postgres && !config.url.trim().is_empty()
-        })
-}
-
-/// Bootstraps IM pools when PostgreSQL is configured; otherwise no-op.
-pub async fn try_bootstrap_im_process_database_pools_from_env()
--> Result<Option<&'static ImProcessDatabasePools>, String> {
-    if !im_database_url_configured() {
-        return Ok(None);
-    }
-
-    let config = DatabaseConfig::from_env("IM")
-        .map_err(|error| format!("read IM database config failed: {error}"))?;
-    if config.engine != DatabaseEngine::Postgres {
-        return Ok(None);
-    }
-
-    bootstrap_im_process_database_pools_from_env()
-        .await
-        .map(Some)
-}
-
 /// Bootstrap IM lifecycle (sqlx) plus one shared r2d2 pool for all modules in this process.
 pub async fn bootstrap_im_process_database_pools_from_env()
 -> Result<&'static ImProcessDatabasePools, String> {
@@ -124,12 +96,7 @@ pub async fn bootstrap_im_process_database_pools_from_env()
 
     let config = DatabaseConfig::from_env("IM")
         .map_err(|error| format!("read IM database config failed: {error}"))?;
-    if config.engine != DatabaseEngine::Postgres {
-        return Err(
-            "IM shared PostgreSQL pool requires postgres engine when SDKWORK_IM_DATABASE_URL is set"
-                .to_owned(),
-        );
-    }
+    ensure_im_core_postgres_authority(&config)?;
 
     let sqlx_pool = sdkwork_database_sqlx::create_pool_from_config(config.clone())
         .await

@@ -2,114 +2,115 @@
   "schemaVersion": 1,
   "kind": "sdkwork.component.spec",
   "component": {
-    "name": "sdkwork-im-h5",
-    "displayName": "SDKWork IM H5",
-    "version": "0.1.0",
-    "type": "h5-app-root",
-    "root": "apps/sdkwork-im-h5",
-    "domain": "chat",
-    "capability": "chat",
-    "surface": "app",
+    "name": "@sdkwork/im-h5",
+    "displayName": "Chat H5",
+    "version": "0.0.0",
+    "type": "react-package",
+    "root": "sdkwork-im/apps/sdkwork-im-h5",
+    "domain": "communication",
+    "capability": "chat-h5",
     "languages": [
-      "typescript"
+      "typescript",
+      "react"
     ],
     "generated": false,
     "manifests": [
-      "package.json",
-      "sdkwork.app.config.json"
+      "package.json"
     ]
   },
   "canonicalSpecs": [
     {
-      "file": "APP_H5_ARCHITECTURE_SPEC.md",
-      "path": "../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
-      "purpose": "H5 mobile application root architecture standard."
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
     },
     {
-      "file": "APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
-      "path": "../../../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
-      "purpose": "Cross-client architecture alignment."
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable module and package boundary rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Verification and contract testing expectations."
+    },
+    {
+      "file": "TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "TypeScript and Node package rules."
+    },
+    {
+      "file": "FRONTEND_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
+      "purpose": "Frontend authored source structure."
+    },
+    {
+      "file": "FRONTEND_SPEC.md",
+      "path": "../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "purpose": "Frontend service, state, SDK, and UI boundary rules."
+    },
+    {
+      "file": "UI_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
+      "purpose": "UI architecture selection rules."
+    },
+    {
+      "file": "APPLICATION_SPEC.md",
+      "path": "../../../sdkwork-specs/APPLICATION_SPEC.md",
+      "purpose": "Application shell and module composition rules."
+    },
+    {
+      "file": "APP_MANIFEST_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_MANIFEST_SPEC.md",
+      "purpose": "SDKWork app manifest and release metadata rules."
+    },
+    {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../sdkwork-specs/CONFIG_SPEC.md",
+      "purpose": "Typed runtime config and SDK client initialization rules."
+    },
+    {
+      "file": "DEPLOYMENT_SPEC.md",
+      "path": "../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
+      "purpose": "SaaS, private, and local deployment parity rules."
+    },
+    {
+      "file": "APP_H5_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
+      "purpose": "H5 mobile browser, hybrid, and WeChat application root rules."
+    },
+    {
+      "file": "APP_MOBILE_REACT_UI_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md",
+      "purpose": "Mobile React package rules."
     }
   ],
   "contracts": {
     "publicExports": [
-      "src/main.tsx"
+      "."
     ],
     "runtimeEntrypoints": [
-      "package.json#scripts.dev"
+      "package.json#scripts.build",
+      "package.json#scripts.lint"
     ],
-    "sdkClients": [
-      "@sdkwork/im-sdk"
-    ],
-    "sdkDependencies": [
-      "sdkwork-im-sdk"
-    ],
-    "dependencyApiExports": [],
-    "dependencyApiSurfaces": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "events": [],
+    "configKeys": [],
+    "sdkDependencies": [],
     "permissionComposition": {
       "inheritanceMode": "module-catalog-with-overrides",
-      "moduleCatalogRefs": [
-        {
-          "moduleId": "iam-kernel",
-          "manifestRef": "../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": false
-        },
-        {
-          "moduleId": "drive",
-          "manifestRef": "../../../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "courses",
-          "manifestRef": "../../../sdkwork-iam/iam/modules/courses/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "commerce",
-          "manifestRef": "../../../sdkwork-iam/iam/modules/commerce/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "ai",
-          "manifestRef": "../../../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "apps",
-          "manifestRef": "../../../sdkwork-iam/iam/modules/apps/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": false
-        },
-        {
-          "moduleId": "messaging",
-          "manifestRef": "../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "notary",
-          "manifestRef": "../../../sdkwork-notary/specs/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "knowledge",
-          "manifestRef": "../../../sdkwork-knowledgebase/specs/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "mail",
-          "manifestRef": "../../../sdkwork-mail/specs/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        }
-      ],
+      "moduleCatalogRefs": [],
       "bootstrapAccessTokenScope": {
         "inheritFrom": "sdkwork.app.config.json#backend.accessTokenPermissionScope",
         "supplement": [],
@@ -130,15 +131,14 @@
     "providedPorts": [
       {
         "name": "imH5Host",
-        "export": "src/main.tsx"
+        "export": "."
       }
     ],
     "requiredPorts": []
   },
   "verification": {
     "commands": [
-      "pnpm run lint",
-      "pnpm run build"
+      "pnpm build"
     ]
   }
 }

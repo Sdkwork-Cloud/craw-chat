@@ -59,7 +59,7 @@ the following machine-readable registries:
 | Contract | Authority |
 | --- | --- |
 | [`prefix-registry.json`](../database/contract/prefix-registry.json) | Canonical `im_` prefix and forbidden aliases |
-| [`table-registry.json`](../database/contract/table-registry.json) | 60 IM-owned tables, profiles, write owners, and migration provenance |
+| [`table-registry.json`](../database/contract/table-registry.json) | 63 IM-owned tables, profiles, write owners, and migration provenance |
 | [`schema.yaml`](../database/contract/schema.yaml) | Schema registry and migration roots |
 
 Normalized aggregate tables are the only current-state authority. The journal is

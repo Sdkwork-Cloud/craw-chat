@@ -141,13 +141,6 @@ impl AppState {
                 }
                 Ok(())
             }
-            Err(error) if im_app_context::allows_header_only_app_context_fallback() => {
-                tracing::warn!(
-                    error = ?error,
-                    "group knowledgebase outbox relay is unavailable in development/test"
-                );
-                Ok(())
-            }
             Err(error) => Err(error),
         }
     }
@@ -1074,6 +1067,9 @@ impl From<ApiError> for ApiProblem {
             kind: api_error_kind(&error.status),
             message: error.message,
             retry_after_seconds: None,
+            auth_profile: None,
+            failed_stage: None,
+            reason: None,
         };
         ApiProblem::from_web_framework(framework_error)
     }
@@ -1163,6 +1159,9 @@ impl IntoResponse for ApiError {
             kind: api_error_kind(&self.status),
             message: self.message,
             retry_after_seconds: None,
+            auth_profile: None,
+            failed_stage: None,
+            reason: None,
         };
         problem_response(&error, ProblemCorrelation::from(None))
     }
@@ -1195,43 +1194,46 @@ pub(crate) fn map_api_error_to_im_rpc(error: ApiError) -> sdkwork_im_rpc_service
     }
 }
 
-fn build_runtime_for_app_state() -> ConversationRuntime<ConversationCommitJournal> {
-    super::journal_bootstrap::build_conversation_runtime_from_env().unwrap_or_else(|error| {
-        if im_app_context::allows_header_only_app_context_fallback() {
-            tracing::warn!(
-                "conversation-runtime journal bootstrap failed ({error}); \
-                 falling back to in-memory journal for local development"
-            );
-            ConversationRuntime::new(ConversationCommitJournal::Memory(InMemoryJournal::default()))
-        } else {
-            panic!("conversation-runtime journal bootstrap failed in production: {error}");
-        }
+fn build_server_runtime_for_app_state()
+-> Result<ConversationRuntime<ConversationCommitJournal>, RuntimeError> {
+    super::journal_bootstrap::build_conversation_runtime_from_env().map_err(|error| {
+        RuntimeError::Contract(im_platform_contracts::ContractError::Unavailable(error))
     })
 }
 
-fn build_group_knowledgebase_for_app_state()
--> Result<Arc<GroupKnowledgebaseCoordinator>, RuntimeError> {
-    let configured_port =
-        super::knowledgebase_rpc_config::resolve_group_knowledgebase_rpc_port_from_env()?;
-    let id_generator =
-        sdkwork_im_runtime_id::build_runtime_id_generator_blocking("conversation-knowledgebase");
+fn build_test_runtime_for_app_state() -> ConversationRuntime<ConversationCommitJournal> {
+    ConversationRuntime::new(ConversationCommitJournal::Memory(InMemoryJournal::default()))
+}
 
-    let coordinator = if im_app_context::allows_header_only_app_context_fallback() {
-        let port = configured_port.unwrap_or_else(|| Arc::new(UnavailableGroupKnowledgebasePort));
-        GroupKnowledgebaseCoordinator::with_development_memory_store(port, id_generator)?
-    } else {
-        let port = configured_port.ok_or_else(|| {
+fn build_server_group_knowledgebase_for_app_state()
+-> Result<Arc<GroupKnowledgebaseCoordinator>, RuntimeError> {
+    let port = super::knowledgebase_rpc_config::resolve_group_knowledgebase_rpc_port_from_env()?
+        .ok_or_else(|| {
             RuntimeError::Contract(im_platform_contracts::ContractError::Unavailable(
-                "production group knowledgebase runtime requires a complete generated \
-                 sdkwork-knowledgebase-rpc-sdk client configuration"
+                "conversation server requires a complete generated sdkwork-knowledgebase-rpc-sdk client configuration"
                     .into(),
             ))
         })?;
-        GroupKnowledgebaseCoordinator::with_production_store(port, id_generator)?
-    };
-    Ok(Arc::new(coordinator))
+    let id_generator =
+        sdkwork_im_runtime_id::build_runtime_id_generator_blocking("conversation-knowledgebase");
+    Ok(Arc::new(
+        GroupKnowledgebaseCoordinator::with_production_store(port, id_generator)?,
+    ))
 }
 
+fn build_test_group_knowledgebase_for_app_state()
+-> Result<Arc<GroupKnowledgebaseCoordinator>, RuntimeError> {
+    let port = super::knowledgebase_rpc_config::resolve_group_knowledgebase_rpc_port_from_env()?
+        .unwrap_or_else(|| Arc::new(UnavailableGroupKnowledgebasePort));
+    let id_generator =
+        sdkwork_im_runtime_id::build_runtime_id_generator_blocking("conversation-knowledgebase");
+    Ok(Arc::new(
+        GroupKnowledgebaseCoordinator::with_development_memory_store(port, id_generator)?,
+    ))
+}
+
+/// Explicit local/test fixture. Server processes must call
+/// [`bootstrap_conversation_app_state_from_env`] instead.
 pub fn default_app_state() -> AppState {
     if !im_app_context::allows_header_only_app_context_fallback() {
         panic!(
@@ -1240,9 +1242,9 @@ pub fn default_app_state() -> AppState {
         );
     }
     let state = AppState {
-        runtime: Arc::new(build_runtime_for_app_state()),
+        runtime: Arc::new(build_test_runtime_for_app_state()),
         principal_directory: Arc::new(AllowAllPrincipalDirectory),
-        group_knowledgebase: build_group_knowledgebase_for_app_state()
+        group_knowledgebase: build_test_group_knowledgebase_for_app_state()
             .expect("development group knowledgebase coordinator should initialize"),
         group_knowledgebase_outbox_relay_owner: Arc::new(GroupKnowledgebaseOutboxRelayOwner::new()),
         group_knowledgebase_launch_rate_limiter: GroupKnowledgebaseLaunchRateLimiter::from_env(),
@@ -1252,12 +1254,12 @@ pub fn default_app_state() -> AppState {
     state
 }
 
-fn try_app_state_with_principal_directory(
+fn try_server_app_state_with_principal_directory(
     principal_directory: Arc<dyn PrincipalDirectory>,
 ) -> Result<AppState, RuntimeError> {
     let state = AppState {
-        group_knowledgebase: build_group_knowledgebase_for_app_state()?,
-        runtime: Arc::new(build_runtime_for_app_state()),
+        group_knowledgebase: build_server_group_knowledgebase_for_app_state()?,
+        runtime: Arc::new(build_server_runtime_for_app_state()?),
         principal_directory,
         group_knowledgebase_outbox_relay_owner: Arc::new(GroupKnowledgebaseOutboxRelayOwner::new()),
         group_knowledgebase_launch_rate_limiter: GroupKnowledgebaseLaunchRateLimiter::from_env(),
@@ -1270,8 +1272,22 @@ fn try_app_state_with_principal_directory(
 pub fn app_state_with_principal_directory(
     principal_directory: Arc<dyn PrincipalDirectory>,
 ) -> AppState {
-    try_app_state_with_principal_directory(principal_directory)
-        .expect("conversation app state should initialize in development/test")
+    if !im_app_context::allows_header_only_app_context_fallback() {
+        panic!(
+            "local conversation app state is forbidden in production; call bootstrap_conversation_app_state_from_env()"
+        );
+    }
+    let state = AppState {
+        group_knowledgebase: build_test_group_knowledgebase_for_app_state()
+            .expect("development group knowledgebase coordinator should initialize"),
+        runtime: Arc::new(build_test_runtime_for_app_state()),
+        principal_directory,
+        group_knowledgebase_outbox_relay_owner: Arc::new(GroupKnowledgebaseOutboxRelayOwner::new()),
+        group_knowledgebase_launch_rate_limiter: GroupKnowledgebaseLaunchRateLimiter::from_env(),
+        shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
+    };
+    state.register_for_embedded_wiring();
+    state
 }
 
 /// Resolve conversation HTTP [`AppState`] from process environment.
@@ -1286,7 +1302,7 @@ pub fn bootstrap_conversation_app_state_from_env() -> Result<AppState, String> {
     {
         let directory =
             StaticPrincipalDirectory::from_json_file(FsPath::new(catalog_path.as_str()))?;
-        return try_app_state_with_principal_directory(Arc::new(directory))
+        return try_server_app_state_with_principal_directory(Arc::new(directory))
             .map_err(|error| error.to_string());
     }
 
@@ -1319,7 +1335,8 @@ pub fn bootstrap_conversation_app_state_from_env() -> Result<AppState, String> {
             env = %ALLOW_ALL_PRINCIPALS_ENV,
             "conversation-runtime using allow-all principal directory (development/test only)"
         );
-        return Ok(default_app_state());
+        return try_server_app_state_with_principal_directory(Arc::new(AllowAllPrincipalDirectory))
+            .map_err(|error| error.to_string());
     }
 
     Err(format!(

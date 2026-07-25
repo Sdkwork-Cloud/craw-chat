@@ -139,7 +139,7 @@ preStop signal, scheduler delay, and forced process termination.
 | `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` | _(empty)_ | Comma-separated trusted proxy IPs for X-Forwarded-For |
 | `SDKWORK_IM_GATEWAY_OPENAPI_CACHE_TTL_SECS` | `60` | Successful aggregate `/openapi.json` cache TTL; concurrent misses are coalesced |
 
-Standalone applies one final edge `HybridIpRateLimiter` after IM, IAM, and embedded dependency routers are merged. Cloud gateway mode applies its own edge limiter inside `sdkwork-api-im-standalone-gateway`. Probe paths (`/health`, `/healthz`, `/livez`, `/ready`, `/readyz`, `/metrics`) are exempt from IP rate limiting in every gateway middleware variant.
+Standalone applies one final edge `HybridIpRateLimiter` after IM, IAM, and embedded dependency routers are merged. The canonical infrastructure probe paths (`/healthz`, `/livez`, `/readyz`, `/metrics`) are exempt from IP rate limiting. Legacy `/health` and `/ready` aliases are not served.
 
 `/openapi.json` skips configured upstreams whose `{baseUrl}/openapi.json` resolves to the current gateway aggregate endpoint. This prevents recursive OpenAPI aggregation, the request fan-out that caused API calls to remain pending after startup, and the secondary rate-limit/socket pressure that followed.
 

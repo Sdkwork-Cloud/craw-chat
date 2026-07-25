@@ -170,7 +170,9 @@ pub fn list_contact_tags(
     ensure_contact_memory_fallback_allowed(store)?;
     if let Some(store) = store {
         let cursor_updated_at = cursor.map(|value| value.updated_at.as_str());
-        let cursor_tag_id = cursor.map(|value| contact_tag_id_to_i64(value.tag_id.as_str()));
+        let cursor_tag_id = cursor
+            .map(|value| parse_contact_tag_id(value.tag_id.as_str()))
+            .transpose()?;
         let records = store
             .list_tags_by_owner_inventory(
                 auth.tenant_id.as_str(),
@@ -229,7 +231,7 @@ pub fn upsert_contact_tag(
     ensure_contact_memory_fallback_allowed(store)?;
     if let Some(store) = store {
         return store
-            .upsert_tag(&tag_record_to_postgres(auth, &record))
+            .upsert_tag(&tag_record_to_postgres(auth, &record)?)
             .map_err(|_| store_unavailable("upsert_contact_tag"));
     }
     let mut guard = memory_store().write().map_err(|_| store_lock_error())?;
@@ -264,7 +266,7 @@ pub fn get_contact_tag(
                 auth.tenant_id.as_str(),
                 auth.organization_id.as_str(),
                 contact_owner_user_id(auth)?,
-                contact_tag_id_to_i64(tag_id),
+                parse_contact_tag_id(tag_id)?,
             )
             .map_err(|_| store_unavailable("get_contact_tag"))?;
         return Ok(record.map(tag_record_from_postgres));
@@ -309,7 +311,7 @@ pub fn delete_contact_tag(
                 auth.tenant_id.as_str(),
                 auth.organization_id.as_str(),
                 contact_owner_user_id(auth)?,
-                contact_tag_id_to_i64(tag_id),
+                parse_contact_tag_id(tag_id)?,
             )
             .map_err(|_| store_unavailable("delete_contact_tag"))?
             .is_some();
@@ -321,7 +323,7 @@ pub fn delete_contact_tag(
                 auth.tenant_id.as_str(),
                 auth.organization_id.as_str(),
                 contact_owner_user_id(auth)?,
-                contact_tag_id_to_i64(tag_id),
+                parse_contact_tag_id(tag_id)?,
             )
             .map_err(|_| store_unavailable("delete_contact_tag"))?;
         return Ok(true);
@@ -492,12 +494,12 @@ fn contact_tag_sort_key(record: &ContactTagRecord) -> ContactTagSortKey {
 fn tag_record_to_postgres(
     auth: &AppContext,
     record: &ContactTagRecord,
-) -> PostgresContactTagRecord {
-    PostgresContactTagRecord {
+) -> Result<PostgresContactTagRecord, SocialServiceError> {
+    Ok(PostgresContactTagRecord {
         tenant_id: record.tenant_id.clone(),
         organization_id: auth.organization_id.clone(),
         owner_user_id: record.owner_user_id.clone(),
-        tag_id: contact_tag_id_to_i64(record.tag_id.as_str()),
+        tag_id: parse_contact_tag_id(record.tag_id.as_str())?,
         name: record.name.clone(),
         color: record.color.clone(),
         count: record.count,
@@ -505,7 +507,7 @@ fn tag_record_to_postgres(
         border: record.border.clone(),
         created_at: record.created_at.clone(),
         updated_at: record.updated_at.clone(),
-    }
+    })
 }
 
 fn tag_record_from_postgres(record: PostgresContactTagRecord) -> ContactTagRecord {
@@ -577,7 +579,7 @@ fn recommendation_record_to_postgres(
         organization_id: auth.organization_id.clone(),
         owner_user_id: record.owner_user_id.clone(),
         target_user_id: record.target_user_id.clone(),
-        recommendation_id: contact_recommendation_id_to_i64(record.recommendation_id.as_str()),
+        recommendation_id: parse_contact_recommendation_id(record.recommendation_id.as_str())?,
         target_conversation_id: record.target_conversation_id.clone(),
         created_at: record.created_at.clone(),
     })
@@ -619,6 +621,22 @@ fn store_unavailable(operation: &str) -> SocialServiceError {
     SocialServiceError::dependency_unavailable(
         "contact_store_unavailable",
         format!("contact postgres store unavailable during {operation}"),
+    )
+}
+
+fn parse_contact_tag_id(tag_id: &str) -> Result<i64, SocialServiceError> {
+    contact_tag_id_to_i64(tag_id).map_err(|_| invalid_contact_entity_id("tagId"))
+}
+
+fn parse_contact_recommendation_id(recommendation_id: &str) -> Result<i64, SocialServiceError> {
+    contact_recommendation_id_to_i64(recommendation_id)
+        .map_err(|_| invalid_contact_entity_id("recommendationId"))
+}
+
+fn invalid_contact_entity_id(field: &str) -> SocialServiceError {
+    SocialServiceError::invalid(
+        "invalid_contact_entity_id",
+        format!("{field} must be a canonical positive signed int64 string"),
     )
 }
 
@@ -717,7 +735,7 @@ mod tests {
             organization_id: auth.organization_id.clone(),
             owner_user_id: "9001".into(),
             target_user_id: "9002".into(),
-            recommendation_id: "rec_3".into(),
+            recommendation_id: "330339707122622467".into(),
             target_conversation_id: None,
             created_at: "2026-07-07T00:00:00.000Z".into(),
         };

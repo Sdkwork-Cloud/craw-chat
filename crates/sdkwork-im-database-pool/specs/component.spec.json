@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-im-database-pool",
+    "displayName": "SDKWork IM Database Pool",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "crates/sdkwork-im-database-pool",
+    "domain": "communication",
+    "capability": "database-pool",
+    "surface": "process-infrastructure",
+    "status": "standardizing",
+    "languages": ["rust"],
+    "generated": false,
+    "private": false,
+    "manifests": ["Cargo.toml"]
+  },
+  "canonicalSpecs": [
+    {"file": "COMPONENT_SPEC.md", "path": "../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component-local contract and public export rules."},
+    {"file": "DATABASE_SPEC.md", "path": "../../../sdkwork-specs/DATABASE_SPEC.md", "purpose": "Process-shared PostgreSQL pool and engine policy."},
+    {"file": "DATABASE_FRAMEWORK_SPEC.md", "path": "../../../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md", "purpose": "Database lifecycle host integration."},
+    {"file": "CODE_STYLE_SPEC.md", "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source and error boundaries."},
+    {"file": "NAMING_SPEC.md", "path": "../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical component and Rust responsibility naming."},
+    {"file": "RUST_CODE_SPEC.md", "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md", "purpose": "Rust async and persistence composition rules."},
+    {"file": "SECURITY_SPEC.md", "path": "../../../sdkwork-specs/SECURITY_SPEC.md", "purpose": "Secret-safe pool errors and fail-closed startup."},
+    {"file": "TEST_SPEC.md", "path": "../../../sdkwork-specs/TEST_SPEC.md", "purpose": "Pool identity and negative engine verification."}
+  ],
+  "contracts": {
+    "layerRole": "runtime-composition",
+    "publicExports": [
+      "sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env",
+      "sdkwork_im_database_pool::create_im_database_pool_from_env",
+      "sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool",
+      "sdkwork_im_database_pool::ImProcessDatabasePools"
+    ],
+    "providedPorts": [
+      {"name": "imProcessDatabasePools", "export": "sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env"}
+    ],
+    "requiredPorts": [
+      {"name": "imDatabaseLifecycleHost", "export": "sdkwork_im_database_host::bootstrap_im_database"}
+    ],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": ["SDKWORK_IM_DATABASE_URL", "SDKWORK_IM_DATABASE_ENGINE", "SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT"]
+  },
+  "integration": {
+    "authority": "One process PostgreSQL identity owns the canonical SQLx lifecycle pool and bounded compatibility r2d2 pool.",
+    "dependencyPolicy": "All IM server modules reuse installed handles; independent pools and SQLite fallbacks are rejected.",
+    "sdkPolicy": "This component exposes no HTTP or SDK surface.",
+    "languagePolicy": "Pool errors redact credentials and preserve explicit PostgreSQL engine semantics."
+  },
+  "verification": {
+    "commands": ["cargo test -p sdkwork-im-database-pool", "pnpm db:pool:validate"]
+  },
+  "metadata": {"managedBy": "sdkwork-im", "standardVersion": "2026-07-24"}
+}

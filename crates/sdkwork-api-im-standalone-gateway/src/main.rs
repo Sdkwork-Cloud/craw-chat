@@ -1,5 +1,6 @@
 mod embedded_dependency_routes;
 mod embedded_plane_wiring;
+mod readiness;
 
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
@@ -25,7 +26,8 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind_address = resolve_bind_address()?;
     let base_url = format!("http://{}", display_listener_addr(bind_address));
     apply_standalone_process_environment(&base_url, bind_address);
-    embedded_dependency_routes::apply_embedded_dependency_env();
+    embedded_dependency_routes::apply_embedded_dependency_env()
+        .map_err(|error| format!("embedded dependency configuration failed: {error}"))?;
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -78,9 +80,14 @@ async fn async_main(
         .await
         .map_err(|error| format!("failed to assemble dependency APIs: {error}"))?;
     let agent_dispatch_worker = bootstrap_agent_dispatch_worker(
-        dependencies.agents_chat_facade.clone(),
+        dependencies.agents_session_facade.clone(),
         environment.as_str(),
     )?;
+    let gateway_readiness = readiness::resolve_required_gateway_readiness_check(
+        realtime_plane.bootstrap.assembly.readiness(),
+        dependencies.agents_readiness_check.clone(),
+    )
+    .await;
     let product_runtime_router = build_gateway_product_runtime_router(base_url.as_str()).await?;
 
     let business_router = product_runtime_router
@@ -89,7 +96,7 @@ async fn async_main(
         .merge(iam_router);
     let app = service_router(
         business_router,
-        ServiceRouterConfig::default().with_always_ready(),
+        ServiceRouterConfig::default().with_readiness_check(gateway_readiness),
     )
     .layer(build_cors_layer(environment.as_str()));
 
@@ -119,11 +126,11 @@ async fn async_main(
 }
 
 fn bootstrap_agent_dispatch_worker(
-    agents_chat_facade: Option<Arc<dyn sdkwork_agents_runtime_facade::AgentsChatFacade>>,
+    agents_session_facade: Option<Arc<dyn sdkwork_agents_runtime_facade::AgentsSessionFacade>>,
     environment: &str,
 ) -> Result<Option<conversation_runtime::AgentDispatchWorkerHandle>, String> {
     let development = is_development_environment(environment);
-    let Some(agents_chat_facade) = agents_chat_facade else {
+    let Some(agents_session_facade) = agents_session_facade else {
         return if development {
             tracing::warn!("Agents facade unavailable; IM agent dispatch worker is disabled");
             Ok(None)
@@ -170,7 +177,7 @@ fn bootstrap_agent_dispatch_worker(
         Arc::new(conversation_runtime::ConversationRuntimeAgentReplyCommitter::new(runtime));
     let worker = conversation_runtime::AgentDispatchWorker::new(
         integration_store,
-        agents_chat_facade,
+        agents_session_facade,
         source_loader,
         reply_committer,
         conversation_runtime::resolve_agent_dispatch_worker_id()?,

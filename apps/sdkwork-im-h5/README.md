@@ -1,36 +1,27 @@
-# SDKWork IM H5
+# Sdkwork IM H5
 
-Mobile browser application root for SDKWork IM chat.
+Sdkwork IM H5 是 SDKWork IM 的移动端 H5 应用，提供手机优先的移动 Web 通讯与协同体验。
 
-## Features
+## 运行
 
-- IAM authentication with `platform: "h5"` via `@sdkwork/auth-runtime-pc-react`
-- Inbox via `@sdkwork/im-sdk` `conversations.list()`
-- Conversation message history and text send via REST (`listMessages`, `postText`)
-  - WebSocket live updates via `@sdkwork/im-sdk` `connect()` on one shared connection; disposed on session reset
-  - Inbox refresh via user-scope `events.onScope`
-  - Conversation message updates via `messages.onConversation`
+**前置条件：** Node.js、pnpm
 
-## Development
+1. 安装依赖：
+   `pnpm install`
+2. 启动开发服务：
+   `pnpm dev`
 
-```powershell
-pnpm install
-pnpm --dir apps/sdkwork-im-h5 run dev
+## 部署配置
+
+- `etc/sdkwork.deployment.config.json`：部署配置入口
+- `etc/browser.runtime.json`：H5 渲染器运行时绑定
+- `sdkwork.app.config.json`：应用清单与发布元数据
+
+## 验证
+
+```bash
+node ../../../sdkwork-specs/tools/check-app-manifest-standard.mjs --root .
+node ../../../sdkwork-specs/tools/check-source-config-standard.mjs --root .
+node ../../../sdkwork-specs/tools/check-pnpm-script-standard.mjs --root . --product-prefix im,chat
+node ../../scripts/dev/sdkwork-im-h5-architecture-standard.test.mjs
 ```
-
-Default dev URL: `http://127.0.0.1:3010`
-
-## Verification
-
-```powershell
-pnpm --dir apps/sdkwork-im-h5 run lint
-pnpm --dir apps/sdkwork-im-h5 run build
-pnpm run test:sdkwork-im-h5-architecture-standard
-```
-
-## Application identity
-
-- App ID: `sdkwork-im-h5`
-- Manifest: `sdkwork.app.config.json`
-
-See [AGENTS.md](./AGENTS.md) for SDKWork agent entrypoint and spec index.

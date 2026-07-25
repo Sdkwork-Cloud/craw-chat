@@ -95,7 +95,7 @@ Deep dive: [docs/架构/02-架构标准与总体设计.md](./docs/架构/02-架�
 | Async runtime | `tokio 1.48` |
 | Middleware | `tower 0.5`, `tower-http` |
 | Serialization | `serde`, `serde_json`, CBOR |
-| Database | `sqlx` via [`../sdkwork-database`](../sdkwork-database): **PostgreSQL** for IM core durable authority; dev `*:sqlite` profiles use in-memory journal/runtime (not a production SQLite IM store); desktop browser storage (IndexedDB / localStorage) for gateway webstore |
+| Database | `sqlx` via [`../sdkwork-database`](../sdkwork-database): **PostgreSQL** is the only IM server authority in development and production; the Tauri desktop cache is a separate bounded client-local store and never replaces server state |
 | Cache / bus | Redis (`redis-cache` adapter) |
 | Object storage | S3-compatible (`object-storage-s3` adapter) |
 | Tracing | `tracing`, `tracing-subscriber` |

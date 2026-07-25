@@ -1,0 +1,37 @@
+{
+  "title": "AI Video Creator",
+  "history": "History",
+  "settings": {
+    "model_selection": "Generation Model",
+    "prompt": "Prompt",
+    "prompt_placeholder": "Describe the video you want to generate...",
+    "style": "Style",
+    "format": "Format Ratio",
+    "professional_settings": "Professional Settings",
+    "camera_motion": "Camera Motion",
+    "duration": "Duration",
+    "fps": "FPS",
+    "generate_video": "Generate Video",
+    "generating": "Generating..."
+  },
+  "result": {
+    "title": "Result",
+    "processing": "Processing {{progress}}%",
+    "save": "Save Video",
+    "saving": "Saved successfully",
+    "save_browser": "Will open in a new tab for download",
+    "delete_success": "Deleted successfully",
+    "generate_success": "Video generated successfully!",
+    "generate_failed": "Failed to generate video, please try again."
+  },
+  "history_section": {
+    "empty_title": "No history videos yet. Try these ideas:",
+    "suggestions": [
+      "Cyberpunk city at night, flying cars",
+      "Serene forest stream under sunlight",
+      "Beautiful ocean waves in slow motion",
+      "A yellow flower blooming in spring, time-lapse",
+      "A cute dog playing happily in water"
+    ]
+  }
+}

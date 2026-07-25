@@ -1,0 +1,35 @@
+{
+  "header_title": "AI Image",
+  "settings": {
+    "model_selection": "Engine",
+    "prompt_title": "Prompt",
+    "prompt_placeholder": "A magical forest with glowing plants, cinematic lighting, 8k...",
+    "optimize_prompt": "Optimize Prompt",
+    "optimize_success": "Prompt optimized successfully!",
+    "optimize_failed": "Failed to optimize, please try again",
+    "generate_error": "Please enter a prompt",
+    "generate_success": "Image generated successfully!",
+    "generate_failed": "Generation failed, please try again",
+    "art_style": "Art Style",
+    "professional_settings": "Professional Settings",
+    "negative_prompt": "Negative Prompt",
+    "negative_prompt_placeholder": "ugly, blurry, low res, bad anatomy...",
+    "cfg_scale": "CFG Scale",
+    "steps": "Steps",
+    "seed": "Seed",
+    "seed_placeholder": "Leave empty for random",
+    "generate_button": "Generate",
+    "generating": "Generating..."
+  },
+  "result": {
+    "title": "Generated Art",
+    "save": "Save Image",
+    "save_success": "Saved successfully",
+    "save_browser": "Will try downloading via browser"
+  },
+  "history": {
+    "title": "Gallery",
+    "empty": "No recent art. Try these:"
+  },
+  "model_page_title": "Select Image Engine"
+}

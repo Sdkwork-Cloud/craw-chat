@@ -9,6 +9,7 @@ use axum::{Json, response::Response};
 use getrandom::fill as fill_random;
 use im_adapters_social_postgres::friend_request_store::FriendRequestInventoryQuery as PostgresFriendRequestInventoryQuery;
 use im_adapters_social_postgres::friendship_store::FriendshipInventoryQuery as PostgresFriendshipInventoryQuery;
+use im_adapters_social_postgres::wire_id::parse_social_entity_id;
 use im_app_context::AppContext;
 use im_domain_core::direct_chat::{DirectChatBindingIdInput, resolve_direct_chat_binding_ids};
 use im_domain_core::social::{
@@ -224,6 +225,9 @@ impl From<SocialServiceError> for ApiProblem {
             kind: social_service_error_kind(&error.status),
             message: error.message,
             retry_after_seconds: error.retry_after_seconds,
+            auth_profile: None,
+            failed_stage: None,
+            reason: None,
         };
         ApiProblem::from_web_framework(framework_error)
     }
@@ -235,6 +239,9 @@ impl IntoResponse for SocialServiceError {
             kind: social_service_error_kind(&self.status),
             message: self.message,
             retry_after_seconds: self.retry_after_seconds,
+            auth_profile: None,
+            failed_stage: None,
+            reason: None,
         };
         problem_response(&error, ProblemCorrelation::from(None))
     }
@@ -673,6 +680,15 @@ pub(crate) struct FriendshipInventoryCursor {
 pub(crate) struct FriendshipInventoryPage {
     pub(crate) items: Vec<Friendship>,
     pub(crate) next_cursor: Option<String>,
+}
+
+fn parse_inventory_cursor_entity_id(value: &str, field: &str) -> Result<i64, SocialServiceError> {
+    parse_social_entity_id(value).map_err(|_| {
+        SocialServiceError::invalid(
+            "cursor_invalid",
+            format!("{field} must be a canonical positive signed int64 string"),
+        )
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -1568,7 +1584,7 @@ impl SocialRuntime {
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
-            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+            self.resolve_committed_social_event_retry(&state, &commit, |existing, persistence| {
                 match existing {
                     crate::runtime::SocialCommittedEvent::FriendRequest { record, commit } => {
                         Ok(SubmittedFriendRequest {
@@ -1771,7 +1787,15 @@ impl SocialRuntime {
                     status: friend_request_inventory_status_filter(query.status),
                     cursor_updated_at: query.cursor.map(|value| value.updated_at.as_str()),
                     cursor_created_at: query.cursor.map(|value| value.created_at.as_str()),
-                    cursor_request_id: query.cursor.and_then(|value| value.request_id.parse().ok()),
+                    cursor_request_id: query
+                        .cursor
+                        .map(|value| {
+                            parse_inventory_cursor_entity_id(
+                                value.request_id.as_str(),
+                                "friend request cursor requestId",
+                            )
+                        })
+                        .transpose()?,
                     limit: fetch_limit,
                 })
                 .map_err(|error| {
@@ -1862,7 +1886,14 @@ impl SocialRuntime {
         if let Some(store) = self.friendship_inventory_store() {
             let fetch_limit = i64::try_from(limit.saturating_add(1)).unwrap_or(i64::MAX);
             let cursor_updated_at = cursor.map(|value| value.updated_at.as_str());
-            let cursor_friendship_id = cursor.and_then(|value| value.friendship_id.parse().ok());
+            let cursor_friendship_id = cursor
+                .map(|value| {
+                    parse_inventory_cursor_entity_id(
+                        value.friendship_id.as_str(),
+                        "friendship cursor friendshipId",
+                    )
+                })
+                .transpose()?;
             let records = store
                 .list_by_user_inventory(PostgresFriendshipInventoryQuery {
                     tenant_id,
@@ -2060,7 +2091,7 @@ impl SocialRuntime {
 
     fn try_complete_accept_replay(
         &self,
-        state: &crate::runtime::SocialControlState,
+        _state: &crate::runtime::SocialControlState,
         tenant_id: &str,
         organization_id: &str,
         stored: &crate::runtime::StoredFriendRequest,
@@ -2087,7 +2118,7 @@ impl SocialRuntime {
         Ok(Some(AcceptedFriendRequest {
             friend_request: stored.friend_request.clone(),
             latest_commit: accept_commit,
-            persistence: self.repair_derived_snapshot_best_effort(state),
+            persistence: self.current_persistence(),
             friendship,
             friendship_materialized_commit: None,
             direct_chat,
@@ -2097,7 +2128,7 @@ impl SocialRuntime {
 
     fn replay_terminal_declined_friend_request(
         &self,
-        state: &crate::runtime::SocialControlState,
+        _state: &crate::runtime::SocialControlState,
         request_id: &str,
         stored: &crate::runtime::StoredFriendRequest,
     ) -> Result<DeclinedFriendRequest, SocialServiceError> {
@@ -2115,13 +2146,13 @@ impl SocialRuntime {
         Ok(DeclinedFriendRequest {
             friend_request: stored.friend_request.clone(),
             latest_commit: decline_commit,
-            persistence: self.repair_derived_snapshot_best_effort(state),
+            persistence: self.current_persistence(),
         })
     }
 
     fn replay_terminal_canceled_friend_request(
         &self,
-        state: &crate::runtime::SocialControlState,
+        _state: &crate::runtime::SocialControlState,
         request_id: &str,
         stored: &crate::runtime::StoredFriendRequest,
     ) -> Result<CanceledFriendRequest, SocialServiceError> {
@@ -2139,7 +2170,7 @@ impl SocialRuntime {
         Ok(CanceledFriendRequest {
             friend_request: stored.friend_request.clone(),
             latest_commit: cancel_commit,
-            persistence: self.repair_derived_snapshot_best_effort(state),
+            persistence: self.current_persistence(),
         })
     }
 
@@ -2704,7 +2735,7 @@ impl SocialRuntime {
         }
 
         let persistence = if commits_to_persist.is_empty() {
-            self.repair_derived_snapshot_best_effort(&next_state)
+            self.current_persistence()
         } else {
             self.persist_state_transition_batch(&next_state, commits_to_persist.as_slice())
                 .map_err(map_social_runtime_string_error)?
@@ -2831,7 +2862,7 @@ impl SocialRuntime {
             payload: payload_json.as_str(),
         });
         if let Some(replayed) =
-            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+            self.resolve_committed_social_event_retry(&state, &commit, |existing, persistence| {
                 match existing {
                     crate::runtime::SocialCommittedEvent::FriendRequest { record, commit } => {
                         Ok(DeclinedFriendRequest {
@@ -2974,7 +3005,7 @@ impl SocialRuntime {
             payload: payload_json.as_str(),
         });
         if let Some(replayed) =
-            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+            self.resolve_committed_social_event_retry(&state, &commit, |existing, persistence| {
                 match existing {
                     crate::runtime::SocialCommittedEvent::FriendRequest { record, commit } => {
                         Ok(CanceledFriendRequest {
@@ -3110,7 +3141,7 @@ impl SocialRuntime {
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
-            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+            self.resolve_committed_social_event_retry(&state, &commit, |existing, persistence| {
                 match existing {
                     crate::runtime::SocialCommittedEvent::Friendship { record, commit } => {
                         Ok(ActivatedFriendship {
@@ -3220,7 +3251,7 @@ impl SocialRuntime {
 
     fn replay_terminal_removed_friendship(
         &self,
-        state: &crate::runtime::SocialControlState,
+        _state: &crate::runtime::SocialControlState,
         friendship_id: &str,
         stored: &crate::runtime::StoredFriendship,
     ) -> Result<RemovedFriendship, SocialServiceError> {
@@ -3238,7 +3269,7 @@ impl SocialRuntime {
         Ok(RemovedFriendship {
             friendship: stored.friendship.clone(),
             latest_commit: remove_commit,
-            persistence: self.repair_derived_snapshot_best_effort(state),
+            persistence: self.current_persistence(),
         })
     }
 
@@ -3341,7 +3372,7 @@ impl SocialRuntime {
             payload: payload_json.as_str(),
         });
         if let Some(replayed) =
-            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+            self.resolve_committed_social_event_retry(&state, &commit, |existing, persistence| {
                 match existing {
                     crate::runtime::SocialCommittedEvent::Friendship { record, commit } => {
                         Ok(RemovedFriendship {
@@ -3810,7 +3841,7 @@ mod friendship_lifecycle_tests {
         let _restore_im_env = RestoreImEnv(previous_im_env);
 
         let runtime =
-            SocialRuntime::default().with_user_directory(Arc::new(PermissiveSocialUserDirectory));
+            SocialRuntime::for_test().with_user_directory(Arc::new(PermissiveSocialUserDirectory));
         runtime.set_realtime_fanout(Arc::new(crate::LoggingSocialRealtimeFanout));
         let tenant_id = "100001";
         let organization_id = "0";
@@ -3915,7 +3946,7 @@ mod friendship_lifecycle_tests {
         let _restore_im_env = RestoreImEnv(previous_im_env);
 
         let runtime =
-            SocialRuntime::default().with_user_directory(Arc::new(PermissiveSocialUserDirectory));
+            SocialRuntime::for_test().with_user_directory(Arc::new(PermissiveSocialUserDirectory));
         runtime.set_realtime_fanout(Arc::new(crate::LoggingSocialRealtimeFanout));
         let tenant_id = "100001";
         let requester_auth = auth_for("user_a");

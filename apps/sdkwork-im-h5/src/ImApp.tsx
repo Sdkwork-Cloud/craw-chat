@@ -1,41 +1,39 @@
-import { AppLayout } from "@sdkwork/im-h5-shell";
-import { ChatConversationPage, ChatInboxPage } from "@sdkwork/im-h5-chat";
+import { lazy, Suspense } from 'react';
+import { Route, Routes } from 'react-router-dom';
+import { ChatConversationPage } from '@sdkwork/im-h5-chat';
 
-import { IM_APP_HOME_PATH } from "./constants/appRoutes";
+const ChatInboxPage = lazy(() =>
+  import('@sdkwork/im-h5-chat').then((module) => ({ default: module.ChatInboxPage })),
+);
 
-interface ImAppProps {
-  route: string;
+export const IM_APP_HOME_PATH = '/';
+
+export interface ParsedConversationRoute {
+  conversationId: string;
+  messageId?: string;
 }
 
-function parseConversationRoute(route: string): { conversationId: string } | null {
-  const match = route.match(/^\/chat\/conversations\/([^/]+)$/u);
-  if (!match?.[1]) {
+export function parseConversationRoute(
+  pathname: string,
+): ParsedConversationRoute | null {
+  const match = pathname.match(/^\/chat\/([^/]+)(?:\/message\/([^/]+))?$/u);
+  if (!match) {
     return null;
   }
-  return { conversationId: decodeURIComponent(match[1]) };
+  return {
+    conversationId: match[1],
+    ...(match[2] ? { messageId: match[2] } : {}),
+  };
 }
 
-export function ImApp({ route }: ImAppProps) {
-  const activePath = route.startsWith("/chat") ? route : IM_APP_HOME_PATH;
-  const conversationRoute = parseConversationRoute(route);
-
-  const renderRoute = () => {
-    if (conversationRoute) {
-      return <ChatConversationPage conversationId={conversationRoute.conversationId} />;
-    }
-
-    if (route === "/chat/inbox" || route === IM_APP_HOME_PATH) {
-      return <ChatInboxPage />;
-    }
-
-    return (
-      <div>
-        <h2>Page Not Found</h2>
-        <p>Unknown IM route: {route}</p>
-        <a href="#/chat/inbox">Go to Inbox</a>
-      </div>
-    );
-  };
-
-  return <AppLayout activePath={activePath}>{renderRoute()}</AppLayout>;
+export default function ImApp() {
+  return (
+    <Suspense fallback={null}>
+      <Routes>
+        <Route path={IM_APP_HOME_PATH} element={<ChatInboxPage />} />
+        <Route path="/chat/:conversationId" element={<ChatConversationPage />} />
+        <Route path="/chat/:conversationId/message/:messageId" element={<ChatConversationPage />} />
+      </Routes>
+    </Suspense>
+  );
 }

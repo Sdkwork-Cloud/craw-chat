@@ -3,113 +3,103 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "@sdkwork/im-h5-chat",
-    "displayName": "SDKWork IM H5 Chat",
-    "version": "0.1.0",
-    "type": "react-package",
-    "root": "apps/sdkwork-im-h5/packages/sdkwork-im-h5-chat",
-    "domain": "im",
-    "capability": "chat",
-    "surface": "app",
+    "displayName": "Sdkwork Im H5 Chat",
+    "version": "0.0.0",
+    "type": "node-package",
+    "root": "sdkwork-im/apps/sdkwork-im-h5/packages/sdkwork-im-h5-chat",
+    "domain": "communication",
+    "capability": "im-h5-chat",
     "languages": [
-      "typescript",
-      "react"
+      "typescript"
     ],
     "generated": false,
-    "private": true,
     "manifests": [
       "package.json"
     ]
   },
   "canonicalSpecs": [
     {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
       "file": "CODE_STYLE_SPEC.md",
       "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
-      "purpose": "Authored code organization, public exports, generated-code boundaries, and SDK bypass rules."
+      "purpose": "Authored source structure and generated code boundaries."
     },
     {
       "file": "NAMING_SPEC.md",
       "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
-      "purpose": "SDKWork H5 package and public symbol naming rules."
+      "purpose": "Canonical SDKWork naming rules."
     },
     {
-      "file": "FRONTEND_SPEC.md",
-      "path": "../../../../../sdkwork-specs/FRONTEND_SPEC.md",
-      "purpose": "UI-service-SDK flow, frontend state, and SDK client injection rules."
-    },
-    {
-      "file": "UI_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
-      "purpose": "Frontend package role and architecture selection rules."
-    },
-    {
-      "file": "APP_H5_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
-      "purpose": "H5 app package taxonomy, root composition, and runtime boundaries."
-    },
-    {
-      "file": "APP_MOBILE_REACT_UI_SPEC.md",
-      "path": "../../../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md",
-      "purpose": "Mobile React package UI, service, state, and host-adapter rules."
-    },
-    {
-      "file": "SDK_SPEC.md",
-      "path": "../../../../../sdkwork-specs/SDK_SPEC.md",
-      "purpose": "Generated SDK consumption and no raw HTTP fallback rules."
-    },
-    {
-      "file": "PAGINATION_SPEC.md",
-      "path": "../../../../../sdkwork-specs/PAGINATION_SPEC.md",
-      "purpose": "Interactive inbox and message-history pagination requirements."
+      "file": "MODULE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable module and package boundary rules."
     },
     {
       "file": "TEST_SPEC.md",
       "path": "../../../../../sdkwork-specs/TEST_SPEC.md",
-      "purpose": "Frontend package, SDK integration, pagination, and contract verification requirements."
+      "purpose": "Verification and contract testing expectations."
+    },
+    {
+      "file": "TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "TypeScript and Node package rules."
+    },
+    {
+      "file": "APPLICATION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APPLICATION_SPEC.md",
+      "purpose": "Application shell and module composition rules."
+    },
+    {
+      "file": "APP_MANIFEST_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_MANIFEST_SPEC.md",
+      "purpose": "SDKWork app manifest and release metadata rules."
+    },
+    {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../../../sdkwork-specs/CONFIG_SPEC.md",
+      "purpose": "Typed runtime config and SDK client initialization rules."
+    },
+    {
+      "file": "DEPLOYMENT_SPEC.md",
+      "path": "../../../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
+      "purpose": "SaaS, private, and local deployment parity rules."
     }
   ],
   "contracts": {
-    "layerRole": "frontend-feature",
+    "requiredPorts": [
+      {
+        "name": "imH5CoreRuntime",
+        "export": ".",
+        "package": "@sdkwork/im-h5-core"
+      }
+    ],
     "publicExports": [
       "."
     ],
-    "providedPorts": [
-      {
-        "name": "imH5ChatRoutes",
-        "export": "."
-      },
-      {
-        "name": "imH5ChatServices",
-        "export": "."
-      }
-    ],
-    "requiredPorts": [
-      {
-        "name": "imH5Core",
-        "package": "@sdkwork/im-h5-core",
-        "export": "."
-      },
-      {
-        "name": "imH5Commons",
-        "package": "@sdkwork/im-h5-commons",
-        "export": "."
-      },
-      {
-        "name": "imSdk",
-        "package": "@sdkwork/im-sdk",
-        "export": "."
-      }
-    ],
-    "runtimeEntrypoints": [
-      "package.json",
-      "src/index.ts"
-    ],
+    "runtimeEntrypoints": [],
     "routeManifest": null,
     "sdkClients": [],
+    "events": [],
+    "configKeys": [],
     "sdkDependencies": [
       {
         "workspace": "sdkwork-im-sdk",
         "surface": "open-api",
         "credentialMode": "protected-open-api-flexible"
+      },
+      {
+        "workspace": "sdkwork-im-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-drive-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
       }
     ],
     "permissionComposition": {
@@ -117,7 +107,7 @@
       "moduleCatalogRefs": [
         {
           "moduleId": "im",
-          "manifestRef": "../../../../specs/iam.module.manifest.json",
+          "manifestRef": "../../../../../specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         }
@@ -138,15 +128,17 @@
         "allowFrontendHintsWithoutServerDuplication": true
       }
     },
-    "dependencyApiExports": [],
-    "dependencyApiSurfaces": [],
-    "events": [],
-    "configKeys": []
+    "layerRole": "frontend-feature",
+    "providedPorts": [
+      {
+        "name": "imH5ChatFeature",
+        "export": "."
+      }
+    ]
   },
   "verification": {
     "commands": [
-      "pnpm.cmd --dir apps/sdkwork-im-h5 typecheck",
-      "node ../sdkwork-specs/tools/check-pagination.mjs --workspace ."
+      "powershell -NoProfile -Command \"Get-Content specs/component.spec.json -Raw | ConvertFrom-Json | Out-Null\""
     ]
   }
 }

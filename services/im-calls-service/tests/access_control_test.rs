@@ -30,6 +30,15 @@ fn ensure_test_environment() {
 struct DenyAllMembersStore;
 
 impl ConversationAggregateStore for DenyAllMembersStore {
+    fn load_conversation(
+        &self,
+        _: &str,
+        _: &str,
+        _: &str,
+    ) -> Result<Option<im_platform_contracts::NormalizedConversationRecord>, ContractError> {
+        Ok(None)
+    }
+
     fn load_members_page(
         &self,
         _: &str,
@@ -208,6 +217,15 @@ struct AllowMembersStore {
 }
 
 impl ConversationAggregateStore for AllowMembersStore {
+    fn load_conversation(
+        &self,
+        _: &str,
+        _: &str,
+        _: &str,
+    ) -> Result<Option<im_platform_contracts::NormalizedConversationRecord>, ContractError> {
+        Ok(None)
+    }
+
     fn load_members_page(
         &self,
         _: &str,

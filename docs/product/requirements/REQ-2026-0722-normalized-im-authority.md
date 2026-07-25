@@ -9,11 +9,11 @@
 
 ## Problem
 
-IM currently mixes canonical communication facts with CQRS projection tables,
-generic serialized snapshots, and an event journal described as a second business
-authority. This duplicates Conversation, membership, timeline, contact, direct-chat,
-and read-cursor state and makes the boundary with `sdkwork-agents` difficult to
-reason about.
+The pre-launch architecture mixed canonical communication facts with persisted
+query-model tables, generic serialized snapshots, and an event journal described
+as a second business authority. That duplicated Conversation, membership,
+timeline, contact, direct-chat, and read-cursor state and obscured the boundary
+with `sdkwork-agents`.
 
 The application manifest declares `publish.status = DRAFT`; every package is
 disabled and marked `releaseBuildDeferred`. `STABLE/0.1.0` package URLs describe a

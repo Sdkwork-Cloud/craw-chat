@@ -1,0 +1,13 @@
+{
+  "title": "Attendance",
+  "location": "Tencent Binhai (Within range)",
+  "status": {
+    "done": "Already Punched",
+    "clockOut": "Clock Out",
+    "clockIn": "Clock In"
+  },
+  "history": {
+    "title": "Today's Records",
+    "empty": "No records for today"
+  }
+}

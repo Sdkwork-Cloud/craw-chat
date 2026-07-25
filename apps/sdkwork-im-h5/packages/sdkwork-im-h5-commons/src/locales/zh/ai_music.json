@@ -1,0 +1,44 @@
+{
+  "tabs": {
+    "create": "创建",
+    "library": "库"
+  },
+  "create": {
+    "model_selection": "生成模型",
+    "prompt_title": "歌曲描述",
+    "instrumental": "纯音乐",
+    "prompt_placeholder": "描述你想要的音乐，例如：'一首轻快的流行乐，适合公路旅行，感觉充满活力...'",
+    "lyrics_title": "自定义歌词",
+    "optional": "选填",
+    "lyrics_placeholder": "在这里输入你想让AI唱的歌词...",
+    "style_title": "音乐风格",
+    "professional_settings": "专业进阶设置",
+    "vocal_style": "人声风格 (Vocal Style)",
+    "tempo": "节奏速度 (Tempo)",
+    "generate_button": "创作音乐 (50 积分)",
+    "generating": "生成中...",
+    "generate_success": "音乐生成成功！",
+    "generate_error": "请输入简单的描述以生成音乐"
+  },
+  "library": {
+    "rendering": "正在渲染音轨...",
+    "empty_text": "暂无音乐创作记录",
+    "go_create": "去创作"
+  },
+  "model_page_title": "选择音乐引擎",
+  "styles": {
+    "Pop": "Pop",
+    "Rock": "Rock",
+    "Electronic": "Electronic",
+    "Hip Hop": "Hip Hop",
+    "Classical": "Classical",
+    "Jazz": "Jazz",
+    "Lo-Fi": "Lo-Fi"
+  },
+  "vocal_styles": {
+    "auto": "Auto (由模型决定)",
+    "male": "Male (男声)",
+    "female": "Female (女声)",
+    "robot": "Robot (机械音)"
+  }
+}

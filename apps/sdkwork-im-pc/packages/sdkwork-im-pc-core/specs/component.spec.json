@@ -64,6 +64,21 @@
       "purpose": "Typed runtime config and SDK client initialization rules."
     },
     {
+      "file": "ENVIRONMENT_SPEC.md",
+      "path": "../../../../../sdkwork-specs/ENVIRONMENT_SPEC.md",
+      "purpose": "Desktop environment, deployment profile, and SDK origin scope rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Desktop scope isolation and credential exclusion rules."
+    },
+    {
+      "file": "PRIVACY_SPEC.md",
+      "path": "../../../../../sdkwork-specs/PRIVACY_SPEC.md",
+      "purpose": "Client-local cache minimization and account lifecycle rules."
+    },
+    {
       "file": "DEPLOYMENT_SPEC.md",
       "path": "../../../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
       "purpose": "SaaS, private, and local deployment parity rules."
@@ -95,6 +110,7 @@
     "sdkClients": [],
     "events": [],
     "configKeys": [
+      "VITE_SDKWORK_IM_DEPLOYMENT_PROFILE",
       "VITE_SDKWORK_KNOWLEDGEBASE_APP_URL"
     ],
     "sdkDependencies": [
@@ -319,7 +335,8 @@
   },
   "verification": {
     "commands": [
-      "powershell -NoProfile -Command \"Get-Content specs/component.spec.json -Raw | ConvertFrom-Json | Out-Null\""
+      "powershell -NoProfile -Command \"Get-Content specs/component.spec.json -Raw | ConvertFrom-Json | Out-Null\"",
+      "node ../../../../scripts/dev/run-tsx-cli.mjs ../../scripts/desktop-offline-send-queue-contract.test.ts"
     ]
   }
 }

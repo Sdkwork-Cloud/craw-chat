@@ -1,15 +1,14 @@
 use im_adapters_postgres_journal::{
-    PostgresAggregateStore, PostgresCommitJournal, PostgresConversationSeqAllocator,
-    PostgresDurableConversationEventWriter, PostgresDurableMessageMutationWriter,
-    PostgresDurableMessagePostWriter, PostgresJournalConfig, PostgresMessageStore,
-    PostgresOutboxStore, PostgresRetentionScopeStore,
+    PostgresAgentIntegrationStore, PostgresAggregateStore, PostgresCommitJournal,
+    PostgresConversationSeqAllocator, PostgresDurableConversationEventWriter,
+    PostgresDurableMessageMutationWriter, PostgresDurableMessagePostWriter, PostgresJournalConfig,
+    PostgresMessageStore, PostgresOutboxStore, PostgresRetentionScopeStore,
 };
 use im_adapters_redis_cache::RedisSeqAllocator;
 use im_adapters_social_postgres::user_block_store::PostgresUserBlockStore;
-use im_app_context::resolve_web_environment_from_process_env;
 use im_platform_contracts::{
-    ConversationAggregateStore, ConversationSeqAllocator, MessageStore, OutboxStore,
-    RetentionScopeStore,
+    AgentIntegrationStore, ConversationAggregateStore, ConversationSeqAllocator, MessageStore,
+    OutboxStore, RetentionScopeStore,
 };
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_im_contract_core::ContractError;
@@ -17,7 +16,6 @@ use sdkwork_im_contract_message::{
     CommitEnvelope, CommitJournal, CommitJournalAggregateEventTypeQuery, CommitPosition,
 };
 use sdkwork_im_runtime_id::build_runtime_id_generator_blocking;
-use sdkwork_web_core::WebEnvironment;
 use std::sync::Arc;
 use tracing::info;
 
@@ -115,47 +113,20 @@ impl CommitJournal for ConversationCommitJournal {
 }
 
 pub fn resolve_conversation_commit_journal_from_env() -> Result<ConversationCommitJournal, String> {
-    if let Ok(config) = DatabaseConfig::from_env("IM") {
-        if config.engine == DatabaseEngine::Postgres {
-            let journal = PostgresJournalConfig::from_database_config(&config)
-                .connect()
-                .map_err(|error| format!("postgres commit journal bootstrap failed: {error:?}"))?;
-            info!("conversation-runtime using postgres commit journal");
-            return Ok(ConversationCommitJournal::Postgres(journal));
-        }
-
-        let environment = resolve_web_environment_from_process_env();
-        if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
-            sdkwork_im_database_pool::log_im_core_ephemeral_non_postgres_authority(
-                "conversation-runtime",
-                config.engine,
-            );
-            return Ok(ConversationCommitJournal::Memory(InMemoryJournal::default()));
-        }
-
+    let config = DatabaseConfig::from_env("IM").map_err(|_| {
+        format!("conversation runtime requires PostgreSQL configuration in {IM_DATABASE_URL_ENV}")
+    })?;
+    if config.engine != DatabaseEngine::Postgres {
         return Err(
-            "postgres commit journal is required in production when IM database engine is not postgres"
-                .into(),
+            "conversation runtime requires PostgreSQL; SQLite is client-local only".to_owned(),
         );
     }
 
-    if let Some(database_url) = resolve_im_database_url_from_env() {
-        let journal = PostgresJournalConfig::new(database_url)
-            .connect()
-            .map_err(|error| format!("postgres commit journal bootstrap failed: {error:?}"))?;
-        info!("conversation-runtime using postgres commit journal");
-        return Ok(ConversationCommitJournal::Postgres(journal));
-    }
-
-    let environment = resolve_web_environment_from_process_env();
-    if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
-        info!("conversation-runtime using in-memory commit journal (development only)");
-        return Ok(ConversationCommitJournal::Memory(InMemoryJournal::default()));
-    }
-
-    Err(format!(
-        "postgres commit journal is required in production: set {IM_DATABASE_URL_ENV}"
-    ))
+    let journal = PostgresJournalConfig::from_database_config(&config)
+        .connect()
+        .map_err(|_| "conversation PostgreSQL journal bootstrap failed".to_owned())?;
+    info!("conversation-runtime using postgres commit journal");
+    Ok(ConversationCommitJournal::Postgres(journal))
 }
 
 pub fn build_conversation_runtime_from_env()
@@ -180,6 +151,10 @@ pub fn build_conversation_runtime_from_env()
             )
             .with_aggregate_store(Arc::new(PostgresAggregateStore::from_pool(pool.clone()))
                 as Arc<dyn ConversationAggregateStore>)
+            .with_agent_integration_store(Arc::new(PostgresAgentIntegrationStore::from_pool(
+                pool.clone(),
+                id_generator.clone(),
+            )) as Arc<dyn AgentIntegrationStore>)
             .with_retention_scope_store(Arc::new(PostgresRetentionScopeStore::from_pool(pool))
                 as Arc<dyn RetentionScopeStore>)
             .with_id_generator(id_generator.clone())
@@ -246,13 +221,6 @@ fn resolve_redis_seq_allocator_url_from_env() -> Option<String> {
                 .map(|value| value.trim().to_owned())
                 .filter(|value| !value.is_empty())
         })
-}
-
-fn resolve_im_database_url_from_env() -> Option<String> {
-    std::env::var(IM_DATABASE_URL_ENV)
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
 }
 
 #[cfg(test)]

@@ -11,13 +11,10 @@ use im_adapters_social_postgres::governance_store::{
 use im_adapters_social_postgres::organization_store::{
     PostgresChannelStore, PostgresGroupMemberStore, PostgresGroupStore, PostgresSpaceStore,
 };
-use im_adapters_social_postgres::{
-    SocialPostgresConfig, SocialPostgresPool, SpacePostgresMaterializer,
-};
+use im_adapters_social_postgres::SocialPostgresPool;
 
 use crate::http::{AppState, build_embedded_app, build_public_app};
 use crate::id::build_runtime_id_generator_for_space;
-use crate::journal_bootstrap::{SpaceCommitJournal, replay_space_journal_to_read_model};
 use crate::write_authority::SpaceWriteAuthority;
 
 /// Environment variable name for database connection URL.
@@ -27,15 +24,10 @@ pub const DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 
 pub async fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> AppState {
     let pool_arc = Arc::new(pool.inner().clone());
-    let materializer = Arc::new(SpacePostgresMaterializer::from_pool(pool.clone()));
-    let journal = SpaceCommitJournal::Postgres(PostgresCommitJournal::from_pool(
+    let journal = PostgresCommitJournal::from_pool(
         PostgresJournalPool::from_pool(pool.inner().clone()),
-    ));
-    replay_space_journal_to_read_model(&journal, materializer.as_ref());
-    let write_authority = Some(Arc::new(SpaceWriteAuthority::new(
-        journal,
-        Some(materializer.clone()),
-    )));
+    );
+    let write_authority = Some(Arc::new(SpaceWriteAuthority::new(journal)));
     AppState {
         postgres_pool: Some(pool),
         space_store: Arc::new(PostgresSpaceStore::new(pool_arc.clone())),
@@ -59,9 +51,8 @@ pub async fn try_app_state_from_database_url_env() -> Option<AppState> {
     if config.engine != sdkwork_database_config::DatabaseEngine::Postgres {
         return None;
     }
-    let pool = SocialPostgresConfig::from_database_config(&config)
-        .connect_pool()
-        .ok()?;
+    let pool = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool()
+        .map(SocialPostgresPool::new)?;
     Some(app_state_from_postgres_pool(pool).await)
 }
 

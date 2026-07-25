@@ -44,12 +44,17 @@ assert.doesNotMatch(postgres, /DEFAULT_ORGANIZATION_ID/u);
 const insertFrameSql = postgres.match(/const INSERT_FRAME_SQL:[\s\S]*?"#;/u)?.[0] ?? '';
 assert.doesNotMatch(insertFrameSql, /on conflict[^\n]*do nothing/iu);
 
-for (const migration of [
-  ['database', 'migrations', 'postgres', '0004_stream_transactional_authority.up.sql'],
-  ['database', 'migrations', 'sqlite', '0004_stream_transactional_authority.up.sql'],
-]) {
-  assert.equal(fs.existsSync(path.join(repoRoot, ...migration)), true, `missing ${migration.join('/')}`);
-}
+const postgresMigration = [
+  'database',
+  'migrations',
+  'postgres',
+  '0004_stream_transactional_authority.up.sql',
+];
+assert.equal(
+  fs.existsSync(path.join(repoRoot, ...postgresMigration)),
+  true,
+  `missing ${postgresMigration.join('/')}`,
+);
 
 const liveIntegration = readText(
   'adapters',

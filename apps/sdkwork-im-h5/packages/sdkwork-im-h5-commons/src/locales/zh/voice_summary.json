@@ -1,0 +1,17 @@
+{
+  "title": "语音摘要",
+  "generated_count": "已生成摘要 (条)",
+  "process_time": "处理时长",
+  "all_records": "全部录音",
+  "search_placeholder": "搜索录音...",
+  "ai_summary": "AI 核心摘要",
+  "empty_state": "暂无AI语音摘要",
+  "recording_saved": "录音已保存并开始AI摘要分析",
+  "analysis_complete": "AI摘要分析完成",
+  "recording_started": "开始录音...",
+  "new_record_prefix": "新录音_",
+  "mock_summary": "用户录制了一段简短的新录音，这通常用于口述笔记备忘。录音内容似乎包含了几个核心待办事项或者是简短的心得体会。AI已成功为您转录并提炼了核心意图。",
+  "mock_tag_1": "语音备忘",
+  "mock_tag_2": "待办",
+  "mock_tag_3": "日常"
+}

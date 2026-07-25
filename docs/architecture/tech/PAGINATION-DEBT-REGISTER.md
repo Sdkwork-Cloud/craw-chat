@@ -42,7 +42,7 @@ Authority: `sdkwork-specs/PAGINATION_SPEC.md` v1.3 (§12 Pre-Launch Zero-Debt Ru
 | ID | Resolution |
 | --- | --- |
 | DDL-001 | PostgreSQL baseline DDL: removed duplicate Migration 001 table definitions that shadowed Migration 010 organization_id columns |
-| DDL-002 | SQLite baseline DDL: generated SQLite-compatible syntax (TEXT for JSONB/TIMESTAMPTZ, json_valid() CHECK, removed DO $$/pg_constraint/USING GIN) |
+| DDL-002 | Closed by deleting the prohibited server-side SQLite parity baseline; the authoritative root now contains PostgreSQL lifecycle assets only |
 | PAG-039 | `social-service/block.rs` — OFFSET → keyset `(created_at DESC, block_id DESC)` + `keyset_list_page` |
 | PAG-040 | `social-service/direct_chat.rs` — OFFSET → keyset `(updated_at DESC, direct_chat_id DESC)` + `keyset_list_page` |
 | SEC-001 | `projection-service/cursor_auth.rs` — added `_FILE` secret variant, removed hardcoded dev secret fallback, fail-closed on ephemeral generation failure |

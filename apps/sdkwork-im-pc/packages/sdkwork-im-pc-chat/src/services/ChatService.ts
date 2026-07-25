@@ -1552,43 +1552,43 @@ function mapInboxEntryToChat(entry: ConversationInboxEntry, viewState: Conversat
   };
 }
 
-function applyInboxProjectionToViewState(
+function applyInboxStateToViewState(
   viewState: ConversationViewState | undefined,
   entry: ConversationInboxEntry,
 ): ConversationViewState | undefined {
   const entryRecord = toRecord(entry);
   const peerRecord = toRecord(entryRecord.peer);
-  const projectedPreferences = toRecord(entryRecord.preferences);
-  const projectedAgentAssignments = normalizeRealtimeAgentAssignmentSnapshot(entryRecord);
-  const projectedName = pickString(entryRecord.displayName, entryRecord.display_name)
+  const inboxPreferences = toRecord(entryRecord.preferences);
+  const inboxAgentAssignments = normalizeRealtimeAgentAssignmentSnapshot(entryRecord);
+  const inboxName = pickString(entryRecord.displayName, entryRecord.display_name)
     ?? (normalizeConversationType(entry.conversationType) === 'single'
       ? pickString(peerRecord.displayName, peerRecord.display_name)
       : undefined);
-  const projectedAvatar = pickString(entryRecord.avatarUrl, entryRecord.avatar_url);
-  const hasProjection = projectedName
-    || projectedAvatar
-    || Object.keys(projectedPreferences).length > 0
-    || projectedAgentAssignments;
-  if (!hasProjection) {
+  const inboxAvatar = pickString(entryRecord.avatarUrl, entryRecord.avatar_url);
+  const hasInboxState = inboxName
+    || inboxAvatar
+    || Object.keys(inboxPreferences).length > 0
+    || inboxAgentAssignments;
+  if (!hasInboxState) {
     return viewState;
   }
-  const projectedViewState = projectedAgentAssignments
-    ? mergeRealtimeAgentAssignmentSnapshot(viewState, projectedAgentAssignments)
+  const mergedViewState = inboxAgentAssignments
+    ? mergeRealtimeAgentAssignmentSnapshot(viewState, inboxAgentAssignments)
     : viewState;
 
   return {
-    ...projectedViewState,
-    ...(projectedName ? { name: projectedName } : {}),
-    ...(projectedAvatar ? { avatar: projectedAvatar } : {}),
-    ...(typeof projectedPreferences.isPinned === 'boolean' ? { isPinned: projectedPreferences.isPinned } : {}),
-    ...(typeof projectedPreferences.isMuted === 'boolean' ? { isMuted: projectedPreferences.isMuted } : {}),
-    ...(typeof projectedPreferences.isMarkedUnread === 'boolean'
-      ? { isMarkedUnread: projectedPreferences.isMarkedUnread }
+    ...mergedViewState,
+    ...(inboxName ? { name: inboxName } : {}),
+    ...(inboxAvatar ? { avatar: inboxAvatar } : {}),
+    ...(typeof inboxPreferences.isPinned === 'boolean' ? { isPinned: inboxPreferences.isPinned } : {}),
+    ...(typeof inboxPreferences.isMuted === 'boolean' ? { isMuted: inboxPreferences.isMuted } : {}),
+    ...(typeof inboxPreferences.isMarkedUnread === 'boolean'
+      ? { isMarkedUnread: inboxPreferences.isMarkedUnread }
       : {}),
     ...(viewState?.isHidden === true
       ? { isHidden: true }
-      : typeof projectedPreferences.isHidden === 'boolean'
-        ? { isHidden: projectedPreferences.isHidden }
+      : typeof inboxPreferences.isHidden === 'boolean'
+        ? { isHidden: inboxPreferences.isHidden }
         : {}),
     type: normalizeConversationType(entry.conversationType),
   };
@@ -2344,13 +2344,13 @@ class SdkworkChatService implements ChatService {
     agent: Pick<Chat, 'avatar' | 'name' | 'welcomeMessage'>,
     auth: AuthSessionOperationContext,
   ): Promise<Chat> {
-    const projectedViewState = applyInboxProjectionToViewState(
+    const inboxViewState = applyInboxStateToViewState(
       this.conversationViewState.get(entry.conversationId),
       entry,
     );
     await this.syncAgentConversationPresentation(entry.conversationId, agent, auth);
     this.assertAuthSessionGenerationCurrent(auth.generation, auth.operation);
-    const viewState = this.rememberAgentConversation(entry.conversationId, agent, projectedViewState);
+    const viewState = this.rememberAgentConversation(entry.conversationId, agent, inboxViewState);
     return {
       ...mapInboxEntryToChat(entry, viewState),
       avatar: agent.avatar,
@@ -2394,7 +2394,7 @@ class SdkworkChatService implements ChatService {
           this.latestReadSeq.get(entry.conversationId) ?? 0,
           entry.lastMessageSeq,
         ));
-        let viewState = applyInboxProjectionToViewState(
+        let viewState = applyInboxStateToViewState(
           this.conversationViewState.get(entry.conversationId),
           entry,
         );
@@ -3397,19 +3397,19 @@ class SdkworkChatService implements ChatService {
     }
     const operation = 'starting a direct conversation';
     const { client, generation } = await this.beginAuthSessionOperation(operation);
-    const projectedConversationId = user.conversationId?.trim();
-    if (projectedConversationId) {
-      await client.conversations.updatePreferences(projectedConversationId, { isHidden: false });
+    const existingConversationId = user.conversationId?.trim();
+    if (existingConversationId) {
+      await client.conversations.updatePreferences(existingConversationId, { isHidden: false });
       this.assertAuthSessionGenerationCurrent(generation, operation);
-      this.writeConversationViewState(projectedConversationId, {
-        ...this.conversationViewState.get(projectedConversationId),
+      this.writeConversationViewState(existingConversationId, {
+        ...this.conversationViewState.get(existingConversationId),
         avatar: user.avatar,
         isHidden: false,
         name: user.name,
         type: 'single',
       });
       return {
-        id: projectedConversationId,
+        id: existingConversationId,
         name: user.name,
         avatar: user.avatar,
         type: 'single',

@@ -1,0 +1,27 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# IDE / OS
+.idea/
+.vscode/
+Thumbs.db
+
+# Build caches
+.turbo/
+.cache/
+*.tsbuildinfo
+
+# Temporary analysis output and one-off fix scripts
+loc.txt
+hooks_usage.txt
+lint_output.txt
+fix-functions.cjs
+fix-nested-2.cjs
+sort_loc.cjs
+sort_loc.js

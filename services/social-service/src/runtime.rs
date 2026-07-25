@@ -1,53 +1,21 @@
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
-use std::io::Write;
-use std::path::{Path as StdPath, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
-use std::time::UNIX_EPOCH;
 
-use getrandom::fill as fill_random;
-use im_adapters_local_disk::FileCommitJournal;
 use im_adapters_local_memory::MemoryCommitJournal;
 use im_domain_core::social::{
     BlockScope, DirectChat, DirectChatStatus, ExternalConnection, ExternalConnectionKind,
-    ExternalConnectionStatus, ExternalMemberLink, ExternalMemberLinkStatus, FriendRequest,
-    FriendRequestStatus, Friendship, FriendshipStatus, SharedChannelPolicy,
-    SharedChannelPolicyStatus, UserBlock, UserBlockStatus, normalize_actor_pair,
-    normalize_user_pair,
+    ExternalConnectionStatus, ExternalMemberLink, FriendRequest, FriendRequestStatus, Friendship,
+    SharedChannelPolicy, UserBlock, UserBlockStatus, normalize_actor_pair, normalize_user_pair,
 };
 use im_domain_events::normalize_commit_organization_id;
-use im_platform_contracts::{
-    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitEnvelope, CommitJournal, ContractError,
-    replay_commit_journal_pages,
-};
+use im_platform_contracts::{CommitEnvelope, CommitJournal, ContractError};
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_utils_rust::sha256_hash;
 use serde::{Deserialize, Serialize};
 
 use crate::SharedChannelLinkedMemberSyncRequest;
-
-const SOCIAL_STATE_FILE_NAME: &str = "social-state.json";
-const SOCIAL_COMMIT_JOURNAL_FILE_NAME: &str = "social-commit-journal.json";
-const SOCIAL_TRANSACTION_MARKER_FILE_NAME: &str = "social-transaction-marker.json";
-const SOCIAL_WRITE_LOCK_FILE_NAME: &str = "social-write.lock";
-const SOCIAL_COMMIT_PARTITION: &str = "control-plane-social";
-const SOCIAL_MAX_COMMITS_PER_RECORD_DEFAULT: usize = 256;
-const SOCIAL_MAX_COMMITS_PER_RECORD_ENV: &str = "SDKWORK_IM_SOCIAL_MAX_COMMITS_PER_RECORD";
-
-fn append_bounded_social_commit(commits: &mut Vec<CommitEnvelope>, commit: CommitEnvelope) {
-    commits.push(commit);
-    let max = std::env::var(SOCIAL_MAX_COMMITS_PER_RECORD_ENV)
-        .ok()
-        .and_then(|value| value.parse::<usize>().ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(SOCIAL_MAX_COMMITS_PER_RECORD_DEFAULT);
-    if commits.len() > max {
-        let overflow = commits.len() - max;
-        commits.drain(0..overflow);
-    }
-}
 
 // ---------------------------------------------------------------------------
 // SocialStateStore
@@ -56,10 +24,6 @@ fn append_bounded_social_commit(commits: &mut Vec<CommitEnvelope>, commit: Commi
 #[derive(Clone)]
 pub enum SocialStateStore {
     Memory(Arc<Mutex<SocialControlState>>),
-    File {
-        file_path: Arc<PathBuf>,
-        io_lock: Arc<Mutex<()>>,
-    },
     Database {
         pool: im_adapters_social_postgres::SocialPostgresPool,
     },
@@ -68,13 +32,6 @@ pub enum SocialStateStore {
 impl SocialStateStore {
     pub(crate) fn memory() -> Self {
         Self::Memory(Arc::new(Mutex::new(SocialControlState::default())))
-    }
-
-    pub(crate) fn file(file_path: impl Into<PathBuf>) -> Self {
-        Self::File {
-            file_path: Arc::new(file_path.into()),
-            io_lock: Arc::new(Mutex::new(())),
-        }
     }
 
     pub fn database(pool: im_adapters_social_postgres::SocialPostgresPool) -> Self {
@@ -89,36 +46,9 @@ impl SocialStateStore {
                 loaded.rebuild_social_indexes();
                 Ok(loaded)
             }
-            Self::File { file_path, io_lock } => {
-                let _guard = lock_social_state_mutex(io_lock, "social-state-store.file-io");
-                if !file_path.exists() {
-                    return Ok(SocialControlState::default());
-                }
-                let content = fs::read_to_string(file_path.as_path()).map_err(|error| {
-                    format!(
-                        "failed to read social state file {}: {error}",
-                        file_path.display()
-                    )
-                })?;
-                if content.trim().is_empty() {
-                    return Err(format!(
-                        "social state file {} is empty",
-                        file_path.display()
-                    ));
-                }
-                let mut loaded: SocialControlState =
-                    serde_json::from_str(&content).map_err(|error| {
-                        format!(
-                            "failed to parse social state file {}: {error}",
-                            file_path.display()
-                        )
-                    })?;
-                loaded.rebuild_social_indexes();
-                Ok(loaded)
-            }
             Self::Database { pool: _ } => {
-                // Database mode persists through per-store PostgreSQL queries on each mutation.
-                // Bulk aggregate hydration is intentionally omitted; inventory APIs use PG stores.
+                // Normalized PostgreSQL stores are queried by the service methods that need
+                // authoritative state. This process-local state is only a bounded hot cache.
                 Ok(SocialControlState::default())
             }
         }
@@ -130,23 +60,8 @@ impl SocialStateStore {
                 *lock_social_state_mutex(slot, "social-state-store.memory") = state.clone();
                 Ok(())
             }
-            Self::File { file_path, io_lock } => {
-                let _guard = lock_social_state_mutex(io_lock, "social-state-store.file-io");
-                if let Some(parent) = file_path.parent() {
-                    fs::create_dir_all(parent).map_err(|error| {
-                        format!(
-                            "failed to create social state parent directory {}: {error}",
-                            parent.display()
-                        )
-                    })?;
-                }
-                let payload = serde_json::to_string_pretty(state)
-                    .map_err(|error| format!("failed to serialize social state: {error}"))?;
-                write_file_atomically(file_path.as_path(), payload.as_bytes(), "social state file")
-            }
             Self::Database { pool: _ } => {
-                // Database mode persists through individual store operations
-                // No bulk save needed - each mutation writes directly to PostgreSQL
+                // The normalized write authority has already committed the transaction.
                 Ok(())
             }
         }
@@ -814,74 +729,6 @@ impl SocialControlState {
         }
     }
 
-    pub(crate) fn committed_event_keys(&self) -> BTreeSet<(String, String)> {
-        let mut event_keys = BTreeSet::new();
-        for record in self.friend_requests.values() {
-            event_keys.extend(
-                record
-                    .commits
-                    .iter()
-                    .map(|commit| (commit.tenant_id.clone(), commit.event_id.clone())),
-            );
-        }
-        for commits in self.evicted_friend_request_commits.values() {
-            event_keys.extend(
-                commits
-                    .iter()
-                    .map(|commit| (commit.tenant_id.clone(), commit.event_id.clone())),
-            );
-        }
-        for record in self.friendships.values() {
-            event_keys.extend(
-                record
-                    .commits
-                    .iter()
-                    .map(|commit| (commit.tenant_id.clone(), commit.event_id.clone())),
-            );
-        }
-        for record in self.user_blocks.values() {
-            event_keys.extend(
-                record
-                    .commits
-                    .iter()
-                    .map(|commit| (commit.tenant_id.clone(), commit.event_id.clone())),
-            );
-        }
-        for record in self.direct_chats.values() {
-            event_keys.extend(
-                record
-                    .commits
-                    .iter()
-                    .map(|commit| (commit.tenant_id.clone(), commit.event_id.clone())),
-            );
-        }
-        for record in self.external_connections.values() {
-            event_keys.extend(
-                record
-                    .commits
-                    .iter()
-                    .map(|commit| (commit.tenant_id.clone(), commit.event_id.clone())),
-            );
-        }
-        for record in self.external_member_links.values() {
-            event_keys.extend(
-                record
-                    .commits
-                    .iter()
-                    .map(|commit| (commit.tenant_id.clone(), commit.event_id.clone())),
-            );
-        }
-        for record in self.shared_channel_policies.values() {
-            event_keys.extend(
-                record
-                    .commits
-                    .iter()
-                    .map(|commit| (commit.tenant_id.clone(), commit.event_id.clone())),
-            );
-        }
-        event_keys
-    }
-
     pub(crate) fn committed_event(
         &self,
         tenant_id: &str,
@@ -984,707 +831,6 @@ impl SocialControlState {
         }
     }
 
-    pub(crate) fn replay_commit_journal_file(
-        &mut self,
-        journal_path: &StdPath,
-    ) -> Result<bool, String> {
-        let journal = FileCommitJournal::new(SOCIAL_COMMIT_PARTITION, journal_path);
-        let mut known_event_keys = self.committed_event_keys();
-        let mut changed = false;
-        replay_commit_journal_pages(&journal, COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, |commits| {
-            for commit in commits.iter().cloned() {
-                if !known_event_keys.insert((commit.tenant_id.clone(), commit.event_id.clone())) {
-                    continue;
-                }
-                self.apply_social_commit(commit)
-                    .map_err(ContractError::Invalid)?;
-                changed = true;
-            }
-            Ok(())
-        })
-        .map_err(|error| {
-            format!(
-                "failed to replay social commit journal {}: {}",
-                journal_path.display(),
-                contract_error_message(error)
-            )
-        })?;
-        Ok(changed)
-    }
-
-    fn apply_social_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
-        let event_type = commit.event_type.clone();
-        match event_type.as_str() {
-            "friend_request.submitted" => self.apply_friend_request_commit(commit),
-            "friend_request.accepted" => self.apply_friend_request_accepted_commit(commit),
-            "friend_request.declined" => self.apply_friend_request_declined_commit(commit),
-            "friend_request.canceled" => self.apply_friend_request_canceled_commit(commit),
-            "friend_request.expired" => self.apply_friend_request_expired_commit(commit),
-            "friendship.activated" => self.apply_friendship_commit(commit),
-            "friendship.removed" => self.apply_friendship_removed_commit(commit),
-            "user_block.blocked" => self.apply_user_block_commit(commit),
-            "user_block.released" => self.apply_user_block_released_commit(commit),
-            "direct_chat.bound" => self.apply_direct_chat_commit(commit),
-            "external_connection.established" => self.apply_external_connection_commit(commit),
-            "external_member_link.bound" => self.apply_external_member_link_commit(commit),
-            "shared_channel_policy.applied" => self.apply_shared_channel_policy_commit(commit),
-            _ => Err(format!(
-                "unsupported social replay event type {} for aggregate {}",
-                event_type, commit.aggregate_id
-            )),
-        }
-    }
-
-    fn apply_friend_request_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
-        let payload: im_domain_events::social::FriendRequestSubmittedPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse friend request replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(
-            &commit,
-            "friend_request",
-            payload.request_id.as_str(),
-        )?;
-        normalize_user_pair(
-            payload.requester_user_id.as_str(),
-            payload.target_user_id.as_str(),
-        )
-        .map_err(|error| {
-            format!(
-                "failed to validate friend request replay payload for {}: {error}",
-                commit.event_id
-            )
-        })?;
-
-        let friend_request = FriendRequest {
-            tenant_id: commit.tenant_id.clone(),
-            request_id: payload.request_id.clone(),
-            requester_user_id: payload.requester_user_id,
-            target_user_id: payload.target_user_id,
-            status: FriendRequestStatus::Pending,
-            request_message: payload.request_message,
-            expired_at: payload.expires_at.or_else(|| {
-                crate::friend_request_expiration::resolve_friend_request_expires_at(
-                    payload.requested_at.as_str(),
-                )
-            }),
-            created_at: payload.requested_at.clone(),
-            updated_at: payload.requested_at,
-        };
-        let request_id = friend_request.request_id.clone();
-        let mut record = self
-            .friend_requests
-            .get(request_id.as_str())
-            .cloned()
-            .unwrap_or_else(|| StoredFriendRequest {
-                friend_request: friend_request.clone(),
-                commits: Vec::new(),
-            });
-        record.friend_request = friend_request;
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_friend_request_record(request_id, record);
-        Ok(())
-    }
-
-    fn apply_friend_request_accepted_commit(
-        &mut self,
-        commit: CommitEnvelope,
-    ) -> Result<(), String> {
-        let payload: im_domain_events::social::FriendRequestAcceptedPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse friend request accept replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(
-            &commit,
-            "friend_request",
-            payload.request_id.as_str(),
-        )?;
-        let request_id = payload.request_id.clone();
-        let mut record = match self.friend_requests.get(request_id.as_str()).cloned() {
-            Some(record) => record,
-            None => {
-                tracing::warn!(
-                    request_id = %request_id,
-                    event_id = %commit.event_id,
-                    "friend request accept replay references missing request; backfilling from accept payload"
-                );
-                Self::backfill_friend_request_from_terminal(
-                    commit.tenant_id.as_str(),
-                    request_id.as_str(),
-                    payload.requester_user_id.as_str(),
-                    payload.target_user_id.as_str(),
-                    FriendRequestStatus::Accepted,
-                    payload.accepted_at.as_str(),
-                )
-            }
-        };
-        if matches!(record.friend_request.status, FriendRequestStatus::Accepted) {
-            append_bounded_social_commit(&mut record.commits, commit);
-            self.insert_friend_request_record(request_id, record);
-            return Ok(());
-        }
-        if !matches!(record.friend_request.status, FriendRequestStatus::Pending) {
-            return Err(format!(
-                "friend request accept replay payload for {} cannot transition request {} from {:?}",
-                commit.event_id, request_id, record.friend_request.status
-            ));
-        }
-        if !payload.target_user_id.is_empty()
-            && payload.accepted_by_user_id != record.friend_request.target_user_id
-        {
-            return Err(format!(
-                "friend request accept replay payload for {} must be accepted by target user {}",
-                commit.event_id, record.friend_request.target_user_id
-            ));
-        }
-        record.friend_request.status = FriendRequestStatus::Accepted;
-        record.friend_request.updated_at = payload.accepted_at;
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_friend_request_record(request_id, record);
-        Ok(())
-    }
-
-    /// Backfill a minimal friend request record from a terminal commit payload.
-    ///
-    /// Legacy or partially-replayed journals may carry a terminal friend request
-    /// commit (accept/decline/cancel/expire) without the originating submitted
-    /// commit. Instead of failing replay and poisoning the social authority, we
-    /// synthesize a best-effort record so the aggregate can be healed.
-    fn backfill_friend_request_from_terminal(
-        tenant_id: &str,
-        request_id: &str,
-        requester_user_id: &str,
-        target_user_id: &str,
-        status: FriendRequestStatus,
-        occurred_at: &str,
-    ) -> StoredFriendRequest {
-        let friend_request = FriendRequest {
-            tenant_id: tenant_id.to_owned(),
-            request_id: request_id.to_owned(),
-            requester_user_id: requester_user_id.to_owned(),
-            target_user_id: target_user_id.to_owned(),
-            status,
-            request_message: None,
-            expired_at: None,
-            created_at: occurred_at.to_owned(),
-            updated_at: occurred_at.to_owned(),
-        };
-        StoredFriendRequest {
-            friend_request,
-            commits: Vec::new(),
-        }
-    }
-
-    fn apply_friend_request_declined_commit(
-        &mut self,
-        commit: CommitEnvelope,
-    ) -> Result<(), String> {
-        let payload: im_domain_events::social::FriendRequestDeclinedPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse friend request decline replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(
-            &commit,
-            "friend_request",
-            payload.request_id.as_str(),
-        )?;
-        let request_id = payload.request_id.clone();
-        let mut record = match self.friend_requests.get(request_id.as_str()).cloned() {
-            Some(record) => record,
-            None => {
-                tracing::warn!(
-                    request_id = %request_id,
-                    event_id = %commit.event_id,
-                    "friend request decline replay references missing request; backfilling from decline payload"
-                );
-                Self::backfill_friend_request_from_terminal(
-                    commit.tenant_id.as_str(),
-                    request_id.as_str(),
-                    payload.requester_user_id.as_str(),
-                    payload.target_user_id.as_str(),
-                    FriendRequestStatus::Declined,
-                    payload.declined_at.as_str(),
-                )
-            }
-        };
-        if matches!(record.friend_request.status, FriendRequestStatus::Declined) {
-            append_bounded_social_commit(&mut record.commits, commit);
-            self.insert_friend_request_record(request_id, record);
-            return Ok(());
-        }
-        if !matches!(record.friend_request.status, FriendRequestStatus::Pending) {
-            return Err(format!(
-                "friend request decline replay payload for {} cannot transition request {} from {:?}",
-                commit.event_id, request_id, record.friend_request.status
-            ));
-        }
-        if !payload.target_user_id.is_empty()
-            && payload.declined_by_user_id != record.friend_request.target_user_id
-        {
-            return Err(format!(
-                "friend request decline replay payload for {} must be declined by target user {}",
-                commit.event_id, record.friend_request.target_user_id
-            ));
-        }
-        record.friend_request.status = FriendRequestStatus::Declined;
-        record.friend_request.updated_at = payload.declined_at;
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_friend_request_record(request_id, record);
-        Ok(())
-    }
-
-    fn apply_friend_request_canceled_commit(
-        &mut self,
-        commit: CommitEnvelope,
-    ) -> Result<(), String> {
-        let payload: im_domain_events::social::FriendRequestCanceledPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse friend request cancel replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(
-            &commit,
-            "friend_request",
-            payload.request_id.as_str(),
-        )?;
-        let request_id = payload.request_id.clone();
-        let mut record = match self.friend_requests.get(request_id.as_str()).cloned() {
-            Some(record) => record,
-            None => {
-                tracing::warn!(
-                    request_id = %request_id,
-                    event_id = %commit.event_id,
-                    "friend request cancel replay references missing request; backfilling from cancel payload"
-                );
-                Self::backfill_friend_request_from_terminal(
-                    commit.tenant_id.as_str(),
-                    request_id.as_str(),
-                    payload.requester_user_id.as_str(),
-                    payload.target_user_id.as_str(),
-                    FriendRequestStatus::Canceled,
-                    payload.canceled_at.as_str(),
-                )
-            }
-        };
-        if matches!(record.friend_request.status, FriendRequestStatus::Canceled) {
-            append_bounded_social_commit(&mut record.commits, commit);
-            self.insert_friend_request_record(request_id, record);
-            return Ok(());
-        }
-        if !matches!(record.friend_request.status, FriendRequestStatus::Pending) {
-            return Err(format!(
-                "friend request cancel replay payload for {} cannot transition request {} from {:?}",
-                commit.event_id, request_id, record.friend_request.status
-            ));
-        }
-        record.friend_request.status = FriendRequestStatus::Canceled;
-        record.friend_request.updated_at = payload.canceled_at;
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_friend_request_record(request_id, record);
-        Ok(())
-    }
-
-    fn apply_friend_request_expired_commit(
-        &mut self,
-        commit: CommitEnvelope,
-    ) -> Result<(), String> {
-        let payload: im_domain_events::social::FriendRequestExpiredPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse friend request expiration replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(
-            &commit,
-            "friend_request",
-            payload.request_id.as_str(),
-        )?;
-        let request_id = payload.request_id.clone();
-        let mut record = match self.friend_requests.get(request_id.as_str()).cloned() {
-            Some(record) => record,
-            None => {
-                tracing::warn!(
-                    request_id = %request_id,
-                    event_id = %commit.event_id,
-                    "friend request expiration replay references missing request; backfilling from expire payload"
-                );
-                let expired_at = payload.expired_at.clone();
-                let mut backfilled = Self::backfill_friend_request_from_terminal(
-                    commit.tenant_id.as_str(),
-                    request_id.as_str(),
-                    payload.requester_user_id.as_str(),
-                    payload.target_user_id.as_str(),
-                    FriendRequestStatus::Expired,
-                    expired_at.as_str(),
-                );
-                backfilled.friend_request.expired_at = Some(expired_at);
-                backfilled
-            }
-        };
-        if matches!(record.friend_request.status, FriendRequestStatus::Expired) {
-            append_bounded_social_commit(&mut record.commits, commit);
-            self.insert_friend_request_record(request_id, record);
-            return Ok(());
-        }
-        if !matches!(record.friend_request.status, FriendRequestStatus::Pending) {
-            return Err(format!(
-                "friend request expiration replay payload for {} cannot transition request {} from {:?}",
-                commit.event_id, request_id, record.friend_request.status
-            ));
-        }
-        record.friend_request.status = FriendRequestStatus::Expired;
-        record.friend_request.updated_at = payload.expired_at.clone();
-        record.friend_request.expired_at = Some(payload.expired_at);
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_friend_request_record(request_id, record);
-        Ok(())
-    }
-
-    fn apply_friendship_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
-        let payload: im_domain_events::social::FriendshipActivatedPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse friendship replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(
-            &commit,
-            "friendship",
-            payload.friendship_id.as_str(),
-        )?;
-        let pair = normalize_user_pair(payload.user_low_id.as_str(), payload.user_high_id.as_str())
-            .map_err(|error| {
-                format!(
-                    "failed to validate friendship replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        let friendship = Friendship {
-            tenant_id: commit.tenant_id.clone(),
-            friendship_id: payload.friendship_id.clone(),
-            user_low_id: pair.user_low_id,
-            user_high_id: pair.user_high_id,
-            initiator_user_id: payload.initiator_user_id,
-            status: FriendshipStatus::Active,
-            established_at: Some(payload.established_at.clone()),
-            updated_at: payload.established_at,
-        };
-        let friendship_id = friendship.friendship_id.clone();
-        let mut record = self
-            .friendships
-            .get(friendship_id.as_str())
-            .cloned()
-            .unwrap_or_else(|| StoredFriendship {
-                friendship: friendship.clone(),
-                commits: Vec::new(),
-            });
-        record.friendship = friendship;
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_friendship_record(friendship_id, record);
-        Ok(())
-    }
-
-    fn apply_friendship_removed_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
-        let payload: im_domain_events::social::FriendshipRemovedPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse friendship removed replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(
-            &commit,
-            "friendship",
-            payload.friendship_id.as_str(),
-        )?;
-        normalize_user_pair(payload.user_low_id.as_str(), payload.user_high_id.as_str()).map_err(
-            |error| {
-                format!(
-                    "failed to validate friendship removal replay payload for {}: {error}",
-                    commit.event_id
-                )
-            },
-        )?;
-        let mut record = self
-            .friendships
-            .get(payload.friendship_id.as_str())
-            .cloned()
-            .ok_or_else(|| {
-                format!(
-                    "friendship removed replay payload for {} references missing friendship {}",
-                    commit.event_id, payload.friendship_id
-                )
-            })?;
-        if !matches!(record.friendship.status, FriendshipStatus::Active) {
-            return Err(format!(
-                "friendship removed replay payload for {} cannot transition friendship {} from {:?}",
-                commit.event_id, payload.friendship_id, record.friendship.status
-            ));
-        }
-        let friendship_id = record.friendship.friendship_id.clone();
-        record.friendship.status = FriendshipStatus::Removed;
-        record.friendship.updated_at = payload.removed_at;
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_friendship_record(friendship_id, record);
-        Ok(())
-    }
-
-    fn apply_user_block_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
-        let payload: im_domain_events::social::UserBlockedPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse user block replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(&commit, "user_block", payload.block_id.as_str())?;
-        let scope: BlockScope =
-            serde_json::from_str(&format!("\"{}\"", payload.scope)).map_err(|error| {
-                format!(
-                    "failed to parse user block scope '{}' for {}: {error}",
-                    payload.scope, commit.event_id
-                )
-            })?;
-        let user_block = UserBlock {
-            tenant_id: commit.tenant_id.clone(),
-            block_id: payload.block_id.clone(),
-            blocker_user_id: payload.blocker_user_id,
-            blocked_user_id: payload.blocked_user_id,
-            scope,
-            status: UserBlockStatus::Active,
-            direct_chat_id: payload.direct_chat_id,
-            expires_at: payload.expires_at,
-            created_at: payload.effective_at.clone(),
-            updated_at: payload.effective_at,
-        };
-        let block_id = user_block.block_id.clone();
-        let mut record = self
-            .user_blocks
-            .get(block_id.as_str())
-            .cloned()
-            .unwrap_or_else(|| StoredUserBlock {
-                user_block: user_block.clone(),
-                commits: Vec::new(),
-            });
-        record.user_block = user_block;
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_user_block_record(block_id, record);
-        Ok(())
-    }
-
-    fn apply_user_block_released_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
-        let payload: im_domain_events::social::UserBlockReleasedPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse user block release replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(&commit, "user_block", payload.block_id.as_str())?;
-        let mut record = self
-            .user_blocks
-            .get(payload.block_id.as_str())
-            .cloned()
-            .ok_or_else(|| {
-                format!(
-                    "user block release replay payload for {} references missing block {}",
-                    commit.event_id, payload.block_id
-                )
-            })?;
-        if !matches!(
-            record.user_block.status,
-            UserBlockStatus::Active | UserBlockStatus::Released
-        ) {
-            return Err(format!(
-                "user block release replay payload for {} cannot transition block {} from {:?}",
-                commit.event_id, payload.block_id, record.user_block.status
-            ));
-        }
-        let block_id = record.user_block.block_id.clone();
-        record.user_block.status = UserBlockStatus::Released;
-        record.user_block.updated_at = payload.released_at;
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_user_block_record(block_id, record);
-        Ok(())
-    }
-
-    fn apply_direct_chat_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
-        let payload: im_domain_events::social::DirectChatBoundPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse direct chat replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(
-            &commit,
-            "direct_chat",
-            payload.direct_chat_id.as_str(),
-        )?;
-        let direct_chat = DirectChat {
-            tenant_id: commit.tenant_id.clone(),
-            direct_chat_id: payload.direct_chat_id.clone(),
-            left_actor_id: payload.left_actor_id,
-            right_actor_id: payload.right_actor_id,
-            pair_hash: payload.pair_hash,
-            status: DirectChatStatus::Active,
-            conversation_id: Some(payload.conversation_id),
-            created_at: payload.bound_at.clone(),
-            updated_at: payload.bound_at,
-        };
-        let direct_chat_id = direct_chat.direct_chat_id.clone();
-        let mut record = self
-            .direct_chats
-            .get(direct_chat_id.as_str())
-            .cloned()
-            .unwrap_or_else(|| StoredDirectChat {
-                direct_chat: direct_chat.clone(),
-                commits: Vec::new(),
-            });
-        record.direct_chat = direct_chat;
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_direct_chat_record(direct_chat_id, record);
-        Ok(())
-    }
-
-    fn apply_external_connection_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
-        let payload: im_domain_events::social::ExternalConnectionEstablishedPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse external connection replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(
-            &commit,
-            "external_connection",
-            payload.connection_id.as_str(),
-        )?;
-        let connection_kind: ExternalConnectionKind =
-            serde_json::from_str(&format!("\"{}\"", payload.connection_kind)).map_err(|error| {
-                format!(
-                    "failed to parse external connection kind '{}' for {}: {error}",
-                    payload.connection_kind, commit.event_id
-                )
-            })?;
-        let external_connection = ExternalConnection {
-            tenant_id: commit.tenant_id.clone(),
-            connection_id: payload.connection_id.clone(),
-            external_tenant_id: payload.external_tenant_id,
-            external_org_name: payload.external_org_name,
-            connection_kind,
-            status: ExternalConnectionStatus::Active,
-            established_at: payload.established_at.clone(),
-            updated_at: payload.established_at,
-        };
-        let connection_id = external_connection.connection_id.clone();
-        let mut record = self
-            .external_connections
-            .get(connection_id.as_str())
-            .cloned()
-            .unwrap_or_else(|| StoredExternalConnection {
-                external_connection: external_connection.clone(),
-                commits: Vec::new(),
-            });
-        record.external_connection = external_connection;
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_external_connection_record(connection_id, record);
-        Ok(())
-    }
-
-    fn apply_external_member_link_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
-        let payload: im_domain_events::social::ExternalMemberLinkBoundPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse external member link replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(
-            &commit,
-            "external_member_link",
-            payload.link_id.as_str(),
-        )?;
-        let external_member_link = ExternalMemberLink {
-            tenant_id: commit.tenant_id.clone(),
-            link_id: payload.link_id.clone(),
-            connection_id: payload.connection_id,
-            external_member_id: payload.external_member_id,
-            local_actor_id: payload.local_actor_id,
-            local_actor_kind: payload.local_actor_kind,
-            external_display_name: payload.external_display_name,
-            status: ExternalMemberLinkStatus::Active,
-            linked_at: payload.linked_at.clone(),
-            updated_at: payload.linked_at,
-        };
-        let link_id = external_member_link.link_id.clone();
-        let mut record = self
-            .external_member_links
-            .get(link_id.as_str())
-            .cloned()
-            .unwrap_or_else(|| StoredExternalMemberLink {
-                external_member_link: external_member_link.clone(),
-                commits: Vec::new(),
-            });
-        record.external_member_link = external_member_link;
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_external_member_link_record(link_id, record);
-        Ok(())
-    }
-
-    fn apply_shared_channel_policy_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
-        let payload: im_domain_events::social::SharedChannelPolicyAppliedPayload =
-            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
-                format!(
-                    "failed to parse shared channel policy replay payload for {}: {error}",
-                    commit.event_id
-                )
-            })?;
-        validate_social_commit_target_envelope(
-            &commit,
-            "shared_channel_policy",
-            payload.policy_id.as_str(),
-        )?;
-        let shared_channel_policy = SharedChannelPolicy {
-            tenant_id: commit.tenant_id.clone(),
-            policy_id: payload.policy_id.clone(),
-            connection_id: payload.connection_id,
-            channel_id: payload.channel_id,
-            conversation_id: payload.conversation_id,
-            policy_version: payload.policy_version,
-            history_visibility: payload.history_visibility,
-            status: SharedChannelPolicyStatus::Active,
-            applied_at: payload.applied_at.clone(),
-            updated_at: payload.applied_at,
-        };
-        let policy_id = shared_channel_policy.policy_id.clone();
-        let mut record = self
-            .shared_channel_policies
-            .get(policy_id.as_str())
-            .cloned()
-            .unwrap_or_else(|| StoredSharedChannelPolicy {
-                shared_channel_policy: shared_channel_policy.clone(),
-                commits: Vec::new(),
-            });
-        record.shared_channel_policy = shared_channel_policy;
-        append_bounded_social_commit(&mut record.commits, commit);
-        self.insert_shared_channel_policy_record(policy_id, record);
-        Ok(())
-    }
-
     // Record insert/unindex helpers
 
     pub(crate) fn insert_friend_request_record(
@@ -1718,7 +864,7 @@ impl SocialControlState {
     /// reaches a terminal state (accepted/declined/canceled/expired) the
     /// PostgreSQL supplemental store is the source of truth. Evicting the
     /// record from memory prevents unbounded growth (OOM) as the user base
-    /// scales. The journal remains the write authority — replay rebuilds the
+    /// scales. The journal remains the write authority 鈥?replay rebuilds the
     /// record if needed, and the PG store fallback covers lookups.
     pub(crate) fn evict_friend_request_record(&mut self, request_id: &str) {
         if let Some(record) = self.friend_requests.remove(request_id) {
@@ -2067,28 +1213,10 @@ impl SocialControlState {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Transaction marker types
-// ---------------------------------------------------------------------------
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum SocialTransactionMarkerStatus {
-    PendingSnapshotRepair,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct SocialTransactionMarker {
-    pub(crate) status: SocialTransactionMarkerStatus,
-    pub(crate) event_id: String,
-}
-
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum SocialDerivedSnapshotStatus {
     Current,
-    RepairRequired,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -2099,34 +1227,6 @@ pub(crate) struct SocialWritePersistence {
 }
 
 // ---------------------------------------------------------------------------
-// SocialWriteLockGuard
-// ---------------------------------------------------------------------------
-
-pub(crate) struct SocialWriteLockGuard {
-    file: fs::File,
-}
-
-impl Drop for SocialWriteLockGuard {
-    fn drop(&mut self) {
-        if let Err(error) = self.file.unlock() {
-            tracing::warn!("failed to unlock social write lock: {error}");
-        }
-    }
-}
-
-// Use fs4 lock extension trait
-use fs4::fs_std::FileExt;
-
-// ---------------------------------------------------------------------------
-// SocialAuthorityLoad
-// ---------------------------------------------------------------------------
-
-struct SocialAuthorityLoad {
-    state: SocialControlState,
-    replay_error: Option<String>,
-}
-
-// ---------------------------------------------------------------------------
 // SocialRuntime
 // ---------------------------------------------------------------------------
 
@@ -2134,12 +1234,6 @@ pub struct SocialRuntime {
     state_store: SocialStateStore,
     commit_journal: Arc<dyn CommitJournal + Send + Sync>,
     pub(crate) state: RwLock<SocialControlState>,
-    authority_replay_error: RwLock<Option<String>>,
-    journal_path: Option<Arc<PathBuf>>,
-    tx_marker_path: Option<Arc<PathBuf>>,
-    write_lock_path: Option<Arc<PathBuf>>,
-    snapshot_failpoint_path: Option<Arc<PathBuf>>,
-    journal_authority: bool,
     postgres_store: Option<Arc<crate::normalized_store::SocialPostgresNormalizedStore>>,
     postgres_atomic_write_authority:
         Option<Arc<dyn crate::postgres_write_authority::SocialAtomicWriteAuthority>>,
@@ -2153,53 +1247,21 @@ pub struct SocialRuntime {
     #[allow(dead_code)]
     pub(crate) shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool,
     pub(crate) friend_request_expiration_scheduler_started: AtomicBool,
-    authority_journal_fingerprint: RwLock<Option<(u64, u64)>>,
     user_directory: Option<Arc<dyn crate::user_directory::SocialUserDirectory>>,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SocialRuntimeFailpoints {
-    fail_next_snapshot_save: bool,
-}
-
-impl Default for SocialRuntime {
-    fn default() -> Self {
-        Self::new(
-            SocialStateStore::memory(),
-            Arc::new(MemoryCommitJournal::default()),
-        )
-    }
-}
-
 impl SocialRuntime {
-    pub fn new(
+    pub(crate) fn new(
         state_store: SocialStateStore,
         commit_journal: Arc<dyn CommitJournal + Send + Sync>,
     ) -> Self {
-        Self::new_with_snapshot_failpoint(state_store, commit_journal, None)
-    }
-
-    pub fn new_with_snapshot_failpoint(
-        state_store: SocialStateStore,
-        commit_journal: Arc<dyn CommitJournal + Send + Sync>,
-        snapshot_failpoint_path: Option<PathBuf>,
-    ) -> Self {
-        let authority_load = Self::load_social_state_for_authority(
-            &state_store,
-            "failed to load social state during runtime bootstrap",
-        );
-        let journal_authority = matches!(&state_store, SocialStateStore::File { .. });
+        let state = state_store
+            .load()
+            .expect("SocialStateStore memory/database initialization cannot fail");
         Self {
             state_store,
             commit_journal,
-            state: RwLock::new(authority_load.state),
-            authority_replay_error: RwLock::new(authority_load.replay_error),
-            journal_path: None,
-            tx_marker_path: None,
-            write_lock_path: None,
-            snapshot_failpoint_path: snapshot_failpoint_path.map(Arc::new),
-            journal_authority,
+            state: RwLock::new(state),
             postgres_store: None,
             postgres_atomic_write_authority: None,
             outbox_store: None,
@@ -2209,19 +1271,16 @@ impl SocialRuntime {
             shared_channel_sync_trigger: RwLock::new(None),
             shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool::new(false),
             friend_request_expiration_scheduler_started: AtomicBool::new(false),
-            authority_journal_fingerprint: RwLock::new(None),
             user_directory: None,
         }
     }
 
-    pub fn new_with_journal_authority(
-        state_store: SocialStateStore,
-        commit_journal: Arc<dyn CommitJournal + Send + Sync>,
-        journal_authority: bool,
-    ) -> Self {
-        let mut runtime = Self::new_with_snapshot_failpoint(state_store, commit_journal, None);
-        runtime.journal_authority = journal_authority;
-        runtime
+    #[doc(hidden)]
+    pub fn for_test() -> Self {
+        Self::new(
+            SocialStateStore::memory(),
+            Arc::new(MemoryCommitJournal::default()),
+        )
     }
 
     pub fn with_postgres_write_authority(
@@ -2277,6 +1336,39 @@ impl SocialRuntime {
         self.postgres_store
             .as_ref()
             .map(|store| store.direct_chat_store())
+    }
+
+    pub(crate) fn user_block_authority_store(
+        &self,
+    ) -> Option<Arc<dyn im_adapters_social_postgres::user_block_store::UserBlockStore>> {
+        self.postgres_store
+            .as_ref()
+            .map(|store| store.user_block_store())
+    }
+
+    pub(crate) fn external_connection_authority_store(
+        &self,
+    ) -> Option<Arc<dyn im_adapters_social_postgres::external_store::ExternalConnectionStore>> {
+        self.postgres_store
+            .as_ref()
+            .map(|store| store.external_connection_store())
+    }
+
+    pub(crate) fn external_member_link_authority_store(
+        &self,
+    ) -> Option<Arc<dyn im_adapters_social_postgres::external_store::ExternalMemberLinkStore>> {
+        self.postgres_store
+            .as_ref()
+            .map(|store| store.external_member_link_store())
+    }
+
+    pub(crate) fn shared_channel_policy_authority_store(
+        &self,
+    ) -> Option<Arc<dyn im_adapters_social_postgres::shared_channel_store::SharedChannelPolicyStore>>
+    {
+        self.postgres_store
+            .as_ref()
+            .map(|store| store.shared_channel_policy_store())
     }
 
     pub fn set_realtime_fanout(
@@ -2350,14 +1442,14 @@ impl SocialRuntime {
                         contract_error_message(error)
                     )
                 })?;
-            crate::conversation_state_bridge::try_apply_social_commits_to_conversation_state(&inserted);
+            crate::conversation_state_bridge::try_apply_social_commits_to_conversation_state(
+                &inserted,
+            );
             return Ok((inserted, true));
         }
 
         if self.postgres_store.is_some() {
-            crate::social_write_metrics::record_postgres_atomic_write_failures(
-                commits.len() as u64,
-            );
+            crate::social_write_metrics::record_postgres_atomic_write_failures(commits.len() as u64);
             tracing::error!(
                 commit_count = commits.len(),
                 "social postgres normalized store has no coordinated journal authority"
@@ -2423,46 +1515,6 @@ impl SocialRuntime {
                     }
                 }
             }
-        }
-    }
-
-    pub fn from_runtime_dir(runtime_dir: impl AsRef<StdPath>) -> Self {
-        let state_dir = runtime_dir.as_ref().join("state");
-        let journal_path = state_dir.join(SOCIAL_COMMIT_JOURNAL_FILE_NAME);
-        let tx_marker_path = state_dir.join(SOCIAL_TRANSACTION_MARKER_FILE_NAME);
-        let write_lock_path = state_dir.join(SOCIAL_WRITE_LOCK_FILE_NAME);
-        let state_store = SocialStateStore::file(state_dir.join(SOCIAL_STATE_FILE_NAME));
-        let commit_journal = Arc::new(FileCommitJournal::new(
-            SOCIAL_COMMIT_PARTITION,
-            journal_path.clone(),
-        ));
-        let authority_load = Self::load_state_with_journal_replay(
-            &state_store,
-            journal_path.as_path(),
-            Some(tx_marker_path.as_path()),
-        );
-        let initial_journal_fingerprint = social_commit_journal_fingerprint(journal_path.as_path());
-        Self {
-            state_store,
-            commit_journal,
-            state: RwLock::new(authority_load.state),
-            authority_replay_error: RwLock::new(authority_load.replay_error),
-            journal_path: Some(Arc::new(journal_path)),
-            tx_marker_path: Some(Arc::new(tx_marker_path)),
-            write_lock_path: Some(Arc::new(write_lock_path)),
-            snapshot_failpoint_path: Some(Arc::new(state_dir.join("social-failpoints.json"))),
-            journal_authority: true,
-            postgres_store: None,
-            postgres_atomic_write_authority: None,
-            outbox_store: None,
-            id_generator: None,
-            realtime_fanout: RwLock::new(None),
-            direct_chat_binder: RwLock::new(None),
-            shared_channel_sync_trigger: RwLock::new(None),
-            shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool::new(false),
-            friend_request_expiration_scheduler_started: AtomicBool::new(false),
-            authority_journal_fingerprint: RwLock::new(initial_journal_fingerprint),
-            user_directory: None,
         }
     }
 
@@ -2625,100 +1677,6 @@ impl SocialRuntime {
     }
 
     // -----------------------------------------------------------------------
-    // State loading
-    // -----------------------------------------------------------------------
-
-    fn load_social_state_for_authority(
-        state_store: &SocialStateStore,
-        context: &str,
-    ) -> SocialAuthorityLoad {
-        match state_store.load() {
-            Ok(state) => SocialAuthorityLoad {
-                state,
-                replay_error: None,
-            },
-            Err(error) => {
-                let replay_error = format!("{context}: {error}");
-                tracing::warn!(
-                    "{replay_error}. social authority is unavailable until the snapshot is repaired"
-                );
-                SocialAuthorityLoad {
-                    state: SocialControlState::default(),
-                    replay_error: Some(replay_error),
-                }
-            }
-        }
-    }
-
-    fn load_state_with_journal_replay(
-        state_store: &SocialStateStore,
-        journal_path: &StdPath,
-        tx_marker_path: Option<&StdPath>,
-    ) -> SocialAuthorityLoad {
-        if journal_path.exists() {
-            let snapshot_load = Self::load_social_state_for_authority(
-                state_store,
-                "failed to load social snapshot during journal replay bootstrap",
-            );
-            let snapshot_state = snapshot_load.state;
-            let mut replayed_state = match Self::replay_state_from_commit_journal(journal_path) {
-                Ok(state) => state,
-                Err(error) => {
-                    let replay_error = format!(
-                        "failed to replay social commit journal {}: {error}",
-                        journal_path.display()
-                    );
-                    tracing::warn!(
-                        "{replay_error}. social authority is unavailable until the journal is repaired"
-                    );
-                    return SocialAuthorityLoad {
-                        state: snapshot_state,
-                        replay_error: Some(replay_error),
-                    };
-                }
-            };
-            replayed_state.merge_pending_shared_channel_sync_requests_from(&snapshot_state);
-            replayed_state.merge_dead_letter_shared_channel_sync_requests_from(&snapshot_state);
-            replayed_state.merge_delivered_shared_channel_sync_requests_from(&snapshot_state);
-            replayed_state
-                .merge_delivered_shared_channel_sync_delivery_proofs_from(&snapshot_state);
-            replayed_state.merge_recent_shared_channel_sync_deliveries_from(&snapshot_state);
-            if let Err(error) = state_store.save(&replayed_state) {
-                tracing::warn!(
-                    "failed to persist replayed social state {}: {error}. continuing with in-memory replayed state",
-                    journal_path.display()
-                );
-            }
-            if let Some(marker_path) = tx_marker_path
-                && let Err(error) = clear_social_transaction_marker(marker_path)
-            {
-                tracing::warn!(
-                    "failed to clear social transaction marker after journal replay {}: {error}",
-                    marker_path.display()
-                );
-            }
-            return SocialAuthorityLoad {
-                state: replayed_state,
-                replay_error: None,
-            };
-        }
-
-        Self::load_social_state_for_authority(
-            state_store,
-            "failed to load social state without commit journal",
-        )
-    }
-
-    fn replay_state_from_commit_journal(
-        journal_path: &StdPath,
-    ) -> Result<SocialControlState, String> {
-        let mut replayed_state = SocialControlState::default();
-        replayed_state.replay_commit_journal_file(journal_path)?;
-        replayed_state.rebuild_social_indexes();
-        Ok(replayed_state)
-    }
-
-    // -----------------------------------------------------------------------
     // Query methods
     // -----------------------------------------------------------------------
 
@@ -2769,18 +1727,42 @@ impl SocialRuntime {
         organization_id: &str,
         sender_user_id: &str,
         peer_user_id: &str,
-    ) -> Option<UserBlock> {
+    ) -> Result<Option<UserBlock>, String> {
+        if let Some(store) = self.user_block_authority_store() {
+            for (blocker_user_id, blocked_user_id) in [
+                (sender_user_id, peer_user_id),
+                (peer_user_id, sender_user_id),
+            ] {
+                for scope in ["all", "direct_chat"] {
+                    let record = store
+                        .find_active_block(
+                            tenant_id,
+                            organization_id,
+                            blocker_user_id,
+                            blocked_user_id,
+                            scope,
+                        )
+                        .map_err(|error| {
+                            format!("normalized user-block lookup failed: {error:?}")
+                        })?;
+                    if let Some(record) = record {
+                        return user_block_from_authority_record(record).map(Some);
+                    }
+                }
+            }
+            return Ok(None);
+        }
         let state = self
             .state
             .read()
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
-        active_direct_message_block_for_pair(
+        Ok(active_direct_message_block_for_pair(
             &state,
             tenant_id,
             organization_id,
             sender_user_id,
             peer_user_id,
-        )
+        ))
     }
 
     /// Refreshes social authority and rejects direct messaging when an active block exists.
@@ -2798,7 +1780,7 @@ impl SocialRuntime {
             organization_id,
             sender_user_id,
             peer_user_id,
-        ) {
+        )? {
             return Err(format!(
                 "direct message blocked by user block {}",
                 user_block.block_id
@@ -2810,15 +1792,39 @@ impl SocialRuntime {
     pub(crate) fn user_block_snapshot(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         block_id: &str,
-    ) -> Option<StoredUserBlock> {
-        self.state
+    ) -> Result<Option<StoredUserBlock>, String> {
+        if let Some(store) = self.user_block_authority_store() {
+            return store
+                .get_by_id(
+                    tenant_id,
+                    organization_id,
+                    im_adapters_social_postgres::wire_id::parse_social_entity_id(block_id)
+                        .map_err(|error| format!("invalid user-block id: {error:?}"))?,
+                )
+                .map_err(|error| format!("normalized user-block lookup failed: {error:?}"))?
+                .map(user_block_from_authority_record)
+                .transpose()
+                .map(|record| {
+                    record.map(|mut user_block| {
+                        user_block.block_id = block_id.to_owned();
+                        StoredUserBlock {
+                            user_block,
+                            commits: Vec::new(),
+                        }
+                    })
+                });
+        }
+
+        Ok(self
+            .state
             .read()
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .user_blocks
             .get(block_id)
             .filter(|record| record.user_block.tenant_id == tenant_id)
-            .cloned()
+            .cloned())
     }
 
     pub fn authoritative_active_friendships_for_user(
@@ -2827,7 +1833,7 @@ impl SocialRuntime {
         organization_id: &str,
         user_id: &str,
     ) -> Result<Vec<Friendship>, String> {
-        let state = self.authoritative_state_for_query()?;
+        let state = self.cached_state_for_query();
         let mut friendships =
             active_friendship_records_for_user(&state, tenant_id, organization_id, user_id)
                 .into_iter()
@@ -2849,7 +1855,7 @@ impl SocialRuntime {
         user_low_id: &str,
         user_high_id: &str,
     ) -> Result<Option<DirectChat>, String> {
-        let state = self.authoritative_state_for_query()?;
+        let state = self.cached_state_for_query();
         Ok(active_direct_chat_record_for_pair(
             &state,
             tenant_id,
@@ -2863,32 +1869,48 @@ impl SocialRuntime {
     pub fn external_connection_snapshot(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         connection_id: &str,
-    ) -> Option<StoredExternalConnection> {
-        self.state
+    ) -> Result<Option<StoredExternalConnection>, String> {
+        if let Some(store) = self.external_connection_authority_store() {
+            return store
+                .get_by_id(
+                    tenant_id,
+                    organization_id,
+                    im_adapters_social_postgres::wire_id::parse_social_entity_id(connection_id)
+                        .map_err(|error| format!("invalid external-connection id: {error:?}"))?,
+                )
+                .map_err(|error| {
+                    format!("normalized external-connection lookup failed: {error:?}")
+                })?
+                .map(external_connection_from_authority_record)
+                .transpose()
+                .map(|record| {
+                    record.map(|mut external_connection| {
+                        external_connection.connection_id = connection_id.to_owned();
+                        StoredExternalConnection {
+                            external_connection,
+                            commits: Vec::new(),
+                        }
+                    })
+                });
+        }
+
+        Ok(self
+            .state
             .read()
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .external_connections
             .get(connection_id)
             .filter(|record| record.external_connection.tenant_id == tenant_id)
-            .cloned()
+            .cloned())
     }
 
-    fn authoritative_state_for_query(&self) -> Result<SocialControlState, String> {
-        match self.journal_path.as_deref() {
-            Some(journal_path) => {
-                let authority_load = Self::load_state_with_journal_replay(
-                    &self.state_store,
-                    journal_path,
-                    self.tx_marker_path.as_deref().map(|path| path.as_path()),
-                );
-                if let Some(error) = authority_load.replay_error {
-                    return Err(error);
-                }
-                Ok(authority_load.state)
-            }
-            None => self.state_store.load(),
-        }
+    fn cached_state_for_query(&self) -> SocialControlState {
+        self.state
+            .read()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
+            .clone()
     }
 
     // -----------------------------------------------------------------------
@@ -2900,75 +1922,13 @@ impl SocialRuntime {
         snapshot_status: SocialDerivedSnapshotStatus,
     ) -> SocialWritePersistence {
         SocialWritePersistence {
-            journal_authority: self.journal_authority,
+            journal_authority: false,
             snapshot_status,
         }
     }
 
     pub(crate) fn current_persistence(&self) -> SocialWritePersistence {
         self.persistence_with_snapshot_status(SocialDerivedSnapshotStatus::Current)
-    }
-
-    fn repair_required_persistence(&self) -> SocialWritePersistence {
-        self.persistence_with_snapshot_status(SocialDerivedSnapshotStatus::RepairRequired)
-    }
-
-    fn write_pending_tx_marker(&self, event_id: &str) -> Result<(), String> {
-        let Some(path) = self.tx_marker_path.as_deref() else {
-            return Ok(());
-        };
-        write_social_transaction_marker(
-            path,
-            &SocialTransactionMarker {
-                status: SocialTransactionMarkerStatus::PendingSnapshotRepair,
-                event_id: event_id.to_owned(),
-            },
-        )
-    }
-
-    fn clear_pending_tx_marker(&self) -> Result<bool, String> {
-        let Some(path) = self.tx_marker_path.as_deref() else {
-            return Ok(false);
-        };
-        clear_social_transaction_marker(path)
-    }
-
-    fn consume_fail_next_snapshot_save(&self) -> Result<bool, String> {
-        let Some(path) = self.snapshot_failpoint_path.as_deref() else {
-            return Ok(false);
-        };
-        if !path.exists() {
-            return Ok(false);
-        }
-        let content = fs::read_to_string(path).map_err(|error| {
-            format!(
-                "failed to read social failpoint file {}: {error}",
-                path.display()
-            )
-        })?;
-        if content.trim().is_empty() {
-            return Ok(false);
-        }
-        let mut failpoints: SocialRuntimeFailpoints = serde_json::from_str(content.as_str())
-            .map_err(|error| {
-                format!(
-                    "failed to parse social failpoint file {}: {error}",
-                    path.display()
-                )
-            })?;
-        if !failpoints.fail_next_snapshot_save {
-            return Ok(false);
-        }
-        failpoints.fail_next_snapshot_save = false;
-        let payload = serde_json::to_string_pretty(&failpoints)
-            .map_err(|error| format!("failed to serialize social failpoints: {error}"))?;
-        fs::write(path, payload).map_err(|error| {
-            format!(
-                "failed to consume social failpoint file {}: {error}",
-                path.display()
-            )
-        })?;
-        Ok(true)
     }
 
     pub(crate) fn persist_state_transition(
@@ -2980,16 +1940,7 @@ impl SocialRuntime {
         let (inserted_commits, _postgres_written) =
             self.persist_commits_to_authority(std::slice::from_ref(commit))?;
         self.finalize_persisted_commits(&inserted_commits);
-        self.write_pending_tx_marker(commit.event_id.as_str())?;
-        if self.consume_fail_next_snapshot_save()? {
-            return Ok(self.repair_required_persistence());
-        }
-        if self.state_store.save(next).is_err() {
-            return Ok(self.repair_required_persistence());
-        }
-        if self.clear_pending_tx_marker().is_err() {
-            return Ok(self.repair_required_persistence());
-        }
+        self.state_store.save(next)?;
         Ok(self.current_persistence())
     }
 
@@ -2998,104 +1949,22 @@ impl SocialRuntime {
         next: &SocialControlState,
         commits: &[CommitEnvelope],
     ) -> Result<SocialWritePersistence, String> {
-        let Some(marker_event_id) = commits.first().map(|commit| commit.event_id.as_str()) else {
+        if commits.is_empty() {
             return Ok(self.current_persistence());
-        };
+        }
         self.ensure_social_realtime_delivery(commits)?;
-        let (inserted_commits, _postgres_written) =
-            self.persist_commits_to_authority(commits)?;
+        let (inserted_commits, _postgres_written) = self.persist_commits_to_authority(commits)?;
         self.finalize_persisted_commits(&inserted_commits);
-        self.write_pending_tx_marker(marker_event_id)?;
-        if self.consume_fail_next_snapshot_save()? {
-            return Ok(self.repair_required_persistence());
-        }
-        if self.state_store.save(next).is_err() {
-            return Ok(self.repair_required_persistence());
-        }
-        if self.clear_pending_tx_marker().is_err() {
-            return Ok(self.repair_required_persistence());
-        }
+        self.state_store.save(next)?;
         Ok(self.current_persistence())
     }
 
-    // -----------------------------------------------------------------------
-    // Write lock management
-    // -----------------------------------------------------------------------
-
-    pub(crate) fn acquire_cross_instance_write_lock(
-        &self,
-    ) -> Result<Option<SocialWriteLockGuard>, String> {
-        let Some(path) = self.write_lock_path.as_deref() else {
-            if crate::friend_request_rate_limit::is_production_like_environment() {
-                return Err(
-                    "social cross-instance write lock path is required in production-like environments"
-                        .into(),
-                );
-            }
-            return Ok(None);
-        };
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|error| {
-                format!(
-                    "failed to create social lock directory {}: {error}",
-                    parent.display()
-                )
-            })?;
-        }
-        let file = fs::OpenOptions::new()
-            .create(true)
-            .read(true)
-            .write(true)
-            .truncate(false)
-            .open(path)
-            .map_err(|error| {
-                format!(
-                    "failed to open social write lock {}: {error}",
-                    path.display()
-                )
-            })?;
-        file.lock_exclusive().map_err(|error| {
-            format!(
-                "failed to acquire social write lock {}: {error}",
-                path.display()
-            )
-        })?;
-        Ok(Some(SocialWriteLockGuard { file }))
+    pub(crate) fn acquire_cross_instance_write_lock(&self) -> Result<(), String> {
+        self.ensure_social_authority_available()
     }
 
-    pub(crate) fn acquire_cross_instance_read_lock(
-        &self,
-    ) -> Result<Option<SocialWriteLockGuard>, String> {
-        let Some(path) = self.write_lock_path.as_deref() else {
-            return Ok(None);
-        };
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|error| {
-                format!(
-                    "failed to create social lock directory {}: {error}",
-                    parent.display()
-                )
-            })?;
-        }
-        let file = fs::OpenOptions::new()
-            .create(true)
-            .read(true)
-            .write(true)
-            .truncate(false)
-            .open(path)
-            .map_err(|error| {
-                format!(
-                    "failed to open social read lock {}: {error}",
-                    path.display()
-                )
-            })?;
-        file.lock_shared().map_err(|error| {
-            format!(
-                "failed to acquire social read lock {}: {error}",
-                path.display()
-            )
-        })?;
-        Ok(Some(SocialWriteLockGuard { file }))
+    pub(crate) fn acquire_cross_instance_read_lock(&self) -> Result<(), String> {
+        self.ensure_social_authority_available()
     }
 
     // -----------------------------------------------------------------------
@@ -3103,175 +1972,28 @@ impl SocialRuntime {
     // -----------------------------------------------------------------------
 
     pub(crate) fn refresh_state_from_authority_for_write(&self) -> Result<(), String> {
-        let result = self.merge_state_from_authority();
-        if result.is_ok()
-            && let Some(journal_path) = self.journal_path.as_deref()
-        {
-            *self
-                .authority_journal_fingerprint
-                .write()
-                .unwrap_or_else(|poisoned| poisoned.into_inner()) =
-                social_commit_journal_fingerprint(journal_path);
-        }
-        result
+        self.ensure_social_authority_available()
     }
 
-    /// Refreshes in-memory social state from the commit journal only when the
-    /// journal file changed since the last successful refresh. Read endpoints
-    /// should prefer this over [`Self::refresh_state_from_authority_for_write`]
-    /// to avoid replaying an unchanged journal on every list/count request.
+    /// Validate that normalized PostgreSQL authority is installed for production reads.
     pub(crate) fn refresh_state_from_authority_for_read(&self) -> Result<(), String> {
-        let Some(journal_path) = self.journal_path.as_deref() else {
-            return self.ensure_social_authority_available();
-        };
-        if !journal_path.exists() {
-            return self.ensure_social_authority_available();
-        }
-        let current_fingerprint = social_commit_journal_fingerprint(journal_path);
-        let cached_fingerprint = *self
-            .authority_journal_fingerprint
-            .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        if current_fingerprint.is_some() && current_fingerprint == cached_fingerprint {
-            return self.ensure_social_authority_available();
-        }
-        self.refresh_state_from_authority_for_write()
-    }
-
-    fn merge_state_from_authority(&self) -> Result<(), String> {
-        let Some(journal_path) = self.journal_path.as_deref() else {
-            self.ensure_social_authority_available()?;
-            return Ok(());
-        };
-
-        let snapshot_state = match self.state_store.load() {
-            Ok(snapshot_state) => snapshot_state,
-            Err(error) if journal_path.exists() => {
-                tracing::warn!(
-                    "failed to load social snapshot during cross-instance write refresh: {error}. continuing from in-memory authority"
-                );
-                SocialControlState::default()
-            }
-            Err(error) => {
-                let replay_error = format!(
-                    "failed to load social snapshot during cross-instance write refresh without commit journal: {error}"
-                );
-                *self
-                    .authority_replay_error
-                    .write()
-                    .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) =
-                    Some(replay_error.clone());
-                return Err(replay_error);
-            }
-        };
-
-        let mut state = self
-            .state
-            .write()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
-
-        if journal_path.exists() {
-            if let Err(error) = state.replay_commit_journal_file(journal_path) {
-                let replay_error = format!(
-                    "failed to replay social commit journal {} during cross-instance refresh: {error}",
-                    journal_path.display()
-                );
-                *self
-                    .authority_replay_error
-                    .write()
-                    .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) =
-                    Some(replay_error.clone());
-                return Err(replay_error);
-            }
-            state.rebuild_social_indexes();
-        } else {
-            *state = snapshot_state.clone();
-        }
-
-        state.merge_pending_shared_channel_sync_requests_from(&snapshot_state);
-        state.merge_dead_letter_shared_channel_sync_requests_from(&snapshot_state);
-        state.merge_delivered_shared_channel_sync_requests_from(&snapshot_state);
-        state.merge_delivered_shared_channel_sync_delivery_proofs_from(&snapshot_state);
-        state.merge_recent_shared_channel_sync_deliveries_from(&snapshot_state);
-        *self
-            .authority_replay_error
-            .write()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = None;
-        Ok(())
+        self.ensure_social_authority_available()
     }
 
     pub(crate) fn ensure_social_authority_available(&self) -> Result<(), String> {
-        let replay_error = self
-            .authority_replay_error
-            .read()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
-            .clone();
-        if let Some(error) = replay_error {
-            return Err(error);
+        if crate::friend_request_rate_limit::is_production_like_environment()
+            && (self.postgres_store.is_none() || self.postgres_atomic_write_authority.is_none())
+        {
+            return Err("social normalized PostgreSQL authority is not installed".to_owned());
         }
         Ok(())
     }
 
     // -----------------------------------------------------------------------
-    // Snapshot repair
+    // Idempotent request retry detection
     // -----------------------------------------------------------------------
 
-    pub(crate) fn repair_derived_snapshot_best_effort(
-        &self,
-        state: &SocialControlState,
-    ) -> SocialWritePersistence {
-        if self.state_store.save(state).is_ok() && self.clear_pending_tx_marker().is_ok() {
-            self.current_persistence()
-        } else {
-            self.repair_required_persistence()
-        }
-    }
-
-    pub fn repair_derived_snapshot(&self) -> Result<SocialRuntimeRepairResponse, String> {
-        let pending_state = self
-            .state
-            .read()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
-            .clone();
-        let mut repaired_state = if let Some(journal_path) = self.journal_path.as_deref() {
-            Self::replay_state_from_commit_journal(journal_path).map_err(|error| {
-                format!("failed to replay social commit journal during repair: {error}")
-            })?
-        } else {
-            self.state
-                .read()
-                .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
-                .clone()
-        };
-        repaired_state.merge_pending_shared_channel_sync_requests_from(&pending_state);
-        repaired_state.merge_dead_letter_shared_channel_sync_requests_from(&pending_state);
-        repaired_state.merge_delivered_shared_channel_sync_requests_from(&pending_state);
-        repaired_state.merge_delivered_shared_channel_sync_delivery_proofs_from(&pending_state);
-        repaired_state.merge_recent_shared_channel_sync_deliveries_from(&pending_state);
-        self.state_store
-            .save(&repaired_state)
-            .map_err(|error| format!("failed to repair derived social state snapshot: {error}"))?;
-        let transaction_marker_cleared = self.clear_pending_tx_marker().map_err(|error| {
-            format!("failed to clear social transaction marker after repair: {error}")
-        })?;
-        *self
-            .state
-            .write()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = repaired_state.clone();
-        Ok(SocialRuntimeRepairResponse {
-            status: SocialRuntimeRepairStatus::Repaired,
-            journal_authority: self.journal_authority,
-            snapshot_updated: true,
-            transaction_marker_cleared,
-            aggregate_counts: repaired_state.aggregate_counts(),
-        })
-    }
-
-    // -----------------------------------------------------------------------
-    // Event replay detection
-    // -----------------------------------------------------------------------
-
-    pub(crate) fn replay_committed_social_event<T>(
+    pub(crate) fn resolve_committed_social_event_retry<T>(
         &self,
         state: &SocialControlState,
         commit: &CommitEnvelope,
@@ -3288,208 +2010,9 @@ impl SocialRuntime {
                 &existing,
             ));
         }
-        let persistence = self.repair_derived_snapshot_best_effort(state);
+        let persistence = self.current_persistence();
         project(existing, persistence).map(Some)
     }
-}
-
-// ---------------------------------------------------------------------------
-// Repair response types
-// ---------------------------------------------------------------------------
-
-#[derive(Clone, Copy, Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SocialRuntimeRepairStatus {
-    Repaired,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SocialAggregateCountsResponse {
-    pub friend_requests: usize,
-    pub friendships: usize,
-    pub user_blocks: usize,
-    pub direct_chats: usize,
-    pub external_connections: usize,
-    pub external_member_links: usize,
-    pub shared_channel_policies: usize,
-    pub pending_shared_channel_sync_requests: usize,
-    pub dead_letter_shared_channel_sync_requests: usize,
-    pub delivered_shared_channel_sync_requests: usize,
-    pub recent_shared_channel_sync_deliveries: usize,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SocialRuntimeRepairResponse {
-    pub status: SocialRuntimeRepairStatus,
-    pub journal_authority: bool,
-    pub snapshot_updated: bool,
-    pub transaction_marker_cleared: bool,
-    pub aggregate_counts: SocialAggregateCountsResponse,
-}
-
-impl SocialControlState {
-    fn aggregate_counts(&self) -> SocialAggregateCountsResponse {
-        SocialAggregateCountsResponse {
-            friend_requests: self.friend_requests.len(),
-            friendships: self.friendships.len(),
-            user_blocks: self.user_blocks.len(),
-            direct_chats: self.direct_chats.len(),
-            external_connections: self.external_connections.len(),
-            external_member_links: self.external_member_links.len(),
-            shared_channel_policies: self.shared_channel_policies.len(),
-            pending_shared_channel_sync_requests: self.pending_shared_channel_sync_requests.len(),
-            dead_letter_shared_channel_sync_requests: self
-                .dead_letter_shared_channel_sync_requests
-                .len(),
-            delivered_shared_channel_sync_requests: self
-                .delivered_shared_channel_sync_requests
-                .len(),
-            recent_shared_channel_sync_deliveries: self.recent_shared_channel_sync_deliveries.len(),
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// File I/O helpers
-// ---------------------------------------------------------------------------
-
-fn write_file_atomically(
-    file_path: &StdPath,
-    payload: &[u8],
-    store_name: &str,
-) -> Result<(), String> {
-    let parent = file_path
-        .parent()
-        .ok_or_else(|| format!("{store_name} path has no parent: {}", file_path.display()))?;
-    fs::create_dir_all(parent).map_err(|error| {
-        format!(
-            "failed to create {store_name} parent directory {}: {error}",
-            parent.display()
-        )
-    })?;
-
-    let temp_path = atomic_temp_path(file_path)?;
-    let write_result = (|| {
-        let mut temp_file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(temp_path.as_path())
-            .map_err(|error| {
-                format!(
-                    "failed to create {store_name} temp file {}: {error}",
-                    temp_path.display()
-                )
-            })?;
-        temp_file.write_all(payload).map_err(|error| {
-            format!(
-                "failed to write {store_name} temp file {}: {error}",
-                temp_path.display()
-            )
-        })?;
-        temp_file.sync_all().map_err(|error| {
-            format!(
-                "failed to sync {store_name} temp file {}: {error}",
-                temp_path.display()
-            )
-        })?;
-        drop(temp_file);
-        replace_file_atomically(temp_path.as_path(), file_path).map_err(|error| {
-            format!(
-                "failed to atomically replace {store_name} {} from temp file {}: {error}",
-                file_path.display(),
-                temp_path.display()
-            )
-        })?;
-        sync_parent_directory(parent, store_name)?;
-        Ok(())
-    })();
-
-    if write_result.is_err() {
-        let _ = fs::remove_file(temp_path.as_path());
-    }
-    write_result
-}
-
-fn atomic_temp_path(file_path: &StdPath) -> Result<PathBuf, String> {
-    let file_name = file_path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .ok_or_else(|| format!("file path has no valid file name: {}", file_path.display()))?;
-    let mut random = [0_u8; 8];
-    fill_random(&mut random).map_err(|error| {
-        format!(
-            "failed to generate temporary file suffix for {}: {error}",
-            file_path.display()
-        )
-    })?;
-    let suffix = u64::from_le_bytes(random);
-    Ok(file_path.with_file_name(format!(
-        ".{file_name}.{}.{}.tmp",
-        std::process::id(),
-        suffix
-    )))
-}
-
-#[cfg(windows)]
-fn replace_file_atomically(temp_path: &StdPath, file_path: &StdPath) -> Result<(), String> {
-    use std::os::windows::ffi::OsStrExt;
-
-    const MOVEFILE_REPLACE_EXISTING: u32 = 0x0000_0001;
-    const MOVEFILE_WRITE_THROUGH: u32 = 0x0000_0008;
-
-    #[link(name = "Kernel32")]
-    unsafe extern "system" {
-        fn MoveFileExW(
-            lp_existing_file_name: *const u16,
-            lp_new_file_name: *const u16,
-            dw_flags: u32,
-        ) -> i32;
-    }
-
-    let existing = temp_path
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect::<Vec<_>>();
-    let new = file_path
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect::<Vec<_>>();
-    let replaced = unsafe {
-        MoveFileExW(
-            existing.as_ptr(),
-            new.as_ptr(),
-            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
-        )
-    };
-    if replaced == 0 {
-        return Err(std::io::Error::last_os_error().to_string());
-    }
-    Ok(())
-}
-
-#[cfg(not(windows))]
-fn replace_file_atomically(temp_path: &StdPath, file_path: &StdPath) -> Result<(), String> {
-    fs::rename(temp_path, file_path).map_err(|error| error.to_string())
-}
-
-fn sync_parent_directory(parent: &StdPath, store_name: &str) -> Result<(), String> {
-    #[cfg(unix)]
-    {
-        fs::File::open(parent)
-            .and_then(|file| file.sync_all())
-            .map_err(|error| {
-                format!(
-                    "failed to sync {store_name} parent directory {}: {error}",
-                    parent.display()
-                )
-            })?;
-    }
-    let _ = (parent, store_name);
-    Ok(())
 }
 
 fn lock_social_state_mutex<'a, T>(
@@ -3505,41 +2028,6 @@ fn lock_social_state_mutex<'a, T>(
     }
 }
 
-fn write_social_transaction_marker(
-    marker_path: &StdPath,
-    marker: &SocialTransactionMarker,
-) -> Result<(), String> {
-    if let Some(parent) = marker_path.parent() {
-        fs::create_dir_all(parent).map_err(|error| {
-            format!(
-                "failed to create social transaction marker parent directory {}: {error}",
-                parent.display()
-            )
-        })?;
-    }
-    let payload = serde_json::to_string_pretty(marker)
-        .map_err(|error| format!("failed to serialize social transaction marker: {error}"))?;
-    fs::write(marker_path, payload).map_err(|error| {
-        format!(
-            "failed to write social transaction marker file {}: {error}",
-            marker_path.display()
-        )
-    })
-}
-
-fn clear_social_transaction_marker(marker_path: &StdPath) -> Result<bool, String> {
-    if !marker_path.exists() {
-        return Ok(false);
-    }
-    fs::remove_file(marker_path).map_err(|error| {
-        format!(
-            "failed to remove social transaction marker file {}: {error}",
-            marker_path.display()
-        )
-    })?;
-    Ok(true)
-}
-
 // ---------------------------------------------------------------------------
 // Index helpers
 // ---------------------------------------------------------------------------
@@ -3552,31 +2040,66 @@ fn block_scope_index_label(scope: &BlockScope) -> &'static str {
     }
 }
 
+fn user_block_from_authority_record(
+    record: im_adapters_social_postgres::user_block_store::UserBlockRecord,
+) -> Result<UserBlock, String> {
+    let scope = match record.scope.as_str() {
+        "all" => BlockScope::All,
+        "friendship" => BlockScope::Friendship,
+        "direct_chat" => BlockScope::DirectChat,
+        other => return Err(format!("normalized user-block scope is invalid: {other}")),
+    };
+    Ok(UserBlock {
+        tenant_id: record.tenant_id,
+        block_id: record.block_id.to_string(),
+        blocker_user_id: record.blocker_user_id,
+        blocked_user_id: record.blocked_user_id,
+        scope,
+        direct_chat_id: record.direct_chat_id.map(|value| value.to_string()),
+        status: UserBlockStatus::Active,
+        expires_at: record.expires_at,
+        created_at: record.created_at,
+        updated_at: record.updated_at,
+    })
+}
+
 fn external_connection_kind_index_label(kind: &ExternalConnectionKind) -> &'static str {
     match kind {
         ExternalConnectionKind::SharedChannel => "shared_channel",
     }
 }
 
-fn validate_social_commit_target_envelope(
-    commit: &CommitEnvelope,
-    expected_aggregate_label: &str,
-    expected_aggregate_id: &str,
-) -> Result<(), String> {
-    let actual_aggregate_label = commit.aggregate_type.as_wire_value().trim_matches('"');
-    if actual_aggregate_label != expected_aggregate_label {
-        return Err(format!(
-            "social commit {} aggregate type mismatch: expected {}, got {}",
-            commit.event_id, expected_aggregate_label, actual_aggregate_label
-        ));
-    }
-    if commit.aggregate_id != expected_aggregate_id {
-        return Err(format!(
-            "social commit {} aggregate id mismatch: expected {}, got {}",
-            commit.event_id, expected_aggregate_id, commit.aggregate_id
-        ));
-    }
-    Ok(())
+fn external_connection_from_authority_record(
+    record: im_adapters_social_postgres::external_store::ExternalConnectionRecord,
+) -> Result<ExternalConnection, String> {
+    let connection_kind = match record.connection_kind.as_str() {
+        "shared_channel" => ExternalConnectionKind::SharedChannel,
+        other => {
+            return Err(format!(
+                "normalized external-connection kind is invalid: {other}"
+            ));
+        }
+    };
+    let status = match record.status.as_str() {
+        "active" => ExternalConnectionStatus::Active,
+        "suspended" => ExternalConnectionStatus::Suspended,
+        "revoked" => ExternalConnectionStatus::Revoked,
+        other => {
+            return Err(format!(
+                "normalized external-connection status is invalid: {other}"
+            ));
+        }
+    };
+    Ok(ExternalConnection {
+        tenant_id: record.tenant_id,
+        connection_id: record.connection_id.to_string(),
+        external_tenant_id: record.external_tenant_id,
+        external_org_name: record.external_org_name,
+        connection_kind,
+        status,
+        established_at: record.established_at,
+        updated_at: record.updated_at,
+    })
 }
 
 fn contract_error_message(error: ContractError) -> String {
@@ -4576,17 +3099,6 @@ pub(crate) fn archive_active_direct_chats_for_pair(
     }
 }
 
-fn social_commit_journal_fingerprint(journal_path: &StdPath) -> Option<(u64, u64)> {
-    let metadata = fs::metadata(journal_path).ok()?;
-    let modified_ms = metadata
-        .modified()
-        .ok()?
-        .duration_since(UNIX_EPOCH)
-        .ok()?
-        .as_millis() as u64;
-    Some((metadata.len(), modified_ms))
-}
-
 // ---------------------------------------------------------------------------
 // ID generation
 // ---------------------------------------------------------------------------
@@ -4742,142 +3254,5 @@ mod postgres_write_authority_tests {
         assert!(!postgres_written);
         assert_eq!(inserted, vec![commit.clone()]);
         assert_eq!(journal.recorded(), vec![commit]);
-    }
-}
-
-#[cfg(test)]
-mod friend_request_replay_self_heal_tests {
-    use super::SocialControlState;
-    use im_domain_core::social::FriendRequestStatus;
-    use im_domain_events::social::{
-        FriendRequestAcceptedPayload, FriendRequestDeclinedPayload, SocialCommitEnvelopeInput,
-        SocialEventType, social_commit_envelope,
-    };
-    use im_domain_events::{AggregateType, EventActor};
-    use im_platform_contracts::CommitEnvelope;
-
-    const TENANT_ID: &str = "100001";
-    const ORGANIZATION_ID: &str = "0";
-    const ACCEPTED_AT: &str = "2026-07-07T00:00:00.000Z";
-
-    fn build_accept_commit(event_id: &str, request_id: &str) -> CommitEnvelope {
-        let payload = FriendRequestAcceptedPayload {
-            request_id: request_id.to_owned(),
-            requester_user_id: "user_a".to_owned(),
-            target_user_id: "user_b".to_owned(),
-            accepted_by_user_id: "user_b".to_owned(),
-            accepted_at: ACCEPTED_AT.to_owned(),
-        };
-        let payload_json = serde_json::to_string(&payload).unwrap();
-        social_commit_envelope(SocialCommitEnvelopeInput {
-            event_id,
-            tenant_id: TENANT_ID,
-            organization_id: ORGANIZATION_ID,
-            aggregate_type: AggregateType::FriendRequest,
-            aggregate_id: request_id,
-            event_type: SocialEventType::FriendRequestAccepted,
-            ordering_seq: 1,
-            actor: EventActor {
-                actor_id: "user_b".to_owned(),
-                actor_kind: "user".to_owned(),
-                actor_session_id: None,
-            },
-            occurred_at: ACCEPTED_AT,
-            committed_at: ACCEPTED_AT,
-            payload: payload_json.as_str(),
-        })
-    }
-
-    fn build_decline_commit(event_id: &str, request_id: &str) -> CommitEnvelope {
-        let payload = FriendRequestDeclinedPayload {
-            request_id: request_id.to_owned(),
-            requester_user_id: "user_a".to_owned(),
-            target_user_id: "user_b".to_owned(),
-            declined_by_user_id: "user_b".to_owned(),
-            declined_at: ACCEPTED_AT.to_owned(),
-        };
-        let payload_json = serde_json::to_string(&payload).unwrap();
-        social_commit_envelope(SocialCommitEnvelopeInput {
-            event_id,
-            tenant_id: TENANT_ID,
-            organization_id: ORGANIZATION_ID,
-            aggregate_type: AggregateType::FriendRequest,
-            aggregate_id: request_id,
-            event_type: SocialEventType::FriendRequestDeclined,
-            ordering_seq: 1,
-            actor: EventActor {
-                actor_id: "user_b".to_owned(),
-                actor_kind: "user".to_owned(),
-                actor_session_id: None,
-            },
-            occurred_at: ACCEPTED_AT,
-            committed_at: ACCEPTED_AT,
-            payload: payload_json.as_str(),
-        })
-    }
-
-    #[test]
-    fn accept_replay_backfills_missing_friend_request_record() {
-        let mut state = SocialControlState::default();
-        // Legacy journal: an accept commit exists but the originating submitted
-        // commit was lost. Replay must self-heal instead of poisoning the authority.
-        state
-            .apply_social_commit(build_accept_commit("evt_fr_accept_legacy", "fr_legacy"))
-            .expect("replay should backfill missing friend request from accept payload");
-        let record = state
-            .friend_requests
-            .get("fr_legacy")
-            .expect("backfilled friend request record should exist");
-        assert_eq!(record.friend_request.status, FriendRequestStatus::Accepted);
-        assert_eq!(record.friend_request.requester_user_id, "user_a");
-        assert_eq!(record.friend_request.target_user_id, "user_b");
-    }
-
-    #[test]
-    fn accept_replay_is_idempotent_when_already_accepted() {
-        let mut state = SocialControlState::default();
-        state
-            .apply_social_commit(build_accept_commit(
-                "evt_fr_accept_idempotent_1",
-                "fr_idempotent",
-            ))
-            .expect("initial accept replay should backfill");
-        // Re-applying an accept commit (different event id) for an already accepted
-        // request must not error.
-        state
-            .apply_social_commit(build_accept_commit(
-                "evt_fr_accept_idempotent_2",
-                "fr_idempotent",
-            ))
-            .expect("idempotent accept replay should succeed");
-        let record = state
-            .friend_requests
-            .get("fr_idempotent")
-            .expect("friend request record should exist");
-        assert_eq!(record.friend_request.status, FriendRequestStatus::Accepted);
-        assert_eq!(
-            record.commits.len(),
-            2,
-            "both accept commits should be recorded"
-        );
-    }
-
-    #[test]
-    fn accept_replay_rejects_conflicting_terminal_status() {
-        let mut state = SocialControlState::default();
-        state
-            .apply_social_commit(build_decline_commit(
-                "evt_fr_decline_conflict",
-                "fr_conflict",
-            ))
-            .expect("decline replay should backfill");
-        // An accept commit for an already-declined request is a genuine conflict,
-        // not incomplete data, and must still fail.
-        let result =
-            state.apply_social_commit(build_accept_commit("evt_fr_accept_conflict", "fr_conflict"));
-        assert!(
-            result.is_err(),
-            "accept replay should not override a declined request"
-        );
     }
 }

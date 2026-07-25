@@ -88,7 +88,13 @@ where
         principal_id: &str,
         principal_kind: &str,
     ) -> Result<AgentHandoffStateView, RuntimeError> {
-        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
+        self.ensure_member_loaded(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_kind,
+            principal_id,
+        )?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(&self.state, "conversation-runtime.state.handoff");
         let conversation = state
@@ -160,6 +166,13 @@ where
         actor_kind: &str,
         action: ConversationHandoffLifecycle,
     ) -> Result<AgentHandoffStateView, RuntimeError> {
+        self.ensure_member_loaded(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            actor_kind,
+            actor_id,
+        )?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.handoff");
         let conversation = state

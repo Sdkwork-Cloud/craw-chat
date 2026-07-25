@@ -1,26 +1,38 @@
 {
   "name": "@sdkwork/im-h5-core",
+  "version": "0.0.0",
   "private": true,
-  "version": "0.1.0",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "dependencies": {
-    "@sdkwork/drive-app-sdk": "workspace:*",
-    "@sdkwork/iam-contracts": "workspace:*",
-    "@sdkwork/im-sdk": "workspace:*",
-    "@sdkwork/sdk-common": "catalog:",
-    "@sdkwork/utils": "workspace:*"
-  },
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
       "types": "./src/index.ts",
-      "import": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./session": {
-      "types": "./src/session/index.ts",
-      "import": "./src/session/index.ts",
-      "default": "./src/session/index.ts"
+    "./sdk/driveAppSdkClient": {
+      "types": "./src/sdk/driveAppSdkClient.ts",
+      "default": "./src/sdk/driveAppSdkClient.ts"
+    },
+    "./sdk/imSdkClient": {
+      "types": "./src/sdk/imSdkClient.ts",
+      "default": "./src/sdk/imSdkClient.ts"
+    },
+    "./sdk/appSdkClient": {
+      "types": "./src/sdk/appSdkClient.ts",
+      "default": "./src/sdk/appSdkClient.ts"
+    },
+    "./sdk/session": {
+      "types": "./src/sdk/session.ts",
+      "default": "./src/sdk/session.ts"
+    },
+    "./sdk/chatRealtimeConnection": {
+      "types": "./src/sdk/chatRealtimeConnection.ts",
+      "default": "./src/sdk/chatRealtimeConnection.ts"
+    },
+    "./sdk/aiHttpPort": {
+      "types": "./src/sdk/aiHttpPort.ts",
+      "default": "./src/sdk/aiHttpPort.ts"
     },
     "./sdk": {
       "types": "./src/sdk/index.ts",
@@ -37,10 +49,24 @@
       "import": "./src/host/index.ts",
       "default": "./src/host/index.ts"
     },
+    "./session": {
+      "types": "./src/session/index.ts",
+      "import": "./src/session/index.ts",
+      "default": "./src/session/index.ts"
+    },
     "./composition": {
       "types": "./src/composition/index.ts",
       "import": "./src/composition/index.ts",
       "default": "./src/composition/index.ts"
     }
+  },
+  "dependencies": {
+    "@sdkwork/drive-app-sdk": "workspace:*",
+    "@sdkwork/iam-contracts": "workspace:*",
+    "@sdkwork/iam-runtime": "workspace:*",
+    "@sdkwork/im-app-sdk": "workspace:*",
+    "@sdkwork/im-sdk": "workspace:*",
+    "@sdkwork/sdk-common": "catalog:",
+    "@sdkwork/utils": "workspace:*"
   }
 }

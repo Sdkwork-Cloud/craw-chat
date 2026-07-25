@@ -10,6 +10,7 @@ import {
 import { ensureDesktopOfflineChatCache } from './desktopOfflineChatCache';
 import type { DesktopOfflineMessage } from './desktopOfflineChatTypes';
 import {
+  desktopOfflineScopeKey,
   desktopOfflineScopesEqual,
   resolveDesktopOfflinePrincipalScope,
   type DesktopOfflinePrincipalScope,
@@ -78,13 +79,7 @@ function pendingSendFlushScopeKey(
   scope: DesktopOfflinePrincipalScope,
   generation: number | undefined,
 ): string {
-  return JSON.stringify([
-    scope.tenantId,
-    scope.organizationId,
-    scope.principalKind,
-    scope.principalId,
-    generation ?? null,
-  ]);
+  return JSON.stringify([desktopOfflineScopeKey(scope), generation ?? null]);
 }
 
 export function waitForDesktopPendingSendBackoff(
@@ -180,7 +175,11 @@ export async function enqueueDesktopPendingSend(
   payload: DesktopPendingSendPayload,
 ): Promise<void> {
   const scope = resolveScope();
-  if (!scope || !(await ensureDesktopOfflineChatCache())) {
+  if (
+    !scope
+    || !(await ensureDesktopOfflineChatCache())
+    || !desktopOfflineScopesEqual(scope, resolveScope())
+  ) {
     return;
   }
   await enqueueDesktopOfflinePendingSend({
@@ -197,7 +196,11 @@ export async function listDesktopPendingSends(
   limit = DEFAULT_PENDING_SEND_FLUSH_LIMIT,
 ): Promise<Array<DesktopPendingSendPayload & { clientMsgId: string }>> {
   const scope = resolveScope();
-  if (!scope || !(await ensureDesktopOfflineChatCache())) {
+  if (
+    !scope
+    || !(await ensureDesktopOfflineChatCache())
+    || !desktopOfflineScopesEqual(scope, resolveScope())
+  ) {
     return [];
   }
   const rows = await listDesktopOfflinePendingSends({ scope, limit });
@@ -241,7 +244,11 @@ export async function claimDesktopPendingSends(
   limit = DEFAULT_PENDING_SEND_FLUSH_LIMIT,
 ): Promise<DesktopPendingSendClaim[]> {
   const scope = resolveScope();
-  if (!scope || !(await ensureDesktopOfflineChatCache())) {
+  if (
+    !scope
+    || !(await ensureDesktopOfflineChatCache())
+    || !desktopOfflineScopesEqual(scope, resolveScope())
+  ) {
     return [];
   }
   return claimDesktopPendingSendsForScope(scope, limit);

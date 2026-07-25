@@ -22,6 +22,7 @@ impl ImDatabaseHost {
 }
 
 pub async fn bootstrap_im_database(pool: DatabasePool) -> Result<ImDatabaseHost, String> {
+    ensure_im_postgres_authority(&pool)?;
     let app_root = resolve_app_root();
     let module = Arc::new(
         DefaultDatabaseModule::from_app_root(&app_root)
@@ -37,8 +38,6 @@ pub async fn bootstrap_im_database(pool: DatabasePool) -> Result<ImDatabaseHost,
         .init()
         .await
         .map_err(|error| format!("IM database init failed: {error}"))?;
-
-    apply_im_initialization_schema_repairs(&pool).await?;
 
     if options.auto_migrate {
         orchestrator
@@ -60,68 +59,13 @@ pub async fn bootstrap_im_database_from_env() -> Result<ImDatabaseHost, String> 
     bootstrap_im_database(pool).await
 }
 
-const POSTGRES_INITIALIZATION_SCHEMA_REPAIR_SQL: &str = r#"
-DO $$
-DECLARE
-    existing_pk_name text;
-    existing_pk_columns text[];
-BEGIN
-    IF to_regclass('im_conversation_read_cursors') IS NULL THEN
-        RETURN;
-    END IF;
-
-    ALTER TABLE im_conversation_read_cursors
-        ADD COLUMN IF NOT EXISTS device_id TEXT;
-
-    UPDATE im_conversation_read_cursors
-       SET device_id = ''
-     WHERE device_id IS NULL;
-
-    ALTER TABLE im_conversation_read_cursors
-        ALTER COLUMN device_id SET DEFAULT '',
-        ALTER COLUMN device_id SET NOT NULL;
-
-    SELECT c.conname,
-           array_agg(a.attname ORDER BY keys.ordinality)
-      INTO existing_pk_name, existing_pk_columns
-      FROM pg_constraint c
-      JOIN LATERAL unnest(c.conkey) WITH ORDINALITY AS keys(attnum, ordinality) ON true
-      JOIN pg_attribute a
-        ON a.attrelid = c.conrelid
-       AND a.attnum = keys.attnum
-     WHERE c.conrelid = 'im_conversation_read_cursors'::regclass
-       AND c.contype = 'p'
-     GROUP BY c.conname;
-
-    IF existing_pk_columns IS DISTINCT FROM ARRAY[
-        'tenant_id',
-        'organization_id',
-        'conversation_id',
-        'member_id',
-        'device_id'
-    ] THEN
-        IF existing_pk_name IS NOT NULL THEN
-            EXECUTE format(
-                'ALTER TABLE im_conversation_read_cursors DROP CONSTRAINT %I',
-                existing_pk_name
-            );
-        END IF;
-
-        ALTER TABLE im_conversation_read_cursors
-            ADD CONSTRAINT pk_im_conversation_read_cursors
-            PRIMARY KEY (tenant_id, organization_id, conversation_id, member_id, device_id);
-    END IF;
-END $$;
-"#;
-
-async fn apply_im_initialization_schema_repairs(pool: &DatabasePool) -> Result<(), String> {
+fn ensure_im_postgres_authority(pool: &DatabasePool) -> Result<(), String> {
     match pool {
-        DatabasePool::Postgres(_, _) => pool
-            .execute_raw(POSTGRES_INITIALIZATION_SCHEMA_REPAIR_SQL)
-            .await
-            .map(|_| ())
-            .map_err(|error| format!("IM database initialization schema repair failed: {error}")),
-        DatabasePool::Sqlite(_, _) => Ok(()),
+        DatabasePool::Postgres(_, _) => Ok(()),
+        DatabasePool::Sqlite(_, _) => Err(
+            "IM authoritative server persistence requires PostgreSQL; SQLite is client-local only"
+                .to_owned(),
+        ),
     }
 }
 
@@ -138,47 +82,28 @@ fn resolve_app_root() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn postgres_initialization_schema_repair_adds_read_cursor_device_scope() {
-        let source = include_str!("lib.rs");
-        let production_source = source
-            .split("#[cfg(test)]")
-            .next()
-            .expect("source should contain production section");
-        let sql = production_source.to_ascii_lowercase();
+    use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
+    use sdkwork_database_sqlx::create_pool_from_config;
 
-        for required in [
-            "postgres_initialization_schema_repair_sql",
-            "to_regclass('im_conversation_read_cursors')",
-            "add column if not exists device_id text",
-            "alter column device_id set default ''",
-            "alter column device_id set not null",
-            "drop constraint",
-            "primary key (tenant_id, organization_id, conversation_id, member_id, device_id)",
-        ] {
-            assert!(
-                sql.contains(required),
-                "Postgres initialization repair SQL must include `{required}`"
-            );
-        }
-    }
+    use super::*;
 
-    #[test]
-    fn bootstrap_runs_initialization_schema_repairs_after_lifecycle_init() {
-        let source = include_str!("lib.rs");
-        let init = source
-            .find(".init()")
-            .expect("bootstrap should call lifecycle init");
-        let repair = source
-            .find("apply_im_initialization_schema_repairs(&pool)")
-            .expect("bootstrap should run initialization schema repairs");
-        let migrate = source
-            .find("if options.auto_migrate")
-            .expect("bootstrap should preserve auto_migrate branch");
+    #[tokio::test]
+    async fn bootstrap_rejects_sqlite_before_database_lifecycle() {
+        let pool = create_pool_from_config(DatabaseConfig {
+            engine: DatabaseEngine::Sqlite,
+            url: "sqlite::memory:".to_owned(),
+            max_connections: 1,
+            ..DatabaseConfig::default()
+        })
+        .await
+        .expect("create isolated client-local fixture");
 
-        assert!(
-            init < repair && repair < migrate,
-            "schema repairs must run after baseline init and before migrations/traffic dependencies"
-        );
+        let error = match bootstrap_im_database(pool.clone()).await {
+            Ok(_) => panic!("server bootstrap must reject SQLite"),
+            Err(error) => error,
+        };
+        assert!(error.contains("requires PostgreSQL"));
+        assert!(error.contains("client-local only"));
+        pool.close().await;
     }
 }

@@ -1,22 +1,20 @@
-//! Transactional social commit materialization for multi-commit write batches.
-//!
-//! Friend accept and similar flows emit several commits (request status, friendship,
-//! direct chat). Callers may either let this adapter own the transaction for replay and
-//! repair, or pass the journal-owned transaction used by the online write authority.
+//! Normalized Social writes executed inside the journal-owned PostgreSQL transaction.
 
 use im_domain_events::social::{
-    DirectChatBoundPayload, FriendRequestAcceptedPayload, FriendRequestCanceledPayload,
-    FriendRequestDeclinedPayload, FriendRequestExpiredPayload, FriendRequestSubmittedPayload,
-    FriendshipActivatedPayload, FriendshipRemovedPayload, UserBlockReleasedPayload,
+    DirectChatBoundPayload, ExternalConnectionEstablishedPayload, ExternalMemberLinkBoundPayload,
+    FriendRequestAcceptedPayload, FriendRequestCanceledPayload, FriendRequestDeclinedPayload,
+    FriendRequestExpiredPayload, FriendRequestSubmittedPayload, FriendshipActivatedPayload,
+    FriendshipRemovedPayload, SharedChannelPolicyAppliedPayload, UserBlockReleasedPayload,
     UserBlockedPayload,
 };
 use im_platform_contracts::{CommitEnvelope, ContractError};
 
-use crate::wire_id::social_entity_id_to_i64;
-use crate::{
-    SocialPostgresPool, optional_postgres_timestamptz, postgres_pool_client, postgres_timestamptz,
-    postgres_unavailable, run_postgres_io,
-};
+use crate::wire_id::parse_social_entity_id;
+use crate::{optional_postgres_timestamptz, postgres_timestamptz};
+
+fn social_entity_id(value: &str) -> Result<i64, String> {
+    parse_social_entity_id(value).map_err(|error| format!("{error:?}"))
+}
 
 fn social_materialize_timestamptz(
     value: &str,
@@ -94,33 +92,85 @@ INSERT INTO im_direct_chats (
 ON CONFLICT (tenant_id, organization_id, direct_chat_id) DO NOTHING
 "#;
 
-/// Materialize a multi-commit social batch inside one PostgreSQL transaction.
-pub fn materialize_commits_in_transaction(
-    pool: &SocialPostgresPool,
-    commits: &[CommitEnvelope],
-) -> Result<(), String> {
-    if commits.is_empty() {
-        return Ok(());
-    }
-    let pool = pool.inner().clone();
-    let commits = commits.to_vec();
-    run_postgres_io(move || {
-        let mut client = postgres_pool_client(&pool, "materialize_social_commits_batch")?;
-        let mut txn = client
-            .transaction()
-            .map_err(|error| postgres_unavailable("materialize_social_commits_batch", error))?;
-        materialize_commits_on_transaction(&mut txn, &commits)?;
-        txn.commit()
-            .map_err(|error| postgres_unavailable("materialize_social_commits_batch", error))?;
-        Ok(())
-    })
-    .map_err(|error| format!("{error:?}"))
-}
+const EXTERNAL_CONNECTION_INSERT_SQL: &str = r#"
+INSERT INTO im_external_connections (
+    tenant_id, organization_id, connection_id, external_tenant_id,
+    external_org_name, connection_kind, status, established_at, updated_at
+) VALUES ($1, $2, $3, $4, $5, $6, 'active', $7::timestamptz, $7::timestamptz)
+ON CONFLICT (tenant_id, organization_id, connection_id) DO NOTHING
+"#;
 
-/// Materialize newly committed social events on a caller-owned transaction.
+const EXTERNAL_CONNECTION_MATCH_SQL: &str = r#"
+SELECT EXISTS (
+    SELECT 1
+    FROM im_external_connections
+    WHERE tenant_id = $1
+      AND organization_id = $2
+      AND connection_id = $3
+      AND external_tenant_id = $4
+      AND external_org_name IS NOT DISTINCT FROM $5
+      AND connection_kind = $6
+      AND status = 'active'
+      AND established_at = $7::timestamptz
+)
+"#;
+
+const EXTERNAL_MEMBER_LINK_INSERT_SQL: &str = r#"
+INSERT INTO im_external_member_links (
+    tenant_id, organization_id, link_id, connection_id, local_actor_kind,
+    local_actor_id, external_member_id, external_display_name, status,
+    linked_at, updated_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9::timestamptz, $9::timestamptz)
+ON CONFLICT (tenant_id, organization_id, link_id) DO NOTHING
+"#;
+
+const EXTERNAL_MEMBER_LINK_MATCH_SQL: &str = r#"
+SELECT EXISTS (
+    SELECT 1
+    FROM im_external_member_links
+    WHERE tenant_id = $1
+      AND organization_id = $2
+      AND link_id = $3
+      AND connection_id = $4
+      AND local_actor_kind = $5
+      AND local_actor_id = $6
+      AND external_member_id = $7
+      AND external_display_name IS NOT DISTINCT FROM $8
+      AND status = 'active'
+      AND linked_at = $9::timestamptz
+)
+"#;
+
+const SHARED_CHANNEL_POLICY_INSERT_SQL: &str = r#"
+INSERT INTO im_shared_channel_policies (
+    tenant_id, organization_id, policy_id, connection_id, channel_id,
+    conversation_id, policy_version, history_visibility, status,
+    applied_at, updated_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9::timestamptz, $9::timestamptz)
+ON CONFLICT (tenant_id, organization_id, policy_id) DO NOTHING
+"#;
+
+const SHARED_CHANNEL_POLICY_MATCH_SQL: &str = r#"
+SELECT EXISTS (
+    SELECT 1
+    FROM im_shared_channel_policies
+    WHERE tenant_id = $1
+      AND organization_id = $2
+      AND policy_id = $3
+      AND connection_id = $4
+      AND channel_id = $5
+      AND conversation_id IS NOT DISTINCT FROM $6
+      AND policy_version = $7
+      AND history_visibility = $8
+      AND status = 'active'
+      AND applied_at = $9::timestamptz
+)
+"#;
+
+/// Write newly committed Social state changes on a caller-owned transaction.
 ///
 /// The online PostgreSQL write authority uses this entrypoint so journal rows and
-/// the relational social read model commit or roll back as one database unit.
+/// normalized Social rows commit or roll back as one database unit.
 pub fn materialize_commits_on_transaction(
     txn: &mut postgres::Transaction<'_>,
     commits: &[CommitEnvelope],
@@ -148,7 +198,12 @@ fn materialize_commit_on(
         "user_block.blocked" => materialize_user_blocked(txn, commit),
         "user_block.released" => materialize_user_block_released(txn, commit),
         "direct_chat.bound" => materialize_direct_chat_bound(txn, commit),
-        _ => Ok(()),
+        "external_connection.established" => materialize_external_connection(txn, commit),
+        "external_member_link.bound" => materialize_external_member_link(txn, commit),
+        "shared_channel_policy.applied" => materialize_shared_channel_policy(txn, commit),
+        event_type => Err(format!(
+            "unsupported social normalized write event type {event_type}"
+        )),
     }
 }
 
@@ -167,7 +222,7 @@ fn materialize_friend_request_submitted(
         &[
             &commit.tenant_id,
             &commit.organization_id,
-            &social_entity_id_to_i64(payload.request_id.as_str()),
+            &social_entity_id(payload.request_id.as_str())?,
             &payload.requester_user_id,
             &payload.target_user_id,
             &payload.request_message,
@@ -186,15 +241,13 @@ fn materialize_friend_request_status(
     commit: &CommitEnvelope,
     status: &str,
 ) -> Result<(), String> {
-    let (request_id, requester_user_id, target_user_id, updated_at) = match status {
+    let (request_id, updated_at) = match status {
         "accepted" => {
             let payload: FriendRequestAcceptedPayload =
                 serde_json::from_str(commit.payload.as_str())
                     .map_err(|error| format!("invalid friend_request.accepted payload: {error}"))?;
             (
-                social_entity_id_to_i64(payload.request_id.as_str()),
-                payload.requester_user_id,
-                payload.target_user_id,
+                social_entity_id(payload.request_id.as_str())?,
                 payload.accepted_at,
             )
         }
@@ -203,9 +256,7 @@ fn materialize_friend_request_status(
                 serde_json::from_str(commit.payload.as_str())
                     .map_err(|error| format!("invalid friend_request.declined payload: {error}"))?;
             (
-                social_entity_id_to_i64(commit.aggregate_id.as_str()),
-                payload.requester_user_id,
-                payload.target_user_id,
+                social_entity_id(commit.aggregate_id.as_str())?,
                 payload.declined_at,
             )
         }
@@ -214,9 +265,7 @@ fn materialize_friend_request_status(
                 serde_json::from_str(commit.payload.as_str())
                     .map_err(|error| format!("invalid friend_request.canceled payload: {error}"))?;
             (
-                social_entity_id_to_i64(commit.aggregate_id.as_str()),
-                payload.requester_user_id,
-                payload.target_user_id,
+                social_entity_id(commit.aggregate_id.as_str())?,
                 payload.canceled_at,
             )
         }
@@ -225,9 +274,7 @@ fn materialize_friend_request_status(
                 serde_json::from_str(commit.payload.as_str())
                     .map_err(|error| format!("invalid friend_request.expired payload: {error}"))?;
             (
-                social_entity_id_to_i64(commit.aggregate_id.as_str()),
-                payload.requester_user_id,
-                payload.target_user_id,
+                social_entity_id(commit.aggregate_id.as_str())?,
                 payload.expired_at,
             )
         }
@@ -240,8 +287,6 @@ fn materialize_friend_request_status(
         request_id,
         status,
         updated_at.as_str(),
-        requester_user_id.as_str(),
-        target_user_id.as_str(),
     )
 }
 
@@ -253,8 +298,6 @@ fn update_friend_request_status_idempotent(
     request_id: i64,
     status: &str,
     updated_at: &str,
-    requester_user_id: &str,
-    target_user_id: &str,
 ) -> Result<(), String> {
     let updated_at_ts = social_materialize_timestamptz(updated_at, "updated_at")?;
     let updated = txn
@@ -289,46 +332,9 @@ fn update_friend_request_status_idempotent(
                 ))
             }
         }
-        None => {
-            // Legacy or incomplete supplemental stores may not have the originating
-            // submitted row. Backfill it from the terminal commit payload so the
-            // accept/decline/cancel/expire materialization can complete instead of
-            // blocking the write.
-            if requester_user_id.trim().is_empty() || target_user_id.trim().is_empty() {
-                return Err(format!(
-                    "friend_request {request_id} not found for status update and terminal payload lacks participant ids for backfill"
-                ));
-            }
-            tracing::warn!(
-                request_id = request_id,
-                status = status,
-                "friend request row missing in supplemental store; backfilling from terminal commit"
-            );
-            let tenant = tenant_id.to_string();
-            let org = organization_id.to_string();
-            let requester = requester_user_id.to_string();
-            let target = target_user_id.to_string();
-            let request_message: Option<String> = None;
-            let expired_at: Option<chrono::DateTime<chrono::Utc>> = None;
-            let status_value = status.to_string();
-            txn.execute(
-                FRIEND_REQUEST_INSERT_SQL,
-                &[
-                    &tenant,
-                    &org,
-                    &request_id,
-                    &requester,
-                    &target,
-                    &request_message,
-                    &status_value,
-                    &expired_at,
-                    &updated_at_ts,
-                    &updated_at_ts,
-                ],
-            )
-            .map_err(|error| format!("friend_request backfill insert failed: {error}"))
-            .map(|_| ())
-        }
+        None => Err(format!(
+            "friend_request {request_id} does not exist in normalized PostgreSQL state"
+        )),
     }
 }
 
@@ -348,7 +354,7 @@ fn materialize_friendship_activated(
         &[
             &commit.tenant_id,
             &commit.organization_id,
-            &social_entity_id_to_i64(payload.friendship_id.as_str()),
+            &social_entity_id(payload.friendship_id.as_str())?,
             &payload.user_low_id,
             &payload.user_high_id,
             &payload.initiator_user_id,
@@ -374,7 +380,7 @@ fn materialize_friendship_removed(
             &[
                 &commit.tenant_id,
                 &commit.organization_id,
-                &social_entity_id_to_i64(payload.friendship_id.as_str()),
+                &social_entity_id(payload.friendship_id.as_str())?,
                 &"removed".to_string(),
                 &removed_at,
             ],
@@ -399,19 +405,21 @@ fn materialize_user_blocked(
         social_materialize_optional_timestamptz(payload.expires_at.as_deref(), "expires_at")?;
     let effective_at =
         social_materialize_timestamptz(payload.effective_at.as_str(), "effective_at")?;
+    let direct_chat_id = payload
+        .direct_chat_id
+        .as_deref()
+        .map(social_entity_id)
+        .transpose()?;
     txn.execute(
         USER_BLOCK_INSERT_SQL,
         &[
             &commit.tenant_id,
             &commit.organization_id,
-            &social_entity_id_to_i64(payload.block_id.as_str()),
+            &social_entity_id(payload.block_id.as_str())?,
             &payload.blocker_user_id,
             &payload.blocked_user_id,
             &payload.scope,
-            &payload
-                .direct_chat_id
-                .as_deref()
-                .map(social_entity_id_to_i64),
+            &direct_chat_id,
             &None::<String>,
             &expires_at,
             &effective_at,
@@ -433,7 +441,7 @@ fn materialize_user_block_released(
         &[
             &commit.tenant_id,
             &commit.organization_id,
-            &social_entity_id_to_i64(payload.block_id.as_str()),
+            &social_entity_id(payload.block_id.as_str())?,
             &payload.blocker_user_id,
         ],
     )
@@ -453,7 +461,7 @@ fn materialize_direct_chat_bound(
         &[
             &commit.tenant_id,
             &commit.organization_id,
-            &social_entity_id_to_i64(payload.direct_chat_id.as_str()),
+            &social_entity_id(payload.direct_chat_id.as_str())?,
             &"user".to_string(),
             &payload.left_actor_id,
             &"user".to_string(),
@@ -467,4 +475,118 @@ fn materialize_direct_chat_bound(
     )
     .map_err(|error| format!("direct_chat insert failed: {error}"))
     .map(|_| ())
+}
+
+fn materialize_external_connection(
+    txn: &mut postgres::Transaction<'_>,
+    commit: &CommitEnvelope,
+) -> Result<(), String> {
+    let payload: ExternalConnectionEstablishedPayload =
+        serde_json::from_str(commit.payload.as_str())
+            .map_err(|error| format!("invalid external_connection.established payload: {error}"))?;
+    let connection_id = social_entity_id(payload.connection_id.as_str())?;
+    let established_at =
+        social_materialize_timestamptz(payload.established_at.as_str(), "established_at")?;
+    let params: [&(dyn postgres::types::ToSql + Sync); 7] = [
+        &commit.tenant_id,
+        &commit.organization_id,
+        &connection_id,
+        &payload.external_tenant_id,
+        &payload.external_org_name,
+        &payload.connection_kind,
+        &established_at,
+    ];
+    txn.execute(EXTERNAL_CONNECTION_INSERT_SQL, &params)
+        .map_err(|error| format!("external_connection insert failed: {error}"))?;
+    ensure_normalized_row_matches(
+        txn,
+        EXTERNAL_CONNECTION_MATCH_SQL,
+        &params,
+        "external_connection",
+        payload.connection_id.as_str(),
+    )
+}
+
+fn materialize_external_member_link(
+    txn: &mut postgres::Transaction<'_>,
+    commit: &CommitEnvelope,
+) -> Result<(), String> {
+    let payload: ExternalMemberLinkBoundPayload = serde_json::from_str(commit.payload.as_str())
+        .map_err(|error| format!("invalid external_member_link.bound payload: {error}"))?;
+    let link_id = social_entity_id(payload.link_id.as_str())?;
+    let connection_id = social_entity_id(payload.connection_id.as_str())?;
+    let linked_at = social_materialize_timestamptz(payload.linked_at.as_str(), "linked_at")?;
+    let params: [&(dyn postgres::types::ToSql + Sync); 9] = [
+        &commit.tenant_id,
+        &commit.organization_id,
+        &link_id,
+        &connection_id,
+        &payload.local_actor_kind,
+        &payload.local_actor_id,
+        &payload.external_member_id,
+        &payload.external_display_name,
+        &linked_at,
+    ];
+    txn.execute(EXTERNAL_MEMBER_LINK_INSERT_SQL, &params)
+        .map_err(|error| format!("external_member_link insert failed: {error}"))?;
+    ensure_normalized_row_matches(
+        txn,
+        EXTERNAL_MEMBER_LINK_MATCH_SQL,
+        &params,
+        "external_member_link",
+        payload.link_id.as_str(),
+    )
+}
+
+fn materialize_shared_channel_policy(
+    txn: &mut postgres::Transaction<'_>,
+    commit: &CommitEnvelope,
+) -> Result<(), String> {
+    let payload: SharedChannelPolicyAppliedPayload = serde_json::from_str(commit.payload.as_str())
+        .map_err(|error| format!("invalid shared_channel_policy.applied payload: {error}"))?;
+    let policy_id = social_entity_id(payload.policy_id.as_str())?;
+    let connection_id = social_entity_id(payload.connection_id.as_str())?;
+    let policy_version = i64::try_from(payload.policy_version)
+        .map_err(|_| "shared_channel_policy policy_version exceeds PostgreSQL BIGINT".to_owned())?;
+    let applied_at = social_materialize_timestamptz(payload.applied_at.as_str(), "applied_at")?;
+    let params: [&(dyn postgres::types::ToSql + Sync); 9] = [
+        &commit.tenant_id,
+        &commit.organization_id,
+        &policy_id,
+        &connection_id,
+        &payload.channel_id,
+        &payload.conversation_id,
+        &policy_version,
+        &payload.history_visibility,
+        &applied_at,
+    ];
+    txn.execute(SHARED_CHANNEL_POLICY_INSERT_SQL, &params)
+        .map_err(|error| format!("shared_channel_policy insert failed: {error}"))?;
+    ensure_normalized_row_matches(
+        txn,
+        SHARED_CHANNEL_POLICY_MATCH_SQL,
+        &params,
+        "shared_channel_policy",
+        payload.policy_id.as_str(),
+    )
+}
+
+fn ensure_normalized_row_matches(
+    txn: &mut postgres::Transaction<'_>,
+    query: &str,
+    params: &[&(dyn postgres::types::ToSql + Sync)],
+    resource: &str,
+    resource_id: &str,
+) -> Result<(), String> {
+    let matches: bool = txn
+        .query_one(query, params)
+        .map_err(|error| format!("{resource} idempotency verification failed: {error}"))?
+        .get(0);
+    if matches {
+        Ok(())
+    } else {
+        Err(format!(
+            "{resource} {resource_id} conflicts with the normalized PostgreSQL row"
+        ))
+    }
 }

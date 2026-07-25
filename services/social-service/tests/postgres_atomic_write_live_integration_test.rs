@@ -2,7 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use im_adapters_postgres_journal::PostgresJournalConfig;
 use im_adapters_social_postgres::{
-    materialize_commits_on_transaction, wire_id::social_entity_id_to_i64,
+    materialize_commits_on_transaction, wire_id::parse_social_entity_id,
 };
 use im_platform_contracts::{CommitEnvelope, ContractError};
 use postgres::{Client, NoTls};
@@ -12,7 +12,7 @@ const CORE_SCHEMA_SQL: &str =
     include_str!("../../../database/ddl/baseline/postgres/0001_im_baseline.sql");
 
 #[test]
-fn social_journal_and_read_model_roll_back_together_when_materialization_fails() {
+fn social_journal_and_normalized_row_roll_back_together_when_write_fails() {
     let Some(database_url) = std::env::var(POSTGRES_TEST_DATABASE_URL_ENV)
         .ok()
         .filter(|value| !value.trim().is_empty())
@@ -34,9 +34,12 @@ fn social_journal_and_read_model_roll_back_together_when_materialization_fails()
         .expect("social journal should connect to live PostgreSQL");
     let suffix = unique_suffix();
     let tenant_id = format!("tenant_social_atomic_{suffix}");
-    let request_id = format!("friend_request_atomic_{suffix}");
+    let request_id = i64::try_from(suffix)
+        .expect("current epoch nanoseconds should fit a signed int64")
+        .to_string();
     let event_id = format!("evt_friend_request_atomic_{suffix}");
-    let request_db_id = social_entity_id_to_i64(request_id.as_str());
+    let request_db_id = parse_social_entity_id(request_id.as_str())
+        .expect("generated request id should be canonical");
     let commit =
         friend_request_submitted_commit(event_id.as_str(), tenant_id.as_str(), request_id.as_str());
 
@@ -81,7 +84,7 @@ fn social_journal_and_read_model_roll_back_together_when_materialization_fails()
         .append_batch_with_allocated_sequences_in_transaction(vec![commit], |txn, inserted| {
             materialize_commits_on_transaction(txn, inserted)
         })
-        .expect("social journal and read model should commit together");
+        .expect("social journal and normalized row should commit together");
     let committed_row = verification
         .query_one(
             "select \
@@ -98,7 +101,7 @@ fn social_journal_and_read_model_roll_back_together_when_materialization_fails()
             "delete from im_friend_requests where tenant_id = $1 and organization_id = '0' and request_id = $2",
             &[&tenant_id, &request_db_id],
         )
-        .expect("social atomicity read-model row should be cleaned up");
+        .expect("social atomicity normalized row should be cleaned up");
     verification
         .execute(
             "delete from im_commit_journal where event_id = $1",

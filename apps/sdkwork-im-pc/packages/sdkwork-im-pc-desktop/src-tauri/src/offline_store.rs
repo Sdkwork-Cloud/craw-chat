@@ -1,23 +1,31 @@
-//! Principal-scoped, bounded desktop offline cache backed by SQLite.
+//! Scope-bound, encrypted desktop cache and resumable pending-send queue.
 
-use std::fs;
-use std::path::{Path, PathBuf};
+mod crypto;
+mod database;
+
 use std::sync::Mutex;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
-const OFFLINE_DB_FILE: &str = "offline-im-cache.sqlite";
-const OFFLINE_SCHEMA_VERSION: i64 = 3;
+use crypto::{payload_hash, PayloadCipher};
+#[cfg(test)]
+use database::OFFLINE_SCHEMA_VERSION;
+use database::{
+    open_scoped_database, remove_legacy_unscoped_database, scope_fingerprint, OfflineDatabase,
+};
+
 const DEFAULT_PAGE_LIMIT: usize = 20;
 const MAX_PAGE_LIMIT: usize = 200;
 const MAX_WRITE_BATCH: usize = 200;
 const MAX_BATCH_PAYLOAD_BYTES: usize = 16 * 1024 * 1024;
 const MAX_RECORD_PAYLOAD_BYTES: usize = 2 * 1024 * 1024;
 const MAX_CURSOR_BYTES: usize = 64 * 1024;
+const MAX_TIMESTAMP_BYTES: usize = 64;
 const PENDING_SEND_CLAIM_LEASE_MS: i64 = 60_000;
+const MAX_PENDING_SEND_ATTEMPTS: i64 = 20;
 const MAX_PENDING_SEND_ROWS_PER_SCOPE: i64 = 10_000;
 const MAX_PENDING_SEND_BYTES_PER_SCOPE: i64 = 64 * 1024 * 1024;
 
@@ -45,6 +53,16 @@ struct CachePolicy {
     cursor_byte_budget: i64,
 }
 
+#[derive(Clone, Copy)]
+struct CacheTablePolicy {
+    table: &'static str,
+    payload_column: &'static str,
+    identity_columns: &'static str,
+    newest_order: &'static str,
+    row_limit: i64,
+    byte_budget: i64,
+}
+
 const OFFLINE_CACHE_POLICY: CachePolicy = CachePolicy {
     retention_ms: 30 * 24 * 60 * 60 * 1_000,
     conversation_row_limit: 10_000,
@@ -55,13 +73,18 @@ const OFFLINE_CACHE_POLICY: CachePolicy = CachePolicy {
     cursor_byte_budget: 1024 * 1024,
 };
 
-static OFFLINE_DB: Mutex<Option<Connection>> = Mutex::new(None);
+static OFFLINE_DB: Mutex<Option<OfflineDatabase>> = Mutex::new(None);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OfflinePrincipalScope {
+    pub environment: String,
+    pub deployment_profile: String,
+    pub deployment_mode: String,
+    pub api_origin: String,
     pub tenant_id: String,
     pub organization_id: String,
+    pub account_id: String,
     pub principal_kind: String,
     pub principal_id: String,
 }
@@ -97,14 +120,6 @@ pub struct OfflinePendingSendRecord {
     pub attempt_count: i64,
 }
 
-fn offline_db_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("resolve app data dir failed: {error}"))?;
-    Ok(app_data_dir.join(OFFLINE_DB_FILE))
-}
-
 fn unix_epoch_millis() -> Result<i64, String> {
     let millis = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -122,22 +137,20 @@ fn validate_identifier(field: &str, value: &str) -> Result<(), String> {
 }
 
 fn validate_scope(scope: &OfflinePrincipalScope) -> Result<(), String> {
-    validate_identifier("tenantId", scope.tenant_id.as_str())?;
-    validate_identifier("organizationId", scope.organization_id.as_str())?;
-    validate_identifier("principalId", scope.principal_id.as_str())?;
-    if !matches!(
-        scope.principal_kind.as_str(),
-        "user" | "agent" | "system" | "service"
-    ) {
-        return Err("principalKind must be user, agent, system, or service".into());
-    }
-    Ok(())
+    scope_fingerprint(scope).map(|_| ())
 }
 
 fn validate_payload(field: &str, value: &str, max_bytes: usize) -> Result<(), String> {
     if value.len() > max_bytes {
         return Err(format!("{field} exceeds the {max_bytes} byte limit"));
     }
+    Ok(())
+}
+
+fn validate_timestamp(field: &str, value: &str) -> Result<(), String> {
+    validate_payload(field, value, MAX_TIMESTAMP_BYTES)?;
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map_err(|_| format!("{field} must be an RFC 3339 timestamp"))?;
     Ok(())
 }
 
@@ -157,203 +170,6 @@ fn validate_write_batch<T>(records: &[T], payload_bytes: usize) -> Result<(), St
 
 fn normalize_limit(limit: Option<usize>) -> i64 {
     limit.unwrap_or(DEFAULT_PAGE_LIMIT).clamp(1, MAX_PAGE_LIMIT) as i64
-}
-
-fn initialize_offline_schema(connection: &Connection) -> Result<(), String> {
-    let version = connection
-        .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
-        .map_err(|error| format!("read offline sqlite schema version failed: {error}"))?;
-    if version > OFFLINE_SCHEMA_VERSION {
-        return Err(format!(
-            "offline sqlite schema version {version} is newer than supported version {OFFLINE_SCHEMA_VERSION}"
-        ));
-    }
-
-    if version < 2 {
-        // The application is pre-launch. Legacy rows lack organization and principal
-        // ownership, so assigning them to the current account would cross security
-        // boundaries. Rebuild fail-closed instead of guessing ownership.
-        connection
-            .execute_batch(
-                r#"
-                DROP TABLE IF EXISTS offline_pending_sends;
-                DROP TABLE IF EXISTS offline_sync_cursors;
-                DROP TABLE IF EXISTS offline_messages;
-                DROP TABLE IF EXISTS offline_conversations;
-                PRAGMA auto_vacuum = INCREMENTAL;
-                VACUUM;
-                "#,
-            )
-            .map_err(|error| format!("rebuild legacy offline sqlite schema failed: {error}"))?;
-    }
-
-    if version == 2 {
-        with_immediate_transaction(connection, |connection| {
-            connection
-                .execute_batch(
-                    r#"
-                    ALTER TABLE offline_pending_sends
-                        ADD COLUMN queue_status TEXT NOT NULL DEFAULT 'pending'
-                            CHECK (queue_status IN ('pending', 'quarantined'));
-                    ALTER TABLE offline_pending_sends
-                        ADD COLUMN quarantine_reason TEXT;
-                    ALTER TABLE offline_pending_sends
-                        ADD COLUMN quarantined_at_ms INTEGER;
-                    PRAGMA user_version = 3;
-                    "#,
-                )
-                .map_err(|error| {
-                    format!("migrate offline sqlite schema v2 to v3 failed: {error}")
-                })?;
-            Ok(())
-        })?;
-    }
-
-    connection
-        .execute_batch(
-            r#"
-            CREATE TABLE IF NOT EXISTS offline_conversations (
-                tenant_id TEXT NOT NULL,
-                organization_id TEXT NOT NULL,
-                principal_kind TEXT NOT NULL,
-                principal_id TEXT NOT NULL,
-                conversation_id TEXT NOT NULL,
-                payload_json TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                cached_at_ms INTEGER NOT NULL,
-                PRIMARY KEY (
-                    tenant_id, organization_id, principal_kind, principal_id, conversation_id
-                )
-            );
-            CREATE INDEX IF NOT EXISTS idx_offline_conversations_scope_updated
-                ON offline_conversations (
-                    tenant_id, organization_id, principal_kind, principal_id,
-                    cached_at_ms DESC, conversation_id
-                );
-
-            CREATE TABLE IF NOT EXISTS offline_messages (
-                tenant_id TEXT NOT NULL,
-                organization_id TEXT NOT NULL,
-                principal_kind TEXT NOT NULL,
-                principal_id TEXT NOT NULL,
-                conversation_id TEXT NOT NULL,
-                message_seq INTEGER NOT NULL CHECK (message_seq > 0),
-                message_id TEXT NOT NULL,
-                payload_json TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                cached_at_ms INTEGER NOT NULL,
-                PRIMARY KEY (
-                    tenant_id, organization_id, principal_kind, principal_id,
-                    conversation_id, message_seq
-                )
-            );
-            CREATE INDEX IF NOT EXISTS idx_offline_messages_scope_conversation_seq
-                ON offline_messages (
-                    tenant_id, organization_id, principal_kind, principal_id,
-                    conversation_id, message_seq DESC
-                );
-            CREATE INDEX IF NOT EXISTS idx_offline_messages_scope_cached
-                ON offline_messages (
-                    tenant_id, organization_id, principal_kind, principal_id,
-                    cached_at_ms, message_seq
-                );
-
-            CREATE TABLE IF NOT EXISTS offline_sync_cursors (
-                tenant_id TEXT NOT NULL,
-                organization_id TEXT NOT NULL,
-                principal_kind TEXT NOT NULL,
-                principal_id TEXT NOT NULL,
-                cursor_scope TEXT NOT NULL,
-                cursor_json TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                cached_at_ms INTEGER NOT NULL,
-                PRIMARY KEY (
-                    tenant_id, organization_id, principal_kind, principal_id, cursor_scope
-                )
-            );
-            CREATE INDEX IF NOT EXISTS idx_offline_sync_cursors_scope_cached
-                ON offline_sync_cursors (
-                    tenant_id, organization_id, principal_kind, principal_id, cached_at_ms
-                );
-
-            CREATE TABLE IF NOT EXISTS offline_pending_sends (
-                tenant_id TEXT NOT NULL,
-                organization_id TEXT NOT NULL,
-                principal_kind TEXT NOT NULL,
-                principal_id TEXT NOT NULL,
-                client_msg_id TEXT NOT NULL,
-                conversation_id TEXT NOT NULL,
-                payload_json TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                created_at_ms INTEGER NOT NULL,
-                attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
-                flush_claim_id TEXT,
-                flush_claimed_at_ms INTEGER,
-                flush_claim_expires_at_ms INTEGER,
-                queue_status TEXT NOT NULL DEFAULT 'pending'
-                    CHECK (queue_status IN ('pending', 'quarantined')),
-                quarantine_reason TEXT,
-                quarantined_at_ms INTEGER,
-                PRIMARY KEY (
-                    tenant_id, organization_id, principal_kind, principal_id, client_msg_id
-                ),
-                CHECK (
-                    (flush_claim_id IS NULL AND flush_claimed_at_ms IS NULL AND flush_claim_expires_at_ms IS NULL)
-                    OR
-                    (flush_claim_id IS NOT NULL AND flush_claimed_at_ms IS NOT NULL AND flush_claim_expires_at_ms IS NOT NULL)
-                ),
-                CHECK (
-                    (queue_status = 'pending' AND quarantine_reason IS NULL AND quarantined_at_ms IS NULL)
-                    OR
-                    (queue_status = 'quarantined' AND quarantine_reason IS NOT NULL AND quarantined_at_ms IS NOT NULL
-                        AND flush_claim_id IS NULL AND flush_claimed_at_ms IS NULL AND flush_claim_expires_at_ms IS NULL)
-                )
-            );
-            CREATE INDEX IF NOT EXISTS idx_offline_pending_sends_scope_created
-                ON offline_pending_sends (
-                    tenant_id, organization_id, principal_kind, principal_id,
-                    created_at_ms, client_msg_id
-                );
-            CREATE INDEX IF NOT EXISTS idx_offline_pending_sends_scope_claim
-                ON offline_pending_sends (
-                    tenant_id, organization_id, principal_kind, principal_id,
-                    flush_claim_expires_at_ms, flush_claim_id
-                );
-            CREATE INDEX IF NOT EXISTS idx_offline_pending_sends_scope_status_created
-                ON offline_pending_sends (
-                    tenant_id, organization_id, principal_kind, principal_id,
-                    queue_status, created_at_ms, client_msg_id
-                );
-
-            PRAGMA user_version = 3;
-            "#,
-        )
-        .map_err(|error| format!("initialize offline sqlite schema failed: {error}"))?;
-    Ok(())
-}
-
-fn open_connection(path: &Path) -> Result<Connection, String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|error| format!("create offline db parent dir failed: {error}"))?;
-    }
-    let connection = Connection::open(path)
-        .map_err(|error| format!("open offline sqlite db failed: {error}"))?;
-    connection
-        .busy_timeout(Duration::from_secs(5))
-        .map_err(|error| format!("configure offline sqlite busy timeout failed: {error}"))?;
-    connection
-        .execute_batch(
-            r#"
-            PRAGMA journal_mode = WAL;
-            PRAGMA synchronous = NORMAL;
-            PRAGMA foreign_keys = ON;
-            PRAGMA wal_autocheckpoint = 1000;
-            "#,
-        )
-        .map_err(|error| format!("configure offline sqlite connection failed: {error}"))?;
-    initialize_offline_schema(&connection)?;
-    Ok(connection)
 }
 
 fn with_immediate_transaction<R>(
@@ -380,29 +196,44 @@ fn with_immediate_transaction<R>(
 
 fn with_connection<R>(
     app: &AppHandle,
-    operation: impl FnOnce(&Connection) -> Result<R, String>,
+    scope: &OfflinePrincipalScope,
+    operation: impl FnOnce(&OfflineDatabase) -> Result<R, String>,
 ) -> Result<R, String> {
-    let path = offline_db_path(app)?;
+    validate_scope(scope)?;
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("resolve app data dir failed: {error}"))?;
+    let fingerprint = scope_fingerprint(scope)?;
     let mut guard = OFFLINE_DB
         .lock()
-        .map_err(|_| "offline db mutex poisoned".to_owned())?;
-    if guard.is_none() {
-        *guard = Some(open_connection(path.as_path())?);
-    }
-    let connection = guard
+        .map_err(|_| "client-local database mutex poisoned".to_owned())?;
+    let requires_open = guard
         .as_ref()
-        .ok_or_else(|| "offline db connection unavailable".to_owned())?;
-    operation(connection)
+        .is_none_or(|database| database.scope_fingerprint != fingerprint);
+    if requires_open {
+        *guard = None;
+        remove_legacy_unscoped_database(app_data_dir.as_path())?;
+        *guard = Some(open_scoped_database(app_data_dir.as_path(), scope)?);
+    }
+    let database = guard
+        .as_ref()
+        .ok_or_else(|| "client-local database connection unavailable".to_owned())?;
+    operation(database)
 }
 
-async fn with_connection_blocking<R, F>(app: AppHandle, operation: F) -> Result<R, String>
+async fn with_scoped_connection_blocking<R, F>(
+    app: AppHandle,
+    scope: OfflinePrincipalScope,
+    operation: F,
+) -> Result<R, String>
 where
     R: Send + 'static,
-    F: FnOnce(&Connection) -> Result<R, String> + Send + 'static,
+    F: FnOnce(&OfflineDatabase) -> Result<R, String> + Send + 'static,
 {
-    tauri::async_runtime::spawn_blocking(move || with_connection(&app, operation))
+    tauri::async_runtime::spawn_blocking(move || with_connection(&app, &scope, operation))
         .await
-        .map_err(|error| format!("offline sqlite blocking task failed: {error}"))?
+        .map_err(|error| format!("client-local sqlite blocking task failed: {error}"))?
 }
 
 fn enforce_cache_policy(
@@ -413,9 +244,9 @@ fn enforce_cache_policy(
 ) -> Result<(), String> {
     let cutoff_ms = now_ms.saturating_sub(policy.retention_ms);
     for table in [
-        "offline_messages",
-        "offline_conversations",
-        "offline_sync_cursors",
+        "im_local_message_cache",
+        "im_local_conversation_cache",
+        "im_local_cache_cursor",
     ] {
         connection
             .execute(
@@ -437,29 +268,40 @@ fn enforce_cache_policy(
     trim_cache_table(
         connection,
         scope,
-        "offline_messages",
-        "payload_json",
-        "cached_at_ms DESC, message_seq DESC",
-        policy.message_row_limit,
-        policy.message_byte_budget,
+        CacheTablePolicy {
+            table: "im_local_message_cache",
+            payload_column: "payload_ciphertext",
+            identity_columns: "tenant_id, organization_id, principal_kind, principal_id, conversation_id, message_seq",
+            newest_order: "cached_at_ms DESC, message_seq DESC",
+            row_limit: policy.message_row_limit,
+            byte_budget: policy.message_byte_budget,
+        },
     )?;
     trim_cache_table(
         connection,
         scope,
-        "offline_conversations",
-        "payload_json",
-        "cached_at_ms DESC, conversation_id DESC",
-        policy.conversation_row_limit,
-        policy.conversation_byte_budget,
+        CacheTablePolicy {
+            table: "im_local_conversation_cache",
+            payload_column: "payload_ciphertext",
+            identity_columns:
+                "tenant_id, organization_id, principal_kind, principal_id, conversation_id",
+            newest_order: "cached_at_ms DESC, conversation_id DESC",
+            row_limit: policy.conversation_row_limit,
+            byte_budget: policy.conversation_byte_budget,
+        },
     )?;
     trim_cache_table(
         connection,
         scope,
-        "offline_sync_cursors",
-        "cursor_json",
-        "cached_at_ms DESC, cursor_scope DESC",
-        policy.cursor_row_limit,
-        policy.cursor_byte_budget,
+        CacheTablePolicy {
+            table: "im_local_cache_cursor",
+            payload_column: "cursor_ciphertext",
+            identity_columns:
+                "tenant_id, organization_id, principal_kind, principal_id, cursor_scope",
+            newest_order: "cached_at_ms DESC, cursor_scope DESC",
+            row_limit: policy.cursor_row_limit,
+            byte_budget: policy.cursor_byte_budget,
+        },
     )?;
     Ok(())
 }
@@ -467,16 +309,20 @@ fn enforce_cache_policy(
 fn trim_cache_table(
     connection: &Connection,
     scope: &OfflinePrincipalScope,
-    table: &str,
-    payload_column: &str,
-    newest_order: &str,
-    row_limit: i64,
-    byte_budget: i64,
+    policy: CacheTablePolicy,
 ) -> Result<(), String> {
+    let CacheTablePolicy {
+        table,
+        payload_column,
+        identity_columns,
+        newest_order,
+        row_limit,
+        byte_budget,
+    } = policy;
     let sql = format!(
         r#"
         WITH ranked AS (
-            SELECT rowid,
+            SELECT {identity_columns},
                    ROW_NUMBER() OVER (ORDER BY {newest_order}) AS row_number,
                    SUM(LENGTH(CAST({payload_column} AS BLOB)))
                        OVER (ORDER BY {newest_order}) AS cumulative_bytes
@@ -487,8 +333,8 @@ fn trim_cache_table(
               AND principal_id = ?4
         )
         DELETE FROM {table}
-        WHERE rowid IN (
-            SELECT rowid FROM ranked
+        WHERE ({identity_columns}) IN (
+            SELECT {identity_columns} FROM ranked
             WHERE row_number > ?5 OR cumulative_bytes > ?6
         )
         "#
@@ -511,6 +357,7 @@ fn trim_cache_table(
 
 fn list_messages_for_scope(
     connection: &Connection,
+    cipher: &PayloadCipher,
     scope: &OfflinePrincipalScope,
     conversation_id: &str,
     before_seq: Option<i64>,
@@ -524,8 +371,8 @@ fn list_messages_for_scope(
     let mut statement = connection
         .prepare(
             r#"
-            SELECT conversation_id, message_seq, message_id, payload_json, updated_at
-            FROM offline_messages
+            SELECT conversation_id, message_seq, message_id, payload_ciphertext, updated_at
+            FROM im_local_message_cache
             WHERE tenant_id = ?1
               AND organization_id = ?2
               AND principal_kind = ?3
@@ -549,40 +396,83 @@ fn list_messages_for_scope(
                 limit
             ],
             |row| {
-                Ok(OfflineMessageRecord {
-                    scope: scope.clone(),
-                    conversation_id: row.get(0)?,
-                    message_seq: row.get(1)?,
-                    message_id: row.get(2)?,
-                    payload_json: row.get(3)?,
-                    updated_at: row.get(4)?,
-                })
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                ))
             },
         )
         .map_err(|error| format!("query offline messages failed: {error}"))?;
-    let mut items = rows
+    let encrypted_items = rows
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| format!("collect offline messages failed: {error}"))?;
+    let mut items = encrypted_items
+        .into_iter()
+        .map(
+            |(conversation_id, message_seq, message_id, ciphertext, updated_at)| {
+                let record_key = format!("{conversation_id}:{message_seq}");
+                Ok(OfflineMessageRecord {
+                    scope: scope.clone(),
+                    conversation_id,
+                    message_seq,
+                    message_id,
+                    payload_json: cipher.decrypt_json(
+                        "message-cache",
+                        record_key.as_str(),
+                        ciphertext.as_str(),
+                    )?,
+                    updated_at,
+                })
+            },
+        )
+        .collect::<Result<Vec<_>, String>>()?;
     items.reverse();
     Ok(items)
 }
 
 fn map_pending_send_row(
     row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<(String, String, String, String, i64)> {
+    Ok((
+        row.get(0)?,
+        row.get(1)?,
+        row.get(2)?,
+        row.get(3)?,
+        row.get(4)?,
+    ))
+}
+
+fn decrypt_pending_send_rows(
+    cipher: &PayloadCipher,
     scope: &OfflinePrincipalScope,
-) -> rusqlite::Result<OfflinePendingSendRecord> {
-    Ok(OfflinePendingSendRecord {
-        scope: scope.clone(),
-        client_msg_id: row.get(0)?,
-        conversation_id: row.get(1)?,
-        payload_json: row.get(2)?,
-        created_at: row.get(3)?,
-        attempt_count: row.get(4)?,
-    })
+    rows: Vec<(String, String, String, String, i64)>,
+) -> Result<Vec<OfflinePendingSendRecord>, String> {
+    rows.into_iter()
+        .map(
+            |(client_msg_id, conversation_id, ciphertext, created_at, attempt_count)| {
+                Ok(OfflinePendingSendRecord {
+                    scope: scope.clone(),
+                    payload_json: cipher.decrypt_json(
+                        "pending-send",
+                        client_msg_id.as_str(),
+                        ciphertext.as_str(),
+                    )?,
+                    client_msg_id,
+                    conversation_id,
+                    created_at,
+                    attempt_count,
+                })
+            },
+        )
+        .collect()
 }
 
 fn claim_pending_sends(
     connection: &Connection,
+    cipher: &PayloadCipher,
     scope: &OfflinePrincipalScope,
     claim_id: &str,
     now_ms: i64,
@@ -601,19 +491,60 @@ fn claim_pending_sends(
         connection
             .execute(
                 r#"
-                UPDATE offline_pending_sends
+                UPDATE im_local_pending_send
+                SET queue_status = 'quarantined',
+                    quarantine_reason = 'retry budget exhausted',
+                    quarantined_at_ms = ?5,
+                    flush_claim_id = NULL,
+                    flush_claimed_at_ms = NULL,
+                    flush_claim_expires_at_ms = NULL
+                WHERE tenant_id = ?1
+                  AND organization_id = ?2
+                  AND principal_kind = ?3
+                  AND principal_id = ?4
+                  AND queue_status = 'pending'
+                  AND attempt_count >= ?6
+                  AND (flush_claim_id IS NULL OR flush_claim_expires_at_ms <= ?5)
+                "#,
+                params![
+                    &scope.tenant_id,
+                    &scope.organization_id,
+                    &scope.principal_kind,
+                    &scope.principal_id,
+                    now_ms,
+                    MAX_PENDING_SEND_ATTEMPTS
+                ],
+            )
+            .map_err(|error| {
+                format!("quarantine exhausted offline pending sends failed: {error}")
+            })?;
+        enforce_pending_send_quarantine_policy(
+            connection,
+            scope,
+            now_ms,
+            PENDING_SEND_QUARANTINE_POLICY,
+        )?;
+        connection
+            .execute(
+                r#"
+                UPDATE im_local_pending_send
                 SET flush_claim_id = ?5,
                     flush_claimed_at_ms = ?6,
                     flush_claim_expires_at_ms = ?7,
                     attempt_count = attempt_count + 1
-                WHERE rowid IN (
-                    SELECT rowid
-                    FROM offline_pending_sends
+                WHERE tenant_id = ?1
+                  AND organization_id = ?2
+                  AND principal_kind = ?3
+                  AND principal_id = ?4
+                  AND client_msg_id IN (
+                    SELECT client_msg_id
+                    FROM im_local_pending_send
                     WHERE tenant_id = ?1
                       AND organization_id = ?2
                       AND principal_kind = ?3
                       AND principal_id = ?4
                       AND queue_status = 'pending'
+                      AND attempt_count < ?9
                       AND (flush_claim_id IS NULL OR flush_claim_expires_at_ms <= ?6)
                     ORDER BY created_at_ms ASC, client_msg_id ASC
                     LIMIT ?8
@@ -627,7 +558,8 @@ fn claim_pending_sends(
                     claim_id,
                     now_ms,
                     expires_at_ms,
-                    limit
+                    limit,
+                    MAX_PENDING_SEND_ATTEMPTS
                 ],
             )
             .map_err(|error| format!("claim offline pending sends failed: {error}"))?;
@@ -635,8 +567,8 @@ fn claim_pending_sends(
         let mut statement = connection
             .prepare(
                 r#"
-                SELECT client_msg_id, conversation_id, payload_json, created_at, attempt_count
-                FROM offline_pending_sends
+                SELECT client_msg_id, conversation_id, payload_ciphertext, created_at, attempt_count
+                FROM im_local_pending_send
                 WHERE tenant_id = ?1
                   AND organization_id = ?2
                   AND principal_kind = ?3
@@ -655,11 +587,13 @@ fn claim_pending_sends(
                     &scope.principal_id,
                     claim_id
                 ],
-                |row| map_pending_send_row(row, scope),
+                map_pending_send_row,
             )
             .map_err(|error| format!("query claimed offline pending sends failed: {error}"))?;
-        rows.collect::<Result<Vec<_>, _>>()
-            .map_err(|error| format!("collect claimed offline pending sends failed: {error}"))
+        let encrypted = rows
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("collect claimed offline pending sends failed: {error}"))?;
+        decrypt_pending_send_rows(cipher, scope, encrypted)
     })
 }
 
@@ -675,7 +609,7 @@ fn acknowledge_pending_send(
     let deleted = connection
         .execute(
             r#"
-            DELETE FROM offline_pending_sends
+            DELETE FROM im_local_pending_send
             WHERE tenant_id = ?1
               AND organization_id = ?2
               AND principal_kind = ?3
@@ -715,7 +649,7 @@ fn quarantine_pending_send(
         let changed = connection
             .execute(
                 r#"
-                UPDATE offline_pending_sends
+                UPDATE im_local_pending_send
                 SET queue_status = 'quarantined',
                     quarantine_reason = ?7,
                     quarantined_at_ms = ?8,
@@ -764,7 +698,7 @@ fn enforce_pending_send_quarantine_policy(
     connection
         .execute(
             r#"
-            DELETE FROM offline_pending_sends
+            DELETE FROM im_local_pending_send
             WHERE tenant_id = ?1
               AND organization_id = ?2
               AND principal_kind = ?3
@@ -787,26 +721,30 @@ fn enforce_pending_send_quarantine_policy(
         .execute(
             r#"
             WITH ranked AS (
-                SELECT rowid,
+                SELECT tenant_id, organization_id, principal_kind, principal_id,
+                       client_msg_id,
                        ROW_NUMBER() OVER (
                            ORDER BY quarantined_at_ms DESC, client_msg_id DESC
                        ) AS row_number,
                        SUM(
-                           LENGTH(CAST(payload_json AS BLOB))
+                           LENGTH(CAST(payload_ciphertext AS BLOB))
                            + LENGTH(CAST(quarantine_reason AS BLOB))
                        ) OVER (
                            ORDER BY quarantined_at_ms DESC, client_msg_id DESC
                        ) AS cumulative_bytes
-                FROM offline_pending_sends
+                FROM im_local_pending_send
                 WHERE tenant_id = ?1
                   AND organization_id = ?2
                   AND principal_kind = ?3
                   AND principal_id = ?4
                   AND queue_status = 'quarantined'
             )
-            DELETE FROM offline_pending_sends
-            WHERE rowid IN (
-                SELECT rowid FROM ranked
+            DELETE FROM im_local_pending_send
+            WHERE (
+                tenant_id, organization_id, principal_kind, principal_id, client_msg_id
+            ) IN (
+                SELECT tenant_id, organization_id, principal_kind, principal_id, client_msg_id
+                FROM ranked
                 WHERE row_number > ?5 OR cumulative_bytes > ?6
             )
             "#,
@@ -833,9 +771,9 @@ fn purge_principal_cache(
     with_immediate_transaction(connection, |connection| {
         let mut deleted = 0usize;
         for table in [
-            "offline_sync_cursors",
-            "offline_messages",
-            "offline_conversations",
+            "im_local_cache_cursor",
+            "im_local_message_cache",
+            "im_local_conversation_cache",
         ] {
             deleted = deleted.saturating_add(
                 connection
@@ -858,9 +796,27 @@ fn purge_principal_cache(
     })
 }
 
+fn validate_batch_scope<T>(
+    records: &[T],
+    resolve_scope: impl Fn(&T) -> &OfflinePrincipalScope,
+) -> Result<Option<OfflinePrincipalScope>, String> {
+    let Some(first) = records.first() else {
+        return Ok(None);
+    };
+    let scope = resolve_scope(first);
+    validate_scope(scope)?;
+    if records.iter().any(|record| resolve_scope(record) != scope) {
+        return Err("offline write batch must contain exactly one complete scope".to_owned());
+    }
+    Ok(Some(scope.clone()))
+}
+
 #[tauri::command]
-pub async fn sdkwork_im_pc_offline_init(app: AppHandle) -> Result<(), String> {
-    with_connection_blocking(app, |_| Ok(())).await
+pub async fn sdkwork_im_pc_offline_init(
+    app: AppHandle,
+    scope: OfflinePrincipalScope,
+) -> Result<(), String> {
+    with_scoped_connection_blocking(app, scope, |_| Ok(())).await
 }
 
 #[tauri::command]
@@ -872,51 +828,53 @@ pub async fn sdkwork_im_pc_offline_upsert_conversations(
         total.saturating_add(record.payload_json.len())
     });
     validate_write_batch(records.as_slice(), payload_bytes)?;
+    let Some(scope) = validate_batch_scope(records.as_slice(), |record| &record.scope)? else {
+        return Ok(0);
+    };
     let now_ms = unix_epoch_millis()?;
-    with_connection_blocking(app, move |connection| {
-        with_immediate_transaction(connection, |connection| {
-            let mut scopes = Vec::new();
+    with_scoped_connection_blocking(app, scope.clone(), move |database| {
+        with_immediate_transaction(&database.connection, |connection| {
             for record in &records {
-                validate_scope(&record.scope)?;
                 validate_identifier("conversationId", record.conversation_id.as_str())?;
                 validate_payload(
                     "conversation payload",
                     record.payload_json.as_str(),
                     MAX_RECORD_PAYLOAD_BYTES,
                 )?;
-                if !scopes.contains(&record.scope) {
-                    scopes.push(record.scope.clone());
-                }
+                validate_timestamp("updatedAt", record.updated_at.as_str())?;
+                let ciphertext = database.cipher.encrypt_json(
+                    "conversation-cache",
+                    record.conversation_id.as_str(),
+                    record.payload_json.as_str(),
+                )?;
                 connection
                     .execute(
                         r#"
-                        INSERT INTO offline_conversations (
+                        INSERT INTO im_local_conversation_cache (
                             tenant_id, organization_id, principal_kind, principal_id,
-                            conversation_id, payload_json, updated_at, cached_at_ms
+                            conversation_id, payload_ciphertext, updated_at, cached_at_ms
                         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
                         ON CONFLICT(
                             tenant_id, organization_id, principal_kind, principal_id, conversation_id
                         ) DO UPDATE SET
-                            payload_json = excluded.payload_json,
+                            payload_ciphertext = excluded.payload_ciphertext,
                             updated_at = excluded.updated_at,
                             cached_at_ms = excluded.cached_at_ms
                         "#,
                         params![
-                            &record.scope.tenant_id,
-                            &record.scope.organization_id,
-                            &record.scope.principal_kind,
-                            &record.scope.principal_id,
+                            &scope.tenant_id,
+                            &scope.organization_id,
+                            &scope.principal_kind,
+                            &scope.principal_id,
                             &record.conversation_id,
-                            &record.payload_json,
+                            ciphertext,
                             &record.updated_at,
                             now_ms
                         ],
                     )
                     .map_err(|error| format!("upsert offline conversation failed: {error}"))?;
             }
-            for scope in &scopes {
-                enforce_cache_policy(connection, scope, now_ms, OFFLINE_CACHE_POLICY)?;
-            }
+            enforce_cache_policy(connection, &scope, now_ms, OFFLINE_CACHE_POLICY)?;
             Ok(records.len())
         })
     })
@@ -931,12 +889,13 @@ pub async fn sdkwork_im_pc_offline_list_conversations(
 ) -> Result<Vec<OfflineConversationRecord>, String> {
     validate_scope(&scope)?;
     let limit = normalize_limit(limit);
-    with_connection_blocking(app, move |connection| {
-        let mut statement = connection
+    with_scoped_connection_blocking(app, scope.clone(), move |database| {
+        let mut statement = database
+            .connection
             .prepare(
                 r#"
-                SELECT conversation_id, payload_json, updated_at
-                FROM offline_conversations
+                SELECT conversation_id, payload_ciphertext, updated_at
+                FROM im_local_conversation_cache
                 WHERE tenant_id = ?1
                   AND organization_id = ?2
                   AND principal_kind = ?3
@@ -956,17 +915,32 @@ pub async fn sdkwork_im_pc_offline_list_conversations(
                     limit
                 ],
                 |row| {
-                    Ok(OfflineConversationRecord {
-                        scope: scope.clone(),
-                        conversation_id: row.get(0)?,
-                        payload_json: row.get(1)?,
-                        updated_at: row.get(2)?,
-                    })
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
                 },
             )
             .map_err(|error| format!("query offline conversations failed: {error}"))?;
-        rows.collect::<Result<Vec<_>, _>>()
-            .map_err(|error| format!("collect offline conversations failed: {error}"))
+        let encrypted = rows
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("collect offline conversations failed: {error}"))?;
+        encrypted
+            .into_iter()
+            .map(|(conversation_id, ciphertext, updated_at)| {
+                Ok(OfflineConversationRecord {
+                    scope: scope.clone(),
+                    payload_json: database.cipher.decrypt_json(
+                        "conversation-cache",
+                        conversation_id.as_str(),
+                        ciphertext.as_str(),
+                    )?,
+                    conversation_id,
+                    updated_at,
+                })
+            })
+            .collect()
     })
     .await
 }
@@ -980,12 +954,13 @@ pub async fn sdkwork_im_pc_offline_upsert_messages(
         total.saturating_add(record.payload_json.len())
     });
     validate_write_batch(records.as_slice(), payload_bytes)?;
+    let Some(scope) = validate_batch_scope(records.as_slice(), |record| &record.scope)? else {
+        return Ok(0);
+    };
     let now_ms = unix_epoch_millis()?;
-    with_connection_blocking(app, move |connection| {
-        with_immediate_transaction(connection, |connection| {
-            let mut scopes = Vec::new();
+    with_scoped_connection_blocking(app, scope.clone(), move |database| {
+        with_immediate_transaction(&database.connection, |connection| {
             for record in &records {
-                validate_scope(&record.scope)?;
                 validate_identifier("conversationId", record.conversation_id.as_str())?;
                 validate_identifier("messageId", record.message_id.as_str())?;
                 if record.message_seq <= 0 {
@@ -996,15 +971,19 @@ pub async fn sdkwork_im_pc_offline_upsert_messages(
                     record.payload_json.as_str(),
                     MAX_RECORD_PAYLOAD_BYTES,
                 )?;
-                if !scopes.contains(&record.scope) {
-                    scopes.push(record.scope.clone());
-                }
+                validate_timestamp("updatedAt", record.updated_at.as_str())?;
+                let record_key = format!("{}:{}", record.conversation_id, record.message_seq);
+                let ciphertext = database.cipher.encrypt_json(
+                    "message-cache",
+                    record_key.as_str(),
+                    record.payload_json.as_str(),
+                )?;
                 connection
                     .execute(
                         r#"
-                        INSERT INTO offline_messages (
+                        INSERT INTO im_local_message_cache (
                             tenant_id, organization_id, principal_kind, principal_id,
-                            conversation_id, message_seq, message_id, payload_json,
+                            conversation_id, message_seq, message_id, payload_ciphertext,
                             updated_at, cached_at_ms
                         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
                         ON CONFLICT(
@@ -1012,28 +991,26 @@ pub async fn sdkwork_im_pc_offline_upsert_messages(
                             conversation_id, message_seq
                         ) DO UPDATE SET
                             message_id = excluded.message_id,
-                            payload_json = excluded.payload_json,
+                            payload_ciphertext = excluded.payload_ciphertext,
                             updated_at = excluded.updated_at,
                             cached_at_ms = excluded.cached_at_ms
                         "#,
                         params![
-                            &record.scope.tenant_id,
-                            &record.scope.organization_id,
-                            &record.scope.principal_kind,
-                            &record.scope.principal_id,
+                            &scope.tenant_id,
+                            &scope.organization_id,
+                            &scope.principal_kind,
+                            &scope.principal_id,
                             &record.conversation_id,
                             record.message_seq,
                             &record.message_id,
-                            &record.payload_json,
+                            ciphertext,
                             &record.updated_at,
                             now_ms
                         ],
                     )
                     .map_err(|error| format!("upsert offline message failed: {error}"))?;
             }
-            for scope in &scopes {
-                enforce_cache_policy(connection, scope, now_ms, OFFLINE_CACHE_POLICY)?;
-            }
+            enforce_cache_policy(connection, &scope, now_ms, OFFLINE_CACHE_POLICY)?;
             Ok(records.len())
         })
     })
@@ -1049,9 +1026,10 @@ pub async fn sdkwork_im_pc_offline_list_messages(
     limit: Option<usize>,
 ) -> Result<Vec<OfflineMessageRecord>, String> {
     let limit = normalize_limit(limit);
-    with_connection_blocking(app, move |connection| {
+    with_scoped_connection_blocking(app, scope.clone(), move |database| {
         list_messages_for_scope(
-            connection,
+            &database.connection,
+            &database.cipher,
             &scope,
             conversation_id.as_str(),
             before_seq,
@@ -1069,12 +1047,13 @@ pub async fn sdkwork_im_pc_offline_get_sync_cursor(
 ) -> Result<Option<String>, String> {
     validate_scope(&scope)?;
     validate_identifier("cursorScope", cursor_scope.as_str())?;
-    with_connection_blocking(app, move |connection| {
-        connection
+    with_scoped_connection_blocking(app, scope.clone(), move |database| {
+        let ciphertext = database
+            .connection
             .query_row(
                 r#"
-                SELECT cursor_json
-                FROM offline_sync_cursors
+                SELECT cursor_ciphertext
+                FROM im_local_cache_cursor
                 WHERE tenant_id = ?1
                   AND organization_id = ?2
                   AND principal_kind = ?3
@@ -1091,7 +1070,16 @@ pub async fn sdkwork_im_pc_offline_get_sync_cursor(
                 |row| row.get::<_, String>(0),
             )
             .optional()
-            .map_err(|error| format!("read offline sync cursor failed: {error}"))
+            .map_err(|error| format!("read offline sync cursor failed: {error}"))?;
+        ciphertext
+            .map(|ciphertext| {
+                database.cipher.decrypt_json(
+                    "cache-cursor",
+                    cursor_scope.as_str(),
+                    ciphertext.as_str(),
+                )
+            })
+            .transpose()
     })
     .await
 }
@@ -1107,20 +1095,26 @@ pub async fn sdkwork_im_pc_offline_set_sync_cursor(
     validate_scope(&scope)?;
     validate_identifier("cursorScope", cursor_scope.as_str())?;
     validate_payload("cursorJson", cursor_json.as_str(), MAX_CURSOR_BYTES)?;
+    validate_timestamp("updatedAt", updated_at.as_str())?;
     let now_ms = unix_epoch_millis()?;
-    with_connection_blocking(app, move |connection| {
-        with_immediate_transaction(connection, |connection| {
+    with_scoped_connection_blocking(app, scope.clone(), move |database| {
+        let ciphertext = database.cipher.encrypt_json(
+            "cache-cursor",
+            cursor_scope.as_str(),
+            cursor_json.as_str(),
+        )?;
+        with_immediate_transaction(&database.connection, |connection| {
             connection
                 .execute(
                     r#"
-                    INSERT INTO offline_sync_cursors (
+                    INSERT INTO im_local_cache_cursor (
                         tenant_id, organization_id, principal_kind, principal_id,
-                        cursor_scope, cursor_json, updated_at, cached_at_ms
+                        cursor_scope, cursor_ciphertext, updated_at, cached_at_ms
                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
                     ON CONFLICT(
                         tenant_id, organization_id, principal_kind, principal_id, cursor_scope
                     ) DO UPDATE SET
-                        cursor_json = excluded.cursor_json,
+                        cursor_ciphertext = excluded.cursor_ciphertext,
                         updated_at = excluded.updated_at,
                         cached_at_ms = excluded.cached_at_ms
                     "#,
@@ -1129,9 +1123,9 @@ pub async fn sdkwork_im_pc_offline_set_sync_cursor(
                         &scope.organization_id,
                         &scope.principal_kind,
                         &scope.principal_id,
-                        cursor_scope,
-                        cursor_json,
-                        updated_at,
+                        &cursor_scope,
+                        ciphertext,
+                        &updated_at,
                         now_ms
                     ],
                 )
@@ -1144,17 +1138,15 @@ pub async fn sdkwork_im_pc_offline_set_sync_cursor(
 
 fn ensure_pending_send_capacity(
     connection: &Connection,
-    record: &OfflinePendingSendRecord,
+    scope: &OfflinePrincipalScope,
+    encrypted_payload_bytes: usize,
 ) -> Result<(), String> {
-    let (row_count, payload_bytes, existing_rows, existing_bytes): (i64, i64, i64, i64) =
-        connection
+    let (row_count, payload_bytes): (i64, i64) = connection
         .query_row(
             r#"
             SELECT COUNT(*),
-                   COALESCE(SUM(LENGTH(CAST(payload_json AS BLOB))), 0),
-                   COALESCE(SUM(CASE WHEN client_msg_id = ?5 THEN 1 ELSE 0 END), 0),
-                   COALESCE(MAX(CASE WHEN client_msg_id = ?5 THEN LENGTH(CAST(payload_json AS BLOB)) ELSE 0 END), 0)
-            FROM offline_pending_sends
+                   COALESCE(SUM(LENGTH(CAST(payload_ciphertext AS BLOB))), 0)
+            FROM im_local_pending_send
             WHERE tenant_id = ?1
               AND organization_id = ?2
               AND principal_kind = ?3
@@ -1162,20 +1154,16 @@ fn ensure_pending_send_capacity(
               AND queue_status = 'pending'
             "#,
             params![
-                &record.scope.tenant_id,
-                &record.scope.organization_id,
-                &record.scope.principal_kind,
-                &record.scope.principal_id,
-                &record.client_msg_id
+                &scope.tenant_id,
+                &scope.organization_id,
+                &scope.principal_kind,
+                &scope.principal_id
             ],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .map_err(|error| format!("read offline pending send capacity failed: {error}"))?;
-    let is_new = existing_rows == 0;
-    let next_rows = row_count + i64::from(is_new);
-    let next_bytes = payload_bytes
-        .saturating_sub(existing_bytes)
-        .saturating_add(record.payload_json.len() as i64);
+    let next_rows = row_count.saturating_add(1);
+    let next_bytes = payload_bytes.saturating_add(encrypted_payload_bytes as i64);
     if next_rows > MAX_PENDING_SEND_ROWS_PER_SCOPE || next_bytes > MAX_PENDING_SEND_BYTES_PER_SCOPE
     {
         return Err(
@@ -1184,6 +1172,89 @@ fn ensure_pending_send_capacity(
         );
     }
     Ok(())
+}
+
+fn enqueue_pending_send(
+    connection: &Connection,
+    cipher: &PayloadCipher,
+    record: &OfflinePendingSendRecord,
+    now_ms: i64,
+) -> Result<(), String> {
+    validate_scope(&record.scope)?;
+    validate_identifier("clientMsgId", record.client_msg_id.as_str())?;
+    validate_identifier("conversationId", record.conversation_id.as_str())?;
+    validate_payload(
+        "pending send payload",
+        record.payload_json.as_str(),
+        MAX_RECORD_PAYLOAD_BYTES,
+    )?;
+    validate_timestamp("createdAt", record.created_at.as_str())?;
+    let hash = payload_hash(record.payload_json.as_str());
+    let ciphertext = cipher.encrypt_json(
+        "pending-send",
+        record.client_msg_id.as_str(),
+        record.payload_json.as_str(),
+    )?;
+    with_immediate_transaction(connection, |connection| {
+        let existing = connection
+            .query_row(
+                r#"
+                SELECT conversation_id, payload_hash
+                FROM im_local_pending_send
+                WHERE tenant_id = ?1
+                  AND organization_id = ?2
+                  AND principal_kind = ?3
+                  AND principal_id = ?4
+                  AND client_msg_id = ?5
+                "#,
+                params![
+                    &record.scope.tenant_id,
+                    &record.scope.organization_id,
+                    &record.scope.principal_kind,
+                    &record.scope.principal_id,
+                    &record.client_msg_id
+                ],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()
+            .map_err(|error| {
+                format!("read offline pending send idempotency state failed: {error}")
+            })?;
+        if let Some((existing_conversation_id, existing_hash)) = existing {
+            if existing_conversation_id == record.conversation_id && existing_hash == hash {
+                return Ok(());
+            }
+            return Err(format!(
+                "offline pending send idempotency conflict for clientMsgId {}",
+                record.client_msg_id
+            ));
+        }
+        ensure_pending_send_capacity(connection, &record.scope, ciphertext.len())?;
+        connection
+            .execute(
+                r#"
+                INSERT INTO im_local_pending_send (
+                    tenant_id, organization_id, principal_kind, principal_id,
+                    client_msg_id, conversation_id, payload_ciphertext, payload_hash,
+                    created_at, created_at_ms
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                "#,
+                params![
+                    &record.scope.tenant_id,
+                    &record.scope.organization_id,
+                    &record.scope.principal_kind,
+                    &record.scope.principal_id,
+                    &record.client_msg_id,
+                    &record.conversation_id,
+                    ciphertext,
+                    hash,
+                    &record.created_at,
+                    now_ms
+                ],
+            )
+            .map_err(|error| format!("enqueue offline pending send failed: {error}"))?;
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -1200,55 +1271,9 @@ pub async fn sdkwork_im_pc_offline_enqueue_pending_send(
         MAX_RECORD_PAYLOAD_BYTES,
     )?;
     let now_ms = unix_epoch_millis()?;
-    with_connection_blocking(app, move |connection| {
-        with_immediate_transaction(connection, |connection| {
-            ensure_pending_send_capacity(connection, &record)?;
-            let changed = connection
-                .execute(
-                    r#"
-                    INSERT INTO offline_pending_sends (
-                        tenant_id, organization_id, principal_kind, principal_id,
-                        client_msg_id, conversation_id, payload_json, created_at,
-                        created_at_ms, attempt_count
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
-                    ON CONFLICT(
-                        tenant_id, organization_id, principal_kind, principal_id, client_msg_id
-                    ) DO UPDATE SET
-                        conversation_id = excluded.conversation_id,
-                        payload_json = excluded.payload_json,
-                        created_at = excluded.created_at,
-                        created_at_ms = excluded.created_at_ms,
-                        attempt_count = excluded.attempt_count,
-                        flush_claim_id = NULL,
-                        flush_claimed_at_ms = NULL,
-                        flush_claim_expires_at_ms = NULL,
-                        queue_status = 'pending',
-                        quarantine_reason = NULL,
-                        quarantined_at_ms = NULL
-                    WHERE offline_pending_sends.flush_claim_id IS NULL
-                       OR offline_pending_sends.flush_claim_expires_at_ms <= ?9
-                    "#,
-                    params![
-                        &record.scope.tenant_id,
-                        &record.scope.organization_id,
-                        &record.scope.principal_kind,
-                        &record.scope.principal_id,
-                        &record.client_msg_id,
-                        &record.conversation_id,
-                        &record.payload_json,
-                        &record.created_at,
-                        now_ms,
-                        record.attempt_count.max(0)
-                    ],
-                )
-                .map_err(|error| format!("enqueue offline pending send failed: {error}"))?;
-            if changed == 0 {
-                return Err(
-                    "offline pending send is currently owned by an active flush claim".into(),
-                );
-            }
-            Ok(())
-        })
+    let scope = record.scope.clone();
+    with_scoped_connection_blocking(app, scope, move |database| {
+        enqueue_pending_send(&database.connection, &database.cipher, &record, now_ms)
     })
     .await
 }
@@ -1262,12 +1287,13 @@ pub async fn sdkwork_im_pc_offline_list_pending_sends(
     validate_scope(&scope)?;
     let limit = normalize_limit(limit);
     let now_ms = unix_epoch_millis()?;
-    with_connection_blocking(app, move |connection| {
-        let mut statement = connection
+    with_scoped_connection_blocking(app, scope.clone(), move |database| {
+        let mut statement = database
+            .connection
             .prepare(
                 r#"
-                SELECT client_msg_id, conversation_id, payload_json, created_at, attempt_count
-                FROM offline_pending_sends
+                SELECT client_msg_id, conversation_id, payload_ciphertext, created_at, attempt_count
+                FROM im_local_pending_send
                 WHERE tenant_id = ?1
                   AND organization_id = ?2
                   AND principal_kind = ?3
@@ -1289,11 +1315,13 @@ pub async fn sdkwork_im_pc_offline_list_pending_sends(
                     now_ms,
                     limit
                 ],
-                |row| map_pending_send_row(row, &scope),
+                map_pending_send_row,
             )
             .map_err(|error| format!("query offline pending sends failed: {error}"))?;
-        rows.collect::<Result<Vec<_>, _>>()
-            .map_err(|error| format!("collect offline pending sends failed: {error}"))
+        let encrypted = rows
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("collect offline pending sends failed: {error}"))?;
+        decrypt_pending_send_rows(&database.cipher, &scope, encrypted)
     })
     .await
 }
@@ -1307,9 +1335,10 @@ pub async fn sdkwork_im_pc_offline_claim_pending_sends(
 ) -> Result<Vec<OfflinePendingSendRecord>, String> {
     let now_ms = unix_epoch_millis()?;
     let limit = normalize_limit(limit);
-    with_connection_blocking(app, move |connection| {
+    with_scoped_connection_blocking(app, scope.clone(), move |database| {
         claim_pending_sends(
-            connection,
+            &database.connection,
+            &database.cipher,
             &scope,
             claim_id.as_str(),
             now_ms,
@@ -1330,11 +1359,12 @@ pub async fn sdkwork_im_pc_offline_release_pending_send_claim(
     validate_scope(&scope)?;
     validate_identifier("clientMsgId", client_msg_id.as_str())?;
     validate_identifier("claimId", claim_id.as_str())?;
-    with_connection_blocking(app, move |connection| {
-        let released = connection
+    with_scoped_connection_blocking(app, scope.clone(), move |database| {
+        let released = database
+            .connection
             .execute(
                 r#"
-                UPDATE offline_pending_sends
+                UPDATE im_local_pending_send
                 SET flush_claim_id = NULL,
                     flush_claimed_at_ms = NULL,
                     flush_claim_expires_at_ms = NULL
@@ -1367,9 +1397,9 @@ pub async fn sdkwork_im_pc_offline_delete_pending_send(
     client_msg_id: String,
     claim_id: String,
 ) -> Result<bool, String> {
-    with_connection_blocking(app, move |connection| {
+    with_scoped_connection_blocking(app, scope.clone(), move |database| {
         acknowledge_pending_send(
-            connection,
+            &database.connection,
             &scope,
             client_msg_id.as_str(),
             claim_id.as_str(),
@@ -1387,9 +1417,9 @@ pub async fn sdkwork_im_pc_offline_quarantine_pending_send(
     reason: String,
 ) -> Result<bool, String> {
     let now_ms = unix_epoch_millis()?;
-    with_connection_blocking(app, move |connection| {
+    with_scoped_connection_blocking(app, scope.clone(), move |database| {
         quarantine_pending_send(
-            connection,
+            &database.connection,
             &scope,
             client_msg_id.as_str(),
             claim_id.as_str(),
@@ -1405,8 +1435,8 @@ pub async fn sdkwork_im_pc_offline_purge_principal_cache(
     app: AppHandle,
     scope: OfflinePrincipalScope,
 ) -> Result<usize, String> {
-    with_connection_blocking(app, move |connection| {
-        purge_principal_cache(connection, &scope)
+    with_scoped_connection_blocking(app, scope.clone(), move |database| {
+        purge_principal_cache(&database.connection, &scope)
     })
     .await
 }
@@ -1415,27 +1445,32 @@ pub async fn sdkwork_im_pc_offline_purge_principal_cache(
 mod tests {
     use super::*;
 
-    fn temp_db_path() -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos();
-        std::env::temp_dir().join(format!("sdkwork-im-offline-test-{nanos}.sqlite"))
-    }
-
-    fn cleanup_db(path: &Path) {
-        let _ = fs::remove_file(path);
-        let _ = fs::remove_file(format!("{}-wal", path.display()));
-        let _ = fs::remove_file(format!("{}-shm", path.display()));
+    fn test_connection() -> Connection {
+        let connection = Connection::open_in_memory().expect("open test database");
+        connection
+            .execute_batch(include_str!(
+                "../database/migrations/sqlite/0004_create_im_pc_client_local_store.up.sql"
+            ))
+            .expect("apply client-local migration");
+        connection
     }
 
     fn principal_scope(principal_id: &str) -> OfflinePrincipalScope {
         OfflinePrincipalScope {
+            environment: "development".into(),
+            deployment_profile: "standalone".into(),
+            deployment_mode: "local".into(),
+            api_origin: "http://127.0.0.1:18079".into(),
             tenant_id: "100001".into(),
             organization_id: "org-a".into(),
+            account_id: principal_id.into(),
             principal_kind: "user".into(),
             principal_id: principal_id.into(),
         }
+    }
+
+    fn test_cipher(scope: &OfflinePrincipalScope) -> PayloadCipher {
+        PayloadCipher::for_test(&scope_fingerprint(scope).expect("scope fingerprint"))
     }
 
     fn insert_pending_send_for_test(
@@ -1447,14 +1482,23 @@ mod tests {
         let (claim_id, claimed_at_ms, claim_expires_at_ms) = claim
             .map(|(id, claimed_at, expires_at)| (Some(id), Some(claimed_at), Some(expires_at)))
             .unwrap_or((None, None, None));
+        let cipher = test_cipher(scope);
+        let payload = format!(r#"{{"clientMsgId":"{client_msg_id}"}}"#);
+        let ciphertext = cipher
+            .encrypt_json("pending-send", client_msg_id, payload.as_str())
+            .expect("encrypt pending send fixture");
         connection
             .execute(
                 r#"
-                INSERT INTO offline_pending_sends (
+                INSERT INTO im_local_pending_send (
                     tenant_id, organization_id, principal_kind, principal_id,
-                    client_msg_id, conversation_id, payload_json, created_at, created_at_ms,
-                    attempt_count, flush_claim_id, flush_claimed_at_ms, flush_claim_expires_at_ms
-                ) VALUES (?1, ?2, ?3, ?4, ?5, 'conversation', '{}', '2026-07-10T00:00:00Z', 1, 0, ?6, ?7, ?8)
+                    client_msg_id, conversation_id, payload_ciphertext, payload_hash,
+                    created_at, created_at_ms, attempt_count, flush_claim_id,
+                    flush_claimed_at_ms, flush_claim_expires_at_ms
+                ) VALUES (
+                    ?1, ?2, ?3, ?4, ?5, 'conversation', ?6, ?7,
+                    '2026-07-10T00:00:00Z', 1, 0, ?8, ?9, ?10
+                )
                 "#,
                 params![
                     &scope.tenant_id,
@@ -1462,6 +1506,8 @@ mod tests {
                     &scope.principal_kind,
                     &scope.principal_id,
                     client_msg_id,
+                    ciphertext,
+                    payload_hash(payload.as_str()),
                     claim_id,
                     claimed_at_ms,
                     claim_expires_at_ms
@@ -1472,8 +1518,7 @@ mod tests {
 
     #[test]
     fn offline_store_configures_versioned_safe_sqlite_profile() {
-        let path = temp_db_path();
-        let connection = open_connection(path.as_path()).expect("open offline db");
+        let connection = test_connection();
         let version: i64 = connection
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("read user version");
@@ -1482,99 +1527,53 @@ mod tests {
             .expect("read foreign key setting");
         assert_eq!(version, OFFLINE_SCHEMA_VERSION);
         assert_eq!(foreign_keys, 1);
-        drop(connection);
-        cleanup_db(path.as_path());
     }
 
     #[test]
-    fn schema_v2_to_v3_migration_preserves_pending_sends() {
-        let path = temp_db_path();
-        let legacy = Connection::open(path.as_path()).expect("open v2 offline db");
-        legacy
-            .execute_batch(
-                r#"
-                CREATE TABLE offline_pending_sends (
-                    tenant_id TEXT NOT NULL,
-                    organization_id TEXT NOT NULL,
-                    principal_kind TEXT NOT NULL,
-                    principal_id TEXT NOT NULL,
-                    client_msg_id TEXT NOT NULL,
-                    conversation_id TEXT NOT NULL,
-                    payload_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    created_at_ms INTEGER NOT NULL,
-                    attempt_count INTEGER NOT NULL DEFAULT 0,
-                    flush_claim_id TEXT,
-                    flush_claimed_at_ms INTEGER,
-                    flush_claim_expires_at_ms INTEGER,
-                    PRIMARY KEY (
-                        tenant_id, organization_id, principal_kind, principal_id, client_msg_id
-                    )
-                );
-                INSERT INTO offline_pending_sends (
-                    tenant_id, organization_id, principal_kind, principal_id,
-                    client_msg_id, conversation_id, payload_json, created_at, created_at_ms,
-                    attempt_count
-                ) VALUES (
-                    '100001', 'org-a', 'user', 'user-1',
-                    'pending-v2', 'conversation', '{"content":"preserve"}',
-                    '2026-07-10T00:00:00Z', 1, 0
-                );
-                PRAGMA user_version = 2;
-                "#,
-            )
-            .expect("create v2 offline fixture");
-        drop(legacy);
-
-        let connection = open_connection(path.as_path()).expect("migrate v2 offline db");
-        let version: i64 = connection
-            .query_row("PRAGMA user_version", [], |row| row.get(0))
-            .expect("read migrated version");
-        let migrated: (String, String, String, String) = connection
-            .query_row(
-                "SELECT principal_id, client_msg_id, payload_json, queue_status FROM offline_pending_sends",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-            )
-            .expect("read migrated pending send");
-        assert_eq!(version, OFFLINE_SCHEMA_VERSION);
-        assert_eq!(migrated.0, "user-1");
-        assert_eq!(migrated.1, "pending-v2");
-        assert_eq!(migrated.2, r#"{"content":"preserve"}"#);
-        assert_eq!(migrated.3, "pending");
-
-        drop(connection);
-        cleanup_db(path.as_path());
+    fn write_batches_reject_mixed_complete_scopes() {
+        let first = OfflineConversationRecord {
+            scope: principal_scope("user-1"),
+            conversation_id: "conversation-1".into(),
+            payload_json: "{}".into(),
+            updated_at: "2026-07-10T00:00:00Z".into(),
+        };
+        let second = OfflineConversationRecord {
+            scope: principal_scope("user-2"),
+            conversation_id: "conversation-2".into(),
+            payload_json: "{}".into(),
+            updated_at: "2026-07-10T00:00:00Z".into(),
+        };
+        assert!(validate_batch_scope(&[first, second], |record| &record.scope).is_err());
     }
 
     #[test]
     fn offline_store_isolates_conversations_messages_cursors_and_pending_sends_by_principal() {
-        let path = temp_db_path();
-        let connection = open_connection(path.as_path()).expect("open offline db");
+        let connection = test_connection();
         let first = principal_scope("user-1");
         let second = principal_scope("user-2");
 
         for scope in [&first, &second] {
+            let cipher = test_cipher(scope);
             connection.execute(
-                "INSERT INTO offline_conversations (tenant_id, organization_id, principal_kind, principal_id, conversation_id, payload_json, updated_at, cached_at_ms) VALUES (?1, ?2, ?3, ?4, 'shared', '{}', '2026-07-10T00:00:00Z', 1)",
-                params![&scope.tenant_id, &scope.organization_id, &scope.principal_kind, &scope.principal_id],
+                "INSERT INTO im_local_conversation_cache (tenant_id, organization_id, principal_kind, principal_id, conversation_id, payload_ciphertext, updated_at, cached_at_ms) VALUES (?1, ?2, ?3, ?4, 'shared', ?5, '2026-07-10T00:00:00Z', 1)",
+                params![&scope.tenant_id, &scope.organization_id, &scope.principal_kind, &scope.principal_id, cipher.encrypt_json("conversation-cache", "shared", "{}").expect("encrypt conversation")],
             ).expect("insert conversation");
             connection.execute(
-                "INSERT INTO offline_messages (tenant_id, organization_id, principal_kind, principal_id, conversation_id, message_seq, message_id, payload_json, updated_at, cached_at_ms) VALUES (?1, ?2, ?3, ?4, 'shared', 1, 'message', '{}', '2026-07-10T00:00:00Z', 1)",
-                params![&scope.tenant_id, &scope.organization_id, &scope.principal_kind, &scope.principal_id],
+                "INSERT INTO im_local_message_cache (tenant_id, organization_id, principal_kind, principal_id, conversation_id, message_seq, message_id, payload_ciphertext, updated_at, cached_at_ms) VALUES (?1, ?2, ?3, ?4, 'shared', 1, 'message', ?5, '2026-07-10T00:00:00Z', 1)",
+                params![&scope.tenant_id, &scope.organization_id, &scope.principal_kind, &scope.principal_id, cipher.encrypt_json("message-cache", "shared:1", "{}").expect("encrypt message")],
             ).expect("insert message");
             connection.execute(
-                "INSERT INTO offline_sync_cursors (tenant_id, organization_id, principal_kind, principal_id, cursor_scope, cursor_json, updated_at, cached_at_ms) VALUES (?1, ?2, ?3, ?4, 'inbox', '{}', '2026-07-10T00:00:00Z', 1)",
-                params![&scope.tenant_id, &scope.organization_id, &scope.principal_kind, &scope.principal_id],
+                "INSERT INTO im_local_cache_cursor (tenant_id, organization_id, principal_kind, principal_id, cursor_scope, cursor_ciphertext, updated_at, cached_at_ms) VALUES (?1, ?2, ?3, ?4, 'inbox', ?5, '2026-07-10T00:00:00Z', 1)",
+                params![&scope.tenant_id, &scope.organization_id, &scope.principal_kind, &scope.principal_id, cipher.encrypt_json("cache-cursor", "inbox", "{}").expect("encrypt cursor")],
             ).expect("insert cursor");
             insert_pending_send_for_test(&connection, scope, "shared-client-message", None);
         }
 
         for table in [
-            "offline_conversations",
-            "offline_messages",
-            "offline_sync_cursors",
-            "offline_pending_sends",
+            "im_local_conversation_cache",
+            "im_local_message_cache",
+            "im_local_cache_cursor",
+            "im_local_pending_send",
         ] {
             let count: i64 = connection.query_row(
                 format!("SELECT COUNT(*) FROM {table} WHERE tenant_id = ?1 AND organization_id = ?2 AND principal_kind = ?3 AND principal_id = ?4").as_str(),
@@ -1583,27 +1582,32 @@ mod tests {
             ).expect("count principal rows");
             assert_eq!(count, 1, "{table} must isolate the first principal");
         }
-        let first_messages = list_messages_for_scope(&connection, &first, "shared", None, 20)
-            .expect("list first principal messages");
+        let first_messages = list_messages_for_scope(
+            &connection,
+            &test_cipher(&first),
+            &first,
+            "shared",
+            None,
+            20,
+        )
+        .expect("list first principal messages");
         assert_eq!(first_messages.len(), 1);
         assert_eq!(first_messages[0].scope, first);
-
-        drop(connection);
-        cleanup_db(path.as_path());
     }
 
     #[test]
     fn backward_message_pages_return_chronological_windows_from_latest() {
-        let path = temp_db_path();
-        let connection = open_connection(path.as_path()).expect("open offline db");
+        let connection = test_connection();
         let scope = principal_scope("user-1");
+        let cipher = test_cipher(&scope);
         for seq in 1..=4 {
+            let record_key = format!("conversation:{seq}");
             connection.execute(
-                "INSERT INTO offline_messages (tenant_id, organization_id, principal_kind, principal_id, conversation_id, message_seq, message_id, payload_json, updated_at, cached_at_ms) VALUES (?1, ?2, ?3, ?4, 'conversation', ?5, ?6, '{}', '2026-07-10T00:00:00Z', ?5)",
-                params![&scope.tenant_id, &scope.organization_id, &scope.principal_kind, &scope.principal_id, seq, format!("message-{seq}")],
+                "INSERT INTO im_local_message_cache (tenant_id, organization_id, principal_kind, principal_id, conversation_id, message_seq, message_id, payload_ciphertext, updated_at, cached_at_ms) VALUES (?1, ?2, ?3, ?4, 'conversation', ?5, ?6, ?7, '2026-07-10T00:00:00Z', ?5)",
+                params![&scope.tenant_id, &scope.organization_id, &scope.principal_kind, &scope.principal_id, seq, format!("message-{seq}"), cipher.encrypt_json("message-cache", record_key.as_str(), "{}").expect("encrypt message")],
             ).expect("insert message");
         }
-        let latest = list_messages_for_scope(&connection, &scope, "conversation", None, 2)
+        let latest = list_messages_for_scope(&connection, &cipher, &scope, "conversation", None, 2)
             .expect("latest page");
         assert_eq!(
             latest
@@ -1612,8 +1616,9 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![3, 4]
         );
-        let older = list_messages_for_scope(&connection, &scope, "conversation", Some(3), 2)
-            .expect("older page");
+        let older =
+            list_messages_for_scope(&connection, &cipher, &scope, "conversation", Some(3), 2)
+                .expect("older page");
         assert_eq!(
             older
                 .iter()
@@ -1621,19 +1626,25 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![1, 2]
         );
-        drop(connection);
-        cleanup_db(path.as_path());
     }
 
     #[test]
     fn expired_pending_send_claim_is_recovered_without_stealing_a_live_claim() {
-        let path = temp_db_path();
-        let connection = open_connection(path.as_path()).expect("open offline db");
+        let connection = test_connection();
         let scope = principal_scope("user-1");
+        let cipher = test_cipher(&scope);
         insert_pending_send_for_test(&connection, &scope, "expired", Some(("old", 100, 200)));
         insert_pending_send_for_test(&connection, &scope, "live", Some(("live", 900, 1_100)));
-        let claimed = claim_pending_sends(&connection, &scope, "replacement", 1_000, 60_000, 10)
-            .expect("claim pending sends");
+        let claimed = claim_pending_sends(
+            &connection,
+            &cipher,
+            &scope,
+            "replacement",
+            1_000,
+            60_000,
+            10,
+        )
+        .expect("claim pending sends");
         assert_eq!(
             claimed
                 .iter()
@@ -1641,18 +1652,18 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["expired"]
         );
-        drop(connection);
-        cleanup_db(path.as_path());
     }
 
     #[test]
     fn stale_pending_send_claim_cannot_acknowledge_a_reclaimed_row() {
-        let path = temp_db_path();
-        let connection = open_connection(path.as_path()).expect("open offline db");
+        let connection = test_connection();
         let scope = principal_scope("user-1");
+        let cipher = test_cipher(&scope);
         insert_pending_send_for_test(&connection, &scope, "message", None);
-        claim_pending_sends(&connection, &scope, "old-claim", 100, 100, 1).expect("old claim");
-        claim_pending_sends(&connection, &scope, "new-claim", 201, 100, 1).expect("new claim");
+        claim_pending_sends(&connection, &cipher, &scope, "old-claim", 100, 100, 1)
+            .expect("old claim");
+        claim_pending_sends(&connection, &cipher, &scope, "new-claim", 201, 100, 1)
+            .expect("new claim");
 
         assert!(
             !acknowledge_pending_send(&connection, &scope, "message", "old-claim")
@@ -1662,19 +1673,18 @@ mod tests {
             acknowledge_pending_send(&connection, &scope, "message", "new-claim")
                 .expect("current acknowledgement")
         );
-
-        drop(connection);
-        cleanup_db(path.as_path());
     }
 
     #[test]
     fn only_current_claim_can_quarantine_a_corrupt_pending_send() {
-        let path = temp_db_path();
-        let connection = open_connection(path.as_path()).expect("open offline db");
+        let connection = test_connection();
         let scope = principal_scope("user-1");
+        let cipher = test_cipher(&scope);
         insert_pending_send_for_test(&connection, &scope, "message", None);
-        claim_pending_sends(&connection, &scope, "old-claim", 100, 100, 1).expect("old claim");
-        claim_pending_sends(&connection, &scope, "new-claim", 201, 100, 1).expect("new claim");
+        claim_pending_sends(&connection, &cipher, &scope, "old-claim", 100, 100, 1)
+            .expect("old claim");
+        claim_pending_sends(&connection, &cipher, &scope, "new-claim", 201, 100, 1)
+            .expect("new claim");
 
         assert!(!quarantine_pending_send(
             &connection,
@@ -1695,28 +1705,24 @@ mod tests {
         )
         .expect("current quarantine"));
         assert!(
-            claim_pending_sends(&connection, &scope, "third-claim", 203, 100, 1)
+            claim_pending_sends(&connection, &cipher, &scope, "third-claim", 203, 100, 1)
                 .expect("claim after quarantine")
                 .is_empty()
         );
         let status: (String, String) = connection
             .query_row(
-                "SELECT queue_status, quarantine_reason FROM offline_pending_sends WHERE client_msg_id = 'message'",
+                "SELECT queue_status, quarantine_reason FROM im_local_pending_send WHERE client_msg_id = 'message'",
                 [],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .expect("read quarantine state");
         assert_eq!(status.0, "quarantined");
         assert_eq!(status.1, "invalid pending send payload");
-
-        drop(connection);
-        cleanup_db(path.as_path());
     }
 
     #[test]
     fn quarantine_policy_is_bounded_without_deleting_pending_sends() {
-        let path = temp_db_path();
-        let connection = open_connection(path.as_path()).expect("open offline db");
+        let connection = test_connection();
         let scope = principal_scope("user-1");
         insert_pending_send_for_test(&connection, &scope, "pending", None);
         for (client_msg_id, quarantined_at_ms) in [
@@ -1727,7 +1733,7 @@ mod tests {
             insert_pending_send_for_test(&connection, &scope, client_msg_id, None);
             connection
                 .execute(
-                    "UPDATE offline_pending_sends SET queue_status = 'quarantined', quarantine_reason = 'invalid', quarantined_at_ms = ?1 WHERE client_msg_id = ?2",
+                    "UPDATE im_local_pending_send SET queue_status = 'quarantined', quarantine_reason = 'invalid', quarantined_at_ms = ?1 WHERE client_msg_id = ?2",
                     params![quarantined_at_ms, client_msg_id],
                 )
                 .expect("quarantine fixture");
@@ -1748,7 +1754,7 @@ mod tests {
         let remaining: Vec<String> = {
             let mut statement = connection
                 .prepare(
-                    "SELECT client_msg_id FROM offline_pending_sends WHERE queue_status = 'quarantined' ORDER BY quarantined_at_ms",
+                    "SELECT client_msg_id FROM im_local_pending_send WHERE queue_status = 'quarantined' ORDER BY quarantined_at_ms",
                 )
                 .expect("prepare quarantine query");
             statement
@@ -1760,27 +1766,26 @@ mod tests {
         assert_eq!(remaining, vec!["quarantined-2", "quarantined-3"]);
         let pending_count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM offline_pending_sends WHERE client_msg_id = 'pending' AND queue_status = 'pending'",
+                "SELECT COUNT(*) FROM im_local_pending_send WHERE client_msg_id = 'pending' AND queue_status = 'pending'",
                 [],
                 |row| row.get(0),
             )
             .expect("count pending row");
         assert_eq!(pending_count, 1);
-
-        drop(connection);
-        cleanup_db(path.as_path());
     }
 
     #[test]
     fn principal_cache_purge_preserves_unsent_and_other_principal_rows() {
-        let path = temp_db_path();
-        let connection = open_connection(path.as_path()).expect("open offline db");
+        let connection = test_connection();
         let first = principal_scope("user-1");
         let second = principal_scope("user-2");
         for scope in [&first, &second] {
+            let ciphertext = test_cipher(scope)
+                .encrypt_json("conversation-cache", "conversation", "{}")
+                .expect("encrypt conversation");
             connection.execute(
-                "INSERT INTO offline_conversations (tenant_id, organization_id, principal_kind, principal_id, conversation_id, payload_json, updated_at, cached_at_ms) VALUES (?1, ?2, ?3, ?4, 'conversation', '{}', '2026-07-10T00:00:00Z', 1)",
-                params![&scope.tenant_id, &scope.organization_id, &scope.principal_kind, &scope.principal_id],
+                "INSERT INTO im_local_conversation_cache (tenant_id, organization_id, principal_kind, principal_id, conversation_id, payload_ciphertext, updated_at, cached_at_ms) VALUES (?1, ?2, ?3, ?4, 'conversation', ?5, '2026-07-10T00:00:00Z', 1)",
+                params![&scope.tenant_id, &scope.organization_id, &scope.principal_kind, &scope.principal_id, ciphertext],
             ).expect("insert conversation");
         }
         insert_pending_send_for_test(&connection, &first, "unsent", None);
@@ -1791,21 +1796,21 @@ mod tests {
         );
         let first_cache: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM offline_conversations WHERE principal_id = 'user-1'",
+                "SELECT COUNT(*) FROM im_local_conversation_cache WHERE principal_id = 'user-1'",
                 [],
                 |row| row.get(0),
             )
             .expect("first cache count");
         let second_cache: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM offline_conversations WHERE principal_id = 'user-2'",
+                "SELECT COUNT(*) FROM im_local_conversation_cache WHERE principal_id = 'user-2'",
                 [],
                 |row| row.get(0),
             )
             .expect("second cache count");
         let pending: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM offline_pending_sends WHERE principal_id = 'user-1'",
+                "SELECT COUNT(*) FROM im_local_pending_send WHERE principal_id = 'user-1'",
                 [],
                 |row| row.get(0),
             )
@@ -1813,15 +1818,116 @@ mod tests {
         assert_eq!(first_cache, 0);
         assert_eq!(second_cache, 1);
         assert_eq!(pending, 1);
-
-        drop(connection);
-        cleanup_db(path.as_path());
     }
 
     #[test]
-    fn pending_send_capacity_treats_zero_byte_payload_update_as_existing_row() {
-        let path = temp_db_path();
-        let connection = open_connection(path.as_path()).expect("open offline db");
+    fn plaintext_payload_never_enters_the_sqlite_file() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "sdkwork-im-pc-client-local-plaintext-{nonce}.sqlite"
+        ));
+        let connection = Connection::open(path.as_path()).expect("open file database");
+        connection
+            .execute_batch(include_str!(
+                "../database/migrations/sqlite/0004_create_im_pc_client_local_store.up.sql"
+            ))
+            .expect("apply client-local migration");
+        let scope = principal_scope("user-1");
+        let cipher = test_cipher(&scope);
+        let marker = "plaintext-must-not-reach-sqlite";
+        let record = OfflinePendingSendRecord {
+            scope,
+            client_msg_id: "client-message".into(),
+            conversation_id: "conversation".into(),
+            payload_json: format!(r#"{{"content":"{marker}"}}"#),
+            created_at: "2026-07-10T00:00:00Z".into(),
+            attempt_count: 0,
+        };
+        enqueue_pending_send(&connection, &cipher, &record, 1).expect("enqueue encrypted row");
+        drop(connection);
+        let bytes = std::fs::read(path.as_path()).expect("read sqlite file");
+        assert!(!bytes
+            .windows(marker.len())
+            .any(|window| window == marker.as_bytes()));
+        std::fs::remove_file(path.as_path()).expect("remove test database");
+    }
+
+    #[test]
+    fn pending_send_exact_replay_is_idempotent_and_conflicts_do_not_overwrite() {
+        let connection = test_connection();
+        let scope = principal_scope("user-1");
+        let cipher = test_cipher(&scope);
+        let mut record = OfflinePendingSendRecord {
+            scope,
+            client_msg_id: "client-message".into(),
+            conversation_id: "conversation".into(),
+            payload_json: r#"{"content":"plaintext-marker"}"#.into(),
+            created_at: "2026-07-10T00:00:00Z".into(),
+            attempt_count: 0,
+        };
+        enqueue_pending_send(&connection, &cipher, &record, 1).expect("first enqueue");
+        enqueue_pending_send(&connection, &cipher, &record, 2).expect("exact replay");
+        let (count, ciphertext): (i64, String) = connection
+            .query_row(
+                "SELECT COUNT(*), MAX(payload_ciphertext) FROM im_local_pending_send",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("read encrypted row");
+        assert_eq!(count, 1);
+        assert!(!ciphertext.contains("plaintext-marker"));
+
+        record.payload_json = r#"{"content":"different"}"#.into();
+        assert!(enqueue_pending_send(&connection, &cipher, &record, 3).is_err());
+        let persisted_hash: String = connection
+            .query_row(
+                "SELECT payload_hash FROM im_local_pending_send WHERE client_msg_id = 'client-message'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read persisted hash");
+        assert_eq!(
+            persisted_hash,
+            payload_hash(r#"{"content":"plaintext-marker"}"#)
+        );
+    }
+
+    #[test]
+    fn exhausted_pending_send_is_quarantined_before_another_claim() {
+        let connection = test_connection();
+        let scope = principal_scope("user-1");
+        let cipher = test_cipher(&scope);
+        insert_pending_send_for_test(&connection, &scope, "exhausted", None);
+        connection
+            .execute(
+                "UPDATE im_local_pending_send SET attempt_count = ?1 WHERE client_msg_id = 'exhausted'",
+                [MAX_PENDING_SEND_ATTEMPTS],
+            )
+            .expect("set retry count");
+        assert!(
+            claim_pending_sends(&connection, &cipher, &scope, "claim", 1_000, 60_000, 1,)
+                .expect("claim")
+                .is_empty()
+        );
+        let status: (String, String) = connection
+            .query_row(
+                "SELECT queue_status, quarantine_reason FROM im_local_pending_send WHERE client_msg_id = 'exhausted'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("read quarantine state");
+        assert_eq!(
+            status,
+            ("quarantined".into(), "retry budget exhausted".into())
+        );
+    }
+
+    #[test]
+    fn pending_send_capacity_rejects_a_row_beyond_the_bound() {
+        let connection = test_connection();
         let scope = principal_scope("user-1");
         connection
             .execute(
@@ -1831,13 +1937,15 @@ mod tests {
                     UNION ALL
                     SELECT value + 1 FROM sequence WHERE value < ?5
                 )
-                INSERT INTO offline_pending_sends (
+                INSERT INTO im_local_pending_send (
                     tenant_id, organization_id, principal_kind, principal_id,
-                    client_msg_id, conversation_id, payload_json, created_at, created_at_ms,
-                    attempt_count
+                    client_msg_id, conversation_id, payload_ciphertext, payload_hash,
+                    created_at, created_at_ms, attempt_count
                 )
                 SELECT ?1, ?2, ?3, ?4, printf('message-%05d', value),
-                       'conversation', '', '2026-07-10T00:00:00Z', value, 0
+                       'conversation', 'enc-v1:fixture',
+                       '0000000000000000000000000000000000000000000000000000000000000000',
+                       '2026-07-10T00:00:00Z', value, 0
                 FROM sequence
                 "#,
                 params![
@@ -1849,31 +1957,19 @@ mod tests {
                 ],
             )
             .expect("fill pending send capacity");
-        let existing = OfflinePendingSendRecord {
-            scope,
-            client_msg_id: "message-00001".into(),
-            conversation_id: "conversation".into(),
-            payload_json: String::new(),
-            created_at: "2026-07-10T00:00:00Z".into(),
-            attempt_count: 0,
-        };
-
-        ensure_pending_send_capacity(&connection, &existing)
-            .expect("updating a zero-byte payload must not consume another row");
-
-        drop(connection);
-        cleanup_db(path.as_path());
+        assert!(ensure_pending_send_capacity(&connection, &scope, 64).is_err());
     }
 
     #[test]
     fn cache_policy_evicts_old_cache_rows_but_preserves_unsent_rows() {
-        let path = temp_db_path();
-        let connection = open_connection(path.as_path()).expect("open offline db");
+        let connection = test_connection();
         let scope = principal_scope("user-1");
+        let cipher = test_cipher(&scope);
         for seq in 1..=3 {
+            let record_key = format!("conversation:{seq}");
             connection.execute(
-                "INSERT INTO offline_messages (tenant_id, organization_id, principal_kind, principal_id, conversation_id, message_seq, message_id, payload_json, updated_at, cached_at_ms) VALUES (?1, ?2, ?3, ?4, 'conversation', ?5, ?6, '1234567890', '2026-07-10T00:00:00Z', ?5)",
-                params![&scope.tenant_id, &scope.organization_id, &scope.principal_kind, &scope.principal_id, seq, format!("message-{seq}")],
+                "INSERT INTO im_local_message_cache (tenant_id, organization_id, principal_kind, principal_id, conversation_id, message_seq, message_id, payload_ciphertext, updated_at, cached_at_ms) VALUES (?1, ?2, ?3, ?4, 'conversation', ?5, ?6, ?7, '2026-07-10T00:00:00Z', ?5)",
+                params![&scope.tenant_id, &scope.organization_id, &scope.principal_kind, &scope.principal_id, seq, format!("message-{seq}"), cipher.encrypt_json("message-cache", record_key.as_str(), r#"{"value":"1234567890"}"#).expect("encrypt message")],
             ).expect("insert message");
         }
         insert_pending_send_for_test(&connection, &scope, "unsent", None);
@@ -1889,7 +1985,7 @@ mod tests {
         enforce_cache_policy(&connection, &scope, 50, policy).expect("enforce cache policy");
         let remaining: Vec<i64> = {
             let mut statement = connection
-                .prepare("SELECT message_seq FROM offline_messages ORDER BY message_seq")
+                .prepare("SELECT message_seq FROM im_local_message_cache ORDER BY message_seq")
                 .expect("prepare");
             statement
                 .query_map([], |row| row.get(0))
@@ -1899,12 +1995,10 @@ mod tests {
         };
         assert_eq!(remaining, vec![2, 3]);
         let pending_count: i64 = connection
-            .query_row("SELECT COUNT(*) FROM offline_pending_sends", [], |row| {
+            .query_row("SELECT COUNT(*) FROM im_local_pending_send", [], |row| {
                 row.get(0)
             })
             .expect("pending count");
         assert_eq!(pending_count, 1);
-        drop(connection);
-        cleanup_db(path.as_path());
     }
 }

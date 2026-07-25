@@ -438,7 +438,7 @@ export function parseSdkworkChatPcDevArgs(argv = []) {
     if (token === '--database') {
       const value = normalizeText(tokens[index + 1]);
       if (!value) {
-        throw new Error('--database requires postgres or sqlite');
+        throw new Error('--database requires postgres');
       }
       options.database = value;
       index += 1;
@@ -464,7 +464,7 @@ export function parseSdkworkChatPcDevArgs(argv = []) {
     }
     throw new Error(`Unknown sdkwork-im-pc dev argument: ${token}`);
   }
-  if (!['postgres', 'postgresql', 'sqlite'].includes(options.database)) {
+  if (!['postgres', 'postgresql'].includes(options.database)) {
     if (options.database === undefined) {
       return options;
     }
@@ -487,11 +487,7 @@ export function createSdkworkChatPcDevPlan({
     throw new Error(`Unsupported sdkwork-im-pc dev target: ${options.target}`);
   }
   const defaultDatabaseProfile = 'postgres';
-  const databaseProfile = options.clientOnly
-    ? undefined
-    : options.database === 'postgresql'
-      ? 'postgres'
-      : options.database ?? defaultDatabaseProfile;
+  const databaseProfile = options.clientOnly ? undefined : defaultDatabaseProfile;
   const defaultEnvFile = databaseProfile === 'postgres'
     ? resolveDefaultPostgresEnvFile(resolvedRepoRoot)
     : undefined;
@@ -512,11 +508,7 @@ export function createSdkworkChatPcDevPlan({
     : undefined;
   const devEnvFile = databaseProfile === 'postgres'
     ? (customDevEnvFile ?? postgresDevProfile.fileEnv)
-    : databaseProfile === 'sqlite'
-      ? loadSdkworkChatPcDevEnvFile(options.envFile ?? defaultEnvFile, {
-          repoRoot: resolvedRepoRoot,
-        })
-      : {};
+    : {};
   const requestedEnv = {
     ...env,
     ...devEnvFile,
@@ -534,30 +526,6 @@ export function createSdkworkChatPcDevPlan({
   const mergedEnv = {
     ...cargoEnv.env,
   };
-  if (databaseProfile === 'sqlite') {
-    delete mergedEnv.SDKWORK_IM_DATABASE_ENGINE;
-    delete mergedEnv.SDKWORK_IM_DATABASE_HOST;
-    delete mergedEnv.SDKWORK_IM_DATABASE_PORT;
-    delete mergedEnv.SDKWORK_IM_DATABASE_NAME;
-    delete mergedEnv.SDKWORK_IM_DATABASE_SCHEMA;
-    delete mergedEnv.SDKWORK_IM_DATABASE_USERNAME;
-    delete mergedEnv.SDKWORK_IM_DATABASE_PASSWORD;
-    delete mergedEnv.SDKWORK_IM_DATABASE_SSL_MODE;
-    delete mergedEnv.SDKWORK_IM_DATABASE_URL;
-    delete mergedEnv.SDKWORK_IM_DATABASE_MAX_CONNECTIONS;
-    delete mergedEnv.SDKWORK_CLAW_DATABASE_PROVIDER;
-    delete mergedEnv.SDKWORK_CLAW_DATABASE_HOST;
-    delete mergedEnv.SDKWORK_CLAW_DATABASE_PORT;
-    delete mergedEnv.SDKWORK_CLAW_DATABASE_NAME;
-    delete mergedEnv.SDKWORK_CLAW_DATABASE_SCHEMA;
-    delete mergedEnv.SDKWORK_CLAW_DATABASE_USERNAME;
-    delete mergedEnv.SDKWORK_CLAW_DATABASE_PASSWORD;
-    delete mergedEnv.SDKWORK_CLAW_DATABASE_SSLMODE;
-    delete mergedEnv.SDKWORK_CLAW_DATABASE_URL;
-    delete mergedEnv.SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS;
-    mergedEnv.SDKWORK_IM_DEPLOYMENT_MODE = 'desktop';
-    mergedEnv.SDKWORK_IM_DATABASE_ENGINE = 'sqlite';
-  }
   const devServer = resolveSdkworkChatPcDevServer({
     env: mergedEnv,
     host: devServerHost,

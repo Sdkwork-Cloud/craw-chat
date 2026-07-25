@@ -1,5 +1,0 @@
-{
-  "app.notFound.title": "Page Not Found",
-  "app.notFound.message": "Unknown IM route: {{route}}",
-  "app.notFound.action": "Go to Inbox"
-}

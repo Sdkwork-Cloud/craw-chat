@@ -142,6 +142,9 @@ impl IntoResponse for ApiError {
             kind: api_error_kind(&self.status),
             message: self.message,
             retry_after_seconds: None,
+            auth_profile: None,
+            failed_stage: None,
+            reason: None,
         };
         problem_response(&error, ProblemCorrelation::from(None))
     }

@@ -62,9 +62,10 @@ must not use it as a list, retrieve, or reuse endpoint.
   <span class="api-op-id">operationId: inbox.list</span>
 </div>
 
-Returns the cursor-paginated unified conversation list for the current principal. The list is served
-by `projection-service` from the maintained inbox projection and includes ordinary human chats,
-groups, system conversations, handoffs, and agent dialogs visible to the caller.
+Returns the cursor-paginated unified conversation list for the current principal. The normalized
+Conversation service queries the IM-owned current-state tables and indexes directly; the result
+includes ordinary human chats, groups, system conversations, handoffs, and agent dialogs visible
+to the caller.
 
 
 <div class="api-meta-grid">

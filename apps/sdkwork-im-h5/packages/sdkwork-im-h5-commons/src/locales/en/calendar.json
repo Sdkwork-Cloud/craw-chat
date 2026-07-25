@@ -1,0 +1,27 @@
+{
+  "title": "Calendar",
+  "today": "Today",
+  "schedules_of": "Schedules on {{date}}",
+  "loading": "Loading...",
+  "no_schedules": "No schedules",
+  "add_schedule": "Add Schedule",
+  "create_schedule": "New Schedule",
+  "enter_title": "Please enter a title",
+  "title_placeholder": "Title",
+  "time_placeholder": "Time (e.g. 10:00 - 11:00)",
+  "added_to": "Will be added to {{date}}",
+  "save": "Save",
+  "add_success": "Successfully added",
+  "delete_success": "Successfully deleted",
+  "all_day": "All Day",
+  "week_days": {
+    "sun": "Sun",
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat"
+  },
+  "auto_18a12f7d": "{`${year}年${month + 1}月`}"
+}

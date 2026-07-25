@@ -3,13 +3,14 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "sdkwork-api-im-standalone-gateway",
-    "displayName": "SDKWork im Standalone API Gateway",
+    "displayName": "SDKWork IM Standalone API Gateway",
     "version": "0.1.0",
     "type": "rust-api-standalone-gateway",
     "root": "crates/sdkwork-api-im-standalone-gateway",
-    "domain": "im",
-    "capability": "api-gateway",
-    "surface": "gateway-api",
+    "domain": "communication",
+    "capability": "standalone-gateway",
+    "surface": "application.public-ingress",
+    "status": "standardizing",
     "languages": [
       "rust"
     ],
@@ -19,6 +20,11 @@
     ]
   },
   "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
     {
       "file": "API_ASSEMBLY_SPEC.md",
       "path": "../../../sdkwork-specs/API_ASSEMBLY_SPEC.md",
@@ -38,6 +44,16 @@
       "file": "WEB_BACKEND_SPEC.md",
       "path": "../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
       "purpose": "HTTP backend host rules."
+    },
+    {
+      "file": "HEALTH_CHECK_SPEC.md",
+      "path": "../../../sdkwork-specs/HEALTH_CHECK_SPEC.md",
+      "purpose": "Canonical liveness, readiness, metrics, failure, and redaction rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Fail-closed runtime and secret-redaction requirements."
     },
     {
       "file": "RUST_CODE_SPEC.md",
@@ -69,11 +85,32 @@
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [
+      "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
+      "SDKWORK_IM_ENVIRONMENT",
+      "SDKWORK_IM_DATABASE_URL",
+      "SDKWORK_IM_REDIS_ENABLED",
+      "SDKWORK_IM_REDIS_URL",
+      "SDKWORK_IM_REALTIME_ROUTE_STORE_URL",
+      "SDKWORK_IM_REALTIME_CLUSTER_BUS_URL",
+      "SDKWORK_IM_BROWSER_ORIGINS"
+    ]
+  },
+  "integration": {
+    "authority": "The gateway owns one standalone listener and process infrastructure; API, SDK, persistence, and domain authorities remain in their owning components.",
+    "dependencyPolicy": "Executable API assemblies and approved in-process facades are composed at startup. Required database, Redis, Agents, worker, and realtime checks are combined through sdkwork-web-bootstrap readiness.",
+    "sdkPolicy": "The gateway does not create raw HTTP dependency clients or hand-edit generated SDK transports.",
+    "languagePolicy": "Rust startup remains in focused host modules and follows workspace dependency authority."
   },
   "verification": {
     "commands": [
-      "cargo check -p sdkwork-api-im-standalone-gateway"
+      "cargo test -p sdkwork-api-im-standalone-gateway",
+      "pnpm gateway:validate:standalone",
+      "pnpm test:web-framework-standard"
     ]
+  },
+  "metadata": {
+    "managedBy": "sdkwork-im",
+    "standardVersion": "2026-07-24"
   }
 }

@@ -1,0 +1,57 @@
+schema_version: 1
+kind: sdkwork.im-pc.client-local-cache-lifecycle
+contract_version: 1.0.0
+authority:
+  server: sdkwork-im-app-api
+  local_role: non-authoritative-cache-and-resumable-pending-send-queue
+  server_revalidation: authentication-authorization-membership-content-and-idempotency
+scope:
+  version: 1
+  dimensions:
+    - environment
+    - deployment_profile
+    - deployment_mode
+    - api_origin
+    - tenant_id
+    - organization_id
+    - account_id
+    - principal_kind
+    - principal_id
+  file_selection: sha256-canonical-scope
+  account_switch: distinct-file-wal-and-key
+cache:
+  source: generated-im-app-sdk
+  read_authority: server
+  ordering: server-message-sequence
+  retention_days: 30
+  page_default: 20
+  page_max: 200
+  eviction: oldest-first-by-cache-time-with-row-and-encrypted-byte-budgets
+pending_send:
+  local_identity: client_msg_id
+  server_identity_mapping: server-message-id-and-message-sequence-returned-by-app-api
+  idempotency: duplicate-client-msg-id-requires-identical-payload-hash
+  ordering: created_at_ms-then-client_msg_id
+  claim: atomic-expiring-lease
+  retry: bounded-attempt-budget-with-expiring-claim-release
+  rejection: permanent-server-rejection-removes-queue-row-and-marks-renderer-message-failed
+  quarantine: invalid-payload-expired-retention-or-exhausted-retry-budget
+  tombstones: not-applicable-no-local-delete-authority
+  conflict: different-payload-for-same-client-msg-id-is-rejected
+  reconciliation: successful-server-response-acknowledges-only-the-current-claim
+  logout: encrypted-row-retained-in-original-exact-scope
+  account_switch: no-cross-scope-claim-or-flush
+security:
+  payload_cipher: AES-256-GCM
+  key_scope: exact-scope-fingerprint
+  forbidden_payload_fields:
+    - access_token
+    - auth_token
+    - refresh_token
+    - authorization
+    - password
+    - api_key
+    - private_key
+    - credential
+    - secret
+

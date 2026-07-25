@@ -821,7 +821,10 @@ CREATE TABLE IF NOT EXISTS im_conversations (
     conversation_id TEXT NOT NULL,
     conversation_type TEXT NOT NULL,
     lifecycle_state TEXT NOT NULL DEFAULT 'active',
+    archived_at TIMESTAMPTZ,
+    archive_event_id TEXT,
     commit_seq BIGINT NOT NULL DEFAULT 0 CHECK (commit_seq >= 0),
+    commit_fingerprint TEXT NOT NULL,
     member_epoch BIGINT NOT NULL DEFAULT 0 CHECK (member_epoch >= 0),
     message_count BIGINT NOT NULL DEFAULT 0 CHECK (message_count >= 0),
     last_message_id BIGINT,
@@ -837,7 +840,11 @@ CREATE TABLE IF NOT EXISTS im_conversations (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_conversations PRIMARY KEY (tenant_id, organization_id, conversation_id),
-    CONSTRAINT chk_im_conversations_lifecycle CHECK (lifecycle_state IN ('active', 'archived'))
+    CONSTRAINT chk_im_conversations_lifecycle CHECK (lifecycle_state IN ('active', 'archived')),
+    CONSTRAINT chk_im_conversations_archive_metadata CHECK (
+        (lifecycle_state = 'active' AND archived_at IS NULL AND archive_event_id IS NULL)
+        OR (lifecycle_state = 'archived' AND archived_at IS NOT NULL AND archive_event_id IS NOT NULL)
+    )
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_conversations_activity
@@ -846,6 +853,85 @@ CREATE INDEX IF NOT EXISTS idx_im_conversations_activity
 CREATE INDEX IF NOT EXISTS idx_im_conversations_retention_until
     ON im_conversations (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS im_conversation_policies (
+    tenant_id TEXT NOT NULL,
+    organization_id TEXT NOT NULL DEFAULT '0',
+    conversation_id TEXT NOT NULL,
+    policy_epoch BIGINT NOT NULL CHECK (policy_epoch >= 0),
+    policy_version TEXT NOT NULL,
+    capability_flags TEXT[],
+    history_visibility TEXT NOT NULL,
+    retention_policy_ref TEXT NOT NULL,
+    max_members INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT pk_im_conversation_policies PRIMARY KEY (tenant_id, organization_id, conversation_id),
+    CONSTRAINT fk_im_conversation_policies_conversation FOREIGN KEY (
+        tenant_id, organization_id, conversation_id
+    ) REFERENCES im_conversations (tenant_id, organization_id, conversation_id) ON DELETE CASCADE,
+    CONSTRAINT chk_im_conversation_policies_max_members CHECK (max_members IS NULL OR max_members > 0)
+);
+
+CREATE TABLE IF NOT EXISTS im_conversation_business_bindings (
+    tenant_id TEXT NOT NULL,
+    organization_id TEXT NOT NULL DEFAULT '0',
+    conversation_id TEXT NOT NULL,
+    business_type TEXT NOT NULL,
+    business_id TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT pk_im_conversation_business_bindings PRIMARY KEY (tenant_id, organization_id, conversation_id),
+    CONSTRAINT uk_im_conversation_business_bindings_business UNIQUE (
+        tenant_id, organization_id, business_type, business_id
+    ),
+    CONSTRAINT fk_im_conversation_business_bindings_conversation FOREIGN KEY (
+        tenant_id, organization_id, conversation_id
+    ) REFERENCES im_conversations (tenant_id, organization_id, conversation_id) ON DELETE CASCADE,
+    CONSTRAINT chk_im_conversation_business_bindings_values CHECK (
+        length(trim(business_type)) > 0 AND length(trim(business_id)) > 0
+    )
+);
+
+CREATE TABLE IF NOT EXISTS im_conversation_handoffs (
+    tenant_id TEXT NOT NULL,
+    organization_id TEXT NOT NULL DEFAULT '0',
+    conversation_id TEXT NOT NULL,
+    handoff_status_epoch BIGINT NOT NULL CHECK (handoff_status_epoch >= 0),
+    status TEXT NOT NULL,
+    source_principal_kind TEXT NOT NULL,
+    source_principal_id TEXT NOT NULL,
+    target_principal_kind TEXT NOT NULL,
+    target_principal_id TEXT NOT NULL,
+    handoff_session_id TEXT NOT NULL,
+    handoff_reason TEXT,
+    accepted_at TIMESTAMPTZ,
+    accepted_by_principal_kind TEXT,
+    accepted_by_principal_id TEXT,
+    resolved_at TIMESTAMPTZ,
+    resolved_by_principal_kind TEXT,
+    resolved_by_principal_id TEXT,
+    closed_at TIMESTAMPTZ,
+    closed_by_principal_kind TEXT,
+    closed_by_principal_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT pk_im_conversation_handoffs PRIMARY KEY (tenant_id, organization_id, conversation_id),
+    CONSTRAINT uk_im_conversation_handoffs_session UNIQUE (tenant_id, organization_id, handoff_session_id),
+    CONSTRAINT fk_im_conversation_handoffs_conversation FOREIGN KEY (
+        tenant_id, organization_id, conversation_id
+    ) REFERENCES im_conversations (tenant_id, organization_id, conversation_id) ON DELETE CASCADE,
+    CONSTRAINT chk_im_conversation_handoffs_status CHECK (status IN ('open', 'accepted', 'resolved', 'closed')),
+    CONSTRAINT chk_im_conversation_handoffs_accepted_actor CHECK (
+        (accepted_by_principal_kind IS NULL) = (accepted_by_principal_id IS NULL)
+    ),
+    CONSTRAINT chk_im_conversation_handoffs_resolved_actor CHECK (
+        (resolved_by_principal_kind IS NULL) = (resolved_by_principal_id IS NULL)
+    ),
+    CONSTRAINT chk_im_conversation_handoffs_closed_actor CHECK (
+        (closed_by_principal_kind IS NULL) = (closed_by_principal_id IS NULL)
+    )
+);
 
 -- ============================================================
 -- Conversation member authority

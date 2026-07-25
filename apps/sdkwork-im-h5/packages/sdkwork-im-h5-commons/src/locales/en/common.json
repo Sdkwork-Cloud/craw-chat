@@ -1,0 +1,16 @@
+{
+  "hot": "HOT",
+  "search": "Search",
+  "cancel": "Cancel",
+  "tabs": {
+    "chat": "Chat",
+    "agents": "Agents",
+    "workspace": "Workspace",
+    "discover": "Discover",
+    "me": "Me"
+  },
+  "publish": "Publish",
+  "create": "Create",
+  "rename": "Rename",
+  "delete": "Delete"
+}

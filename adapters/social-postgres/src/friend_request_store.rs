@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use im_domain_core::social::{FriendRequest, FriendRequestStatus};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
@@ -39,33 +38,6 @@ pub struct FriendRequestInventoryQuery<'a> {
     pub limit: i64,
 }
 
-impl FriendRequestRecord {
-    pub fn from_domain(fr: &FriendRequest, organization_id: &str) -> Self {
-        Self {
-            tenant_id: fr.tenant_id.clone(),
-            organization_id: organization_id.to_string(),
-            request_id: fr.request_id.parse().unwrap_or(0),
-            requester_user_id: fr.requester_user_id.clone(),
-            target_user_id: fr.target_user_id.clone(),
-            request_message: fr.request_message.clone(),
-            status: friend_request_status_to_str(&fr.status).to_string(),
-            expired_at: fr.expired_at.clone(),
-            created_at: fr.created_at.clone(),
-            updated_at: fr.updated_at.clone(),
-        }
-    }
-}
-
-fn friend_request_status_to_str(status: &FriendRequestStatus) -> &'static str {
-    match status {
-        FriendRequestStatus::Pending => "pending",
-        FriendRequestStatus::Accepted => "accepted",
-        FriendRequestStatus::Declined => "declined",
-        FriendRequestStatus::Canceled => "canceled",
-        FriendRequestStatus::Expired => "expired",
-    }
-}
-
 /// Trait for friend request persistence.
 pub trait FriendRequestStore: Send + Sync {
     fn insert(&self, record: &FriendRequestRecord) -> Result<(), ContractError>;
@@ -92,22 +64,6 @@ pub trait FriendRequestStore: Send + Sync {
         limit: i64,
     ) -> Result<Vec<FriendRequestRecord>, ContractError>;
     fn update_status(
-        &self,
-        tenant_id: &str,
-        org_id: &str,
-        request_id: i64,
-        status: &str,
-        updated_at: &str,
-    ) -> Result<(), ContractError>;
-    /// Removes a friend request row (journal-append compensation for submitted events).
-    fn delete_by_id(
-        &self,
-        tenant_id: &str,
-        org_id: &str,
-        request_id: i64,
-    ) -> Result<(), ContractError>;
-    /// Unconditional status update used only when rolling back supplemental writes.
-    fn revert_status_for_compensation(
         &self,
         tenant_id: &str,
         org_id: &str,
@@ -190,17 +146,6 @@ const UPDATE_STATUS_SQL: &str = r#"
 UPDATE im_friend_requests
 SET status = $4, updated_at = $5::timestamptz
 WHERE tenant_id = $1 AND organization_id = $2 AND request_id = $3 AND status = 'pending'
-"#;
-
-const DELETE_BY_ID_SQL: &str = r#"
-DELETE FROM im_friend_requests
-WHERE tenant_id = $1 AND organization_id = $2 AND request_id = $3
-"#;
-
-const REVERT_STATUS_SQL: &str = r#"
-UPDATE im_friend_requests
-SET status = $4, updated_at = $5::timestamptz
-WHERE tenant_id = $1 AND organization_id = $2 AND request_id = $3
 "#;
 
 const FIND_BY_PAIR_AND_STATUS_SQL: &str = r#"
@@ -416,50 +361,6 @@ impl FriendRequestStore for PostgresFriendRequestStore {
                     "friend request is not pending or does not exist".to_owned(),
                 ));
             }
-            Ok(())
-        })
-    }
-
-    fn delete_by_id(
-        &self,
-        tenant_id: &str,
-        org_id: &str,
-        request_id: i64,
-    ) -> Result<(), ContractError> {
-        let pool = self.pool.clone();
-        let tid = tenant_id.to_string();
-        let oid = org_id.to_string();
-        run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "delete_friend_request")?;
-            client
-                .execute(DELETE_BY_ID_SQL, &[&tid, &oid, &request_id])
-                .map_err(|e| postgres_unavailable("delete_friend_request", e))?;
-            Ok(())
-        })
-    }
-
-    fn revert_status_for_compensation(
-        &self,
-        tenant_id: &str,
-        org_id: &str,
-        request_id: i64,
-        status: &str,
-        updated_at: &str,
-    ) -> Result<(), ContractError> {
-        let pool = self.pool.clone();
-        let tid = tenant_id.to_string();
-        let oid = org_id.to_string();
-        let st = status.to_string();
-        let ua = updated_at.to_string();
-        run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "revert_friend_request_status")?;
-            let updated_at_ts = postgres_timestamptz(ua.as_str(), "updated_at")?;
-            client
-                .execute(
-                    REVERT_STATUS_SQL,
-                    &[&tid, &oid, &request_id, &st, &updated_at_ts],
-                )
-                .map_err(|e| postgres_unavailable("revert_friend_request_status", e))?;
             Ok(())
         })
     }

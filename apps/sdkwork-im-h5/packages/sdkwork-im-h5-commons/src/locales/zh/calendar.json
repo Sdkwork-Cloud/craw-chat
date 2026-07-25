@@ -1,0 +1,27 @@
+{
+  "title": "日历",
+  "today": "今天",
+  "schedules_of": "{{date}} 的日程",
+  "loading": "加载中...",
+  "no_schedules": "暂无日程安排",
+  "add_schedule": "添加日程",
+  "create_schedule": "新建日程",
+  "enter_title": "请输入日程标题",
+  "title_placeholder": "标题",
+  "time_placeholder": "时间 (例如：10:00 - 11:00)",
+  "added_to": "将会添加到 {{date}}",
+  "save": "保存",
+  "add_success": "添加成功",
+  "delete_success": "删除成功",
+  "all_day": "全天",
+  "week_days": {
+    "sun": "日",
+    "mon": "一",
+    "tue": "二",
+    "wed": "三",
+    "thu": "四",
+    "fri": "五",
+    "sat": "六"
+  },
+  "auto_18a12f7d": "{`${year}年${month + 1}月`}"
+}

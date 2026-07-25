@@ -1,7 +1,18 @@
-import { createIamRuntime } from "./iamRuntime";
-import { bootstrapSdkClients } from "./sdkClients";
+import { createImAppAuthRuntime } from './imAppAuthRuntime';
 
-export function bootstrap() {
-  createIamRuntime();
-  bootstrapSdkClients();
+let iamRuntime: ReturnType<typeof createImAppAuthRuntime> | null = null;
+
+export function createIamRuntime(): ReturnType<typeof createImAppAuthRuntime> {
+  if (!iamRuntime) {
+    iamRuntime = createImAppAuthRuntime();
+  }
+  return iamRuntime;
+}
+
+export function getIamRuntime(): ReturnType<typeof createImAppAuthRuntime> {
+  return createIamRuntime();
+}
+
+export function resetIamRuntime(): void {
+  iamRuntime = null;
 }

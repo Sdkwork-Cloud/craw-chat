@@ -56,7 +56,7 @@
     "prefixRegistry": "database/contract/prefix-registry.json",
     "tableRegistry": "database/contract/table-registry.json",
     "baseline": "database/ddl/baseline/postgres/0001_im_baseline.sql",
-    "tableCount": 60,
+    "tableCount": 63,
     "readAuthority": "normalized aggregate tables",
     "auditAuthority": "im_commit_journal",
     "deliveryAuthority": "transactional inbox and outbox tables",

@@ -144,8 +144,8 @@ impl ConversationMember {
 }
 
 // These helpers intentionally mirror the persisted membership record fields so
-// runtime and projection call sites stay explicit when constructing roster
-// state from events and recovery snapshots.
+// runtime and normalized-query call sites stay explicit when constructing
+// roster state from persisted records or explicit recovery snapshots.
 #[allow(clippy::too_many_arguments)]
 pub fn build_conversation_member(
     tenant_id: &str,
@@ -1009,6 +1009,149 @@ impl ConversationAggregateState {
             conversation_type: conversation_type.into(),
             ..Self::default()
         }
+    }
+
+    pub fn from_normalized_current_state(
+        conversation_type: impl Into<String>,
+        lifecycle_state: &str,
+        commit_seq: u64,
+        member_epoch: u64,
+    ) -> Result<Self, String> {
+        let conversation_type = conversation_type.into();
+        if conversation_type.trim().is_empty() {
+            return Err("normalized conversation type must not be empty".into());
+        }
+        if member_epoch > commit_seq {
+            return Err(format!(
+                "normalized conversation member epoch exceeds commit sequence: {member_epoch} > {commit_seq}"
+            ));
+        }
+        let lifecycle_state = match lifecycle_state {
+            "active" => ConversationLifecycleState::Active,
+            "archived" => ConversationLifecycleState::Archived,
+            value => {
+                return Err(format!(
+                    "normalized conversation lifecycle state is invalid: {value}"
+                ));
+            }
+        };
+        Ok(Self {
+            conversation_type,
+            lifecycle_state,
+            commit_seq,
+            member_epoch,
+            ..Self::default()
+        })
+    }
+
+    /// Refreshes only the fields owned by the normalized `im_conversations`
+    /// row while preserving independently hydrated aggregate capabilities.
+    pub fn synchronize_normalized_current_state(
+        &mut self,
+        conversation_type: impl Into<String>,
+        lifecycle_state: &str,
+        commit_seq: u64,
+        member_epoch: u64,
+    ) -> Result<(), String> {
+        let normalized = Self::from_normalized_current_state(
+            conversation_type,
+            lifecycle_state,
+            commit_seq,
+            member_epoch,
+        )?;
+        if !self.conversation_type.is_empty()
+            && self.conversation_type != normalized.conversation_type
+        {
+            return Err(format!(
+                "normalized conversation type changed from {} to {}",
+                self.conversation_type, normalized.conversation_type
+            ));
+        }
+        if normalized.commit_seq < self.commit_seq {
+            return Err(format!(
+                "normalized conversation commit sequence regressed: {} < {}",
+                normalized.commit_seq, self.commit_seq
+            ));
+        }
+        if normalized.member_epoch < self.member_epoch {
+            return Err(format!(
+                "normalized conversation member epoch regressed: {} < {}",
+                normalized.member_epoch, self.member_epoch
+            ));
+        }
+
+        self.conversation_type = normalized.conversation_type;
+        self.lifecycle_state = normalized.lifecycle_state;
+        self.commit_seq = normalized.commit_seq;
+        self.member_epoch = normalized.member_epoch;
+        if !self.is_archived() {
+            self.archived_at = None;
+            self.archive_event_id = None;
+        }
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn restore_normalized_capability_state(
+        &mut self,
+        archived_at: Option<String>,
+        archive_event_id: Option<String>,
+        policy_epoch: u64,
+        policy: Option<ConversationPolicy>,
+        business_binding: Option<ConversationBusinessBinding>,
+        handoff_status_epoch: u64,
+        handoff_state: Option<AgentHandoffStateView>,
+    ) -> Result<(), String> {
+        if policy_epoch > self.commit_seq {
+            return Err(format!(
+                "normalized conversation policy epoch exceeds commit sequence: {policy_epoch} > {}",
+                self.commit_seq
+            ));
+        }
+        if handoff_status_epoch > self.commit_seq {
+            return Err(format!(
+                "normalized conversation handoff epoch exceeds commit sequence: {handoff_status_epoch} > {}",
+                self.commit_seq
+            ));
+        }
+        match self.lifecycle_state {
+            ConversationLifecycleState::Active => {
+                if archived_at.is_some() || archive_event_id.is_some() {
+                    return Err(
+                        "active normalized conversation must not carry archive metadata".into(),
+                    );
+                }
+            }
+            ConversationLifecycleState::Archived => {
+                if archived_at.is_none() || archive_event_id.is_none() {
+                    return Err(
+                        "archived normalized conversation requires archive metadata".into(),
+                    );
+                }
+            }
+        }
+        if business_binding.as_ref().is_some_and(|binding| {
+            binding.business_type.trim().is_empty() || binding.business_id.trim().is_empty()
+        }) {
+            return Err("normalized conversation business binding is invalid".into());
+        }
+        if self.scenario() == ConversationScenario::AgentHandoff && handoff_state.is_none() {
+            return Err("agent handoff conversation requires normalized handoff state".into());
+        }
+        if self.scenario() != ConversationScenario::AgentHandoff && handoff_state.is_some() {
+            return Err(
+                "non-handoff conversation must not carry normalized handoff state".into(),
+            );
+        }
+
+        self.archived_at = archived_at;
+        self.archive_event_id = archive_event_id;
+        self.policy_epoch = policy_epoch;
+        self.policy = policy;
+        self.business_binding = business_binding;
+        self.handoff_status_epoch = handoff_status_epoch;
+        self.handoff_state = handoff_state;
+        Ok(())
     }
 
     pub fn new_agent_handoff(handoff_state: AgentHandoffStateView) -> Self {

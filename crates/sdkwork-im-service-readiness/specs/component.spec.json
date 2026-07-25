@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-im-service-readiness",
+    "displayName": "SDKWork IM Service Readiness",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "crates/sdkwork-im-service-readiness",
+    "domain": "communication",
+    "capability": "service-readiness",
+    "surface": "process-infrastructure",
+    "status": "standardizing",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": false,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and public export rules."
+    },
+    {
+      "file": "HEALTH_CHECK_SPEC.md",
+      "path": "../../../sdkwork-specs/HEALTH_CHECK_SPEC.md",
+      "purpose": "Canonical liveness, readiness, composition, and redaction rules."
+    },
+    {
+      "file": "WEB_FRAMEWORK_SPEC.md",
+      "path": "../../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
+      "purpose": "Framework-owned infrastructure route integration."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Secret-safe errors, logs, and fail-closed behavior."
+    },
+    {
+      "file": "DATABASE_SPEC.md",
+      "path": "../../../sdkwork-specs/DATABASE_SPEC.md",
+      "purpose": "Database pool and connectivity lifecycle."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate and async implementation rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Failure, redaction, and runtime verification."
+    }
+  ],
+  "contracts": {
+    "layerRole": "runtime-composition",
+    "publicExports": [
+      "sdkwork_im_service_readiness::compose_im_required_readiness_checks",
+      "sdkwork_im_service_readiness::resolve_im_service_readiness_check",
+      "sdkwork_im_service_readiness::resolve_gateway_readiness_check_with_required_checks",
+      "sdkwork_im_service_readiness::register_im_process_boolean_readiness_check",
+      "sdkwork_im_service_readiness::bootstrap_im_service_database_from_env"
+    ],
+    "providedPorts": [
+      {
+        "name": "imServiceReadiness",
+        "export": "sdkwork_im_service_readiness::resolve_im_service_readiness_check"
+      },
+      {
+        "name": "imGatewayReadinessComposition",
+        "export": "sdkwork_im_service_readiness::resolve_gateway_readiness_check_with_required_checks"
+      }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": [
+      "SDKWORK_IM_DATABASE_URL",
+      "SDKWORK_IM_REDIS_ENABLED",
+      "SDKWORK_IM_REDIS_URL",
+      "SDKWORK_IM_DEPLOYMENT_PROFILE"
+    ]
+  },
+  "integration": {
+    "authority": "The crate composes process dependency checks; sdkwork-web-bootstrap remains the sole infrastructure route and response authority.",
+    "dependencyPolicy": "Runtime hosts add required domain and worker checks through public ReadinessCheck composition before mounting framework infrastructure.",
+    "sdkPolicy": "No HTTP SDK or raw dependency transport is owned by this crate.",
+    "languagePolicy": "Async checks avoid business logic and expose stable Rust trait-object boundaries."
+  },
+  "verification": {
+    "commands": [
+      "cargo test -p sdkwork-im-service-readiness",
+      "cargo test -p sdkwork-api-im-standalone-gateway"
+    ]
+  },
+  "metadata": {
+    "managedBy": "sdkwork-im",
+    "standardVersion": "2026-07-24"
+  }
+}

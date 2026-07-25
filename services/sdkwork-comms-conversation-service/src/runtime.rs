@@ -1,19 +1,20 @@
 use im_app_context::AppContext;
 use im_domain_core::retention::retention_until_from_envelope;
 use im_platform_contracts::{
-    AgentAssignmentSource, AgentDispatchReplyCompletion, AgentReplyCommitResult,
-    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAgentAssignmentItem,
+    AgentAssignmentSource, AgentDispatchReplyCompletion, AgentIntegrationStore,
+    AgentReplyCommitResult, CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAgentAssignmentItem,
     ConversationAggregateStore, ConversationMemberRecord, ConversationSeqAllocator, IdGenerator,
-    MessageStore, NormalizedConversationCommit, NormalizedConversationRecord, OutboxStore,
+    MessageStore, NormalizedConversationBusinessBindingRecord, NormalizedConversationCommit,
+    NormalizedConversationCurrentState, NormalizedConversationHandoffRecord,
+    NormalizedConversationPolicyRecord, NormalizedConversationRecord, OutboxStore,
     ReadCursorRecord, RealtimeEventPublisher, ReplaceConversationAgentAssignments,
     RetentionScopeStore, StoredMessageMutation, StoredMessageMutationTarget,
     StoredMessagePinRecord, StoredMessageReactionRecord, StoredMessageRecord,
 };
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{
-    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitJournal, CommitJournalAggregateEventTypeQuery,
-    CommitJournalAggregateScope, CommitJournalReplayCursor, CommitJournalReplayPage,
-    CommitPosition,
+    CommitJournal, CommitJournalAggregateEventTypeQuery, CommitJournalAggregateScope,
+    CommitJournalReplayCursor, CommitJournalReplayPage, CommitPosition,
 };
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::io::Write;
@@ -78,14 +79,12 @@ mod message_history_cursor;
 mod message_realtime;
 mod policy;
 mod postgres_direct_message_gate;
-mod recovery;
 mod room;
 pub mod rpc_dispatch;
 mod rpc_state_dispatch;
 mod runtime_metrics;
 mod support;
 
-use self::governance::ConversationPolicyAppliedPayload;
 use self::group_lifecycle::ensure_conversation_write_allowed;
 use self::message_realtime::ConversationRealtimeEvent;
 use self::policy::MessagePostPolicy;
@@ -98,8 +97,8 @@ use self::support::{
     build_message_reaction_removed_envelope, build_message_recalled_envelope,
     build_message_unpinned_envelope, build_owner_transfer_envelope, build_read_cursor_envelope,
     conversation_business_scope_key, conversation_retention_class, conversation_scope_key,
-    conversation_scope_key_for_envelope, conversation_timestamp, deactivate_roster_member,
-    decode_conversation_scope_key, encode_conversation_key_segments, event_id_component,
+    conversation_timestamp, decode_conversation_scope_key, encode_conversation_key_segments,
+    event_id_component,
     next_member_episode, resolve_active_member, resolve_active_member_id,
     resolve_active_member_id_with_kind, resolve_active_member_with_kind, upsert_member,
     upsert_read_cursor, upsert_roster_member,
@@ -1641,11 +1640,6 @@ struct ConversationState {
     aggregate: ConversationAggregateState,
     roster: ConversationRoster,
     message_log: ConversationMessageLog,
-    /// Keyset cursor of the last journal page examined by the focused agent
-    /// assignment refresher. This is deliberately separate from the domain
-    /// aggregate ordering sequence: PostgreSQL's `commit_offset` and the
-    /// aggregate `ordering_seq` are different coordinates.
-    agent_metadata_journal_cursor: Option<CommitJournalReplayCursor>,
     generic_create_request: Option<GenericConversationCreateReplayRecord>,
     agent_dialog_create_request: Option<AgentDialogCreateReplayRecord>,
     system_channel_create_request: Option<SystemChannelCreateReplayRecord>,
@@ -1747,6 +1741,27 @@ fn resolve_conversation_cache_max_bytes() -> usize {
 
 impl RuntimeState {
     fn insert_conversation(&mut self, scope_key: String, mut conversation: ConversationState) {
+        if let Some(previous_binding) = self
+            .conversations
+            .get(scope_key.as_str())
+            .and_then(|previous| previous.aggregate.business_binding())
+            .cloned()
+            && let Some((tenant_id, _, conversation_id)) =
+                decode_conversation_scope_key(scope_key.as_str())
+        {
+            let previous_business_scope = conversation_business_scope_key(
+                tenant_id.as_str(),
+                previous_binding.business_type.as_str(),
+                previous_binding.business_id.as_str(),
+            );
+            if self
+                .business_index
+                .get(previous_business_scope.as_str())
+                .is_some_and(|mapped_id| mapped_id == conversation_id.as_str())
+            {
+                self.business_index.remove(previous_business_scope.as_str());
+            }
+        }
         if conversation.last_accessed_at_ms == 0 {
             conversation.last_accessed_at_ms = now_ms();
         }
@@ -1760,6 +1775,19 @@ impl RuntimeState {
             self.estimated_conversation_bytes.saturating_add(weight);
         self.conversation_weights.insert(scope_key.clone(), weight);
         self.dirty_conversation_scopes.remove(scope_key.as_str());
+        if let Some(binding) = conversation.aggregate.business_binding()
+            && let Some((tenant_id, _, conversation_id)) =
+                decode_conversation_scope_key(scope_key.as_str())
+        {
+            self.business_index.insert(
+                conversation_business_scope_key(
+                    tenant_id.as_str(),
+                    binding.business_type.as_str(),
+                    binding.business_id.as_str(),
+                ),
+                conversation_id,
+            );
+        }
         self.conversations.insert(scope_key, conversation);
     }
 
@@ -2372,19 +2400,6 @@ fn post_message_request_key(command: &PostMessageCommand) -> Option<String> {
     })
 }
 
-fn post_message_request_key_from_message(message: &Message) -> Option<String> {
-    message.client_msg_id.as_ref().map(|client_msg_id| {
-        encode_conversation_key_segments([
-            message.tenant_id.as_str(),
-            message.sender.kind.as_str(),
-            message.sender.id.as_str(),
-            "message",
-            message.conversation_id.as_str(),
-            client_msg_id.as_str(),
-        ])
-    })
-}
-
 fn posted_message_replay_matches(
     existing: &PostedMessageReplayRecord,
     command: &PostMessageCommand,
@@ -2753,6 +2768,8 @@ pub struct ConversationRuntime<J> {
     /// 可选的会话聚合存储。注入后成员/已读游标从 DB 加载和持久化，
     /// 替代纯内存状态，使多实例部署共享会话聚合视图。
     aggregate_store: Option<Arc<dyn ConversationAggregateStore>>,
+    /// Normalized IM-side Agent assignments and dispatch correlations.
+    agent_integration_store: Option<Arc<dyn AgentIntegrationStore>>,
     /// 可选的序列号分配器。注入后 message_seq 走 Redis INCRBY 批量预取，
     /// 消除 im_conversation_seq_counters 单行热点。
     seq_allocator: Option<Arc<dyn ConversationSeqAllocator>>,
@@ -2782,6 +2799,7 @@ where
             outbox_store: None,
             id_generator: None,
             aggregate_store: None,
+            agent_integration_store: None,
             seq_allocator: None,
             retention_scope_store: None,
             realtime_publisher: None,
@@ -2814,6 +2832,11 @@ where
     /// 多实例部署时启用此选项以共享会话聚合视图。
     pub fn with_aggregate_store(mut self, store: Arc<dyn ConversationAggregateStore>) -> Self {
         self.aggregate_store = Some(store);
+        self
+    }
+
+    pub fn with_agent_integration_store(mut self, store: Arc<dyn AgentIntegrationStore>) -> Self {
+        self.agent_integration_store = Some(store);
         self
     }
 
@@ -2858,38 +2881,6 @@ where
         self.message_store.is_some()
     }
 
-    pub fn reset_for_recovery(&self) {
-        *write_runtime_state(&self.state, "runtime state") = RuntimeState::default();
-    }
-
-    pub fn recover_from_journal(&self) -> Result<usize, RuntimeError> {
-        let mut recovered_count = 0usize;
-        let mut cursor = None;
-        loop {
-            let page = self
-                .journal
-                .recorded_page(cursor.as_ref(), COMMIT_JOURNAL_REPLAY_BATCH_LIMIT)
-                .map_err(RuntimeError::from)?;
-            if page.items.is_empty() {
-                break;
-            }
-            let batch_len = page.items.len();
-            for envelope in &page.items {
-                self.apply_recovered_envelope(envelope)?;
-                recovered_count = recovered_count.saturating_add(1);
-            }
-            cursor = page.next_cursor;
-            if batch_len < COMMIT_JOURNAL_REPLAY_BATCH_LIMIT {
-                break;
-            }
-        }
-        {
-            let mut state = write_runtime_state(&self.state, "runtime.state.rebuild-actor-inbox");
-            state.rebuild_all_actor_inboxes();
-        }
-        Ok(recovered_count)
-    }
-
     pub fn evict_idle_conversations(&self) -> usize {
         let max = resolve_max_conversations_in_memory();
         let max_bytes = resolve_conversation_cache_max_bytes();
@@ -2920,88 +2911,30 @@ where
         evicted
     }
 
-    fn recover_single_conversation(
+    fn load_normalized_conversation(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         conversation_id: &str,
-    ) -> Result<usize, RuntimeError> {
-        let scope = CommitJournalAggregateScope {
-            tenant_id: tenant_id.to_owned(),
-            aggregate_id: conversation_id.to_owned(),
-        };
-        let mut recovered = 0usize;
-        let mut cursor = None;
-        loop {
-            let page = self
-                .journal
-                .recorded_page_for_aggregate(
-                    &scope,
-                    cursor.as_ref(),
-                    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT,
-                )
-                .map_err(RuntimeError::from)?;
-            if page.items.is_empty() {
-                break;
-            }
-            let batch_len = page.items.len();
-            for envelope in &page.items {
-                self.apply_recovered_envelope(envelope)?;
-                recovered += 1;
-            }
-            cursor = page.next_cursor;
-            if batch_len < COMMIT_JOURNAL_REPLAY_BATCH_LIMIT {
-                break;
-            }
-        }
-        if recovered == 0 {
-            return Err(RuntimeError::ConversationNotFound(
-                conversation_id.to_owned(),
-            ));
-        }
-        {
-            let mut state = write_runtime_state(&self.state, "runtime.state.rebuild-actor-inbox");
-            state.rebuild_all_actor_inboxes();
-        }
-        Ok(recovered)
+    ) -> Result<NormalizedConversationRecord, RuntimeError> {
+        self.load_normalized_conversation_current_state(tenant_id, organization_id, conversation_id)
+            .map(|state| state.conversation)
     }
 
-    fn load_journal_watermark_for_conversation(
+    fn load_normalized_conversation_current_state(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         conversation_id: &str,
-    ) -> Result<Option<u64>, RuntimeError> {
-        let scope = CommitJournalAggregateScope {
-            tenant_id: tenant_id.to_owned(),
-            aggregate_id: conversation_id.to_owned(),
-        };
-        let mut cursor = None;
-        let mut max_ordering_seq = None;
-        loop {
-            let page = self
-                .journal
-                .recorded_page_for_aggregate(
-                    &scope,
-                    cursor.as_ref(),
-                    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT,
-                )
-                .map_err(RuntimeError::from)?;
-            if page.items.is_empty() {
-                break;
-            }
-            let batch_len = page.items.len();
-            for envelope in &page.items {
-                max_ordering_seq = Some(
-                    max_ordering_seq
-                        .unwrap_or(envelope.ordering_seq)
-                        .max(envelope.ordering_seq),
-                );
-            }
-            cursor = page.next_cursor;
-            if batch_len < COMMIT_JOURNAL_REPLAY_BATCH_LIMIT {
-                break;
-            }
-        }
-        Ok(max_ordering_seq)
+    ) -> Result<NormalizedConversationCurrentState, RuntimeError> {
+        let aggregate_store = self.aggregate_store.as_ref().ok_or_else(|| {
+            RuntimeError::Contract(ContractError::Unavailable(
+                "normalized conversation store is required for cold conversation reads".into(),
+            ))
+        })?;
+        aggregate_store
+            .load_conversation_current_state(tenant_id, organization_id, conversation_id)?
+            .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.to_owned()))
     }
 
     fn ensure_conversation_loaded(
@@ -3010,102 +2943,86 @@ where
         organization_id: &str,
         conversation_id: &str,
     ) -> Result<(), RuntimeError> {
-        let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
+        let normalized_organization_id =
+            im_domain_events::normalize_commit_organization_id(organization_id);
+        let scope_key = conversation_scope_key(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+        );
         {
+            let state = read_runtime_state(&self.state, "runtime.state.ensure_conversation_local");
+            if self.durable_conversation_event_writer.is_none()
+                && state.conversations.contains_key(scope_key.as_str())
+            {
+                // In-memory/dev runtimes and focused adapter tests do not
+                // claim a normalized Conversation writer. Their locally
+                // committed hot state remains authoritative for that process.
+                return Ok(());
+            }
+        }
+        if self.aggregate_store.is_none() {
             let state = read_runtime_state(&self.state, "runtime.state.ensure_conversation_loaded");
             if state.conversations.contains_key(scope_key.as_str()) {
                 return Ok(());
             }
         }
-        // 优先路径 1：有 AggregateStore 时从 DB 加载聚合状态。
-        //
-        // DB I/O is performed *outside* the write lock to avoid blocking other
-        // requests that need the runtime state lock. A double-check after
-        // acquiring the write lock prevents redundant inserts when another
-        // thread loaded the same conversation concurrently.
-        if let Some(ref aggregate_store) = self.aggregate_store {
-            let normalized_organization_id =
-                im_domain_events::normalize_commit_organization_id(organization_id);
-            let members_page = aggregate_store.load_members_page(
-                tenant_id,
-                normalized_organization_id.as_str(),
-                conversation_id,
-                None,
-                CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
-            )?;
-            if members_page.items.is_empty() {
-                {
-                    let state = read_runtime_state(
-                        &self.state,
-                        "ensure_conversation_loaded.aggregate-empty",
-                    );
-                    if state.conversations.contains_key(scope_key.as_str()) {
-                        return Ok(());
-                    }
+        let normalized_current_state = self.load_normalized_conversation_current_state(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+        )?;
+        let normalized_conversation = &normalized_current_state.conversation;
+        let aggregate_store = self.aggregate_store.as_ref().ok_or_else(|| {
+            RuntimeError::Contract(ContractError::Unavailable(
+                "normalized conversation store is required for cold conversation reads".into(),
+            ))
+        })?;
+        {
+            let state = read_runtime_state(&self.state, "runtime.state.ensure_conversation_fresh");
+            if let Some(conversation) = state.conversations.get(scope_key.as_str()) {
+                // A local atomic commit can become visible in memory just
+                // before this earlier row read is applied. Never regress it.
+                if conversation.aggregate.commit_seq() > normalized_conversation.commit_seq {
+                    return Ok(());
                 }
-                self.recover_single_conversation(tenant_id, conversation_id)?;
+            }
+        }
+
+        // Cold and stale-cache hydration stays bounded: one Conversation row
+        // and one high-watermark query. Members and read cursors are loaded by
+        // targeted lookup or explicit keyset pages at their call sites.
+        let high_watermark = aggregate_store.load_high_watermark(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+        )?;
+        let mut state = write_runtime_state(&self.state, "ensure_conversation_loaded.normalized");
+        if let Some(conversation) = state.conversations.get(scope_key.as_str()) {
+            if conversation.aggregate.commit_seq() > normalized_conversation.commit_seq {
                 return Ok(());
             }
-            let read_cursors_page = aggregate_store.load_read_cursors_page(
-                tenant_id,
-                normalized_organization_id.as_str(),
-                conversation_id,
-                None,
-                CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
+            let mut candidate = conversation.clone();
+            hydrate_normalized_conversation_aggregate(
+                &mut candidate.aggregate,
+                &normalized_current_state,
             )?;
-            let high_watermark = aggregate_store.load_high_watermark(
-                tenant_id,
-                normalized_organization_id.as_str(),
-                conversation_id,
-            )?;
-            let mut conversation_state = ConversationState {
-                last_accessed_at_ms: now_ms(),
-                ..Default::default()
-            };
-            for member_record in &members_page.items {
-                let member = conversation_member_from_record(member_record);
-                conversation_state.roster.upsert_member(member);
-            }
-            for cursor_record in &read_cursors_page.items {
-                let cursor = read_cursor_from_record(cursor_record);
-                conversation_state.roster.upsert_read_cursor(cursor);
-            }
-            conversation_state
-                .message_log
-                .observe_high_watermark(high_watermark);
-            if let Some(journal_watermark) =
-                self.load_journal_watermark_for_conversation(tenant_id, conversation_id)?
-            {
-                conversation_state
-                    .aggregate
-                    .observe_commit_seq(journal_watermark);
-            }
-            let mut state =
-                write_runtime_state(&self.state, "ensure_conversation_loaded.aggregate");
-            if state.conversations.contains_key(scope_key.as_str()) {
-                return Ok(());
-            }
-            let members_to_sync = conversation_state
-                .roster
-                .members()
-                .values()
-                .cloned()
-                .collect::<Vec<_>>();
-            state.insert_conversation(scope_key, conversation_state);
-            state.sync_actor_inbox_members(
-                normalized_organization_id.as_str(),
-                members_to_sync.as_slice(),
-            );
+            candidate.message_log.observe_high_watermark(high_watermark);
+            state.insert_conversation(scope_key, candidate);
             return Ok(());
         }
-        // 优先路径 2：有 MessageStore 时从 journal 重放成员/策略状态；
-        // 消息真值已在 im_conversation_messages 中，禁止插入空 roster。
-        if self.message_store.is_some() {
-            self.recover_single_conversation(tenant_id, conversation_id)?;
-            return Ok(());
-        }
-        // Fallback 路径：无 store 时从 journal 重放（仅用于测试/单机模式）
-        self.recover_single_conversation(tenant_id, conversation_id)?;
+
+        let mut aggregate = ConversationAggregateState::default();
+        hydrate_normalized_conversation_aggregate(&mut aggregate, &normalized_current_state)?;
+        let mut conversation_state = ConversationState {
+            aggregate,
+            last_accessed_at_ms: now_ms(),
+            ..Default::default()
+        };
+        conversation_state
+            .message_log
+            .observe_high_watermark(high_watermark);
+        state.insert_conversation(scope_key, conversation_state);
         Ok(())
     }
 
@@ -3237,6 +3154,16 @@ where
                 "principal is not active conversation member: {principal_kind}:{principal_id}"
             )));
         };
+        if member_record.tenant_id != tenant_id
+            || member_record.organization_id != normalized_organization_id
+            || member_record.conversation_id != conversation_id
+            || member_record.principal_kind != principal_kind
+            || member_record.principal_id != principal_id
+        {
+            return Err(RuntimeError::Conflict(
+                "normalized conversation member scope is inconsistent".into(),
+            ));
+        }
         let member = conversation_member_from_record(&member_record);
         {
             let mut state = write_runtime_state(
@@ -3260,6 +3187,148 @@ where
                 "principal is not active conversation member: {principal_kind}:{principal_id}"
             )));
         }
+        Ok(())
+    }
+
+    fn ensure_member_by_id_loaded(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        member_id: &str,
+    ) -> Result<(), RuntimeError> {
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
+        let Some(aggregate_store) = self.aggregate_store.as_ref() else {
+            return Ok(());
+        };
+        let numeric_member_id = member_id
+            .parse::<i64>()
+            .map_err(|_| RuntimeError::MemberNotFound(member_id.to_owned()))?;
+        let normalized_organization_id =
+            im_domain_events::normalize_commit_organization_id(organization_id);
+        let member_record = aggregate_store
+            .load_member_by_id(
+                tenant_id,
+                normalized_organization_id.as_str(),
+                conversation_id,
+                numeric_member_id,
+            )?
+            .ok_or_else(|| RuntimeError::MemberNotFound(member_id.to_owned()))?;
+        if member_record.tenant_id != tenant_id
+            || member_record.organization_id != normalized_organization_id
+            || member_record.conversation_id != conversation_id
+            || member_record.member_id != numeric_member_id
+        {
+            return Err(RuntimeError::Conflict(
+                "normalized conversation member id scope is inconsistent".into(),
+            ));
+        }
+        let member = conversation_member_from_record(&member_record);
+        let scope_key = conversation_scope_key(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+        );
+        let mut state = write_runtime_state(
+            &self.state,
+            "conversation-runtime.state.ensure_member_by_id_loaded.authoritative",
+        );
+        let conversation = state
+            .conversations
+            .get_mut(scope_key.as_str())
+            .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+        conversation.roster.upsert_member(member.clone());
+        state.sync_actor_inbox_member(normalized_organization_id.as_str(), &member);
+        state.touch_conversation(scope_key.as_str());
+        drop(state);
+        self.maybe_evict_after_write();
+        Ok(())
+    }
+
+    fn ensure_read_cursor_loaded(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+        device_id: Option<&str>,
+    ) -> Result<(), RuntimeError> {
+        self.ensure_member_loaded(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_kind,
+            principal_id,
+        )?;
+        let Some(aggregate_store) = self.aggregate_store.as_ref() else {
+            return Ok(());
+        };
+        let normalized_organization_id =
+            im_domain_events::normalize_commit_organization_id(organization_id);
+        let scope_key = conversation_scope_key(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+        );
+        let member = {
+            let state = read_runtime_state(
+                &self.state,
+                "conversation-runtime.state.ensure_read_cursor.member",
+            );
+            let conversation = state
+                .conversations
+                .get(scope_key.as_str())
+                .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+            resolve_active_member_with_kind(conversation, principal_id, principal_kind)?
+        };
+        let numeric_member_id = member.member_id.parse::<i64>().map_err(|_| {
+            RuntimeError::Conflict(format!(
+                "normalized member id is not a signed integer: {}",
+                member.member_id
+            ))
+        })?;
+        let requested_device_id = device_id.unwrap_or_default();
+        let cursor = aggregate_store
+            .load_read_cursor_for_device(
+                tenant_id,
+                normalized_organization_id.as_str(),
+                conversation_id,
+                numeric_member_id,
+                requested_device_id,
+            )?
+            .map(|record| {
+                if record.tenant_id != tenant_id
+                    || record.organization_id != normalized_organization_id
+                    || record.conversation_id != conversation_id
+                    || record.member_id != numeric_member_id
+                    || record.principal_kind != principal_kind
+                    || record.principal_id != principal_id
+                    || (!record.device_id.is_empty() && record.device_id != requested_device_id)
+                {
+                    return Err(RuntimeError::Conflict(
+                        "normalized read cursor scope is inconsistent".into(),
+                    ));
+                }
+                Ok(read_cursor_from_record(&record))
+            })
+            .transpose()?
+            .unwrap_or_else(|| {
+                let mut cursor = build_default_read_cursor(&member);
+                cursor.device_id = device_id.map(str::to_owned);
+                cursor
+            });
+
+        let mut state = write_runtime_state(
+            &self.state,
+            "conversation-runtime.state.ensure_read_cursor.normalized",
+        );
+        let conversation = state
+            .conversations
+            .get_mut(scope_key.as_str())
+            .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+        conversation.roster.upsert_read_cursor(cursor);
+        state.touch_conversation(scope_key.as_str());
         Ok(())
     }
 
@@ -3404,19 +3473,51 @@ where
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
+        let expected_commit_seq = envelopes
+            .first()
+            .and_then(|envelope| envelope.ordering_seq.checked_sub(1))
+            .ok_or_else(|| {
+                RuntimeError::Conflict(
+                    "normalized conversation commit must start after an existing sequence".into(),
+                )
+            })?;
+        let policy = normalized_policy_record(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            &conversation.aggregate,
+        );
+        let business_binding = normalized_business_binding_record(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            &conversation.aggregate,
+        );
+        let handoff = normalized_handoff_record(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            &conversation.aggregate,
+        );
         writer
             .persist_normalized_conversation_commit(NormalizedConversationCommit {
+                expected_commit_seq,
                 conversation: NormalizedConversationRecord {
                     tenant_id: tenant_id.to_owned(),
                     organization_id: organization_id.to_owned(),
                     conversation_id: conversation_id.to_owned(),
                     conversation_type: conversation.aggregate.conversation_type().to_owned(),
                     lifecycle_state: lifecycle_state.into(),
+                    archived_at: conversation.aggregate.archived_at().map(str::to_owned),
+                    archive_event_id: conversation.aggregate.archive_event_id().map(str::to_owned),
                     commit_seq: conversation.aggregate.commit_seq(),
                     member_epoch: conversation.aggregate.member_epoch(),
                     last_activity_at,
                     retention_until: None,
                 },
+                policy,
+                business_binding,
+                handoff,
                 members,
                 read_cursors,
                 agent_assignments,
@@ -5254,6 +5355,252 @@ fn persist_aggregate_records(
             .map_err(RuntimeError::from)?;
     }
     Ok(())
+}
+
+fn normalized_record_scope_matches(
+    tenant_id: &str,
+    organization_id: &str,
+    conversation_id: &str,
+    record_tenant_id: &str,
+    record_organization_id: &str,
+    record_conversation_id: &str,
+) -> bool {
+    record_tenant_id == tenant_id
+        && record_organization_id == organization_id
+        && record_conversation_id == conversation_id
+}
+
+fn normalized_handoff_actor(
+    kind: &Option<String>,
+    id: &Option<String>,
+    field: &str,
+) -> Result<Option<ChangeAgentHandoffStatusView>, RuntimeError> {
+    match (kind.as_deref(), id.as_deref()) {
+        (None, None) => Ok(None),
+        (Some(kind), Some(id)) if !kind.trim().is_empty() && !id.trim().is_empty() => {
+            Ok(Some(ChangeAgentHandoffStatusView {
+                id: id.to_owned(),
+                kind: kind.to_owned(),
+            }))
+        }
+        _ => Err(RuntimeError::Conflict(format!(
+            "normalized conversation handoff {field} identity is incomplete"
+        ))),
+    }
+}
+
+fn hydrate_normalized_conversation_aggregate(
+    aggregate: &mut ConversationAggregateState,
+    current_state: &NormalizedConversationCurrentState,
+) -> Result<(), RuntimeError> {
+    let conversation = &current_state.conversation;
+    aggregate
+        .synchronize_normalized_current_state(
+            conversation.conversation_type.as_str(),
+            conversation.lifecycle_state.as_str(),
+            conversation.commit_seq,
+            conversation.member_epoch,
+        )
+        .map_err(RuntimeError::Conflict)?;
+
+    let (policy_epoch, policy) = match current_state.policy.as_ref() {
+        Some(record) => {
+            if !normalized_record_scope_matches(
+                conversation.tenant_id.as_str(),
+                conversation.organization_id.as_str(),
+                conversation.conversation_id.as_str(),
+                record.tenant_id.as_str(),
+                record.organization_id.as_str(),
+                record.conversation_id.as_str(),
+            ) {
+                return Err(RuntimeError::Conflict(
+                    "normalized conversation policy scope is inconsistent".into(),
+                ));
+            }
+            let policy = ConversationPolicy {
+                policy_version: record.policy_version.clone(),
+                capability_flags: record.capability_flags.clone(),
+                history_visibility: record.history_visibility.clone(),
+                retention_policy_ref: record.retention_policy_ref.clone(),
+                max_members: record.max_members,
+            }
+            .normalize()
+            .map_err(RuntimeError::Conflict)?;
+            (record.policy_epoch, Some(policy))
+        }
+        None => (0, None),
+    };
+
+    let business_binding = current_state
+        .business_binding
+        .as_ref()
+        .map(|record| {
+            if !normalized_record_scope_matches(
+                conversation.tenant_id.as_str(),
+                conversation.organization_id.as_str(),
+                conversation.conversation_id.as_str(),
+                record.tenant_id.as_str(),
+                record.organization_id.as_str(),
+                record.conversation_id.as_str(),
+            ) {
+                return Err(RuntimeError::Conflict(
+                    "normalized conversation business binding scope is inconsistent".into(),
+                ));
+            }
+            Ok(ConversationBusinessBinding {
+                business_type: record.business_type.clone(),
+                business_id: record.business_id.clone(),
+            })
+        })
+        .transpose()?;
+
+    let (handoff_status_epoch, handoff_state) = match current_state.handoff.as_ref() {
+        Some(record) => {
+            if !normalized_record_scope_matches(
+                conversation.tenant_id.as_str(),
+                conversation.organization_id.as_str(),
+                conversation.conversation_id.as_str(),
+                record.tenant_id.as_str(),
+                record.organization_id.as_str(),
+                record.conversation_id.as_str(),
+            ) || !matches!(
+                record.status.as_str(),
+                "open" | "accepted" | "resolved" | "closed"
+            ) || record.source_principal_kind.trim().is_empty()
+                || record.source_principal_id.trim().is_empty()
+                || record.target_principal_kind.trim().is_empty()
+                || record.target_principal_id.trim().is_empty()
+                || record.handoff_session_id.trim().is_empty()
+            {
+                return Err(RuntimeError::Conflict(
+                    "normalized conversation handoff state is invalid".into(),
+                ));
+            }
+            let handoff = AgentHandoffStateView {
+                tenant_id: record.tenant_id.clone(),
+                conversation_id: record.conversation_id.clone(),
+                status: record.status.clone(),
+                source: ChangeAgentHandoffStatusView {
+                    id: record.source_principal_id.clone(),
+                    kind: record.source_principal_kind.clone(),
+                },
+                target: ChangeAgentHandoffStatusView {
+                    id: record.target_principal_id.clone(),
+                    kind: record.target_principal_kind.clone(),
+                },
+                handoff_session_id: record.handoff_session_id.clone(),
+                handoff_reason: record.handoff_reason.clone(),
+                accepted_at: record.accepted_at.clone(),
+                accepted_by: normalized_handoff_actor(
+                    &record.accepted_by_principal_kind,
+                    &record.accepted_by_principal_id,
+                    "acceptedBy",
+                )?,
+                resolved_at: record.resolved_at.clone(),
+                resolved_by: normalized_handoff_actor(
+                    &record.resolved_by_principal_kind,
+                    &record.resolved_by_principal_id,
+                    "resolvedBy",
+                )?,
+                closed_at: record.closed_at.clone(),
+                closed_by: normalized_handoff_actor(
+                    &record.closed_by_principal_kind,
+                    &record.closed_by_principal_id,
+                    "closedBy",
+                )?,
+            };
+            (record.handoff_status_epoch, Some(handoff))
+        }
+        None => (0, None),
+    };
+
+    aggregate
+        .restore_normalized_capability_state(
+            conversation.archived_at.clone(),
+            conversation.archive_event_id.clone(),
+            policy_epoch,
+            policy,
+            business_binding,
+            handoff_status_epoch,
+            handoff_state,
+        )
+        .map_err(RuntimeError::Conflict)
+}
+
+fn normalized_policy_record(
+    tenant_id: &str,
+    organization_id: &str,
+    conversation_id: &str,
+    aggregate: &ConversationAggregateState,
+) -> Option<NormalizedConversationPolicyRecord> {
+    aggregate
+        .policy()
+        .map(|policy| NormalizedConversationPolicyRecord {
+            tenant_id: tenant_id.to_owned(),
+            organization_id: organization_id.to_owned(),
+            conversation_id: conversation_id.to_owned(),
+            policy_epoch: aggregate.policy_epoch(),
+            policy_version: policy.policy_version.clone(),
+            capability_flags: policy.capability_flags.clone(),
+            history_visibility: policy.history_visibility.clone(),
+            retention_policy_ref: policy.retention_policy_ref.clone(),
+            max_members: policy.max_members,
+        })
+}
+
+fn normalized_business_binding_record(
+    tenant_id: &str,
+    organization_id: &str,
+    conversation_id: &str,
+    aggregate: &ConversationAggregateState,
+) -> Option<NormalizedConversationBusinessBindingRecord> {
+    aggregate
+        .business_binding()
+        .map(|binding| NormalizedConversationBusinessBindingRecord {
+            tenant_id: tenant_id.to_owned(),
+            organization_id: organization_id.to_owned(),
+            conversation_id: conversation_id.to_owned(),
+            business_type: binding.business_type.clone(),
+            business_id: binding.business_id.clone(),
+        })
+}
+
+fn normalized_handoff_record(
+    tenant_id: &str,
+    organization_id: &str,
+    conversation_id: &str,
+    aggregate: &ConversationAggregateState,
+) -> Option<NormalizedConversationHandoffRecord> {
+    aggregate
+        .handoff_state()
+        .map(|handoff| NormalizedConversationHandoffRecord {
+            tenant_id: tenant_id.to_owned(),
+            organization_id: organization_id.to_owned(),
+            conversation_id: conversation_id.to_owned(),
+            handoff_status_epoch: aggregate.handoff_status_epoch(),
+            status: handoff.status.clone(),
+            source_principal_kind: handoff.source.kind.clone(),
+            source_principal_id: handoff.source.id.clone(),
+            target_principal_kind: handoff.target.kind.clone(),
+            target_principal_id: handoff.target.id.clone(),
+            handoff_session_id: handoff.handoff_session_id.clone(),
+            handoff_reason: handoff.handoff_reason.clone(),
+            accepted_at: handoff.accepted_at.clone(),
+            accepted_by_principal_kind: handoff
+                .accepted_by
+                .as_ref()
+                .map(|actor| actor.kind.clone()),
+            accepted_by_principal_id: handoff.accepted_by.as_ref().map(|actor| actor.id.clone()),
+            resolved_at: handoff.resolved_at.clone(),
+            resolved_by_principal_kind: handoff
+                .resolved_by
+                .as_ref()
+                .map(|actor| actor.kind.clone()),
+            resolved_by_principal_id: handoff.resolved_by.as_ref().map(|actor| actor.id.clone()),
+            closed_at: handoff.closed_at.clone(),
+            closed_by_principal_kind: handoff.closed_by.as_ref().map(|actor| actor.kind.clone()),
+            closed_by_principal_id: handoff.closed_by.as_ref().map(|actor| actor.id.clone()),
+        })
 }
 
 fn conversation_member_from_record(record: &ConversationMemberRecord) -> ConversationMember {

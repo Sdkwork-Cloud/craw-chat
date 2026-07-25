@@ -7,7 +7,7 @@ use tower::ServiceExt;
 
 #[tokio::test]
 async fn test_social_infra_app_exposes_shared_channel_sync_metrics() {
-    let app = social_service::build_app(Arc::new(SocialRuntime::default()));
+    let app = social_service::build_app(Arc::new(SocialRuntime::for_test()));
 
     let response = app
         .oneshot(

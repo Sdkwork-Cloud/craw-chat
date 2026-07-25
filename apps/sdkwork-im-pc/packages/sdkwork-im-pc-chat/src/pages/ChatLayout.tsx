@@ -117,7 +117,6 @@ const ChatLayoutComponent: React.FC = () => {
   const [groupKnowledgebaseAccessReloadEpoch, setGroupKnowledgebaseAccessReloadEpoch] = useState(0);
   const [groupKnowledgebaseSessionEpoch, setGroupKnowledgebaseSessionEpoch] = useState(0);
   const [driveOpenRequest, setDriveOpenRequest] = useState<DriveOpenRequest>();
-  const chatListProjectionRevisionRef = useRef(0);
   const driveOpenRequestSequenceRef = useRef(0);
   const groupDetailHydrationIdsRef = useRef(new Set<string>());
   const pendingReadCursorChatIdsRef = useRef(new Set<string>());
@@ -795,7 +794,7 @@ const ChatLayoutComponent: React.FC = () => {
     ...(update.notice !== undefined ? { notice: update.notice } : {}),
   });
 
-  const needsGroupProjection = (chat: Chat): boolean => (
+  const needsGroupProfileHydration = (chat: Chat): boolean => (
     chat.type === "group"
     && (
       !chat.name.trim()
@@ -804,27 +803,17 @@ const ChatLayoutComponent: React.FC = () => {
     )
   );
 
-  const needsGroupProjectionMerge = (sourceChats: Chat[]): boolean => sourceChats.some(needsGroupProjection);
-
-  const mergeGroupProjections = async (sourceChats: Chat[]): Promise<Chat[]> => {
-    if (!needsGroupProjectionMerge(sourceChats)) {
-      return sourceChats;
-    }
-
-    return sourceChats;
-  };
-
   const needsGroupDetailHydration = (chat: Chat): boolean => (
     chat.type === "group"
     && (
       chat.members === undefined
       || chat.memberCount === undefined
       || !hasAuthoritativeGroupAgentSnapshot(chat)
-      || needsGroupProjection(chat)
+      || needsGroupProfileHydration(chat)
     )
   );
 
-  const clearChatUnreadProjection = (chat: Chat): Chat => ({
+  const clearChatUnreadState = (chat: Chat): Chat => ({
     ...chat,
     unreadCount: 0,
     isMarkedUnread: false,
@@ -839,12 +828,12 @@ const ChatLayoutComponent: React.FC = () => {
     pendingReadCursorChatIdsRef.current.add(chat.id);
     setChats((previousChats) =>
       previousChats.map((item) =>
-        item.id === chat.id ? clearChatUnreadProjection(item) : item,
+        item.id === chat.id ? clearChatUnreadState(item) : item,
       ),
     );
     setActiveChat((previousActiveChat) =>
       previousActiveChat?.id === chat.id
-        ? clearChatUnreadProjection(previousActiveChat)
+        ? clearChatUnreadState(previousActiveChat)
         : previousActiveChat,
     );
     void chatService.markAsRead(chat.id)
@@ -890,7 +879,7 @@ const ChatLayoutComponent: React.FC = () => {
   const handleChatSelect = (chat: Chat): void => {
     const selectedChat = chatsRef.current.find((item) => item.id === chat.id) ?? chat;
     const isUnread = selectedChat.unreadCount > 0 || Boolean(selectedChat.isMarkedUnread);
-    const nextSelectedChat = isUnread ? clearChatUnreadProjection(selectedChat) : selectedChat;
+    const nextSelectedChat = isUnread ? clearChatUnreadState(selectedChat) : selectedChat;
     activeChatIdRef.current = nextSelectedChat.id;
     setActiveChat(nextSelectedChat);
     if (isUnread) {
@@ -1344,8 +1333,6 @@ const ChatLayoutComponent: React.FC = () => {
     }
     return chatService.subscribeChats((nextChats) => {
       handlePotentialIncomingNotifications(nextChats);
-      const projectionRevision = chatListProjectionRevisionRef.current + 1;
-      chatListProjectionRevisionRef.current = projectionRevision;
       const applyChats = (sourceChats: Chat[]) => {
         setChats((previousChats) => {
           const previousById = new Map(previousChats.map((chat) => [chat.id, chat]));
@@ -1684,13 +1671,13 @@ const ChatLayoutComponent: React.FC = () => {
     if (hydratedUser?.conversationId) {
       return { ...user, ...hydratedUser };
     }
-    const projectedContact = await contactService.listContactsPage()
+    const matchedContact = await contactService.listContactsPage()
       .then((page) => page.items.find((contact) => contact.id === user.id || contact.chatId === user.chatId))
       .catch(() => null);
     return {
       ...user,
       ...(hydratedUser ?? {}),
-      ...(projectedContact ?? {}),
+      ...(matchedContact ?? {}),
     };
   };
 
@@ -2133,7 +2120,6 @@ const ChatLayoutComponent: React.FC = () => {
                       if (activeChat.type !== "group") {
                         await chatService.deleteChat(activeChat.id);
                       }
-                      chatListProjectionRevisionRef.current += 1;
                       setChats((previousChats) => previousChats.filter((c) => c.id !== activeChat.id));
                       setActiveChat((previousActiveChat) =>
                         previousActiveChat?.id === activeChat.id ? null : previousActiveChat,

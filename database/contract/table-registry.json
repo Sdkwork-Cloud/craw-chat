@@ -245,6 +245,45 @@
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
+      "table_name": "im_conversation_policies",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active",
+      "module_prefix": "im",
+      "bounded_context": "instant_messaging",
+      "table_profile": "tenant_entity",
+      "system_of_record": true,
+      "write_owner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql",
+      "notes": "Typed current Conversation policy authority committed atomically with the Conversation CAS."
+    },
+    {
+      "table_name": "im_conversation_business_bindings",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active",
+      "module_prefix": "im",
+      "bounded_context": "instant_messaging",
+      "table_profile": "relation_entity",
+      "system_of_record": true,
+      "write_owner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql",
+      "notes": "Typed one-to-one Conversation business binding authority; it is not a journal-derived projection."
+    },
+    {
+      "table_name": "im_conversation_handoffs",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active",
+      "module_prefix": "im",
+      "bounded_context": "instant_messaging",
+      "table_profile": "tenant_entity",
+      "system_of_record": true,
+      "write_owner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql",
+      "notes": "Typed IM handoff workflow state referencing opaque Agents session ids without owning Agents session facts."
+    },
+    {
       "table_name": "im_conversation_members",
       "owner": "im-platform",
       "compliance_level": "L2",

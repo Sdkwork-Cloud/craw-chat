@@ -35,7 +35,7 @@ application and cannot safely grant a specific group space from an arbitrary gro
    failure. The current Owner may later issue ensure or retry failed provisioning. Admin and Member
    requests in `absent` or `failed` state are denied before link reservation or a Knowledgebase
    call.
-4. IM retains a local saga/projection for remote references, retry state, and UI status. It uses
+4. IM retains normalized local saga and link state for remote references, retry state, and UI status. It uses
    outbox/inbox delivery and version-aware membership events; it never owns Knowledgebase content
    tables or cross-database foreign keys.
 5. IM emits a short-lived, hash-stored, one-time opaque ticket only after the binding is active

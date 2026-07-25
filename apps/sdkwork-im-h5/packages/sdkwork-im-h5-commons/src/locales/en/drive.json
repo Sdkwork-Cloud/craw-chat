@@ -1,0 +1,30 @@
+{
+  "title": "Cloud Drive",
+  "storage_space": "Personal Space",
+  "storage_used": "Used {{percent}}%",
+  "storage_available": "Available {{available}} GB",
+  "actions": {
+    "recent": "Recent",
+    "files": "Files",
+    "transfer": "Transfer",
+    "quick": "Quick"
+  },
+  "sections": {
+    "recent_used": "Recently Used",
+    "all_files": "All Files"
+  },
+  "loading": "Loading...",
+  "no_files": "No files in Cloud Drive",
+  "upload_file_title": "Upload File",
+  "new_folder": "New Folder",
+  "upload_file": "Upload File",
+  "file_actions_title": "File Actions",
+  "share": "Share",
+  "rename": "Rename",
+  "delete": "Delete",
+  "link_copied": "Link copied to clipboard",
+  "enter_new_name": "Please enter new name",
+  "folder_created": "Folder created",
+  "file_uploaded": "File uploaded",
+  "file_deleted": "File deleted"
+}

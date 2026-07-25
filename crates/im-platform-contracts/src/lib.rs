@@ -51,6 +51,8 @@ pub use conversation_aggregate_store::{
     CONVERSATION_AGGREGATE_PAGE_SIZE_DEFAULT, CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
     ConversationAggregateState, ConversationAggregateStore, ConversationMemberPage,
     ConversationMemberPageCursor, ConversationMemberRecord, NormalizedConversationCommit,
+    NormalizedConversationBusinessBindingRecord, NormalizedConversationCurrentState,
+    NormalizedConversationHandoffRecord, NormalizedConversationPolicyRecord,
     NormalizedConversationRecord, ReadCursorPage, ReadCursorPageCursor, ReadCursorRecord,
 };
 pub use conversation_member_access_gate::{

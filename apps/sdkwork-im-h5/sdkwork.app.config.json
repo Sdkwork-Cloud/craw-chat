@@ -4,8 +4,8 @@
   "app": {
     "key": "sdkwork-im-h5",
     "name": "Sdkwork IM H5",
-    "displayName": "SDKWork IM H5",
-    "description": "SDKWork IM H5 mobile browser application for chat inbox and conversations.",
+    "displayName": "Sdkwork IM H5",
+    "description": "Sdkwork IM H5 SDKWork application.",
     "vendor": "SDKWork",
     "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-im-h5",
     "supportUrl": "https://sdkwork.com/support",
@@ -15,8 +15,8 @@
     "appType": "APP_REACT",
     "versionSource": "package.json",
     "identifiers": {
-      "packageName": "com.sdkwork.im.h5",
-      "bundleId": "com.sdkwork.im.h5",
+      "packageName": null,
+      "bundleId": null,
       "desktopAppId": null,
       "containerImage": "registry.sdkwork.com/apps/sdkwork-im-h5"
     }
@@ -25,19 +25,26 @@
     "profileKey": "backend-root-admin",
     "ownerMode": "tenant",
     "grantMode": "current",
-    "platform": "H5",
+    "platform": "WEB",
     "appId": null,
     "organizationId": "0",
     "tenantId": "100001"
   },
   "runtime": {
     "family": "mobile",
-    "framework": "react-capacitor",
-    "runtimes": ["H5", "CAPACITOR_IOS", "CAPACITOR_ANDROID"],
-    "deliveryModes": ["WEB_URL", "DIRECT_DOWNLOAD"],
-    "defaultPlatform": "H5",
+    "framework": "react-h5",
+    "runtimes": [
+      "WEB"
+    ],
+    "deliveryModes": [
+      "WEB_URL"
+    ],
+    "defaultPlatform": "WEB",
     "defaultArchitecture": "universal",
-    "supportedDeploymentProfiles": ["cloud", "standalone"],
+    "supportedDeploymentProfiles": [
+      "cloud",
+      "standalone"
+    ],
     "defaultDeploymentProfile": "cloud"
   },
   "media": {
@@ -56,46 +63,59 @@
         "alphaChannel": false,
         "sortOrder": 0,
         "enabled": true,
-        "metadata": { "generatedBy": "sdkwork-im-manifest-v3" }
+        "metadata": {
+          "generatedBy": "apps/scripts/initialize-sdkwork-app-standard-v3.mjs"
+        }
       },
       "platform": [],
-      "metadata": { "generatedBy": "sdkwork-im-manifest-v3" }
+      "metadata": {
+        "generatedBy": "apps/scripts/initialize-sdkwork-app-standard-v3.mjs"
+      }
     },
     "screenshots": [],
     "previews": [],
     "metadata": {
-      "assetVersion": "0.1.0",
+      "assetVersion": "0.0.0",
       "defaultLocale": "en-US"
     }
   },
   "publish": {
     "status": "DRAFT",
-    "installSkill": { "name": "sdkwork-skills-app" },
-    "platforms": ["H5", "APP_IOS", "APP_ANDROID"],
-    "installPlatforms": ["H5", "APP_IOS", "APP_ANDROID"],
-    "defaultPackageId": "h5-universal-cloud-mobile-zip",
+    "installSkill": {
+      "name": "sdkwork-skills-app"
+    },
+    "platforms": [
+      "WEB",
+      "H5",
+      "H5_WEIXIN"
+    ],
+    "installPlatforms": [
+      "WEB",
+      "H5"
+    ],
+    "defaultPackageId": "web-universal-cloud-browser-zip",
     "storeUrl": "https://sdkwork.com/apps/sdkwork-im-h5",
     "stores": [],
     "config": {
       "workspaceRoot": "apps/sdkwork-im-h5",
-      "framework": "react-capacitor",
-      "managedBy": "sdkwork-im-manifest-v3"
+      "framework": "react-h5",
+      "managedBy": "apps/scripts/initialize-sdkwork-app-standard-v3.mjs"
     }
   },
   "artifacts": {
     "installConfig": {
-      "defaultPackageId": "h5-universal-cloud-mobile-zip",
+      "defaultPackageId": "web-universal-cloud-browser-zip",
       "installCommand": "sdkwork install sdkwork-im-h5",
       "launchCommand": "sdkwork open sdkwork-im-h5",
       "uninstallCommand": "sdkwork uninstall sdkwork-im-h5",
       "packages": [
         {
-          "id": "h5-universal-cloud-mobile-zip",
-          "name": "SDKWork IM H5 Web Bundle",
+          "id": "web-universal-cloud-browser-zip",
+          "name": "Sdkwork IM H5 Web Bundle (Cloud)",
           "sourceType": "WEB_URL",
           "packageFormat": "ZIP",
-          "platform": "H5",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.1.0/h5-universal-cloud-mobile.zip",
+          "platform": "WEB",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.0.0/web.zip",
           "enabled": false,
           "metadata": {
             "releaseBuildDeferred": true
@@ -105,85 +125,63 @@
           "deploymentProfile": "cloud",
           "runtimeTarget": "browser",
           "profileBinding": "fixed",
-          "targetPlatform": "h5",
+          "targetPlatform": "web",
           "clientArchitecture": "h5"
         },
         {
-          "id": "ios-universal-dual-mobile-ipa",
-          "name": "SDKWork IM H5 Capacitor iOS IPA",
-          "sourceType": "BINARY_URL",
-          "packageFormat": "IPA",
-          "platform": "APP_IOS",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.1.0/ios-universal-dual-mobile.ipa",
+          "id": "web-universal-standalone-browser-zip",
+          "name": "Sdkwork IM H5 Web Bundle (Standalone)",
+          "sourceType": "WEB_URL",
+          "packageFormat": "ZIP",
+          "platform": "WEB",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.0.0/web-standalone.zip",
           "enabled": false,
           "metadata": {
-            "hostFramework": "capacitor",
             "releaseBuildDeferred": true
           },
           "checksumAlgorithm": "SHA-256",
           "architecture": "universal",
-          "runtimeTarget": "capacitor-ios",
-          "profileBinding": "runtime-configurable",
-          "supportedDeploymentProfiles": ["standalone", "cloud"],
-          "defaultDeploymentProfile": "standalone",
-          "targetPlatform": "ios",
-          "clientArchitecture": "capacitor"
-        },
-        {
-          "id": "android-universal-dual-mobile-aab",
-          "name": "SDKWork IM H5 Capacitor Android AAB",
-          "sourceType": "BINARY_URL",
-          "packageFormat": "AAB",
-          "platform": "APP_ANDROID",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/STABLE/0.1.0/android-universal-dual-mobile.aab",
-          "enabled": false,
-          "metadata": {
-            "hostFramework": "capacitor",
-            "releaseBuildDeferred": true
-          },
-          "checksumAlgorithm": "SHA-256",
-          "architecture": "universal",
-          "runtimeTarget": "capacitor-android",
-          "profileBinding": "runtime-configurable",
-          "supportedDeploymentProfiles": ["standalone", "cloud"],
-          "defaultDeploymentProfile": "standalone",
-          "targetPlatform": "android",
-          "clientArchitecture": "capacitor"
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "browser",
+          "profileBinding": "fixed",
+          "targetPlatform": "web",
+          "clientArchitecture": "h5"
         }
       ],
       "metadata": {
         "workspaceRoot": "apps/sdkwork-im-h5",
-        "framework": "react-capacitor",
+        "framework": "react-h5",
         "packageManager": "pnpm",
-        "migratedFromLegacyConfig": true
+        "migratedFromLegacyConfig": false
       }
     }
   },
   "release": {
-    "currentVersion": "0.1.0",
+    "currentVersion": "0.0.0",
     "defaultChannel": "STABLE",
-    "latest": { "STABLE": "0.1.0" },
+    "latest": {
+      "STABLE": "0.0.0"
+    },
     "notes": [
       {
-        "version": "0.1.0",
+        "version": "0.0.0",
         "releaseChannel": "STABLE",
-        "title": "SDKWork IM H5 0.1.0",
-        "summary": "SDKWork IM H5 App Standard v3 manifest.",
-        "content": "Initial sdkwork-im-h5 with IAM auth, inbox, and conversation REST baseline.",
+        "title": "Sdkwork IM H5 0.0.0",
+        "summary": "Sdkwork IM H5 initialized standard release.",
+        "content": "Initial SDKWork App Standard v3 manifest for Sdkwork IM H5.",
         "highlights": [
-          "SDKWork App Standard v3 configuration",
-          "IAM auth route alignment",
-          "Inbox and conversation REST baseline"
+          "SDKWork App Standard v3 configuration initialized",
+          "application registration metadata standardized",
+          "H5 web package matrix normalized"
         ],
         "packageIds": [
-          "h5-universal-cloud-mobile-zip",
-          "ios-universal-dual-mobile-ipa",
-          "android-universal-dual-mobile-aab"
+          "web-universal-cloud-browser-zip",
+          "web-universal-standalone-browser-zip"
         ],
-        "publishedAt": "2026-06-25T00:00:00Z",
+        "publishedAt": "2026-07-24T00:00:00Z",
         "current": true,
         "forceUpdate": false,
-        "minSupportedVersion": "0.1.0",
+        "minSupportedVersion": "0.0.0",
         "metadata": {}
       }
     ]
@@ -194,12 +192,14 @@
     "sbomRequired": true
   },
   "devApp": {
-    "build": { "targets": [] },
+    "build": {
+      "targets": []
+    },
     "sourceRoot": "apps/sdkwork-im-h5"
   },
   "metadata": {
     "standardOwner": "sdkwork-platform",
-    "initializedAt": "2026-06-25T00:00:00Z",
+    "initializedAt": "2026-07-24T00:00:00Z",
     "deploymentConfig": "etc/sdkwork.deployment.config.json"
   }
 }

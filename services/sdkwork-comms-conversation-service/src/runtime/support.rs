@@ -28,14 +28,6 @@ pub(super) fn conversation_scope_key(
     ])
 }
 
-pub(super) fn conversation_scope_key_for_envelope(envelope: &CommitEnvelope) -> String {
-    conversation_scope_key(
-        envelope.tenant_id.as_str(),
-        envelope.organization_id.as_str(),
-        envelope.scope_id.as_str(),
-    )
-}
-
 pub(super) fn conversation_business_scope_key(
     tenant_id: &str,
     business_type: &str,

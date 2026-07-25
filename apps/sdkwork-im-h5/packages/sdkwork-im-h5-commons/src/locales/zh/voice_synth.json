@@ -1,0 +1,28 @@
+{
+  "title": "语音合成",
+  "placeholder": "在这里输入想要转换的文字，AI 将为您合成自然流畅的语音...",
+  "speaker": "发音人",
+  "change": "更改",
+  "advanced_params": "高级发音参数",
+  "collapse": "收起",
+  "expand": "展开",
+  "speed": "语速",
+  "pitch": "音调",
+  "volume": "音量",
+  "synthesizing": "正在合成...",
+  "synthesize_now": "立即合成语音",
+  "input_empty": "请输入需要合成的文字",
+  "success": "合成成功",
+  "saved": "已保存到本地",
+  "result_filename": "合成语音结果.mp3",
+  "voices": {
+    "1": "晓晓",
+    "2": "云希",
+    "3": "云野",
+    "4": "晓伊",
+    "type_female1": "清新女声",
+    "type_male1": "阳光男声",
+    "type_male2": "沉稳男声",
+    "type_female2": "甜美女生"
+  }
+}

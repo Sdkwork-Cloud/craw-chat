@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-im-database-host",
+    "displayName": "SDKWork IM Database Host",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "crates/sdkwork-im-database-host",
+    "domain": "communication",
+    "capability": "database-lifecycle",
+    "surface": "process-infrastructure",
+    "status": "standardizing",
+    "languages": ["rust"],
+    "generated": false,
+    "private": false,
+    "manifests": ["Cargo.toml"]
+  },
+  "canonicalSpecs": [
+    {"file": "COMPONENT_SPEC.md", "path": "../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component-local contract and public export rules."},
+    {"file": "DATABASE_SPEC.md", "path": "../../../sdkwork-specs/DATABASE_SPEC.md", "purpose": "PostgreSQL authoritative server and shared-pool rules."},
+    {"file": "DATABASE_FRAMEWORK_SPEC.md", "path": "../../../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md", "purpose": "Manifest-driven lifecycle and migration governance."},
+    {"file": "CODE_STYLE_SPEC.md", "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source structure and error boundaries."},
+    {"file": "NAMING_SPEC.md", "path": "../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical component and Rust responsibility naming."},
+    {"file": "RUST_CODE_SPEC.md", "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md", "purpose": "Rust persistence composition rules."},
+    {"file": "SECURITY_SPEC.md", "path": "../../../sdkwork-specs/SECURITY_SPEC.md", "purpose": "Fail-closed bootstrap and secret-safe errors."},
+    {"file": "TEST_SPEC.md", "path": "../../../sdkwork-specs/TEST_SPEC.md", "purpose": "Negative engine and lifecycle verification."}
+  ],
+  "contracts": {
+    "layerRole": "runtime-composition",
+    "publicExports": [
+      "sdkwork_im_database_host::bootstrap_im_database",
+      "sdkwork_im_database_host::bootstrap_im_database_from_env",
+      "sdkwork_im_database_host::ImDatabaseHost"
+    ],
+    "providedPorts": [
+      {"name": "imDatabaseLifecycleHost", "export": "sdkwork_im_database_host::bootstrap_im_database"}
+    ],
+    "requiredPorts": [
+      {"name": "databaseLifecycleFramework", "export": "sdkwork_database_lifecycle::LifecycleOrchestrator"}
+    ],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": ["SDKWORK_IM_DATABASE_URL", "SDKWORK_IM_DATABASE_ENGINE", "SDKWORK_IM_APP_ROOT"]
+  },
+  "integration": {
+    "authority": "The repository database manifest and PostgreSQL schema are authoritative; this host performs lifecycle orchestration only.",
+    "dependencyPolicy": "Server callers inject or resolve the process-shared PostgreSQL pool before domain repositories start.",
+    "sdkPolicy": "This component exposes no HTTP or SDK surface.",
+    "languagePolicy": "SQLite is rejected before lifecycle initialization and schema evolution occurs only through declared database assets."
+  },
+  "verification": {
+    "commands": ["cargo test -p sdkwork-im-database-host", "pnpm db:validate"]
+  },
+  "metadata": {"managedBy": "sdkwork-im", "standardVersion": "2026-07-24"}
+}

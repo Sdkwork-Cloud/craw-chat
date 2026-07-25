@@ -1,0 +1,45 @@
+{
+  "title": "会议预定",
+  "stats": {
+    "upcoming": "今日即将开始 (场)"
+  },
+  "tabs": {
+    "upcoming": "待参加",
+    "finished": "已结束"
+  },
+  "loading": "加载中...",
+  "empty": "暂无相关会议记录",
+  "status": {
+    "upcoming": "即将开始",
+    "ongoing": "进行中",
+    "finished": "已结束"
+  },
+  "participants": "{{count}} 人参与",
+  "join": "加入会议",
+  "detail": {
+    "title": "会议详情",
+    "topic": "会议主题",
+    "time": "时间",
+    "room": "地点",
+    "organizer": "发起人",
+    "description": "会议简介",
+    "attendees": "参会人员",
+    "startCall": "发起视频会议"
+  },
+  "create": {
+    "title": "发起会议",
+    "topicLabel": "会议主题",
+    "topicPlaceholder": "请输入会议名称",
+    "dateLabel": "日期",
+    "timeLabel": "时间",
+    "startTime": "开始",
+    "endTime": "结束",
+    "roomLabel": "会议地点",
+    "roomPlaceholder": "会议室或其他地点",
+    "attendeesLabel": "参会人员",
+    "attendeesPlaceholder": "添加参会人",
+    "descriptionLabel": "会议详情",
+    "descriptionPlaceholder": "请输入会议具体内容或议程...",
+    "submit": "立即预定"
+  }
+}

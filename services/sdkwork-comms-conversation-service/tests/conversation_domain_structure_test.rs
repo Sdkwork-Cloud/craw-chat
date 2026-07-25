@@ -60,13 +60,10 @@ fn test_conversation_runtime_state_uses_domain_message_log_for_message_state() {
 #[test]
 fn test_runtime_state_uses_domain_message_locator_for_cross_conversation_lookup() {
     let runtime_source = include_str!("../src/runtime.rs");
-    let recovery_source = include_str!("../src/runtime/recovery.rs");
 
     for forbidden_symbol in ["message_index: HashMap<String, String>,", ".message_index"] {
-        let found =
-            runtime_source.contains(forbidden_symbol) || recovery_source.contains(forbidden_symbol);
         assert!(
-            !found,
+            !runtime_source.contains(forbidden_symbol),
             "conversation runtime should not keep direct message lookup map symbol: {forbidden_symbol}"
         );
     }
@@ -346,6 +343,10 @@ fn test_runtime_exposes_read_query_auth_context_entrypoints() {
 fn test_production_message_history_runtime_requires_postgres_message_store() {
     let journal_bootstrap_source =
         include_str!("../src/runtime/journal_bootstrap.rs").replace("\r\n", "\n");
+    let journal_bootstrap_production = journal_bootstrap_source
+        .split("#[cfg(test)]")
+        .next()
+        .expect("journal bootstrap production source");
     let membership_source = include_str!("../src/runtime/membership.rs").replace("\r\n", "\n");
 
     assert!(
@@ -356,11 +357,12 @@ fn test_production_message_history_runtime_requires_postgres_message_store() {
         "production-capable conversation runtime must wire PostgresMessageStore for durable message history reads"
     );
     assert!(
-        journal_bootstrap_source
-            .contains("if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test)")
-            && journal_bootstrap_source
-                .contains("postgres commit journal is required in production"),
-        "in-memory conversation runtime may be used only in dev/test; production must fail closed without Postgres"
+        journal_bootstrap_source.contains("let config = DatabaseConfig::from_env(\"IM\")")
+            && journal_bootstrap_source.contains("if config.engine != DatabaseEngine::Postgres")
+            && journal_bootstrap_source.contains("SQLite is client-local only")
+            && !journal_bootstrap_production
+                .contains("return Ok(ConversationCommitJournal::Memory"),
+        "conversation environment bootstrap must require PostgreSQL in every server environment"
     );
     assert!(
         membership_source.contains(".read_history_window(")
@@ -371,8 +373,8 @@ fn test_production_message_history_runtime_requires_postgres_message_store() {
     assert!(
         membership_source.contains(".message_window_before(")
             && journal_bootstrap_source
-                .contains("conversation-runtime using in-memory commit journal (development only)"),
-        "the in-memory message-log fallback must remain limited to the explicit dev/test in-memory runtime"
+                .contains("let journal = resolve_conversation_commit_journal_from_env()?;"),
+        "server message history must resolve its PostgreSQL journal and bounded store path"
     );
 }
 
@@ -587,7 +589,6 @@ fn test_conversation_runtime_state_uses_domain_aggregate_for_metadata_fields() {
 fn test_conversation_runtime_modules_use_domain_aggregate_owner_for_type_and_epochs() {
     let creation_source = include_str!("../src/runtime/creation.rs");
     let membership_source = include_str!("../src/runtime/membership.rs");
-    let recovery_source = include_str!("../src/runtime/recovery.rs");
     let handoff_source = include_str!("../src/runtime/handoff.rs");
 
     for forbidden_symbol in [
@@ -600,11 +601,41 @@ fn test_conversation_runtime_modules_use_domain_aggregate_owner_for_type_and_epo
     ] {
         let found = creation_source.contains(forbidden_symbol)
             || membership_source.contains(forbidden_symbol)
-            || recovery_source.contains(forbidden_symbol)
             || handoff_source.contains(forbidden_symbol);
         assert!(
             !found,
             "conversation runtime modules should delegate aggregate metadata ownership to ConversationAggregateState instead of using direct symbol: {forbidden_symbol}"
         );
     }
+}
+
+#[test]
+fn test_conversation_runtime_has_no_journal_current_state_recovery_surface() {
+    let runtime_source = include_str!("../src/runtime.rs");
+    let actor_inbox_source = include_str!("../src/runtime/actor_inbox.rs");
+    let conversation_state_source = include_str!("../src/conversation_state/mod.rs");
+
+    for forbidden_symbol in [
+        "mod recovery;",
+        "recover_from_journal",
+        "reset_for_recovery",
+        "apply_recovered_envelope",
+        "rebuild_all_actor_inboxes",
+    ] {
+        assert!(
+            !runtime_source.contains(forbidden_symbol)
+                && !actor_inbox_source.contains(forbidden_symbol)
+                && !conversation_state_source.contains(forbidden_symbol),
+            "normalized Conversation state must not expose journal current-state recovery symbol: {forbidden_symbol}"
+        );
+    }
+
+    assert!(
+        !std::path::Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/runtime/recovery.rs"
+        ))
+        .exists(),
+        "journal current-state recovery module must remain deleted"
+    );
 }

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
-use crate::wire_id::social_entity_id_to_i64;
+use crate::wire_id::parse_social_entity_id;
 use crate::{
     SocialPostgresConnectionManager, optional_postgres_timestamptz, postgres_pool_client,
     postgres_timestamptz, postgres_unavailable, run_postgres_io,
@@ -167,12 +167,12 @@ impl PostgresContactStore {
     }
 }
 
-pub fn contact_tag_id_to_i64(tag_id: &str) -> i64 {
-    social_entity_id_to_i64(tag_id)
+pub fn contact_tag_id_to_i64(tag_id: &str) -> Result<i64, ContractError> {
+    parse_social_entity_id(tag_id)
 }
 
-pub fn contact_recommendation_id_to_i64(recommendation_id: &str) -> i64 {
-    social_entity_id_to_i64(recommendation_id)
+pub fn contact_recommendation_id_to_i64(recommendation_id: &str) -> Result<i64, ContractError> {
+    parse_social_entity_id(recommendation_id)
 }
 
 impl ContactStore for PostgresContactStore {

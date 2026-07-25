@@ -372,7 +372,7 @@ impl SocialRuntime {
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
-            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+            self.resolve_committed_social_event_retry(&state, &commit, |existing, persistence| {
                 match existing {
                     crate::runtime::SocialCommittedEvent::UserBlock { record, commit } => {
                         Ok(BlockedUser {
@@ -457,7 +457,7 @@ impl SocialRuntime {
                 return Ok(BlockedUser {
                     user_block: existing_record.user_block.clone(),
                     latest_commit,
-                    persistence: self.repair_derived_snapshot_best_effort(&state),
+                    persistence: self.current_persistence(),
                 });
             }
             return Err(SocialServiceError::conflict(
@@ -661,7 +661,7 @@ impl SocialRuntime {
 
     fn replay_terminal_released_user_block(
         &self,
-        state: &crate::runtime::SocialControlState,
+        _state: &crate::runtime::SocialControlState,
         block_id: &str,
         stored: &crate::runtime::StoredUserBlock,
     ) -> Result<BlockedUser, SocialServiceError> {
@@ -679,7 +679,7 @@ impl SocialRuntime {
         Ok(BlockedUser {
             user_block: stored.user_block.clone(),
             latest_commit: release_commit,
-            persistence: self.repair_derived_snapshot_best_effort(state),
+            persistence: self.current_persistence(),
         })
     }
 
@@ -806,7 +806,7 @@ impl SocialRuntime {
         });
 
         if let Some(replayed) =
-            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+            self.resolve_committed_social_event_retry(&state, &commit, |existing, persistence| {
                 match existing {
                     crate::runtime::SocialCommittedEvent::UserBlock { record, commit } => {
                         Ok(BlockedUser {
@@ -880,7 +880,14 @@ pub(crate) async fn user_block_snapshot(
             .refresh_state_from_authority_for_read()?;
         let snapshot = state
             .social_runtime
-            .user_block_snapshot(auth.tenant_id.as_str(), block_id.as_str())
+            .user_block_snapshot(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                block_id.as_str(),
+            )
+            .map_err(|error| {
+                SocialServiceError::dependency_unavailable("user_block_store_unavailable", error)
+            })?
             .ok_or_else(|| {
                 SocialServiceError::not_found(
                     "user_block_not_found",

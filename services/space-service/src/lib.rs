@@ -12,7 +12,6 @@ pub mod group_member;
 pub mod http;
 pub mod id;
 pub mod invitation;
-mod journal_bootstrap;
 mod list_query;
 pub(crate) mod openapi;
 mod runtime_env;

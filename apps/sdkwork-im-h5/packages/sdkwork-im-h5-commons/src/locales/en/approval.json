@@ -1,0 +1,75 @@
+{
+  "title": "Approval",
+  "tabs": {
+    "pending": "To Do",
+    "initiated": "Initiated",
+    "cc": "CC"
+  },
+  "stats": {
+    "pending": "Pending (items)",
+    "initiated": "Initiated",
+    "cc": "CC"
+  },
+  "allRecords": "All Records",
+  "status": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "withdrawn": "Withdrawn"
+  },
+  "types": {
+    "leave": "Leave",
+    "expense": "Expense",
+    "purchase": "Purchase"
+  },
+  "loading": "Loading...",
+  "empty": "No approval records",
+  "of": "'s",
+  "create": "Create Approval",
+  "createFrom": "Create {{type}}",
+  "createForm": {
+    "type": "Approval Type",
+    "title": "Title",
+    "titlePlaceholder": "Enter title (e.g., John's leave request)",
+    "titleEmpty": "Please enter a title",
+    "content": "Details",
+    "contentPlaceholder": "Enter detailed reason, duration, or expenses...",
+    "contentEmpty": "Please enter details for your approval",
+    "attachments": "Attachments",
+    "approvers": "Approvers",
+    "enterApprover": "Enter approver name",
+    "addedApprover": "Added approver: {{name}}",
+    "submit": "Submit Approval",
+    "submitting": "Submitting...",
+    "submitSuccess": "Submission successful",
+    "submitFailed": "Submission failed",
+    "selectType": "Select Approval Type",
+    "typeLeave": "Leave",
+    "typeExpense": "Expense",
+    "typePurchase": "Purchase",
+    "typeCar": "Vehicle",
+    "typeGeneral": "General"
+  },
+  "detail": {
+    "title": "Approval Detail",
+    "agree": "Agree",
+    "reject": "Reject",
+    "revoke": "Revoke",
+    "applicant": "Applicant",
+    "type": "Type",
+    "time": "Time",
+    "reason": "Reason",
+    "duration": "Duration/Amount",
+    "approvers": "Approvers",
+    "cc": "CC"
+  },
+  "auto_fn_2f078e83": "操作失败",
+  "auto_prop_2b29ee97": "审批详情",
+  "auto_7f6f37e": "加载中...",
+  "auto_2b2651e2": "审批流程",
+  "auto_53d1": "发",
+  "auto_bb3a6ac": "{approval.applicant} (发起申请)",
+  "auto_418a1c0c": "当前审批轮到你",
+  "auto_c764b": "拒绝",
+  "auto_a8e83": "同意"
+}

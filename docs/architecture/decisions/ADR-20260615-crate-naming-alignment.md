@@ -12,6 +12,9 @@ Specs: NAMING_SPEC.md, RUST_CODE_SPEC.md, ARCHITECTURE_DECISION_SPEC.md, GOVERNA
 > URN namespace), and renaming the `sdkwork_im_*` / `SDKWORK_CHAT_*` environment
 > variables to `SDKWORK_IM_*`. The migration-batch structure below is retained
 > for history; the accepted target naming is in the superseding ADR.
+> The `projection-service` target row below was only a historical proposal. It
+> was never a launch contract and was retired by
+> `ADR-20260722-normalized-im-authority` in favor of normalized Conversation queries.
 
 ## Context
 
@@ -162,4 +165,6 @@ Per batch, before the batch is marked accepted:
 
 ## Supersedes / Superseded By
 
-_None._
+- Superseded by `ADR-20260615-sdkwork-im-to-sdkwork-im-rebrand`.
+- Its historical persisted-query service proposal is superseded by
+  `ADR-20260722-normalized-im-authority`.

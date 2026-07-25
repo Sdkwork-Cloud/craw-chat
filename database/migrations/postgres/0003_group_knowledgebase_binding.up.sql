@@ -1,3 +1,23 @@
+-- sdkwork:migration
+-- id: 0003_group_knowledgebase_binding
+-- engine: postgres
+-- module: im
+-- purpose: Establish typed IM ownership for group Knowledgebase bindings and launch tickets
+-- reversible: false
+-- rollback: restore-cutover
+-- transactional: true
+-- lock: access-exclusive
+-- lock_timeout: 5s
+-- statement_timeout: 5m
+-- rewrite: limited to declared legacy Knowledgebase binding columns and constraints
+-- backfill: fail closed when immutable remote identifiers cannot be proven
+-- write_traffic: group Knowledgebase writes must be stopped during cutover
+-- replication_wal: bounded by existing binding and launch-ticket rows
+-- observability: monitor validation failures, blocked locks, WAL growth, and replica lag
+-- cancellation: cancel before commit; PostgreSQL rolls back the complete transaction
+-- recovery: restore the verified pre-cutover backup or correct invalid legacy rows and rerun
+-- contract_version: 1.2.0
+
 -- Group knowledgebase immutable-binding upgrade.
 --
 -- IM stores only its Conversation-to-Knowledgebase relationship and opaque
@@ -7,6 +27,9 @@
 -- lacking that fence stops cutover and requires explicit pre-launch cleanup.
 
 BEGIN;
+
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '5min';
 
 CREATE TABLE IF NOT EXISTS im_conversation_knowledge_space_link (
     id BIGINT NOT NULL,

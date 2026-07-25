@@ -462,11 +462,11 @@ function resolveAppSdkAppId(session?: SdkworkChatSession | null): string | undef
   return pickClaimString(session, ['appId', 'app_id', 'azp', 'aud'], session?.context?.appId);
 }
 
-function resolveAppSdkEnvironment(session?: SdkworkChatSession | null): string | undefined {
+export function resolveAppSdkEnvironment(session?: SdkworkChatSession | null): string | undefined {
   return pickClaimString(session, ['environment', 'env'], session?.context?.environment);
 }
 
-function resolveAppSdkDeploymentMode(session?: SdkworkChatSession | null): string | undefined {
+export function resolveAppSdkDeploymentMode(session?: SdkworkChatSession | null): string | undefined {
   return pickClaimString(session, ['deploymentMode', 'deployment_mode'], session?.context?.deploymentMode);
 }
 

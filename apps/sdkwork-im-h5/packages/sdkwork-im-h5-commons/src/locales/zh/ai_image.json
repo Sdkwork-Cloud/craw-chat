@@ -1,0 +1,35 @@
+{
+  "header_title": "AI 绘画",
+  "settings": {
+    "model_selection": "生成模型",
+    "prompt_title": "Prompt",
+    "prompt_placeholder": "A magical forest with glowing plants, cinematic lighting, 8k...",
+    "optimize_prompt": "优化提示词",
+    "optimize_success": "提示词优化成功！",
+    "optimize_failed": "优化失败，请重试",
+    "generate_error": "请输入创作提示词",
+    "generate_success": "图片生成完成！",
+    "generate_failed": "生成失败，请重试",
+    "art_style": "Art Style",
+    "professional_settings": "专业控制参数 (Professional Settings)",
+    "negative_prompt": "反向提示词 (Negative Prompt)",
+    "negative_prompt_placeholder": "ugly, blurry, low res, bad anatomy...",
+    "cfg_scale": "CFG Scale (提示词相关性)",
+    "steps": "生成步数 (Steps)",
+    "seed": "随机种子 (Seed)",
+    "seed_placeholder": "留空为随机 (Random)",
+    "generate_button": "立即生成 (Generate)",
+    "generating": "生成中..."
+  },
+  "result": {
+    "title": "Generated Art",
+    "save": "保存图片",
+    "save_success": "保存成功",
+    "save_browser": "将用浏览器打开下载"
+  },
+  "history": {
+    "title": "Gallery",
+    "empty": "No recent art. Try these:"
+  },
+  "model_page_title": "选择生图模型"
+}

@@ -6903,7 +6903,7 @@ components:
       required: false
       schema:
         type: string
-      description: Optional conversation type filter applied by the inbox projection before pagination.
+      description: Optional conversation type filter applied by the normalized inbox query before pagination.
     CursorQuery:
       name: cursor
       in: query

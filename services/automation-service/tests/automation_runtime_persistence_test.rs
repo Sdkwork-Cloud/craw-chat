@@ -20,7 +20,7 @@ impl CommitJournal for RecordingJournal {
 }
 
 #[test]
-fn test_runtime_restores_automation_projection_on_rebuild_with_shared_store() {
+fn test_runtime_restores_automation_state_on_rebuild_with_shared_store() {
     let journal = Arc::new(RecordingJournal::default());
     let execution_store = Arc::new(MemoryAutomationExecutionStore::default());
     let auth = AppContext {

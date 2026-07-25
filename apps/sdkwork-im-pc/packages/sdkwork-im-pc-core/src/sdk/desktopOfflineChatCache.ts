@@ -19,8 +19,11 @@ export type OfflinePersistableMessage = DesktopOfflineMessage & {
   messageSeq?: number;
 };
 
-let cacheInitialized = false;
-let cacheInitializationPromise: Promise<boolean> | undefined;
+let initializedPrincipalScope: DesktopOfflinePrincipalScope | undefined;
+let cacheInitialization: {
+  promise: Promise<boolean>;
+  scope: DesktopOfflinePrincipalScope;
+} | undefined;
 let lifecycleListenerInstalled = false;
 let activePrincipalScope: DesktopOfflinePrincipalScope | undefined;
 const OFFLINE_WRITE_BATCH_SIZE = 200;
@@ -36,6 +39,7 @@ function installDesktopOfflineCacheLifecycle(): void {
     const nextScope = resolveDesktopOfflinePrincipalScope();
     activePrincipalScope = nextScope;
     if (previousScope && !desktopOfflineScopesEqual(previousScope, nextScope)) {
+      initializedPrincipalScope = undefined;
       void purgeDesktopOfflinePrincipalCache(previousScope).catch(() => undefined);
     }
   });
@@ -45,25 +49,36 @@ export async function ensureDesktopOfflineChatCache(): Promise<boolean> {
   if (!isDesktopOfflineStoreEnabled()) {
     return false;
   }
-  if (!cacheInitialized) {
-    if (!cacheInitializationPromise) {
-      let initializationPromise: Promise<boolean>;
-      initializationPromise = initDesktopOfflineStore()
+  const scope = resolveDesktopOfflinePrincipalScope();
+  if (!scope) {
+    return false;
+  }
+  if (!desktopOfflineScopesEqual(initializedPrincipalScope, scope)) {
+    if (!cacheInitialization || !desktopOfflineScopesEqual(cacheInitialization.scope, scope)) {
+      const request = {
+        scope,
+        promise: Promise.resolve(false),
+      };
+      request.promise = initDesktopOfflineStore(scope)
         .then((initialized) => {
-          if (initialized && cacheInitializationPromise === initializationPromise) {
-            cacheInitialized = true;
+          if (initialized && cacheInitialization === request) {
+            initializedPrincipalScope = scope;
           }
           return initialized;
         })
         .finally(() => {
-          if (cacheInitializationPromise === initializationPromise) {
-            cacheInitializationPromise = undefined;
+          if (cacheInitialization === request) {
+            cacheInitialization = undefined;
           }
         });
-      cacheInitializationPromise = initializationPromise;
+      cacheInitialization = request;
     }
-    const initialized = await cacheInitializationPromise;
-    if (!initialized || !cacheInitialized) {
+    const initialized = await cacheInitialization.promise;
+    if (
+      !initialized
+      || !desktopOfflineScopesEqual(initializedPrincipalScope, scope)
+      || !desktopOfflineScopesEqual(scope, resolveDesktopOfflinePrincipalScope())
+    ) {
       return false;
     }
   }
@@ -77,7 +92,12 @@ function resolveScope(): DesktopOfflinePrincipalScope | undefined {
 
 export async function persistDesktopOfflineMessages(messages: OfflinePersistableMessage[]): Promise<void> {
   const scope = resolveScope();
-  if (messages.length === 0 || !scope || !(await ensureDesktopOfflineChatCache())) {
+  if (
+    messages.length === 0
+    || !scope
+    || !(await ensureDesktopOfflineChatCache())
+    || !desktopOfflineScopesEqual(scope, resolveScope())
+  ) {
     return;
   }
   const updatedAt = new Date().toISOString();
@@ -109,7 +129,11 @@ export async function loadDesktopOfflineMessages(
   limit?: number,
 ): Promise<DesktopOfflineMessage[]> {
   const scope = resolveScope();
-  if (!scope || !(await ensureDesktopOfflineChatCache())) {
+  if (
+    !scope
+    || !(await ensureDesktopOfflineChatCache())
+    || !desktopOfflineScopesEqual(scope, resolveScope())
+  ) {
     return [];
   }
   const rows = await listDesktopOfflineMessages({
@@ -134,7 +158,12 @@ export async function loadDesktopOfflineMessages(
 
 export async function persistDesktopOfflineChats(chats: DesktopOfflineChat[]): Promise<void> {
   const scope = resolveScope();
-  if (chats.length === 0 || !scope || !(await ensureDesktopOfflineChatCache())) {
+  if (
+    chats.length === 0
+    || !scope
+    || !(await ensureDesktopOfflineChatCache())
+    || !desktopOfflineScopesEqual(scope, resolveScope())
+  ) {
     return;
   }
   const updatedAt = new Date().toISOString();
@@ -151,7 +180,11 @@ export async function persistDesktopOfflineChats(chats: DesktopOfflineChat[]): P
 
 export async function loadDesktopOfflineChats(limit?: number): Promise<DesktopOfflineChat[]> {
   const scope = resolveScope();
-  if (!scope || !(await ensureDesktopOfflineChatCache())) {
+  if (
+    !scope
+    || !(await ensureDesktopOfflineChatCache())
+    || !desktopOfflineScopesEqual(scope, resolveScope())
+  ) {
     return [];
   }
   const rows = await listDesktopOfflineConversations({ scope, limit });
@@ -170,7 +203,7 @@ export async function loadDesktopOfflineChats(limit?: number): Promise<DesktopOf
 }
 
 export function resetDesktopOfflineChatCacheForTests(): void {
-  cacheInitialized = false;
-  cacheInitializationPromise = undefined;
+  initializedPrincipalScope = undefined;
+  cacheInitialization = undefined;
   activePrincipalScope = undefined;
 }

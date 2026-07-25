@@ -9,15 +9,6 @@ fn postgres_core_schema() -> String {
         .to_lowercase()
 }
 
-fn sqlite_core_schema() -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../database/ddl/baseline/sqlite/0001_im_baseline.sql");
-    std::fs::read_to_string(path)
-        .expect("core IM SQLite baseline should be checked in")
-        .replace("\r\n", "\n")
-        .to_lowercase()
-}
-
 fn assert_contains_all(source: &str, expected: &[&str]) {
     for item in expected {
         assert!(
@@ -271,22 +262,6 @@ fn test_core_im_postgres_schema_defines_normalized_im_hot_paths() {
             "create table if not exists im_direct_chats",
             "constraint uk_im_direct_chats_pair unique (tenant_id, organization_id, pair_hash)",
             "create index if not exists idx_im_direct_chats_conversation",
-        ],
-    );
-}
-
-#[test]
-fn test_core_im_sqlite_read_cursor_contract_matches_postgres_device_scope() {
-    let schema = sqlite_core_schema();
-
-    assert_contains_all(
-        &schema,
-        &[
-            "create table im_conversation_read_cursors",
-            "device_id text not null default ''",
-            "constraint pk_im_conversation_read_cursors primary key (tenant_id, organization_id, conversation_id, member_id, device_id)",
-            "create index if not exists idx_im_conversation_read_cursors_principal",
-            "on im_conversation_read_cursors (tenant_id, organization_id, principal_kind, principal_id, conversation_id)",
         ],
     );
 }

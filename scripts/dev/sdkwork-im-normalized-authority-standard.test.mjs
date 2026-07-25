@@ -136,6 +136,41 @@ for (const symbol of [
   assert.ok(persistence.includes(symbol), `PostgreSQL adapter must implement ${symbol}`);
 }
 
+const runtimeSource = read('services/sdkwork-comms-conversation-service/src/runtime.rs');
+const actorInboxSource = read(
+  'services/sdkwork-comms-conversation-service/src/runtime/actor_inbox.rs',
+);
+const conversationStateSource = read(
+  'services/sdkwork-comms-conversation-service/src/conversation_state/mod.rs',
+);
+for (const symbol of [
+  'mod recovery;',
+  'recover_from_journal',
+  'reset_for_recovery',
+  'apply_recovered_envelope',
+  'rebuild_all_actor_inboxes',
+]) {
+  assert.ok(
+    !runtimeSource.includes(symbol)
+      && !actorInboxSource.includes(symbol)
+      && !conversationStateSource.includes(symbol),
+    `normalized Conversation state must not expose journal current-state recovery symbol ${symbol}`,
+  );
+}
+assert.ok(
+  !fs.existsSync(
+    path.join(
+      repoRoot,
+      'services',
+      'sdkwork-comms-conversation-service',
+      'src',
+      'runtime',
+      'recovery.rs',
+    ),
+  ),
+  'journal current-state recovery module must remain deleted',
+);
+
 const envExample = read('.env.postgres.example');
 for (const key of [
   'SDKWORK_IM_CONVERSATION_STATE_CURSOR_HS256_SECRET=',

@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use im_domain_core::social::{Friendship, FriendshipStatus};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
@@ -34,29 +33,6 @@ pub struct FriendshipInventoryQuery<'a> {
     pub cursor_updated_at: Option<&'a str>,
     pub cursor_friendship_id: Option<i64>,
     pub limit: i64,
-}
-
-impl FriendshipRecord {
-    pub fn from_domain(fs: &Friendship, organization_id: &str) -> Self {
-        Self {
-            tenant_id: fs.tenant_id.clone(),
-            organization_id: organization_id.to_string(),
-            friendship_id: fs.friendship_id.parse().unwrap_or(0),
-            user_low_id: fs.user_low_id.clone(),
-            user_high_id: fs.user_high_id.clone(),
-            initiator_user_id: fs.initiator_user_id.clone(),
-            status: friendship_status_to_str(&fs.status).to_string(),
-            established_at: fs.established_at.clone(),
-            updated_at: fs.updated_at.clone(),
-        }
-    }
-}
-
-fn friendship_status_to_str(status: &FriendshipStatus) -> &'static str {
-    match status {
-        FriendshipStatus::Active => "active",
-        FriendshipStatus::Removed => "removed",
-    }
 }
 
 /// Trait for friendship persistence.

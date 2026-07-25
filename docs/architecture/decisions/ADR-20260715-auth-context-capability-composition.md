@@ -10,6 +10,10 @@ classification in this decision was based on an incorrect product assumption: gr
 authorization belongs to the IM Conversation membership model and applies to tenant-scoped groups
 as well as organization-scoped groups.
 
+The Phase 2 persisted capability-status query model described below was never implemented. Current
+status reads use normalized Conversation, membership, and Knowledgebase link state directly under
+`ADR-20260722-normalized-im-authority`.
+
 ## Context
 
 SDKWork applications compose several independently owned API surfaces. A valid
@@ -105,9 +109,8 @@ and at the RPC/persistence boundary.
 1. Phase 1 (this change): declare the group Knowledgebase scope requirement in
    the IM capability contract, preserve server fail-closed validation, and make
    the alignment checker reject contract drift.
-2. Phase 2: add a server-derived capability-status projection to conversation
-   reads so tenant-scoped sessions receive `scope_required` as normal data
-   instead of discovering it through a lifecycle `403`.
+2. Phase 2 (retired before implementation): the proposed separate capability-status query model was
+   replaced by direct normalized Conversation and Knowledgebase link-state queries.
 3. Phase 3: teach the shared composition resolver to aggregate
    `authContextRequirements` from all dependency modules and validate that the
    application exposes a matching organization/session switch flow.

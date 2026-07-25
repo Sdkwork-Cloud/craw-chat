@@ -1,43 +1,58 @@
-//! Stable mapping from social wire identifiers to PostgreSQL BIGINT keys.
+//! Positive Snowflake parsing for Social and Space PostgreSQL entity keys.
 
-use sdkwork_utils_rust::sha256_hash;
+use im_platform_contracts::ContractError;
 
-/// Map a social wire identifier to a stable positive `i64` for PostgreSQL storage.
+/// Parse the canonical decimal wire representation of a positive signed Snowflake ID.
 ///
-/// Numeric snowflake strings pass through unchanged. Deterministic social ids such as
-/// `fs_*` / `dc_*` are hashed so supplemental Postgres stores stay aligned with the
-/// event-sourced runtime without changing the wire format exposed to clients.
-pub fn social_entity_id_to_i64(wire_id: &str) -> i64 {
-    let trimmed = wire_id.trim();
-    if let Ok(value) = trimmed.parse::<i64>()
-        && value > 0
+/// Runtime entity IDs are never hashed or otherwise remapped. Rejecting non-canonical
+/// input preserves a one-to-one relationship between the API, journal and normalized
+/// PostgreSQL rows.
+pub fn parse_social_entity_id(wire_id: &str) -> Result<i64, ContractError> {
+    if wire_id.is_empty()
+        || wire_id.starts_with('0')
+        || !wire_id.bytes().all(|byte| byte.is_ascii_digit())
     {
-        return value;
+        return Err(invalid_social_entity_id());
     }
+    let value = wire_id
+        .parse::<i64>()
+        .map_err(|_| invalid_social_entity_id())?;
+    if value <= 0 {
+        return Err(invalid_social_entity_id());
+    }
+    Ok(value)
+}
 
-    let digest = sha256_hash(trimmed.as_bytes());
-    let hex_prefix = digest.get(..16).unwrap_or(digest.as_str());
-    let value = u64::from_str_radix(hex_prefix, 16).unwrap_or(1);
-    (value as i64) & i64::MAX
+fn invalid_social_entity_id() -> ContractError {
+    ContractError::Invalid(
+        "social entity id must be a canonical positive signed int64 string".into(),
+    )
 }
 
 #[cfg(test)]
 mod tests {
-    use super::social_entity_id_to_i64;
+    use super::parse_social_entity_id;
 
     #[test]
     fn numeric_wire_ids_pass_through() {
         assert_eq!(
-            social_entity_id_to_i64("330339707122622464"),
-            330339707122622464
+            parse_social_entity_id("330339707122622464"),
+            Ok(330339707122622464)
         );
     }
 
     #[test]
-    fn deterministic_ids_hash_stably() {
-        let first = social_entity_id_to_i64("fs_abc123def456789012345678");
-        let second = social_entity_id_to_i64("fs_abc123def456789012345678");
-        assert_eq!(first, second);
-        assert!(first > 0);
+    fn rejects_non_canonical_or_non_positive_ids() {
+        for value in ["", "0", "01", "-1", "fs_abc123", " 42", "42 "] {
+            assert!(
+                parse_social_entity_id(value).is_err(),
+                "{value:?} must not be remapped into a PostgreSQL key"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_values_outside_signed_bigint_range() {
+        assert!(parse_social_entity_id("9223372036854775808").is_err());
     }
 }

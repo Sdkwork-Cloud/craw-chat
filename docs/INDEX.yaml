@@ -18,6 +18,7 @@ entries:
   - path: docs/engineering/reviews/REVIEW-2026-0710-im-commercial-readiness.md
     type: review
     title: SDKWork IM Commercial Readiness Review
+    status: superseded
   - path: docs/product/roadmap/README.md
     type: roadmap
     title: Sdkwork IM Product Roadmap

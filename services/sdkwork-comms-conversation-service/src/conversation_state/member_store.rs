@@ -83,13 +83,6 @@ pub(crate) struct ConversationStateMemberRuntimeStore {
 }
 
 impl ConversationStateMemberRuntimeStore {
-    pub(crate) fn clear(&mut self) {
-        self.by_conversation.clear();
-        self.conversation_members_by_typed_principal.clear();
-        self.inbox_activity_by_principal.clear();
-        self.member_directory_by_scope.clear();
-    }
-
     pub(crate) fn get(&self, scope: &str) -> Option<&HashMap<String, ConversationMember>> {
         self.by_conversation.get(scope)
     }

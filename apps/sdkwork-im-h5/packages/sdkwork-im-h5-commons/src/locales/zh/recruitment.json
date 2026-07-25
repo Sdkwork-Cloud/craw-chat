@@ -1,0 +1,53 @@
+{
+  "title": "招聘管理",
+  "stats": {
+    "ongoing": "进行中候选人",
+    "todayInterview": "今日面试",
+    "pendingReview": "待筛选"
+  },
+  "listTitle": "候选人列表",
+  "loading": "加载中...",
+  "empty": "暂无招聘候选人信息",
+  "apply": "投递：{{job}}",
+  "detail": {
+    "title": "候选人详情",
+    "advance": "推进下阶段",
+    "eliminate": "淘汰",
+    "resumeInfo": "简历信息",
+    "workExp": "工作经验",
+    "eduInfo": "教育背景",
+    "currentStage": "当前进度",
+    "updatedAt": "更新于",
+    "baseInfo": "基本信息",
+    "age": "年龄",
+    "ageValue": "{{age}}岁",
+    "residence": "居住地",
+    "location": "深圳市南山区",
+    "availability": "到岗时间",
+    "anytime": "随时",
+    "viewResume": "查看完整简历",
+    "downloadStart": "已开始下载简历附件",
+    "advanceSuccess": "已推进到下一阶段",
+    "eliminateSuccess": "已淘汰"
+  },
+  "createJob": {
+    "title": "发布职位",
+    "jobTitleLabel": "职位名称",
+    "jobTitlePlaceholder": "如：高级前端工程师",
+    "departmentLabel": "所属部门",
+    "departmentPlaceholder": "如：研发部",
+    "locationLabel": "工作地点",
+    "locationPlaceholder": "如：深圳",
+    "salaryLabel": "薪资范围",
+    "salaryPlaceholder": "如：20k-40k",
+    "experiencePrompt": "请输入经验要求",
+    "experienceLabel": "经验要求",
+    "educationPrompt": "请输入学历要求",
+    "educationLabel": "学历要求",
+    "unlimited": "不限",
+    "bachelor": "本科",
+    "requirementLabel": "职位要求",
+    "requirementPlaceholder": "请输入任职要求或岗位职责...",
+    "submit": "发布职位"
+  }
+}

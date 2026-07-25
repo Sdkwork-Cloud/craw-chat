@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use im_domain_core::social::{SharedChannelPolicy, SharedChannelPolicyStatus};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
@@ -24,31 +23,6 @@ pub struct SharedChannelPolicyRecord {
     pub status: String,
     pub applied_at: String,
     pub updated_at: String,
-}
-
-impl SharedChannelPolicyRecord {
-    pub fn from_domain(scp: &SharedChannelPolicy, organization_id: &str) -> Self {
-        Self {
-            tenant_id: scp.tenant_id.clone(),
-            organization_id: organization_id.to_string(),
-            policy_id: scp.policy_id.parse().unwrap_or(0),
-            connection_id: scp.connection_id.parse().unwrap_or(0),
-            channel_id: scp.channel_id.clone(),
-            conversation_id: scp.conversation_id.clone(),
-            policy_version: scp.policy_version as i64,
-            history_visibility: scp.history_visibility.clone(),
-            status: shared_channel_policy_status_to_str(&scp.status).to_string(),
-            applied_at: scp.applied_at.clone(),
-            updated_at: scp.updated_at.clone(),
-        }
-    }
-}
-
-fn shared_channel_policy_status_to_str(status: &SharedChannelPolicyStatus) -> &'static str {
-    match status {
-        SharedChannelPolicyStatus::Active => "active",
-        SharedChannelPolicyStatus::Suspended => "suspended",
-    }
 }
 
 /// Trait for shared channel policy persistence.
@@ -105,7 +79,7 @@ ON CONFLICT (tenant_id, organization_id, policy_id) DO NOTHING
 const GET_BY_ID_SQL: &str = r#"
 SELECT tenant_id, organization_id, policy_id, connection_id, channel_id,
        conversation_id, policy_version, history_visibility, status,
-       applied_at, updated_at
+       applied_at::text, updated_at::text
 FROM im_shared_channel_policies
 WHERE tenant_id = $1 AND organization_id = $2 AND policy_id = $3
 "#;
@@ -113,7 +87,7 @@ WHERE tenant_id = $1 AND organization_id = $2 AND policy_id = $3
 const FIND_BY_TARGET_SQL: &str = r#"
 SELECT tenant_id, organization_id, policy_id, connection_id, channel_id,
        conversation_id, policy_version, history_visibility, status,
-       applied_at, updated_at
+       applied_at::text, updated_at::text
 FROM im_shared_channel_policies
 WHERE tenant_id = $1 AND organization_id = $2 AND connection_id = $3 AND channel_id = $4
 LIMIT 1
@@ -122,7 +96,7 @@ LIMIT 1
 const LIST_BY_CONNECTION_SQL: &str = r#"
 SELECT tenant_id, organization_id, policy_id, connection_id, channel_id,
        conversation_id, policy_version, history_visibility, status,
-       applied_at, updated_at
+       applied_at::text, updated_at::text
 FROM im_shared_channel_policies
 WHERE tenant_id = $1 AND organization_id = $2 AND connection_id = $3 AND status = $4
 ORDER BY applied_at DESC

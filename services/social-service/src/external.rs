@@ -397,7 +397,7 @@ impl SocialRuntime {
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
-            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+            self.resolve_committed_social_event_retry(&state, &commit, |existing, persistence| {
                 match existing {
                     crate::runtime::SocialCommittedEvent::ExternalConnection { record, commit } => {
                         Ok(EstablishedExternalConnection {
@@ -530,7 +530,17 @@ impl SocialRuntime {
         let _write_lock = self.acquire_cross_instance_write_lock()?;
         self.refresh_state_from_authority_for_write()?;
         let connection = self
-            .external_connection_snapshot(tenant_id, request.connection_id.as_str())
+            .external_connection_snapshot(
+                tenant_id,
+                auth.organization_id.as_str(),
+                request.connection_id.as_str(),
+            )
+            .map_err(|error| {
+                SocialServiceError::dependency_unavailable(
+                    "external_connection_store_unavailable",
+                    error,
+                )
+            })?
             .ok_or_else(|| {
                 SocialServiceError::not_found(
                     "external_connection_not_found",
@@ -597,7 +607,7 @@ impl SocialRuntime {
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
         let mut next_state = state.clone();
         if let Some(replayed) =
-            self.replay_committed_social_event(&state, &commit, |existing, persistence| {
+            self.resolve_committed_social_event_retry(&state, &commit, |existing, persistence| {
                 match existing {
                     crate::runtime::SocialCommittedEvent::ExternalMemberLink { record, commit } => {
                         Ok(BoundExternalMemberLink {
@@ -652,11 +662,18 @@ impl SocialRuntime {
                 commits: vec![commit.clone()],
             },
         );
-        let shared_channel_sync_requests =
-            crate::shared_channel::shared_channel_sync_requests_for_external_member_link(
+        let shared_channel_sync_requests = self
+            .shared_channel_sync_requests_for_external_member_link(
                 &next_state,
+                auth.organization_id.as_str(),
                 &external_member_link,
-            );
+            )
+            .map_err(|error| {
+                SocialServiceError::dependency_unavailable(
+                    "shared_channel_policy_store_unavailable",
+                    error,
+                )
+            })?;
         let persistence = self.persist_state_transition(&next_state, &commit)?;
         *state = next_state;
 
@@ -671,16 +688,68 @@ impl SocialRuntime {
     pub(crate) fn external_member_link_snapshot(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         link_id: &str,
-    ) -> Option<StoredExternalMemberLink> {
-        self.state
+    ) -> Result<Option<StoredExternalMemberLink>, String> {
+        if let Some(store) = self.external_member_link_authority_store() {
+            return store
+                .get_by_id(
+                    tenant_id,
+                    organization_id,
+                    im_adapters_social_postgres::wire_id::parse_social_entity_id(link_id)
+                        .map_err(|error| format!("invalid external-member-link id: {error:?}"))?,
+                )
+                .map_err(|error| {
+                    format!("normalized external-member-link lookup failed: {error:?}")
+                })?
+                .map(external_member_link_from_authority_record)
+                .transpose()
+                .map(|record| {
+                    record.map(|mut external_member_link| {
+                        external_member_link.link_id = link_id.to_owned();
+                        StoredExternalMemberLink {
+                            external_member_link,
+                            commits: Vec::new(),
+                        }
+                    })
+                });
+        }
+
+        Ok(self
+            .state
             .read()
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
             .external_member_links
             .get(link_id)
             .filter(|record| record.external_member_link.tenant_id == tenant_id)
-            .cloned()
+            .cloned())
     }
+}
+
+pub(crate) fn external_member_link_from_authority_record(
+    record: im_adapters_social_postgres::external_store::ExternalMemberLinkRecord,
+) -> Result<ExternalMemberLink, String> {
+    let status = match record.status.as_str() {
+        "active" => ExternalMemberLinkStatus::Active,
+        "revoked" => ExternalMemberLinkStatus::Revoked,
+        other => {
+            return Err(format!(
+                "normalized external-member-link status is invalid: {other}"
+            ));
+        }
+    };
+    Ok(ExternalMemberLink {
+        tenant_id: record.tenant_id,
+        link_id: record.link_id.to_string(),
+        connection_id: record.connection_id.to_string(),
+        local_actor_id: record.local_actor_id,
+        local_actor_kind: record.local_actor_kind,
+        external_member_id: record.external_member_id,
+        external_display_name: record.external_display_name,
+        status,
+        linked_at: record.linked_at,
+        updated_at: record.updated_at,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -724,7 +793,17 @@ pub(crate) async fn external_connection_snapshot(
             .refresh_state_from_authority_for_read()?;
         let snapshot = state
             .social_runtime
-            .external_connection_snapshot(auth.tenant_id.as_str(), connection_id.as_str())
+            .external_connection_snapshot(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                connection_id.as_str(),
+            )
+            .map_err(|error| {
+                SocialServiceError::dependency_unavailable(
+                    "external_connection_store_unavailable",
+                    error,
+                )
+            })?
             .ok_or_else(|| {
                 SocialServiceError::not_found(
                     "external_connection_not_found",
@@ -784,7 +863,17 @@ pub(crate) async fn external_member_link_snapshot(
             .refresh_state_from_authority_for_read()?;
         let snapshot = state
             .social_runtime
-            .external_member_link_snapshot(auth.tenant_id.as_str(), link_id.as_str())
+            .external_member_link_snapshot(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                link_id.as_str(),
+            )
+            .map_err(|error| {
+                SocialServiceError::dependency_unavailable(
+                    "external_member_link_store_unavailable",
+                    error,
+                )
+            })?
             .ok_or_else(|| {
                 SocialServiceError::not_found(
                     "external_member_link_not_found",

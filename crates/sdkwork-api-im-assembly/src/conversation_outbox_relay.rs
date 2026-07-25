@@ -346,6 +346,18 @@ mod tests {
     }
 
     impl ConversationAggregateStore for PagedConversationMembers {
+        fn load_conversation(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+        ) -> Result<
+            Option<im_platform_contracts::NormalizedConversationRecord>,
+            im_platform_contracts::ContractError,
+        > {
+            Ok(None)
+        }
+
         fn load_members_page(
             &self,
             tenant_id: &str,

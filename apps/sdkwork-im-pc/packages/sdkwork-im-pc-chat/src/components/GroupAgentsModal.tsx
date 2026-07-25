@@ -228,10 +228,10 @@ export const GroupAgentsModal: React.FC<GroupAgentsModalProps> = ({
       ...(item.name ? { name: item.name } : {}),
       ...(item.avatar ? { avatar: item.avatar } : {}),
     }])));
-    const projectedGeneration = chat.agentAssignmentGeneration;
+    const currentGeneration = chat.agentAssignmentGeneration;
     setGeneration(
-      Number.isSafeInteger(projectedGeneration) && (projectedGeneration ?? 0) >= 1
-        ? projectedGeneration
+      Number.isSafeInteger(currentGeneration) && (currentGeneration ?? 0) >= 1
+        ? currentGeneration
         : undefined,
     );
 

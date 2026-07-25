@@ -1,0 +1,17 @@
+{
+  "title": "Voice Summary",
+  "generated_count": "Generated (items)",
+  "process_time": "Process Time",
+  "all_records": "All Records",
+  "search_placeholder": "Search records...",
+  "ai_summary": "AI Core Summary",
+  "empty_state": "No AI summarize yet",
+  "recording_saved": "Recording saved, AI analysis started",
+  "analysis_complete": "AI analysis complete",
+  "recording_started": "Recording started...",
+  "new_record_prefix": "New_Record_",
+  "mock_summary": "The user recorded a brief new audio clip, typically used for dictating notes or memos. Code context indicates core tasks or quick insights. AI has successfully transcribed and distilled the main intent for you.",
+  "mock_tag_1": "Voice Memo",
+  "mock_tag_2": "To-do",
+  "mock_tag_3": "Daily"
+}

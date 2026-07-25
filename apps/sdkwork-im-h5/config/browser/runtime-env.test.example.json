@@ -1,0 +1,7 @@
+{
+  "appApiBaseUrl": "/app/v3/api",
+  "imApiBaseUrl": "/im/v3/api",
+  "driveApiBaseUrl": "/drive/v3/api",
+  "platform": "h5",
+  "deploymentProfile": "standalone"
+}

@@ -13,13 +13,14 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use im_app_context::AppContext;
-use im_domain_core::conversation::{ConversationMember, ConversationRoster, MembershipRole};
-use im_domain_events::{AggregateType, CommitEnvelope};
-use im_platform_contracts::{ContractError, IdGenerator};
-use sdkwork_im_contract_message::{
-    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitJournal, CommitJournalAggregateEventTypeQuery,
-    CommitJournalReplayCursor,
+use im_domain_core::conversation::{
+    ConversationMember, ConversationRoster, MembershipRole, MembershipState,
 };
+use im_platform_contracts::{
+    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ContractError, ConversationMemberPageCursor,
+    ConversationMemberRecord, IdGenerator,
+};
+use sdkwork_im_contract_message::CommitJournal;
 use sdkwork_utils_rust::{
     aes_gcm_decrypt, aes_gcm_encrypt, base64url_encode, derive_aes_256_key, sha256_hash,
 };
@@ -48,16 +49,7 @@ pub const GROUP_KNOWLEDGEBASE_MEMBERSHIP_SYNC_EVENT_TYPE: &str =
     "conversation.group_knowledgebase.members.synchronize";
 pub const GROUP_KNOWLEDGEBASE_ARCHIVE_EVENT_TYPE: &str = "conversation.group_knowledgebase.archive";
 
-const GROUP_KNOWLEDGEBASE_DURABLE_SNAPSHOT_EVENT_TYPES: [&str; 8] = [
-    "conversation.created",
-    "conversation.member_joined",
-    "conversation.member_invitation_accepted",
-    "conversation.member_removed",
-    "conversation.member_left",
-    "conversation.owner_transferred",
-    "conversation.member_role_changed",
-    "conversation.group_archived",
-];
+const GROUP_KNOWLEDGEBASE_RECONCILIATION_ACTOR_ID: &str = "sdkwork-im-reconciliation";
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -315,9 +307,8 @@ impl GroupKnowledgebaseLink {
             provisioning_operation_id: None,
             creation_idempotency_key,
             last_source_event_id: None,
-            // The durable aggregate is the source of truth. A newly reserved
-            // link has not observed a membership event until its focused
-            // journal snapshot has been reconstructed.
+            // Normalized Conversation membership is the source of truth. A
+            // newly reserved link has not synchronized that current state yet.
             membership_epoch: 0,
             last_synchronized_membership_epoch: 0,
             last_error_code: None,
@@ -991,18 +982,17 @@ struct GroupKnowledgebaseReconciliationLinkPage {
     next_link_id: Option<i64>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 struct GroupKnowledgebaseDurableSnapshot {
     membership_epoch: u64,
     roster: ConversationRoster,
-    created: bool,
-    archive: Option<GroupKnowledgebaseDurableArchive>,
+    archive: Option<GroupKnowledgebaseArchiveReconciliation>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct GroupKnowledgebaseDurableArchive {
-    event_id: String,
-    archived_by: String,
+struct GroupKnowledgebaseArchiveReconciliation {
+    source_event_id: String,
+    actor_id: String,
 }
 
 #[derive(Clone, Debug)]
@@ -1013,12 +1003,6 @@ struct GroupKnowledgebaseProvisioningRecovery {
 enum GroupKnowledgebaseReconciliationLinkOutcome {
     Reconciled,
     ProvisioningRecovery(Box<GroupKnowledgebaseProvisioningRecovery>),
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GroupKnowledgebaseConversationCreatedPayload {
-    conversation_type: String,
 }
 
 trait GroupKnowledgebaseStore: Send + Sync {
@@ -3021,10 +3005,9 @@ impl GroupKnowledgebaseCoordinator {
             .map_err(group_knowledgebase_port_error_runtime_error)
     }
 
-    /// Rebuilds a bounded number of group-KB conversation_states from the authoritative
-    /// conversation journal. The cursor advances only after a link has been
-    /// reconciled successfully, so a malformed or mismatched journal entry is
-    /// retried and surfaced rather than skipped.
+    /// Reconciles a bounded number of group-KB links from normalized
+    /// Conversation and membership state. The cursor advances only after a
+    /// link has been reconciled successfully.
     pub(crate) fn reconcile_durable_state(
         &self,
         runtime: &ConversationRuntime<ConversationCommitJournal>,
@@ -3161,10 +3144,8 @@ impl GroupKnowledgebaseCoordinator {
         {
             // If remote ensure committed before this process crashed, the
             // stable creation idempotency key is the only safe way to recover
-            // the remote space reference. An archived link may use this path
-            // only when the authoritative conversation journal also contains
-            // an archive event, so the recovered reference is immediately
-            // archived rather than recreating a KB for a corrupt conversation_state.
+            // the remote space reference. Normalized Conversation lifecycle
+            // decides whether the recovered reference is archived immediately.
             return Ok(
                 GroupKnowledgebaseReconciliationLinkOutcome::ProvisioningRecovery(Box::new(
                     GroupKnowledgebaseProvisioningRecovery { link: link.clone() },
@@ -3175,8 +3156,8 @@ impl GroupKnowledgebaseCoordinator {
             self.store
                 .archive_link_and_enqueue(GroupKnowledgebaseArchiveEnqueue {
                     scope: link.scope.clone(),
-                    actor_id: archive.archived_by.clone(),
-                    source_event_id: archive.event_id.clone(),
+                    actor_id: archive.actor_id.clone(),
+                    source_event_id: archive.source_event_id.clone(),
                     outbox_id: self.next_id()?.to_string(),
                     occurred_at: Utc::now(),
                 })?;
@@ -3185,14 +3166,15 @@ impl GroupKnowledgebaseCoordinator {
 
         if !link.lifecycle_state.is_active() {
             return Err(RuntimeError::Conflict(
-                "group knowledgebase link is archived without a durable archive event".into(),
+                "group knowledgebase link is archived while its normalized Conversation is active"
+                    .into(),
             ));
         }
         if link.membership_epoch > snapshot.membership_epoch
             || link.last_synchronized_membership_epoch > snapshot.membership_epoch
         {
             return Err(RuntimeError::Conflict(
-                "group knowledgebase link membership epoch exceeds the durable aggregate epoch"
+                "group knowledgebase link membership epoch exceeds normalized Conversation state"
                     .into(),
             ));
         }
@@ -3201,7 +3183,7 @@ impl GroupKnowledgebaseCoordinator {
         {
             self.enqueue_durable_membership_snapshot(
                 &link.scope,
-                "sdkwork-im-reconciliation",
+                GROUP_KNOWLEDGEBASE_RECONCILIATION_ACTOR_ID,
                 &snapshot,
             )?;
         }
@@ -3557,8 +3539,8 @@ impl GroupKnowledgebaseCoordinator {
             self.store
                 .archive_link_and_enqueue(GroupKnowledgebaseArchiveEnqueue {
                     scope: scope.clone(),
-                    actor_id: archive.archived_by.clone(),
-                    source_event_id: archive.event_id.clone(),
+                    actor_id: archive.actor_id.clone(),
+                    source_event_id: archive.source_event_id.clone(),
                     outbox_id: self.next_id()?.to_string(),
                     occurred_at: Utc::now(),
                 })?;
@@ -3999,8 +3981,8 @@ impl GroupKnowledgebaseCoordinator {
                 .store
                 .archive_link_and_enqueue(GroupKnowledgebaseArchiveEnqueue {
                     scope: scope.clone(),
-                    actor_id: archive.archived_by.clone(),
-                    source_event_id: archive.event_id.clone(),
+                    actor_id: archive.actor_id.clone(),
+                    source_event_id: archive.source_event_id.clone(),
                     outbox_id: self.next_id()?.to_string(),
                     occurred_at: Utc::now(),
                 })?
@@ -4014,7 +3996,7 @@ impl GroupKnowledgebaseCoordinator {
             || link.last_synchronized_membership_epoch > snapshot.membership_epoch
         {
             return Err(RuntimeError::Conflict(
-                "group knowledgebase link membership epoch exceeds the durable aggregate epoch"
+                "group knowledgebase link membership epoch exceeds normalized Conversation state"
                     .into(),
             ));
         }
@@ -4093,256 +4075,190 @@ fn group_knowledgebase_durable_snapshot(
     scope: &GroupKnowledgebaseScope,
 ) -> Result<GroupKnowledgebaseDurableSnapshot, RuntimeError> {
     scope.validate()?;
-    let query = CommitJournalAggregateEventTypeQuery {
-        tenant_id: scope.tenant_id.clone(),
-        organization_id: scope.organization_id.clone(),
-        aggregate_type: AggregateType::Conversation.as_wire_value().to_owned(),
-        aggregate_id: scope.conversation_id.clone(),
-        event_types: GROUP_KNOWLEDGEBASE_DURABLE_SNAPSHOT_EVENT_TYPES
-            .iter()
-            .map(|event_type| (*event_type).to_owned())
-            .collect(),
+    let aggregate_store = runtime.aggregate_store.as_ref().ok_or_else(|| {
+        RuntimeError::Contract(ContractError::Unavailable(
+            "group knowledgebase requires the normalized Conversation aggregate store".into(),
+        ))
+    })?;
+    let conversation = aggregate_store
+        .load_conversation(
+            scope.tenant_id.as_str(),
+            scope.organization_id.as_str(),
+            scope.conversation_id.as_str(),
+        )?
+        .ok_or_else(|| RuntimeError::ConversationNotFound(scope.conversation_id.clone()))?;
+    if conversation.tenant_id != scope.tenant_id
+        || conversation.organization_id != scope.organization_id
+        || conversation.conversation_id != scope.conversation_id
+    {
+        return Err(RuntimeError::Conflict(
+            "group knowledgebase normalized Conversation does not match its requested scope".into(),
+        ));
+    }
+    if conversation.conversation_type != "group" {
+        return Err(RuntimeError::ConversationTypeInvalid(
+            "group knowledgebase normalized state targets a non-group Conversation".into(),
+        ));
+    }
+    if conversation.member_epoch > conversation.commit_seq {
+        return Err(RuntimeError::Conflict(
+            "group knowledgebase normalized membership epoch exceeds the Conversation commit sequence"
+                .into(),
+        ));
+    }
+    let archive = match conversation.lifecycle_state.as_str() {
+        "active" => None,
+        "archived" if conversation.commit_seq > 0 => {
+            Some(GroupKnowledgebaseArchiveReconciliation {
+                source_event_id: group_knowledgebase_archive_reconciliation_source_event_id(
+                    scope,
+                    conversation.commit_seq,
+                ),
+                actor_id: GROUP_KNOWLEDGEBASE_RECONCILIATION_ACTOR_ID.into(),
+            })
+        }
+        "archived" => {
+            return Err(RuntimeError::Conflict(
+                "group knowledgebase normalized archived Conversation has no committed transition"
+                    .into(),
+            ));
+        }
+        _ => {
+            return Err(RuntimeError::Conflict(
+                "group knowledgebase normalized Conversation lifecycle is invalid".into(),
+            ));
+        }
     };
-    let mut cursor: Option<CommitJournalReplayCursor> = None;
-    let mut snapshot = GroupKnowledgebaseDurableSnapshot::default();
 
+    let mut roster = ConversationRoster::default();
+    let mut cursor: Option<ConversationMemberPageCursor> = None;
     loop {
-        let page = runtime.journal.recorded_page_for_aggregate_event_types(
-            &query,
+        let page = aggregate_store.load_members_page(
+            scope.tenant_id.as_str(),
+            scope.organization_id.as_str(),
+            scope.conversation_id.as_str(),
             cursor.as_ref(),
-            COMMIT_JOURNAL_REPLAY_BATCH_LIMIT,
+            CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
         )?;
-        if page.items.is_empty() && page.next_cursor.is_some() {
+        if page.items.len() > CONVERSATION_AGGREGATE_PAGE_SIZE_MAX
+            || page.has_more != page.next_cursor.is_some()
+            || (page.items.is_empty() && page.has_more)
+        {
             return Err(RuntimeError::Contract(ContractError::Unavailable(
-                "group knowledgebase journal replay returned an empty advancing page".into(),
+                "group knowledgebase normalized member page is invalid".into(),
             )));
         }
-        for envelope in page.items {
-            apply_group_knowledgebase_durable_envelope(&mut snapshot, scope, &envelope)?;
+
+        let mut previous_key = cursor
+            .as_ref()
+            .map(|cursor| (cursor.principal_kind.as_str(), cursor.principal_id.as_str()));
+        for record in &page.items {
+            let current_key = (record.principal_kind.as_str(), record.principal_id.as_str());
+            if previous_key.is_some_and(|previous_key| current_key <= previous_key) {
+                return Err(RuntimeError::Contract(ContractError::Unavailable(
+                    "group knowledgebase normalized member page is not strictly ordered".into(),
+                )));
+            }
+            roster.upsert_member(group_knowledgebase_member_from_normalized_record(
+                scope, record,
+            )?);
+            previous_key = Some(current_key);
+        }
+        if roster.active_principal_count()
+            > im_domain_core::space::MAX_CHAT_GROUP_MAX_MEMBERS as usize
+        {
+            return Err(RuntimeError::Conflict(
+                "group knowledgebase normalized roster exceeds the maximum group size".into(),
+            ));
         }
 
         let Some(next_cursor) = page.next_cursor else {
             break;
         };
-        if cursor.as_ref() == Some(&next_cursor) {
+        let last_record = page.items.last().ok_or_else(|| {
+            RuntimeError::Contract(ContractError::Unavailable(
+                "group knowledgebase normalized member cursor has no source row".into(),
+            ))
+        })?;
+        if next_cursor.principal_kind != last_record.principal_kind
+            || next_cursor.principal_id != last_record.principal_id
+            || cursor.as_ref() == Some(&next_cursor)
+        {
             return Err(RuntimeError::Contract(ContractError::Unavailable(
-                "group knowledgebase journal replay cursor did not advance".into(),
+                "group knowledgebase normalized member cursor did not advance".into(),
             )));
         }
         cursor = Some(next_cursor);
     }
 
-    if !snapshot.created {
-        return Err(RuntimeError::Conflict(
-            "group knowledgebase durable conversation_state is missing conversation.created".into(),
-        ));
-    }
-    Ok(snapshot)
+    Ok(GroupKnowledgebaseDurableSnapshot {
+        membership_epoch: conversation.member_epoch,
+        roster,
+        archive,
+    })
 }
 
-fn apply_group_knowledgebase_durable_envelope(
-    snapshot: &mut GroupKnowledgebaseDurableSnapshot,
+fn group_knowledgebase_member_from_normalized_record(
     scope: &GroupKnowledgebaseScope,
-    envelope: &CommitEnvelope,
-) -> Result<(), RuntimeError> {
-    validate_group_knowledgebase_durable_envelope(scope, envelope)?;
-    match envelope.event_type.as_str() {
-        "conversation.created" => {
-            let payload: GroupKnowledgebaseConversationCreatedPayload =
-                serde_json::from_str(envelope.payload.as_str()).map_err(|_| {
-                    RuntimeError::Conflict(
-                        "group knowledgebase durable conversation.created payload is invalid"
-                            .into(),
-                    )
-                })?;
-            if payload.conversation_type != "group" {
-                return Err(RuntimeError::ConversationTypeInvalid(
-                    "group knowledgebase durable conversation_state targets a non-group conversation"
-                        .into(),
-                ));
-            }
-            snapshot.created = true;
-        }
-        "conversation.member_joined" | "conversation.member_invitation_accepted" => {
-            require_group_knowledgebase_durable_created(snapshot, envelope)?;
-            let member: ConversationMember = serde_json::from_str(envelope.payload.as_str())
-                .map_err(|_| {
-                    RuntimeError::Conflict(
-                        "group knowledgebase durable member payload is invalid".into(),
-                    )
-                })?;
-            validate_group_knowledgebase_durable_member(scope, &member, envelope)?;
-            snapshot.roster.upsert_member(member);
-            snapshot.membership_epoch = snapshot.membership_epoch.max(envelope.ordering_seq);
-        }
-        "conversation.member_removed" | "conversation.member_left" => {
-            require_group_knowledgebase_durable_created(snapshot, envelope)?;
-            let member: ConversationMember = serde_json::from_str(envelope.payload.as_str())
-                .map_err(|_| {
-                    RuntimeError::Conflict(
-                        "group knowledgebase durable member payload is invalid".into(),
-                    )
-                })?;
-            validate_group_knowledgebase_durable_member(scope, &member, envelope)?;
-            snapshot.roster.deactivate_member(member);
-            snapshot.membership_epoch = snapshot.membership_epoch.max(envelope.ordering_seq);
-        }
-        "conversation.owner_transferred" => {
-            require_group_knowledgebase_durable_created(snapshot, envelope)?;
-            let payload: TransferConversationOwnerPayload =
-                serde_json::from_str(envelope.payload.as_str()).map_err(|_| {
-                    RuntimeError::Conflict(
-                        "group knowledgebase durable owner transfer payload is invalid".into(),
-                    )
-                })?;
-            validate_group_knowledgebase_durable_payload_scope(
-                scope,
-                envelope,
-                payload.tenant_id.as_str(),
-                payload.organization_id.as_str(),
-                payload.conversation_id.as_str(),
-            )?;
-            validate_group_knowledgebase_durable_member(scope, &payload.previous_owner, envelope)?;
-            validate_group_knowledgebase_durable_member(scope, &payload.new_owner, envelope)?;
-            snapshot.roster.upsert_member(payload.previous_owner);
-            snapshot.roster.upsert_member(payload.new_owner);
-            snapshot.membership_epoch = snapshot.membership_epoch.max(envelope.ordering_seq);
-        }
-        "conversation.member_role_changed" => {
-            require_group_knowledgebase_durable_created(snapshot, envelope)?;
-            let payload: ChangeConversationMemberRolePayload =
-                serde_json::from_str(envelope.payload.as_str()).map_err(|_| {
-                    RuntimeError::Conflict(
-                        "group knowledgebase durable member role payload is invalid".into(),
-                    )
-                })?;
-            validate_group_knowledgebase_durable_payload_scope(
-                scope,
-                envelope,
-                payload.tenant_id.as_str(),
-                payload.organization_id.as_str(),
-                payload.conversation_id.as_str(),
-            )?;
-            validate_group_knowledgebase_durable_member(scope, &payload.previous_member, envelope)?;
-            validate_group_knowledgebase_durable_member(scope, &payload.updated_member, envelope)?;
-            snapshot.roster.upsert_member(payload.updated_member);
-            snapshot.membership_epoch = snapshot.membership_epoch.max(envelope.ordering_seq);
-        }
-        "conversation.group_archived" => {
-            require_group_knowledgebase_durable_created(snapshot, envelope)?;
-            let payload: ConversationGroupArchivedPayload =
-                serde_json::from_str(envelope.payload.as_str()).map_err(|_| {
-                    RuntimeError::Conflict(
-                        "group knowledgebase durable archive payload is invalid".into(),
-                    )
-                })?;
-            validate_group_knowledgebase_durable_payload_scope(
-                scope,
-                envelope,
-                payload.tenant_id.as_str(),
-                payload.organization_id.as_str(),
-                payload.conversation_id.as_str(),
-            )?;
-            if envelope.event_id.trim().is_empty() || payload.archived_by.trim().is_empty() {
-                return Err(RuntimeError::Conflict(
-                    "group knowledgebase durable archive identity is invalid".into(),
-                ));
-            }
-            let archive = GroupKnowledgebaseDurableArchive {
-                event_id: envelope.event_id.clone(),
-                archived_by: payload.archived_by,
-            };
-            if let Some(existing) = snapshot.archive.as_ref()
-                && existing != &archive
-            {
-                return Err(RuntimeError::Conflict(
-                    "group knowledgebase durable conversation_state contains conflicting archive events"
-                        .into(),
-                ));
-            }
-            snapshot.archive = Some(archive);
-        }
+    record: &ConversationMemberRecord,
+) -> Result<ConversationMember, RuntimeError> {
+    if record.tenant_id != scope.tenant_id
+        || record.organization_id != scope.organization_id
+        || record.conversation_id != scope.conversation_id
+        || record.member_id <= 0
+        || record.principal_id.trim().is_empty()
+        || record.principal_kind.trim().is_empty()
+        || record.principal_id.len() > GROUP_KNOWLEDGEBASE_MAX_MEMBER_ID_BYTES
+        || record.principal_kind.len() > GROUP_KNOWLEDGEBASE_MAX_MEMBER_ID_BYTES
+    {
+        return Err(RuntimeError::Conflict(
+            "group knowledgebase normalized member does not match its requested scope".into(),
+        ));
+    }
+    let role = match record.membership_role.as_str() {
+        "owner" => MembershipRole::Owner,
+        "admin" => MembershipRole::Admin,
+        "member" => MembershipRole::Member,
+        "guest" => MembershipRole::Guest,
         _ => {
-            return Err(RuntimeError::Contract(ContractError::Unavailable(
-                "group knowledgebase journal query returned an unsupported event type".into(),
-            )));
+            return Err(RuntimeError::Conflict(
+                "group knowledgebase normalized member role is invalid".into(),
+            ));
         }
-    }
-    Ok(())
-}
-
-fn require_group_knowledgebase_durable_created(
-    snapshot: &GroupKnowledgebaseDurableSnapshot,
-    envelope: &CommitEnvelope,
-) -> Result<(), RuntimeError> {
-    if snapshot.created {
-        return Ok(());
-    }
-    Err(RuntimeError::Conflict(format!(
-        "group knowledgebase durable event {} precedes conversation.created",
-        envelope.event_id
-    )))
-}
-
-fn validate_group_knowledgebase_durable_envelope(
-    scope: &GroupKnowledgebaseScope,
-    envelope: &CommitEnvelope,
-) -> Result<(), RuntimeError> {
-    let expected_ordering_key =
-        CommitEnvelope::ordering_key(scope.tenant_id.as_str(), scope.conversation_id.as_str());
-    if envelope.tenant_id != scope.tenant_id
-        || envelope.organization_id != scope.organization_id
-        || envelope.aggregate_type != AggregateType::Conversation
-        || envelope.aggregate_id != scope.conversation_id
-        || envelope.scope_type != "conversation"
-        || envelope.scope_id != scope.conversation_id
-        || envelope.ordering_key != expected_ordering_key
-    {
-        return Err(RuntimeError::Conflict(
-            "group knowledgebase durable journal envelope does not match its requested scope"
-                .into(),
-        ));
-    }
-    Ok(())
-}
-
-fn validate_group_knowledgebase_durable_payload_scope(
-    scope: &GroupKnowledgebaseScope,
-    envelope: &CommitEnvelope,
-    tenant_id: &str,
-    organization_id: &str,
-    conversation_id: &str,
-) -> Result<(), RuntimeError> {
-    if tenant_id != scope.tenant_id
-        || organization_id != scope.organization_id
-        || conversation_id != scope.conversation_id
-    {
-        return Err(RuntimeError::Conflict(
-            "group knowledgebase durable event payload does not match its requested scope".into(),
-        ));
-    }
-    validate_group_knowledgebase_durable_envelope(scope, envelope)
-}
-
-fn validate_group_knowledgebase_durable_member(
-    scope: &GroupKnowledgebaseScope,
-    member: &ConversationMember,
-    envelope: &CommitEnvelope,
-) -> Result<(), RuntimeError> {
-    if member.tenant_id != scope.tenant_id
-        || member.conversation_id != scope.conversation_id
-        || member.member_id.trim().is_empty()
-        || member.principal_id.trim().is_empty()
-        || member.principal_kind.trim().is_empty()
-        || member.member_id.len() > GROUP_KNOWLEDGEBASE_MAX_MEMBER_ID_BYTES
-        || member.principal_id.len() > GROUP_KNOWLEDGEBASE_MAX_MEMBER_ID_BYTES
-        || member.principal_kind.len() > GROUP_KNOWLEDGEBASE_MAX_MEMBER_ID_BYTES
-    {
-        return Err(RuntimeError::Conflict(
-            "group knowledgebase durable member does not match its requested scope".into(),
-        ));
-    }
-    validate_group_knowledgebase_durable_envelope(scope, envelope)
+    };
+    let state = match record.membership_state.as_str() {
+        "joined" => MembershipState::Joined,
+        "invited" => MembershipState::Invited,
+        "linked" => MembershipState::Linked,
+        "left" => MembershipState::Left,
+        "removed" => MembershipState::Removed,
+        _ => {
+            return Err(RuntimeError::Conflict(
+                "group knowledgebase normalized membership state is invalid".into(),
+            ));
+        }
+    };
+    let attributes = serde_json::from_str::<BTreeMap<String, String>>(
+        record.attributes_json.as_str(),
+    )
+    .map_err(|_| {
+        RuntimeError::Conflict(
+            "group knowledgebase normalized member attributes are invalid".into(),
+        )
+    })?;
+    Ok(ConversationMember {
+        tenant_id: record.tenant_id.clone(),
+        conversation_id: record.conversation_id.clone(),
+        member_id: record.member_id.to_string(),
+        principal_id: record.principal_id.clone(),
+        principal_kind: record.principal_kind.clone(),
+        role,
+        state,
+        invited_by: record.invited_by.clone(),
+        joined_at: record.joined_at.clone(),
+        removed_at: record.removed_at.clone(),
+        attributes,
+    })
 }
 
 fn group_knowledgebase_snapshot_members(
@@ -4382,6 +4298,23 @@ fn group_knowledgebase_membership_reconciliation_source_event_id(
     format!(
         "im.group-knowledgebase.members.reconcile:{}:{}",
         scope_hash, membership_epoch
+    )
+}
+
+fn group_knowledgebase_archive_reconciliation_source_event_id(
+    scope: &GroupKnowledgebaseScope,
+    commit_seq: u64,
+) -> String {
+    let scope_hash = sha256_hash(
+        format!(
+            "{}:{}:{}",
+            scope.tenant_id, scope.organization_id, scope.conversation_id
+        )
+        .as_bytes(),
+    );
+    format!(
+        "im.group-knowledgebase.archive.reconcile:{}:{}",
+        scope_hash, commit_seq
     )
 }
 
@@ -4731,6 +4664,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use im_platform_contracts::{ConversationMemberPage, ReadCursorPage, ReadCursorPageCursor};
 
     #[test]
     fn group_knowledgebase_signed_i64_persistence_rejects_overflow_and_negative_rows() {
@@ -4817,16 +4751,13 @@ mod tests {
     async fn group_knowledgebase_first_owner_launch_provisions_synchronizes_and_then_issues_ticket()
     {
         let scope = test_scope("g-first-owner-lifecycle");
-        let journal = ConversationCommitJournal::Memory(InMemoryJournal::default());
-        append_replayable_group_created(&journal, &scope);
-        append_member_joined(
-            &journal,
+        let runtime = Arc::new(normalized_group_runtime(
             &scope,
-            "evt-owner-joined",
+            "active",
             1,
-            test_member(&scope, "m-owner", "42", MembershipRole::Owner),
-        );
-        let runtime = Arc::new(ConversationRuntime::new(journal));
+            1,
+            vec![test_member(&scope, "m-owner", "42", MembershipRole::Owner)],
+        ));
         let store = Arc::new(InMemoryGroupKnowledgebaseStore::default());
         let port = Arc::new(RecordingGroupKnowledgebasePort::with_archive_state(
             GroupKnowledgebaseArchiveDeliveryState::Archived,
@@ -4956,30 +4887,17 @@ mod tests {
     #[tokio::test]
     async fn group_knowledgebase_initialization_allows_owner_and_denies_admin_or_member() {
         let scope = test_scope("g-owner-only-initialization");
-        let journal = ConversationCommitJournal::Memory(InMemoryJournal::default());
-        append_replayable_group_created(&journal, &scope);
-        append_member_joined(
-            &journal,
+        let runtime = Arc::new(normalized_group_runtime(
             &scope,
-            "evt-owner-joined",
-            1,
-            test_member(&scope, "m-owner", "42", MembershipRole::Owner),
-        );
-        append_member_joined(
-            &journal,
-            &scope,
-            "evt-admin-joined",
-            2,
-            test_member(&scope, "m-admin", "43", MembershipRole::Admin),
-        );
-        append_member_joined(
-            &journal,
-            &scope,
-            "evt-member-joined",
+            "active",
             3,
-            test_member(&scope, "m-member", "44", MembershipRole::Member),
-        );
-        let runtime = Arc::new(ConversationRuntime::new(journal));
+            3,
+            vec![
+                test_member(&scope, "m-owner", "42", MembershipRole::Owner),
+                test_member(&scope, "m-admin", "43", MembershipRole::Admin),
+                test_member(&scope, "m-member", "44", MembershipRole::Member),
+            ],
+        ));
         let store = Arc::new(InMemoryGroupKnowledgebaseStore::default());
         let port = Arc::new(RecordingGroupKnowledgebasePort::with_archive_state(
             GroupKnowledgebaseArchiveDeliveryState::Archived,
@@ -5061,23 +4979,16 @@ mod tests {
     #[tokio::test]
     async fn group_knowledgebase_active_launch_remains_available_to_a_non_owner_member() {
         let scope = test_scope("g-active-member-launch");
-        let journal = ConversationCommitJournal::Memory(InMemoryJournal::default());
-        append_replayable_group_created(&journal, &scope);
-        append_member_joined(
-            &journal,
+        let runtime = Arc::new(normalized_group_runtime(
             &scope,
-            "evt-owner-joined",
-            1,
-            test_member(&scope, "m-owner", "42", MembershipRole::Owner),
-        );
-        append_member_joined(
-            &journal,
-            &scope,
-            "evt-member-joined",
+            "active",
             2,
-            test_member(&scope, "m-member", "44", MembershipRole::Member),
-        );
-        let runtime = Arc::new(ConversationRuntime::new(journal));
+            2,
+            vec![
+                test_member(&scope, "m-owner", "42", MembershipRole::Owner),
+                test_member(&scope, "m-member", "44", MembershipRole::Member),
+            ],
+        ));
         let store = Arc::new(InMemoryGroupKnowledgebaseStore::default());
         lock_knowledgebase_mutex(&store.links, "knowledgebase-links")
             .insert(scope.clone(), active_test_link(scope.clone(), 2));
@@ -5219,90 +5130,262 @@ mod tests {
         }
     }
 
-    fn test_envelope(
-        scope: &GroupKnowledgebaseScope,
-        event_id: &str,
-        event_type: &str,
-        ordering_seq: u64,
-        payload: String,
-    ) -> CommitEnvelope {
-        CommitEnvelope {
-            event_id: event_id.into(),
-            tenant_id: scope.tenant_id.clone(),
-            organization_id: scope.organization_id.clone(),
-            event_type: event_type.into(),
-            event_version: 1,
-            aggregate_type: AggregateType::Conversation,
-            aggregate_id: scope.conversation_id.clone(),
-            scope_type: "conversation".into(),
-            scope_id: scope.conversation_id.clone(),
-            ordering_key: CommitEnvelope::ordering_key(
-                scope.tenant_id.as_str(),
-                scope.conversation_id.as_str(),
-            ),
-            ordering_seq,
-            causation_id: None,
-            correlation_id: None,
-            idempotency_key: None,
-            actor: im_domain_events::EventActor {
-                actor_id: "42".into(),
-                actor_kind: "user".into(),
-                actor_session_id: None,
-            },
-            occurred_at: "2026-07-13T00:00:00Z".into(),
-            committed_at: "2026-07-13T00:00:00Z".into(),
-            payload_schema: None,
-            payload,
-            retention_class: "standard".into(),
-            audit_class: "default".into(),
+    struct NormalizedGroupConversationStore {
+        conversation: NormalizedConversationRecord,
+        members: Vec<ConversationMemberRecord>,
+    }
+
+    impl ConversationAggregateStore for NormalizedGroupConversationStore {
+        fn load_conversation(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+        ) -> Result<Option<NormalizedConversationRecord>, ContractError> {
+            Ok(Some(self.conversation.clone()))
+        }
+
+        fn load_members_page(
+            &self,
+            tenant_id: &str,
+            organization_id: &str,
+            conversation_id: &str,
+            cursor: Option<&ConversationMemberPageCursor>,
+            page_size: usize,
+        ) -> Result<ConversationMemberPage, ContractError> {
+            let mut items = self
+                .members
+                .iter()
+                .filter(|member| {
+                    member.tenant_id == tenant_id
+                        && member.organization_id == organization_id
+                        && member.conversation_id == conversation_id
+                        && cursor.is_none_or(|cursor| {
+                            (member.principal_kind.as_str(), member.principal_id.as_str())
+                                > (cursor.principal_kind.as_str(), cursor.principal_id.as_str())
+                        })
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            items.sort_by(|left, right| {
+                (&left.principal_kind, &left.principal_id)
+                    .cmp(&(&right.principal_kind, &right.principal_id))
+            });
+            let has_more = items.len() > page_size;
+            items.truncate(page_size);
+            let next_cursor = has_more.then(|| {
+                let last = items
+                    .last()
+                    .expect("a paged normalized member result must contain one row");
+                ConversationMemberPageCursor {
+                    principal_kind: last.principal_kind.clone(),
+                    principal_id: last.principal_id.clone(),
+                }
+            });
+            Ok(ConversationMemberPage {
+                items,
+                next_cursor,
+                has_more,
+            })
+        }
+
+        fn load_member(
+            &self,
+            tenant_id: &str,
+            organization_id: &str,
+            conversation_id: &str,
+            principal_kind: &str,
+            principal_id: &str,
+        ) -> Result<Option<ConversationMemberRecord>, ContractError> {
+            Ok(self
+                .members
+                .iter()
+                .find(|member| {
+                    member.tenant_id == tenant_id
+                        && member.organization_id == organization_id
+                        && member.conversation_id == conversation_id
+                        && member.principal_kind == principal_kind
+                        && member.principal_id == principal_id
+                })
+                .cloned())
+        }
+
+        fn load_member_by_id(
+            &self,
+            tenant_id: &str,
+            organization_id: &str,
+            conversation_id: &str,
+            member_id: i64,
+        ) -> Result<Option<ConversationMemberRecord>, ContractError> {
+            Ok(self
+                .members
+                .iter()
+                .find(|member| {
+                    member.tenant_id == tenant_id
+                        && member.organization_id == organization_id
+                        && member.conversation_id == conversation_id
+                        && member.member_id == member_id
+                })
+                .cloned())
+        }
+
+        fn load_event_recipients_page(
+            &self,
+            tenant_id: &str,
+            organization_id: &str,
+            conversation_id: &str,
+            _joined_before_or_at: &str,
+            cursor: Option<&ConversationMemberPageCursor>,
+            page_size: usize,
+        ) -> Result<ConversationMemberPage, ContractError> {
+            self.load_members_page(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                cursor,
+                page_size,
+            )
+        }
+
+        fn upsert_member(&self, _member: ConversationMemberRecord) -> Result<(), ContractError> {
+            normalized_group_test_store_unsupported()
+        }
+
+        fn remove_member(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _principal_kind: &str,
+            _principal_id: &str,
+            _removed_at: &str,
+        ) -> Result<(), ContractError> {
+            normalized_group_test_store_unsupported()
+        }
+
+        fn load_read_cursors_page(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _cursor: Option<&ReadCursorPageCursor>,
+            _page_size: usize,
+        ) -> Result<ReadCursorPage, ContractError> {
+            Ok(ReadCursorPage {
+                items: Vec::new(),
+                next_cursor: None,
+                has_more: false,
+            })
+        }
+
+        fn load_read_cursor(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _member_id: i64,
+        ) -> Result<Option<ReadCursorRecord>, ContractError> {
+            Ok(None)
+        }
+
+        fn upsert_read_cursor(&self, _cursor: ReadCursorRecord) -> Result<(), ContractError> {
+            normalized_group_test_store_unsupported()
+        }
+
+        fn load_high_watermark(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+        ) -> Result<u64, ContractError> {
+            Ok(0)
+        }
+
+        fn allocate_member_id(&self) -> Result<i64, ContractError> {
+            normalized_group_test_store_unsupported()
+        }
+
+        fn conversation_exists(
+            &self,
+            tenant_id: &str,
+            organization_id: &str,
+            conversation_id: &str,
+        ) -> Result<bool, ContractError> {
+            Ok(self.conversation.tenant_id == tenant_id
+                && self.conversation.organization_id == organization_id
+                && self.conversation.conversation_id == conversation_id)
         }
     }
 
-    fn append_group_created(journal: &ConversationCommitJournal, scope: &GroupKnowledgebaseScope) {
-        journal
-            .append(test_envelope(
-                scope,
-                "evt-created",
-                "conversation.created",
-                0,
-                serde_json::json!({ "conversationType": "group" }).to_string(),
-            ))
-            .expect("group creation should append");
+    fn normalized_group_test_store_unsupported<T>() -> Result<T, ContractError> {
+        Err(ContractError::UnsupportedCapability(
+            "operation is not used by normalized group knowledgebase tests".into(),
+        ))
     }
 
-    fn append_replayable_group_created(
-        journal: &ConversationCommitJournal,
+    fn normalized_group_runtime(
         scope: &GroupKnowledgebaseScope,
-    ) {
-        let mut envelope = test_envelope(
-            scope,
-            "evt-replayable-created",
-            "conversation.created",
-            0,
-            serde_json::json!({ "conversationType": "group" }).to_string(),
-        );
-        envelope.payload_schema = Some("conversation.created.v1".into());
-        journal
-            .append(envelope)
-            .expect("replayable group creation should append");
+        lifecycle_state: &str,
+        commit_seq: u64,
+        membership_epoch: u64,
+        members: Vec<ConversationMember>,
+    ) -> ConversationRuntime<ConversationCommitJournal> {
+        let records = members
+            .into_iter()
+            .enumerate()
+            .map(|(index, member)| ConversationMemberRecord {
+                tenant_id: scope.tenant_id.clone(),
+                organization_id: scope.organization_id.clone(),
+                conversation_id: scope.conversation_id.clone(),
+                principal_kind: member.principal_kind,
+                principal_id: member.principal_id,
+                member_id: index as i64 + 1,
+                membership_role: match member.role {
+                    MembershipRole::Owner => "owner",
+                    MembershipRole::Admin => "admin",
+                    MembershipRole::Member => "member",
+                    MembershipRole::Guest => "guest",
+                }
+                .into(),
+                membership_state: match member.state {
+                    MembershipState::Joined => "joined",
+                    MembershipState::Invited => "invited",
+                    MembershipState::Linked => "linked",
+                    MembershipState::Left => "left",
+                    MembershipState::Removed => "removed",
+                }
+                .into(),
+                invited_by: member.invited_by,
+                joined_at: member.joined_at,
+                removed_at: member.removed_at,
+                attributes_json: serde_json::to_string(&member.attributes)
+                    .expect("test member attributes should serialize"),
+            })
+            .collect();
+        normalized_group_runtime_with_store(NormalizedGroupConversationStore {
+            conversation: NormalizedConversationRecord {
+                tenant_id: scope.tenant_id.clone(),
+                organization_id: scope.organization_id.clone(),
+                conversation_id: scope.conversation_id.clone(),
+                conversation_type: "group".into(),
+                lifecycle_state: lifecycle_state.into(),
+                archived_at: (lifecycle_state == "archived").then(|| "2026-07-13T00:00:00Z".into()),
+                archive_event_id: (lifecycle_state == "archived")
+                    .then(|| "evt_normalized_group_archived".into()),
+                commit_seq,
+                member_epoch: membership_epoch,
+                last_activity_at: "2026-07-13T00:00:00Z".into(),
+                retention_until: None,
+            },
+            members: records,
+        })
     }
 
-    fn append_member_joined(
-        journal: &ConversationCommitJournal,
-        scope: &GroupKnowledgebaseScope,
-        event_id: &str,
-        ordering_seq: u64,
-        member: ConversationMember,
-    ) {
-        journal
-            .append(test_envelope(
-                scope,
-                event_id,
-                "conversation.member_joined",
-                ordering_seq,
-                serde_json::to_string(&member).expect("member should serialize"),
-            ))
-            .expect("member event should append");
+    fn normalized_group_runtime_with_store(
+        store: NormalizedGroupConversationStore,
+    ) -> ConversationRuntime<ConversationCommitJournal> {
+        ConversationRuntime::new(ConversationCommitJournal::Memory(InMemoryJournal::default()))
+            .with_aggregate_store(Arc::new(store))
     }
 
     fn active_test_link(
@@ -5824,23 +5907,16 @@ mod tests {
     #[test]
     fn durable_reconciliation_recreates_one_membership_snapshot_after_commit_window() {
         let scope = test_scope("g-reconcile-members");
-        let journal = ConversationCommitJournal::Memory(InMemoryJournal::default());
-        append_group_created(&journal, &scope);
-        append_member_joined(
-            &journal,
+        let runtime = normalized_group_runtime(
             &scope,
-            "evt-owner",
-            1,
-            test_member(&scope, "m-owner", "42", MembershipRole::Owner),
-        );
-        append_member_joined(
-            &journal,
-            &scope,
-            "evt-member",
+            "active",
             2,
-            test_member(&scope, "m-member", "43", MembershipRole::Member),
+            2,
+            vec![
+                test_member(&scope, "m-owner", "42", MembershipRole::Owner),
+                test_member(&scope, "m-member", "43", MembershipRole::Member),
+            ],
         );
-        let runtime = ConversationRuntime::new(journal);
         let store = Arc::new(InMemoryGroupKnowledgebaseStore::default());
         lock_knowledgebase_mutex(&store.links, "knowledgebase-links")
             .insert(scope.clone(), active_test_link(scope.clone(), 1));
@@ -5878,35 +5954,15 @@ mod tests {
     }
 
     #[test]
-    fn durable_reconciliation_recreates_archive_from_the_persisted_actor_and_event() {
+    fn durable_reconciliation_recreates_archive_from_normalized_lifecycle() {
         let scope = test_scope("g-reconcile-archive");
-        let journal = ConversationCommitJournal::Memory(InMemoryJournal::default());
-        append_group_created(&journal, &scope);
-        append_member_joined(
-            &journal,
+        let runtime = normalized_group_runtime(
             &scope,
-            "evt-owner",
+            "archived",
+            2,
             1,
-            test_member(&scope, "m-owner", "42", MembershipRole::Owner),
+            vec![test_member(&scope, "m-owner", "42", MembershipRole::Owner)],
         );
-        let archive = ConversationGroupArchivedPayload {
-            tenant_id: scope.tenant_id.clone(),
-            organization_id: scope.organization_id.clone(),
-            conversation_id: scope.conversation_id.clone(),
-            archived_by: "archive-owner".into(),
-            archived_by_kind: "user".into(),
-            archived_at: "2026-07-13T00:00:01Z".into(),
-        };
-        journal
-            .append(test_envelope(
-                &scope,
-                "evt-durable-archive",
-                "conversation.group_archived",
-                2,
-                serde_json::to_string(&archive).expect("archive should serialize"),
-            ))
-            .expect("archive should append");
-        let runtime = ConversationRuntime::new(journal);
         let store = Arc::new(InMemoryGroupKnowledgebaseStore::default());
         lock_knowledgebase_mutex(&store.links, "knowledgebase-links")
             .insert(scope.clone(), active_test_link(scope.clone(), 1));
@@ -5922,8 +5978,14 @@ mod tests {
             pending[0].operation,
             GroupKnowledgebaseOutboxOperation::Archive
         );
-        assert_eq!(pending[0].source_event_id, "evt-durable-archive");
-        assert_eq!(pending[0].archived_by.as_deref(), Some("archive-owner"));
+        assert_eq!(
+            pending[0].source_event_id,
+            group_knowledgebase_archive_reconciliation_source_event_id(&scope, 2)
+        );
+        assert_eq!(
+            pending[0].archived_by.as_deref(),
+            Some(GROUP_KNOWLEDGEBASE_RECONCILIATION_ACTOR_ID)
+        );
         assert!(matches!(
             store
                 .get_link(&scope)
@@ -5943,11 +6005,9 @@ mod tests {
     }
 
     #[test]
-    fn durable_reconciliation_rejects_an_archived_missing_space_without_archive_evidence() {
+    fn durable_reconciliation_rejects_archived_link_when_normalized_conversation_is_active() {
         let scope = test_scope("g-reconcile-corrupt-archive");
-        let journal = ConversationCommitJournal::Memory(InMemoryJournal::default());
-        append_group_created(&journal, &scope);
-        let runtime = ConversationRuntime::new(journal);
+        let runtime = normalized_group_runtime(&scope, "active", 1, 0, Vec::new());
         let store = Arc::new(InMemoryGroupKnowledgebaseStore::default());
         let mut link = active_test_link(scope.clone(), 0);
         link.lifecycle_state = GroupKnowledgebaseLifecycleState::Archived;
@@ -5962,7 +6022,7 @@ mod tests {
         let error = coordinator
             .reconcile_durable_state(&runtime, &mut cursor, 8)
             .expect_err(
-                "an archived link without a durable archive event must not recover a remote knowledgebase",
+                "an archived link must not recover while normalized Conversation state is active",
             );
         assert!(matches!(error, RuntimeError::Conflict(_)));
         assert!(
@@ -5972,22 +6032,26 @@ mod tests {
     }
 
     #[test]
-    fn durable_reconciliation_rejects_a_journal_organization_collision() {
+    fn durable_reconciliation_rejects_a_normalized_organization_collision() {
         let scope = test_scope("g-reconcile-collision");
-        let mut envelope = test_envelope(
-            &scope,
-            "evt-wrong-organization",
-            "conversation.created",
-            0,
-            serde_json::json!({ "conversationType": "group" }).to_string(),
-        );
-        envelope.organization_id = "200002".into();
-        let error = apply_group_knowledgebase_durable_envelope(
-            &mut GroupKnowledgebaseDurableSnapshot::default(),
-            &scope,
-            &envelope,
-        )
-        .expect_err("wrong organization journal envelope must fail closed");
+        let runtime = normalized_group_runtime_with_store(NormalizedGroupConversationStore {
+            conversation: NormalizedConversationRecord {
+                tenant_id: scope.tenant_id.clone(),
+                organization_id: "200002".into(),
+                conversation_id: scope.conversation_id.clone(),
+                conversation_type: "group".into(),
+                lifecycle_state: "active".into(),
+                archived_at: None,
+                archive_event_id: None,
+                commit_seq: 1,
+                member_epoch: 0,
+                last_activity_at: "2026-07-13T00:00:00Z".into(),
+                retention_until: None,
+            },
+            members: Vec::new(),
+        });
+        let error = group_knowledgebase_durable_snapshot(&runtime, &scope)
+            .expect_err("wrong normalized organization must fail closed");
         assert!(matches!(error, RuntimeError::Conflict(_)));
     }
 

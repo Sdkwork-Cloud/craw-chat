@@ -1,6 +1,7 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "sdkwork.database.module",
+  "databaseRole": "authoritative-server",
   "moduleId": "im",
   "serviceCode": "IM",
   "displayName": "IM Database",
@@ -10,12 +11,12 @@
   ],
   "defaultEngine": "postgres",
   "tablePrefix": "im_",
-  "contractVersion": "2.0.0",
+  "contractVersion": "2.1.0",
   "baselineStrategy": "baseline-plus-migrations",
   "baselineAnchorTable": "im_commit_journal",
   "modules": [],
   "lifecycle": {
-    "autoMigrate": true,
+    "autoMigrate": false,
     "seedOnBoot": false,
     "defaultSeedLocale": "zh-CN",
     "defaultSeedProfile": "standard",

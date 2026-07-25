@@ -12,7 +12,6 @@ const standardChecks = [
   'test:web-framework-standard',
   'test:web-backend-standard',
   'test:database-framework-standard',
-  'test:sqlite:smoke',
   'test:rpc-framework-standard',
   'test:utils-standard',
   'test:h5-utils-standard',

@@ -64,6 +64,36 @@
       "purpose": "Typed runtime config and SDK client initialization rules."
     },
     {
+      "file": "DATABASE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/DATABASE_SPEC.md",
+      "purpose": "Client-local SQLite role, schema, isolation, and lifecycle rules."
+    },
+    {
+      "file": "DATABASE_FRAMEWORK_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md",
+      "purpose": "Database asset layout, manifest, migration, and verification rules."
+    },
+    {
+      "file": "ENVIRONMENT_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/ENVIRONMENT_SPEC.md",
+      "purpose": "Desktop environment, deployment profile, and SQLite defaults."
+    },
+    {
+      "file": "RUNTIME_DIRECTORY_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/RUNTIME_DIRECTORY_SPEC.md",
+      "purpose": "User-private desktop data and cache directory rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Credential exclusion, encryption, input validation, and fail-closed behavior."
+    },
+    {
+      "file": "PRIVACY_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/PRIVACY_SPEC.md",
+      "purpose": "Client-local data minimization, retention, purge, and protection rules."
+    },
+    {
       "file": "DEPLOYMENT_SPEC.md",
       "path": "../../../../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
       "purpose": "SaaS, private, and local deployment parity rules."
@@ -92,6 +122,8 @@
   },
   "verification": {
     "commands": [
+      "node ../../../../../../sdkwork-specs/tools/check-database-framework-standard.mjs --root .",
+      "cargo fmt --check",
       "cargo test"
     ]
   }

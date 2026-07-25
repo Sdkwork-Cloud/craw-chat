@@ -79,8 +79,8 @@ test('IM Agents database contract 2.0 is active and range-safe', () => {
     'utf8',
   );
 
-  assert.equal(manifest.contractVersion, '2.0.0');
-  assert.match(contract, /contract_version:\s*2\.0\.0/u);
+  assert.equal(manifest.contractVersion, '2.1.0');
+  assert.match(contract, /contract_version:\s*2\.1\.0/u);
   for (const table of integrationTables) {
     assert.match(
       contract,

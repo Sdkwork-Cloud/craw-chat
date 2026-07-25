@@ -24,7 +24,7 @@
       "notes": [
         "Use im_ only for instant-messaging-owned tables.",
         "Do not rename unrelated IAM, Drive, integration, ops, or platform tables to im_.",
-        "Desktop SQLite compatibility tables must use the same im_ logical table names."
+        "This registry governs the authoritative PostgreSQL contract; client-local stores own separate manifests and naming contracts."
       ]
     }
   ],

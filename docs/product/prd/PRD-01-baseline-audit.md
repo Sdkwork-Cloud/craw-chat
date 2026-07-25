@@ -3,6 +3,11 @@
 
 # Step 01 - 现状基线冻结与差距审计
 
+> Historical baseline only. This pre-launch inventory is superseded by
+> `PRD.md`, `TECH_ARCHITECTURE.md`, and `ADR-20260722-normalized-im-authority.md`.
+> In particular, the former `projection-service` was retired before launch and
+> is not part of the current runtime or persistence architecture.
+
 ## 1. 目标与范围
 
 本 step 用于把当前仓库的真实工程状态与目标架构做一次完整映射，形成后续所有重构动作的输入基线。
@@ -50,7 +55,7 @@
 
 - workspace 目前仍以 `im-*` core crate 和 `services/*` 服务为主
 - 当前成员包括 `im-domain-core`、`im-domain-events`、`im-platform-contracts`、`im-auth-context`、`im-time`
-- 当前服务包括 `conversation-runtime`、`session-gateway`、`streaming-service`、`im-call-runtime`、`projection-service`、`control-plane-api` 等
+- 当时服务包括 `conversation-runtime`、`session-gateway`、`streaming-service`、`im-call-runtime`、已退休的 `projection-service`、`control-plane-api` 等
 - 本地最小运行集成体为 `crates/sdkwork-api-im-standalone-gateway`
 - 已经存在跨平台 `bin/` 脚本以及 `tools/chat-cli`
 
@@ -247,4 +252,3 @@
 
 - 高风险大文件已被列为优先拆分对象
 - 目标 crate 拓扑和迁移原则已经有清晰结论
-

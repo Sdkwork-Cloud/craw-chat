@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 2,
+  "kind": "sdkwork.database.module",
+  "databaseRole": "client-local",
+  "moduleId": "im-pc-client-local",
+  "serviceCode": "IM_PC_CLIENT_LOCAL",
+  "displayName": "IM PC Client-Local Cache And Pending Send Store",
+  "owner": "im-client",
+  "engines": [
+    "sqlite"
+  ],
+  "defaultEngine": "sqlite",
+  "tablePrefix": "im_local_",
+  "contractVersion": "1.0.0",
+  "baselineStrategy": "baseline-plus-migrations",
+  "clientLocal": {
+    "mode": "cache",
+    "scope": "environment-deployment-profile-mode-origin-tenant-organization-account-principal",
+    "authoritativeSource": "sdkwork-im-app-api",
+    "syncContract": "contract/cache-lifecycle.v1.yaml"
+  },
+  "lifecycle": {
+    "autoMigrate": true,
+    "seedOnBoot": false
+  },
+  "paths": {
+    "contract": "contract/schema.yaml",
+    "migrations": "migrations",
+    "localDataPolicy": "local-data-policy.yaml"
+  },
+  "spi": {
+    "provider": "tauri-rusqlite-client-local",
+    "hooks": []
+  }
+}
+

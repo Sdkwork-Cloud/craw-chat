@@ -1,0 +1,9 @@
+export { ChatBackground } from "./settings-pages/other/ChatBackground";
+export { EmojiManagement } from "./settings-pages/other/EmojiManagement";
+export { ClearChatHistory } from "./settings-pages/other/ClearChatHistory";
+export { FontSize } from "./settings-pages/other/FontSize";
+export { MediaSettings } from "./settings-pages/other/MediaSettings";
+export { StorageSpace } from "./settings-pages/other/StorageSpace";
+export { SystemPermissions } from "./settings-pages/other/SystemPermissions";
+export { AuthManagement } from "./settings-pages/other/AuthManagement";
+export { AdManagement } from "./settings-pages/other/AdManagement";

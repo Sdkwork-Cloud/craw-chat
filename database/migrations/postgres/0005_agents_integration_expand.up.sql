@@ -1,4 +1,27 @@
+-- sdkwork:migration
+-- id: 0005_agents_integration_expand
+-- engine: postgres
+-- module: im
+-- purpose: Create normalized IM-side Agent assignment, binding, and dispatch tables
+-- reversible: true
+-- rollback: down-migration
+-- transactional: true
+-- lock: schema-definition
+-- lock_timeout: 5s
+-- statement_timeout: 2m
+-- rewrite: none; additive tables and indexes only
+-- backfill: none; pre-launch runtime writes normalized rows after cutover
+-- write_traffic: no existing IM table rewrite
+-- replication_wal: bounded by DDL catalog and empty-index creation
+-- observability: monitor DDL duration, blocked locks, and replica apply lag
+-- cancellation: cancel before commit; PostgreSQL rolls back the complete transaction
+-- recovery: guarded down migration is allowed only while all three tables are empty
+-- contract_version: 2.0.0
+
 BEGIN;
+
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '2min';
 
 CREATE TABLE im_conversation_agent_assignments (
     id BIGINT NOT NULL PRIMARY KEY,

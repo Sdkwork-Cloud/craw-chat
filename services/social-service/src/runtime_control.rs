@@ -50,10 +50,6 @@ pub fn build_runtime_control_routes() -> Router<AppState> {
             axum::routing::post(reclaim_stale_pending_shared_channel_sync),
         )
         .route(
-            "/backend/v3/api/control/social/runtime/repair_derived_snapshot",
-            axum::routing::post(repair_derived_snapshot),
-        )
-        .route(
             "/backend/v3/api/control/social/runtime/repair_shared_channel_sync",
             axum::routing::post(repair_shared_channel_sync),
         )
@@ -165,23 +161,6 @@ async fn reclaim_stale_pending_shared_channel_sync(
             .map_err(|error| {
                 SocialServiceError::invalid("shared_channel_sync_reclaim_failed", error)
             })
-    })
-    .await;
-    finish_enveloped_json(&ctx, result)
-}
-
-async fn repair_derived_snapshot(
-    Extension(ctx): Extension<WebRequestContext>,
-    Extension(auth): Extension<AppContext>,
-    State(state): State<AppState>,
-) -> Response {
-    let result = crate::envelope::run_blocking_social_call(state, move |state| {
-        ensure_control_write_access(&auth)?;
-        state
-            .social_runtime
-            .repair_derived_snapshot()
-            .map(resource_item)
-            .map_err(|error| SocialServiceError::invalid("social_runtime_repair_failed", error))
     })
     .await;
     finish_enveloped_json(&ctx, result)

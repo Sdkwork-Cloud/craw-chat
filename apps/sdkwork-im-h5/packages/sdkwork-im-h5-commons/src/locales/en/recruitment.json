@@ -1,0 +1,53 @@
+{
+  "title": "Recruitment",
+  "stats": {
+    "ongoing": "Ongoing Candidates",
+    "todayInterview": "Today's Interview",
+    "pendingReview": "Pending Review"
+  },
+  "listTitle": "Candidate List",
+  "loading": "Loading...",
+  "empty": "No candidate information available",
+  "apply": "Applied: {{job}}",
+  "detail": {
+    "title": "Candidate Detail",
+    "advance": "Advance",
+    "eliminate": "Eliminate",
+    "resumeInfo": "Resume Info",
+    "workExp": "Work Experience",
+    "eduInfo": "Education",
+    "currentStage": "Current Stage",
+    "updatedAt": "Updated At",
+    "baseInfo": "Basic Info",
+    "age": "Age",
+    "ageValue": "{{age}} years",
+    "residence": "Residence",
+    "location": "Nanshan, Shenzhen",
+    "availability": "Availability",
+    "anytime": "Anytime",
+    "viewResume": "View Full Resume",
+    "downloadStart": "Download started",
+    "advanceSuccess": "Advanced to next stage",
+    "eliminateSuccess": "Eliminated"
+  },
+  "createJob": {
+    "title": "Post a Job",
+    "jobTitleLabel": "Job Title",
+    "jobTitlePlaceholder": "e.g., Senior Frontend Engineer",
+    "departmentLabel": "Department",
+    "departmentPlaceholder": "e.g., R&D Dept",
+    "locationLabel": "Location",
+    "locationPlaceholder": "e.g., San Francisco",
+    "salaryLabel": "Salary Range",
+    "salaryPlaceholder": "e.g., 20k-40k",
+    "experiencePrompt": "Enter experience requirements",
+    "experienceLabel": "Experience",
+    "educationPrompt": "Enter education requirements",
+    "educationLabel": "Education",
+    "unlimited": "Unlimited",
+    "bachelor": "Bachelor",
+    "requirementLabel": "Requirements",
+    "requirementPlaceholder": "Job description and requirements...",
+    "submit": "Post Job"
+  }
+}

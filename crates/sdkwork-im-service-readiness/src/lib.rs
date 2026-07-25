@@ -4,9 +4,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use im_app_context::resolve_web_environment_from_process_env;
 use sdkwork_database_sqlx::DatabasePool;
-use sdkwork_web_bootstrap::{
-    AlwaysReady, CompositeReadinessCheck, ReadinessCheck, ReadinessFuture,
-};
+use sdkwork_web_bootstrap::{CompositeReadinessCheck, ReadinessCheck, ReadinessFuture};
 use sdkwork_web_core::WebEnvironment;
 use session_gateway::resolve_iam_auth_pool_from_env;
 use sqlx::PgPool;
@@ -40,11 +38,10 @@ impl ReadinessCheck for DatabasePoolReadinessCheck {
         let pool = self.pool.clone();
         Box::pin(async move {
             match &pool {
-                DatabasePool::Sqlite(sqlite, _) => {
-                    sqlx::query("SELECT 1")
-                        .execute(sqlite)
-                        .await
-                        .map_err(|error| format!("im sqlite readiness failed: {error}"))?;
+                DatabasePool::Sqlite(_, _) => {
+                    return Err(
+                        "IM server readiness rejected client-local SQLite persistence".to_owned(),
+                    );
                 }
                 DatabasePool::Postgres(postgres, _) => {
                     sqlx::query("SELECT 1")
@@ -91,6 +88,24 @@ impl ReadinessCheck for MissingDependencyReadinessCheck {
                 "required dependency is not configured: {dependency}"
             ))
         })
+    }
+}
+
+#[derive(Clone)]
+struct UnavailableDependencyReadinessCheck {
+    dependency: &'static str,
+}
+
+impl UnavailableDependencyReadinessCheck {
+    fn new(dependency: &'static str) -> Self {
+        Self { dependency }
+    }
+}
+
+impl ReadinessCheck for UnavailableDependencyReadinessCheck {
+    fn check(&self) -> ReadinessFuture<'_> {
+        let dependency = self.dependency;
+        Box::pin(async move { Err(format!("{dependency} is unavailable")) })
     }
 }
 
@@ -191,11 +206,7 @@ pub fn evaluate_im_runtime_dependency_health_from_env() -> bool {
         return true;
     }
 
-    if matches!(environment, WebEnvironment::Prod) {
-        return false;
-    }
-
-    matches!(environment, WebEnvironment::Dev | WebEnvironment::Test)
+    false
 }
 
 fn resolve_im_database_url_from_env() -> Option<String> {
@@ -244,7 +255,7 @@ pub fn enable_process_shared_database_pool() {
 /// SHOULD call this before assembling routes or opening PostgreSQL adapters.
 pub async fn bootstrap_im_service_database_from_env() -> Result<(), String> {
     enable_process_shared_database_pool();
-    sdkwork_im_database_pool::try_bootstrap_im_process_database_pools_from_env()
+    sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
         .await
         .map(|_| ())
 }
@@ -294,6 +305,23 @@ fn registered_im_process_readiness_checks() -> Vec<Arc<dyn ReadinessCheck>> {
         .unwrap_or_default()
 }
 
+/// Collapses required IM process checks into one fail-closed readiness check.
+///
+/// Dependency details returned by these checks are server-log data. HTTP callers
+/// must use `sdkwork-web-bootstrap`, which replaces them with the canonical
+/// client-safe readiness failure detail.
+pub fn compose_im_required_readiness_checks(
+    mut checks: Vec<Arc<dyn ReadinessCheck>>,
+) -> Arc<dyn ReadinessCheck> {
+    match checks.len() {
+        0 => Arc::new(MissingDependencyReadinessCheck::new(
+            "process readiness checks",
+        )),
+        1 => checks.pop().expect("single readiness check"),
+        _ => Arc::new(CompositeReadinessCheck::new(checks)),
+    }
+}
+
 /// Runs all required startup work before a process claims its TCP address.
 ///
 /// A failed dependency preflight must leave the configured port available for
@@ -323,8 +351,13 @@ pub async fn resolve_im_service_readiness_check() -> Arc<dyn ReadinessCheck> {
         checks.push(Arc::new(PgPoolReadinessCheck { pool, label: "iam" }));
     }
 
-    if let Ok(pool) = sdkwork_im_database_pool::create_im_database_pool_from_env().await {
-        checks.push(Arc::new(DatabasePoolReadinessCheck { pool }));
+    match sdkwork_im_database_pool::create_im_database_pool_from_env().await {
+        Ok(pool) => checks.push(Arc::new(DatabasePoolReadinessCheck { pool })),
+        Err(_) => {
+            checks.push(Arc::new(UnavailableDependencyReadinessCheck::new(
+                "im database",
+            )));
+        }
     }
 
     match resolve_im_redis_url_from_env() {
@@ -336,20 +369,24 @@ pub async fn resolve_im_service_readiness_check() -> Arc<dyn ReadinessCheck> {
     }
     checks.extend(registered_im_process_readiness_checks());
 
-    match checks.len() {
-        0 if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) => {
-            Arc::new(AlwaysReady)
-        }
-        0 => Arc::new(MissingDependencyReadinessCheck::new(
-            "iam or im database connectivity",
-        )),
-        1 => checks.pop().expect("single readiness check"),
-        _ => Arc::new(CompositeReadinessCheck::new(checks)),
-    }
+    compose_im_required_readiness_checks(checks)
 }
 
 pub async fn resolve_gateway_readiness_check() -> Arc<dyn ReadinessCheck> {
     resolve_im_service_readiness_check().await
+}
+
+/// Adds gateway-owned runtime checks to the canonical IM dependency checks.
+///
+/// The standalone gateway uses this for embedded domain state and worker
+/// lifecycles that are not represented by database or Redis connectivity alone.
+pub async fn resolve_gateway_readiness_check_with_required_checks(
+    required_checks: Vec<Arc<dyn ReadinessCheck>>,
+) -> Arc<dyn ReadinessCheck> {
+    let mut checks = Vec::with_capacity(required_checks.len() + 1);
+    checks.push(resolve_im_service_readiness_check().await);
+    checks.extend(required_checks);
+    compose_im_required_readiness_checks(checks)
 }
 
 /// Sets `SDKWORK_IM_SERVICE_NAME` and `OTEL_SERVICE_NAME` when unset so metrics and traces use a stable service id.
@@ -455,5 +492,45 @@ mod identity_tests {
             .await
             .expect("failed preflight must leave the configured port unclaimed");
         drop(rebound);
+    }
+}
+
+#[cfg(test)]
+mod composition_tests {
+    use super::*;
+
+    #[derive(Clone)]
+    struct FixedReadinessCheck(Result<(), String>);
+
+    impl ReadinessCheck for FixedReadinessCheck {
+        fn check(&self) -> ReadinessFuture<'_> {
+            let result = self.0.clone();
+            Box::pin(async move { result })
+        }
+    }
+
+    #[tokio::test]
+    async fn required_readiness_failure_propagates_from_composite() {
+        let check = compose_im_required_readiness_checks(vec![
+            Arc::new(FixedReadinessCheck(Ok(()))),
+            Arc::new(FixedReadinessCheck(Err(
+                "embedded agents state is unavailable".to_owned(),
+            ))),
+        ]);
+
+        let error = check
+            .check()
+            .await
+            .expect_err("a required dependency failure must fail readiness");
+        assert_eq!(error, "embedded agents state is unavailable");
+    }
+
+    #[tokio::test]
+    async fn empty_required_readiness_set_fails_closed() {
+        let error = compose_im_required_readiness_checks(Vec::new())
+            .check()
+            .await
+            .expect_err("an empty required readiness set must not report ready");
+        assert!(error.contains("process readiness checks"));
     }
 }

@@ -476,7 +476,7 @@
   "ownership": {
     "boundedContext": "communication/chat",
     "domainContract": "specs/domain-ownership.spec.json",
-    "databaseTableCount": 60,
+    "databaseTableCount": 63,
     "openApiOperationCount": 125,
     "appApiOperationCount": 25,
     "backendApiOperationCount": 111

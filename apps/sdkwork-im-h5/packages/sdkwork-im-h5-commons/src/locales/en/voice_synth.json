@@ -1,0 +1,28 @@
+{
+  "title": "Voice Synthesis",
+  "placeholder": "Enter text here, and AI will synthesize it into natural and fluent speech...",
+  "speaker": "Speaker",
+  "change": "Change",
+  "advanced_params": "Advanced Parameters",
+  "collapse": "Collapse",
+  "expand": "Expand",
+  "speed": "Speed",
+  "pitch": "Pitch",
+  "volume": "Volume",
+  "synthesizing": "Synthesizing...",
+  "synthesize_now": "Synthesize Voice",
+  "input_empty": "Please enter text to synthesize",
+  "success": "Synthesis successful",
+  "saved": "Saved locally",
+  "result_filename": "Synthesized_Audio.mp3",
+  "voices": {
+    "1": "Xiaoxiao",
+    "2": "Yunxi",
+    "3": "Yunye",
+    "4": "Xiaoyi",
+    "type_female1": "Fresh Female",
+    "type_male1": "Sunny Male",
+    "type_male2": "Steady Male",
+    "type_female2": "Sweet Female"
+  }
+}

@@ -4,8 +4,10 @@
 
 use im_platform_contracts::{
     CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ContractError, ConversationAggregateStore,
-    ConversationMemberPage, ConversationMemberPageCursor, ConversationMemberRecord, ReadCursorPage,
-    ReadCursorPageCursor, ReadCursorRecord,
+    ConversationMemberPage, ConversationMemberPageCursor, ConversationMemberRecord,
+    NormalizedConversationBusinessBindingRecord, NormalizedConversationCurrentState,
+    NormalizedConversationHandoffRecord, NormalizedConversationPolicyRecord,
+    NormalizedConversationRecord, ReadCursorPage, ReadCursorPageCursor, ReadCursorRecord,
 };
 
 use crate::{
@@ -26,6 +28,37 @@ impl PostgresAggregateStore {
 }
 
 // SQL constants
+
+const LOAD_CONVERSATION_SQL: &str = r#"
+select tenant_id, organization_id, conversation_id, conversation_type,
+    lifecycle_state, archived_at, archive_event_id, commit_seq, member_epoch,
+    last_activity_at, retention_until
+from im_conversations
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+"#;
+
+const LOAD_CONVERSATION_POLICY_SQL: &str = r#"
+select tenant_id, organization_id, conversation_id, policy_epoch, policy_version,
+    capability_flags, history_visibility, retention_policy_ref, max_members
+from im_conversation_policies
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+"#;
+
+const LOAD_CONVERSATION_BUSINESS_BINDING_SQL: &str = r#"
+select tenant_id, organization_id, conversation_id, business_type, business_id
+from im_conversation_business_bindings
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+"#;
+
+const LOAD_CONVERSATION_HANDOFF_SQL: &str = r#"
+select tenant_id, organization_id, conversation_id, handoff_status_epoch, status,
+    source_principal_kind, source_principal_id, target_principal_kind, target_principal_id,
+    handoff_session_id, handoff_reason, accepted_at, accepted_by_principal_kind,
+    accepted_by_principal_id, resolved_at, resolved_by_principal_kind,
+    resolved_by_principal_id, closed_at, closed_by_principal_kind, closed_by_principal_id
+from im_conversation_handoffs
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+"#;
 
 const LOAD_MEMBERS_SQL: &str = r#"
 select tenant_id, organization_id, conversation_id, principal_kind, principal_id,
@@ -105,6 +138,16 @@ from im_conversation_read_cursors
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3 and member_id = $4 and device_id = ''
 "#;
 
+const LOAD_READ_CURSOR_FOR_DEVICE_SQL: &str = r#"
+select tenant_id, organization_id, conversation_id, member_id, device_id, principal_kind, principal_id,
+    read_seq, last_read_message_id, updated_at
+from im_conversation_read_cursors
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+    and member_id = $4 and (device_id = $5 or device_id = '')
+order by case when device_id = $5 then 0 else 1 end
+limit 1
+"#;
+
 const UPSERT_READ_CURSOR_SQL: &str = r#"
 insert into im_conversation_read_cursors (
     tenant_id, organization_id, conversation_id, member_id, device_id, principal_kind, principal_id,
@@ -119,9 +162,8 @@ do update set
 
 const CONVERSATION_EXISTS_SQL: &str = r#"
 select exists (
-    select 1 from im_conversation_members
+    select 1 from im_conversations
     where tenant_id = $1 and organization_id = $2 and conversation_id = $3
-        and membership_state in ('joined', 'linked')
 )
 "#;
 
@@ -150,6 +192,89 @@ fn row_to_member(row: &postgres::Row) -> ConversationMemberRecord {
     }
 }
 
+fn row_to_conversation(row: &postgres::Row) -> NormalizedConversationRecord {
+    let archived_at: Option<chrono::DateTime<chrono::Utc>> = row.get(5);
+    let last_activity_at: chrono::DateTime<chrono::Utc> = row.get(9);
+    let retention_until: Option<chrono::DateTime<chrono::Utc>> = row.get(10);
+    NormalizedConversationRecord {
+        tenant_id: row.get(0),
+        organization_id: row.get(1),
+        conversation_id: row.get(2),
+        conversation_type: row.get(3),
+        lifecycle_state: row.get(4),
+        archived_at: archived_at.map(|value| value.to_rfc3339()),
+        archive_event_id: row.get(6),
+        commit_seq: row.get::<_, i64>(7) as u64,
+        member_epoch: row.get::<_, i64>(8) as u64,
+        last_activity_at: last_activity_at.to_rfc3339(),
+        retention_until: retention_until.map(|value| value.to_rfc3339()),
+    }
+}
+
+fn row_to_policy(row: &postgres::Row) -> NormalizedConversationPolicyRecord {
+    NormalizedConversationPolicyRecord {
+        tenant_id: row.get(0),
+        organization_id: row.get(1),
+        conversation_id: row.get(2),
+        policy_epoch: row.get::<_, i64>(3) as u64,
+        policy_version: row.get(4),
+        capability_flags: row.get(5),
+        history_visibility: row.get(6),
+        retention_policy_ref: row.get(7),
+        max_members: row.get(8),
+    }
+}
+
+fn row_to_business_binding(
+    row: &postgres::Row,
+) -> NormalizedConversationBusinessBindingRecord {
+    NormalizedConversationBusinessBindingRecord {
+        tenant_id: row.get(0),
+        organization_id: row.get(1),
+        conversation_id: row.get(2),
+        business_type: row.get(3),
+        business_id: row.get(4),
+    }
+}
+
+fn optional_actor(kind: Option<String>, id: Option<String>) -> (Option<String>, Option<String>) {
+    (kind, id)
+}
+
+fn row_to_handoff(row: &postgres::Row) -> NormalizedConversationHandoffRecord {
+    let accepted_at: Option<chrono::DateTime<chrono::Utc>> = row.get(11);
+    let resolved_at: Option<chrono::DateTime<chrono::Utc>> = row.get(14);
+    let closed_at: Option<chrono::DateTime<chrono::Utc>> = row.get(17);
+    let (accepted_by_principal_kind, accepted_by_principal_id) =
+        optional_actor(row.get(12), row.get(13));
+    let (resolved_by_principal_kind, resolved_by_principal_id) =
+        optional_actor(row.get(15), row.get(16));
+    let (closed_by_principal_kind, closed_by_principal_id) =
+        optional_actor(row.get(18), row.get(19));
+    NormalizedConversationHandoffRecord {
+        tenant_id: row.get(0),
+        organization_id: row.get(1),
+        conversation_id: row.get(2),
+        handoff_status_epoch: row.get::<_, i64>(3) as u64,
+        status: row.get(4),
+        source_principal_kind: row.get(5),
+        source_principal_id: row.get(6),
+        target_principal_kind: row.get(7),
+        target_principal_id: row.get(8),
+        handoff_session_id: row.get(9),
+        handoff_reason: row.get(10),
+        accepted_at: accepted_at.map(|value| value.to_rfc3339()),
+        accepted_by_principal_kind,
+        accepted_by_principal_id,
+        resolved_at: resolved_at.map(|value| value.to_rfc3339()),
+        resolved_by_principal_kind,
+        resolved_by_principal_id,
+        closed_at: closed_at.map(|value| value.to_rfc3339()),
+        closed_by_principal_kind,
+        closed_by_principal_id,
+    }
+}
+
 fn row_to_cursor(row: &postgres::Row) -> ReadCursorRecord {
     let updated_at: chrono::DateTime<chrono::Utc> = row.get(9);
     ReadCursorRecord {
@@ -167,6 +292,83 @@ fn row_to_cursor(row: &postgres::Row) -> ReadCursorRecord {
 }
 
 impl ConversationAggregateStore for PostgresAggregateStore {
+    fn load_conversation(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<Option<NormalizedConversationRecord>, ContractError> {
+        let pool = self.pool.clone();
+        let tenant_id = tenant_id.to_owned();
+        let organization_id = organization_id.to_owned();
+        let conversation_id = conversation_id.to_owned();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "load_conversation")?;
+            let row = client
+                .query_opt(
+                    LOAD_CONVERSATION_SQL,
+                    &[&tenant_id, &organization_id, &conversation_id],
+                )
+                .map_err(|error| postgres_unavailable("load_conversation", error))?;
+            Ok(row.map(|row| row_to_conversation(&row)))
+        })
+    }
+
+    fn load_conversation_current_state(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<Option<NormalizedConversationCurrentState>, ContractError> {
+        let pool = self.pool.clone();
+        let tenant_id = tenant_id.to_owned();
+        let organization_id = organization_id.to_owned();
+        let conversation_id = conversation_id.to_owned();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "load_conversation_current_state")?;
+            let mut transaction = client
+                .build_transaction()
+                .isolation_level(postgres::IsolationLevel::RepeatableRead)
+                .read_only(true)
+                .start()
+                .map_err(|error| {
+                    postgres_unavailable("load_conversation_current_state begin", error)
+                })?;
+            let params: &[&(dyn postgres::types::ToSql + Sync)] =
+                &[&tenant_id, &organization_id, &conversation_id];
+            let Some(conversation_row) = transaction
+                .query_opt(LOAD_CONVERSATION_SQL, params)
+                .map_err(|error| postgres_unavailable("load conversation current row", error))?
+            else {
+                transaction.commit().map_err(|error| {
+                    postgres_unavailable("load_conversation_current_state commit", error)
+                })?;
+                return Ok(None);
+            };
+            let policy = transaction
+                .query_opt(LOAD_CONVERSATION_POLICY_SQL, params)
+                .map_err(|error| postgres_unavailable("load conversation policy", error))?
+                .map(|row| row_to_policy(&row));
+            let business_binding = transaction
+                .query_opt(LOAD_CONVERSATION_BUSINESS_BINDING_SQL, params)
+                .map_err(|error| postgres_unavailable("load conversation binding", error))?
+                .map(|row| row_to_business_binding(&row));
+            let handoff = transaction
+                .query_opt(LOAD_CONVERSATION_HANDOFF_SQL, params)
+                .map_err(|error| postgres_unavailable("load conversation handoff", error))?
+                .map(|row| row_to_handoff(&row));
+            transaction.commit().map_err(|error| {
+                postgres_unavailable("load_conversation_current_state commit", error)
+            })?;
+            Ok(Some(NormalizedConversationCurrentState {
+                conversation: row_to_conversation(&conversation_row),
+                policy,
+                business_binding,
+                handoff,
+            }))
+        })
+    }
+
     fn load_members_page(
         &self,
         tenant_id: &str,
@@ -455,6 +657,37 @@ impl ConversationAggregateStore for PostgresAggregateStore {
                 )
                 .map_err(|error| postgres_unavailable("load_read_cursor", error))?;
             Ok(row.map(|r| row_to_cursor(&r)))
+        })
+    }
+
+    fn load_read_cursor_for_device(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        member_id: i64,
+        device_id: &str,
+    ) -> Result<Option<ReadCursorRecord>, ContractError> {
+        let pool = self.pool.clone();
+        let tenant_id = tenant_id.to_owned();
+        let organization_id = organization_id.to_owned();
+        let conversation_id = conversation_id.to_owned();
+        let device_id = device_id.to_owned();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "load_read_cursor_for_device")?;
+            let row = client
+                .query_opt(
+                    LOAD_READ_CURSOR_FOR_DEVICE_SQL,
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &conversation_id,
+                        &member_id,
+                        &device_id,
+                    ],
+                )
+                .map_err(|error| postgres_unavailable("load_read_cursor_for_device", error))?;
+            Ok(row.map(|row| row_to_cursor(&row)))
         })
     }
 

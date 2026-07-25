@@ -1,0 +1,11 @@
+{
+  "name": "@sdkwork/im-h5-enterprise",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-router": "^7.14.1",
+    "lucide-react": "^0.546.0",
+    "@sdkwork/im-h5-commons": "workspace:*"
+  }
+}

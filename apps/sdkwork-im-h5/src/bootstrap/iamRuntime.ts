@@ -1,31 +1,16 @@
-import {
-  applyImH5IamSessionTokens,
-  parseAppbaseCallbackSession,
-  stripAppbaseCallbackFromLocation,
-} from "@sdkwork/im-h5-core";
+import { createImAppAuthRuntime } from './imAppAuthRuntime';
 
-import { createImAppAuthRuntime } from "./imAppAuthRuntime";
-import { resolveEnvironment } from "./environment";
+export type { SdkworkAppbasePcAuthRuntimeComposition } from '@sdkwork/auth-runtime-pc-react';
 
-export function createIamRuntime() {
-  const environment = resolveEnvironment();
-  const composition = createImAppAuthRuntime({
-    appId: "sdkwork-im-h5",
-    appbaseAppApiBaseUrl: environment.appbaseAppApiBaseUrl,
-  });
+let iamRuntimeComposition: ReturnType<typeof createImAppAuthRuntime> | null = null;
 
-  const callbackSession = parseAppbaseCallbackSession();
-  if (callbackSession) {
-    stripAppbaseCallbackFromLocation();
-    applyImH5IamSessionTokens({
-      accessToken: callbackSession.accessToken,
-      authToken: callbackSession.authToken,
-    });
+export function getIamRuntime(): ReturnType<typeof createImAppAuthRuntime> {
+  if (!iamRuntimeComposition) {
+    iamRuntimeComposition = createImAppAuthRuntime();
   }
+  return iamRuntimeComposition;
+}
 
-  return {
-    composition,
-    runtime: composition.getRuntime(),
-    session: callbackSession,
-  };
+export function resetIamRuntimeComposition(): void {
+  iamRuntimeComposition = null;
 }

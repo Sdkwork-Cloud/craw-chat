@@ -8,8 +8,6 @@ use tower::ServiceExt;
 async fn diag_503_actual_error() {
     unsafe {
         std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
-        std::env::set_var("SDKWORK_IM_DATABASE_ENGINE", "sqlite");
-        std::env::set_var("SDKWORK_IM_DATABASE_URL", "sqlite::memory:");
     }
     let app = sdkwork_routes_im_chat_open_api::build_public_app();
 

@@ -2,7 +2,7 @@
 
 Status: active
 Owner: `im-platform`
-Updated: 2026-07-23
+Updated: 2026-07-24
 Specs: `DOMAIN_SPEC.md`, `API_SPEC.md`, `SDK_SPEC.md`, `DATABASE_SPEC.md`, `SECURITY_SPEC.md`,
 `APP_COMPOSITION_SPEC.md`, `DEPLOYMENT_SPEC.md`, `DOCUMENTATION_SPEC.md`
 
@@ -192,6 +192,23 @@ display window but never replace PostgreSQL or merge data across authenticated p
   limits, trusted-proxy validation, and cached single-flight OpenAPI aggregation.
 - Million-row operational work must be resumable and database-paged; all-row in-process traversal is
   not a commercially supported path.
+
+### 8.1 Infrastructure probes
+
+Every IM HTTP listener exposes the framework-owned infrastructure surface exactly once:
+
+| Path | Meaning |
+| --- | --- |
+| `/healthz` | Process liveness only |
+| `/livez` | Kubernetes-compatible liveness alias |
+| `/readyz` | Traffic admission after every required dependency check passes |
+| `/metrics` | Prometheus exposition from the process registry |
+
+The standalone gateway readiness check composes IM database connectivity, configured Redis
+dependencies, embedded Agents state, IM Agent dispatch worker health, and realtime plane health.
+Any required failure returns `503`; dependency URLs, credentials, SQL/provider errors, and internal
+topology details are logged only on the server and never returned in the readiness body. No legacy
+probe aliases are mounted.
 
 ## 9. Security, Privacy, And Observability
 

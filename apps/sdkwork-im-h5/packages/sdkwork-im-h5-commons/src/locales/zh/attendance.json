@@ -1,0 +1,13 @@
+{
+  "title": "打卡",
+  "location": "腾讯滨海大厦 (考勤范围内部)",
+  "status": {
+    "done": "已完成打卡",
+    "clockOut": "下班打卡",
+    "clockIn": "上班打卡"
+  },
+  "history": {
+    "title": "今日打卡记录",
+    "empty": "今日暂无打卡记录"
+  }
+}

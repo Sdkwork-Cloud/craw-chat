@@ -1,11 +1,6 @@
 use std::process::ExitCode;
-use std::sync::Arc;
-
-use social_service::SocialRuntime;
-
 const BIND_ADDR_ENV: &str = "SDKWORK_IM_COMMS_SOCIAL_SERVICE_BIND_ADDR";
 const LEGACY_BIND_ADDR_ENV: &str = "SDKWORK_IM_SOCIAL_SERVICE_BIND_ADDR";
-const RUNTIME_DIR_ENV: &str = "SDKWORK_IM_RUNTIME_DIR";
 const DEFAULT_BIND_ADDR: &str = "127.0.0.1:28092";
 
 #[tokio::main]
@@ -32,7 +27,7 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("comms-social-service failed to bind {bind_addr}: {error}"))?;
 
-    let social_runtime = build_social_runtime()?;
+    let social_runtime = social_service::build_social_runtime_from_env()?;
     let _shared_channel_sync_scheduler =
         social_service::spawn_shared_channel_sync_stale_reclaim_scheduler_from_env(
             social_runtime.clone(),
@@ -40,16 +35,17 @@ async fn run() -> Result<(), String> {
     // Initialize database-backed Snowflake node_id allocation for all
     // social-service ID generators (open-api + contact open-api).
     social_service::init_id_generators().await;
-    let postgres_state = social_service::try_postgres_app_state_from_database_url_env().await;
+    let postgres_pool = sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
+        .map(im_adapters_social_postgres::SocialPostgresPool::new)?;
+    let postgres_state = social_service::app_state_from_postgres_pool(postgres_pool).await;
     let mut app =
         sdkwork_routes_im_social_backend_api::build_control_public_app(social_runtime.clone());
     app = app.merge(sdkwork_routes_im_social_open_api::build_runtime_public_app(
         social_runtime.clone(),
     ));
     app = app.merge(social_service::build_app(social_runtime));
-    if let Some(state) = postgres_state {
-        app = app.merge(sdkwork_routes_im_social_open_api::build_supplemental_public_app(state));
-    }
+    app =
+        app.merge(sdkwork_routes_im_social_open_api::build_supplemental_public_app(postgres_state));
 
     tracing::info!(
         "comms-social-service listening on {}",
@@ -62,13 +58,4 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("comms-social-service server should run: {error}"))?;
     Ok(())
-}
-
-fn build_social_runtime() -> Result<Arc<SocialRuntime>, String> {
-    match std::env::var(RUNTIME_DIR_ENV) {
-        Ok(runtime_dir) if !runtime_dir.trim().is_empty() => Ok(Arc::new(
-            SocialRuntime::from_runtime_dir(runtime_dir.as_str()),
-        )),
-        _ => Ok(Arc::new(SocialRuntime::default())),
-    }
 }

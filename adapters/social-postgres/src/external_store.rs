@@ -2,9 +2,6 @@
 
 use std::sync::Arc;
 
-use im_domain_core::social::{
-    ExternalConnection, ExternalConnectionStatus, ExternalMemberLink, ExternalMemberLinkStatus,
-};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
@@ -26,30 +23,6 @@ pub struct ExternalConnectionRecord {
     pub updated_at: String,
 }
 
-impl ExternalConnectionRecord {
-    pub fn from_domain(ec: &ExternalConnection, organization_id: &str) -> Self {
-        Self {
-            tenant_id: ec.tenant_id.clone(),
-            organization_id: organization_id.to_string(),
-            connection_id: ec.connection_id.parse().unwrap_or(0),
-            external_tenant_id: ec.external_tenant_id.clone(),
-            external_org_name: ec.external_org_name.clone(),
-            connection_kind: "shared_channel".to_string(),
-            status: external_connection_status_to_str(&ec.status).to_string(),
-            established_at: ec.established_at.clone(),
-            updated_at: ec.updated_at.clone(),
-        }
-    }
-}
-
-fn external_connection_status_to_str(status: &ExternalConnectionStatus) -> &'static str {
-    match status {
-        ExternalConnectionStatus::Active => "active",
-        ExternalConnectionStatus::Suspended => "suspended",
-        ExternalConnectionStatus::Revoked => "revoked",
-    }
-}
-
 /// External member link record for database storage.
 #[derive(Clone, Debug)]
 pub struct ExternalMemberLinkRecord {
@@ -64,31 +37,6 @@ pub struct ExternalMemberLinkRecord {
     pub status: String,
     pub linked_at: String,
     pub updated_at: String,
-}
-
-impl ExternalMemberLinkRecord {
-    pub fn from_domain(eml: &ExternalMemberLink, organization_id: &str) -> Self {
-        Self {
-            tenant_id: eml.tenant_id.clone(),
-            organization_id: organization_id.to_string(),
-            link_id: eml.link_id.parse().unwrap_or(0),
-            connection_id: eml.connection_id.parse().unwrap_or(0),
-            local_actor_kind: eml.local_actor_kind.clone(),
-            local_actor_id: eml.local_actor_id.clone(),
-            external_member_id: eml.external_member_id.clone(),
-            external_display_name: eml.external_display_name.clone(),
-            status: external_member_link_status_to_str(&eml.status).to_string(),
-            linked_at: eml.linked_at.clone(),
-            updated_at: eml.updated_at.clone(),
-        }
-    }
-}
-
-fn external_member_link_status_to_str(status: &ExternalMemberLinkStatus) -> &'static str {
-    match status {
-        ExternalMemberLinkStatus::Active => "active",
-        ExternalMemberLinkStatus::Revoked => "revoked",
-    }
 }
 
 /// Trait for external connection persistence.
@@ -146,14 +94,14 @@ ON CONFLICT (tenant_id, organization_id, connection_id) DO NOTHING
 
 const EC_GET_BY_ID_SQL: &str = r#"
 SELECT tenant_id, organization_id, connection_id, external_tenant_id,
-       external_org_name, connection_kind, status, established_at, updated_at
+       external_org_name, connection_kind, status, established_at::text, updated_at::text
 FROM im_external_connections
 WHERE tenant_id = $1 AND organization_id = $2 AND connection_id = $3
 "#;
 
 const EC_FIND_BY_EXTERNAL_TENANT_SQL: &str = r#"
 SELECT tenant_id, organization_id, connection_id, external_tenant_id,
-       external_org_name, connection_kind, status, established_at, updated_at
+       external_org_name, connection_kind, status, established_at::text, updated_at::text
 FROM im_external_connections
 WHERE tenant_id = $1 AND organization_id = $2 AND external_tenant_id = $3
 LIMIT 1
@@ -172,7 +120,7 @@ ON CONFLICT (tenant_id, organization_id, link_id) DO NOTHING
 const EML_GET_BY_ID_SQL: &str = r#"
 SELECT tenant_id, organization_id, link_id, connection_id,
        local_actor_kind, local_actor_id, external_member_id,
-       external_display_name, status, linked_at, updated_at
+       external_display_name, status, linked_at::text, updated_at::text
 FROM im_external_member_links
 WHERE tenant_id = $1 AND organization_id = $2 AND link_id = $3
 "#;
@@ -180,7 +128,7 @@ WHERE tenant_id = $1 AND organization_id = $2 AND link_id = $3
 const EML_LIST_BY_CONNECTION_SQL: &str = r#"
 SELECT tenant_id, organization_id, link_id, connection_id,
        local_actor_kind, local_actor_id, external_member_id,
-       external_display_name, status, linked_at, updated_at
+       external_display_name, status, linked_at::text, updated_at::text
 FROM im_external_member_links
 WHERE tenant_id = $1 AND organization_id = $2 AND connection_id = $3 AND status = $4
 ORDER BY linked_at DESC
@@ -190,7 +138,7 @@ LIMIT $5
 const EML_FIND_BY_MAPPING_SQL: &str = r#"
 SELECT tenant_id, organization_id, link_id, connection_id,
        local_actor_kind, local_actor_id, external_member_id,
-       external_display_name, status, linked_at, updated_at
+       external_display_name, status, linked_at::text, updated_at::text
 FROM im_external_member_links
 WHERE tenant_id = $1 AND organization_id = $2 AND connection_id = $3
   AND local_actor_id = $4 AND external_member_id = $5

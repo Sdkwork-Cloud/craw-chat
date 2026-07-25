@@ -45,7 +45,7 @@ Extension points are limited to public exports, runtime entrypoints, SDK clients
 
 - `cargo test -p streaming-service`
 - `cargo test -p im-adapters-postgres-journal --test stream_state_live_integration_test -- --ignored --nocapture`
-- `pnpm run test:sqlite:smoke`
+- `pnpm run test:stream-transactional-authority-standard`
 - `pnpm run check:pagination`
 
 ## Owner And Status

@@ -97,7 +97,6 @@
     "perf:refresh-step-11-capacity-evidence-index": "node scripts/perf/refresh-step-11-capacity-evidence-index.mjs",
     "test:database-naming-standard": "node scripts/dev/sdkwork-im-database-naming-standard.test.mjs",
     "test:agents-integration-migration": "node --test scripts/dev/sdkwork-im-agents-integration-migration.test.mjs",
-    "test:sqlite:smoke": "node --disable-warning=ExperimentalWarning scripts/dev/sdkwork-im-group-knowledgebase-sqlite-migration.test.mjs && node --disable-warning=ExperimentalWarning scripts/dev/sdkwork-im-stream-transactional-authority-sqlite-migration.test.mjs",
     "test:component-spec-consistency": "node scripts/dev/sdkwork-im-component-spec-consistency.test.mjs",
     "test:apis-authority-standard": "node scripts/dev/sdkwork-im-apis-authority-standard.test.mjs",
     "test:rpc-contract": "node scripts/dev/sdkwork-im-rpc-contract.test.mjs",
