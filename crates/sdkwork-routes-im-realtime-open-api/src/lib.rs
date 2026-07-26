@@ -72,3 +72,11 @@ pub fn gateway_route_manifest() -> sdkwork_web_core::HttpRouteManifest {
 pub fn gateway_mount() -> axum::Router {
     build_public_app()
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn gateway_mount_constructs_without_overlapping_websocket_routes() {
+        let _router = super::gateway_mount();
+    }
+}

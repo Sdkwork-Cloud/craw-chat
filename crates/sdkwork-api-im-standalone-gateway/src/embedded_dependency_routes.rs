@@ -19,6 +19,12 @@ pub struct EmbeddedDependencyRoutes {
     pub agents_readiness_check: Option<Arc<dyn sdkwork_web_bootstrap::ReadinessCheck>>,
 }
 
+struct EmbeddedAgentsRuntime {
+    router: Router,
+    session_facade: Arc<dyn sdkwork_agents_runtime_facade::AgentsSessionFacade>,
+    readiness_check: Arc<dyn sdkwork_web_bootstrap::ReadinessCheck>,
+}
+
 struct CommerceT1Module {
     env_prefix: &'static str,
     repo_dir: &'static str,
@@ -636,7 +642,7 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
     router = merge_embedded_dependency(router, "mail", bootstrap_embedded_mail_routes).await?;
     router = merge_embedded_dependency(router, "notary", bootstrap_embedded_notary_routes).await?;
     router = merge_embedded_dependency(router, "course", bootstrap_embedded_course_routes).await?;
-    let agents_runtime = match bootstrap_embedded_agents_routes().await {
+    let agents_runtime = match build_embedded_agents_runtime().await {
         Ok(runtime) => Some(runtime),
         Err(error) if is_development_environment() => {
             eprintln!(
@@ -734,11 +740,27 @@ async fn bootstrap_embedded_mail_routes() -> Result<Router, String> {
         .map_err(|error| format!("compose embedded mail router failed: {error}"))
 }
 
-async fn bootstrap_embedded_agents_routes()
--> Result<sdkwork_api_agents_assembly::AppBusinessRuntimeAssembly, String> {
-    sdkwork_api_agents_assembly::assemble_app_business_runtime()
+async fn build_embedded_agents_runtime() -> Result<EmbeddedAgentsRuntime, String> {
+    let runtime = sdkwork_api_agents_assembly::assemble_app_runtime_contribution()
         .await
-        .map_err(|error| format!("compose embedded agents app routes failed: {error}"))
+        .map_err(|error| format!("compose embedded agents app routes failed: {error}"))?;
+    let contribution = runtime.api;
+    let resolver = sdkwork_im_web_bootstrap::cached_iam_web_request_context_resolver()
+        .unwrap_or_else(|| sdkwork_iam_web_adapter::IamWebRequestContextResolver::new(None));
+    let mut layer = sdkwork_iam_web_adapter::build_iam_app_web_framework_layer(
+        resolver,
+        contribution.route_manifest,
+    );
+    for injector in contribution.domain_context_injectors {
+        layer = layer.with_domain_injector(injector);
+    }
+    let router = sdkwork_web_axum::with_web_request_context(contribution.router, layer);
+
+    Ok(EmbeddedAgentsRuntime {
+        router,
+        session_facade: runtime.session_facade,
+        readiness_check: contribution.readiness_check,
+    })
 }
 
 async fn bootstrap_embedded_commerce_routes() -> Result<Router, String> {

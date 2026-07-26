@@ -17,6 +17,7 @@ sdkwork-api-config.workspace = true
 sdkwork-api-product-runtime.workspace = true
 sdkwork-im-web-bootstrap.workspace = true
 sdkwork-api-iam-assembly = { workspace = true }
+sdkwork_iam_web_adapter.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
 sdkwork_im_database_pool = { workspace = true }
 sdkwork_iam_database_host = { workspace = true }

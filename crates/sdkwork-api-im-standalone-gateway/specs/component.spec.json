@@ -73,17 +73,45 @@
   ],
   "contracts": {
     "layerRole": "runtime-gateway",
-    "publicExports": [],
+    "publicExports": [
+      "sdkwork_api_agents_assembly::assemble_app_runtime_contribution",
+      "sdkwork_api_agents_assembly::AppRuntimeContribution::session_facade"
+    ],
     "providedPorts": [],
-    "requiredPorts": [],
+    "requiredPorts": [
+      {
+        "name": "agentsAppRuntimeContribution",
+        "export": "sdkwork_api_agents_assembly::assemble_app_runtime_contribution"
+      },
+      {
+        "name": "agentsSessionFacade",
+        "export": "sdkwork_api_agents_assembly::AppRuntimeContribution::session_facade"
+      }
+    ],
     "runtimeEntrypoints": [
-      "src/main.rs"
+      "src/main.rs",
+      "src/embedded_dependency_routes.rs#build_embedded_agents_runtime",
+      "sdkwork_api_agents_assembly::assemble_app_runtime_contribution"
     ],
     "routeManifest": null,
     "sdkClients": [],
     "sdkDependencies": [],
     "dependencyApiExports": [],
-    "dependencyApiSurfaces": [],
+    "dependencyApiSurfaces": [
+      {
+        "workspace": "sdkwork-agents-app-sdk",
+        "sdkFamily": "sdkwork-agents-app-sdk",
+        "apiAuthority": "sdkwork-agents-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/ai",
+        "runtimeMode": "same-origin-mounted",
+        "cargoDependency": "sdkwork-api-agents-assembly",
+        "embeddedExecutableExport": "sdkwork_api_agents_assembly::assemble_app_runtime_contribution",
+        "coverageEvidence": [
+          "src/embedded_dependency_routes.rs#build_embedded_agents_runtime"
+        ]
+      }
+    ],
     "events": [],
     "configKeys": [
       "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
