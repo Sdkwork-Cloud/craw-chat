@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from "react";
 import { showToast, showPrompt } from "@sdkwork/im-h5-commons";
 import {

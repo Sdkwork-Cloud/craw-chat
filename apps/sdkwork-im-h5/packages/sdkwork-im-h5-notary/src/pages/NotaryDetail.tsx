@@ -110,8 +110,8 @@ const navigate = useNavigate();
       // Provide mockup URLs based on file type for preview
       const previewUrl =
         file.fileType === "image"
-          ? "https://picsum.photos/seed/notaryfile/800/1200"
-          : "https://www.w3schools.com/html/mov_bbb.mp4";
+          ? "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/notaryfile/800x1200.png"
+          : "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/sample.mp4";
 
       setPreviewMedia({
         type: file.fileType,
@@ -265,7 +265,7 @@ const navigate = useNavigate();
             onClick: async () => {
               await showPrompt(
                 t('notary.auto_n5b004245', "分享链接："),
-                "https://sdkwork_im_h5.sdkwork.com/notary/" + id,
+                "https://im.sdkwork.com/notary/" + id,
               );
             },
           },

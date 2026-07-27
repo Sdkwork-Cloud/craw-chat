@@ -61,7 +61,7 @@ const navigate = useNavigate();
         gender,
         voice,
         assets,
-        avatar: editId ? undefined : "https://picsum.photos/seed/newchar/200/200"
+        avatar: editId ? undefined : "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/newchar/200x200.png"
     };
 
     if (editId) {

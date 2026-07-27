@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export interface AttendanceRecord {
   id: string;
   type: "in" | "out";

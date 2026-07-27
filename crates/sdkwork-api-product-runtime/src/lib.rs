@@ -153,11 +153,22 @@ fn resolve_site_dir_from_env(env_names: &[&str]) -> Option<PathBuf> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RouterProductRuntimeOptions {
     pub site_dirs: ProductSiteDirs,
+    pub include_portal_api_routes: bool,
 }
 
 impl RouterProductRuntimeOptions {
     pub fn desktop(site_dirs: ProductSiteDirs) -> Self {
-        Self { site_dirs }
+        Self {
+            site_dirs,
+            include_portal_api_routes: true,
+        }
+    }
+
+    pub fn desktop_for_api_assembly_host(site_dirs: ProductSiteDirs) -> Self {
+        Self {
+            site_dirs,
+            include_portal_api_routes: false,
+        }
     }
 }
 
@@ -236,19 +247,25 @@ pub async fn build_product_runtime_router(
         im_app_context::is_production_like_im_environment(),
     )?;
     validate_product_site_dirs(options.site_dirs.clone()).await?;
+    let include_portal_api_routes = options.include_portal_api_routes;
     let site_dirs = options.site_dirs;
     let state = build_runtime_proxy_state(config, site_dirs.clone());
 
-    Ok(Router::new()
+    let mut router = Router::new()
         .route(BACKEND_ADMIN_API_PREFIX, any(proxy_admin_request))
         .route(
             format!("{BACKEND_ADMIN_API_PREFIX}/{{*path}}").as_str(),
             any(proxy_admin_request),
         )
         .route("/api/config/modules", get(get_local_app_modules))
-        .route("/api/agent/{*path}", any(proxy_pc_product_api_request))
-        .route("/app/v3/api/portal/workspace", get(get_portal_workspace))
-        .route("/app/v3/api/portal/{section}", get(get_portal_snapshot))
+        .route("/api/agent/{*path}", any(proxy_pc_product_api_request));
+    if include_portal_api_routes {
+        router = router
+            .route("/app/v3/api/portal/workspace", get(get_portal_workspace))
+            .route("/app/v3/api/portal/{section}", get(get_portal_snapshot));
+    }
+
+    Ok(router
         .route("/app/v3/api", any(api_not_found))
         .route("/app/v3/api/{*path}", any(api_not_found))
         .route("/api", any(api_not_found))
@@ -1021,6 +1038,35 @@ mod tests {
         );
         assert!(body_text.contains("SDKWORK_ADMIN_PROXY_TARGET"));
         assert!(body_text.contains("/backend/v3/api/admin"));
+    }
+
+    #[tokio::test]
+    async fn api_assembly_host_options_do_not_register_portal_api_routes() {
+        let admin_site_dir = TestSiteDir::new("assembly-host-admin");
+        admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
+        let portal_site_dir = TestSiteDir::new("assembly-host-portal");
+        portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
+
+        let product_router = build_product_runtime_router(
+            StandaloneConfig {
+                runtime_bind_addr: "127.0.0.1:0".into(),
+                admin_proxy_target: String::new(),
+                portal_api_base_url: "http://127.0.0.1:18079".into(),
+                admin_sandbox_enabled: false,
+                admin_sandbox_storage_file: None,
+            },
+            RouterProductRuntimeOptions::desktop_for_api_assembly_host(ProductSiteDirs::new(
+                admin_site_dir.path().to_path_buf(),
+                portal_site_dir.path().to_path_buf(),
+            )),
+        )
+        .await
+        .expect("assembly host product router should build");
+
+        let _merged = product_router.merge(Router::new().route(
+            "/app/v3/api/portal/workspace",
+            get(|| async { StatusCode::OK }),
+        ));
     }
 
     #[tokio::test]

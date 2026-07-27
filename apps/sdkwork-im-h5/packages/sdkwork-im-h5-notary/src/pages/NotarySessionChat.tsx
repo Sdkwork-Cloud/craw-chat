@@ -132,7 +132,7 @@ const navigate = useNavigate();
 
               {isMe && (
                 <div className="w-10 h-10 rounded-full bg-border-color overflow-hidden shrink-0">
-                  <img src="https://picsum.photos/seed/me/200/200" alt="me" className="w-full h-full object-cover" />
+                  <img src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/me/200x200.png" alt="me" className="w-full h-full object-cover" />
                 </div>
               )}
             </div>

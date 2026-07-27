@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import React from "react";
 import { Cpu, ChevronRight, Settings2, Wand2, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";

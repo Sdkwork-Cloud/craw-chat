@@ -122,7 +122,7 @@ const { id } = useParams();
       {/* Remote Video (Background) */}
       <div className="absolute inset-0 z-0">
         <img
-          src="https://picsum.photos/seed/notary-remote/800/1600"
+          src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/notary-remote/800x1600.png"
           alt="Remote Video"
           className="w-full h-full object-cover"
         />
@@ -162,7 +162,7 @@ const { id } = useParams();
           className="absolute top-24 right-4 w-[110px] h-[160px] bg-black rounded-xl overflow-hidden shadow-2xl border border-white/20 z-20 cursor-grab active:cursor-grabbing"
         >
           <img
-            src="https://picsum.photos/seed/notary-local/300/400"
+            src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/notary-local/300x400.png"
             alt="Local Video"
             className={cn(
               "w-full h-full object-cover transition-transform duration-300",

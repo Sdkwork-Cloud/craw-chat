@@ -1,5 +1,3 @@
-import { useTranslation } from "react-i18next";
-import { createDefaultAiHttpPort, type AiHttpPort } from "@sdkwork/im-h5-core";
 export interface AIWritingOptions {
   topic: string;
   style: string;
@@ -16,8 +14,6 @@ export interface WritingTask {
 }
 
 const STORAGE_KEY = "sdkwork_im_h5_ai_writing_history";
-
-const aiHttp: AiHttpPort = createDefaultAiHttpPort();
 
 export class AIWritingService {
   private static getStoredHistory(): WritingTask[] {
@@ -59,33 +55,34 @@ export class AIWritingService {
     let content = "";
 
     try {
-      const result = await aiHttp.postJson<{ content?: string }>("/api/ai/writing", {
-        prompt: `Topic: ${options.topic}\nLanguage: ${options.language}`,
-        type: "article",
-        tone: options.style,
-        length: options.length,
+      const res = await fetch("/im/v3/api/ai/writing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: `Topic: ${options.topic}\nLanguage: ${options.language}`, type: "article", tone: options.style, length: options.length })
       });
-      if (result.ok && result.data?.content) {
-        const backendContent = result.data.content;
-        const words = options.language === "English" ? backendContent.split(/(?<=\s)/) : backendContent.split("");
-        let i = 0;
-        const chunkSize = options.language === "English" ? 4 : 8;
-        return new Promise((resolve) => {
-          const interval = setInterval(() => {
-            if (i < words.length) {
-              const chunkStr = words.slice(i, i + chunkSize).join("");
-              content += chunkStr;
-              onChunk?.(content);
-              i += chunkSize;
-            } else {
-              clearInterval(interval);
-              const completedTask: WritingTask = { ...task, status: "completed", content };
-              const updatedHistory = this.getStoredHistory().map((t) => t.id === task.id ? completedTask : t);
-              this.saveHistory(updatedHistory);
-              resolve(completedTask);
-            }
-          }, 50);
-        });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.content) {
+          const words = options.language === "English" ? data.content.split(/(?<=\s)/) : data.content.split("");
+          let i = 0;
+          const chunkSize = options.language === "English" ? 4 : 8;
+          return new Promise((resolve) => {
+            const interval = setInterval(() => {
+              if (i < words.length) {
+                const chunkStr = words.slice(i, i + chunkSize).join("");
+                content += chunkStr;
+                onChunk?.(content);
+                i += chunkSize;
+              } else {
+                clearInterval(interval);
+                const completedTask: WritingTask = { ...task, status: "completed", content };
+                const updatedHistory = this.getStoredHistory().map((t) => t.id === task.id ? completedTask : t);
+                this.saveHistory(updatedHistory);
+                resolve(completedTask);
+              }
+            }, 50);
+          });
+        }
       }
     } catch (e) {
       console.error("Backend generation failed, falling back to simulation", e);
@@ -95,18 +92,6 @@ export class AIWritingService {
     return new Promise(async (resolve) => {
       let content = "";
       let generatedText = "";
-
-      try {
-        const prompt = `Write a ${options.length} article about "${options.topic}" in ${options.language} language. Style/Tone: ${options.style}. Use clean Markdown formatting with ## headings, **bold**, and bullet points.`;
-        const result = await aiHttp.getText(
-          `https://text.pollinations.ai/${encodeURIComponent(prompt)}`,
-        );
-        if (result.ok && result.data) {
-          generatedText = result.data;
-        }
-      } catch (e) {
-        console.warn("Pollinations text API failed, using local mock.");
-      }
 
       if (!generatedText) {
         if (options.language === "English") {

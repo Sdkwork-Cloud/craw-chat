@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+﻿import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, X, Video, PenTool } from "lucide-react";
 import { IconButton, cn, showToast, ActionSheet } from "@sdkwork/im-h5-commons";
@@ -8,6 +8,7 @@ import { IdentityVerificationSection } from "../components/IdentityVerificationS
 import { BasicInfoSection } from "../components/BasicInfoSection";
 import { AccessoriesRemarksSection } from "../components/AccessoriesRemarksSection";
 import { NotaryFullscreenImageOverlay } from "../components/NotaryFullscreenImageOverlay";
+import { NotaryPartyBottomBar } from "../components/NotaryPartyBottomBar";
 import { useTranslation } from "react-i18next";
 
 export const NotaryPartyParams = {
@@ -307,31 +308,11 @@ const navigate = useNavigate();
       </div>
 
       {/* Fixed Bottom Operations */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-bg-color border-t border-border-color pb-safe z-20 flex gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] dark:shadow-none">
-        {NotaryPartyParams.isReadonly ? (
-          <button
-            onClick={() => navigate(-1)}
-            className="w-full h-12 rounded-xl font-bold text-[15px] flex items-center justify-center transition-opacity shadow-sm bg-primary-blue text-white active:scale-[0.98]"
-          >
-            {t("notary.add_party.back")}
-          </button>
-        ) : (
-          <>
-            <button
-              onClick={() => navigate(-1)}
-              className="flex-[1] h-12 rounded-xl font-bold text-[15px] flex items-center justify-center bg-active-bg text-text-main active:opacity-70 transition-opacity"
-            >
-              {t("notary.add_party.cancel")}
-            </button>
-            <button
-              onClick={handleSave}
-              className="flex-[2] h-12 rounded-xl font-bold text-[15px] flex items-center justify-center transition-opacity shadow-sm bg-primary-blue text-white active:scale-[0.98]"
-            >
-              {t("notary.add_party.save")}
-            </button>
-          </>
-        )}
-      </div>
+      <NotaryPartyBottomBar
+        isReadonly={NotaryPartyParams.isReadonly}
+        onBack={() => navigate(-1)}
+        onSave={handleSave}
+      />
 
       {/* Fullscreen Image Preview Overlay */}
       <NotaryFullscreenImageOverlay

@@ -40,7 +40,6 @@ const [selectedPayment, setSelectedPayment] = useState<'wechat'|'alipay'|null>(n
       const currentPath = encodeURIComponent(location.pathname + location.search);
       if (isWx) {
         // Mock 微信授权登录流程
-        console.log("检测到微信环境，发起微信授权或静默登录...");
         // 实际开发中会重定向到微信授权URL
       }
       navigate(`/login?redirect=${currentPath}`);

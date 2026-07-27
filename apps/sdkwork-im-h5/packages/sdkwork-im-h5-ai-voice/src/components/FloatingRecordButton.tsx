@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Mic, Square } from "lucide-react";
 import { cn } from "@sdkwork/im-h5-commons";
 import { motion, AnimatePresence } from "motion/react";

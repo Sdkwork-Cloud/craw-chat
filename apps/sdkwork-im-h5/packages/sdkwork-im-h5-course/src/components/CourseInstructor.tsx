@@ -34,7 +34,7 @@ return (
             <span className="w-1 h-4 bg-blue-500 rounded-full" />{t('course.auto_40eb8478', '讲师介绍')}</h3>
           <div className="flex items-start gap-4">
             <div className="w-[52px] h-[52px] rounded-full overflow-hidden shrink-0 border-2 border-white dark:border-[#2A2A2D] shadow-md relative z-10">
-                <img src="https://picsum.photos/seed/avatar2/100/100" alt={t('course.auto_prop_40ec9931', '讲师头像')} className="w-full h-full object-cover" />
+                <img src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/avatar2/100x100.png" alt={t('course.auto_prop_40ec9931', '讲师头像')} className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 bg-[#F8F9FA] dark:bg-[#2A2A2D] p-4 rounded-2xl -ml-10 pl-12">
                 <h4 className="text-[15px] font-bold text-text-main mb-1.5">{instructor}</h4>

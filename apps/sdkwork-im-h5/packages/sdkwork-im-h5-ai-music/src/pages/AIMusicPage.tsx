@@ -121,7 +121,7 @@ const { t } = useTranslation('ai_music');
           if (next[0].id === newTask.id) {
             next[0].status = "completed";
             next[0].title = prompt.length > 10 ? prompt.substring(0, 10) + "..." : (prompt || style);
-            next[0].coverUrl = "https://images.unsplash.com/photo-1614613535308-eb5fbd6d2c17?auto=format&fit=crop&w=400&q=80";
+            next[0].coverUrl = "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1614613535308-eb5fbd6d2c17.png";
           }
           return next;
         });

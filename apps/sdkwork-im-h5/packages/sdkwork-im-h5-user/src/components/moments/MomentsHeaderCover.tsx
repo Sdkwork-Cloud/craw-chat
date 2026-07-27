@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Avatar } from "@sdkwork/im-h5-commons";
 
 interface MomentsHeaderCoverProps {

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Play, Pause, FileAudio, FileText, Hash } from "lucide-react";
 import { IconButton } from "@sdkwork/im-h5-commons";
 import { VoiceSummaryRecord } from "../services/VoiceSummaryService";

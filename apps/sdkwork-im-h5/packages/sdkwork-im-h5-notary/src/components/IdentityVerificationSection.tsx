@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Plus, X, ScanFace, CheckCircle2 } from "lucide-react";
 import { cn, showToast } from "@sdkwork/im-h5-commons";
 import { NotaryPartyParams } from "../pages/NotaryAddParty";

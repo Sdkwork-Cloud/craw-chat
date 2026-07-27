@@ -20,16 +20,9 @@ are declared once at the repository root; application roots must not add nested
 
 ## H5 Client Package Naming
 
-Capability packages follow the SDKWork H5 architecture segment. Canonical naming
-per `APP_H5_ARCHITECTURE_SPEC.md`:
+Capability packages follow the SDKWork H5 architecture segment. Canonical naming:
 
-- Core runtime: `sdkwork-im-h5-core`
-- Commons: `sdkwork-im-h5-commons`
-- App shell: `sdkwork-im-h5-shell`
-- App capability: `sdkwork-im-h5-<capability>`
-- Console core: `sdkwork-im-h5-console-core`
-- Admin core: `sdkwork-im-h5-admin-core`
-- Capacitor host: `sdkwork-im-h5-capacitor`
+- H5-native capabilities: `sdkwork-im-h5-*`.
 
-Historical `sdkwork-clawchat-mobile-*` names were retired and must not be
-reintroduced.
+Historical `sdkwork-clawchat-mobile-*` package names were retired by the `sdkwork-im` rebrand;
+new packages must use the canonical `sdkwork-im-h5-*` vocabulary.

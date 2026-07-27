@@ -1,24 +1,23 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
+import { useEffect } from 'react';
 import { HashRouter } from 'react-router-dom';
-import { SdkworkSessionAuthBrowserRoot } from '@sdkwork/auth-pc-react';
-import { getIamRuntime } from './bootstrap/iamRuntime';
-import AppAuthGate from './AppAuthGate';
-import ImApp, { IM_APP_HOME_PATH } from './ImApp';
+import { useAudioStore } from '@sdkwork/im-h5-core';
+import { AuthGate } from './AuthGate';
+import { ImApp, IM_APP_HOME_PATH } from './ImApp';
 
 export { IM_APP_HOME_PATH };
 
 export default function App() {
+  const initAudio = useAudioStore((s) => s.initAudio);
+
+  useEffect(() => {
+    initAudio();
+  }, [initAudio]);
+
   return (
     <HashRouter>
-      <SdkworkSessionAuthBrowserRoot getRuntime={getIamRuntime}>
-        <AppAuthGate>
-          <ImApp />
-        </AppAuthGate>
-      </SdkworkSessionAuthBrowserRoot>
+      <AuthGate>
+        <ImApp />
+      </AuthGate>
     </HashRouter>
   );
 }

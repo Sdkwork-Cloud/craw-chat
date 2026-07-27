@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export interface Address {
   id: string;
   name: string;

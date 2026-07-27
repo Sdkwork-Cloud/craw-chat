@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import React from "react";
 import { MessageSquareMore, Loader2, RefreshCw, Copy, Check, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";

@@ -1,6 +1,6 @@
-# Gemini CLI Entry
+# Gemini Entry
 
-This file is a compatibility shim for Gemini CLI. The authoritative SDKWork agent entrypoint is
+This file is a compatibility shim for Gemini. The authoritative SDKWork agent entrypoint is
 `AGENTS.md`.
 
 Read in this order:

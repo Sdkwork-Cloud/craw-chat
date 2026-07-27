@@ -1,6 +1,3 @@
-import { useTranslation } from "react-i18next";
-import { ApiClient } from "@sdkwork/im-h5-commons";
-
 export interface MeetingAttendee {
   id: string;
   name: string;
@@ -60,13 +57,13 @@ const INITIAL_MEETINGS: MeetingRecord[] = [
       {
         id: "u2",
         name: "张三",
-        avatar: "https://picsum.photos/150",
+        avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/meeting-user/150.png",
         status: "accepted",
       },
       {
         id: "u3",
         name: "李四",
-        avatar: "https://picsum.photos/150",
+        avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/meeting-user/150.png",
         status: "pending",
       },
     ],
@@ -82,7 +79,7 @@ const INITIAL_MEETINGS: MeetingRecord[] = [
     status: "finished",
     organizerId: "u1",
     attendees: [
-      { id: "u4", name: "赵六", avatar: "https://picsum.photos/150" },
+      { id: "u4", name: "赵六", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/meeting-user/150.png" },
     ],
   },
 ];
@@ -148,7 +145,7 @@ export class MeetingService {
       attendees: data.attendeeIds.map((id) => ({
         id,
         name: `用户 ${id}`,
-        avatar: "https://picsum.photos/150",
+        avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/meeting-user/150.png",
       })),
     };
     MOCK_MEETINGS = [newMeeting, ...MOCK_MEETINGS];

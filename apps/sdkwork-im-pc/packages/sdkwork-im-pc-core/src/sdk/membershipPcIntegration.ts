@@ -8,6 +8,7 @@ import type { MembershipAppSdkClient } from '@sdkwork/membership-sdk-ports';
 import {
   bootstrapSdkworkOrderAppService,
   configureSdkworkOrderAppServiceProvider,
+  configureSdkworkOrderSessionTokenProvider,
   createSdkworkMembershipCheckoutService,
   type SdkworkMembershipCheckoutService,
 } from '@sdkwork/order-service';
@@ -134,6 +135,7 @@ export function isMembershipPcIntegrationBootstrapped(): boolean {
 
 export function resetMembershipPcIntegration(): void {
   configureSdkworkOrderAppServiceProvider(null);
+  configureSdkworkOrderSessionTokenProvider(null);
   configureSdkworkMembershipAppServiceProvider(null);
   configureSdkworkMembershipSessionTokenProvider(null);
   membershipCheckoutService = null;

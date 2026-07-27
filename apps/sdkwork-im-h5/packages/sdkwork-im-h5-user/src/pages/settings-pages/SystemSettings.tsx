@@ -15,12 +15,12 @@ const [blacklist, setBlacklist] = useState([
     {
       id: 1,
       name: t("settings:system.blocked_user_1", "微商推广张三"),
-      avatar: "https://picsum.photos/seed/b1/100",
+      avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/b1/100.png",
     },
     {
       id: 2,
       name: t("settings:system.blocked_user_2", "贷款专员李四"),
-      avatar: "https://picsum.photos/seed/b2/100",
+      avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/b2/100.png",
     },
   ]);
 

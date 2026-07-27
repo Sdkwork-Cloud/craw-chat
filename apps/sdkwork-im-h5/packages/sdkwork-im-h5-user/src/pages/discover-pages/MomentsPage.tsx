@@ -127,7 +127,7 @@ const [moments, setMoments] = useState<Moment[]>([]);
 
   const addFakeImage = () => {
   const seed = Math.random().toString(36).substring(7);
-    setPublishImages([...publishImages, `https://picsum.photos/seed/${seed}/400/400`]);
+    setPublishImages([...publishImages, `https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/${seed}/400x400.png`]);
   };
 
   return (
@@ -146,8 +146,8 @@ const [moments, setMoments] = useState<Moment[]>([]);
         <div className="flex flex-col flex-1 w-full min-h-full pb-safe">
           <MomentsHeaderCover
             name="Alex Chen"
-            avatarUrl="https://picsum.photos/seed/alex/200/200"
-            coverUrl="https://picsum.photos/seed/cover/800/600"
+            avatarUrl="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/alex/200x200.png"
+            coverUrl="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/cover/800x600.png"
           />
 
           {/* Moments List */}

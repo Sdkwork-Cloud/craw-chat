@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { CartItem, Product } from "../types";
 import { CartService } from "../services/CartService";

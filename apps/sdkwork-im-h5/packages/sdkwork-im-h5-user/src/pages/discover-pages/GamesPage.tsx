@@ -9,7 +9,7 @@ export const GamesPage = () => {
 const GAMES = [
     {
       title: "跳一跳",
-      icon: "https://picsum.photos/seed/g1/100",
+      icon: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/g1/100.png",
       players: "1.2亿",
       tags: ["休闲", "竞技"],
       color: "text-[#F53F3F]",
@@ -17,7 +17,7 @@ const GAMES = [
     },
     {
       title: "欢乐斗地主",
-      icon: "https://picsum.photos/seed/g2/100",
+      icon: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/g2/100.png",
       players: "5000万",
       tags: ["棋牌", "休闲"],
       color: "text-[#FF7D00]",
@@ -25,7 +25,7 @@ const GAMES = [
     },
     {
       title: "羊了个羊",
-      icon: "https://picsum.photos/seed/g3/100",
+      icon: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/g3/100.png",
       players: "1000万",
       tags: ["益智", "挑战"],
       color: "text-[#FABC14]",
@@ -33,7 +33,7 @@ const GAMES = [
     },
     {
       title: "王者荣耀",
-      icon: "https://picsum.photos/seed/g4/100",
+      icon: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/g4/100.png",
       players: "2亿",
       tags: ["竞技", "动作"],
       color: "text-text-sub",
@@ -41,7 +41,7 @@ const GAMES = [
     },
     {
       title: "和平精英",
-      icon: "https://picsum.photos/seed/g5/100",
+      icon: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/g5/100.png",
       players: "1.5亿",
       tags: ["射击", "生存"],
       color: "text-text-sub",

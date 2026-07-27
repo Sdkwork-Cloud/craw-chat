@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export interface Order {
   id: string;
   shopName: string;
@@ -44,7 +43,7 @@ const INITIAL_ORDERS: Order[] = [
     items: [
       {
         id: "p1",
-        image: "https://picsum.photos/seed/apple/200/200",
+        image: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/apple/200x200.png",
         title:
           "Apple iPhone 15 Pro (A2849) 256GB 原色钛金属 支持移动联通电信5G 双卡双待手机",
         specs: "原色钛金属, 256GB",
@@ -69,7 +68,7 @@ const INITIAL_ORDERS: Order[] = [
     items: [
       {
         id: "p2",
-        image: "https://picsum.photos/seed/nuts/200/200",
+        image: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/nuts/200x200.png",
         title: "三只松鼠 坚果大礼包 每日坚果 零食大礼包 送礼 混合坚果 1428g",
         specs: "1428g 豪华版",
         price: 129.0,
@@ -95,7 +94,7 @@ const INITIAL_ORDERS: Order[] = [
     items: [
       {
         id: "p3",
-        image: "https://picsum.photos/seed/shirt/200/200",
+        image: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/shirt/200x200.png",
         title: "男装/女装 摇粒绒拉链夹克(长袖 抓绒 外套) 461335",
         specs: "藏青色, L",
         price: 199.0,
@@ -103,7 +102,7 @@ const INITIAL_ORDERS: Order[] = [
       },
       {
         id: "p4",
-        image: "https://picsum.photos/seed/pants/200/200",
+        image: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/pants/200x200.png",
         title: "男装 弹力九分裤(棉质 休闲裤) 455486",
         specs: "黑色, L",
         price: 249.0,
@@ -129,7 +128,7 @@ const INITIAL_ORDERS: Order[] = [
     items: [
       {
         id: "p5",
-        image: "https://picsum.photos/seed/xiaomi/200/200",
+        image: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/xiaomi/200x200.png",
         title:
           "小米手环 8 Pro 智能手环 运动手环 腕表级健康监测 独立GNSS五星定位 1.74英寸AMOLED大屏",
         specs: "夜跃黑, 标准版",

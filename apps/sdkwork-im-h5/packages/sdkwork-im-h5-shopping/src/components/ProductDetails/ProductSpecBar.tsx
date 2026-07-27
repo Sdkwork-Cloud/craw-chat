@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import React from "react";
 import { ChevronRight } from "lucide-react";
 import { Product } from "../../types";

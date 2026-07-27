@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { PageLayout, IconButton } from "@sdkwork/im-h5-commons";
 import { Trash2 } from "lucide-react";
 import { KnowledgeBaseService, KnowledgeDocument } from "../services/KnowledgeBaseService";

@@ -1,4 +1,8 @@
-# Local runtime state and generated artifacts are not source-controlled.
-cache/
+local/
 tmp/
+cache/
+secrets/
 *.local.json
+*.local.toml
+*.local.yaml
+*.local.yml

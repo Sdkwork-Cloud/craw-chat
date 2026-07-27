@@ -141,7 +141,7 @@ const navigate = useNavigate();
                       <div className="flex flex-row items-center gap-3">
                         <div className="w-8 h-8 flex items-center justify-center shrink-0">
                           <img 
-                            src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/WeChat_logo.svg/1024px-WeChat_logo.svg.png?20200827233816"
+                            src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/brand/wechat-pay/64x64.png"
                             alt={t('course.auto_prop_2cb6c4bc', '微信支付')}
                             className="w-full h-full object-contain"
                           />
@@ -162,7 +162,7 @@ const navigate = useNavigate();
                       <div className="flex flex-row items-center gap-3">
                         <div className="w-8 h-8 flex items-center justify-center shrink-0">
                           <img 
-                            src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Alipay_logo.svg/1024px-Alipay_logo.svg.png"
+                            src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/brand/alipay/64x64.png"
                             alt={t('course.auto_prop_185bd34', '支付宝')}
                             className="w-full object-contain"
                           />

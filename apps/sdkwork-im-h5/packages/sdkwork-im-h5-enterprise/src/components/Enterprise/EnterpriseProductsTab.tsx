@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import React from "react";
 import { Package } from "lucide-react";
 import { motion } from "motion/react";

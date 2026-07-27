@@ -23,7 +23,7 @@ export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
       <div className="flex items-center gap-4 flex-1 min-w-0">
         <Avatar
           src={
-            currentUser?.avatar || "https://picsum.photos/seed/me/200/200"
+            currentUser?.avatar || "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/me/200x200.png"
           }
           size="lg"
           className="w-[68px] h-[68px] rounded-[18px] shrink-0"

@@ -4,24 +4,25 @@ dist/
 coverage/
 .DS_Store
 *.log
-.env*
-!.env.example
 
-# IDE / OS
-.idea/
-.vscode/
-Thumbs.db
+# Local environment overrides (gitignored per CONFIG_SPEC).
+.env.local
+.env.*.local
+.env.postgres
+.env.release.local
 
-# Build caches
-.turbo/
-.cache/
+# Local config overrides.
+config/*.local.*
+config/**/*.local.*
+
+# Native signing files and platform credentials.
+*.keystore
+*.jks
+*.p12
+*.cer
+*.mobileprovision
+*.certSigningRequest
+
+# Vite/TS build caches.
+.vite/
 *.tsbuildinfo
-
-# Temporary analysis output and one-off fix scripts
-loc.txt
-hooks_usage.txt
-lint_output.txt
-fix-functions.cjs
-fix-nested-2.cjs
-sort_loc.cjs
-sort_loc.js

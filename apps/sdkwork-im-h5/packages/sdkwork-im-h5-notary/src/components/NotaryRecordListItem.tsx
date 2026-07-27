@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { ArrowRight, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@sdkwork/im-h5-commons";
 import { useTranslation } from "react-i18next";

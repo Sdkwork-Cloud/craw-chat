@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   ChevronLeft,
@@ -148,7 +148,8 @@ const { t } = useTranslation('ai_image');
   const downloadImage = async (url?: string) => {
     if (!url) return;
     try {
-      const blob = await AIImageService.downloadBlob(url);
+      const resp = await fetch(url);
+      const blob = await resp.blob();
       const objUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objUrl;

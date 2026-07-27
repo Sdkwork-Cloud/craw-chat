@@ -62,6 +62,16 @@ function isReservedPort(reservedPorts, port) {
   return false;
 }
 
+function publicUrlHostForBindHost(host) {
+  if (host === '0.0.0.0') {
+    return '127.0.0.1';
+  }
+  if (host === '::') {
+    return '[::1]';
+  }
+  return host.includes(':') ? `[${host}]` : host;
+}
+
 export function isTcpPortAvailable(port, host = DEFAULT_GATEWAY_HOST) {
   return new Promise((resolve) => {
     const server = net.createServer();
@@ -97,8 +107,22 @@ export function createStandaloneGatewayCargoEnv({
 
 function createBindEnvResult(env, host, port, requestedPort) {
   const bindAddr = `${host}:${port}`;
-  const httpUrl = `http://${bindAddr}`;
-  const websocketUrl = `ws://${bindAddr}`;
+  const portChanged = port !== requestedPort;
+  const publicHost = publicUrlHostForBindHost(host);
+  const derivedHttpUrl = `http://${publicHost}:${port}`;
+  const derivedWebsocketUrl = `ws://${publicHost}:${port}`;
+  const httpUrl = !portChanged
+    ? normalizeText(env[APPLICATION_PUBLIC_HTTP_URL_ENV]) ?? derivedHttpUrl
+    : derivedHttpUrl;
+  const websocketUrl = !portChanged
+    ? normalizeText(env[APPLICATION_PUBLIC_WEBSOCKET_URL_ENV]) ?? derivedWebsocketUrl
+    : derivedWebsocketUrl;
+  const viteHttpUrl = !portChanged
+    ? normalizeText(env[VITE_APPLICATION_PUBLIC_HTTP_URL_ENV]) ?? httpUrl
+    : httpUrl;
+  const viteWebsocketUrl = !portChanged
+    ? normalizeText(env[VITE_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV]) ?? websocketUrl
+    : websocketUrl;
   return {
     bindAddr,
     env: {
@@ -106,10 +130,10 @@ function createBindEnvResult(env, host, port, requestedPort) {
       [APPLICATION_PUBLIC_INGRESS_BIND_ENV]: bindAddr,
       [APPLICATION_PUBLIC_HTTP_URL_ENV]: httpUrl,
       [APPLICATION_PUBLIC_WEBSOCKET_URL_ENV]: websocketUrl,
-      [VITE_APPLICATION_PUBLIC_HTTP_URL_ENV]: httpUrl,
-      [VITE_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV]: websocketUrl,
+      [VITE_APPLICATION_PUBLIC_HTTP_URL_ENV]: viteHttpUrl,
+      [VITE_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV]: viteWebsocketUrl,
     },
-    portChanged: port !== requestedPort,
+    portChanged,
   };
 }
 

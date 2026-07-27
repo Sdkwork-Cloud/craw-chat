@@ -1,0 +1,14 @@
+{
+  "SDKWORK_DEPLOYMENT_PROFILE": "standalone",
+  "SDKWORK_ENVIRONMENT": "production",
+  "SDKWORK_IAM_APP_API_BASE_URL": "http://127.0.0.1:18079",
+  "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL": "http://127.0.0.1:18079",
+  "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL": "ws://127.0.0.1:18079",
+  "SDKWORK_IM_DEPLOYMENT_PROFILE": "standalone",
+  "SDKWORK_IM_ENVIRONMENT": "production",
+  "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "http://127.0.0.1:18079",
+  "SDKWORK_IM_PROFILE_ID": "standalone.production",
+  "SDKWORK_IM_RUNTIME_TARGET": "flutter-android",
+  "SDKWORK_PROFILE_ID": "standalone.production",
+  "SDKWORK_RUNTIME_TARGET": "flutter-android"
+}

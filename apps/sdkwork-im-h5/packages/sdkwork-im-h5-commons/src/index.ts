@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export * from "./utils/cn";
 export * from "./components/Avatar";
 export * from "./components/Badge";

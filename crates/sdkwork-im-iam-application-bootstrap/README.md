@@ -4,7 +4,7 @@ Thin Sdkwork IM adapter over the shared embedded IAM tenant application bootstra
 
 ## Responsibility
 
-This crate supplies IM-specific runtime bindings (PC, H5, and Flutter mobile) and delegates manifest mapping, Postgres `search_path`, default subject seeding, and tenant-application reconcile/upsert to:
+This crate resolves the IM application root and delegates manifest discovery, mapping, Postgres `search_path`, default subject seeding, and tenant-application reconcile/upsert to:
 
 ```text
 sdkwork-iam/crates/sdkwork-iam-embedded-application-bootstrap
@@ -12,17 +12,17 @@ sdkwork-iam/crates/sdkwork-iam-embedded-application-bootstrap
 
 Standalone IM embeds IAM locally, so the gateway calls `ensure_im_tenant_application_runtime_from_env` after IAM schema bootstrap and before credential-entry routes go live.
 
-`ensure_im_tenant_application_runtime_from_env` resolves the IM repository app root through `resolve_im_repo_root()` and calls `ensure_tenant_application_from_app_root_with_env_and_fallback`. It must not use `ensure_tenant_application_from_app_root_with_env`, which silently skips provisioning when `SDKWORK_*_APP_ROOT` is unset.
+`ensure_im_tenant_application_runtime_from_env` resolves the IM repository app root through `resolve_im_repo_root()` and calls `ensure_tenant_application_from_app_root_with_env_and_fallback`. The existing-pool entrypoint calls `ensure_tenant_applications_from_app_root_on_pool`. Both shared paths discover the repository manifest and direct manifest-bearing `apps/*` roots. The adapter must not use `ensure_tenant_application_from_app_root_with_env`, which silently skips provisioning when `SDKWORK_*_APP_ROOT` is unset.
 
-## Runtime bindings
+## Runtime identities
 
-| Surface | `runtime_app_id` | Example `instance_key` (dev) |
-| --- | --- | --- |
-| PC | `sdkwork-im-pc` | `sdkwork_im_pc_dev` |
-| H5 | `sdkwork-im-h5` | `sdkwork_im_h5_dev` |
-| Flutter mobile | `sdkwork-im-flutter-mobile` | `sdkwork_im_flutter_mobile_dev` |
+| Surface manifest | `backend.appId` |
+| --- | --- |
+| `apps/sdkwork-im-pc/sdkwork.app.config.json` | `sdkwork-im-pc` |
+| `apps/sdkwork-im-h5/sdkwork.app.config.json` | `sdkwork-im-h5` |
+| `apps/sdkwork-im-flutter-mobile/sdkwork.app.config.json` | `sdkwork-im-flutter-mobile` |
 
-Instance keys are derived by the shared framework through `tenant_application_instance_key` so IM tenant applications do not collide with platform defaults such as `default`.
+Runtime identities come only from application manifests. The IM adapter does not infer architecture suffixes or keep a hardcoded surface list.
 
 ## Verification
 

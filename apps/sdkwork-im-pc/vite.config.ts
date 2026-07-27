@@ -9,6 +9,15 @@ import { handleSdkworkChatLocalApiRequest } from './local-api';
 const repoRoot = path.resolve(__dirname, '../..');
 const appRequire = createRequire(path.join(__dirname, 'package.json'));
 
+function resolveDevServerPort(): number {
+  const value = process.env.SDKWORK_IM_PC_DEV_PORT?.trim() || '4176';
+  const port = Number.parseInt(value, 10);
+  if (!/^\d+$/u.test(value) || port < 1 || port > 65535) {
+    throw new Error(`SDKWORK_IM_PC_DEV_PORT must be a TCP port, received: ${value}`);
+  }
+  return port;
+}
+
 function dependencyRoot(dependencyId: string): string {
   return path.resolve(repoRoot, '..', dependencyId);
 }
@@ -48,26 +57,6 @@ const catalogAppSdkEntry = path.resolve(
 const shopAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-shop'),
   'sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/src/index.ts',
-);
-const orderAppSdkEntry = path.resolve(
-  dependencyRoot('sdkwork-order'),
-  'sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/src/index.ts',
-);
-const generatedMembershipAppSdkEntry = path.resolve(
-  dependencyRoot('sdkwork-membership'),
-  'sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts',
-);
-const membershipPcPackageRoot = path.resolve(
-  dependencyRoot('sdkwork-membership'),
-  'apps/sdkwork-membership-pc/packages',
-);
-const orderPcPackageRoot = path.resolve(
-  dependencyRoot('sdkwork-order'),
-  'apps/sdkwork-order-pc/packages',
-);
-const orderCommonPackageRoot = path.resolve(
-  dependencyRoot('sdkwork-order'),
-  'apps/sdkwork-order-common/packages',
 );
 const promotionPcPackageRoot = path.resolve(
   dependencyRoot('sdkwork-promotion'),
@@ -310,13 +299,6 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/knowledgebase-app-sdk', replacement: generatedKnowledgebaseAppSdkEntry },
         { find: '@sdkwork/catalog-app-sdk', replacement: catalogAppSdkEntry },
         { find: '@sdkwork/shop-app-sdk', replacement: shopAppSdkEntry },
-        { find: '@sdkwork/order-app-sdk', replacement: orderAppSdkEntry },
-        { find: '@sdkwork/order-service', replacement: path.resolve(orderCommonPackageRoot, 'sdkwork-order-service/src/index.ts') },
-        { find: '@sdkwork/membership-app-sdk', replacement: generatedMembershipAppSdkEntry },
-        { find: '@sdkwork/membership-pc-membership', replacement: path.resolve(membershipPcPackageRoot, 'sdkwork-membership-pc-membership/src/index.ts') },
-        { find: /^@sdkwork\/membership-pc-subscription\/(.+)$/, replacement: `${path.resolve(membershipPcPackageRoot, 'sdkwork-membership-pc-subscription/src')}/$1` },
-        { find: '@sdkwork/membership-pc-subscription', replacement: path.resolve(membershipPcPackageRoot, 'sdkwork-membership-pc-subscription/src/index.ts') },
-        { find: '@sdkwork/order-pc-checkout', replacement: path.resolve(orderPcPackageRoot, 'sdkwork-order-pc-checkout/src/index.ts') },
         { find: '@sdkwork/promotion-pc-core', replacement: path.resolve(promotionPcPackageRoot, 'sdkwork-promotion-pc-core/src/index.ts') },
         { find: '@sdkwork/promotion-pc-coupon', replacement: path.resolve(promotionPcPackageRoot, 'sdkwork-promotion-pc-coupon/src/index.ts') },
         { find: '@sdkwork/promotion-service', replacement: path.resolve(promotionCommonPackageRoot, 'sdkwork-promotion-service/src/index.ts') },
@@ -430,6 +412,9 @@ export default defineConfig(({mode}) => {
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
+      host: process.env.SDKWORK_IM_PC_DEV_HOST?.trim() || '0.0.0.0',
+      port: resolveDevServerPort(),
+      strictPort: true,
     },
     optimizeDeps: {
       exclude: [

@@ -24,11 +24,22 @@ function requiredEnv(env, key) {
 
 export function createFlutterDefineConfig(env = process.env) {
   const applicationHttpUrl = requiredEnv(env, 'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL');
+  const deploymentProfile = requiredEnv(env, 'SDKWORK_IM_DEPLOYMENT_PROFILE');
+  const environment = requiredEnv(env, 'SDKWORK_IM_ENVIRONMENT');
+  const profileId = requiredEnv(env, 'SDKWORK_IM_PROFILE_ID');
+  if (profileId !== `${deploymentProfile}.${environment}`) {
+    throw new Error('SDKWORK_IM_PROFILE_ID must match deployment profile and environment');
+  }
   return {
     SDKWORK_APP_ID: 'sdkwork-im-flutter-mobile',
-    SDKWORK_IM_DEPLOYMENT_PROFILE: requiredEnv(env, 'SDKWORK_IM_DEPLOYMENT_PROFILE'),
-    SDKWORK_IM_ENVIRONMENT: requiredEnv(env, 'SDKWORK_IM_ENVIRONMENT'),
-    SDKWORK_IM_PROFILE_ID: requiredEnv(env, 'SDKWORK_IM_PROFILE_ID'),
+    SDKWORK_DEPLOYMENT_PROFILE: deploymentProfile,
+    SDKWORK_ENVIRONMENT: environment,
+    SDKWORK_PROFILE_ID: profileId,
+    SDKWORK_RUNTIME_TARGET: 'flutter-android',
+    SDKWORK_IM_DEPLOYMENT_PROFILE: deploymentProfile,
+    SDKWORK_IM_ENVIRONMENT: environment,
+    SDKWORK_IM_PROFILE_ID: profileId,
+    SDKWORK_IM_RUNTIME_TARGET: 'flutter-android',
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationHttpUrl,
     SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: requiredEnv(
       env,
@@ -54,10 +65,14 @@ export function createFlutterDevPlan({ args = [], env = process.env, root = appR
     throw new Error('SDKWORK_FLUTTER_DEVICE_ID contains unsupported characters');
   }
   if (deviceId) flutterArgs.push('--device-id', deviceId);
+  const runtimeTarget = target === 'ios' ? 'flutter-ios' : 'flutter-android';
+  const config = createFlutterDefineConfig(env);
+  config.SDKWORK_RUNTIME_TARGET = runtimeTarget;
+  config.SDKWORK_IM_RUNTIME_TARGET = runtimeTarget;
   flutterArgs.push('--dart-define-from-file', configPath);
   return {
     command: process.platform === 'win32' ? 'flutter.bat' : 'flutter',
-    config: createFlutterDefineConfig(env),
+    config,
     configPath,
     flutterArgs,
     target,

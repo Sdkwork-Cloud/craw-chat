@@ -65,6 +65,7 @@ const standaloneDependencySource = readRepoText(
   'embedded_dependency_routes.rs',
 );
 const topologySpec = readRepoJson('specs', 'topology.spec.json');
+const packageExportResolvedCapabilities = new Set(['membership', 'order']);
 
 assert.equal(
   packageJson.scripts?.['test:commerce-app-sdk-integration'],
@@ -88,11 +89,23 @@ for (const [capability, packageName] of Object.entries(COMMERCE_T1_APP_SDK_PACKA
     new RegExp(`"${escapeRegExp(packageName)}"[\\s\\S]*${pathRegex(facadeEntryFromApp)}`, 'u'),
     `tsconfig must map ${packageName} to the sibling composed facade`,
   );
-  assert.match(
-    viteConfigSource,
-    new RegExp(`find:\\s*'${packageName.replaceAll('/', '\\/')}'`, 'u'),
-    `Vite must alias ${packageName} to the sibling composed facade`,
+  const viteAliasPattern = new RegExp(
+    `find:\\s*['"]${packageName.replaceAll('/', '\\/')}['"]`,
+    'u',
   );
+  if (packageExportResolvedCapabilities.has(capability)) {
+    assert.doesNotMatch(
+      viteConfigSource,
+      viteAliasPattern,
+      `Vite must resolve ${packageName} through pnpm workspace package exports`,
+    );
+  } else {
+    assert.match(
+      viteConfigSource,
+      viteAliasPattern,
+      `Vite must alias ${packageName} to the sibling composed facade`,
+    );
+  }
   assert.match(
     pnpmWorkspaceSource,
     new RegExp(escapeRegExp(workspacePackageRoot), 'u'),

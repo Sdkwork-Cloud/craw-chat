@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { MessageCircle, Bot, LayoutGrid, Compass, UserRound } from 'lucide-react';
 import { cn } from '@sdkwork/im-h5-commons';

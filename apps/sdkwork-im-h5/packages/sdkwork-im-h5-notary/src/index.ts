@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export * from "./pages/NotaryRecords";
 export * from "./pages/NotaryFiles";
 export * from "./pages/NotaryMessages";

@@ -173,7 +173,6 @@ pub fn build_realtime_websocket_router(state: AppState) -> Router {
 
 pub fn build_domain_http_api_router(state: AppState) -> Router {
     Router::new()
-        .route("/readyz", get(readyz))
         .route(
             "/im/v3/api/presence/heartbeat",
             post(presence_routes::heartbeat_presence),
@@ -206,6 +205,11 @@ fn build_infra_and_http_router(state: AppState) -> Router {
         .route("/healthz", get(healthz))
         .route("/openapi.json", get(openapi_export::openapi_json))
         .route("/docs", get(openapi_export::docs))
+        .merge(
+            Router::new()
+                .route("/readyz", get(readyz))
+                .with_state(state.clone()),
+        )
         .merge(build_domain_http_api_router(state))
 }
 

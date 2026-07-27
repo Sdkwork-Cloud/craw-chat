@@ -210,7 +210,7 @@ async fn build_gateway_product_runtime_router(base_url: &str) -> Result<Router, 
     let site_dirs = resolve_product_site_dirs_from_env(&repo_root);
     build_product_runtime_router(
         standalone_config,
-        RouterProductRuntimeOptions::desktop(site_dirs),
+        RouterProductRuntimeOptions::desktop_for_api_assembly_host(site_dirs),
     )
     .await
     .map_err(|error| error.to_string())

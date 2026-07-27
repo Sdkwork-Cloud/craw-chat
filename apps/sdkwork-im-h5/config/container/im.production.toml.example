@@ -1,3 +1,0 @@
-# Sdkwork IM H5 container configuration example (production)
-[server]
-bind_address = "0.0.0.0:3000"

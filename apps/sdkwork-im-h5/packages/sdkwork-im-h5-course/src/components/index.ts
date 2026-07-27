@@ -7,3 +7,5 @@ export * from './CourseFooterBar';
 export * from './PlayerCatalog';
 export * from './PlayerDiscussion';
 export * from './VideoPlayer';
+export * from './CourseBanner';
+export * from './CourseCategoryTabs';

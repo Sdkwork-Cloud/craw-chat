@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { Address } from "../types";
@@ -111,7 +110,7 @@ export const useAddressStore = create<AddressState>()(
       }
     }),
     {
-      name: "sdkwork_im_h5-address-storage"
+      name: "sdkwork-im-h5-address-storage"
     }
   )
 );

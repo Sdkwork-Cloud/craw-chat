@@ -67,10 +67,6 @@
     "sdkwork-clawrouter": {
       "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-clawrouter.git",
       "ref": "main"
-    },
-    "sdkwork-birdcoder": {
-      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-birdcoder.git",
-      "ref": "main"
     }
   }
 }

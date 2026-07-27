@@ -1,119 +1,71 @@
 import {
   createSdkworkAppbasePcAuthRuntime,
   type SdkworkAppbasePcAuthRuntimeComposition,
-  type SdkworkAppbasePcAuthRuntimeSdkClient,
 } from '@sdkwork/auth-runtime-pc-react';
-import {
-  applyAppSdkSessionTokens,
-  clearAppSdkSessionTokens,
-  disposeChatLiveConnection,
-  getAppSdkClient,
-  getDriveAppSdkClient,
-  getImSdkClient,
-  getSdkworkImH5GlobalTokenManager,
-  readAppSdkSessionTokens,
-  resetAppSdkClient,
-  resetDriveAppSdkClient,
-  resetImSdkClient,
-  resolveAppSdkBaseUrl,
-  type SdkworkImH5Session,
-} from '@sdkwork/im-h5-core';
+import { disposeChatLiveConnection } from '@sdkwork/im-h5-chat';
+import { resolveImAuthRuntimeConfig } from './imAuthConfig';
 
-type IamEnvironment = 'dev' | 'prod' | 'test';
-type IamDeploymentMode = 'local' | 'private' | 'saas';
+export interface ImAppAuthRuntimeOptions {
+  appId?: string;
+  deploymentMode?: 'local' | 'private' | 'saas';
+  environment?: 'dev' | 'prod' | 'test';
+}
 
 let imAppAuthRuntimeComposition: SdkworkAppbasePcAuthRuntimeComposition | null = null;
 
-function readEnvValue(...keys: string[]): string | undefined {
-  const meta = import.meta as ImportMeta & {
-    env?: Record<string, string | boolean | undefined>;
-  };
+function resolveAppId(): string {
+  return 'sdkwork-im-h5';
+}
 
-  for (const key of keys) {
-    const value = meta.env?.[key];
-    if (typeof value === 'string' && value.trim().length > 0) {
-      return value.trim();
-    }
+function resolveAppbaseAppApiBaseUrl(): string {
+  const meta = import.meta as ImportMeta & {
+    env?: Record<string, string | undefined>;
+  };
+  return meta.env?.SDKWORK_IM_API_BASE_URL
+    ?? meta.env?.VITE_SDKWORK_IM_API_BASE_URL
+    ?? '/';
+}
+
+export function createImAppAuthRuntime(
+  options: ImAppAuthRuntimeOptions = {},
+): SdkworkAppbasePcAuthRuntimeComposition {
+  if (imAppAuthRuntimeComposition) {
+    return imAppAuthRuntimeComposition;
   }
 
-  return undefined;
-}
+  const runtimeConfig = resolveImAuthRuntimeConfig();
 
-function resolveIamEnvironment(): IamEnvironment {
-  const value = readEnvValue(
-    'VITE_SDKWORK_IM_IAM_ENVIRONMENT',
-    'VITE_SDKWORK_IAM_ENVIRONMENT',
-  );
-  return value === 'prod' || value === 'production'
-    ? 'prod'
-    : value === 'test'
-      ? 'test'
-      : 'dev';
-}
-
-function resolveIamDeploymentMode(): IamDeploymentMode {
-  const value = readEnvValue(
-    'VITE_SDKWORK_IM_IAM_DEPLOYMENT_MODE',
-    'VITE_SDKWORK_IAM_DEPLOYMENT_MODE',
-  );
-  return value === 'saas' || value === 'private' || value === 'local'
-    ? value
-    : 'saas';
-}
-
-export function resetImAppAuthenticatedSdkClients(): void {
-  resetAppSdkClient();
-  resetImSdkClient();
-  resetDriveAppSdkClient();
-}
-
-export function clearImH5IamRuntimeSession(): void {
-  clearAppSdkSessionTokens();
-  disposeChatLiveConnection('iam session cleared');
-  resetImAppAuthenticatedSdkClients();
-}
-
-function getAuthenticatedSdkClients(): SdkworkAppbasePcAuthRuntimeSdkClient[] {
-  return [
-    getAppSdkClient(),
-    getImSdkClient(),
-    getDriveAppSdkClient(),
-  ] as SdkworkAppbasePcAuthRuntimeSdkClient[];
-}
-
-export function createImAppAuthRuntime(): SdkworkAppbasePcAuthRuntimeComposition {
-  return createSdkworkAppbasePcAuthRuntime({
+  imAppAuthRuntimeComposition = createSdkworkAppbasePcAuthRuntime({
     app: {
-      appId: 'sdkwork-im-h5',
-      deploymentMode: resolveIamDeploymentMode(),
-      environment: resolveIamEnvironment(),
+      appId: options.appId ?? resolveAppId(),
+      deploymentMode: options.deploymentMode ?? 'saas',
+      environment: options.environment ?? 'dev',
       platform: "h5",
     },
     baseUrls: {
-      appbaseAppApiBaseUrl: resolveAppSdkBaseUrl(),
+      appbaseAppApiBaseUrl: resolveAppbaseAppApiBaseUrl(),
     },
     hooks: {
       onSessionChanged: () => {
-        resetImAppAuthenticatedSdkClients();
+        try {
+          disposeChatLiveConnection();
+        } catch {
+          // ignore teardown errors during session refresh
+        }
       },
     },
-    sdkClients: getAuthenticatedSdkClients(),
-    sessionBridge: {
-      clearSession: clearImH5IamRuntimeSession,
-      commitSession: (session) => applyAppSdkSessionTokens(session as SdkworkImH5Session),
-      readSession: readAppSdkSessionTokens,
-    },
-    tokenManager: getSdkworkImH5GlobalTokenManager(),
+    sessionAuth: true,
   });
-}
 
-export function getImAppAuthRuntime(): SdkworkAppbasePcAuthRuntimeComposition {
-  if (!imAppAuthRuntimeComposition) {
-    imAppAuthRuntimeComposition = createImAppAuthRuntime();
-  }
+  void runtimeConfig;
+
   return imAppAuthRuntimeComposition;
 }
 
 export function resetImAppAuthRuntime(): void {
   imAppAuthRuntimeComposition = null;
+}
+
+export function getImAppAuthRuntime(): SdkworkAppbasePcAuthRuntimeComposition {
+  return imAppAuthRuntimeComposition ?? createImAppAuthRuntime();
 }

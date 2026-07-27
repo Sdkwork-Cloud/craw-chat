@@ -43,7 +43,7 @@ const MAX_DEV_PORT_ATTEMPTS = 50;
 const TARGETS = Object.freeze({
   browser: {
     label: 'sdkwork-im-pc-browser',
-    pnpmArgs: ['--dir', 'apps/sdkwork-im-pc', 'dev'],
+    pnpmArgs: ['--dir', 'apps/sdkwork-im-pc', 'run', '_sdkwork:client:browser'],
   },
   desktop: {
     label: 'sdkwork-im-pc-desktop',

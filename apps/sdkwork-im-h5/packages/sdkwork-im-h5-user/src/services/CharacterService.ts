@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export interface Character {
   id: string;
   name: string;
@@ -19,19 +18,19 @@ const INITIAL_CHARACTERS: Character[] = [
     id: "char1",
     name: "旅行规划师",
     desc: "帮你规划行程安排、景点推荐和游玩攻略",
-    avatar: "https://picsum.photos/seed/role1/200/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/role1/200x200.png",
   },
   {
     id: "char2",
     name: "贴身语言教练",
     desc: "陪练多种语言，包含情景模拟与发音纠正",
-    avatar: "https://picsum.photos/seed/role2/200/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/role2/200x200.png",
   },
   {
     id: "char3",
     name: "健身私人教练",
     desc: "为你量身定制健身计划与饮食建议",
-    avatar: "https://picsum.photos/seed/role3/200/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/role3/200x200.png",
   },
 ];
 

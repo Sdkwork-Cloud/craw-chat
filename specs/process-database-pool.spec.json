@@ -25,6 +25,7 @@
         {"module": "embedded dependencies", "poolMode": "installed-process-pool", "evidence": ["crates/sdkwork-api-im-standalone-gateway/src/embedded_dependency_routes.rs"]}
       ],
       "temporaryDriverExceptions": [
+        {"driver": "sqlx::AnyPool", "owner": "sdkwork-drive maintainers", "removalMilestone": "Migrate Drive PostgreSQL repositories to sqlx::PgPool before the next Drive production release", "combinedConnectionBudget": 10, "adr": "docs/architecture/decisions/ADR-20260719-im-process-database-pool-migration.md", "evidence": ["crates/sdkwork-api-im-standalone-gateway/src/embedded_dependency_routes.rs"]},
         {"driver": "r2d2", "owner": "sdkwork-im persistence maintainers", "removalMilestone": "Migrate synchronous adapters before the next IM production release", "combinedConnectionBudget": 10, "adr": "docs/architecture/decisions/ADR-20260719-im-process-database-pool-migration.md", "evidence": ["crates/sdkwork-im-database-pool/src/shared_postgres.rs"]}
       ]
     },

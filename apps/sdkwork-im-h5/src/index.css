@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary-blue: var(--primary-blue);
-  --color-bg-color: var(--bg-color);
-  --color-glass-bg: var(--glass-bg);
-  --color-glass-border: var(--glass-border);
-  --color-text-main: var(--text-main);
-  --color-text-sub: var(--text-sub);
-  --color-accent-green: var(--accent-green);
-  --color-accent-red: var(--accent-red);
-  --color-border-color: var(--border-color);
-  --color-hover-bg: var(--hover-bg);
-  --color-active-bg: var(--active-bg);
-  --color-chat-me-bg: var(--chat-me-bg);
-  --color-chat-other-bg: var(--chat-other-bg);
-  --color-input-bg: var(--input-bg);
+  --color-primary-blue: var(--sdkwork-im-h5-primary-blue);
+  --color-bg-color: var(--sdkwork-im-h5-bg-color);
+  --color-glass-bg: var(--sdkwork-im-h5-glass-bg);
+  --color-glass-border: var(--sdkwork-im-h5-glass-border);
+  --color-text-main: var(--sdkwork-im-h5-text-main);
+  --color-text-sub: var(--sdkwork-im-h5-text-sub);
+  --color-accent-green: var(--sdkwork-im-h5-accent-green);
+  --color-accent-red: var(--sdkwork-im-h5-accent-red);
+  --color-border-color: var(--sdkwork-im-h5-border-color);
+  --color-hover-bg: var(--sdkwork-im-h5-hover-bg);
+  --color-active-bg: var(--sdkwork-im-h5-active-bg);
+  --color-chat-me-bg: var(--sdkwork-im-h5-chat-me-bg);
+  --color-chat-other-bg: var(--sdkwork-im-h5-chat-other-bg);
+  --color-input-bg: var(--sdkwork-im-h5-input-bg);
 
   --animate-gradient-x: gradient-x 3s ease infinite;
 
@@ -32,38 +32,38 @@
 
 :root {
   /* Light Mode */
-  --primary-blue: #2B5CE7;
-  --bg-color: #F4F6F9;
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(0, 0, 0, 0.08);
-  --text-main: #1D2129;
-  --text-sub: #86909C;
-  --accent-green: #00B42A;
-  --accent-red: #F53F3F;
-  --border-color: #E5E6EB;
-  --hover-bg: #F2F3F5;
-  --active-bg: #E5E6EB;
-  --chat-me-bg: #95EC69;
-  --chat-other-bg: #FFFFFF;
-  --input-bg: #F7F7F7;
+  --sdkwork-im-h5-primary-blue: #2B5CE7;
+  --sdkwork-im-h5-bg-color: #F4F6F9;
+  --sdkwork-im-h5-glass-bg: rgba(255, 255, 255, 0.85);
+  --sdkwork-im-h5-glass-border: rgba(0, 0, 0, 0.08);
+  --sdkwork-im-h5-text-main: #1D2129;
+  --sdkwork-im-h5-text-sub: #86909C;
+  --sdkwork-im-h5-accent-green: #00B42A;
+  --sdkwork-im-h5-accent-red: #F53F3F;
+  --sdkwork-im-h5-border-color: #E5E6EB;
+  --sdkwork-im-h5-hover-bg: #F2F3F5;
+  --sdkwork-im-h5-active-bg: #E5E6EB;
+  --sdkwork-im-h5-chat-me-bg: #95EC69;
+  --sdkwork-im-h5-chat-other-bg: #FFFFFF;
+  --sdkwork-im-h5-input-bg: #F7F7F7;
 }
 
 .dark {
   /* Dark Mode */
-  --primary-blue: #2B5CE7;
-  --bg-color: #0A0A0A;
-  --glass-bg: rgba(20, 20, 20, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --text-main: #F3F4F6;
-  --text-sub: #9CA3AF;
-  --accent-green: #26B85C;
-  --accent-red: #EF4444;
-  --border-color: #262626;
-  --hover-bg: #1F1F1F;
-  --active-bg: #262626;
-  --chat-me-bg: #2B5CE7;
-  --chat-other-bg: #1F1F1F;
-  --input-bg: #141414;
+  --sdkwork-im-h5-primary-blue: #2B5CE7;
+  --sdkwork-im-h5-bg-color: #0A0A0A;
+  --sdkwork-im-h5-glass-bg: rgba(20, 20, 20, 0.85);
+  --sdkwork-im-h5-glass-border: rgba(255, 255, 255, 0.1);
+  --sdkwork-im-h5-text-main: #F3F4F6;
+  --sdkwork-im-h5-text-sub: #9CA3AF;
+  --sdkwork-im-h5-accent-green: #26B85C;
+  --sdkwork-im-h5-accent-red: #EF4444;
+  --sdkwork-im-h5-border-color: #262626;
+  --sdkwork-im-h5-hover-bg: #1F1F1F;
+  --sdkwork-im-h5-active-bg: #262626;
+  --sdkwork-im-h5-chat-me-bg: #2B5CE7;
+  --sdkwork-im-h5-chat-other-bg: #1F1F1F;
+  --sdkwork-im-h5-input-bg: #141414;
 }
 
 html, body, #root {
@@ -106,8 +106,8 @@ body {
 }
 
 * {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Safe area utilities */

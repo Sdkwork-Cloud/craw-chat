@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { ChevronLeft, Play, Square, Mic, Settings2 } from "lucide-react";

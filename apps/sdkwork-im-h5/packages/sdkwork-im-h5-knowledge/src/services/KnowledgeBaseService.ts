@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export interface KnowledgeBase {
   id: string;
   name: string;

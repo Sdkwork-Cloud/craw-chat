@@ -25,7 +25,7 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
     <PageLayout title={t('user.auto_prop_24baafeb', '个人头像')}>
       <div className="flex flex-col items-center justify-center py-20">
         <Avatar
-          src={profile?.avatar || "https://picsum.photos/seed/me/200/200"}
+          src={profile?.avatar || "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/me/200x200.png"}
           size="lg"
           className="w-64 h-64 rounded-xl shadow-lg"
         />
@@ -34,7 +34,7 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
           onClick={async () => {
             const url = await showPrompt(
               "请输入新头像的图片网址",
-              profile?.avatar || "https://picsum.photos/seed/new/200",
+              profile?.avatar || "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/new/200.png",
             );
             if (url) {
               ProfileService.updateUserProfile({ avatar: url });
@@ -129,7 +129,7 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
         <div className="w-full max-w-[320px] bg-chat-other-bg rounded-2xl shadow-sm border border-border-color p-6">
           <div className="flex items-center gap-4 mb-6">
             <Avatar
-              src={profile?.avatar || "https://picsum.photos/seed/me/200/200"}
+              src={profile?.avatar || "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/me/200x200.png"}
               size="md"
               className="w-14 h-14 rounded-xl"
             />

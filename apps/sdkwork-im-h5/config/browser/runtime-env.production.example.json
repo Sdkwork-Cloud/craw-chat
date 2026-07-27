@@ -1,7 +1,19 @@
 {
-  "appApiBaseUrl": "/app/v3/api",
-  "imApiBaseUrl": "/im/v3/api",
-  "driveApiBaseUrl": "/drive/v3/api",
-  "platform": "h5",
-  "deploymentProfile": "cloud"
+  "schemaVersion": 1,
+  "kind": "sdkwork.browser-runtime-env",
+  "profile": "production",
+  "appKey": "sdkwork-im-h5",
+  "deploymentProfile": "cloud",
+  "publicRuntimeConfig": {
+    "VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL": "https://im.sdkwork.com",
+    "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL": "wss://im.sdkwork.com",
+    "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "https://api.sdkwork.com",
+    "VITE_SDKWORK_IM_API_BASE_URL": "https://api.sdkwork.com",
+    "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "https://drive.sdkwork.com",
+    "VITE_SDKWORK_IAM_API_BASE_URL": "https://iam.sdkwork.com"
+  },
+  "featureFlags": {
+    "qrLoginEnabled": true,
+    "pushNotificationsEnabled": false
+  }
 }

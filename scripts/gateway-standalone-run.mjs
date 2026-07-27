@@ -144,12 +144,10 @@ async function main() {
   };
 
   terminateStaleDevGatewayProcesses({});
-  const bindEnv = await resolveStandaloneGatewayBindEnv({ env: gatewayEnv });
-  if (bindEnv.portChanged) {
-    console.log(
-      `[sdkwork-api-im-standalone-gateway] 127.0.0.1:18079 is busy; using http://${bindEnv.bindAddr}`,
-    );
-  }
+  const bindEnv = await resolveStandaloneGatewayBindEnv({
+    env: gatewayEnv,
+    maxAttempts: 1,
+  });
   const gatewayEnvWithBind = bindEnv.env;
 
   const launcherArgs = [path.join(repoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs')];

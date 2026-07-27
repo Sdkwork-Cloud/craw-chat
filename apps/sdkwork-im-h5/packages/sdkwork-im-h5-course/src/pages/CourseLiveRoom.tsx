@@ -77,7 +77,7 @@ const { id } = useParams<{ id: string }>();
       {/* Video Area */}
       <div className="relative w-full aspect-video bg-black shrink-0 z-10 group">
          <video 
-            src="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"
+            src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/elephants-dream.mp4"
             className="w-full h-full object-contain"
             autoPlay 
             muted 

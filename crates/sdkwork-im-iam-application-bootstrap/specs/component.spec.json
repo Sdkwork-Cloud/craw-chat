@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-im-iam-application-bootstrap",
+    "displayName": "SDKWork IM IAM Application Bootstrap",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "crates/sdkwork-im-iam-application-bootstrap",
+    "domain": "iam",
+    "capability": "embedded-application-bootstrap",
+    "status": "standardizing",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": false,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate and module rules."
+    },
+    {
+      "file": "IAM_APPLICATION_BOOTSTRAP_SPEC.md",
+      "path": "../../../sdkwork-specs/IAM_APPLICATION_BOOTSTRAP_SPEC.md",
+      "purpose": "Manifest-driven embedded IAM application bootstrap rules."
+    },
+    {
+      "file": "IAM_SPEC.md",
+      "path": "../../../sdkwork-specs/IAM_SPEC.md",
+      "purpose": "IAM ownership and integration boundaries."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Credential and bootstrap security requirements."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Contract and integration verification rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "runtime-composition",
+    "publicExports": [
+      "sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime",
+      "sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env",
+      "sdkwork_iam_embedded_application_bootstrap::ensure_tenant_application_from_app_root_with_env_and_fallback"
+    ],
+    "providedPorts": [
+      {
+        "name": "imIamApplicationBootstrap",
+        "export": "sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "sharedIamEmbeddedApplicationBootstrap",
+        "export": "sdkwork_iam_embedded_application_bootstrap::ensure_tenant_application_from_app_root_with_env_and_fallback"
+      }
+    ],
+    "runtimeEntrypoints": [
+      "sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env"
+    ],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": [
+      "SDKWORK_APP_ROOT",
+      "SDKWORK_IAM_APP_ROOT"
+    ]
+  },
+  "integration": {
+    "authority": "Root SDKWork specs remain authoritative. This component only adapts IM startup to the shared IAM bootstrap framework.",
+    "dependencyPolicy": "The adapter delegates repository and direct apps manifest discovery to the shared IAM embedded application bootstrap and does not own runtime identity inference.",
+    "sdkPolicy": "This runtime component does not expose or consume generated SDK clients.",
+    "languagePolicy": "Rust source follows Cargo workspace dependencies and the SDKWork Rust crate responsibility split."
+  },
+  "verification": {
+    "commands": [
+      "cargo test -p sdkwork-im-iam-application-bootstrap",
+      "node scripts/dev/sdkwork-im-iam-application-bootstrap-standard.test.mjs"
+    ]
+  },
+  "metadata": {
+    "managedBy": "sdkwork-im",
+    "standardVersion": "2026-07-27"
+  }
+}

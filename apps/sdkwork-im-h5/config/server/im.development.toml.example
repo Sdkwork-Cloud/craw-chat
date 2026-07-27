@@ -1,3 +1,0 @@
-# Sdkwork IM H5 server configuration example (development)
-[server]
-bind_address = "0.0.0.0:3000"

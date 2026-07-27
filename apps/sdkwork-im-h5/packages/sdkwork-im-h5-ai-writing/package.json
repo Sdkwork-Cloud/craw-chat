@@ -12,10 +12,9 @@
     }
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "motion": "^12.0.0",
-    "lucide-react": "^0.400.0",
-    "@sdkwork/im-h5-commons": "workspace:*",
-    "@sdkwork/im-h5-core": "workspace:*"
+    "react": "catalog:",
+    "motion": "catalog:",
+    "lucide-react": "catalog:",
+    "@sdkwork/im-h5-commons": "workspace:*"
   }
 }

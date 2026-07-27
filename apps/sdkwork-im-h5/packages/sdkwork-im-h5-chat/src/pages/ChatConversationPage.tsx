@@ -1,84 +1,84 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type {
+  ConversationMessageListResponse,
+  ImDecodedMessage,
+} from '@sdkwork/im-sdk';
+import { listMessages, postText } from '../services/chatConversationService';
 import {
-  fetchConversationMessages,
-  sendConversationText,
-  type ConversationMessage,
-} from '../services/chatConversationService';
-import { subscribeConversationLiveMessages } from '../services/chatRealtimeService';
+  subscribeConversationLiveMessages,
+} from '../services/chatRealtimeService';
 
-export interface ChatConversationPageProps {
+interface ChatConversationPageProps {
   conversationId: string;
 }
 
 export function ChatConversationPage({ conversationId }: ChatConversationPageProps) {
-  const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState<ImDecodedMessage[]>([]);
+  const [draft, setDraft] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadMessages() {
-      setLoading(true);
-      try {
-        const response = await fetchConversationMessages(conversationId);
-        if (!cancelled) {
-          setMessages(response.messages);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+  const fetchConversationMessages = useCallback(async () => {
+    if (!conversationId) {
+      return;
     }
-
-    void loadMessages();
-
-    // Subscribe to live messages for this conversation so newly posted
-    // messages are appended without polling.
-    const unsubscribe = subscribeConversationLiveMessages(conversationId, (message) => {
-      if (!cancelled) {
-        setMessages((prev) => [...prev, message as unknown as ConversationMessage]);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
+    try {
+      const response: ConversationMessageListResponse = await listMessages(conversationId);
+      setMessages(response.items ?? []);
+    } catch {
+      // ignore fetch errors in H5 placeholder
+    }
   }, [conversationId]);
 
-  async function handleSend() {
-    if (!input.trim()) return;
-    const text = input.trim();
-    setInput('');
-    await sendConversationText(conversationId, text);
-  }
+  const sendConversationText = useCallback(async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || !conversationId || isSending) {
+      return;
+    }
+    setIsSending(true);
+    try {
+      await postText(conversationId, trimmed);
+      setDraft('');
+      await fetchConversationMessages();
+    } finally {
+      setIsSending(false);
+    }
+  }, [conversationId, fetchConversationMessages, isSending]);
+
+  useEffect(() => {
+    void fetchConversationMessages();
+    const unsubscribe = subscribeConversationLiveMessages(conversationId, () => {
+      void fetchConversationMessages();
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [conversationId, fetchConversationMessages]);
 
   return (
-    <div className="chat-conversation-page">
-      <div className="chat-conversation-messages">
-        {loading ? (
-          <div className="chat-conversation-loading">Loading messages...</div>
-        ) : (
-          messages.map((message) => (
-            <div key={message.id} className="chat-conversation-message">
-              {message.text ?? ''}
-            </div>
-          ))
-        )}
-      </div>
-      <div className="chat-conversation-input">
+    <div className="sdkwork-im-h5-chat-conversation">
+      <header className="sdkwork-im-h5-chat-conversation-header">
+        <h1>Conversation</h1>
+      </header>
+      <ul className="sdkwork-im-h5-chat-conversation-messages">
+        {messages.map((message) => (
+          <li key={message.messageId}>{message.text ?? JSON.stringify(message)}</li>
+        ))}
+      </ul>
+      <form
+        className="sdkwork-im-h5-chat-conversation-composer"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void sendConversationText(draft);
+        }}
+      >
         <input
           type="text"
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder="Type a message..."
+          value={draft}
+          onChange={(event) => setDraft(event.currentTarget.value)}
+          placeholder="Send a message"
         />
-        <button type="button" onClick={() => void handleSend()}>
-          Send
-        </button>
-      </div>
+        <button type="submit" disabled={isSending}>Send</button>
+      </form>
     </div>
   );
 }

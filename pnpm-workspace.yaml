@@ -46,6 +46,7 @@ packages:
   - "../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-core"
   - "../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-commons"
   - "../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-knowledgebase"
+  - "../sdkwork-account/sdks/sdkwork-account-app-sdk/sdkwork-account-app-sdk-typescript"
   - "../sdkwork-catalog/sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript"
   - "../sdkwork-shop/sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript"
   - "../sdkwork-shop/apps/sdkwork-shop-pc/packages/sdkwork-shop-pc-core"
@@ -59,6 +60,7 @@ packages:
   - "../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-service"
   - "../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-checkout"
   - "../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-recharge"
+  - "../sdkwork-payment/sdks/sdkwork-payment-app-sdk/sdkwork-payment-app-sdk-typescript"
   - "../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript"
   - "../sdkwork-membership/sdks/sdkwork-membership-backend-sdk/sdkwork-membership-backend-sdk-typescript"
   - "../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-contracts"
@@ -69,6 +71,7 @@ packages:
   - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-contracts"
   - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-sdk-ports"
   - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-service"
+  - "../sdkwork-promotion/sdks/sdkwork-promotion-app-sdk/sdkwork-promotion-app-sdk-typescript"
   - "../sdkwork-promotion/sdks/sdkwork-promotion-backend-sdk/sdkwork-promotion-backend-sdk-typescript"
   - "../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-core"
   - "../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-coupon"
@@ -107,6 +110,7 @@ packages:
   - "../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-core"
   - "../sdkwork-memory/sdks/sdkwork-memory-app-sdk/sdkwork-memory-app-sdk-typescript"
   - "../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/sdkwork-prompts-app-sdk-typescript"
+  - "../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/generated/server-openapi"
 
 catalog:
   react: ^19.0.0
@@ -233,3 +237,10 @@ catalog:
   rollup: ^4.0.0
   signature_pad: ^5.1.3
   tiptap-markdown: ^0.9.0
+  date-fns: ^4.1.0
+  html-to-image: ^1.11.13
+  qrcode.react: ^4.2.0
+  react-easy-crop: ^5.5.7
+  react-signature-canvas: ^1.1.0-alpha.2
+  "@types/react-signature-canvas": ^1.0.7
+  i18next-browser-languagedetector: ^8.2.1

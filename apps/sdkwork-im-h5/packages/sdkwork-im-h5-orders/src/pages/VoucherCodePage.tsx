@@ -46,7 +46,7 @@ const { code } = useParams();
           </div>
           
           <div className="w-[220px] h-[220px] bg-white rounded-lg flex items-center justify-center border-[6px] border-white shadow-sm mb-6 relative overflow-hidden">
-             <div className="absolute inset-0 bg-[url('https://cdn-icons-png.flaticon.com/512/714/714390.png')] bg-contain bg-center bg-no-repeat opacity-80 mix-blend-multiply"></div>
+             <div className="absolute inset-0 bg-[url('https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/voucher-icon/220x220.png')] bg-contain bg-center bg-no-repeat opacity-80 mix-blend-multiply"></div>
           </div>
           
           <p className="text-[14px] text-text-sub mt-2 text-center leading-relaxed">{t('orders.auto_577b17c4', '请在门店向收银员出示此码')}<br />{t('orders.auto_72f49244', '或将上面数字告知店员进行核销')}</p>

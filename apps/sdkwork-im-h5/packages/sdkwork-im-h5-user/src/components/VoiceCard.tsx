@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import React from "react";
 import { Mic, Play, Square } from "lucide-react";
 import { motion } from "motion/react";

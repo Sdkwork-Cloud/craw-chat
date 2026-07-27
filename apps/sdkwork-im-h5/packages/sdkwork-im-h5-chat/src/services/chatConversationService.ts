@@ -1,66 +1,77 @@
-import { getImSdkClient } from '@sdkwork/im-h5-core';
-import type { ImSdkClient } from '@sdkwork/im-sdk';
+import {
+  ImSdkClient,
+  type ConversationMessageListResponse,
+  type ImSdkClientOptions,
+  type MessageHistoryListParams,
+  type PostMessageResult,
+} from '@sdkwork/im-sdk';
 
-export interface ConversationMessageListResponse {
-  messages: ConversationMessage[];
-  nextCursor?: string;
-  hasMore: boolean;
+let imSdkClient: ImSdkClient | null = null;
+
+function resolveImApiBaseUrl(): string {
+  const meta = import.meta as ImportMeta & {
+    env?: Record<string, string | undefined>;
+  };
+  const fromEnv = meta.env?.SDKWORK_IM_API_BASE_URL
+    ?? meta.env?.VITE_SDKWORK_IM_API_BASE_URL;
+  if (typeof fromEnv === 'string' && fromEnv.trim().length > 0) {
+    return fromEnv.trim();
+  }
+  return '/';
 }
 
-export interface ConversationMessage {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  text?: string;
-  type: string;
-  createdAt: string;
+function resolveImAuthToken(): string | undefined {
+  const meta = import.meta as ImportMeta & {
+    env?: Record<string, string | undefined>;
+  };
+  return meta.env?.SDKWORK_IM_AUTH_TOKEN
+    ?? meta.env?.VITE_SDKWORK_IM_AUTH_TOKEN;
 }
 
-export interface PostMessageResult {
-  messageId: string;
-  conversationId: string;
-  createdAt: string;
+function resolveImAccessToken(): string | undefined {
+  const meta = import.meta as ImportMeta & {
+    env?: Record<string, string | undefined>;
+  };
+  return meta.env?.SDKWORK_IM_ACCESS_TOKEN
+    ?? meta.env?.VITE_SDKWORK_IM_ACCESS_TOKEN;
 }
 
-export interface ListMessagesParams {
-  cursor?: string;
-  limit?: number;
-  direction?: 'before' | 'after';
+function resolveImSdkClientOptions(): ImSdkClientOptions {
+  return {
+    apiBaseUrl: resolveImApiBaseUrl(),
+    authToken: resolveImAuthToken(),
+    accessToken: resolveImAccessToken(),
+    platform: 'h5',
+  };
 }
 
-async function resolveImSdkClient(): Promise<ImSdkClient> {
-  return getImSdkClient();
+export function setImSdkClient(client: ImSdkClient | null): void {
+  imSdkClient = client;
+}
+
+export function getImSdkClient(): ImSdkClient {
+  if (!imSdkClient) {
+    imSdkClient = new ImSdkClient(resolveImSdkClientOptions());
+  }
+  return imSdkClient;
+}
+
+export interface ListMessagesOptions {
+  params?: MessageHistoryListParams;
 }
 
 export async function listMessages(
   conversationId: string,
-  params?: ListMessagesParams,
+  options: ListMessagesOptions = {},
 ): Promise<ConversationMessageListResponse> {
-  const client = await resolveImSdkClient();
-  const response = await client.conversations.listMessages(conversationId, params);
-  return response as unknown as ConversationMessageListResponse;
+  const client = getImSdkClient();
+  return client.conversations.listMessages(conversationId, options.params);
 }
 
 export async function postText(
   conversationId: string,
   text: string,
-  body?: Record<string, unknown>,
 ): Promise<PostMessageResult> {
-  const client = await resolveImSdkClient();
-  const result = await client.conversations.postText(conversationId, text, body as Parameters<typeof client.conversations.postText>[2]);
-  return result as unknown as PostMessageResult;
-}
-
-export async function fetchConversationMessages(
-  conversationId: string,
-  params?: ListMessagesParams,
-): Promise<ConversationMessageListResponse> {
-  return listMessages(conversationId, params);
-}
-
-export async function sendConversationText(
-  conversationId: string,
-  text: string,
-): Promise<PostMessageResult> {
-  return postText(conversationId, text);
+  const client = getImSdkClient();
+  return client.conversations.postText(conversationId, text);
 }

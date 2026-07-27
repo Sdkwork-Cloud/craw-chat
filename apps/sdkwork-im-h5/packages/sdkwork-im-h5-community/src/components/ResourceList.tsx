@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React from "react";
 import { Resource } from "../types";
 import { IconButton, showToast } from "@sdkwork/im-h5-commons";

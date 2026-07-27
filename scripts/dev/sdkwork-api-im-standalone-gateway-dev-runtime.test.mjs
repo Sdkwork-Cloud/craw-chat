@@ -119,6 +119,40 @@ assert.equal(
   'explicit available server binds must not be reported as automatic port fallback',
 );
 
+const wildcardBindEnv = await resolveStandaloneGatewayBindEnv({
+  env: {
+    SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '0.0.0.0:18079',
+    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'http://127.0.0.1:18079',
+    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'ws://127.0.0.1:18079',
+  },
+  isPortAvailable: async (port, host) => port === 18079 && host === '0.0.0.0',
+  maxAttempts: 1,
+});
+assert.equal(wildcardBindEnv.bindAddr, '0.0.0.0:18079');
+assert.equal(
+  wildcardBindEnv.env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  'http://127.0.0.1:18079',
+  'wildcard server binds must preserve the topology-owned browser-reachable public URL',
+);
+assert.equal(
+  wildcardBindEnv.env.SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  'ws://127.0.0.1:18079',
+  'wildcard server binds must preserve the topology-owned browser-reachable websocket URL',
+);
+
+const wildcardBindWithoutPublicUrl = await resolveStandaloneGatewayBindEnv({
+  env: {
+    SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '0.0.0.0:18079',
+  },
+  isPortAvailable: async () => true,
+  maxAttempts: 1,
+});
+assert.equal(
+  wildcardBindWithoutPublicUrl.env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  'http://127.0.0.1:18079',
+  'wildcard binds without an explicit public URL must derive a loopback-safe URL',
+);
+
 const explicitBusyBindEnv = await resolveStandaloneGatewayBindEnv({
   env: {
     SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '127.0.0.1:18079',
@@ -160,6 +194,51 @@ assert.match(
   /resolveStandaloneGatewayBindEnv/u,
   'pnpm dev:server startup must use the canonical gateway bind helper',
 );
+assert.match(
+  startScript,
+  /resolveStandaloneGatewayBindEnv\(\{[\s\S]*maxAttempts:\s*1/u,
+  'sdkwork-app startup must keep the topology-resolved standalone gateway bind instead of drifting to another port',
+);
+
+const gatewayDevRunner = fs.readFileSync(
+  path.join(repoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs'),
+  'utf8',
+);
+const standaloneGatewayMain = fs.readFileSync(
+  path.join(repoRoot, 'crates/sdkwork-api-im-standalone-gateway/src/main.rs'),
+  'utf8',
+);
+assert.match(
+  standaloneGatewayMain,
+  /RouterProductRuntimeOptions::desktop_for_api_assembly_host/u,
+  'standalone gateway product assets must not duplicate portal APIs owned by sdkwork-api-im-assembly',
+);
+assert.match(
+  standaloneGatewayMain,
+  /\.merge\(api_assembly\.router\)/u,
+  'standalone gateway must mount the canonical IM API assembly as an indivisible router',
+);
+assert.match(
+  gatewayDevRunner,
+  /validate-api-assembly\.mjs/u,
+  'standalone gateway dev builds must validate the canonical IM API assembly before Cargo compilation',
+);
+assert.ok(
+  gatewayDevRunner.indexOf('validateApiAssembly(repoRoot)')
+    < gatewayDevRunner.indexOf("'build'"),
+  'API assembly validation must run before the standalone gateway Cargo build',
+);
+
+const topology = JSON.parse(
+  fs.readFileSync(path.join(repoRoot, 'specs/topology.spec.json'), 'utf8'),
+);
+const publicIngress = topology.surfaces['application.public-ingress'];
+assert.ok(
+  publicIngress.healthAttempts >= 300,
+  'application.public-ingress must allow a bounded five-minute first-build health window',
+);
+assert.equal(publicIngress.healthIntervalMs, 1000);
+assert.equal(publicIngress.healthTimeoutMs, 2000);
 assert.match(
   fs.readFileSync(path.join(repoRoot, 'scripts/lib/im-pc-dev.mjs'), 'utf8'),
   /createStandaloneGatewayCargoEnv/u,

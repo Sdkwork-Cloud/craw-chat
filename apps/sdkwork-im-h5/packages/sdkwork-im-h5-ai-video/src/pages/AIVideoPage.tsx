@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   ChevronLeft,
@@ -118,7 +118,8 @@ const { t } = useTranslation('ai_video');
   const downloadVideo = async (url?: string) => {
     if (!url) return;
     try {
-      const blob = await AIVideoService.downloadBlob(url);
+      const resp = await fetch(url);
+      const blob = await resp.blob();
       const objUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objUrl;

@@ -2,41 +2,18 @@ import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, ChevronRight, QrCode } from "lucide-react";
-import { Avatar, IconButton, cn } from "@sdkwork/im-h5-commons";
+import { Avatar, IconButton } from "@sdkwork/im-h5-commons";
 import { ProfileService, type UserProfile } from "../services/ProfileService";
+import { ProfileListItem } from "../components/ProfileListItem";
 
 export const MyProfile: React.FC = () => {
   const { t } = useTranslation();
-const navigate = useNavigate();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     ProfileService.getUserProfile().then(setProfile);
   }, []);
-
-  const ListItem = ({
-    label,
-    rightText,
-    rightElement,
-    onClick,
-  }: {
-    label: React.ReactNode;
-    rightText?: React.ReactNode;
-    rightElement?: React.ReactNode;
-    onClick?: () => void;
-  }) => (
-    <div
-      onClick={onClick}
-      className="flex items-center justify-between px-4 py-3.5 bg-chat-other-bg active:bg-active-bg transition-colors cursor-pointer border-b border-border-color last:border-none"
-    >
-      <span className="text-[16px] text-text-main">{label}</span>
-      <div className="flex items-center gap-2 text-text-sub">
-        {rightText && <span className="text-[15px]">{rightText}</span>}
-        {rightElement}
-        <ChevronRight className="w-5 h-5 opacity-50" />
-      </div>
-    </div>
-  );
 
   return (
     <div className="flex flex-col h-full bg-bg-color overflow-y-auto">
@@ -64,37 +41,37 @@ const navigate = useNavigate();
             <span className="text-[16px] text-text-main">{t('user.auto_b1e1b', '头像')}</span>
             <div className="flex items-center gap-2 text-text-sub">
               <Avatar
-                src={profile?.avatar || "https://picsum.photos/seed/me/200/200"}
+                src={profile?.avatar || "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/me/200x200.png"}
                 size="md"
                 className="w-14 h-14 rounded-xl"
               />
               <ChevronRight className="w-5 h-5 opacity-50" />
             </div>
           </div>
-          <ListItem
+          <ProfileListItem
             label={t('user.auto_prop_a88ea', '名字')}
             rightText={profile?.name || "User"}
             onClick={() => navigate("/my-profile/name")}
           />
-          <ListItem
+          <ProfileListItem
             label={t('user.auto_prop_17cb85a', '拍一拍')}
             onClick={() => navigate("/my-profile/tickle")}
           />
-          <ListItem
+          <ProfileListItem
             label={t('user.auto_prop_1712c64', '微信号')}
             rightText={profile?.wechatId || "wxid_123456789"}
           />
-          <ListItem
+          <ProfileListItem
             label={t('user.auto_prop_n62fa905a', '我的二维码')}
             rightElement={<QrCode className="w-5 h-5" />}
             onClick={() => navigate("/my-profile/qrcode")}
           />
-          <ListItem label={t('user.auto_prop_cd0a6', '更多')} onClick={() => navigate("/my-profile/more")} />
+          <ProfileListItem label={t('user.auto_prop_cd0a6', '更多')} onClick={() => navigate("/my-profile/more")} />
         </div>
 
         {/* Group 2 */}
         <div className="mb-2 border-y border-border-color flex flex-col">
-          <ListItem
+          <ProfileListItem
             label={t('user.auto_prop_30ca7afd', '来电铃声')}
             onClick={() => navigate("/my-profile/ringtone")}
           />
@@ -102,11 +79,11 @@ const navigate = useNavigate();
 
         {/* Group 3 */}
         <div className="border-y border-border-color flex flex-col">
-          <ListItem
+          <ProfileListItem
             label={t('user.auto_prop_17164b3', '微信豆')}
             onClick={() => navigate("/my-profile/beans")}
           />
-          <ListItem
+          <ProfileListItem
             label={t('user.auto_prop_2e5be3e3', '我的地址')}
             onClick={() => navigate("/my-profile/address")}
           />

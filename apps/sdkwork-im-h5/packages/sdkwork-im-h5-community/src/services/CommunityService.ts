@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { Community, Post, Resource } from '../types';
 
 let MOCK_COMMUNITIES: Community[] = [
@@ -6,7 +5,7 @@ let MOCK_COMMUNITIES: Community[] = [
     id: "comm_1",
     name: "AI 开发者联盟",
     description: "专注人工智能、大模型、AIGC技术交流与落地应用的实战社区。",
-    coverImage: "https://picsum.photos/seed/comm_1/400/200",
+    coverImage: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/comm_1/400x200.png",
     memberCount: 12500,
     postCount: 3420,
     tags: ["AI", "大模型", "AIGC", "开发"],
@@ -16,7 +15,7 @@ let MOCK_COMMUNITIES: Community[] = [
     id: "comm_2",
     name: "产品经理交流圈",
     description: "分享产品方法论、行业洞察、好书推荐。致力于培养顶尖产品经理。",
-    coverImage: "https://picsum.photos/seed/comm_2/400/200",
+    coverImage: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/comm_2/400x200.png",
     memberCount: 8430,
     postCount: 1280,
     tags: ["产品", "商业", "增长"],
@@ -28,7 +27,7 @@ let MOCK_COMMUNITIES: Community[] = [
     id: "comm_3",
     name: "独立开发者聚集地",
     description: "Indie Hackers, 分享一人公司的开发经验、出海经验和变现思路。",
-    coverImage: "https://picsum.photos/seed/comm_3/400/200",
+    coverImage: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/comm_3/400x200.png",
     memberCount: 5200,
     postCount: 890,
     tags: ["独立开发", "出海", "搞钱"],
@@ -44,7 +43,7 @@ let MOCK_POSTS: Record<string, Post[]> = {
       communityId: "comm_1",
       authorId: "user_1",
       authorName: "AI 极客",
-      authorAvatar: "https://i.pravatar.cc/150?u=user_1",
+      authorAvatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/user_1/150.png",
       content: "今天开源了一个基于本地大模型的RAG问答项目，支持LangChain，可以直接平替各种昂贵的API，大家去我的Github支持下求个Star！",
       createdAt: "2026-05-28T01:30:00Z",
       likes: 124,
@@ -60,9 +59,9 @@ let MOCK_POSTS: Record<string, Post[]> = {
       communityId: "comm_1",
       authorId: "user_2",
       authorName: "算法打工人",
-      authorAvatar: "https://i.pravatar.cc/150?u=user_2",
+      authorAvatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/user_2/150.png",
       content: "今年大模型在自动驾驶方向有没有搞头？感觉年底几家大厂又要卷出天际了...",
-      images: ["https://picsum.photos/seed/post2_img/300/200"],
+      images: ["https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/post2_img/300x200.png"],
       createdAt: "2026-05-27T14:15:00Z",
       likes: 45,
       comments: 0
@@ -106,7 +105,7 @@ let MOCK_GROUPS: Record<string, CommunityGroup[]> = {
       platform: "wechat",
       description: "日常交流AI前沿资讯、开发心得",
       memberCount: 450,
-      qrCodes: [{ url: "https://picsum.photos/seed/wxqr/200/200", description: "扫码加入1群" }],
+      qrCodes: [{ url: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/wxqr/200x200.png", description: "扫码加入1群" }],
       createdAt: "2026-01-10T10:00:00Z"
     },
     {
@@ -116,7 +115,7 @@ let MOCK_GROUPS: Record<string, CommunityGroup[]> = {
       platform: "dingtalk",
       description: "仅限代码贡献者加入",
       memberCount: 120,
-      qrCodes: [{ url: "https://picsum.photos/seed/dingqr/200/200", description: "扫码加入开源群" }],
+      qrCodes: [{ url: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/dingqr/200x200.png", description: "扫码加入开源群" }],
       createdAt: "2026-02-15T12:00:00Z"
     },
     {
@@ -126,7 +125,7 @@ let MOCK_GROUPS: Record<string, CommunityGroup[]> = {
       platform: "discord",
       description: "海内外开发者无缝交流",
       memberCount: 2200,
-      qrCodes: [{ url: "https://picsum.photos/seed/discordqr/200/200", description: "Discord 群入口" }],
+      qrCodes: [{ url: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/discordqr/200x200.png", description: "Discord 群入口" }],
       createdAt: "2026-03-20T14:00:00Z"
     }
   ]
@@ -138,7 +137,7 @@ let MOCK_MEMBERS: Record<string, CommunityMember[]> = {
       id: "mem_1",
       communityId: "comm_1",
       name: "Alice",
-      avatar: "https://i.pravatar.cc/150?u=mem_1",
+      avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/mem_1/150.png",
       role: "owner",
       joinDate: "2023-01-10T10:00:00Z",
       status: "active",
@@ -148,7 +147,7 @@ let MOCK_MEMBERS: Record<string, CommunityMember[]> = {
       id: "mem_2",
       communityId: "comm_1",
       name: "Bob",
-      avatar: "https://i.pravatar.cc/150?u=mem_2",
+      avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/mem_2/150.png",
       role: "admin",
       joinDate: "2023-02-15T12:00:00Z",
       status: "active",
@@ -158,7 +157,7 @@ let MOCK_MEMBERS: Record<string, CommunityMember[]> = {
       id: "mem_3",
       communityId: "comm_1",
       name: "Charlie",
-      avatar: "https://i.pravatar.cc/150?u=mem_3",
+      avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/mem_3/150.png",
       role: "member",
       joinDate: "2023-05-20T14:00:00Z",
       status: "active"
@@ -167,7 +166,7 @@ let MOCK_MEMBERS: Record<string, CommunityMember[]> = {
       id: "mem_4",
       communityId: "comm_1",
       name: "David",
-      avatar: "https://i.pravatar.cc/150?u=mem_4",
+      avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/mem_4/150.png",
       role: "member",
       joinDate: "2023-06-10T09:00:00Z",
       status: "muted"
@@ -176,7 +175,7 @@ let MOCK_MEMBERS: Record<string, CommunityMember[]> = {
       id: "mem_5",
       communityId: "comm_1",
       name: "Eve",
-      avatar: "https://i.pravatar.cc/150?u=mem_5",
+      avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/mem_5/150.png",
       role: "member",
       joinDate: "2023-08-01T16:00:00Z",
       status: "banned"
@@ -294,7 +293,7 @@ export const CommunityService = {
           communityId,
           authorId: "me",
           authorName: "我",
-          authorAvatar: "https://i.pravatar.cc/150?u=me",
+          authorAvatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/me/150.png",
           content,
           images,
           createdAt: new Date().toISOString(),

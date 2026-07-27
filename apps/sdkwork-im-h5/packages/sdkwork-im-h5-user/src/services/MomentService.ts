@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import type { User } from "@sdkwork/im-h5-types";
 
 export interface Moment {
@@ -18,10 +17,10 @@ const INITIAL_MOMENTS: Moment[] = [
     author: {
       id: "u4",
       name: "Jacky",
-      avatar: "https://picsum.photos/seed/jacky/200/200",
+      avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/jacky/200x200.png",
     },
     content: "分享一段好看的视频！",
-    video: "https://www.w3schools.com/html/mov_bbb.mp4",
+    video: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/sample.mp4",
     timestamp: Date.now() - 1000 * 60 * 10,
     likes: ["u1"],
     comments: [],
@@ -31,13 +30,13 @@ const INITIAL_MOMENTS: Moment[] = [
     author: {
       id: "u2",
       name: "Sarah Jenkins",
-      avatar: "https://picsum.photos/seed/sarah/200/200",
+      avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/sarah/200x200.png",
       status: "online",
     },
     content: "今天天气真好！出去走走~ 🌞",
     images: [
-      "https://picsum.photos/seed/mom1/400/300",
-      "https://picsum.photos/seed/mom2/400/300",
+      "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/mom1/400x300.png",
+      "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/mom2/400x300.png",
     ],
     timestamp: Date.now() - 1000 * 60 * 30,
     likes: ["u3", "u4"],
@@ -50,7 +49,7 @@ const INITIAL_MOMENTS: Moment[] = [
     author: {
       id: "u3",
       name: "David Lee",
-      avatar: "https://picsum.photos/seed/david/200/200",
+      avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/david/200x200.png",
     },
     content: "刚看完一本好书，推荐给大家《设计心理学》。",
     timestamp: Date.now() - 1000 * 60 * 60 * 2,
@@ -104,7 +103,7 @@ export const MomentService = {
       author: (authorProfile as User) || {
         id: "u1",
         name: "Alex Chen",
-        avatar: "https://picsum.photos/seed/alex/200/200",
+        avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/alex/200x200.png",
         status: "online",
       },
       content,

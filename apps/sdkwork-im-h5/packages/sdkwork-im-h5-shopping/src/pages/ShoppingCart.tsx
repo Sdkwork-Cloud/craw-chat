@@ -1,9 +1,10 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, Trash2, ShoppingCart } from "lucide-react";
 import { IconButton, cn } from "@sdkwork/im-h5-commons";
 import { useCartStore } from "../store/useCartStore";
+import { ShoppingCartItem } from "../components/Cart/ShoppingCartItem";
 
 export const ShoppingCartPage = () => {
   const { t } = useTranslation();
@@ -63,86 +64,14 @@ const navigate = useNavigate();
         ) : (
           <div className="flex flex-col gap-3">
             {items.map((item) => (
-              <div
+              <ShoppingCartItem
                 key={item.id}
-                className="bg-chat-other-bg rounded-xl p-3 flex gap-3 items-center"
-              >
-                <div
-                  className={cn(
-                    "w-5 h-5 rounded-full border shrink-0 flex items-center justify-center cursor-pointer transition-colors",
-                    item.checked
-                      ? "bg-[#FA5151] border-[#FA5151]"
-                      : "border-text-sub/40",
-                  )}
-                  onClick={() => toggleItemCheck(item.id, !item.checked)}
-                >
-                  {item.checked && (
-                    <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                  )}
-                </div>
-
-                <img
-                  src={item.product.image}
-                  className="w-20 h-20 rounded-lg object-cover bg-chat-other-bg shrink-0 cursor-pointer"
-                  onClick={() => navigate(`/product/${item.productId}`)}
-                />
-
-                <div className="flex-1 flex flex-col min-w-0 py-1">
-                  <span
-                    className="text-[14px] text-text-main leading-tight line-clamp-2 mb-1 cursor-pointer"
-                    onClick={() => navigate(`/product/${item.productId}`)}
-                  >
-                    {item.product.title}
-                  </span>
-                  {item.selectedSpecs && item.product.specs && (
-                    <div className="bg-text-sub/5 text-text-sub text-[11px] px-1.5 py-0.5 rounded w-fit mb-2 mt-0.5 line-clamp-1">
-                      {Object.values(item.selectedSpecs).map(vId => {
-                        for(const s of item.product.specs || []) {
-                          const opt = s.options.find(o => o.id === vId);
-                          if (opt) return opt.name;
-                        }
-                        return vId;
-                      }).join("，")}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between mt-auto">
-                    <span className="text-[#FA5151] font-bold text-[16px]">
-                      <span className="text-[12px]">¥</span>
-                      {item.sku?.price || item.product.price}
-                    </span>
-                    <div className="flex items-center border border-border-color rounded-md overflow-hidden">
-                      <button
-                        className="w-7 h-6 flex items-center justify-center bg-chat-other-bg text-[14px] active:bg-[#E5E5E5] transition-colors"
-                        onClick={() =>
-                          updateQuantity(item.id, item.quantity - 1)
-                        }
-                      >
-                        -
-                      </button>
-                      <span className="w-8 h-6 flex items-center justify-center text-[13px] bg-chat-other-bg border-x border-border-color">
-                        {item.quantity}
-                      </span>
-                      <button
-                        className="w-7 h-6 flex items-center justify-center bg-chat-other-bg text-[14px] active:bg-[#E5E5E5] transition-colors"
-                        onClick={() =>
-                          updateQuantity(item.id, item.quantity + 1)
-                        }
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="shrink-0 h-full flex items-center pl-2">
-                  <div
-                    className="p-2 text-text-sub/50 active:text-text-main transition-colors cursor-pointer"
-                    onClick={() => handleRemove(item.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </div>
-                </div>
-              </div>
+                item={item}
+                onToggleCheck={(id, checked) => toggleItemCheck(id, checked)}
+                onUpdateQuantity={(id, qty) => updateQuantity(id, qty)}
+                onRemove={handleRemove}
+                onNavigateToProduct={(productId) => navigate(`/product/${productId}`)}
+              />
             ))}
           </div>
         )}

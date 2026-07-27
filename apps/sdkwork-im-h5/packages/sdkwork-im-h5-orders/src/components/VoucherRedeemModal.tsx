@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React, { useState } from "react";
 import { X, QrCode, Search } from "lucide-react";
 import { showToast } from "@sdkwork/im-h5-commons";

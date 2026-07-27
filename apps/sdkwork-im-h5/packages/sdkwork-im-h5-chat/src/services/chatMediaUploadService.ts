@@ -1,53 +1,51 @@
 import {
-  getDriveAppSdkClientWithSession,
+  createDriveAppClient,
   type SdkworkDriveAppClient,
-  type DriveUploaderRequest,
-  type DriveUploaderUploadResult,
 } from '@sdkwork/im-h5-core';
 
-export interface ChatMediaUploadRequest {
-  blob: Blob;
-  filename: string;
-  mimeType: string;
-  conversationId: string;
+let sessionAwareDriveClient: SdkworkDriveAppClient | null = null;
+
+function resolveSessionTokens(): {
+  accessToken?: string;
+  authToken?: string;
+} {
+  if (typeof localStorage === 'undefined') {
+    return {};
+  }
+
+  try {
+    const raw = localStorage.getItem('sdkwork-im-h5-session');
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as {
+      accessToken?: string;
+      authToken?: string;
+    };
+    return {
+      accessToken: parsed.accessToken,
+      authToken: parsed.authToken,
+    };
+  } catch {
+    return {};
+  }
 }
 
-export interface ChatMediaUploadResult {
-  fileId: string;
-  url: string;
-  filename: string;
-  mimeType: string;
-  size: number;
+export function getDriveAppSdkClientWithSession(): SdkworkDriveAppClient {
+  if (sessionAwareDriveClient) {
+    return sessionAwareDriveClient;
+  }
+
+  const session = resolveSessionTokens();
+  sessionAwareDriveClient = createDriveAppClient({
+    accessToken: session.accessToken,
+    authToken: session.authToken,
+    platform: 'h5',
+  });
+
+  return sessionAwareDriveClient;
 }
 
-function toUploaderRequest(request: ChatMediaUploadRequest): DriveUploaderRequest {
-  return {
-    blob: request.blob,
-    filename: request.filename,
-    mimeType: request.mimeType,
-  } as unknown as DriveUploaderRequest;
-}
-
-function toChatMediaUploadResult(
-  uploadResult: DriveUploaderUploadResult,
-  request: ChatMediaUploadRequest,
-): ChatMediaUploadResult {
-  const record = uploadResult as unknown as Record<string, unknown>;
-  return {
-    fileId: String(record.fileId ?? record.id ?? record.nodeId ?? ''),
-    url: String(record.url ?? record.downloadUrl ?? record.location ?? ''),
-    filename: request.filename,
-    mimeType: request.mimeType,
-    size: request.blob.size,
-  };
-}
-
-export async function uploadChatMedia(request: ChatMediaUploadRequest): Promise<ChatMediaUploadResult> {
-  const driveClient = getDriveAppSdkClientWithSession();
-  const uploadResult = await driveClient.uploader.uploadAttachment(toUploaderRequest(request));
-  return toChatMediaUploadResult(uploadResult, request);
-}
-
-export function getChatMediaUploadClient(): SdkworkDriveAppClient {
-  return getDriveAppSdkClientWithSession();
+export function resetDriveAppSdkClientWithSession(): void {
+  sessionAwareDriveClient = null;
 }

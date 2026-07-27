@@ -12,7 +12,7 @@ export interface UserProfile extends User {
 const INITIAL_PROFILE: UserProfile = {
   id: "u1",
   name: "Alex Chen",
-  avatar: "https://picsum.photos/seed/alex/200/200",
+  avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/alex/200x200.png",
   status: "online",
   wechatId: "wxid_123456789",
   phone: "138****8888",

@@ -13,12 +13,20 @@ function read(relativePath, root = repoRoot) {
 
 const bootstrapSource = read('crates/sdkwork-im-iam-application-bootstrap/src/lib.rs');
 const bootstrapCargo = read('crates/sdkwork-im-iam-application-bootstrap/Cargo.toml');
+const componentSpec = JSON.parse(
+  read('crates/sdkwork-im-iam-application-bootstrap/specs/component.spec.json'),
+);
+const appManifests = [
+  ['apps/sdkwork-im-pc/sdkwork.app.config.json', 'sdkwork-im-pc'],
+  ['apps/sdkwork-im-h5/sdkwork.app.config.json', 'sdkwork-im-h5'],
+  ['apps/sdkwork-im-flutter-mobile/sdkwork.app.config.json', 'sdkwork-im-flutter-mobile'],
+];
 const sharedBootstrapSource = read(
-  'crates/sdkwork-iam-embedded-application-bootstrap/src/runtime.rs',
+  'crates/sdkwork-iam-web-adapter/src/embedded_bootstrap.rs',
   iamRepoRoot,
 );
 const sharedManifestSource = read(
-  'crates/sdkwork-iam-embedded-application-bootstrap/src/manifest.rs',
+  'crates/sdkwork-iam-web-adapter/src/app_manifest.rs',
   iamRepoRoot,
 );
 const standaloneGatewayMain = read('crates/sdkwork-api-im-standalone-gateway/src/main.rs');
@@ -43,8 +51,8 @@ const databaseHostSource = read('crates/sdkwork-iam-database-host/src/lib.rs', i
 
 assert.match(
   bootstrapSource,
-  /sdkwork_iam_embedded_application_bootstrap::ensure_tenant_applications_on_pool/u,
-  'IM adapter must delegate tenant application provisioning to the shared embedded bootstrap crate.',
+  /ensure_tenant_applications_from_app_root_on_pool\(/u,
+  'IM adapter must delegate existing-pool provisioning to shared application-root discovery.',
 );
 
 assert.match(
@@ -59,23 +67,23 @@ assert.doesNotMatch(
   'IM adapter must not duplicate ensure_tenant_application_runtime; use the shared crate.',
 );
 
-assert.match(
+for (const [manifestPath, expectedAppId] of appManifests) {
+  const manifest = JSON.parse(read(manifestPath));
+  assert.equal(
+    manifest.backend?.appId,
+    expectedAppId,
+    `${manifestPath} must declare the credential-entry runtime appId.`,
+  );
+}
+
+assert.doesNotMatch(
   bootstrapSource,
-  /IM_PC_RUNTIME_APP_ID:\s*&str\s*=\s*"sdkwork-im-pc"/u,
-  'IM IAM application bootstrap must register the PC runtime appId used by sdkwork-im-pc auth runtime.',
+  /IM_(?:PC|H5|FLUTTER_MOBILE)_RUNTIME_APP_ID|im_(?:pc|h5|flutter_mobile)_runtime_binding/u,
+  'IM adapter must not hardcode a PC/H5/Flutter runtime binding list.',
 );
 
-assert.match(
-  bootstrapSource,
-  /IM_H5_RUNTIME_APP_ID:\s*&str\s*=\s*"sdkwork-im-h5"/u,
-  'IM IAM application bootstrap must register the H5 runtime appId used by sdkwork-im-h5 auth runtime.',
-);
-
-assert.match(
-  bootstrapSource,
-  /IM_FLUTTER_MOBILE_RUNTIME_APP_ID:\s*&str\s*=\s*"sdkwork-im-flutter-mobile"/u,
-  'IM IAM application bootstrap must register the Flutter mobile runtime appId used by sdkwork-im-flutter-mobile auth runtime.',
-);
+assert.equal(componentSpec.component.name, 'sdkwork-im-iam-application-bootstrap');
+assert.equal(componentSpec.contracts.layerRole, 'runtime-composition');
 
 assert.match(
   bootstrapSource,
@@ -138,21 +146,15 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  bootstrapSource,
-  /sdkwork_im_pc_dev/u,
-  'IM PC runtime binding test must assert shared instance_key rules (sdkwork_im_pc_dev).',
+  sharedBootstrapSource,
+  /discover_application_manifest_roots\(app_root\)/u,
+  'Shared bootstrap must discover the repository manifest and direct manifest-bearing application roots.',
 );
 
 assert.match(
-  bootstrapSource,
-  /sdkwork_im_h5_prod/u,
-  'IM H5 runtime binding test must assert shared instance_key rules (sdkwork_im_h5_prod).',
-);
-
-assert.match(
-  bootstrapSource,
-  /sdkwork_im_flutter_mobile_dev/u,
-  'IM Flutter mobile runtime binding test must assert shared instance_key rules (sdkwork_im_flutter_mobile_dev).',
+  sharedManifestSource,
+  /resolve_manifest_runtime_app_bindings\(manifest\)/u,
+  'Shared bootstrap must derive runtime identities from each manifest.',
 );
 
 assert.match(

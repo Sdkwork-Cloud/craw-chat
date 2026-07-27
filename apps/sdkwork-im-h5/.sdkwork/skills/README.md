@@ -1,5 +1,13 @@
-# Local Skills
+# SDKWork IM H5 Skills
 
-This directory hosts SDKWork skills scoped to the `sdkwork-im-h5` application root.
+Application-local skills for `apps/sdkwork-im-h5` belong here.
 
-Local skills may automate H5-specific development, validation, release, or host-adapter workflows. They must reference global standards through relative paths and must not duplicate `sdkwork-specs` content.
+Skills must:
+
+- Use lowercase kebab-case directories.
+- Provide `SKILL.md` as the entrypoint.
+- Cite relevant root specs under `../../../sdkwork-specs/`.
+- Document expected inputs, touched files, commands, and verification.
+
+Skills must not store runtime data, generated SDK output, secrets, credentials, provider account
+ids, user-private files, or local caches.

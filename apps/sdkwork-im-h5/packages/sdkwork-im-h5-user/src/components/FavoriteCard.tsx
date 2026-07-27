@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React from "react";
 import { Search, FileText, Image as ImageIcon, Mic, File, Link as LinkIcon, MessageCircle } from "lucide-react";
 import { cn } from "@sdkwork/im-h5-commons";

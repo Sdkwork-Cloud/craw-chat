@@ -33,7 +33,7 @@ Do not copy root standard text into this application root. If these relative pat
 
 ## Application Identity
 
-Read `sdkwork.app.config.json` for H5 identity, SDK/API inventory, release metadata, packaging capability, or app-owned capabilities. Read `etc/` for renderer runtime bindings and the parent deployment reference; concrete public domains remain owned by the IM root `etc/`.
+Read `sdkwork.app.config.json` for H5 identity, SDK/API inventory, release metadata, packaging, or app-owned capabilities. Read `etc/` for renderer runtime bindings and the parent deployment reference; concrete public domains remain owned by the IM root `etc/`.
 
 ## Local Dictionary Structure
 
@@ -42,15 +42,8 @@ Read `sdkwork.app.config.json` for H5 identity, SDK/API inventory, release metad
 - `sdkwork.app.config.json`: H5 application identity and release metadata.
 - `.sdkwork/`: application dictionary for local skills, plugins, manifests, and AI workspace metadata.
 - `specs/`: local H5 application/component contracts and narrowing rules.
-- `packages/`: H5 React package family for app, console, admin, shared runtime, and Capacitor host modules.
+- `packages/`: H5 React package family for app, chat, commons, core, and capability modules.
 - `src/`: thin H5 application bootstrap, providers, route assembly, and shell entry.
-- `config/`: typed runtime config examples for browser, host (Capacitor), server, and container targets.
-- `bin/`: cross-platform operational scripts for build, install, run, diagnostics, and mobile host helper commands.
-- `docs/`: H5 architecture notes, runbooks, release notes, and local decisions.
-- `public/`: browser-served static assets only.
-- `scripts/`: app-local build, validation, generation, migration, and development utilities.
-- `sdks/`: application-root SDK workspaces and generator inputs per `SDK_WORKSPACE_GENERATION_SPEC.md`.
-- `tests/`: application-level integration, runtime, route, package-boundary, host-adapter, config, and release verification tests.
 - `package.json`: app-surface command manifest; public command names still follow `PNPM_SCRIPT_SPEC.md`.
 
 ## Spec Resolution Order
@@ -80,7 +73,7 @@ Use dynamic progressive loading:
 - Package script changes: `../../../sdkwork-specs/PNPM_SCRIPT_SPEC.md`, `../../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_SPEC.md`, and `../../../sdkwork-specs/TEST_SPEC.md`.
 - Any code change: `../../../sdkwork-specs/CODE_STYLE_SPEC.md`, `../../../sdkwork-specs/NAMING_SPEC.md`, plus only the touched language/framework spec.
 - TypeScript/Node code: `../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md`.
-- Frontend/UI code: `../../../sdkwork-specs/FRONTEND_CODE_SPEC.md`, `../../../sdkwork-specs/FRONTEND_SPEC.md`, `../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md`, and `../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md`.
+- Frontend/UI code: `../../../sdkwork-specs/FRONTEND_CODE_SPEC.md`, `../../../sdkwork-specs/FRONTEND_SPEC.md`, `../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md`, and `../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md`.
 - H5 application architecture: `../../../sdkwork-specs/APPLICATION_SPEC.md`, `../../../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md`, and `../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md`.
 - Runtime config, SDK wiring, release metadata, and packaging changes must follow the task matrix in `../../../sdkwork-specs/README.md`.
 
@@ -88,31 +81,22 @@ Language-specific specs are on-demand; do not load unrelated specs for unrelated
 
 ## H5 Package Naming
 
-Canonical H5 package naming in this app root per `APP_H5_ARCHITECTURE_SPEC.md`:
+Canonical H5 mobile browser package naming in this app root:
 
-- Core runtime: `sdkwork-im-h5-core`
-- Commons: `sdkwork-im-h5-commons`
-- App shell: `sdkwork-im-h5-shell`
-- App capability: `sdkwork-im-h5-<capability>`
-- Console core: `sdkwork-im-h5-console-core`
-- Console shell: `sdkwork-im-h5-console-shell`
-- Console capability: `sdkwork-im-h5-console-<capability>`
-- Admin core: `sdkwork-im-h5-admin-core`
-- Admin shell: `sdkwork-im-h5-admin-shell`
-- Admin capability: `sdkwork-im-h5-admin-<capability>`
-- Capacitor host: `sdkwork-im-h5-capacitor`
+- H5-native capabilities: `sdkwork-im-h5-*`
+- Package family: `sdkwork-im-h5-chat`, `sdkwork-im-h5-commons`, `sdkwork-im-h5-core`, `sdkwork-im-h5-user`
 
 Historical `sdkwork-clawchat-mobile-*` names were retired and must not be reintroduced.
 
 ## Group Knowledgebase Boundary
 
 - The chat surface reads authoritative current membership through the generated IM SDK. Only the current group Owner can initialize or retry a group Knowledgebase; after activation, joined non-Guest Owners, Admins, and Members can open it.
-- Browser launch uses only an opaque ticket in the standalone Knowledgebase route fragment; Capacitor launch carries only that ticket through the registered deep link to the independent Knowledgebase host process.
+- Browser launch uses only an opaque ticket in the standalone Knowledgebase route fragment.
 - Feature packages use generated SDKs or approved composed facades only. They must not construct raw Knowledgebase HTTP requests, manual credentials, space identifiers, destination URLs, or embedded Knowledgebase Webviews.
 
 ## Code Style Rules
 
-Read `../../../sdkwork-specs/CODE_STYLE_SPEC.md` and `../../../sdkwork-specs/NAMING_SPEC.md` before code changes. Root `src/` must stay thin; business screens, services, i18n, state, and route contributions belong in packages. Feature packages use generated SDK clients or approved composed wrappers, not raw HTTP or manual credential headers.
+Read `../../../sdkwork-specs/CODE_STYLE_SPEC.md` and `../../../sdkwork-specs/NAMING_SPEC.md` before code changes. Root `src/` must stay thin; business pages, services, i18n, state, and route contributions belong in packages. Feature packages use generated SDK clients or approved composed wrappers, not raw HTTP or manual credential headers.
 
 ## Build, Test, and Verification
 
@@ -126,11 +110,9 @@ Run workspace-wide checks only when the change crosses that boundary.
 Run commands from this application root unless a command explicitly targets the repository root:
 
 - `pnpm dev`
-- `pnpm dev:browser:postgres:standalone`
-- `pnpm dev:browser:cloud`
+- `pnpm dev:browser`
 - `pnpm build`
 - `pnpm lint`
-- `pnpm test`
 
 From the repository root, run `pnpm test:sdkwork-workspace-structure-standard`, `pnpm check:pnpm-script-standard`, and `pnpm check:agent-workflow-standard` when changing application-root dictionary, package taxonomy, commands, AGENTS, packaging, or workflow metadata.
 

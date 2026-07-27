@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { CartItem, Product } from "../types";
 
 const STORAGE_KEY = "sdkwork_im_h5_shopping_cart";

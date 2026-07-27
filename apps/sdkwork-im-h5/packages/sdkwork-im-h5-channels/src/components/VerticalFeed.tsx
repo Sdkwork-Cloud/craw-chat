@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React from "react";
 import { Search, Heart, MessageCircle, Send, Wand2, Video, Image as ImageIcon } from "lucide-react";
 import { motion } from "motion/react";

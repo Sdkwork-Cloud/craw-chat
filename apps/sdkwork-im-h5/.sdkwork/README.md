@@ -1,16 +1,24 @@
-# SDKWork Workspace Metadata
+# SDKWork IM H5 Application Workspace
 
-This directory is the source-controlled `.sdkwork/` workspace for the `sdkwork-im-h5` application root per `SDKWORK_WORKSPACE_SPEC.md`.
+This `.sdkwork/` directory is source-controlled workspace metadata for the `sdkwork-im-h5`
+application root.
 
-It is not generated SDK output and is not user runtime state. It owns local skills, plugins, manifests, and AI workspace metadata for this application root.
+It is governed by `../../../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md` and follows the standards
+entrypoint at `../../../sdkwork-specs/README.md`.
 
-## Structure
+Authoritative local entries:
 
-- `skills/`: local SDKWork skills scoped to this application root.
-- `plugins/`: local SDKWork plugins scoped to this application root.
+- `README.md`: purpose and ownership for this application metadata directory.
+- `skills/README.md`: application skill contribution guidance.
+- `plugins/README.md`: application plugin contribution guidance.
+- `sdkwork.app.config.json`: application identity and release metadata.
+- `AGENTS.md`: application agent entrypoint.
 
-## Rules
+This directory is not runtime state. Do not store generated SDK transport output, secrets, local
+credentials, runtime databases, cache, logs, or user-private files here.
 
-- Do not copy global `sdkwork-specs` content into this directory.
-- Do not store runtime state, secrets, build output, or generated SDK artifacts here.
-- Local skills and plugins must reference global standards through relative paths.
+## Execution References
+
+- Agent entrypoint: `AGENTS.md`
+- Shared execution soul: `../../../sdkwork-specs/SOUL.md`
+- Workspace metadata standard: `../../../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`

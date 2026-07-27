@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export interface CloudFile {
   id: string;
   name: string;

@@ -1,6 +1,3 @@
-import { useTranslation } from "react-i18next";
-import { ApiClient } from "@sdkwork/im-h5-commons";
-
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "withdrawn";
 
 export interface ApprovalActor {

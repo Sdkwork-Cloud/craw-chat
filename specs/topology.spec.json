@@ -55,6 +55,9 @@
         "http",
         "websocket"
       ],
+      "healthAttempts": 300,
+      "healthIntervalMs": 1000,
+      "healthTimeoutMs": 2000,
       "bindEnv": "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
       "httpUrlEnv": "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
       "websocketUrlEnv": "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL",

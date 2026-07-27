@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export interface ApiConfig {
   baseURL: string;
   timeout: number;
@@ -97,11 +96,3 @@ export class ApiClient {
     });
   }
 }
-
-export const defaultApiClient = new ApiClient({
-  baseURL: "https://api.yourcommericaldomain.com/v1",
-  timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});

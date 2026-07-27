@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   ChevronLeft,
   Plus,
@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { CalendarGrid } from "../components/CalendarGrid";
 import { CalendarScheduleList } from "../components/CalendarScheduleList";
 import { CalendarAddModal } from "../components/CalendarAddModal";
+import { CalendarHeader } from "../components/CalendarHeader";
 
 export const CalendarWorkspace: React.FC = () => {
   const { t } = useTranslation();
@@ -79,27 +80,12 @@ const navigate = useNavigate();
 
   return (
     <div className="flex flex-col h-full bg-bg-color font-sans relative animate-in slide-in-from-right z-10 w-full absolute inset-0">
-      {/* Header */}
-      <header className="h-[44px] flex items-center justify-between sticky top-0 shrink-0 pt-safe px-2 z-20 bg-bg-color border-b border-border-color">
-        <div className="flex items-center z-10 w-[80px]">
-          <IconButton
-            icon={
-              <ChevronLeft className="w-7 h-7 text-text-main" strokeWidth={2} />
-            }
-            onClick={() => navigate(-1)}
-          />
-        </div>
-        <div className="flex items-center justify-center font-medium text-[17px] pointer-events-none flex-1 gap-2">
-          <span className="cursor-pointer pointer-events-auto">{`${year}年${month + 1}月`}</span>
-        </div>
-        <div className="flex justify-end z-10 w-[80px] pr-2 gap-2">
-          <IconButton icon={<Search className="w-5 h-5 text-text-main" />} />
-          <IconButton
-            icon={<Plus className="w-6 h-6 text-text-main" />}
-            onClick={() => setIsAdding(true)}
-          />
-        </div>
-      </header>
+      <CalendarHeader
+        year={year}
+        month={month}
+        onBack={() => navigate(-1)}
+        onAdd={() => setIsAdding(true)}
+      />
 
       <div className="flex-1 overflow-y-auto pb-safe flex flex-col">
         <CalendarGrid

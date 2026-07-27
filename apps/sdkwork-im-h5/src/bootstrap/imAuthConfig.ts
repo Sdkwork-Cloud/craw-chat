@@ -1,77 +1,81 @@
-import type {
-  SdkworkAuthAppearanceConfig,
-  SdkworkAuthRuntimeConfig,
-} from '@sdkwork/auth-pc-react';
+import type { SdkworkAuthRuntimeConfig } from '@sdkwork/auth-pc-react';
 
-const IM_H5_VERIFICATION_POLICY = {
+export interface ImAuthRuntimeConfigOptions {
+  qrLoginEnabled?: boolean;
+  passwordLoginEnabled?: boolean;
+  emailLoginEnabled?: boolean;
+  phoneLoginEnabled?: boolean;
+}
+
+const SDKWORK_IM_H5_VERIFICATION_POLICY = {
   emailCodeLoginEnabled: false,
   emailRegistrationVerificationRequired: false,
   phoneCodeLoginEnabled: false,
   phoneRegistrationVerificationRequired: false,
 } as const;
 
-export function resolveImAuthRuntimeConfig(): SdkworkAuthRuntimeConfig {
+function readEnvValue(...keys: string[]): string | undefined {
+  const meta = import.meta as ImportMeta & {
+    env?: Record<string, string | boolean | undefined>;
+  };
+
+  for (const key of keys) {
+    const value = meta.env?.[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return undefined;
+}
+
+function resolveDevelopmentPrefill(): SdkworkAuthRuntimeConfig['developmentPrefill'] {
+  const account = readEnvValue(
+    'VITE_SDKWORK_IM_AUTH_DEV_DEFAULT_ACCOUNT',
+    'VITE_SDKWORK_AUTH_DEV_DEFAULT_ACCOUNT',
+  );
+  const email = readEnvValue(
+    'VITE_SDKWORK_IM_AUTH_DEV_DEFAULT_EMAIL',
+    'VITE_SDKWORK_AUTH_DEV_DEFAULT_EMAIL',
+  );
+  const phone = readEnvValue(
+    'VITE_SDKWORK_IM_AUTH_DEV_DEFAULT_PHONE',
+    'VITE_SDKWORK_AUTH_DEV_DEFAULT_PHONE',
+  );
+  const password = readEnvValue(
+    'VITE_SDKWORK_IM_AUTH_DEV_DEFAULT_PASSWORD',
+    'VITE_SDKWORK_AUTH_DEV_DEFAULT_PASSWORD',
+  );
+
+  const enabled = Boolean(account || email || phone || password);
+
+  if (!enabled) {
+    return undefined;
+  }
+
   return {
-    leftRailMode: 'qr-only',
-    loginMethods: ['password'],
-    oauthLoginEnabled: false,
-    oauthProviders: [],
-    qrLoginEnabled: true,
-    recoveryMethods: [],
-    registerMethods: ['email', 'phone'],
-    verificationPolicy: IM_H5_VERIFICATION_POLICY,
+    account: account || email || phone,
+    email,
+    enabled: true,
+    loginMethod: 'password',
+    password,
+    phone,
   };
 }
 
-export function resolveImAuthAppearance(): SdkworkAuthAppearanceConfig {
+export function resolveImAuthRuntimeConfig(
+  options: ImAuthRuntimeConfigOptions = {},
+): SdkworkAuthRuntimeConfig {
+  const developmentPrefill = resolveDevelopmentPrefill();
   return {
-    asidePanelClassName: 'sdkwork-im-h5-auth-aside-panel',
-    bodyClassName: 'sdkwork-im-h5-auth-body',
-    contentContainerClassName: 'sdkwork-im-h5-auth-content',
-    pageClassName: 'sdkwork-im-h5-auth-page',
-    qrFrameClassName: 'sdkwork-im-h5-auth-qr-frame',
-    shellClassName: 'sdkwork-im-h5-auth-card-shell',
-    slotProps: {
-      background: {
-        className: 'sdkwork-im-h5-auth-background',
-      },
-      page: {
-        className: 'sdkwork-im-h5-auth-page',
-      },
-      shell: {
-        className: 'sdkwork-im-h5-auth-card-shell',
-      },
-    },
-    theme: {
-      asideCardBackgroundColor: 'var(--sdkwork-im-h5-auth-aside-card-bg)',
-      asideCardBorderColor: 'var(--sdkwork-im-h5-auth-aside-card-border)',
-      asidePanelBackgroundColor: 'var(--sdkwork-im-h5-auth-aside-bg)',
-      asidePanelBorderColor: 'var(--sdkwork-im-h5-auth-aside-border)',
-      asidePanelColor: 'var(--sdkwork-im-h5-auth-aside-text)',
-      badgeBackgroundColor: 'var(--sdkwork-im-h5-auth-aside-badge-bg)',
-      badgeTextColor: 'var(--sdkwork-im-h5-auth-aside-badge-text)',
-      contentBackgroundColor: 'var(--sdkwork-im-h5-auth-content-bg)',
-      contentBorderColor: 'transparent',
-      contentTextColor: 'var(--sdkwork-im-h5-auth-content-text)',
-      descriptionColor: 'var(--sdkwork-im-h5-auth-muted-text)',
-      dividerColor: 'var(--sdkwork-im-h5-auth-divider)',
-      fieldBackgroundColor: 'var(--sdkwork-im-h5-auth-field-bg)',
-      fieldBorderColor: 'transparent',
-      fieldPlaceholderColor: '#9ca3af',
-      fieldTextColor: 'var(--sdkwork-im-h5-auth-content-text)',
-      formMutedTextColor: 'var(--sdkwork-im-h5-auth-muted-text)',
-      iconMutedColor: 'var(--sdkwork-im-h5-auth-muted-text)',
-      labelColor: 'var(--sdkwork-im-h5-auth-content-text)',
-      pageBackgroundColor: 'var(--sdkwork-im-h5-auth-bg)',
-      qrFrameBackgroundColor: 'var(--sdkwork-im-h5-auth-qr-bg)',
-      qrFrameBorderColor: 'transparent',
-      shellBackgroundColor: 'var(--sdkwork-im-h5-auth-content-bg)',
-      shellBorderColor: 'transparent',
-      tabActiveBackgroundColor: 'transparent',
-      tabActiveTextColor: 'var(--sdkwork-im-h5-auth-content-text)',
-      tabBackgroundColor: 'transparent',
-      tabInactiveTextColor: 'var(--sdkwork-im-h5-auth-muted-text)',
-      titleColor: 'var(--sdkwork-im-h5-auth-content-text)',
-    },
+    leftRailMode: 'hidden',
+    loginMethods: ['password'],
+    oauthLoginEnabled: false,
+    oauthProviders: [],
+    qrLoginEnabled: options.qrLoginEnabled ?? false,
+    recoveryMethods: [],
+    registerMethods: ['email', 'phone'],
+    verificationPolicy: SDKWORK_IM_H5_VERIFICATION_POLICY,
+    ...(developmentPrefill ? { developmentPrefill } : {}),
   };
 }

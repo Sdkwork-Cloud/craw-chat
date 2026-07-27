@@ -1,63 +1,45 @@
 import {
-  createDriveAppClient,
-  type DriveUploaderBlobLike,
-  type DriveUploaderClient,
-  type DriveUploaderProfile,
-  type DriveUploaderRequest,
-  type DriveUploaderUploadResult,
+  createDriveAppClient as createGeneratedDriveAppClient,
+  type DriveAppClientOptions,
   type SdkworkAppConfig,
-  type SdkworkDriveAppClient as GeneratedSdkworkDriveAppClient,
+  type SdkworkDriveAppClient,
 } from '@sdkwork/drive-app-sdk';
-import type { Interceptors } from '@sdkwork/sdk-common';
 
-import { resolveAppSdkBaseUrl } from './appSdkClient';
-import {
-  createSdkworkImH5RequestContextInterceptors,
-  getSdkworkImH5GlobalTokenManager,
-  readAppSdkSessionTokens,
-  resolveAppSdkAccessToken,
-  resolveAppSdkAuthToken,
-  IM_H5_IAM_SESSION_CHANGED_EVENT,
-  type SdkworkImH5Session,
-} from './session';
-
-export type SdkworkDriveAppClient = GeneratedSdkworkDriveAppClient;
-export type SdkworkDriveAppClientConfig = SdkworkAppConfig & {
-  interceptors?: Interceptors;
-};
-export type {
-  DriveUploaderBlobLike,
-  DriveUploaderClient,
-  DriveUploaderProfile,
-  DriveUploaderRequest,
-  DriveUploaderUploadResult,
-};
-export type SdkworkDriveUploader = Pick<
-  DriveUploaderClient,
-  'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'
->;
+export type { SdkworkDriveAppClient, DriveAppClientOptions, SdkworkAppConfig };
 
 let driveAppSdkClient: SdkworkDriveAppClient | null = null;
-let driveSessionListenerRegistered = false;
+
+function resolveDriveAppBaseUrl(): string {
+  const meta = import.meta as ImportMeta & {
+    env?: Record<string, string | undefined>;
+  };
+  const fromEnv = meta.env?.SDKWORK_DRIVE_APP_API_BASE_URL
+    ?? meta.env?.VITE_SDKWORK_DRIVE_APP_API_BASE_URL
+    ?? meta.env?.SDKWORK_IM_API_BASE_URL;
+  if (typeof fromEnv === 'string' && fromEnv.trim().length > 0) {
+    return fromEnv.trim();
+  }
+  return '/';
+}
 
 export function createDriveAppSdkClientConfig(
-  session?: SdkworkImH5Session | null,
-): SdkworkDriveAppClientConfig {
-  const currentSession = session ?? readAppSdkSessionTokens();
+  config: Partial<SdkworkAppConfig> = {},
+): SdkworkAppConfig {
   return {
-    baseUrl: resolveAppSdkBaseUrl(),
-    accessToken: resolveAppSdkAccessToken(currentSession),
-    authToken: resolveAppSdkAuthToken(currentSession),
-    interceptors: createSdkworkImH5RequestContextInterceptors(() => readAppSdkSessionTokens() ?? currentSession),
+    baseUrl: config.baseUrl ?? resolveDriveAppBaseUrl(),
+    accessToken: config.accessToken,
+    authToken: config.authToken,
+    headers: config.headers,
     platform: 'h5',
-    tokenManager: getSdkworkImH5GlobalTokenManager(),
+    tokenManager: config.tokenManager,
   };
 }
 
 export function initDriveAppSdkClient(
-  config: SdkworkDriveAppClientConfig = createDriveAppSdkClientConfig(),
+  config: SdkworkAppConfig = createDriveAppSdkClientConfig(),
+  options: DriveAppClientOptions = {},
 ): SdkworkDriveAppClient {
-  driveAppSdkClient = createDriveAppClient(config);
+  driveAppSdkClient = createGeneratedDriveAppClient(config, options);
   return driveAppSdkClient;
 }
 
@@ -66,33 +48,18 @@ export function getDriveAppSdkClient(): SdkworkDriveAppClient {
 }
 
 export function getDriveAppSdkClientWithSession(
-  session = readAppSdkSessionTokens(),
+  config: Partial<SdkworkAppConfig> = {},
 ): SdkworkDriveAppClient {
-  return initDriveAppSdkClient(createDriveAppSdkClientConfig(session));
+  return initDriveAppSdkClient(createDriveAppSdkClientConfig(config));
 }
 
 export function resetDriveAppSdkClient(): void {
   driveAppSdkClient = null;
 }
 
-export function syncImSessionToDriveH5(session = readAppSdkSessionTokens()): void {
-  if (!session?.authToken || !session.accessToken) {
-    resetDriveAppSdkClient();
-    return;
-  }
-
-  resetDriveAppSdkClient();
-  void resolveAppSdkBaseUrl();
+export function createDriveAppClient(
+  config: SdkworkAppConfig = createDriveAppSdkClientConfig(),
+  options: DriveAppClientOptions = {},
+): SdkworkDriveAppClient {
+  return createGeneratedDriveAppClient(config, options);
 }
-
-export function ensureDriveSessionListener(): void {
-  if (driveSessionListenerRegistered || typeof window === 'undefined') {
-    return;
-  }
-  driveSessionListenerRegistered = true;
-  window.addEventListener(IM_H5_IAM_SESSION_CHANGED_EVENT, () => {
-    syncImSessionToDriveH5();
-  });
-}
-
-export { createDriveAppClient };

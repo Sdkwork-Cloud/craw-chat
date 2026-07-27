@@ -1,9 +1,11 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, Search, BookOpen, X } from "lucide-react";
 import { IconButton } from "@sdkwork/im-h5-commons";
 import { CourseCard } from "../components/CourseCard";
+import { CourseBanner } from "../components/CourseBanner";
+import { CourseCategoryTabs } from "../components/CourseCategoryTabs";
 import { CourseService, CourseData } from "../services/CourseService";
 
 export const CourseHome: React.FC = () => {
@@ -86,40 +88,14 @@ const navigate = useNavigate();
 
       <div className="flex-1 overflow-y-auto w-full pb-safe">
         {/* Banner */}
-        <div className="p-4 bg-white dark:bg-[#1C1C1E]">
-           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white flex flex-col justify-end shadow-sm relative overflow-hidden h-[160px] cursor-pointer">
-              <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/cb/800/400')] opacity-40 mix-blend-overlay object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-              <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-medium border border-white/10">{t('course.auto_250d7220', '主打推荐')}</div>
-              <div className="relative z-10">
-                 <h2 className="text-[20px] font-bold mb-1 leading-tight">{t('course.auto_n22f09a3c', '2026 年度跨端技术合集')}</h2>
-                 <p className="text-[13px] text-white/80 line-clamp-1">{t('course.auto_43bffece', '掌握前沿开发趋势，提升核心竞争力')}</p>
-              </div>
-           </div>
-           {/* Dots */}
-           <div className="flex justify-center gap-1.5 mt-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-              <div className="w-1.5 h-1.5 rounded-full bg-black/10 dark:bg-white/20" />
-              <div className="w-1.5 h-1.5 rounded-full bg-black/10 dark:bg-white/20" />
-           </div>
-        </div>
+        <CourseBanner />
 
         {/* Categories */}
-        <div className="bg-white dark:bg-[#1C1C1E] px-4 py-3 border-b border-black/5 dark:border-white/5 sticky top-0 z-10 flex overflow-x-auto hide-scrollbar gap-4">
-           {categories.map((cat) => (
-             <div 
-               key={cat.id}
-               onClick={() => setActiveTab(cat.id)}
-               className={`whitespace-nowrap pb-2 text-[15px] font-medium transition-colors cursor-pointer border-b-2 ${
-                 activeTab === cat.id 
-                   ? "text-blue-500 border-blue-500" 
-                   : "text-text-sub border-transparent"
-               }`}
-             >
-               {cat.name}
-             </div>
-           ))}
-        </div>
+        <CourseCategoryTabs
+          categories={categories}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
 
         {/* Course List */}
         <div className="flex flex-col bg-white dark:bg-[#1C1C1E] min-h-[300px]">

@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { Hardware, Agent } from '../types';
 
 let MOCK_HARDWARE: Hardware[] = [

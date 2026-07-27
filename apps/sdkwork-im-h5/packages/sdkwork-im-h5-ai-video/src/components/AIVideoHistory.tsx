@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import React from "react";
 import { PlayCircle, Trash2 } from "lucide-react";
 import { VideoTask } from "../services/AIVideoService";

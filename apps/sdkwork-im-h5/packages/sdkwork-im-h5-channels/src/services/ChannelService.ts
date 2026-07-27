@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { CreativeWork } from "../types";
 import { CREATIVE_WORKS } from "../data/mockData";
 

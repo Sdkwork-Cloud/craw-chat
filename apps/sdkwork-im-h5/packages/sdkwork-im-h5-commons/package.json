@@ -12,9 +12,9 @@
     }
   },
   "dependencies": {
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^2.5.2",
-    "lucide-react": "^0.446.0",
-    "react": "^19.0.0"
+    "clsx": "catalog:",
+    "tailwind-merge": "catalog:",
+    "lucide-react": "catalog:",
+    "react": "catalog:"
   }
 }

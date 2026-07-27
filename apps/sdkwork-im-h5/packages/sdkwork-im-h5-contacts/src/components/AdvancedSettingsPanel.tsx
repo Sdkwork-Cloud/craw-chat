@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { cn } from "@sdkwork/im-h5-commons";
 import { Settings2, ChevronRight, Globe, Image as ImageIcon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";

@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React from "react";
 import { PageLayout, showToast } from "@sdkwork/im-h5-commons";
 import { Building2, Rocket, ShieldCheck, Gift } from "lucide-react";

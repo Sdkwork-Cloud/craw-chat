@@ -222,8 +222,8 @@ assert.doesNotMatch(
 );
 assert.match(
   membershipIntegrationSource,
-  /resetMembershipPcIntegration[\s\S]*configureSdkworkOrderAppServiceProvider\(null\)/u,
-  'IM Membership reset must clear the Order app-service provider.',
+  /resetMembershipPcIntegration[\s\S]*configureSdkworkOrderAppServiceProvider\(null\)[\s\S]*configureSdkworkOrderSessionTokenProvider\(null\)/u,
+  'IM Membership reset must clear both Order app-service and session-token providers.',
 );
 for (const packageName of [
   '@sdkwork/im-pc-core',

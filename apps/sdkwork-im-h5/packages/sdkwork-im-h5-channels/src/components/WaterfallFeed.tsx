@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React from "react";
 import { Search, Heart, Video } from "lucide-react";
 import { Avatar, cn } from "@sdkwork/im-h5-commons";

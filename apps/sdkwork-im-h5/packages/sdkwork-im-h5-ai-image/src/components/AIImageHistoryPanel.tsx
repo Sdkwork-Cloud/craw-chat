@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import React from "react";
 import { Image as ImageIcon, Trash2, Download, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";

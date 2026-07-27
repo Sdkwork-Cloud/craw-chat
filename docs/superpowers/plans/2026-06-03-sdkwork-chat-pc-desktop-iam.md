@@ -17,7 +17,7 @@
 - Create: `apps/sdkwork-im-pc/tests/runtime-contract.test.mjs`
 
 - [x] Write tests that fail on the current AI Studio scaffold.
-- [x] Assert package scripts expose BirdCoder-style desktop commands.
+- [x] Assert package scripts expose canonical SDKWork desktop commands without depending on another application.
 - [x] Assert `src-tauri/tauri.conf.json` exists and uses a fixed localhost dev URL.
 - [x] Assert appbase IAM/auth/user workspace packages are referenced.
 - [x] Assert old Gemini/AI Studio/mock default path debt is gone.

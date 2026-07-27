@@ -84,6 +84,8 @@ config/*.local.toml
 **/.runtime/
 !.env.example
 !.env.postgres.example
+!apps/sdkwork-im-h5/.env.standalone.*
+!apps/sdkwork-im-h5/.env.cloud.*
 **/.sdkwork/local/
 **/.sdkwork/secrets/
 **/.sdkwork/cache/

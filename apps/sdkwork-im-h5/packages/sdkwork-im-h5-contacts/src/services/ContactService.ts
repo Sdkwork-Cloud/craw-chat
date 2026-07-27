@@ -1,56 +1,55 @@
-import { useTranslation } from "react-i18next";
 import type { User } from "@sdkwork/im-h5-types";
 
 const INITIAL_CONTACTS: User[] = [
   {
     id: "u1",
     name: "Alex Chen",
-    avatar: "https://picsum.photos/seed/alex/200/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/alex/200x200.png",
     status: "online",
   },
   {
     id: "u2",
     name: "Sarah Jenkins",
-    avatar: "https://picsum.photos/seed/sarah/200/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/sarah/200x200.png",
     status: "online",
   },
   {
     id: "u3",
     name: "David Lee",
-    avatar: "https://picsum.photos/seed/david/200/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/david/200x200.png",
   },
   {
     id: "u4",
     name: "Emily Chen",
-    avatar: "https://picsum.photos/seed/emily/200/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/emily/200x200.png",
   },
   {
     id: "u5",
     name: "Michael Brown",
-    avatar: "https://picsum.photos/seed/michael/200/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/michael/200x200.png",
   },
   {
     id: "u6",
     name: "Alice Wong",
-    avatar: "https://picsum.photos/seed/a1/200/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/a1/200x200.png",
   },
   {
     id: "u7",
     name: "Bob Lee",
-    avatar: "https://picsum.photos/seed/b1/200/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/b1/200x200.png",
   },
   {
     id: "u8",
     name: "Charlie",
-    avatar: "https://picsum.photos/seed/c1/200/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c1/200x200.png",
   },
-  { id: "u9", name: "Cindy", avatar: "https://picsum.photos/seed/c2/200/200" },
+  { id: "u9", name: "Cindy", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c2/200x200.png" },
   {
     id: "u10",
     name: "David Tao",
-    avatar: "https://picsum.photos/seed/d1/200/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/d1/200x200.png",
   },
-  { id: "u11", name: "Frank", avatar: "https://picsum.photos/seed/f1/200/200" },
+  { id: "u11", name: "Frank", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/f1/200x200.png" },
 ];
 
 const STORAGE_KEY = "sdkwork_im_h5_contacts";
@@ -143,7 +142,7 @@ export const ContactService = {
     const newUser: User = {
       id: `u${Date.now()}`,
       name: query,
-      avatar: `https://picsum.photos/seed/${query}/200/200`,
+      avatar: `https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/${query}/200.png`,
       status: "online",
     };
     MOCK_CONTACTS = [...MOCK_CONTACTS, newUser];
@@ -162,7 +161,7 @@ export const ContactService = {
         resolve({
           id: `u_${Date.now()}`,
           name: query,
-          avatar: `https://picsum.photos/seed/${query}/200/200`,
+          avatar: `https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/${query}/200.png`,
           status: "online",
         });
       }, 500);

@@ -1,5 +1,3 @@
-import { useTranslation } from "react-i18next";
-import { createDefaultAiHttpPort, type AiHttpPort } from "@sdkwork/im-h5-core";
 export interface AIVideoOptions {
   prompt: string;
   style: string;
@@ -18,8 +16,6 @@ export interface VideoTask {
 }
 
 const STORAGE_KEY = "sdkwork_im_h5_ai_video_history";
-
-const aiHttp: AiHttpPort = createDefaultAiHttpPort();
 
 export class AIVideoService {
   private static getStoredHistory(): VideoTask[] {
@@ -61,8 +57,14 @@ export class AIVideoService {
     this.saveHistory([task, ...history]);
 
     try {
-      await aiHttp.postJson("/api/ai/video", options);
-      // Skip direct parse, use simulation logic below to maintain delay and hardcoded fallback videos
+      const res = await fetch("/im/v3/api/ai/video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(options)
+      });
+      if (res.ok && false) {
+        // Skip direct parse, use simulation logic below to maintain delay and hardcoded fallback videos
+      }
     } catch (e) {
       console.error("Backend generation failed", e);
     }
@@ -82,9 +84,9 @@ export class AIVideoService {
           clearInterval(interval);
 
           let videoUrl =
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+            "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/for-bigger-blazes.mp4";
           let thumbnailUrl =
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg";
+            "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/for-bigger-blazes/poster.png";
 
           const keywords = options.prompt.toLowerCase();
           if (
@@ -96,9 +98,9 @@ export class AIVideoService {
             keywords.includes("车")
           ) {
             videoUrl =
-              "https://assets.mixkit.co/videos/preview/mixkit-city-traffic-on-a-bridge-at-night-90-large.mp4";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/city-traffic.mp4";
             thumbnailUrl =
-              "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=800&q=80";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1519501025264-65ba15a82390.png";
           } else if (
             keywords.includes("nature") ||
             keywords.includes("forest") ||
@@ -109,9 +111,9 @@ export class AIVideoService {
             keywords.includes("山")
           ) {
             videoUrl =
-              "https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/forest-stream.mp4";
             thumbnailUrl =
-              "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=80";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1441974231531-c6227db76b6e.png";
           } else if (
             keywords.includes("ocean") ||
             keywords.includes("water") ||
@@ -121,18 +123,18 @@ export class AIVideoService {
             keywords.includes("洋")
           ) {
             videoUrl =
-              "https://storage.googleapis.com/gtv-videos-bucket/sample/Oceans.mp4";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/oceans.mp4";
             thumbnailUrl =
-              "https://images.unsplash.com/photo-1439405326854-014607f694d7?w=800&q=80";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1439405326854-014607f694d7.png";
           } else if (
             keywords.includes("flower") ||
             keywords.includes("bloom") ||
             keywords.includes("花")
           ) {
             videoUrl =
-              "https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-flowers-1173-large.mp4";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/tree-flowers.mp4";
             thumbnailUrl =
-              "https://images.unsplash.com/photo-1490750967868-88cb4aca8fba?w=800&q=80";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1490750967868-88cb4aca8fba.png";
           } else if (
             keywords.includes("food") ||
             keywords.includes("eat") ||
@@ -141,9 +143,9 @@ export class AIVideoService {
             keywords.includes("食物")
           ) {
             videoUrl =
-              "https://assets.mixkit.co/videos/preview/mixkit-a-girl-blowing-a-raspberry-at-a-cafe-427-large.mp4";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/cafe-girl.mp4";
             thumbnailUrl =
-              "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1555396273-367ea4eb4db5.png";
           } else if (
             keywords.includes("animal") ||
             keywords.includes("dog") ||
@@ -153,9 +155,9 @@ export class AIVideoService {
             keywords.includes("宠物")
           ) {
             videoUrl =
-              "https://assets.mixkit.co/videos/preview/mixkit-dog-catching-a-ball-in-a-river-1494-large.mp4";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/dog-river.mp4";
             thumbnailUrl =
-              "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=800&q=80";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1517849845537-4d257902454a.png";
           } else if (
             keywords.includes("people") ||
             keywords.includes("girl") ||
@@ -166,9 +168,9 @@ export class AIVideoService {
             keywords.includes("女孩")
           ) {
             videoUrl =
-              "https://assets.mixkit.co/videos/preview/mixkit-portrait-of-a-woman-in-a-pool-1259-large.mp4";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/woman-pool.mp4";
             thumbnailUrl =
-              "https://images.unsplash.com/photo-1517365830460-955ce3ccd263?w=800&q=80";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1517365830460-955ce3ccd263.png";
           } else if (
             keywords.includes("tech") ||
             keywords.includes("code") ||
@@ -178,18 +180,18 @@ export class AIVideoService {
             keywords.includes("科技")
           ) {
             videoUrl =
-              "https://assets.mixkit.co/videos/preview/mixkit-software-developer-working-on-code-416-large.mp4";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/developer-code.mp4";
             thumbnailUrl =
-              "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&q=80";
+              "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1498050108023-c5249f4df085.png";
           }
 
           if (options.aspectRatio === "9:16") {
             // Attempt to find a vertical video if possible, or fallback
             if (!keywords.includes("flower") && !keywords.includes("花")) {
               videoUrl =
-                "https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-sign-1232-large.mp4";
+                "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/girl-neon.mp4";
               thumbnailUrl =
-                "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=800&q=80";
+                "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1550684848-fac1c5b4e853.png";
             }
           }
 
@@ -216,13 +218,5 @@ export class AIVideoService {
 
   public static async getHistory(): Promise<VideoTask[]> {
     return this.getStoredHistory();
-  }
-
-  public static async downloadBlob(url: string): Promise<Blob> {
-    const result = await aiHttp.getBlob(url);
-    if (!result.ok || !result.data) {
-      throw new Error("Video download failed");
-    }
-    return result.data;
   }
 }

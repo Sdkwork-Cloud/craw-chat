@@ -1,18 +1,41 @@
 import { createImAppAuthRuntime } from './imAppAuthRuntime';
+import { resolveImAuthRuntimeConfig } from './imAuthConfig';
 
-let iamRuntime: ReturnType<typeof createImAppAuthRuntime> | null = null;
-
-export function createIamRuntime(): ReturnType<typeof createImAppAuthRuntime> {
-  if (!iamRuntime) {
-    iamRuntime = createImAppAuthRuntime();
-  }
-  return iamRuntime;
+export interface IamRuntimeBootstrapOptions {
+  appId?: string;
+  deploymentMode?: 'local' | 'private' | 'saas';
+  environment?: 'dev' | 'prod' | 'test';
 }
 
-export function getIamRuntime(): ReturnType<typeof createImAppAuthRuntime> {
-  return createIamRuntime();
+export interface IamRuntimeComposition {
+  authRuntime: ReturnType<typeof createImAppAuthRuntime>;
+  authConfig: ReturnType<typeof resolveImAuthRuntimeConfig>;
+}
+
+let iamRuntimeComposition: IamRuntimeComposition | null = null;
+
+export function createIamRuntime(
+  options: IamRuntimeBootstrapOptions = {},
+): IamRuntimeComposition {
+  if (iamRuntimeComposition) {
+    return iamRuntimeComposition;
+  }
+
+  const authRuntime = createImAppAuthRuntime(options);
+  const authConfig = resolveImAuthRuntimeConfig();
+
+  iamRuntimeComposition = {
+    authRuntime,
+    authConfig,
+  };
+
+  return iamRuntimeComposition;
 }
 
 export function resetIamRuntime(): void {
-  iamRuntime = null;
+  iamRuntimeComposition = null;
+}
+
+export function getIamRuntime(): IamRuntimeComposition {
+  return iamRuntimeComposition ?? createIamRuntime();
 }

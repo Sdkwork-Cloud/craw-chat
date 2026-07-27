@@ -37,6 +37,14 @@ test('cloud client-only plan contains one renderer and no local API or database 
 
   assert.equal(plan.processes.length, 1);
   assert.equal(plan.processes[0].label, 'sdkwork-im-pc-browser');
+  assert.deepEqual(
+    plan.processes[0].args,
+    ['--dir', 'apps/sdkwork-im-pc', 'run', '_sdkwork:client:browser'],
+  );
+  assert.ok(
+    !plan.processes[0].args.some((argument) => argument.includes('sdkwork-app')),
+    'client-only plans must not recursively enter application lifecycle orchestration',
+  );
   assert.equal(plan.processes[0].env.SDKWORK_IM_DATABASE_URL, undefined);
   assert.equal(plan.processes[0].env.SDKWORK_CLAW_DATABASE_URL, undefined);
   assert.equal(

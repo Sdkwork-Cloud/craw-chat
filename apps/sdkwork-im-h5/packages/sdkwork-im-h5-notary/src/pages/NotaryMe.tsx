@@ -60,7 +60,7 @@ const navigate = useNavigate();
         <div className="bg-bg-color p-6 flex items-center gap-5 mb-2 pt-8 pb-8 border-b border-border-color/50 relative">
           <div className="w-[72px] h-[72px] rounded-2xl bg-chat-other-bg overflow-hidden border border-border-color/50 shrink-0 shadow-sm relative">
             <img
-              src="https://picsum.photos/seed/notaryUser/200/200"
+              src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/notaryUser/200x200.png"
               alt="avatar"
               className="w-full h-full object-cover"
             />

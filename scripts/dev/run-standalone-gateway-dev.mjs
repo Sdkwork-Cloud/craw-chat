@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from 'node:child_process';
+import path from 'node:path';
 import process from 'node:process';
 
 import { terminateStaleDevGatewayProcesses } from './terminate-stale-dev-gateway-processes.mjs';
@@ -18,6 +19,25 @@ function parseArgs(argv) {
   return {
     release: argv.includes('--release'),
   };
+}
+
+function validateApiAssembly(repoRoot) {
+  const validatorPath = path.resolve(
+    repoRoot,
+    '..',
+    'sdkwork-specs',
+    'tools',
+    'validate-api-assembly.mjs',
+  );
+  const validation = spawnSync(process.execPath, [validatorPath, '--root', '.'], {
+    cwd: repoRoot,
+    env: process.env,
+    stdio: 'inherit',
+    shell: false,
+  });
+  if (validation.status !== 0) {
+    process.exit(validation.status ?? 1);
+  }
 }
 
 async function main() {
@@ -45,6 +65,8 @@ async function main() {
       `[sdkwork-api-im-standalone-gateway] waited ${unlock.waitedMs}ms for executable unlock\n`,
     );
   }
+
+  validateApiAssembly(repoRoot);
 
   const cargoArgs = [
     'build',

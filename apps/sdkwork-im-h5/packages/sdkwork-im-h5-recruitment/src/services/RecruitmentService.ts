@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export interface CandidateRecord {
   id: string;
   name: string;
@@ -21,7 +20,7 @@ const INITIAL_CANDIDATES: CandidateRecord[] = [
     date: "今天 14:00",
     experience: "5年",
     education: "本科",
-    avatar: "https://picsum.photos/seed/1/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/1/200.png",
   },
   {
     id: "2",
@@ -31,7 +30,7 @@ const INITIAL_CANDIDATES: CandidateRecord[] = [
     date: "明天 10:30",
     experience: "8年",
     education: "硕士",
-    avatar: "https://picsum.photos/seed/2/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/2/200.png",
   },
   {
     id: "3",
@@ -41,7 +40,7 @@ const INITIAL_CANDIDATES: CandidateRecord[] = [
     date: "本周入职",
     experience: "3年",
     education: "本科",
-    avatar: "https://picsum.photos/seed/3/200",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/3/200.png",
   },
 ];
 

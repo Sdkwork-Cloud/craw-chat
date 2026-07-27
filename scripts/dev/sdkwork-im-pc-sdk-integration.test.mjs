@@ -324,7 +324,21 @@ assert.match(
 assert.match(viteConfig, /@sdkwork\/drive-app-sdk/u, 'Vite must alias generated Drive app SDK source for chat media upload');
 assert.match(viteConfig, /@sdkwork\/catalog-app-sdk/u, 'Vite must alias composed Catalog app SDK source for shop modules');
 assert.match(viteConfig, /@sdkwork\/shop-app-sdk/u, 'Vite must alias composed Shop app SDK source for merchant flows');
-assert.match(viteConfig, /@sdkwork\/order-app-sdk/u, 'Vite must alias composed Order app SDK source for checkout and orders');
+for (const [pattern, packageName] of [
+  [/\{\s*find:\s*['"]@sdkwork\/order-app-sdk['"]/u, '@sdkwork/order-app-sdk'],
+  [/\{\s*find:\s*['"]@sdkwork\/order-service['"]/u, '@sdkwork/order-service'],
+  [/\{\s*find:\s*['"]@sdkwork\/order-pc-checkout['"]/u, '@sdkwork/order-pc-checkout'],
+  [/\{\s*find:\s*['"]@sdkwork\/membership-app-sdk['"]/u, '@sdkwork/membership-app-sdk'],
+  [/\{\s*find:\s*['"]@sdkwork\/membership-pc-membership['"]/u, '@sdkwork/membership-pc-membership'],
+  [/\{\s*find:\s*['"]@sdkwork\/membership-pc-subscription['"]/u, '@sdkwork/membership-pc-subscription'],
+  [/find:\s*\/\^@sdkwork\\\/membership-pc-subscription/u, '@sdkwork/membership-pc-subscription/*'],
+]) {
+  assert.doesNotMatch(
+    viteConfig,
+    pattern,
+    `Vite must resolve ${packageName} through pnpm workspace package exports instead of a dependency-owned source alias`,
+  );
+}
 assert.match(
   viteConfig,
   /dependencyRoot\('sdkwork-catalog'\)[\s\S]*sdkwork-catalog-app-sdk[\\\/]sdkwork-catalog-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
@@ -334,11 +348,6 @@ assert.match(
   viteConfig,
   /dependencyRoot\('sdkwork-shop'\)[\s\S]*sdkwork-shop-app-sdk[\\\/]sdkwork-shop-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
   'Vite must resolve Shop app SDK through the sibling sdkwork-shop composed facade',
-);
-assert.match(
-  viteConfig,
-  /dependencyRoot\('sdkwork-order'\)[\s\S]*sdkwork-order-app-sdk[\\\/]sdkwork-order-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
-  'Vite must resolve Order app SDK through the sibling sdkwork-order composed facade',
 );
 assert.match(
   tsconfig,

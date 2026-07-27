@@ -128,6 +128,15 @@ impl AppState {
     pub async fn ensure_group_knowledgebase_outbox_relay_started(
         &self,
     ) -> Result<(), RuntimeError> {
+        if super::knowledgebase_rpc_config::resolve_group_knowledgebase_rpc_port_from_env()?
+            .is_none()
+        {
+            tracing::info!(
+                "group knowledgebase outbox relay is disabled because the development/test RPC client is not configured"
+            );
+            return Ok(());
+        }
+
         match self
             .group_knowledgebase_outbox_relay_owner
             .ensure_started(self.group_knowledgebase.clone(), self.runtime.clone())
@@ -1207,18 +1216,20 @@ fn build_test_runtime_for_app_state() -> ConversationRuntime<ConversationCommitJ
 
 fn build_server_group_knowledgebase_for_app_state()
 -> Result<Arc<GroupKnowledgebaseCoordinator>, RuntimeError> {
-    let port = super::knowledgebase_rpc_config::resolve_group_knowledgebase_rpc_port_from_env()?
-        .ok_or_else(|| {
-            RuntimeError::Contract(im_platform_contracts::ContractError::Unavailable(
-                "conversation server requires a complete generated sdkwork-knowledgebase-rpc-sdk client configuration"
-                    .into(),
-            ))
-        })?;
+    let port = group_knowledgebase_port_for_server(
+        super::knowledgebase_rpc_config::resolve_group_knowledgebase_rpc_port_from_env()?,
+    );
     let id_generator =
         sdkwork_im_runtime_id::build_runtime_id_generator_blocking("conversation-knowledgebase");
     Ok(Arc::new(
         GroupKnowledgebaseCoordinator::with_production_store(port, id_generator)?,
     ))
+}
+
+fn group_knowledgebase_port_for_server(
+    port: Option<Arc<dyn GroupKnowledgebasePort>>,
+) -> Arc<dyn GroupKnowledgebasePort> {
+    port.unwrap_or_else(|| Arc::new(UnavailableGroupKnowledgebasePort))
 }
 
 fn build_test_group_knowledgebase_for_app_state()
@@ -3382,6 +3393,15 @@ mod tests {
                 .build(),
         );
         context
+    }
+
+    #[tokio::test]
+    async fn server_uses_unavailable_knowledgebase_port_when_dev_rpc_config_is_absent() {
+        let port = group_knowledgebase_port_for_server(None);
+        assert!(matches!(
+            port.ensure_delivery_ready().await,
+            Err(GroupKnowledgebasePortError::Unavailable)
+        ));
     }
 
     #[tokio::test]

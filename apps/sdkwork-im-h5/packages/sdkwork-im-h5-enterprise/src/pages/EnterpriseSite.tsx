@@ -7,6 +7,8 @@ import { useNavigate } from "react-router";
 import { EnterpriseAboutTab } from "../components/Enterprise/EnterpriseAboutTab";
 import { EnterpriseProductsTab } from "../components/Enterprise/EnterpriseProductsTab";
 import { EnterpriseJobsTab } from "../components/Enterprise/EnterpriseJobsTab";
+import { ProductDetailModal } from "../components/Enterprise/ProductDetailModal";
+import { JobDetailModal } from "../components/Enterprise/JobDetailModal";
 
 export const EnterpriseSite = () => {
   const { t } = useTranslation();
@@ -47,7 +49,7 @@ const navigate = useNavigate();
       <div className="flex flex-col min-h-full pb-[80px]">
         {/* Header Hero */}
         <div className="w-full h-[160px] bg-gradient-to-r from-slate-800 to-slate-900 dark:from-slate-900 dark:to-black relative overflow-hidden shrink-0">
-          <div className="absolute inset-0 bg-[url('https://api.dicom.cn/1')] opacity-30 object-cover mix-blend-overlay" />
+          <div className="absolute inset-0 bg-[url('https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/enterprise-hero/1200x400.png')] opacity-30 object-cover mix-blend-overlay" />
           <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/80 to-transparent" />
         </div>
 
@@ -160,111 +162,23 @@ const navigate = useNavigate();
       </div>
 
       <AnimatePresence>
-        {selectedProduct && (
-          <div className="fixed inset-0 z-50 flex flex-col justify-end">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-              onClick={() => setSelectedProduct(null)}
-            />
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative bg-[#f5f6f8] dark:bg-[#1a1b1c] rounded-t-2xl overflow-hidden pb-safe flex flex-col max-h-[85vh]"
-            >
-              <div className="flex items-center justify-between p-4 bg-white dark:bg-[#2c2d2e]">
-                <h3 className="text-[17px] font-bold text-text-main">{t('enterprise.auto_25105619', '产品详情')}</h3>
-                <div className="w-8 h-8 rounded-full bg-[#f5f6f8] dark:bg-[#1a1b1c] flex items-center justify-center cursor-pointer" onClick={() => setSelectedProduct(null)}>
-                  <X className="w-5 h-5 text-text-sub" />
-                </div>
-              </div>
-              <div className="overflow-y-auto p-5">
-                <div className="w-24 h-24 bg-white dark:bg-[#2c2d2e] rounded-2xl flex items-center justify-center mb-5 border border-border-color/30 shadow-sm mx-auto">
-                  <Package className="w-12 h-12 text-primary-blue/60" />
-                </div>
-                <h2 className="text-[20px] font-bold text-text-main text-center mb-2">{selectedProduct.name}</h2>
-                <div className="text-center mb-6">
-                  <span className="text-[20px] font-extrabold text-[#FF7D00]">{selectedProduct.price}</span>
-                </div>
-                <div className="bg-white dark:bg-[#2c2d2e] rounded-xl p-4 shadow-sm">
-                  <h4 className="text-[14px] font-bold text-text-main mb-2">{t('enterprise.auto_250baa7b', '产品描述')}</h4>
-                  <p className="text-[14px] text-text-sub leading-relaxed whitespace-pre-wrap">{selectedProduct.desc}</p>
-                </div>
-              </div>
-              <div className="p-4 bg-white dark:bg-[#2c2d2e] border-t border-border-color">
-                <button 
-                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full py-3.5 text-[16px] font-bold shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-transform"
-                  onClick={() => { setSelectedProduct(null); openChat(); }}
-                >{t('enterprise.auto_289280b4', '咨询产品')}</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onConsult={() => {
+            setSelectedProduct(null);
+            openChat();
+          }}
+        />
         
-        {selectedJob && (
-          <div className="fixed inset-0 z-50 flex flex-col justify-end">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-              onClick={() => setSelectedJob(null)}
-            />
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative bg-[#f5f6f8] dark:bg-[#1a1b1c] rounded-t-2xl overflow-hidden pb-safe flex flex-col max-h-[85vh]"
-            >
-              <div className="flex items-center justify-between p-4 bg-white dark:bg-[#2c2d2e] border-b border-border-color">
-                <h3 className="text-[17px] font-bold text-text-main">{t('enterprise.auto_3b8d0de0', '职位详情')}</h3>
-                <div className="w-8 h-8 rounded-full bg-[#f5f6f8] dark:bg-[#1a1b1c] flex items-center justify-center cursor-pointer" onClick={() => setSelectedJob(null)}>
-                  <X className="w-5 h-5 text-text-sub" />
-                </div>
-              </div>
-              <div className="overflow-y-auto p-5 bg-white dark:bg-[#2c2d2e]">
-                <div className="flex justify-between items-start mb-3">
-                  <h2 className="text-[22px] font-bold text-text-main leading-tight">{selectedJob.title}</h2>
-                  <span className="text-[18px] font-extrabold text-red-500 whitespace-nowrap ml-4">{selectedJob.salary}</span>
-                </div>
-                <div className="flex items-center gap-2 mb-6">
-                  <span className="px-2.5 py-1 bg-[#f5f6f8] dark:bg-[#1a1b1c] text-text-sub text-[13px] font-medium rounded-sm border border-border-color/50">{selectedJob.req.split(" | ")[0]}</span>
-                  <span className="px-2.5 py-1 bg-[#f5f6f8] dark:bg-[#1a1b1c] text-text-sub text-[13px] font-medium rounded-sm border border-border-color/50">{selectedJob.req.split(" | ")[1]}</span>
-                  <span className="px-2.5 py-1 bg-[#f5f6f8] dark:bg-[#1a1b1c] text-text-sub text-[13px] font-medium rounded-sm border border-border-color/50">{selectedJob.req.split(" | ")[2]}</span>
-                </div>
-                
-                <div className="flex items-center gap-3 mb-6 p-4 rounded-xl bg-[#f5f6f8] dark:bg-[#1a1b1c] border border-border-color/30">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 flex items-center justify-center shrink-0">
-                    <Briefcase className="w-6 h-6 text-primary-blue" />
-                  </div>
-                  <div>
-                    <h4 className="text-[15px] font-bold text-text-main">{t('enterprise.auto_n5277daa7', '招聘负责人')}</h4>
-                    <span className="text-[13px] text-text-sub">{t('enterprise.auto_51555a28', '极客科技宇宙 HR')}</span>
-                  </div>
-                </div>
-
-                <div className="mb-2">
-                  <h4 className="text-[16px] font-bold text-text-main mb-3 flex items-center gap-2">
-                    <span className="w-1 h-3.5 bg-primary-blue rounded-full"></span>{t('enterprise.auto_3b886242', '职位描述')}</h4>
-                  <p className="text-[15px] text-text-sub leading-relaxed whitespace-pre-wrap">{selectedJob.desc}</p>
-                </div>
-              </div>
-              <div className="p-4 bg-white dark:bg-[#2c2d2e] border-t border-border-color mt-2 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
-                <button 
-                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full py-3.5 text-[16px] font-bold shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-transform"
-                  onClick={() => { setSelectedJob(null); openChat(); }}
-                >{t('enterprise.auto_39188763', '立即沟通')}</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+        <JobDetailModal
+          job={selectedJob}
+          onClose={() => setSelectedJob(null)}
+          onChat={() => {
+            setSelectedJob(null);
+            openChat();
+          }}
+        />
       </AnimatePresence>
     </PageLayout>
   );

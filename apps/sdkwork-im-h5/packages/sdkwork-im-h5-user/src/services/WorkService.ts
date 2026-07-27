@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export interface Work {
   id: string;
   type: "video" | "article" | "audio" | "ai_image";
@@ -16,7 +15,7 @@ const INITIAL_WORKS: Work[] = [
     type: "video",
     title: "春日露营Vlog",
     coverUrl:
-      "https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?auto=format&fit=crop&w=400&q=80",
+      "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1523987355523-c7b5b0dd90a7.png",
     createdAt: "2026-04-15T10:00:00Z",
     views: 12500,
     likes: 856,
@@ -27,7 +26,7 @@ const INITIAL_WORKS: Work[] = [
     type: "ai_image",
     title: "赛博朋克城市设定图",
     coverUrl:
-      "https://images.unsplash.com/photo-1515630278258-407f66498911?auto=format&fit=crop&w=400&q=80",
+      "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1515630278258-407f66498911.png",
     createdAt: "2026-04-10T14:30:00Z",
     views: 8900,
     likes: 1205,
@@ -38,7 +37,7 @@ const INITIAL_WORKS: Work[] = [
     type: "article",
     title: "10个提升工作效率的小技巧",
     coverUrl:
-      "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=400&q=80",
+      "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1499750310107-5fef28a66643.png",
     createdAt: "2026-04-05T09:15:00Z",
     views: 45000,
     likes: 3200,
@@ -49,7 +48,7 @@ const INITIAL_WORKS: Work[] = [
     type: "audio",
     title: "雨天白噪音放松",
     coverUrl:
-      "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=400&q=80",
+      "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/unsplash-1515694346937-94d85e41e6f0.png",
     createdAt: "2026-03-28T22:00:00Z",
     views: 3200,
     likes: 450,

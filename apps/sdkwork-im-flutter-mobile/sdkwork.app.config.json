@@ -26,7 +26,7 @@
     "ownerMode": "tenant",
     "grantMode": "current",
     "platform": "APP",
-    "appId": null,
+    "appId": "sdkwork-im-flutter-mobile",
     "organizationId": "0",
     "tenantId": "100001",
     "accessTokenPermissionScope": [

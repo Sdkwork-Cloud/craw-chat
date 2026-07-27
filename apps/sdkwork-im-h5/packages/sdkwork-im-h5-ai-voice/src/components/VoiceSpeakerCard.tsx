@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Mic, ChevronRight, Sliders, Timer, Waves, Volume2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@sdkwork/im-h5-commons";

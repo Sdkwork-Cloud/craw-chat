@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.client-env-materialization",
+  "application": "sdkwork-im",
+  "command": "pnpm workflow:materialize-client-env",
+  "sourceIdentity": {
+    "deploymentProfileKeys": ["SDKWORK_DEPLOYMENT_PROFILE", "SDKWORK_IM_DEPLOYMENT_PROFILE"],
+    "environmentKeys": ["SDKWORK_ENVIRONMENT", "SDKWORK_IM_ENVIRONMENT"],
+    "profileIdKeys": ["SDKWORK_PROFILE_ID", "SDKWORK_IM_PROFILE_ID"]
+  },
+  "surfaces": [
+    {
+      "id": "sdkwork-im-pc",
+      "root": "apps/sdkwork-im-pc",
+      "format": "vite",
+      "runtimeTarget": "browser",
+      "identityPrefixes": ["VITE_SDKWORK_IM"],
+      "bindings": {
+        "VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL": ["VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL", "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL"],
+        "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL": ["VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL", "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL"],
+        "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": ["VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL", "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"]
+      }
+    },
+    {
+      "id": "sdkwork-im-h5",
+      "root": "apps/sdkwork-im-h5",
+      "format": "vite",
+      "runtimeTarget": "browser",
+      "identityPrefixes": ["VITE_SDKWORK_IM"],
+      "bindings": {
+        "VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL": ["VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL", "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL"],
+        "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL": ["VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL", "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL"],
+        "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": ["VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL", "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"]
+      }
+    },
+    {
+      "id": "sdkwork-im-flutter-mobile",
+      "root": "apps/sdkwork-im-flutter-mobile",
+      "format": "flutter",
+      "runtimeTarget": "flutter-android",
+      "identityPrefixes": ["SDKWORK_IM"],
+      "bindings": {
+        "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL": "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+        "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL": "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL",
+        "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+        "SDKWORK_IAM_APP_API_BASE_URL": "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL"
+      }
+    }
+  ]
+}

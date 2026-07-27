@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'motion/react';
 import { Clock, MapPin, Users, Play } from 'lucide-react';
 import { cn } from '@sdkwork/im-h5-commons';

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Clock, MapPin } from 'lucide-react';
 import { cn } from '@sdkwork/im-h5-commons';

@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import React from "react";
 import { ShoppingCart, Store, Headphones } from "lucide-react";
 import { useNavigate } from "react-router";

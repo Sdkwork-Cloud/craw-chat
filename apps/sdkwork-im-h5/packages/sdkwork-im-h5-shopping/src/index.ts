@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export * from "./types";
 export * from "./pages/ProductDetails";
 export * from "./pages/ShoppingCart";

@@ -9,17 +9,17 @@ const PACKS = [
     {
       title: "打工人的日常",
       author: "小李打工记",
-      img: "https://picsum.photos/seed/e1/100",
+      img: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/e1/100.png",
     },
     {
       title: "萌宠猫咪大赏",
       author: "喵星人俱乐部",
-      img: "https://picsum.photos/seed/e2/100",
+      img: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/e2/100.png",
     },
     {
       title: "社交悍匪专用包",
       author: "社牛局",
-      img: "https://picsum.photos/seed/e3/100",
+      img: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/e3/100.png",
     },
   ];
   return (

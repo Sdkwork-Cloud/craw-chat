@@ -3,15 +3,15 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "@sdkwork/im-h5",
-    "displayName": "Chat H5",
+    "displayName": "SDKWork IM H5",
     "version": "0.0.0",
-    "type": "react-package",
+    "type": "node-package",
     "root": "sdkwork-im/apps/sdkwork-im-h5",
     "domain": "communication",
-    "capability": "chat-h5",
+    "capability": "im-h5",
+    "surface": "app",
     "languages": [
-      "typescript",
-      "react"
+      "typescript"
     ],
     "generated": false,
     "manifests": [
@@ -35,16 +35,6 @@
       "purpose": "Canonical SDKWork naming rules."
     },
     {
-      "file": "MODULE_SPEC.md",
-      "path": "../../../sdkwork-specs/MODULE_SPEC.md",
-      "purpose": "Reusable module and package boundary rules."
-    },
-    {
-      "file": "TEST_SPEC.md",
-      "path": "../../../sdkwork-specs/TEST_SPEC.md",
-      "purpose": "Verification and contract testing expectations."
-    },
-    {
       "file": "TYPESCRIPT_CODE_SPEC.md",
       "path": "../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
       "purpose": "TypeScript and Node package rules."
@@ -52,22 +42,12 @@
     {
       "file": "FRONTEND_CODE_SPEC.md",
       "path": "../../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
-      "purpose": "Frontend authored source structure."
+      "purpose": "Frontend React package rules."
     },
     {
-      "file": "FRONTEND_SPEC.md",
-      "path": "../../../sdkwork-specs/FRONTEND_SPEC.md",
-      "purpose": "Frontend service, state, SDK, and UI boundary rules."
-    },
-    {
-      "file": "UI_ARCHITECTURE_SPEC.md",
-      "path": "../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
-      "purpose": "UI architecture selection rules."
-    },
-    {
-      "file": "APPLICATION_SPEC.md",
-      "path": "../../../sdkwork-specs/APPLICATION_SPEC.md",
-      "purpose": "Application shell and module composition rules."
+      "file": "APP_H5_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
+      "purpose": "H5 application root rules."
     },
     {
       "file": "APP_MANIFEST_SPEC.md",
@@ -80,65 +60,81 @@
       "purpose": "Typed runtime config and SDK client initialization rules."
     },
     {
-      "file": "DEPLOYMENT_SPEC.md",
-      "path": "../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
-      "purpose": "SaaS, private, and local deployment parity rules."
+      "file": "APPLICATION_SPEC.md",
+      "path": "../../../sdkwork-specs/APPLICATION_SPEC.md",
+      "purpose": "Application shell and module composition rules."
     },
     {
-      "file": "APP_H5_ARCHITECTURE_SPEC.md",
-      "path": "../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
-      "purpose": "H5 mobile browser, hybrid, and WeChat application root rules."
-    },
-    {
-      "file": "APP_MOBILE_REACT_UI_SPEC.md",
-      "path": "../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md",
-      "purpose": "Mobile React package rules."
+      "file": "APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
+      "purpose": "H5 client architecture alignment rules."
     }
   ],
   "contracts": {
+    "layerRole": "runtime-composition",
     "publicExports": [
       "."
     ],
-    "runtimeEntrypoints": [
-      "package.json#scripts.build",
-      "package.json#scripts.lint"
-    ],
-    "routeManifest": null,
-    "sdkClients": [],
-    "events": [],
-    "configKeys": [],
-    "sdkDependencies": [],
-    "permissionComposition": {
-      "inheritanceMode": "module-catalog-with-overrides",
-      "moduleCatalogRefs": [],
-      "bootstrapAccessTokenScope": {
-        "inheritFrom": "sdkwork.app.config.json#backend.accessTokenPermissionScope",
-        "supplement": [],
-        "overrideReplace": false
-      },
-      "routePermissionHints": {
-        "inheritFromOpenApi": true,
-        "inheritFromModuleManifests": true,
-        "overrides": []
-      },
-      "consumerPolicy": {
-        "forbidLocalPermissionCatalogForDependencyDomains": true,
-        "allowExplicitOverridesOnly": true,
-        "allowFrontendHintsWithoutServerDuplication": true
-      }
-    },
-    "layerRole": "frontend-host",
     "providedPorts": [
       {
-        "name": "imH5Host",
+        "name": "imH5App",
         "export": "."
       }
     ],
-    "requiredPorts": []
+    "requiredPorts": [
+      {
+        "name": "imSdk",
+        "export": ".",
+        "package": "@sdkwork/im-sdk"
+      },
+      {
+        "name": "imAppSdk",
+        "export": ".",
+        "package": "@sdkwork/im-app-sdk"
+      },
+      {
+        "name": "driveAppSdk",
+        "export": ".",
+        "package": "@sdkwork/drive-app-sdk"
+      }
+    ],
+    "runtimeEntrypoints": [
+      "src/main.tsx"
+    ],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-drive-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-iam-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-im-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-im-sdk",
+        "surface": "open-api",
+        "credentialMode": "protected-open-api-flexible"
+      }
+    ],
+    "events": [],
+    "configKeys": [
+      "VITE_SDKWORK_IM_DEPLOYMENT_PROFILE",
+      "VITE_SDKWORK_IM_API_BASE_URL"
+    ]
   },
   "verification": {
     "commands": [
-      "pnpm build"
+      "pnpm --filter @sdkwork/im-h5 lint",
+      "node ../../scripts/dev/sdkwork-im-h5-architecture-standard.test.mjs"
     ]
   }
 }

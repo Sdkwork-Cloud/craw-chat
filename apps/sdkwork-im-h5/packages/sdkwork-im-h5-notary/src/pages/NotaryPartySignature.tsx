@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+﻿import React, { useRef, useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ChevronLeft, RotateCcw, Crop, Palette, Check } from "lucide-react";
 import SignatureCanvas from "react-signature-canvas";

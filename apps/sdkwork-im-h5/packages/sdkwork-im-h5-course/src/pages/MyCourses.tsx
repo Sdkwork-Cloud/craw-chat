@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, PlayCircle, Clock, BookOpen, ChevronRight } from "lucide-react";

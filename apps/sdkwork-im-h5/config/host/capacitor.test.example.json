@@ -1,8 +1,17 @@
 {
-  "appId": "com.sdkwork.im.h5",
-  "appName": "Sdkwork IM H5",
-  "webDir": "dist",
+  "schemaVersion": 1,
+  "kind": "sdkwork.capacitor-host-config",
+  "profile": "test",
+  "appId": "sdkwork-im-h5",
+  "bundleId": "com.sdkwork.im.h5",
+  "packageName": "com.sdkwork.im.h5",
   "server": {
-    "androidScheme": "https"
-  }
+    "url": "http://127.0.0.1:4179",
+    "cleartext": true
+  },
+  "plugins": {},
+  "permissions": [],
+  "urlScheme": "sdkwork-im-h5",
+  "associatedDomains": [],
+  "note": "Capacitor host packaging is deferred. This example documents the future native host boundary."
 }

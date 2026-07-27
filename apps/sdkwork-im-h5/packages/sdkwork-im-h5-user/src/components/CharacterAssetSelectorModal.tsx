@@ -69,7 +69,7 @@ export const CharacterAssetSelectorModal: React.FC<CharacterAssetSelectorModalPr
                     onUpdateAssets({
                       ...assets,
                       referenceImage:
-                        "https://picsum.photos/seed/ref/800/600",
+                        "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/ref/800x600.png",
                     })
                   }
                 >
@@ -111,7 +111,7 @@ export const CharacterAssetSelectorModal: React.FC<CharacterAssetSelectorModalPr
                     onUpdateAssets({
                       ...assets,
                       introVideo:
-                        "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                        "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/for-bigger-blazes.mp4",
                     })
                   }
                 >

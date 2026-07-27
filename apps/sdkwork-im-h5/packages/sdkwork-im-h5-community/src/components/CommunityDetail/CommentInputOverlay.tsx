@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+﻿import React, { useEffect, useRef } from "react";
 import { cn } from "@sdkwork/im-h5-commons";
 import { useTranslation } from "react-i18next";
 

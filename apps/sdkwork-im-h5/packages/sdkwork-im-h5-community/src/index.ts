@@ -18,4 +18,5 @@ export * from './components/CommunityHeader';
 export * from './components/CommunityCard';
 export * from './components/PaymentSheet';
 export * from './components/SuccessModal';
+export * from './components/PostItem';
 

@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import React from "react";
 import { MessageSquareMore, Languages, Edit3, Loader2 } from "lucide-react";
 import { AIWritingOptions } from "../services/AIWritingService";

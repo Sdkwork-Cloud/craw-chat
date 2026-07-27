@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Layers, Scissors, Music, LayoutTemplate, Wand2 } from "lucide-react";

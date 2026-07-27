@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import type { User } from "@sdkwork/im-h5-types";
 
 export interface OrgDepartment {
@@ -23,8 +22,8 @@ export interface Organization {
 }
 
 const mockOrgs: Organization[] = [
-  { id: "org1", name: "sdkwork_im_h5 Tech", logo: "https://picsum.photos/seed/org1/100/100" },
-  { id: "org2", name: "Acme Corp", logo: "https://picsum.photos/seed/org2/100/100" },
+  { id: "org1", name: "Sdkwork IM H5 Tech", logo: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/org1/100x100.png" },
+  { id: "org2", name: "Acme Corp", logo: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/org2/100x100.png" },
 ];
 
 const mockDepts: OrgDepartment[] = [
@@ -37,12 +36,12 @@ const mockDepts: OrgDepartment[] = [
 ];
 
 const mockMembers: OrgMember[] = [
-  { id: "m1", name: "Alex Chen", avatar: "https://picsum.photos/seed/alex/100/100", jobTitle: "Senior Engineer", departmentId: "d2" },
-  { id: "m2", name: "Sarah Jenkins", avatar: "https://picsum.photos/seed/sarah/100/100", jobTitle: "Engineeer", departmentId: "d2" },
-  { id: "m3", name: "David Lee", avatar: "https://picsum.photos/seed/david/100/100", jobTitle: "Backend Lead", departmentId: "d3" },
-  { id: "m4", name: "Emily Chen", avatar: "https://picsum.photos/seed/emily/100/100", jobTitle: "Designer", departmentId: "d4" },
-  { id: "m5", name: "Michael Brown", avatar: "https://picsum.photos/seed/michael/100/100", jobTitle: "Sales Director", departmentId: "d10" },
-  { id: "m6", name: "Alice Wong", avatar: "https://picsum.photos/seed/a1/100/100", jobTitle: "Sales Rep", departmentId: "d11" },
+  { id: "m1", name: "Alex Chen", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/alex/100x100.png", jobTitle: "Senior Engineer", departmentId: "d2" },
+  { id: "m2", name: "Sarah Jenkins", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/sarah/100x100.png", jobTitle: "Engineeer", departmentId: "d2" },
+  { id: "m3", name: "David Lee", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/david/100x100.png", jobTitle: "Backend Lead", departmentId: "d3" },
+  { id: "m4", name: "Emily Chen", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/emily/100x100.png", jobTitle: "Designer", departmentId: "d4" },
+  { id: "m5", name: "Michael Brown", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/michael/100x100.png", jobTitle: "Sales Director", departmentId: "d10" },
+  { id: "m6", name: "Alice Wong", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/a1/100x100.png", jobTitle: "Sales Rep", departmentId: "d11" },
 ];
 
 export const OrganizationService = {

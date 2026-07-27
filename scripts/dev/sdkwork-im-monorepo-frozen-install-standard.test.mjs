@@ -26,12 +26,21 @@ for (const composedFacade of [
   '../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript',
   '../sdkwork-skills/sdks/sdkwork-skills-app-sdk/sdkwork-skills-app-sdk-typescript',
   '../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-backend-sdk/sdkwork-knowledgebase-backend-sdk-typescript',
+  '../sdkwork-account/sdks/sdkwork-account-app-sdk/sdkwork-account-app-sdk-typescript',
+  '../sdkwork-payment/sdks/sdkwork-payment-app-sdk/sdkwork-payment-app-sdk-typescript',
+  '../sdkwork-promotion/sdks/sdkwork-promotion-app-sdk/sdkwork-promotion-app-sdk-typescript',
+  '../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/sdkwork-prompts-app-sdk-typescript',
 ]) {
   assert.ok(
     workspaceYaml.includes(composedFacade),
     `pnpm-workspace.yaml must include composed consumer facade ${composedFacade}`,
   );
 }
+
+assert.ok(
+  workspaceYaml.includes('../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/generated/server-openapi'),
+  'pnpm-workspace.yaml must include the Prompts generated transport required by its composed facade',
+);
 
 const rootPackage = readJsonExists('package.json');
 const overrides = rootPackage.pnpm?.overrides ?? {};

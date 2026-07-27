@@ -1,39 +1,93 @@
-import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { useCallback, useMemo, type ReactNode } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ChatConversationPage } from '@sdkwork/im-h5-chat';
 
-const ChatInboxPage = lazy(() =>
-  import('@sdkwork/im-h5-chat').then((module) => ({ default: module.ChatInboxPage })),
-);
-
-export const IM_APP_HOME_PATH = '/';
+export interface ImAppProps {
+  children?: ReactNode;
+}
 
 export interface ParsedConversationRoute {
   conversationId: string;
-  messageId?: string;
+  conversationPath: string;
 }
 
-export function parseConversationRoute(
-  pathname: string,
-): ParsedConversationRoute | null {
-  const match = pathname.match(/^\/chat\/([^/]+)(?:\/message\/([^/]+))?$/u);
+export const IM_APP_HOME_PATH = '/';
+
+export function parseConversationRoute(pathname: string): ParsedConversationRoute | null {
+  if (!pathname || typeof pathname !== 'string') {
+    return null;
+  }
+
+  const trimmed = pathname.trim();
+  const match = /^\/chat\/([^/?#]+)/u.exec(trimmed);
   if (!match) {
     return null;
   }
+
+  const conversationId = decodeURIComponent(match[1] ?? '');
+  if (!conversationId) {
+    return null;
+  }
+
   return {
-    conversationId: match[1],
-    ...(match[2] ? { messageId: match[2] } : {}),
+    conversationId,
+    conversationPath: `/chat/${conversationId}`,
   };
 }
 
-export default function ImApp() {
-  return (
-    <Suspense fallback={null}>
+export function ImApp({ children }: ImAppProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const parsed = useMemo(() => parseConversationRoute(location.pathname), [location.pathname]);
+
+  const handleOpenConversation = useCallback((conversationId: string) => {
+    navigate(`/chat/${conversationId}`);
+  }, [navigate]);
+
+  if (parsed && parsed.conversationId) {
+    return (
       <Routes>
-        <Route path={IM_APP_HOME_PATH} element={<ChatInboxPage />} />
-        <Route path="/chat/:conversationId" element={<ChatConversationPage />} />
-        <Route path="/chat/:conversationId/message/:messageId" element={<ChatConversationPage />} />
+        <Route
+          path="/chat/:conversationId"
+          element={<ChatConversationPage conversationId={parsed.conversationId} />}
+        />
       </Routes>
-    </Suspense>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to={IM_APP_HOME_PATH} replace />} />
+      <Route
+        path="/chat/:conversationId"
+        element={
+          <ConversationRouteRenderer onOpenConversation={handleOpenConversation} />
+        }
+      />
+      {children}
+    </Routes>
   );
 }
+
+function ConversationRouteRenderer({
+  onOpenConversation,
+}: {
+  onOpenConversation: (conversationId: string) => void;
+}) {
+  const location = useLocation();
+  const parsed = parseConversationRoute(location.pathname);
+
+  if (!parsed) {
+    return <Navigate to={IM_APP_HOME_PATH} replace />;
+  }
+
+  return (
+    <ChatConversationPage
+      conversationId={parsed.conversationId}
+      key={parsed.conversationId}
+    />
+  );
+}
+
+export default ImApp;

@@ -50,6 +50,11 @@ assert.equal(
   'node ../../scripts/dev/run-tsc-cli.mjs --noEmit -p tsconfig.app.json',
   'apps/sdkwork-im-pc lint must typecheck IM-owned sources via tsconfig.app.json instead of sibling source path maps',
 );
+assert.equal(
+  chatPcPackageJson.scripts['_sdkwork:client:browser'],
+  'node ../../scripts/dev/run-vite-cli.mjs',
+  'the topology client hook must start only Vite and must not re-enter sdkwork-app orchestration',
+);
 assert.ok(
   !chatPcPackageJson.dependencies?.['@google/genai'],
   'apps/sdkwork-im-pc must not depend on retired @google/genai AI Studio scaffold',
@@ -521,7 +526,6 @@ for (const sourceName of [
   'sdkwork-im-sdk',
   'sdkwork-notary',
   'sdkwork-clawrouter',
-  'sdkwork-birdcoder',
 ]) {
   const sourceConfig = sharedSdkReleaseConfig.sources?.[sourceName];
   assert.ok(sourceConfig, `release shared SDK config must define ${sourceName}`);
@@ -686,7 +690,7 @@ assert.equal(
   'browser renderer must receive the selected PC renderer dev port',
 );
 assert.deepEqual(browserPlan.processes[1], {
-  args: ['--dir', 'apps/sdkwork-im-pc', 'dev'],
+  args: ['--dir', 'apps/sdkwork-im-pc', 'run', '_sdkwork:client:browser'],
   command: pnpmCommand,
   cwd: repoRoot,
   env: browserPlan.processes[1].env,

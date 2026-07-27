@@ -1,40 +1,65 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
+import type {
+  ConversationInboxPage as ConversationInboxPageView,
+} from '@sdkwork/im-sdk';
 import { subscribeInboxLiveRefresh } from '../services/chatRealtimeService';
-import type { ConversationMessage } from '../services/chatConversationService';
 
-export interface ChatInboxPageProps {
-  onSelectConversation?: (conversationId: string) => void;
+interface ChatInboxPageProps {
+  onOpenConversation?: (conversationId: string) => void;
 }
 
-export function ChatInboxPage({ onSelectConversation }: ChatInboxPageProps) {
-  const [conversations, setConversations] = useState<ConversationMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+export function ChatInboxPage({ onOpenConversation }: ChatInboxPageProps) {
+  const navigate = useNavigate();
+  const [inbox, setInbox] = useState<ConversationInboxPageView | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refreshInbox = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Inbox list refresh placeholder; production code wires the IM SDK list call here.
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    // Subscribe to live inbox refresh events so the conversation list
-    // re-fetches whenever an inbox-scoped realtime event fires.
+    void refreshInbox();
     const unsubscribe = subscribeInboxLiveRefresh(() => {
-      setLoading(true);
-      // TODO: fetch latest conversations and call setConversations
-      void conversations;
-      setLoading(false);
+      void refreshInbox();
     });
-
     return () => {
       unsubscribe();
     };
-  }, [conversations]);
+  }, [refreshInbox]);
+
+  const handleOpenConversation = useCallback((conversationId: string) => {
+    if (onOpenConversation) {
+      onOpenConversation(conversationId);
+      return;
+    }
+    navigate(`/chat/${conversationId}`);
+  }, [navigate, onOpenConversation]);
 
   return (
-    <div className="chat-inbox-page">
-      {loading ? (
-        <div className="chat-inbox-loading">Loading conversations...</div>
-      ) : (
-        <div className="chat-inbox-list">
-          {/* Conversation list items rendered here */}
-        </div>
-      )}
-      {onSelectConversation ? null : null}
+    <div className="sdkwork-im-h5-chat-inbox">
+      <header className="sdkwork-im-h5-chat-inbox-header">
+        <h1>Conversations</h1>
+      </header>
+      <ul className="sdkwork-im-h5-chat-inbox-list">
+        {inbox?.items?.length
+          ? inbox.items.map((item) => (
+              <li key={item.conversationId}>
+                <button
+                  type="button"
+                  onClick={() => handleOpenConversation(item.conversationId)}
+                >
+                  <span>{item.title ?? item.conversationId}</span>
+                </button>
+              </li>
+            ))
+          : !isLoading && <li className="sdkwork-im-h5-chat-inbox-empty">No conversations</li>}
+      </ul>
     </div>
   );
 }

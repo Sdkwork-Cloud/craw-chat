@@ -1,5 +1,3 @@
-import { useTranslation } from "react-i18next";
-import { createDefaultAiHttpPort, type AiHttpPort } from "@sdkwork/im-h5-core";
 export interface AIImageOptions {
   prompt: string;
   negativePrompt?: string;
@@ -17,8 +15,6 @@ export interface ImageTask {
 }
 
 const STORAGE_KEY = "sdkwork_im_h5_ai_image_history";
-
-const aiHttp: AiHttpPort = createDefaultAiHttpPort();
 
 export class AIImageService {
   private static getStoredHistory(): ImageTask[] {
@@ -38,18 +34,17 @@ export class AIImageService {
   public static async optimizePrompt(prompt: string): Promise<string> {
     if (!prompt.trim()) return prompt;
     try {
-      const result = await aiHttp.postJson<{ result?: string }>("/api/ai/optimize-prompt", { prompt });
-      if (result.ok && result.data?.result) return result.data.result;
+      const res = await fetch("/im/v3/api/ai/optimize-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.result) return data.result;
+      }
     } catch (e) {
       console.error("Optimize prompt backend failed:", e);
-    }
-
-    try {
-      const p = `Optimize this image generation prompt to be extremely detailed, beautiful and artistic: "${prompt}". Respond ONLY with the optimized English prompt and absolutely nothing else. Keep it brief and vivid.`;
-      const result = await aiHttp.getText(`https://text.pollinations.ai/${encodeURIComponent(p)}`);
-      if (result.ok && result.data) return result.data.trim();
-    } catch (e) {
-      console.error("Pollinations prompt optimization failed:", e);
     }
 
     return `${prompt}, masterpiece, 8k resolution, highly detailed, photorealistic, cinematic lighting`;
@@ -80,9 +75,15 @@ export class AIImageService {
     this.saveHistory([task, ...history]);
 
     try {
-      await aiHttp.postJson("/api/ai/image", options);
-      // We'll skip this and use the simulation fallback below to maintain the visual generation delay
-      // because our backend currently just returns the mock after 2s anyway.
+      const res = await fetch("/im/v3/api/ai/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(options)
+      });
+      if (res.ok && false) {
+        // We'll skip this and use the simulation fallback below to maintain the visual generation delay 
+        // because our backend currently just returns the mock after 2s anyway.
+      }
     } catch (e) {
       console.error("Backend image generation failed", e);
     }
@@ -115,11 +116,11 @@ export class AIImageService {
             h = 1200;
           }
 
-          // Use pollinations.ai for actual AI generation based on prompt in fallback
+          // Use SDKWork CDN mock image as fallback placeholder
           let promptStr = options.prompt;
           if (options.style && options.style !== "None")
             promptStr += `, ${options.style} style`;
-          let imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptStr)}?width=${w}&height=${h}&nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
+          let imgUrl = "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/ai-generated.png";
 
           const completedTask: ImageTask = {
             ...task,
@@ -143,13 +144,5 @@ export class AIImageService {
 
   public static async getHistory(): Promise<ImageTask[]> {
     return this.getStoredHistory();
-  }
-
-  public static async downloadBlob(url: string): Promise<Blob> {
-    const result = await aiHttp.getBlob(url);
-    if (!result.ok || !result.data) {
-      throw new Error("Image download failed");
-    }
-    return result.data;
   }
 }

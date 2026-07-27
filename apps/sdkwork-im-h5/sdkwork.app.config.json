@@ -5,7 +5,7 @@
     "key": "sdkwork-im-h5",
     "name": "Sdkwork IM H5",
     "displayName": "Sdkwork IM H5",
-    "description": "Sdkwork IM H5 SDKWork application.",
+    "description": "Sdkwork IM H5 SDKWork application for mobile browser inbox and conversations.",
     "vendor": "SDKWork",
     "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-im-h5",
     "supportUrl": "https://sdkwork.com/support",
@@ -26,7 +26,7 @@
     "ownerMode": "tenant",
     "grantMode": "current",
     "platform": "WEB",
-    "appId": null,
+    "appId": "sdkwork-im-h5",
     "organizationId": "0",
     "tenantId": "100001",
     "accessTokenPermissionScope": [
@@ -42,7 +42,7 @@
     "deliveryModes": [
       "WEB_URL"
     ],
-    "defaultPlatform": "WEB",
+    "defaultPlatform": "H5",
     "defaultArchitecture": "universal",
     "supportedDeploymentProfiles": [
       "cloud",
@@ -75,8 +75,52 @@
         "generatedBy": "apps/scripts/initialize-sdkwork-app-standard-v3.mjs"
       }
     },
-    "screenshots": [],
-    "previews": [],
+    "screenshots": [
+      {
+        "id": "sdkwork-im-h5-mobile-screenshot",
+        "type": "SCREENSHOT",
+        "purpose": "CATALOG_SCREENSHOT",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/media/mobile-screenshot.png",
+        "platform": "H5",
+        "locale": "en-US",
+        "deviceClass": "MOBILE",
+        "displayType": "MOBILE_PORTRAIT",
+        "width": 750,
+        "height": 1334,
+        "format": "PNG",
+        "fileSizeBytes": 524288,
+        "alphaChannel": false,
+        "caption": "Sdkwork IM H5 mobile browser screenshot.",
+        "sortOrder": 0,
+        "enabled": true,
+        "metadata": {
+          "generatedPlaceholder": false,
+          "altText": "Sdkwork IM H5 mobile browser app screenshot."
+        }
+      }
+    ],
+    "previews": [
+      {
+        "id": "sdkwork-im-h5-catalog-preview",
+        "type": "PREVIEW_IMAGE",
+        "purpose": "CATALOG_PREVIEW",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-im-h5/media/preview-cover.png",
+        "platform": "H5",
+        "locale": "en-US",
+        "width": 750,
+        "height": 1334,
+        "format": "PNG",
+        "fileSizeBytes": 393216,
+        "alphaChannel": false,
+        "caption": "Sdkwork IM H5 preview.",
+        "sortOrder": 0,
+        "enabled": true,
+        "metadata": {
+          "generatedPlaceholder": false,
+          "altText": "Sdkwork IM H5 preview cover."
+        }
+      }
+    ],
     "metadata": {
       "assetVersion": "0.0.0",
       "defaultLocale": "en-US"
@@ -88,12 +132,9 @@
       "name": "sdkwork-skills-app"
     },
     "platforms": [
-      "WEB",
-      "H5",
-      "H5_WEIXIN"
+      "H5"
     ],
     "installPlatforms": [
-      "WEB",
       "H5"
     ],
     "defaultPackageId": "web-universal-cloud-browser-zip",
@@ -101,7 +142,7 @@
     "stores": [],
     "config": {
       "workspaceRoot": "apps/sdkwork-im-h5",
-      "framework": "react-h5",
+      "framework": "react-vite",
       "managedBy": "apps/scripts/initialize-sdkwork-app-standard-v3.mjs"
     }
   },
@@ -114,7 +155,7 @@
       "packages": [
         {
           "id": "web-universal-cloud-browser-zip",
-          "name": "Sdkwork IM H5 Web Bundle (Cloud)",
+          "name": "Sdkwork IM H5 Web Bundle",
           "sourceType": "WEB_URL",
           "packageFormat": "ZIP",
           "platform": "WEB",
@@ -133,7 +174,7 @@
         },
         {
           "id": "web-universal-standalone-browser-zip",
-          "name": "Sdkwork IM H5 Web Bundle (Standalone)",
+          "name": "Sdkwork IM H5 Standalone Web Bundle",
           "sourceType": "WEB_URL",
           "packageFormat": "ZIP",
           "platform": "WEB",
@@ -153,7 +194,7 @@
       ],
       "metadata": {
         "workspaceRoot": "apps/sdkwork-im-h5",
-        "framework": "react-h5",
+        "framework": "react-vite",
         "packageManager": "pnpm",
         "migratedFromLegacyConfig": false
       }
@@ -175,13 +216,13 @@
         "highlights": [
           "SDKWork App Standard v3 configuration initialized",
           "application registration metadata standardized",
-          "H5 web package matrix normalized"
+          "Download package matrix normalized"
         ],
         "packageIds": [
           "web-universal-cloud-browser-zip",
           "web-universal-standalone-browser-zip"
         ],
-        "publishedAt": "2026-07-24T00:00:00Z",
+        "publishedAt": "2026-07-26T00:00:00Z",
         "current": true,
         "forceUpdate": false,
         "minSupportedVersion": "0.0.0",
@@ -202,7 +243,7 @@
   },
   "metadata": {
     "standardOwner": "sdkwork-platform",
-    "initializedAt": "2026-07-24T00:00:00Z",
+    "initializedAt": "2026-07-26T00:00:00Z",
     "deploymentConfig": "etc/sdkwork.deployment.config.json"
   }
 }

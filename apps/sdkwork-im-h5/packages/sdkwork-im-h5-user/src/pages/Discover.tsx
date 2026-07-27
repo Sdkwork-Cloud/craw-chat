@@ -49,7 +49,7 @@ export const Discover: React.FC = () => {
             rightElement={
               <div className="relative">
                 <img
-                  src="https://picsum.photos/seed/moment/32/32"
+                  src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/moment/32x32.png"
                   alt="New moment"
                   className="w-8 h-8 rounded-md"
                 />

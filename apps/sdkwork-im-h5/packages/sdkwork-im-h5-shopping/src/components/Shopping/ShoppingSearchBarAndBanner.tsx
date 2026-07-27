@@ -17,7 +17,7 @@ export const ShoppingSearchBarAndBanner: React.FC = () => {
       </div>
       <div className="w-full h-32 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 relative overflow-hidden mb-6 flex items-center px-6 shadow-sm">
         <img
-          src="https://picsum.photos/seed/salebanner/800/300"
+          src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/salebanner/800x300.png"
           alt="Sale Banner"
           className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-overlay"
         />

@@ -1,5 +1,13 @@
-# Local Plugins
+# SDKWork IM H5 Plugins
 
-This directory hosts SDKWork plugins scoped to the `sdkwork-im-h5` application root.
+Application-local agent plugins for `apps/sdkwork-im-h5` belong here.
 
-Local plugins may extend agent capabilities for H5-specific workflows. They must reference global standards through relative paths and must not duplicate `sdkwork-specs` content.
+Installable plugins must include `.codex-plugin/plugin.json` and must document contributed skills,
+tools, apps, scripts, and verification. Plugin skills follow the same rules as
+`.sdkwork/skills/`.
+
+Do not store application/runtime source plugins here; runtime plugin source belongs in the
+repository root `plugins/` directory or an approved application package.
+
+Plugins must not store generated SDK output, secrets, runtime databases, caches, logs, or
+user-private files.

@@ -42,7 +42,7 @@ const mockCourses: CourseData[] = [
     originalPrice: 99,
     duration: "正在直播中",
     totalLessons: 1,
-    cover: "https://picsum.photos/seed/c5/600/400",
+    cover: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c5/600x400.png",
     category: "live",
     type: "live",
     liveStatus: "live",
@@ -68,7 +68,7 @@ const mockCourses: CourseData[] = [
     originalPrice: 99,
     duration: "周五 20:00 开播",
     totalLessons: 1,
-    cover: "https://picsum.photos/seed/c6/600/400",
+    cover: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c6/600x400.png",
     category: "live",
     type: "live",
     liveStatus: "upcoming",
@@ -93,7 +93,7 @@ const mockCourses: CourseData[] = [
     originalPrice: 199,
     duration: "下周一 19:30 开播",
     totalLessons: 1,
-    cover: "https://picsum.photos/seed/c7/600/400",
+    cover: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c7/600x400.png",
     category: "live",
     type: "live",
     liveStatus: "upcoming",
@@ -117,7 +117,7 @@ const mockCourses: CourseData[] = [
     originalPrice: 599,
     duration: "45小时",
     totalLessons: 128,
-    cover: "https://picsum.photos/seed/c1/600/400",
+    cover: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c1/600x400.png",
     category: "tech",
     type: "recorded",
     isPurchased: true,
@@ -131,17 +131,17 @@ const mockCourses: CourseData[] = [
       { 
         section: "第一章：基础预备", 
         lessons: [
-          { id: "l1", title: "开发环境搭建", free: true, duration: "12:45", completed: true, videoUrl: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4" }, 
-          { id: "l2", title: "现代 JS 核心语法", free: true, duration: "24:30", completed: false, videoUrl: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" }, 
-          { id: "l3", title: "TS 速成", free: true, duration: "45:10", completed: false, videoUrl: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4" }
+          { id: "l1", title: "开发环境搭建", free: true, duration: "12:45", completed: true, videoUrl: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/elephants-dream.mp4" }, 
+          { id: "l2", title: "现代 JS 核心语法", free: true, duration: "24:30", completed: false, videoUrl: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/big-buck-bunny.mp4" }, 
+          { id: "l3", title: "TS 速成", free: true, duration: "45:10", completed: false, videoUrl: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/sintel.mp4" }
         ] 
       },
       { 
         section: "第二章：React 核心", 
         lessons: [
-          { id: "l4", title: "组件化思想", free: false, duration: "18:20", completed: false, videoUrl: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4" }, 
-          { id: "l5", title: "Hooks 深度解析", free: false, duration: "32:15", completed: false, videoUrl: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4" }, 
-          { id: "l6", title: "状态管理与数据流", free: false, duration: "41:00", completed: false, videoUrl: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" }
+          { id: "l4", title: "组件化思想", free: false, duration: "18:20", completed: false, videoUrl: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/tears-of-steel.mp4" }, 
+          { id: "l5", title: "Hooks 深度解析", free: false, duration: "32:15", completed: false, videoUrl: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/elephants-dream.mp4" }, 
+          { id: "l6", title: "状态管理与数据流", free: false, duration: "41:00", completed: false, videoUrl: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/videos/big-buck-bunny.mp4" }
         ] 
       },
     ]
@@ -155,7 +155,7 @@ const mockCourses: CourseData[] = [
     price: 199,
     originalPrice: 399,
     duration: "20小时",
-    cover: "https://picsum.photos/seed/c2/600/400",
+    cover: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c2/600x400.png",
     category: "design",
     type: "recorded",
   },
@@ -168,7 +168,7 @@ const mockCourses: CourseData[] = [
     price: 159,
     originalPrice: 299,
     duration: "15小时",
-    cover: "https://picsum.photos/seed/c3/600/400",
+    cover: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c3/600x400.png",
     category: "business",
     type: "recorded",
   },
@@ -181,7 +181,7 @@ const mockCourses: CourseData[] = [
     price: 259,
     originalPrice: 499,
     duration: "12小时",
-    cover: "https://picsum.photos/seed/c4/600/400",
+    cover: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c4/600x400.png",
     category: "design",
     type: "recorded",
   }
@@ -191,7 +191,7 @@ const mockMyCourses: MyCourseData[] = [
   {
     id: "c6",
     title: "【直播预约】2027 Serverless 架构与前端未来",
-    cover: "https://picsum.photos/seed/c6/300/200",
+    cover: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c6/300x200.png",
     progress: 0,
     totalLessons: 1,
     completedLessons: 0,
@@ -201,7 +201,7 @@ const mockMyCourses: MyCourseData[] = [
   {
     id: "c1",
     title: "零基础全栈开发大师课 - React19 + TS 深度解析",
-    cover: "https://picsum.photos/seed/c1/300/200",
+    cover: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c1/300x200.png",
     progress: 35,
     totalLessons: 128,
     completedLessons: 45,
@@ -210,7 +210,7 @@ const mockMyCourses: MyCourseData[] = [
   {
     id: "c5",
     title: "【直播】2026 前端架构演进与高频面试题精讲",
-    cover: "https://picsum.photos/seed/c5/300/200",
+    cover: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c5/300x200.png",
     progress: 0,
     totalLessons: 1,
     completedLessons: 0,
@@ -237,14 +237,14 @@ export interface CourseDiscussion {
 const mockDiscussions: CourseDiscussion[] = [
   {
     id: "d1",
-    user: { name: "飞奔的蜗牛", avatar: "https://picsum.photos/seed/u1/100/100" },
+    user: { name: "飞奔的蜗牛", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/u1/100x100.png" },
     content: "老师讲得太透彻了！特别是 Hooks 闭包陷阱这里，彻底理解了 useEffect 的依赖数组原理。",
     likes: 12,
     time: "昨天 14:20"
   },
   {
     id: "d2",
-    user: { name: "前端小菜鸟", avatar: "https://picsum.photos/seed/u2/100/100" },
+    user: { name: "前端小菜鸟", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/u2/100x100.png" },
     content: "请问 12:45 演示的代码怎么拿到最新 state？",
     likes: 5,
     time: "2天前",
@@ -327,7 +327,7 @@ export class CourseService {
     await new Promise(resolve => setTimeout(resolve, 500));
     const newComment: CourseDiscussion = {
       id: "d" + Date.now(),
-      user: { name: "我", avatar: "https://picsum.photos/seed/me/100/100" },
+      user: { name: "我", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/me/100x100.png" },
       content,
       likes: 0,
       time: "刚刚"

@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export interface VoiceCategory {
   id: string;
   name: string;

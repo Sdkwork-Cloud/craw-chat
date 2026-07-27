@@ -38,7 +38,7 @@ const navigate = useNavigate();
           
           <div className="p-4 bg-white rounded-xl shadow-sm border border-border-color/50 mb-6">
             <QRCode 
-              value={`https://app.sdkwork_im_h5.com/call/video-notary/${id}`}
+              value={`https://im.sdkwork.com/call/video-notary/${id}`}
               size={200}
               level="H"
             />

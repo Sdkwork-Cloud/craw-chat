@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { type KnowledgeBase } from "@sdkwork/im-h5-knowledge";

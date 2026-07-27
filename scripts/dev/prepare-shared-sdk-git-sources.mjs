@@ -152,13 +152,6 @@ const SOURCE_SPECS = Object.freeze([
     repoUrlEnvVar: 'SDKWORK_SHARED_CLAW_ROUTER_REPO_URL',
     refEnvVar: 'SDKWORK_SHARED_CLAW_ROUTER_GIT_REF',
   },
-  {
-    id: 'sdkwork-birdcoder',
-    repoRoot: path.resolve(defaultRepoRoot, '..', 'sdkwork-birdcoder'),
-    requiredPaths: ['package.json', 'packages/sdkwork-birdcoder-web/package.json'],
-    repoUrlEnvVar: 'SDKWORK_SHARED_BIRDCODER_REPO_URL',
-    refEnvVar: 'SDKWORK_SHARED_BIRDCODER_GIT_REF',
-  },
 ]);
 
 const GITHUB_TOKEN_ENV_VARS = Object.freeze([

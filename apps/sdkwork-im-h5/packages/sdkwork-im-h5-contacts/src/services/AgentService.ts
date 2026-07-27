@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import { ChatService } from "@sdkwork/im-h5-chat";
 
 export interface Agent {
@@ -25,7 +24,7 @@ const INITIAL_AGENTS: Agent[] = [
     iconName: "Bot",
     color: "bg-[#E8F3FF] text-[#2B5CE7]",
     isOfficial: true,
-    avatar: "https://picsum.photos/seed/agent1/100/100",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/agent1/100x100.png",
   },
   {
     id: "a2",
@@ -36,7 +35,7 @@ const INITIAL_AGENTS: Agent[] = [
     iconName: "Bot",
     color: "bg-[#FFF0F0] text-[#F53F3F]",
     isOfficial: true,
-    avatar: "https://picsum.photos/seed/agent2/100/100",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/agent2/100x100.png",
   },
   {
     id: "a3",
@@ -47,7 +46,7 @@ const INITIAL_AGENTS: Agent[] = [
     iconName: "Bot",
     color: "bg-[#F0FDF4] text-[#00B42A]",
     isOfficial: true,
-    avatar: "https://picsum.photos/seed/agent3/100/100",
+    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/agent3/100x100.png",
   },
   {
     id: "a4",
@@ -129,7 +128,7 @@ export const AgentService = {
       iconName: data.iconName || "Bot",
       color: "bg-[#F0FDF4] text-[#00B42A]",
       isOfficial: false,
-      avatar: data.avatar || `https://picsum.photos/seed/${Date.now()}/200/200`,
+      avatar: data.avatar || `https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/${Date.now()}/200.png`,
       kbId: data.kbId,
       prompt: data.prompt
     } as Agent;
@@ -185,7 +184,7 @@ export const AgentService = {
     const agentUser = {
       id: `agent_${Date.now()}`,
       name: agentName,
-      avatar: `https://picsum.photos/seed/${agentName}/200/200`,
+      avatar: `https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/${agentName}/200.png`,
       status: "online",
     };
     return ChatService.createDirectChat(

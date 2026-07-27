@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 export interface NotaryFileTag {
   label: string;
   color: "blue" | "green" | "orange" | "red" | "gray";
@@ -408,7 +407,7 @@ export const notaryService = {
               name: "刘*",
               gender: "男",
               status: "身份验证通过",
-              avatar: "https://picsum.photos/seed/notaryparty/200/200",
+              avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/notaryparty/200x200.png",
               phone: "13800138000",
               idCard: "11010519900101234X",
               dob: "1990-01-01",
@@ -416,7 +415,7 @@ export const notaryService = {
               idEndDate: "2040-01-01",
               address: "北京市朝阳区建国路88号",
               faceScore: "98.5",
-              facePreview: "https://picsum.photos/seed/notaryparty/200/200",
+              facePreview: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/notaryparty/200x200.png",
             },
           ],
           materials: [

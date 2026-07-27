@@ -16,6 +16,8 @@ const cloudEnv = {
 test('materializes topology values without token or secret fields', () => {
   const config = createFlutterDefineConfig(cloudEnv);
   assert.equal(config.SDKWORK_IM_DEPLOYMENT_PROFILE, 'cloud');
+  assert.equal(config.SDKWORK_PROFILE_ID, 'cloud.development');
+  assert.equal(config.SDKWORK_RUNTIME_TARGET, 'flutter-android');
   assert.equal(config.SDKWORK_IAM_APP_API_BASE_URL, 'https://api-dev.sdkwork.com');
   assert.equal(config.SDKWORK_ACCESS_TOKEN, undefined);
   assert.ok(Object.keys(config).every((key) => !/(?:PASSWORD|SECRET|PRIVATE_KEY)$/u.test(key)));
@@ -29,6 +31,7 @@ test('creates a profile-scoped local dart-define plan', () => {
     root,
   });
   assert.equal(plan.target, 'android');
+  assert.equal(plan.config.SDKWORK_RUNTIME_TARGET, 'flutter-android');
   assert.equal(
     plan.configPath,
     path.join(root, '.runtime', 'sdkwork-app', 'flutter', 'cloud.development.android.json'),
@@ -40,6 +43,25 @@ test('creates a profile-scoped local dart-define plan', () => {
     '--dart-define-from-file',
     plan.configPath,
   ]);
+});
+
+test('projects an iOS runtime target into the selected profile', () => {
+  const plan = createFlutterDevPlan({
+    args: ['--target', 'ios'],
+    env: cloudEnv,
+  });
+  assert.equal(plan.config.SDKWORK_RUNTIME_TARGET, 'flutter-ios');
+  assert.equal(plan.config.SDKWORK_IM_RUNTIME_TARGET, 'flutter-ios');
+});
+
+test('rejects profile identity drift before writing dart-define JSON', () => {
+  assert.throws(
+    () => createFlutterDefineConfig({
+      ...cloudEnv,
+      SDKWORK_IM_PROFILE_ID: 'cloud.production',
+    }),
+    /must match deployment profile and environment/u,
+  );
 });
 
 test('fails before Flutter startup when topology URLs are missing', () => {

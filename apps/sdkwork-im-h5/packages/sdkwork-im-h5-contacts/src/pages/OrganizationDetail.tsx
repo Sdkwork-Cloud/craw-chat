@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
-import { ChevronLeft, Folder, User as UserIcon, Search } from "lucide-react";
-import { IconButton, Avatar } from "@sdkwork/im-h5-commons";
+import { ChevronLeft, User as UserIcon, Search } from "lucide-react";
+import { IconButton } from "@sdkwork/im-h5-commons";
 import { OrganizationService, type Organization, type OrgDepartment, type OrgMember } from "../services/OrganizationService";
 import { useTranslation } from "react-i18next";
+import { OrgBreadcrumbs } from "../components/OrgBreadcrumbs";
+import { OrgDepartmentList } from "../components/OrgDepartmentList";
+import { OrgMemberList } from "../components/OrgMemberList";
+import { OrgSearchResults } from "../components/OrgSearchResults";
 
 export const OrganizationDetail: React.FC = () => {
   const { t } = useTranslation();
-const navigate = useNavigate();
+  const navigate = useNavigate();
   const { id: orgId } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const deptId = searchParams.get("deptId");
@@ -56,11 +60,11 @@ const navigate = useNavigate();
   }, [searchQuery, isSearching, orgId]);
 
   const goToDept = (id: string) => {
-  navigate(`/contacts/org/${orgId}?deptId=${id}`);
+    navigate(`/contacts/org/${orgId}?deptId=${id}`);
   };
 
   const goToRoot = () => {
-  navigate(`/contacts/org/${orgId}`);
+    navigate(`/contacts/org/${orgId}`);
   };
 
   return (
@@ -80,7 +84,7 @@ const navigate = useNavigate();
               />
             </div>
             <span
-              className="text-[15px] text-primary-blue whitespace-nowrap pl-2"
+              className="text-[15px] text-primary-blue whitespace-nowrap pl-2 cursor-pointer"
               onClick={() => {
                 setIsSearching(false);
                 setSearchQuery("");
@@ -119,25 +123,12 @@ const navigate = useNavigate();
 
       {/* Breadcrumbs */}
       {!isSearching && (deptId !== null) && (
-        <div className="px-4 py-3 bg-bg-color border-b border-border-color overflow-x-auto whitespace-nowrap no-scrollbar flex items-center gap-1.5 shrink-0">
-          <span
-            className="text-[14px] text-primary-blue cursor-pointer"
-            onClick={goToRoot}
-          >
-            {org?.name}
-          </span>
-          {path.map((p, idx) => (
-            <React.Fragment key={p.id}>
-              <span className="text-text-sub/50 text-[12px]">/</span>
-              <span
-                className={`text-[14px] cursor-pointer ${idx === path.length - 1 ? "text-text-main font-medium" : "text-primary-blue"}`}
-                onClick={() => goToDept(p.id)}
-              >
-                {p.name}
-              </span>
-            </React.Fragment>
-          ))}
-        </div>
+        <OrgBreadcrumbs
+          org={org}
+          path={path}
+          onGoToRoot={goToRoot}
+          onGoToDept={goToDept}
+        />
       )}
 
       <div className="flex-1 overflow-y-auto w-full bg-chat-other-bg pb-10">
@@ -146,105 +137,24 @@ const navigate = useNavigate();
             <div className="w-6 h-6 border-2 border-primary-blue border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : isSearching && searchQuery.trim() ? (
-          <div className="flex flex-col bg-bg-color">
-            {searchResults.length > 0 ? (
-              searchResults.map((member, index) => (
-                <div key={member.id} className="relative">
-                  <div className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-black/5 dark:active:bg-white/5">
-                    <Avatar
-                      src={member.avatar || ""}
-                      alt={member.name}
-                      fallback={member.name}
-                      size="md"
-                      className="rounded"
-                    />
-                    <div className="flex flex-col flex-1 min-w-0 justify-center">
-                      <span className="text-[16px] text-text-main truncate font-medium">{member.name}</span>
-                      {member.jobTitle && (
-                        <span className="text-[13px] text-text-sub truncate mt-0.5">{member.jobTitle}</span>
-                      )}
-                    </div>
-                  </div>
-                  {index < searchResults.length - 1 && (
-                    <div className="ml-16 border-b border-border-color" />
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-text-sub gap-2">
-                <Search className="w-12 h-12 text-text-sub/30" />
-                <span className="text-[14px]">{t('contacts.no_search_results', { defaultValue: 'No results found' })}</span>
-              </div>
-            )}
-          </div>
+          <OrgSearchResults searchResults={searchResults} t={t} />
         ) : (
           <div className="flex flex-col">
             {/* Departments */}
-            {departments.length > 0 && (
-              <div className="bg-bg-color mt-2">
-                {departments.map((dept, index) => (
-                  <div key={dept.id} className="relative">
-                    <div
-                      className="flex items-center justify-between px-4 py-3.5 cursor-pointer active:bg-black/5 dark:active:bg-white/5"
-                      onClick={() => goToDept(dept.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded bg-[#4395F5]/10 flex items-center justify-center shrink-0">
-                          <Folder className="w-5 h-5 text-[#4395F5] fill-[#4395F5]" />
-                        </div>
-                        <span className="text-[16px] text-text-main">{dept.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {dept.count > 0 && (
-                          <span className="text-[14px] text-text-sub">{t('contacts.people_count', { count: dept.count })}</span>
-                        )}
-                        <ChevronLeft className="w-5 h-5 text-text-sub/40 rotate-180" />
-                      </div>
-                    </div>
-                    {index < departments.length - 1 && (
-                      <div className="ml-16 border-b border-border-color" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <OrgDepartmentList
+              departments={departments}
+              t={t}
+              onGoToDept={goToDept}
+            />
 
             {/* Members */}
-            {members.length > 0 && (
-              <div className="bg-bg-color mt-2">
-                <div className="px-4 py-2 border-b border-border-color">
-                  <span className="text-[13px] text-text-sub">{t('contacts.org_members')} ({members.length})</span>
-                </div>
-                {members.map((member, index) => (
-                  <div key={member.id} className="relative">
-                    <div className="flex items-center gap-3 px-4 py-3 cursor-pointer active:bg-black/5 dark:active:bg-white/5">
-                      <Avatar
-                        src={member.avatar || ""}
-                        alt={member.name}
-                        fallback={member.name}
-                        size="md"
-                        className="rounded"
-                      />
-                      <div className="flex flex-col flex-1 min-w-0 justify-center">
-                        <span className="text-[16px] text-text-main truncate font-medium">{member.name}</span>
-                        {member.jobTitle && (
-                          <span className="text-[13px] text-text-sub truncate mt-0.5">{member.jobTitle}</span>
-                        )}
-                      </div>
-                    </div>
-                    {index < members.length - 1 && (
-                      <div className="ml-16 border-b border-border-color" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <OrgMemberList members={members} t={t} />
 
             {!loading && departments.length === 0 && members.length === 0 && (
-               <div className="flex flex-col items-center justify-center py-20 text-text-sub gap-2">
-                 <UserIcon className="w-12 h-12 text-text-sub/30" />
-                 <span className="text-[14px]">{t('contacts.no_org_data')}</span>
-               </div>
+              <div className="flex flex-col items-center justify-center py-20 text-text-sub gap-2">
+                <UserIcon className="w-12 h-12 text-text-sub/30" />
+                <span className="text-[14px]">{t('contacts.no_org_data')}</span>
+              </div>
             )}
           </div>
         )}
@@ -252,3 +162,4 @@ const navigate = useNavigate();
     </div>
   );
 };
+
