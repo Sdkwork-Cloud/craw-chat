@@ -1,5 +1,5 @@
 import { imApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { AckResponse, RealtimeEventAckRequest, RealtimeEventView, RealtimeSubscriptionSyncRequest, RealtimeSubscriptionSyncResponse } from '../types';
 
@@ -18,17 +18,17 @@ export class RealtimeEventsApi {
 
 
 /** Acknowledge realtime events */
-  async ack(body: RealtimeEventAckRequest): Promise<AckResponse> {
-    return this.client.post<AckResponse>(imApiPath(`/realtime/events/ack`), body, undefined, undefined, 'application/json');
+  async ack(body: RealtimeEventAckRequest, requestOptions?: ApiRequestOptions): Promise<AckResponse> {
+    return this.client.request<AckResponse>(imApiPath(`/realtime/events/ack`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** List pending realtime events */
-  async list(params?: RealtimeEventsListParams): Promise<{ items: RealtimeEventView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
+  async list(params?: RealtimeEventsListParams, requestOptions?: ApiRequestOptions): Promise<{ items: RealtimeEventView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: RealtimeEventView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/realtime/events`), query));
+    return this.client.request<{ items: RealtimeEventView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/realtime/events`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 }
 
@@ -41,18 +41,18 @@ export class RealtimeSubscriptionsApi {
 
 
 /** Sync realtime subscription targets */
-  async sync(body: RealtimeSubscriptionSyncRequest): Promise<RealtimeSubscriptionSyncResponse> {
-    return this.client.post<RealtimeSubscriptionSyncResponse>(imApiPath(`/realtime/subscriptions/sync`), body, undefined, undefined, 'application/json');
+  async sync(body: RealtimeSubscriptionSyncRequest, requestOptions?: ApiRequestOptions): Promise<RealtimeSubscriptionSyncResponse> {
+    return this.client.request<RealtimeSubscriptionSyncResponse>(imApiPath(`/realtime/subscriptions/sync`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 }
 
 export class RealtimeApi {
-
+  private client: HttpClient;
   public readonly subscriptions: RealtimeSubscriptionsApi;
   public readonly events: RealtimeEventsApi;
 
   constructor(client: HttpClient) {
-
+    this.client = client;
     this.subscriptions = new RealtimeSubscriptionsApi(client);
     this.events = new RealtimeEventsApi(client);
   }

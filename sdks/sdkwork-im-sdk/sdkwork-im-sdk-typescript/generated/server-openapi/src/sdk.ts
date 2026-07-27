@@ -37,6 +37,12 @@ export class SdkworkImClient {
 
     this.spaces = createSpacesApi(this.httpClient);
   }
+
+  setApiKey(apiKey: string): this {
+    this.httpClient.setApiKey(apiKey);
+    return this;
+  }
+
   setAuthToken(token: string): this {
     this.httpClient.setAuthToken(token);
     return this;

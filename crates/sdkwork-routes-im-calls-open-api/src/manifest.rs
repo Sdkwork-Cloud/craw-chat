@@ -7,61 +7,61 @@ use crate::paths;
 pub const API_SURFACE: &str = "open-api";
 
 pub const ROUTES: &[HttpRoute] = &[
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CALL_SESSION,
         "calls",
         "calls.sessions.retrieve",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CALL_SESSIONS,
         "calls",
         "calls.sessions.create",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CALL_SESSION_INVITE,
         "calls",
         "calls.sessions.invite",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CALL_SESSION_ACCEPT,
         "calls",
         "calls.sessions.accept",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CALL_SESSION_REJECT,
         "calls",
         "calls.sessions.reject",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CALL_SESSION_END,
         "calls",
         "calls.sessions.end",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CALL_SESSION_SIGNALS,
         "calls",
         "calls.sessions.signals.list",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CALL_SESSION_SIGNALS,
         "calls",
         "calls.sessions.signals.create",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CALL_SESSION_CREDENTIALS,
         "calls",
         "calls.sessions.credentials.create",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CALL_SESSION_CREDENTIALS_REFRESH,
         "calls",

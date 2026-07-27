@@ -1,9 +1,9 @@
-﻿import { useTranslation } from "react-i18next";
-import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { CommunityService } from "../services/CommunityService";
 import { Community } from "../types";
-import { cn, IconButton, Tabs, ActionSheet, showToast } from "@sdkwork/im-h5-commons";
+import { cn, IconButton, Tabs, ActionSheet, showToast, useLongPress } from "@sdkwork/im-h5-commons";
 import { ChevronLeft, Compass, Users, MessageSquare, MoreHorizontal, FileText, Share, Trash2, LogOut } from "lucide-react";
 import { CommunityCard } from "../components/CommunityCard";
 
@@ -38,38 +38,36 @@ const navigate = useNavigate();
     }
   };
 
-  const startLongPress = (community: Community) => {
-  const handlePressStart = () => {
-  setIsLongPressed(false);
-      (window as any).longPressTimeout = setTimeout(() => {
+  const longPressItemRef = useRef<Community | null>(null);
+  const longPressHandlers = useLongPress({
+    delay: 500,
+    onLongPress: () => {
+      const community = longPressItemRef.current;
+      if (community) {
         setIsLongPressed(true);
         setActionSheetCommunity(community);
-      }, 500);
-    };
-
-    const handlePressEnd = () => {
-  clearTimeout((window as any).longPressTimeout);
-    };
-
-    return {
-      onPointerDown: handlePressStart,
-      onPointerUp: handlePressEnd,
-      onPointerLeave: () => {
-        handlePressEnd();
-        setIsLongPressed(false);
-      },
-      onPointerMove: () => {
-         // optional: if they move a lot, cancel it
-      },
-      onContextMenu: (e: React.MouseEvent) => {
-        e.preventDefault();
-        handlePressStart(); // Trigger immediately on context menu (right click)
-        setIsLongPressed(true);
-        setActionSheetCommunity(community);
-        handlePressEnd();
       }
-    };
-  };
+    },
+  });
+
+  const startLongPress = (community: Community) => ({
+    onPointerDown: () => {
+      longPressItemRef.current = community;
+      setIsLongPressed(false);
+      longPressHandlers.onPointerDown();
+    },
+    onPointerUp: longPressHandlers.onPointerUp,
+    onPointerLeave: () => {
+      longPressHandlers.onPointerLeave();
+      setIsLongPressed(false);
+    },
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault();
+      longPressHandlers.onPointerUp();
+      setIsLongPressed(true);
+      setActionSheetCommunity(community);
+    },
+  });
 
   const handleActionSheetSelect = (action: string) => {
   if (!actionSheetCommunity) return;

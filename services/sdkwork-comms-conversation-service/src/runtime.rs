@@ -2371,20 +2371,48 @@ fn direct_chat_binding_request_key(
     ])
 }
 
-fn direct_chat_binding_replay_matches(
+// Authorization is checked before this comparison. The original binder is audit
+// provenance, while the canonical participant pair and direct-chat id define state identity.
+fn direct_chat_binding_state_matches(
     existing: &DirectChatBindingReplayRecord,
     command: &BindDirectChatConversationCommand,
-    binder_kind: &str,
     pair: &im_domain_core::social::NormalizedActorPair,
     direct_chat_id: &str,
 ) -> bool {
-    existing.bound_by == command.bound_by
-        && existing.binder_kind == binder_kind
-        && existing.direct_chat_id == direct_chat_id
+    existing.direct_chat_id == direct_chat_id
         && existing.anchor_actor_id == pair.left_actor_id
         && existing.anchor_actor_kind == command.left_actor_kind
         && existing.peer_actor_id == pair.right_actor_id
         && existing.peer_actor_kind == command.right_actor_kind
+}
+
+fn normalized_direct_chat_binding_state_matches(
+    existing: &ConversationState,
+    command: &BindDirectChatConversationCommand,
+    direct_chat_id: &str,
+) -> bool {
+    existing.aggregate.conversation_type() == "direct"
+        && existing.aggregate.lifecycle_state() == ConversationLifecycleState::Active
+        && existing
+            .aggregate
+            .business_binding()
+            .is_some_and(|binding| {
+                binding.business_type == "direct_chat" && binding.business_id == direct_chat_id
+            })
+        && existing
+            .roster
+            .resolve_active_member_with_kind(
+                command.left_actor_id.as_str(),
+                command.left_actor_kind.as_str(),
+            )
+            .is_some()
+        && existing
+            .roster
+            .resolve_active_member_with_kind(
+                command.right_actor_id.as_str(),
+                command.right_actor_kind.as_str(),
+            )
+            .is_some()
 }
 
 fn post_message_request_key(command: &PostMessageCommand) -> Option<String> {
@@ -3008,7 +3036,18 @@ where
                 &normalized_current_state,
             )?;
             candidate.message_log.observe_high_watermark(high_watermark);
+            let business_binding = candidate.aggregate.business_binding().cloned();
             state.insert_conversation(scope_key, candidate);
+            if let Some(binding) = business_binding {
+                state.business_index.insert(
+                    conversation_business_scope_key(
+                        tenant_id,
+                        binding.business_type.as_str(),
+                        binding.business_id.as_str(),
+                    ),
+                    conversation_id.to_owned(),
+                );
+            }
             return Ok(());
         }
 
@@ -3022,8 +3061,42 @@ where
         conversation_state
             .message_log
             .observe_high_watermark(high_watermark);
+        let business_binding = conversation_state.aggregate.business_binding().cloned();
         state.insert_conversation(scope_key, conversation_state);
+        if let Some(binding) = business_binding {
+            state.business_index.insert(
+                conversation_business_scope_key(
+                    tenant_id,
+                    binding.business_type.as_str(),
+                    binding.business_id.as_str(),
+                ),
+                conversation_id.to_owned(),
+            );
+        }
         Ok(())
+    }
+
+    fn load_cold_conversation_for_creation(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<bool, RuntimeError> {
+        if self.aggregate_store.is_none() || self.durable_conversation_event_writer.is_none() {
+            return Ok(false);
+        }
+        let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
+        if read_runtime_state(&self.state, "runtime.state.creation_existing_local")
+            .conversations
+            .contains_key(scope_key.as_str())
+        {
+            return Ok(false);
+        }
+        match self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id) {
+            Ok(()) => Ok(true),
+            Err(RuntimeError::ConversationNotFound(_)) => Ok(false),
+            Err(error) => Err(error),
+        }
     }
 
     fn ensure_message_loaded(
@@ -3475,12 +3548,9 @@ where
             .collect::<Result<Vec<_>, _>>()?;
         let expected_commit_seq = envelopes
             .first()
-            .and_then(|envelope| envelope.ordering_seq.checked_sub(1))
-            .ok_or_else(|| {
-                RuntimeError::Conflict(
-                    "normalized conversation commit must start after an existing sequence".into(),
-                )
-            })?;
+            .ok_or_else(|| RuntimeError::InvalidInput("conversation commit is empty".into()))?
+            .ordering_seq
+            .checked_sub(1);
         let policy = normalized_policy_record(
             tenant_id,
             organization_id,

@@ -124,6 +124,7 @@
     }
   },
   "dependencies": {
+    "@sdkwork/account-service": "workspace:*",
     "@sdkwork/agents-app-sdk": "workspace:*",
     "@sdkwork/agents-pc-agents": "workspace:*",
     "@sdkwork/aiot-app-sdk": "workspace:*",

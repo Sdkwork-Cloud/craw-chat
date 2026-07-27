@@ -36,7 +36,7 @@ export function createImSdkClientOptions(session?: SdkworkChatSession | null): I
     accessToken: resolveAppSdkAccessToken(currentSession),
     authToken: resolveAppSdkAuthToken(currentSession),
     platform: 'pc',
-    tokenProvider: tokenManager,
+    tokenManager,
     webSocketAuth: ImWebSocketAuthOptions.automatic({
       credentialProvider: () => resolveAppSdkAuthToken(readAppSdkSessionTokens()),
     }),

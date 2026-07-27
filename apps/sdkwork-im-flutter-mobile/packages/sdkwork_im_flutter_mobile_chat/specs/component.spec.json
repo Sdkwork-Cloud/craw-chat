@@ -107,7 +107,7 @@
       {
         "workspace": "sdkwork-im-sdk",
         "surface": "open-api",
-        "credentialMode": "protected-open-api-flexible"
+        "credentialMode": "protected-open-api-api-key-or-dual-token"
       }
     ],
     "permissionComposition": {

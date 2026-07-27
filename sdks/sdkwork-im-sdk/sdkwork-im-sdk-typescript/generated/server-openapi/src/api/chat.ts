@@ -1,5 +1,5 @@
 import { imApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ConversationAgentAssignments, ConversationInboxEntry, ConversationMember, ConversationMessageEntry, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, MessageFavoriteType, MessageFavoriteView, MessageInteractionSummaryView, MessageMutationResult, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, PageInfo, PostMessageRequest, PostMessageResult, ReadCursorView, RecallMessageRequest, RemoveConversationMemberRequest, RoomView, TransferConversationOwnerRequest, UpdateConversationAgentsRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest } from '../types';
 
@@ -13,23 +13,23 @@ export class ChatRoomsApi {
 
 
 /** Create a live, chat, or game room bound to a group conversation */
-  async create(body: CreateRoomRequest): Promise<CreateConversationResult> {
-    return this.client.post<CreateConversationResult>(imApiPath(`/chat/rooms`), body, undefined, undefined, 'application/json');
+  async create(body: CreateRoomRequest, requestOptions?: ApiRequestOptions): Promise<CreateConversationResult> {
+    return this.client.request<CreateConversationResult>(imApiPath(`/chat/rooms`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Retrieve room metadata and active member count */
-  async retrieve(roomId: string): Promise<RoomView> {
-    return this.client.get<RoomView>(imApiPath(`/chat/rooms/${serializePathParameter(roomId, { name: 'roomId', style: 'simple', explode: false })}`));
+  async retrieve(roomId: string, requestOptions?: ApiRequestOptions): Promise<RoomView> {
+    return this.client.request<RoomView>(imApiPath(`/chat/rooms/${serializePathParameter(roomId, { name: 'roomId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Enter a room as the authenticated principal */
-  async enter(roomId: string): Promise<EnterRoomResponse> {
-    return this.client.post<EnterRoomResponse>(imApiPath(`/chat/rooms/${serializePathParameter(roomId, { name: 'roomId', style: 'simple', explode: false })}/enter`));
+  async enter(roomId: string, requestOptions?: ApiRequestOptions): Promise<EnterRoomResponse> {
+    return this.client.request<EnterRoomResponse>(imApiPath(`/chat/rooms/${serializePathParameter(roomId, { name: 'roomId', style: 'simple', explode: false })}/enter`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 
 /** Leave a room as the authenticated principal */
-  async leave(roomId: string): Promise<EnterRoomResponse> {
-    return this.client.post<EnterRoomResponse>(imApiPath(`/chat/rooms/${serializePathParameter(roomId, { name: 'roomId', style: 'simple', explode: false })}/leave`));
+  async leave(roomId: string, requestOptions?: ApiRequestOptions): Promise<EnterRoomResponse> {
+    return this.client.request<EnterRoomResponse>(imApiPath(`/chat/rooms/${serializePathParameter(roomId, { name: 'roomId', style: 'simple', explode: false })}/leave`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 }
 
@@ -42,13 +42,13 @@ export class ChatMessagesReactionsApi {
 
 
 /** Add a message reaction */
-  async create(messageId: string, body: MessageReactionRequest): Promise<MessageReactionMutationResult> {
-    return this.client.post<MessageReactionMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/reactions`), body, undefined, undefined, 'application/json');
+  async create(messageId: string, body: MessageReactionRequest, requestOptions?: ApiRequestOptions): Promise<MessageReactionMutationResult> {
+    return this.client.request<MessageReactionMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/reactions`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Remove a message reaction */
-  async remove(messageId: string, body: MessageReactionRequest): Promise<MessageReactionMutationResult> {
-    return this.client.post<MessageReactionMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/reactions/remove`), body, undefined, undefined, 'application/json');
+  async remove(messageId: string, body: MessageReactionRequest, requestOptions?: ApiRequestOptions): Promise<MessageReactionMutationResult> {
+    return this.client.request<MessageReactionMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/reactions/remove`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -61,8 +61,8 @@ export class ChatMessagesVisibilityApi {
 
 
 /** Delete message visibility for the current principal */
-  async delete(messageId: string): Promise<void> {
-    return this.client.delete<void>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/visibility`));
+  async delete(messageId: string, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/visibility`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
   }
 }
 
@@ -82,24 +82,24 @@ export class ChatMessagesFavoritesApi {
 
 
 /** List message favorites */
-  async list(params?: ChatMessagesFavoritesListParams): Promise<{ items: MessageFavoriteView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
+  async list(params?: ChatMessagesFavoritesListParams, requestOptions?: ApiRequestOptions): Promise<{ items: MessageFavoriteView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'favoriteType', value: params?.favoriteType, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: MessageFavoriteView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/chat/messages/favorites`), query));
+    return this.client.request<{ items: MessageFavoriteView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/chat/messages/favorites`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Favorite a message */
-  async create(messageId: string, body: FavoriteMessageRequest): Promise<MessageFavoriteView> {
-    return this.client.post<MessageFavoriteView>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/favorites`), body, undefined, undefined, 'application/json');
+  async create(messageId: string, body: FavoriteMessageRequest, requestOptions?: ApiRequestOptions): Promise<MessageFavoriteView> {
+    return this.client.request<MessageFavoriteView>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/favorites`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Delete a message favorite */
-  async delete(favoriteId: string): Promise<void> {
-    return this.client.delete<void>(imApiPath(`/chat/messages/favorites/${serializePathParameter(favoriteId, { name: 'favoriteId', style: 'simple', explode: false })}`));
+  async delete(favoriteId: string, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(imApiPath(`/chat/messages/favorites/${serializePathParameter(favoriteId, { name: 'favoriteId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
   }
 }
 
@@ -118,23 +118,23 @@ export class ChatMessagesApi {
 
 
 /** Edit a message */
-  async edit(messageId: string, body: EditMessageRequest): Promise<MessageMutationResult> {
-    return this.client.post<MessageMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/edit`), body, undefined, undefined, 'application/json');
+  async edit(messageId: string, body: EditMessageRequest, requestOptions?: ApiRequestOptions): Promise<MessageMutationResult> {
+    return this.client.request<MessageMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/edit`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Recall a message */
-  async recall(messageId: string, body: RecallMessageRequest): Promise<MessageMutationResult> {
-    return this.client.post<MessageMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/recall`), body, undefined, undefined, 'application/json');
+  async recall(messageId: string, body: RecallMessageRequest, requestOptions?: ApiRequestOptions): Promise<MessageMutationResult> {
+    return this.client.request<MessageMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/recall`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Pin a message */
-  async pin(messageId: string): Promise<MessagePinMutationResult> {
-    return this.client.post<MessagePinMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/pin`));
+  async pin(messageId: string, requestOptions?: ApiRequestOptions): Promise<MessagePinMutationResult> {
+    return this.client.request<MessagePinMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/pin`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 
 /** Unpin a message */
-  async unpin(messageId: string): Promise<MessagePinMutationResult> {
-    return this.client.post<MessagePinMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/unpin`));
+  async unpin(messageId: string, requestOptions?: ApiRequestOptions): Promise<MessagePinMutationResult> {
+    return this.client.request<MessagePinMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/unpin`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 }
 
@@ -152,12 +152,12 @@ export class ChatConversationsPinsApi {
 
 
 /** List pinned messages */
-  async list(conversationId: string, params?: ChatConversationsPinsListParams): Promise<{ items: MessageInteractionSummaryView[]; pageInfo: PageInfo; }> {
+  async list(conversationId: string, params?: ChatConversationsPinsListParams, requestOptions?: ApiRequestOptions): Promise<{ items: MessageInteractionSummaryView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: MessageInteractionSummaryView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/pins`), query));
+    return this.client.request<{ items: MessageInteractionSummaryView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/pins`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 }
 
@@ -170,8 +170,8 @@ export class ChatConversationsMessagesInteractionSummaryApi {
 
 
 /** Retrieve message interaction summary */
-  async retrieve(conversationId: string, messageId: string): Promise<MessageInteractionSummaryView> {
-    return this.client.get<MessageInteractionSummaryView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/interaction_summary`));
+  async retrieve(conversationId: string, messageId: string, requestOptions?: ApiRequestOptions): Promise<MessageInteractionSummaryView> {
+    return this.client.request<MessageInteractionSummaryView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/interaction_summary`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 }
 
@@ -191,17 +191,17 @@ export class ChatConversationsMessagesApi {
 
 
 /** List conversation message history */
-  async list(conversationId: string, params?: ChatConversationsMessagesListParams): Promise<{ items: ConversationMessageEntry[]; pageInfo: PageInfo; highWatermark: number; }> {
+  async list(conversationId: string, params?: ChatConversationsMessagesListParams, requestOptions?: ApiRequestOptions): Promise<{ items: ConversationMessageEntry[]; pageInfo: PageInfo; highWatermark: number; }> {
     const query = buildQueryString([
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: ConversationMessageEntry[]; pageInfo: PageInfo; highWatermark: number; }>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages`), query));
+    return this.client.request<{ items: ConversationMessageEntry[]; pageInfo: PageInfo; highWatermark: number; }>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Post a conversation message */
-  async create(conversationId: string, body: PostMessageRequest): Promise<PostMessageResult> {
-    return this.client.post<PostMessageResult>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages`), body, undefined, undefined, 'application/json');
+  async create(conversationId: string, body: PostMessageRequest, requestOptions?: ApiRequestOptions): Promise<PostMessageResult> {
+    return this.client.request<PostMessageResult>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -219,12 +219,12 @@ export class ChatConversationsMemberDirectoryApi {
 
 
 /** List member directory */
-  async list(conversationId: string, params?: ChatConversationsMemberDirectoryListParams): Promise<{ items: ConversationMember[]; pageInfo: PageInfo; }> {
+  async list(conversationId: string, params?: ChatConversationsMemberDirectoryListParams, requestOptions?: ApiRequestOptions): Promise<{ items: ConversationMember[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: ConversationMember[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/member_directory`), query));
+    return this.client.request<{ items: ConversationMember[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/member_directory`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 }
 
@@ -237,13 +237,13 @@ export class ChatConversationsReadCursorApi {
 
 
 /** Retrieve read cursor */
-  async retrieve(conversationId: string): Promise<ReadCursorView> {
-    return this.client.get<ReadCursorView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/read_cursor`));
+  async retrieve(conversationId: string, requestOptions?: ApiRequestOptions): Promise<ReadCursorView> {
+    return this.client.request<ReadCursorView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/read_cursor`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Update read cursor */
-  async update(conversationId: string, body: UpdateReadCursorRequest): Promise<ReadCursorView> {
-    return this.client.patch<ReadCursorView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/read_cursor`), body, undefined, undefined, 'application/json');
+  async update(conversationId: string, body: UpdateReadCursorRequest, requestOptions?: ApiRequestOptions): Promise<ReadCursorView> {
+    return this.client.request<ReadCursorView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/read_cursor`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -256,13 +256,13 @@ export class ChatConversationsProfileApi {
 
 
 /** Retrieve conversation profile */
-  async retrieve(conversationId: string): Promise<ConversationProfileView> {
-    return this.client.get<ConversationProfileView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/profile`));
+  async retrieve(conversationId: string, requestOptions?: ApiRequestOptions): Promise<ConversationProfileView> {
+    return this.client.request<ConversationProfileView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/profile`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Update conversation profile */
-  async update(conversationId: string, body: UpdateConversationProfileRequest): Promise<ConversationProfileView> {
-    return this.client.patch<ConversationProfileView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/profile`), body, undefined, undefined, 'application/json');
+  async update(conversationId: string, body: UpdateConversationProfileRequest, requestOptions?: ApiRequestOptions): Promise<ConversationProfileView> {
+    return this.client.request<ConversationProfileView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/profile`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -275,13 +275,13 @@ export class ChatConversationsPreferencesApi {
 
 
 /** Retrieve conversation preferences */
-  async retrieve(conversationId: string): Promise<ConversationPreferencesView> {
-    return this.client.get<ConversationPreferencesView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/preferences`));
+  async retrieve(conversationId: string, requestOptions?: ApiRequestOptions): Promise<ConversationPreferencesView> {
+    return this.client.request<ConversationPreferencesView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/preferences`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Update conversation preferences */
-  async update(conversationId: string, body: UpdateConversationPreferencesRequest): Promise<ConversationPreferencesView> {
-    return this.client.patch<ConversationPreferencesView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/preferences`), body, undefined, undefined, 'application/json');
+  async update(conversationId: string, body: UpdateConversationPreferencesRequest, requestOptions?: ApiRequestOptions): Promise<ConversationPreferencesView> {
+    return this.client.request<ConversationPreferencesView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/preferences`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -294,13 +294,13 @@ export class ChatConversationsAgentsApi {
 
 
 /** Retrieve assigned group agents */
-  async retrieve(conversationId: string): Promise<ConversationAgentAssignments> {
-    return this.client.get<ConversationAgentAssignments>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agents`));
+  async retrieve(conversationId: string, requestOptions?: ApiRequestOptions): Promise<ConversationAgentAssignments> {
+    return this.client.request<ConversationAgentAssignments>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agents`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Update assigned group agents */
-  async update(conversationId: string, body: UpdateConversationAgentsRequest): Promise<ConversationAgentAssignments> {
-    return this.client.put<ConversationAgentAssignments>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agents`), body, undefined, undefined, 'application/json');
+  async update(conversationId: string, body: UpdateConversationAgentsRequest, requestOptions?: ApiRequestOptions): Promise<ConversationAgentAssignments> {
+    return this.client.request<ConversationAgentAssignments>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agents`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PUT' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -313,8 +313,8 @@ export class ChatConversationsMembersCurrentApi {
 
 
 /** Retrieve the current conversation member */
-  async retrieve(conversationId: string): Promise<ConversationMember> {
-    return this.client.get<ConversationMember>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/current`));
+  async retrieve(conversationId: string, requestOptions?: ApiRequestOptions): Promise<ConversationMember> {
+    return this.client.request<ConversationMember>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/current`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 }
 
@@ -334,42 +334,42 @@ export class ChatConversationsMembersApi {
 
 
 /** List conversation members */
-  async list(conversationId: string, params?: ChatConversationsMembersListParams): Promise<{ items: ConversationMember[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
+  async list(conversationId: string, params?: ChatConversationsMembersListParams, requestOptions?: ApiRequestOptions): Promise<{ items: ConversationMember[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: ConversationMember[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members`), query));
+    return this.client.request<{ items: ConversationMember[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Add a conversation member */
-  async add(conversationId: string, body: AddConversationMemberRequest): Promise<ConversationMember> {
-    return this.client.post<ConversationMember>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/add`), body, undefined, undefined, 'application/json');
+  async add(conversationId: string, body: AddConversationMemberRequest, requestOptions?: ApiRequestOptions): Promise<ConversationMember> {
+    return this.client.request<ConversationMember>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/add`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Remove a conversation member */
-  async remove(conversationId: string, body: RemoveConversationMemberRequest): Promise<AckResponse> {
-    return this.client.post<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/remove`), body, undefined, undefined, 'application/json');
+  async remove(conversationId: string, body: RemoveConversationMemberRequest, requestOptions?: ApiRequestOptions): Promise<AckResponse> {
+    return this.client.request<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/remove`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Transfer conversation owner */
-  async transferOwner(conversationId: string, body: TransferConversationOwnerRequest): Promise<ConversationMember> {
-    return this.client.post<ConversationMember>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/transfer_owner`), body, undefined, undefined, 'application/json');
+  async transferOwner(conversationId: string, body: TransferConversationOwnerRequest, requestOptions?: ApiRequestOptions): Promise<ConversationMember> {
+    return this.client.request<ConversationMember>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/transfer_owner`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Change conversation member role */
-  async changeRole(conversationId: string, body: ChangeConversationMemberRoleRequest): Promise<ConversationMember> {
-    return this.client.post<ConversationMember>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/change_role`), body, undefined, undefined, 'application/json');
+  async changeRole(conversationId: string, body: ChangeConversationMemberRoleRequest, requestOptions?: ApiRequestOptions): Promise<ConversationMember> {
+    return this.client.request<ConversationMember>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/change_role`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Leave a conversation */
-  async leave(conversationId: string): Promise<AckResponse> {
-    return this.client.post<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/leave`));
+  async leave(conversationId: string, requestOptions?: ApiRequestOptions): Promise<AckResponse> {
+    return this.client.request<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/leave`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 
 /** Accept a conversation invitation */
-  async acceptInvitation(conversationId: string): Promise<ConversationMember> {
-    return this.client.post<ConversationMember>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/accept_invitation`));
+  async acceptInvitation(conversationId: string, requestOptions?: ApiRequestOptions): Promise<ConversationMember> {
+    return this.client.request<ConversationMember>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/accept_invitation`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 }
 
@@ -382,17 +382,17 @@ export class ChatConversationsDirectChatsBindingsApi {
 
 
 /** Create a direct chat conversation binding */
-  async create(body: BindDirectChatRequest): Promise<CreateConversationResult> {
-    return this.client.post<CreateConversationResult>(imApiPath(`/chat/conversations/direct_chats/bindings`), body, undefined, undefined, 'application/json');
+  async create(body: BindDirectChatRequest, requestOptions?: ApiRequestOptions): Promise<CreateConversationResult> {
+    return this.client.request<CreateConversationResult>(imApiPath(`/chat/conversations/direct_chats/bindings`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 }
 
 export class ChatConversationsDirectChatsApi {
-
+  private client: HttpClient;
   public readonly bindings: ChatConversationsDirectChatsBindingsApi;
 
   constructor(client: HttpClient) {
-
+    this.client = client;
     this.bindings = new ChatConversationsDirectChatsBindingsApi(client);
   }
 
@@ -407,8 +407,8 @@ export class ChatConversationsThreadsApi {
 
 
 /** Create a thread conversation */
-  async create(body: CreateThreadConversationRequest): Promise<CreateConversationResult> {
-    return this.client.post<CreateConversationResult>(imApiPath(`/chat/conversations/threads`), body, undefined, undefined, 'application/json');
+  async create(body: CreateThreadConversationRequest, requestOptions?: ApiRequestOptions): Promise<CreateConversationResult> {
+    return this.client.request<CreateConversationResult>(imApiPath(`/chat/conversations/threads`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -421,13 +421,13 @@ export class ChatConversationsSystemChannelsApi {
 
 
 /** Create a system channel */
-  async create(body: CreateSystemChannelRequest): Promise<CreateConversationResult> {
-    return this.client.post<CreateConversationResult>(imApiPath(`/chat/conversations/system_channels`), body, undefined, undefined, 'application/json');
+  async create(body: CreateSystemChannelRequest, requestOptions?: ApiRequestOptions): Promise<CreateConversationResult> {
+    return this.client.request<CreateConversationResult>(imApiPath(`/chat/conversations/system_channels`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Publish a system channel message */
-  async publish(conversationId: string, body: PostMessageRequest): Promise<PostMessageResult> {
-    return this.client.post<PostMessageResult>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/system_channel/publish`), body, undefined, undefined, 'application/json');
+  async publish(conversationId: string, body: PostMessageRequest, requestOptions?: ApiRequestOptions): Promise<PostMessageResult> {
+    return this.client.request<PostMessageResult>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/system_channel/publish`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -440,28 +440,28 @@ export class ChatConversationsAgentHandoffsApi {
 
 
 /** Create an agent handoff */
-  async create(body: CreateAgentHandoffRequest): Promise<CreateConversationResult> {
-    return this.client.post<CreateConversationResult>(imApiPath(`/chat/conversations/agent_handoffs`), body, undefined, undefined, 'application/json');
+  async create(body: CreateAgentHandoffRequest, requestOptions?: ApiRequestOptions): Promise<CreateConversationResult> {
+    return this.client.request<CreateConversationResult>(imApiPath(`/chat/conversations/agent_handoffs`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Retrieve agent handoff state */
-  async retrieve(conversationId: string): Promise<AckResponse> {
-    return this.client.get<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agent_handoff`));
+  async retrieve(conversationId: string, requestOptions?: ApiRequestOptions): Promise<AckResponse> {
+    return this.client.request<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agent_handoff`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Accept agent handoff */
-  async accept(conversationId: string): Promise<AckResponse> {
-    return this.client.post<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agent_handoff/accept`));
+  async accept(conversationId: string, requestOptions?: ApiRequestOptions): Promise<AckResponse> {
+    return this.client.request<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agent_handoff/accept`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 
 /** Resolve agent handoff */
-  async resolve(conversationId: string): Promise<AckResponse> {
-    return this.client.post<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agent_handoff/resolve`));
+  async resolve(conversationId: string, requestOptions?: ApiRequestOptions): Promise<AckResponse> {
+    return this.client.request<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agent_handoff/resolve`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 
 /** Close agent handoff */
-  async close(conversationId: string): Promise<AckResponse> {
-    return this.client.post<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agent_handoff/close`));
+  async close(conversationId: string, requestOptions?: ApiRequestOptions): Promise<AckResponse> {
+    return this.client.request<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/agent_handoff/close`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 }
 
@@ -474,8 +474,8 @@ export class ChatConversationsAgentDialogsApi {
 
 
 /** Create an agent dialog */
-  async create(body: CreateAgentDialogRequest): Promise<CreateConversationResult> {
-    return this.client.post<CreateConversationResult>(imApiPath(`/chat/conversations/agent_dialogs`), body, undefined, undefined, 'application/json');
+  async create(body: CreateAgentDialogRequest, requestOptions?: ApiRequestOptions): Promise<CreateConversationResult> {
+    return this.client.request<CreateConversationResult>(imApiPath(`/chat/conversations/agent_dialogs`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -514,13 +514,13 @@ export class ChatConversationsApi {
 
 
 /** Create a conversation */
-  async create(body: CreateConversationRequest): Promise<CreateConversationResult> {
-    return this.client.post<CreateConversationResult>(imApiPath(`/chat/conversations`), body, undefined, undefined, 'application/json');
+  async create(body: CreateConversationRequest, requestOptions?: ApiRequestOptions): Promise<CreateConversationResult> {
+    return this.client.request<CreateConversationResult>(imApiPath(`/chat/conversations`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Retrieve conversation summary */
-  async retrieve(conversationId: string): Promise<ConversationSummaryView> {
-    return this.client.get<ConversationSummaryView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}`));
+  async retrieve(conversationId: string, requestOptions?: ApiRequestOptions): Promise<ConversationSummaryView> {
+    return this.client.request<ConversationSummaryView>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 }
 
@@ -540,26 +540,26 @@ export class ChatInboxApi {
 
 
 /** List current inbox window */
-  async list(params?: ChatInboxListParams): Promise<{ items: ConversationInboxEntry[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
+  async list(params?: ChatInboxListParams, requestOptions?: ApiRequestOptions): Promise<{ items: ConversationInboxEntry[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'conversation_type', value: params?.conversationType, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: ConversationInboxEntry[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/chat/inbox`), query));
+    return this.client.request<{ items: ConversationInboxEntry[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/chat/inbox`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 }
 
 export class ChatApi {
-
+  private client: HttpClient;
   public readonly inbox: ChatInboxApi;
   public readonly conversations: ChatConversationsApi;
   public readonly messages: ChatMessagesApi;
   public readonly rooms: ChatRoomsApi;
 
   constructor(client: HttpClient) {
-
+    this.client = client;
     this.inbox = new ChatInboxApi(client);
     this.conversations = new ChatConversationsApi(client);
     this.messages = new ChatMessagesApi(client);

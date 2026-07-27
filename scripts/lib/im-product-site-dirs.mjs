@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -7,12 +6,29 @@ function normalizeText(value) {
   return normalized || undefined;
 }
 
-function existingSiteDir(value) {
+function resolveConfiguredSiteDir(value, { envName, repoRoot }) {
   const normalized = normalizeText(value);
-  if (!normalized || !fs.existsSync(normalized)) {
+  if (!normalized) {
     return undefined;
   }
-  return normalized;
+
+  const siteDir = path.isAbsolute(normalized)
+    ? path.normalize(normalized)
+    : path.resolve(repoRoot, normalized);
+  if (!fs.existsSync(path.join(siteDir, 'index.html'))) {
+    throw new Error(`${envName} must reference a PC renderer directory containing index.html: ${siteDir}`);
+  }
+  return siteDir;
+}
+
+function resolveConfiguredSiteDirFromEnv(envNames, { env, repoRoot }) {
+  for (const envName of envNames) {
+    const siteDir = resolveConfiguredSiteDir(env[envName], { envName, repoRoot });
+    if (siteDir) {
+      return siteDir;
+    }
+  }
+  return undefined;
 }
 
 export function writeDevSiteFallback(siteDir, title) {
@@ -35,81 +51,62 @@ export function writeDevSiteFallback(siteDir, title) {
   );
 }
 
-function runCommand(command, args, { cwd, env }) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd,
-      env,
-      stdio: 'inherit',
-      shell: process.platform === 'win32',
-    });
-
-    child.on('error', reject);
-    child.on('exit', (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-      reject(new Error(`${command} ${args.join(' ')} exited with code ${code ?? 'unknown'}`));
-    });
-  });
+function sameSiteDir(left, right) {
+  const normalizeForComparison = (siteDir) => {
+    const resolved = path.resolve(siteDir);
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+  };
+  return normalizeForComparison(left) === normalizeForComparison(right);
 }
 
-export async function ensureDevSiteDist({
-  build,
-  distDir,
-  fallbackDir,
-  label,
-  onFallback,
-  sourceDir,
-  title,
-}) {
-  if (fs.existsSync(sourceDir)) {
-    await build();
-    return distDir;
-  }
+function resolveConfiguredPcSiteDir({ env, repoRoot }) {
+  const configuredSiteDirs = [
+    resolveConfiguredSiteDirFromEnv(
+      ['SDKWORK_IM_ADMIN_SITE_DIR', 'SDKWORK_ADMIN_SITE_DIR'],
+      { env, repoRoot },
+    ),
+    resolveConfiguredSiteDirFromEnv(
+      ['SDKWORK_IM_PORTAL_SITE_DIR', 'SDKWORK_PORTAL_SITE_DIR'],
+      { env, repoRoot },
+    ),
+  ].filter(Boolean);
 
-  writeDevSiteFallback(fallbackDir, title);
-  onFallback?.({ fallbackDir, label, sourceDir });
-  return fallbackDir;
+  const [configuredSiteDir, ...otherSiteDirs] = configuredSiteDirs;
+  if (configuredSiteDir && otherSiteDirs.some((siteDir) => !sameSiteDir(configuredSiteDir, siteDir))) {
+    throw new Error(
+      'SDKWORK_IM_ADMIN_SITE_DIR and SDKWORK_IM_PORTAL_SITE_DIR must reference '
+      + 'the same shared apps/sdkwork-im-pc renderer build.',
+    );
+  }
+  return configuredSiteDir;
 }
 
 export async function resolveImProductSiteDirEnv({
-  buildEnv = process.env,
   env = process.env,
-  onFallback,
   repoRoot,
-  runtimeSiteRoot = path.join(repoRoot, '.runtime', 'dev-sites'),
+  runtimeSiteRoot,
 }) {
-  const adminSiteDir = existingSiteDir(env.SDKWORK_IM_ADMIN_SITE_DIR)
-    ?? await ensureDevSiteDist({
-      build: () => runCommand('pnpm', ['--dir', 'apps/sdkwork-im-admin', 'build'], {
-        cwd: repoRoot,
-        env: buildEnv,
-      }),
-      distDir: path.join(repoRoot, 'apps', 'sdkwork-im-admin', 'dist'),
-      fallbackDir: path.join(runtimeSiteRoot, 'admin'),
-      label: 'admin',
-      onFallback,
-      sourceDir: path.join(repoRoot, 'apps', 'sdkwork-im-admin'),
-      title: 'Sdkwork IM Admin Dev Placeholder',
-    });
-  const portalSiteDir = existingSiteDir(env.SDKWORK_IM_PORTAL_SITE_DIR)
-    ?? await ensureDevSiteDist({
-      build: () => runCommand(process.execPath, ['apps/sdkwork-im-portal/scripts/build.mjs'], {
-        cwd: repoRoot,
-        env: buildEnv,
-      }),
-      distDir: path.join(repoRoot, 'apps', 'sdkwork-im-portal', 'dist'),
-      fallbackDir: path.join(runtimeSiteRoot, 'portal'),
-      label: 'portal',
-      onFallback,
-      sourceDir: path.join(repoRoot, 'apps', 'sdkwork-im-portal'),
-      title: 'Sdkwork IM Portal Dev Placeholder',
-    });
+  if (!repoRoot) {
+    throw new Error('repoRoot is required when resolving the SDKWork IM PC renderer directory.');
+  }
+
+  const resolvedRuntimeSiteRoot = runtimeSiteRoot
+    ?? path.join(repoRoot, '.runtime', 'dev-sites');
+  const configuredSiteDir = resolveConfiguredPcSiteDir({ env, repoRoot });
+  const pcDistDir = path.join(repoRoot, 'apps', 'sdkwork-im-pc', 'dist');
+  const pcDevFallbackDir = path.join(resolvedRuntimeSiteRoot, 'sdkwork-im-pc');
+  let pcSiteDir = configuredSiteDir;
+
+  if (!pcSiteDir && fs.existsSync(path.join(pcDistDir, 'index.html'))) {
+    pcSiteDir = pcDistDir;
+  }
+  if (!pcSiteDir) {
+    writeDevSiteFallback(pcDevFallbackDir, 'Sdkwork IM PC Dev Renderer');
+    pcSiteDir = pcDevFallbackDir;
+  }
 
   return {
-    SDKWORK_IM_ADMIN_SITE_DIR: adminSiteDir,
-    SDKWORK_IM_PORTAL_SITE_DIR: portalSiteDir,
+    SDKWORK_IM_ADMIN_SITE_DIR: pcSiteDir,
+    SDKWORK_IM_PORTAL_SITE_DIR: pcSiteDir,
   };
 }

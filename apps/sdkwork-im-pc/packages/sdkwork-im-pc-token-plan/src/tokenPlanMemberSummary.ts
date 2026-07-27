@@ -5,9 +5,19 @@ import {
   type SdkworkMembershipSummary,
 } from "@sdkwork/membership-pc-membership";
 import {
+  createSdkworkWalletController,
+  useSdkworkWalletControllerState,
+} from "@sdkwork/account-pc-wallet";
+import {
   hasSdkworkMembershipSession,
   SDKWORK_IM_SESSION_CHANGED_EVENT,
 } from "@sdkwork/im-pc-core";
+
+const imTokenPlanWalletController = createSdkworkWalletController();
+
+export function getImTokenPlanWalletController() {
+  return imTokenPlanWalletController;
+}
 
 export function resolveImMembershipTierKey(summary: SdkworkMembershipSummary): string {
   if (!summary.isAuthenticated || summary.status === "guest" || !summary.isMember) {
@@ -25,6 +35,8 @@ export function resolveImMembershipTierKey(summary: SdkworkMembershipSummary): s
 export function useImTokenPlanMemberSummary() {
   const controller = useSdkworkMembershipController();
   const state = useSdkworkMembershipControllerState(controller);
+  const walletController = getImTokenPlanWalletController();
+  const walletState = useSdkworkWalletControllerState(walletController);
   const [tierOverride, setTierOverride] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,9 +50,22 @@ export function useImTokenPlanMemberSummary() {
   }, [controller, state.isBootstrapped, state.isLoading, state.lastError]);
 
   useEffect(() => {
+    if (!hasSdkworkMembershipSession()) {
+      return;
+    }
+
+    if (!walletState.isBootstrapped && !walletState.isLoading && !walletState.lastError) {
+      void walletController.bootstrap().catch(() => undefined);
+    }
+  }, [walletController, walletState.isBootstrapped, walletState.isLoading, walletState.lastError]);
+
+  useEffect(() => {
     const refreshMembership = () => {
       if (hasSdkworkMembershipSession()) {
-        void controller.refresh().catch(() => undefined);
+        void Promise.allSettled([
+          controller.refresh(),
+          walletController.refresh(),
+        ]);
       }
     };
 
@@ -50,7 +75,7 @@ export function useImTokenPlanMemberSummary() {
       window.removeEventListener("focus", refreshMembership);
       window.removeEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, refreshMembership);
     };
-  }, [controller]);
+  }, [controller, walletController]);
 
   const memberSummary = useMemo(() => {
     if (!hasSdkworkMembershipSession()) {
@@ -59,13 +84,18 @@ export function useImTokenPlanMemberSummary() {
 
     return {
       membershipTierKey: tierOverride ?? resolveImMembershipTierKey(state.dashboard.summary),
-      pointBalance: state.dashboard.summary.pointBalance,
+      pointBalance: walletState.overview.account.tokenBankAvailable,
     };
-  }, [state.dashboard.summary, tierOverride]);
+  }, [state.dashboard.summary, tierOverride, walletState.overview.account.tokenBankAvailable]);
 
   return {
     memberSummary,
-    refreshMembership: () => controller.refresh(),
+    refreshMembership: async () => {
+      await Promise.all([
+        controller.refresh(),
+        walletController.refresh(),
+      ]);
+    },
     setMembershipTierKey: setTierOverride,
   };
 }

@@ -117,6 +117,10 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_WATCH_REQUIREMENTS = [
     'im commercial gates workflow must watch shared development runtime helpers',
   ),
   createWatchRequirement(
+    'scripts/lib/**',
+    'im commercial gates workflow must watch shared runtime library helpers',
+  ),
+  createWatchRequirement(
     'scripts/release/**',
     'im commercial gates workflow must watch release and readiness helper scripts',
   ),

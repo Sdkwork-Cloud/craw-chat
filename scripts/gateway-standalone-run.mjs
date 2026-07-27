@@ -132,13 +132,7 @@ async function main() {
     ...baseEnv,
     ...realtimeClusterEnv,
     ...await resolveImProductSiteDirEnv({
-      buildEnv: baseEnv,
       env: baseEnv,
-      onFallback: ({ fallbackDir, label, sourceDir }) => {
-        console.log(
-          `[sdkwork-api-im-standalone-gateway] ${label} source not found at ${path.relative(repoRoot, sourceDir)}; using ${path.relative(repoRoot, fallbackDir)}`,
-        );
-      },
       repoRoot,
     }),
   };

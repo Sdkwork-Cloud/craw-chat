@@ -5,6 +5,7 @@ import {
   resolvePersistedLanguage,
 } from '@sdkwork/im-pc-commons';
 import { sdkworkSubscriptionCheckoutResources } from '@sdkwork/membership-pc-subscription/catalog';
+import { imTokenPlanI18nResources } from '@sdkwork/im-pc-token-plan/i18n';
 import enUSAgent from './en-US/communication/im-pc-chat/agent.json';
 import enUSChat from './en-US/communication/im-pc-chat/chat.json';
 import enUSContacts from './en-US/communication/im-pc-chat/contacts.json';
@@ -26,6 +27,7 @@ import zhCNTokenPlan from './zh-CN/communication/im-pc-chat/token-plan.json';
 
 const zhCN = {
   ...sdkworkSubscriptionCheckoutResources['zh-CN'],
+  ...imTokenPlanI18nResources['zh-CN'],
   ...zhCNSidebar,
   ...zhCNTokenPlan,
   ...zhCNAgent,
@@ -39,6 +41,7 @@ const zhCN = {
 
 const enUS = {
   ...sdkworkSubscriptionCheckoutResources['en-US'],
+  ...imTokenPlanI18nResources['en-US'],
   ...enUSSidebar,
   ...enUSTokenPlan,
   ...enUSAgent,

@@ -31,20 +31,20 @@ assert.notEqual(
   -1,
   'startDirectChat must unhide the bound direct conversation',
 );
-assert.match(
+assert.doesNotMatch(
   startDirectChatSource,
-  /const existingConversationId = user\.conversationId\?\.trim\(\);[\s\S]*?if \(existingConversationId\) \{[\s\S]*?return \{/u,
-  'startDirectChat must reuse the server-provided contact conversation id and avoid privileged rebinding when it already exists',
+  /if \(contactConversationId\) \{[\s\S]*?return \{/u,
+  'startDirectChat must not treat a contact conversation id as proof of active conversation membership',
 );
-assert.match(
+assert.doesNotMatch(
   startDirectChatSource,
-  /if \(existingConversationId\) \{[\s\S]*?conversations\.updatePreferences\(existingConversationId,\s*\{\s*isHidden:\s*false\s*\}\)/u,
-  'startDirectChat must unhide the server-provided contact conversation instead of synthesizing a local id',
+  /conversations\.updatePreferences\(contactConversationId/u,
+  'startDirectChat must update preferences only on the conversation returned by the binding operation',
 );
 assert.match(
   startDirectChatSource,
   /const result = await[\s\S]*?conversations\.bindDirectChat\([\s\S]*?const boundConversationId = result\.conversationId;[\s\S]*?conversations\.updatePreferences\(boundConversationId,\s*\{\s*isHidden:\s*false\s*\}\)/u,
-  'startDirectChat must bind missing normalized direct-chat state and unhide the returned server-owned conversation id',
+  'startDirectChat must always resolve normalized direct-chat membership before unhiding the returned server-owned conversation id',
 );
 
 console.log('sdkwork im pc direct chat binding contract passed.');

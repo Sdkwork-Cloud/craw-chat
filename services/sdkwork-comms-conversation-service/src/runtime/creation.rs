@@ -278,6 +278,11 @@ where
             created_at.clone(),
             creator_attributes,
         );
+        self.load_cold_conversation_for_creation(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        )?;
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.generic_create_request.as_ref() {
@@ -821,6 +826,12 @@ where
         );
         let event_id = format!("evt_{}_created", command.conversation_id);
 
+        self.load_cold_conversation_for_creation(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        )?;
+
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.thread_create_request.as_ref() {
@@ -1189,6 +1200,27 @@ where
         );
         let event_id = format!("evt_{}_created", conversation_id);
 
+        if self.load_cold_conversation_for_creation(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            conversation_id.as_str(),
+        )? {
+            self.ensure_member_loaded(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                conversation_id.as_str(),
+                command.left_actor_kind.as_str(),
+                command.left_actor_id.as_str(),
+            )?;
+            self.ensure_member_loaded(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                conversation_id.as_str(),
+                command.right_actor_kind.as_str(),
+                command.right_actor_id.as_str(),
+            )?;
+        }
+
         let anchor_attributes = BTreeMap::from([
             (
                 "businessType".into(),
@@ -1249,10 +1281,9 @@ where
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.direct_chat_binding_request.as_ref() {
-                if direct_chat_binding_replay_matches(
+                if direct_chat_binding_state_matches(
                     existing,
                     &command,
-                    binder_kind,
                     &pair,
                     direct_chat_id.as_str(),
                 ) {
@@ -1267,6 +1298,18 @@ where
                 return Err(RuntimeError::Conflict(format!(
                     "direct chat binding request conflicts with existing conversation idempotency key: {request_key}"
                 )));
+            }
+            if normalized_direct_chat_binding_state_matches(
+                existing_conversation,
+                &command,
+                direct_chat_id.as_str(),
+            ) {
+                drop(state);
+                return Ok(CreateConversationResult::replayed_with_request_key(
+                    conversation_id,
+                    event_id,
+                    request_key,
+                ));
             }
             return Err(RuntimeError::Conflict(format!(
                 "direct chat binding request conflicts with existing conversation id: {conversation_id}"
@@ -1537,6 +1580,12 @@ where
             agent_member_attributes,
         );
 
+        self.load_cold_conversation_for_creation(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            conversation_id.as_str(),
+        )?;
+
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation_id) =
             state.business_index.get(business_scope_key.as_str())
@@ -1801,6 +1850,12 @@ where
             created_at.clone(),
             subscriber_member_attributes,
         );
+
+        self.load_cold_conversation_for_creation(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        )?;
 
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
@@ -2102,6 +2157,12 @@ where
             created_at.clone(),
             target_member_attributes,
         );
+
+        self.load_cold_conversation_for_creation(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        )?;
 
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {

@@ -97,7 +97,22 @@
   "contracts": {
     "requiredPorts": [
       {
+        "name": "accountTokenBankService",
+        "export": ".",
+        "package": "@sdkwork/account-service"
+      },
+      {
         "name": "orderMembershipCheckoutService",
+        "export": ".",
+        "package": "@sdkwork/order-service"
+      },
+      {
+        "name": "orderPointsRechargeService",
+        "export": ".",
+        "package": "@sdkwork/order-service"
+      },
+      {
+        "name": "orderCouponRedemptionService",
         "export": ".",
         "package": "@sdkwork/order-service"
       }
@@ -114,6 +129,11 @@
       "VITE_SDKWORK_KNOWLEDGEBASE_APP_URL"
     ],
     "sdkDependencies": [
+      {
+        "workspace": "sdkwork-account-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
       {
         "workspace": "sdkwork-agents-app-sdk",
         "surface": "app-api",
@@ -157,7 +177,7 @@
       {
         "workspace": "sdkwork-im-sdk",
         "surface": "open-api",
-        "credentialMode": "protected-open-api-flexible"
+        "credentialMode": "protected-open-api-api-key-or-dual-token"
       },
       {
         "workspace": "sdkwork-knowledgebase-app-sdk",

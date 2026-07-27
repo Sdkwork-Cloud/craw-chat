@@ -12,6 +12,7 @@ import type {
   RecallMessageRequest,
   SdkworkImConfig,
 } from '../generated/server-openapi/dist/index.js';
+import type { AuthTokenManager } from '@sdkwork/sdk-common';
 import type {
   DeleteMessageFavoriteResponse,
   FavoriteMessagesResponse,
@@ -111,6 +112,7 @@ async function waitForTransportOpen(
 
 export interface ImSdkClientOptions {
   accessToken?: string;
+  apiKey?: string;
   apiBaseUrl?: string;
   authToken?: string;
   baseUrl?: string;
@@ -173,18 +175,57 @@ function resolveWebsocketBaseUrl(options: ImSdkClientOptions): string {
 }
 
 function toGeneratedConfig(options: ImSdkClientOptions): SdkworkImConfig {
+  assertCredentialMode(options);
+  const apiKey = normalizeCredential(options.apiKey);
   return {
     baseUrl: resolveApiBaseUrl(options),
-    accessToken: options.accessToken,
-    authToken: options.authToken,
+    accessToken: apiKey ? undefined : options.accessToken,
+    apiKey,
+    authToken: apiKey ? undefined : options.authToken,
     headers: {
       ...(options.headers ?? {}),
       ...(options.headerProvider?.() ?? {}),
     },
     platform: options.platform,
     timeout: options.timeout,
-    tokenManager: (options.tokenManager ?? options.tokenProvider) as SdkworkImConfig['tokenManager'],
+    tokenManager: apiKey
+      ? undefined
+      : (options.tokenManager ?? options.tokenProvider) as SdkworkImConfig['tokenManager'],
   };
+}
+
+function normalizeCredential(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function readProviderCredential(
+  provider: unknown,
+  getter: 'getAccessToken' | 'getAuthToken',
+): string | undefined {
+  if (!provider || typeof provider !== 'object') {
+    return undefined;
+  }
+  const resolve = (provider as Record<typeof getter, unknown>)[getter];
+  return typeof resolve === 'function'
+    ? normalizeCredential(resolve.call(provider))
+    : undefined;
+}
+
+function assertCredentialMode(options: ImSdkClientOptions): void {
+  const apiKey = normalizeCredential(options.apiKey);
+  if (!apiKey) {
+    return;
+  }
+  const provider = options.tokenManager ?? options.tokenProvider;
+  const authToken = normalizeCredential(options.authToken)
+    ?? readProviderCredential(provider, 'getAuthToken');
+  const accessToken = normalizeCredential(options.accessToken)
+    ?? readProviderCredential(provider, 'getAccessToken');
+  if (authToken || accessToken) {
+    throw new Error(
+      'ImSdkClient apiKey mode must not be combined with authToken, accessToken, tokenManager, or tokenProvider credentials.',
+    );
+  }
 }
 
 export class ImSdkClient {
@@ -217,20 +258,38 @@ export class ImSdkClient {
     return this.transportClient;
   }
 
+  setApiKey(apiKey: string): this {
+    const normalizedApiKey = normalizeCredential(apiKey);
+    if (!normalizedApiKey) {
+      throw new Error('ImSdkClient apiKey must not be empty.');
+    }
+    this.options.apiKey = normalizedApiKey;
+    this.options.authToken = undefined;
+    this.options.accessToken = undefined;
+    this.options.tokenManager = undefined;
+    this.options.tokenProvider = undefined;
+    this.transportClient.setApiKey?.(normalizedApiKey);
+    return this;
+  }
+
   setAuthToken(token: string): this {
+    this.options.apiKey = undefined;
     this.options.authToken = token;
     this.transportClient.setAuthToken?.(token);
     return this;
   }
 
   setAccessToken(token: string): this {
+    this.options.apiKey = undefined;
     this.options.accessToken = token;
     this.transportClient.setAccessToken?.(token);
     return this;
   }
 
   setTokenManager(manager: unknown): this {
+    this.options.apiKey = undefined;
     this.options.tokenManager = manager;
+    this.options.tokenProvider = undefined;
     this.transportClient.setTokenManager?.(manager);
     return this;
   }

@@ -17,14 +17,14 @@ test('desktop asset build script is aligned with the sdkwork-im desktop app root
   const source = readFileSync(scriptPath, 'utf8');
   assert.doesNotMatch(
     source,
-    /apps[\\/](?:sdkwork-im-admin|sdkwork-im-portal|sdkwork-chat-pc)/u,
+    /sdkwork-im-(?:admin|portal)|control-plane|sdkwork-chat-pc/u,
     'desktop asset build script must not reference retired app roots',
   );
 
   const module = await loadModule();
   assert.equal(typeof module.createDesktopAssetBuildPlan, 'function');
   assert.equal(typeof module.assertDesktopSiteBuildReady, 'function');
-  assert.equal(typeof module.assertDesktopEmbeddedSitesReady, 'function');
+  assert.equal(typeof module.assertDesktopPcRendererReady, 'function');
 
   const plan = module.createDesktopAssetBuildPlan({
     platform: 'linux',
@@ -40,51 +40,27 @@ test('desktop asset build script is aligned with the sdkwork-im desktop app root
       {
         args: ['build'],
         command: 'pnpm',
-        cwd: 'apps/control-plane',
+        cwd: 'apps/sdkwork-im-pc',
       },
     ],
   );
 });
 
-test('desktop asset readiness checks the control-plane and sdkwork-im-portal dist output', async () => {
+test('desktop asset readiness checks the shared sdkwork-im-pc renderer output', async () => {
   const module = await loadModule();
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'sdkwork-im-desktop-assets-'));
   try {
-    const adminDistDir = path.join(tempRoot, 'apps', 'control-plane', 'dist');
-    const portalDistDir = path.join(tempRoot, 'apps', 'sdkwork-im-portal', 'dist');
-    const portalDesktopDistDir = path.join(tempRoot, 'apps', 'control-plane', 'dist-portal');
+    const pcDistDir = path.join(tempRoot, 'apps', 'sdkwork-im-pc', 'dist');
 
-    await mkdir(path.join(adminDistDir), { recursive: true });
+    await mkdir(pcDistDir, { recursive: true });
     await writeFile(
-      path.join(adminDistDir, 'index.html'),
-      '<!doctype html><html><body>SDKWork IM admin</body></html>',
+      path.join(pcDistDir, 'index.html'),
+      '<!doctype html><html><body>SDKWork IM PC</body></html>',
     );
 
-    await mkdir(path.join(portalDistDir, '__vendor__', 'sdkwork-im-sdk'), { recursive: true });
-    await mkdir(path.join(portalDistDir, '__vendor__', 'sdkwork-sdk-common'), { recursive: true });
-    await writeFile(
-      path.join(portalDistDir, 'index.html'),
-      '<!doctype html><html><body>SDKWork IM portal</body></html>',
-    );
-    await writeFile(
-      path.join(portalDistDir, '__vendor__', 'sdkwork-im-sdk', 'index.js'),
-      'export {};',
-    );
-    await writeFile(
-      path.join(portalDistDir, '__vendor__', 'sdkwork-sdk-common', 'index.js'),
-      'export {};',
-    );
-
-    await module.syncPortalDesktopAssets({
+    await module.assertDesktopPcRendererReady({
       workspaceRoot: tempRoot,
-      portalDistRoot: portalDistDir,
-      portalDesktopDistRoot: portalDesktopDistDir,
-    });
-    await module.assertDesktopEmbeddedSitesReady({
-      workspaceRoot: tempRoot,
-      adminDistRoot: adminDistDir,
-      portalDistRoot: portalDistDir,
-      portalDesktopDistRoot: portalDesktopDistDir,
+      pcDistRoot: pcDistDir,
     });
   } finally {
     await rm(tempRoot, { force: true, recursive: true });

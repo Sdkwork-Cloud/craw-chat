@@ -138,7 +138,7 @@ do update set
     commit_fingerprint = excluded.commit_fingerprint,
     updated_at = excluded.updated_at,
     retention_until = excluded.retention_until
-where im_conversations.commit_seq = $14
+where $14 is not null and im_conversations.commit_seq = $14
 returning commit_seq
 "#;
 
@@ -1450,11 +1450,13 @@ fn validate_normalized_conversation_commit(
             "normalized conversation commit identity is invalid".into(),
         ));
     }
-    let mut expected_ordering_seq = commit.expected_commit_seq;
-    for envelope in &commit.envelopes {
-        expected_ordering_seq = expected_ordering_seq.checked_add(1).ok_or_else(|| {
-            ContractError::Invalid("normalized conversation commit sequence overflow".into())
-        })?;
+    let mut expected_ordering_seq = commit.expected_commit_seq.unwrap_or_default();
+    for (index, envelope) in commit.envelopes.iter().enumerate() {
+        if commit.expected_commit_seq.is_some() || index > 0 {
+            expected_ordering_seq = expected_ordering_seq.checked_add(1).ok_or_else(|| {
+                ContractError::Invalid("normalized conversation commit sequence overflow".into())
+            })?;
+        }
         if envelope.ordering_seq != expected_ordering_seq {
             return Err(ContractError::Invalid(
                 "normalized conversation journal sequence is not contiguous".into(),
@@ -1652,8 +1654,10 @@ fn upsert_normalized_conversation_in_transaction(
     commit: &NormalizedConversationCommit,
 ) -> Result<bool, ContractError> {
     let conversation = &commit.conversation;
-    let expected_commit_seq =
-        postgres_bigint_input(commit.expected_commit_seq, "expected conversation commit sequence")?;
+    let expected_commit_seq = commit
+        .expected_commit_seq
+        .map(|value| postgres_bigint_input(value, "expected conversation commit sequence"))
+        .transpose()?;
     let commit_seq =
         postgres_bigint_input(conversation.commit_seq, "conversation commit sequence")?;
     let member_epoch =
@@ -2402,7 +2406,7 @@ mod tests {
     fn normalized_conversation_commit_fixture() -> NormalizedConversationCommit {
         let (envelope, outbox) = conversation_event_fixture();
         NormalizedConversationCommit {
-            expected_commit_seq: 1,
+            expected_commit_seq: Some(1),
             conversation: im_platform_contracts::NormalizedConversationRecord {
                 tenant_id: envelope.tenant_id.clone(),
                 organization_id: envelope.organization_id.clone(),
@@ -2815,10 +2819,26 @@ mod tests {
     }
 
     #[test]
+    fn normalized_creation_commit_starts_at_zero_without_an_existing_version() {
+        let mut commit = normalized_conversation_commit_fixture();
+        commit.expected_commit_seq = None;
+        commit.conversation.commit_seq = 0;
+        commit.conversation.member_epoch = 0;
+        commit.policy = None;
+        commit.business_binding = None;
+        commit.members.clear();
+        commit.read_cursors.clear();
+        commit.envelopes[0].ordering_seq = 0;
+
+        validate_normalized_conversation_commit(&commit)
+            .expect("a new normalized aggregate must be allowed to start at sequence zero");
+    }
+
+    #[test]
     fn normalized_conversation_cas_uses_dedicated_complete_fingerprint() {
         let upsert = UPSERT_NORMALIZED_CONVERSATION_SQL.to_ascii_lowercase();
         assert!(upsert.contains("commit_fingerprint"));
-        assert!(upsert.contains("where im_conversations.commit_seq = $14"));
+        assert!(upsert.contains("where $14 is not null and im_conversations.commit_seq = $14"));
 
         let replay = LOAD_NORMALIZED_CONVERSATION_REPLAY_MATCH_SQL.to_ascii_lowercase();
         assert!(replay.contains("commit_fingerprint = $12"));

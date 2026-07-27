@@ -41,6 +41,123 @@ import { createImLiveConnection } from '../dist/realtime.js';
 
 const TEST_ACCESS_TOKEN = `header.${Buffer.from(JSON.stringify({ user_id: 'user-1' })).toString('base64url')}.signature`;
 
+describe('HTTP API-key-or-dual-token authentication', () => {
+  async function captureRequests(run) {
+    const originalFetch = globalThis.fetch;
+    const capturedHeaders = [];
+    globalThis.fetch = async (_url, options = {}) => {
+      capturedHeaders.push(new Headers(options.headers));
+      return new Response(JSON.stringify({
+        code: 0,
+        data: {
+          items: [],
+          pageInfo: { mode: 'cursor', hasMore: false },
+        },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    };
+
+    try {
+      await run(capturedHeaders);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  }
+
+  it('sends only X-API-Key in API-key mode', async () => {
+    await captureRequests(async (capturedHeaders) => {
+      const client = new ImSdkClient({
+        apiBaseUrl: 'http://127.0.0.1:18079',
+        apiKey: 'im-api-key',
+      });
+
+      await client.social.contacts.list();
+
+      assert.equal(capturedHeaders.length, 1);
+      assert.equal(capturedHeaders[0].get('X-API-Key'), 'im-api-key');
+      assert.equal(capturedHeaders[0].has('Authorization'), false);
+      assert.equal(capturedHeaders[0].has('Access-Token'), false);
+    });
+  });
+
+  it('sends Authorization and Access-Token together in dual-token mode', async () => {
+    await captureRequests(async (capturedHeaders) => {
+      const client = new ImSdkClient({
+        accessToken: TEST_ACCESS_TOKEN,
+        apiBaseUrl: 'http://127.0.0.1:18079',
+        authToken: 'auth-token',
+      });
+
+      await client.social.contacts.list();
+
+      assert.equal(capturedHeaders.length, 1);
+      assert.equal(capturedHeaders[0].get('Authorization'), 'Bearer auth-token');
+      assert.equal(capturedHeaders[0].get('Access-Token'), TEST_ACCESS_TOKEN);
+      assert.equal(capturedHeaders[0].has('X-API-Key'), false);
+    });
+  });
+
+  it('rejects constructor credential contamination', () => {
+    const base = { apiBaseUrl: 'http://127.0.0.1:18079', apiKey: 'im-api-key' };
+    assert.throws(() => new ImSdkClient({ ...base, authToken: 'auth-token' }), /must not be combined/u);
+    assert.throws(() => new ImSdkClient({ ...base, accessToken: TEST_ACCESS_TOKEN }), /must not be combined/u);
+    assert.throws(() => new ImSdkClient({
+      ...base,
+      tokenManager: {
+        getAccessToken: () => TEST_ACCESS_TOKEN,
+        getAuthToken: () => 'auth-token',
+      },
+    }), /must not be combined/u);
+  });
+
+  it('fails before dispatch when the dual-token branch is incomplete or absent', async () => {
+    await captureRequests(async (capturedHeaders) => {
+      const configs = [
+        { authToken: 'auth-token' },
+        { accessToken: TEST_ACCESS_TOKEN },
+        {},
+      ];
+      for (const config of configs) {
+        const client = new ImSdkClient({
+          ...config,
+          apiBaseUrl: 'http://127.0.0.1:18079',
+        });
+        await assert.rejects(
+          () => client.social.contacts.list(),
+          /requires either X-API-Key or both Authorization and Access-Token/u,
+        );
+      }
+      assert.equal(capturedHeaders.length, 0);
+    });
+  });
+
+  it('switches modes without retaining credentials from the previous branch', async () => {
+    await captureRequests(async (capturedHeaders) => {
+      const client = new ImSdkClient({
+        accessToken: TEST_ACCESS_TOKEN,
+        apiBaseUrl: 'http://127.0.0.1:18079',
+        authToken: 'auth-token',
+      });
+      client.setApiKey('rotated-api-key');
+      await client.social.contacts.list();
+      client.setAuthToken('rotated-auth-token');
+      await assert.rejects(() => client.social.contacts.list(), /requires either X-API-Key/u);
+      client.setAccessToken('rotated-access-token');
+      await client.social.contacts.list();
+
+      assert.equal(capturedHeaders.length, 2);
+      assert.equal(capturedHeaders[0].get('X-API-Key'), 'rotated-api-key');
+      assert.equal(capturedHeaders[0].has('Authorization'), false);
+      assert.equal(capturedHeaders[0].has('Access-Token'), false);
+      assert.equal(capturedHeaders[1].has('X-API-Key'), false);
+      assert.equal(capturedHeaders[1].get('Authorization'), 'Bearer rotated-auth-token');
+      assert.equal(capturedHeaders[1].get('Access-Token'), 'rotated-access-token');
+    });
+  });
+});
+
 describe('conversation agent assignment generation boundary', () => {
   it('normalizes int64 responses and keeps the JSON command generation numeric', async () => {
     const updates = [];

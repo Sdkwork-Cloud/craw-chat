@@ -7,280 +7,280 @@ use crate::paths;
 pub const API_SURFACE: &str = "open-api";
 
 pub const ROUTES: &[HttpRoute] = &[
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATIONS,
         "chat",
         "conversations.create",
     ),
-    HttpRoute::dual_token(HttpMethod::Get, paths::INBOX, "chat", "inbox.list"),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(HttpMethod::Get, paths::INBOX, "chat", "inbox.list"),
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CONVERSATION,
         "chat",
         "conversations.retrieve",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATION_THREADS,
         "chat",
         "conversations.threads.create",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::DIRECT_CHAT_BINDINGS,
         "chat",
         "conversations.directChats.bindings.create",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::SHARED_CHANNEL_LINKS_SYNC,
         "chat",
         "conversations.sharedChannelLinks.sync",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::AGENT_DIALOGS,
         "chat",
         "conversations.agentDialogs.create",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::AGENT_HANDOFFS,
         "chat",
         "conversations.agentHandoffs.create",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::SYSTEM_CHANNELS,
         "chat",
         "conversations.systemChannels.create",
     ),
-    HttpRoute::dual_token(HttpMethod::Post, paths::ROOMS, "chat", "rooms.create"),
-    HttpRoute::dual_token(HttpMethod::Get, paths::ROOM, "chat", "rooms.retrieve"),
-    HttpRoute::dual_token(HttpMethod::Post, paths::ROOM_ENTER, "chat", "rooms.enter"),
-    HttpRoute::dual_token(HttpMethod::Post, paths::ROOM_LEAVE, "chat", "rooms.leave"),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(HttpMethod::Post, paths::ROOMS, "chat", "rooms.create"),
+    HttpRoute::api_key_or_dual_token(HttpMethod::Get, paths::ROOM, "chat", "rooms.retrieve"),
+    HttpRoute::api_key_or_dual_token(HttpMethod::Post, paths::ROOM_ENTER, "chat", "rooms.enter"),
+    HttpRoute::api_key_or_dual_token(HttpMethod::Post, paths::ROOM_LEAVE, "chat", "rooms.leave"),
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CONVERSATION_AGENT_HANDOFF,
         "chat",
         "conversations.agentHandoff.retrieve",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATION_AGENT_HANDOFF_ACCEPT,
         "chat",
         "conversations.agentHandoff.accept",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATION_AGENT_HANDOFF_RESOLVE,
         "chat",
         "conversations.agentHandoff.resolve",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATION_AGENT_HANDOFF_CLOSE,
         "chat",
         "conversations.agentHandoff.close",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CONVERSATION_MEMBERS,
         "chat",
         "conversations.members.list",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CONVERSATION_MEMBERS_CURRENT,
         "chat",
         "conversations.members.current.retrieve",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CONVERSATION_AGENTS,
         "chat",
         "conversations.agents.retrieve",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Put,
         paths::CONVERSATION_AGENTS,
         "chat",
         "conversations.agents.update",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CONVERSATION_BINDING,
         "chat",
         "conversations.binding.retrieve",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATION_MEMBERS_ADD,
         "chat",
         "conversations.members.add",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATION_MEMBERS_REMOVE,
         "chat",
         "conversations.members.remove",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATION_MEMBERS_TRANSFER_OWNER,
         "chat",
         "conversations.members.transferOwner",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATION_MEMBERS_CHANGE_ROLE,
         "chat",
         "conversations.members.changeRole",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATION_MEMBERS_LEAVE,
         "chat",
         "conversations.members.leave",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATION_MEMBERS_ACCEPT_INVITATION,
         "chat",
         "conversations.members.acceptInvitation",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CONVERSATION_READ_CURSOR,
         "chat",
         "conversations.readCursor.retrieve",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Patch,
         paths::CONVERSATION_READ_CURSOR,
         "chat",
         "conversations.readCursor.update",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CONVERSATION_MEMBER_DIRECTORY,
         "chat",
         "conversations.memberDirectory.list",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CONVERSATION_PINS,
         "chat",
         "conversations.pins.list",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::MESSAGE_INTERACTION_SUMMARY,
         "chat",
         "messages.interactionSummary.retrieve",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CONVERSATION_PROFILE,
         "chat",
         "conversations.profile.retrieve",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Patch,
         paths::CONVERSATION_PROFILE,
         "chat",
         "conversations.profile.update",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CONVERSATION_PREFERENCES,
         "chat",
         "conversations.preferences.retrieve",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Patch,
         paths::CONVERSATION_PREFERENCES,
         "chat",
         "conversations.preferences.update",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::MESSAGE_EDIT,
         "chat",
         "messages.edit",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::MESSAGE_RECALL,
         "chat",
         "messages.recall",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::MESSAGE_REACTIONS,
         "chat",
         "messages.reactions.create",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::MESSAGE_REACTIONS_REMOVE,
         "chat",
         "messages.reactions.remove",
     ),
-    HttpRoute::dual_token(HttpMethod::Post, paths::MESSAGE_PIN, "chat", "messages.pin"),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(HttpMethod::Post, paths::MESSAGE_PIN, "chat", "messages.pin"),
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::MESSAGE_UNPIN,
         "chat",
         "messages.unpin",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::MESSAGE_SEARCH,
         "chat",
         "messages.search",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::MESSAGE_FAVORITES,
         "chat",
         "messages.favorites.list",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::MESSAGE_FAVORITE_CREATE,
         "chat",
         "messages.favorites.create",
     )
     .with_idempotent(true),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Delete,
         paths::MESSAGE_FAVORITE,
         "chat",
         "messages.favorites.delete",
     )
     .with_idempotent(true),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Delete,
         paths::MESSAGE_VISIBILITY,
         "chat",
         "messages.visibility.delete",
     )
     .with_idempotent(true),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::CONVERSATION_MESSAGES,
         "chat",
         "conversations.messages.list",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATION_MESSAGES,
         "chat",
         "conversations.messages.create",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::CONVERSATION_SYSTEM_CHANNEL_PUBLISH,
         "chat",

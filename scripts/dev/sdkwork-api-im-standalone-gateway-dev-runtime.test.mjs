@@ -26,6 +26,28 @@ assert.equal(
   'default pnpm dev:server cargo target dir should be reported as an automatic dev fallback',
 );
 
+const windowsCargoEnv = createStandaloneGatewayCargoEnv({
+  env: {},
+  platform: 'win32',
+  repoRoot,
+});
+assert.equal(
+  windowsCargoEnv.env.CARGO_INCREMENTAL,
+  '0',
+  'Windows standalone gateway dev builds must disable incremental compilation to avoid locked session directories',
+);
+
+const explicitIncrementalCargoEnv = createStandaloneGatewayCargoEnv({
+  env: { CARGO_INCREMENTAL: '1' },
+  platform: 'win32',
+  repoRoot,
+});
+assert.equal(
+  explicitIncrementalCargoEnv.env.CARGO_INCREMENTAL,
+  '1',
+  'an explicit CARGO_INCREMENTAL setting must override the Windows development default',
+);
+
 const explicitCargoEnv = createStandaloneGatewayCargoEnv({
   env: {
     CARGO_TARGET_DIR: path.join(repoRoot, 'custom-target'),
@@ -222,6 +244,11 @@ assert.match(
   gatewayDevRunner,
   /validate-api-assembly\.mjs/u,
   'standalone gateway dev builds must validate the canonical IM API assembly before Cargo compilation',
+);
+assert.match(
+  gatewayDevRunner,
+  /createStandaloneGatewayCargoEnv/u,
+  'the standalone gateway runner must use the shared isolated Cargo environment',
 );
 assert.ok(
   gatewayDevRunner.indexOf('validateApiAssembly(repoRoot)')

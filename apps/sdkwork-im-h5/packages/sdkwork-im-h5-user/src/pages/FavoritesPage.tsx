@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Search } from "lucide-react";
-import { cn, showToast, ActionSheet } from "@sdkwork/im-h5-commons";
+import { cn, showToast, ActionSheet, useLongPress } from "@sdkwork/im-h5-commons";
 import { PageLayout } from "../components/PageLayout";
 import { FavoriteCard, type FavoriteItem } from "../components/FavoriteCard";
 
@@ -12,35 +12,36 @@ const [searchQuery, setSearchQuery] = useState("");
   const [actionSheetItem, setActionSheetItem] = useState<FavoriteItem | null>(null);
   const [isLongPressed, setIsLongPressed] = useState(false);
 
-  const startLongPress = (item: FavoriteItem) => {
-  const handlePressStart = () => {
-  setIsLongPressed(false);
-      (window as any).longPressTimeout = setTimeout(() => {
+  const longPressItemRef = useRef<FavoriteItem | null>(null);
+  const longPressHandlers = useLongPress({
+    delay: 500,
+    onLongPress: () => {
+      const item = longPressItemRef.current;
+      if (item) {
         setIsLongPressed(true);
         setActionSheetItem(item);
-      }, 500);
-    };
-
-    const handlePressEnd = () => {
-  clearTimeout((window as any).longPressTimeout);
-    };
-
-    return {
-      onPointerDown: handlePressStart,
-      onPointerUp: handlePressEnd,
-      onPointerLeave: () => {
-        handlePressEnd();
-        setIsLongPressed(false);
-      },
-      onContextMenu: (e: React.MouseEvent) => {
-        e.preventDefault();
-        handlePressStart();
-        setIsLongPressed(true);
-        setActionSheetItem(item);
-        handlePressEnd();
       }
-    };
-  };
+    },
+  });
+
+  const startLongPress = (item: FavoriteItem) => ({
+    onPointerDown: () => {
+      longPressItemRef.current = item;
+      setIsLongPressed(false);
+      longPressHandlers.onPointerDown();
+    },
+    onPointerUp: longPressHandlers.onPointerUp,
+    onPointerLeave: () => {
+      longPressHandlers.onPointerLeave();
+      setIsLongPressed(false);
+    },
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault();
+      longPressHandlers.onPointerUp();
+      setIsLongPressed(true);
+      setActionSheetItem(item);
+    },
+  });
 
   const handleFilterClick = (id: string, e: React.MouseEvent<HTMLDivElement>) => {
   setActiveFilter(id);

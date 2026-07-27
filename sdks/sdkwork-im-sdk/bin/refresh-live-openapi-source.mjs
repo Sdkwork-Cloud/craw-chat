@@ -61,7 +61,7 @@ const response = await fetch(args.schemaUrl, {
 if (!response.ok) fail(`Live OpenAPI schema request failed (${response.status} ${response.statusText}) for ${args.schemaUrl}`);
 
 const document = parseDocument(await response.text(), yaml);
-applySdkworkV3OpenApiStandard(document);
+applySdkworkV3OpenApiStandard(document, { authProfile: 'api-key-or-dual-token' });
 const nextContents = yaml.dump(document, { noRefs: true, sortKeys: false, lineWidth: 120 });
 const outputPath = path.resolve(args.output);
 if (!existsSync(outputPath) || readFileSync(outputPath, 'utf8') !== nextContents) {

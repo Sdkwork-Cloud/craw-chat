@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use axum::{
     body::Body,
     extract::{Path, State},
@@ -78,38 +78,62 @@ const PORTAL_SNAPSHOT_SECTIONS: &[&str] = &[
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProductSiteDirs {
-    pub admin_site_dir: PathBuf,
-    pub portal_site_dir: PathBuf,
+pub struct ProductSiteDir {
+    pub pc_site_dir: PathBuf,
 }
 
-impl ProductSiteDirs {
-    pub fn new(admin_site_dir: impl Into<PathBuf>, portal_site_dir: impl Into<PathBuf>) -> Self {
+impl ProductSiteDir {
+    pub fn new(pc_site_dir: impl Into<PathBuf>) -> Self {
         Self {
-            admin_site_dir: admin_site_dir.into(),
-            portal_site_dir: portal_site_dir.into(),
+            pc_site_dir: pc_site_dir.into(),
         }
     }
 }
 
-pub fn resolve_product_site_dirs_from_env(repo_root: impl AsRef<StdPath>) -> ProductSiteDirs {
+pub fn resolve_product_site_dir_from_env(repo_root: impl AsRef<StdPath>) -> Result<ProductSiteDir> {
     let repo_root = repo_root.as_ref();
-    ProductSiteDirs::new(
-        resolve_site_dir_from_env(&["SDKWORK_IM_ADMIN_SITE_DIR"]).unwrap_or_else(|| {
-            resolve_default_product_site_dir(
-                repo_root,
-                &["apps", "sdkwork-im-admin", "dist"],
-                &[".runtime", "dev-sites", "admin"],
+    let admin_site_dir =
+        resolve_site_dir_from_env(&["SDKWORK_IM_ADMIN_SITE_DIR", "SDKWORK_ADMIN_SITE_DIR"]);
+    let portal_site_dir =
+        resolve_site_dir_from_env(&["SDKWORK_IM_PORTAL_SITE_DIR", "SDKWORK_PORTAL_SITE_DIR"]);
+    let configured_site_dir = select_shared_product_site_dir(admin_site_dir, portal_site_dir)?;
+    let pc_site_dir = configured_site_dir.unwrap_or_else(|| {
+        resolve_default_product_site_dir(
+            repo_root,
+            &["apps", "sdkwork-im-pc", "dist"],
+            &[".runtime", "dev-sites", "sdkwork-im-pc"],
+        )
+    });
+
+    Ok(ProductSiteDir::new(pc_site_dir))
+}
+
+fn select_shared_product_site_dir(
+    admin_site_dir: Option<PathBuf>,
+    portal_site_dir: Option<PathBuf>,
+) -> Result<Option<PathBuf>> {
+    match (admin_site_dir, portal_site_dir) {
+        (Some(admin), Some(portal)) if !site_dirs_are_equivalent(&admin, &portal) => {
+            bail!(
+                "SDKWORK_IM_ADMIN_SITE_DIR and SDKWORK_IM_PORTAL_SITE_DIR must reference the same shared apps/sdkwork-im-pc renderer build"
             )
-        }),
-        resolve_site_dir_from_env(&["SDKWORK_IM_PORTAL_SITE_DIR"]).unwrap_or_else(|| {
-            resolve_default_product_site_dir(
-                repo_root,
-                &["apps", "sdkwork-im-portal", "dist"],
-                &[".runtime", "dev-sites", "portal"],
-            )
-        }),
-    )
+        }
+        (Some(site_dir), Some(_)) | (Some(site_dir), None) | (None, Some(site_dir)) => {
+            Ok(Some(site_dir))
+        }
+        (None, None) => Ok(None),
+    }
+}
+
+fn site_dirs_are_equivalent(left: &StdPath, right: &StdPath) -> bool {
+    if left == right {
+        return true;
+    }
+
+    match (std::fs::canonicalize(left), std::fs::canonicalize(right)) {
+        (Ok(left), Ok(right)) => left == right,
+        _ => false,
+    }
 }
 
 fn resolve_default_product_site_dir(
@@ -152,21 +176,21 @@ fn resolve_site_dir_from_env(env_names: &[&str]) -> Option<PathBuf> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RouterProductRuntimeOptions {
-    pub site_dirs: ProductSiteDirs,
+    pub site_dir: ProductSiteDir,
     pub include_portal_api_routes: bool,
 }
 
 impl RouterProductRuntimeOptions {
-    pub fn desktop(site_dirs: ProductSiteDirs) -> Self {
+    pub fn desktop(site_dir: ProductSiteDir) -> Self {
         Self {
-            site_dirs,
+            site_dir,
             include_portal_api_routes: true,
         }
     }
 
-    pub fn desktop_for_api_assembly_host(site_dirs: ProductSiteDirs) -> Self {
+    pub fn desktop_for_api_assembly_host(site_dir: ProductSiteDir) -> Self {
         Self {
-            site_dirs,
+            site_dir,
             include_portal_api_routes: false,
         }
     }
@@ -176,7 +200,7 @@ impl RouterProductRuntimeOptions {
 pub struct RouterProductRuntime {
     base_url: String,
     shutdown_tx: Option<oneshot::Sender<()>>,
-    _site_dirs: ProductSiteDirs,
+    _site_dir: ProductSiteDir,
 }
 
 #[derive(Clone)]
@@ -186,7 +210,7 @@ struct RuntimeProxyState {
     admin_sandbox: Option<SharedAdminSandboxState>,
     pc_product_api_upstream: String,
     portal_api_base_url: String,
-    site_dirs: ProductSiteDirs,
+    site_dir: ProductSiteDir,
 }
 
 enum ResolvedSiteAsset {
@@ -209,7 +233,7 @@ impl RouterProductRuntime {
             .local_addr()
             .context("failed to resolve local desktop runtime listener address")?;
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
-        let site_dirs = options.site_dirs.clone();
+        let site_dir = options.site_dir.clone();
         let app = build_product_runtime_router(config, options).await?;
 
         tokio::spawn(async move {
@@ -223,7 +247,7 @@ impl RouterProductRuntime {
         Ok(Self {
             base_url: format!("http://{local_addr}"),
             shutdown_tx: Some(shutdown_tx),
-            _site_dirs: site_dirs,
+            _site_dir: site_dir,
         })
     }
 
@@ -232,10 +256,8 @@ impl RouterProductRuntime {
     }
 }
 
-async fn validate_product_site_dirs(site_dirs: ProductSiteDirs) -> Result<()> {
-    validate_site_dir(site_dirs.admin_site_dir.as_path(), "admin").await?;
-    validate_site_dir(site_dirs.portal_site_dir.as_path(), "portal").await?;
-    Ok(())
+async fn validate_product_site_dir(site_dir: ProductSiteDir) -> Result<()> {
+    validate_site_dir(site_dir.pc_site_dir.as_path(), "PC renderer").await
 }
 
 pub async fn build_product_runtime_router(
@@ -246,10 +268,10 @@ pub async fn build_product_runtime_router(
         config.admin_sandbox_enabled,
         im_app_context::is_production_like_im_environment(),
     )?;
-    validate_product_site_dirs(options.site_dirs.clone()).await?;
+    validate_product_site_dir(options.site_dir.clone()).await?;
     let include_portal_api_routes = options.include_portal_api_routes;
-    let site_dirs = options.site_dirs;
-    let state = build_runtime_proxy_state(config, site_dirs.clone());
+    let site_dir = options.site_dir;
+    let state = build_runtime_proxy_state(config, site_dir.clone());
 
     let mut router = Router::new()
         .route(BACKEND_ADMIN_API_PREFIX, any(proxy_admin_request))
@@ -273,14 +295,14 @@ pub async fn build_product_runtime_router(
         .route("/admin", get(redirect_admin_root))
         .route("/admin/", get(serve_admin_site))
         .route("/admin/{*path}", get(serve_admin_site))
-        .route("/", get(serve_portal_site))
-        .route("/{*path}", get(serve_portal_site))
+        .route("/", get(serve_pc_site))
+        .route("/{*path}", get(serve_pc_site))
         .with_state(state))
 }
 
 fn build_runtime_proxy_state(
     config: StandaloneConfig,
-    site_dirs: ProductSiteDirs,
+    site_dir: ProductSiteDir,
 ) -> RuntimeProxyState {
     let admin_proxy_target = trim_trailing_slash(config.admin_proxy_target);
     let admin_sandbox = if admin_proxy_target.trim().is_empty() && config.admin_sandbox_enabled {
@@ -302,7 +324,7 @@ fn build_runtime_proxy_state(
         admin_sandbox,
         pc_product_api_upstream: resolve_pc_product_api_upstream(),
         portal_api_base_url: config.portal_api_base_url,
-        site_dirs,
+        site_dir,
     }
 }
 
@@ -449,14 +471,14 @@ async fn redirect_admin_root() -> Redirect {
 
 async fn serve_admin_site(State(state): State<RuntimeProxyState>, uri: Uri) -> Response {
     let request_path = uri.path().strip_prefix("/admin").unwrap_or("/");
-    serve_site_request(state.site_dirs.admin_site_dir.as_path(), request_path).await
+    serve_site_request(state.site_dir.pc_site_dir.as_path(), request_path).await
 }
 
-async fn serve_portal_site(State(state): State<RuntimeProxyState>, uri: Uri) -> Response {
-    match resolve_site_request_asset(state.site_dirs.portal_site_dir.as_path(), uri.path()).await {
+async fn serve_pc_site(State(state): State<RuntimeProxyState>, uri: Uri) -> Response {
+    match resolve_site_request_asset(state.site_dir.pc_site_dir.as_path(), uri.path()).await {
         Ok(ResolvedSiteAsset::StaticFile(path)) => serve_site_file(path.as_path()).await,
         Ok(ResolvedSiteAsset::SpaShell(path)) => {
-            serve_portal_shell(path.as_path(), state.portal_api_base_url.as_str()).await
+            serve_pc_shell(path.as_path(), state.portal_api_base_url.as_str()).await
         }
         Err(response) => response,
     }
@@ -569,7 +591,7 @@ async fn serve_site_file(path: &StdPath) -> Response {
     }
 }
 
-async fn serve_portal_shell(path: &StdPath, portal_api_base_url: &str) -> Response {
+async fn serve_pc_shell(path: &StdPath, portal_api_base_url: &str) -> Response {
     match fs::read_to_string(path).await {
         Ok(html) => {
             let script_nonce = create_script_nonce();
@@ -582,7 +604,7 @@ async fn serve_portal_shell(path: &StdPath, portal_api_base_url: &str) -> Respon
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
                 .body(Body::from(injected))
-                .expect("portal shell response should build");
+                .expect("PC shell response should build");
             apply_html_shell_headers(
                 response.headers_mut(),
                 Some(HtmlShellSecurityPolicy::for_portal_shell(
@@ -597,7 +619,7 @@ async fn serve_portal_shell(path: &StdPath, portal_api_base_url: &str) -> Respon
         }
         Err(error) => text_response(
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to read runtime portal shell: {error}"),
+            format!("Failed to read runtime PC shell: {error}"),
         ),
     }
 }
@@ -957,7 +979,7 @@ mod tests {
         }
     }
 
-    async fn start_runtime(site_dirs: ProductSiteDirs) -> RouterProductRuntime {
+    async fn start_runtime(site_dir: ProductSiteDir) -> RouterProductRuntime {
         RouterProductRuntime::start(
             StandaloneConfigLoader,
             StandaloneConfig {
@@ -967,7 +989,7 @@ mod tests {
                 admin_sandbox_enabled: false,
                 admin_sandbox_storage_file: None,
             },
-            RouterProductRuntimeOptions::desktop(site_dirs),
+            RouterProductRuntimeOptions::desktop(site_dir),
         )
         .await
         .expect("desktop product runtime should start")
@@ -1011,7 +1033,7 @@ mod tests {
                 admin_sandbox: None,
                 pc_product_api_upstream: String::new(),
                 portal_api_base_url: "http://127.0.0.1:18079".into(),
-                site_dirs: ProductSiteDirs::new(".", "."),
+                site_dir: ProductSiteDir::new("."),
             }),
             Method::GET,
             HeaderMap::new(),
@@ -1042,10 +1064,8 @@ mod tests {
 
     #[tokio::test]
     async fn api_assembly_host_options_do_not_register_portal_api_routes() {
-        let admin_site_dir = TestSiteDir::new("assembly-host-admin");
-        admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
-        let portal_site_dir = TestSiteDir::new("assembly-host-portal");
-        portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
+        let pc_site_dir = TestSiteDir::new("assembly-host-pc");
+        pc_site_dir.write("index.html", "<!doctype html><title>pc-shell</title>");
 
         let product_router = build_product_runtime_router(
             StandaloneConfig {
@@ -1055,9 +1075,8 @@ mod tests {
                 admin_sandbox_enabled: false,
                 admin_sandbox_storage_file: None,
             },
-            RouterProductRuntimeOptions::desktop_for_api_assembly_host(ProductSiteDirs::new(
-                admin_site_dir.path().to_path_buf(),
-                portal_site_dir.path().to_path_buf(),
+            RouterProductRuntimeOptions::desktop_for_api_assembly_host(ProductSiteDir::new(
+                pc_site_dir.path().to_path_buf(),
             )),
         )
         .await
@@ -1070,20 +1089,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn router_runtime_serves_portal_root_and_admin_shell_with_spa_fallbacks() {
-        let admin_site_dir = TestSiteDir::new("admin-site");
-        admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
-        admin_site_dir.write("assets/admin.js", "console.log('admin-asset');");
+    async fn router_runtime_serves_one_pc_renderer_for_root_and_admin_spa_routes() {
+        let pc_site_dir = TestSiteDir::new("pc-site");
+        pc_site_dir.write("index.html", "<!doctype html><title>pc-shell</title>");
+        pc_site_dir.write("assets/pc.js", "console.log('pc-asset');");
 
-        let portal_site_dir = TestSiteDir::new("portal-site");
-        portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
-        portal_site_dir.write("assets/portal.js", "console.log('portal-asset');");
-
-        let runtime = start_runtime(ProductSiteDirs::new(
-            admin_site_dir.path().to_path_buf(),
-            portal_site_dir.path().to_path_buf(),
-        ))
-        .await;
+        let runtime = start_runtime(ProductSiteDir::new(pc_site_dir.path().to_path_buf())).await;
         tokio::task::yield_now().await;
 
         let base_url = runtime
@@ -1097,7 +1108,7 @@ mod tests {
             .text()
             .await
             .expect("admin index body should be readable")
-            .contains("admin-shell"));
+            .contains("pc-shell"));
 
         let admin_route = fetch_response(base_url.as_str(), "/admin/operators/shift").await;
         assert_eq!(admin_route.status(), StatusCode::OK);
@@ -1105,16 +1116,16 @@ mod tests {
             .text()
             .await
             .expect("admin route body should be readable")
-            .contains("admin-shell"));
+            .contains("pc-shell"));
 
-        let admin_asset = fetch_response(base_url.as_str(), "/admin/assets/admin.js").await;
+        let admin_asset = fetch_response(base_url.as_str(), "/admin/assets/pc.js").await;
         assert_eq!(admin_asset.status(), StatusCode::OK);
         assert_eq!(
             admin_asset
                 .text()
                 .await
                 .expect("admin asset body should be readable"),
-            "console.log('admin-asset');"
+            "console.log('pc-asset');"
         );
 
         let portal_index = fetch_response(base_url.as_str(), "/").await;
@@ -1122,37 +1133,34 @@ mod tests {
         assert!(portal_index
             .text()
             .await
-            .expect("portal index body should be readable")
-            .contains("portal-shell"));
+            .expect("PC index body should be readable")
+            .contains("pc-shell"));
 
         let portal_route = fetch_response(base_url.as_str(), "/workspace/inbox").await;
         assert_eq!(portal_route.status(), StatusCode::OK);
         assert!(portal_route
             .text()
             .await
-            .expect("portal route body should be readable")
-            .contains("portal-shell"));
+            .expect("PC route body should be readable")
+            .contains("pc-shell"));
 
-        let portal_asset = fetch_response(base_url.as_str(), "/assets/portal.js").await;
-        assert_eq!(portal_asset.status(), StatusCode::OK);
+        let pc_asset = fetch_response(base_url.as_str(), "/assets/pc.js").await;
+        assert_eq!(pc_asset.status(), StatusCode::OK);
         assert_eq!(
-            portal_asset
+            pc_asset
                 .text()
                 .await
-                .expect("portal asset body should be readable"),
-            "console.log('portal-asset');"
+                .expect("PC asset body should be readable"),
+            "console.log('pc-asset');"
         );
     }
 
     #[tokio::test]
-    async fn router_runtime_injects_portal_api_base_url_into_portal_shell() {
-        let admin_site_dir = TestSiteDir::new("admin-injection");
-        admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
-
-        let portal_site_dir = TestSiteDir::new("portal-injection");
-        portal_site_dir.write(
+    async fn router_runtime_injects_portal_api_base_url_into_pc_shell() {
+        let pc_site_dir = TestSiteDir::new("pc-injection");
+        pc_site_dir.write(
             "index.html",
-            "<!doctype html><html><head><title>portal-shell</title></head><body>portal</body></html>",
+            "<!doctype html><html><head><title>pc-shell</title></head><body>pc</body></html>",
         );
 
         let runtime = RouterProductRuntime::start(
@@ -1164,9 +1172,8 @@ mod tests {
                 admin_sandbox_enabled: false,
                 admin_sandbox_storage_file: None,
             },
-            RouterProductRuntimeOptions::desktop(ProductSiteDirs::new(
-                admin_site_dir.path().to_path_buf(),
-                portal_site_dir.path().to_path_buf(),
+            RouterProductRuntimeOptions::desktop(ProductSiteDir::new(
+                pc_site_dir.path().to_path_buf(),
             )),
         )
         .await
@@ -1182,7 +1189,7 @@ mod tests {
         assert_eq!(portal_index.status(), StatusCode::OK);
         let content_security_policy =
             response_header(&portal_index, CONTENT_SECURITY_POLICY_HEADER)
-                .expect("portal shell should include a content security policy");
+                .expect("PC shell should include a content security policy");
         assert!(content_security_policy.contains("https://portal-api.example.com"));
         assert!(content_security_policy.contains("wss://portal-api.example.com"));
         assert_eq!(
@@ -1217,12 +1224,12 @@ mod tests {
         assert!(body.contains("https://portal-api.example.com/runtime-edge"));
         let nonce_start = body
             .find("script nonce=\"")
-            .expect("portal shell should inject a nonce-backed script")
+            .expect("PC shell should inject a nonce-backed script")
             + "script nonce=\"".len();
         let nonce_end = body[nonce_start..]
             .find('"')
             .map(|offset| nonce_start + offset)
-            .expect("portal shell nonce should terminate");
+            .expect("PC shell nonce should terminate");
         let nonce = &body[nonce_start..nonce_end];
         assert!(content_security_policy.contains(format!("'nonce-{nonce}'").as_str()));
         assert!(content_security_policy.contains("script-src 'self' 'nonce-"));
@@ -1244,21 +1251,14 @@ mod tests {
 
     #[tokio::test]
     async fn router_runtime_applies_security_headers_to_admin_shells_and_static_assets() {
-        let admin_site_dir = TestSiteDir::new("admin-security");
-        admin_site_dir.write(
+        let pc_site_dir = TestSiteDir::new("pc-security");
+        pc_site_dir.write(
             "index.html",
-            "<!doctype html><html><head><title>admin-shell</title></head><body>admin</body></html>",
+            "<!doctype html><html><head><title>pc-shell</title></head><body>pc</body></html>",
         );
+        pc_site_dir.write("assets/pc.js", "console.log('pc-asset');");
 
-        let portal_site_dir = TestSiteDir::new("portal-security");
-        portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
-        portal_site_dir.write("assets/portal.js", "console.log('portal-asset');");
-
-        let runtime = start_runtime(ProductSiteDirs::new(
-            admin_site_dir.path().to_path_buf(),
-            portal_site_dir.path().to_path_buf(),
-        ))
-        .await;
+        let runtime = start_runtime(ProductSiteDir::new(pc_site_dir.path().to_path_buf())).await;
         tokio::task::yield_now().await;
 
         let base_url = runtime
@@ -1277,40 +1277,38 @@ mod tests {
             Some("no-store")
         );
 
-        let portal_asset = fetch_response(base_url.as_str(), "/assets/portal.js").await;
-        assert_eq!(portal_asset.status(), StatusCode::OK);
+        let pc_asset = fetch_response(base_url.as_str(), "/assets/pc.js").await;
+        assert_eq!(pc_asset.status(), StatusCode::OK);
         assert_eq!(
-            response_header(&portal_asset, X_CONTENT_TYPE_OPTIONS_HEADER).as_deref(),
+            response_header(&pc_asset, X_CONTENT_TYPE_OPTIONS_HEADER).as_deref(),
             Some("nosniff")
         );
         assert_eq!(
-            response_header(&portal_asset, REFERRER_POLICY_HEADER).as_deref(),
+            response_header(&pc_asset, REFERRER_POLICY_HEADER).as_deref(),
             Some("strict-origin-when-cross-origin")
         );
         assert_eq!(
-            response_header(&portal_asset, X_FRAME_OPTIONS_HEADER).as_deref(),
+            response_header(&pc_asset, X_FRAME_OPTIONS_HEADER).as_deref(),
             Some("DENY")
         );
         assert_eq!(
-            response_header(&portal_asset, PERMISSIONS_POLICY_HEADER).as_deref(),
+            response_header(&pc_asset, PERMISSIONS_POLICY_HEADER).as_deref(),
             Some(DEFAULT_PERMISSIONS_POLICY)
         );
         assert_eq!(
-            response_header(&portal_asset, CROSS_ORIGIN_RESOURCE_POLICY_HEADER).as_deref(),
+            response_header(&pc_asset, CROSS_ORIGIN_RESOURCE_POLICY_HEADER).as_deref(),
             Some("same-origin")
         );
         assert_eq!(
-            response_header(&portal_asset, CONTENT_SECURITY_POLICY_HEADER),
+            response_header(&pc_asset, CONTENT_SECURITY_POLICY_HEADER),
             None
         );
-        assert_eq!(response_header(&portal_asset, CACHE_CONTROL_HEADER), None);
+        assert_eq!(response_header(&pc_asset, CACHE_CONTROL_HEADER), None);
     }
 
     #[tokio::test]
-    async fn router_runtime_refuses_to_start_without_admin_index_html() {
-        let admin_site_dir = TestSiteDir::new("admin-missing-index");
-        let portal_site_dir = TestSiteDir::new("portal-valid-index");
-        portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
+    async fn router_runtime_refuses_to_start_without_pc_renderer_index_html() {
+        let pc_site_dir = TestSiteDir::new("pc-missing-index");
 
         let error = RouterProductRuntime::start(
             StandaloneConfigLoader,
@@ -1321,58 +1319,23 @@ mod tests {
                 admin_sandbox_enabled: false,
                 admin_sandbox_storage_file: None,
             },
-            RouterProductRuntimeOptions::desktop(ProductSiteDirs::new(
-                admin_site_dir.path().to_path_buf(),
-                portal_site_dir.path().to_path_buf(),
+            RouterProductRuntimeOptions::desktop(ProductSiteDir::new(
+                pc_site_dir.path().to_path_buf(),
             )),
         )
         .await
-        .expect_err("runtime should fail fast when admin index is missing");
+        .expect_err("runtime should fail fast when the PC renderer index is missing");
 
-        assert!(error.to_string().contains("admin"));
-        assert!(error.to_string().contains("index.html"));
-    }
-
-    #[tokio::test]
-    async fn router_runtime_refuses_to_start_without_portal_index_html() {
-        let admin_site_dir = TestSiteDir::new("admin-valid-index");
-        admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
-        let portal_site_dir = TestSiteDir::new("portal-missing-index");
-
-        let error = RouterProductRuntime::start(
-            StandaloneConfigLoader,
-            StandaloneConfig {
-                runtime_bind_addr: "127.0.0.1:0".into(),
-                admin_proxy_target: String::new(),
-                portal_api_base_url: "http://127.0.0.1:18079".into(),
-                admin_sandbox_enabled: false,
-                admin_sandbox_storage_file: None,
-            },
-            RouterProductRuntimeOptions::desktop(ProductSiteDirs::new(
-                admin_site_dir.path().to_path_buf(),
-                portal_site_dir.path().to_path_buf(),
-            )),
-        )
-        .await
-        .expect_err("runtime should fail fast when portal index is missing");
-
-        assert!(error.to_string().contains("portal"));
+        assert!(error.to_string().contains("PC renderer"));
         assert!(error.to_string().contains("index.html"));
     }
 
     #[tokio::test]
     async fn router_runtime_keeps_api_and_missing_assets_outside_spa_fallback() {
-        let admin_site_dir = TestSiteDir::new("admin-api-guard");
-        admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
+        let pc_site_dir = TestSiteDir::new("pc-api-guard");
+        pc_site_dir.write("index.html", "<!doctype html><title>pc-shell</title>");
 
-        let portal_site_dir = TestSiteDir::new("portal-api-guard");
-        portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
-
-        let runtime = start_runtime(ProductSiteDirs::new(
-            admin_site_dir.path().to_path_buf(),
-            portal_site_dir.path().to_path_buf(),
-        ))
-        .await;
+        let runtime = start_runtime(ProductSiteDir::new(pc_site_dir.path().to_path_buf())).await;
         tokio::task::yield_now().await;
 
         let base_url = runtime
@@ -1387,15 +1350,15 @@ mod tests {
             .text()
             .await
             .expect("missing admin asset body should be readable")
-            .contains("admin-shell"));
+            .contains("pc-shell"));
 
         let missing_portal_asset = fetch_response(base_url.as_str(), "/assets/missing.js").await;
         assert_eq!(missing_portal_asset.status(), StatusCode::NOT_FOUND);
         assert!(!missing_portal_asset
             .text()
             .await
-            .expect("missing portal asset body should be readable")
-            .contains("portal-shell"));
+            .expect("missing PC asset body should be readable")
+            .contains("pc-shell"));
 
         let unknown_api = fetch_response(base_url.as_str(), "/api/runtime-health").await;
         assert_eq!(unknown_api.status(), StatusCode::NOT_FOUND);
@@ -1403,7 +1366,7 @@ mod tests {
             .text()
             .await
             .expect("unknown api body should be readable")
-            .contains("portal-shell"));
+            .contains("pc-shell"));
 
         let modules_api = fetch_response(base_url.as_str(), "/api/config/modules").await;
         assert_eq!(modules_api.status(), StatusCode::OK);
@@ -1440,17 +1403,10 @@ mod tests {
 
     #[tokio::test]
     async fn router_runtime_serves_sdkwork_app_portal_home_snapshot() {
-        let admin_site_dir = TestSiteDir::new("portal-home-admin");
-        admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
+        let pc_site_dir = TestSiteDir::new("portal-home-pc");
+        pc_site_dir.write("index.html", "<!doctype html><title>pc-shell</title>");
 
-        let portal_site_dir = TestSiteDir::new("portal-home-portal");
-        portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
-
-        let runtime = start_runtime(ProductSiteDirs::new(
-            admin_site_dir.path().to_path_buf(),
-            portal_site_dir.path().to_path_buf(),
-        ))
-        .await;
+        let runtime = start_runtime(ProductSiteDir::new(pc_site_dir.path().to_path_buf())).await;
         tokio::task::yield_now().await;
 
         let base_url = runtime
@@ -1505,17 +1461,10 @@ mod tests {
 
     #[tokio::test]
     async fn router_runtime_does_not_expose_appbase_owned_iam_routes() {
-        let admin_site_dir = TestSiteDir::new("appbase-owned-iam-admin");
-        admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
+        let pc_site_dir = TestSiteDir::new("appbase-owned-iam-pc");
+        pc_site_dir.write("index.html", "<!doctype html><title>pc-shell</title>");
 
-        let portal_site_dir = TestSiteDir::new("appbase-owned-iam-portal");
-        portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
-
-        let runtime = start_runtime(ProductSiteDirs::new(
-            admin_site_dir.path().to_path_buf(),
-            portal_site_dir.path().to_path_buf(),
-        ))
-        .await;
+        let runtime = start_runtime(ProductSiteDir::new(pc_site_dir.path().to_path_buf())).await;
         tokio::task::yield_now().await;
 
         let base_url = runtime
@@ -1592,17 +1541,10 @@ mod tests {
 
     #[tokio::test]
     async fn router_runtime_keeps_appbase_iam_directory_routes_unowned() {
-        let admin_site_dir = TestSiteDir::new("iam-directory-admin");
-        admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
+        let pc_site_dir = TestSiteDir::new("iam-directory-pc");
+        pc_site_dir.write("index.html", "<!doctype html><title>pc-shell</title>");
 
-        let portal_site_dir = TestSiteDir::new("iam-directory-portal");
-        portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
-
-        let runtime = start_runtime(ProductSiteDirs::new(
-            admin_site_dir.path().to_path_buf(),
-            portal_site_dir.path().to_path_buf(),
-        ))
-        .await;
+        let runtime = start_runtime(ProductSiteDir::new(pc_site_dir.path().to_path_buf())).await;
         tokio::task::yield_now().await;
 
         let base_url = runtime
@@ -1631,7 +1573,7 @@ mod tests {
     }
 
     #[test]
-    fn resolve_product_site_dirs_uses_dev_fallback_when_packaged_dist_missing() {
+    fn resolve_product_site_dir_uses_shared_pc_dev_fallback_when_packaged_dist_missing() {
         let repo_root = std::env::temp_dir().join(format!(
             "sdkwork-api-product-runtime-dev-fallback-{}",
             SystemTime::now()
@@ -1639,25 +1581,39 @@ mod tests {
                 .expect("system time should be after unix epoch")
                 .as_nanos()
         ));
-        let dev_admin = repo_root.join(".runtime").join("dev-sites").join("admin");
-        let dev_portal = repo_root.join(".runtime").join("dev-sites").join("portal");
-        fs::create_dir_all(&dev_admin).expect("dev admin dir should be creatable");
-        fs::create_dir_all(&dev_portal).expect("dev portal dir should be creatable");
-        fs::write(dev_admin.join("index.html"), "<!doctype html>")
-            .expect("dev admin index should be writable");
-        fs::write(dev_portal.join("index.html"), "<!doctype html>")
-            .expect("dev portal index should be writable");
+        let dev_pc = repo_root
+            .join(".runtime")
+            .join("dev-sites")
+            .join("sdkwork-im-pc");
+        fs::create_dir_all(&dev_pc).expect("dev PC renderer dir should be creatable");
+        fs::write(dev_pc.join("index.html"), "<!doctype html>")
+            .expect("dev PC renderer index should be writable");
 
         unsafe {
             std::env::remove_var("SDKWORK_IM_ADMIN_SITE_DIR");
             std::env::remove_var("SDKWORK_IM_PORTAL_SITE_DIR");
+            std::env::remove_var("SDKWORK_ADMIN_SITE_DIR");
+            std::env::remove_var("SDKWORK_PORTAL_SITE_DIR");
         }
 
-        let resolved = resolve_product_site_dirs_from_env(&repo_root);
-        assert_eq!(resolved.admin_site_dir, dev_admin);
-        assert_eq!(resolved.portal_site_dir, dev_portal);
+        let resolved = resolve_product_site_dir_from_env(&repo_root)
+            .expect("shared PC renderer fallback should resolve");
+        assert_eq!(resolved.pc_site_dir, dev_pc);
 
         let _ = fs::remove_dir_all(&repo_root);
+    }
+
+    #[test]
+    fn divergent_product_site_dirs_are_rejected() {
+        let error = select_shared_product_site_dir(
+            Some(PathBuf::from("admin-dist")),
+            Some(PathBuf::from("portal-dist")),
+        )
+        .expect_err("separate frontend builds must not satisfy the shared PC renderer boundary");
+
+        assert!(error
+            .to_string()
+            .contains("same shared apps/sdkwork-im-pc renderer"));
     }
 
     #[test]

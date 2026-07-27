@@ -1,9 +1,9 @@
-﻿import { useTranslation } from "react-i18next";
-import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 import { CommunityService } from "../services/CommunityService";
 import { CommunityGroup } from "../types";
-import { IconButton, showToast, cn } from "@sdkwork/im-h5-commons";
+import { IconButton, showToast, cn, useLongPress } from "@sdkwork/im-h5-commons";
 import { ChevronLeft, Plus, MessageSquare, Edit2, Trash2, QrCode } from "lucide-react";
 
 export const CommunityGroupManagement: React.FC = () => {
@@ -32,32 +32,31 @@ const { id } = useParams<{ id: string }>();
 
   const [actionSheetGroup, setActionSheetGroup] = useState<CommunityGroup | null>(null);
 
-  const startLongPress = (group: CommunityGroup) => {
-  return {
-      onTouchStart: () => {
-        (window as any).longPressTimeout = setTimeout(() => {
-          setActionSheetGroup(group);
-        }, 500);
-      },
-      onTouchEnd: () => {
-        clearTimeout((window as any).longPressTimeout);
-      },
-      onTouchMove: () => {
-        clearTimeout((window as any).longPressTimeout);
-      },
-      onMouseDown: () => {
-        (window as any).longPressTimeout = setTimeout(() => {
-          setActionSheetGroup(group);
-        }, 500);
-      },
-      onMouseUp: () => {
-        clearTimeout((window as any).longPressTimeout);
-      },
-      onMouseLeave: () => {
-        clearTimeout((window as any).longPressTimeout);
+  const longPressGroupRef = useRef<CommunityGroup | null>(null);
+  const longPressHandlers = useLongPress({
+    delay: 500,
+    onLongPress: () => {
+      const group = longPressGroupRef.current;
+      if (group) {
+        setActionSheetGroup(group);
       }
-    };
-  };
+    },
+  });
+
+  const startLongPress = (group: CommunityGroup) => ({
+    onTouchStart: () => {
+      longPressGroupRef.current = group;
+      longPressHandlers.onPointerDown();
+    },
+    onTouchEnd: longPressHandlers.onPointerUp,
+    onTouchMove: longPressHandlers.onPointerUp,
+    onMouseDown: () => {
+      longPressGroupRef.current = group;
+      longPressHandlers.onPointerDown();
+    },
+    onMouseUp: longPressHandlers.onPointerUp,
+    onMouseLeave: longPressHandlers.onPointerUp,
+  });
 
   const handleDelete = async (groupId: string) => {
     if (!id) return;

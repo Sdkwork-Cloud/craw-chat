@@ -34,6 +34,19 @@ const imCheckoutAdapterPath = path.join(
   'ImTokenPlanCheckoutModal.tsx',
 );
 const imCheckoutAdapterSource = fs.readFileSync(imCheckoutAdapterPath, 'utf8');
+const imCommerceModalsSource = readText(
+  'packages',
+  'sdkwork-im-pc-token-plan',
+  'src',
+  'ImTokenPlanCommerceModals.tsx',
+);
+const tokenPlanI18nSource = readText(
+  'packages',
+  'sdkwork-im-pc-token-plan',
+  'src',
+  'i18n',
+  'index.ts',
+);
 const workspaceSource = fs.readFileSync(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8');
 const rootComponentSpec = JSON.parse(fs.readFileSync(path.join(repoRoot, 'specs', 'component.spec.json'), 'utf8'));
 const topologySpec = JSON.parse(fs.readFileSync(path.join(repoRoot, 'specs', 'topology.spec.json'), 'utf8'));
@@ -147,8 +160,8 @@ assertSourceContainsInOrder(
 );
 assert.match(
   tokenPlanMemberSummarySource,
-  /membershipTierKey:[\s\S]*pointBalance:\s*state\.dashboard\.summary\.pointBalance/u,
-  'The IM Token Plan member summary must expose both membership tier and point balance.',
+  /useSdkworkWalletControllerState[\s\S]*pointBalance:\s*walletState\.overview\.account\.tokenBankAvailable/u,
+  'The IM Token Plan member summary must expose Membership tier and the Account Token Bank balance.',
 );
 assert.equal(
   fs.existsSync(imCheckoutAdapterPath),
@@ -174,6 +187,37 @@ assert.match(
   imCheckoutAdapterSource,
   /@sdkwork\/order-pc-checkout[\s\S]*<SdkworkOrderCheckoutDialog/u,
   'The IM composition adapter must own the Order checkout dialog integration.',
+);
+for (const integrationPattern of [
+  /pointsDetailsModal:\s*ImTokenPlanTokenBankDetailsModal/u,
+  /pointsPurchaseModal:\s*ImTokenPlanPointsPurchaseModal/u,
+  /redeemModal:\s*ImTokenPlanRedeemModal/u,
+]) {
+  assert.match(
+    imCheckoutAdapterSource,
+    integrationPattern,
+    'The IM Token Plan host must replace every Membership placeholder with a landed commerce capability.',
+  );
+}
+assert.match(
+  imCommerceModalsSource,
+  /@sdkwork\/account-pc-wallet[\s\S]*@sdkwork\/order-pc-recharge/u,
+  'The IM Token Plan host must compose Account Token Bank state with Order recharge UI.',
+);
+assert.match(
+  imCommerceModalsSource,
+  /SdkworkPointsRechargeDialog[\s\S]*service=\{getImHostedPointsRechargeService\(\)\}/u,
+  'Compute Credits purchase must use the Order-owned recharge dialog and injected service.',
+);
+assert.match(
+  imCommerceModalsSource,
+  /SdkworkCouponRedemptionDialog[\s\S]*service=\{getImHostedCouponRechargeService\(\)\}/u,
+  'Membership redemption must use the Order-owned coupon redemption dialog and injected service.',
+);
+assert.doesNotMatch(
+  imCommerceModalsSource,
+  /\bfetch\s*\(|axios|Authorization|Access-Token/u,
+  'Token Plan commerce modals must not bypass generated SDK and composed service boundaries.',
 );
 assert.match(
   orderCheckoutDialogSource,
@@ -207,8 +251,13 @@ assert.doesNotMatch(
 );
 assert.match(
   membershipIntegrationSource,
-  /getSdkworkChatGlobalTokenManager\(\)[\s\S]*bootstrapSdkworkOrderAppService\(\{[\s\S]*tokenManager[\s\S]*createSdkworkMembershipCheckoutService/u,
-  'IM composition must initialize Order with the global TokenManager and expose a Membership checkout port.',
+  /createAccountAppTransportClient\(\{[\s\S]*tokenManager:\s*getSdkworkChatGlobalTokenManager\(\)[\s\S]*bootstrapSdkworkOrderAppService\(\{[\s\S]*tokenManager/u,
+  'IM composition must initialize Account and Order with the global TokenManager.',
+);
+assert.match(
+  membershipIntegrationSource,
+  /configureSdkworkOrderSessionTokenProvider\(\(\) => readAppSdkSessionTokens\(\) \?\? \{\}\)[\s\S]*createSdkworkMembershipCheckoutService[\s\S]*createSdkworkPointsRechargeService[\s\S]*createSdkworkCouponRechargeService/u,
+  'IM composition must register the current session before creating checkout, recharge, and redemption services.',
 );
 assert.match(
   membershipIntegrationSource,
@@ -226,9 +275,12 @@ assert.match(
   'IM Membership reset must clear both Order app-service and session-token providers.',
 );
 for (const packageName of [
+  '@sdkwork/account-pc-wallet',
   '@sdkwork/im-pc-core',
   '@sdkwork/membership-pc-membership',
   '@sdkwork/membership-pc-subscription',
+  '@sdkwork/order-pc-recharge',
+  '@sdkwork/ui-pc-react',
 ]) {
   assert.equal(
     tokenPlanPackage.dependencies?.[packageName],
@@ -253,6 +305,23 @@ assert.equal(
   true,
   'The IM composition adapter contract must declare the Order checkout dialog port.',
 );
+for (const portName of ['accountTokenBank', 'orderRechargeDialog']) {
+  assert.equal(
+    tokenPlanComponentSpec.contracts.requiredPorts.some((port) => port.name === portName),
+    true,
+    `The IM Token Plan component contract must declare the ${portName} port.`,
+  );
+}
+assert.equal(
+  tokenPlanComponentSpec.contracts.publicExports.includes('./i18n'),
+  true,
+  'The IM Token Plan package must export its package-owned i18n fragment.',
+);
+assert.match(
+  tokenPlanI18nSource,
+  /imTokenPlanDialogsEnUS[\s\S]*imTokenPlanDialogsZhCN/u,
+  'The IM Token Plan package must publish both active locale fragments.',
+);
 assert.equal(
   tokenPlanComponentSpec.contracts.requiredPorts.some(
     (port) => port.name === 'membershipService',
@@ -275,7 +344,7 @@ assert.deepEqual(
   [],
   'The IM Token Plan component must not mount dependency APIs.',
 );
-for (const workspace of ['sdkwork-membership-app-sdk', 'sdkwork-order-app-sdk']) {
+for (const workspace of ['sdkwork-account-app-sdk', 'sdkwork-membership-app-sdk', 'sdkwork-order-app-sdk']) {
   assert.equal(
     imPcCoreComponentSpec.contracts.sdkDependencies.some(
       (dependency) => dependency.workspace === workspace
@@ -296,6 +365,7 @@ for (const workspace of ['sdkwork-membership-app-sdk', 'sdkwork-order-app-sdk'])
   );
 }
 for (const serviceId of [
+  'sdkwork-account-app-api',
   'sdkwork-membership-app-api',
   'sdkwork-order-app-api',
   'sdkwork-payment-app-api',
@@ -307,6 +377,7 @@ for (const serviceId of [
   );
 }
 for (const dependency of [
+  ['account', 'sdkwork-account'],
   ['membership', 'sdkwork-membership'],
   ['order', 'sdkwork-order'],
   ['payment', 'sdkwork-payment'],
@@ -337,14 +408,17 @@ assert.equal(
   'Both deployment profiles must resolve Token Plan SDK traffic through the platform API gateway root.',
 );
 assert.doesNotMatch(
-  [tokenPlanPageSource, membershipIntegrationSource, standaloneDependencyRoutesSource].join('\n'),
+  [tokenPlanPageSource, imCommerceModalsSource, membershipIntegrationSource, standaloneDependencyRoutesSource].join('\n'),
   /clawrouter|claw-router|claw_router/iu,
   'IM Token Plan integration must not depend on ClawRouter business code or SDKs.',
 );
 for (const workspacePath of [
+  'sdkwork-account-service',
+  'sdkwork-account-pc-wallet',
   'sdkwork-membership-pc-membership',
   'sdkwork-membership-pc-subscription',
   'sdkwork-order-pc-checkout',
+  'sdkwork-order-pc-recharge',
 ]) {
   assert.match(
     workspaceSource,

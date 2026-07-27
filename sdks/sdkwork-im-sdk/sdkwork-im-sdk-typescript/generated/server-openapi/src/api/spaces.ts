@@ -1,5 +1,5 @@
 import { imApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { PageInfo, SdkWorkCommandData, SpaceBanCreateRequest, SpaceBanView, SpaceChannelAccessRuleCreateRequest, SpaceChannelAccessRuleView, SpaceChannelCreateRequest, SpaceChannelUpdateRequest, SpaceChannelView, SpaceCreateRequest, SpaceGroupCreateRequest, SpaceGroupMemberCreateRequest, SpaceGroupMemberUpdateRequest, SpaceGroupMemberView, SpaceGroupUpdateRequest, SpaceGroupView, SpaceInviteCreateRequest, SpaceInviteView, SpaceMemberCreateRequest, SpaceMemberUpdateRequest, SpaceMemberView, SpaceUpdateRequest, SpaceView } from '../types';
 
@@ -18,27 +18,27 @@ export class SpacesBansApi {
 
 
 /** List spaces bans */
-  async list(spaceId: string, params?: SpacesBansListParams): Promise<{ items: SpaceBanView[]; pageInfo: PageInfo; }> {
+  async list(spaceId: string, params?: SpacesBansListParams, requestOptions?: ApiRequestOptions): Promise<{ items: SpaceBanView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: SpaceBanView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), query));
+    return this.client.request<{ items: SpaceBanView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Create spaces bans */
-  async create(spaceId: string, body: SpaceBanCreateRequest): Promise<SpaceBanView> {
-    return this.client.post<SpaceBanView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), body, undefined, undefined, 'application/json');
+  async create(spaceId: string, body: SpaceBanCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceBanView> {
+    return this.client.request<SpaceBanView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** retrieve spaces bans */
-  async retrieve(spaceId: string, userId: string): Promise<SpaceBanView> {
-    return this.client.get<SpaceBanView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
+  async retrieve(spaceId: string, userId: string, requestOptions?: ApiRequestOptions): Promise<SpaceBanView> {
+    return this.client.request<SpaceBanView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Delete spaces bans */
-  async delete(spaceId: string, userId: string): Promise<void> {
-    return this.client.delete<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
+  async delete(spaceId: string, userId: string, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
   }
 }
 
@@ -57,33 +57,33 @@ export class SpacesInvitesApi {
 
 
 /** List spaces invites */
-  async list(spaceId: string, params?: SpacesInvitesListParams): Promise<{ items: SpaceInviteView[]; pageInfo: PageInfo; }> {
+  async list(spaceId: string, params?: SpacesInvitesListParams, requestOptions?: ApiRequestOptions): Promise<{ items: SpaceInviteView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'status', value: params?.status, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: SpaceInviteView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), query));
+    return this.client.request<{ items: SpaceInviteView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Create spaces invites */
-  async create(spaceId: string, body: SpaceInviteCreateRequest): Promise<SpaceInviteView> {
-    return this.client.post<SpaceInviteView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), body, undefined, undefined, 'application/json');
+  async create(spaceId: string, body: SpaceInviteCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceInviteView> {
+    return this.client.request<SpaceInviteView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** retrieve spaces invites */
-  async retrieve(spaceId: string, inviteCode: string): Promise<SpaceInviteView> {
-    return this.client.get<SpaceInviteView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}`));
+  async retrieve(spaceId: string, inviteCode: string, requestOptions?: ApiRequestOptions): Promise<SpaceInviteView> {
+    return this.client.request<SpaceInviteView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Delete spaces invites */
-  async delete(spaceId: string, inviteCode: string): Promise<void> {
-    return this.client.delete<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}`));
+  async delete(spaceId: string, inviteCode: string, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
   }
 
 /** Accept spaces invites */
-  async accept(spaceId: string, inviteCode: string): Promise<SdkWorkCommandData> {
-    return this.client.post<SdkWorkCommandData>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}/accept`));
+  async accept(spaceId: string, inviteCode: string, requestOptions?: ApiRequestOptions): Promise<SdkWorkCommandData> {
+    return this.client.request<SdkWorkCommandData>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}/accept`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 }
 
@@ -101,22 +101,22 @@ export class SpacesChannelsAccessRulesApi {
 
 
 /** List spaces channels access Rules */
-  async list(spaceId: string, channelId: string, params?: SpacesChannelsAccessRulesListParams): Promise<{ items: SpaceChannelAccessRuleView[]; pageInfo: PageInfo; }> {
+  async list(spaceId: string, channelId: string, params?: SpacesChannelsAccessRulesListParams, requestOptions?: ApiRequestOptions): Promise<{ items: SpaceChannelAccessRuleView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: SpaceChannelAccessRuleView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`), query));
+    return this.client.request<{ items: SpaceChannelAccessRuleView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Create spaces channels access Rules */
-  async create(spaceId: string, channelId: string, body: SpaceChannelAccessRuleCreateRequest): Promise<SpaceChannelAccessRuleView> {
-    return this.client.post<SpaceChannelAccessRuleView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`), body, undefined, undefined, 'application/json');
+  async create(spaceId: string, channelId: string, body: SpaceChannelAccessRuleCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceChannelAccessRuleView> {
+    return this.client.request<SpaceChannelAccessRuleView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Delete spaces channels access Rules */
-  async delete(spaceId: string, channelId: string, ruleId: string): Promise<void> {
-    return this.client.delete<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules/${serializePathParameter(ruleId, { name: 'ruleId', style: 'simple', explode: false })}`));
+  async delete(spaceId: string, channelId: string, ruleId: string, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules/${serializePathParameter(ruleId, { name: 'ruleId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
   }
 }
 
@@ -136,32 +136,32 @@ export class SpacesChannelsApi {
 
 
 /** List spaces channels */
-  async list(spaceId: string, params?: SpacesChannelsListParams): Promise<{ items: SpaceChannelView[]; pageInfo: PageInfo; }> {
+  async list(spaceId: string, params?: SpacesChannelsListParams, requestOptions?: ApiRequestOptions): Promise<{ items: SpaceChannelView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: SpaceChannelView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), query));
+    return this.client.request<{ items: SpaceChannelView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Create spaces channels */
-  async create(spaceId: string, body: SpaceChannelCreateRequest): Promise<SpaceChannelView> {
-    return this.client.post<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), body, undefined, undefined, 'application/json');
+  async create(spaceId: string, body: SpaceChannelCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceChannelView> {
+    return this.client.request<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** retrieve spaces channels */
-  async retrieve(spaceId: string, channelId: string): Promise<SpaceChannelView> {
-    return this.client.get<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`));
+  async retrieve(spaceId: string, channelId: string, requestOptions?: ApiRequestOptions): Promise<SpaceChannelView> {
+    return this.client.request<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Update spaces channels */
-  async update(spaceId: string, channelId: string, body: SpaceChannelUpdateRequest): Promise<SpaceChannelView> {
-    return this.client.patch<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async update(spaceId: string, channelId: string, body: SpaceChannelUpdateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceChannelView> {
+    return this.client.request<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
   }
 
 /** Delete spaces channels */
-  async delete(spaceId: string, channelId: string): Promise<void> {
-    return this.client.delete<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`));
+  async delete(spaceId: string, channelId: string, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
   }
 }
 
@@ -179,32 +179,32 @@ export class SpacesGroupsMembersApi {
 
 
 /** List spaces groups members */
-  async list(spaceId: string, groupId: string, params?: SpacesGroupsMembersListParams): Promise<{ items: SpaceGroupMemberView[]; pageInfo: PageInfo; }> {
+  async list(spaceId: string, groupId: string, params?: SpacesGroupsMembersListParams, requestOptions?: ApiRequestOptions): Promise<{ items: SpaceGroupMemberView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: SpaceGroupMemberView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), query));
+    return this.client.request<{ items: SpaceGroupMemberView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Create spaces groups members */
-  async create(spaceId: string, groupId: string, body: SpaceGroupMemberCreateRequest): Promise<SpaceGroupMemberView> {
-    return this.client.post<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), body, undefined, undefined, 'application/json');
+  async create(spaceId: string, groupId: string, body: SpaceGroupMemberCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceGroupMemberView> {
+    return this.client.request<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** retrieve spaces groups members */
-  async retrieve(spaceId: string, groupId: string, userId: string): Promise<SpaceGroupMemberView> {
-    return this.client.get<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
+  async retrieve(spaceId: string, groupId: string, userId: string, requestOptions?: ApiRequestOptions): Promise<SpaceGroupMemberView> {
+    return this.client.request<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Update spaces groups members */
-  async update(spaceId: string, groupId: string, userId: string, body: SpaceGroupMemberUpdateRequest): Promise<SpaceGroupMemberView> {
-    return this.client.patch<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async update(spaceId: string, groupId: string, userId: string, body: SpaceGroupMemberUpdateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceGroupMemberView> {
+    return this.client.request<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
   }
 
 /** Delete spaces groups members */
-  async delete(spaceId: string, groupId: string, userId: string): Promise<void> {
-    return this.client.delete<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
+  async delete(spaceId: string, groupId: string, userId: string, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
   }
 }
 
@@ -224,32 +224,32 @@ export class SpacesGroupsApi {
 
 
 /** List spaces groups */
-  async list(spaceId: string, params?: SpacesGroupsListParams): Promise<{ items: SpaceGroupView[]; pageInfo: PageInfo; }> {
+  async list(spaceId: string, params?: SpacesGroupsListParams, requestOptions?: ApiRequestOptions): Promise<{ items: SpaceGroupView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: SpaceGroupView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), query));
+    return this.client.request<{ items: SpaceGroupView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Create spaces groups */
-  async create(spaceId: string, body: SpaceGroupCreateRequest): Promise<SpaceGroupView> {
-    return this.client.post<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), body, undefined, undefined, 'application/json');
+  async create(spaceId: string, body: SpaceGroupCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceGroupView> {
+    return this.client.request<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** retrieve spaces groups */
-  async retrieve(spaceId: string, groupId: string): Promise<SpaceGroupView> {
-    return this.client.get<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`));
+  async retrieve(spaceId: string, groupId: string, requestOptions?: ApiRequestOptions): Promise<SpaceGroupView> {
+    return this.client.request<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Update spaces groups */
-  async update(spaceId: string, groupId: string, body: SpaceGroupUpdateRequest): Promise<SpaceGroupView> {
-    return this.client.patch<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async update(spaceId: string, groupId: string, body: SpaceGroupUpdateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceGroupView> {
+    return this.client.request<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
   }
 
 /** Delete spaces groups */
-  async delete(spaceId: string, groupId: string): Promise<void> {
-    return this.client.delete<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`));
+  async delete(spaceId: string, groupId: string, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
   }
 }
 
@@ -267,32 +267,32 @@ export class SpacesMembersApi {
 
 
 /** List spaces members */
-  async list(spaceId: string, params?: SpacesMembersListParams): Promise<{ items: SpaceMemberView[]; pageInfo: PageInfo; }> {
+  async list(spaceId: string, params?: SpacesMembersListParams, requestOptions?: ApiRequestOptions): Promise<{ items: SpaceMemberView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: SpaceMemberView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), query));
+    return this.client.request<{ items: SpaceMemberView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Create spaces members */
-  async create(spaceId: string, body: SpaceMemberCreateRequest): Promise<SpaceMemberView> {
-    return this.client.post<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), body, undefined, undefined, 'application/json');
+  async create(spaceId: string, body: SpaceMemberCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceMemberView> {
+    return this.client.request<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** retrieve spaces members */
-  async retrieve(spaceId: string, userId: string): Promise<SpaceMemberView> {
-    return this.client.get<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
+  async retrieve(spaceId: string, userId: string, requestOptions?: ApiRequestOptions): Promise<SpaceMemberView> {
+    return this.client.request<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Update spaces members */
-  async update(spaceId: string, userId: string, body: SpaceMemberUpdateRequest): Promise<SpaceMemberView> {
-    return this.client.patch<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async update(spaceId: string, userId: string, body: SpaceMemberUpdateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceMemberView> {
+    return this.client.request<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
   }
 
 /** Delete spaces members */
-  async delete(spaceId: string, userId: string): Promise<void> {
-    return this.client.delete<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
+  async delete(spaceId: string, userId: string, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
   }
 }
 
@@ -320,32 +320,32 @@ export class SpacesApi {
 
 
 /** Create a space */
-  async create(body: SpaceCreateRequest): Promise<SpaceView> {
-    return this.client.post<SpaceView>(imApiPath(`/spaces`), body, undefined, undefined, 'application/json');
+  async create(body: SpaceCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceView> {
+    return this.client.request<SpaceView>(imApiPath(`/spaces`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** List spaces */
-  async list(params?: SpacesListParams): Promise<{ items: SpaceView[]; pageInfo: PageInfo; }> {
+  async list(params?: SpacesListParams, requestOptions?: ApiRequestOptions): Promise<{ items: SpaceView[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: SpaceView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces`), query));
+    return this.client.request<{ items: SpaceView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Retrieve a space */
-  async retrieve(spaceId: string): Promise<SpaceView> {
-    return this.client.get<SpaceView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}`));
+  async retrieve(spaceId: string, requestOptions?: ApiRequestOptions): Promise<SpaceView> {
+    return this.client.request<SpaceView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Update a space */
-  async update(spaceId: string, body: SpaceUpdateRequest): Promise<SpaceView> {
-    return this.client.patch<SpaceView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async update(spaceId: string, body: SpaceUpdateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceView> {
+    return this.client.request<SpaceView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
   }
 
 /** Delete a space */
-  async delete(spaceId: string): Promise<void> {
-    return this.client.delete<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}`));
+  async delete(spaceId: string, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
   }
 }
 

@@ -139,6 +139,12 @@ where
             owner_attributes,
         );
 
+        self.load_cold_conversation_for_creation(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        )?;
+
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.room.create");
         if let Some(existing_conversation_id) =
             state.business_index.get(business_scope_key.as_str())

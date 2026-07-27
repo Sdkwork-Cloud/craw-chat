@@ -47,6 +47,7 @@ test('im commercial gates workflow watch catalog publishes the exact governed wa
       'scripts/strict-contract-catalog.mjs',
       'scripts/strict-contract-catalog.test.mjs',
       'scripts/dev/**',
+      'scripts/lib/**',
       'scripts/release/**',
       'services/**',
       'sdks/**',

@@ -1,5 +1,5 @@
 import { imApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { AppendStreamFrameRequest, OpenStreamRequest, StreamFrameView, StreamView } from '../types';
 
@@ -18,17 +18,17 @@ export class StreamsFramesApi {
 
 
 /** List stream frames */
-  async list(streamId: string, params?: StreamsFramesListParams): Promise<{ items: StreamFrameView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
+  async list(streamId: string, params?: StreamsFramesListParams, requestOptions?: ApiRequestOptions): Promise<{ items: StreamFrameView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: StreamFrameView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), query));
+    return this.client.request<{ items: StreamFrameView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Append a stream frame */
-  async create(streamId: string, body: AppendStreamFrameRequest): Promise<StreamFrameView> {
-    return this.client.post<StreamFrameView>(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), body, undefined, undefined, 'application/json');
+  async create(streamId: string, body: AppendStreamFrameRequest, requestOptions?: ApiRequestOptions): Promise<StreamFrameView> {
+    return this.client.request<StreamFrameView>(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -43,23 +43,23 @@ export class StreamsApi {
 
 
 /** Open a stream */
-  async create(body: OpenStreamRequest): Promise<StreamView> {
-    return this.client.post<StreamView>(imApiPath(`/streams`), body, undefined, undefined, 'application/json');
+  async create(body: OpenStreamRequest, requestOptions?: ApiRequestOptions): Promise<StreamView> {
+    return this.client.request<StreamView>(imApiPath(`/streams`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Checkpoint a stream */
-  async checkpoint(streamId: string): Promise<StreamView> {
-    return this.client.post<StreamView>(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/checkpoint`));
+  async checkpoint(streamId: string, requestOptions?: ApiRequestOptions): Promise<StreamView> {
+    return this.client.request<StreamView>(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/checkpoint`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 
 /** Complete a stream */
-  async complete(streamId: string): Promise<StreamView> {
-    return this.client.post<StreamView>(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/complete`));
+  async complete(streamId: string, requestOptions?: ApiRequestOptions): Promise<StreamView> {
+    return this.client.request<StreamView>(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/complete`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 
 /** Abort a stream */
-  async abort(streamId: string): Promise<StreamView> {
-    return this.client.post<StreamView>(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/abort`));
+  async abort(streamId: string, requestOptions?: ApiRequestOptions): Promise<StreamView> {
+    return this.client.request<StreamView>(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/abort`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 }
 

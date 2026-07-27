@@ -67,37 +67,6 @@ const textExtensions = new Set([
   '.yml',
 ]);
 
-const forbiddenGeneratedAuthSurfaceText = [
-  'setApiKey',
-  'set_api_key',
-  'SetApiKey',
-  'apiKey?:',
-  'apiKeyHeader',
-  'apiKeyAsBearer',
-  'api_key ->',
-  'ApiKey      string',
-  'API_KEY_HEADER',
-  'API_KEY_USE_BEARER',
-  'DEFAULT_API_KEY_HEADER',
-  'DEFAULT_API_KEY_USE_BEARER',
-  'defaultApiKeyHeader',
-  'defaultApiKeyUseBearer',
-  'ApiKeyHeader',
-  'ApiKeyUseBearer',
-  'Authentication Modes',
-  'Professional TypeScript SDK for SDKWork API',
-  'Professional Flutter SDK for SDKWork API',
-  'Professional Rust SDK for SDKWork API',
-  'Professional Java SDK for SDKWork API',
-  'Professional C# SDK for SDKWork API',
-  'Professional Swift SDK for SDKWork API',
-  'Professional Kotlin SDK for SDKWork API',
-  'Professional Go SDK for SDKWork API',
-  'Professional Python SDK for SDKWork API',
-  'your-api-key',
-  'Mode A: API Key',
-];
-
 function fail(prefix, message) {
   console.error(`[${prefix}] ${message}`);
   process.exit(1);
@@ -489,6 +458,13 @@ function verifyOpenApiDocument(config, document, sourceLabel, failures) {
     }
   }
   const securitySchemes = document.components?.securitySchemes ?? {};
+  if (
+    securitySchemes.ApiKey?.type !== 'apiKey'
+    || securitySchemes.ApiKey?.in !== 'header'
+    || securitySchemes.ApiKey?.name !== 'X-API-Key'
+  ) {
+    failures.push(`${sourceLabel} must define components.securitySchemes.ApiKey as X-API-Key header`);
+  }
   if (securitySchemes.AuthToken?.type !== 'http' || securitySchemes.AuthToken?.scheme !== 'bearer') {
     failures.push(`${sourceLabel} must define components.securitySchemes.AuthToken as HTTP bearer`);
   }
@@ -520,10 +496,23 @@ function verifyOpenApiDocument(config, document, sourceLabel, failures) {
       }
       const security = operation.security;
       const anonymous = Array.isArray(security) && security.length === 0;
-      const dualToken = Array.isArray(security)
-        && security.some((entry) => entry && 'AuthToken' in entry && 'AccessToken' in entry);
-      if (!anonymous && !dualToken) {
-        failures.push(`${sourceLabel} ${normalizedMethod.toUpperCase()} ${pathKey} must use dual token security or security: []`);
+      const apiKeyRequirement = (entry) => entry
+        && Object.keys(entry).length === 1
+        && 'ApiKey' in entry;
+      const dualTokenRequirement = (entry) => entry
+        && Object.keys(entry).length === 2
+        && 'AuthToken' in entry
+        && 'AccessToken' in entry;
+      const apiKeyOrDualToken = Array.isArray(security)
+        && security.length === 2
+        && security.some(apiKeyRequirement)
+        && security.some(dualTokenRequirement)
+        && security.every((entry) => apiKeyRequirement(entry) || dualTokenRequirement(entry));
+      if (!anonymous && operation['x-sdkwork-auth-mode'] !== 'api-key-or-dual-token') {
+        failures.push(`${sourceLabel} ${normalizedMethod.toUpperCase()} ${pathKey} must use x-sdkwork-auth-mode api-key-or-dual-token`);
+      }
+      if (!anonymous && !apiKeyOrDualToken) {
+        failures.push(`${sourceLabel} ${normalizedMethod.toUpperCase()} ${pathKey} must use separate ApiKey and combined AuthToken plus AccessToken security alternatives`);
       }
       for (const [status, response] of Object.entries(operation.responses ?? {})) {
         const statusNumber = Number.parseInt(status, 10);
@@ -807,12 +796,6 @@ function verifyGeneratedLanguage(root, config, language, failures) {
         failures.push(`typescript generated ${relativePath} is required`);
         continue;
       }
-      const source = readText(filePath);
-      for (const forbidden of forbiddenGeneratedAuthSurfaceText) {
-        if (source.includes(forbidden)) {
-          failures.push(`typescript generated ${relativePath} must not expose API-key auth debt: ${forbidden}`);
-        }
-      }
     }
     for (const relativePath of [
       'dist/index.js',
@@ -827,22 +810,11 @@ function verifyGeneratedLanguage(root, config, language, failures) {
         failures.push(`typescript generated ${relativePath} is required`);
         continue;
       }
-      const source = readText(filePath);
-      for (const forbidden of forbiddenGeneratedAuthSurfaceText) {
-        if (source.includes(forbidden)) {
-          failures.push(`typescript generated ${relativePath} must not expose API-key auth debt: ${forbidden}`);
-        }
-      }
     }
   }
   for (const filePath of walkFiles(outputDir)) {
     const source = readText(filePath);
     const relative = relativePath(root, filePath);
-    for (const forbidden of forbiddenGeneratedAuthSurfaceText) {
-      if (source.includes(forbidden)) {
-        failures.push(`${relative} must not expose API-key auth debt: ${forbidden}`);
-      }
-    }
     for (const forbidden of forbiddenGeneratedDependencyPackages(config)) {
       if (source.includes(forbidden)) {
         failures.push(`${relative} must not import or declare forbidden SDK dependency package ${forbidden}`);

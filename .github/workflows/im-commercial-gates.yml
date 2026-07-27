@@ -34,6 +34,7 @@ on:
       - 'scripts/strict-contract-catalog.mjs'
       - 'scripts/strict-contract-catalog.test.mjs'
       - 'scripts/dev/**'
+      - 'scripts/lib/**'
       - 'scripts/release/**'
       - 'services/**'
       - 'sdks/**'

@@ -47,6 +47,12 @@ packages:
   - "../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-commons"
   - "../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-knowledgebase"
   - "../sdkwork-account/sdks/sdkwork-account-app-sdk/sdkwork-account-app-sdk-typescript"
+  - "../sdkwork-account/sdks/sdkwork-account-backend-sdk/sdkwork-account-backend-sdk-typescript"
+  - "../sdkwork-account/apps/sdkwork-account-common/packages/sdkwork-account-contracts"
+  - "../sdkwork-account/apps/sdkwork-account-common/packages/sdkwork-account-sdk-ports"
+  - "../sdkwork-account/apps/sdkwork-account-common/packages/sdkwork-account-service"
+  - "../sdkwork-account/apps/sdkwork-account-pc/packages/sdkwork-account-pc-core"
+  - "../sdkwork-account/apps/sdkwork-account-pc/packages/sdkwork-account-pc-wallet"
   - "../sdkwork-catalog/sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript"
   - "../sdkwork-shop/sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript"
   - "../sdkwork-shop/apps/sdkwork-shop-pc/packages/sdkwork-shop-pc-core"
@@ -71,8 +77,8 @@ packages:
   - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-contracts"
   - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-sdk-ports"
   - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-service"
-  - "../sdkwork-promotion/sdks/sdkwork-promotion-app-sdk/sdkwork-promotion-app-sdk-typescript"
   - "../sdkwork-promotion/sdks/sdkwork-promotion-backend-sdk/sdkwork-promotion-backend-sdk-typescript"
+  - "../sdkwork-promotion/sdks/sdkwork-promotion-app-sdk/sdkwork-promotion-app-sdk-typescript"
   - "../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-core"
   - "../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-coupon"
   - "../sdkwork-mail/sdks/sdkwork-mail-app-sdk/sdkwork-mail-app-sdk-typescript"
@@ -239,7 +245,7 @@ catalog:
   tiptap-markdown: ^0.9.0
   date-fns: ^4.1.0
   html-to-image: ^1.11.13
-  qrcode.react: ^4.2.0
+  "qrcode.react": ^4.2.0
   react-easy-crop: ^5.5.7
   react-signature-canvas: ^1.1.0-alpha.2
   "@types/react-signature-canvas": ^1.0.7

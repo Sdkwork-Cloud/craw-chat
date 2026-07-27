@@ -7,7 +7,7 @@ use crate::paths;
 pub const API_SURFACE: &str = "open-api";
 
 pub const ROUTES: &[HttpRoute] = &[
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::PREFIX,
         "realtime",
@@ -21,31 +21,31 @@ pub const ROUTES: &[HttpRoute] = &[
         "realtime",
         "realtime.websocket.upgrade",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::REALTIME_SUBSCRIPTIONS_SYNC,
         "realtime",
         "realtime.subscriptions.sync",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::REALTIME_EVENTS_ACK,
         "realtime",
         "realtime.events.ack",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::REALTIME_EVENTS,
         "realtime",
         "realtime.events.list",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
         paths::PRESENCE_HEARTBEAT,
         "presence",
         "presence.heartbeat",
     ),
-    HttpRoute::dual_token(
+    HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
         paths::PRESENCE_ME,
         "presence",

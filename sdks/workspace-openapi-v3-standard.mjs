@@ -5,6 +5,12 @@ const dualTokenSecurity = Object.freeze({
   AccessToken: [],
 });
 
+const apiKeySecurity = Object.freeze({
+  ApiKey: [],
+});
+
+const API_KEY_OR_DUAL_TOKEN_PROFILE = 'api-key-or-dual-token';
+
 const httpMethods = new Set([
   'get',
   'put',
@@ -63,15 +69,29 @@ function isErrorStatus(statusCode) {
   return Number.isFinite(status) && status >= 400;
 }
 
-export function applySdkworkV3OpenApiStandard(document) {
+export function applySdkworkV3OpenApiStandard(document, options = {}) {
   if (!document || typeof document !== 'object' || Array.isArray(document)) {
     return document;
   }
+
+  const usesApiKeyOrDualToken = options.authProfile === API_KEY_OR_DUAL_TOKEN_PROFILE;
+  const protectedSecurity = usesApiKeyOrDualToken
+    ? [cloneJson(apiKeySecurity), cloneJson(dualTokenSecurity)]
+    : [cloneJson(dualTokenSecurity)];
 
   document.components = document.components && typeof document.components === 'object'
     ? document.components
     : {};
   document.components.securitySchemes = {
+    ...(usesApiKeyOrDualToken
+      ? {
+          ApiKey: {
+            type: 'apiKey',
+            in: 'header',
+            name: 'X-API-Key',
+          },
+        }
+      : {}),
     AuthToken: {
       type: 'http',
       scheme: 'bearer',
@@ -88,7 +108,7 @@ export function applySdkworkV3OpenApiStandard(document) {
     : {};
   ensureEnvelopeComponentSchemas(document.components.schemas);
 
-  document.security = [cloneJson(dualTokenSecurity)];
+  document.security = protectedSecurity;
 
   for (const pathItem of Object.values(document.paths ?? {})) {
     if (!pathItem || typeof pathItem !== 'object' || Array.isArray(pathItem)) {
@@ -101,7 +121,7 @@ export function applySdkworkV3OpenApiStandard(document) {
       }
 
       if (!isExplicitAnonymousSecurity(operation.security)) {
-        operation.security = [cloneJson(dualTokenSecurity)];
+        operation.security = cloneJson(protectedSecurity);
       }
 
       for (const [statusCode, response] of Object.entries(operation.responses ?? {})) {

@@ -9,17 +9,21 @@ use conversation_runtime::{
     AgentHandoffStateView, AgentMentionDispatchRequest, ApplyConversationPolicyCommand,
     ArchiveGroupConversationCommand, BindDirectChatConversationCommand,
     ChangeAgentHandoffStatusView, ChangeConversationMemberRoleCommand, CloseAgentHandoffCommand,
-    ConversationBusinessBinding, ConversationRuntime, CreateAgentDialogCommand,
-    CreateAgentHandoffCommand, CreateConversationCommand, CreateGroupConversationCommand,
-    CreateRoomCommand, CreateSystemChannelCommand, CreateThreadConversationCommand,
-    DirectMessageAccessGate, DurableMessageMutationWriter, EditMessageCommand,
-    LeaveConversationCommand, MessageHistoryReadRequest, PinMessageCommand, PostMessageCommand,
-    PostMessageDeliveryStatus, PublishSystemChannelMessageCommand, RecallMessageCommand,
-    RemoveConversationMemberCommand, RemoveMessageReactionCommand,
-    ReplaceConversationAgentsCommand, ResolveAgentHandoffCommand, RuntimeError,
-    SyncSharedChannelLinkedMemberCommand, TransferConversationOwnerCommand, UnpinMessageCommand,
-    UpdateReadCursorCommand,
+    ConversationBusinessBinding, ConversationCommitJournal, ConversationRuntime,
+    CreateAgentDialogCommand, CreateAgentHandoffCommand, CreateConversationCommand,
+    CreateGroupConversationCommand, CreateRoomCommand, CreateSystemChannelCommand,
+    CreateThreadConversationCommand, DirectMessageAccessGate, DurableConversationEventWriter,
+    DurableMessageMutationWriter, EditMessageCommand, LeaveConversationCommand,
+    MessageHistoryReadRequest, PinMessageCommand, PostMessageCommand, PostMessageDeliveryStatus,
+    PublishSystemChannelMessageCommand, RecallMessageCommand, RemoveConversationMemberCommand,
+    RemoveMessageReactionCommand, ReplaceConversationAgentsCommand, ResolveAgentHandoffCommand,
+    RuntimeError, SyncSharedChannelLinkedMemberCommand, TransferConversationOwnerCommand,
+    UnpinMessageCommand, UpdateReadCursorCommand,
+    conversation_state::{
+        UpdateConversationPreferencesRequest, default_conversation_state_service,
+    },
 };
+use im_app_context::AppContext;
 use im_domain_core::conversation::{
     ConversationAgentAssignment, ConversationAgentAssignmentSource, ConversationMember,
     ConversationPolicy, MembershipRole, MembershipState,
@@ -34,10 +38,10 @@ use im_platform_contracts::{
     ConversationAggregateState as PersistedConversationAggregateState, ConversationAggregateStore,
     ConversationMemberPage, ConversationMemberPageCursor, ConversationMemberRecord, IdGenerator,
     MessageStore, MessageWindow, NormalizedConversationBusinessBindingRecord,
-    NormalizedConversationCurrentState, NormalizedConversationHandoffRecord,
-    NormalizedConversationPolicyRecord, NormalizedConversationRecord, OutboxEventClaim,
-    OutboxEventRecord, OutboxStore, ReadCursorPage, ReadCursorPageCursor, ReadCursorRecord,
-    StoredMessageMutation, StoredMessageRecord,
+    NormalizedConversationCommit, NormalizedConversationCurrentState,
+    NormalizedConversationHandoffRecord, NormalizedConversationPolicyRecord,
+    NormalizedConversationRecord, OutboxEventClaim, OutboxEventRecord, OutboxStore, ReadCursorPage,
+    ReadCursorPageCursor, ReadCursorRecord, StoredMessageMutation, StoredMessageRecord,
 };
 
 fn ensure_conversation_cursor_test_secret() {
@@ -106,6 +110,46 @@ impl CommitJournal for InMemoryJournal {
             items: page_items,
             next_cursor,
         })
+    }
+}
+
+#[derive(Clone, Default)]
+struct RecordingNormalizedConversationWriter {
+    commits: Arc<Mutex<Vec<NormalizedConversationCommit>>>,
+}
+
+impl RecordingNormalizedConversationWriter {
+    fn recorded(&self) -> Vec<NormalizedConversationCommit> {
+        self.commits.lock().expect("writer should lock").clone()
+    }
+}
+
+impl DurableConversationEventWriter for RecordingNormalizedConversationWriter {
+    fn persist_normalized_conversation_commit(
+        &self,
+        commit: NormalizedConversationCommit,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        let positions = commit
+            .envelopes
+            .iter()
+            .enumerate()
+            .map(|(index, _)| CommitPosition::new("normalized-test", (index + 1) as u64))
+            .collect();
+        self.commits
+            .lock()
+            .expect("writer should lock")
+            .push(commit);
+        Ok(positions)
+    }
+
+    fn persist_conversation_event(
+        &self,
+        _envelope: CommitEnvelope,
+        _outbox: OutboxEventRecord,
+    ) -> Result<CommitPosition, ContractError> {
+        Err(ContractError::UnsupportedCapability(
+            "single-event persistence is not used by this test writer".into(),
+        ))
     }
 }
 
@@ -10328,6 +10372,222 @@ fn test_bind_direct_chat_conversation_rejects_duplicate_business_binding() {
 }
 
 #[test]
+fn test_direct_chat_binding_replays_for_an_authorized_participant_after_system_creation() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+    let mut system_command = canonical_bind_direct_chat_command("100001", "actor_a", "actor_b");
+    system_command.bound_by = "friend_request_acceptor".into();
+
+    let created = runtime
+        .bind_direct_chat_conversation_with_binder_kind(system_command, "system")
+        .expect("system friend acceptance should create the direct conversation");
+
+    let mut participant_command =
+        canonical_bind_direct_chat_command("100001", "actor_a", "actor_b");
+    participant_command.bound_by = "actor_a".into();
+    let replayed = runtime
+        .bind_direct_chat_conversation_with_binder_kind(participant_command, "user")
+        .expect("an authorized participant should resolve the existing direct conversation");
+
+    assert_eq!(replayed.conversation_id, created.conversation_id);
+    assert_eq!(
+        replayed.delivery_status.as_ref().unwrap().as_str(),
+        "replayed"
+    );
+    runtime
+        .require_active_member_with_kind(
+            "100001",
+            "0",
+            replayed.conversation_id.as_str(),
+            "actor_a",
+            "user",
+        )
+        .expect("the participant must remain an active direct conversation member");
+
+    let mut unrelated_user_command =
+        canonical_bind_direct_chat_command("100001", "actor_a", "actor_b");
+    unrelated_user_command.bound_by = "actor_c".into();
+    let unrelated_user_result =
+        runtime.bind_direct_chat_conversation_with_binder_kind(unrelated_user_command, "user");
+    assert!(matches!(
+        unrelated_user_result,
+        Err(RuntimeError::PermissionDenied(message))
+            if message.contains("direct chat binding requester must be one of the participants")
+    ));
+
+    assert_eq!(
+        journal
+            .recorded()
+            .iter()
+            .filter(|event| event.aggregate_id == replayed.conversation_id)
+            .count(),
+        3,
+        "participant resolution must not append duplicate creation or membership events"
+    );
+}
+
+#[test]
+fn test_direct_chat_binding_replays_from_normalized_state_after_restart() {
+    let writer = RecordingNormalizedConversationWriter::default();
+    let initial_runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_durable_conversation_event_writer(Arc::new(writer.clone()));
+    let mut system_command =
+        canonical_bind_direct_chat_command("100001", "restart_actor_a", "restart_actor_b");
+    system_command.bound_by = "friend_request_acceptor".into();
+    let created = initial_runtime
+        .bind_direct_chat_conversation_with_binder_kind(system_command, "system")
+        .expect("system creation should persist the direct chat");
+
+    let commit = writer
+        .recorded()
+        .into_iter()
+        .next()
+        .expect("creation should produce one normalized commit");
+    let store = TestAggregateStore::current_state_snapshot(
+        PersistedConversationAggregateState {
+            tenant_id: commit.conversation.tenant_id.clone(),
+            organization_id: commit.conversation.organization_id.clone(),
+            conversation_id: commit.conversation.conversation_id.clone(),
+            members: commit.members.clone(),
+            read_cursors: commit.read_cursors.clone(),
+            high_watermark: 0,
+        },
+        NormalizedConversationCurrentState {
+            conversation: commit.conversation,
+            policy: commit.policy,
+            business_binding: commit.business_binding,
+            handoff: commit.handoff,
+        },
+    );
+    let restarted_journal = InMemoryJournal::default();
+    let replay_writer = RecordingNormalizedConversationWriter::default();
+    let restarted = ConversationRuntime::new(restarted_journal.clone())
+        .with_aggregate_store(Arc::new(store))
+        .with_durable_conversation_event_writer(Arc::new(replay_writer.clone()));
+    let mut participant_command =
+        canonical_bind_direct_chat_command("100001", "restart_actor_a", "restart_actor_b");
+    participant_command.bound_by = "restart_actor_a".into();
+
+    let replayed = restarted
+        .bind_direct_chat_conversation_with_binder_kind(participant_command, "user")
+        .expect("normalized direct-chat identity should survive a runtime restart");
+
+    assert_eq!(replayed.conversation_id, created.conversation_id);
+    assert_eq!(
+        replayed.delivery_status.as_ref().unwrap().as_str(),
+        "replayed"
+    );
+    assert!(
+        restarted_journal.recorded().is_empty(),
+        "cold replay must not append a second creation batch"
+    );
+    assert!(
+        replay_writer.recorded().is_empty(),
+        "cold replay must not reach the normalized writer"
+    );
+}
+
+#[test]
+fn test_cold_generic_creation_conflict_does_not_rewrite_existing_normalized_aggregate() {
+    let conversation_id = "c_cold_existing_creation_guard";
+    let creator = joined_member_record("100001", "0", conversation_id, "user", "creator_user");
+    let store = TestAggregateStore::normalized_snapshot(
+        PersistedConversationAggregateState {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: conversation_id.into(),
+            members: vec![creator],
+            read_cursors: Vec::new(),
+            high_watermark: 0,
+        },
+        "group",
+        "active",
+        1,
+        1,
+    );
+    let writer = RecordingNormalizedConversationWriter::default();
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(store))
+        .with_durable_conversation_event_writer(Arc::new(writer.clone()));
+
+    let error = runtime
+        .create_conversation_with_creator_kind(
+            CreateConversationCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: conversation_id.into(),
+                creator_id: "creator_user".into(),
+                conversation_type: "group".into(),
+            },
+            "user",
+        )
+        .expect_err("cold normalized state without full request identity must conflict");
+
+    assert!(matches!(
+        error,
+        RuntimeError::Conflict(message)
+            if message.contains("conflicts with existing conversation id")
+    ));
+    assert!(
+        writer.recorded().is_empty(),
+        "an existing normalized aggregate must never receive a second sequence-zero creation"
+    );
+}
+
+#[test]
+fn test_direct_chat_binding_materializes_membership_before_preferences_update() {
+    let runtime = ConversationRuntime::new(ConversationCommitJournal::Memory(
+        conversation_runtime::InMemoryJournal::default(),
+    ));
+    let mut system_command =
+        canonical_bind_direct_chat_command("100099", "preferences_actor_a", "preferences_actor_b");
+    system_command.bound_by = "friend_request_acceptor".into();
+
+    let created = runtime
+        .bind_direct_chat_conversation_with_binder_kind(system_command, "system")
+        .expect("system friend acceptance should create the direct conversation");
+
+    let mut participant_command =
+        canonical_bind_direct_chat_command("100099", "preferences_actor_a", "preferences_actor_b");
+    participant_command.bound_by = "preferences_actor_a".into();
+    let resolved = runtime
+        .bind_direct_chat_conversation_with_binder_kind(participant_command, "user")
+        .expect("the participant should resolve the existing direct conversation");
+    assert_eq!(resolved.conversation_id, created.conversation_id);
+
+    let auth = AppContext {
+        tenant_id: "100099".into(),
+        organization_id: "0".into(),
+        user_id: "preferences_actor_a".into(),
+        session_id: Some("preferences_session_a".into()),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
+        permission_scope: Default::default(),
+        actor_id: "preferences_actor_a".into(),
+        actor_kind: "user".into(),
+        device_id: Some("preferences_device_a".into()),
+    };
+    let preferences = default_conversation_state_service()
+        .update_conversation_preferences_from_auth_context(
+            &auth,
+            resolved.conversation_id.as_str(),
+            UpdateConversationPreferencesRequest {
+                is_hidden: Some(false),
+                ..UpdateConversationPreferencesRequest::default()
+            },
+        )
+        .expect("direct-chat binding must materialize active membership before preferences update");
+
+    assert_eq!(preferences.conversation_id, resolved.conversation_id);
+    assert_eq!(preferences.principal_id, "preferences_actor_a");
+    assert_eq!(preferences.principal_kind, "user");
+    assert!(!preferences.is_hidden);
+}
+
+#[test]
 fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_retry_is_rejected() {
     let source_journal = InMemoryJournal::default();
     let source_runtime = ConversationRuntime::new(source_journal.clone());
@@ -10624,6 +10884,91 @@ fn test_direct_chat_creation_persists_both_members_to_aggregate_store() {
         "direct chat creation must persist read cursors alongside members: {:?}",
         aggregate_store.upserted_cursors()
     );
+}
+
+#[test]
+fn test_direct_chat_creation_reaches_normalized_writer_with_absent_predecessor() {
+    let writer = RecordingNormalizedConversationWriter::default();
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_durable_conversation_event_writer(Arc::new(writer.clone()));
+
+    runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            canonical_bind_direct_chat_command(
+                "100001",
+                "normalized_anchor_user",
+                "normalized_peer_user",
+            ),
+            "system",
+        )
+        .expect("a new direct chat must reach the normalized writer");
+
+    let commits = writer.recorded();
+    assert_eq!(commits.len(), 1);
+    let commit = &commits[0];
+    assert_eq!(commit.expected_commit_seq, None);
+    assert_eq!(commit.conversation.commit_seq, 2);
+    assert_eq!(
+        commit
+            .envelopes
+            .iter()
+            .map(|envelope| envelope.ordering_seq)
+            .collect::<Vec<_>>(),
+        vec![0, 1, 2]
+    );
+    assert_eq!(commit.members.len(), 2);
+    assert_eq!(commit.read_cursors.len(), 2);
+}
+
+#[test]
+fn test_group_and_room_creation_reach_normalized_writer_with_absent_predecessor() {
+    let writer = RecordingNormalizedConversationWriter::default();
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_durable_conversation_event_writer(Arc::new(writer.clone()));
+
+    runtime
+        .create_conversation_with_creator_kind(
+            CreateConversationCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_normalized_group_creation".into(),
+                creator_id: "330339707122622464".into(),
+                conversation_type: "group".into(),
+            },
+            "user",
+        )
+        .expect("a new group must reach the normalized writer");
+    runtime
+        .create_room_with_creator_kind(
+            CreateRoomCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: String::new(),
+                room_id: "normalized_room_creation".into(),
+                room_kind: "chat".into(),
+                creator_id: "330339707122622465".into(),
+            },
+            "user",
+        )
+        .expect("a new room must reach the normalized writer");
+
+    let commits = writer.recorded();
+    assert_eq!(commits.len(), 2);
+    for commit in commits {
+        assert_eq!(commit.expected_commit_seq, None);
+        assert_eq!(commit.envelopes[0].ordering_seq, 0);
+        assert!(
+            commit
+                .envelopes
+                .windows(2)
+                .all(|window| window[1].ordering_seq == window[0].ordering_seq + 1),
+            "creation envelopes must stay contiguous"
+        );
+        assert_eq!(
+            commit.conversation.commit_seq,
+            commit.envelopes.last().unwrap().ordering_seq
+        );
+    }
 }
 
 #[test]

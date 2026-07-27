@@ -22,6 +22,19 @@ export function applyWebFrameworkOpenApiExtensions(document, apiSurface) {
         operation['x-sdkwork-api-surface'] = apiSurface;
         changed += 1;
       }
+      if (apiSurface === 'open-api') {
+        const anonymous = Array.isArray(operation.security) && operation.security.length === 0;
+        const routeAuth = anonymous ? 'public' : 'api-key-or-dual-token';
+        const authMode = anonymous ? 'anonymous' : 'api-key-or-dual-token';
+        if (operation['x-sdkwork-route-auth'] !== routeAuth) {
+          operation['x-sdkwork-route-auth'] = routeAuth;
+          changed += 1;
+        }
+        if (operation['x-sdkwork-auth-mode'] !== authMode) {
+          operation['x-sdkwork-auth-mode'] = authMode;
+          changed += 1;
+        }
+      }
     }
   }
   return changed;

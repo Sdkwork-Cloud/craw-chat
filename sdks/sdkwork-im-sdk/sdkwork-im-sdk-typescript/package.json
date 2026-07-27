@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "description": "Layered TypeScript SDK for Sdkwork IM IM runtime APIs and realtime adapters.",
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "default": "./dist/index.js"
+      "require": "./dist/index.cjs"
     }
   },
   "browser": {

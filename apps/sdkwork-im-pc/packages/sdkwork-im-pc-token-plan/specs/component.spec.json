@@ -74,7 +74,8 @@
   "contracts": {
     "layerRole": "frontend-feature",
     "publicExports": [
-      "."
+      ".",
+      "./i18n"
     ],
     "providedPorts": [
       {
@@ -102,6 +103,16 @@
         "name": "orderCheckoutDialog",
         "export": ".",
         "package": "@sdkwork/order-pc-checkout"
+      },
+      {
+        "name": "accountTokenBank",
+        "export": ".",
+        "package": "@sdkwork/account-pc-wallet"
+      },
+      {
+        "name": "orderRechargeDialog",
+        "export": ".",
+        "package": "@sdkwork/order-pc-recharge"
       }
     ],
     "runtimeEntrypoints": [],
@@ -112,7 +123,7 @@
     "events": [],
     "configKeys": [],
     "routeManifest": null,
-    "compositionBoundary": "The IM application adapter injects the order-owned checkout service and dialog into the membership catalog. Membership packages do not depend on order packages."
+    "compositionBoundary": "The IM application adapter injects Account-owned Token Bank state and Order-owned checkout, recharge, and redemption services into the Membership catalog. Membership packages do not depend on Account or Order packages."
   },
   "verification": {
     "commands": [

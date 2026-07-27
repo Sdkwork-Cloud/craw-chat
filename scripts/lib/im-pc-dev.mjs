@@ -668,13 +668,7 @@ export async function runSdkworkChatPcDev({
   ensureDatabaseReady = ensurePostgresDevDatabaseReady,
 } = {}) {
   const siteDirEnv = await resolveImProductSiteDirEnv({
-    buildEnv: env,
     env,
-    onFallback: ({ fallbackDir, label, sourceDir }) => {
-      process.stdout.write(
-        `[sdkwork-im-pc-dev] ${label} source not found at ${path.relative(resolvedRepoRoot, sourceDir)}; using ${path.relative(resolvedRepoRoot, fallbackDir)}\n`,
-      );
-    },
     repoRoot: resolvedRepoRoot,
   });
   const envWithSiteDirs = {

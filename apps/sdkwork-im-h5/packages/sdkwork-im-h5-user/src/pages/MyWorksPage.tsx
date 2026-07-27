@@ -1,9 +1,9 @@
-﻿import { useTranslation } from "react-i18next";
-import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, FolderOpen } from "lucide-react";
 import { WorkService, Work } from "../services/WorkService";
-import { cn, showToast, ActionSheet } from "@sdkwork/im-h5-commons";
+import { cn, showToast, ActionSheet, useLongPress } from "@sdkwork/im-h5-commons";
 import { WorkCard } from "../components/WorkCard";
 
 export const MyWorksPage = () => {
@@ -33,35 +33,36 @@ const navigate = useNavigate();
     }
   };
 
-  const startLongPress = (work: Work) => {
-  const handlePressStart = () => {
-  setIsLongPressed(false);
-      (window as any).longPressTimeout = setTimeout(() => {
+  const longPressItemRef = useRef<Work | null>(null);
+  const longPressHandlers = useLongPress({
+    delay: 500,
+    onLongPress: () => {
+      const work = longPressItemRef.current;
+      if (work) {
         setIsLongPressed(true);
         setActionSheetItem(work);
-      }, 500);
-    };
-
-    const handlePressEnd = () => {
-  clearTimeout((window as any).longPressTimeout);
-    };
-
-    return {
-      onPointerDown: handlePressStart,
-      onPointerUp: handlePressEnd,
-      onPointerLeave: () => {
-        handlePressEnd();
-        setIsLongPressed(false);
-      },
-      onContextMenu: (e: React.MouseEvent) => {
-        e.preventDefault();
-        handlePressStart();
-        setIsLongPressed(true);
-        setActionSheetItem(work);
-        handlePressEnd();
       }
-    };
-  };
+    },
+  });
+
+  const startLongPress = (work: Work) => ({
+    onPointerDown: () => {
+      longPressItemRef.current = work;
+      setIsLongPressed(false);
+      longPressHandlers.onPointerDown();
+    },
+    onPointerUp: longPressHandlers.onPointerUp,
+    onPointerLeave: () => {
+      longPressHandlers.onPointerLeave();
+      setIsLongPressed(false);
+    },
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault();
+      longPressHandlers.onPointerUp();
+      setIsLongPressed(true);
+      setActionSheetItem(work);
+    },
+  });
 
   const handleActionSheetSelect = async (action: string) => {
     if (!actionSheetItem) return;

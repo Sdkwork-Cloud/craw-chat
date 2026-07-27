@@ -3397,30 +3397,11 @@ class SdkworkChatService implements ChatService {
     }
     const operation = 'starting a direct conversation';
     const { client, generation } = await this.beginAuthSessionOperation(operation);
-    const existingConversationId = user.conversationId?.trim();
-    if (existingConversationId) {
-      await client.conversations.updatePreferences(existingConversationId, { isHidden: false });
-      this.assertAuthSessionGenerationCurrent(generation, operation);
-      this.writeConversationViewState(existingConversationId, {
-        ...this.conversationViewState.get(existingConversationId),
-        avatar: user.avatar,
-        isHidden: false,
-        name: user.name,
-        type: 'single',
-      });
-      return {
-        id: existingConversationId,
-        name: user.name,
-        avatar: user.avatar,
-        type: 'single',
-        unreadCount: 0,
-        updatedAt: Date.now(),
-      };
-    }
     const currentUserId = this.resolveCurrentUserId().trim();
     if (!currentUserId) {
       throw new Error('Current user id is required');
     }
+    const contactConversationId = user.conversationId?.trim();
     const result = await client.conversations.bindDirectChat({
       leftActorId: currentUserId,
       leftActorKind: 'user',
@@ -3433,7 +3414,7 @@ class SdkworkChatService implements ChatService {
       avatar: user.avatar,
       name: user.name,
     });
-    if (hasProfileUpdate(profileUpdate)) {
+    if (boundConversationId !== contactConversationId && hasProfileUpdate(profileUpdate)) {
       await client.conversations.updateProfile(boundConversationId, profileUpdate);
       this.assertAuthSessionGenerationCurrent(generation, operation);
     }

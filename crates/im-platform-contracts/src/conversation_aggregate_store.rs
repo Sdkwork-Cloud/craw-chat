@@ -151,8 +151,9 @@ pub struct NormalizedConversationCurrentState {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NormalizedConversationCommit {
     /// Exact normalized version observed before this command was evaluated.
-    /// PostgreSQL must advance from this value atomically or reject the write.
-    pub expected_commit_seq: u64,
+    /// `None` means the aggregate did not exist; PostgreSQL must insert it
+    /// atomically or accept only an exact replay of the same creation commit.
+    pub expected_commit_seq: Option<u64>,
     pub conversation: NormalizedConversationRecord,
     pub policy: Option<NormalizedConversationPolicyRecord>,
     pub business_binding: Option<NormalizedConversationBusinessBindingRecord>,

@@ -74,6 +74,20 @@ const unifiedWebSource = fs.readFileSync(
   path.join(repoRoot, 'scripts/gateway-standalone-run.mjs'),
   'utf8',
 );
+const pcViteConfigSource = fs.readFileSync(
+  path.join(repoRoot, 'apps/sdkwork-im-pc/vite.config.ts'),
+  'utf8',
+);
+assert.match(
+  pcViteConfigSource,
+  /SDKWORK_IM_PC_DEV_PORT[\s\S]*port:\s*resolveDevServerPort\(\)/u,
+  'the PC Vite server must use the topology-resolved port',
+);
+assert.match(
+  pcViteConfigSource,
+  /host:\s*process\.env\.SDKWORK_IM_PC_DEV_HOST[\s\S]*strictPort:\s*true/u,
+  'the PC Vite server must use the topology-resolved host without silently rotating ports',
+);
 const imGatewayCargoSource = fs.readFileSync(
   path.join(repoRoot, 'crates/sdkwork-api-im-standalone-gateway/Cargo.toml'),
   'utf8',

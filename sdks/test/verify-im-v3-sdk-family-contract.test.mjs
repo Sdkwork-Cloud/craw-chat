@@ -699,11 +699,9 @@ for (const marker of [
   'custom/build-runtime.mjs',
   'dist/index.js',
   "'.java'",
-  'forbiddenGeneratedAuthSurfaceText',
-  'set_api_key',
-  'SetApiKey',
-  'API_KEY_HEADER',
-  'defaultApiKeyHeader',
+  'api-key-or-dual-token',
+  'ApiKey',
+  'X-API-Key',
   'AuthToken',
   'AccessToken',
   'application/problem+json',
@@ -801,6 +799,35 @@ for (const [label, document, prefix] of [
   assertNoPathsUsePrefix(label, document, '/backend/v3/api');
   assertDocumentHasOnlyImStandardRoutes(label, document, prefix);
   assertSchemasArePathReachable(label, document);
+}
+
+const realtimeWebsocketPath = '/im/v3/api/realtime/ws';
+const realtimeWebsocketOperation = imAuthority.paths?.[realtimeWebsocketPath]?.get;
+assert.ok(realtimeWebsocketOperation, 'IM authority must retain the realtime websocket upgrade route.');
+assert.deepEqual(
+  realtimeWebsocketOperation.security,
+  [],
+  'IM authority realtime websocket upgrade must remain anonymous.',
+);
+assert.equal(
+  realtimeWebsocketOperation['x-sdkwork-route-auth'],
+  'public',
+  'IM authority realtime websocket upgrade must use the public route-auth profile.',
+);
+assert.equal(
+  realtimeWebsocketOperation['x-sdkwork-auth-mode'],
+  'anonymous',
+  'IM authority realtime websocket upgrade must use the anonymous auth mode.',
+);
+for (const [label, document] of [
+  ['IM derived', imDerived],
+  ['IM Flutter derived', imFlutterDerived],
+]) {
+  assert.equal(
+    document.paths?.[realtimeWebsocketPath],
+    undefined,
+    `${label} must exclude the manual-owned realtime websocket upgrade route.`,
+  );
 }
 
 assertNoActiveAppBusinessSdkSurfaceInImFamily();

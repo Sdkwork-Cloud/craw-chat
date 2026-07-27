@@ -90,7 +90,6 @@ const sdkClientTokenManagerChecks = [
   ['appbaseAppSdkClient.ts', 'appbaseAppSdkClient.ts'],
   ['agentAppSdkClient.ts', 'agentAppSdkClient.ts'],
   ['driveAppSdkClient.ts', 'drivePcIntegration.ts'],
-  ['imSdkClient.ts', 'imSdkClient.ts'],
 ];
 
 for (const [facadeFile, implementationFile] of sdkClientTokenManagerChecks) {
@@ -108,6 +107,23 @@ for (const [facadeFile, implementationFile] of sdkClientTokenManagerChecks) {
 }
 
 const appAuthRuntimeSource = readSdkSource('appAuthRuntime.ts');
+const imSdkClientSource = readSdkSource('imSdkClient.ts');
+
+assert.match(
+  imSdkClientSource,
+  /getSdkworkChatGlobalTokenManager/u,
+  'IM open-api dual-token mode must use the PC runtime shared TokenManager.',
+);
+assert.match(
+  imSdkClientSource,
+  /accessToken:\s*resolveAppSdkAccessToken\(currentSession\)[\s\S]*authToken:\s*resolveAppSdkAuthToken\(currentSession\)[\s\S]*tokenManager/u,
+  'IM open-api dual-token mode must receive both session tokens and the shared TokenManager.',
+);
+assert.match(
+  appAuthRuntimeSource,
+  /getAuthenticatedSdkClients[\s\S]*getImSdkClient\(\)/u,
+  'IM open-api dual-token mode must join the authenticated SDK TokenManager closure.',
+);
 assert.match(
   appAuthRuntimeSource,
   /resetDriveAppSdkClient/u,

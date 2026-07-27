@@ -1,5 +1,5 @@
 import { imApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { BlockUserRequest, ContactPreferencesView, ContactRecommendationView, ContactTagView, ContactView, CreateContactRecommendationRequest, CreateContactTagRequest, OpenApiUserBlockResponse, SdkWorkPageData, SocialFriendRequestAcceptanceResponse, SocialFriendRequestMutationResponse, SocialFriendRequestPendingCountResponse, SocialFriendshipMutationResponse, SocialUserSearchResult, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest } from '../types';
 
@@ -13,13 +13,13 @@ export class SocialContactsPreferencesApi {
 
 
 /** Retrieve contact preferences */
-  async retrieve(targetUserId: string): Promise<ContactPreferencesView> {
-    return this.client.get<ContactPreferencesView>(imApiPath(`/social/contacts/${serializePathParameter(targetUserId, { name: 'targetUserId', style: 'simple', explode: false })}/preferences`));
+  async retrieve(targetUserId: string, requestOptions?: ApiRequestOptions): Promise<ContactPreferencesView> {
+    return this.client.request<ContactPreferencesView>(imApiPath(`/social/contacts/${serializePathParameter(targetUserId, { name: 'targetUserId', style: 'simple', explode: false })}/preferences`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Update contact preferences */
-  async update(targetUserId: string, body: UpdateContactPreferencesRequest): Promise<ContactPreferencesView> {
-    return this.client.patch<ContactPreferencesView>(imApiPath(`/social/contacts/${serializePathParameter(targetUserId, { name: 'targetUserId', style: 'simple', explode: false })}/preferences`), body, undefined, undefined, 'application/json');
+  async update(targetUserId: string, body: UpdateContactPreferencesRequest, requestOptions?: ApiRequestOptions): Promise<ContactPreferencesView> {
+    return this.client.request<ContactPreferencesView>(imApiPath(`/social/contacts/${serializePathParameter(targetUserId, { name: 'targetUserId', style: 'simple', explode: false })}/preferences`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -32,8 +32,8 @@ export class SocialContactsRecommendationsApi {
 
 
 /** Create a contact recommendation */
-  async create(targetUserId: string, body: CreateContactRecommendationRequest): Promise<ContactRecommendationView> {
-    return this.client.post<ContactRecommendationView>(imApiPath(`/social/contacts/${serializePathParameter(targetUserId, { name: 'targetUserId', style: 'simple', explode: false })}/recommendations`), body, undefined, undefined, 'application/json');
+  async create(targetUserId: string, body: CreateContactRecommendationRequest, requestOptions?: ApiRequestOptions): Promise<ContactRecommendationView> {
+    return this.client.request<ContactRecommendationView>(imApiPath(`/social/contacts/${serializePathParameter(targetUserId, { name: 'targetUserId', style: 'simple', explode: false })}/recommendations`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -51,27 +51,27 @@ export class SocialContactsTagsApi {
 
 
 /** List contact tags */
-  async list(params?: SocialContactsTagsListParams): Promise<SdkWorkPageData> {
+  async list(params?: SocialContactsTagsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(imApiPath(`/social/contacts/tags`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(imApiPath(`/social/contacts/tags`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Create a contact tag */
-  async create(body: CreateContactTagRequest): Promise<ContactTagView> {
-    return this.client.post<ContactTagView>(imApiPath(`/social/contacts/tags`), body, undefined, undefined, 'application/json');
+  async create(body: CreateContactTagRequest, requestOptions?: ApiRequestOptions): Promise<ContactTagView> {
+    return this.client.request<ContactTagView>(imApiPath(`/social/contacts/tags`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Update a contact tag */
-  async update(tagId: string, body: UpdateContactTagRequest): Promise<ContactTagView> {
-    return this.client.patch<ContactTagView>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async update(tagId: string, body: UpdateContactTagRequest, requestOptions?: ApiRequestOptions): Promise<ContactTagView> {
+    return this.client.request<ContactTagView>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
   }
 
 /** Delete a contact tag */
-  async delete(tagId: string): Promise<void> {
-    return this.client.delete<void>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`));
+  async delete(tagId: string, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
   }
 }
 
@@ -95,12 +95,12 @@ export class SocialContactsApi {
 
 
 /** List social contacts */
-  async list(params?: SocialContactsListParams): Promise<{ items: ContactView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
+  async list(params?: SocialContactsListParams, requestOptions?: ApiRequestOptions): Promise<{ items: ContactView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: ContactView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/social/contacts`), query));
+    return this.client.request<{ items: ContactView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/social/contacts`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 }
 
@@ -113,13 +113,13 @@ export class SocialUserBlocksApi {
 
 
 /** Block a social user */
-  async create(body: BlockUserRequest): Promise<OpenApiUserBlockResponse> {
-    return this.client.post<OpenApiUserBlockResponse>(imApiPath(`/social/user_blocks`), body, undefined, undefined, 'application/json');
+  async create(body: BlockUserRequest, requestOptions?: ApiRequestOptions): Promise<OpenApiUserBlockResponse> {
+    return this.client.request<OpenApiUserBlockResponse>(imApiPath(`/social/user_blocks`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Release a social user block */
-  async delete(blockId: string): Promise<void> {
-    return this.client.delete<void>(imApiPath(`/social/user_blocks/${serializePathParameter(blockId, { name: 'blockId', style: 'simple', explode: false })}`));
+  async delete(blockId: string, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(imApiPath(`/social/user_blocks/${serializePathParameter(blockId, { name: 'blockId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
   }
 }
 
@@ -132,8 +132,8 @@ export class SocialFriendshipsApi {
 
 
 /** Remove a friendship */
-  async remove(friendshipId: string): Promise<SocialFriendshipMutationResponse> {
-    return this.client.post<SocialFriendshipMutationResponse>(imApiPath(`/social/friendships/${serializePathParameter(friendshipId, { name: 'friendshipId', style: 'simple', explode: false })}/remove`));
+  async remove(friendshipId: string, requestOptions?: ApiRequestOptions): Promise<SocialFriendshipMutationResponse> {
+    return this.client.request<SocialFriendshipMutationResponse>(imApiPath(`/social/friendships/${serializePathParameter(friendshipId, { name: 'friendshipId', style: 'simple', explode: false })}/remove`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 }
 
@@ -146,17 +146,17 @@ export class SocialFriendRequestsPendingCountApi {
 
 
 /** Retrieve pending incoming friend request count */
-  async retrieve(): Promise<SocialFriendRequestPendingCountResponse> {
-    return this.client.get<SocialFriendRequestPendingCountResponse>(imApiPath(`/social/friend_requests/pending/count`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestPendingCountResponse> {
+    return this.client.request<SocialFriendRequestPendingCountResponse>(imApiPath(`/social/friend_requests/pending/count`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 }
 
 export class SocialFriendRequestsPendingApi {
-
+  private client: HttpClient;
   public readonly count: SocialFriendRequestsPendingCountApi;
 
   constructor(client: HttpClient) {
-
+    this.client = client;
     this.count = new SocialFriendRequestsPendingCountApi(client);
   }
 
@@ -180,34 +180,34 @@ export class SocialFriendRequestsApi {
 
 
 /** List friend requests */
-  async list(params?: SocialFriendRequestsListParams): Promise<SdkWorkPageData> {
+  async list(params?: SocialFriendRequestsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'direction', value: params?.direction, style: 'form', explode: true, allowReserved: false },
       { name: 'status', value: params?.status, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(imApiPath(`/social/friend_requests`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(imApiPath(`/social/friend_requests`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Create a friend request */
-  async create(body: SubmitFriendRequestRequest): Promise<SocialFriendRequestMutationResponse> {
-    return this.client.post<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests`), body, undefined, undefined, 'application/json');
+  async create(body: SubmitFriendRequestRequest, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestMutationResponse> {
+    return this.client.request<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Accept a friend request */
-  async accept(friendRequestId: string): Promise<SocialFriendRequestAcceptanceResponse> {
-    return this.client.post<SocialFriendRequestAcceptanceResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/accept`));
+  async accept(friendRequestId: string, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestAcceptanceResponse> {
+    return this.client.request<SocialFriendRequestAcceptanceResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/accept`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 
 /** Decline a friend request */
-  async decline(friendRequestId: string): Promise<SocialFriendRequestMutationResponse> {
-    return this.client.post<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/decline`));
+  async decline(friendRequestId: string, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestMutationResponse> {
+    return this.client.request<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/decline`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 
 /** Cancel a friend request */
-  async cancel(friendRequestId: string): Promise<SocialFriendRequestMutationResponse> {
-    return this.client.post<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/cancel`));
+  async cancel(friendRequestId: string, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestMutationResponse> {
+    return this.client.request<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/cancel`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
   }
 }
 
@@ -226,18 +226,18 @@ export class SocialUsersApi {
 
 
 /** Search social users */
-  async list(params?: SocialUsersListParams): Promise<{ items: SocialUserSearchResult[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
+  async list(params?: SocialUsersListParams, requestOptions?: ApiRequestOptions): Promise<{ items: SocialUserSearchResult[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
     const query = buildQueryString([
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: SocialUserSearchResult[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/social/users`), query));
+    return this.client.request<{ items: SocialUserSearchResult[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/social/users`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 }
 
 export class SocialApi {
-
+  private client: HttpClient;
   public readonly users: SocialUsersApi;
   public readonly friendRequests: SocialFriendRequestsApi;
   public readonly friendships: SocialFriendshipsApi;
@@ -245,7 +245,7 @@ export class SocialApi {
   public readonly contacts: SocialContactsApi;
 
   constructor(client: HttpClient) {
-
+    this.client = client;
     this.users = new SocialUsersApi(client);
     this.friendRequests = new SocialFriendRequestsApi(client);
     this.friendships = new SocialFriendshipsApi(client);

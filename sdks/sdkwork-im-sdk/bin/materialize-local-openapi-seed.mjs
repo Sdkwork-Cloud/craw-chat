@@ -983,7 +983,10 @@ const paths = Object.fromEntries([
     post: operation({ tag: 'realtime', operationId: 'realtime.subscriptions.sync', summary: 'Sync realtime subscription targets', request: 'RealtimeSubscriptionSyncRequest', response: 'RealtimeSubscriptionSyncResponse' }),
   }),
   pathItem('/realtime/ws', {
-    get: operation({ tag: 'realtime', operationId: 'realtime.ws.retrieve', summary: 'Retrieve the IM realtime websocket handshake', response: 'RealtimeWebSocketHandshake' }),
+    get: {
+      ...operation({ tag: 'realtime', operationId: 'realtime.ws.retrieve', summary: 'Retrieve the IM realtime websocket handshake', response: 'RealtimeWebSocketHandshake' }),
+      security: [],
+    },
   }),
   pathItem('/realtime/events/ack', {
     post: operation({ tag: 'realtime', operationId: 'realtime.events.ack', summary: 'Acknowledge realtime events', request: 'RealtimeEventAckRequest', response: 'AckResponse' }),
@@ -1303,7 +1306,7 @@ const document = {
   },
 };
 
-applySdkworkV3OpenApiStandard(document);
+applySdkworkV3OpenApiStandard(document, { authProfile: 'api-key-or-dual-token' });
 const yaml = await loadGeneratorYaml(workspaceRoot);
 const serialized = yaml.dump(document, { noRefs: true, sortKeys: false, lineWidth: 120 });
 mkdirSync(path.dirname(outputPath), { recursive: true });

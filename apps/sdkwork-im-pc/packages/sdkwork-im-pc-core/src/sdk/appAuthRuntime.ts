@@ -44,7 +44,7 @@ import {
 } from './courseBackendPcIntegration';
 import { resetDriveAppSdkClient, getDriveAppSdkClient, syncImSessionToDrivePc } from './drivePcIntegration';
 import { rebootstrapDrivePcRuntimeForIm, resetDrivePcRuntime } from './drivePcIntegration';
-import { resetImSdkClient, getImSdkClient } from './imSdkClient';
+import { getImSdkClient, resetImSdkClient } from './imSdkClient';
 import { getKnowledgebaseAppSdkClient, resetKnowledgebaseAppSdkClient } from './knowledgebaseAppSdkClient';
 import { rebootstrapKnowledgebasePcRuntimeForIm, resetKnowledgebasePcRuntime } from './knowledgebasePcIntegration';
 import { getVoiceAppSdkClient, resetVoiceAppSdkClient } from './voiceAppSdkClient';
@@ -52,7 +52,12 @@ import { rebootstrapVoicePcRuntimeForIm, resetVoicePcRuntime } from './voicePcIn
 import { resetMailPcIntegration, syncImSessionToMailPc } from './mailPcIntegration';
 import { resetNotaryAppSdkClient, getNotaryAppSdkClient } from './notaryAppSdkClient';
 import { rebootstrapNotaryPcRuntimeForIm, resetNotaryPcRuntime } from './notaryPcIntegration';
-import { rebootstrapMembershipPcIntegrationForIm, resetMembershipPcIntegration, bootstrapMembershipPcIntegrationForIm } from './membershipPcIntegration';
+import {
+  bootstrapMembershipPcIntegrationForIm,
+  getImHostedAccountAppSdkClient,
+  rebootstrapMembershipPcIntegrationForIm,
+  resetMembershipPcIntegration,
+} from './membershipPcIntegration';
 import {
   applyAppSdkSessionTokens,
   clearAppSdkSessionTokens,
@@ -160,6 +165,7 @@ function getAuthenticatedSdkClients(): SdkworkAppbasePcAuthRuntimeSdkClient[] {
     getImHostedAiotAppSdkClient(),
     getAppSdkClient(),
     getAgentAppSdkClient(),
+    getImHostedAccountAppSdkClient(),
     getImHostedCatalogAppSdkClient(),
     getImHostedOrderAppSdkClient(),
     getImHostedShopAppSdkClient(),

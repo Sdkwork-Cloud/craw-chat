@@ -26,6 +26,7 @@ test('commercial gates governance node test catalog publishes the exact governed
       'scripts/im-commercial-gates-watch-catalog.test.mjs',
       'scripts/im-commercial-gates-step-contract-catalog.test.mjs',
       'scripts/im-commercial-gates-workflow.test.mjs',
+      'scripts/lib/im-product-site-dirs.test.mjs',
       'scripts/dev/sdkwork-im-pc-dev-command.test.mjs',
       'scripts/dev/sdkwork-im-pc-i18n.test.mjs',
       'scripts/dev/sdkwork-im-pc-sidebar-modules.test.mjs',

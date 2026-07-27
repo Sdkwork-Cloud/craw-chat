@@ -52,4 +52,4 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Verification
 
-- `cargo test --manifest-path apps/sdkwork-im/crates/sdkwork-api-product-runtime/Cargo.toml`
+- `cargo test -p sdkwork-api-product-runtime`

@@ -255,6 +255,7 @@ export interface ImTransportClientLike {
       };
     };
   };
+  setApiKey?(apiKey: string): unknown;
   setAuthToken?(token: string): unknown;
   setAccessToken?(token: string): unknown;
   setTokenManager?(manager: unknown): unknown;

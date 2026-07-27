@@ -4,10 +4,10 @@ import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
+import { createStandaloneGatewayCargoEnv } from './sdkwork-api-im-standalone-gateway-dev-runtime.mjs';
 import { terminateStaleDevGatewayProcesses } from './terminate-stale-dev-gateway-processes.mjs';
 import {
   resolveStandaloneGatewayDevExecutable,
-  resolveStandaloneGatewayDevTargetDir,
   waitForDevGatewayExecutableUnlock,
 } from './wait-for-dev-gateway-exe-unlock.mjs';
 
@@ -44,14 +44,10 @@ async function main() {
   const { release } = parseArgs(process.argv.slice(2));
   const repoRoot = process.cwd();
   const profile = release ? 'release' : 'debug';
-  const targetDir = resolveStandaloneGatewayDevTargetDir({
+  const { env: gatewayEnv } = createStandaloneGatewayCargoEnv({
     env: process.env,
     repoRoot,
   });
-  const gatewayEnv = {
-    ...process.env,
-    CARGO_TARGET_DIR: targetDir,
-  };
   const executablePath = resolveStandaloneGatewayDevExecutable({
     env: gatewayEnv,
     repoRoot,

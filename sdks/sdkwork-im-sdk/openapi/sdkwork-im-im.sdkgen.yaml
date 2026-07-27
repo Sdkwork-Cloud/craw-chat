@@ -70,10 +70,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/presence/me:
@@ -126,10 +129,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/realtime/subscriptions/sync:
@@ -188,10 +194,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/realtime/events/ack:
@@ -250,10 +259,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/realtime/events:
@@ -330,10 +342,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/calls/sessions:
@@ -392,10 +407,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/calls/sessions/{rtcSessionId}:
@@ -452,10 +470,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/calls/sessions/{rtcSessionId}/invite:
@@ -518,10 +539,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/calls/sessions/{rtcSessionId}/accept:
@@ -584,10 +608,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/calls/sessions/{rtcSessionId}/reject:
@@ -650,10 +677,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/calls/sessions/{rtcSessionId}/end:
@@ -716,10 +746,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/calls/sessions/{rtcSessionId}/signals:
@@ -800,10 +833,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
     post:
@@ -863,10 +899,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/calls/sessions/{rtcSessionId}/credentials:
@@ -929,10 +968,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/calls/sessions/{rtcSessionId}/credentials/refresh:
@@ -995,10 +1037,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/users:
@@ -1076,10 +1121,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/friend_requests:
@@ -1125,10 +1173,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
     post:
@@ -1186,10 +1237,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/friend_requests/pending/count:
@@ -1242,10 +1296,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/friend_requests/{friendRequestId}/accept:
@@ -1302,10 +1359,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/friend_requests/{friendRequestId}/decline:
@@ -1362,10 +1422,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/friend_requests/{friendRequestId}/cancel:
@@ -1422,10 +1485,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/friendships/{friendshipId}/remove:
@@ -1482,10 +1548,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/user_blocks:
@@ -1544,10 +1613,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/user_blocks/{blockId}:
@@ -1588,10 +1660,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/contacts/tags:
@@ -1635,10 +1710,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
     post:
@@ -1696,10 +1774,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/contacts/tags/{tagId}:
@@ -1762,10 +1843,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
     delete:
@@ -1803,10 +1887,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/contacts/{targetUserId}/recommendations:
@@ -1869,10 +1956,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/contacts/{targetUserId}/preferences:
@@ -1929,10 +2019,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
     patch:
@@ -1992,10 +2085,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/social/contacts:
@@ -2072,10 +2168,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/inbox:
@@ -2154,10 +2253,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations:
@@ -2222,10 +2324,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/agent_dialogs:
@@ -2284,10 +2389,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/agent_handoffs:
@@ -2346,10 +2454,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/system_channels:
@@ -2408,10 +2519,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/threads:
@@ -2470,10 +2584,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/direct_chats/bindings:
@@ -2532,10 +2649,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/agent_handoff:
@@ -2592,10 +2712,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/agent_handoff/accept:
@@ -2652,10 +2775,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/agent_handoff/resolve:
@@ -2712,10 +2838,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/agent_handoff/close:
@@ -2772,10 +2901,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}:
@@ -2832,10 +2964,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/members:
@@ -2915,10 +3050,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/members/current:
@@ -2975,10 +3113,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/agents:
@@ -3035,10 +3176,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
     put:
@@ -3104,10 +3248,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/members/add:
@@ -3170,10 +3317,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/members/remove:
@@ -3236,10 +3386,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/members/transfer_owner:
@@ -3302,10 +3455,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/members/change_role:
@@ -3368,10 +3524,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/members/leave:
@@ -3428,10 +3587,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/members/accept_invitation:
@@ -3488,10 +3650,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/preferences:
@@ -3548,10 +3713,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
     patch:
@@ -3611,10 +3779,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/profile:
@@ -3671,10 +3842,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
     patch:
@@ -3734,10 +3908,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/read_cursor:
@@ -3794,10 +3971,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
     patch:
@@ -3857,10 +4037,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/member_directory:
@@ -3925,10 +4108,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/messages:
@@ -3980,10 +4166,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
     post:
@@ -4043,10 +4232,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/system_channel/publish:
@@ -4109,10 +4301,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/pins:
@@ -4177,10 +4372,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations/{conversationId}/messages/{messageId}/interaction_summary:
@@ -4239,10 +4437,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/{messageId}/edit:
@@ -4305,10 +4506,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/{messageId}/recall:
@@ -4371,10 +4575,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/favorites:
@@ -4453,10 +4660,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/{messageId}/favorites:
@@ -4519,10 +4729,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/favorites/{favoriteId}:
@@ -4563,10 +4776,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/{messageId}/visibility:
@@ -4607,10 +4823,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/{messageId}/reactions:
@@ -4673,10 +4892,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/{messageId}/reactions/remove:
@@ -4739,10 +4961,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/{messageId}/pin:
@@ -4799,10 +5024,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/{messageId}/unpin:
@@ -4859,10 +5087,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/rooms:
@@ -4927,10 +5158,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/rooms/{roomId}:
@@ -4987,10 +5221,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/rooms/{roomId}/enter:
@@ -5047,10 +5284,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/rooms/{roomId}/leave:
@@ -5107,10 +5347,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/streams:
@@ -5169,10 +5412,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/streams/{streamId}/frames:
@@ -5252,10 +5498,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
     post:
@@ -5315,10 +5564,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/streams/{streamId}/checkpoint:
@@ -5375,10 +5627,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/streams/{streamId}/complete:
@@ -5435,10 +5690,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/streams/{streamId}/abort:
@@ -5495,10 +5753,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/spaces:
@@ -5533,12 +5794,15 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     get:
       tags:
         - spaces
@@ -5573,12 +5837,15 @@ paths:
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}:
     get:
       tags:
@@ -5607,12 +5874,15 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     patch:
       tags:
         - spaces
@@ -5646,12 +5916,15 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     delete:
       tags:
         - spaces
@@ -5663,12 +5936,15 @@ paths:
         '204':
           description: No Content
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/members:
     get:
       tags:
@@ -5704,6 +5980,7 @@ paths:
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -5711,6 +5988,8 @@ paths:
       summary: List spaces members
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     post:
       tags:
         - spaces
@@ -5743,6 +6022,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceMemberView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -5750,6 +6030,8 @@ paths:
       summary: Create spaces members
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/members/{userId}:
     get:
       tags:
@@ -5778,6 +6060,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceMemberView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -5785,6 +6068,8 @@ paths:
       summary: retrieve spaces members
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     patch:
       tags:
         - spaces
@@ -5818,6 +6103,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceMemberView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -5825,6 +6111,8 @@ paths:
       summary: Update spaces members
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     delete:
       tags:
         - spaces
@@ -5836,6 +6124,7 @@ paths:
         '204':
           description: No Content
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -5843,6 +6132,8 @@ paths:
       summary: Delete spaces members
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/groups:
     get:
       tags:
@@ -5878,6 +6169,7 @@ paths:
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -5885,6 +6177,8 @@ paths:
       summary: List spaces groups
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     post:
       tags:
         - spaces
@@ -5917,6 +6211,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceGroupView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -5924,6 +6219,8 @@ paths:
       summary: Create spaces groups
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/groups/{groupId}:
     get:
       tags:
@@ -5952,6 +6249,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceGroupView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -5959,6 +6257,8 @@ paths:
       summary: retrieve spaces groups
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     patch:
       tags:
         - spaces
@@ -5992,6 +6292,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceGroupView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -5999,6 +6300,8 @@ paths:
       summary: Update spaces groups
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     delete:
       tags:
         - spaces
@@ -6010,6 +6313,7 @@ paths:
         '204':
           description: No Content
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6017,6 +6321,8 @@ paths:
       summary: Delete spaces groups
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/groups/{groupId}/members:
     get:
       tags:
@@ -6053,6 +6359,7 @@ paths:
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6060,6 +6367,8 @@ paths:
       summary: List spaces groups members
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     post:
       tags:
         - spaces
@@ -6093,6 +6402,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceGroupMemberView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6100,6 +6410,8 @@ paths:
       summary: Create spaces groups members
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/groups/{groupId}/members/{userId}:
     get:
       tags:
@@ -6129,6 +6441,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceGroupMemberView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6136,6 +6449,8 @@ paths:
       summary: retrieve spaces groups members
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     patch:
       tags:
         - spaces
@@ -6170,6 +6485,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceGroupMemberView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6177,6 +6493,8 @@ paths:
       summary: Update spaces groups members
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     delete:
       tags:
         - spaces
@@ -6189,6 +6507,7 @@ paths:
         '204':
           description: No Content
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6196,6 +6515,8 @@ paths:
       summary: Delete spaces groups members
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/channels:
     get:
       tags:
@@ -6231,6 +6552,7 @@ paths:
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6238,6 +6560,8 @@ paths:
       summary: List spaces channels
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     post:
       tags:
         - spaces
@@ -6270,6 +6594,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceChannelView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6277,6 +6602,8 @@ paths:
       summary: Create spaces channels
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/channels/{channelId}:
     get:
       tags:
@@ -6305,6 +6632,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceChannelView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6312,6 +6640,8 @@ paths:
       summary: retrieve spaces channels
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     patch:
       tags:
         - spaces
@@ -6345,6 +6675,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceChannelView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6352,6 +6683,8 @@ paths:
       summary: Update spaces channels
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     delete:
       tags:
         - spaces
@@ -6363,6 +6696,7 @@ paths:
         '204':
           description: No Content
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6370,6 +6704,8 @@ paths:
       summary: Delete spaces channels
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules:
     get:
       tags:
@@ -6406,6 +6742,7 @@ paths:
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6413,6 +6750,8 @@ paths:
       summary: List spaces channels access Rules
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     post:
       tags:
         - spaces
@@ -6446,6 +6785,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceChannelAccessRuleView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6453,6 +6793,8 @@ paths:
       summary: Create spaces channels access Rules
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules/{ruleId}:
     delete:
       tags:
@@ -6466,6 +6808,7 @@ paths:
         '204':
           description: No Content
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6473,6 +6816,8 @@ paths:
       summary: Delete spaces channels access Rules
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/invites:
     get:
       tags:
@@ -6509,6 +6854,7 @@ paths:
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6516,6 +6862,8 @@ paths:
       summary: List spaces invites
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     post:
       tags:
         - spaces
@@ -6548,6 +6896,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceInviteView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6555,6 +6904,8 @@ paths:
       summary: Create spaces invites
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/invites/{inviteCode}:
     get:
       tags:
@@ -6583,6 +6934,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceInviteView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6590,6 +6942,8 @@ paths:
       summary: retrieve spaces invites
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     delete:
       tags:
         - spaces
@@ -6601,6 +6955,7 @@ paths:
         '204':
           description: No Content
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6608,6 +6963,8 @@ paths:
       summary: Delete spaces invites
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/invites/{inviteCode}/accept:
     post:
       tags:
@@ -6624,6 +6981,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SdkWorkCommandResponse'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6631,6 +6989,8 @@ paths:
       summary: Accept spaces invites
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/bans:
     get:
       tags:
@@ -6666,6 +7026,7 @@ paths:
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6673,6 +7034,8 @@ paths:
       summary: List spaces bans
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     post:
       tags:
         - spaces
@@ -6705,6 +7068,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceBanView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6712,6 +7076,8 @@ paths:
       summary: Create spaces bans
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
   /im/v3/api/spaces/{spaceId}/bans/{userId}:
     get:
       tags:
@@ -6740,6 +7106,7 @@ paths:
                           item:
                             $ref: '#/components/schemas/SpaceBanView'
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6747,6 +7114,8 @@ paths:
       summary: retrieve spaces bans
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
     delete:
       tags:
         - spaces
@@ -6758,6 +7127,7 @@ paths:
         '204':
           description: No Content
       security:
+        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
@@ -6765,6 +7135,8 @@ paths:
       summary: Delete spaces bans
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
 components:
   parameters:
     BlockIdPath:
@@ -9673,6 +10045,10 @@ components:
         - state
       type: object
   securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
     AuthToken:
       type: http
       scheme: bearer
@@ -9683,6 +10059,7 @@ components:
       name: Access-Token
   responses: {}
 security:
+  - ApiKey: []
   - AuthToken: []
     AccessToken: []
 x-sdkwork-owner: sdkwork-im

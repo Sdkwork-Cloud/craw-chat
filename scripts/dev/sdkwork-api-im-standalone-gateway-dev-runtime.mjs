@@ -85,6 +85,7 @@ export function isTcpPortAvailable(port, host = DEFAULT_GATEWAY_HOST) {
 
 export function createStandaloneGatewayCargoEnv({
   env = process.env,
+  platform = process.platform,
   repoRoot,
 } = {}) {
   if (!repoRoot) {
@@ -95,11 +96,13 @@ export function createStandaloneGatewayCargoEnv({
   const cargoTargetDir = explicitTargetDir
     ? path.resolve(repoRoot, explicitTargetDir)
     : path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev');
+  const explicitIncremental = normalizeText(env.CARGO_INCREMENTAL);
 
   return {
     env: {
       ...env,
       CARGO_TARGET_DIR: cargoTargetDir,
+      ...(platform === 'win32' && !explicitIncremental ? { CARGO_INCREMENTAL: '0' } : {}),
     },
     usingDefaultTargetDir: !explicitTargetDir,
   };

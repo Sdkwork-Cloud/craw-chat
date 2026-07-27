@@ -238,6 +238,19 @@
     "routeManifest": null,
     "dependencyApiSurfaces": [
       {
+        "workspace": "sdkwork-account-app-sdk",
+        "sdkFamily": "sdkwork-account-app-sdk",
+        "apiAuthority": "sdkwork-account-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "targetRuntimeIntegration": {
+          "mode": "profile-resolved",
+          "connectivitySurface": "platform.api-gateway",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
+        }
+      },
+      {
         "workspace": "sdkwork-iam-app-sdk",
         "sdkFamily": "sdkwork-iam-app-sdk",
         "apiAuthority": "sdkwork-iam-app-api",

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use axum::Router;
 use sdkwork_api_config::StandaloneConfigLoader;
 use sdkwork_api_product_runtime::{
-    RouterProductRuntimeOptions, build_product_runtime_router, resolve_product_site_dirs_from_env,
+    RouterProductRuntimeOptions, build_product_runtime_router, resolve_product_site_dir_from_env,
 };
 use sdkwork_web_bootstrap::{ServiceRouterConfig, service_router};
 use tower_http::cors::CorsLayer;
@@ -207,10 +207,11 @@ async fn build_gateway_product_runtime_router(base_url: &str) -> Result<Router, 
     standalone_config.portal_api_base_url = base_url.trim_end_matches('/').to_owned();
 
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
-    let site_dirs = resolve_product_site_dirs_from_env(&repo_root);
+    let site_dir =
+        resolve_product_site_dir_from_env(&repo_root).map_err(|error| error.to_string())?;
     build_product_runtime_router(
         standalone_config,
-        RouterProductRuntimeOptions::desktop_for_api_assembly_host(site_dirs),
+        RouterProductRuntimeOptions::desktop_for_api_assembly_host(site_dir),
     )
     .await
     .map_err(|error| error.to_string())

@@ -558,6 +558,12 @@ function normalizeImAuthority(im) {
     shouldInclude: (pathKey) => isImStandardPath(pathKey, imPrefix),
   });
 
+  const realtimeWebsocket = next.paths?.[`${imPrefix}/realtime/ws`]?.get;
+  if (!realtimeWebsocket || typeof realtimeWebsocket !== 'object' || Array.isArray(realtimeWebsocket)) {
+    fail('IM authority is missing GET /im/v3/api/realtime/ws.');
+  }
+  realtimeWebsocket.security = [];
+
   const allowedTagNames = new Set();
   for (const pathKey of Object.keys(next.paths)) {
     const group = firstGroup(pathKey, imPrefix);
@@ -723,7 +729,9 @@ const dependencyBackendRouteSet = appbaseBackendRouteSet;
 
 const consolidatedIm = finalizeMaterializedAuthority(
   bootstrapOpenApiEnvelope(
-    applySdkworkV3OpenApiStandard(normalizeImAuthority(im)),
+    applySdkworkV3OpenApiStandard(normalizeImAuthority(im), {
+      authProfile: 'api-key-or-dual-token',
+    }),
   ),
 );
 applyWebFrameworkOpenApiExtensions(consolidatedIm, 'open-api');

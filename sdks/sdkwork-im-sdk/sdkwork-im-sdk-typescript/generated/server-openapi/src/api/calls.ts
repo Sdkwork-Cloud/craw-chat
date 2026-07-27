@@ -1,5 +1,5 @@
 import { imApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, PostRtcSignalRequest, RtcParticipantCredential, RtcSession, RtcSessionMutationResponse, RtcSignalEvent, UpdateRtcSessionRequest } from '../types';
 
@@ -13,13 +13,13 @@ export class CallsSessionsCredentialsApi {
 
 
 /** Issue an RTC media participant credential for an IM call */
-  async create(rtcSessionId: string, body: IssueRtcParticipantCredentialRequest): Promise<RtcParticipantCredential> {
-    return this.client.post<RtcParticipantCredential>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/credentials`), body, undefined, undefined, 'application/json');
+  async create(rtcSessionId: string, body: IssueRtcParticipantCredentialRequest, requestOptions?: ApiRequestOptions): Promise<RtcParticipantCredential> {
+    return this.client.request<RtcParticipantCredential>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/credentials`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Refresh an expiring RTC media participant credential */
-  async refresh(rtcSessionId: string, body: IssueRtcParticipantCredentialRequest): Promise<RtcParticipantCredential> {
-    return this.client.post<RtcParticipantCredential>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/credentials/refresh`), body, undefined, undefined, 'application/json');
+  async refresh(rtcSessionId: string, body: IssueRtcParticipantCredentialRequest, requestOptions?: ApiRequestOptions): Promise<RtcParticipantCredential> {
+    return this.client.request<RtcParticipantCredential>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/credentials/refresh`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -38,18 +38,18 @@ export class CallsSessionsSignalsApi {
 
 
 /** List IM call signaling events */
-  async list(rtcSessionId: string, params?: CallsSessionsSignalsListParams): Promise<{ items: RtcSignalEvent[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
+  async list(rtcSessionId: string, params?: CallsSessionsSignalsListParams, requestOptions?: ApiRequestOptions): Promise<{ items: RtcSignalEvent[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }> {
     const query = buildQueryString([
       { name: 'afterSignalSeq', value: params?.afterSignalSeq, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: RtcSignalEvent[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/signals`), query));
+    return this.client.request<{ items: RtcSignalEvent[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/signals`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Post an IM call signaling event */
-  async create(rtcSessionId: string, body: PostRtcSignalRequest): Promise<RtcSignalEvent> {
-    return this.client.post<RtcSignalEvent>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/signals`), body, undefined, undefined, 'application/json');
+  async create(rtcSessionId: string, body: PostRtcSignalRequest, requestOptions?: ApiRequestOptions): Promise<RtcSignalEvent> {
+    return this.client.request<RtcSignalEvent>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/signals`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 }
 
@@ -66,42 +66,42 @@ export class CallsSessionsApi {
 
 
 /** Create an IM call signaling session */
-  async create(body: CreateRtcSessionRequest): Promise<RtcSessionMutationResponse> {
-    return this.client.post<RtcSessionMutationResponse>(imApiPath(`/calls/sessions`), body, undefined, undefined, 'application/json');
+  async create(body: CreateRtcSessionRequest, requestOptions?: ApiRequestOptions): Promise<RtcSessionMutationResponse> {
+    return this.client.request<RtcSessionMutationResponse>(imApiPath(`/calls/sessions`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Retrieve IM call signaling session state */
-  async retrieve(rtcSessionId: string): Promise<RtcSession> {
-    return this.client.get<RtcSession>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}`));
+  async retrieve(rtcSessionId: string, requestOptions?: ApiRequestOptions): Promise<RtcSession> {
+    return this.client.request<RtcSession>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
   }
 
 /** Invite participants into an IM call signaling session */
-  async invite(rtcSessionId: string, body: InviteRtcSessionRequest): Promise<RtcSessionMutationResponse> {
-    return this.client.post<RtcSessionMutationResponse>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/invite`), body, undefined, undefined, 'application/json');
+  async invite(rtcSessionId: string, body: InviteRtcSessionRequest, requestOptions?: ApiRequestOptions): Promise<RtcSessionMutationResponse> {
+    return this.client.request<RtcSessionMutationResponse>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/invite`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Accept an IM call signaling session */
-  async accept(rtcSessionId: string, body: UpdateRtcSessionRequest): Promise<RtcSessionMutationResponse> {
-    return this.client.post<RtcSessionMutationResponse>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/accept`), body, undefined, undefined, 'application/json');
+  async accept(rtcSessionId: string, body: UpdateRtcSessionRequest, requestOptions?: ApiRequestOptions): Promise<RtcSessionMutationResponse> {
+    return this.client.request<RtcSessionMutationResponse>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/accept`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** Reject an IM call signaling session */
-  async reject(rtcSessionId: string, body: UpdateRtcSessionRequest): Promise<RtcSessionMutationResponse> {
-    return this.client.post<RtcSessionMutationResponse>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/reject`), body, undefined, undefined, 'application/json');
+  async reject(rtcSessionId: string, body: UpdateRtcSessionRequest, requestOptions?: ApiRequestOptions): Promise<RtcSessionMutationResponse> {
+    return this.client.request<RtcSessionMutationResponse>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/reject`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 
 /** End an IM call signaling session */
-  async end(rtcSessionId: string, body: UpdateRtcSessionRequest): Promise<RtcSessionMutationResponse> {
-    return this.client.post<RtcSessionMutationResponse>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/end`), body, undefined, undefined, 'application/json');
+  async end(rtcSessionId: string, body: UpdateRtcSessionRequest, requestOptions?: ApiRequestOptions): Promise<RtcSessionMutationResponse> {
+    return this.client.request<RtcSessionMutationResponse>(imApiPath(`/calls/sessions/${serializePathParameter(rtcSessionId, { name: 'rtcSessionId', style: 'simple', explode: false })}/end`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
   }
 }
 
 export class CallsApi {
-
+  private client: HttpClient;
   public readonly sessions: CallsSessionsApi;
 
   constructor(client: HttpClient) {
-
+    this.client = client;
     this.sessions = new CallsSessionsApi(client);
   }
 

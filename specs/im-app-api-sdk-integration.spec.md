@@ -53,7 +53,7 @@ AuthGate
   -> createIamAppSdkAdapter(SdkworkImAppClient)
   -> sdkwork-iam-app-sdk auth.sessions / registrations / verificationCodes / oauth.deviceAuthorizations
   -> persist authToken + accessToken + refreshToken + context + sessionId + user
-  -> reset and recreate @sdkwork/im-sdk with the same token manager and AppContext
+  -> reset and recreate @sdkwork/im-sdk with the same token manager for its declared dual-token branch
 ```
 
 Rules:
@@ -65,7 +65,8 @@ Rules:
 - The legacy appbase QR auth resource `openPlatform.qrAuth` and `/app/v3/api/open_platform/qr_auth/*` paths are retired and must not be consumed, proxied, regenerated, or documented as current capabilities.
 - The current canonical appbase auth package exposes `qrLoginEnabled`; Sdkwork IM must not pass unsupported runtime-config fields such as `qrLoginType` until the canonical appbase type includes them.
 - A successful login must persist `authToken`, `accessToken`, optional `refreshToken`, `context`, `sessionId`, and normalized user data.
-- `@sdkwork/im-sdk` construction must receive the same auth token manager, `accessToken`, and platform identity derived from the persisted IAM session. Current `tenantId`, `organizationId`, `userId`, and `sessionId` are server-resolved request context from `Authorization` plus `Access-Token`; PC business services must not pass them as SDK method parameters, query fields, request bodies, or custom headers.
+- `@sdkwork/im-sdk` is a protected `api-key-or-dual-token` open-api client. API-key mode sends only `X-API-Key`. The PC authenticated runtime selects the dual-token branch, joins the global TokenManager closure, and sends both `Authorization` and `Access-Token`. The two branches are mutually exclusive.
+- Current `tenantId`, `organizationId`, `userId`, and `sessionId` are server-resolved from the validated API-key record or matching dual-token claims. PC business services must not pass them as SDK method parameters, query fields, request bodies, or custom headers.
 - After login, chat and RTC code must be able to call IM SDK methods without a second login or manually assembled auth headers.
 - Drive, Notary, Agent, and other foundation SDK integrations must follow the same rule: only business fields belong in service-layer SDK calls. Tenant and organization scope belong to dual-token validation and backend `WebRequestContext` resolution.
 - AIoT app SDK calls use token-scoped generated methods such as `client.iot.devicesList()` and `client.iot.devicesCommandsCreate(...)`; IM PC services must not pass `tenantId`, `organizationId`, or `X-Sdkwork-*` scope headers.

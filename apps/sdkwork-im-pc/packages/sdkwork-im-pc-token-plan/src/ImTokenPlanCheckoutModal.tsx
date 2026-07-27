@@ -10,6 +10,11 @@ import {
   type SdkworkOrderCheckoutDialogCopy,
   type SdkworkOrderCheckoutPayment,
 } from "@sdkwork/order-pc-checkout";
+import {
+  ImTokenPlanPointsPurchaseModal,
+  ImTokenPlanRedeemModal,
+  ImTokenPlanTokenBankDetailsModal,
+} from "./ImTokenPlanCommerceModals";
 
 function createCheckoutCopy(
   translate: (key: string) => string,
@@ -21,6 +26,9 @@ function createCheckoutCopy(
     close: translate(keys.close),
     completed: translate(keys.completed),
     creatingPayment: translate(keys.creatingPayment),
+    expired: translate(keys.expired),
+    expiredDescription: translate(keys.expiredDescription),
+    expiresIn: translate(keys.expiresIn),
     paymentUnavailable: translate(keys.paymentUnavailableTitle),
     paymentUnavailableDescription: translate(keys.paymentUnavailableDescription),
     payByQr: translate(keys.payByQr),
@@ -30,6 +38,7 @@ function createCheckoutCopy(
     secureDescription: translate(keys.secureDescription),
     secureTitle: translate(keys.secureTitle),
     selectedItem: translate(keys.selectedPlan),
+    title: translate(keys.title),
   };
 }
 
@@ -79,4 +88,7 @@ export function ImTokenPlanCheckoutModal({
 export const imTokenPlanCatalogHostComponents = {
   ...sdkworkSubscriptionCatalogHostComponents,
   checkoutModal: ImTokenPlanCheckoutModal,
+  pointsDetailsModal: ImTokenPlanTokenBankDetailsModal,
+  pointsPurchaseModal: ImTokenPlanPointsPurchaseModal,
+  redeemModal: ImTokenPlanRedeemModal,
 };

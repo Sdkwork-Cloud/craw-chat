@@ -1,4 +1,3 @@
-use std::cmp::Ordering as CmpOrdering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
@@ -25,7 +24,7 @@ use crate::SharedChannelLinkedMemberSyncRequest;
 pub enum SocialStateStore {
     Memory(Arc<Mutex<SocialControlState>>),
     Database {
-        pool: im_adapters_social_postgres::SocialPostgresPool,
+        _pool: im_adapters_social_postgres::SocialPostgresPool,
     },
 }
 
@@ -35,7 +34,7 @@ impl SocialStateStore {
     }
 
     pub fn database(pool: im_adapters_social_postgres::SocialPostgresPool) -> Self {
-        Self::Database { pool }
+        Self::Database { _pool: pool }
     }
 
     pub(crate) fn load(&self) -> Result<SocialControlState, String> {
@@ -46,7 +45,7 @@ impl SocialStateStore {
                 loaded.rebuild_social_indexes();
                 Ok(loaded)
             }
-            Self::Database { pool: _ } => {
+            Self::Database { _pool: _ } => {
                 // Normalized PostgreSQL stores are queried by the service methods that need
                 // authoritative state. This process-local state is only a bounded hot cache.
                 Ok(SocialControlState::default())
@@ -60,7 +59,7 @@ impl SocialStateStore {
                 *lock_social_state_mutex(slot, "social-state-store.memory") = state.clone();
                 Ok(())
             }
-            Self::Database { pool: _ } => {
+            Self::Database { _pool: _ } => {
                 // The normalized write authority has already committed the transaction.
                 Ok(())
             }
@@ -1106,74 +1105,6 @@ impl SocialControlState {
                 commit_index: 0,
             },
         );
-    }
-
-    // Merge helpers (used during journal replay to incorporate snapshot-only data)
-
-    pub(crate) fn merge_pending_shared_channel_sync_requests_from(&mut self, other: &Self) {
-        for (key, pending) in &other.pending_shared_channel_sync_requests {
-            if !self.pending_shared_channel_sync_requests.contains_key(key) {
-                self.upsert_pending_shared_channel_sync_request(key.clone(), pending.clone());
-            }
-        }
-    }
-
-    pub(crate) fn merge_dead_letter_shared_channel_sync_requests_from(&mut self, other: &Self) {
-        for (key, dead_letter) in &other.dead_letter_shared_channel_sync_requests {
-            self.dead_letter_shared_channel_sync_requests
-                .entry(key.clone())
-                .or_insert_with(|| dead_letter.clone());
-        }
-    }
-
-    pub(crate) fn merge_delivered_shared_channel_sync_requests_from(&mut self, other: &Self) {
-        for (key, delivered_at) in &other.delivered_shared_channel_sync_requests {
-            self.delivered_shared_channel_sync_requests
-                .entry(key.clone())
-                .and_modify(|existing| {
-                    if timestamp_newer_for_recency(delivered_at, existing) {
-                        *existing = delivered_at.clone();
-                    }
-                })
-                .or_insert_with(|| delivered_at.clone());
-        }
-    }
-
-    pub(crate) fn merge_delivered_shared_channel_sync_delivery_proofs_from(
-        &mut self,
-        other: &Self,
-    ) {
-        for (key, proof) in &other.delivered_shared_channel_sync_delivery_proofs {
-            self.delivered_shared_channel_sync_delivery_proofs
-                .entry(key.clone())
-                .and_modify(|existing| {
-                    if timestamp_newer_for_recency(
-                        proof.delivered_at.as_str(),
-                        existing.delivered_at.as_str(),
-                    ) || (proof.delivered_at == existing.delivered_at
-                        && existing.status
-                            == crate::SharedChannelSyncDeliveryProofStatus::TransportAccepted
-                        && proof.status
-                            != crate::SharedChannelSyncDeliveryProofStatus::TransportAccepted)
-                    {
-                        *existing = proof.clone();
-                    }
-                })
-                .or_insert_with(|| proof.clone());
-        }
-    }
-
-    pub(crate) fn merge_recent_shared_channel_sync_deliveries_from(&mut self, other: &Self) {
-        for (key, delivered_at) in &other.recent_shared_channel_sync_deliveries {
-            self.recent_shared_channel_sync_deliveries
-                .entry(key.clone())
-                .and_modify(|existing| {
-                    if timestamp_newer_for_recency(delivered_at, existing) {
-                        *existing = delivered_at.clone();
-                    }
-                })
-                .or_insert_with(|| delivered_at.clone());
-        }
     }
 
     pub(crate) fn upsert_pending_shared_channel_sync_request(
@@ -3106,44 +3037,6 @@ pub(crate) fn archive_active_direct_chats_for_pair(
 pub(crate) fn deterministic_social_id(prefix: &str, seed: &str) -> String {
     let digest = sha256_hash(seed.as_bytes());
     format!("{prefix}{}", &digest[..24])
-}
-
-fn is_canonical_rfc3339_millis_utc(timestamp: &str) -> bool {
-    let bytes = timestamp.as_bytes();
-    if bytes.len() != 24 {
-        return false;
-    }
-    for index in [4, 7] {
-        if bytes[index] != b'-' {
-            return false;
-        }
-    }
-    if bytes[10] != b'T' || bytes[13] != b':' || bytes[16] != b':' || bytes[19] != b'.' {
-        return false;
-    }
-    if bytes[23] != b'Z' {
-        return false;
-    }
-    for index in [0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18, 20, 21, 22] {
-        if !bytes[index].is_ascii_digit() {
-            return false;
-        }
-    }
-    true
-}
-
-fn compare_canonical_rfc3339_millis_utc(left: &str, right: &str) -> Option<CmpOrdering> {
-    if !is_canonical_rfc3339_millis_utc(left) || !is_canonical_rfc3339_millis_utc(right) {
-        return None;
-    }
-    Some(left.cmp(right))
-}
-
-fn timestamp_newer_for_recency(candidate: &str, existing: &str) -> bool {
-    matches!(
-        compare_canonical_rfc3339_millis_utc(candidate, existing),
-        Some(CmpOrdering::Greater)
-    )
 }
 
 #[cfg(test)]
