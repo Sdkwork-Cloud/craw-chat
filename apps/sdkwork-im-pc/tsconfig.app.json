@@ -88,6 +88,12 @@
       "@sdkwork/course-pc-course": ["./types/stubs/course-pc-course.d.ts"],
       "@sdkwork/course-pc-console": ["./types/stubs/course-pc-console.d.ts"],
       "@sdkwork/drive-pc-drive": ["./types/stubs/drive-pc-drive.d.ts"],
+      "@sdkwork/agents-pc-agents": ["./types/stubs/agents-pc-agents.d.ts"],
+      "@sdkwork/aiot-pc-core": ["./types/stubs/aiot-pc-core.d.ts"],
+      "@sdkwork/aiot-pc-console-device": ["./types/stubs/aiot-pc-console-device.d.ts"],
+      "@sdkwork/shop-pc-core": ["./types/stubs/shop-pc-core.d.ts"],
+      "@sdkwork/shop-pc-consumer": ["./types/stubs/shop-pc-consumer.d.ts"],
+      "@sdkwork/shop-pc-orders": ["./types/stubs/shop-pc-orders.d.ts"],
       "@sdkwork/voice-pc-market": [
         "../../../sdkwork-voice/apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-market/src/index.ts"
       ],

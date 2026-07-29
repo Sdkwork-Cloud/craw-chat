@@ -22,6 +22,14 @@ its own `specs/component.spec.json` with an explicit layer role, public exports,
 and composable ports where applicable. Paths in `canonicalSpecs` and permission
 composition are resolved relative to the component root.
 
+## PC Package Naming
+
+PC management package families use the canonical console and admin names
+`sdkwork-im-console-*` and `sdkwork-im-admin-*`. Normalized PC architecture targets are
+`sdkwork-im-pc-console-*` and `sdkwork-im-pc-admin-*`; the target wording describes the
+`pc` architecture and does not authorize a second package taxonomy. Historical
+`sdkwork-clawchat-*` names are retired and must not be introduced into contracts, source, or docs.
+
 ## Domain Ownership
 
 IM owns communication facts:
@@ -181,6 +189,7 @@ pnpm test:apis-authority-standard
 pnpm check:api-response-envelope
 pnpm check:pagination
 pnpm check:app-composition
+node scripts/sdkwork-workspace-structure-standard.test.mjs
 ```
 
 `test:component-spec-consistency` includes strict component layer/port validation

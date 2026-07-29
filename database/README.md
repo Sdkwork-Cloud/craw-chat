@@ -13,6 +13,27 @@ module manifest governed by `DATABASE_SPEC.md` and `DATABASE_FRAMEWORK_SPEC.md`.
 - tablePrefix: `im_`
 - contractVersion: `2.1.0`
 
+## Owner
+
+`im-platform` owns this lifecycle root. Individual IM repository crates consume the resolved
+contract; no client, gateway, or sibling SDKWork application may introduce an independent IM
+schema authority here.
+
+## Allowed Content
+
+- PostgreSQL schema registry, baseline DDL, ordered migrations, seed manifests, drift policy, and
+  verification fixtures for IM-owned tables.
+- Machine-readable ownership, index, retention, and migration provenance for the registered
+  `im_` tables.
+- Safe operational examples that do not contain credentials, production rows, or database dumps.
+
+## Forbidden Content
+
+- SQLite, browser, desktop, cache, or other client-local database schemas.
+- Sibling application tables, cross-database foreign keys, generated SDK output, or application
+  service code.
+- Credentials, production data, backups, ad hoc recovery scripts, or untracked schema changes.
+
 ## Ownership Boundary
 
 The IM platform owns only the tables registered in `contract/table-registry.json`. IAM, Agents,
@@ -55,7 +76,7 @@ and fabricated archive metadata are not migration strategies.
 - Secrets and production row data must not be committed to this directory.
 - Ad hoc SQL outside the database lifecycle is forbidden.
 
-## Commands
+## Verification
 
 Run from the repository root:
 
@@ -84,8 +105,10 @@ database is available:
 cargo test -p im-adapters-postgres-journal --test agent_integration_migration_live_test -- --ignored --nocapture
 ```
 
-## Related Standards
+## Related Specs
 
+- Repository workspace authority: `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`; from this
+  directory the resolved path is `../../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`.
 - `../../sdkwork-specs/DATABASE_SPEC.md`
 - `../../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md`
 - `../../sdkwork-specs/MIGRATION_SPEC.md`

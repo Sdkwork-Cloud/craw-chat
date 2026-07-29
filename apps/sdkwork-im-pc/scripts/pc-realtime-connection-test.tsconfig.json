@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "..",
+    "paths": {
+      "@sdkwork/membership-pc-subscription/catalog": [
+        "scripts/stubs/pc-realtime-membership-i18n.stub.ts"
+      ]
+    }
+  }
+}

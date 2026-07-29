@@ -1,12 +1,39 @@
 # SDKWork IM Documentation
 
 Status: active
-Owner: `im-platform`
-Updated: 2026-07-23
-Specs: `DOCUMENTATION_SPEC.md`, `SDKWORK_WORKSPACE_SPEC.md`
+Updated: 2026-07-29
+
+## Purpose
 
 This directory is the human documentation layer for SDKWork IM. Machine contracts remain in
 `specs/`, authored HTTP contracts remain in `apis/`, and generated SDK workspaces remain in `sdks/`.
+
+## Owner
+
+`im-platform` owns documentation accuracy, Canon freshness, and the explicit archive boundary.
+Every capability owner remains responsible for the machine contracts and source code linked here.
+
+## Allowed Content
+
+- Current product requirements, PRD, technical architecture, architecture decisions, operations,
+  runbooks, release evidence, and guides.
+- Generated human-readable inventories that identify their source contract and generator.
+- Archived history that is explicitly segregated from current Canon authority.
+
+## Forbidden Content
+
+- Generated SDK source, executable runtime code, database dumps, secrets, production credentials,
+  or duplicated machine contract authority.
+- Unqualified historical designs presented as current product, API, security, or deployment facts.
+- Local compatibility notes that supersede a global SDKWork standard or an owner contract.
+
+## Related Specs
+
+- Repository workspace authority: `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`; from this
+  directory the resolved path is `../../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`.
+- `../../sdkwork-specs/DOCUMENTATION_SPEC.md`
+- `../../sdkwork-specs/REQUIREMENTS_SPEC.md`
+- `../../sdkwork-specs/ARCHITECTURE_DECISION_SPEC.md`
 
 ## Canon
 

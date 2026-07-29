@@ -41,7 +41,7 @@
     "test:aiot-devices-sdk-integration": "node scripts/sdkwork-chat-pc-aiot-devices-contract.test.mjs",
     "test:qr-scan-standard": "node ../../scripts/dev/run-tsx-cli.mjs scripts/qr-scan-standard-contract.test.ts",
     "test:communication-settings-sdk-boundary": "node scripts/communication-settings-sdk-boundary-contract.test.mjs",
-    "test:pc-realtime-connection": "node ../../scripts/dev/run-tsx-cli.mjs scripts/pc-realtime-connection-contract.test.ts",
+    "test:pc-realtime-connection": "node ../../scripts/dev/run-tsx-cli.mjs --tsconfig scripts/pc-realtime-connection-test.tsconfig.json scripts/pc-realtime-connection-contract.test.ts",
     "test:chat-auth-realtime-guard": "node ../../scripts/dev/run-tsx-cli.mjs scripts/chat-auth-realtime-guard-contract.test.ts",
     "test:chat-message-pagination": "node scripts/chat-message-pagination-contract.test.mjs",
     "test:group-knowledgebase-launch": "node ../../scripts/dev/run-tsx-cli.mjs scripts/group-knowledgebase-launch-contract.test.ts",
