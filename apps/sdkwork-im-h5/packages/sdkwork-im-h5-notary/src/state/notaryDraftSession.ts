@@ -82,11 +82,12 @@ export class NotaryDraftSession {
     if (this.partyEditor.mode === "add") {
       return { mode: "add", party: null };
     }
+    const { mode, partyId } = this.partyEditor;
     const party = this.draft.parties.find(
-      (candidate) => candidate.id === this.partyEditor?.partyId,
+      (candidate) => candidate.id === partyId,
     );
     return party
-      ? { mode: this.partyEditor.mode, party: { ...party } }
+      ? { mode, party: { ...party } }
       : null;
   }
 

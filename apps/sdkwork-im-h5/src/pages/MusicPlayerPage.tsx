@@ -1,88 +1,77 @@
-﻿import React, { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { useAudioStore } from '@sdkwork/im-h5-core';
-import { PlayerHeader } from '../components/music-player/PlayerHeader';
-import { PlayerCoverCard } from '../components/music-player/PlayerCoverCard';
-import { PlayerControls } from '../components/music-player/PlayerControls';
-import { PlayerActions } from '../components/music-player/PlayerActions';
+import React from "react";
+import { useNavigate } from "react-router";
+
+import { useAudioStore } from "@sdkwork/im-h5-core";
+
+import { PlayerControls } from "../components/music-player/PlayerControls";
+import { PlayerCoverCard } from "../components/music-player/PlayerCoverCard";
+import { PlayerHeader } from "../components/music-player/PlayerHeader";
 
 export const MusicPlayerPage: React.FC = () => {
   const navigate = useNavigate();
-  const currentTrack = useAudioStore(s => s.currentTrack);
-  const isPlaying = useAudioStore(s => s.isPlaying);
-  const progress = useAudioStore(s => s.progress);
-  const duration = useAudioStore(s => s.duration);
-  const pause = useAudioStore(s => s.pause);
-  const resume = useAudioStore(s => s.resume);
-  const seek = useAudioStore(s => s.seek);
-  
-  const [isLiked, setIsLiked] = useState(false);
+  const currentTrack = useAudioStore((state) => state.currentTrack);
+  const isPlaying = useAudioStore((state) => state.isPlaying);
+  const progress = useAudioStore((state) => state.progress);
+  const duration = useAudioStore((state) => state.duration);
+  const pause = useAudioStore((state) => state.pause);
+  const resume = useAudioStore((state) => state.resume);
+  const seek = useAudioStore((state) => state.seek);
 
   if (!currentTrack) {
     return (
-      <div className="flex flex-col h-full bg-[#121212] items-center justify-center text-white">
-        <p>暂无播放内容</p>
-        <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-white/10 rounded-full">返回</button>
+      <div className="flex h-full flex-col items-center justify-center bg-[#121212] text-white">
+        <p>No track is playing</p>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="mt-4 rounded-full bg-white/10 px-4 py-2"
+        >
+          Back
+        </button>
       </div>
     );
   }
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
-
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    seek(Number(e.target.value));
-  };
-
   return (
-    <div className="flex flex-col h-full bg-[#121212] text-white relative overflow-hidden">
-      {/* Background Blur */}
-      <div 
-        className="absolute inset-0 z-0 opacity-40 scale-110 blur-3xl"
-        style={{
-          backgroundImage: `url(${currentTrack.coverUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
+    <div className="relative flex h-full flex-col overflow-hidden bg-[#121212] text-white">
+      <div
+        className="absolute inset-0 z-0 scale-110 bg-cover bg-center opacity-40 blur-3xl"
+        style={{ backgroundImage: `url(${currentTrack.coverUrl})` }}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#121212]/80 to-[#121212] z-0" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/20 via-[#121212]/80 to-[#121212]" />
 
-      {/* Header */}
-      <PlayerHeader 
-        title={currentTrack.title} 
-        onBack={() => navigate(-1)} 
+      <PlayerHeader
+        title={currentTrack.title}
+        onBack={() => navigate(-1)}
       />
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col items-center justify-between px-8 py-8 relative z-10 overflow-y-auto">
-        {/* Cover */}
-        <PlayerCoverCard 
-          coverUrl={currentTrack.coverUrl} 
-          isPlaying={isPlaying} 
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-between overflow-y-auto px-8 py-8">
+        <PlayerCoverCard
+          coverUrl={currentTrack.coverUrl}
+          isPlaying={isPlaying}
         />
 
-        {/* Info & Controls */}
-        <div className="w-full flex flex-col gap-6">
+        <div className="flex w-full flex-col gap-6">
           <PlayerControls
             title={currentTrack.title}
             artist={currentTrack.artist}
-            isLiked={isLiked}
-            onToggleLike={() => setIsLiked(!isLiked)}
             progress={progress}
             duration={duration}
             isPlaying={isPlaying}
-            onSeek={handleSeek}
+            onSeek={(event) => seek(Number(event.target.value))}
             onTogglePlay={isPlaying ? pause : resume}
             formatTime={formatTime}
           />
-
-          <PlayerActions />
         </div>
       </div>
     </div>
   );
 };
 
+function formatTime(seconds: number): string {
+  const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const remainingSeconds = Math.floor(seconds % 60)
+    .toString()
+    .padStart(2, "0");
+  return `${minutes}:${remainingSeconds}`;
+}

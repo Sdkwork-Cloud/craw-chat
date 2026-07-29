@@ -10,7 +10,6 @@ import {
 } from "../state/notaryDraftSession";
 
 interface Step2NotaryPartiesProps {
-  selectedNotary: string;
   selectedNotaryObj: NotaryStaffMember | null;
   parties: NotaryDraftPartyWithId[];
   handleAddParty: () => void;
@@ -19,7 +18,6 @@ interface Step2NotaryPartiesProps {
 }
 
 export const Step2NotaryParties: React.FC<Step2NotaryPartiesProps> = ({
-  selectedNotary,
   selectedNotaryObj,
   parties,
   handleAddParty,

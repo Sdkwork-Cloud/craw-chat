@@ -37,7 +37,7 @@ export const NotarySearchList: React.FC = () => {
 
   useEffect(() => {
     if (!selectionOpen) {
-      return;
+      return undefined;
     }
     const sequence = requestSequence.current + 1;
     requestSequence.current = sequence;

@@ -36,15 +36,23 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     // Configure background audio properties if we were native
 
     audio.addEventListener("timeupdate", () => {
-      set({ progress: audio.currentTime });
+      if (Number.isFinite(audio.currentTime)) {
+        set({ progress: audio.currentTime });
+      }
     });
 
     audio.addEventListener("loadedmetadata", () => {
-      set({ duration: audio.duration });
+      set({ duration: Number.isFinite(audio.duration) ? audio.duration : 0 });
     });
 
     audio.addEventListener("ended", () => {
-      set({ isPlaying: false, progress: 0 });
+      releaseAudioSource(audio);
+      set({
+        currentTrack: null,
+        isPlaying: false,
+        progress: 0,
+        duration: 0,
+      });
     });
 
     audio.addEventListener("play", () => set({ isPlaying: true }));
@@ -54,19 +62,30 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   },
 
   playMusic: (track) => {
-    const { audioElement, currentTrack } = get();
+    let { audioElement } = get();
+    if (!audioElement) {
+      get().initAudio();
+      audioElement = get().audioElement;
+    }
     if (!audioElement) return;
+    const { currentTrack } = get();
 
     if (currentTrack?.id === track.id) {
       if (!get().isPlaying) {
-        audioElement.play().catch(console.error);
+        void audioElement.play().catch(() => {
+          set({ isPlaying: false });
+        });
       }
       return;
     }
 
     set({ currentTrack: track, progress: 0 });
     audioElement.src = track.audioUrl;
-    audioElement.play().catch(console.error);
+    void audioElement.play().catch(() => {
+      if (get().currentTrack?.id === track.id) {
+        set({ isPlaying: false });
+      }
+    });
   },
 
   pause: () => {
@@ -76,14 +95,22 @@ export const useAudioStore = create<AudioState>((set, get) => ({
 
   resume: () => {
     const { audioElement, currentTrack } = get();
-    if (audioElement && currentTrack) audioElement.play().catch(console.error);
+    if (audioElement && currentTrack) {
+      void audioElement.play().catch(() => {
+        set({ isPlaying: false });
+      });
+    }
   },
 
   seek: (time) => {
     const { audioElement } = get();
-    if (audioElement) {
-      audioElement.currentTime = time;
-      set({ progress: time });
+    if (audioElement && Number.isFinite(time)) {
+      const duration = Number.isFinite(audioElement.duration)
+        ? audioElement.duration
+        : 0;
+      const boundedTime = Math.min(Math.max(time, 0), duration);
+      audioElement.currentTime = boundedTime;
+      set({ progress: boundedTime });
     }
   },
 
@@ -91,8 +118,18 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     const { audioElement } = get();
     if (audioElement) {
       audioElement.pause();
-      audioElement.currentTime = 0;
+      releaseAudioSource(audioElement);
     }
-    set({ currentTrack: null, isPlaying: false, progress: 0 });
+    set({
+      currentTrack: null,
+      isPlaying: false,
+      progress: 0,
+      duration: 0,
+    });
   },
 }));
+
+function releaseAudioSource(audio: HTMLAudioElement): void {
+  audio.removeAttribute("src");
+  audio.load();
+}

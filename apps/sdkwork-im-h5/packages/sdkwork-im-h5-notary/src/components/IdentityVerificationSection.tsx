@@ -1,10 +1,10 @@
 ﻿import React from "react";
 import { Plus, X, ScanFace, CheckCircle2 } from "lucide-react";
 import { cn, showToast } from "@sdkwork/im-h5-commons";
-import { NotaryPartyParams } from "../pages/NotaryAddParty";
 import { useTranslation } from "react-i18next";
 
 interface IdentityVerificationSectionProps {
+  isReadonly: boolean;
   idFrontRef: React.RefObject<HTMLInputElement>;
   idBackRef: React.RefObject<HTMLInputElement>;
   faceRef: React.RefObject<HTMLInputElement>;
@@ -31,6 +31,7 @@ interface IdentityVerificationSectionProps {
 export const IdentityVerificationSection: React.FC<
   IdentityVerificationSectionProps
 > = ({
+  isReadonly,
   idFrontRef,
   idBackRef,
   faceRef,
@@ -95,7 +96,7 @@ return (
                 alt={t("notary.verify.id_front")}
                 className="w-full h-full object-contain bg-black/5 dark:bg-white/5"
               />
-              {!NotaryPartyParams.isReadonly && (
+              {!isReadonly && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -129,7 +130,7 @@ return (
                 alt={t("notary.verify.id_back")}
                 className="w-full h-full object-contain bg-black/5 dark:bg-white/5"
               />
-              {!NotaryPartyParams.isReadonly && (
+              {!isReadonly && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -183,7 +184,7 @@ return (
                   <ScanFace className="w-6 h-6 text-white/90" />
                 )}
               </div>
-              {!NotaryPartyParams.isReadonly && (
+              {!isReadonly && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -207,7 +208,7 @@ return (
         <div className="flex-1 flex items-center justify-end pl-3">
           {/* Right side interactions */}
           {facePreview && !faceScore ? (
-            !NotaryPartyParams.isReadonly ? (
+            !isReadonly ? (
               <button
                 disabled={isScanning}
                 onClick={(e) => {

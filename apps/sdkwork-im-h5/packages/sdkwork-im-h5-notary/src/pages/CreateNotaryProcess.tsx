@@ -39,10 +39,10 @@ export const CreateNotaryProcess: React.FC = () => {
   const [selectedType, setSelectedType] = useState(initialDraft.selectedType);
 
   // Step 2: Parties and Notary
-  const [selectedNotary, setSelectedNotary] = useState(
+  const [selectedNotary] = useState(
     initialDraft.selectedNotary,
   );
-  const [selectedNotaryObj, setSelectedNotaryObj] = useState(
+  const [selectedNotaryObj] = useState(
     initialDraft.selectedNotaryObj,
   );
   const [parties] = useState(initialDraft.parties);
@@ -240,7 +240,6 @@ export const CreateNotaryProcess: React.FC = () => {
 
           {step === 2 && (
             <Step2NotaryParties
-              selectedNotary={selectedNotary}
               selectedNotaryObj={selectedNotaryObj}
               parties={parties}
               handleAddParty={handleAddParty}

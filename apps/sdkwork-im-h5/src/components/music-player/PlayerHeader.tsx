@@ -23,10 +23,14 @@ export const PlayerHeader: React.FC<PlayerHeaderProps> = ({
         <span className="text-[12px] opacity-70">正在播放</span>
         <span className="text-[14px] font-medium max-w-[200px] truncate">{title}</span>
       </div>
-      <IconButton
-        icon={<MoreVertical className="w-6 h-6 text-white" />}
-        onClick={onMoreClick || (() => {})}
-      />
+      {onMoreClick ? (
+        <IconButton
+          icon={<MoreVertical className="w-6 h-6 text-white" />}
+          onClick={onMoreClick}
+        />
+      ) : (
+        <span className="w-10" aria-hidden="true" />
+      )}
     </header>
   );
 };

@@ -1,9 +1,9 @@
 import React from "react";
 import { ChevronRight, FileText, Plus, X } from "lucide-react";
-import { NotaryPartyParams } from "../pages/NotaryAddParty";
 import { useTranslation } from "react-i18next";
 
 interface AccessoriesRemarksSectionProps {
+  isReadonly: boolean;
   formData: any;
   attachments: { name: string; url: string }[];
   setFullPageEditor: React.Dispatch<React.SetStateAction<any>>;
@@ -17,6 +17,7 @@ interface AccessoriesRemarksSectionProps {
 export const AccessoriesRemarksSection: React.FC<
   AccessoriesRemarksSectionProps
 > = ({
+  isReadonly,
   formData,
   attachments,
   setFullPageEditor,
@@ -85,7 +86,7 @@ return (
                   <FileText className="w-5 h-5 text-primary-blue shrink-0" />
                 )}
                 <span className="truncate flex-1 text-[13px]">{att.name}</span>
-                {!NotaryPartyParams.isReadonly && (
+                {!isReadonly && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -102,7 +103,7 @@ return (
             ))}
           </div>
         )}
-        {!NotaryPartyParams.isReadonly && (
+        {!isReadonly && (
           <div
             onClick={() => attachmentRef.current?.click()}
             className="w-full py-6 bg-input-bg border border-dashed border-border-color rounded-xl flex flex-col items-center justify-center cursor-pointer active:bg-active-bg transition-colors group"
