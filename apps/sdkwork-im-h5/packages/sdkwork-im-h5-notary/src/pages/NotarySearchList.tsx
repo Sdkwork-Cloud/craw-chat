@@ -9,22 +9,19 @@ import {
   notaryService,
   type NotaryStaffMember,
 } from "../services/notaryService";
+import { notaryDraftSession } from "../state/notaryDraftSession";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
-
-export const NotarySelectionParams: {
-  selectedId: string;
-  selectedNotaryObj: NotaryStaffMember | null;
-  onSelect: (id: string, staff: NotaryStaffMember) => void;
-} = {
-  selectedId: "",
-  selectedNotaryObj: null,
-  onSelect: () => undefined,
-};
 
 export const NotarySearchList: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [selectionOpen] = useState(() =>
+    notaryDraftSession.isNotarySelectionOpen(),
+  );
+  const [selectedNotaryId] = useState(
+    () => notaryDraftSession.getDraft().selectedNotary,
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [notaries, setNotaries] = useState<NotaryStaffMember[]>([]);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
@@ -33,6 +30,15 @@ export const NotarySearchList: React.FC = () => {
   const requestSequence = useRef(0);
 
   useEffect(() => {
+    if (!selectionOpen) {
+      navigate("/notary/create", { replace: true });
+    }
+  }, [navigate, selectionOpen]);
+
+  useEffect(() => {
+    if (!selectionOpen) {
+      return;
+    }
     const sequence = requestSequence.current + 1;
     requestSequence.current = sequence;
     setLoading(true);
@@ -59,7 +65,7 @@ export const NotarySearchList: React.FC = () => {
       });
     }, 250);
     return () => window.clearTimeout(timeout);
-  }, [searchQuery]);
+  }, [searchQuery, selectionOpen]);
 
   const loadMore = async () => {
     if (!nextCursor || loading || notaries.length >= NOTARY_CLIENT_WINDOW_LIMIT) {
@@ -100,7 +106,12 @@ export const NotarySearchList: React.FC = () => {
   }, [notaries]);
 
   const handleSelect = (notary: NotaryStaffMember) => {
-    NotarySelectionParams.onSelect(notary.id, notary);
+    notaryDraftSession.selectNotary(notary);
+    navigate(-1);
+  };
+
+  const handleBack = () => {
+    notaryDraftSession.closeNotarySelection();
     navigate(-1);
   };
 
@@ -117,7 +128,7 @@ export const NotarySearchList: React.FC = () => {
         <div className="z-10 flex flex-1 items-center">
           <IconButton
             icon={<ChevronLeft className="h-6 w-6 text-text-main" strokeWidth={2.5} />}
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
           />
         </div>
         <div className="pointer-events-none flex items-center justify-center text-[17px] font-bold text-text-main">
@@ -153,7 +164,7 @@ export const NotarySearchList: React.FC = () => {
                   onClick={() => handleSelect(notary)}
                   className={cn(
                     "flex w-full items-center py-3 pl-4 text-left active:bg-active-bg",
-                    NotarySelectionParams.selectedId === notary.id && "bg-primary-blue/5",
+                    selectedNotaryId === notary.id && "bg-primary-blue/5",
                   )}
                 >
                   <div className="relative mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary-blue text-white">
@@ -174,7 +185,7 @@ export const NotarySearchList: React.FC = () => {
                         {notary.organization}
                       </span>
                     </div>
-                    {NotarySelectionParams.selectedId === notary.id && (
+                    {selectedNotaryId === notary.id && (
                       <Check className="ml-2 h-5 w-5 shrink-0 text-primary-blue" />
                     )}
                   </div>
