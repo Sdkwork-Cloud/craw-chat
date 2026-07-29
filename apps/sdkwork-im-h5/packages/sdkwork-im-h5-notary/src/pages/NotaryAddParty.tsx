@@ -1,5 +1,6 @@
 ﻿import React, { useState } from "react";
 import { useNavigate } from "react-router";
+import { useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { IconButton, cn, showToast } from "@sdkwork/im-h5-commons";
 import { NotaryFullPageEditor } from "../components/NotaryFullPageEditor";
@@ -8,42 +9,37 @@ import { BasicInfoSection } from "../components/BasicInfoSection";
 import { NotaryPartyBottomBar } from "../components/NotaryPartyBottomBar";
 import { useTranslation } from "react-i18next";
 import { uuid } from "@sdkwork/utils";
-import type { NotaryDraftParty } from "../services/notaryService";
-
-export interface NotaryDraftPartyWithId extends NotaryDraftParty {
-  id: string;
-}
-
-export const NotaryPartyParams: {
-  editData: NotaryDraftPartyWithId | null;
-  isReadonly: boolean;
-  onAdd: (party: NotaryDraftPartyWithId) => void;
-  onEdit: (party: NotaryDraftPartyWithId) => void;
-} = {
-  editData: null,
-  isReadonly: false,
-  onAdd: () => undefined,
-  onEdit: () => undefined,
-};
+import {
+  notaryDraftSession,
+  type NotaryDraftPartyWithId,
+} from "../state/notaryDraftSession";
 
 export const NotaryAddParty: React.FC = () => {
   const { t } = useTranslation();
   
 const navigate = useNavigate();
-  
+  const [editor] = useState(() => notaryDraftSession.getPartyEditor());
+  const party = editor?.party ?? null;
+  const isReadonly = editor?.mode === "readonly";
+
+  useEffect(() => {
+    if (!editor) {
+      navigate("/notary/create", { replace: true });
+    }
+  }, [editor, navigate]);
 
   const [formData, setFormData] = useState(() => {
-    if (NotaryPartyParams.editData) {
+    if (party) {
       return {
-        name: NotaryPartyParams.editData.name || "",
-        idCard: NotaryPartyParams.editData.idCard || "",
-        gender: NotaryPartyParams.editData.gender || "男",
-        dob: NotaryPartyParams.editData.dob || "",
-        idStartDate: NotaryPartyParams.editData.idStartDate || "",
-        idEndDate: NotaryPartyParams.editData.idEndDate || "",
-        phone: NotaryPartyParams.editData.phone || "",
-        address: NotaryPartyParams.editData.address || "",
-        remarks: NotaryPartyParams.editData.remarks || "",
+        name: party.name || "",
+        idCard: party.idCard || "",
+        gender: party.gender || "男",
+        dob: party.dob || "",
+        idStartDate: party.idStartDate || "",
+        idEndDate: party.idEndDate || "",
+        phone: party.phone || "",
+        address: party.address || "",
+        remarks: party.remarks || "",
       };
     }
     return {
@@ -74,6 +70,7 @@ const navigate = useNavigate();
   } | null>(null);
 
   const handleSave = () => {
+    if (!editor || isReadonly) return;
     if (!formData.name || formData.name.trim().length < 2)
       return showToast(t("notary.add_party.err_name"));
     if (
@@ -87,10 +84,8 @@ const navigate = useNavigate();
     if (!formData.idStartDate || !formData.idEndDate)
       return showToast(t("notary.add_party.err_id_date"));
 
-    const partyData = {
-      id: NotaryPartyParams.editData
-        ? NotaryPartyParams.editData.id
-        : uuid(),
+    const partyData: NotaryDraftPartyWithId = {
+      id: editor.mode === "edit" && party ? party.id : uuid(),
       name: formData.name,
       idCard: formData.idCard,
       gender: formData.gender,
@@ -102,14 +97,23 @@ const navigate = useNavigate();
       remarks: formData.remarks,
     };
 
-    if (NotaryPartyParams.editData && NotaryPartyParams.onEdit) {
-      NotaryPartyParams.onEdit(partyData);
-      navigate(-1);
-    } else if (NotaryPartyParams.onAdd) {
-      NotaryPartyParams.onAdd(partyData);
-      navigate(-1);
+    if (editor.mode === "edit") {
+      notaryDraftSession.updateParty(partyData);
+    } else {
+      notaryDraftSession.addParty(partyData);
     }
+    notaryDraftSession.closePartyEditor();
+    navigate(-1);
   };
+
+  const handleBack = () => {
+    notaryDraftSession.closePartyEditor();
+    navigate(-1);
+  };
+
+  if (!editor) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#f4f6f9] dark:bg-black text-text-main fixed inset-0 z-[100] animate-in slide-in-from-right">
@@ -122,11 +126,15 @@ const navigate = useNavigate();
                 strokeWidth={2.5}
               />
             }
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
           />
         </div>
         <div className="flex items-center justify-center font-bold text-[17px] pointer-events-none">
-          {NotaryPartyParams.isReadonly ? t("notary.add_party.detail") : (NotaryPartyParams.editData ? t("notary.add_party.edit") : t("notary.add_party.add"))}
+          {isReadonly
+            ? t("notary.add_party.detail")
+            : editor.mode === "edit"
+              ? t("notary.add_party.edit")
+              : t("notary.add_party.add")}
         </div>
         <div className="flex justify-end items-center gap-3 z-10 flex-1 pr-4">
         </div>
@@ -134,7 +142,7 @@ const navigate = useNavigate();
 
       <div className="flex-1 overflow-y-auto pb-24 relative z-0">
         <div className="flex flex-col gap-2">
-          <div className={cn(NotaryPartyParams.isReadonly && "pointer-events-none cursor-default")}>
+          <div className={cn(isReadonly && "pointer-events-none cursor-default")}>
             <BasicInfoSection
               formData={formData}
               setFullPageEditor={setFullPageEditor}
@@ -145,7 +153,11 @@ const navigate = useNavigate();
 
           <button
             type="button"
-            className="flex min-h-[54px] items-center border-b border-border-color bg-bg-color px-4 text-left"
+            disabled={isReadonly}
+            className={cn(
+              "flex min-h-[54px] items-center border-b border-border-color bg-bg-color px-4 text-left",
+              isReadonly && "cursor-default",
+            )}
             onClick={() => setFullPageEditor({
               field: "remarks",
               title: t("notary.extra_info.remarks"),
@@ -167,8 +179,8 @@ const navigate = useNavigate();
 
       {/* Fixed Bottom Operations */}
       <NotaryPartyBottomBar
-        isReadonly={NotaryPartyParams.isReadonly}
-        onBack={() => navigate(-1)}
+        isReadonly={isReadonly}
+        onBack={handleBack}
         onSave={handleSave}
       />
 

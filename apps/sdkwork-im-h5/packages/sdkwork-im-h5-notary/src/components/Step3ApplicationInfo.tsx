@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { motion } from "motion/react";
-import { Plus, X, File, Video, PlayCircle } from "lucide-react";
+import { Plus, X, File, PlayCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { uuid } from "@sdkwork/utils";
 import type { NotaryDraftAttachment } from "../services/notaryService";
@@ -51,14 +51,29 @@ const fileInputRef = useRef<HTMLInputElement>(null);
         }
         const isVideo = file.type.startsWith('video/');
         const isImage = file.type.startsWith('image/');
-        newAttachments.push({
+        const isPdf = file.type === "application/pdf";
+        if (!isVideo && !isImage && !isPdf) {
+          rejected = true;
+          continue;
+        }
+        const attachmentBase = {
           id: uuid(),
           name: file.name,
           file,
-          previewUrl: URL.createObjectURL(file),
-          type: isVideo ? 'video' as const : isImage ? 'image' as const : 'file' as const,
           size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-        });
+        };
+        if (isVideo || isImage) {
+          newAttachments.push({
+            ...attachmentBase,
+            previewUrl: URL.createObjectURL(file),
+            type: isVideo ? "video" : "image",
+          });
+        } else {
+          newAttachments.push({
+            ...attachmentBase,
+            type: "file",
+          });
+        }
         totalBytes += file.size;
       }
       setAttachments([...attachments, ...newAttachments]);
@@ -76,7 +91,7 @@ const fileInputRef = useRef<HTMLInputElement>(null);
 
   const removeAttachment = (id: string) => {
     const attachment = attachments.find((item) => item.id === id);
-    if (attachment) {
+    if (attachment?.previewUrl) {
       URL.revokeObjectURL(attachment.previewUrl);
     }
     setAttachments(attachments.filter((item) => item.id !== id));
@@ -140,13 +155,8 @@ const fileInputRef = useRef<HTMLInputElement>(null);
                      {file.type === 'image' ? (
                         <img src={file.previewUrl} alt={file.name} className="w-full h-full object-cover" />
                       ) : file.type === "video" ? (
-                        <div className="w-full h-full flex items-center justify-center relative">
-                          <video
-                            src={file.previewUrl}
-                            preload="metadata"
-                            className="w-full h-full object-cover absolute inset-0 opacity-40 pointer-events-none"
-                          />
-                          <PlayCircle className="w-6 h-6 text-black/50 dark:text-white/50 z-10" />
+                        <div className="w-full h-full flex items-center justify-center">
+                          <PlayCircle className="w-6 h-6 text-text-sub" />
                         </div>
                       ) : (
                         <div className="flex h-full w-full items-center justify-center">

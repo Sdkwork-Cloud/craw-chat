@@ -1,19 +1,21 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
-import { NotarySelectionParams } from "../pages/NotarySearchList";
-import { NotaryPartyParams } from "../pages/NotaryAddParty";
-import { File, Video, ChevronRight, X, PlayCircle } from "lucide-react";
+import { File, ChevronRight, X, PlayCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type {
   NotaryDraftAttachment,
   NotaryStaffMember,
 } from "../services/notaryService";
+import {
+  notaryDraftSession,
+  type NotaryDraftPartyWithId,
+} from "../state/notaryDraftSession";
 
 interface Step4ConfirmationProps {
   notaryTypes: Array<{ id: string; name: string }>;
   selectedType: string;
   selectedNotaryObj: NotaryStaffMember | null;
-  parties: any[];
+  parties: NotaryDraftPartyWithId[];
   applicationInfo: string;
   attachments: NotaryDraftAttachment[];
   navigate: ReturnType<typeof import("react-router").useNavigate>;
@@ -31,9 +33,11 @@ export const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   const { t } = useTranslation();
 const [fullscreenPreview, setFullscreenPreview] = useState<{ url: string, type: 'image' | 'video' } | null>(null);
 
-  const handlePreviewParty = (party: any) => {
-  NotaryPartyParams.editData = party;
-    NotaryPartyParams.isReadonly = true;
+  const handlePreviewParty = (party: NotaryDraftPartyWithId) => {
+    notaryDraftSession.openPartyEditor({
+      mode: "readonly",
+      partyId: party.id,
+    });
     navigate("/notary/add-party");
   };
   return (
@@ -61,9 +65,9 @@ const [fullscreenPreview, setFullscreenPreview] = useState<{ url: string, type: 
         <div className="flex flex-col gap-2">
           <span className="text-text-sub">{t("notary.create_steps.parties_count", { count: parties.length })}</span>
           <div className="flex flex-col gap-2">
-            {parties.map((p, idx) => (
+            {parties.map((p) => (
               <div 
-                key={p.id || idx} 
+                key={p.id}
                 className="flex items-center justify-between bg-input-bg p-2 rounded-lg cursor-pointer active:scale-[0.98] transition-transform"
                 onClick={() => handlePreviewParty(p)}
               >
@@ -89,9 +93,9 @@ const [fullscreenPreview, setFullscreenPreview] = useState<{ url: string, type: 
             <div className="flex flex-col gap-2">
               <span className="text-text-sub">{t("notary.create_steps.supporting_docs_count", { count: attachments.length })}</span>
               <div className="flex flex-col gap-2">
-                {attachments.map((file, idx) => (
+                {attachments.map((file) => (
                   <div 
-                    key={file.id || idx} 
+                    key={file.id}
                     className="flex items-center gap-3 p-2 rounded-xl bg-input-bg border border-border-color cursor-pointer active:scale-[0.98]"
                     onClick={() => file.type !== "file" && setFullscreenPreview({ url: file.previewUrl, type: file.type })}
                   >
@@ -99,9 +103,8 @@ const [fullscreenPreview, setFullscreenPreview] = useState<{ url: string, type: 
                       {file.type === 'image' ? (
                         <img src={file.previewUrl} alt={file.name} className="w-full h-full object-cover" />
                       ) : file.type === "video" ? (
-                        <div className="w-full h-full flex items-center justify-center relative">
-                          <video src={file.previewUrl} className="w-full h-full object-cover absolute inset-0 opacity-40 pointer-events-none" />
-                          <PlayCircle className="w-6 h-6 text-black/50 dark:text-white/50 z-10" />
+                        <div className="w-full h-full flex items-center justify-center">
+                          <PlayCircle className="w-6 h-6 text-text-sub" />
                         </div>
                       ) : (
                         <div className="flex h-full w-full items-center justify-center">
