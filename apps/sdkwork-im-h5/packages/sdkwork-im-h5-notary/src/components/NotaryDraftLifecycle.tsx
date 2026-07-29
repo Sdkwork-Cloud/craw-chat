@@ -13,6 +13,12 @@ export function NotaryDraftLifecycle() {
   const { pathname } = useLocation();
 
   useEffect(() => {
+    if (pathname !== "/notary/add-party") {
+      notaryDraftSession.closePartyEditor();
+    }
+    if (pathname !== "/notary/search") {
+      notaryDraftSession.closeNotarySelection();
+    }
     if (!NOTARY_DRAFT_PATHS.has(pathname)) {
       notaryDraftSession.reset();
     }

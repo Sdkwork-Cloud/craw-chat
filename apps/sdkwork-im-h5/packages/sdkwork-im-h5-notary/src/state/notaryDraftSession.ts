@@ -25,7 +25,7 @@ export type NotaryPartyEditor =
   | { mode: "add" }
   | { mode: "edit" | "readonly"; partyId: string };
 
-interface NotaryDraftSessionDependencies {
+export interface NotaryDraftSessionDependencies {
   createId: () => string;
   revokeObjectUrl: (url: string) => void;
 }
@@ -49,7 +49,10 @@ export class NotaryDraftSession {
   getDraft(): NotaryDraftState {
     return {
       ...this.draft,
-      parties: [...this.draft.parties],
+      selectedNotaryObj: this.draft.selectedNotaryObj
+        ? { ...this.draft.selectedNotaryObj }
+        : null,
+      parties: this.draft.parties.map((party) => ({ ...party })),
       attachments: [...this.draft.attachments],
     };
   }
@@ -57,7 +60,10 @@ export class NotaryDraftSession {
   replaceDraft(draft: NotaryDraftState): void {
     this.draft = {
       ...draft,
-      parties: [...draft.parties],
+      selectedNotaryObj: draft.selectedNotaryObj
+        ? { ...draft.selectedNotaryObj }
+        : null,
+      parties: draft.parties.map((party) => ({ ...party })),
       attachments: [...draft.attachments],
     };
   }
@@ -79,7 +85,9 @@ export class NotaryDraftSession {
     const party = this.draft.parties.find(
       (candidate) => candidate.id === this.partyEditor?.partyId,
     );
-    return party ? { mode: this.partyEditor.mode, party } : null;
+    return party
+      ? { mode: this.partyEditor.mode, party: { ...party } }
+      : null;
   }
 
   closePartyEditor(): void {
@@ -90,7 +98,7 @@ export class NotaryDraftSession {
     if (this.draft.parties.some((candidate) => candidate.id === party.id)) {
       throw new TypeError(`Duplicate notary party id: ${party.id}`);
     }
-    this.draft.parties = [...this.draft.parties, party];
+    this.draft.parties = [...this.draft.parties, { ...party }];
   }
 
   updateParty(party: NotaryDraftPartyWithId): void {
@@ -101,7 +109,7 @@ export class NotaryDraftSession {
       throw new TypeError(`Unknown notary party id: ${party.id}`);
     }
     this.draft.parties = this.draft.parties.map((candidate) =>
-      candidate.id === party.id ? party : candidate,
+      candidate.id === party.id ? { ...party } : candidate,
     );
   }
 
@@ -118,7 +126,7 @@ export class NotaryDraftSession {
       throw new TypeError("Notary selection is not active");
     }
     this.draft.selectedNotary = staff.id;
-    this.draft.selectedNotaryObj = staff;
+    this.draft.selectedNotaryObj = { ...staff };
     this.notarySelectionOpen = false;
   }
 
@@ -127,10 +135,13 @@ export class NotaryDraftSession {
   }
 
   reset(): void {
-    for (const attachment of this.draft.attachments) {
-      if (attachment.previewUrl) {
-        this.dependencies.revokeObjectUrl(attachment.previewUrl);
-      }
+    const previewUrls = new Set(
+      this.draft.attachments
+        .map((attachment) => attachment.previewUrl)
+        .filter((url): url is string => Boolean(url)),
+    );
+    for (const previewUrl of previewUrls) {
+      this.dependencies.revokeObjectUrl(previewUrl);
     }
     this.partyEditor = null;
     this.notarySelectionOpen = false;
