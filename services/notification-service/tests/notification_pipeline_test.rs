@@ -1,10 +1,10 @@
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 
+use conversation_runtime::conversation_state::ConversationStateService;
 use im_app_context::AppContext;
 use im_domain_events::{AggregateType, CommitEnvelope};
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
-use conversation_runtime::conversation_state::ConversationStateService;
 
 #[derive(Clone, Default)]
 struct RecordingJournal {
@@ -525,7 +525,8 @@ fn test_request_message_posted_notifications_resolves_current_active_recipients_
 }
 
 #[test]
-fn test_request_message_posted_notifications_includes_shared_linked_recipients_from_conversation_state() {
+fn test_request_message_posted_notifications_includes_shared_linked_recipients_from_conversation_state()
+ {
     let journal = Arc::new(RecordingJournal::default());
     let conversation_state_service = Arc::new(ConversationStateService::default());
     let runtime = notification_service::NotificationRuntime::with_journal_and_conversation_state(

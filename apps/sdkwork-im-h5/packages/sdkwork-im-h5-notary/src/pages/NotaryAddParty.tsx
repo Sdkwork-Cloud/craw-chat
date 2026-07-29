@@ -1,21 +1,29 @@
-﻿import React, { useState, useRef, useEffect } from "react";
+﻿import React, { useState } from "react";
 import { useNavigate } from "react-router";
-import { ChevronLeft, X, Video, PenTool } from "lucide-react";
-import { IconButton, cn, showToast, ActionSheet } from "@sdkwork/im-h5-commons";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { IconButton, cn, showToast } from "@sdkwork/im-h5-commons";
 import { NotaryFullPageEditor } from "../components/NotaryFullPageEditor";
 import { NotaryBottomPicker } from "../components/NotaryBottomPicker";
-import { IdentityVerificationSection } from "../components/IdentityVerificationSection";
 import { BasicInfoSection } from "../components/BasicInfoSection";
-import { AccessoriesRemarksSection } from "../components/AccessoriesRemarksSection";
-import { NotaryFullscreenImageOverlay } from "../components/NotaryFullscreenImageOverlay";
 import { NotaryPartyBottomBar } from "../components/NotaryPartyBottomBar";
 import { useTranslation } from "react-i18next";
+import { uuid } from "@sdkwork/utils";
+import type { NotaryDraftParty } from "../services/notaryService";
 
-export const NotaryPartyParams = {
-  editData: null as any,
+export interface NotaryDraftPartyWithId extends NotaryDraftParty {
+  id: string;
+}
+
+export const NotaryPartyParams: {
+  editData: NotaryDraftPartyWithId | null;
+  isReadonly: boolean;
+  onAdd: (party: NotaryDraftPartyWithId) => void;
+  onEdit: (party: NotaryDraftPartyWithId) => void;
+} = {
+  editData: null,
   isReadonly: false,
-  onAdd: (party: any) => {},
-  onEdit: (party: any) => {},
+  onAdd: () => undefined,
+  onEdit: () => undefined,
 };
 
 export const NotaryAddParty: React.FC = () => {
@@ -51,13 +59,6 @@ const navigate = useNavigate();
     };
   });
 
-  const [faceScore, setFaceScore] = useState<number | null>(() => {
-    if (NotaryPartyParams.editData?.faceScore) {
-      return parseFloat(NotaryPartyParams.editData.faceScore);
-    }
-    return null;
-  });
-  const [isScanning, setIsScanning] = useState(false);
   const [pickerType, setPickerType] = useState<
     "gender" | "dob" | "idStartDate" | "idEndDate" | null
   >(null);
@@ -72,117 +73,7 @@ const navigate = useNavigate();
     inputType?: string;
   } | null>(null);
 
-  const idFrontRef = useRef<HTMLInputElement>(null);
-  const idBackRef = useRef<HTMLInputElement>(null);
-  const attachmentRef = useRef<HTMLInputElement>(null);
-  const faceRef = useRef<HTMLInputElement>(null);
-
-  const [idFrontPreview, setIdFrontPreview] = useState<string | null>(
-    NotaryPartyParams.editData?.idFrontPreview || null,
-  );
-  const [idBackPreview, setIdBackPreview] = useState<string | null>(
-    NotaryPartyParams.editData?.idBackPreview || null,
-  );
-  const [facePreview, setFacePreview] = useState<string | null>(
-    NotaryPartyParams.editData?.facePreview || null,
-  );
-  const [attachments, setAttachments] = useState<
-    { name: string; url: string }[]
-  >(NotaryPartyParams.editData?.attachments || []);
-  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
-  const [showVideoActionSheet, setShowVideoActionSheet] = useState(false);
-
-  const videoOptions = [
-    {
-      label: t("notary.add_party.call_now"),
-      onClick: () => {
-        setShowVideoActionSheet(false);
-        navigate(`/call/video-notary/${NotaryPartyParams.editData?.id || 'party'}`);
-      }
-    },
-    {
-      label: t("notary.add_party.video_qr"),
-      onClick: () => {
-        setShowVideoActionSheet(false);
-        navigate(`/notary/party-video-qr/${NotaryPartyParams.editData?.id || 'party'}`); 
-      }
-    }
-  ];
-
-  // Cleanup object URLs on unmount
-  useEffect(() => {
-    return () => {};
-  }, []);
-
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    setter: React.Dispatch<React.SetStateAction<string | null>>,
-    existingUrl: string | null,
-    side?: "front" | "back",
-  ) => {
-  if (NotaryPartyParams.isReadonly) return;
-    const file = e.target.files?.[0];
-    if (file) {
-      setter(URL.createObjectURL(file));
-
-      showToast(t("notary.add_party.recognizing"));
-      setTimeout(() => {
-        if (side === "front") {
-          setFormData((prev) => ({
-            ...prev,
-            name: "李小明",
-            idCard: "11010519900101234X",
-            gender: "男",
-            dob: "1990-01-01",
-            address: "北京市朝阳区建国路88号",
-          }));
-          showToast(t("notary.add_party.front_success"));
-        } else if (side === "back") {
-          setFormData((prev) => ({
-            ...prev,
-            idStartDate: "2020-01-01",
-            idEndDate: "2040-01-01",
-          }));
-          showToast(t("notary.add_party.back_success"));
-        }
-      }, 1000);
-    }
-  };
-
-  const handleAttachmentsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  if (NotaryPartyParams.isReadonly) return;
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      const newAttachments = Array.from(files).map((file: File) => ({
-        name: file.name,
-        url: URL.createObjectURL(file), // Will generate preview if it's an image
-      }));
-      setAttachments((prev) => [...prev, ...newAttachments]);
-    }
-  };
-
-  const handleFaceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  if (NotaryPartyParams.isReadonly) return;
-    const file = e.target.files?.[0];
-    if (file) {
-      setFacePreview(URL.createObjectURL(file));
-      setFaceScore(null);
-    }
-  };
-
-  const handleStartComparison = () => {
-  if (NotaryPartyParams.isReadonly || !facePreview) return;
-    setIsScanning(true);
-    setTimeout(() => {
-      setFaceScore(98.5);
-      setIsScanning(false);
-    }, 1500);
-  };
-
   const handleSave = () => {
-  if (!idFrontPreview) return showToast(t("notary.add_party.err_front"));
-    if (!idBackPreview) return showToast(t("notary.add_party.err_back"));
-    if (!facePreview) return showToast(t("notary.add_party.err_face"));
     if (!formData.name || formData.name.trim().length < 2)
       return showToast(t("notary.add_party.err_name"));
     if (
@@ -199,7 +90,7 @@ const navigate = useNavigate();
     const partyData = {
       id: NotaryPartyParams.editData
         ? NotaryPartyParams.editData.id
-        : Date.now().toString(),
+        : uuid(),
       name: formData.name,
       idCard: formData.idCard,
       gender: formData.gender,
@@ -209,12 +100,6 @@ const navigate = useNavigate();
       phone: formData.phone,
       address: formData.address,
       remarks: formData.remarks,
-      faceScore: faceScore ? faceScore.toFixed(2) : null,
-      attachmentsCount: attachments.length,
-      attachments: attachments,
-      idFrontPreview,
-      idBackPreview,
-      facePreview,
     };
 
     if (NotaryPartyParams.editData && NotaryPartyParams.onEdit) {
@@ -222,7 +107,7 @@ const navigate = useNavigate();
       navigate(-1);
     } else if (NotaryPartyParams.onAdd) {
       NotaryPartyParams.onAdd(partyData);
-      navigate(`/notary/party-signature/${partyData.id}`, { replace: true });
+      navigate(-1);
     }
   };
 
@@ -244,46 +129,11 @@ const navigate = useNavigate();
           {NotaryPartyParams.isReadonly ? t("notary.add_party.detail") : (NotaryPartyParams.editData ? t("notary.add_party.edit") : t("notary.add_party.add"))}
         </div>
         <div className="flex justify-end items-center gap-3 z-10 flex-1 pr-4">
-          {NotaryPartyParams.isReadonly && (
-            <>
-              <div 
-                className="flex items-center gap-1 text-text-sub cursor-pointer active:opacity-70"
-                onClick={() => navigate(`/notary/party-signature/${NotaryPartyParams.editData?.id || 'party'}`)}
-              >
-                 <PenTool className="w-5 h-5" />
-              </div>
-              <Video
-                className="w-6 h-6 text-primary-blue cursor-pointer"
-                onClick={() => setShowVideoActionSheet(true)}
-              />
-            </>
-          )}
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto pb-24 relative z-0">
         <div className="flex flex-col gap-2">
-          {/* Section 1: Identity Verification */}
-          <IdentityVerificationSection
-            idFrontRef={idFrontRef}
-            idBackRef={idBackRef}
-            faceRef={faceRef}
-            idFrontPreview={idFrontPreview}
-            idBackPreview={idBackPreview}
-            facePreview={facePreview}
-            faceScore={faceScore}
-            isScanning={isScanning}
-            setIdFrontPreview={setIdFrontPreview}
-            setIdBackPreview={setIdBackPreview}
-            setFacePreview={setFacePreview}
-            setFaceScore={setFaceScore}
-            setFullscreenImage={setFullscreenImage}
-            handleFileChange={handleFileChange}
-            handleFaceChange={handleFaceChange}
-            handleStartComparison={handleStartComparison}
-          />
-
-          {/* Section 2: Basic Info (Cell Layout) */}
           <div className={cn(NotaryPartyParams.isReadonly && "pointer-events-none cursor-default")}>
             <BasicInfoSection
               formData={formData}
@@ -293,17 +143,25 @@ const navigate = useNavigate();
             />
           </div>
 
-          {/* Section 3: Accessories & Remarks */}
-          <div className={cn(NotaryPartyParams.isReadonly && "pointer-events-none cursor-default")}>
-            <AccessoriesRemarksSection
-              formData={formData}
-              attachments={attachments}
-              setFullPageEditor={setFullPageEditor}
-              setAttachments={setAttachments}
-              attachmentRef={attachmentRef}
-              handleAttachmentsChange={handleAttachmentsChange}
-            />
-          </div>
+          <button
+            type="button"
+            className="flex min-h-[54px] items-center border-b border-border-color bg-bg-color px-4 text-left"
+            onClick={() => setFullPageEditor({
+              field: "remarks",
+              title: t("notary.extra_info.remarks"),
+              placeholder: t("notary.extra_info.remarks_placeholder"),
+              value: formData.remarks,
+              isTextArea: true,
+            })}
+          >
+            <span className="w-[100px] shrink-0 text-[15px] text-text-main">
+              {t("notary.extra_info.remarks")}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-right text-[15px] text-text-sub">
+              {formData.remarks || t("notary.extra_info.no_remarks")}
+            </span>
+            <ChevronRight className="ml-1 h-5 w-5 shrink-0 text-text-sub" />
+          </button>
         </div>
       </div>
 
@@ -312,12 +170,6 @@ const navigate = useNavigate();
         isReadonly={NotaryPartyParams.isReadonly}
         onBack={() => navigate(-1)}
         onSave={handleSave}
-      />
-
-      {/* Fullscreen Image Preview Overlay */}
-      <NotaryFullscreenImageOverlay
-        imageUrl={fullscreenImage}
-        onClose={() => setFullscreenImage(null)}
       />
 
       {/* Full Page Editor Overlay */}
@@ -351,13 +203,6 @@ const navigate = useNavigate();
         setPickerType={setPickerType}
       />
 
-      {/* Video Call Action Sheet */}
-      <ActionSheet 
-        isOpen={showVideoActionSheet}
-        options={videoOptions}
-        onClose={() => setShowVideoActionSheet(false)}
-        title={t("notary.add_party.video_call")}
-      />
     </div>
   );
 };

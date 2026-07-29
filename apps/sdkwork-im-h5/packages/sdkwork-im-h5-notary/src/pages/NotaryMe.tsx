@@ -1,146 +1,111 @@
-import React, { useState, useEffect } from "react";
-import {
-  ShieldCheck,
-  ChevronRight,
-  FileCheck,
-  Award,
-  PenLine,
-  MessageSquareText,
-  CalendarDays,
-  PieChart,
-  CreditCard,
-  LayoutTemplate,
-  ChevronLeft,
-} from "lucide-react";
-import { useNavigate } from "react-router";
-import { IconButton } from "@sdkwork/im-h5-commons";
-import { notaryService } from "../services/notaryService";
+import React, { useEffect, useState } from "react";
+import { AlertCircle, Loader2, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import {
+  notaryService,
+  type NotaryAccessSummary,
+} from "../services/notaryService";
 
 export const NotaryMe: React.FC = () => {
   const { t } = useTranslation();
-
-  
-const navigate = useNavigate();
-  
-  const [roles, setRoles] = useState<any[]>([]);
+  const [access, setAccess] = useState<NotaryAccessSummary | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    notaryService.getNotaryRoles().then((data) => setRoles(data as any[]));
+    let active = true;
+    void notaryService.getAccess().then(
+      (value) => {
+        if (active) {
+          setAccess(value);
+        }
+      },
+      () => {
+        if (active) {
+          setError(true);
+        }
+      },
+    );
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const Cell = ({
-    icon: Icon,
-    label,
-    colorClass = "text-text-main",
-    onClick,
-  }: any) => {
-  const { t } = useTranslation();
-  return (
-    <div
-      className="flex items-center gap-3 px-4 py-4 bg-bg-color active:bg-active-bg transition-colors cursor-pointer"
-      onClick={onClick}
-    >
-      <Icon className={`w-6 h-6 ${colorClass}`} />
-      <span className="text-[16px] text-text-main font-medium flex-1">
-        {label}
-      </span>
-      <ChevronRight className="w-5 h-5 text-text-sub opacity-50" />
-    </div>
-  );
-};
-
-
-  return (
-    <div className="flex flex-col h-full bg-[#f2f2f2] dark:bg-[#121212]">
-      <header className="h-[56px] flex items-center justify-between px-1 glass-header shrink-0 pt-safe relative"></header>
-
-      <div className="flex-1 overflow-y-auto pb-[90px]">
-        {/* User Info Cell */}
-        <div className="bg-bg-color p-6 flex items-center gap-5 mb-2 pt-8 pb-8 border-b border-border-color/50 relative">
-          <div className="w-[72px] h-[72px] rounded-2xl bg-chat-other-bg overflow-hidden border border-border-color/50 shrink-0 shadow-sm relative">
-            <img
-              src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/notaryUser/200x200.png"
-              alt="avatar"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="flex flex-col flex-1 min-w-0">
-            <div className="flex items-center gap-2 min-w-0 mb-1">
-              <h2 className="text-[22px] font-bold text-text-main truncate shrink">{t('notary.auto_177dc26', '张雨绮')}</h2>
-              <div className="bg-primary-blue/10 px-1.5 py-0.5 rounded text-[10px] font-bold text-primary-blue flex items-center gap-0.5 shrink-0 whitespace-nowrap ml-1">
-                <ShieldCheck className="w-[10px] h-[10px] shrink-0" /> {t('notary.me.real_name_verified')}
-              </div>
-            </div>
-
-            {/* Roles Display */}
-            <div className="flex flex-wrap items-center gap-1.5 mt-1.5 mb-1.5">
-              {roles.map((role, idx) => (
-                <div
-                  key={idx}
-                  className={`px-2 py-[2px] rounded-md text-[11px] font-bold flex items-center ${role.color}`}
-                >
-                  {role.name}
-                </div>
-              ))}
-            </div>
-
-            <p className="text-[13px] text-text-sub mt-0.5 truncate">{t('notary.auto_200594f7', '执业编号: NOTARY-2026-A01L')}</p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-text-sub absolute right-4 top-1/2 -translate-y-1/2" />
-        </div>
-
-        {/* Modules */}
-        <div className="bg-bg-color mb-2 border-y border-border-color/50">
-          <Cell
-            icon={FileCheck}
-            label={t('notary.me.digital_cert')}
-            colorClass="text-blue-500"
-          />
-          <div className="h-[1px] bg-border-color/50 ml-14" />
-          <Cell icon={Award} label={t('notary.me.e_seal_management')} colorClass="text-red-500" />
-          <div className="h-[1px] bg-border-color/50 ml-14" />
-          <Cell
-            icon={PenLine}
-            label={t('notary.me.signature_fingerprint')}
-            colorClass="text-indigo-500"
-          />
-        </div>
-
-        <div className="bg-bg-color mb-2 border-y border-border-color/50">
-          <Cell
-            icon={LayoutTemplate}
-            label={t('notary.me.notary_template_lib')}
-            colorClass="text-orange-500"
-          />
-          <div className="h-[1px] bg-border-color/50 ml-14" />
-          <Cell
-            icon={MessageSquareText}
-            label={t('notary.me.inquiry_script_lib')}
-            colorClass="text-green-500"
-          />
-        </div>
-
-        <div className="bg-bg-color mb-2 border-y border-border-color/50">
-          <Cell
-            icon={CalendarDays}
-            label={t('notary.me.appointment_mgmt')}
-            colorClass="text-purple-500"
-          />
-          <div className="h-[1px] bg-border-color/50 ml-14" />
-          <Cell
-            icon={PieChart}
-            label={t('notary.me.performance_stats')}
-            colorClass="text-cyan-500"
-          />
-          <div className="h-[1px] bg-border-color/50 ml-14" />
-          <Cell
-            icon={CreditCard}
-            label={t('notary.me.fee_records')}
-            colorClass="text-yellow-500"
-          />
-        </div>
+  if (error) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 bg-bg-color px-8 text-center">
+        <AlertCircle className="h-10 w-10 text-text-sub" />
+        <p className="text-[14px] text-text-sub">
+          {t("notary.me.access_unavailable", "Unable to load notary access")}
+        </p>
       </div>
+    );
+  }
+
+  if (!access) {
+    return (
+      <div className="flex h-full items-center justify-center bg-bg-color">
+        <Loader2 className="h-6 w-6 animate-spin text-text-sub" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col bg-[#f2f2f2] dark:bg-[#121212]">
+      <header className="glass-header h-[56px] shrink-0 pt-safe" />
+      <main className="flex-1 overflow-y-auto pb-[90px]">
+        <section className="border-b border-border-color/50 bg-bg-color p-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-primary-blue/10 text-primary-blue">
+              <ShieldCheck className="h-7 w-7" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-[18px] font-bold text-text-main">
+                {t("notary.me.member", "Notary member")}
+              </h1>
+              <p className="truncate font-mono text-[12px] text-text-sub">
+                {access.memberId}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {access.roles.map((role) => (
+              <span
+                key={role}
+                className="rounded-md border border-border-color bg-input-bg px-2 py-1 text-[12px] text-text-main"
+              >
+                {role}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-2 divide-y divide-border-color/50 border-y border-border-color/50 bg-bg-color">
+          <AccessRow
+            label={t("notary.me.organization_verified", "Organization verified")}
+            enabled={access.organizationVerified}
+          />
+          <AccessRow
+            label={t("notary.me.business_enabled", "Notary business enabled")}
+            enabled={access.businessEnabled}
+          />
+          <AccessRow
+            label={t("notary.me.visible", "Notary workspace visible")}
+            enabled={access.visible}
+          />
+        </section>
+        {access.reason && (
+          <p className="px-5 py-4 text-[13px] text-text-sub">{access.reason}</p>
+        )}
+      </main>
     </div>
   );
 };
+
+const AccessRow: React.FC<{ label: string; enabled: boolean }> = ({ label, enabled }) => (
+  <div className="flex min-h-12 items-center justify-between px-4 py-3">
+    <span className="text-[14px] text-text-main">{label}</span>
+    <span className={enabled ? "text-green-600" : "text-text-sub"}>
+      {enabled ? "Enabled" : "Unavailable"}
+    </span>
+  </div>
+);

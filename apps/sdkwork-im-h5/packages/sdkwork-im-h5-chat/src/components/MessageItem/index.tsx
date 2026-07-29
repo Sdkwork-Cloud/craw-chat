@@ -67,14 +67,16 @@ return (
     >
       {!isMe && !hideAvatar && !msg.senderId.startsWith("agent_") && (
         <Avatar
-          src={sender?.avatar || "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/default/200x200.png"}
+          src={sender?.avatar}
+          fallback={sender?.name}
           size="md"
           className="mr-3 shrink-0 rounded-md"
         />
       )}
       {!isMe && !hideAvatar && msg.senderId.startsWith("agent_") && (
         <Avatar
-          src={sender?.avatar || "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/default/200x200.png"}
+          src={sender?.avatar}
+          fallback={sender?.name}
           size="md"
           className="mr-3 shrink-0 rounded-full"
         />

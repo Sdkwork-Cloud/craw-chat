@@ -68,11 +68,8 @@
     "providedPorts": [],
     "requiredPorts": [],
     "runtimeEntrypoints": [
-      "build_api_router",
-      "gateway_mount",
-      "gateway_route_manifest",
-      "route_manifest",
-      "wrap_router"
+      "build_public_app",
+      "gateway_mount"
     ],
     "routeManifest": "src/manifest.rs",
     "sdkClients": [],

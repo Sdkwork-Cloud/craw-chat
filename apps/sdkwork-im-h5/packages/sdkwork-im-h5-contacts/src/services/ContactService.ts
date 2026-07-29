@@ -1,170 +1,192 @@
+import { getImSdkClient } from "@sdkwork/im-h5-core";
 import type { User } from "@sdkwork/im-h5-types";
+import type {
+  ContactsResponse,
+  CreateConversationRequest,
+  CreateConversationResult,
+  SocialFriendRequestMutationResponse,
+  SocialUserSearchResponse,
+} from "@sdkwork/im-sdk";
+import { MAX_LIST_PAGE_SIZE, uuid } from "@sdkwork/utils";
 
-const INITIAL_CONTACTS: User[] = [
-  {
-    id: "u1",
-    name: "Alex Chen",
-    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/alex/200x200.png",
-    status: "online",
-  },
-  {
-    id: "u2",
-    name: "Sarah Jenkins",
-    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/sarah/200x200.png",
-    status: "online",
-  },
-  {
-    id: "u3",
-    name: "David Lee",
-    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/david/200x200.png",
-  },
-  {
-    id: "u4",
-    name: "Emily Chen",
-    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/emily/200x200.png",
-  },
-  {
-    id: "u5",
-    name: "Michael Brown",
-    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/michael/200x200.png",
-  },
-  {
-    id: "u6",
-    name: "Alice Wong",
-    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/a1/200x200.png",
-  },
-  {
-    id: "u7",
-    name: "Bob Lee",
-    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/b1/200x200.png",
-  },
-  {
-    id: "u8",
-    name: "Charlie",
-    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c1/200x200.png",
-  },
-  { id: "u9", name: "Cindy", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/c2/200x200.png" },
-  {
-    id: "u10",
-    name: "David Tao",
-    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/d1/200x200.png",
-  },
-  { id: "u11", name: "Frank", avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/f1/200x200.png" },
-];
+const CONTACT_PAGE_SIZE = Math.min(50, MAX_LIST_PAGE_SIZE);
+const USER_SEARCH_PAGE_SIZE = Math.min(20, MAX_LIST_PAGE_SIZE);
 
-const STORAGE_KEY = "sdkwork_im_h5_contacts";
-
-export let MOCK_CONTACTS: User[] = [];
-
-const loadContacts = () => {
-  if (MOCK_CONTACTS.length > 0) return MOCK_CONTACTS;
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      MOCK_CONTACTS = JSON.parse(data);
-    } else {
-      MOCK_CONTACTS = [...INITIAL_CONTACTS];
-      saveContacts();
-    }
-  } catch (e) {
-    MOCK_CONTACTS = [...INITIAL_CONTACTS];
-  }
-  return MOCK_CONTACTS;
-};
-
-const saveContacts = () => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_CONTACTS));
-  } catch (e) {
-    console.error("Failed to save contacts data", e);
-  }
-};
-
-export interface Contact {
-  id: string;
-  name: string;
+export interface Contact extends User {
   avatar: string;
-  phone?: string;
-  desc?: string;
+  conversationId?: string;
+  friendshipId?: string;
+  relationshipState?: string;
 }
 
-export const ContactService = {
-  async getContactsDict(): Promise<Record<string, Contact[]>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const contacts = loadContacts().filter(
-          (u) => u.id !== "u1" && !u.id.startsWith("agent_"),
-        );
-        const dict: Record<string, Contact[]> = {};
+export interface ContactSearchResult extends User {
+  chatId: string;
+  email?: string;
+  phone?: string;
+  relationshipState: string;
+}
 
-        contacts.forEach((c) => {
-          const firstChar = (c.name || "#").charAt(0).toUpperCase();
-          const letter = /[A-Z]/.test(firstChar) ? firstChar : "#";
-          if (!dict[letter]) dict[letter] = [];
-          dict[letter].push({
-            id: c.id,
-            name: c.name,
-            avatar: c.avatar || "",
-            status: c.status,
-          } as Contact);
-        });
+export interface ContactPage {
+  items: Contact[];
+  hasMore: boolean;
+  nextCursor?: string;
+}
 
-        // Sort keys
-        const sortedDict: Record<string, Contact[]> = {};
-        Object.keys(dict)
-          .sort()
-          .forEach((key) => {
-            sortedDict[key] = dict[key].sort((a, b) =>
-              a.name.localeCompare(b.name),
-            );
-          });
-
-        resolve(sortedDict);
-      }, 300);
-    });
-  },
-
-  async getContacts(): Promise<User[]> {
-    return loadContacts().filter(
-      (u) => u.id !== "u1" && !u.id.startsWith("agent_"),
-    );
-  },
-
-  async searchContacts(query: string): Promise<User[]> {
-    if (!query.trim()) return [];
-    const lowerQuery = query.toLowerCase();
-    const contacts = await this.getContacts();
-    return contacts.filter((c) => c.name.toLowerCase().includes(lowerQuery));
-  },
-
-  async addFriend(query: string): Promise<User> {
-    loadContacts();
-    const newUser: User = {
-      id: `u${Date.now()}`,
-      name: query,
-      avatar: `https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/${query}/200.png`,
-      status: "online",
+export interface ContactsSdkPort {
+  conversations: {
+    create(body: CreateConversationRequest): Promise<CreateConversationResult>;
+  };
+  social: {
+    contacts: {
+      list(params?: { cursor?: string; pageSize?: number; q?: string }): Promise<ContactsResponse>;
     };
-    MOCK_CONTACTS = [...MOCK_CONTACTS, newUser];
-    saveContacts();
-    return newUser;
-  },
+    users: {
+      list(params?: { cursor?: string; pageSize?: number; q?: string }): Promise<SocialUserSearchResponse>;
+    };
+    friendRequests: {
+      create(body: {
+        requestMessage?: string;
+        targetUserId: string;
+      }): Promise<SocialFriendRequestMutationResponse>;
+    };
+  };
+}
 
-  async createDirectChat(user: User): Promise<any> {
-    const { ChatService } = await import("@sdkwork/im-h5-chat");
-    return ChatService.createDirectChat(user);
-  },
-
-  async searchFriend(query: string): Promise<User | null> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          id: `u_${Date.now()}`,
-          name: query,
-          avatar: `https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/${query}/200.png`,
-          status: "online",
-        });
-      }, 500);
+export function createContactService(
+  resolveClient: () => ContactsSdkPort = getImSdkClient,
+) {
+  const listContactPage = async (
+    cursor?: string,
+    q?: string,
+  ): Promise<ContactPage> => {
+    const response = await resolveClient().social.contacts.list({
+      pageSize: CONTACT_PAGE_SIZE,
+      ...(cursor ? { cursor } : {}),
+      ...(q ? { q } : {}),
     });
-  },
-};
+    assertCursorPage(response.pageInfo, "IM contacts");
+    return {
+      items: response.items.map((item) => ({
+        id: item.targetUserId,
+        name: item.remark?.trim() || item.displayName?.trim() || item.targetUserId,
+        avatar: item.avatarUrl ?? "",
+        conversationId: item.conversationId ?? item.directChatId ?? item.chatId ?? undefined,
+        friendshipId: item.friendshipId,
+        relationshipState: item.relationshipState,
+      })),
+      hasMore: response.pageInfo.hasMore === true,
+      ...(response.pageInfo.nextCursor ? { nextCursor: response.pageInfo.nextCursor } : {}),
+    };
+  };
+
+  const searchFriends = async (query: string): Promise<ContactSearchResult[]> => {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      return [];
+    }
+    const response = await resolveClient().social.users.list({
+      pageSize: USER_SEARCH_PAGE_SIZE,
+      q: normalizedQuery,
+    });
+    assertCursorPage(response.pageInfo, "IM social user search");
+    return response.items.map((item) => ({
+      id: item.userId,
+      name: item.displayName,
+      avatar: item.avatarUrl ?? undefined,
+      chatId: item.chatId,
+      email: item.email ?? undefined,
+      phone: item.phone ?? undefined,
+      relationshipState: item.relationshipState,
+    }));
+  };
+
+  return {
+    listContactPage,
+
+    async getContactsDict(): Promise<Record<string, Contact[]>> {
+      const page = await listContactPage();
+      return groupContacts(page.items);
+    },
+
+    async getContacts(): Promise<User[]> {
+      const page = await listContactPage();
+      return page.items;
+    },
+
+    async searchContacts(query: string): Promise<User[]> {
+      const normalizedQuery = query.trim();
+      if (!normalizedQuery) {
+        return [];
+      }
+      const page = await listContactPage(undefined, normalizedQuery);
+      return page.items;
+    },
+
+    searchFriends,
+
+    async searchFriend(query: string): Promise<ContactSearchResult | null> {
+      const results = await searchFriends(query);
+      return results.length === 1 ? results[0] : null;
+    },
+
+    async addFriend(
+      targetUserId: string,
+      requestMessage?: string,
+    ): Promise<SocialFriendRequestMutationResponse> {
+      const normalizedTargetUserId = targetUserId.trim();
+      if (!normalizedTargetUserId) {
+        throw new Error("A target user ID is required.");
+      }
+      return resolveClient().social.friendRequests.create({
+        targetUserId: normalizedTargetUserId,
+        ...(requestMessage?.trim() ? { requestMessage: requestMessage.trim() } : {}),
+      });
+    },
+
+    async startDirectConversation(targetUserId: string): Promise<string> {
+      const normalizedTargetUserId = targetUserId.trim();
+      if (!normalizedTargetUserId) {
+        throw new Error("A target user ID is required.");
+      }
+      const result = await resolveClient().conversations.create({
+        clientRequestKey: uuid(),
+        conversationType: "direct",
+        memberUserIds: [normalizedTargetUserId],
+      });
+      return result.conversationId;
+    },
+  };
+}
+
+function assertCursorPage(
+  pageInfo: { mode: string; hasMore?: boolean; nextCursor?: string | null },
+  resource: string,
+): void {
+  if (pageInfo.mode !== "cursor") {
+    throw new Error(`${resource} must use cursor pagination.`);
+  }
+  if (pageInfo.hasMore && !pageInfo.nextCursor) {
+    throw new Error(`${resource} returned hasMore without nextCursor.`);
+  }
+}
+
+function groupContacts(contacts: Contact[]): Record<string, Contact[]> {
+  const grouped = new Map<string, Contact[]>();
+  for (const contact of contacts) {
+    const firstCharacter = contact.name.charAt(0).toUpperCase();
+    const group = /^[A-Z]$/u.test(firstCharacter) ? firstCharacter : "#";
+    const items = grouped.get(group) ?? [];
+    items.push(contact);
+    grouped.set(group, items);
+  }
+
+  const result: Record<string, Contact[]> = {};
+  for (const group of Array.from(grouped.keys()).sort()) {
+    result[group] = (grouped.get(group) ?? []).sort((left, right) =>
+      left.name.localeCompare(right.name),
+    );
+  }
+  return result;
+}
+
+export const ContactService = createContactService();

@@ -1,5 +1,6 @@
 {
   "title": "AI Video Creator",
+  "unavailable": "AI video generation is unavailable until an owner SDK is composed.",
   "history": "History",
   "settings": {
     "model_selection": "Generation Model",

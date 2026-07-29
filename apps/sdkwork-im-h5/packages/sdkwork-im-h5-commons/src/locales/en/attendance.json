@@ -1,5 +1,6 @@
 {
   "title": "Attendance",
+  "unavailable": "Attendance is unavailable until its owner SDK is composed.",
   "location": "Tencent Binhai (Within range)",
   "status": {
     "done": "Already Punched",

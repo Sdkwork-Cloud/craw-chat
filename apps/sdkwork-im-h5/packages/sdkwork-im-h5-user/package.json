@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "@sdkwork/im-h5-user",
   "version": "0.0.0",
   "private": true,
@@ -10,5 +10,21 @@
       "import": "./src/index.ts",
       "types": "./src/index.ts"
     }
+  },
+  "dependencies": {
+    "@sdkwork/im-h5-channels": "workspace:*",
+    "@sdkwork/im-h5-commons": "workspace:*",
+    "@sdkwork/im-h5-contacts": "workspace:*",
+    "@sdkwork/im-h5-core": "workspace:*",
+    "@sdkwork/im-h5-types": "workspace:*",
+    "i18next": "catalog:",
+    "lucide-react": "catalog:",
+    "motion": "catalog:",
+    "react": "catalog:",
+    "react-i18next": "catalog:",
+    "react-router": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
   }
 }

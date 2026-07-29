@@ -20,7 +20,7 @@ mod tests;
 
 pub use app::{
     apply_public_http_guardrails, build_app, build_default_app, build_domain_api_router,
-    build_public_app,
+    build_public_app, build_public_app_from_api_router,
 };
 pub use bootstrap::{
     build_runtime_from_env, default_app_state, default_notification_runtime,

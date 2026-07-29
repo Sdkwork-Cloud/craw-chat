@@ -1,4 +1,5 @@
 {
+  "unavailable": "Knowledge Base is not available until the owner SDK and group-space authorization flow are composed.",
   "create_doc": "New Document",
   "doc_title": "Document Title",
   "content_placeholder": "Start typing your document...",

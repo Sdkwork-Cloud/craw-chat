@@ -17,7 +17,7 @@ mod openapi;
 
 pub use app::{
     apply_public_http_guardrails, build_app, build_business_router, build_default_app,
-    build_domain_api_router, build_public_app, default_app_state,
+    build_domain_api_router, build_public_app, build_public_app_from_api_router, default_app_state,
 };
 pub use dto::{
     ClusterNodeView, ClusterView, DiagnosticBundle, LagItem, LagView, OpsHealthResponse,

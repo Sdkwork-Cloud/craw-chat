@@ -33,7 +33,7 @@
     "_sdkwork:clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "start": "node dist/server.cjs",
     "lint": "node ../../scripts/dev/run-tsc-cli.mjs --noEmit -p tsconfig.json",
-    "test:workspace": "node --test"
+    "test:workspace": "pnpm exec tsx --test"
   },
   "dependencies": {
     "@sdkwork/auth-pc-react": "workspace:*",

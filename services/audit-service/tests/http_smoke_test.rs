@@ -7,6 +7,38 @@ use tower::ServiceExt;
 mod test_env;
 
 #[tokio::test]
+async fn test_route_composition_exports_required_infrastructure_endpoints() {
+    let _env = test_env::dev_test_environment();
+    let app = sdkwork_routes_im_audit_backend_api::build_public_app();
+
+    for path in ["/healthz", "/metrics", "/openapi.json", "/docs"] {
+        let response = app
+            .clone()
+            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await
+            .expect("infrastructure request should succeed");
+        assert_eq!(response.status(), StatusCode::OK, "endpoint {path}");
+    }
+
+    let readiness = app
+        .oneshot(
+            Request::builder()
+                .uri("/readyz")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("readiness request should succeed");
+    assert!(
+        matches!(
+            readiness.status(),
+            StatusCode::OK | StatusCode::SERVICE_UNAVAILABLE
+        ),
+        "readiness endpoint must report actual dependency state"
+    );
+}
+
+#[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
     let _env = test_env::dev_test_environment();
     let app = audit_service::build_public_app();

@@ -30,12 +30,12 @@ const OPS_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 
 pub fn default_app_state() -> AppState {
     AppState {
-        runtime: Arc::new(OpsRuntime::default()),
+        runtime: Arc::new(OpsRuntime::from_env()),
     }
 }
 
 pub fn build_default_app() -> Router {
-    build_app(Arc::new(OpsRuntime::default()))
+    build_app(Arc::new(OpsRuntime::from_env()))
 }
 
 pub fn build_domain_api_router(state: AppState) -> Router {
@@ -73,13 +73,18 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    mount_ops_infra_routes(apply_public_http_guardrails(build_business_router(
-        Arc::new(OpsRuntime::default()),
+    let runtime = Arc::new(OpsRuntime::from_env());
+    build_public_app_from_api_router(apply_public_http_guardrails(build_domain_api_router(
+        AppState { runtime },
     )))
 }
 
 pub fn build_app(runtime: Arc<OpsRuntime>) -> Router {
-    mount_ops_infra_routes(build_business_router(runtime))
+    build_public_app_from_api_router(build_domain_api_router(AppState { runtime }))
+}
+
+pub fn build_public_app_from_api_router(api_router: Router) -> Router {
+    mount_ops_infra_routes(build_service_router(api_router))
 }
 
 /// Mount IM infra routes with a custom `/metrics` handler that also renders
@@ -117,11 +122,14 @@ async fn ops_metrics_handler(http_metrics: Arc<HttpMetricsRegistry>) -> impl Int
 }
 
 pub fn build_business_router(runtime: Arc<OpsRuntime>) -> Router {
-    let state = AppState { runtime };
+    build_service_router(build_domain_api_router(AppState { runtime }))
+}
+
+fn build_service_router(api_router: Router) -> Router {
     Router::new()
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .merge(build_domain_api_router(state))
+        .merge(api_router)
 }
 
 async fn enforce_in_flight_gate(

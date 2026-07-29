@@ -1,4 +1,6 @@
 {
+  "capability_title": "用户服务",
+  "capability_unavailable": "该用户能力尚未接入权威 SDK 与授权模型，当前不可用。",
   "settings": {
     "account_security": "账号与安全",
     "message_notifications": "新消息通知",

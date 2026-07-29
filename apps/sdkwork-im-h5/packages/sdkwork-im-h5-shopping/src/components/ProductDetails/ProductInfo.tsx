@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import React from "react";
-import { Product } from "../../types";
+import type { Product } from "../../types";
 
 export const ProductInfo = ({
   product,
@@ -8,8 +8,8 @@ export const ProductInfo = ({
   displayOriginalPrice,
 }: {
   product: Product;
-  displayPrice?: number;
-  displayOriginalPrice?: number;
+  displayPrice?: string;
+  displayOriginalPrice?: string;
 }) => {
   const { t } = useTranslation();
 return (

@@ -1,4 +1,5 @@
 {
+  "unavailable": "招聘能力尚未接入权威 SDK 和权限模型，当前不可用。",
   "title": "招聘管理",
   "stats": {
     "ongoing": "进行中候选人",

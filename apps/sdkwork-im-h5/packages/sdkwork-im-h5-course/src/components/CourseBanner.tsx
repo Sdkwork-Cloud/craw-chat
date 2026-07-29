@@ -7,7 +7,6 @@ export const CourseBanner: React.FC = () => {
   return (
     <div className="p-4 bg-white dark:bg-[#1C1C1E]">
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white flex flex-col justify-end shadow-sm relative overflow-hidden h-[160px] cursor-pointer">
-        <div className="absolute inset-0 bg-[url('https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/cb/800x400.png')] opacity-40 mix-blend-overlay object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
         <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-medium border border-white/10">
           {t('course.auto_250d7220', '主打推荐')}

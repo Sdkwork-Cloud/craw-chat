@@ -1,4 +1,6 @@
 {
+  "title": "Channels",
+  "unavailable": "Channels are not available until the owner SDK and production data pipeline are composed.",
   "auto_prop_13319f": "首页",
   "auto_prop_a99ff": "发现",
   "auto_prop_185e9a3": "提示词",

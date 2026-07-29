@@ -5,6 +5,7 @@
 mod bootstrap;
 mod conversation_outbox_relay;
 mod generated;
+mod ops_realtime_wiring;
 mod outbox_relay_common;
 mod rtc_outbox_relay;
 mod social_outbox_relay;

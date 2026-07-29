@@ -4,14 +4,18 @@ import { NotarySelectionParams } from "../pages/NotarySearchList";
 import { NotaryPartyParams } from "../pages/NotaryAddParty";
 import { File, Video, ChevronRight, X, PlayCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import type {
+  NotaryDraftAttachment,
+  NotaryStaffMember,
+} from "../services/notaryService";
 
 interface Step4ConfirmationProps {
-  notaryTypes: any[];
+  notaryTypes: Array<{ id: string; name: string }>;
   selectedType: string;
-  selectedNotaryObj: any;
+  selectedNotaryObj: NotaryStaffMember | null;
   parties: any[];
   applicationInfo: string;
-  attachments: any[];
+  attachments: NotaryDraftAttachment[];
   navigate: ReturnType<typeof import("react-router").useNavigate>;
 }
 
@@ -89,15 +93,19 @@ const [fullscreenPreview, setFullscreenPreview] = useState<{ url: string, type: 
                   <div 
                     key={file.id || idx} 
                     className="flex items-center gap-3 p-2 rounded-xl bg-input-bg border border-border-color cursor-pointer active:scale-[0.98]"
-                    onClick={() => setFullscreenPreview({ url: file.url, type: file.type })}
+                    onClick={() => file.type !== "file" && setFullscreenPreview({ url: file.previewUrl, type: file.type })}
                   >
                     <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-black/5 dark:bg-white/5 relative">
                       {file.type === 'image' ? (
-                        <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
-                      ) : (
+                        <img src={file.previewUrl} alt={file.name} className="w-full h-full object-cover" />
+                      ) : file.type === "video" ? (
                         <div className="w-full h-full flex items-center justify-center relative">
-                          <video src={file.url} className="w-full h-full object-cover absolute inset-0 opacity-40 pointer-events-none" />
+                          <video src={file.previewUrl} className="w-full h-full object-cover absolute inset-0 opacity-40 pointer-events-none" />
                           <PlayCircle className="w-6 h-6 text-black/50 dark:text-white/50 z-10" />
+                        </div>
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <File className="h-6 w-6 text-text-sub" />
                         </div>
                       )}
                     </div>

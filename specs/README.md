@@ -158,6 +158,8 @@ the Discovery control plane as shipped or required runtime authority.
 - [`DATABASE_SPEC.md`](../../sdkwork-specs/DATABASE_SPEC.md)
 - [`SCHEMA_REGISTRY_SPEC.md`](../../sdkwork-specs/SCHEMA_REGISTRY_SPEC.md)
 - [`API_SPEC.md`](../../sdkwork-specs/API_SPEC.md)
+- [`WEB_FRAMEWORK_SPEC.md`](../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md)
+- [`WEB_BACKEND_SPEC.md`](../../sdkwork-specs/WEB_BACKEND_SPEC.md)
 - [`PAGINATION_SPEC.md`](../../sdkwork-specs/PAGINATION_SPEC.md)
 - [`SDK_SPEC.md`](../../sdkwork-specs/SDK_SPEC.md)
 - [`APP_SDK_INTEGRATION_SPEC.md`](../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md)

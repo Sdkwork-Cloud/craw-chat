@@ -14,7 +14,6 @@ export const ReportDetailHeader: React.FC<ReportDetailHeaderProps> = ({ report }
     <div className="bg-white dark:bg-[#2c2d2e] rounded-xl p-5 shadow-sm border border-border-color/30 text-center flex flex-col items-center relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
       <Avatar
-        src={`https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/${report.reporter}/200.png`}
         size="xl"
         className="mb-3 border-2 border-white shadow-sm"
         fallback={report.reporter.substring(0, 1)}

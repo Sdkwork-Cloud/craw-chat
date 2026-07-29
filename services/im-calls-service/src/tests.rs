@@ -28,6 +28,19 @@ mod tests {
     }
 
     #[test]
+    fn test_default_id_generator_uses_snowflake_layout() {
+        pin_test_im_environment();
+        let generator = crate::app::build_default_id_generator();
+
+        let first = generator.next_id().expect("first id should generate");
+        let second = generator.next_id().expect("second id should generate");
+
+        assert!(first > (1_i64 << 22), "id must include a timestamp field");
+        assert!(second > first, "ids must be strictly monotonic");
+        assert_eq!(((first >> 12) & 0x03ff) as u16, generator.node_id());
+    }
+
+    #[test]
     fn test_create_session_idempotent() {
         let runtime = CallingRuntime::with_store(Arc::new(RuntimeMemoryStateStore::default()));
         let auth = create_test_auth();

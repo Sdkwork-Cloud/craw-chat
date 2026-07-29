@@ -70,6 +70,7 @@ const { id } = useParams();
     } else {
       setSearchResults([]);
     }
+    return undefined;
   }, [searchQuery, showSearch, id]);
 
   const handleUpdateSettings = async (updates: Partial<Chat["settings"]>) => {

@@ -3,17 +3,22 @@
 
 use std::sync::Arc;
 
+use audit_service::AuditRuntime;
 use axum::Router;
 use conversation_runtime::resolve_embedded_conversation_runtime;
+use ops_service::OpsRuntime;
+use portal_service::PortalRuntime;
 use session_gateway::RealtimePlaneBootstrap;
 use social_service::SocialRuntime;
 use tokio::task::JoinHandle;
 
+use crate::ops_realtime_wiring::{OpsRealtimeMirrorHandle, spawn_ops_realtime_mirror};
 use crate::space_conversation_wiring::wire_space_conversation_binders;
 
 pub struct ApiAssembly {
     pub router: Router,
     pub social_runtime: Arc<SocialRuntime>,
+    pub ops_runtime: Arc<OpsRuntime>,
     _background: ApiAssemblyBackground,
 }
 
@@ -23,6 +28,7 @@ struct ApiAssemblyBackground {
     /// Keep postgres-backed handler state alive when router merge replaces route handlers.
     _social_postgres_state: Option<social_service::PostgresAppState>,
     _space_state: Option<space_service::http::AppState>,
+    _ops_realtime_mirror: Option<OpsRealtimeMirrorHandle>,
 }
 
 pub async fn assemble_api_router() -> Result<ApiAssembly, String> {
@@ -40,6 +46,7 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
         _social_friend_request_expiration: None,
         _social_postgres_state: None,
         _space_state: None,
+        _ops_realtime_mirror: None,
     };
 
     let conversation_state =
@@ -57,8 +64,29 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
     background._social_friend_request_expiration =
         social_service::spawn_friend_request_expiration_scheduler_from_env(social_runtime.clone());
 
-    router = router.merge(sdkwork_routes_im_audit_backend_api::gateway_mount());
-    router = router.merge(sdkwork_routes_im_automation_app_api::gateway_mount());
+    let audit_runtime = Arc::new(AuditRuntime::from_env());
+    let automation_runtime = automation_service::build_runtime_from_env()?;
+    let notification_runtime = notification_service::build_runtime_from_env()?;
+    let ops_runtime = Arc::new(match realtime_bootstrap {
+        Some(bootstrap) => OpsRuntime::from_env_with_node_id(bootstrap.node_id.as_str()),
+        None => OpsRuntime::from_env(),
+    });
+    let portal_runtime = Arc::new(PortalRuntime::new(
+        ops_runtime.clone(),
+        audit_runtime.clone(),
+    ));
+    let realtime_cluster = realtime_bootstrap
+        .map(|bootstrap| bootstrap.assembly.realtime_cluster())
+        .unwrap_or_else(|| Arc::new(session_gateway::RealtimeClusterBridge::default()));
+    background._ops_realtime_mirror = realtime_bootstrap
+        .map(|bootstrap| spawn_ops_realtime_mirror(ops_runtime.clone(), bootstrap));
+
+    router = router.merge(
+        sdkwork_routes_im_audit_backend_api::gateway_mount_with_runtime(audit_runtime.clone()),
+    );
+    router = router.merge(
+        sdkwork_routes_im_automation_app_api::gateway_mount_with_runtime(automation_runtime),
+    );
     router = router.merge(sdkwork_routes_im_calls_open_api::gateway_mount());
     router = router.merge(
         sdkwork_routes_im_chat_open_api::gateway_mount_with_state(conversation_state.clone())
@@ -68,11 +96,21 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
         sdkwork_routes_im_knowledgebase_app_api::gateway_mount_with_state(conversation_state)
             .await?,
     );
-    router = router.merge(sdkwork_routes_im_governance_backend_api::gateway_mount());
+    router = router.merge(
+        sdkwork_routes_im_governance_backend_api::gateway_mount_with_governance_sinks(
+            realtime_cluster,
+            ops_runtime.clone(),
+            audit_runtime,
+        ),
+    );
     router = router.merge(sdkwork_routes_im_media_app_api::gateway_mount());
-    router = router.merge(sdkwork_routes_im_notification_app_api::gateway_mount());
-    router = router.merge(sdkwork_routes_im_ops_backend_api::gateway_mount());
-    router = router.merge(sdkwork_routes_im_portal_app_api::gateway_mount());
+    router = router.merge(
+        sdkwork_routes_im_notification_app_api::gateway_mount_with_runtime(notification_runtime),
+    );
+    router = router
+        .merge(sdkwork_routes_im_ops_backend_api::gateway_mount_with_runtime(ops_runtime.clone()));
+    router =
+        router.merge(sdkwork_routes_im_portal_app_api::gateway_mount_with_runtime(portal_runtime));
     router = router.merge(match realtime_bootstrap {
         Some(bootstrap) => {
             sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap_from_env(
@@ -112,6 +150,7 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
     Ok(ApiAssembly {
         router,
         social_runtime,
+        ops_runtime,
         _background: background,
     })
 }

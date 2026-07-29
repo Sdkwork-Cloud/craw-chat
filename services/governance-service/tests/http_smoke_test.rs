@@ -1,7 +1,48 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
+use std::sync::Once;
 use tower::ServiceExt;
+
+static INIT_GOVERNANCE_HTTP_TEST_ENV: Once = Once::new();
+
+fn init_governance_http_test_env() {
+    INIT_GOVERNANCE_HTTP_TEST_ENV.call_once(|| unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+    });
+}
+
+#[tokio::test]
+async fn test_route_composition_exports_required_infrastructure_endpoints() {
+    init_governance_http_test_env();
+    let app = sdkwork_routes_im_governance_backend_api::build_public_app();
+
+    for path in ["/healthz", "/metrics", "/openapi.json", "/docs"] {
+        let response = app
+            .clone()
+            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await
+            .expect("infrastructure request should succeed");
+        assert_eq!(response.status(), StatusCode::OK, "endpoint {path}");
+    }
+
+    let readiness = app
+        .oneshot(
+            Request::builder()
+                .uri("/readyz")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("readiness request should succeed");
+    assert!(
+        matches!(
+            readiness.status(),
+            StatusCode::OK | StatusCode::SERVICE_UNAVAILABLE
+        ),
+        "readiness endpoint must report actual dependency state"
+    );
+}
 
 #[tokio::test]
 async fn test_healthz_returns_ok_and_service_metadata() {

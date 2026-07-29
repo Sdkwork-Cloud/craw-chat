@@ -1,5 +1,6 @@
 {
   "title": "My Smart Devices",
+  "unavailable": "Hardware is not available until the AIoT owner SDK and device authorization flow are composed.",
   "bindNew": "Bind New Device",
   "loading": "Loading...",
   "empty": "No bound devices yet",

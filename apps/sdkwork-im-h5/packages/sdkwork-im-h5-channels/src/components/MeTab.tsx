@@ -17,7 +17,7 @@ const [activeTab, setActiveTab] = useState<"works" | "prompts" | "favorites" | "
           </div>
           
           <div className="px-4 pb-4 flex items-start gap-4">
-             <Avatar src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/myuser/200.png" className="w-20 h-20 rounded-full border-2 border-white/10" />
+             <Avatar fallback="?" className="w-20 h-20 rounded-full border-2 border-white/10" />
              <div className="flex-1 mt-1">
                 <h1 className="text-[20px] font-bold text-white mb-1">{t('channels.auto_609c8ff', 'AI魔法师')}</h1>
                 <p className="text-[12px] text-white/50 mb-3">{t('channels.auto_98ad7ce', '账号: sdkwork_ai_master')}</p>
@@ -98,4 +98,3 @@ const TabItem = ({ icon: Icon, label, active, onClick }: any) => {
   </div>
 );
 };
-

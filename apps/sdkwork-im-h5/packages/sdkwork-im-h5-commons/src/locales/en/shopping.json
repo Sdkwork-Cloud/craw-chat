@@ -1,4 +1,6 @@
 {
+  "title": "Shopping",
+  "unavailable": "Shopping and checkout are not available until the Shop and Order SDKs, inventory, and payment authorization are composed.",
   "auto_13c7cc": "默认",
   "auto_77761738": "请选择收货地址",
   "auto_6b26a081": "选择收货地址",

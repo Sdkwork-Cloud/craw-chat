@@ -5,6 +5,7 @@
   "types": "./src/index.ts",
   "dependencies": {
     "react": "catalog:",
+    "react-i18next": "catalog:",
     "react-router": "catalog:",
     "lucide-react": "catalog:",
     "motion": "catalog:",

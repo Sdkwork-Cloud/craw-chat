@@ -8,6 +8,7 @@ export interface ListItemProps {
   label: React.ReactNode;
   rightElement?: React.ReactNode;
   rightText?: React.ReactNode;
+  value?: React.ReactNode;
   onClick?: () => void;
   danger?: boolean;
   hideBorder?: boolean;
@@ -18,6 +19,7 @@ export const ListItem: React.FC<ListItemProps> = ({
   label,
   rightElement,
   rightText,
+  value,
   onClick,
   danger,
   hideBorder,
@@ -48,11 +50,12 @@ export const ListItem: React.FC<ListItemProps> = ({
       </span>
     </div>
     <div className="flex items-center gap-1.5 text-text-sub">
-      {rightText && <span className="text-[15px]">{rightText}</span>}
+      {(rightText ?? value) && (
+        <span className="text-[15px]">{rightText ?? value}</span>
+      )}
       {rightElement ||
         (!danger && <ChevronRight className="w-5 h-5 opacity-40" />)}
     </div>
   </div>
 );
 };
-

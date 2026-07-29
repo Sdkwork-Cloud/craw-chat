@@ -1,5 +1,9 @@
-use axum::Router;
-
-pub fn build_api_router() -> Router {
-    automation_service::build_domain_api_router(automation_service::default_app_state())
-}
+use std::sync::Arc;
+
+use axum::Router;
+
+pub fn build_api_router_with_runtime(
+    runtime: Arc<automation_service::AutomationRuntime>,
+) -> Router {
+    automation_service::build_domain_api_router(automation_service::AppState::new(runtime))
+}

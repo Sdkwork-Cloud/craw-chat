@@ -1,5 +1,6 @@
 {
   "header_title": "AI Image",
+  "unavailable": "AI image generation is unavailable until an owner SDK is composed.",
   "settings": {
     "model_selection": "Engine",
     "prompt_title": "Prompt",

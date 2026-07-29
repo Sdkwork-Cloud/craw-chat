@@ -1,5 +1,6 @@
 {
   "title": "Reports",
+  "unavailable": "Reports are unavailable until their owner SDK is composed.",
   "unread": "Unread (Items)",
   "sent_by_me": "Sent by Me",
   "received": "Received",

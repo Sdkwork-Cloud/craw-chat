@@ -1,4 +1,6 @@
 {
+  "title": "Orders",
+  "unavailable": "Orders, payments, vouchers, refunds, and fulfillment are not available until the owner SDKs are composed.",
   "auto_n43d78b59": "七天无理由退换",
   "auto_e1c31af": "共 {order.items.reduce((acc, item) => acc + item.quantity, 0)} 件商品",
   "auto_161e384": "实付款",

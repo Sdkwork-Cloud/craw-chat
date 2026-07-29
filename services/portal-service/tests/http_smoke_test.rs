@@ -24,6 +24,37 @@ fn portal_route_http_test_app() -> axum::Router {
 }
 
 #[tokio::test]
+async fn test_route_composition_exports_required_infrastructure_endpoints() {
+    let app = portal_route_http_test_app();
+
+    for path in ["/healthz", "/metrics", "/openapi.json", "/docs"] {
+        let response = app
+            .clone()
+            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await
+            .expect("infrastructure request should succeed");
+        assert_eq!(response.status(), StatusCode::OK, "endpoint {path}");
+    }
+
+    let readiness = app
+        .oneshot(
+            Request::builder()
+                .uri("/readyz")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("readiness request should succeed");
+    assert!(
+        matches!(
+            readiness.status(),
+            StatusCode::OK | StatusCode::SERVICE_UNAVAILABLE
+        ),
+        "readiness endpoint must report actual dependency state"
+    );
+}
+
+#[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
     let app = portal_http_test_app();
 

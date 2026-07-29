@@ -3,6 +3,7 @@
 Sdkwork IM H5 is the mobile browser instant messaging application for the SDKWork IM
 product family. It targets the H5 (mobile web) runtime and ships as a standalone
 React + Vite renderer consumed by the SDKWork IM deployment profile.
+The application is pre-launch and its manifest publication status remains `DRAFT`.
 
 ## Application Identity
 
@@ -33,6 +34,30 @@ H5-native capability packages live under `packages/sdkwork-im-h5-*`:
   approval,attendance,calendar,cloud-drive,community,contacts,course,
   enterprise,hardware,knowledge,meeting,notary,orders,recruitment,report,
   shopping,vip,channels}`
+
+Package presence does not mean the feature is mounted or release-ready. The current `ImApp` mounts
+Chat inbox, Conversation, Workspace Notary, and the Notary workflow routes. Contacts has a formal
+cursor-paged IM SDK service boundary but is not mounted by the root router. Organization directory,
+Agent lifecycle, QR scanning, Chat RTC media UI, legacy Chat operations, AI Image/Video/Writing/Music,
+Voice Synthesis, Voice Summary, Calendar, Approval, Attendance, Reports, Cloud Drive, Meeting, Channels,
+Hardware, Recruitment, local Knowledge CRUD, Shopping, Checkout, Orders, Payments, Vouchers, Refunds,
+Fulfillment, Community, Courses, and Enterprise routes are fail-closed until their owner SDK and
+permission composition is complete. Legacy User profile, settings, Moments, Characters, Works, voice,
+billing, and life-service pages are also fail-closed; browser storage and synthetic records are not
+accepted substitutes. The separate legacy User Auth implementation is excluded from release and remains
+blocked pending IAM security review; the root app uses the approved appbase IAM runtime instead.
+Group Knowledgebase launch remains a separate opaque-ticket integration and is not implemented by the
+local Knowledge package.
+
+## Runtime Data Boundaries
+
+- Bootstrap owns the shared IAM `TokenManager` and constructs the IM, Drive, and Notary clients.
+- Feature services consume generated SDKs or approved composed facades; raw HTTP and manual auth
+  headers are not supported.
+- Inbox, Message, Notary, Contact, and social search lists use bounded cursor pagination.
+- Realtime Chat consumers share a reference-counted connection and release it after the final lease.
+- PostgreSQL is the server persistence authority. SQLite and browser storage are not supported server
+  business-state profiles.
 
 ## Run Locally
 
@@ -79,6 +104,24 @@ node scripts/dev/sdkwork-im-h5-architecture-standard.test.mjs
 
 # H5 utils standard
 node scripts/dev/sdkwork-im-h5-utils-standard.test.mjs
+
+# H5 service contract tests
+pnpm --dir apps/sdkwork-im-h5 exec tsx --test \
+  packages/sdkwork-im-h5-chat/src/services/ChatService.test.ts \
+  packages/sdkwork-im-h5-chat/src/services/chatRealtimeService.test.ts \
+  packages/sdkwork-im-h5-contacts/src/services/ContactService.test.ts \
+  packages/sdkwork-im-h5-notary/src/services/notaryService.test.ts \
+  packages/sdkwork-im-h5-commons/src/ApiClient.test.ts \
+  packages/sdkwork-im-h5-channels/src/services/ChannelService.test.ts \
+  packages/sdkwork-im-h5-hardware/src/services/HardwareService.test.ts \
+  packages/sdkwork-im-h5-recruitment/src/services/RecruitmentService.test.ts \
+  packages/sdkwork-im-h5-knowledge/src/services/KnowledgeBaseService.test.ts \
+  packages/sdkwork-im-h5-shopping/src/services/ProductService.test.ts \
+  packages/sdkwork-im-h5-shopping/src/services/CartService.test.ts \
+  packages/sdkwork-im-h5-orders/src/services/OrderService.test.ts \
+  packages/sdkwork-im-h5-community/src/services/CommunityService.test.ts \
+  packages/sdkwork-im-h5-course/src/services/CourseService.test.ts \
+  packages/sdkwork-im-h5-user/src/services/UserServices.test.ts
 
 # App manifest standard
 node ../sdkwork-specs/tools/check-app-manifest-standard.mjs --root apps/sdkwork-im-h5

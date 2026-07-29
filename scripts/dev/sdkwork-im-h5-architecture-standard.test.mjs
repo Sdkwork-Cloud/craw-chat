@@ -130,6 +130,109 @@ const viteSource = read('vite.config.ts');
 const aiImageSource = read('packages/sdkwork-im-h5-ai-image/src/services/AIImageService.ts');
 const aiVideoSource = read('packages/sdkwork-im-h5-ai-video/src/services/AIVideoService.ts');
 const aiWritingSource = read('packages/sdkwork-im-h5-ai-writing/src/services/AIWritingService.ts');
+const aiImagePageSource = read('packages/sdkwork-im-h5-ai-image/src/pages/AIImagePage.tsx');
+const aiVideoPageSource = read('packages/sdkwork-im-h5-ai-video/src/pages/AIVideoPage.tsx');
+const aiWritingPageSource = read('packages/sdkwork-im-h5-ai-writing/src/pages/AIWritingPage.tsx');
+const aiMusicPageSource = read('packages/sdkwork-im-h5-ai-music/src/pages/AIMusicPage.tsx');
+const aiVoiceSynthPageSource = read('packages/sdkwork-im-h5-ai-voice/src/pages/AIVoiceSynthPage.tsx');
+const voiceSummaryPageSource = read('packages/sdkwork-im-h5-ai-voice/src/pages/VoiceSummaryApp.tsx');
+const voiceSummarySource = read('packages/sdkwork-im-h5-ai-voice/src/services/VoiceSummaryService.ts');
+const voiceCatalogSource = read('packages/sdkwork-im-h5-commons/src/services/VoiceService.ts');
+const legacyApiClientSource = read('packages/sdkwork-im-h5-commons/src/ApiClient.ts');
+const deferredCapabilityServices = [
+  ['CalendarService', 'CalendarCapabilityUnavailableError', 'packages/sdkwork-im-h5-calendar/src/services/CalendarService.ts'],
+  ['ApprovalService', 'ApprovalCapabilityUnavailableError', 'packages/sdkwork-im-h5-approval/src/services/ApprovalService.ts'],
+  ['AttendanceService', 'AttendanceCapabilityUnavailableError', 'packages/sdkwork-im-h5-attendance/src/services/AttendanceService.ts'],
+  ['ReportService', 'ReportCapabilityUnavailableError', 'packages/sdkwork-im-h5-report/src/services/ReportService.ts'],
+  ['CloudDriveService', 'CloudDriveCapabilityUnavailableError', 'packages/sdkwork-im-h5-cloud-drive/src/services/CloudDriveService.ts'],
+  ['MeetingService', 'MeetingCapabilityUnavailableError', 'packages/sdkwork-im-h5-meeting/src/services/MeetingService.ts'],
+  ['ChannelService', 'ChannelCapabilityUnavailableError', 'packages/sdkwork-im-h5-channels/src/services/ChannelService.ts'],
+  ['HardwareService', 'HardwareCapabilityUnavailableError', 'packages/sdkwork-im-h5-hardware/src/services/HardwareService.ts'],
+  ['RecruitmentService', 'RecruitmentCapabilityUnavailableError', 'packages/sdkwork-im-h5-recruitment/src/services/RecruitmentService.ts'],
+  ['KnowledgeBaseService', 'KnowledgeBaseCapabilityUnavailableError', 'packages/sdkwork-im-h5-knowledge/src/services/KnowledgeBaseService.ts'],
+  ['ProductService', 'ShoppingCapabilityUnavailableError', 'packages/sdkwork-im-h5-shopping/src/services/ProductService.ts'],
+  ['CartService', 'ShoppingCapabilityUnavailableError', 'packages/sdkwork-im-h5-shopping/src/services/CartService.ts'],
+  ['OrderService', 'OrderCapabilityUnavailableError', 'packages/sdkwork-im-h5-orders/src/services/OrderService.ts'],
+  ['CommunityService', 'CommunityCapabilityUnavailableError', 'packages/sdkwork-im-h5-community/src/services/CommunityService.ts'],
+  ['CourseService', 'CourseCapabilityUnavailableError', 'packages/sdkwork-im-h5-course/src/services/CourseService.ts'],
+  ['ProfileService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/ProfileService.ts'],
+  ['SettingsService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/SettingsService.ts'],
+  ['CharacterService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/CharacterService.ts'],
+  ['WorkService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/WorkService.ts'],
+  ['MomentService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/MomentService.ts'],
+  ['UserProductService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/ProductService.ts'],
+  ['LifeService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/LifeService.ts'],
+].map(([name, errorName, relativePath]) => [name, errorName, read(relativePath)]);
+const deferredCapabilityPages = [
+  'packages/sdkwork-im-h5-calendar/src/pages/CalendarWorkspace.tsx',
+  'packages/sdkwork-im-h5-approval/src/pages/ApprovalApp.tsx',
+  'packages/sdkwork-im-h5-approval/src/pages/ApprovalDetail.tsx',
+  'packages/sdkwork-im-h5-approval/src/pages/CreateApproval.tsx',
+  'packages/sdkwork-im-h5-attendance/src/pages/AttendanceApp.tsx',
+  'packages/sdkwork-im-h5-report/src/pages/ReportApp.tsx',
+  'packages/sdkwork-im-h5-report/src/pages/ReportDetail.tsx',
+  'packages/sdkwork-im-h5-report/src/pages/CreateReport.tsx',
+  'packages/sdkwork-im-h5-cloud-drive/src/pages/CloudDriveApp.tsx',
+  'packages/sdkwork-im-h5-meeting/src/pages/MeetingApp.tsx',
+  'packages/sdkwork-im-h5-meeting/src/pages/MeetingDetail.tsx',
+  'packages/sdkwork-im-h5-meeting/src/pages/CreateMeeting.tsx',
+  'packages/sdkwork-im-h5-channels/src/pages/ChannelsPage.tsx',
+  'packages/sdkwork-im-h5-hardware/src/pages/HardwareList.tsx',
+  'packages/sdkwork-im-h5-hardware/src/pages/HardwareDetail.tsx',
+  'packages/sdkwork-im-h5-hardware/src/pages/HardwareBind.tsx',
+  'packages/sdkwork-im-h5-recruitment/src/pages/RecruitmentApp.tsx',
+  'packages/sdkwork-im-h5-recruitment/src/pages/CandidateDetail.tsx',
+  'packages/sdkwork-im-h5-recruitment/src/pages/CreateJob.tsx',
+  'packages/sdkwork-im-h5-knowledge/src/pages/KnowledgeBaseApp.tsx',
+  'packages/sdkwork-im-h5-knowledge/src/pages/KnowledgeBaseDetail.tsx',
+  'packages/sdkwork-im-h5-knowledge/src/pages/CreateKnowledgeBase.tsx',
+  'packages/sdkwork-im-h5-knowledge/src/pages/KnowledgeBaseDocumentList.tsx',
+  'packages/sdkwork-im-h5-knowledge/src/pages/CreateDocument.tsx',
+  'packages/sdkwork-im-h5-shopping/src/pages/ShoppingCart.tsx',
+  'packages/sdkwork-im-h5-shopping/src/pages/Shopping.tsx',
+  'packages/sdkwork-im-h5-shopping/src/pages/ShopDetails.tsx',
+  'packages/sdkwork-im-h5-shopping/src/pages/ProductDetails.tsx',
+  'packages/sdkwork-im-h5-shopping/src/pages/CustomerServiceChat.tsx',
+  'packages/sdkwork-im-h5-shopping/src/pages/CheckoutPage.tsx',
+  'packages/sdkwork-im-h5-shopping/src/pages/CategoryPage.tsx',
+  'packages/sdkwork-im-h5-shopping/src/pages/CashierPage.tsx',
+  'packages/sdkwork-im-h5-orders/src/pages/VoucherCodePage.tsx',
+  'packages/sdkwork-im-h5-orders/src/pages/OrderDetail.tsx',
+  'packages/sdkwork-im-h5-orders/src/pages/OrderCenter.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CommunityDetail.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CommunityEditField.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CommunityEditImage.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CommunityEditTabs.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CommunityGroupManagement.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CommunityGroupQRs.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CommunityList.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CommunityMembers.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CommunityPostCreate.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CommunityProfile.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CommunityQRCode.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CreateCommunity.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/CreateCommunityGroup.tsx',
+  'packages/sdkwork-im-h5-community/src/pages/MyCommunities.tsx',
+  'packages/sdkwork-im-h5-course/src/pages/CourseDetail.tsx',
+  'packages/sdkwork-im-h5-course/src/pages/CourseHome.tsx',
+  'packages/sdkwork-im-h5-course/src/pages/CourseLiveRoom.tsx',
+  'packages/sdkwork-im-h5-course/src/pages/CoursePlayer.tsx',
+  'packages/sdkwork-im-h5-course/src/pages/CoursePurchase.tsx',
+  'packages/sdkwork-im-h5-course/src/pages/MyCourses.tsx',
+  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseCenter.tsx',
+  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseInvite.tsx',
+  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseJoin.tsx',
+  'packages/sdkwork-im-h5-enterprise/src/pages/EnterprisePostDemand.tsx',
+  'packages/sdkwork-im-h5-enterprise/src/pages/EnterprisePostJob.tsx',
+  'packages/sdkwork-im-h5-enterprise/src/pages/EnterprisePostSupply.tsx',
+  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseProducts.tsx',
+  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseRecruitment.tsx',
+  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseSearch.tsx',
+  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseSite.tsx',
+  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseYellowPages.tsx',
+  'packages/sdkwork-im-h5-chat/src/pages/ChatDetail.tsx',
+  'packages/sdkwork-im-h5-user/src/components/UnavailableUserPages.tsx',
+].map(read);
 
 assert.equal(appSource.includes('SPDX-License-Identifier'), false, 'AI Studio @license block must be removed from src/App.tsx');
 assert.equal(appSource.includes('@license'), false, 'AI Studio @license block must be removed from src/App.tsx');
@@ -138,14 +241,71 @@ assert.equal(readmeSource.includes('ai.studio'), false, 'README.md must not refe
 assert.equal(readmeSource.includes('GEMINI_API_KEY'), false, 'README.md must not reference GEMINI_API_KEY');
 assert.equal(readmeSource.includes('ai.google.dev'), false, 'README.md must not reference ai.google.dev');
 assert.equal(viteSource.includes('DISABLE_HMR'), false, 'AI Studio DISABLE_HMR env var must be removed from vite.config.ts');
-assert.equal(aiImageSource.includes('"/api/ai/optimize-prompt"'), false, 'AI Studio mock API /api/ai/optimize-prompt must be /im/v3/api/ai/optimize-prompt');
-assert.equal(aiImageSource.includes('"/api/ai/image"'), false, 'AI Studio mock API /api/ai/image must be /im/v3/api/ai/image');
-assert.equal(aiVideoSource.includes('"/api/ai/video"'), false, 'AI Studio mock API /api/ai/video must be /im/v3/api/ai/video');
-assert.equal(aiWritingSource.includes('"/api/ai/writing"'), false, 'AI Studio mock API /api/ai/writing must be /im/v3/api/ai/writing');
-assert.match(aiImageSource, /\/im\/v3\/api\/ai\/optimize-prompt/u, 'AIImageService must use /im/v3/api/ai/optimize-prompt');
-assert.match(aiImageSource, /\/im\/v3\/api\/ai\/image/u, 'AIImageService must use /im/v3/api/ai/image');
-assert.match(aiVideoSource, /\/im\/v3\/api\/ai\/video/u, 'AIVideoService must use /im/v3/api/ai/video');
-assert.match(aiWritingSource, /\/im\/v3\/api\/ai\/writing/u, 'AIWritingService must use /im/v3/api/ai/writing');
+assert.doesNotMatch(legacyApiClientSource, /fetch\s*\(/u, 'legacy ApiClient must not provide raw HTTP');
+assert.match(legacyApiClientSource, /RawApiClientForbiddenError/u);
+for (const [name, source] of [
+  ['AIImageService', aiImageSource],
+  ['AIVideoService', aiVideoSource],
+  ['AIWritingService', aiWritingSource],
+  ['VoiceSummaryService', voiceSummarySource],
+  ['VoiceService', voiceCatalogSource],
+]) {
+  assert.doesNotMatch(source, /fetch\s*\(/u, `${name} must not use raw HTTP`);
+  assert.doesNotMatch(source, /localStorage/u, `${name} must not persist local fake history`);
+  assert.doesNotMatch(source, /Math\.random/u, `${name} must not generate random fake results`);
+  assert.doesNotMatch(source, /setInterval|setTimeout/u, `${name} must not simulate work with timers`);
+  assert.doesNotMatch(source, /\/mock\//u, `${name} must not return mock media`);
+}
+assert.match(aiImageSource, /AIImageCapabilityUnavailableError/u);
+assert.match(aiVideoSource, /AIVideoCapabilityUnavailableError/u);
+assert.match(aiWritingSource, /AIWritingCapabilityUnavailableError/u);
+assert.match(voiceSummarySource, /VoiceSummaryCapabilityUnavailableError/u);
+assert.match(voiceCatalogSource, /VoiceCapabilityUnavailableError/u);
+for (const [name, errorName, source] of deferredCapabilityServices) {
+  assert.doesNotMatch(source, /fetch\s*\(|localStorage|sessionStorage/u, `${name} must not own transport or browser business state`);
+  assert.doesNotMatch(source, /Math\.random|Date\.now|setInterval|setTimeout|\/mock\//u, `${name} must not fabricate work or results`);
+  assert.match(source, new RegExp(errorName, 'u'), `${name} must fail closed with a typed error`);
+}
+for (const source of [
+  aiImagePageSource,
+  aiVideoPageSource,
+  aiWritingPageSource,
+  aiMusicPageSource,
+  aiVoiceSynthPageSource,
+  voiceSummaryPageSource,
+]) {
+  assert.match(source, /CapabilityUnavailablePage/u);
+  assert.doesNotMatch(source, /Math\.random|setInterval|setTimeout|\/mock\//u);
+}
+for (const source of deferredCapabilityPages) {
+  assert.match(source, /CapabilityUnavailablePage/u);
+}
+const channelPageSource = read('packages/sdkwork-im-h5-channels/src/pages/ChannelsPage.tsx');
+const channelServiceSource = read('packages/sdkwork-im-h5-channels/src/services/ChannelService.ts');
+assert.doesNotMatch(channelPageSource, /mockData|CREATIVE_WORKS/u);
+assert.doesNotMatch(channelServiceSource, /mockData|CREATIVE_WORKS/u);
+const shoppingCartStoreSource = read('packages/sdkwork-im-h5-shopping/src/store/useCartStore.ts');
+const shoppingAddressStoreSource = read('packages/sdkwork-im-h5-shopping/src/store/useAddressStore.ts');
+assert.doesNotMatch(shoppingCartStoreSource, /localStorage|sessionStorage|persist\s*\(/u);
+assert.doesNotMatch(shoppingCartStoreSource, /catch\s*\([^)]*\)\s*\{\s*\}/u);
+assert.doesNotMatch(shoppingAddressStoreSource, /localStorage|sessionStorage|persist\s*\(/u);
+assert.doesNotMatch(shoppingAddressStoreSource, /INITIAL_ADDRESSES|Date\.now|Math\.random/u);
+const legacyChatActionPanelSource = read(
+  'packages/sdkwork-im-h5-chat/src/components/Chat/ChatActionPanel.tsx',
+);
+assert.match(legacyChatActionPanelSource, /attachments_unavailable/u);
+assert.doesNotMatch(
+  legacyChatActionPanelSource,
+  /Math\.random|Date\.now|setInterval|setTimeout|\/mock\//u,
+);
+const unavailableUserPageSource = read(
+  'packages/sdkwork-im-h5-user/src/components/UnavailableUserPages.tsx',
+);
+assert.match(unavailableUserPageSource, /CapabilityUnavailablePage/u);
+assert.doesNotMatch(
+  unavailableUserPageSource,
+  /localStorage|sessionStorage|Math\.random|Date\.now|setInterval|setTimeout|\/mock\//u,
+);
 
 const chatInbox = read('packages/sdkwork-im-h5-chat/src/pages/ChatInboxPage.tsx');
 
@@ -226,5 +386,12 @@ assert.ok(appPackageJson.dependencies['@sdkwork/auth-pc-react']);
 const coreSource = readAll(coreRoot);
 assert.equal(coreSource.includes('@sdkwork/auth-pc-react'), false);
 assert.equal(coreSource.includes('@sdkwork/auth-runtime-pc-react'), false);
+for (const sourceFile of listFiles(appRoot)) {
+  assert.doesNotMatch(
+    readFileSync(sourceFile, 'utf8'),
+    /\/mock\//u,
+    `${path.relative(appRoot, sourceFile)} must not depend on mock media resources`,
+  );
+}
 
 console.log('sdkwork-im H5 architecture standard passed.');

@@ -4,8 +4,19 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
+    "@sdkwork/im-h5-commons": "workspace:*",
+    "@sdkwork/im-h5-core": "workspace:*",
+    "@sdkwork/utils": "workspace:*",
+    "motion": "catalog:",
     "react": "catalog:",
+    "react-i18next": "catalog:",
+    "react-qr-code": "catalog:",
     "react-router": "catalog:",
+    "react-signature-canvas": "catalog:",
     "lucide-react": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react-signature-canvas": "catalog:"
   }
 }

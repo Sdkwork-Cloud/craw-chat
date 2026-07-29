@@ -91,10 +91,8 @@ const navigate = useNavigate();
                   }}
                 >
                   <Avatar
-                    src={
-                      sender?.avatar ||
-                      `https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/${msg.senderId}/200.png`
-                    }
+                    src={sender?.avatar}
+                    fallback={sender?.name}
                     size="md"
                     className="shrink-0"
                   />

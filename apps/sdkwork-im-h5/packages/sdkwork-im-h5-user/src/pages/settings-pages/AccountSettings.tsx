@@ -154,7 +154,7 @@ return (
     <PageLayout title={t('user.auto_prop_26d01b0c', '切换账号')}>
       <div className="flex flex-col items-center py-10">
         <Avatar
-          src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/me/200x200.png"
+          fallback="?"
           size="lg"
           className="w-20 h-20 rounded-full mb-4"
         />

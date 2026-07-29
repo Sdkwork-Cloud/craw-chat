@@ -1,5 +1,5 @@
 import React from "react";
-import { Newspaper, BookOpen, Github, Package } from "lucide-react";
+import { Newspaper, BookOpen, GitFork, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PostList } from "../../components/PostList";
 import { ResourceList } from "../../components/ResourceList";
@@ -51,7 +51,7 @@ export const CommunityTabsContent = ({
         </div>
       ) : activeTab === "repos" ? (
         <div className="flex flex-col items-center justify-center h-48 text-text-sub gap-3">
-          <Github className="w-10 h-10 opacity-30" />
+          <GitFork className="w-10 h-10 opacity-30" />
           {t("community.auto_n4b67f9b2", "暂无开源仓库")}
         </div>
       ) : activeTab === "software" ? (

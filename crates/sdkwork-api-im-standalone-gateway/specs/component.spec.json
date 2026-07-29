@@ -73,10 +73,7 @@
   ],
   "contracts": {
     "layerRole": "runtime-gateway",
-    "publicExports": [
-      "sdkwork_api_agents_assembly::assemble_app_runtime_contribution",
-      "sdkwork_api_agents_assembly::AppRuntimeContribution::session_facade"
-    ],
+    "publicExports": [],
     "providedPorts": [],
     "requiredPorts": [
       {
@@ -105,6 +102,9 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/ai",
         "runtimeMode": "same-origin-mounted",
+        "profileCoverage": [
+          "standalone"
+        ],
         "cargoDependency": "sdkwork-api-agents-assembly",
         "embeddedExecutableExport": "sdkwork_api_agents_assembly::assemble_app_runtime_contribution",
         "coverageEvidence": [

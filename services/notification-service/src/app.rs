@@ -60,22 +60,22 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router(default_notification_runtime())),
-        im_service_router_config(),
-    )
+    let runtime = default_notification_runtime();
+    build_public_app_from_api_router(apply_public_http_guardrails(build_domain_api_router(
+        AppState::new(runtime),
+    )))
 }
 
 pub fn build_app(runtime: Arc<NotificationRuntime>) -> Router {
-    mount_im_infra_routes(build_business_router(runtime), im_service_router_config())
+    build_public_app_from_api_router(build_domain_api_router(AppState::new(runtime)))
 }
 
-fn build_business_router(runtime: Arc<NotificationRuntime>) -> Router {
-    let state = AppState { runtime };
-    Router::new()
+pub fn build_public_app_from_api_router(api_router: Router) -> Router {
+    let business_router = Router::new()
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .merge(build_domain_api_router(state))
+        .merge(api_router);
+    mount_im_infra_routes(business_router, im_service_router_config())
 }
 
 async fn enforce_in_flight_gate(

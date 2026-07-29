@@ -1,5 +1,6 @@
 {
   "title": "Voice Summary",
+  "unavailable": "Voice summary is unavailable until the Voice owner SDK is composed.",
   "generated_count": "Generated (items)",
   "process_time": "Process Time",
   "all_records": "All Records",

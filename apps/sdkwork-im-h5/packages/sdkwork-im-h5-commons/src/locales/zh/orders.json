@@ -1,4 +1,6 @@
 {
+  "title": "订单",
+  "unavailable": "订单、支付、券码、退款和履约尚未接入权威 SDK，当前不可用。",
   "auto_n43d78b59": "七天无理由退换",
   "auto_e1c31af": "共 {order.items.reduce((acc, item) => acc + item.quantity, 0)} 件商品",
   "auto_161e384": "实付款",

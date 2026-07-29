@@ -60,25 +60,29 @@ fn resolve_max_in_flight_requests() -> usize {
 }
 
 pub fn build_public_app() -> Router {
-    mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router(default_portal_runtime())),
-        im_service_router_config(),
-    )
+    let runtime = default_portal_runtime();
+    build_public_app_from_api_router(apply_public_http_guardrails(build_domain_api_router(
+        AppState::new(runtime),
+    )))
 }
 
 pub fn build_app(runtime: Arc<PortalRuntime>) -> Router {
-    mount_im_infra_routes(build_business_router(runtime), im_service_router_config())
+    build_public_app_from_api_router(build_domain_api_router(AppState::new(runtime)))
 }
 
 pub fn build_default_app() -> Router {
     build_app(default_portal_runtime())
 }
 
-fn build_business_router(runtime: Arc<PortalRuntime>) -> Router {
+pub fn build_public_app_from_api_router(api_router: Router) -> Router {
+    mount_im_infra_routes(build_service_router(api_router), im_service_router_config())
+}
+
+fn build_service_router(api_router: Router) -> Router {
     Router::new()
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .merge(build_domain_api_router(AppState { runtime }))
+        .merge(api_router)
 }
 
 async fn enforce_in_flight_gate(

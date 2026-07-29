@@ -1,53 +1,90 @@
-import { useTranslation } from "react-i18next";
-import React, { useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { ChevronLeft, QrCode, Video } from "lucide-react";
-import { motion } from "motion/react";
+import React, { useEffect, useState } from "react";
+import { AlertCircle, ChevronLeft, Loader2, Video } from "lucide-react";
 import QRCode from "react-qr-code";
+import { useNavigate, useParams } from "react-router";
+import { useTranslation } from "react-i18next";
+
+import {
+  notaryService,
+  type NotaryPartyVideoInvite,
+} from "../services/notaryService";
 
 export const NotaryPartyVideoQR: React.FC = () => {
   const { t } = useTranslation();
-const navigate = useNavigate();
-  const { id } = useParams();
+  const navigate = useNavigate();
+  const { caseId, partyId } = useParams();
+  const [invite, setInvite] = useState<NotaryPartyVideoInvite | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
-  const handleBack = () => {
-  navigate(-1);
-  };
+  useEffect(() => {
+    let active = true;
+    if (!caseId || !partyId) {
+      setLoadError(true);
+      return () => {
+        active = false;
+      };
+    }
+    void notaryService.createPartyVideoInvite(caseId, partyId).then(
+      (value) => {
+        if (active) {
+          setInvite(value);
+        }
+      },
+      () => {
+        if (active) {
+          setLoadError(true);
+        }
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [caseId, partyId]);
 
   return (
-    <div className="flex flex-col h-full bg-bg-color">
-      <header className="h-[44px] pt-safe flex items-center justify-between px-2 shrink-0 border-b border-border-color">
-        <div className="w-[44px] flex items-center">
-          <ChevronLeft className="w-7 h-7 text-text-main cursor-pointer" onClick={handleBack} />
-        </div>
-        <span className="font-medium text-[17px] text-text-main">{t('notary.auto_n58b99775', '视频通话二维码')}</span>
-        <div className="w-[44px]" />
+    <div className="flex h-full flex-col bg-bg-color text-text-main">
+      <header className="flex h-[56px] shrink-0 items-center border-b border-border-color px-2 pt-safe">
+        <button
+          type="button"
+          className="flex h-10 w-10 items-center justify-center"
+          onClick={() => navigate(-1)}
+          aria-label={t("common.back", "Back")}
+        >
+          <ChevronLeft className="h-6 w-6" />
+        </button>
+        <h1 className="flex-1 pr-10 text-center text-[17px] font-semibold">
+          {t("notary.video_call.qr_title", "Video invitation")}
+        </h1>
       </header>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col items-center justify-center p-6 bg-input-bg pb-safe">
-        <motion.div
-           initial={{ opacity: 0, scale: 0.95 }}
-           animate={{ opacity: 1, scale: 1 }}
-           className="w-full max-w-[320px] bg-white dark:bg-[#1a1a1a] rounded-2xl p-8 shadow-sm border border-border-color flex flex-col items-center"
-        >
-          <div className="w-16 h-16 rounded-full bg-primary-blue/10 flex items-center justify-center text-primary-blue mb-4">
-            <Video className="w-8 h-8" />
-          </div>
-          <h2 className="text-[20px] font-bold text-text-main mb-2">{t('notary.auto_342a56f0', '当事人视频通话')}</h2>
-          <p className="text-[14px] text-text-sub text-center mb-8">{t('notary.auto_n1d996706', '请当事人使用微信扫一扫上方二维码，即可进入视频通话房间进行面签核身')}</p>
-          
-          <div className="p-4 bg-white rounded-xl shadow-sm border border-border-color/50 mb-6">
-            <QRCode 
-              value={`https://im.sdkwork.com/call/video-notary/${id}`}
-              size={200}
-              level="H"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 text-primary-blue text-[13px] font-medium bg-primary-blue/5 px-4 py-2 rounded-full cursor-pointer active:scale-95 transition-transform">
-             <QrCode className="w-4 h-4" />{t('notary.auto_n6fcbe137', '保存到相册')}</div>
-        </motion.div>
-      </div>
+      <main className="flex flex-1 items-center justify-center p-6">
+        <div className="flex w-full max-w-sm flex-col items-center text-center">
+          <Video className="mb-4 h-10 w-10 text-primary-blue" />
+          {!invite && !loadError && (
+            <Loader2 className="h-6 w-6 animate-spin text-primary-blue" />
+          )}
+          {loadError && (
+            <>
+              <AlertCircle className="mb-3 h-7 w-7 text-red-500" />
+              <p className="text-[14px] text-text-sub">
+                {t("notary.video_call.invite_failed", "Unable to create the video invitation")}
+              </p>
+            </>
+          )}
+          {invite && (
+            <>
+              <div className="mb-5 bg-white p-4">
+                <QRCode value={invite.inviteUrl} size={200} level="H" />
+              </div>
+              <p className="text-[13px] text-text-sub">
+                {t("notary.video_call.expires_at", "Expires at {{time}}", {
+                  time: new Date(invite.expiresAt).toLocaleString(),
+                })}
+              </p>
+            </>
+          )}
+        </div>
+      </main>
     </div>
   );
 };

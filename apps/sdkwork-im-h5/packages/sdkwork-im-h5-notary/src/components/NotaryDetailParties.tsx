@@ -1,71 +1,64 @@
-import { useTranslation } from "react-i18next";
 import React from "react";
-import { ShieldCheck, Video } from "lucide-react";
+import { PenTool, ShieldCheck, Video } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
+import type { NotaryParty } from "../services/notaryService";
 
 interface NotaryDetailPartiesProps {
-  parties: any[];
+  parties: NotaryParty[];
   isFinalState: boolean;
-  onEditParty: (p: any) => void;
-  onNavigateToSignature: (p: any) => void;
-  onNavigateToVideo: (p: any) => void;
+  onNavigateToSignature: (party: NotaryParty) => void;
+  onNavigateToVideo: (party: NotaryParty) => void;
 }
 
 export const NotaryDetailParties: React.FC<NotaryDetailPartiesProps> = ({
   parties,
   isFinalState,
-  onEditParty,
   onNavigateToSignature,
   onNavigateToVideo,
 }) => {
   const { t } = useTranslation();
-return (
+  return (
     <div className="flex flex-col bg-[#f4f6f9] dark:bg-black">
-      {parties.map((p, i) => (
+      {parties.map((party) => (
         <div
-          key={i}
-          className="bg-bg-color p-4 flex gap-4 border-b border-border-color/50 cursor-pointer active:bg-gray-100 dark:active:bg-gray-800 transition-colors last:border-0"
-          onClick={() => onEditParty(p)}
+          key={party.id}
+          className="flex gap-4 border-b border-border-color/50 bg-bg-color p-4 last:border-0"
         >
-          <div className="w-[84px] h-[84px] shrink-0 bg-chat-other-bg rounded-lg overflow-hidden border border-border-color/50">
-            <img
-              src={p.avatar}
-              alt="avatar"
-              className="w-full h-full object-cover"
-            />
+          <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-lg border border-border-color/50 bg-chat-other-bg text-[22px] font-semibold text-text-sub">
+            {party.name.trim().charAt(0).toUpperCase()}
           </div>
-          <div className="flex flex-col justify-between flex-1 py-0.5 relative min-w-0">
-            <div className="flex flex-col items-start gap-1.5 w-full">
-              <div className="flex items-start justify-between w-full">
-                <span className="text-[17px] font-bold text-text-main truncate pr-2">
-                  {p.name}
-                </span>
-                <div className="px-1.5 py-0.5 border border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400 rounded text-[11px] font-medium whitespace-nowrap flex items-center gap-1 shrink-0">
-                  <ShieldCheck className="w-3 h-3" />
-                  {p.status}
-                </div>
-              </div>
-              <span className="text-[13px] text-text-sub">{t('notary.auto_7a665979', '性别：{p.gender}')}</span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <span className="truncate text-[17px] font-semibold text-text-main">
+                {party.name}
+              </span>
+              <span className="flex shrink-0 items-center gap-1 rounded border border-green-500/30 bg-green-500/10 px-1.5 py-0.5 text-[11px] font-medium text-green-600">
+                <ShieldCheck className="h-3 w-3" />
+                {t(`notary.party_status.${party.status}`, party.status)}
+              </span>
             </div>
-
-            <div className="flex items-center justify-end mt-auto pt-2">
-              {!isFinalState && (
+            <p className="mt-1 text-[13px] text-text-sub">{party.role}</p>
+            {!isFinalState && (
+              <div className="mt-3 flex justify-end gap-2">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onNavigateToSignature(p);
-                  }}
-                  className="flex items-center justify-center h-8 px-4 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-500 text-[13px] font-bold active:opacity-80 transition-opacity shadow-sm mr-2"
-                >{t('notary.auto_f484f', '签名')}</button>
-              )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onNavigateToVideo(p);
-                }}
-                className="flex items-center justify-center h-8 px-4 rounded-lg bg-primary-blue text-white text-[13px] font-bold active:opacity-80 transition-opacity shadow-sm"
-              >
-                <Video className="w-4 h-4 mr-1.5" />{t('notary.auto_2c919b96', '开始视频')}</button>
-            </div>
+                  type="button"
+                  className="flex h-8 items-center gap-1.5 rounded-lg bg-orange-500/10 px-3 text-[13px] font-semibold text-orange-600"
+                  onClick={() => onNavigateToSignature(party)}
+                >
+                  <PenTool className="h-4 w-4" />
+                  {t("notary.party.signature", "Signature")}
+                </button>
+                <button
+                  type="button"
+                  className="flex h-8 items-center gap-1.5 rounded-lg bg-primary-blue px-3 text-[13px] font-semibold text-white"
+                  onClick={() => onNavigateToVideo(party)}
+                >
+                  <Video className="h-4 w-4" />
+                  {t("notary.party.video", "Video")}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ))}

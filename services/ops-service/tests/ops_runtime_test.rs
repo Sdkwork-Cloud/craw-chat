@@ -4,6 +4,18 @@ use std::time::Duration;
 use sdkwork_utils_rust::SdkWorkCursorListQuery;
 
 #[test]
+fn test_default_runtime_does_not_fabricate_cluster_state() {
+    let runtime = ops_service::OpsRuntime::default();
+
+    assert!(runtime.cluster_view().nodes.is_empty());
+    assert_eq!(runtime.health_view().status, "unavailable");
+    let diagnostics = runtime.diagnostic_bundle();
+    assert_eq!(diagnostics.node_id, "unconfigured");
+    assert_eq!(diagnostics.profile, "unconfigured");
+    assert!(diagnostics.services.is_empty());
+}
+
+#[test]
 fn test_build_diagnostic_views_from_runtime() {
     let runtime = ops_service::OpsRuntime::new(
         "node_local_1",
@@ -23,8 +35,8 @@ fn test_build_diagnostic_views_from_runtime() {
     assert!(lag.items.is_empty());
 
     let health = runtime.health_view();
-    assert_eq!(health.status, "ok");
-    assert_eq!(health.realtime_inbox.status, "ok");
+    assert_eq!(health.status, "unavailable");
+    assert_eq!(health.realtime_inbox.status, "unavailable");
     assert_eq!(health.realtime_inbox.pending_event_count, 0);
 
     let diagnostics = runtime.diagnostic_bundle();
@@ -32,7 +44,7 @@ fn test_build_diagnostic_views_from_runtime() {
     assert_eq!(diagnostics.owned_scopes[0], "conversation:c_demo");
     assert_eq!(diagnostics.client_routes.len(), 0);
     assert_eq!(diagnostics.side_effect_outboxes.len(), 0);
-    assert_eq!(diagnostics.realtime_inbox.status, "ok");
+    assert_eq!(diagnostics.realtime_inbox.status, "unavailable");
     assert_eq!(diagnostics.realtime_inbox.pending_event_count, 0);
     assert_eq!(diagnostics.collection_limit, 200);
     assert_eq!(diagnostics.collection_totals["clientRoutes"], 0);
@@ -403,10 +415,10 @@ fn test_health_view_rolls_up_realtime_inbox_severity() {
 }
 
 #[test]
-fn test_realtime_inbox_diagnostics_default_is_operationally_valid() {
+fn test_realtime_inbox_diagnostics_default_does_not_fabricate_health() {
     let view = ops_service::RealtimeInboxDiagnosticsView::default();
 
-    assert_eq!(view.status, "ok");
+    assert_eq!(view.status, "unavailable");
     assert_eq!(view.client_route_window_count, 0);
     assert_eq!(view.pending_event_count, 0);
     assert_eq!(view.max_client_route_window_event_count, 0);

@@ -1,11 +1,13 @@
+import { UserCapabilityUnavailableError } from "./UserCapabilityUnavailableError";
+
 export interface Character {
   id: string;
   name: string;
   desc: string;
   avatar: string;
-  visibility?: 'public' | 'private';
+  visibility?: "public" | "private";
   prompt?: string;
-  gender?: 'female' | 'male' | 'other';
+  gender?: "female" | "male" | "other";
   voice?: string;
   assets?: {
     referenceImage: string | null;
@@ -13,77 +15,16 @@ export interface Character {
   };
 }
 
-const INITIAL_CHARACTERS: Character[] = [
-  {
-    id: "char1",
-    name: "旅行规划师",
-    desc: "帮你规划行程安排、景点推荐和游玩攻略",
-    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/role1/200x200.png",
-  },
-  {
-    id: "char2",
-    name: "贴身语言教练",
-    desc: "陪练多种语言，包含情景模拟与发音纠正",
-    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/role2/200x200.png",
-  },
-  {
-    id: "char3",
-    name: "健身私人教练",
-    desc: "为你量身定制健身计划与饮食建议",
-    avatar: "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/role3/200x200.png",
-  },
-];
-
-const STORAGE_KEY = "sdkwork_im_h5_characters";
-
-let MOCK_CHARACTERS: Character[] = [];
-
-const loadCharacters = () => {
-  if (MOCK_CHARACTERS.length > 0) return MOCK_CHARACTERS;
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      MOCK_CHARACTERS = JSON.parse(data);
-    } else {
-      MOCK_CHARACTERS = [...INITIAL_CHARACTERS];
-      saveCharacters();
-    }
-  } catch (e) {
-    MOCK_CHARACTERS = [...INITIAL_CHARACTERS];
-  }
-  return MOCK_CHARACTERS;
-};
-
-const saveCharacters = () => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_CHARACTERS));
-  } catch (e) {
-    console.error("Failed to save characters", e);
-  }
-};
-
 export const CharacterService = {
   async getCharacters(): Promise<Character[]> {
-    return new Promise((resolve) =>
-      setTimeout(() => resolve([...loadCharacters()]), 200),
-    );
+    throw new UserCapabilityUnavailableError("Character management");
   },
 
-  async addCharacter(character: Omit<Character, "id">): Promise<Character> {
-    loadCharacters();
-    const newChar = { ...character, id: `char_${Date.now()}` };
-    MOCK_CHARACTERS = [newChar, ...MOCK_CHARACTERS];
-    saveCharacters();
-    return newChar;
+  async addCharacter(_character: Omit<Character, "id">): Promise<Character> {
+    throw new UserCapabilityUnavailableError("Character management");
   },
-  async editCharacter(id: string, character: Partial<Character>): Promise<Character> {
-    loadCharacters();
-    const idx = MOCK_CHARACTERS.findIndex(c => c.id === id);
-    if (idx !== -1) {
-      MOCK_CHARACTERS[idx] = { ...MOCK_CHARACTERS[idx], ...character };
-      saveCharacters();
-      return MOCK_CHARACTERS[idx];
-    }
-    throw new Error("Character not found");
+
+  async editCharacter(_id: string, _character: Partial<Character>): Promise<Character> {
+    throw new UserCapabilityUnavailableError("Character management");
   },
 };

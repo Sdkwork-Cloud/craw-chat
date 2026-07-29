@@ -10,7 +10,6 @@ export const ReportCommentsSection: React.FC = () => {
       <div className="space-y-4 mb-4">
         <div className="flex gap-3">
           <Avatar
-            src="https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/avatars/leader/200.png"
             size="sm"
             fallback={t('report.auto_prop_957f', '长')}
             className="shrink-0"

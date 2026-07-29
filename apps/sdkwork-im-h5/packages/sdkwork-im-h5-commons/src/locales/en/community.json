@@ -1,4 +1,6 @@
 {
+  "title": "Community",
+  "unavailable": "Community membership, content, moderation, groups, and payments are not available until the owner SDK and permission model are composed.",
   "auto_n4e746140": "{community.memberCount} 成员",
   "auto_ndae6275": "{community.postCount} 动态",
   "auto_16afc37": "已加入",

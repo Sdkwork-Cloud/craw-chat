@@ -10,6 +10,7 @@ export interface H5RuntimeEnvironment {
   readonly appKey: string;
   readonly deploymentProfile: 'standalone' | 'cloud';
   readonly imApiBaseUrl: string;
+  readonly sdkGatewayApiBaseUrl: string;
   readonly driveAppApiBaseUrl: string;
   readonly iamApiBaseUrl: string;
 }
@@ -44,10 +45,23 @@ export function resolveH5RuntimeEnvironment(): H5RuntimeEnvironment {
     return cachedEnvironment;
   }
 
+  const deploymentProfile = resolveDeploymentProfile();
+  const platformGatewayApiBaseUrl = readEnvValue('SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL')
+    ?? readEnvValue('VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL');
+  if (deploymentProfile === 'cloud' && !platformGatewayApiBaseUrl) {
+    throw new Error(
+      'Cloud H5 requires SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL for dependency App SDK routing',
+    );
+  }
+
   cachedEnvironment = {
     appKey: readEnvValue('SDKWORK_APP_KEY') ?? DEFAULT_APP_KEY,
-    deploymentProfile: resolveDeploymentProfile(),
+    deploymentProfile,
     imApiBaseUrl: readEnvValue('SDKWORK_IM_API_BASE_URL')
+      ?? readEnvValue('VITE_SDKWORK_IM_API_BASE_URL')
+      ?? '/',
+    sdkGatewayApiBaseUrl: platformGatewayApiBaseUrl
+      ?? readEnvValue('SDKWORK_IM_API_BASE_URL')
       ?? readEnvValue('VITE_SDKWORK_IM_API_BASE_URL')
       ?? '/',
     driveAppApiBaseUrl: readEnvValue('SDKWORK_DRIVE_APP_API_BASE_URL')

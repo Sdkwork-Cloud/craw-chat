@@ -1,63 +1,92 @@
 ﻿import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { useRef } from "react";
 import { ChevronLeft, CheckCircle2 } from "lucide-react";
 import { IconButton, cn } from "@sdkwork/im-h5-commons";
 import { AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { notaryService } from "../services/notaryService";
+import { uuid } from "@sdkwork/utils";
+import {
+  appendBoundedUnique,
+  NOTARY_CLIENT_WINDOW_LIMIT,
+  notaryService,
+  type NotaryDraftAttachment,
+  type NotaryDraftParty,
+  type NotaryStaffMember,
+} from "../services/notaryService";
 
-import { NotaryPartyParams } from "./NotaryAddParty";
+import {
+  NotaryPartyParams,
+  type NotaryDraftPartyWithId,
+} from "./NotaryAddParty";
 
 import { Step1TypeSelection } from "../components/Step1TypeSelection";
 import { Step2NotaryParties } from "../components/Step2NotaryParties";
 import { Step3ApplicationInfo } from "../components/Step3ApplicationInfo";
 import { Step4Confirmation } from "../components/Step4Confirmation";
 
-export const GLOBAL_STORE = {
-  step: 1,
-  selectedType: "",
-  selectedNotary: "",
-  selectedNotaryObj: null as any,
-  parties: [] as any[],
-  applicationInfo: "",
-  attachments: [] as any[],
-};
-
 export const CreateNotaryProcess: React.FC = () => {
   const { t } = useTranslation();
 
-  
-const navigate = useNavigate();
-  
-  const [step, setStep] = useState(GLOBAL_STORE.step);
-  const [notaryTypes, setNotaryTypes] = useState<any[]>([]);
+  const navigate = useNavigate();
+  const [initialDraft] = useState(() => notaryDraftSession.getDraft());
+  const [step, setStep] = useState(initialDraft.step);
+  const [notaryTypes, setNotaryTypes] = useState<Array<{ id: string; name: string }>>([]);
+  const [nextMatterCursor, setNextMatterCursor] = useState<string | undefined>();
+  const [isLoadingMatters, setIsLoadingMatters] = useState(false);
+  const matterLoadingRef = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(false);
 
   // Step 1: Business type
-  const [selectedType, setSelectedType] = useState(GLOBAL_STORE.selectedType);
+  const [selectedType, setSelectedType] = useState(initialDraft.selectedType);
 
   // Step 2: Parties and Notary
   const [selectedNotary, setSelectedNotary] = useState(
-    GLOBAL_STORE.selectedNotary,
+    initialDraft.selectedNotary,
   );
   const [selectedNotaryObj, setSelectedNotaryObj] = useState(
-    GLOBAL_STORE.selectedNotaryObj,
+    initialDraft.selectedNotaryObj,
   );
-  const [parties, setParties] = useState<any[]>(GLOBAL_STORE.parties);
+  const [parties] = useState(initialDraft.parties);
 
   // Step 3: Application Info
   const [applicationInfo, setApplicationInfo] = useState(
-    GLOBAL_STORE.applicationInfo,
+    initialDraft.applicationInfo,
   );
-  const [attachments, setAttachments] = useState<any[]>(
-    GLOBAL_STORE.attachments
+  const [attachments, setAttachments] = useState<NotaryDraftAttachment[]>(
+    initialDraft.attachments,
   );
 
-  useEffect(() => {
-    notaryService
-      .getNotaryTypes()
-      .then((types) =>
-        setNotaryTypes(types.map((t) => ({ id: t.id, name: t.title }))),
+  const loadMatters = async (cursor?: string) => {
+    if (matterLoadingRef.current) return;
+    matterLoadingRef.current = true;
+    setIsLoadingMatters(true);
+    try {
+      const page = await notaryService.getNotaryTypes(cursor);
+      const matters = page.matters.map((matter) => ({
+        id: matter.id,
+        name: matter.title,
+      }));
+      const merged = appendBoundedUnique(
+        notaryTypes,
+        matters,
+        (matter) => matter.id,
       );
+      setNotaryTypes(merged);
+      setNextMatterCursor(
+        page.pageInfo.hasMore && merged.length < NOTARY_CLIENT_WINDOW_LIMIT
+          ? page.pageInfo.nextCursor
+          : undefined,
+      );
+    } finally {
+      matterLoadingRef.current = false;
+      setIsLoadingMatters(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadMatters();
   }, []);
 
   useEffect(() => {
@@ -79,27 +108,36 @@ const navigate = useNavigate();
   ]);
 
   const handleNext = async () => {
+    if (isSubmitting) return;
     if (step === 1 && !selectedType) return;
     if (step === 2 && (!selectedNotary || parties.length === 0)) return;
     if (step === 3 && !applicationInfo) return;
     if (step < 4) {
       setStep(step + 1);
     } else {
-      // Step 4 Complete
       const typeObj = notaryTypes.find((t) => t.id === selectedType);
-      await notaryService.addRecord({
-        title: typeObj?.name || t("notary.unknown_notary_type"),
-        type: typeObj?.name?.replace("公证", "") || t("notary.evidence_preservation"),
-      });
-
-      GLOBAL_STORE.step = 1;
-      GLOBAL_STORE.selectedType = "";
-      GLOBAL_STORE.selectedNotary = "";
-      GLOBAL_STORE.selectedNotaryObj = null;
-      GLOBAL_STORE.parties = [];
-      GLOBAL_STORE.applicationInfo = "";
-      GLOBAL_STORE.attachments = [];
-      navigate("/notary");
+      const firstParty = parties[0];
+      if (!typeObj || !firstParty) return;
+      setIsSubmitting(true);
+      setSubmitError(false);
+      try {
+        await notaryService.createCase({
+          skuId: selectedType,
+          title: typeObj.name,
+          applicantName: firstParty.name,
+          description: applicationInfo,
+          primaryNotaryMembershipId: selectedNotary,
+          parties,
+          attachments,
+          idempotencyKey: GLOBAL_STORE.submissionIdempotencyKey,
+        });
+        resetNotaryDraft();
+        navigate("/notary");
+      } catch {
+        setSubmitError(true);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -107,14 +145,7 @@ const navigate = useNavigate();
   if (step > 1) {
       setStep(step - 1);
     } else {
-      // Step 1 -> go back and reset store
-      GLOBAL_STORE.step = 1;
-      GLOBAL_STORE.selectedType = "";
-      GLOBAL_STORE.selectedNotary = "";
-      GLOBAL_STORE.selectedNotaryObj = null;
-      GLOBAL_STORE.parties = [];
-      GLOBAL_STORE.applicationInfo = "";
-      GLOBAL_STORE.attachments = [];
+      resetNotaryDraft();
       navigate(-1);
     }
   };
@@ -128,7 +159,7 @@ const navigate = useNavigate();
     navigate("/notary/add-party");
   };
 
-  const handleEditParty = (partyToEdit: any) => {
+  const handleEditParty = (partyToEdit: NotaryDraftPartyWithId) => {
   NotaryPartyParams.editData = partyToEdit;
     NotaryPartyParams.onEdit = (updatedParty) => {
       GLOBAL_STORE.parties = GLOBAL_STORE.parties.map((p) =>
@@ -137,10 +168,6 @@ const navigate = useNavigate();
       setParties(GLOBAL_STORE.parties);
     };
     navigate("/notary/add-party");
-  };
-
-  const handleVideoCall = (party: any) => {
-  navigate(`/call/video-notary/${party.id}`);
   };
 
   const currentStepTitle = [
@@ -211,6 +238,9 @@ const navigate = useNavigate();
               notaryTypes={notaryTypes}
               selectedType={selectedType}
               setSelectedType={setSelectedType}
+              hasMore={Boolean(nextMatterCursor)}
+              isLoadingMore={isLoadingMatters}
+              onLoadMore={() => void loadMatters(nextMatterCursor)}
             />
           )}
 
@@ -223,9 +253,7 @@ const navigate = useNavigate();
               parties={parties}
               handleAddParty={handleAddParty}
               handleEditParty={handleEditParty}
-              handleVideoCall={handleVideoCall}
               navigate={navigate}
-              GLOBAL_STORE={GLOBAL_STORE}
             />
           )}
 
@@ -254,6 +282,11 @@ const navigate = useNavigate();
 
       {/* Footer */}
       <div className="px-4 py-3 pb-safe border-t border-border-color bg-bg-color shrink-0 flex gap-3">
+        {submitError && (
+          <span className="self-center text-[12px] text-red-500">
+            {t("notary.create_steps.submit_failed", "Submission failed")}
+          </span>
+        )}
         {step > 1 && (
           <button
             onClick={handleBack}
@@ -264,16 +297,22 @@ const navigate = useNavigate();
         )}
         <button
           onClick={handleNext}
+          disabled={isSubmitting}
           className={cn(
             "flex-1 h-12 rounded-xl font-bold text-[16px] flex items-center justify-center transition-all",
             (step === 1 && !selectedType) ||
               (step === 2 && (!selectedNotary || parties.length === 0)) ||
               (step === 3 && !applicationInfo)
+              || isSubmitting
               ? "bg-border-color text-text-sub opacity-50 cursor-not-allowed"
               : "bg-primary-blue text-white active:scale-[0.98] shadow-lg shadow-primary-blue/20",
           )}
         >
-          {step === 4 ? t("notary.submit_finish") : t("notary.next_step")}
+          {isSubmitting
+            ? t("notary.create_steps.submitting", "Submitting...")
+            : step === 4
+              ? t("notary.submit_finish")
+              : t("notary.next_step")}
         </button>
       </div>
     </div>

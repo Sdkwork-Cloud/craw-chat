@@ -1,4 +1,6 @@
 {
+  "title": "AI Music",
+  "unavailable": "AI music is unavailable until the Music owner SDK is composed.",
   "tabs": {
     "create": "Create",
     "library": "Library"

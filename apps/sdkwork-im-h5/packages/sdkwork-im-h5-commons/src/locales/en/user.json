@@ -1,4 +1,6 @@
 {
+  "capability_title": "User services",
+  "capability_unavailable": "This user capability is unavailable until its owner SDK and authorization model are composed.",
   "settings": {
     "account_security": "Account & Security",
     "message_notifications": "Message Notifications",

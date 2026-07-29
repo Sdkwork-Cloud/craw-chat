@@ -9,7 +9,7 @@ import type {
   ImSdkClient,
   ImSubscription,
 } from '@sdkwork/im-sdk';
-import { getImSdkClient } from './chatConversationService';
+import { getChatImSdkClient } from './chatConversationService';
 
 export type ChatLiveConnectionStatus = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
 
@@ -47,6 +47,27 @@ let scopeUnsubs = new Map<string, ImSubscription>();
 const conversationIds = new Set<string>();
 const scopeSubscriptions: ImRealtimeScopeSubscription[] = [];
 const connectionLeases = new Set<string>();
+const conversationLeaseIds = new Map<string, Set<string>>();
+const scopeLeaseIds = new Map<string, Set<string>>();
+let nextLeaseSequence = 0;
+
+function createConnectionLeaseId(scope: string): string {
+  nextLeaseSequence += 1;
+  return `${scope}:${nextLeaseSequence}`;
+}
+
+function connectForLease(
+  leaseId: string,
+  onReady: (connection: ImLiveConnection) => void,
+): void {
+  void ensureChatLiveConnection()
+    .then((connection) => {
+      if (connectionLeases.has(leaseId)) {
+        onReady(connection);
+      }
+    })
+    .catch(() => undefined);
+}
 
 function ensureConversationRegistration(conversationId: string): ConversationRegistration {
   let registration = conversationRegistrations.get(conversationId);
@@ -82,7 +103,7 @@ function resolveConnectOptions(): ImConnectOptions {
 }
 
 async function openSharedConnection(): Promise<ImLiveConnection> {
-  const client: ImSdkClient = getImSdkClient();
+  const client: ImSdkClient = getChatImSdkClient();
   const options = resolveConnectOptions();
   connectionGeneration += 1;
   const generation = connectionGeneration;
@@ -238,10 +259,6 @@ function teardownConnectionIfIdle(): void {
     return;
   }
 
-  if (!sharedConnection) {
-    return;
-  }
-
   connectionGeneration += 1;
 
   try {
@@ -277,22 +294,90 @@ function teardownConnectionIfIdle(): void {
   }
 
   conversationMessageUnsubs = new Map();
-  conversationEventUnsubs = new Map()
+  conversationEventUnsubs = new Map();
   scopeUnsubs = new Map();
 
-  try {
-    sharedConnection.disconnect();
-  } catch {
-    // ignore
+  if (sharedConnection) {
+    try {
+      sharedConnection.disconnect();
+    } catch {
+      // ignore
+    }
   }
 
+  lifecycleUnsub = undefined;
+  stateUnsub = undefined;
   sharedConnection = null;
   sharedConnectionPromise = null;
   connectionStatus = 'idle';
 }
 
+function releaseConnectionLease(leaseId: string): void {
+  connectionLeases.delete(leaseId);
+  teardownConnectionIfIdle();
+}
+
+function removeConversationRegistrationIfUnused(conversationId: string): void {
+  const registration = conversationRegistrations.get(conversationId);
+  const leases = conversationLeaseIds.get(conversationId);
+  if (
+    (registration?.messageHandlers.size ?? 0) > 0
+    || (registration?.eventHandlers.size ?? 0) > 0
+    || (leases?.size ?? 0) > 0
+  ) {
+    return;
+  }
+
+  try {
+    conversationMessageUnsubs.get(conversationId)?.();
+  } catch {
+    // ignore
+  }
+  try {
+    conversationEventUnsubs.get(conversationId)?.();
+  } catch {
+    // ignore
+  }
+  conversationMessageUnsubs.delete(conversationId);
+  conversationEventUnsubs.delete(conversationId);
+  conversationRegistrations.delete(conversationId);
+  conversationLeaseIds.delete(conversationId);
+  conversationIds.delete(conversationId);
+  if (sharedConnection && connectionStatus === 'open') {
+    sharedConnection.subscriptions.syncConversations(Array.from(conversationIds));
+  }
+}
+
+function removeScopeRegistrationIfUnused(scopeKey: string): void {
+  const registration = scopeRegistrations.get(scopeKey);
+  const leases = scopeLeaseIds.get(scopeKey);
+  if ((registration?.handlers.size ?? 0) > 0 || (leases?.size ?? 0) > 0) {
+    return;
+  }
+
+  try {
+    scopeUnsubs.get(scopeKey)?.();
+  } catch {
+    // ignore
+  }
+  scopeUnsubs.delete(scopeKey);
+  scopeRegistrations.delete(scopeKey);
+  scopeLeaseIds.delete(scopeKey);
+  const subscriptionIndex = scopeSubscriptions.findIndex(
+    (scope) => `${scope.scopeType}:${scope.scopeId}` === scopeKey,
+  );
+  if (subscriptionIndex >= 0) {
+    scopeSubscriptions.splice(subscriptionIndex, 1);
+  }
+  if (sharedConnection && connectionStatus === 'open') {
+    sharedConnection.subscriptions.syncScopes(scopeSubscriptions);
+  }
+}
+
 export function disposeChatLiveConnection(): void {
-  conversationLeases.clear();
+  connectionLeases.clear();
+  conversationLeaseIds.clear();
+  scopeLeaseIds.clear();
   conversationRegistrations.clear();
   scopeRegistrations.clear();
   inboxRefreshHandlers.clear();
@@ -308,11 +393,15 @@ export async function ensureChatLiveConnection(): Promise<ImLiveConnection> {
   }
 
   if (!sharedConnectionPromise) {
-    sharedConnectionPromise = openSharedConnection().catch((error) => {
-      sharedConnectionPromise = null;
-      connectionStatus = 'error';
+    const pendingConnection = openSharedConnection();
+    const guardedConnection = pendingConnection.catch((error) => {
+      if (sharedConnectionPromise === guardedConnection) {
+        sharedConnectionPromise = null;
+        connectionStatus = connectionLeases.size > 0 ? 'error' : 'idle';
+      }
       throw error;
     });
+    sharedConnectionPromise = guardedConnection;
   }
 
   return sharedConnectionPromise;
@@ -320,17 +409,22 @@ export async function ensureChatLiveConnection(): Promise<ImLiveConnection> {
 
 export function acquireConversationLiveConnection(conversationId: string, leaseId: string): void {
   conversationIds.add(conversationId);
-  conversationLeases.add(leaseId);
+  connectionLeases.add(leaseId);
+  const leases = conversationLeaseIds.get(conversationId) ?? new Set<string>();
+  leases.add(leaseId);
+  conversationLeaseIds.set(conversationId, leases);
   ensureConversationRegistration(conversationId);
-  void ensureChatLiveConnection().then((connection) => {
+  connectForLease(leaseId, (connection) => {
     attachConversationListeners(connection, conversationId);
     connection.subscriptions.syncConversations(Array.from(conversationIds));
   });
 }
 
 export function releaseConversationLiveConnection(conversationId: string, leaseId: string): void {
-  connectionLeases.delete(leaseId);
-  teardownConnectionIfIdle();
+  const leases = conversationLeaseIds.get(conversationId);
+  leases?.delete(leaseId);
+  removeConversationRegistrationIfUnused(conversationId);
+  releaseConnectionLease(leaseId);
 }
 
 export function subscribeConversationMessages(
@@ -339,13 +433,11 @@ export function subscribeConversationMessages(
 ): () => void {
   const registration = ensureConversationRegistration(conversationId);
   registration.messageHandlers.add(handler);
-  conversationIds.add(conversationId);
-  void ensureChatLiveConnection().then((connection) => {
-    attachConversationListeners(connection, conversationId);
-    connection.subscriptions.syncConversations(Array.from(conversationIds));
-  });
+  const leaseId = createConnectionLeaseId(`conversation-message:${conversationId}`);
+  acquireConversationLiveConnection(conversationId, leaseId);
   return () => {
     registration.messageHandlers.delete(handler);
+    releaseConversationLiveConnection(conversationId, leaseId);
   };
 }
 
@@ -362,8 +454,11 @@ export function subscribeConversationEvents(
 ): () => void {
   const registration = ensureConversationRegistration(conversationId);
   registration.eventHandlers.add(handler);
+  const leaseId = createConnectionLeaseId(`conversation-event:${conversationId}`);
+  acquireConversationLiveConnection(conversationId, leaseId);
   return () => {
     registration.eventHandlers.delete(handler);
+    releaseConversationLiveConnection(conversationId, leaseId);
   };
 }
 
@@ -379,22 +474,33 @@ export function subscribeScopeEvents(
   if (!existing) {
     scopeSubscriptions.push({ scopeType, scopeId });
   }
-  void ensureChatLiveConnection().then((connection) => {
+  const leaseId = createConnectionLeaseId(`scope:${scopeKey}`);
+  connectionLeases.add(leaseId);
+  const leases = scopeLeaseIds.get(scopeKey) ?? new Set<string>();
+  leases.add(leaseId);
+  scopeLeaseIds.set(scopeKey, leases);
+  connectForLease(leaseId, (connection) => {
     attachScopeListeners(connection, scopeKey, scopeType, scopeId);
     connection.subscriptions.syncScopes(scopeSubscriptions);
   });
   return () => {
     registration.handlers.delete(handler);
+    leases.delete(leaseId);
+    removeScopeRegistrationIfUnused(scopeKey);
+    releaseConnectionLease(leaseId);
   };
 }
 
 export function subscribeInboxLiveRefresh(handler: () => void): () => void {
   inboxRefreshHandlers.add(handler);
-  void ensureChatLiveConnection().then((connection) => {
+  const leaseId = createConnectionLeaseId('inbox');
+  connectionLeases.add(leaseId);
+  connectForLease(leaseId, (connection) => {
     syncLiveSubscriptions(connection);
   });
   return () => {
     inboxRefreshHandlers.delete(handler);
+    releaseConnectionLease(leaseId);
   };
 }
 

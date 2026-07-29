@@ -5,15 +5,21 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 interface Step1TypeSelectionProps {
-  notaryTypes: any[];
+  notaryTypes: Array<{ id: string; name: string }>;
   selectedType: string;
   setSelectedType: (id: string) => void;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
 }
 
 export const Step1TypeSelection: React.FC<Step1TypeSelectionProps> = ({
   notaryTypes,
   selectedType,
   setSelectedType,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
 }) => {
   const { t } = useTranslation();
 return (
@@ -63,6 +69,18 @@ return (
           )}
         </div>
       ))}
+      {hasMore && (
+        <button
+          type="button"
+          disabled={isLoadingMore}
+          onClick={onLoadMore}
+          className="h-11 rounded-lg border border-border-color text-[14px] font-medium text-primary-blue disabled:opacity-50"
+        >
+          {isLoadingMore
+            ? t("notary.create_steps.loading_more", "Loading...")
+            : t("notary.create_steps.load_more", "Load more")}
+        </button>
+      )}
     </motion.div>
   );
 };

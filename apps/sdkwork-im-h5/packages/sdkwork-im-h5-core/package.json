@@ -9,10 +9,34 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./sdk": {
+      "import": "./src/sdk/index.ts",
+      "types": "./src/sdk/index.ts"
+    },
+    "./modules": {
+      "import": "./src/modules/index.ts",
+      "types": "./src/modules/index.ts"
+    },
+    "./host": {
+      "import": "./src/host/index.ts",
+      "types": "./src/host/index.ts"
+    },
+    "./session": {
+      "import": "./src/session/index.ts",
+      "types": "./src/session/index.ts"
+    },
+    "./composition": {
+      "import": "./src/composition/index.ts",
+      "types": "./src/composition/index.ts"
     }
   },
   "dependencies": {
     "@sdkwork/drive-app-sdk": "workspace:*",
-    "@sdkwork/utils": "workspace:*"
+    "@sdkwork/im-sdk": "workspace:*",
+    "@sdkwork/notary-app-sdk": "workspace:*",
+    "@sdkwork/sdk-common": "catalog:",
+    "@sdkwork/utils": "workspace:*",
+    "zustand": "catalog:"
   }
 }

@@ -12,6 +12,9 @@
     "scan": "Scan"
   },
   "detail": {
+    "legacy_title": "Legacy conversation",
+    "legacy_unavailable": "This legacy conversation surface is unavailable. Use the SDK-backed conversation route.",
+    "attachments_unavailable": "Legacy attachment actions are unavailable until their picker and uploader flow is composed.",
     "placeholder": "Message...",
     "reply_to": "Reply to",
     "me": "Me",

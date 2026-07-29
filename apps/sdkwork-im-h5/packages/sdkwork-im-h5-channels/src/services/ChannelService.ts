@@ -1,20 +1,18 @@
-import { CreativeWork } from "../types";
-import { CREATIVE_WORKS } from "../data/mockData";
+import type { CreativeWork } from "../types";
+
+export class ChannelCapabilityUnavailableError extends Error {
+  constructor() {
+    super("Creative Channels are unavailable because their owner SDK is not composed.");
+    this.name = "ChannelCapabilityUnavailableError";
+  }
+}
 
 export class ChannelService {
   static async getFeedWorks(): Promise<CreativeWork[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(CREATIVE_WORKS), 500);
-    });
+    throw new ChannelCapabilityUnavailableError();
   }
 
   static async getWaterfallWorks(): Promise<CreativeWork[]> {
-    return new Promise((resolve) => {
-      const items = [...CREATIVE_WORKS, ...CREATIVE_WORKS, ...CREATIVE_WORKS].map((w, i) => ({
-        ...w,
-        id: `wf-${i}`,
-      }));
-      setTimeout(() => resolve(items), 500);
-    });
+    throw new ChannelCapabilityUnavailableError();
   }
 }

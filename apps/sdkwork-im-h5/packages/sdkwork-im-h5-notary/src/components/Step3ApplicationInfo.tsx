@@ -2,12 +2,18 @@ import React, { useRef, useState } from "react";
 import { motion } from "motion/react";
 import { Plus, X, File, Video, PlayCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { uuid } from "@sdkwork/utils";
+import type { NotaryDraftAttachment } from "../services/notaryService";
+
+const MAX_DRAFT_ATTACHMENTS = 20;
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+const MAX_TOTAL_ATTACHMENT_BYTES = 100 * 1024 * 1024;
 
 interface Step3ApplicationInfoProps {
   applicationInfo: string;
   setApplicationInfo: (info: string) => void;
-  attachments: any[];
-  setAttachments: (attachments: any[]) => void;
+  attachments: NotaryDraftAttachment[];
+  setAttachments: (attachments: NotaryDraftAttachment[]) => void;
 }
 
 export const Step3ApplicationInfo: React.FC<Step3ApplicationInfoProps> = ({
@@ -19,26 +25,61 @@ export const Step3ApplicationInfo: React.FC<Step3ApplicationInfoProps> = ({
   const { t } = useTranslation();
 const fileInputRef = useRef<HTMLInputElement>(null);
   const [fullscreenPreview, setFullscreenPreview] = useState<{ url: string, type: 'image' | 'video' } | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const files = e.target.files;
+    const files = e.target.files;
     if (files && files.length > 0) {
-      const newAttachments = Array.from(files).map((file: File) => {
+      const remainingCapacity = Math.max(0, MAX_DRAFT_ATTACHMENTS - attachments.length);
+      const newAttachments: NotaryDraftAttachment[] = [];
+      let totalBytes = attachments.reduce(
+        (total, attachment) => total + attachment.file.size,
+        0,
+      );
+      let rejected = files.length > remainingCapacity;
+      for (const file of files) {
+        if (newAttachments.length >= remainingCapacity) {
+          break;
+        }
+        if (
+          file.size < 1
+          || file.size > MAX_ATTACHMENT_BYTES
+          || totalBytes + file.size > MAX_TOTAL_ATTACHMENT_BYTES
+        ) {
+          rejected = true;
+          continue;
+        }
         const isVideo = file.type.startsWith('video/');
-        return {
-          id: Date.now().toString() + Math.random().toString(36).substring(7),
+        const isImage = file.type.startsWith('image/');
+        newAttachments.push({
+          id: uuid(),
           name: file.name,
-          url: URL.createObjectURL(file),
-          type: isVideo ? 'video' : 'image',
-          size: (file.size / 1024 / 1024).toFixed(2) + 'MB'
-        };
-      });
+          file,
+          previewUrl: URL.createObjectURL(file),
+          type: isVideo ? 'video' as const : isImage ? 'image' as const : 'file' as const,
+          size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+        });
+        totalBytes += file.size;
+      }
       setAttachments([...attachments, ...newAttachments]);
+      setAttachmentError(
+        rejected
+          ? t(
+            "notary.create_steps.attachment_limits",
+            "Some files were skipped. Maximum 20 files, 25 MB each and 100 MB total.",
+          )
+          : null,
+      );
+      e.target.value = "";
     }
   };
 
   const removeAttachment = (id: string) => {
-  setAttachments(attachments.filter(a => a.id !== id));
+    const attachment = attachments.find((item) => item.id === id);
+    if (attachment) {
+      URL.revokeObjectURL(attachment.previewUrl);
+    }
+    setAttachments(attachments.filter((item) => item.id !== id));
   };
 
   return (
@@ -82,23 +123,34 @@ const fileInputRef = useRef<HTMLInputElement>(null);
               ref={fileInputRef}
               type="file" 
               multiple
-              accept="image/*,video/*"
+              accept="image/*,video/*,application/pdf"
               className="hidden" 
               onChange={handleFileChange}
             />
           </div>
+          {attachmentError && (
+            <p className="text-[12px] text-red-500">{attachmentError}</p>
+          )}
           
           {attachments.length > 0 ? (
             <div className="flex flex-col gap-2">
               {attachments.map((file) => (
-                <div key={file.id} className="flex items-center gap-3 p-2 rounded-xl bg-input-bg border border-border-color cursor-pointer active:scale-[0.98]" onClick={() => setFullscreenPreview({ url: file.url, type: file.type })}>
+                <div key={file.id} className="flex items-center gap-3 p-2 rounded-xl bg-input-bg border border-border-color cursor-pointer active:scale-[0.98]" onClick={() => file.type !== "file" && setFullscreenPreview({ url: file.previewUrl, type: file.type })}>
                   <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-black/5 dark:bg-white/5 relative">
                      {file.type === 'image' ? (
-                        <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
-                      ) : (
+                        <img src={file.previewUrl} alt={file.name} className="w-full h-full object-cover" />
+                      ) : file.type === "video" ? (
                         <div className="w-full h-full flex items-center justify-center relative">
-                          <video src={file.url} className="w-full h-full object-cover absolute inset-0 opacity-40 pointer-events-none" />
+                          <video
+                            src={file.previewUrl}
+                            preload="metadata"
+                            className="w-full h-full object-cover absolute inset-0 opacity-40 pointer-events-none"
+                          />
                           <PlayCircle className="w-6 h-6 text-black/50 dark:text-white/50 z-10" />
+                        </div>
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <File className="h-6 w-6 text-text-sub" />
                         </div>
                       )}
                   </div>
@@ -166,4 +218,3 @@ const fileInputRef = useRef<HTMLInputElement>(null);
     </>
   );
 };
-

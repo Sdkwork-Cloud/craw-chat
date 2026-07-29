@@ -8,9 +8,16 @@
 
 import {
   getDriveAppSdkClient,
+  initImSdkClient,
+  resetImSdkClient,
+  getNotaryComposedApi,
   initDriveAppSdkClient,
+  initNotaryAppSdkClient,
+  resetNotaryAppSdkClient,
   resetDriveAppSdkClient,
   createDriveAppSdkClientConfig,
+  type NotaryComposedApi,
+  type ImSdkClient,
   type SdkworkDriveAppClient,
 } from '@sdkwork/im-h5-core';
 import { resolveH5RuntimeEnvironment } from './environment';
@@ -19,21 +26,11 @@ import type { SdkworkAppbasePcAuthRuntimeComposition } from '@sdkwork/auth-runti
 
 export interface H5SdkClientComposition {
   readonly driveAppSdkClient: SdkworkDriveAppClient;
+  readonly imSdkClient: ImSdkClient;
+  readonly notaryApi: NotaryComposedApi;
 }
 
 let sdkClientComposition: H5SdkClientComposition | null = null;
-
-function resolveSessionTokens(
-  authRuntime: SdkworkAppbasePcAuthRuntimeComposition,
-): { accessToken?: string; authToken?: string } {
-  const session = authRuntime.session as
-    | { accessToken?: string; authToken?: string }
-    | undefined;
-  return {
-    accessToken: session?.accessToken,
-    authToken: session?.authToken,
-  };
-}
 
 export function initSdkClients(): H5SdkClientComposition {
   if (sdkClientComposition) {
@@ -42,17 +39,31 @@ export function initSdkClients(): H5SdkClientComposition {
 
   const environment = resolveH5RuntimeEnvironment();
   const authRuntime = getImAppAuthRuntime();
-  const tokens = resolveSessionTokens(authRuntime);
+  const imSdkClient = initImSdkClient({
+    apiBaseUrl: environment.imApiBaseUrl,
+    platform: "h5",
+    tokenManager: authRuntime.tokenManager,
+  });
 
   const driveAppSdkClient = initDriveAppSdkClient(
     createDriveAppSdkClientConfig({
       baseUrl: environment.driveAppApiBaseUrl,
-      accessToken: tokens.accessToken,
-      authToken: tokens.authToken,
+      tokenManager: authRuntime.tokenManager,
     }),
   );
 
-  sdkClientComposition = { driveAppSdkClient };
+  initNotaryAppSdkClient(
+    {
+      baseUrl: environment.sdkGatewayApiBaseUrl,
+      authMode: 'dual-token',
+      platform: 'h5',
+      tokenManager: authRuntime.tokenManager,
+    },
+    driveAppSdkClient,
+  );
+  const notaryApi = getNotaryComposedApi();
+
+  sdkClientComposition = { driveAppSdkClient, imSdkClient, notaryApi };
   return sdkClientComposition;
 }
 
@@ -65,7 +76,9 @@ export function getDriveAppSdkClientFromBootstrap(): SdkworkDriveAppClient {
 }
 
 export function resetSdkClients(): void {
+  resetNotaryAppSdkClient();
   resetDriveAppSdkClient();
+  resetImSdkClient();
   sdkClientComposition = null;
 }
 

@@ -59,6 +59,7 @@ const DialogInner: React.FC<DialogProps> = ({
 };
 
 let dialogRoot: ReturnType<typeof createRoot> | null = null;
+let dialogSequence = 0;
 
 const createDialogParams = (props: DialogProps) => {
   let container = document.getElementById("dialog-container");
@@ -70,9 +71,10 @@ const createDialogParams = (props: DialogProps) => {
   if (!dialogRoot) {
     dialogRoot = createRoot(container);
   }
+  const dialogKey = ++dialogSequence;
   dialogRoot.render(
     <AnimatePresence>
-      <DialogInner key={Date.now()} {...props} />
+      <DialogInner key={dialogKey} {...props} />
     </AnimatePresence>,
   );
 };

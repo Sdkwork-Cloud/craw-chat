@@ -126,6 +126,9 @@
       "@sdkwork/im-h5-chat": [
         "./packages/sdkwork-im-h5-chat/src/index.ts"
       ],
+      "@sdkwork/im-h5-contacts": [
+        "./packages/sdkwork-im-h5-contacts/src/index.ts"
+      ],
       "@sdkwork/im-h5-user": [
         "./packages/sdkwork-im-h5-user/src/index.ts"
       ]

@@ -6,6 +6,7 @@
   "tags": "Tags",
   "official_accounts": "Official Accounts",
   "contacts_count": "{{count}} contacts",
+  "open_conversation_failed": "Unable to open conversation",
   "add_friend": "Add Friend",
   "add_friend_placeholder": "WeChat ID/Mobile",
   "search_button": "Search",

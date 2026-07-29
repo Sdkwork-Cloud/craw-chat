@@ -1,11 +1,11 @@
 import { useTranslation } from "react-i18next";
 import React from "react";
 import { X } from "lucide-react";
-import { Product } from "../../types";
+import type { Product, ProductSKU } from "../../types";
 
 interface ProductSkuPanelProps {
   product: Product;
-  currentSku: any;
+  currentSku?: ProductSKU;
   displayPrice: string;
   quantity: number;
   setQuantity: (val: number) => void;
@@ -52,7 +52,7 @@ return (
           <img
             src={currentSku?.image || product.image}
             className="w-[100px] h-[100px] rounded-lg border-2 border-border-color/30 object-cover -mt-8 bg-chat-other-bg shrink-0"
-            alt={product.name}
+            alt={product.title}
           />
           <div className="flex flex-col justify-end">
             <span className="text-[#FA5151] font-bold text-[22px] leading-none mb-1">

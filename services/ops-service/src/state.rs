@@ -23,6 +23,12 @@ pub struct AppState {
     pub(crate) runtime: Arc<OpsRuntime>,
 }
 
+impl AppState {
+    pub fn new(runtime: Arc<OpsRuntime>) -> Self {
+        Self { runtime }
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct PublicAppGuardrails {
     pub(crate) request_gate: Arc<Semaphore>,
@@ -32,6 +38,7 @@ pub struct OpsRuntime {
     node_id: String,
     profile: String,
     bind_addr: String,
+    publish_cluster_node: bool,
     services: Vec<ServiceHealthView>,
     owned_scopes: Vec<String>,
     lag_items: Mutex<Vec<LagItem>>,
@@ -109,17 +116,52 @@ fn encode_ops_cursor(resource: &str, key: Vec<String>) -> Result<String, OpsErro
 
 impl Default for OpsRuntime {
     fn default() -> Self {
-        Self::new(
-            "ops_node_1",
-            "standalone",
-            "127.0.0.1:28091",
-            vec!["ops-service".into()],
-            vec!["node:ops_node_1".into()],
+        Self::new_internal(
+            "unconfigured",
+            "unconfigured",
+            "unconfigured",
+            Vec::new(),
+            Vec::new(),
+            false,
         )
     }
 }
 
 impl OpsRuntime {
+    pub fn from_env() -> Self {
+        Self::from_env_with_optional_node_id(
+            read_non_empty_env("SDKWORK_IM_REALTIME_NODE_ID"),
+            false,
+        )
+    }
+
+    pub fn from_env_with_node_id(node_id: impl Into<String>) -> Self {
+        let node_id = node_id.into();
+        let node_id = (!node_id.trim().is_empty()).then(|| node_id.trim().to_owned());
+        Self::from_env_with_optional_node_id(node_id, true)
+    }
+
+    fn from_env_with_optional_node_id(
+        node_id: Option<String>,
+        publish_observed_cluster_node: bool,
+    ) -> Self {
+        let publish_cluster_node = publish_observed_cluster_node && node_id.is_some();
+        let profile = read_non_empty_env("SDKWORK_IM_PROFILE_ID")
+            .unwrap_or_else(|| "unconfigured".to_owned());
+        let bind_addr = read_non_empty_env("SDKWORK_IM_OPS_SERVICE_BIND_ADDR")
+            .or_else(|| read_non_empty_env("SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND"))
+            .unwrap_or_else(|| "unconfigured".to_owned());
+
+        Self::new_internal(
+            node_id.unwrap_or_else(|| "unconfigured".to_owned()),
+            profile,
+            bind_addr,
+            Vec::new(),
+            Vec::new(),
+            publish_cluster_node,
+        )
+    }
+
     pub fn new(
         node_id: impl Into<String>,
         profile: impl Into<String>,
@@ -127,21 +169,40 @@ impl OpsRuntime {
         service_names: Vec<String>,
         owned_scopes: Vec<String>,
     ) -> Self {
+        Self::new_internal(
+            node_id,
+            profile,
+            bind_addr,
+            service_names,
+            owned_scopes,
+            true,
+        )
+    }
+
+    fn new_internal(
+        node_id: impl Into<String>,
+        profile: impl Into<String>,
+        bind_addr: impl Into<String>,
+        service_names: Vec<String>,
+        owned_scopes: Vec<String>,
+        publish_cluster_node: bool,
+    ) -> Self {
         Self {
             node_id: node_id.into(),
             profile: profile.into(),
             bind_addr: bind_addr.into(),
+            publish_cluster_node,
             services: service_names
                 .into_iter()
                 .map(|service| ServiceHealthView {
                     service,
-                    status: "ok".into(),
+                    status: "unavailable".into(),
                 })
                 .collect(),
             owned_scopes,
             lag_items: Mutex::new(default_lag_items()),
-            drain_status: Mutex::new("active".into()),
-            rebalance_state: Mutex::new("stable".into()),
+            drain_status: Mutex::new("unavailable".into()),
+            rebalance_state: Mutex::new("unavailable".into()),
             client_routes: Mutex::new(Vec::new()),
             client_route_total: Mutex::new(0),
             provider_bindings: Mutex::new(BTreeMap::new()),
@@ -251,6 +312,9 @@ impl OpsRuntime {
     }
 
     pub fn cluster_view(&self) -> ClusterView {
+        if !self.publish_cluster_node {
+            return ClusterView { nodes: Vec::new() };
+        }
         let drain_status = lock_ops_mutex(&self.drain_status, "ops drain status").clone();
         let rebalance_state = lock_ops_mutex(&self.rebalance_state, "ops rebalance state").clone();
         let client_route_count =
@@ -562,6 +626,13 @@ fn lock_ops_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexG
 
 fn default_lag_items() -> Vec<LagItem> {
     Vec::new()
+}
+
+fn read_non_empty_env(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
 }
 
 fn rollup_health_status<'a>(statuses: impl IntoIterator<Item = &'a str>) -> &'static str {

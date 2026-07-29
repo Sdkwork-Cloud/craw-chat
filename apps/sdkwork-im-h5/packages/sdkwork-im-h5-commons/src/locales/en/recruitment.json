@@ -1,5 +1,6 @@
 {
   "title": "Recruitment",
+  "unavailable": "Recruitment is not available until its owner SDK and permission model are composed.",
   "stats": {
     "ongoing": "Ongoing Candidates",
     "todayInterview": "Today's Interview",

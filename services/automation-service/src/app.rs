@@ -70,17 +70,31 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 
 pub fn build_public_app() -> Router {
     let runtime = crate::bootstrap::default_automation_runtime();
-    mount_automation_infra_routes(apply_public_http_guardrails(build_business_router(runtime)))
+    let api_router =
+        apply_public_http_guardrails(build_domain_api_router(AppState::new(runtime.clone())));
+    build_public_app_from_api_router(runtime, api_router)
 }
 
 pub fn build_app(runtime: Arc<AutomationRuntime>) -> Router {
-    mount_automation_infra_routes(build_business_router(runtime))
+    let api_router = build_domain_api_router(AppState::new(runtime.clone()));
+    build_public_app_from_api_router(runtime, api_router)
 }
 
 pub fn build_business_router(runtime: Arc<AutomationRuntime>) -> Router {
-    let state = AppState {
-        runtime: runtime.clone(),
-    };
+    build_service_router(
+        runtime.clone(),
+        build_domain_api_router(AppState::new(runtime)),
+    )
+}
+
+pub fn build_public_app_from_api_router(
+    runtime: Arc<AutomationRuntime>,
+    api_router: Router,
+) -> Router {
+    mount_automation_infra_routes(build_service_router(runtime, api_router))
+}
+
+fn build_service_router(runtime: Arc<AutomationRuntime>, api_router: Router) -> Router {
     Router::new()
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
@@ -98,7 +112,7 @@ pub fn build_business_router(runtime: Arc<AutomationRuntime>) -> Router {
                 }
             }),
         )
-        .merge(build_domain_api_router(state))
+        .merge(api_router)
 }
 
 fn mount_automation_infra_routes(router: Router) -> Router {

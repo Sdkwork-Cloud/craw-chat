@@ -2,6 +2,7 @@
 
 use std::sync::{Arc, OnceLock};
 
+use conversation_runtime::conversation_state::ConversationStateService;
 use im_adapters_local_disk::FileNotificationTaskStore;
 use im_adapters_local_memory::MemoryNotificationTaskStore;
 use im_adapters_postgres_journal::{
@@ -11,7 +12,6 @@ use im_adapters_postgres_journal::{
 use im_app_context::{
     allows_header_only_app_context_fallback, resolve_web_environment_from_process_env,
 };
-use conversation_runtime::conversation_state::ConversationStateService;
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitEnvelope, CommitJournal, CommitPosition};

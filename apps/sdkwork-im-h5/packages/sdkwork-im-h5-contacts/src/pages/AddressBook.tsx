@@ -11,10 +11,10 @@ import {
   Plus,
   ChevronLeft,
 } from "lucide-react";
-import { IconButton } from "@sdkwork/im-h5-commons";
+import { IconButton, showToast } from "@sdkwork/im-h5-commons";
+import { MAX_LIST_PAGE_SIZE } from "@sdkwork/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { ContactService, type Contact } from "../services/ContactService";
-import { OrganizationService } from "../services/OrganizationService";
 import { TopFunctionRow } from "../components/TopFunctionRow";
 import { ContactRow } from "../components/ContactRow";
 import { AlphabetIndexBar } from "../components/AlphabetIndexBar";
@@ -62,15 +62,54 @@ const navigate = useNavigate();
   const letterIndicatorTimeout = useRef<any>(null);
   const [contactsData, setContactsData] = useState<Record<string, Contact[]>>({});
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [hasMore, setHasMore] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
-      const data = await ContactService.getContactsDict();
-      setContactsData(data);
-      setLoading(false);
+      try {
+        const page = await ContactService.listContactPage();
+        setContactsData(groupContacts(page.items));
+        setNextCursor(page.nextCursor);
+        setHasMore(page.hasMore);
+        setLoadError(false);
+      } catch (error) {
+        console.error(error);
+        setLoadError(true);
+      } finally {
+        setLoading(false);
+      }
     };
-    loadData();
+    void loadData();
   }, []);
+
+  const loadMore = async () => {
+    if (!hasMore || !nextCursor || loadingMore) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const page = await ContactService.listContactPage(nextCursor);
+      const current = Object.values(contactsData).flat();
+      const byId = new Map(current.map((contact) => [contact.id, contact]));
+      for (const contact of page.items) {
+        byId.set(contact.id, contact);
+      }
+      const bounded = Array.from(byId.values()).slice(0, MAX_LIST_PAGE_SIZE);
+      setContactsData(groupContacts(bounded));
+      const reachedWindowLimit = bounded.length >= MAX_LIST_PAGE_SIZE;
+      setNextCursor(reachedWindowLimit ? undefined : page.nextCursor);
+      setHasMore(!reachedWindowLimit && page.hasMore);
+      setLoadError(false);
+    } catch (error) {
+      console.error(error);
+      setLoadError(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleIndexClick = (letter: string) => {
   setActiveLetter(letter);
@@ -147,37 +186,25 @@ const navigate = useNavigate();
             icon={Users}
             title={t('contacts.group_chats')}
             bgColor="bg-[#07C160]"
-            onClick={() => {}}
+            onClick={() => showToast(t('contacts.capability_unavailable', 'Not available'))}
           />
           <TopFunctionRow
             icon={Tags}
             title={t('contacts.tags')}
             bgColor="bg-[#10aeff]"
-            onClick={() => {}}
+            onClick={() => showToast(t('contacts.capability_unavailable', 'Not available'))}
           />
           <TopFunctionRow
             icon={Network}
             title={t('contacts.org_structure')}
             bgColor="bg-[#4395F5]"
-            onClick={async () => {
-              // Show a loading indicator if necessary, or just wait. It should be fast.
-              try {
-                const orgs = await OrganizationService.getOrganizations();
-                if (orgs.length === 1) {
-                  navigate(`/contacts/org/${orgs[0].id}`);
-                } else {
-                  navigate("/contacts/org");
-                }
-              } catch (e) {
-                navigate("/contacts/org");
-              }
-            }}
+            onClick={() => navigate("/contacts/org")}
           />
           <TopFunctionRow
             icon={Building2}
             title={t('contacts.official_accounts')}
             bgColor="bg-[#10aeff]"
-            onClick={() => {}}
+            onClick={() => showToast(t('contacts.capability_unavailable', 'Not available'))}
           />
           <div className="pl-4 bg-bg-color">
             <div className="border-b border-border-color/50 w-full" />
@@ -206,10 +233,27 @@ const navigate = useNavigate();
             </div>
           ))}
 
+        {hasMore && nextCursor && (
+          <button
+            type="button"
+            disabled={loadingMore}
+            onClick={loadMore}
+            className="mx-auto my-3 block min-h-10 px-4 text-[14px] font-medium text-primary-blue disabled:text-text-sub"
+          >
+            {loadingMore
+              ? t('common.loading', 'Loading...')
+              : t('common.load_more', 'Load more')}
+          </button>
+        )}
+
         {/* Footer padding */}
         <div className="h-[40px] flex items-center justify-center pb-safe mb-4">
           <span className="text-[14px] text-text-sub">
-            {t('contacts.contacts_count', { count: Object.values(contactsData).flat().length })}
+            {loading
+              ? t('common.loading', 'Loading...')
+              : loadError
+                ? t('contacts.load_failed', 'Unable to load contacts')
+                : t('contacts.contacts_count', { count: Object.values(contactsData).flat().length })}
           </span>
         </div>
       </div>
@@ -235,3 +279,16 @@ const navigate = useNavigate();
     </div>
   );
 };
+
+function groupContacts(contacts: Contact[]): Record<string, Contact[]> {
+  const result: Record<string, Contact[]> = {};
+  for (const contact of contacts) {
+    const firstCharacter = contact.name.charAt(0).toUpperCase();
+    const group = /^[A-Z]$/u.test(firstCharacter) ? firstCharacter : "#";
+    (result[group] ??= []).push(contact);
+  }
+  for (const group of Object.keys(result)) {
+    result[group].sort((left, right) => left.name.localeCompare(right.name));
+  }
+  return result;
+}

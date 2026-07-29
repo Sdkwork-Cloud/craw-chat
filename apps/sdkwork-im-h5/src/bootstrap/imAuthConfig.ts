@@ -68,7 +68,6 @@ export function resolveImAuthRuntimeConfig(
 ): SdkworkAuthRuntimeConfig {
   const developmentPrefill = resolveDevelopmentPrefill();
   return {
-    leftRailMode: 'hidden',
     loginMethods: ['password'],
     oauthLoginEnabled: false,
     oauthProviders: [],

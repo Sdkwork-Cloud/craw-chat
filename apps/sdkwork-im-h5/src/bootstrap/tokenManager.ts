@@ -6,26 +6,10 @@
  * Drive app SDK, IM app SDK, and other authenticated dependency app SDKs.
  */
 
+import type { AuthTokenManager } from '@sdkwork/sdk-common';
 import { getImAppAuthRuntime } from './iamRuntime';
 
-export interface H5TokenManagerBinding {
-  readonly accessToken: string | undefined;
-  readonly authToken: string | undefined;
-  readonly userId: string | undefined;
-  readonly tenantId: string | undefined;
-}
-
-function resolveAuthRuntimeSession() {
-  const authRuntime = getImAppAuthRuntime();
-  return authRuntime.session as
-    | {
-        accessToken?: string;
-        authToken?: string;
-        userId?: string;
-        tenantId?: string;
-      }
-    | undefined;
-}
+export type H5TokenManagerBinding = AuthTokenManager;
 
 let cachedBinding: H5TokenManagerBinding | null = null;
 
@@ -34,13 +18,7 @@ export function resolveTokenManagerBinding(): H5TokenManagerBinding {
     return cachedBinding;
   }
 
-  const session = resolveAuthRuntimeSession();
-  cachedBinding = {
-    accessToken: session?.accessToken,
-    authToken: session?.authToken,
-    userId: session?.userId,
-    tenantId: session?.tenantId,
-  };
+  cachedBinding = getImAppAuthRuntime().tokenManager;
 
   return cachedBinding;
 }
@@ -54,6 +32,5 @@ export function resetTokenManagerBinding(): void {
 }
 
 export function isTokenManagerBound(): boolean {
-  const binding = getTokenManagerBinding();
-  return Boolean(binding.accessToken || binding.authToken);
+  return getTokenManagerBinding().hasToken();
 }

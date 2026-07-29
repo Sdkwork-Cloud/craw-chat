@@ -1,4 +1,5 @@
 {
+  "unavailable": "智能硬件尚未接入 AIoT 权威 SDK 和设备授权链路，当前不可用。",
   "title": "我的智能设备",
   "bindNew": "绑定新设备",
   "loading": "加载中...",

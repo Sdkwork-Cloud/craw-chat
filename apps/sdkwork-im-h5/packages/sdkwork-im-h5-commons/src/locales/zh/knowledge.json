@@ -1,4 +1,5 @@
 {
+  "unavailable": "知识库尚未接入权威 SDK 和群空间授权链路，当前不可用。",
   "create_doc": "New Document",
   "doc_title": "Document Title",
   "content_placeholder": "Start typing your document...",

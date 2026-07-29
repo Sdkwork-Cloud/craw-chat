@@ -2,15 +2,15 @@ use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use conversation_runtime::conversation_state::ConversationStateService;
 use im_app_context::AppContext;
 use im_domain_core::notification::{NotificationStatus, NotificationTask};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
-    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAggregateStore,
-    ConversationMemberPageCursor, normalize_realtime_organization_id,
+    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAggregateStore, ConversationMemberPageCursor,
+    normalize_realtime_organization_id,
 };
 use im_time::utc_now_rfc3339_millis;
-use conversation_runtime::conversation_state::ConversationStateService;
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitJournal, CommitPosition};
 use sdkwork_im_contract_notification::{
@@ -41,6 +41,12 @@ use crate::helpers::{
 #[derive(Clone)]
 pub struct AppState {
     pub(crate) runtime: Arc<NotificationRuntime>,
+}
+
+impl AppState {
+    pub fn new(runtime: Arc<NotificationRuntime>) -> Self {
+        Self { runtime }
+    }
 }
 
 #[derive(Clone)]
@@ -499,11 +505,9 @@ impl NotificationRuntime {
                             CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
                         )
                         .map_err(NotificationError::notification_store)?;
-                    recipients.extend(page.items.into_iter().map(|member| {
-                        NotificationRecipient {
-                            recipient_id: member.principal_id,
-                            recipient_kind: member.principal_kind,
-                        }
+                    recipients.extend(page.items.into_iter().map(|member| NotificationRecipient {
+                        recipient_id: member.principal_id,
+                        recipient_kind: member.principal_kind,
                     }));
                     if !page.has_more {
                         break;

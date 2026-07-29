@@ -97,7 +97,14 @@
     "publicExports": [
       "SocialRuntime",
       "build_app",
-      "build_public_app"
+      "build_public_app",
+      "social_service::build_social_runtime_from_env"
+    ],
+    "providedPorts": [
+      {
+        "name": "socialServiceRuntimeBootstrap",
+        "export": "social_service::build_social_runtime_from_env"
+      }
     ],
     "runtimeEntrypoints": [
       "Cargo.toml"

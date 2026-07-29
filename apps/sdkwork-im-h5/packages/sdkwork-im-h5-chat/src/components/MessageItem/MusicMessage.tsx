@@ -1,9 +1,8 @@
 import React from "react";
 import type { Message } from "@sdkwork/im-h5-types";
-import { Play } from "lucide-react";
+import { Music2, Play } from "lucide-react";
 import { cn } from "@sdkwork/im-h5-commons";
 import { useAudioStore } from "@sdkwork/im-h5-core";
-import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 
 export const MusicMessage = ({
@@ -14,16 +13,20 @@ export const MusicMessage = ({
   isMe: boolean;
 }) => {
   const { t } = useTranslation();
-const currentTrack = useAudioStore((s) => s.currentTrack);
+  const currentTrack = useAudioStore((s) => s.currentTrack);
   const isGlobalPlaying = useAudioStore((s) => s.isPlaying);
   const playMusic = useAudioStore((s) => s.playMusic);
   const pause = useAudioStore((s) => s.pause);
-  const navigate = useNavigate();
+  const audioUrl = msg.content.trim();
+  const coverUrl = msg.metadata?.coverUrl?.trim();
 
   const isThisPlaying = currentTrack?.id === msg.id && isGlobalPlaying;
 
   const handlePlayClick = (e: React.MouseEvent) => {
-  e.stopPropagation();
+    e.stopPropagation();
+    if (!audioUrl) {
+      return;
+    }
     if (isThisPlaying) {
       pause();
     } else {
@@ -31,33 +34,33 @@ const currentTrack = useAudioStore((s) => s.currentTrack);
         id: msg.id,
         title: msg.metadata?.title || t('chat.date.unknown_song'),
         artist: msg.metadata?.artist || t('chat.date.unknown_artist'),
-        coverUrl:
-          msg.metadata?.coverUrl || "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/music/300x300.png",
-        audioUrl:
-          msg.content ||
-          "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/audio/sample.mp3",
+        coverUrl: coverUrl ?? "",
+        audioUrl,
       });
-      navigate("/music-player");
     }
   };
 
   return (
-    <div
-      className="flex items-center gap-3 min-w-[200px] cursor-pointer"
+    <button
+      type="button"
+      aria-label={msg.metadata?.title || t('chat.date.unknown_song')}
+      className="flex min-w-[200px] items-center gap-3 text-left disabled:cursor-not-allowed disabled:opacity-60"
+      disabled={!audioUrl}
       onClick={handlePlayClick}
     >
       <div className="w-12 h-12 rounded-lg shrink-0 overflow-hidden relative border border-black/10 dark:border-white/10">
-        <img
-          src={
-            msg.metadata?.coverUrl || "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/music/200x200.png"
-          }
-          className="w-full h-full object-cover"
-        />
+        {coverUrl ? (
+          <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-black/10 dark:bg-white/10">
+            <Music2 className="h-6 w-6" aria-hidden="true" />
+          </div>
+        )}
         <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
           {isThisPlaying ? (
             <div className="w-4 h-4 bg-white/90 rounded-sm animate-pulse" />
           ) : (
-            <Play className="w-6 h-6 text-white ml-0.5" />
+            <Play className="w-6 h-6 text-white ml-0.5" aria-hidden="true" />
           )}
         </div>
       </div>
@@ -77,6 +80,6 @@ const currentTrack = useAudioStore((s) => s.currentTrack);
           {msg.metadata?.artist || t('chat.date.unknown_artist')}
         </span>
       </div>
-    </div>
+    </button>
   );
 };

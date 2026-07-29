@@ -73,7 +73,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    fn new(runtime: Arc<AuditRuntime>) -> Self {
+    pub fn new(runtime: Arc<AuditRuntime>) -> Self {
         Self {
             runtime,
             audit_scan_gate: Arc::new(Semaphore::new(resolve_max_concurrent_scans())),
@@ -1588,22 +1588,29 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router(Arc::new(AuditRuntime::from_env()))),
-        im_service_router_config(),
-    )
+    let runtime = Arc::new(AuditRuntime::from_env());
+    build_public_app_from_api_router(apply_public_http_guardrails(build_domain_api_router(
+        AppState::new(runtime),
+    )))
 }
 
 pub fn build_app(runtime: Arc<AuditRuntime>) -> Router {
-    mount_im_infra_routes(build_business_router(runtime), im_service_router_config())
+    build_public_app_from_api_router(build_domain_api_router(AppState::new(runtime)))
+}
+
+pub fn build_public_app_from_api_router(api_router: Router) -> Router {
+    mount_im_infra_routes(build_service_router(api_router), im_service_router_config())
 }
 
 pub fn build_business_router(runtime: Arc<AuditRuntime>) -> Router {
-    let state = AppState::new(runtime);
+    build_service_router(build_domain_api_router(AppState::new(runtime)))
+}
+
+fn build_service_router(api_router: Router) -> Router {
     Router::new()
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .merge(build_domain_api_router(state))
+        .merge(api_router)
 }
 
 async fn enforce_in_flight_gate(

@@ -12,4 +12,5 @@ export * from "./components/CouponCard";
 export * from "./components/AddressSelector";
 export * from "./services/ProductService";
 export * from "./services/CartService";
+export * from "./services/ShoppingCapabilityUnavailableError";
 export * from "./store/useCartStore";

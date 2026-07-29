@@ -248,7 +248,11 @@ const realtimeWebBootstrap = read('crates/sdkwork-routes-im-realtime-open-api/sr
 
 assert.match(gatewayMain, /service_router/u);
 assert.match(gatewayMain, /shared_iam_web_request_context_resolver_from_env/u);
-assert.match(gatewayMain, /sdkwork_api_iam_assembly::assemble_api_router/u);
+assert.match(
+  gatewayMain,
+  /sdkwork_api_iam_assembly::bootstrap_iam_for_application/u,
+  'standalone gateway must use the IAM application bootstrap entrypoint before serving routes',
+);
 assert.match(realtimeWebBootstrap, /wrap_im_open_api_service_router_from_env/u);
 assert.doesNotMatch(
   `${gatewayMain}\n${realtimeWebBootstrap}`,

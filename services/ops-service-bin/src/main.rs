@@ -1,4 +1,5 @@
 use std::process::ExitCode;
+use std::sync::Arc;
 
 const BIND_ADDR_ENV: &str = "SDKWORK_IM_OPS_SERVICE_BIND_ADDR";
 const DEFAULT_BIND_ADDR: &str = "127.0.0.1:28091";
@@ -26,10 +27,11 @@ async fn run() -> Result<(), String> {
     let listener = tokio::net::TcpListener::bind(bind_addr.as_str())
         .await
         .map_err(|error| format!("ops-service failed to bind local listener: {error}"))?;
+    let runtime = Arc::new(ops_service::OpsRuntime::from_env());
 
     axum::serve(
         listener,
-        sdkwork_routes_im_ops_backend_api::build_public_app(),
+        sdkwork_routes_im_ops_backend_api::build_public_app_with_runtime(runtime),
     )
     .with_graceful_shutdown(async move {
         sdkwork_im_service_readiness::shutdown_signal().await;

@@ -1,5 +1,6 @@
 {
   "title": "Approval",
+  "unavailable": "Approval is unavailable until its owner SDK is composed.",
   "tabs": {
     "pending": "To Do",
     "initiated": "Initiated",

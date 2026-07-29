@@ -37,12 +37,13 @@ pub fn build_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router_with_cluster(Arc::new(
-            RealtimeClusterBridge::default(),
-        ))),
-        im_service_router_config(),
-    )
+    build_public_app_from_api_router(apply_public_http_guardrails(
+        build_control_surface_with_state(default_control_state()),
+    ))
+}
+
+pub fn build_public_app_from_api_router(api_router: Router) -> Router {
+    mount_im_infra_routes(build_service_router(api_router), im_service_router_config())
 }
 
 pub fn default_control_state() -> AppState {
@@ -182,6 +183,10 @@ pub fn build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
 }
 
 fn build_business_router_with_state(state: AppState) -> Router {
+    build_service_router(build_control_surface_with_state(state))
+}
+
+fn build_service_router(api_router: Router) -> Router {
     Router::new()
         .route("/openapi.json", get(openapi_document))
         .route(
@@ -189,18 +194,7 @@ fn build_business_router_with_state(state: AppState) -> Router {
             get(openapi_document),
         )
         .route("/docs", get(docs))
-        .merge(build_control_surface_with_state(state))
-}
-
-fn build_business_router_with_cluster(realtime_cluster: Arc<RealtimeClusterBridge>) -> Router {
-    let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
-    build_business_router_with_state(AppState {
-        realtime_cluster,
-        protocol_registry: Arc::new(CcpRegistry::control_plane_v1()),
-        provider_registry: provider_registry.clone(),
-        provider_registry_runtime: Some(provider_registry),
-        governance_loop: None,
-    })
+        .merge(api_router)
 }
 
 fn build_app_with_state(state: AppState) -> Router {

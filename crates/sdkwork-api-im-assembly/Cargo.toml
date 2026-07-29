@@ -23,6 +23,11 @@ sdkwork_database_config.workspace = true
 social-service = { path = "../../services/social-service" }
 space-service = { path = "../../services/space-service" }
 session-gateway = { path = "../../services/session-gateway" }
+audit-service = { path = "../../services/audit-service" }
+automation-service = { path = "../../services/automation-service" }
+notification-service = { path = "../../services/notification-service" }
+ops-service = { path = "../../services/ops-service" }
+portal-service = { path = "../../services/portal-service" }
 conversation_runtime = { path = "../../services/sdkwork-comms-conversation-service", package = "sdkwork-comms-conversation-service" }
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
 sdkwork_im_database_pool = { workspace = true }

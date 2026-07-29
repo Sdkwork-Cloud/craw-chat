@@ -3,7 +3,7 @@
 Status: active
 Owner: `im-platform`
 Application: `chat`
-Updated: 2026-07-23
+Updated: 2026-07-29
 Specs: `REQUIREMENTS_SPEC.md`, `DOCUMENTATION_SPEC.md`, `SECURITY_SPEC.md`, `PRIVACY_SPEC.md`
 
 ## 1. Background And Problem
@@ -75,6 +75,31 @@ present planned package URLs or generated clients as evidence of a commercial re
 - Agent assignment and dispatch through public `sdkwork-agents` contracts; the resulting visible reply is
   a new IM Message and is not an Agent transcript copy.
 
+### Current H5 Delivery Boundary
+
+- The route-mounted H5 release surface is Chat inbox, Conversation, Workspace Notary, and the Notary
+  case, file, message, signature, and video-verification workflows registered by `ImApp`.
+- Chat and Contacts application services consume the root `@sdkwork/im-sdk`; Notary consumes the
+  approved Notary facade with Drive and IM dependency SDKs. They do not use raw HTTP, manual auth
+  headers, browser storage as business state, or locally generated remote records.
+- H5 inboxes, Message history, Notary lists, Contacts, and user search use bounded cursor pages. Client
+  display windows are capped and do not accumulate an unbounded history.
+- The Contacts package has an SDK-backed service boundary, but it is not part of the current root route
+  release. Organization directory, Agent catalog/lifecycle, QR scanning, Chat RTC media, Message-history
+  search, exact legacy Conversation lookup, clear-history, favorite lookup, AI Image/Video/Writing/Music,
+  Voice Synthesis, Voice Summary, Calendar, Approval, Attendance, Reports, Cloud Drive, Meeting, Channels,
+  Hardware, Recruitment, local Knowledge CRUD, Shopping, Checkout, Orders, Payments, Vouchers, Refunds,
+  Fulfillment, Community, Courses, and Enterprise routes remain unavailable until their owning generated
+  SDK, permission composition, and end-to-end evidence exist. These paths fail closed. The local Knowledge
+  package is not the group Knowledgebase authority and cannot replace its opaque launch-ticket workflow.
+  Transaction pages never synthesize product, inventory, order, payment, voucher, refund, or fulfillment
+  success.
+- Legacy User profile, settings, Moments, Characters, Works, voice, billing, and life-service pages fail
+  closed and own no browser business state. The separate legacy User Auth implementation is excluded from
+  release pending IAM security review; root authentication continues through the approved appbase IAM runtime.
+- The H5 app and its web artifacts remain `DRAFT`; package presence and route source are not commercial
+  release evidence.
+
 ## 5. User Scenarios
 
 1. A member opens an inbox, pages through Conversations, reads a bounded Message window, and receives
@@ -102,6 +127,7 @@ present planned package URLs or generated clients as evidence of a commercial re
 | Contract quality | OpenAPI, route coverage, generated SDK, and response-envelope validators pass |
 | Operations | Readiness, migration, drift, lag, and low-cardinality telemetry report authoritative state |
 | Release | Signed artifacts, checksums, SBOM, provenance, staging E2E, HA, recovery, and capacity evidence pass |
+| H5 integrity | Route registry matches mounted routes; SDK contract tests prove cursor validation, stable idempotency, bounded client windows, realtime lease cleanup, and fail-closed unavailable capabilities |
 
 ## 7. Release Phases
 

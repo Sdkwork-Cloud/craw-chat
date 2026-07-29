@@ -2,30 +2,49 @@
 import { ArrowRight, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@sdkwork/im-h5-commons";
 import { useTranslation } from "react-i18next";
+import type { NotaryRecord } from "../services/notaryService";
 
-const STATUS_MAP: Record<string, any> = {
-  processing: {
+const STATUS_MAP = {
+  PENDING_REVIEW: {
+    labelKey: "notary.records.status_pending_review",
+    icon: Clock,
+    color: "text-amber-500",
+    bg: "bg-amber-500/10",
+  },
+  PROCESSING: {
     labelKey: "notary.records.status_processing",
     icon: Clock,
     color: "text-orange-500",
     bg: "bg-orange-500/10",
   },
-  completed: {
+  COMPLETED: {
     labelKey: "notary.records.status_completed",
     icon: CheckCircle2,
     color: "text-green-500",
     bg: "bg-green-500/10",
   },
-  cancelled: {
+  REJECTED: {
+    labelKey: "notary.records.status_rejected",
+    icon: XCircle,
+    color: "text-red-500",
+    bg: "bg-red-500/10",
+  },
+  CANCELLED: {
     labelKey: "notary.records.status_cancelled",
     icon: XCircle,
     color: "text-gray-500",
     bg: "bg-gray-500/10",
   },
-};
+  CREATE_FAILED: {
+    labelKey: "notary.records.status_create_failed",
+    icon: XCircle,
+    color: "text-red-500",
+    bg: "bg-red-500/10",
+  },
+} as const;
 
 interface NotaryRecordListItemProps {
-  record: any;
+  record: NotaryRecord;
   isLast: boolean;
   onClick: () => void;
 }
@@ -36,7 +55,7 @@ export const NotaryRecordListItem: React.FC<NotaryRecordListItemProps> = ({
   onClick,
 }) => {
   const { t } = useTranslation();
-  const statusInfo = STATUS_MAP[record.status] || STATUS_MAP["processing"];
+  const statusInfo = STATUS_MAP[record.status];
   const Icon = statusInfo.icon;
 
   return (

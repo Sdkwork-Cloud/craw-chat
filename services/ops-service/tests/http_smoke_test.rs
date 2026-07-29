@@ -2,7 +2,45 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use im_app_context::DualTokenRequestBuilderExt;
+use std::sync::Arc;
 use tower::ServiceExt;
+
+fn ops_route_http_test_app() -> axum::Router {
+    sdkwork_routes_im_ops_backend_api::build_public_app_with_runtime(Arc::new(
+        ops_service::OpsRuntime::default(),
+    ))
+}
+
+#[tokio::test]
+async fn test_route_composition_exports_required_infrastructure_endpoints() {
+    let app = ops_route_http_test_app();
+
+    for path in ["/healthz", "/metrics", "/openapi.json", "/docs"] {
+        let response = app
+            .clone()
+            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await
+            .expect("infrastructure request should succeed");
+        assert_eq!(response.status(), StatusCode::OK, "endpoint {path}");
+    }
+
+    let readiness = app
+        .oneshot(
+            Request::builder()
+                .uri("/readyz")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("readiness request should succeed");
+    assert!(
+        matches!(
+            readiness.status(),
+            StatusCode::OK | StatusCode::SERVICE_UNAVAILABLE
+        ),
+        "readiness endpoint must report actual dependency state"
+    );
+}
 
 #[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
@@ -101,7 +139,7 @@ async fn test_public_app_exposes_retention_metrics() {
 
 #[tokio::test]
 async fn test_retention_purge_route_requires_ops_write_over_http() {
-    let app = sdkwork_routes_im_ops_backend_api::build_public_app();
+    let app = ops_route_http_test_app();
 
     let forbidden = app
         .clone()
@@ -146,7 +184,7 @@ async fn test_retention_purge_route_requires_ops_write_over_http() {
 
 #[tokio::test]
 async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
-    let app = sdkwork_routes_im_ops_backend_api::build_public_app();
+    let app = ops_route_http_test_app();
 
     let health_response = app
         .clone()
@@ -173,9 +211,9 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     let health_json: serde_json::Value =
         serde_json::from_slice(&health_body).expect("health body should be valid json");
     let health = &health_json["data"]["item"];
-    assert_eq!(health["status"], "ok");
+    assert_eq!(health["status"], "unavailable");
     assert!(health.get("projectionPlane").is_none());
-    assert_eq!(health["realtimeInbox"]["status"], "ok");
+    assert_eq!(health["realtimeInbox"]["status"], "unavailable");
     assert_eq!(health["realtimeInbox"]["pendingEventCount"], 0);
     assert_eq!(
         health["realtimeInbox"]["maxClientRouteWindowUsagePermille"],
@@ -210,12 +248,12 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     let cluster_json: serde_json::Value =
         serde_json::from_slice(&cluster_body).expect("cluster body should be valid json");
     assert_eq!(
-        cluster_json["data"]["item"]["nodes"][0]["profile"],
-        "standalone"
-    );
-    assert_eq!(
-        cluster_json["data"]["item"]["nodes"][0]["clientRouteCount"],
-        0
+        cluster_json["data"]["item"]["nodes"]
+            .as_array()
+            .expect("cluster nodes should be an array")
+            .len(),
+        0,
+        "unobserved nodes must not be fabricated"
     );
 
     let lag_response = app
@@ -401,7 +439,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     let diagnostics_json: serde_json::Value =
         serde_json::from_slice(&diagnostics_body).expect("diagnostics body should be valid json");
     let diagnostics = &diagnostics_json["data"]["item"];
-    assert_eq!(diagnostics["profile"], "standalone");
+    assert_eq!(diagnostics["profile"], "unconfigured");
     assert_eq!(diagnostics["clientRoutes"].as_array().unwrap().len(), 0);
     assert!(diagnostics.get("projectionPlane").is_none());
     assert_eq!(diagnostics["providerBindings"].as_array().unwrap().len(), 0);

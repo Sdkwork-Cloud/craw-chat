@@ -1138,6 +1138,7 @@ dependencies = [
  "sdkwork-im-contract-core",
  "sdkwork-im-database-pool",
  "sdkwork-im-openapi",
+ "sdkwork-im-runtime-id",
  "sdkwork-im-service-readiness",
  "sdkwork-im-web-bootstrap",
  "sdkwork-routes-web-framework-backend-api",
@@ -5043,6 +5044,8 @@ dependencies = [
 name = "sdkwork-agent-kernel"
 version = "0.1.0"
 dependencies = [
+ "sdkwork-intelligence-sandbox-service",
+ "sdkwork-sandbox-provider-spi",
  "sdkwork-utils-rust",
  "serde_json",
 ]
@@ -5099,6 +5102,7 @@ name = "sdkwork-agent-provider-gemini-cli"
 version = "0.2.0"
 dependencies = [
  "sdkwork-agent-kernel",
+ "sdkwork-agent-plugin-core",
  "sdkwork-agent-provider-core",
  "sdkwork-agent-provider-spi",
  "sdkwork-agent-provider-transport-core",
@@ -5237,9 +5241,12 @@ dependencies = [
  "sdkwork-agent-database",
  "sdkwork-agent-kernel",
  "sdkwork-agent-plugin-core",
+ "sdkwork-agent-provider-claude-code",
  "sdkwork-agent-provider-codex",
+ "sdkwork-agent-provider-gemini-cli",
  "sdkwork-agent-provider-hermes",
  "sdkwork-agent-provider-openclaw",
+ "sdkwork-agent-provider-opencode",
  "sdkwork-agent-provider-rig",
  "sdkwork-agent-session",
  "sdkwork-agent-streaming",
@@ -5453,6 +5460,8 @@ dependencies = [
 name = "sdkwork-api-im-assembly"
 version = "0.1.0"
 dependencies = [
+ "audit-service",
+ "automation-service",
  "axum 0.8.9",
  "calls-service",
  "chrono",
@@ -5461,6 +5470,9 @@ dependencies = [
  "im-app-context",
  "im-domain-core",
  "im-platform-contracts",
+ "notification-service",
+ "ops-service",
+ "portal-service",
  "sdkwork-comms-conversation-service",
  "sdkwork-database-config",
  "sdkwork-im-database-pool",
@@ -6859,6 +6871,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-intelligence-sandbox-service"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "sdkwork-sandbox-provider-spi",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "sdkwork-inventory-database-host"
 version = "0.1.0"
 dependencies = [
@@ -8026,11 +8048,14 @@ dependencies = [
 name = "sdkwork-routes-im-governance-backend-api"
 version = "0.1.0"
 dependencies = [
+ "audit-service",
  "axum 0.8.9",
  "governance-service",
+ "ops-service",
  "sdkwork-im-web-bootstrap",
  "sdkwork-web-contract",
  "sdkwork-web-core",
+ "session-gateway",
 ]
 
 [[package]]
@@ -8763,6 +8788,16 @@ dependencies = [
  "sdkwork-utils-rust",
  "serde_json",
  "sha2 0.10.9",
+]
+
+[[package]]
+name = "sdkwork-sandbox-provider-spi"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "thiserror 2.0.18",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]

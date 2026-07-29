@@ -1,46 +1,37 @@
-import React from "react";
-import { useTranslation } from "react-i18next";
 import { ChevronRight, QrCode } from "lucide-react";
+
 import { Avatar } from "@sdkwork/im-h5-commons";
-import { User } from "@sdkwork/im-h5-types";
+import type { User } from "@sdkwork/im-h5-types";
 
 interface ProfileHeaderCardProps {
   currentUser: User | null;
   onClick: () => void;
 }
 
-export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
-  currentUser,
-  onClick,
-}) => {
-  const { t } = useTranslation();
-
+export function ProfileHeaderCard({ currentUser, onClick }: ProfileHeaderCardProps) {
   return (
-    <div
+    <button
+      className="mb-2 flex w-full items-center justify-between border-0 border-b border-border-color bg-chat-other-bg px-4 py-8 text-left transition-colors active:bg-active-bg"
       onClick={onClick}
-      className="bg-chat-other-bg px-4 py-8 mb-2 flex items-center justify-between active:bg-active-bg transition-colors cursor-pointer border-b border-border-color"
+      type="button"
     >
-      <div className="flex items-center gap-4 flex-1 min-w-0">
+      <span className="flex min-w-0 flex-1 items-center gap-4">
         <Avatar
-          src={
-            currentUser?.avatar || "https://cdn.sdkwork.com/apps/sdkwork-im-h5/mock/images/me/200x200.png"
-          }
+          className="h-[68px] w-[68px] shrink-0 rounded-[18px]"
           size="lg"
-          className="w-[68px] h-[68px] rounded-[18px] shrink-0"
+          src={currentUser?.avatar ?? ""}
         />
-        <div className="flex flex-col justify-center min-w-0 flex-1">
-          <h2 className="text-[20px] font-bold text-text-main mb-1.5 truncate">
-            {currentUser?.name || "User"}
-          </h2>
-          <p className="text-[14px] text-text-sub truncate">
-            {t('user.auto_5f16e87c', '微信号: wxid_123456789')}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-3 text-text-sub">
-        <QrCode className="w-5 h-5" />
-        <ChevronRight className="w-5 h-5 opacity-40" />
-      </div>
-    </div>
+        <span className="flex min-w-0 flex-1 flex-col justify-center">
+          <span className="mb-1.5 truncate text-[20px] font-bold text-text-main">
+            {currentUser?.name ?? ""}
+          </span>
+          <span className="truncate text-[14px] text-text-sub">{currentUser?.id ?? ""}</span>
+        </span>
+      </span>
+      <span className="flex items-center gap-3 text-text-sub">
+        <QrCode aria-hidden="true" className="h-5 w-5" />
+        <ChevronRight aria-hidden="true" className="h-5 w-5 opacity-40" />
+      </span>
+    </button>
   );
-};
+}

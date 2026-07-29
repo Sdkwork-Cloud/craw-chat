@@ -15,7 +15,10 @@ import {
   showToast,
 } from "@sdkwork/im-h5-commons";
 import { useTranslation } from "react-i18next";
-import { ContactService } from "../services/ContactService";
+import {
+  ContactService,
+  type ContactSearchResult,
+} from "../services/ContactService";
 
 export const AddFriend: React.FC = () => {
   const { t } = useTranslation();
@@ -25,22 +28,32 @@ const navigate = useNavigate();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResult, setSearchResult] = useState<any>(null);
+  const [searchResults, setSearchResults] = useState<ContactSearchResult[]>([]);
+  const [selectedResult, setSelectedResult] = useState<ContactSearchResult | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
-    const result = await ContactService.searchFriend(searchQuery);
-    setSearchResult(result);
-    setIsSearching(false);
+    try {
+      const results = await ContactService.searchFriends(searchQuery);
+      setSearchResults(results);
+      setSelectedResult(results.length === 1 ? results[0] : null);
+    } catch (error) {
+      console.error(error);
+      setSearchResults([]);
+      setSelectedResult(null);
+      showToast(t('contacts.search_failed', 'Search failed'));
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleAddFriend = async () => {
-    if (!searchResult || isAdding) return;
+    if (!selectedResult || isAdding) return;
     setIsAdding(true);
     try {
-      await ContactService.addFriend(searchResult.name);
+      await ContactService.addFriend(selectedResult.id);
       navigate("/workspace/contacts", { replace: true });
     } catch (e) {
       console.error(e);
@@ -109,7 +122,8 @@ const navigate = useNavigate();
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                setSearchResult(null);
+                setSearchResults([]);
+                setSelectedResult(null);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -140,22 +154,37 @@ const navigate = useNavigate();
           </div>
         )}
 
-        {searchResult && !isSearching && (
+        {searchResults.length > 0 && !isSearching && (
           <div className="mt-4 sm:rounded-xl overflow-hidden border-y sm:border border-border-color bg-chat-other-bg flex flex-col">
-            <div className="flex items-center gap-4 px-4 py-4 border-b border-border-color">
-              <Avatar src={searchResult.avatar} size="lg" />
-              <div className="flex flex-col flex-1 min-w-0">
-                <span className="text-[16px] font-medium text-text-main">
-                  {searchResult.name}
-                </span>
-                <span className="text-[13px] text-text-sub truncate">
-                  {t('contacts.wechat_id_label', { id: searchQuery })}
-                </span>
-              </div>
-            </div>
+            {searchResults.map((result) => (
+              <button
+                key={result.id}
+                type="button"
+                onClick={() => setSelectedResult(result)}
+                className={cn(
+                  "flex items-center gap-4 px-4 py-4 border-b border-border-color text-left",
+                  selectedResult?.id === result.id && "bg-active-bg",
+                )}
+              >
+                <Avatar src={result.avatar} size="lg" />
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="text-[16px] font-medium text-text-main">
+                    {result.name}
+                  </span>
+                  <span className="text-[13px] text-text-sub truncate">
+                    {result.email ?? result.phone ?? result.id}
+                  </span>
+                </div>
+              </button>
+            ))}
             <div
               onClick={handleAddFriend}
-              className="px-4 py-3.5 flex items-center justify-center text-primary-blue font-medium text-[16px] active:bg-active-bg transition-colors cursor-pointer"
+              className={cn(
+                "px-4 py-3.5 flex items-center justify-center font-medium text-[16px] transition-colors",
+                selectedResult
+                  ? "text-primary-blue active:bg-active-bg cursor-pointer"
+                  : "text-text-sub cursor-not-allowed",
+              )}
             >
               {isAdding ? t('contacts.adding') : t('contacts.add_to_contacts')}
             </div>
@@ -163,7 +192,7 @@ const navigate = useNavigate();
         )}
 
         {/* Options */}
-        {!searchResult && !isSearching && (
+        {searchResults.length === 0 && !isSearching && (
           <div className="mt-4 sm:rounded-xl overflow-hidden border-y sm:border border-border-color flex flex-col">
             <ListItem
               icon={QrCode}

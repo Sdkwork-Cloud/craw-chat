@@ -12,6 +12,9 @@
     "scan": "扫一扫"
   },
   "detail": {
+    "legacy_title": "旧版会话",
+    "legacy_unavailable": "旧版会话页面当前不可用，请使用已接入 SDK 的正式会话路由。",
+    "attachments_unavailable": "旧版附件操作尚未接入文件选择与上传链路，当前不可用。",
     "placeholder": "发消息...",
     "reply_to": "回复",
     "me": "我",

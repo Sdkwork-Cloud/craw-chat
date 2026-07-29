@@ -110,8 +110,8 @@ for (const route of capabilitySpec.openapiSelfServiceRoutes) {
 const standaloneGatewayMain = read('crates/sdkwork-api-im-standalone-gateway/src/main.rs');
 assert.match(
   standaloneGatewayMain,
-  /sdkwork_api_iam_assembly::assemble_api_router\(\)/u,
-  'standalone gateway must consume IAM through the canonical API assembly',
+  /sdkwork_api_iam_assembly::bootstrap_iam_for_application\(\)/u,
+  'standalone gateway must bootstrap and consume IAM through the canonical API assembly',
 );
 assert.match(
   standaloneGatewayMain,

@@ -1,4 +1,6 @@
 {
+  "title": "频道",
+  "unavailable": "频道能力尚未接入权威 SDK 和生产数据链路，当前不可用。",
   "auto_prop_13319f": "首页",
   "auto_prop_a99ff": "发现",
   "auto_prop_185e9a3": "提示词",

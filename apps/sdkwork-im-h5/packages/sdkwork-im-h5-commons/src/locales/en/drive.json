@@ -1,5 +1,6 @@
 {
   "title": "Cloud Drive",
+  "unavailable": "Cloud Drive is unavailable until the Drive owner SDK is composed.",
   "storage_space": "Personal Space",
   "storage_used": "Used {{percent}}%",
   "storage_available": "Available {{available}} GB",

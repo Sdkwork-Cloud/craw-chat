@@ -62,14 +62,22 @@ export function resetH5Bootstrap(): void {
 
 export {
   resolveH5RuntimeEnvironment,
+} from './environment';
+export {
   initSdkClients,
   getSdkClients,
+} from './sdkClients';
+export {
   resolveTokenManagerBinding,
   getTokenManagerBinding,
+} from './tokenManager';
+export {
   registerHostAdapter,
   getHostAdapter,
+} from './hostAdapters';
+export {
   registerRoute,
   listRoutes,
-} from './environment';
+} from './routes';
 export { getImAppAuthRuntime } from './iamRuntime';
 export { resolveImAuthRuntimeConfig } from './imAuthConfig';

@@ -20,7 +20,7 @@ pub use app::{
     build_app_with_cluster_provider_registry_and_governance_sinks,
     build_app_with_cluster_runtime_provider_registry_and_governance_sinks,
     build_control_surface_with_cluster_and_governance_sinks, build_domain_api_router,
-    build_public_app, default_control_state,
+    build_public_app, build_public_app_from_api_router, default_control_state,
 };
 pub use openapi::{export_openapi_document, export_openapi_spec, render_openapi_document};
 pub use state::AppState;

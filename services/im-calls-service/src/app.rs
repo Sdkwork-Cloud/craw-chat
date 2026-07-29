@@ -27,7 +27,7 @@ use crate::handlers::{
 };
 use crate::helpers::{resolve_max_http_request_body_bytes, resolve_max_in_flight_requests};
 use crate::openapi::{docs, openapi_json};
-use crate::state::{AppState, CallingRuntime, LocalCounterIdGenerator, RuntimeMemoryStateStore};
+use crate::state::{AppState, CallingRuntime, RuntimeMemoryStateStore};
 
 /// Environment variable for the PostgreSQL RTC state database URL.
 const ENV_RTC_STATE_DATABASE_URL: &str = "SDKWORK_RTC_STATE_DATABASE_URL";
@@ -255,18 +255,10 @@ fn build_default_audit_emitter() -> Arc<dyn AuditEmitter> {
 
 /// Resolve the Snowflake ID generator from environment configuration.
 ///
-/// Defaults to `LocalCounterIdGenerator` (in-process atomic counter) which
-/// is suitable for single-process development/testing only. Production
-/// deployments MUST wire `RuntimeSnowflakeIdGenerator` (or equivalent)
-/// via [`CallingRuntime::with_id_generator`] to guarantee cross-process
-/// uniqueness for audit event IDs and outbox outbox IDs.
-fn build_default_id_generator() -> Arc<dyn IdGenerator> {
-    tracing::warn!(
-        "RTC id generator: LocalCounterIdGenerator (in-process only). \
-         Production deployments MUST wire RuntimeSnowflakeIdGenerator via \
-         CallingRuntime::with_id_generator for cross-process uniqueness."
-    );
-    Arc::new(LocalCounterIdGenerator::default())
+/// Uses the shared IM Snowflake strategy. Production-like profiles fail closed
+/// when no safe node allocation or explicit unique node id is available.
+pub(crate) fn build_default_id_generator() -> Arc<dyn IdGenerator> {
+    sdkwork_im_runtime_id::build_runtime_id_generator_blocking("calls-service")
 }
 
 /// Fail-closed check for required outbox in production deployments.
@@ -314,7 +306,7 @@ fn enforce_require_redis_signal_rate_limit(
 /// Uses [`build_default_outbox_store_optional`] to resolve the outbox
 /// from `SDKWORK_RTC_OUTBOX_DATABASE_URL`.
 /// Uses [`build_default_audit_emitter`] for SIEM-compatible audit emission.
-/// Uses [`build_default_id_generator`] for in-process ID generation (dev).
+/// Uses [`build_default_id_generator`] for cluster-safe Snowflake IDs.
 ///
 /// When the RTC provider is not configured, the runtime operates in
 /// signaling-only mode: `create_session` works but

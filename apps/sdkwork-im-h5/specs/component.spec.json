@@ -96,6 +96,11 @@
         "name": "driveAppSdk",
         "export": ".",
         "package": "@sdkwork/drive-app-sdk"
+      },
+      {
+        "name": "notaryAppSdk",
+        "export": ".",
+        "package": "@sdkwork/notary-app-sdk"
       }
     ],
     "runtimeEntrypoints": [
@@ -120,6 +125,11 @@
         "credentialMode": "authenticated-app-api"
       },
       {
+        "workspace": "sdkwork-notary-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
         "workspace": "sdkwork-im-sdk",
         "surface": "open-api",
         "credentialMode": "protected-open-api-api-key-or-dual-token"
@@ -128,7 +138,8 @@
     "events": [],
     "configKeys": [
       "VITE_SDKWORK_IM_DEPLOYMENT_PROFILE",
-      "VITE_SDKWORK_IM_API_BASE_URL"
+      "VITE_SDKWORK_IM_API_BASE_URL",
+      "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
     ]
   },
   "verification": {

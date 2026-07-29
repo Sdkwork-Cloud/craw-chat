@@ -36,6 +36,7 @@ const ToastInner: React.FC<ToastProps> = ({
 };
 
 let toastRoot: ReturnType<typeof createRoot> | null = null;
+let toastSequence = 0;
 
 export const showToast = (message: string, duration?: number) => {
   if (typeof window === "undefined") return;
@@ -52,13 +53,14 @@ export const showToast = (message: string, duration?: number) => {
   }
 
   const handleClose = () => {
-  toastRoot.render(<AnimatePresence></AnimatePresence>);
+    toastRoot?.render(<AnimatePresence></AnimatePresence>);
   };
+  const toastKey = ++toastSequence;
 
   toastRoot.render(
     <AnimatePresence>
       <ToastInner
-        key={Date.now()}
+        key={toastKey}
         message={message}
         duration={duration}
         onClose={handleClose}

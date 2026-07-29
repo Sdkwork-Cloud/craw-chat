@@ -157,7 +157,7 @@ pub struct RealtimeInboxHighRiskWindowView {
 impl Default for RealtimeInboxDiagnosticsView {
     fn default() -> Self {
         Self {
-            status: "ok".into(),
+            status: "unavailable".into(),
             client_route_window_count: 0,
             pending_event_count: 0,
             max_client_route_window_event_count: 0,

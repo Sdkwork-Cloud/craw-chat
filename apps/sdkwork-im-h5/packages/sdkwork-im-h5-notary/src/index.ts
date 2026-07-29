@@ -16,4 +16,6 @@ export * from "./layouts/NotaryLayout";
 
 // Components & Services
 export * from "./components/NotaryFileItem";
+export * from "./components/NotaryDraftLifecycle";
 export * from "./services/notaryService";
+export * from "./state/notaryDraftSession";

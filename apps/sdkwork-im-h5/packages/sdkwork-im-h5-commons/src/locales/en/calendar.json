@@ -1,5 +1,6 @@
 {
   "title": "Calendar",
+  "unavailable": "Calendar is unavailable until its owner SDK is composed.",
   "today": "Today",
   "schedules_of": "Schedules on {{date}}",
   "loading": "Loading...",

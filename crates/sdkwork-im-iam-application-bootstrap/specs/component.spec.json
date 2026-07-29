@@ -65,8 +65,7 @@
     "layerRole": "runtime-composition",
     "publicExports": [
       "sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime",
-      "sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env",
-      "sdkwork_iam_embedded_application_bootstrap::ensure_tenant_application_from_app_root_with_env_and_fallback"
+      "sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env"
     ],
     "providedPorts": [
       {

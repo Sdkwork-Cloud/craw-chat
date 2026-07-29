@@ -1,6 +1,4 @@
-import i18next from 'i18next';
-const t = i18next.t.bind(i18next);
-import { CircleDollarSign, Package, Ticket, Crown } from "lucide-react";
+import { UserCapabilityUnavailableError } from "./UserCapabilityUnavailableError";
 
 export interface LifeServiceItem {
   iconName: string;
@@ -8,17 +6,8 @@ export interface LifeServiceItem {
   color: string;
 }
 
-const MOCK_LIFE_SERVICES: LifeServiceItem[] = [
-  { iconName: "CircleDollarSign", label: t("user:life.token_recharge", "Token充值"), color: "text-slate-700 dark:text-slate-300" },
-  { iconName: "Package", label: "Token Plan", color: "text-slate-700 dark:text-slate-300" },
-  { iconName: "Ticket", label: t("user:life.vouchers", "优惠券"), color: "text-slate-700 dark:text-slate-300" },
-  { iconName: "Crown", label: t("user:life.vip_subscription", "Vip订阅"), color: "text-amber-500" },
-];
-
 export const LifeService = {
-  getLifeServices: async (): Promise<LifeServiceItem[]> => {
-    return new Promise((resolve) =>
-      setTimeout(() => resolve([...MOCK_LIFE_SERVICES]), 100),
-    );
+  async getLifeServices(): Promise<LifeServiceItem[]> {
+    throw new UserCapabilityUnavailableError("Life services");
   },
 };

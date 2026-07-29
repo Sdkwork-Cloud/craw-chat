@@ -2,7 +2,7 @@
 
 Status: active
 Owner: `im-platform`
-Updated: 2026-07-24
+Updated: 2026-07-29
 Specs: `DOMAIN_SPEC.md`, `API_SPEC.md`, `SDK_SPEC.md`, `DATABASE_SPEC.md`, `SECURITY_SPEC.md`,
 `APP_COMPOSITION_SPEC.md`, `DEPLOYMENT_SPEC.md`, `DOCUMENTATION_SPEC.md`
 
@@ -113,6 +113,38 @@ UI -> application service/port -> injected generated SDK client
 Raw HTTP, manual auth headers, generated transport edits, local SDK forks, and duplicated DTO
 authorities are forbidden. Success responses use `SdkWorkApiResponse`; failures use RFC 9457
 `ProblemDetail` with numeric `code`, `traceId`, route template, canonical `operationId`, and i18n key.
+
+### 5.1 H5 client composition
+
+The H5 bootstrap constructs one shared IM SDK client and one global IAM `TokenManager`; feature
+services obtain those clients from `sdkwork-im-h5-core` or receive a typed port in tests. The mounted
+application routes are Chat inbox, Conversation, Workspace Notary, and the Notary workflow routes
+declared in `apps/sdkwork-im-h5/src/bootstrap/routes.ts`. The route registry and `ImApp` must change
+together.
+
+Chat realtime subscriptions hold reference-counted connection leases. A shared connection is released
+only after the last inbox, Conversation, or scope consumer unsubscribes; late connection completion is
+generation-fenced. HTTP and realtime display snapshots remain bounded. Contacts and social user search
+use cursor pages from `@sdkwork/im-sdk`; direct Conversation creation and friend requests use stable
+server identifiers and UUID request keys. Notary uses the approved Notary composed facade and uploads
+attachments sequentially within explicit count and size limits.
+
+Feature packages are not release evidence. An unmounted package or a capability without an owner SDK
+must not fabricate data or success. The current H5 Organization, Agent lifecycle, QR scanner, legacy
+Chat RTC media UI, Message-history search, exact legacy Conversation lookup, clear-history, and favorite
+lookup paths are intentionally fail-closed. AI Image/Video/Writing/Music, Voice Synthesis, and Voice
+Summary, Calendar, Approval, Attendance, Reports, Cloud Drive, Meeting, Channels, Hardware, Recruitment,
+local Knowledge CRUD, Shopping, Checkout, Orders, Payments, Vouchers, Refunds, Fulfillment, Community,
+Courses, and Enterprise routes are also fail-closed until their owner SDK clients, permission inheritance,
+and route-level end-to-end evidence are composed. The H5 Knowledge package owns no durable Knowledgebase
+state and cannot bypass the independent Knowledgebase process or its opaque launch-ticket boundary. H5
+transaction packages own no browser-side product, inventory, cart, address, order, payment, voucher,
+refund, or fulfillment authority.
+
+Legacy User profile, settings, Moments, Characters, Works, voice, billing, and life-service surfaces share
+one unavailable-page boundary and typed service errors; they own no browser business state or synthetic
+remote records. The separate legacy User Auth service and page are not part of the release composition and
+remain blocked pending IAM security review. Root authentication uses the approved appbase IAM runtime.
 
 ## 6. Data Architecture
 
@@ -231,6 +263,8 @@ environment, topology, public origin, bind, and upstream configuration.
 - Both profiles expose identical IM-owned paths, methods, operation IDs, schemas, auth, and errors.
 - PostgreSQL is required for durable production IM state. Redis is required where the selected HA
   topology declares clustered routing or distributed coordination.
+- SQLite is not a supported server persistence profile and is not claimed as PostgreSQL-compatible.
+  Browser storage is not a substitute for either server persistence or an owner SDK.
 
 The current app publication state is draft. Production claims require direct staging, capacity,
 security, HA, recovery, migration, and supply-chain evidence for the exact release artifacts.

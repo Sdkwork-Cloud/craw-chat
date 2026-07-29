@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { CartItem, Product } from "../types";
+
+import type { CartItem, Product, ProductSKU } from "../types";
 import { CartService } from "../services/CartService";
 
 interface CartState {
@@ -9,7 +10,7 @@ interface CartState {
   addToCart: (
     product: Product,
     quantity?: number,
-    sku?: import("../types").ProductSKU,
+    sku?: ProductSKU,
     selectedSpecs?: Record<string, string>,
   ) => Promise<void>;
   updateQuantity: (id: string, quantity: number) => Promise<void>;
@@ -28,80 +29,43 @@ export const useCartStore = create<CartState>((set, get) => ({
   loadCart: async () => {
     set({ loading: true });
     try {
-      const items = await CartService.getCart();
-      set({ items });
+      set({ items: await CartService.getCart() });
     } finally {
       set({ loading: false });
     }
   },
 
   addToCart: async (product, quantity = 1, sku, selectedSpecs) => {
-    set({ loading: true });
-    try {
-      await CartService.addToCart(product, quantity, sku, selectedSpecs);
-      const items = await CartService.getCart();
-      set({ items });
-    } finally {
-      set({ loading: false });
-    }
+    await CartService.addToCart(product, quantity, sku, selectedSpecs);
   },
 
   updateQuantity: async (id, quantity) => {
-    try {
-      await CartService.updateQuantity(id, quantity);
-      const items = await CartService.getCart();
-      set({ items });
-    } catch (e) {}
+    await CartService.updateQuantity(id, quantity);
   },
 
   toggleItemCheck: async (id, checked) => {
-    try {
-      await CartService.toggleCheck(id, checked);
-      const items = await CartService.getCart();
-      set({ items });
-    } catch (e) {}
+    await CartService.toggleCheck(id, checked);
   },
 
   toggleAllCheck: async (checked) => {
-    try {
-      await CartService.toggleAllCheck(checked);
-      const items = await CartService.getCart();
-      set({ items });
-    } catch (e) {}
+    await CartService.toggleAllCheck(checked);
   },
 
   removeFromCart: async (ids) => {
-    set({ loading: true });
-    try {
-      await CartService.removeFromCart(ids);
-      const items = await CartService.getCart();
-      set({ items });
-    } finally {
-      set({ loading: false });
-    }
+    await CartService.removeFromCart(ids);
   },
 
   clearCart: async () => {
-    set({ loading: true });
-    try {
-      await CartService.clearCart();
-      const items = await CartService.getCart();
-      set({ items });
-    } finally {
-      set({ loading: false });
-    }
+    await CartService.clearCart();
   },
 
-  getCheckedItems: () => {
-    return get().items.filter((i) => i.checked);
-  },
+  getCheckedItems: () => get().items.filter((item) => item.checked),
 
-  getTotalPrice: () => {
-    return get()
-      .items.filter((i) => i.checked)
-      .reduce((acc, current) => {
-        const itemPrice = current.sku?.price || current.product.price;
-        return acc + parseFloat(itemPrice) * current.quantity;
-      }, 0);
-  },
+  getTotalPrice: () =>
+    get()
+      .items.filter((item) => item.checked)
+      .reduce((total, item) => {
+        const itemPrice = item.sku?.price ?? item.product.price;
+        return total + Number.parseFloat(itemPrice) * item.quantity;
+      }, 0),
 }));

@@ -11,6 +11,12 @@ pub struct AppState {
     pub(crate) runtime: Arc<AutomationRuntime>,
 }
 
+impl AppState {
+    pub fn new(runtime: Arc<AutomationRuntime>) -> Self {
+        Self { runtime }
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct PublicAppGuardrails {
     pub(crate) request_gate: Arc<Semaphore>,

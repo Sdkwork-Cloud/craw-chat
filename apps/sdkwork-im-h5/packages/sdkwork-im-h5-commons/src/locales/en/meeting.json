@@ -1,5 +1,6 @@
 {
   "title": "Book Meeting",
+  "unavailable": "Meeting is unavailable until its owner SDK is composed.",
   "stats": {
     "upcoming": "Upcoming Today"
   },

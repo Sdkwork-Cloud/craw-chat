@@ -20,6 +20,12 @@ pub struct AppState {
     pub runtime: Arc<PortalRuntime>,
 }
 
+impl AppState {
+    pub fn new(runtime: Arc<PortalRuntime>) -> Self {
+        Self { runtime }
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct PublicAppGuardrails {
     pub(crate) request_gate: Arc<tokio::sync::Semaphore>,

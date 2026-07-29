@@ -14,3 +14,6 @@ sdkwork_web_contract.workspace = true
 sdkwork_web_core.workspace = true
 sdkwork_im_web_bootstrap.workspace = true
 governance-service = { path = "../../services/governance-service" }
+audit-service = { path = "../../services/audit-service" }
+ops-service = { path = "../../services/ops-service" }
+session-gateway = { path = "../../services/session-gateway" }

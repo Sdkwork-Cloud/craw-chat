@@ -1,5 +1,6 @@
 {
   "title": "Voice Synthesis",
+  "unavailable": "Voice synthesis is unavailable until the Voice owner SDK is composed.",
   "placeholder": "Enter text here, and AI will synthesize it into natural and fluent speech...",
   "speaker": "Speaker",
   "change": "Change",
