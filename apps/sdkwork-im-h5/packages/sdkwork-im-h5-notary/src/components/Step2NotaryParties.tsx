@@ -3,17 +3,15 @@ import { ChevronRight, Plus, User, UserPlus } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
-import type { NotaryDraftPartyWithId } from "../pages/NotaryAddParty";
-import {
-  NotarySelectionParams,
-} from "../pages/NotarySearchList";
 import type { NotaryStaffMember } from "../services/notaryService";
+import {
+  notaryDraftSession,
+  type NotaryDraftPartyWithId,
+} from "../state/notaryDraftSession";
 
 interface Step2NotaryPartiesProps {
   selectedNotary: string;
-  setSelectedNotary: (id: string) => void;
   selectedNotaryObj: NotaryStaffMember | null;
-  setSelectedNotaryObj: (staff: NotaryStaffMember | null) => void;
   parties: NotaryDraftPartyWithId[];
   handleAddParty: () => void;
   handleEditParty: (party: NotaryDraftPartyWithId) => void;
@@ -22,9 +20,7 @@ interface Step2NotaryPartiesProps {
 
 export const Step2NotaryParties: React.FC<Step2NotaryPartiesProps> = ({
   selectedNotary,
-  setSelectedNotary,
   selectedNotaryObj,
-  setSelectedNotaryObj,
   parties,
   handleAddParty,
   handleEditParty,
@@ -32,12 +28,7 @@ export const Step2NotaryParties: React.FC<Step2NotaryPartiesProps> = ({
 }) => {
   const { t } = useTranslation();
   const openNotarySearch = () => {
-    NotarySelectionParams.selectedId = selectedNotary;
-    NotarySelectionParams.selectedNotaryObj = selectedNotaryObj;
-    NotarySelectionParams.onSelect = (id, staff) => {
-      setSelectedNotary(id);
-      setSelectedNotaryObj(staff);
-    };
+    notaryDraftSession.openNotarySelection();
     navigate("/notary/search");
   };
 

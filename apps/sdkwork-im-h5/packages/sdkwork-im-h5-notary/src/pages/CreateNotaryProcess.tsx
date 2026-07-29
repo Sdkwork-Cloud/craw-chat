@@ -5,20 +5,17 @@ import { ChevronLeft, CheckCircle2 } from "lucide-react";
 import { IconButton, cn } from "@sdkwork/im-h5-commons";
 import { AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { uuid } from "@sdkwork/utils";
 import {
   appendBoundedUnique,
   NOTARY_CLIENT_WINDOW_LIMIT,
   notaryService,
   type NotaryDraftAttachment,
-  type NotaryDraftParty,
-  type NotaryStaffMember,
 } from "../services/notaryService";
 
 import {
-  NotaryPartyParams,
+  notaryDraftSession,
   type NotaryDraftPartyWithId,
-} from "./NotaryAddParty";
+} from "../state/notaryDraftSession";
 
 import { Step1TypeSelection } from "../components/Step1TypeSelection";
 import { Step2NotaryParties } from "../components/Step2NotaryParties";
@@ -90,13 +87,16 @@ export const CreateNotaryProcess: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    GLOBAL_STORE.step = step;
-    GLOBAL_STORE.selectedType = selectedType;
-    GLOBAL_STORE.selectedNotary = selectedNotary;
-    GLOBAL_STORE.selectedNotaryObj = selectedNotaryObj;
-    GLOBAL_STORE.parties = parties;
-    GLOBAL_STORE.applicationInfo = applicationInfo;
-    GLOBAL_STORE.attachments = attachments;
+    notaryDraftSession.replaceDraft({
+      step,
+      selectedType,
+      selectedNotary,
+      selectedNotaryObj,
+      parties,
+      applicationInfo,
+      attachments,
+      submissionIdempotencyKey: initialDraft.submissionIdempotencyKey,
+    });
   }, [
     step,
     selectedType,
@@ -105,6 +105,7 @@ export const CreateNotaryProcess: React.FC = () => {
     parties,
     applicationInfo,
     attachments,
+    initialDraft.submissionIdempotencyKey,
   ]);
 
   const handleNext = async () => {
@@ -129,9 +130,9 @@ export const CreateNotaryProcess: React.FC = () => {
           primaryNotaryMembershipId: selectedNotary,
           parties,
           attachments,
-          idempotencyKey: GLOBAL_STORE.submissionIdempotencyKey,
+          idempotencyKey: initialDraft.submissionIdempotencyKey,
         });
-        resetNotaryDraft();
+        notaryDraftSession.reset();
         navigate("/notary");
       } catch {
         setSubmitError(true);
@@ -142,31 +143,24 @@ export const CreateNotaryProcess: React.FC = () => {
   };
 
   const handleBack = () => {
-  if (step > 1) {
+    if (step > 1) {
       setStep(step - 1);
     } else {
-      resetNotaryDraft();
+      notaryDraftSession.reset();
       navigate(-1);
     }
   };
 
   const handleAddParty = () => {
-  NotaryPartyParams.editData = null;
-    NotaryPartyParams.onAdd = (party) => {
-      GLOBAL_STORE.parties = [...GLOBAL_STORE.parties, party];
-      setParties(GLOBAL_STORE.parties);
-    };
+    notaryDraftSession.openPartyEditor({ mode: "add" });
     navigate("/notary/add-party");
   };
 
   const handleEditParty = (partyToEdit: NotaryDraftPartyWithId) => {
-  NotaryPartyParams.editData = partyToEdit;
-    NotaryPartyParams.onEdit = (updatedParty) => {
-      GLOBAL_STORE.parties = GLOBAL_STORE.parties.map((p) =>
-        p.id === updatedParty.id ? updatedParty : p,
-      );
-      setParties(GLOBAL_STORE.parties);
-    };
+    notaryDraftSession.openPartyEditor({
+      mode: "edit",
+      partyId: partyToEdit.id,
+    });
     navigate("/notary/add-party");
   };
 
@@ -247,9 +241,7 @@ export const CreateNotaryProcess: React.FC = () => {
           {step === 2 && (
             <Step2NotaryParties
               selectedNotary={selectedNotary}
-              setSelectedNotary={setSelectedNotary}
               selectedNotaryObj={selectedNotaryObj}
-              setSelectedNotaryObj={setSelectedNotaryObj}
               parties={parties}
               handleAddParty={handleAddParty}
               handleEditParty={handleEditParty}
