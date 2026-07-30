@@ -9,7 +9,7 @@
   - `control-plane-api` social runtime 收敛为统一 `SocialControlState`
   - 新增 `social-state.json` durable snapshot
   - 新增 `social-commit-journal.json` social outbox
-  - `SDKWORK_IM_RUNTIME_DIR` 命中时自动启用 file-backed social store
+  - 历史 file-backed social store 已退役；现行 social 状态使用 PostgreSQL authority
   - 新增显式 builder：`build_app_with_cluster_and_governance_sinks_and_runtime_dir(...)`
   - 新增重启恢复与直聊 pair 唯一性回归测试
 - 当前已具备:
@@ -23,4 +23,3 @@
 - 下一主刀:
   - social journal replay 恢复
   - snapshot + journal checkpoint / rollback hardening
-

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -116,14 +116,13 @@ test('removes Flutter config and decoded Android signing material after build fa
         keystorePath = options.env.ORG_GRADLE_PROJECT_SDKWORK_RELEASE_KEYSTORE_FILE;
         assert.equal(path.relative(tempRoot, keystorePath).startsWith('..'), true);
         assert.equal(path.relative(tempRoot, plan.flutterConfigPath).startsWith('..'), true);
-        assert.equal(mkdirSync(path.dirname(plan.flutterConfigPath), { recursive: true }), undefined);
-        assert.equal(require('node:fs').existsSync(plan.flutterConfigPath), true);
-        assert.equal(require('node:fs').existsSync(keystorePath), true);
+        assert.equal(existsSync(plan.flutterConfigPath), true);
+        assert.equal(existsSync(keystorePath), true);
         return { status: 1 };
       },
     }),
     /failed with exit code 1/u,
   );
-  assert.equal(require('node:fs').existsSync(plan.flutterConfigPath), false);
-  assert.equal(require('node:fs').existsSync(keystorePath), false);
+  assert.equal(existsSync(plan.flutterConfigPath), false);
+  assert.equal(existsSync(keystorePath), false);
 });

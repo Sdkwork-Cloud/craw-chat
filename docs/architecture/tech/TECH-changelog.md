@@ -1591,7 +1591,7 @@
   - social runtime 收敛为统一 `SocialControlState`
   - 新增 `state/social-state.json`
   - 新增 `state/social-commit-journal.json`
-  - `SDKWORK_IM_RUNTIME_DIR` 命中时自动启用 file-backed social store
+  - 历史 file-backed social store 已退役；现行 social 状态使用 PostgreSQL authority
   - 新增 `build_app_with_cluster_and_governance_sinks_and_runtime_dir(...)`
 - 以 TDD 新增并锁定：
   - `test_control_plane_social_file_runtime_restores_friend_request_snapshot_and_outbox`
