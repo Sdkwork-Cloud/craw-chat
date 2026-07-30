@@ -332,6 +332,7 @@ dependencies = [
  "sdkwork-im-service-readiness",
  "sdkwork-im-web-bootstrap",
  "sdkwork-routes-im-automation-app-api",
+ "sdkwork-routes-im-governance-backend-api",
  "sdkwork-routes-web-framework-backend-api",
  "sdkwork-utils-rust",
  "sdkwork-web-core",

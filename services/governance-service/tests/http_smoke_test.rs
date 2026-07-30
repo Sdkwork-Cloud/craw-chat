@@ -74,7 +74,7 @@ async fn test_healthz_returns_ok_and_service_metadata() {
 
 #[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
-    let app = governance_service::build_public_app();
+    let app = sdkwork_routes_im_governance_backend_api::build_public_app();
 
     let response = app
         .oneshot(
@@ -96,6 +96,11 @@ async fn test_public_app_exports_live_openapi_json() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("body should be valid json");
+
+    assert!(
+        value["paths"]["/backend/v3/api/automation/governance"].is_object(),
+        "backend-api OpenAPI must publish the mounted automation governance route"
+    );
 
     assert_eq!(value["openapi"], "3.1.2");
     assert_eq!(value["info"]["title"], "Control Plane API");

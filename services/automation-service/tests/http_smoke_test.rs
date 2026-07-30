@@ -15,12 +15,16 @@ fn init_automation_http_test_env() {
 
 fn automation_http_test_app() -> axum::Router {
     init_automation_http_test_env();
-    automation_service::build_public_app()
+    sdkwork_routes_im_automation_app_api::build_public_app()
 }
 
 fn automation_route_http_test_app() -> axum::Router {
+    automation_http_test_app()
+}
+
+fn automation_backend_route_http_test_app() -> axum::Router {
     init_automation_http_test_env();
-    sdkwork_routes_im_automation_app_api::build_public_app()
+    sdkwork_routes_im_governance_backend_api::build_public_app()
 }
 
 #[tokio::test]
@@ -84,6 +88,10 @@ async fn test_public_app_exports_live_openapi_json() {
     assert_eq!(value["openapi"], "3.1.0");
     assert_eq!(value["info"]["title"], "Sdkwork IM Automation Service API");
     assert!(value["paths"]["/app/v3/api/automation/executions"].is_object());
+    assert!(
+        value["paths"]["/backend/v3/api/automation/governance"].is_null(),
+        "app-api OpenAPI must not publish backend-api routes"
+    );
 }
 
 #[tokio::test]
@@ -710,9 +718,10 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
 
 #[tokio::test]
 async fn test_automation_governance_surface_and_operator_override_over_http() {
-    let app = automation_http_test_app();
+    let app = automation_route_http_test_app();
+    let backend_app = automation_backend_route_http_test_app();
 
-    let governance_response = app
+    let governance_response = backend_app
         .clone()
         .oneshot(
             Request::builder()
@@ -894,7 +903,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         serde_json::from_slice(&override_body).expect("override body should be valid json");
     assert_eq!(override_json["data"]["item"]["state"], "requested");
 
-    let override_governance_response = app
+    let override_governance_response = backend_app
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/automation/governance")

@@ -36,3 +36,4 @@ http-body-util.workspace = true
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 tower.workspace = true
 sdkwork-routes-im-automation-app-api = { path = "../../crates/sdkwork-routes-im-automation-app-api" }
+sdkwork-routes-im-governance-backend-api = { path = "../../crates/sdkwork-routes-im-governance-backend-api" }
