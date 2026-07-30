@@ -119,9 +119,11 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
     router = router.merge(
         sdkwork_routes_im_audit_backend_api::gateway_mount_with_runtime(audit_runtime.clone()),
     );
-    router = router.merge(sdkwork_routes_im_automation_app_api::gateway_mount_with_runtime(
-        automation_runtime.clone(),
-    ));
+    router = router.merge(
+        sdkwork_routes_im_automation_app_api::gateway_mount_with_runtime(
+            automation_runtime.clone(),
+        ),
+    );
     router = router.merge(sdkwork_routes_im_calls_open_api::gateway_mount());
     router = router.merge(
         sdkwork_routes_im_chat_open_api::gateway_mount_with_state(conversation_state.clone())

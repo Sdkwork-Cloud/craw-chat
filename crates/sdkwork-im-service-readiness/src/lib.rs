@@ -38,16 +38,18 @@ impl ReadinessCheck for DatabasePoolReadinessCheck {
         let pool = self.pool.clone();
         Box::pin(async move {
             match &pool {
-                DatabasePool::Sqlite(_, _) => {
-                    return Err(
-                        "IM server readiness rejected client-local SQLite persistence".to_owned(),
-                    );
-                }
                 DatabasePool::Postgres(postgres, _) => {
                     sqlx::query("SELECT 1")
                         .execute(postgres)
                         .await
                         .map_err(|error| format!("im postgres readiness failed: {error}"))?;
+                }
+                #[allow(unreachable_patterns)]
+                _ => {
+                    return Err(format!(
+                        "IM server readiness rejected unsupported '{}' persistence",
+                        pool.engine()
+                    ));
                 }
             }
             Ok(())

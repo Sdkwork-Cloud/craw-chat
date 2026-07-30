@@ -710,7 +710,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
 
 #[tokio::test]
 async fn test_automation_governance_surface_and_operator_override_over_http() {
-    let app = automation_route_http_test_app();
+    let app = automation_http_test_app();
 
     let governance_response = app
         .clone()

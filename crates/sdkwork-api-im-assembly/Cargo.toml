@@ -52,3 +52,6 @@ sdkwork_routes_im_social_backend_api.workspace = true
 sdkwork_routes_im_social_open_api.workspace = true
 sdkwork_routes_im_space_open_api.workspace = true
 sdkwork_routes_im_stream_app_api.workspace = true
+
+[dev-dependencies]
+tower.workspace = true
