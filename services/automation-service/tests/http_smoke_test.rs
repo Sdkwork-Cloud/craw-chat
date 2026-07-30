@@ -727,13 +727,19 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         )
         .await
         .expect("governance request should return response");
-    assert_eq!(governance_response.status(), StatusCode::OK);
+    let governance_status = governance_response.status();
     let governance_body = governance_response
         .into_body()
         .collect()
         .await
         .expect("governance body should collect")
         .to_bytes();
+    assert_eq!(
+        governance_status,
+        StatusCode::OK,
+        "governance response: {}",
+        String::from_utf8_lossy(&governance_body)
+    );
     let governance_json: serde_json::Value =
         serde_json::from_slice(&governance_body).expect("governance body should be valid json");
     assert_eq!(
