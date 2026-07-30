@@ -9,7 +9,7 @@
   - `CP10-2` 已冻结 `standalone.split-services.development` / `standalone.split-services.development` profile 与配置模板合同
   - `CP10-3` 已完成 Docker/public smoke 的 signed bearer 闭环
   - 当前真实缺口收敛到 runtime ops：
-    - `inspect / repair / list / archive / prune / preview / restore` 脚本仍锁死 `.runtime/standalone.split-services.development/config/standalone.split-services.development.env`
+    - `inspect / repair / list / archive / prune / preview / restore` 必须读取 topology 源配置与部署路径合同
     - PowerShell 运行时脚本没有 `-ProfileName`
     - Bash 运行时脚本没有统一 `--profile` 运维合同
 
@@ -48,9 +48,9 @@
   - `bin/_runtime-profile-common.sh`
 - 统一解析顺序：
   1. 显式 `RuntimeDir`
-  2. `standalone.split-services.development` 时优先读取 `.runtime/standalone.split-services.development/config/standalone.split-services.development.env`
-  3. 若未落地，则回退 `.runtime/standalone.split-services.development/config/standalone.split-services.development.env`
-  4. 默认运行目录仍回退到 `.runtime/standalone.split-services.development`
+  2. `standalone.development` 读取 `etc/topology/standalone.development.env`
+  3. 配置缺失时 fail closed，不生成源码树兼容配置
+  4. 动态状态解析到源码树外、仓库标识隔离的 OS/CI 临时目录
 - 该回退与 `docs/部署/多环境Profile与配置模板.md` 当前冻结的“`standalone.split-services.development` 仍复用 `standalone.split-services.development` 运行合同”一致
 
 ### 3. PowerShell runtime ops 保持单文件可执行回归模型
@@ -76,7 +76,7 @@
 - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_inspect_runtime_local_ps1_uses_local_default_profile_config_when_requested -- --exact`
   - 初始失败：实际仍解析到 `runtime-from-local-minimal`
 - `cargo test -p sdkwork-api-im-standalone-gateway --offline --test deployment_profile_test test_inspect_runtime_local_cmd_supports_profile_switch -- --exact`
-  - 初始失败：CMD 转发后的 PowerShell 仍落到 `.runtime/standalone.split-services.development`
+  - 初始失败：CMD 转发后的 PowerShell 曾落到已退役的源码树运行目录；现已禁止该行为。
 
 ### Green
 - 补齐 profile selector、config 解析顺序、PowerShell 单文件 fallback 与文档合同后，上述 red 用例全部保持通过

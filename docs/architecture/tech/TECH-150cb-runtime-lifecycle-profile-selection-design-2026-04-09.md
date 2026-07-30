@@ -11,9 +11,9 @@
 
 - profile set: `standalone.split-services.development | standalone.split-services.development`
 - config priority:
-  - `standalone.split-services.development`: `.runtime/standalone.split-services.development/config/standalone.split-services.development.env` -> `.runtime/standalone.split-services.development/config/standalone.split-services.development.env`
-  - `standalone.split-services.development`: `.runtime/standalone.split-services.development/config/standalone.split-services.development.env`
-- runtime-dir fallback: 若 profile config 未显式覆盖，则回退到 `.runtime/standalone.split-services.development`
+  - `standalone.development`: `etc/topology/standalone.development.env`
+  - `cloud.development`: `etc/topology/cloud.development.env`
+- 运行状态不回退到源码树；统一解析到仓库标识隔离的私有 OS/CI 临时目录
 
 ## Contract
 
@@ -27,4 +27,3 @@
 
 - 当前设计只统一 profile 入口，不声明 `standalone.split-services.development` 已拥有独立 runtime topology。
 - 原生 Bash 执行态仍需单独验证。
-

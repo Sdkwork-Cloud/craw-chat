@@ -46,7 +46,7 @@ CLI 默认优先顺序：
 1. `--bearer-token`
 2. `--public-bearer-secret`
 3. 环境变量 `SDKWORK_IM_PUBLIC_BEARER_HS256_SECRET`
-4. `.runtime/standalone.split-services.development/config/standalone.split-services.development.env`
+4. `etc/topology/standalone.development.env`
 
 ### 4. 是否满足离线构建要求
 

@@ -56,7 +56,7 @@
     - PowerShell / CMD / Bash 对应入口
     - 推荐执行顺序
     - 常用参数
-    - `.runtime` 运行产物
+    - 源码树外、仓库标识隔离的 OS/CI 临时运行产物
     - runtime 运维闭环入口
 
 ## TDD 证据

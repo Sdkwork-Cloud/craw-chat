@@ -28,7 +28,7 @@
 - [ ] **Step 1: Run config initialization and install flow**
 
 Run: `powershell -NoProfile -ExecutionPolicy Bypass -File .\bin\install-local.ps1`
-Expected: config file exists, `.runtime/local-minimal/{config,logs,pids}` exists, `cargo build --offline` succeeds.
+Expected: the selected source config exists, process state resolves outside the checkout, and `cargo build --offline` succeeds.
 
 - [ ] **Step 2: Run background startup and health verification**
 
@@ -104,4 +104,3 @@ Expected: all packages pass.
 - [ ] **Step 3: Summarize findings and next wave**
 
 Deliver findings first, ordered by severity, with file references, then record remaining risks and the next review target.
-

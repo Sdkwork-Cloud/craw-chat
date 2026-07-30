@@ -63,8 +63,8 @@ Add a dedicated auth module that owns:
 
 The auth module will persist state under the runtime dir:
 
-- `.runtime/local-minimal/state/auth-accounts.json`
-- `.runtime/local-minimal/state/auth-refresh-sessions.json`
+- development auth accounts use the declared IAM/PostgreSQL authority
+- refresh sessions use the declared IAM/PostgreSQL authority and are never persisted in the source checkout
 
 ### 2. Seeded Identities
 
@@ -297,4 +297,3 @@ The work is complete when all of the following are true:
 - portal `/login` no longer depends on mock auth
 - portal data source no longer depends on frontend mock fixtures
 - chat, realtime, and RTC flows pass using issued access tokens
-

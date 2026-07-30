@@ -228,7 +228,7 @@ git commit -m "feat(cli): add real login flow for local chat auth"
 - Modify: `bin/chat-window-gui.ps1`
 - Modify: `bin/open-chat-test.ps1`
 - Modify: `bin/start-local.ps1`
-- Modify: `.runtime/local-minimal/config/local-minimal.env`
+- Use the selected `etc/topology/` source profile; do not materialize mutable config in the checkout.
 - Create: `tests/bin/chat-window-gui.ps1.test.ps1` or `apps/sdkwork-im-portal/tests/chat-helper-contract.test.mjs`
 
 - [ ] **Step 1: Write a failing script contract test or deterministic validation harness**
@@ -269,7 +269,7 @@ Expected: PASS with `watchDelivered=true` and `timelineContainsValidationMessage
 - [ ] **Step 5: Commit the helper-script hardening**
 
 ```bash
-git add bin/chat-window-gui.ps1 bin/open-chat-test.ps1 bin/start-local.ps1 .runtime/local-minimal/config/local-minimal.env
+git add bin/chat-window-gui.ps1 bin/open-chat-test.ps1 bin/start-local.ps1
 git commit -m "feat(scripts): auto-start local service and log in seeded users"
 ```
 

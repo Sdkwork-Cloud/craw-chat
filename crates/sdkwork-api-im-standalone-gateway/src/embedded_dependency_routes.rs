@@ -963,7 +963,6 @@ async fn ensure_drive_tenant_application_bootstrap_from_env() -> Result<(), Stri
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "development".to_owned());
     let app_root = resolve_drive_app_root();
-    sdkwork_iam_database_host::unified_postgres_env::apply_unified_claw_postgres_env(&app_root);
     ensure_tenant_application_from_app_root_with_env_and_fallback(
         environment.as_str(),
         app_root,

@@ -16,7 +16,7 @@
 
 - 先写失败测试冻结 `standalone.split-services.development` lifecycle 示例与兼容边界说明。
 - 回写三端 `install/init/start/restart/stop` 的 profile 示例。
-- 补 lifecycle 参数表与 `.runtime/standalone.split-services.development/config/standalone.split-services.development.env` 说明。
+- 补 lifecycle 参数表与 `etc/topology/standalone.development.env` 配置权威说明。
 - 回跑部署文档契约测试、格式检查和包级回归。
 
 ## Expected State
@@ -27,5 +27,4 @@
 ## Boundary
 
 - 本轮是文档追平，不改变脚本运行行为。
-- `standalone.split-services.development` 继续复用 `.runtime/standalone.split-services.development` 运行目录合同。
-
+- `standalone.development` 使用 topology 源配置，动态状态位于源码树外的私有 OS/CI 临时目录。

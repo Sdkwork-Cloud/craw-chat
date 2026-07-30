@@ -12,7 +12,7 @@
 
 - 现状：本地运行时配置绑定 `127.0.0.1:18124`
 - 风险：若脚本默认写死 `18090`，会误判服务不可用
-- 处理：脚本与 CLI 都改为优先读取 `.runtime/standalone.split-services.development/config/standalone.split-services.development.env`
+- 现行结论：脚本与 CLI 读取 `etc/topology/standalone.development.env`，动态状态写入源码树外。
 
 ### 3. PowerShell 脚本变量命名冲突
 

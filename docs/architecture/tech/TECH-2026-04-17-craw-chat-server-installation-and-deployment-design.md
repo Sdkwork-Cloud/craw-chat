@@ -27,7 +27,7 @@ The current deployment tooling is useful but still optimized for local or minima
 
 - lifecycle scripts are named `*-local.*`
 - templates are `local-minimal` and `local-default`
-- runtime directories still assume the existing `.runtime/local-minimal` contract
+- retired source-tree runtime directories are unsupported; packaged paths follow the operating-system install contract
 - there is no dedicated `server` package/install surface yet
 - there is no finalized cross-platform standard for `systemd`, `launchd`, or Windows Service registration
 - PostgreSQL is the architecture baseline in docs, but not yet surfaced as the formal server-install contract
@@ -329,4 +329,3 @@ The first landing should establish the contract and core tooling rather than eve
 7. update deployment docs and release bundle docs
 
 Native `.deb`, `.rpm`, `.pkg`, and `.msi` generation can then build on the same stable payload and script contract.
-

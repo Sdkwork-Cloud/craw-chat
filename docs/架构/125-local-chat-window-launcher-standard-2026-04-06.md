@@ -33,7 +33,7 @@
 
 本地脚本与 CLI 在未显式传入 `baseUrl` 时，必须优先读取 Topology v2 运行时配置：
 
-- `.runtime/standalone.split-services.development/config/standalone.split-services.development.env`
+- `etc/topology/standalone.development.env` is the current source profile authority; generated process state stays outside the checkout.
 - 键：`SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL`
 - 回退：`SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND`
 - 默认回退：`http://127.0.0.1:18079`

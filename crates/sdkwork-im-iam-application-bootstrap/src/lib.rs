@@ -26,7 +26,7 @@ pub async fn ensure_im_tenant_application_runtime_from_env(
     environment: &str,
 ) -> Result<(), String> {
     let app_root = resolve_im_repo_root();
-    sdkwork_iam_database_host::unified_postgres_env::apply_unified_claw_postgres_env(&app_root);
+    sdkwork_iam_database_host::unified_postgres_env::apply_workspace_postgres_env(&app_root);
     ensure_tenant_application_from_app_root_with_env_and_fallback(environment, app_root, None, &[])
         .await
 }

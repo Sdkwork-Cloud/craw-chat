@@ -8,6 +8,7 @@ import {
   artifactPathFor,
   createBuildPlan,
   packageReleaseTarget,
+  runBuildPlan,
   validateReleaseTarget,
 } from './workflow-release-target.mjs';
 
@@ -94,4 +95,35 @@ test('IPA planning fails closed away from a macOS/Xcode runner', () => {
     }),
     /macOS\/Xcode runner/u,
   );
+});
+
+test('removes Flutter config and decoded Android signing material after build failure', () => {
+  const plan = createBuildPlan({
+    env: {
+      SDKWORK_ANDROID_KEYSTORE_BASE64: Buffer.from('test-keystore').toString('base64'),
+      SDKWORK_ANDROID_KEYSTORE_PASSWORD: 'keystore-password',
+      SDKWORK_ANDROID_KEY_ALIAS: 'release',
+      SDKWORK_ANDROID_KEY_PASSWORD: 'key-password',
+    },
+    packageId: 'android-universal-cloud-mobile-apk',
+    root: tempRoot,
+    version: '0.1.0',
+  });
+  let keystorePath;
+  assert.throws(
+    () => runBuildPlan(plan, {
+      spawn: (_command, _args, options) => {
+        keystorePath = options.env.ORG_GRADLE_PROJECT_SDKWORK_RELEASE_KEYSTORE_FILE;
+        assert.equal(path.relative(tempRoot, keystorePath).startsWith('..'), true);
+        assert.equal(path.relative(tempRoot, plan.flutterConfigPath).startsWith('..'), true);
+        assert.equal(mkdirSync(path.dirname(plan.flutterConfigPath), { recursive: true }), undefined);
+        assert.equal(require('node:fs').existsSync(plan.flutterConfigPath), true);
+        assert.equal(require('node:fs').existsSync(keystorePath), true);
+        return { status: 1 };
+      },
+    }),
+    /failed with exit code 1/u,
+  );
+  assert.equal(require('node:fs').existsSync(plan.flutterConfigPath), false);
+  assert.equal(require('node:fs').existsSync(keystorePath), false);
 });

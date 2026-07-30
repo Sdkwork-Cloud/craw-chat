@@ -49,7 +49,7 @@ CLI 默认优先顺序：
 1. `--bearer-token`
 2. `--public-bearer-secret`
 3. 环境变量 `SDKWORK_IM_PUBLIC_BEARER_HS256_SECRET`
-4. `.runtime/standalone.split-services.development/config/standalone.split-services.development.env`
+4. `etc/topology/standalone.development.env`
 
 ### 4. 是否满足离线构建要求
 
@@ -68,4 +68,3 @@ CLI 默认优先顺序：
 1. 如需更强的对话脚本化能力，可增加 `scenario` 子命令。
 2. 如需更稳定的人工观察体验，可给 `watch` 增加 `--only-push`、`--pretty` 等选项。
 3. 如需纳入本地部署体验，可在 README 和部署文档里补充典型双终端操作手册。
-

@@ -12,7 +12,7 @@
 
 - 选择 `standalone.split-services.development` 时，运行时运维脚本与生命周期脚本会落到不同配置入口。
 - `retired-lifecycle-restart.*` 无法把选定 profile 传给 `stop/start`。
-- `init-config-local.*` 无法生成 `.runtime/standalone.split-services.development/config/standalone.split-services.development.env`。
+- 退役的 `init-config-local.*` 不再生成源码树运行配置。
 
 ## Root Cause
 
@@ -23,7 +23,7 @@
 
 - 为 `init/install/start/stop/restart` 补齐 `-ProfileName` / `--profile`。
 - 统一接入 `_runtime-profile-common.ps1` / `_runtime-profile-common.sh`，按 profile 解析 config 与 runtime-dir。
-- `standalone.split-services.development` 写入独立 config 文件，但仍保持当前 `SDKWORK_IM_RUNTIME_DIR -> .runtime/standalone.split-services.development` 兼容合同。
+- `standalone.development` 读取 `etc/topology/standalone.development.env`，不保留源码树运行目录兼容写入。
 - `retired-lifecycle-restart.*` 显式把 profile 传给 `stop/start`；PowerShell 改为真正的命名参数调用。
 - 新增回归测试：
   - `test_restart_local_ps1_forwards_profile_name_to_stop_and_start_scripts`
@@ -59,4 +59,3 @@ cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 
 - 当前会话没有可用 Bash 运行时，若干 `.sh` 真实执行测试仍按既有机制跳过。
 - 本轮没有把 `standalone.split-services.development` 升级为独立 runtime topology，只修正选择入口与兼容回退。
-

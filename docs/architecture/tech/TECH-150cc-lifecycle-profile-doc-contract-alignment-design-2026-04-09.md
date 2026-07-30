@@ -12,11 +12,10 @@
 - README 与快速启动文档都必须展示：
   - `install/init/start/restart/stop` 的 `standalone.split-services.development` 示例
   - `--profile <standalone.split-services.development|standalone.split-services.development>` / `-ProfileName <standalone.split-services.development|standalone.split-services.development>`
-  - `.runtime/standalone.split-services.development/config/standalone.split-services.development.env`
-  - `standalone.split-services.development` 当前仍复用 `.runtime/standalone.split-services.development` runtime-dir
+  - `etc/topology/standalone.development.env` 为当前配置权威
+  - 进程状态和一次性生成配置位于源码树外的私有 OS/CI 临时目录
 
 ## Boundary
 
 - 这是文档合同设计，不改变 runtime selection 实现。
 - 若未来 `standalone.split-services.development` 拥有独立 topology，继续扩充同一入口，不新增别名文档。
-

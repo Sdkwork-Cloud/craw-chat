@@ -203,7 +203,7 @@ function createBuildPlan({ env = process.env, packageId, platform = process.plat
   return { definition, flutterConfig, flutterConfigPath, packageId, releaseVersion, root, steps };
 }
 
-function runBuildPlan(plan) {
+function runBuildPlan(plan, { spawn = spawnSync } = {}) {
   const privateFiles = [];
   try {
     if (plan.flutterConfigPath) {
@@ -213,7 +213,7 @@ function runBuildPlan(plan) {
     if (plan.definition.buildKind.startsWith('flutter-android-')) {
       privateFiles.push(prepareAndroidSigning(plan));
     }
-    for (const step of plan.steps) runStep(step);
+    for (const step of plan.steps) runStep(step, spawn);
   } finally {
     for (const privateFile of privateFiles.reverse()) {
       removeImRuntimeStateFile(privateFile, { repoRoot: plan.root });
@@ -226,6 +226,15 @@ function prepareAndroidSigning(plan) {
   const encodedKeystore = requireText(step.env.SDKWORK_ANDROID_KEYSTORE_BASE64, 'SDKWORK_ANDROID_KEYSTORE_BASE64');
   const keystore = Buffer.from(encodedKeystore, 'base64');
   if (keystore.length === 0) throw new Error('SDKWORK_ANDROID_KEYSTORE_BASE64 did not decode to key material');
+  const keystorePassword = requireText(
+    step.env.SDKWORK_ANDROID_KEYSTORE_PASSWORD,
+    'SDKWORK_ANDROID_KEYSTORE_PASSWORD',
+  );
+  const keyAlias = requireText(step.env.SDKWORK_ANDROID_KEY_ALIAS, 'SDKWORK_ANDROID_KEY_ALIAS');
+  const keyPassword = requireText(
+    step.env.SDKWORK_ANDROID_KEY_PASSWORD,
+    'SDKWORK_ANDROID_KEY_PASSWORD',
+  );
   const keystorePath = resolveImTemporaryFilePath({
     extension: '.keystore',
     fileName: 'android-release',
@@ -236,24 +245,15 @@ function prepareAndroidSigning(plan) {
   step.env = {
     ...step.env,
     ORG_GRADLE_PROJECT_SDKWORK_RELEASE_KEYSTORE_FILE: keystorePath,
-    ORG_GRADLE_PROJECT_SDKWORK_RELEASE_KEYSTORE_PASSWORD: requireText(
-      step.env.SDKWORK_ANDROID_KEYSTORE_PASSWORD,
-      'SDKWORK_ANDROID_KEYSTORE_PASSWORD',
-    ),
-    ORG_GRADLE_PROJECT_SDKWORK_RELEASE_KEY_ALIAS: requireText(
-      step.env.SDKWORK_ANDROID_KEY_ALIAS,
-      'SDKWORK_ANDROID_KEY_ALIAS',
-    ),
-    ORG_GRADLE_PROJECT_SDKWORK_RELEASE_KEY_PASSWORD: requireText(
-      step.env.SDKWORK_ANDROID_KEY_PASSWORD,
-      'SDKWORK_ANDROID_KEY_PASSWORD',
-    ),
+    ORG_GRADLE_PROJECT_SDKWORK_RELEASE_KEYSTORE_PASSWORD: keystorePassword,
+    ORG_GRADLE_PROJECT_SDKWORK_RELEASE_KEY_ALIAS: keyAlias,
+    ORG_GRADLE_PROJECT_SDKWORK_RELEASE_KEY_PASSWORD: keyPassword,
   };
   return keystorePath;
 }
 
-function runStep(step) {
-  const result = spawnSync(step.command, step.args, {
+function runStep(step, spawn = spawnSync) {
+  const result = spawn(step.command, step.args, {
     cwd: step.cwd,
     env: step.env,
     shell: process.platform === 'win32' && /\.(?:cmd|bat)$/iu.test(step.command),
