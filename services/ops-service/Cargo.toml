@@ -9,6 +9,7 @@ axum.workspace = true
 sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
 sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
 im-app-context = { path = "../../crates/im-app-context" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 im-time = { path = "../../crates/im-time" }
 serde.workspace = true

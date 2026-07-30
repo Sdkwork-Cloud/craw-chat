@@ -473,6 +473,7 @@ pub trait StateStore: Send + Sync {
     fn load_state(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         rtc_session_id: &str,
     ) -> Result<Option<RtcStateRecord>, sdkwork_communication_rtc_service::RtcContractError>;
 
@@ -484,6 +485,7 @@ pub trait StateStore: Send + Sync {
     fn clear_state(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         rtc_session_id: &str,
     ) -> Result<bool, sdkwork_communication_rtc_service::RtcContractError>;
 }

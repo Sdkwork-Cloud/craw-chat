@@ -10,6 +10,10 @@ import {
 } from './sdkwork-im-postgres-init-node.mjs';
 import { repairPostgresMigrationChecksums } from './repair-postgres-migration-checksums.mjs';
 import { resolvePostgresDevProfile } from './sdkwork-im-postgres-dev-profile.mjs';
+import {
+  rejectRetiredDatabaseKeys,
+  validateWorkspacePostgresIdentity,
+} from './sdkwork-im-shared-database.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,9 +30,6 @@ const defaultAppbaseIamMigrationsDir = path.resolve(
   'sdkwork-iam-storage-sqlx-rust',
   'migrations',
 );
-const CANONICAL_DATABASE_PREFIX = 'SDKWORK_IM_DATABASE_';
-const LEGACY_DATABASE_PREFIX = 'SDKWORK_CLAW_DATABASE_';
-
 function normalizeField(value) {
   const normalized = String(value ?? '').trim();
   return normalized || undefined;
@@ -260,54 +261,49 @@ function configFromYamlObject(yaml, configPath, repoRoot = defaultRepoRoot) {
 }
 
 function configFromEnvObject(env, configPath) {
-  if (normalizeField(env.SDKWORK_DATABASE_PROVIDER)) {
-    throw new Error('SDKWORK_DATABASE_PROVIDER is not standard; use SDKWORK_DATABASE_ENGINE');
-  }
-  if (normalizeField(env.SDKWORK_DATABASE_SSLMODE)) {
-    throw new Error('SDKWORK_DATABASE_SSLMODE is not standard; use SDKWORK_DATABASE_SSL_MODE');
-  }
+  rejectRetiredDatabaseKeys(env);
   const databaseFromUrl = parsePostgresDatabaseUrl(
-    env.SDKWORK_DATABASE_URL ?? env.SDKWORK_DATABASE_URL,
-    env.SDKWORK_DATABASE_SCHEMA ?? env.SDKWORK_DATABASE_SCHEMA,
+    env.SDKWORK_DATABASE_URL,
+    env.SDKWORK_DATABASE_SCHEMA,
   );
-  const engine = normalizeField(env.SDKWORK_DATABASE_ENGINE ?? env.SDKWORK_DATABASE_PROVIDER);
+  const engine = normalizeField(env.SDKWORK_DATABASE_ENGINE);
   if (!databaseFromUrl && engine && !/^postgres(?:ql)?$/iu.test(engine)) {
     throw new Error(`unsupported Sdkwork IM database engine: ${engine}`);
   }
   const database = databaseFromUrl ?? {
-    database: normalizeField(env.SDKWORK_DATABASE_NAME ?? env.SDKWORK_DATABASE_NAME),
-    host: normalizeField(env.SDKWORK_DATABASE_HOST ?? env.SDKWORK_DATABASE_HOST),
-    password: normalizeField(env.SDKWORK_DATABASE_PASSWORD ?? env.SDKWORK_DATABASE_PASSWORD),
-    port: normalizeField(env.SDKWORK_DATABASE_PORT ?? env.SDKWORK_DATABASE_PORT) ?? '5432',
-    schema: normalizeField(env.SDKWORK_DATABASE_SCHEMA ?? env.SDKWORK_DATABASE_SCHEMA)
-      ?? normalizeField(env.SDKWORK_DATABASE_NAME ?? env.SDKWORK_DATABASE_NAME),
-    sslmode: normalizeField(env.SDKWORK_DATABASE_SSL_MODE ?? env.SDKWORK_DATABASE_SSLMODE),
-    username: normalizeField(env.SDKWORK_DATABASE_USERNAME ?? env.SDKWORK_DATABASE_USERNAME),
+    database: normalizeField(env.SDKWORK_DATABASE_NAME),
+    host: normalizeField(env.SDKWORK_DATABASE_HOST),
+    password: normalizeField(env.SDKWORK_DATABASE_PASSWORD),
+    port: normalizeField(env.SDKWORK_DATABASE_PORT) ?? '5432',
+    schema: normalizeField(env.SDKWORK_DATABASE_SCHEMA)
+      ?? normalizeField(env.SDKWORK_DATABASE_NAME),
+    sslmode: normalizeField(env.SDKWORK_DATABASE_SSL_MODE),
+    username: normalizeField(env.SDKWORK_DATABASE_USERNAME),
   };
   const adminFromUrl = parsePostgresDatabaseUrl(
-    env.SDKWORK_DATABASE_ADMIN_URL ?? env.SDKWORK_DATABASE_ADMIN_URL,
+    env.SDKWORK_DATABASE_ADMIN_URL,
     undefined,
   );
   const admin = adminFromUrl ?? {
-    database: normalizeField(env.SDKWORK_DATABASE_ADMIN_DATABASE ?? env.SDKWORK_DATABASE_ADMIN_DATABASE) ?? 'postgres',
-    host: normalizeField(env.SDKWORK_DATABASE_ADMIN_HOST ?? env.SDKWORK_DATABASE_ADMIN_HOST) ?? database.host,
-    password: normalizeField(env.SDKWORK_DATABASE_ADMIN_PASSWORD ?? env.SDKWORK_DATABASE_ADMIN_PASSWORD),
-    port: normalizeField(env.SDKWORK_DATABASE_ADMIN_PORT ?? env.SDKWORK_DATABASE_ADMIN_PORT) ?? database.port,
-    sslmode: normalizeField(env.SDKWORK_DATABASE_ADMIN_SSL_MODE ?? env.SDKWORK_DATABASE_ADMIN_SSLMODE) ?? database.sslmode,
-    username: normalizeField(env.SDKWORK_DATABASE_ADMIN_USERNAME ?? env.SDKWORK_DATABASE_ADMIN_USERNAME) ?? 'postgres',
+    database: normalizeField(env.SDKWORK_DATABASE_ADMIN_DATABASE) ?? 'postgres',
+    host: normalizeField(env.SDKWORK_DATABASE_ADMIN_HOST) ?? database.host,
+    password: normalizeField(env.SDKWORK_DATABASE_ADMIN_PASSWORD),
+    port: normalizeField(env.SDKWORK_DATABASE_ADMIN_PORT) ?? database.port,
+    sslmode: normalizeField(env.SDKWORK_DATABASE_ADMIN_SSL_MODE) ?? database.sslmode,
+    username: normalizeField(env.SDKWORK_DATABASE_ADMIN_USERNAME) ?? 'postgres',
   };
   return {
     admin,
     database,
     psql: {
       args: parseCommandArgs(
-        env.SDKWORK_DATABASE_PSQL_ARGS ?? env.SDKWORK_DATABASE_PSQL_ARGS,
+        env.SDKWORK_DATABASE_PSQL_ARGS,
       ),
       command: normalizeField(
-        env.SDKWORK_DATABASE_PSQL_COMMAND ?? env.SDKWORK_DATABASE_PSQL_COMMAND,
+        env.SDKWORK_DATABASE_PSQL_COMMAND,
       ),
       pathStyle: normalizeField(
-        env.SDKWORK_DATABASE_PSQL_PATH_STYLE ?? env.SDKWORK_DATABASE_PSQL_PATH_STYLE,
+        env.SDKWORK_DATABASE_PSQL_PATH_STYLE,
       ),
     },
     source: {
@@ -317,16 +313,23 @@ function configFromEnvObject(env, configPath) {
   };
 }
 
-function validateDatabaseConfig(database, prefix) {
+function validateDatabaseConfig(database) {
   const missing = [];
+  const fieldKeys = {
+    database: 'NAME',
+    host: 'HOST',
+    password: 'PASSWORD',
+    username: 'USERNAME',
+  };
   for (const field of ['host', 'database', 'username', 'password']) {
     if (!normalizeField(database[field])) {
-      missing.push(`${prefix}${field.toUpperCase()}`);
+      missing.push(`SDKWORK_DATABASE_${fieldKeys[field]}`);
     }
   }
   if (missing.length > 0) {
     throw new Error(`PostgreSQL configuration requires ${missing.join(', ')}`);
   }
+  validateWorkspacePostgresIdentity(database);
 }
 
 function validateAdminConfig(admin) {
@@ -361,7 +364,7 @@ export function parsePostgresConfig({
   const config = format === 'yaml'
     ? configFromYamlObject(parseSimpleYaml(sourceText), configPath, repoRoot)
     : configFromEnvObject(parseDotEnv(sourceText), configPath);
-  validateDatabaseConfig(config.database, 'SDKWORK_IM_DATABASE_');
+  validateDatabaseConfig(config.database);
   validateAdminConfig(config.admin);
   return config;
 }
@@ -376,7 +379,9 @@ export function applyResolvedPostgresProfile(config, profile) {
       config.database[key] = value;
     }
   }
-  validateDatabaseConfig(config.database, 'SDKWORK_IM_DATABASE_');
+  config.database.schema = normalizeField(profile.postgres.schema)
+    ?? config.database.database;
+  validateDatabaseConfig(config.database);
   return config;
 }
 
@@ -840,8 +845,9 @@ export async function runPostgresDbCli({
 
   const profile = resolvePostgresDevProfile({ env, extraEnv, repoRoot });
   const config = applyResolvedPostgresProfile(profile.config, profile);
-  if (env.SDKWORK_DATABASE_SCHEMA || env.SDKWORK_DATABASE_SCHEMA) {
-    config.database.schema = env.SDKWORK_DATABASE_SCHEMA ?? env.SDKWORK_DATABASE_SCHEMA;
+  if (env.SDKWORK_DATABASE_SCHEMA) {
+    config.database.schema = env.SDKWORK_DATABASE_SCHEMA;
+    validateDatabaseConfig(config.database);
   }
   const migrationsDir = path.isAbsolute(args.migrationsDir)
     ? args.migrationsDir

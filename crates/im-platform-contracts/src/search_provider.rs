@@ -71,7 +71,12 @@ pub trait SearchProvider: Send + Sync {
     ) -> Result<SearchResult, ContractError>;
 
     /// Remove a message from the search index (e.g. on recall/delete).
-    fn remove_message(&self, tenant_id: &str, message_id: i64) -> Result<(), ContractError>;
+    fn remove_message(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        message_id: i64,
+    ) -> Result<(), ContractError>;
 
     /// The provider plugin identifier.
     fn plugin_id(&self) -> &'static str;

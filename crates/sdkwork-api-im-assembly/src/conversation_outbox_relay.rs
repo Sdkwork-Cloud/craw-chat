@@ -17,7 +17,9 @@ use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
-use crate::outbox_relay_common::{DEFAULT_OUTBOX_CLAIM_LEASE, log_unexpected_aggregate_type};
+use crate::outbox_relay_common::{
+    DEFAULT_OUTBOX_CLAIM_LEASE, discover_outbox_scopes, log_unexpected_aggregate_type,
+};
 
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
 const CONVERSATION_OUTBOX_RELAY_POLL_MS_ENV: &str = "SDKWORK_IM_CONVERSATION_OUTBOX_RELAY_POLL_MS";
@@ -31,6 +33,7 @@ const DEFAULT_CONVERSATION_OUTBOX_RELAY_TENANT_ID: &str = "100001";
 const DEFAULT_CONVERSATION_OUTBOX_RELAY_ORGANIZATION_ID: &str = "default";
 const DEFAULT_CONVERSATION_OUTBOX_RELAY_BATCH_SIZE: usize = 64;
 const DEFAULT_CONVERSATION_OUTBOX_RELAY_SCOPE_LIMIT: usize = 32;
+const CONVERSATION_OUTBOX_RELAY_WORKER_ID: &str = "conversation-outbox-relay";
 
 pub struct ConversationOutboxRelayHandle {
     shutdown: watch::Sender<()>,
@@ -142,7 +145,9 @@ fn resolve_conversation_outbox_relay_scopes(
         )];
     }
 
-    match outbox.list_pending_scopes(
+    match discover_outbox_scopes(
+        outbox.as_ref(),
+        CONVERSATION_OUTBOX_RELAY_WORKER_ID,
         CONVERSATION_OUTBOX_AGGREGATE_TYPE,
         DEFAULT_CONVERSATION_OUTBOX_RELAY_SCOPE_LIMIT,
     ) {

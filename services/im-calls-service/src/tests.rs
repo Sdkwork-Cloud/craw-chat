@@ -411,7 +411,14 @@ mod tests {
         {
             let mut session = runtime
                 .sessions
-                .get_mut(rtc_session_scope_key("100001", "rtc_connected_long_call").as_str())
+                .get_mut(
+                    rtc_session_scope_key(
+                        auth.tenant_id.as_str(),
+                        auth.organization_id.as_str(),
+                        "rtc_connected_long_call",
+                    )
+                    .as_str(),
+                )
                 .expect("session cached");
             session.state = SessionState::Connected;
             session.started_at = "2000-01-01T00:00:00.000Z".into();
@@ -445,7 +452,14 @@ mod tests {
         {
             let mut session = runtime
                 .sessions
-                .get_mut(rtc_session_scope_key("100001", "rtc_stale_ringing").as_str())
+                .get_mut(
+                    rtc_session_scope_key(
+                        auth.tenant_id.as_str(),
+                        auth.organization_id.as_str(),
+                        "rtc_stale_ringing",
+                    )
+                    .as_str(),
+                )
                 .expect("session cached");
             session.started_at = "2000-01-01T00:00:00.000Z".into();
             session.last_activity_at = Some("2000-01-01T00:00:00.000Z".into());

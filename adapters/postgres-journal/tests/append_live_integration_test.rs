@@ -8,19 +8,21 @@ use im_platform_contracts::{CommitJournal, ContractError};
 use serde_json::json;
 
 static LIVE_POSTGRES_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+const TEST_TENANT_ID: &str = "100001";
+const TEST_ORGANIZATION_ID: &str = "0";
 
 fn sample_envelope(event_id: &str, conversation_id: &str) -> CommitEnvelope {
     CommitEnvelope {
         event_id: event_id.into(),
-        tenant_id: "100001".into(),
-        organization_id: "0".into(),
+        tenant_id: TEST_TENANT_ID.into(),
+        organization_id: TEST_ORGANIZATION_ID.into(),
         event_type: "conversation.created".into(),
         event_version: 1,
         aggregate_type: AggregateType::Conversation,
         aggregate_id: conversation_id.into(),
         scope_type: "conversation".into(),
         scope_id: conversation_id.into(),
-        ordering_key: CommitEnvelope::ordering_key("100001", conversation_id),
+        ordering_key: CommitEnvelope::ordering_key(TEST_TENANT_ID, conversation_id),
         ordering_seq: 0,
         causation_id: None,
         correlation_id: None,
@@ -70,8 +72,8 @@ async fn append_agent_dialog_envelope_live() {
         pool.get()
             .expect("cleanup connection should be available")
             .execute(
-                "delete from im_commit_journal where event_id = $1",
-                &[&event_id],
+                "delete from im_commit_journal where event_id = $1 and tenant_id = $2 and organization_id = $3",
+                &[&event_id, &TEST_TENANT_ID, &TEST_ORGANIZATION_ID],
             )
             .expect("live append test row should be cleaned up");
     })
@@ -141,16 +143,20 @@ async fn append_and_batch_replays_validate_the_immutable_event_fingerprint() {
         let mut client = pool.get().expect("cleanup connection should be available");
         let rolled_back_batch_rows: i64 = client
             .query_one(
-                "select count(*) from im_commit_journal where event_id = $1",
-                &[&batch_rollback_event_id],
+                "select count(*) from im_commit_journal where event_id = $1 and tenant_id = $2 and organization_id = $3",
+                &[
+                    &batch_rollback_event_id,
+                    &TEST_TENANT_ID,
+                    &TEST_ORGANIZATION_ID,
+                ],
             )
             .expect("rolled-back batch row should be countable")
             .get(0);
         for event_id in [&append_event_id, &batch_event_id, &batch_rollback_event_id] {
             client
                 .execute(
-                    "delete from im_commit_journal where event_id = $1",
-                    &[event_id],
+                    "delete from im_commit_journal where event_id = $1 and tenant_id = $2 and organization_id = $3",
+                    &[event_id, &TEST_TENANT_ID, &TEST_ORGANIZATION_ID],
                 )
                 .expect("live replay test row should be cleaned up");
         }
@@ -219,8 +225,13 @@ async fn coordinated_append_allocates_sequences_and_rolls_back_callback_failures
             assert_eq!(sequenced[1].ordering_seq, 1);
             let inserted: i64 = txn
                 .query_one(
-                    "select count(*) from im_commit_journal where event_id in ($1, $2)",
-                    &[&sequenced[0].event_id, &sequenced[1].event_id],
+                    "select count(*) from im_commit_journal where event_id in ($1, $2) and tenant_id = $3 and organization_id = $4",
+                    &[
+                        &sequenced[0].event_id,
+                        &sequenced[1].event_id,
+                        &TEST_TENANT_ID,
+                        &TEST_ORGANIZATION_ID,
+                    ],
                 )
                 .expect("journal rows should be visible inside the transaction")
                 .get(0);
@@ -242,8 +253,13 @@ async fn coordinated_append_allocates_sequences_and_rolls_back_callback_failures
         pool.get()
             .expect("verification connection should be available")
             .query_one(
-                "select count(*) from im_commit_journal where event_id in ($1, $2)",
-                &[&first_event_id_for_check, &second_event_id_for_check],
+                "select count(*) from im_commit_journal where event_id in ($1, $2) and tenant_id = $3 and organization_id = $4",
+                &[
+                    &first_event_id_for_check,
+                    &second_event_id_for_check,
+                    &TEST_TENANT_ID,
+                    &TEST_ORGANIZATION_ID,
+                ],
             )
             .expect("rolled-back journal rows should be countable")
             .get::<_, i64>(0)
@@ -279,8 +295,13 @@ async fn coordinated_append_allocates_sequences_and_rolls_back_callback_failures
         pool.get()
             .expect("cleanup connection should be available")
             .execute(
-                "delete from im_commit_journal where event_id in ($1, $2)",
-                &[&first_event_id, &second_event_id],
+                "delete from im_commit_journal where event_id in ($1, $2) and tenant_id = $3 and organization_id = $4",
+                &[
+                    &first_event_id,
+                    &second_event_id,
+                    &TEST_TENANT_ID,
+                    &TEST_ORGANIZATION_ID,
+                ],
             )
             .expect("coordinated append rows should be cleaned up");
     })

@@ -309,7 +309,7 @@ impl RuntimeSnowflakeIdGenerator {
     ///
     /// The `service_name` parameter identifies the logical service (e.g.
     /// `"social-service"`, `"space-service"`) for the node registry.
-    /// The database pool is created from `SDKWORK_IM_DATABASE_*` env vars.
+    /// The database pool is created from the process-level `SDKWORK_DATABASE_*` profile.
     ///
     /// # Idempotency
     ///

@@ -201,6 +201,11 @@
       "file": "table-registry.json",
       "path": "../database/contract/table-registry.json",
       "purpose": "Canonical registry for IM-owned tables, profiles, write owners, and migration provenance."
+    },
+    {
+      "file": "organization-isolation.spec.json",
+      "path": "./organization-isolation.spec.json",
+      "purpose": "Machine inventory for organization-scoped tables, typed cross-organization operations, bounded SQL shapes, and audit evidence."
     }
   ],
   "contracts": {
@@ -546,6 +551,7 @@
       "pnpm test:rpc-contract",
       "pnpm check:dependency-management",
       "pnpm test:database-naming-standard",
+      "pnpm test:tenant-isolation-standard",
       "pnpm test:component-spec-consistency",
       "pnpm test:apis-authority-standard",
       "pnpm test:utils-standard",

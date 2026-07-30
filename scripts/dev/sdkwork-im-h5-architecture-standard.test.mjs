@@ -125,7 +125,9 @@ for (const forbidden of [
 
 // AI Studio legacy content must not remain in source files.
 const appSource = read('src/App.tsx');
+const imAppSource = read('src/ImApp.tsx');
 const readmeSource = read('README.md');
+const serverSource = read('server.ts');
 const viteSource = read('vite.config.ts');
 const aiImageSource = read('packages/sdkwork-im-h5-ai-image/src/services/AIImageService.ts');
 const aiVideoSource = read('packages/sdkwork-im-h5-ai-video/src/services/AIVideoService.ts');
@@ -241,6 +243,52 @@ assert.equal(readmeSource.includes('ai.studio'), false, 'README.md must not refe
 assert.equal(readmeSource.includes('GEMINI_API_KEY'), false, 'README.md must not reference GEMINI_API_KEY');
 assert.equal(readmeSource.includes('ai.google.dev'), false, 'README.md must not reference ai.google.dev');
 assert.equal(viteSource.includes('DISABLE_HMR'), false, 'AI Studio DISABLE_HMR env var must be removed from vite.config.ts');
+assert.match(imAppSource, /React\.lazy/u, 'H5 optional capability routes must use lazy loading');
+assert.match(
+  imAppSource,
+  /import\("@sdkwork\/im-h5-notary"\)/u,
+  'H5 notary routes must load their capability package on demand',
+);
+assert.match(
+  viteSource,
+  /cacheDir:\s*path\.resolve\(__dirname, 'node_modules', '\.vite', 'sdkwork-im-h5'\)/u,
+  'H5 Vite cache must be isolated under its application-owned tool cache',
+);
+for (const requiredReactSingletonBinding of [
+  "dedupe: ['react', 'react-dom']",
+  "find: 'react/jsx-runtime'",
+  "find: 'react/jsx-dev-runtime'",
+  "find: 'react-dom/client'",
+  'find: /^react-dom$/',
+  'find: /^react$/',
+]) {
+  assert.ok(
+    viteSource.includes(requiredReactSingletonBinding),
+    `H5 Vite config must preserve the React singleton binding ${requiredReactSingletonBinding}`,
+  );
+}
+assert.match(viteSource, /manualChunks/u, 'H5 release build must define stable vendor chunks');
+for (const chunkName of [
+  'react-vendor',
+  'editor-vendor',
+  'i18n-vendor',
+  'ui-vendor',
+  'sdk-vendor',
+  'auth-vendor',
+]) {
+  assert.ok(viteSource.includes(chunkName), `H5 release build must expose a ${chunkName} chunk`);
+}
+assert.ok(
+  viteSource.indexOf("find: /^@sdkwork\\/im-h5-([^/]+)\\/(.+)$/") <
+    viteSource.indexOf("find: /^@sdkwork\\/im-h5-([^/]+)$/"),
+  'H5 package subpath aliases must be matched before package-root aliases',
+);
+assert.doesNotMatch(serverSource, /import\.meta/u, 'H5 CommonJS server must not depend on import.meta');
+assert.match(
+  serverSource,
+  /path\.resolve\(process\.cwd\(\), 'dist'\)/u,
+  'H5 production server must resolve the built static root from the application working directory',
+);
 assert.doesNotMatch(legacyApiClientSource, /fetch\s*\(/u, 'legacy ApiClient must not provide raw HTTP');
 assert.match(legacyApiClientSource, /RawApiClientForbiddenError/u);
 for (const [name, source] of [

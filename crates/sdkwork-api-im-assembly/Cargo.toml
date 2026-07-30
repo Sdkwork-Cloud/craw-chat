@@ -12,9 +12,12 @@ path = "src/lib.rs"
 [dependencies]
 axum.workspace = true
 tokio.workspace = true
+sdkwork-web-bootstrap.workspace = true
+sdkwork_web_core.workspace = true
 chrono = "0.4.44"
 tracing.workspace = true
 serde_json.workspace = true
+sdkwork_utils_rust.workspace = true
 im-app-context = { path = "../im-app-context" }
 im-platform-contracts = { path = "../im-platform-contracts" }
 im-domain-core = { path = "../im-domain-core" }
@@ -31,7 +34,9 @@ portal-service = { path = "../../services/portal-service" }
 conversation_runtime = { path = "../../services/sdkwork-comms-conversation-service", package = "sdkwork-comms-conversation-service" }
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
 sdkwork_im_database_pool = { workspace = true }
+sdkwork_im_service_readiness = { workspace = true }
 calls-service = { path = "../../services/im-calls-service" }
+sdkwork-agents-runtime-facade.workspace = true
 sdkwork_routes_im_audit_backend_api.workspace = true
 sdkwork_routes_im_automation_app_api.workspace = true
 sdkwork-routes-im-calls-open-api.workspace = true

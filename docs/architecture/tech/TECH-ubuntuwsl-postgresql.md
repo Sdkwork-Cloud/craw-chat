@@ -3,7 +3,7 @@
 
 # Ubuntu 与 WSL PostgreSQL 初始化建库授权手册
 
-本文用于在 Ubuntu 或 WSL Ubuntu 中为 SDKWork Chat 准备本地 PostgreSQL。当前应用 app code 为 `chat`，开发数据库使用 `sdkwork_ai_dev`，生产示例使用 `sdkwork`。
+本文用于在 Ubuntu 或 WSL Ubuntu 中为 SDKWork Chat 准备本地 PostgreSQL。当前应用 app code 为 `chat`，开发数据库使用 `sdkwork_ai_dev`，生产环境使用工作区统一的 `sdkwork_ai_prod`。
 
 desktop 开发编排默认使用 PostgreSQL：`pnpm dev:desktop 默认使用 PostgreSQL`。安装后的 desktop runtime 本地数据使用浏览器本地存储(IndexedDB / localStorage),不使用 SQL 数据库文件。本文的 PostgreSQL profile 用于 `pnpm dev`、`pnpm dev:browser`、`pnpm dev:desktop`、server 集成测试和数据库迁移验证。
 
@@ -239,13 +239,13 @@ provider: postgresql
 connection:
   host: postgres.internal.example.com
   port: 5432
-  database: sdkwork
-  username: sdkwork
+  database: sdkwork_ai_prod
+  username: sdkwork_ai_prod
   passwordFile: /etc/sdkwork/chat/database.secret
   sslmode: require
 
 schema:
-  name: sdkwork
+  name: sdkwork_ai_prod
 ```
 
 安全要求：

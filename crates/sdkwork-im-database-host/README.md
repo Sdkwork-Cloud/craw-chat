@@ -22,7 +22,7 @@ and PostgreSQL migrations, and manifest `autoMigrate=false` remains effective.
 
 ## Configuration
 
-Configuration is resolved from `SDKWORK_IM_DATABASE_*`; `SDKWORK_IM_APP_ROOT` may select an explicit
+Configuration is resolved from `SDKWORK_DATABASE_*`; `SDKWORK_IM_APP_ROOT` may select an explicit
 application root. Database credentials must use the approved secret/config channel.
 
 ## Verification

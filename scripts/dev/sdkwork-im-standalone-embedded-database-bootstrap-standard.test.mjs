@@ -33,8 +33,8 @@ assert.match(
 
 assert.match(
   embeddedSource,
-  /bootstrap_drive_database_from_env/u,
-  'drive embedded database sync must use sdkwork-database lifecycle bootstrap',
+  /connect_any_database_and_install_schema/u,
+  'drive embedded database sync must install schema through the shared Drive lifecycle entrypoint',
 );
 
 assert.match(
@@ -45,8 +45,8 @@ assert.match(
 
 assert.match(
   embeddedSource,
-  /normalize_embedded_dependency_database_urls/u,
-  'embedded dependency env must normalize PostgreSQL search_path for unified schema profiles',
+  /validate_workspace_server_database_env/u,
+  'embedded dependency bootstrap must validate one process-level workspace database profile',
 );
 
 assert.match(
@@ -69,8 +69,8 @@ assert.match(
 
 assert.match(
   driveInstaller,
-  /postgres_url_with_search_path/u,
-  'drive postgres pool bootstrap must honor unified PostgreSQL search_path',
+  /normalize_workspace_postgres_url/u,
+  'drive postgres pool bootstrap must normalize the workspace PostgreSQL profile',
 );
 
 process.stdout.write(

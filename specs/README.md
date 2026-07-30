@@ -151,6 +151,9 @@ the Discovery control plane as shipped or required runtime authority.
   request context and IAM integration.
 - [`process-database-pool.spec.json`](./process-database-pool.spec.json): shared
   process-level PostgreSQL pool ownership.
+- [`organization-isolation.spec.json`](./organization-isolation.spec.json): canonical
+  organization-scoped table source, approved cross-organization operation shapes, typed
+  authorization evidence, and audit evidence sources.
 - [`topology.spec.json`](./topology.spec.json): standalone and cloud runtime
   composition.
 - [`im-web-ingress-domain.spec.json`](./im-web-ingress-domain.spec.json): PC/H5
@@ -184,6 +187,7 @@ pnpm test:component-spec-consistency
 pnpm test:normalized-im-authority-standard
 pnpm test:agents-integration-migration
 pnpm test:database-naming-standard
+pnpm test:tenant-isolation-standard
 pnpm db:validate
 pnpm test:apis-authority-standard
 pnpm check:api-response-envelope

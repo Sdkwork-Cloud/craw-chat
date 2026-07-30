@@ -1,4 +1,4 @@
-# Sdkwork IM 鈥?Regulatory Compliance Framework
+# Sdkwork IM - Regulatory Compliance Framework
 
 Status: active
 Owner: SDKWork maintainers
@@ -323,12 +323,12 @@ Enterprise customers may request:
 
 ## 13. References
 
-- [DATA_PROTECTION.md](DATA_PROTECTION.md) 鈥?Data protection summary.
-- [CUSTOMER_OPERATIONS.md](CUSTOMER_OPERATIONS.md) 鈥?Customer operations guide.
-- [SLA_SLO.md](SLA_SLO.md) 鈥?Service level agreements and objectives.
+- [DATA_PROTECTION.md](DATA_PROTECTION.md) - Data protection summary.
+- [CUSTOMER_OPERATIONS.md](CUSTOMER_OPERATIONS.md) - Customer operations guide.
+- [SLA_SLO.md](SLA_SLO.md) - Service level agreements and objectives.
 - [docs/runbooks/RUNBOOK-audit-log-investigation.md](../../runbooks/RUNBOOK-audit-log-investigation.md)
 - [docs/runbooks/RUNBOOK-tenant-isolation-verification.md](../../runbooks/RUNBOOK-tenant-isolation-verification.md)
 - [docs/runbooks/RUNBOOK-token-key-rotation.md](../../runbooks/RUNBOOK-token-key-rotation.md)
-- `../sdkwork-specs/PRIVACY_SPEC.md` 鈥?Platform privacy standard.
-- `../sdkwork-specs/SECURITY_SPEC.md` 鈥?Platform security standard.
-- `../sdkwork-specs/IAM_SPEC.md` 鈥?Identity and access management standard.
+- `../sdkwork-specs/PRIVACY_SPEC.md` - Platform privacy standard.
+- `../sdkwork-specs/SECURITY_SPEC.md` - Platform security standard.
+- `../sdkwork-specs/IAM_SPEC.md` - Identity and access management standard.

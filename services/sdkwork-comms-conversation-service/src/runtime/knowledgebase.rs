@@ -18,7 +18,8 @@ use im_domain_core::conversation::{
 };
 use im_platform_contracts::{
     CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ContractError, ConversationMemberPageCursor,
-    ConversationMemberRecord, IdGenerator,
+    ConversationMemberRecord, IdGenerator, PrivilegedOperationActorKind,
+    PrivilegedOperationContext,
 };
 use sdkwork_im_contract_message::CommitJournal;
 use sdkwork_utils_rust::{
@@ -968,6 +969,12 @@ struct GroupKnowledgebaseReconciliationScope {
     organization_id: String,
 }
 
+#[derive(Clone, Copy, Debug)]
+struct GroupKnowledgebaseReconciliationScopeRequest<'a> {
+    context: &'a PrivilegedOperationContext,
+    after: Option<&'a GroupKnowledgebaseReconciliationScope>,
+}
+
 #[derive(Clone, Debug, Default)]
 pub(crate) struct GroupKnowledgebaseReconciliationCursor {
     completed_scope: Option<GroupKnowledgebaseReconciliationScope>,
@@ -1052,7 +1059,7 @@ trait GroupKnowledgebaseStore: Send + Sync {
     ) -> Result<Option<GroupKnowledgebaseLink>, RuntimeError>;
     fn next_reconciliation_scope(
         &self,
-        after: Option<&GroupKnowledgebaseReconciliationScope>,
+        request: GroupKnowledgebaseReconciliationScopeRequest<'_>,
     ) -> Result<Option<GroupKnowledgebaseReconciliationScope>, RuntimeError>;
     fn list_reconciliation_links(
         &self,
@@ -1462,8 +1469,9 @@ impl GroupKnowledgebaseStore for InMemoryGroupKnowledgebaseStore {
 
     fn next_reconciliation_scope(
         &self,
-        after: Option<&GroupKnowledgebaseReconciliationScope>,
+        request: GroupKnowledgebaseReconciliationScopeRequest<'_>,
     ) -> Result<Option<GroupKnowledgebaseReconciliationScope>, RuntimeError> {
+        let after = request.after;
         let links = lock_knowledgebase_mutex(&self.links, "knowledgebase-links");
         let mut scopes = BTreeMap::new();
         for link in links.values() {
@@ -1823,6 +1831,7 @@ returning id, link_uuid, tenant_id, organization_id, conversation_id,
 "#;
 
 const SELECT_NEXT_RECONCILIATION_SCOPE_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=knowledgebase-reconciliation-scope-discovery */
 select tenant_id, organization_id
 from im_conversation_knowledge_space_link
 where lifecycle_state in ('provisioning', 'active', 'archived')
@@ -2694,12 +2703,14 @@ impl GroupKnowledgebaseStore for PostgresGroupKnowledgebaseStore {
 
     fn next_reconciliation_scope(
         &self,
-        after: Option<&GroupKnowledgebaseReconciliationScope>,
+        request: GroupKnowledgebaseReconciliationScopeRequest<'_>,
     ) -> Result<Option<GroupKnowledgebaseReconciliationScope>, RuntimeError> {
+        let context = request.context;
+        let after = request.after;
         let mut client = self.client()?;
         let after_tenant_id = after.map(|scope| scope.tenant_id.as_str());
         let after_organization_id = after.map(|scope| scope.organization_id.as_str());
-        client
+        let result = client
             .query_opt(
                 SELECT_NEXT_RECONCILIATION_SCOPE_SQL,
                 &[&after_tenant_id, &after_organization_id],
@@ -2714,7 +2725,30 @@ impl GroupKnowledgebaseStore for PostgresGroupKnowledgebaseStore {
                 validate_group_knowledgebase_organization_id(scope.organization_id.as_str())?;
                 Ok(scope)
             })
-            .transpose()
+            .transpose();
+        match &result {
+            Ok(scope) => tracing::info!(
+                target: "sdkwork.im.security",
+                event = "im.knowledgebase_reconciliation_scope.operation_completed",
+                actor_kind = context.actor_kind().as_str(),
+                actor_id = context.actor_id(),
+                trace_id = context.trace_id(),
+                outcome = "succeeded",
+                scope_found = scope.is_some(),
+                "cross-organization knowledgebase reconciliation scope discovery completed"
+            ),
+            Err(error) => tracing::warn!(
+                target: "sdkwork.im.security",
+                event = "im.knowledgebase_reconciliation_scope.operation_completed",
+                actor_kind = context.actor_kind().as_str(),
+                actor_id = context.actor_id(),
+                trace_id = context.trace_id(),
+                outcome = "failed",
+                error = ?error,
+                "cross-organization knowledgebase reconciliation scope discovery failed"
+            ),
+        }
+        result
     }
 
     fn list_reconciliation_links(
@@ -3066,23 +3100,32 @@ impl GroupKnowledgebaseCoordinator {
                         cursor.active_scope = Some(scope.clone());
                         scope
                     }
-                    None => match self
-                        .store
-                        .next_reconciliation_scope(cursor.completed_scope.as_ref())?
-                    {
-                        Some(scope) => {
-                            cursor.active_scope = Some(scope.clone());
-                            cursor.link_after_id = None;
-                            scope
+                    None => {
+                        let context = PrivilegedOperationContext::try_new(
+                            PrivilegedOperationActorKind::ServiceWorker,
+                            GROUP_KNOWLEDGEBASE_RECONCILIATION_ACTOR_ID,
+                            sdkwork_utils_rust::id::uuid(),
+                        )
+                        .map_err(RuntimeError::Contract)?;
+                        let request = GroupKnowledgebaseReconciliationScopeRequest {
+                            context: &context,
+                            after: cursor.completed_scope.as_ref(),
+                        };
+                        match self.store.next_reconciliation_scope(request)? {
+                            Some(scope) => {
+                                cursor.active_scope = Some(scope.clone());
+                                cursor.link_after_id = None;
+                                scope
+                            }
+                            None => {
+                                // Completing a full pass resets the selector for
+                                // the next recurring pass without retaining an
+                                // unbounded historical cursor.
+                                cursor.completed_scope = None;
+                                return Ok(reconciled);
+                            }
                         }
-                        None => {
-                            // Completing a full pass resets the selector for
-                            // the next recurring pass without retaining an
-                            // unbounded historical cursor.
-                            cursor.completed_scope = None;
-                            return Ok(reconciled);
-                        }
-                    },
+                    }
                 },
             };
 

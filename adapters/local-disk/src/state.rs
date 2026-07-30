@@ -346,11 +346,12 @@ impl PresenceStateStore for FilePresenceStateStore {
             .collect())
     }
 
-    fn list_online_states_seen_at_or_before(
+    fn discover_stale_online_states(
         &self,
-        cutoff_seen_at: &str,
-        limit: usize,
+        request: im_platform_contracts::StalePresenceScopeDiscoveryRequest<'_>,
     ) -> Result<Vec<PresenceStateRecord>, ContractError> {
+        let cutoff_seen_at = request.cutoff_seen_at();
+        let limit = request.limit();
         if limit == 0 {
             return Ok(Vec::new());
         }

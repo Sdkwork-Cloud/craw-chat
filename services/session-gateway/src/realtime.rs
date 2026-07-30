@@ -1,4 +1,5 @@
 use im_platform_contracts::{
+    PrivilegedOperationActorKind, PrivilegedOperationContext, RealtimeDiagnosticsRequest,
     RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowHighRiskRecord,
     RealtimeEventWindowRecord, RealtimeEventWindowStore,
 };
@@ -777,8 +778,14 @@ impl RealtimeDeliveryRuntime {
     pub fn realtime_inbox_diagnostics(
         &self,
     ) -> Result<RealtimeInboxDiagnosticsSnapshot, RealtimeRuntimeError> {
+        let context = PrivilegedOperationContext::try_new(
+            PrivilegedOperationActorKind::ServiceWorker,
+            "ops-realtime-diagnostics-reader",
+            sdkwork_utils_rust::id::uuid(),
+        )
+        .map_err(RealtimeRuntimeError::event_window_store)?;
         self.event_window_store
-            .diagnostics_snapshot()
+            .diagnostics_snapshot(RealtimeDiagnosticsRequest::new(&context))
             .map(RealtimeInboxDiagnosticsSnapshot::from)
             .map_err(RealtimeRuntimeError::event_window_store)
     }

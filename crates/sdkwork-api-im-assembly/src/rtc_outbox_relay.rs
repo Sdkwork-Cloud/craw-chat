@@ -12,7 +12,8 @@ use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
 use crate::outbox_relay_common::{
-    DEFAULT_OUTBOX_CLAIM_LEASE, log_unexpected_aggregate_type, mark_missing_recipients,
+    DEFAULT_OUTBOX_CLAIM_LEASE, discover_outbox_scopes, log_unexpected_aggregate_type,
+    mark_missing_recipients,
 };
 
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
@@ -25,6 +26,7 @@ const DEFAULT_RTC_OUTBOX_RELAY_TENANT_ID: &str = "100001";
 const DEFAULT_RTC_OUTBOX_RELAY_ORGANIZATION_ID: &str = "default";
 const DEFAULT_RTC_OUTBOX_RELAY_BATCH_SIZE: usize = 64;
 const DEFAULT_RTC_OUTBOX_RELAY_SCOPE_LIMIT: usize = 32;
+const RTC_OUTBOX_RELAY_WORKER_ID: &str = "rtc-outbox-relay";
 
 pub struct RtcOutboxRelayHandle {
     shutdown: watch::Sender<()>,
@@ -114,7 +116,9 @@ fn resolve_rtc_outbox_relay_scopes(outbox: &Arc<dyn OutboxStore>) -> Vec<(String
         )];
     }
 
-    match outbox.list_pending_scopes(
+    match discover_outbox_scopes(
+        outbox.as_ref(),
+        RTC_OUTBOX_RELAY_WORKER_ID,
         RTC_OUTBOX_AGGREGATE_TYPE,
         DEFAULT_RTC_OUTBOX_RELAY_SCOPE_LIMIT,
     ) {

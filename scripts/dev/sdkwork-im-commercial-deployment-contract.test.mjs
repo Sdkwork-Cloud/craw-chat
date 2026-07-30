@@ -338,14 +338,14 @@ for (const profile of ['standalone.production', 'cloud.staging', 'cloud.producti
   ]) {
     assert.match(
       topology,
-      new RegExp('^SDKWORK_IM_DATABASE_' + key + '=', 'mu'),
-      profile + ' must declare canonical SDKWORK_IM_DATABASE_' + key,
+      new RegExp('^SDKWORK_DATABASE_' + key + '=', 'mu'),
+      profile + ' must declare canonical SDKWORK_DATABASE_' + key,
     );
   }
   assert.doesNotMatch(
     topology,
-    /^SDKWORK_CLAW_DATABASE_/mu,
-    profile + ' must not depend on legacy SDKWORK_CLAW database aliases',
+    /^SDKWORK_(?!DATABASE_)[A-Z0-9_]+_DATABASE_/mu,
+    profile + ' must not declare application- or module-prefixed database aliases',
   );
 }
 
@@ -355,8 +355,8 @@ const releaseStageSource = fs.readFileSync(
 );
 assert.doesNotMatch(
   releaseStageSource,
-  /SDKWORK_CLAW_DATABASE_(?:NAME|SCHEMA|USERNAME)/u,
-  'release server environment must use canonical SDKWORK_IM database keys',
+  /SDKWORK_(?!DATABASE_)[A-Z0-9_]+_DATABASE_(?:NAME|SCHEMA|USERNAME)/u,
+  'release server environment must use canonical workspace database keys',
 );
 
 assert.match(

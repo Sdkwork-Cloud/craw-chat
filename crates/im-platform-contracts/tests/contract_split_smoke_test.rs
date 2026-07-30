@@ -213,10 +213,9 @@ impl PresenceStateStore for NullPresenceStore {
         Ok(Vec::new())
     }
 
-    fn list_online_states_seen_at_or_before(
+    fn discover_stale_online_states(
         &self,
-        _cutoff_seen_at: &str,
-        _limit: usize,
+        _request: sdkwork_im_contract_control::StalePresenceScopeDiscoveryRequest<'_>,
     ) -> Result<Vec<PresenceStateRecord>, ContractError> {
         Ok(Vec::new())
     }
@@ -279,6 +278,7 @@ impl StateStore for NullRtcStore {
     fn load_state(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _rtc_session_id: &str,
     ) -> Result<Option<StateRecord>, RtcContractError> {
         Ok(None)
@@ -291,6 +291,7 @@ impl StateStore for NullRtcStore {
     fn clear_state(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _rtc_session_id: &str,
     ) -> Result<bool, RtcContractError> {
         Ok(false)
@@ -454,7 +455,7 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
         .clear_stream(&StreamScope::new("100001", "default", "stream_demo"))
         .expect("stream clear should succeed");
     rtc_store
-        .clear_state("100001", "rtc_demo")
+        .clear_state("100001", "default", "rtc_demo")
         .expect("rtc clear should succeed");
     notification_store
         .list_tasks_for_recipient_page("100001", "default", "user", "1", None, 20)

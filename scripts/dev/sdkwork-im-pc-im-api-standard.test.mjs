@@ -260,10 +260,14 @@ assert.equal(
   false,
   'retired local app-api sidecar launcher must not remain as a compatibility wrapper',
 );
-assert.match(sharedDatabaseSource, /APP_CODE\s*=\s*['"]chat['"]/u);
 assert.match(sharedDatabaseSource, /SDKWORK_DATABASE_ENGINE/u);
 assert.match(sharedDatabaseSource, /SDKWORK_DATABASE_SSL_MODE/u);
 assert.match(sharedDatabaseSource, /postgres(?:ql)?:/u);
+assert.doesNotMatch(
+  sharedDatabaseSource,
+  /SDKWORK_[A-Z0-9]+_DATABASE_/u,
+  'shared database resolution must not define application- or module-prefixed database keys',
+);
 assert.match(devCommandSource, /resolveSdkworkImSharedDatabaseConfig/u);
 assert.match(devCommandSource, /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL/u);
 assert.doesNotMatch(

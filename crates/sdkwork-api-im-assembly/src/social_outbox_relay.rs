@@ -13,7 +13,8 @@ use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
 use crate::outbox_relay_common::{
-    DEFAULT_OUTBOX_CLAIM_LEASE, log_unexpected_aggregate_type, mark_missing_recipients,
+    DEFAULT_OUTBOX_CLAIM_LEASE, discover_outbox_scopes, log_unexpected_aggregate_type,
+    mark_missing_recipients,
 };
 
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
@@ -26,6 +27,7 @@ const DEFAULT_SOCIAL_OUTBOX_RELAY_TENANT_ID: &str = "100001";
 const DEFAULT_SOCIAL_OUTBOX_RELAY_ORGANIZATION_ID: &str = "default";
 const DEFAULT_SOCIAL_OUTBOX_RELAY_BATCH_SIZE: usize = 64;
 const DEFAULT_SOCIAL_OUTBOX_RELAY_SCOPE_LIMIT: usize = 32;
+const SOCIAL_OUTBOX_RELAY_WORKER_ID: &str = "social-outbox-relay";
 
 pub struct SocialOutboxRelayHandle {
     shutdown: watch::Sender<()>,
@@ -115,7 +117,9 @@ fn resolve_social_outbox_relay_scopes(outbox: &Arc<dyn OutboxStore>) -> Vec<(Str
         )];
     }
 
-    match outbox.list_pending_scopes(
+    match discover_outbox_scopes(
+        outbox.as_ref(),
+        SOCIAL_OUTBOX_RELAY_WORKER_ID,
         SOCIAL_OUTBOX_AGGREGATE_TYPE,
         DEFAULT_SOCIAL_OUTBOX_RELAY_SCOPE_LIMIT,
     ) {

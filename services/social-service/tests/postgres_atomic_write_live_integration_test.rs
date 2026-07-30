@@ -34,6 +34,7 @@ fn social_journal_and_normalized_row_roll_back_together_when_write_fails() {
         .expect("social journal should connect to live PostgreSQL");
     let suffix = unique_suffix();
     let tenant_id = format!("tenant_social_atomic_{suffix}");
+    let organization_id = "0".to_owned();
     let request_id = i64::try_from(suffix)
         .expect("current epoch nanoseconds should fit a signed int64")
         .to_string();
@@ -49,8 +50,8 @@ fn social_journal_and_normalized_row_roll_back_together_when_write_fails() {
             materialize_commits_on_transaction(txn, inserted)?;
             let materialized: i64 = txn
                 .query_one(
-                    "select count(*) from im_friend_requests where tenant_id = $1 and organization_id = '0' and request_id = $2",
-                    &[&tenant_id, &request_db_id],
+                    "select count(*) from im_friend_requests where tenant_id = $1 and organization_id = $3 and request_id = $2",
+                    &[&tenant_id, &request_db_id, &organization_id],
                 )
                 .expect("materialized row should be visible inside the transaction")
                 .get(0);
@@ -72,9 +73,9 @@ fn social_journal_and_normalized_row_roll_back_together_when_write_fails() {
     let rolled_back_row = verification
         .query_one(
             "select \
-                (select count(*) from im_commit_journal where event_id = $1), \
-                (select count(*) from im_friend_requests where tenant_id = $2 and organization_id = '0' and request_id = $3)",
-            &[&event_id, &tenant_id, &request_db_id],
+                (select count(*) from im_commit_journal where event_id = $1 and tenant_id = $2 and organization_id = $4), \
+                (select count(*) from im_friend_requests where tenant_id = $2 and organization_id = $4 and request_id = $3)",
+            &[&event_id, &tenant_id, &request_db_id, &organization_id],
         )
         .expect("rolled-back rows should be countable");
     let rolled_back = (rolled_back_row.get(0), rolled_back_row.get(1));
@@ -88,9 +89,9 @@ fn social_journal_and_normalized_row_roll_back_together_when_write_fails() {
     let committed_row = verification
         .query_one(
             "select \
-                (select count(*) from im_commit_journal where event_id = $1), \
-                (select count(*) from im_friend_requests where tenant_id = $2 and organization_id = '0' and request_id = $3)",
-            &[&event_id, &tenant_id, &request_db_id],
+                (select count(*) from im_commit_journal where event_id = $1 and tenant_id = $2 and organization_id = $4), \
+                (select count(*) from im_friend_requests where tenant_id = $2 and organization_id = $4 and request_id = $3)",
+            &[&event_id, &tenant_id, &request_db_id, &organization_id],
         )
         .expect("committed rows should be countable");
     let committed = (committed_row.get(0), committed_row.get(1));
@@ -98,14 +99,14 @@ fn social_journal_and_normalized_row_roll_back_together_when_write_fails() {
 
     verification
         .execute(
-            "delete from im_friend_requests where tenant_id = $1 and organization_id = '0' and request_id = $2",
-            &[&tenant_id, &request_db_id],
+            "delete from im_friend_requests where tenant_id = $1 and organization_id = $3 and request_id = $2",
+            &[&tenant_id, &request_db_id, &organization_id],
         )
         .expect("social atomicity normalized row should be cleaned up");
     verification
         .execute(
-            "delete from im_commit_journal where event_id = $1",
-            &[&event_id],
+            "delete from im_commit_journal where event_id = $1 and tenant_id = $2 and organization_id = $3",
+            &[&event_id, &tenant_id, &organization_id],
         )
         .expect("social atomicity journal row should be cleaned up");
 }

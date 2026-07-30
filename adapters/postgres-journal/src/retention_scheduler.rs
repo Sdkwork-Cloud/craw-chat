@@ -8,13 +8,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use im_platform_contracts::ContractError;
+use im_platform_contracts::{
+    ContractError, PrivilegedOperationActorKind, PrivilegedOperationContext,
+};
 use tracing::{error, info, warn};
 
 use crate::retention_metrics::RetentionPurgeMetrics;
 use crate::{
-    PostgresJournalConfig, PostgresJournalPool, RetentionCleanupReport, postgres_pool_client,
-    postgres_unavailable, purge_expired_retention_batch,
+    PostgresJournalConfig, PostgresJournalPool, RetentionCleanupReport, RetentionPurgeRequest,
+    postgres_pool_client, postgres_unavailable, purge_expired_retention_batch,
 };
 
 const DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
@@ -23,6 +25,7 @@ const INTERVAL_SECONDS_ENV: &str = "SDKWORK_IM_RETENTION_PURGE_INTERVAL_SECONDS"
 const BATCH_SIZE_ENV: &str = "SDKWORK_IM_RETENTION_PURGE_BATCH_SIZE";
 const MAX_BATCHES_PER_TICK_ENV: &str = "SDKWORK_IM_RETENTION_PURGE_MAX_BATCHES_PER_TICK";
 const RETENTION_PURGE_ADVISORY_LOCK_KEY: i64 = 0x494D_5254;
+const RETENTION_PURGE_SCHEDULER_ACTOR_ID: &str = "retention-purge-scheduler";
 
 const DEFAULT_INTERVAL_SECONDS: u64 = 3_600;
 const DEFAULT_BATCH_SIZE: i64 = 500;
@@ -234,7 +237,13 @@ fn run_retention_purge_tick(
     let mut batches = 0_u32;
     let mut aggregate = RetentionCleanupReport::default();
     loop {
-        let report = purge_expired_retention_batch(pool, Some(config.batch_size))?;
+        let context = PrivilegedOperationContext::try_new(
+            PrivilegedOperationActorKind::ServiceWorker,
+            RETENTION_PURGE_SCHEDULER_ACTOR_ID,
+            sdkwork_utils_rust::id::uuid(),
+        )?;
+        let request = RetentionPurgeRequest::try_new(context, Some(config.batch_size))?;
+        let report = purge_expired_retention_batch(pool, request)?;
         aggregate.merge(&report);
         batches += 1;
         metrics.record_batch(
@@ -345,7 +354,6 @@ fn read_i64_env(name: &str, default: i64, min: i64, max: i64) -> i64 {
 trait RetentionCleanupReportExt {
     fn merge(&mut self, other: &RetentionCleanupReport);
     fn is_empty(&self) -> bool;
-    fn total_deleted(&self) -> u64;
 }
 
 impl RetentionCleanupReportExt for RetentionCleanupReport {
@@ -362,17 +370,6 @@ impl RetentionCleanupReportExt for RetentionCleanupReport {
 
     fn is_empty(&self) -> bool {
         self.total_deleted() == 0
-    }
-
-    fn total_deleted(&self) -> u64 {
-        self.commit_journal_deleted
-            + self.conversation_messages_deleted
-            + self.message_media_refs_deleted
-            + self.outbox_events_deleted
-            + self.inbox_events_deleted
-            + self.realtime_device_events_deleted
-            + self.rtc_sessions_deleted
-            + self.rtc_signals_deleted
     }
 }
 

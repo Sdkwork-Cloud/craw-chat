@@ -1548,7 +1548,10 @@ fn validate_normalized_conversation_commit(
             || handoff.conversation_id != conversation.conversation_id
             || conversation.conversation_type != "agent_handoff"
             || handoff.handoff_status_epoch > conversation.commit_seq
-            || !matches!(handoff.status.as_str(), "open" | "accepted" | "resolved" | "closed")
+            || !matches!(
+                handoff.status.as_str(),
+                "open" | "accepted" | "resolved" | "closed"
+            )
             || handoff.source_principal_kind.trim().is_empty()
             || handoff.source_principal_id.trim().is_empty()
             || handoff.target_principal_kind.trim().is_empty()
@@ -1603,8 +1606,7 @@ fn persist_normalized_conversation_commit_txn(
     let mut txn = client.transaction().map_err(|error| {
         postgres_unavailable_db("persist_normalized_conversation_commit begin", error)
     })?;
-    let normalized_state_applied =
-        upsert_normalized_conversation_in_transaction(&mut txn, commit)?;
+    let normalized_state_applied = upsert_normalized_conversation_in_transaction(&mut txn, commit)?;
     if normalized_state_applied {
         if let Some(assignments) = commit.agent_assignments.as_ref() {
             replace_conversation_agents_in_transaction(&mut txn, assignments, id_generator)?;

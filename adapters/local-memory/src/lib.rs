@@ -122,6 +122,7 @@ impl CommitJournal for MemoryCommitJournal {
             let event = &events[scan_offset];
             scan_offset += 1;
             if event.tenant_id == scope.tenant_id
+                && event.normalized_organization_id() == scope.organization_id
                 && (event.aggregate_id == scope.aggregate_id
                     || event.scope_id == scope.aggregate_id)
             {
@@ -359,6 +360,7 @@ impl RealtimeEventWindowStore for MemoryRealtimeEventWindowStore {
 
     fn diagnostics_snapshot(
         &self,
+        _request: im_platform_contracts::RealtimeDiagnosticsRequest<'_>,
     ) -> Result<RealtimeEventWindowDiagnosticsSnapshot, ContractError> {
         let windows = lock_memory_mutex(&self.windows, "realtime event window store");
         Ok(RealtimeEventWindowDiagnosticsSnapshot::from_records(
@@ -1111,11 +1113,12 @@ impl PresenceStateStore for MemoryPresenceStateStore {
             .collect())
     }
 
-    fn list_online_states_seen_at_or_before(
+    fn discover_stale_online_states(
         &self,
-        cutoff_seen_at: &str,
-        limit: usize,
+        request: im_platform_contracts::StalePresenceScopeDiscoveryRequest<'_>,
     ) -> Result<Vec<PresenceStateRecord>, ContractError> {
+        let cutoff_seen_at = request.cutoff_seen_at();
+        let limit = request.limit();
         if limit == 0 {
             return Ok(Vec::new());
         }

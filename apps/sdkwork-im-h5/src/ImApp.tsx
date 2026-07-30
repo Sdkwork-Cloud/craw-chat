@@ -4,24 +4,7 @@ import {
   ChatConversationPage,
   ChatInboxPage,
 } from "@sdkwork/im-h5-chat";
-import {
-  CreateNotaryProcess,
-  NotaryAddParty,
-  NotaryDetail,
-  NotaryDraftLifecycle,
-  NotaryFiles,
-  NotaryLayout,
-  NotaryMe,
-  NotaryMessageDetail,
-  NotaryMessages,
-  NotaryPartySignature,
-  NotaryPartyVideoQR,
-  NotaryRecords,
-  NotarySearchList,
-  NotarySessionChat,
-  NotaryVideoCall,
-  WorkspaceNotary,
-} from "@sdkwork/im-h5-notary";
+import { NotaryDraftLifecycle } from "@sdkwork/im-h5-notary";
 
 import { TabBar } from "./components/navigation/TabBar";
 
@@ -35,6 +18,46 @@ export interface ParsedConversationRoute {
 }
 
 export const IM_APP_HOME_PATH = "/";
+
+type NotaryComponentName =
+  | "CreateNotaryProcess"
+  | "NotaryAddParty"
+  | "NotaryDetail"
+  | "NotaryFiles"
+  | "NotaryLayout"
+  | "NotaryMe"
+  | "NotaryMessageDetail"
+  | "NotaryMessages"
+  | "NotaryPartySignature"
+  | "NotaryPartyVideoQR"
+  | "NotaryRecords"
+  | "NotarySearchList"
+  | "NotarySessionChat"
+  | "NotaryVideoCall"
+  | "WorkspaceNotary";
+
+function lazyNotaryComponent(name: NotaryComponentName) {
+  return React.lazy(async () => {
+    const notaryModule = await import("@sdkwork/im-h5-notary");
+    return { default: notaryModule[name] };
+  });
+}
+
+const CreateNotaryProcess = lazyNotaryComponent("CreateNotaryProcess");
+const NotaryAddParty = lazyNotaryComponent("NotaryAddParty");
+const NotaryDetail = lazyNotaryComponent("NotaryDetail");
+const NotaryFiles = lazyNotaryComponent("NotaryFiles");
+const NotaryLayout = lazyNotaryComponent("NotaryLayout");
+const NotaryMe = lazyNotaryComponent("NotaryMe");
+const NotaryMessageDetail = lazyNotaryComponent("NotaryMessageDetail");
+const NotaryMessages = lazyNotaryComponent("NotaryMessages");
+const NotaryPartySignature = lazyNotaryComponent("NotaryPartySignature");
+const NotaryPartyVideoQR = lazyNotaryComponent("NotaryPartyVideoQR");
+const NotaryRecords = lazyNotaryComponent("NotaryRecords");
+const NotarySearchList = lazyNotaryComponent("NotarySearchList");
+const NotarySessionChat = lazyNotaryComponent("NotarySessionChat");
+const NotaryVideoCall = lazyNotaryComponent("NotaryVideoCall");
+const WorkspaceNotary = lazyNotaryComponent("WorkspaceNotary");
 
 export function parseConversationRoute(pathname: string): ParsedConversationRoute | null {
   const match = /^\/chat\/([^/?#]+)/u.exec(pathname.trim());
@@ -51,7 +74,8 @@ export function ImApp({ children }: ImAppProps) {
   return (
     <>
       <NotaryDraftLifecycle />
-      <Routes>
+      <React.Suspense fallback={null}>
+        <Routes>
       <Route
         path="/"
         element={(
@@ -98,7 +122,8 @@ export function ImApp({ children }: ImAppProps) {
 
       {children}
       <Route path="*" element={<Navigate to={IM_APP_HOME_PATH} replace />} />
-      </Routes>
+        </Routes>
+      </React.Suspense>
     </>
   );
 }

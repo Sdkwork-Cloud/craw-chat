@@ -92,16 +92,21 @@ impl PostgresRtcStateConfig {
         if let Some(pool) = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool() {
             return Ok(pool);
         }
-        if cfg!(test) {
+        #[cfg(test)]
+        {
             return self.connect_pool_local();
         }
-        Err(RtcContractError::Unavailable(
-            sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
-                .err()
-                .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
-        ))
+        #[cfg(not(test))]
+        {
+            Err(RtcContractError::Unavailable(
+                sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
+                    .err()
+                    .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
+            ))
+        }
     }
 
+    #[cfg(test)]
     fn connect_pool_local(&self) -> Result<PostgresRtcPool, RtcContractError> {
         verify_production_sslmode(self.database_url.as_str())?;
         let pg_config = self
@@ -159,9 +164,11 @@ impl StateStore for PostgresRtcStateStore {
     fn load_state(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         rtc_session_id: &str,
     ) -> Result<Option<RtcStateRecord>, RtcContractError> {
         let tenant_id = tenant_id.to_string();
+        let organization_id = organization_id.to_string();
         let rtc_session_id = rtc_session_id.to_string();
         self.run_blocking(move |pool| {
             let mut client = pool
@@ -170,8 +177,8 @@ impl StateStore for PostgresRtcStateStore {
             let row = client
                 .query_opt(
                     "SELECT payload_json::text FROM im_rtc_sessions
-                 WHERE tenant_id = $1 AND rtc_session_id = $2",
-                    &[&tenant_id, &rtc_session_id],
+                 WHERE tenant_id = $1 AND organization_id = $2 AND rtc_session_id = $3",
+                    &[&tenant_id, &organization_id, &rtc_session_id],
                 )
                 .map_err(|err| {
                     RtcContractError::Unavailable(format!("load_state query failed: {err}"))
@@ -207,9 +214,13 @@ impl StateStore for PostgresRtcStateStore {
                 .query_opt(
                     "SELECT (payload_json::jsonb -> 'session' ->> 'epoch')::bigint
                      FROM im_rtc_sessions
-                     WHERE tenant_id = $1 AND rtc_session_id = $2
+                     WHERE tenant_id = $1 AND organization_id = $2 AND rtc_session_id = $3
                      FOR UPDATE",
-                    &[&record.tenant_id, &record.rtc_session_id],
+                    &[
+                        &record.tenant_id,
+                        &record.session.organization_id,
+                        &record.rtc_session_id,
+                    ],
                 )
                 .map_err(|err| {
                     RtcContractError::Unavailable(format!("save_state lock failed: {err}"))
@@ -304,7 +315,8 @@ impl StateStore for PostgresRtcStateStore {
                     ended_reason, failure_reason,
                     payload_json, payload_hash,
                     retention_until,
-                    created_at, updated_at
+                    created_at, updated_at,
+                    organization_id
                  ) VALUES (
                     $1, $2, $3, $4,
                     $5, $6,
@@ -318,9 +330,10 @@ impl StateStore for PostgresRtcStateStore {
                     $26, $27,
                     $28, $29,
                     $30,
-                    $31, $31
+                    $31, $31,
+                    $32
                  )
-                 ON CONFLICT (tenant_id, rtc_session_id) DO UPDATE SET
+                 ON CONFLICT (tenant_id, organization_id, rtc_session_id) DO UPDATE SET
                     conversation_id = EXCLUDED.conversation_id,
                     rtc_mode = EXCLUDED.rtc_mode,
                     initiator_principal_kind = EXCLUDED.initiator_principal_kind,
@@ -389,6 +402,7 @@ impl StateStore for PostgresRtcStateStore {
                         &payload_hash,
                         &retention_until,
                         &updated_at,
+                        &record.session.organization_id,
                     ],
                 )
                 .map_err(|err| {
@@ -408,8 +422,14 @@ impl StateStore for PostgresRtcStateStore {
         })
     }
 
-    fn clear_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<bool, RtcContractError> {
+    fn clear_state(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        rtc_session_id: &str,
+    ) -> Result<bool, RtcContractError> {
         let tenant_id = tenant_id.to_string();
+        let organization_id = organization_id.to_string();
         let rtc_session_id = rtc_session_id.to_string();
         self.run_blocking(move |pool| {
             let mut client = pool
@@ -418,8 +438,8 @@ impl StateStore for PostgresRtcStateStore {
             let affected = client
                 .execute(
                     "DELETE FROM im_rtc_sessions
-                 WHERE tenant_id = $1 AND rtc_session_id = $2",
-                    &[&tenant_id, &rtc_session_id],
+                 WHERE tenant_id = $1 AND organization_id = $2 AND rtc_session_id = $3",
+                    &[&tenant_id, &organization_id, &rtc_session_id],
                 )
                 .map_err(|err| {
                     RtcContractError::Unavailable(format!("clear_state delete failed: {err}"))
@@ -488,6 +508,7 @@ pub fn build_postgres_rtc_state_store_optional(
 /// Uses the system trust store for certificate verification. The actual TLS
 /// negotiation is gated by the `sslmode` URL parameter: when `sslmode=disable`
 /// the `postgres` crate never invokes this connector.
+#[cfg(test)]
 fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_tls::Error> {
     let connector = native_tls::TlsConnector::builder().build()?;
     Ok(postgres_native_tls::MakeTlsConnector::new(connector))
@@ -496,6 +517,7 @@ fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_
 /// P0-12 fail-closed: in production, the database URL MUST contain
 /// `sslmode=require` or `sslmode=verify-full`. This prevents silent plaintext
 /// connections to production databases (SECURITY_SPEC §4.3).
+#[cfg(test)]
 fn verify_production_sslmode(database_url: &str) -> Result<(), RtcContractError> {
     let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
         .unwrap_or_default()

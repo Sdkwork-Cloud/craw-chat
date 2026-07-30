@@ -259,7 +259,8 @@ where
                     conversation.aggregate.conversation_type()
                 )));
             }
-            if self.agent_integration_store.is_none()
+            if self.aggregate_store.is_none()
+                && self.agent_integration_store.is_none()
                 && conversation.aggregate.agent_assignments().is_some()
             {
                 return Ok(());
@@ -653,7 +654,6 @@ where
         self.maybe_evict_after_write();
         Ok(result)
     }
-
 }
 
 #[cfg(test)]
@@ -904,12 +904,9 @@ mod tests {
             unsupported_test_store()
         }
 
-        fn claim_dispatches_global(
+        fn claim_global_dispatches(
             &self,
-            _lease_owner: &str,
-            _now: &str,
-            _lease_expires_at: &str,
-            _limit: usize,
+            _request: im_platform_contracts::GlobalAgentDispatchClaimRequest<'_>,
         ) -> Result<Vec<AgentDispatchRecord>, ContractError> {
             unsupported_test_store()
         }

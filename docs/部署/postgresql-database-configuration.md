@@ -28,7 +28,7 @@ depend on a server-side SQL database.
 - [开发环境PostgreSQL数据库配置教程](./开发环境PostgreSQL数据库配置教程.md)
   - Local developer PostgreSQL workflow.
   - Uses `.env.postgres` copied from `.env.postgres.example`.
-  - Uses structured `SDKWORK_IM_DATABASE_*` host/engine/ssl fields plus canonical `SDKWORK_IM_DATABASE_*` workspace identity (`NAME`, `SCHEMA`, `USERNAME`, `PASSWORD`), and `SDKWORK_DATABASE_ADMIN_PASSWORD` for bootstrap.
+  - Uses the unified `SDKWORK_DATABASE_*` workspace profile and `SDKWORK_DATABASE_ADMIN_PASSWORD` for bootstrap.
   - `pnpm dev` and `pnpm dev:browser` use PostgreSQL for integrated browser/server development.
   - `pnpm dev:desktop` uses PostgreSQL for standalone desktop development orchestration.
   - Installed desktop runtime local user data uses browser local storage (IndexedDB / localStorage).
@@ -58,4 +58,4 @@ SDKWORK_DATABASE_SSL_MODE=disable
 SDKWORK_DATABASE_MAX_CONNECTIONS=10
 ```
 
-`SDKWORK_DATABASE_PROVIDER` and `SDKWORK_DATABASE_SSLMODE` are not standard names. Use `SDKWORK_DATABASE_ENGINE` and `SDKWORK_DATABASE_SSL_MODE`.
+Database runtime configuration accepts only the `SDKWORK_DATABASE_*` contract shown above.

@@ -1,16 +1,21 @@
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const PORT = Number(process.env.SDKWORK_IM_H5_SERVER_PORT ?? 4178);
 const HOST = process.env.SDKWORK_IM_H5_SERVER_HOST ?? '0.0.0.0';
+
+function resolveServerPort(): number {
+  const value = process.env.SDKWORK_IM_H5_SERVER_PORT?.trim() || '4178';
+  const port = Number.parseInt(value, 10);
+  if (!/^\d+$/u.test(value) || port < 1 || port > 65_535) {
+    throw new Error(`SDKWORK_IM_H5_SERVER_PORT must be a TCP port, received: ${value}`);
+  }
+  return port;
+}
 
 async function startServer(): Promise<void> {
   const app = express();
+  const port = resolveServerPort();
 
   app.use(express.json());
 
@@ -22,15 +27,15 @@ async function startServer(): Promise<void> {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(__dirname, 'dist');
+    const distPath = path.resolve(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, HOST, () => {
-    console.log(`[sdkwork-im-h5] server running on http://${HOST}:${PORT}`);
+  app.listen(port, HOST, () => {
+    console.log(`[sdkwork-im-h5] server running on http://${HOST}:${port}`);
   });
 }
 

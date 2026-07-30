@@ -1,6 +1,6 @@
 # SDKWork IM Domain And Persistence Contract
 
-- Version: `2.2.0`
+- Version: `2.3.0`
 - Status: active
 - Owner: `im-platform`
 - Requirement: `REQ-2026-0722`
@@ -56,6 +56,11 @@ Rules:
 
 - All tenant data is scoped by `tenant_id` and `organization_id` in predicates,
   primary/unique constraints, and hot-path indexes.
+- Repository ports for individual objects or aggregates carry both tenant and organization scope;
+  adapters must not recover either scope from a process global or infer it from an opaque object ID.
+- The static Rust SQL gate has zero tolerance: every executable statement over an
+  organization-scoped table must bind both `tenant_id` and `organization_id` or match an approved
+  fixed-shape system operation.
 - Lists use keyset cursors and fetch at most 201 rows for a maximum 200-item page.
 - Message history orders by `message_seq`; no timestamp ordering substitutes for
   the per-Conversation sequence.
@@ -72,6 +77,19 @@ Rules:
   retains retry/dead-letter evidence.
 - Startup does not require full journal replay.
 
+## System Operations
+
+[`organization-isolation.spec.json`](./organization-isolation.spec.json) is the sole machine
+inventory for organization-scoped tables and approved cross-organization operations. This document
+does not copy that evolving operation inventory. Each admitted operation has a dedicated typed
+request, independently authorized worker or administrator path, fixed bounded SQL shape, and
+security audit evidence with actor, trace, outcome, and scope/result metadata.
+
+`journal-recovery-replay` is not an approved runtime exception. The PostgreSQL journal adapter must
+fail closed for global replay. A future full-database recovery tool requires an independent
+operations component contract, explicit privileged authorization, audit emission, bounded cursors,
+and dedicated negative tests before its SQL can be admitted.
+
 ## Forbidden Dependencies
 
 - Agents to IM, direct or transitive application dependency.
@@ -84,4 +102,8 @@ Rules:
 ## Verification
 
 The repository must statically reject new `im_projection_*` DDL or repository SQL,
-the reverse Agents dependency, duplicate timeline persistence, and unbounded reads.
+the reverse Agents dependency, duplicate timeline persistence, unbounded reads, missing tenant or
+organization predicates, unknown system-operation markers, incomplete typed authorization or audit
+evidence, and journal recovery replay in ordinary runtime repositories. Run
+`pnpm test:tenant-isolation-standard` for the parser unit tests and the zero-tolerance repository
+scan.

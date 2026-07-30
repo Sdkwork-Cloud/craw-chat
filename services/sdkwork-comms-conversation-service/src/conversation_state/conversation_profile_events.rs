@@ -195,10 +195,9 @@ mod tests {
             Ok(self.events.lock().expect("events should lock").len() as u64)
         }
 
-        fn list_pending_scopes(
+        fn discover_pending_scopes(
             &self,
-            _aggregate_type: &str,
-            _limit: usize,
+            _request: im_platform_contracts::OutboxScopeDiscoveryRequest<'_>,
         ) -> Result<Vec<(String, String)>, ContractError> {
             Ok(Vec::new())
         }

@@ -11,9 +11,11 @@ mod rtc_outbox_relay;
 mod social_outbox_relay;
 mod social_realtime_wiring;
 mod space_conversation_wiring;
+mod standalone_runtime;
 
 pub use bootstrap::{
-    ApiAssembly, assemble_api_router, assemble_api_router_with_realtime_bootstrap,
+    ApiAssembly, ApiAssemblyRuntime, assemble_api_router,
+    assemble_api_router_with_realtime_bootstrap,
 };
 pub use conversation_outbox_relay::{
     ConversationOutboxRelayHandle, spawn_conversation_outbox_relay_from_env,
@@ -21,6 +23,7 @@ pub use conversation_outbox_relay::{
 pub use rtc_outbox_relay::{RtcOutboxRelayHandle, spawn_rtc_outbox_relay_from_env};
 pub use social_outbox_relay::{SocialOutboxRelayHandle, spawn_social_outbox_relay_from_env};
 pub use social_realtime_wiring::wire_social_runtime_embedded_plane;
+pub use standalone_runtime::StandaloneRuntimeWiring;
 
 pub fn assembly_route_count() -> usize {
     generated::ROUTE_CRATE_COUNT

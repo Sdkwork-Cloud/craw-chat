@@ -9,7 +9,7 @@
 //! `tokio::task::spawn_blocking`, mirroring the pattern in `adapters/postgres-journal`.
 
 use sdkwork_im_contract_control::{
-    RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowRecord,
+    RealtimeDiagnosticsRequest, RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowRecord,
 };
 use sdkwork_im_contract_core::ContractError;
 
@@ -160,6 +160,7 @@ impl sdkwork_im_contract_control::RealtimeEventWindowStore for RedisRealtimeEven
 
     fn diagnostics_snapshot(
         &self,
+        _request: RealtimeDiagnosticsRequest<'_>,
     ) -> Result<RealtimeEventWindowDiagnosticsSnapshot, ContractError> {
         // Redis STRING store cannot efficiently scan all keys for diagnostics.
         // The in-memory runtime layer provides authoritative diagnostics.

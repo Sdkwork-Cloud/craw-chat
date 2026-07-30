@@ -152,6 +152,7 @@ where tenant_id = $1 and organization_id = $2 and client_route_scope_key = $3
 "#;
 
 pub const LOAD_REALTIME_EVENT_WINDOW_DIAGNOSTICS_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=realtime-window-diagnostics-summary */
 with window_counts as (
     select
         tenant_id,
@@ -181,6 +182,7 @@ left join window_counts
 "#;
 
 pub const LIST_REALTIME_EVENT_WINDOW_HIGH_RISK_WINDOWS_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=realtime-window-diagnostics-high-risk */
 select
     c.tenant_id,
     c.organization_id,
@@ -213,6 +215,7 @@ limit 5
 "#;
 
 pub const LIST_ORPHANED_REALTIME_CLIENT_ROUTE_EVENTS_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=realtime-window-diagnostics-orphaned */
 select
     e.tenant_id,
     e.client_route_scope_key,

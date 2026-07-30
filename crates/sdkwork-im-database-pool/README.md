@@ -22,7 +22,7 @@ separate native adapter, manifest, schema, and lifecycle.
 
 ## Configuration
 
-Configuration is resolved from `SDKWORK_IM_DATABASE_*`; temporary compatibility driver capacity is
+Configuration is resolved from `SDKWORK_DATABASE_*`; temporary compatibility driver capacity is
 reserved through `SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT` before pool installation.
 
 ## Verification

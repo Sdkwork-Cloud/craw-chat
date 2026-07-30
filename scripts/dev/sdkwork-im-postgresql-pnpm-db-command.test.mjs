@@ -113,25 +113,26 @@ const {
 const runtimeOverrideConfig = applyResolvedPostgresProfile(
   {
     database: {
-      database: 'file_db',
+      database: 'sdkwork_ai_prod',
       host: '127.0.0.1',
       password: 'file_pass',
       port: '5432',
-      schema: 'file_schema',
+      schema: 'sdkwork_ai_prod',
       sslmode: 'disable',
-      username: 'file_user',
+      username: 'sdkwork_ai_prod',
     },
     admin: {},
   },
   {
     kind: 'postgresql',
     postgres: {
-      database: 'runtime_db',
+      database: 'sdkwork_ai_staging',
       host: 'db.runtime',
       password: 'runtime_pass',
       port: '6543',
       sslmode: 'require',
-      username: 'runtime_user',
+      schema: 'sdkwork_ai_staging',
+      username: 'sdkwork_ai_staging',
     },
   },
 );
@@ -142,14 +143,14 @@ assert.match(
 );
 assert.equal(runtimeOverrideConfig.database.host, 'db.runtime');
 assert.equal(runtimeOverrideConfig.database.port, '6543');
-assert.equal(runtimeOverrideConfig.database.database, 'runtime_db');
-assert.equal(runtimeOverrideConfig.database.username, 'runtime_user');
+assert.equal(runtimeOverrideConfig.database.database, 'sdkwork_ai_staging');
+assert.equal(runtimeOverrideConfig.database.username, 'sdkwork_ai_staging');
 assert.equal(runtimeOverrideConfig.database.password, 'runtime_pass');
 assert.equal(runtimeOverrideConfig.database.sslmode, 'require');
 assert.equal(
   runtimeOverrideConfig.database.schema,
-  'file_schema',
-  'runtime URL override must preserve the explicit schema authority from the profile file',
+  'sdkwork_ai_staging',
+  'runtime database and schema must move together as one workspace identity',
 );
 
 const parsedSplitConfig = parsePostgresConfig({
@@ -193,17 +194,17 @@ assert.equal(
 
 const parsedUrlConfig = parsePostgresConfig({
   configText: [
-    'SDKWORK_DATABASE_URL=postgresql://url_user:url_pass@db.internal:5432/url_db?sslmode=require',
-    'SDKWORK_DATABASE_SCHEMA=url_schema',
+    'SDKWORK_DATABASE_URL=postgresql://sdkwork_ai_prod:url_pass@db.internal:5432/sdkwork_ai_prod?sslmode=require',
+    'SDKWORK_DATABASE_SCHEMA=sdkwork_ai_prod',
     'SDKWORK_DATABASE_ADMIN_URL=postgresql://postgres:admin_pass@db.internal:5432/postgres?sslmode=require',
     '',
   ].join('\n'),
   configPath: '.env.postgres',
 });
 assert.equal(parsedUrlConfig.database.host, 'db.internal');
-assert.equal(parsedUrlConfig.database.database, 'url_db');
-assert.equal(parsedUrlConfig.database.schema, 'url_schema');
-assert.equal(parsedUrlConfig.database.username, 'url_user');
+assert.equal(parsedUrlConfig.database.database, 'sdkwork_ai_prod');
+assert.equal(parsedUrlConfig.database.schema, 'sdkwork_ai_prod');
+assert.equal(parsedUrlConfig.database.username, 'sdkwork_ai_prod');
 assert.equal(parsedUrlConfig.database.password, 'url_pass');
 assert.equal(parsedUrlConfig.admin.username, 'postgres');
 assert.equal(parsedUrlConfig.admin.password, 'admin_pass');
@@ -237,27 +238,27 @@ const parsedYamlConfig = parsePostgresConfig({
     'connection:',
     '  host: 10.0.0.8',
     '  port: 5432',
-    '  database: sdkwork',
-    '  username: sdkwork',
+    '  database: sdkwork_ai_prod',
+    '  username: sdkwork_ai_prod',
     '  password: yaml_pass',
     '  sslmode: require',
     'schema:',
-    '  name: sdkwork',
+    '  name: sdkwork_ai_prod',
     '',
   ].join('\n'),
   configPath: 'postgresql.yaml',
 });
 assert.equal(parsedYamlConfig.database.host, '10.0.0.8');
-assert.equal(parsedYamlConfig.database.database, 'sdkwork');
-assert.equal(parsedYamlConfig.database.schema, 'sdkwork');
-assert.equal(parsedYamlConfig.database.username, 'sdkwork');
+assert.equal(parsedYamlConfig.database.database, 'sdkwork_ai_prod');
+assert.equal(parsedYamlConfig.database.schema, 'sdkwork_ai_prod');
+assert.equal(parsedYamlConfig.database.username, 'sdkwork_ai_prod');
 assert.equal(parsedYamlConfig.database.password, 'yaml_pass');
 assert.equal(parsedYamlConfig.database.sslmode, 'require');
 
 assert.throws(
   () => parsePostgresConfig({
     configText: [
-      'SDKWORK_DATABASE_PROVIDER=postgresql',
+      'SDKWORK_DATABASE_ENGINE=postgresql',
       'SDKWORK_DATABASE_HOST=127.0.0.1',
       'SDKWORK_DATABASE_NAME=sdkwork_ai_dev',
       'SDKWORK_DATABASE_USERNAME=sdkwork_ai_dev',
@@ -436,19 +437,19 @@ for (const doc of [configIndex, ubuntuWslGuide, devGuide]) {
 for (const doc of [configIndex, ubuntuWslGuide, devGuide]) {
   assert.doesNotMatch(
     doc,
-    /SDKWORK_CLAW_DATABASE_/u,
-    'PostgreSQL docs must not document legacy SDKWORK_CLAW database aliases',
+    /SDKWORK_(?!DATABASE_)[A-Z0-9_]+_DATABASE_/u,
+    'PostgreSQL docs must not document application- or module-prefixed database aliases',
   );
 }
 
 for (const required of [
-  'database: sdkwork',
-  'schema: public',
-  'username: sdkwork',
-  'CREATE ROLE "sdkwork" LOGIN PASSWORD',
-  'CREATE DATABASE sdkwork OWNER "sdkwork"',
-  'CREATE SCHEMA IF NOT EXISTS public AUTHORIZATION "sdkwork"',
-  'postgresql://sdkwork@postgres.internal.example.com:5432/sdkwork?sslmode=require',
+  'database: sdkwork_ai_prod',
+  'schema = "sdkwork_ai_prod"',
+  'username: sdkwork_ai_prod',
+  "CREATE ROLE sdkwork_ai_prod LOGIN PASSWORD",
+  'CREATE DATABASE sdkwork_ai_prod OWNER sdkwork_ai_prod',
+  'CREATE SCHEMA IF NOT EXISTS sdkwork_ai_prod AUTHORIZATION sdkwork_ai_prod',
+  'postgresql://sdkwork_ai_prod@postgres.internal.example.com:5432/sdkwork_ai_prod?sslmode=require',
 ]) {
   assert.ok(productionGuide.includes(required), `production PostgreSQL guide must include ${required}`);
 }

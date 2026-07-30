@@ -3,10 +3,28 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use im_platform_contracts::{OutboxEventClaim, OutboxEventRecord, OutboxStore};
+use im_platform_contracts::{
+    ContractError, OutboxEventClaim, OutboxEventRecord, OutboxScopeDiscoveryRequest, OutboxStore,
+    PrivilegedOperationActorKind, PrivilegedOperationContext,
+};
 use tracing::warn;
 
 pub const DEFAULT_OUTBOX_CLAIM_LEASE: Duration = Duration::from_secs(30);
+
+pub fn discover_outbox_scopes(
+    outbox: &dyn OutboxStore,
+    worker_id: &str,
+    aggregate_type: &str,
+    limit: usize,
+) -> Result<Vec<(String, String)>, ContractError> {
+    let context = PrivilegedOperationContext::try_new(
+        PrivilegedOperationActorKind::ServiceWorker,
+        worker_id,
+        sdkwork_utils_rust::id::uuid(),
+    )?;
+    let request = OutboxScopeDiscoveryRequest::try_new(&context, aggregate_type, limit)?;
+    outbox.discover_pending_scopes(request)
+}
 
 pub fn mark_outbox_failed(outbox: &Arc<dyn OutboxStore>, claim: &OutboxEventClaim, reason: &str) {
     let _ = outbox.mark_failed(claim, reason);

@@ -165,7 +165,7 @@ Standalone applies one final edge `HybridIpRateLimiter` after IM, IAM, and embed
 | `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` | Comma-separated trusted proxy IPs for X-Forwarded-For validation |
 | `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` | Max tracked client IPs before forced eviction (default `5000`) |
 
-IAM database pool (`SDKWORK_IM_DATABASE_*` / `SDKWORK_DATABASE_URL`) enables `resolve_iam_auth_pool_from_env` for authoritative dual-token verification in session-gateway.
+The process database pool (`SDKWORK_DATABASE_*`) enables `resolve_iam_auth_pool_from_env` for authoritative dual-token verification in session-gateway.
 
 ## Service persistence backends
 

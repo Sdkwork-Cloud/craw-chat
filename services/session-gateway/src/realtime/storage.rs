@@ -271,6 +271,7 @@ impl RealtimeEventWindowStore for RuntimeMemoryEventWindowStore {
 
     fn diagnostics_snapshot(
         &self,
+        _request: im_platform_contracts::RealtimeDiagnosticsRequest<'_>,
     ) -> Result<RealtimeEventWindowDiagnosticsSnapshot, ContractError> {
         let windows = lock_realtime_mutex(&self.windows, "runtime event window store");
         Ok(RealtimeEventWindowDiagnosticsSnapshot::from_records(

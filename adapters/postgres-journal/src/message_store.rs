@@ -71,7 +71,7 @@ select tenant_id, organization_id, conversation_id, message_id, message_seq,
     message_type, payload_json::text, payload_hash, created_at, updated_at, deleted_at,
     retention_until
 from im_conversation_messages
-where tenant_id = $1 and message_id = $2
+where tenant_id = $1 and organization_id = $2 and message_id = $3
   and (retention_until is null or retention_until > now())
 "#;
 
@@ -240,14 +240,16 @@ impl MessageStore for PostgresMessageStore {
     fn read_message_by_id(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         message_id: i64,
     ) -> Result<Option<StoredMessageRecord>, ContractError> {
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
+        let organization_id = organization_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "read_by_id")?;
             let row = client
-                .query_opt(READ_BY_ID_SQL, &[&tenant_id, &message_id])
+                .query_opt(READ_BY_ID_SQL, &[&tenant_id, &organization_id, &message_id])
                 .map_err(|error| postgres_unavailable("read_by_id", error))?;
             let mut records = row
                 .map(|row| stored_message_from_row(&row))

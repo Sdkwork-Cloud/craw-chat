@@ -74,7 +74,7 @@ for (const required of [
 
 assert.doesNotMatch(
   guide,
-  /SDKWORK_CLAW_DATABASE_/u,
+  /SDKWORK_(?!DATABASE_)[A-Z0-9_]+_DATABASE_/u,
   'Ubuntu/WSL PostgreSQL guide must not document legacy SDKWORK_CLAW database aliases',
 );
 

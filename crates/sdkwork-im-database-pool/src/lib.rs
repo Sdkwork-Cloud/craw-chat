@@ -24,7 +24,7 @@ pub use shared_postgres::{
     shared_im_postgres_r2d2_pool,
 };
 
-/// Create the canonical IM sqlx pool from `SDKWORK_IM_DATABASE_*` environment variables.
+/// Create the canonical IM sqlx pool from `SDKWORK_DATABASE_*` environment variables.
 pub async fn create_im_database_pool_from_env() -> Result<DatabasePool, PoolError> {
     if let Some(pools) = im_process_database_pools() {
         return Ok(pools.host().pool().clone());

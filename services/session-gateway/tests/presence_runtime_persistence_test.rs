@@ -110,14 +110,11 @@ impl PresenceStateStore for HeartbeatAfterStaleListStore {
         )
     }
 
-    fn list_online_states_seen_at_or_before(
+    fn discover_stale_online_states(
         &self,
-        cutoff_seen_at: &str,
-        limit: usize,
+        request: im_platform_contracts::StalePresenceScopeDiscoveryRequest<'_>,
     ) -> Result<Vec<PresenceStateRecord>, ContractError> {
-        let stale = self
-            .inner
-            .list_online_states_seen_at_or_before(cutoff_seen_at, limit)?;
+        let stale = self.inner.discover_stale_online_states(request)?;
         self.inner.save_state(presence_record(
             "s_fresh",
             PresenceStatus::Online,

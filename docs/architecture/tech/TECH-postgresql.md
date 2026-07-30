@@ -5,7 +5,7 @@
 
 - app code: `chat`
 - 发布访问根路径: `/sdkwork/chat`
-- 环境变量前缀: `SDKWORK_IM_*`（连接字段可与统一工作区 `SDKWORK_IM_DATABASE_*` 别名并存）
+- 应用环境变量前缀: `SDKWORK_IM_*`；数据库配置统一使用 `SDKWORK_DATABASE_*`
 - desktop runtime 本地数据使用浏览器本地存储(IndexedDB / localStorage),不使用 SQL 数据库文件。
 
 ## 1. 本地启动入口

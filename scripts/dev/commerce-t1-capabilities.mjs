@@ -44,9 +44,3 @@ export const COMMERCE_T1_APP_SDK_WORKSPACE_PATHS = Object.freeze({
     '../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts',
 });
 
-export const COMMERCE_T1_DATABASE_URL_ENV_KEYS = Object.freeze(
-  COMMERCE_T1_REPOSITORY_IDS.map((repoId) => {
-    const capability = repoId.replace(/^sdkwork-/, '').replace(/-/g, '_').toUpperCase();
-    return `SDKWORK_${capability}_DATABASE_URL`;
-  }),
-);

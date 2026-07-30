@@ -77,6 +77,50 @@
     "providedPorts": [],
     "requiredPorts": [
       {
+        "name": "imApiAssembly",
+        "export": "sdkwork_api_im_assembly::assemble_api_router_with_realtime_bootstrap"
+      },
+      {
+        "name": "iamAppApiContribution",
+        "export": "sdkwork_api_iam_assembly::bootstrap_iam_app_for_application"
+      },
+      {
+        "name": "driveAppApiContribution",
+        "export": "sdkwork_api_drive_assembly::assemble_app_api_contribution"
+      },
+      {
+        "name": "knowledgebaseAppApiContribution",
+        "export": "sdkwork_api_knowledgebase_assembly::assemble_app_api_contribution_from_environment"
+      },
+      {
+        "name": "inventoryAppApiContribution",
+        "export": "sdkwork_api_inventory_assembly::assemble_app_api_contribution_from_env"
+      },
+      {
+        "name": "invoiceAppApiContribution",
+        "export": "sdkwork_api_invoice_assembly::assemble_app_api_contribution_from_env"
+      },
+      {
+        "name": "membershipAppApiContribution",
+        "export": "sdkwork_api_membership_assembly::assemble_app_api_contribution"
+      },
+      {
+        "name": "orderAppApiContribution",
+        "export": "sdkwork_api_order_assembly::assemble_app_api_contribution"
+      },
+      {
+        "name": "paymentAppApiContribution",
+        "export": "sdkwork_api_payment_assembly::assemble_app_api_contribution_from_env"
+      },
+      {
+        "name": "shopAppApiContribution",
+        "export": "sdkwork_api_shop_assembly::assemble_app_api_contribution_from_env"
+      },
+      {
+        "name": "notaryAppApiContribution",
+        "export": "sdkwork_api_notary_assembly::assemble_app_api_contribution"
+      },
+      {
         "name": "agentsAppRuntimeContribution",
         "export": "sdkwork_api_agents_assembly::assemble_app_runtime_contribution"
       },
@@ -87,7 +131,8 @@
     ],
     "runtimeEntrypoints": [
       "src/main.rs",
-      "src/embedded_dependency_routes.rs#build_embedded_agents_runtime",
+      "src/main.rs#build_gateway_product_runtime_router",
+      "src/embedded_dependency_routes.rs#bootstrap_embedded_dependency_routes",
       "sdkwork_api_agents_assembly::assemble_app_runtime_contribution"
     ],
     "routeManifest": null,
@@ -96,20 +141,316 @@
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [
       {
-        "workspace": "sdkwork-agents-app-sdk",
+        "workspace": "sdkwork-iam",
+        "sdkFamily": "sdkwork-iam-app-sdk",
+        "apiAuthority": "sdkwork-iam-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/auth",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-iam-assembly",
+        "embeddedExecutableExport": "sdkwork_api_iam_assembly::bootstrap_iam_app_for_application",
+        "coverageEvidence": ["src/main.rs"]
+      },
+      {
+        "workspace": "sdkwork-iam",
+        "sdkFamily": "sdkwork-iam-app-sdk",
+        "apiAuthority": "sdkwork-iam-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/iam",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-iam-assembly",
+        "embeddedExecutableExport": "sdkwork_api_iam_assembly::bootstrap_iam_app_for_application",
+        "coverageEvidence": ["src/main.rs"]
+      },
+      {
+        "workspace": "sdkwork-iam",
+        "sdkFamily": "sdkwork-iam-app-sdk",
+        "apiAuthority": "sdkwork-iam-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/oauth",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-iam-assembly",
+        "embeddedExecutableExport": "sdkwork_api_iam_assembly::bootstrap_iam_app_for_application",
+        "coverageEvidence": ["src/main.rs"]
+      },
+      {
+        "workspace": "sdkwork-iam",
+        "sdkFamily": "sdkwork-iam-app-sdk",
+        "apiAuthority": "sdkwork-iam-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/open_platform",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-iam-assembly",
+        "embeddedExecutableExport": "sdkwork_api_iam_assembly::bootstrap_iam_app_for_application",
+        "coverageEvidence": ["src/main.rs"]
+      },
+      {
+        "workspace": "sdkwork-iam",
+        "sdkFamily": "sdkwork-iam-app-sdk",
+        "apiAuthority": "sdkwork-iam-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/system/iam",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-iam-assembly",
+        "embeddedExecutableExport": "sdkwork_api_iam_assembly::bootstrap_iam_app_for_application",
+        "coverageEvidence": ["src/main.rs"]
+      },
+      {
+        "workspace": "sdkwork-drive",
+        "sdkFamily": "sdkwork-drive-app-sdk",
+        "apiAuthority": "sdkwork-drive-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/assets",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-drive-assembly",
+        "embeddedExecutableExport": "sdkwork_api_drive_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_drive_contribution"]
+      },
+      {
+        "workspace": "sdkwork-drive",
+        "sdkFamily": "sdkwork-drive-app-sdk",
+        "apiAuthority": "sdkwork-drive-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/drive",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-drive-assembly",
+        "embeddedExecutableExport": "sdkwork_api_drive_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_drive_contribution"]
+      },
+      {
+        "workspace": "sdkwork-knowledgebase",
+        "sdkFamily": "sdkwork-knowledgebase-app-sdk",
+        "apiAuthority": "sdkwork-knowledgebase-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/knowledge",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-knowledgebase-assembly",
+        "embeddedExecutableExport": "sdkwork_api_knowledgebase_assembly::assemble_app_api_contribution_from_environment",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_knowledgebase_contribution"]
+      },
+      {
+        "workspace": "sdkwork-inventory",
+        "sdkFamily": "sdkwork-inventory-app-sdk",
+        "apiAuthority": "sdkwork-inventory-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/shops/current/inventory",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-inventory-assembly",
+        "embeddedExecutableExport": "sdkwork_api_inventory_assembly::assemble_app_api_contribution_from_env",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_inventory_contribution"]
+      },
+      {
+        "workspace": "sdkwork-invoice",
+        "sdkFamily": "sdkwork-invoice-app-sdk",
+        "apiAuthority": "sdkwork-invoice-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/invoices",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-invoice-assembly",
+        "embeddedExecutableExport": "sdkwork_api_invoice_assembly::assemble_app_api_contribution_from_env",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_invoice_contribution"]
+      },
+      {
+        "workspace": "sdkwork-membership",
+        "sdkFamily": "sdkwork-membership-app-sdk",
+        "apiAuthority": "sdkwork-membership-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/memberships",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-membership-assembly",
+        "embeddedExecutableExport": "sdkwork_api_membership_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_dependency_routes"]
+      },
+      {
+        "workspace": "sdkwork-order",
+        "sdkFamily": "sdkwork-order-app-sdk",
+        "apiAuthority": "sdkwork-order-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/checkout",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-order-assembly",
+        "embeddedExecutableExport": "sdkwork_api_order_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_dependency_routes"]
+      },
+      {
+        "workspace": "sdkwork-order",
+        "sdkFamily": "sdkwork-order-app-sdk",
+        "apiAuthority": "sdkwork-order-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/orders",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-order-assembly",
+        "embeddedExecutableExport": "sdkwork_api_order_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_dependency_routes"]
+      },
+      {
+        "workspace": "sdkwork-order",
+        "sdkFamily": "sdkwork-order-app-sdk",
+        "apiAuthority": "sdkwork-order-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/after_sales",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-order-assembly",
+        "embeddedExecutableExport": "sdkwork_api_order_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_dependency_routes"]
+      },
+      {
+        "workspace": "sdkwork-order",
+        "sdkFamily": "sdkwork-order-app-sdk",
+        "apiAuthority": "sdkwork-order-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/fulfillments",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-order-assembly",
+        "embeddedExecutableExport": "sdkwork_api_order_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_dependency_routes"]
+      },
+      {
+        "workspace": "sdkwork-order",
+        "sdkFamily": "sdkwork-order-app-sdk",
+        "apiAuthority": "sdkwork-order-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/shipments",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-order-assembly",
+        "embeddedExecutableExport": "sdkwork_api_order_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_dependency_routes"]
+      },
+      {
+        "workspace": "sdkwork-order",
+        "sdkFamily": "sdkwork-order-app-sdk",
+        "apiAuthority": "sdkwork-order-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/recharges",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-order-assembly",
+        "embeddedExecutableExport": "sdkwork_api_order_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_dependency_routes"]
+      },
+      {
+        "workspace": "sdkwork-order",
+        "sdkFamily": "sdkwork-order-app-sdk",
+        "apiAuthority": "sdkwork-order-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/memberships/orders",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-order-assembly",
+        "embeddedExecutableExport": "sdkwork_api_order_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_dependency_routes"]
+      },
+      {
+        "workspace": "sdkwork-order",
+        "sdkFamily": "sdkwork-order-app-sdk",
+        "apiAuthority": "sdkwork-order-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/withdrawals",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-order-assembly",
+        "embeddedExecutableExport": "sdkwork_api_order_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_dependency_routes"]
+      },
+      {
+        "workspace": "sdkwork-payment",
+        "sdkFamily": "sdkwork-payment-app-sdk",
+        "apiAuthority": "sdkwork-payment-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/payments",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-payment-assembly",
+        "embeddedExecutableExport": "sdkwork_api_payment_assembly::assemble_app_api_contribution_from_env",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_payment_contribution"]
+      },
+      {
+        "workspace": "sdkwork-payment",
+        "sdkFamily": "sdkwork-payment-app-sdk",
+        "apiAuthority": "sdkwork-payment-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/refunds",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-payment-assembly",
+        "embeddedExecutableExport": "sdkwork_api_payment_assembly::assemble_app_api_contribution_from_env",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_payment_contribution"]
+      },
+      {
+        "workspace": "sdkwork-shop",
+        "sdkFamily": "sdkwork-shop-app-sdk",
+        "apiAuthority": "sdkwork-shop-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/shops",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-shop-assembly",
+        "embeddedExecutableExport": "sdkwork_api_shop_assembly::assemble_app_api_contribution_from_env",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_shop_contribution"]
+      },
+      {
+        "workspace": "sdkwork-notary",
+        "sdkFamily": "sdkwork-notary-app-sdk",
+        "apiAuthority": "sdkwork-notary-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/notary",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
+        "cargoDependency": "sdkwork-api-notary-assembly",
+        "embeddedExecutableExport": "sdkwork_api_notary_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_dependency_routes"]
+      },
+      {
+        "workspace": "sdkwork-agents",
         "sdkFamily": "sdkwork-agents-app-sdk",
         "apiAuthority": "sdkwork-agents-app-api",
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/ai",
-        "runtimeMode": "same-origin-mounted",
-        "profileCoverage": [
-          "standalone"
-        ],
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "profileCoverage": ["standalone"],
         "cargoDependency": "sdkwork-api-agents-assembly",
         "embeddedExecutableExport": "sdkwork_api_agents_assembly::assemble_app_runtime_contribution",
-        "coverageEvidence": [
-          "src/embedded_dependency_routes.rs#build_embedded_agents_runtime"
-        ]
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#build_embedded_agents_runtime"]
       }
     ],
     "events": [],

@@ -4,6 +4,7 @@
 #![allow(clippy::should_implement_trait)]
 
 use sdkwork_im_contract_core::ContractError;
+use sdkwork_im_contract_core::PrivilegedOperationContext;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -35,6 +36,51 @@ pub struct OutboxEventRecord {
 pub struct OutboxEventClaim {
     pub event: OutboxEventRecord,
     pub lease_expires_at: String,
+}
+
+pub const OUTBOX_SCOPE_DISCOVERY_LIMIT_MAX: usize = 32;
+
+#[derive(Clone, Copy, Debug)]
+pub struct OutboxScopeDiscoveryRequest<'a> {
+    context: &'a PrivilegedOperationContext,
+    aggregate_type: &'a str,
+    limit: usize,
+}
+
+impl<'a> OutboxScopeDiscoveryRequest<'a> {
+    pub fn try_new(
+        context: &'a PrivilegedOperationContext,
+        aggregate_type: &'a str,
+        limit: usize,
+    ) -> Result<Self, ContractError> {
+        if aggregate_type.trim().is_empty() {
+            return Err(ContractError::Invalid(
+                "outbox scope discovery aggregate type is required".into(),
+            ));
+        }
+        if limit == 0 || limit > OUTBOX_SCOPE_DISCOVERY_LIMIT_MAX {
+            return Err(ContractError::Invalid(format!(
+                "outbox scope discovery limit must be between 1 and {OUTBOX_SCOPE_DISCOVERY_LIMIT_MAX}"
+            )));
+        }
+        Ok(Self {
+            context,
+            aggregate_type,
+            limit,
+        })
+    }
+
+    pub const fn context(&self) -> &PrivilegedOperationContext {
+        self.context
+    }
+
+    pub const fn aggregate_type(&self) -> &str {
+        self.aggregate_type
+    }
+
+    pub const fn limit(&self) -> usize {
+        self.limit
+    }
 }
 
 /// 发布状态
@@ -134,9 +180,8 @@ pub trait OutboxStore: Send + Sync {
     fn count_pending(&self, tenant_id: &str, organization_id: &str) -> Result<u64, ContractError>;
 
     /// 列出存在待投递事件的租户/组织作用域（relay worker 多租户轮询）
-    fn list_pending_scopes(
+    fn discover_pending_scopes(
         &self,
-        aggregate_type: &str,
-        limit: usize,
+        request: OutboxScopeDiscoveryRequest<'_>,
     ) -> Result<Vec<(String, String)>, ContractError>;
 }

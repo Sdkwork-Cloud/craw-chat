@@ -273,12 +273,7 @@ pub trait ConversationAggregateStore: Send + Sync {
         device_id: &str,
     ) -> Result<Option<ReadCursorRecord>, ContractError> {
         if device_id.is_empty() {
-            return self.load_read_cursor(
-                tenant_id,
-                organization_id,
-                conversation_id,
-                member_id,
-            );
+            return self.load_read_cursor(tenant_id, organization_id, conversation_id, member_id);
         }
         Err(ContractError::UnsupportedCapability(
             "device-scoped normalized read cursor lookup is not implemented".into(),

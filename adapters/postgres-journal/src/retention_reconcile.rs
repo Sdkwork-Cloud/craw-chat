@@ -27,8 +27,9 @@ const CLEAR_COMMIT_JOURNAL_SQL: &str = r#"
 UPDATE im_commit_journal
 SET retention_until = NULL
 WHERE tenant_id = $1
+  AND organization_id = $2
   AND aggregate_type = 'conversation'
-  AND aggregate_id = $2
+  AND aggregate_id = $3
   AND retention_until IS NOT NULL
 "#;
 
@@ -61,8 +62,9 @@ const CLEAR_REALTIME_DEVICE_EVENTS_SQL: &str = r#"
 UPDATE im_realtime_device_events
 SET retention_until = NULL
 WHERE tenant_id = $1
+  AND organization_id = $2
   AND scope_type = 'conversation'
-  AND scope_id = $2
+  AND scope_id = $3
   AND retention_until IS NOT NULL
 "#;
 
@@ -163,7 +165,10 @@ pub fn clear_conversation_retention_until(
         .map_err(|error| postgres_unavailable("retention reconcile media refs", error))?
         as u64;
     let commit_journal_cleared = txn
-        .execute(CLEAR_COMMIT_JOURNAL_SQL, &[&tenant_id, &conversation_id])
+        .execute(
+            CLEAR_COMMIT_JOURNAL_SQL,
+            &[&tenant_id, &organization_id, &conversation_id],
+        )
         .map_err(|error| postgres_unavailable("retention reconcile commit journal", error))?
         as u64;
     let outbox_events_cleared =
@@ -181,7 +186,7 @@ pub fn clear_conversation_retention_until(
     let realtime_device_events_cleared = txn
         .execute(
             CLEAR_REALTIME_DEVICE_EVENTS_SQL,
-            &[&tenant_id, &conversation_id],
+            &[&tenant_id, &organization_id, &conversation_id],
         )
         .map_err(|error| {
             postgres_unavailable("retention reconcile realtime device events", error)

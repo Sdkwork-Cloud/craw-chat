@@ -23,20 +23,9 @@ export {
   resolvePostgresDevEnvFilePath,
 };
 
-const DATABASE_ENV_PREFIXES = [
-  'SDKWORK_IM_DATABASE_',
-  'SDKWORK_CLAW_DATABASE_',
-  'SDKWORK_IAM_DATABASE_',
-  'SDKWORK_DATABASE_',
-];
-
 function normalizeText(value) {
   const normalized = String(value ?? '').trim();
   return normalized || undefined;
-}
-
-function isDatabaseEnvKey(key) {
-  return DATABASE_ENV_PREFIXES.some((prefix) => key.startsWith(prefix));
 }
 
 export function resolvePostgresDevProfile({
@@ -73,9 +62,7 @@ export function resolvePostgresDevProfile({
 }
 
 export function isPostgresDevProfile(env = process.env) {
-  const engine = normalizeText(env.SDKWORK_DATABASE_ENGINE)
-    ?? normalizeText(env.SDKWORK_DATABASE_ENGINE)
-    ?? normalizeText(env.SDKWORK_DATABASE_PROVIDER);
+  const engine = normalizeText(env.SDKWORK_DATABASE_ENGINE);
   if (!engine) {
     return true;
   }

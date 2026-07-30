@@ -956,6 +956,7 @@ async fn message_post_dispatch_event_and_two_outboxes_are_atomic_and_idempotent(
     assert_eq!(replay_positions, positions);
 
     let tenant_for_query = tenant_id.clone();
+    let organization_for_query = fixture.message.organization_id.clone();
     let conversation_id = fixture.message.conversation_id.clone();
     let message_id_for_query = fixture.message.message_id;
     let dispatch_event_id = dispatch_envelope.event_id.clone();
@@ -969,10 +970,10 @@ async fn message_post_dispatch_event_and_two_outboxes_are_atomic_and_idempotent(
             .query_one(
                 r#"
 select
-  (select count(*) from im_commit_journal where tenant_id = $1 and organization_id = '0' and event_id in ($2, $3)),
-  (select count(*) from im_conversation_messages where tenant_id = $1 and organization_id = '0' and conversation_id = $4 and message_id = $5),
-  (select count(*) from im_outbox_events where tenant_id = $1 and organization_id = '0' and outbox_id in ($6, $7)),
-  (select count(*) from im_commit_journal where tenant_id = $1 and organization_id = '0' and event_id = $3)
+  (select count(*) from im_commit_journal where tenant_id = $1 and organization_id = $8 and event_id in ($2, $3)),
+  (select count(*) from im_conversation_messages where tenant_id = $1 and organization_id = $8 and conversation_id = $4 and message_id = $5),
+  (select count(*) from im_outbox_events where tenant_id = $1 and organization_id = $8 and outbox_id in ($6, $7)),
+  (select count(*) from im_commit_journal where tenant_id = $1 and organization_id = $8 and event_id = $3)
 "#,
                 &[
                     &tenant_for_query,
@@ -982,6 +983,7 @@ select
                     &message_id_for_query,
                     &fixture.outbox.outbox_id,
                     &dispatch_outbox_id,
+                    &organization_for_query,
                 ],
             )
             .expect("batch rows should be countable");

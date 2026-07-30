@@ -1,4 +1,4 @@
-# Sdkwork IM 鈥?Customer Operations Guide
+# Sdkwork IM - Customer Operations Guide
 
 Status: active  
 Owner: SDKWork maintainers  

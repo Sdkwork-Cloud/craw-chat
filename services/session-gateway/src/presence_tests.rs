@@ -8,6 +8,23 @@
 use super::*;
 use im_domain_core::presence::{PresenceClientView, PresenceStatus};
 
+fn discover_stale_presence_states(
+    store: &impl PresenceStateStore,
+    cutoff_seen_at: &str,
+    limit: usize,
+) -> Result<Vec<PresenceStateRecord>, ContractError> {
+    let context = PrivilegedOperationContext::try_new(
+        PrivilegedOperationActorKind::ServiceWorker,
+        "session-gateway-presence-test",
+        "session-gateway-presence-test-trace",
+    )?;
+    store.discover_stale_online_states(StalePresenceScopeDiscoveryRequest::try_new(
+        &context,
+        cutoff_seen_at,
+        limit,
+    )?)
+}
+
 fn presence_record(device_id: &str, last_seen_at: &str) -> PresenceStateRecord {
     PresenceStateRecord {
         tenant_id: "100001".into(),
@@ -61,8 +78,7 @@ fn test_presence_state_store_seen_at_cutoff_compares_rfc3339_by_instant() {
         .save_state(presence_record("d_whole_second", "2026-05-06T00:00:00Z"))
         .expect("whole-second presence save should succeed");
 
-    let stale = store
-        .list_online_states_seen_at_or_before("2026-05-06T00:00:00Z", 10)
+    let stale = discover_stale_presence_states(&store, "2026-05-06T00:00:00Z", 10)
         .expect("stale online list should succeed");
 
     assert_eq!(

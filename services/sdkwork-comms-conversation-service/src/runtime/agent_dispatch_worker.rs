@@ -6,7 +6,9 @@ use std::time::Duration;
 use im_domain_core::message::{ContentPart, MessageBody, MessageType, Sender};
 use im_platform_contracts::{
     AgentBindingStatus, AgentDispatchRecord, AgentDispatchReplyCompletion, AgentIntegrationStore,
-    AgentReplyCommitResult, ContractError, ConversationAgentBindingRecord, MessageStore,
+    AgentReplyCommitResult, ContractError, ConversationAgentBindingRecord,
+    GlobalAgentDispatchClaimRequest, MessageStore, PrivilegedOperationActorKind,
+    PrivilegedOperationContext,
 };
 use sdkwork_agents_runtime_facade::{
     AgentsSessionActor, AgentsSessionEntrySurface, AgentsSessionFacade, AgentsSessionKind,
@@ -242,9 +244,10 @@ impl AgentDispatchSourceLoader for MessageStoreAgentDispatchSourceLoader {
         let source_message_id = i64::try_from(dispatch.source_message_id)
             .map_err(|_| "source IM message id is outside int64 range".to_string())?;
         let tenant_id = dispatch.tenant_id.to_string();
+        let organization_id = dispatch.organization_id.to_string();
         let stored = self
             .store
-            .read_message_by_id(&tenant_id, source_message_id)
+            .read_message_by_id(&tenant_id, &organization_id, source_message_id)
             .map_err(|error| format!("source IM message lookup failed: {error:?}"))?
             .ok_or_else(|| "source IM message was not found".to_string())?;
         let stored_organization_id = stored
@@ -440,8 +443,15 @@ impl AgentDispatchWorker {
         retry_at: &str,
         limit: usize,
     ) -> Result<Vec<AgentDispatchWorkerOutcome>, ContractError> {
+        let context = PrivilegedOperationContext::try_new(
+            PrivilegedOperationActorKind::ServiceWorker,
+            self.lease_owner.as_str(),
+            sdkwork_utils_rust::id::uuid(),
+        )?;
+        let request =
+            GlobalAgentDispatchClaimRequest::try_new(&context, now, lease_expires_at, limit)?;
         self.store
-            .claim_dispatches_global(&self.lease_owner, now, lease_expires_at, limit)?
+            .claim_global_dispatches(request)?
             .into_iter()
             .map(|dispatch| self.process_claim(dispatch, now, retry_at))
             .collect()
@@ -847,20 +857,29 @@ mod tests {
             _tenant_id: u64,
             _organization_id: u64,
             lease_owner: &str,
-            _now: &str,
+            now: &str,
             lease_expires_at: &str,
             _limit: usize,
         ) -> Result<Vec<AgentDispatchRecord>, ContractError> {
-            self.claim_dispatches_global(lease_owner, "", lease_expires_at, 1)
+            let context = PrivilegedOperationContext::try_new(
+                PrivilegedOperationActorKind::ServiceWorker,
+                lease_owner,
+                "test-scoped-agent-claim",
+            )?;
+            self.claim_global_dispatches(GlobalAgentDispatchClaimRequest::try_new(
+                &context,
+                now,
+                lease_expires_at,
+                1,
+            )?)
         }
 
-        fn claim_dispatches_global(
+        fn claim_global_dispatches(
             &self,
-            lease_owner: &str,
-            _now: &str,
-            lease_expires_at: &str,
-            _limit: usize,
+            request: GlobalAgentDispatchClaimRequest<'_>,
         ) -> Result<Vec<AgentDispatchRecord>, ContractError> {
+            let lease_owner = request.context().actor_id();
+            let lease_expires_at = request.lease_expires_at();
             let Some(mut dispatch) = self.dispatch.lock().expect("dispatch lock").take() else {
                 return Ok(Vec::new());
             };
@@ -1308,12 +1327,13 @@ mod tests {
         fn read_message_by_id(
             &self,
             tenant_id: &str,
+            organization_id: &str,
             message_id: i64,
         ) -> Result<Option<StoredMessageRecord>, ContractError> {
-            Ok(
-                (self.record.tenant_id == tenant_id && self.record.message_id == message_id)
-                    .then(|| self.record.clone()),
-            )
+            Ok((self.record.tenant_id == tenant_id
+                && self.record.organization_id == organization_id
+                && self.record.message_id == message_id)
+                .then(|| self.record.clone()))
         }
 
         fn read_message_by_client_id(

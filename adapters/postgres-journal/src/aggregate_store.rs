@@ -225,9 +225,7 @@ fn row_to_policy(row: &postgres::Row) -> NormalizedConversationPolicyRecord {
     }
 }
 
-fn row_to_business_binding(
-    row: &postgres::Row,
-) -> NormalizedConversationBusinessBindingRecord {
+fn row_to_business_binding(row: &postgres::Row) -> NormalizedConversationBusinessBindingRecord {
     NormalizedConversationBusinessBindingRecord {
         tenant_id: row.get(0),
         organization_id: row.get(1),

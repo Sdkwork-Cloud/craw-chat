@@ -78,8 +78,8 @@ Sdkwork IM uses the standard Sdkwork IM database policy for appbase IAM and IM d
 
 Rules:
 
-- Local development and production default to PostgreSQL via canonical `SDKWORK_IM_DATABASE_*` variables such as `SDKWORK_DATABASE_ENGINE=postgresql`, `SDKWORK_DATABASE_HOST`, `SDKWORK_DATABASE_NAME`, `SDKWORK_DATABASE_USERNAME`, `SDKWORK_DATABASE_PASSWORD`, and `SDKWORK_DATABASE_SSL_MODE`. 桌面端本地用户数据使用浏览器本地存储(IndexedDB / localStorage),不依赖 SQL 数据库文件。
-- Legacy `SDKWORK_CLAW_DATABASE_*` variables may be bridged for compatibility, but new configuration and documentation must use the canonical `SDKWORK_IM_DATABASE_*` namespace.
+- Local development and production default to PostgreSQL via the process-level `SDKWORK_DATABASE_*` profile. 桌面端本地用户数据使用浏览器本地存储(IndexedDB / localStorage),不依赖 SQL 数据库文件。
+- Runtime startup rejects application- and module-prefixed database keys; it does not bridge aliases.
 - Sdkwork IM must not create duplicate IAM tables or alternate login schemas when appbase IAM already owns those tables.
 - Schema or migration changes require explicit approval before implementation.
 

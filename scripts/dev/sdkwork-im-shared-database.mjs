@@ -1,211 +1,175 @@
-import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
 
-const __filename = fileURLToPath(import.meta.url);
-const repoRoot = path.resolve(path.dirname(__filename), '..', '..');
-const APP_CODE = 'chat';
-const CANONICAL_DATABASE_PREFIX = 'SDKWORK_IM_DATABASE_';
-const LEGACY_DATABASE_PREFIX = 'SDKWORK_CLAW_DATABASE_';
-
-function normalizeDatabaseUrl(value) {
-  const normalized = String(value ?? '').trim();
-  return normalized || undefined;
-}
+const WORKSPACE_DATABASE_PREFIX = 'SDKWORK_DATABASE_';
+const WORKSPACE_DATABASE_GOVERNANCE_KEYS = [
+  'SDKWORK_DATABASE_MAX_CONNECTIONS',
+  'SDKWORK_DATABASE_MIN_CONNECTIONS',
+  'SDKWORK_DATABASE_ACQUIRE_TIMEOUT',
+  'SDKWORK_DATABASE_IDLE_TIMEOUT',
+  'SDKWORK_DATABASE_MAX_LIFETIME',
+  'SDKWORK_DATABASE_AUTO_MIGRATE',
+  'SDKWORK_DATABASE_AUTO_SEED',
+  'SDKWORK_DATABASE_TEMPORARY_ANY_POOL_EXCEPTION',
+  'SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT',
+];
 
 function normalizeDatabaseField(value) {
   const normalized = String(value ?? '').trim();
   return normalized || undefined;
 }
 
-function appendPostgresQueryParam(params, name, value) {
-  const normalized = normalizeDatabaseField(value);
-  if (normalized) {
-    params.set(name, normalized);
-  }
-}
-
 function encodePostgresPath(databaseName) {
   return encodeURIComponent(databaseName).replaceAll('%2F', '/');
 }
 
-function envValue(env, canonicalName, ...legacyNames) {
-  const canonical = normalizeDatabaseField(env[canonicalName]);
-  if (canonical) {
-    return canonical;
+export function rejectRetiredDatabaseKeys(env) {
+  const retiredKeys = Object.keys(env).filter((key) => (
+    /^SDKWORK_(?!DATABASE_)[A-Z0-9_]+_DATABASE_[A-Z0-9_]+$/u.test(key)
+    || /^(?:DATABASE_URL|DATABASE_PROVIDER|DATABASE_SSLMODE)$/u.test(key)
+    || /^SDKWORK_DATABASE_(?:PROVIDER|SSLMODE)$/u.test(key)
+  ));
+  if (retiredKeys.length > 0) {
+    throw new Error(
+      `retired database configuration ${retiredKeys.sort().join(', ')}; use ${WORKSPACE_DATABASE_PREFIX}*`,
+    );
   }
-  for (const legacyName of legacyNames) {
-    const legacy = normalizeDatabaseField(env[legacyName]);
-    if (legacy) {
-      return legacy;
-    }
+}
+
+function canonicalDatabaseProfile(database) {
+  if (database === 'sdkwork_ai_dev') {
+    return { environment: 'development', username: 'sdkwork_ai_dev' };
+  }
+  if (database === 'sdkwork_ai_test') {
+    return { environment: 'test', username: 'sdkwork_ai_test' };
+  }
+  if (/^sdkwork_ai_test_[A-Za-z0-9_]+$/u.test(database)) {
+    return { environment: 'test', username: 'sdkwork_ai_test' };
+  }
+  if (database === 'sdkwork_ai_staging') {
+    return { environment: 'staging', username: 'sdkwork_ai_staging' };
+  }
+  if (database === 'sdkwork_ai_prod') {
+    return { environment: 'production', username: 'sdkwork_ai_prod' };
   }
   return undefined;
 }
 
-function assertNoCanonicalLegacyAliases(env) {
-  if (normalizeDatabaseField(env.SDKWORK_DATABASE_PROVIDER)) {
+export function validateWorkspacePostgresIdentity({ database, schema, username }) {
+  const profile = canonicalDatabaseProfile(database);
+  if (!profile) {
     throw new Error(
-      'SDKWORK_DATABASE_PROVIDER is not standard; use SDKWORK_DATABASE_ENGINE',
+      `PostgreSQL database ${JSON.stringify(database)} is not a canonical SDKWork workspace identity`,
     );
   }
-  if (normalizeDatabaseField(env.SDKWORK_DATABASE_SSLMODE)) {
+  if (schema !== database) {
     throw new Error(
-      'SDKWORK_DATABASE_SSLMODE is not standard; use SDKWORK_DATABASE_SSL_MODE',
+      `SDKWORK_DATABASE_SCHEMA must equal workspace database ${JSON.stringify(database)}, got ${JSON.stringify(schema)}`,
+    );
+  }
+  if (username !== profile.username) {
+    throw new Error(
+      `${profile.environment} database ${JSON.stringify(database)} requires username ${JSON.stringify(profile.username)}, got ${JSON.stringify(username)}`,
     );
   }
 }
 
 function resolvePostgresDatabaseUrlFromFields(env) {
-  assertNoCanonicalLegacyAliases(env);
-  const engine = envValue(
-    env,
-    'SDKWORK_DATABASE_ENGINE',
-    'SDKWORK_DATABASE_ENGINE',
-    'SDKWORK_DATABASE_PROVIDER',
-  );
+  const engine = normalizeDatabaseField(env.SDKWORK_DATABASE_ENGINE);
   if (!engine) {
     return undefined;
   }
   if (!/^postgres(?:ql)?$/iu.test(engine)) {
-    throw new Error(`unsupported Sdkwork IM database engine: ${engine}`);
+    throw new Error(`unsupported SDKWork database engine: ${engine}`);
   }
 
-  const host = envValue(env, 'SDKWORK_DATABASE_HOST', 'SDKWORK_DATABASE_HOST');
-  const database = envValue(env, 'SDKWORK_DATABASE_NAME', 'SDKWORK_DATABASE_NAME');
-  const username = envValue(
-    env,
-    'SDKWORK_DATABASE_USERNAME',
-    'SDKWORK_DATABASE_USERNAME',
-  );
-  const password = envValue(
-    env,
-    'SDKWORK_DATABASE_PASSWORD',
-    'SDKWORK_DATABASE_PASSWORD',
-  );
+  const host = normalizeDatabaseField(env.SDKWORK_DATABASE_HOST);
+  const database = normalizeDatabaseField(env.SDKWORK_DATABASE_NAME);
+  const schema = normalizeDatabaseField(env.SDKWORK_DATABASE_SCHEMA) ?? database;
+  const username = normalizeDatabaseField(env.SDKWORK_DATABASE_USERNAME);
+  const password = normalizeDatabaseField(env.SDKWORK_DATABASE_PASSWORD);
   const missing = [];
-  if (!host) {
-    missing.push('SDKWORK_DATABASE_HOST');
-  }
-  if (!database) {
-    missing.push('SDKWORK_DATABASE_NAME');
-  }
-  if (!username) {
-    missing.push('SDKWORK_DATABASE_USERNAME');
-  }
-  if (!password) {
-    missing.push('SDKWORK_DATABASE_PASSWORD');
+  for (const [key, value] of [
+    ['SDKWORK_DATABASE_HOST', host],
+    ['SDKWORK_DATABASE_NAME', database],
+    ['SDKWORK_DATABASE_USERNAME', username],
+    ['SDKWORK_DATABASE_PASSWORD', password],
+  ]) {
+    if (!value) {
+      missing.push(key);
+    }
   }
   if (missing.length > 0) {
     throw new Error(
       `SDKWORK_DATABASE_ENGINE=postgresql requires ${missing.join(', ')}`,
     );
   }
+  validateWorkspacePostgresIdentity({ database, schema, username });
 
-  const port = envValue(env, 'SDKWORK_DATABASE_PORT', 'SDKWORK_DATABASE_PORT');
-  const credentials = `${encodeURIComponent(username)}${password ? `:${encodeURIComponent(password)}` : ''}`;
+  const port = normalizeDatabaseField(env.SDKWORK_DATABASE_PORT);
+  const credentials = `${encodeURIComponent(username)}:${encodeURIComponent(password)}`;
   const authority = `${credentials}@${host}${port ? `:${port}` : ''}`;
   const params = new URLSearchParams();
-  appendPostgresQueryParam(
-    params,
-    'sslmode',
-    envValue(
-      env,
-      'SDKWORK_DATABASE_SSL_MODE',
-      'SDKWORK_DATABASE_SSL_MODE',
-      'SDKWORK_DATABASE_SSLMODE',
-    ),
-  );
+  const sslMode = normalizeDatabaseField(env.SDKWORK_DATABASE_SSL_MODE);
+  if (sslMode) {
+    params.set('sslmode', sslMode);
+  }
   const query = params.toString();
   return `postgresql://${authority}/${encodePostgresPath(database)}${query ? `?${query}` : ''}`;
 }
 
-const AGENTS_DATABASE_ENV_KEYS = [
-  'SDKWORK_DATABASE_URL',
-  'SDKWORK_DATABASE_URL',
-  'SDKWORK_DATABASE_URL',
-];
+function parseWorkspacePostgresUrl(databaseUrl, env) {
+  if (!/^postgres(?:ql)?:\/\//iu.test(databaseUrl)) {
+    throw new Error(`unsupported SDKWork database URL; PostgreSQL is required: ${databaseUrl}`);
+  }
+  const parsed = new URL(databaseUrl);
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//u, ''));
+  const schema = normalizeDatabaseField(env.SDKWORK_DATABASE_SCHEMA) ?? database;
+  const username = decodeURIComponent(parsed.username || '');
+  validateWorkspacePostgresIdentity({ database, schema, username });
+  return {
+    database,
+    host: parsed.hostname,
+    password: decodeURIComponent(parsed.password || ''),
+    port: parsed.port,
+    schema,
+    sslmode: parsed.searchParams.get('sslmode') ?? undefined,
+    username,
+  };
+}
 
-const COMMERCE_T1_DATABASE_PREFIXES = [
-  'SDKWORK_ACCOUNT',
-  'SDKWORK_CATALOG',
-  'SDKWORK_INVENTORY',
-  'SDKWORK_INVOICE',
-  'SDKWORK_MEMBERSHIP',
-  'SDKWORK_MERCHANDISE',
-  'SDKWORK_ORDER',
-  'SDKWORK_PAYMENT',
-  'SDKWORK_PROMOTION',
-  'SDKWORK_SHOP',
-];
-
-function databaseBridgeEnv({
-  databaseUrl,
-  env,
-  maxConnections,
-}) {
-  const resolvedMaxConnections = maxConnections
-    ?? envValue(env, 'SDKWORK_DATABASE_MAX_CONNECTIONS', 'SDKWORK_DATABASE_MAX_CONNECTIONS');
-  const bridged = {
+function workspaceRuntimeDatabaseEnv(databaseUrl, postgres, env) {
+  const runtimeEnv = {
     SDKWORK_DATABASE_ENGINE: 'postgresql',
     SDKWORK_DATABASE_URL: databaseUrl,
-    SDKWORK_DATABASE_URL: databaseUrl,
-    ...(resolvedMaxConnections
-      ? {
-        SDKWORK_DATABASE_MAX_CONNECTIONS: resolvedMaxConnections,
-        SDKWORK_DATABASE_MAX_CONNECTIONS: resolvedMaxConnections,
-      }
-      : {}),
+    SDKWORK_DATABASE_SCHEMA: postgres.schema,
   };
-  bridged.SDKWORK_DATABASE_URL = databaseUrl;
-  bridged.SDKWORK_DATABASE_URL = databaseUrl;
-  bridged.SDKWORK_DATABASE_URL = databaseUrl;
-  bridged.SDKWORK_DATABASE_URL = databaseUrl;
-  for (const key of AGENTS_DATABASE_ENV_KEYS) {
-    bridged[key] = databaseUrl;
+  for (const key of WORKSPACE_DATABASE_GOVERNANCE_KEYS) {
+    const value = normalizeDatabaseField(env[key]);
+    if (value) {
+      runtimeEnv[key] = value;
+    }
   }
-  for (const prefix of COMMERCE_T1_DATABASE_PREFIXES) {
-    bridged[`${prefix}_DATABASE_URL`] = databaseUrl;
-  }
-  bridged.SDKWORK_DATABASE_URL = databaseUrl;
-  bridged.SDKWORK_DATABASE_URL = databaseUrl;
-  return bridged;
+  return runtimeEnv;
 }
 
 export function resolveSdkworkImSharedDatabaseConfig({
   env = process.env,
-  repoRoot: _root = repoRoot,
 } = {}) {
-  assertNoCanonicalLegacyAliases(env);
-  const databaseUrl = normalizeDatabaseUrl(env.SDKWORK_DATABASE_URL)
-    ?? normalizeDatabaseUrl(env.SDKWORK_DATABASE_URL)
+  rejectRetiredDatabaseKeys(env);
+  const databaseUrl = normalizeDatabaseField(env.SDKWORK_DATABASE_URL)
     ?? resolvePostgresDatabaseUrlFromFields(env);
 
   if (!databaseUrl) {
     throw new Error(
-      'SDKWORK_DATABASE_URL or SDKWORK_DATABASE_ENGINE=postgresql configuration is required; IM SQLite default has been removed',
+      'SDKWORK_DATABASE_URL or SDKWORK_DATABASE_ENGINE=postgresql configuration is required; server-side SQLite is not supported',
     );
   }
 
-  if (/^postgres(?:ql)?:\/\//iu.test(databaseUrl)) {
-    const parsed = new URL(databaseUrl);
-    return {
-      databaseUrl,
-      env: databaseBridgeEnv({
-        databaseUrl,
-        env,
-      }),
-      kind: 'postgresql',
-      postgres: {
-        database: parsed.pathname.replace(/^\//u, ''),
-        host: parsed.hostname,
-        password: decodeURIComponent(parsed.password || ''),
-        port: parsed.port,
-        sslmode: parsed.searchParams.get('sslmode') ?? undefined,
-        username: decodeURIComponent(parsed.username || ''),
-      },
-    };
-  }
-
-  throw new Error(`unsupported Sdkwork IM database URL; PostgreSQL is required: ${databaseUrl}`);
+  const postgres = parseWorkspacePostgresUrl(databaseUrl, env);
+  return {
+    databaseUrl,
+    env: workspaceRuntimeDatabaseEnv(databaseUrl, postgres, env),
+    kind: 'postgresql',
+    postgres,
+  };
 }

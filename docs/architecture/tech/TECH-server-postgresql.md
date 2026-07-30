@@ -35,15 +35,15 @@ provider: postgresql
 connection:
   host: postgres.internal.example.com
   port: 5432
-  database: sdkwork
-  username: sdkwork
+  database: sdkwork_ai_prod
+  username: sdkwork_ai_prod
   passwordFile: /etc/sdkwork/chat/database.secret
   sslmode: require
   applicationName: sdkwork-chat-server
   connectTimeoutSeconds: 10
 
 schema:
-  name: sdkwork
+  name: sdkwork_ai_prod
   provisioningMode: none
   migrationMode: apply
   expectedVersion: latest

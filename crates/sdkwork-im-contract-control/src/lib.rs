@@ -3,7 +3,7 @@ use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
 use im_time::{
     compare_optional_rfc3339_asc, max_rfc3339_string, rfc3339_gt, rfc3339_le, rfc3339_lt,
 };
-use sdkwork_im_contract_core::ContractError;
+use sdkwork_im_contract_core::{ContractError, PrivilegedOperationContext};
 use serde::{Deserialize, Serialize};
 
 const REALTIME_EVENT_WINDOW_HIGH_RISK_LIMIT: usize = 5;
@@ -125,6 +125,21 @@ pub struct RealtimeEventWindowDiagnosticsSnapshot {
     pub last_capacity_trimmed_at: Option<String>,
     pub oldest_pending_occurred_at: Option<String>,
     pub high_risk_windows: Vec<RealtimeEventWindowHighRiskRecord>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct RealtimeDiagnosticsRequest<'a> {
+    context: &'a PrivilegedOperationContext,
+}
+
+impl<'a> RealtimeDiagnosticsRequest<'a> {
+    pub const fn new(context: &'a PrivilegedOperationContext) -> Self {
+        Self { context }
+    }
+
+    pub const fn context(&self) -> &PrivilegedOperationContext {
+        self.context
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -352,6 +367,51 @@ pub struct PresenceStateRecord {
     pub updated_at: String,
 }
 
+pub const STALE_PRESENCE_SCOPE_DISCOVERY_LIMIT_MAX: usize = 1_000;
+
+#[derive(Clone, Copy, Debug)]
+pub struct StalePresenceScopeDiscoveryRequest<'a> {
+    context: &'a PrivilegedOperationContext,
+    cutoff_seen_at: &'a str,
+    limit: usize,
+}
+
+impl<'a> StalePresenceScopeDiscoveryRequest<'a> {
+    pub fn try_new(
+        context: &'a PrivilegedOperationContext,
+        cutoff_seen_at: &'a str,
+        limit: usize,
+    ) -> Result<Self, ContractError> {
+        if cutoff_seen_at.trim().is_empty() {
+            return Err(ContractError::Invalid(
+                "stale presence cutoff is required".into(),
+            ));
+        }
+        if limit == 0 || limit > STALE_PRESENCE_SCOPE_DISCOVERY_LIMIT_MAX {
+            return Err(ContractError::Invalid(format!(
+                "stale presence scope discovery limit must be between 1 and {STALE_PRESENCE_SCOPE_DISCOVERY_LIMIT_MAX}"
+            )));
+        }
+        Ok(Self {
+            context,
+            cutoff_seen_at,
+            limit,
+        })
+    }
+
+    pub const fn context(&self) -> &PrivilegedOperationContext {
+        self.context
+    }
+
+    pub const fn cutoff_seen_at(&self) -> &str {
+        self.cutoff_seen_at
+    }
+
+    pub const fn limit(&self) -> usize {
+        self.limit
+    }
+}
+
 impl PresenceStateRecord {
     pub fn online_seen_at(&self) -> Option<&str> {
         if !matches!(self.presence.status, PresenceStatus::Online) {
@@ -419,8 +479,10 @@ pub trait RealtimeEventWindowStore: Send + Sync {
         device_id: &str,
     ) -> Result<bool, ContractError>;
 
-    fn diagnostics_snapshot(&self)
-    -> Result<RealtimeEventWindowDiagnosticsSnapshot, ContractError>;
+    fn diagnostics_snapshot(
+        &self,
+        request: RealtimeDiagnosticsRequest<'_>,
+    ) -> Result<RealtimeEventWindowDiagnosticsSnapshot, ContractError>;
 
     fn trim_window(
         &self,
@@ -527,10 +589,9 @@ pub trait PresenceStateStore: Send + Sync {
         principal_id: &str,
     ) -> Result<Vec<PresenceStateRecord>, ContractError>;
 
-    fn list_online_states_seen_at_or_before(
+    fn discover_stale_online_states(
         &self,
-        cutoff_seen_at: &str,
-        limit: usize,
+        request: StalePresenceScopeDiscoveryRequest<'_>,
     ) -> Result<Vec<PresenceStateRecord>, ContractError>;
 
     fn expire_online_state_if_seen_at_or_before(

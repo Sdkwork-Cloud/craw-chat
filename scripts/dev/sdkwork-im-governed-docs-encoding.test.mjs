@@ -47,6 +47,33 @@ const currentMessageHistoryDocs = [
   'docs/architecture/tech/TECH-changelog.md',
 ];
 
+const strictUtf8Docs = [
+  'docs/operations/OPERATIONS_MANUAL.md',
+];
+
+const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+
+for (const relativePath of strictUtf8Docs) {
+  const absolutePath = path.join(repoRoot, relativePath);
+  assert.ok(fs.existsSync(absolutePath), `strict UTF-8 doc must exist: ${relativePath}`);
+  const bytes = fs.readFileSync(absolutePath);
+  assert.equal(
+    bytes.subarray(0, 3).equals(Buffer.from([0xEF, 0xBB, 0xBF])),
+    false,
+    `${relativePath} must use UTF-8 without BOM`,
+  );
+  assert.doesNotThrow(
+    () => utf8Decoder.decode(bytes),
+    `${relativePath} must contain valid UTF-8 bytes`,
+  );
+  const source = utf8Decoder.decode(bytes);
+  assert.doesNotMatch(
+    source,
+    /\uFFFD|Ã|Â|â€™|â€œ|â€|ðŸ|锟斤拷|浣犲ソ|鏁版嵁/u,
+    `${relativePath} must not contain replacement characters or mojibake`,
+  );
+}
+
 for (const relativePath of governedDocs) {
   const absolutePath = path.join(repoRoot, relativePath);
   assert.ok(fs.existsSync(absolutePath), `governed doc must exist: ${relativePath}`);

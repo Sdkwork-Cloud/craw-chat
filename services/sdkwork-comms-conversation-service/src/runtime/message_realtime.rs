@@ -607,10 +607,9 @@ mod tests {
             Ok(0)
         }
 
-        fn list_pending_scopes(
+        fn discover_pending_scopes(
             &self,
-            _aggregate_type: &str,
-            _limit: usize,
+            _request: im_platform_contracts::OutboxScopeDiscoveryRequest<'_>,
         ) -> Result<Vec<(String, String)>, ContractError> {
             Ok(Vec::new())
         }
@@ -713,11 +712,11 @@ mod tests {
                 .count() as u64)
         }
 
-        fn list_pending_scopes(
+        fn discover_pending_scopes(
             &self,
-            aggregate_type: &str,
-            _limit: usize,
+            request: im_platform_contracts::OutboxScopeDiscoveryRequest<'_>,
         ) -> Result<Vec<(String, String)>, ContractError> {
+            let aggregate_type = request.aggregate_type();
             let mut scopes = self
                 .events
                 .lock()
@@ -892,7 +891,6 @@ mod tests {
     #[test]
     fn conversation_outbox_payload_does_not_embed_unbounded_recipient_inventory() {
         let runtime = ConversationRuntime::new(RealtimeTestJournal::default())
-            .with_outbox_store(Arc::new(NoopOutboxStore))
             .with_id_generator(Arc::new(RealtimeTestIdGenerator::default()));
         runtime
             .create_conversation(CreateConversationCommand {
@@ -916,6 +914,7 @@ mod tests {
                 })
                 .expect("outbox test member should be added");
         }
+        let runtime = runtime.with_outbox_store(Arc::new(NoopOutboxStore));
 
         let record = runtime
             .build_message_mutation_outbox_record(
@@ -941,10 +940,10 @@ mod tests {
     }
 
     #[test]
-    fn replacing_group_agents_without_publisher_enqueues_deterministic_outbox_record() {
-        let outbox = RecordingOutboxStore::default();
+    fn replacing_group_agents_without_publisher_persists_deterministic_atomic_outbox_record() {
+        let writer = RecordingDurableConversationEventWriter::default();
         let runtime = ConversationRuntime::new(RealtimeTestJournal::default())
-            .with_outbox_store(Arc::new(outbox.clone()));
+            .with_durable_conversation_event_writer(Arc::new(writer.clone()));
         runtime
             .create_conversation(CreateConversationCommand {
                 tenant_id: "100001".into(),
@@ -972,9 +971,15 @@ mod tests {
             })
             .expect("owner should replace group agents");
 
-        let records = outbox.recorded();
+        let commits = writer.recorded();
+        let records = commits
+            .iter()
+            .filter(|(event, _)| event.event_type == "conversation.agents_replaced")
+            .collect::<Vec<_>>();
         assert_eq!(records.len(), 1);
-        let record = &records[0];
+        let (event, record) = records[0];
+        assert_eq!(event.event_id, replaced.event_id);
+        assert_eq!(event.event_type, "conversation.agents_replaced");
         assert_eq!(record.tenant_id, "100001");
         assert_eq!(record.organization_id, "200001");
         assert_eq!(record.aggregate_type, "conversation");
@@ -1020,23 +1025,6 @@ mod tests {
             "agent.im.writer"
         );
         assert!(payload.get("recipientPrincipalIds").is_none());
-
-        runtime
-            .publish_or_enqueue_conversation_event(ConversationRealtimeEvent {
-                tenant_id: "100001",
-                organization_id: "200001",
-                conversation_id: "c_agents_outbox",
-                event_type: "conversation.agents_replaced",
-                journal_event_id: replaced.event_id.as_str(),
-                payload_json: record.payload_json.clone(),
-                occurred_at: replaced.replaced_at.as_str(),
-            })
-            .expect("retrying the same committed event should be idempotent");
-        assert_eq!(
-            outbox.recorded().len(),
-            1,
-            "deterministic identity must collapse a post-commit delivery retry"
-        );
     }
 
     #[test]

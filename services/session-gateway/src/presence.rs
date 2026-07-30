@@ -1,8 +1,10 @@
 use sdkwork_im_contract_control::{
     ExpireOnlinePresenceStateCommand, PresenceStateRecord, PresenceStateStore,
-    normalize_realtime_organization_id,
+    StalePresenceScopeDiscoveryRequest, normalize_realtime_organization_id,
 };
-use sdkwork_im_contract_core::ContractError;
+use sdkwork_im_contract_core::{
+    ContractError, PrivilegedOperationActorKind, PrivilegedOperationContext,
+};
 use sdkwork_im_runtime_link::decide_resume;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -16,7 +18,8 @@ use im_time::{rfc3339_gt, rfc3339_le, utc_now_rfc3339_millis};
 use crate::principal_scope::{typed_client_route_scope_key, typed_principal_scope_key};
 use crate::session_fence::{SessionFenceDecision, decide_session_fence};
 
-const PRESENCE_EXPIRATION_BATCH_LIMIT: usize = 1024;
+const PRESENCE_EXPIRATION_BATCH_LIMIT: usize = 1_000;
+const PRESENCE_MAINTENANCE_WORKER_ID: &str = "session-gateway-maintenance";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct PresenceRuntimeEntry {
@@ -127,11 +130,12 @@ impl PresenceStateStore for RuntimeMemoryPresenceStateStore {
             .collect())
     }
 
-    fn list_online_states_seen_at_or_before(
+    fn discover_stale_online_states(
         &self,
-        cutoff_seen_at: &str,
-        limit: usize,
+        request: StalePresenceScopeDiscoveryRequest<'_>,
     ) -> Result<Vec<PresenceStateRecord>, ContractError> {
+        let cutoff_seen_at = request.cutoff_seen_at();
+        let limit = request.limit();
         if limit == 0 {
             return Ok(Vec::new());
         }
@@ -479,9 +483,21 @@ impl PresenceRuntime {
         cutoff_seen_at: &str,
         expired_at: &str,
     ) -> Result<usize, PresenceRuntimeError> {
+        let context = PrivilegedOperationContext::try_new(
+            PrivilegedOperationActorKind::ServiceWorker,
+            PRESENCE_MAINTENANCE_WORKER_ID,
+            sdkwork_utils_rust::id::uuid(),
+        )
+        .map_err(PresenceRuntimeError::presence_store)?;
+        let request = StalePresenceScopeDiscoveryRequest::try_new(
+            &context,
+            cutoff_seen_at,
+            PRESENCE_EXPIRATION_BATCH_LIMIT,
+        )
+        .map_err(PresenceRuntimeError::presence_store)?;
         let stale_records = self
             .state_store
-            .list_online_states_seen_at_or_before(cutoff_seen_at, PRESENCE_EXPIRATION_BATCH_LIMIT)
+            .discover_stale_online_states(request)
             .map_err(PresenceRuntimeError::presence_store)?;
         let mut expired_count = 0usize;
 

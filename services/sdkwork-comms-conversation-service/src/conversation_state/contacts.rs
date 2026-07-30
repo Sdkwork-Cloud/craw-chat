@@ -105,7 +105,6 @@ impl ContactDirectChatBindingRuntimeStore {
             binding.updated_at = Some(archived_at.to_owned());
         }
     }
-
 }
 
 /// Per-owner contact index with incrementally maintained sort order for paginated reads.

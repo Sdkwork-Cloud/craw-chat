@@ -103,10 +103,11 @@ pub trait MessageStore: Send + Sync {
     /// 按 Snowflake ID 读取单条消息
     ///
     /// SELECT ... FROM im_conversation_messages
-    /// WHERE tenant_id=$1 AND message_id=$2
+    /// WHERE tenant_id=$1 AND organization_id=$2 AND message_id=$3
     fn read_message_by_id(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         message_id: i64,
     ) -> Result<Option<StoredMessageRecord>, ContractError>;
 

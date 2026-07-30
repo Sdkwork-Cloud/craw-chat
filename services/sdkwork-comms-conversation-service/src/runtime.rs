@@ -98,8 +98,7 @@ use self::support::{
     build_message_unpinned_envelope, build_owner_transfer_envelope, build_read_cursor_envelope,
     conversation_business_scope_key, conversation_retention_class, conversation_scope_key,
     conversation_timestamp, decode_conversation_scope_key, encode_conversation_key_segments,
-    event_id_component,
-    next_member_episode, resolve_active_member, resolve_active_member_id,
+    event_id_component, next_member_episode, resolve_active_member, resolve_active_member_id,
     resolve_active_member_id_with_kind, resolve_active_member_with_kind, upsert_member,
     upsert_read_cursor, upsert_roster_member,
 };
@@ -2703,6 +2702,7 @@ impl CommitJournal for InMemoryJournal {
             .into_iter()
             .filter(|envelope| {
                 envelope.tenant_id == scope.tenant_id
+                    && envelope.normalized_organization_id() == scope.organization_id
                     && (envelope.aggregate_id == scope.aggregate_id
                         || envelope.scope_id == scope.aggregate_id)
             })
@@ -2747,7 +2747,7 @@ impl CommitJournal for InMemoryJournal {
             .into_iter()
             .filter(|envelope| {
                 envelope.tenant_id == query.tenant_id
-                    && envelope.organization_id == query.organization_id
+                    && envelope.normalized_organization_id() == query.organization_id
                     && envelope.aggregate_type.as_wire_value() == query.aggregate_type
                     && envelope.aggregate_id == query.aggregate_id
                     && query
@@ -3133,7 +3133,7 @@ where
             .as_ref()
             .ok_or_else(|| RuntimeError::MessageNotFound(message_id.to_owned()))?;
         let record = message_store
-            .read_message_by_id(tenant_id, numeric_message_id)?
+            .read_message_by_id(tenant_id, organization_id, numeric_message_id)?
             .ok_or_else(|| RuntimeError::MessageNotFound(message_id.to_owned()))?;
         let normalized_organization_id =
             im_domain_events::normalize_commit_organization_id(organization_id);
@@ -5916,6 +5916,46 @@ mod tests {
             render_hints: BTreeMap::new(),
             reply_to: None,
         }
+    }
+
+    #[test]
+    fn in_memory_journal_aggregate_replay_is_organization_scoped() {
+        let journal = InMemoryJournal::default();
+        let organization_a = CommitEnvelope::minimal(
+            "event-org-a",
+            "tenant-a",
+            "conversation.updated",
+            "conversation",
+            "conversation-shared-id",
+            0,
+        )
+        .with_organization_id("organization-a");
+        let organization_b = CommitEnvelope::minimal(
+            "event-org-b",
+            "tenant-a",
+            "conversation.updated",
+            "conversation",
+            "conversation-shared-id",
+            0,
+        )
+        .with_organization_id("organization-b");
+        CommitJournal::append(&journal, organization_a).expect("organization A append");
+        CommitJournal::append(&journal, organization_b).expect("organization B append");
+
+        let page = CommitJournal::recorded_page_for_aggregate(
+            &journal,
+            &CommitJournalAggregateScope {
+                tenant_id: "tenant-a".into(),
+                organization_id: "organization-a".into(),
+                aggregate_id: "conversation-shared-id".into(),
+            },
+            None,
+            20,
+        )
+        .expect("organization-scoped replay");
+
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.items[0].event_id, "event-org-a");
     }
 
     #[test]

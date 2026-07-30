@@ -23,7 +23,6 @@ export async function ensurePostgresDevDatabaseReady({
 
   return ensureSharedPostgresDevDatabaseReady({
     env,
-    legacyDatabasePrefixes: ['SDKWORK_IM_DATABASE_'],
     repoRoot,
     runMigrations: async (profile) => {
       stdout.write('[sdkwork-im-db] applying IM database migrations via sdkwork-database-cli\n');

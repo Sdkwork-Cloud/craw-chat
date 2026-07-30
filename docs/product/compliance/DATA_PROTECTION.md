@@ -1,4 +1,4 @@
-﻿# Sdkwork IM 鈥?Data Protection & Privacy
+# Sdkwork IM - Data Protection & Privacy
 
 Status: active  
 Owner: SDKWork maintainers  

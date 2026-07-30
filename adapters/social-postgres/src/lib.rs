@@ -108,21 +108,26 @@ fn postgres_io_thread_panic() -> im_platform_contracts::ContractError {
 }
 
 pub(crate) fn build_social_pool(
-    config: &config::SocialPostgresConfig,
+    _config: &config::SocialPostgresConfig,
 ) -> Result<SocialPostgresPool, im_platform_contracts::ContractError> {
     if let Some(pool) = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool() {
         return Ok(SocialPostgresPool::new(pool));
     }
-    if cfg!(test) {
-        return build_social_pool_local(config);
+    #[cfg(test)]
+    {
+        return build_social_pool_local(_config);
     }
-    Err(im_platform_contracts::ContractError::Unavailable(
-        sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
-            .err()
-            .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
-    ))
+    #[cfg(not(test))]
+    {
+        Err(im_platform_contracts::ContractError::Unavailable(
+            sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
+                .err()
+                .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
+        ))
+    }
 }
 
+#[cfg(test)]
 fn build_social_pool_local(
     config: &config::SocialPostgresConfig,
 ) -> Result<SocialPostgresPool, im_platform_contracts::ContractError> {
@@ -154,6 +159,7 @@ fn build_social_pool_local(
 /// Uses the system trust store for certificate verification. The actual TLS
 /// negotiation is gated by the `sslmode` URL parameter: when `sslmode=disable`
 /// the `postgres` crate never invokes this connector.
+#[cfg(test)]
 fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_tls::Error> {
     let connector = native_tls::TlsConnector::builder().build()?;
     Ok(postgres_native_tls::MakeTlsConnector::new(connector))
@@ -162,6 +168,7 @@ fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_
 /// P0-12 fail-closed: in production, the database URL MUST contain
 /// `sslmode=require` or `sslmode=verify-full`. This prevents silent plaintext
 /// connections to production databases (SECURITY_SPEC §4.3).
+#[cfg(test)]
 fn verify_production_sslmode(
     database_url: &str,
 ) -> Result<(), im_platform_contracts::ContractError> {

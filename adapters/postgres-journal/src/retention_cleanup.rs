@@ -3,14 +3,16 @@
 //! Uses the partial indexes declared in `001_im_core_schema.sql` and verified by
 //! `database_schema_contract_test`.
 
-use im_platform_contracts::ContractError;
+use im_platform_contracts::{ContractError, PrivilegedOperationContext};
 use r2d2_postgres::postgres;
 
 use crate::{PostgresJournalPool, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 const DEFAULT_PURGE_BATCH_SIZE: i64 = 500;
+pub const RETENTION_PURGE_BATCH_SIZE_MAX: i64 = 5_000;
 
 const PURGE_COMMIT_JOURNAL_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=retention-expiry-purge */
 DELETE FROM im_commit_journal
 WHERE ctid IN (
     SELECT ctid
@@ -23,6 +25,7 @@ WHERE ctid IN (
 "#;
 
 const PURGE_CONVERSATION_MESSAGES_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=retention-expiry-purge */
 DELETE FROM im_conversation_messages
 WHERE ctid IN (
     SELECT ctid
@@ -35,6 +38,7 @@ WHERE ctid IN (
 "#;
 
 const PURGE_MESSAGE_MEDIA_REFS_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=retention-expiry-purge */
 DELETE FROM im_message_media_refs
 WHERE ctid IN (
     SELECT ctid
@@ -47,6 +51,7 @@ WHERE ctid IN (
 "#;
 
 const PURGE_OUTBOX_EVENTS_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=retention-expiry-purge */
 DELETE FROM im_outbox_events
 WHERE ctid IN (
     SELECT ctid
@@ -59,6 +64,7 @@ WHERE ctid IN (
 "#;
 
 const PURGE_INBOX_EVENTS_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=retention-expiry-purge */
 DELETE FROM im_inbox_events
 WHERE ctid IN (
     SELECT ctid
@@ -71,6 +77,7 @@ WHERE ctid IN (
 "#;
 
 const PURGE_REALTIME_DEVICE_EVENTS_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=retention-expiry-purge */
 DELETE FROM im_realtime_device_events
 WHERE ctid IN (
     SELECT ctid
@@ -83,6 +90,7 @@ WHERE ctid IN (
 "#;
 
 const PURGE_RTC_SESSIONS_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=retention-expiry-purge */
 DELETE FROM im_rtc_sessions
 WHERE ctid IN (
     SELECT ctid
@@ -95,6 +103,7 @@ WHERE ctid IN (
 "#;
 
 const PURGE_RTC_SIGNALS_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=retention-expiry-purge */
 DELETE FROM im_rtc_signals
 WHERE ctid IN (
     SELECT ctid
@@ -118,13 +127,86 @@ pub struct RetentionCleanupReport {
     pub rtc_signals_deleted: u64,
 }
 
+impl RetentionCleanupReport {
+    pub fn total_deleted(&self) -> u64 {
+        self.commit_journal_deleted
+            + self.conversation_messages_deleted
+            + self.message_media_refs_deleted
+            + self.outbox_events_deleted
+            + self.inbox_events_deleted
+            + self.realtime_device_events_deleted
+            + self.rtc_sessions_deleted
+            + self.rtc_signals_deleted
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RetentionPurgeRequest {
+    context: PrivilegedOperationContext,
+    batch_size: i64,
+}
+
+impl RetentionPurgeRequest {
+    pub fn try_new(
+        context: PrivilegedOperationContext,
+        batch_size: Option<i64>,
+    ) -> Result<Self, ContractError> {
+        let batch_size = batch_size.unwrap_or(DEFAULT_PURGE_BATCH_SIZE);
+        if !(1..=RETENTION_PURGE_BATCH_SIZE_MAX).contains(&batch_size) {
+            return Err(ContractError::Invalid(format!(
+                "retention purge batch size must be between 1 and {RETENTION_PURGE_BATCH_SIZE_MAX}"
+            )));
+        }
+        Ok(Self {
+            context,
+            batch_size,
+        })
+    }
+
+    pub fn context(&self) -> &PrivilegedOperationContext {
+        &self.context
+    }
+
+    pub const fn batch_size(&self) -> i64 {
+        self.batch_size
+    }
+}
+
 pub fn purge_expired_retention_batch(
     pool: &PostgresJournalPool,
-    batch_size: Option<i64>,
+    request: RetentionPurgeRequest,
 ) -> Result<RetentionCleanupReport, ContractError> {
+    let actor_kind = request.context().actor_kind().as_str().to_owned();
+    let actor_id = request.context().actor_id().to_owned();
+    let trace_id = request.context().trace_id().to_owned();
     let pool = pool.clone();
-    let limit = batch_size.unwrap_or(DEFAULT_PURGE_BATCH_SIZE).max(1);
-    run_postgres_io(move || purge_batch(&pool, limit))
+    let limit = request.batch_size();
+    let result = run_postgres_io(move || purge_batch(&pool, limit));
+    match &result {
+        Ok(report) => tracing::info!(
+            target: "sdkwork.im.security",
+            event = "im.retention_purge.operation_completed",
+            actor_kind,
+            actor_id,
+            trace_id,
+            outcome = "succeeded",
+            batch_size = limit,
+            rows_deleted = report.total_deleted(),
+            "cross-organization retention purge completed"
+        ),
+        Err(error) => tracing::warn!(
+            target: "sdkwork.im.security",
+            event = "im.retention_purge.operation_completed",
+            actor_kind,
+            actor_id,
+            trace_id,
+            outcome = "failed",
+            batch_size = limit,
+            error = ?error,
+            "cross-organization retention purge failed"
+        ),
+    }
+    result
 }
 
 fn purge_batch(

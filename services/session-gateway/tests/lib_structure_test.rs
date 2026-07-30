@@ -412,7 +412,7 @@ fn test_session_gateway_presence_memory_store_uses_principal_index() {
         "presence memory state store should maintain an online last-seen index for lease expiration"
     );
     assert!(
-        presence_source.contains("fn list_online_states_seen_at_or_before("),
+        presence_source.contains("fn discover_stale_online_states("),
         "presence state store should expose indexed stale-online listing for expiration jobs"
     );
     assert!(

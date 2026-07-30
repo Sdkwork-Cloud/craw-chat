@@ -103,8 +103,12 @@ pub(crate) fn trim_session_signals<T>(
     }
 }
 
-pub(crate) fn rtc_session_scope_key(tenant_id: &str, rtc_session_id: &str) -> String {
-    im_domain_core::rtc::encode_im_call_key_segments([tenant_id, rtc_session_id])
+pub(crate) fn rtc_session_scope_key(
+    tenant_id: &str,
+    organization_id: &str,
+    rtc_session_id: &str,
+) -> String {
+    im_domain_core::rtc::encode_im_call_key_segments([tenant_id, organization_id, rtc_session_id])
 }
 
 fn validate_payload_size(

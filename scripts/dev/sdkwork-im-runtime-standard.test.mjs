@@ -91,8 +91,8 @@ for (const required of [
 }
 assert.doesNotMatch(
   envExample,
-  /SDKWORK_CLAW_DATABASE_(?!ADMIN_)/u,
-  'IM runtime identity must remain application-scoped; only unified bootstrap admin keys are shared',
+  /^SDKWORK_(?!DATABASE_)[A-Z0-9_]+_DATABASE_[A-Z0-9_]+=/mu,
+  'IM runtime must not declare application- or module-prefixed database keys',
 );
 for (const required of [
   'SDKWORK_DATABASE_ADMIN_HOST',
@@ -126,13 +126,12 @@ assert.equal(
   canonicalPostgres.env.SDKWORK_DATABASE_URL,
   'postgresql://sdkwork_ai_dev:chat%20pass@127.0.0.1:15432/sdkwork_ai_dev?sslmode=disable',
 );
-assert.equal(
-  canonicalPostgres.env.SDKWORK_DATABASE_URL,
-  canonicalPostgres.env.SDKWORK_DATABASE_URL,
-  'runtime bridge must keep the current Rust-compatible database URL during migration',
+assert.equal(canonicalPostgres.env.SDKWORK_DATABASE_MAX_CONNECTIONS, '11');
+assert.deepEqual(
+  Object.keys(canonicalPostgres.env).filter((key) => key.includes('_DATABASE_') && !key.startsWith('SDKWORK_DATABASE_')),
+  [],
+  'runtime profile must not generate module database bridges',
 );
-assert.equal(canonicalPostgres.env.SDKWORK_DATABASE_MAX_CONNECTIONS, '11');
-assert.equal(canonicalPostgres.env.SDKWORK_DATABASE_MAX_CONNECTIONS, '11');
 
 assert.throws(
   () => sharedDbModule.resolveSdkworkImSharedDatabaseConfig({
@@ -145,7 +144,7 @@ assert.throws(
     },
     repoRoot,
   }),
-  /SDKWORK_DATABASE_PROVIDER.*not standard/u,
+  /retired database configuration SDKWORK_DATABASE_PROVIDER/u,
   'new app config must reject legacy DATABASE_PROVIDER spelling',
 );
 assert.throws(
@@ -160,7 +159,7 @@ assert.throws(
     },
     repoRoot,
   }),
-  /SDKWORK_DATABASE_SSLMODE.*not standard/u,
+  /retired database configuration SDKWORK_DATABASE_SSLMODE/u,
   'new app config must reject legacy DATABASE_SSLMODE spelling',
 );
 
@@ -284,12 +283,15 @@ for (const required of [
   'deployment_profile = "standalone"',
   'runtime_target = "desktop"',
   'app_code = "chat"',
-  'engine = "postgresql"',
-  'max_connections = 8',
 ]) {
   assert.ok(desktopConfigTemplate.includes(required), `desktop.toml.example must document ${required}`);
 }
 assert.doesNotMatch(desktopConfigTemplate, /deployment_mode/u);
+assert.doesNotMatch(
+  desktopConfigTemplate,
+  /^\[database\]/mu,
+  'desktop config must not embed the backend server database profile',
+);
 
 const initConfigServerPs1 = read('bin/init-config-server.ps1');
 const initConfigServerSh = read('bin/init-config-server.sh');

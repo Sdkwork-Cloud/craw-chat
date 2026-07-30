@@ -39,6 +39,7 @@ pub const COMMIT_JOURNAL_REPLAY_BATCH_LIMIT: usize = 200;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CommitJournalAggregateScope {
     pub tenant_id: String,
+    pub organization_id: String,
     pub aggregate_id: String,
 }
 
@@ -190,6 +191,7 @@ mod tests {
         let journal = AppendOnlyJournal;
         let scope = CommitJournalAggregateScope {
             tenant_id: "tenant".into(),
+            organization_id: "organization".into(),
             aggregate_id: "conversation".into(),
         };
 

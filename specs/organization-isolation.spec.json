@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.database.organization-isolation",
+  "tableRegistry": "../database/contract/table-registry.json",
+  "scopeColumns": ["tenant_id", "organization_id"],
+  "sourceRoots": ["services", "adapters", "crates"],
+  "crossOrganizationOperations": [
+    {
+      "id": "retention-expiry-purge",
+      "owner": "im-adapters-postgres-journal",
+      "authorizationMode": "retention-scheduler-service-or-ops-administrator",
+      "operationRequestType": "RetentionPurgeRequest",
+      "authorizationEvidenceSources": [
+        "adapters/postgres-journal/src/retention_cleanup.rs",
+        "adapters/postgres-journal/src/retention_scheduler.rs",
+        "services/ops-service/src/handlers.rs"
+      ],
+      "auditEvent": "im.retention_purge.operation_completed",
+      "auditEvidenceSources": ["adapters/postgres-journal/src/retention_cleanup.rs"],
+      "allowedSqlSources": ["adapters/postgres-journal/src/retention_cleanup.rs"],
+      "tables": [
+        "im_commit_journal",
+        "im_conversation_messages",
+        "im_message_media_refs",
+        "im_outbox_events",
+        "im_inbox_events",
+        "im_realtime_device_events",
+        "im_rtc_sessions",
+        "im_rtc_signals"
+      ],
+      "sqlOperation": "delete",
+      "requiredSqlFragments": [
+        "retention_until is not null",
+        "retention_until <= now()",
+        "order by retention_until asc",
+        "limit $1"
+      ],
+      "maximumBatchSize": 5000
+    },
+    {
+      "id": "outbox-scope-discovery",
+      "owner": "im-adapters-postgres-journal",
+      "authorizationMode": "typed-outbox-relay-worker",
+      "operationRequestType": "OutboxScopeDiscoveryRequest",
+      "authorizationEvidenceSources": [
+        "crates/im-platform-contracts/src/outbox_store.rs",
+        "crates/sdkwork-api-im-assembly/src/outbox_relay_common.rs",
+        "services/sdkwork-comms-conversation-service/src/runtime/group_knowledgebase_outbox_relay.rs"
+      ],
+      "auditEvent": "im.outbox_scope_discovery.operation_completed",
+      "auditEvidenceSources": ["adapters/postgres-journal/src/outbox_store.rs"],
+      "allowedSqlSources": ["adapters/postgres-journal/src/outbox_store.rs"],
+      "tables": ["im_outbox_events"],
+      "sqlOperation": "select",
+      "requiredSqlFragments": [
+        "publish_status = 'pending'",
+        "aggregate_type = $2",
+        "group by tenant_id, organization_id",
+        "order by min(available_at), tenant_id, organization_id",
+        "limit $3"
+      ],
+      "maximumResultSize": 32
+    },
+    {
+      "id": "knowledgebase-reconciliation-scope-discovery",
+      "owner": "sdkwork-comms-conversation-service",
+      "authorizationMode": "typed-group-knowledgebase-reconciliation-worker",
+      "operationRequestType": "GroupKnowledgebaseReconciliationScopeRequest",
+      "authorizationEvidenceSources": [
+        "services/sdkwork-comms-conversation-service/src/runtime/knowledgebase.rs"
+      ],
+      "auditEvent": "im.knowledgebase_reconciliation_scope.operation_completed",
+      "auditEvidenceSources": [
+        "services/sdkwork-comms-conversation-service/src/runtime/knowledgebase.rs"
+      ],
+      "allowedSqlSources": [
+        "services/sdkwork-comms-conversation-service/src/runtime/knowledgebase.rs"
+      ],
+      "tables": ["im_conversation_knowledge_space_link"],
+      "sqlOperation": "select",
+      "requiredSqlFragments": [
+        "lifecycle_state in ('provisioning', 'active', 'archived')",
+        "(tenant_id, organization_id) > ($1, $2)",
+        "group by tenant_id, organization_id",
+        "order by tenant_id asc, organization_id asc",
+        "limit 1"
+      ],
+      "maximumResultSize": 1
+    },
+    {
+      "id": "agent-dispatch-worker-claim",
+      "owner": "im-adapters-postgres-journal",
+      "authorizationMode": "typed-agent-dispatch-worker",
+      "operationRequestType": "GlobalAgentDispatchClaimRequest",
+      "authorizationEvidenceSources": [
+        "crates/sdkwork-im-contract-agent/src/integration.rs",
+        "services/sdkwork-comms-conversation-service/src/runtime/agent_dispatch_worker.rs"
+      ],
+      "auditEvent": "im.agent_dispatch_claim.operation_completed",
+      "auditEvidenceSources": ["adapters/postgres-journal/src/agent_integration_store.rs"],
+      "allowedSqlSources": ["adapters/postgres-journal/src/agent_integration_store.rs"],
+      "tables": ["im_agent_dispatch"],
+      "sqlOperation": "select",
+      "requiredSqlFragments": [
+        "for update skip locked",
+        "lease_owner = $1",
+        "lease_expires_at = $3",
+        "order by next_attempt_at, lease_expires_at nulls first, id",
+        "limit $4"
+      ],
+      "maximumResultSize": 100
+    },
+    {
+      "id": "presence-stale-scope-discovery",
+      "owner": "im-adapters-postgres-realtime",
+      "authorizationMode": "session-gateway-maintenance-worker",
+      "operationRequestType": "StalePresenceScopeDiscoveryRequest",
+      "authorizationEvidenceSources": [
+        "crates/sdkwork-im-contract-control/src/lib.rs",
+        "services/session-gateway/src/presence.rs"
+      ],
+      "auditEvent": "im.presence_stale_scope.operation_completed",
+      "auditEvidenceSources": ["adapters/postgres-realtime/src/lib.rs"],
+      "allowedSqlSources": ["adapters/postgres-realtime/src/lib.rs"],
+      "tables": ["im_presence_states"],
+      "sqlOperation": "select",
+      "requiredSqlFragments": [
+        "presence_status = 'online'",
+        "last_seen_at <= $1",
+        "order by last_seen_at asc, tenant_id asc, organization_id asc",
+        "limit $2"
+      ],
+      "maximumResultSize": 1000
+    },
+    {
+      "id": "realtime-window-diagnostics-summary",
+      "owner": "im-postgres-realtime-contracts",
+      "authorizationMode": "ops-diagnostics-reader",
+      "operationRequestType": "RealtimeDiagnosticsRequest",
+      "authorizationEvidenceSources": [
+        "crates/sdkwork-im-contract-control/src/lib.rs",
+        "services/session-gateway/src/realtime.rs"
+      ],
+      "auditEvent": "im.realtime_window_diagnostics.operation_completed",
+      "auditEvidenceSources": ["adapters/postgres-realtime/src/lib.rs"],
+      "allowedSqlSources": ["crates/im-postgres-realtime-contracts/src/lib.rs"],
+      "tables": ["im_realtime_checkpoints", "im_realtime_device_events"],
+      "sqlOperation": "select",
+      "requiredSqlFragments": [
+        "group by tenant_id, organization_id, client_route_scope_key",
+        "left join im_realtime_device_events",
+        "left join window_counts"
+      ],
+      "maximumResultSize": 1
+    },
+    {
+      "id": "realtime-window-diagnostics-high-risk",
+      "owner": "im-postgres-realtime-contracts",
+      "authorizationMode": "ops-diagnostics-reader",
+      "operationRequestType": "RealtimeDiagnosticsRequest",
+      "authorizationEvidenceSources": [
+        "crates/sdkwork-im-contract-control/src/lib.rs",
+        "services/session-gateway/src/realtime.rs"
+      ],
+      "auditEvent": "im.realtime_window_diagnostics.operation_completed",
+      "auditEvidenceSources": ["adapters/postgres-realtime/src/lib.rs"],
+      "allowedSqlSources": ["crates/im-postgres-realtime-contracts/src/lib.rs"],
+      "tables": ["im_realtime_checkpoints", "im_realtime_device_events"],
+      "sqlOperation": "select",
+      "requiredSqlFragments": [
+        "join im_realtime_device_events",
+        "group by c.tenant_id",
+        "order by pending_event_count desc",
+        "limit 5"
+      ],
+      "maximumResultSize": 5
+    },
+    {
+      "id": "realtime-window-diagnostics-orphaned",
+      "owner": "im-postgres-realtime-contracts",
+      "authorizationMode": "ops-diagnostics-reader",
+      "operationRequestType": "RealtimeDiagnosticsRequest",
+      "authorizationEvidenceSources": [
+        "crates/sdkwork-im-contract-control/src/lib.rs",
+        "services/session-gateway/src/realtime.rs"
+      ],
+      "auditEvent": "im.realtime_window_diagnostics.operation_completed",
+      "auditEvidenceSources": ["adapters/postgres-realtime/src/lib.rs"],
+      "allowedSqlSources": ["crates/im-postgres-realtime-contracts/src/lib.rs"],
+      "tables": ["im_realtime_checkpoints", "im_realtime_device_events"],
+      "sqlOperation": "select",
+      "requiredSqlFragments": [
+        "left join im_realtime_checkpoints",
+        "where c.client_route_scope_key is null",
+        "group by e.tenant_id, e.client_route_scope_key",
+        "limit $1"
+      ],
+      "maximumResultSize": 100
+    }
+  ]
+}

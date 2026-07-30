@@ -10,7 +10,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use im_adapters_postgres_journal::{PostgresJournalPool, PostgresOutboxStore};
-use im_platform_contracts::{OutboxEventClaim, OutboxStore};
+use im_platform_contracts::{
+    OutboxEventClaim, OutboxScopeDiscoveryRequest, OutboxStore, PrivilegedOperationActorKind,
+    PrivilegedOperationContext,
+};
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
@@ -36,6 +39,7 @@ const GROUP_KNOWLEDGEBASE_OUTBOX_RELAY_BATCH_SIZE: usize = 64;
 const GROUP_KNOWLEDGEBASE_OUTBOX_RELAY_SCOPE_LIMIT: usize = 32;
 const GROUP_KNOWLEDGEBASE_RECONCILIATION_BATCH_SIZE: usize = 32;
 const GROUP_KNOWLEDGEBASE_OUTBOX_LEASE: Duration = Duration::from_secs(30);
+const GROUP_KNOWLEDGEBASE_OUTBOX_RELAY_WORKER_ID: &str = "group-knowledgebase-outbox-relay";
 
 pub struct GroupKnowledgebaseOutboxRelayHandle {
     shutdown: watch::Sender<()>,
@@ -261,10 +265,35 @@ fn resolve_scopes(
         return vec![scope.clone()];
     }
 
-    match outbox.list_pending_scopes(
+    let context = match PrivilegedOperationContext::try_new(
+        PrivilegedOperationActorKind::ServiceWorker,
+        GROUP_KNOWLEDGEBASE_OUTBOX_RELAY_WORKER_ID,
+        sdkwork_utils_rust::id::uuid(),
+    ) {
+        Ok(context) => context,
+        Err(error) => {
+            warn!(
+                ?error,
+                "group knowledgebase outbox relay identity is invalid"
+            );
+            return Vec::new();
+        }
+    };
+    let request = match OutboxScopeDiscoveryRequest::try_new(
+        &context,
         GROUP_KNOWLEDGEBASE_OUTBOX_AGGREGATE_TYPE,
         GROUP_KNOWLEDGEBASE_OUTBOX_RELAY_SCOPE_LIMIT,
     ) {
+        Ok(request) => request,
+        Err(error) => {
+            warn!(
+                ?error,
+                "group knowledgebase outbox relay scope request is invalid"
+            );
+            return Vec::new();
+        }
+    };
+    match outbox.discover_pending_scopes(request) {
         Ok(scopes) => scopes,
         Err(error) => {
             warn!(error = ?error, "group knowledgebase outbox relay scope discovery failed");

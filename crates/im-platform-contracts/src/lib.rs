@@ -17,16 +17,17 @@ pub use sdkwork_im_contract_admin::{AdminCapabilityProfileRecord, AdminCapabilit
 pub use sdkwork_im_contract_agent::*;
 pub use sdkwork_im_contract_control::{
     ExpireOnlinePresenceStateCommand, PresenceStateRecord, PresenceStateStore,
-    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
-    RealtimeDisconnectFenceStore, RealtimeEventWindowDiagnosticsSnapshot,
-    RealtimeEventWindowHighRiskRecord, RealtimeEventWindowRecord, RealtimeEventWindowStore,
-    RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
+    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDiagnosticsRequest,
+    RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
+    RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowHighRiskRecord,
+    RealtimeEventWindowRecord, RealtimeEventWindowStore, RealtimeMatchingSubscriptionQuery,
+    RealtimeSubscriptionRecord, RealtimeSubscriptionStore, StalePresenceScopeDiscoveryRequest,
     normalize_realtime_organization_id, realtime_client_route_scope_key,
     realtime_principal_scope_key, realtime_scope_key_parts,
 };
 pub use sdkwork_im_contract_core::{
     ContractError, LeaseGrant, LeaseStore, MetadataSnapshotRecord, MetadataStore, ObjectDescriptor,
-    ObjectPutRequest, ObjectStore,
+    ObjectPutRequest, ObjectStore, PrivilegedOperationActorKind, PrivilegedOperationContext,
 };
 pub use sdkwork_im_contract_message::{
     COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitEnvelope, CommitJournal,
@@ -50,10 +51,11 @@ pub use seq_allocator::ConversationSeqAllocator;
 pub use conversation_aggregate_store::{
     CONVERSATION_AGGREGATE_PAGE_SIZE_DEFAULT, CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
     ConversationAggregateState, ConversationAggregateStore, ConversationMemberPage,
-    ConversationMemberPageCursor, ConversationMemberRecord, NormalizedConversationCommit,
-    NormalizedConversationBusinessBindingRecord, NormalizedConversationCurrentState,
-    NormalizedConversationHandoffRecord, NormalizedConversationPolicyRecord,
-    NormalizedConversationRecord, ReadCursorPage, ReadCursorPageCursor, ReadCursorRecord,
+    ConversationMemberPageCursor, ConversationMemberRecord,
+    NormalizedConversationBusinessBindingRecord, NormalizedConversationCommit,
+    NormalizedConversationCurrentState, NormalizedConversationHandoffRecord,
+    NormalizedConversationPolicyRecord, NormalizedConversationRecord, ReadCursorPage,
+    ReadCursorPageCursor, ReadCursorRecord,
 };
 pub use conversation_member_access_gate::{
     AggregateStoreConversationMemberAccessGate, ConversationMemberAccessGate,
@@ -65,7 +67,10 @@ pub use message_store::{
     MessageStore, MessageWindow, StoredMessagePinRecord, StoredMessageReactionRecord,
     StoredMessageRecord,
 };
-pub use outbox_store::{OutboxEventClaim, OutboxEventRecord, OutboxPublishStatus, OutboxStore};
+pub use outbox_store::{
+    OutboxEventClaim, OutboxEventRecord, OutboxPublishStatus, OutboxScopeDiscoveryRequest,
+    OutboxStore,
+};
 pub use realtime_publisher::{
     RealtimeEventPublisher, RealtimeEventRecipient, RealtimeScopeEventPublishCommand,
 };

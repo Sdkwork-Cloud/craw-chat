@@ -203,6 +203,7 @@ impl RealtimeEventWindowStore for FileRealtimeEventWindowStore {
 
     fn diagnostics_snapshot(
         &self,
+        _request: im_platform_contracts::RealtimeDiagnosticsRequest<'_>,
     ) -> Result<RealtimeEventWindowDiagnosticsSnapshot, ContractError> {
         let _guard = self
             .io_lock

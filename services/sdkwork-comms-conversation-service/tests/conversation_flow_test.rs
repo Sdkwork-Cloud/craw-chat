@@ -298,10 +298,9 @@ impl OutboxStore for NoopMessageMutationOutboxStore {
         Ok(0)
     }
 
-    fn list_pending_scopes(
+    fn discover_pending_scopes(
         &self,
-        _aggregate_type: &str,
-        _limit: usize,
+        _request: im_platform_contracts::OutboxScopeDiscoveryRequest<'_>,
     ) -> Result<Vec<(String, String)>, ContractError> {
         Ok(Vec::new())
     }
@@ -972,12 +971,17 @@ impl MessageStore for TestMessageStore {
     fn read_message_by_id(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         message_id: i64,
     ) -> Result<Option<StoredMessageRecord>, ContractError> {
         Ok(self
             .messages
             .iter()
-            .find(|message| message.tenant_id == tenant_id && message.message_id == message_id)
+            .find(|message| {
+                message.tenant_id == tenant_id
+                    && message.organization_id == organization_id
+                    && message.message_id == message_id
+            })
             .cloned())
     }
 

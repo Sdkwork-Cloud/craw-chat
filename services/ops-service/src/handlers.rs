@@ -2,9 +2,11 @@ use axum::extract::rejection::QueryRejection;
 use axum::extract::{Extension, Query, State};
 use axum::response::Response;
 use im_adapters_postgres_journal::{
-    PostgresJournalConfig, RetentionCleanupReport, purge_expired_retention_batch,
+    PostgresJournalConfig, RetentionCleanupReport, RetentionPurgeRequest,
+    purge_expired_retention_batch,
 };
 use im_app_context::AppContext;
+use im_platform_contracts::{PrivilegedOperationActorKind, PrivilegedOperationContext};
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_routes_web_framework_backend_api::response::{ApiResult, finish_api_json};
 use sdkwork_utils_rust::{SdkWorkCursorListQuery, SdkWorkPageData, SdkWorkResourceData};
@@ -174,14 +176,27 @@ pub(crate) async fn post_retention_purge(
         let pool = config.connect_pool().map_err(|error| {
             OpsError::service_unavailable("database_unavailable", format!("{error:?}"))
         })?;
-        let report = tokio::task::spawn_blocking(move || {
-            purge_expired_retention_batch(&pool, Some(batch_size))
-        })
-        .await
-        .map_err(|_| {
-            OpsError::internal("retention_purge_failed", "retention purge worker panicked")
-        })?
-        .map_err(|error| OpsError::internal("retention_purge_failed", format!("{error:?}")))?;
+        let context = PrivilegedOperationContext::try_new(
+            PrivilegedOperationActorKind::OpsAdministrator,
+            auth.actor_id.as_str(),
+            ctx.resolved_trace_id(),
+        )
+        .map_err(|error| {
+            OpsError::internal("retention_purge_context_invalid", format!("{error:?}"))
+        })?;
+        let request =
+            RetentionPurgeRequest::try_new(context, Some(batch_size)).map_err(|error| {
+                OpsError::internal("retention_purge_request_invalid", format!("{error:?}"))
+            })?;
+        let report =
+            tokio::task::spawn_blocking(move || purge_expired_retention_batch(&pool, request))
+                .await
+                .map_err(|_| {
+                    OpsError::internal("retention_purge_failed", "retention purge worker panicked")
+                })?
+                .map_err(|error| {
+                    OpsError::internal("retention_purge_failed", format!("{error:?}"))
+                })?;
         Ok(SdkWorkResourceData {
             item: retention_purge_response(batch_size, report),
         })

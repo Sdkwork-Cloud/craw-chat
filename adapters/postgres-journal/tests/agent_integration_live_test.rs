@@ -243,20 +243,20 @@ async fn agent_assignments_binding_and_dispatch_are_idempotent_scoped_and_leased
         let mut client = cleanup_pool.get().expect("cleanup connection");
         client
             .execute(
-                "delete from im_agent_dispatch where tenant_id = $1",
-                &[&(tenant_id as i64)],
+                "delete from im_agent_dispatch where tenant_id = $1 and organization_id = $2",
+                &[&(tenant_id as i64), &(organization_id as i64)],
             )
             .expect("dispatch cleanup");
         client
             .execute(
-                "delete from im_conversation_agent_binding where tenant_id = $1",
-                &[&(tenant_id as i64)],
+                "delete from im_conversation_agent_binding where tenant_id = $1 and organization_id = $2",
+                &[&(tenant_id as i64), &(organization_id as i64)],
             )
             .expect("binding cleanup");
         client
             .execute(
-                "delete from im_conversation_agent_assignments where tenant_id = $1",
-                &[&(tenant_id as i64)],
+                "delete from im_conversation_agent_assignments where tenant_id = $1 and organization_id = $2",
+                &[&(tenant_id as i64), &(organization_id as i64)],
             )
             .expect("assignment cleanup");
     })
@@ -580,8 +580,8 @@ async fn agent_reply_and_dispatch_completion_commit_and_rollback_atomically() {
         let mut client = cleanup_pool.get().expect("verification connection");
         let completion = client
             .query_one(
-                "select status, agents_turn_id, reply_message_id, reply_message_seq from im_agent_dispatch where tenant_id = $1 and dispatch_id = $2",
-                &[&(tenant_id as i64), &dispatch_id],
+                "select status, agents_turn_id, reply_message_id, reply_message_seq from im_agent_dispatch where tenant_id = $1 and organization_id = $3 and dispatch_id = $2",
+                &[&(tenant_id as i64), &dispatch_id, &(organization_id as i64)],
             )
             .expect("completed dispatch should load");
         assert_eq!(completion.get::<_, i16>(0), 4);
@@ -591,24 +591,40 @@ async fn agent_reply_and_dispatch_completion_commit_and_rollback_atomically() {
         assert_eq!(
             client
                 .query_one(
-                    "select count(*) from im_conversation_messages where tenant_id = $1 and message_id = $2",
-                    &[&(tenant_id.to_string()), &(rolled_back_message_id as i64)],
+                    "select count(*) from im_conversation_messages where tenant_id = $1 and organization_id = $2 and message_id = $3",
+                    &[
+                        &(tenant_id.to_string()),
+                        &(organization_id.to_string()),
+                        &(rolled_back_message_id as i64),
+                    ],
                 )
                 .expect("rolled back message count should load")
                 .get::<_, i64>(0),
             0
         );
         client
-            .execute("delete from im_agent_dispatch where tenant_id = $1", &[&(tenant_id as i64)])
+            .execute(
+                "delete from im_agent_dispatch where tenant_id = $1 and organization_id = $2",
+                &[&(tenant_id as i64), &(organization_id as i64)],
+            )
             .expect("dispatch cleanup");
         client
-            .execute("delete from im_conversation_agent_binding where tenant_id = $1", &[&(tenant_id as i64)])
+            .execute(
+                "delete from im_conversation_agent_binding where tenant_id = $1 and organization_id = $2",
+                &[&(tenant_id as i64), &(organization_id as i64)],
+            )
             .expect("binding cleanup");
         client
-            .execute("delete from im_conversation_messages where tenant_id = $1", &[&tenant_id.to_string()])
+            .execute(
+                "delete from im_conversation_messages where tenant_id = $1 and organization_id = $2",
+                &[&tenant_id.to_string(), &organization_id.to_string()],
+            )
             .expect("message cleanup");
         client
-            .execute("delete from im_commit_journal where tenant_id = $1", &[&tenant_id.to_string()])
+            .execute(
+                "delete from im_commit_journal where tenant_id = $1 and organization_id = $2",
+                &[&tenant_id.to_string(), &organization_id.to_string()],
+            )
             .expect("journal cleanup");
     })
     .await

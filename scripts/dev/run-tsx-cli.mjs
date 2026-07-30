@@ -105,6 +105,37 @@ const runtimeTsconfig = hasExplicitTsconfig(tsxArgs)
   ? undefined
   : materializeRuntimeTsconfig({ appRoot });
 
+function installRuntimeTsconfigCleanup(runtimeConfig) {
+  if (!runtimeConfig) return { cleanup() {}, dispose() {} };
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    removeImTemporaryDirectory(runtimeConfig.directory, { repoRoot: appRoot });
+  };
+  const signalHandlers = new Map();
+  const dispose = () => {
+    process.removeListener('exit', cleanup);
+    for (const [signal, handler] of signalHandlers) process.removeListener(signal, handler);
+  };
+  process.once('exit', cleanup);
+  for (const signal of ['SIGINT', 'SIGTERM']) {
+    const handler = () => {
+      try {
+        cleanup();
+      } finally {
+        dispose();
+        process.kill(process.pid, signal);
+      }
+    };
+    signalHandlers.set(signal, handler);
+    process.once(signal, handler);
+  }
+  return { cleanup, dispose };
+}
+
+const runtimeCleanup = installRuntimeTsconfigCleanup(runtimeTsconfig);
+
 process.argv = [
   process.argv[0],
   tsxCliPath,
@@ -114,8 +145,8 @@ process.argv = [
 
 try {
   await import(pathToFileURL(tsxCliPath).href);
-} finally {
-  if (runtimeTsconfig) {
-    removeImTemporaryDirectory(runtimeTsconfig.directory, { repoRoot: appRoot });
-  }
+} catch (error) {
+  runtimeCleanup.cleanup();
+  runtimeCleanup.dispose();
+  throw error;
 }

@@ -13,7 +13,7 @@ Postgres persistence adapter for social graph data. Consumes `sdkwork-database-c
 
 ## Configuration
 
-Database connection uses `SDKWORK_IM_DATABASE_*` environment variables through `sdkwork-database-config`.
+Database connection uses the process-level `SDKWORK_DATABASE_*` profile through `sdkwork-database-config`.
 
 ## Verification
 

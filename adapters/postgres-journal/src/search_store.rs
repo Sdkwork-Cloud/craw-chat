@@ -189,7 +189,7 @@ limit $5
 const REMOVE_SQL: &str = r#"
 update im_conversation_messages
 set search_vector = null
-where tenant_id = $1 and message_id = $2
+where tenant_id = $1 and organization_id = $2 and message_id = $3
 "#;
 
 fn escape_tsquery(query: &str) -> String {
@@ -380,13 +380,19 @@ impl SearchProvider for PostgresSearchProvider {
         })
     }
 
-    fn remove_message(&self, tenant_id: &str, message_id: i64) -> Result<(), ContractError> {
+    fn remove_message(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        message_id: i64,
+    ) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         let tenant = tenant_id.to_owned();
+        let organization = organization_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "search_remove")?;
             client
-                .execute(REMOVE_SQL, &[&tenant, &message_id])
+                .execute(REMOVE_SQL, &[&tenant, &organization, &message_id])
                 .map_err(|e| postgres_unavailable("search_remove", e))?;
             Ok(())
         })

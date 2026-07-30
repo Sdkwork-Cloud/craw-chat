@@ -3,7 +3,8 @@
 //! Implements distributed outbox pattern with FOR UPDATE SKIP LOCKED.
 
 use im_platform_contracts::{
-    ContractError, OutboxEventClaim, OutboxEventRecord, OutboxPublishStatus, OutboxStore,
+    ContractError, OutboxEventClaim, OutboxEventRecord, OutboxPublishStatus,
+    OutboxScopeDiscoveryRequest, OutboxStore,
 };
 
 use crate::{
@@ -117,6 +118,7 @@ where tenant_id = $1 and organization_id = $2 and publish_status = 'pending'
 "#;
 
 const LIST_PENDING_SCOPES_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=outbox-scope-discovery */
 select tenant_id, organization_id
 from im_outbox_events
 where publish_status = 'pending' and available_at <= $1
@@ -359,20 +361,21 @@ impl OutboxStore for PostgresOutboxStore {
         })
     }
 
-    fn list_pending_scopes(
+    fn discover_pending_scopes(
         &self,
-        aggregate_type: &str,
-        limit: usize,
+        request: OutboxScopeDiscoveryRequest<'_>,
     ) -> Result<Vec<(String, String)>, ContractError> {
-        if limit == 0 {
-            return Ok(Vec::new());
-        }
+        let context = request.context();
+        let actor_kind = context.actor_kind().as_str();
+        let actor_id = context.actor_id();
+        let trace_id = context.trace_id();
         let pool = self.pool.clone();
-        let aggregate_type = aggregate_type.to_owned();
+        let aggregate_type = request.aggregate_type().to_owned();
+        let audit_aggregate_type = aggregate_type.clone();
         let now = postgres_timestamptz(&now_rfc3339(), "now")?;
-        let limit = i64::try_from(limit)
+        let limit = i64::try_from(request.limit())
             .map_err(|_| ContractError::Invalid("outbox scope limit is too large".into()))?;
-        run_postgres_io(move || {
+        let result: Result<Vec<(String, String)>, ContractError> = run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_pending_scopes")?;
             let rows = client
                 .query(LIST_PENDING_SCOPES_SQL, &[&now, &aggregate_type, &limit])
@@ -381,7 +384,32 @@ impl OutboxStore for PostgresOutboxStore {
                 .iter()
                 .map(|row| (row.get::<_, String>(0), row.get::<_, String>(1)))
                 .collect())
-        })
+        });
+        match &result {
+            Ok(scopes) => tracing::info!(
+                target: "sdkwork.im.security",
+                event = "im.outbox_scope_discovery.operation_completed",
+                actor_kind,
+                actor_id,
+                trace_id,
+                outcome = "succeeded",
+                aggregate_type = %audit_aggregate_type,
+                scope_count = scopes.len(),
+                "cross-organization outbox scope discovery completed"
+            ),
+            Err(error) => tracing::warn!(
+                target: "sdkwork.im.security",
+                event = "im.outbox_scope_discovery.operation_completed",
+                actor_kind,
+                actor_id,
+                trace_id,
+                outcome = "failed",
+                aggregate_type = %audit_aggregate_type,
+                error = ?error,
+                "cross-organization outbox scope discovery failed"
+            ),
+        }
+        result
     }
 }
 

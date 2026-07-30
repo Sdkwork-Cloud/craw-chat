@@ -79,6 +79,8 @@
       "sdkwork_api_im_assembly::assemble_api_router",
       "sdkwork_api_im_assembly::assemble_api_router_with_realtime_bootstrap",
       "sdkwork_api_im_assembly::ApiAssembly",
+      "sdkwork_api_im_assembly::ApiAssemblyRuntime",
+      "sdkwork_api_im_assembly::StandaloneRuntimeWiring",
       "sdkwork_api_im_assembly::assembly_route_count"
     ],
     "providedPorts": [
@@ -87,7 +89,12 @@
         "export": "sdkwork_api_im_assembly::assemble_api_router"
       }
     ],
-    "requiredPorts": [],
+    "requiredPorts": [
+      {
+        "name": "agentsSessionFacade",
+        "export": "sdkwork_agents_runtime_facade::AgentsSessionFacade"
+      }
+    ],
     "runtimeEntrypoints": [
       "sdkwork_api_im_assembly::assemble_api_router"
     ],

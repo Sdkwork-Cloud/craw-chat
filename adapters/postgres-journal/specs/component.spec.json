@@ -103,6 +103,8 @@
       "im_adapters_postgres_journal::PostgresNotificationTaskStore",
       "im_adapters_postgres_journal::PostgresOutboxStore",
       "im_adapters_postgres_journal::PostgresRetentionScopeStore",
+      "im_adapters_postgres_journal::RetentionCleanupReport",
+      "im_adapters_postgres_journal::RetentionPurgeRequest",
       "im_adapters_postgres_journal::PostgresSearchProvider",
       "im_adapters_postgres_journal::PostgresStreamStateStore",
       "im_adapters_postgres_journal::conversation_member_access_gate_from_pool",
@@ -166,7 +168,10 @@
     "languagePolicy": "Rust source uses parameterized PostgreSQL operations, bounded repository windows, and explicit blocking-I/O bridges."
   },
   "verification": {
-    "commands": ["cargo test -p im-adapters-postgres-journal"]
+    "commands": [
+      "cargo test -p im-adapters-postgres-journal",
+      "pnpm --dir ../.. test:tenant-isolation-standard"
+    ]
   },
   "metadata": {
     "managedBy": "sdkwork-im",

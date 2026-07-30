@@ -5,10 +5,11 @@ use im_domain_core::{
 };
 use im_platform_contracts::{
     ContractError, ExpireOnlinePresenceStateCommand, PresenceStateRecord, PresenceStateStore,
-    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
-    RealtimeDisconnectFenceStore, RealtimeEventWindowDiagnosticsSnapshot,
-    RealtimeEventWindowHighRiskRecord, RealtimeEventWindowRecord, RealtimeEventWindowStore,
-    RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
+    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDiagnosticsRequest,
+    RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
+    RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowHighRiskRecord,
+    RealtimeEventWindowRecord, RealtimeEventWindowStore, RealtimeMatchingSubscriptionQuery,
+    RealtimeSubscriptionRecord, RealtimeSubscriptionStore, StalePresenceScopeDiscoveryRequest,
 };
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
@@ -111,6 +112,7 @@ order by device_id asc
 "#;
 
 const LIST_STALE_ONLINE_PRESENCE_STATES_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=presence-stale-scope-discovery */
 select
     tenant_id,
     organization_id,
@@ -265,21 +267,26 @@ impl PostgresRealtimeConfig {
 }
 
 fn build_realtime_pool(
-    config: &PostgresRealtimeConfig,
+    _config: &PostgresRealtimeConfig,
 ) -> Result<PostgresRealtimePool, ContractError> {
     if let Some(pool) = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool() {
         return Ok(pool);
     }
-    if cfg!(test) {
-        return build_realtime_pool_local(config);
+    #[cfg(test)]
+    {
+        return build_realtime_pool_local(_config);
     }
-    Err(ContractError::Unavailable(
-        sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
-            .err()
-            .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
-    ))
+    #[cfg(not(test))]
+    {
+        Err(ContractError::Unavailable(
+            sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
+                .err()
+                .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
+        ))
+    }
 }
 
+#[cfg(test)]
 fn build_realtime_pool_local(
     config: &PostgresRealtimeConfig,
 ) -> Result<PostgresRealtimePool, ContractError> {
@@ -306,6 +313,7 @@ fn build_realtime_pool_local(
 /// Uses the system trust store for certificate verification. The actual TLS
 /// negotiation is gated by the `sslmode` URL parameter: when `sslmode=disable`
 /// the `postgres` crate never invokes this connector.
+#[cfg(test)]
 fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_tls::Error> {
     let connector = native_tls::TlsConnector::builder().build()?;
     Ok(postgres_native_tls::MakeTlsConnector::new(connector))
@@ -314,6 +322,7 @@ fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_
 /// P0-12 fail-closed: in production, the database URL MUST contain
 /// `sslmode=require` or `sslmode=verify-full`. This prevents silent plaintext
 /// connections to production databases (SECURITY_SPEC §4.3).
+#[cfg(test)]
 fn verify_production_sslmode(database_url: &str) -> Result<(), ContractError> {
     let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
         .unwrap_or_default()
@@ -801,15 +810,16 @@ impl PresenceStateStore for PostgresRealtimePresenceStateStore {
         })
     }
 
-    fn list_online_states_seen_at_or_before(
+    fn discover_stale_online_states(
         &self,
-        cutoff_seen_at: &str,
-        limit: usize,
+        request: StalePresenceScopeDiscoveryRequest<'_>,
     ) -> Result<Vec<PresenceStateRecord>, ContractError> {
-        if limit == 0 {
-            return Ok(Vec::new());
-        }
-        let cutoff_seen_at = parse_utc("cutoff_seen_at", cutoff_seen_at)?;
+        let context = request.context();
+        let actor_kind = context.actor_kind().as_str();
+        let actor_id = context.actor_id();
+        let trace_id = context.trace_id();
+        let cutoff_seen_at = parse_utc("cutoff_seen_at", request.cutoff_seen_at())?;
+        let limit = request.limit();
         let limit = i64::try_from(limit).map_err(|_| {
             ContractError::Conflict(format!(
                 "postgres realtime presence limit {limit} exceeds PostgreSQL bigint maximum {}",
@@ -817,7 +827,7 @@ impl PresenceStateStore for PostgresRealtimePresenceStateStore {
             ))
         })?;
         let pool = self.pool.clone();
-        run_postgres_io(move || {
+        let result: Result<Vec<PresenceStateRecord>, ContractError> = run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "get presence connection")?;
             client
                 .query(
@@ -828,7 +838,30 @@ impl PresenceStateStore for PostgresRealtimePresenceStateStore {
                 .into_iter()
                 .map(presence_state_from_row)
                 .collect()
-        })
+        });
+        match &result {
+            Ok(records) => tracing::info!(
+                target: "sdkwork.im.security",
+                event = "im.presence_stale_scope.operation_completed",
+                actor_kind,
+                actor_id,
+                trace_id,
+                outcome = "succeeded",
+                scope_count = records.len(),
+                "cross-organization stale presence scope discovery completed"
+            ),
+            Err(error) => tracing::warn!(
+                target: "sdkwork.im.security",
+                event = "im.presence_stale_scope.operation_completed",
+                actor_kind,
+                actor_id,
+                trace_id,
+                outcome = "failed",
+                error = ?error,
+                "cross-organization stale presence scope discovery failed"
+            ),
+        }
+        result
     }
 
     fn expire_online_state_if_seen_at_or_before(
@@ -1276,21 +1309,53 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
 
     fn diagnostics_snapshot(
         &self,
+        request: RealtimeDiagnosticsRequest<'_>,
     ) -> Result<RealtimeEventWindowDiagnosticsSnapshot, ContractError> {
+        let context = request.context();
+        let actor_kind = context.actor_kind().as_str();
+        let actor_id = context.actor_id();
+        let trace_id = context.trace_id();
         let pool = self.pool.clone();
-        run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "get event window connection")?;
-            let diagnostics_row = client
-                .query_one(LOAD_REALTIME_EVENT_WINDOW_DIAGNOSTICS_SQL, &[])
-                .map_err(|error| postgres_unavailable("load event window diagnostics", error))?;
-            let high_risk_windows = client
-                .query(LIST_REALTIME_EVENT_WINDOW_HIGH_RISK_WINDOWS_SQL, &[])
-                .map_err(|error| postgres_unavailable("list high risk event windows", error))?
-                .into_iter()
-                .map(high_risk_window_from_row)
-                .collect::<Result<Vec<_>, ContractError>>()?;
-            diagnostics_from_row(diagnostics_row, high_risk_windows)
-        })
+        let result: Result<RealtimeEventWindowDiagnosticsSnapshot, ContractError> =
+            run_postgres_io(move || {
+                let mut client = postgres_pool_client(&pool, "get event window connection")?;
+                let diagnostics_row = client
+                    .query_one(LOAD_REALTIME_EVENT_WINDOW_DIAGNOSTICS_SQL, &[])
+                    .map_err(|error| {
+                        postgres_unavailable("load event window diagnostics", error)
+                    })?;
+                let high_risk_windows = client
+                    .query(LIST_REALTIME_EVENT_WINDOW_HIGH_RISK_WINDOWS_SQL, &[])
+                    .map_err(|error| postgres_unavailable("list high risk event windows", error))?
+                    .into_iter()
+                    .map(high_risk_window_from_row)
+                    .collect::<Result<Vec<_>, ContractError>>()?;
+                diagnostics_from_row(diagnostics_row, high_risk_windows)
+            });
+        match &result {
+            Ok(snapshot) => tracing::info!(
+                target: "sdkwork.im.security",
+                event = "im.realtime_window_diagnostics.operation_completed",
+                actor_kind,
+                actor_id,
+                trace_id,
+                outcome = "succeeded",
+                scope_count = snapshot.client_route_window_count,
+                high_risk_count = snapshot.high_risk_windows.len(),
+                "cross-organization realtime diagnostics completed"
+            ),
+            Err(error) => tracing::warn!(
+                target: "sdkwork.im.security",
+                event = "im.realtime_window_diagnostics.operation_completed",
+                actor_kind,
+                actor_id,
+                trace_id,
+                outcome = "failed",
+                error = ?error,
+                "cross-organization realtime diagnostics failed"
+            ),
+        }
+        result
     }
 
     fn trim_window(
@@ -2193,6 +2258,7 @@ fn postgres_pool_client(
         .map_err(|error| postgres_unavailable(action, error))
 }
 
+#[cfg(test)]
 fn postgres_config_error(
     database_url: &str,
     error: r2d2_postgres::postgres::Error,
@@ -2222,6 +2288,7 @@ fn checkpoint_conflict(message: impl Into<String>) -> ContractError {
     ))
 }
 
+#[cfg(test)]
 fn redact_postgres_url(database_url: &str) -> String {
     let Some(scheme_end) = database_url.find("://") else {
         return "<redacted>".into();

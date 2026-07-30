@@ -165,8 +165,8 @@ assert.match(
 
 assert.match(
   sharedBootstrapSource,
-  /postgres_url_with_search_path/u,
-  'Shared embedded bootstrap must align postgres search_path with the unified IAM schema before provisioning.',
+  /normalize_workspace_postgres_url/u,
+  'Shared embedded bootstrap must normalize the canonical workspace PostgreSQL URL before provisioning.',
 );
 
 assert.match(

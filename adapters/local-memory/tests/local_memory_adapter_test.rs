@@ -27,6 +27,25 @@ use im_storage_contracts::{
     StorageDomainSnapshot, StorageDomainSnapshotStore, StorageSecretRecord,
 };
 
+fn discover_stale_presence_states(
+    store: &impl PresenceStateStore,
+    cutoff_seen_at: &str,
+    limit: usize,
+) -> Result<Vec<PresenceStateRecord>, im_platform_contracts::ContractError> {
+    let context = im_platform_contracts::PrivilegedOperationContext::try_new(
+        im_platform_contracts::PrivilegedOperationActorKind::ServiceWorker,
+        "local-memory-presence-test",
+        "local-memory-presence-test-trace",
+    )?;
+    store.discover_stale_online_states(
+        im_platform_contracts::StalePresenceScopeDiscoveryRequest::try_new(
+            &context,
+            cutoff_seen_at,
+            limit,
+        )?,
+    )
+}
+
 fn realtime_disconnect_fence_record(
     principal_id: &str,
     session_id: &str,
@@ -341,8 +360,7 @@ fn test_memory_presence_state_store_lists_stale_online_devices_by_seen_at() {
             .expect("presence state save should succeed");
     }
 
-    let stale = store
-        .list_online_states_seen_at_or_before("2026-05-06T00:00:02.000Z", 10)
+    let stale = discover_stale_presence_states(&store, "2026-05-06T00:00:02.000Z", 10)
         .expect("stale online list should succeed");
 
     assert_eq!(
@@ -353,8 +371,7 @@ fn test_memory_presence_state_store_lists_stale_online_devices_by_seen_at() {
         vec!["d_old_1", "d_old_2"]
     );
 
-    let limited = store
-        .list_online_states_seen_at_or_before("2026-05-06T00:00:02.000Z", 1)
+    let limited = discover_stale_presence_states(&store, "2026-05-06T00:00:02.000Z", 1)
         .expect("limited stale online list should succeed");
     assert_eq!(limited[0].device_id, "d_old_1");
 }
@@ -390,8 +407,7 @@ fn test_memory_presence_state_store_seen_at_cutoff_compares_rfc3339_by_instant()
             .expect("presence state save should succeed");
     }
 
-    let stale = store
-        .list_online_states_seen_at_or_before("2026-05-06T00:00:00Z", 10)
+    let stale = discover_stale_presence_states(&store, "2026-05-06T00:00:00Z", 10)
         .expect("stale online list should succeed");
 
     assert_eq!(

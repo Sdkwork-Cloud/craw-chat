@@ -64,6 +64,7 @@ const AUDIT_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 ///
 /// Kept aligned with `adapters/postgres-journal` (`DEFAULT_POOL_MAX_SIZE = 16`)
 /// so a single database is not over-subscribed when both stores are active.
+#[cfg(test)]
 const AUDIT_POSTGRES_POOL_MAX_SIZE: u32 = 16;
 
 #[derive(Clone)]
@@ -1239,21 +1240,26 @@ fn row_to_audit_record(row: &r2d2_postgres::postgres::Row) -> Result<AuditRecord
     })
 }
 
-fn build_audit_pool(database_url: &str) -> Result<AuditPostgresPool, AuditError> {
+fn build_audit_pool(_database_url: &str) -> Result<AuditPostgresPool, AuditError> {
     if let Some(pool) = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool() {
         return Ok(pool);
     }
-    if cfg!(test) {
-        return build_audit_pool_local(database_url);
+    #[cfg(test)]
+    {
+        return build_audit_pool_local(_database_url);
     }
-    Err(AuditError::internal(
-        "audit_persistence_failed",
-        sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
-            .err()
-            .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
-    ))
+    #[cfg(not(test))]
+    {
+        Err(AuditError::internal(
+            "audit_persistence_failed",
+            sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
+                .err()
+                .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
+        ))
+    }
 }
 
+#[cfg(test)]
 fn build_audit_pool_local(database_url: &str) -> Result<AuditPostgresPool, AuditError> {
     verify_production_sslmode(database_url);
     let pg_config = database_url.parse().map_err(|error| {
@@ -1291,6 +1297,7 @@ fn build_audit_pool_local(database_url: &str) -> Result<AuditPostgresPool, Audit
 /// Uses the system trust store for certificate verification. The actual TLS
 /// negotiation is gated by the `sslmode` URL parameter: when `sslmode=disable`
 /// the `postgres` crate never invokes this connector.
+#[cfg(test)]
 fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_tls::Error> {
     let connector = native_tls::TlsConnector::builder().build()?;
     Ok(postgres_native_tls::MakeTlsConnector::new(connector))
@@ -1299,6 +1306,7 @@ fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_
 /// P0-12 fail-closed: in production, the database URL MUST contain
 /// `sslmode=require` or `sslmode=verify-full`. This prevents silent plaintext
 /// connections to production databases (SECURITY_SPEC §4.3).
+#[cfg(test)]
 fn verify_production_sslmode(database_url: &str) {
     let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
         .unwrap_or_default()

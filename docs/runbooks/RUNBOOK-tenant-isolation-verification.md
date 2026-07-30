@@ -2,7 +2,7 @@
 
 Status: active
 Owner: `im-platform` and SDKWork security
-Updated: 2026-07-24
+Updated: 2026-07-30
 Specs: `SECURITY_SPEC.md`, `DATABASE_SPEC.md`, `IAM_SPEC.md`, `DOCUMENTATION_SPEC.md`
 
 ## Trigger
@@ -29,13 +29,20 @@ does not rely on a separate schema or alternate read model per tenant.
 ```bash
 pnpm db:contract:check
 pnpm db:validate
-node scripts/dev/sdkwork-im-multi-tenant-isolation-contract.test.mjs
+pnpm test:tenant-isolation-standard
 pnpm test:iam-auth-integration
 ```
 
 The checks must prove that scoped tables and SQL access include both `tenant_id` and
-`organization_id`. Review any new exception with the database and security owners; do not waive the
-predicate because an HTTP route currently performs an earlier check.
+`organization_id`. The static gate has a zero threshold and also runs parser regression tests.
+Do not waive the predicate because an HTTP route currently performs an earlier check.
+
+The approved inventory is read only from
+[`specs/organization-isolation.spec.json`](../../specs/organization-isolation.spec.json); do not
+maintain a copied list in this runbook. The gate proves exact SQL shape, bounded execution, typed
+operation context, authorized worker/administrator evidence, and security audit fields. Unknown
+markers, missing evidence, and `journal-recovery-replay` fail closed. Full journal recovery requires
+a separately reviewed privileged operations component with authorization and audit evidence.
 
 ### 2. Inspect bounded query plans
 

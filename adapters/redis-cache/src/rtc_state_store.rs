@@ -200,12 +200,12 @@ impl RedisRtcStateStore {
         tokio::task::block_in_place(|| handle.block_on(f(manager)))
     }
 
-    fn epoch_key(tenant_id: &str, rtc_session_id: &str) -> String {
-        format!("rtc:epoch:{tenant_id}:{rtc_session_id}")
+    fn epoch_key(tenant_id: &str, organization_id: &str, rtc_session_id: &str) -> String {
+        format!("rtc:epoch:{tenant_id}:{organization_id}:{rtc_session_id}")
     }
 
-    fn state_key(tenant_id: &str, rtc_session_id: &str) -> String {
-        format!("rtc:state:{tenant_id}:{rtc_session_id}")
+    fn state_key(tenant_id: &str, organization_id: &str, rtc_session_id: &str) -> String {
+        format!("rtc:state:{tenant_id}:{organization_id}:{rtc_session_id}")
     }
 }
 
@@ -213,12 +213,14 @@ impl StateStore for RedisRtcStateStore {
     fn load_state(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         rtc_session_id: &str,
     ) -> Result<Option<RtcStateRecord>, RtcContractError> {
         let tenant_id = tenant_id.to_string();
+        let organization_id = organization_id.to_string();
         let rtc_session_id = rtc_session_id.to_string();
         self.run_blocking_async(move |mut conn| async move {
-            let key = Self::state_key(&tenant_id, &rtc_session_id);
+            let key = Self::state_key(&tenant_id, &organization_id, &rtc_session_id);
             let payload: Option<String> = redis::cmd("GET")
                 .arg(&key)
                 .query_async(&mut conn)
@@ -244,8 +246,16 @@ impl StateStore for RedisRtcStateStore {
         let state_ttl = self.state_ttl_seconds;
         let save_script = self.save_script.clone();
         self.run_blocking_async(move |mut conn| async move {
-            let epoch_key = Self::epoch_key(&record.tenant_id, &record.rtc_session_id);
-            let state_key = Self::state_key(&record.tenant_id, &record.rtc_session_id);
+            let epoch_key = Self::epoch_key(
+                &record.tenant_id,
+                &record.session.organization_id,
+                &record.rtc_session_id,
+            );
+            let state_key = Self::state_key(
+                &record.tenant_id,
+                &record.session.organization_id,
+                &record.rtc_session_id,
+            );
             let payload_json = serde_json::to_string(&record).map_err(|err| {
                 RtcContractError::Unavailable(format!("save_state serialize failed: {err}"))
             })?;
@@ -278,12 +288,18 @@ impl StateStore for RedisRtcStateStore {
         })
     }
 
-    fn clear_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<bool, RtcContractError> {
+    fn clear_state(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        rtc_session_id: &str,
+    ) -> Result<bool, RtcContractError> {
         let tenant_id = tenant_id.to_string();
+        let organization_id = organization_id.to_string();
         let rtc_session_id = rtc_session_id.to_string();
         self.run_blocking_async(move |mut conn| async move {
-            let epoch_key = Self::epoch_key(&tenant_id, &rtc_session_id);
-            let state_key = Self::state_key(&tenant_id, &rtc_session_id);
+            let epoch_key = Self::epoch_key(&tenant_id, &organization_id, &rtc_session_id);
+            let state_key = Self::state_key(&tenant_id, &organization_id, &rtc_session_id);
             // Delete both keys in a single round trip; `DEL` returns the
             // count of keys actually removed.
             let removed: usize = redis::cmd("DEL")
@@ -368,7 +384,13 @@ mod tests {
 
     #[test]
     fn key_patterns_are_tenant_scoped() {
-        assert_eq!(RedisRtcStateStore::epoch_key("t1", "s1"), "rtc:epoch:t1:s1");
-        assert_eq!(RedisRtcStateStore::state_key("t1", "s1"), "rtc:state:t1:s1");
+        assert_eq!(
+            RedisRtcStateStore::epoch_key("t1", "o1", "s1"),
+            "rtc:epoch:t1:o1:s1"
+        );
+        assert_eq!(
+            RedisRtcStateStore::state_key("t1", "o1", "s1"),
+            "rtc:state:t1:o1:s1"
+        );
     }
 }

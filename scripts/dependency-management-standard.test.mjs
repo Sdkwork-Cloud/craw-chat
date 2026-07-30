@@ -354,6 +354,7 @@ function assertProfileResolvedPlatformIntegration() {
     .map((surface) => surface.apiAuthority)
     .sort();
   const expectedSharedGatewaySurfaceIds = [
+    'sdkwork-account-app-api',
     'sdkwork-iam-app-api',
     'sdkwork-agents-app-api',
     'sdkwork-agents-backend-api',

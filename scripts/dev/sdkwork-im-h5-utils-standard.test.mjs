@@ -18,10 +18,14 @@ assert.equal(
 );
 
 const viteConfig = read("apps/sdkwork-im-h5/vite.config.ts");
-assert.match(
-  viteConfig,
-  /@sdkwork\/utils/u,
-  "apps/sdkwork-im-h5/vite.config.ts must alias @sdkwork/utils",
-);
+for (const requiredAlias of [
+  'find: /^@sdkwork\\/utils\\/(.+)$/',
+  'find: /^@sdkwork\\/utils$/',
+]) {
+  assert.ok(
+    viteConfig.includes(requiredAlias),
+    `apps/sdkwork-im-h5/vite.config.ts must preserve ${requiredAlias}`,
+  );
+}
 
 process.stdout.write("sdkwork-im H5 utils standard passed\n");

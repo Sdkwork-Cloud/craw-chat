@@ -335,6 +335,7 @@ fn read_commit_journal_json_lines_page_for_aggregate_unlocked(
             break;
         }
         if event.tenant_id == scope.tenant_id
+            && event.normalized_organization_id() == scope.organization_id
             && (event.aggregate_id == scope.aggregate_id || event.scope_id == scope.aggregate_id)
         {
             items.push(event);

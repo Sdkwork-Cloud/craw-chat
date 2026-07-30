@@ -67,7 +67,7 @@ test('commercial readiness checks cover the verified frontend and backend gate c
       'monorepo-frozen-install-standard',
       'pc-client-pagination-standard',
       'rtc-signaling-boundary-standard',
-      'projection-tier-standard',
+      'normalized-im-authority-standard',
       'three-capabilities-standard',
       'portal-alignment-standard',
       'portal-service-tests',

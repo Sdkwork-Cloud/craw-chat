@@ -5,23 +5,23 @@
 
 ## Authority Model
 
-Social mutations are event-sourced through `SocialRuntime` and persisted to the shared IM commit journal when PostgreSQL is configured.
+Social mutations are coordinated through `SocialRuntime` and persisted to the process-shared PostgreSQL authority. Server startup fails closed when that authority is unavailable; memory state exists only in explicit test fixtures.
 
 | Layer | Responsibility |
 | --- | --- |
-| `SocialRuntime` | Authoritative in-memory aggregate for friend requests, friendships, blocks, direct chats |
-| `im_commit_journal` | Durable commit log (Postgres in production; file/memory in dev) |
+| `SocialRuntime` | Mutation coordinator plus bounded process-local hot cache; normalized PostgreSQL tables remain durable read authority |
+| `im_commit_journal` | Durable PostgreSQL commit log sharing one transaction with normalized Social state writes |
 | `projection-service` | Contact read model for `GET /im/v3/api/chat/contacts` |
-| `social-postgres` materializer | Supplemental **read-only** tables (`im_friend_requests`, `im_friendships`, `im_user_blocks`, contact tags/preferences/recommendations); materialize-before-append on writes; journal replay on bootstrap heals drift |
-
-Startup replay: `replay_social_journal_to_projection()` (embedded projection) and `replay_social_journal_to_postgres_read_model()` (supplemental Postgres) run from `build_social_runtime_from_env()` when Postgres journal + pool are configured.
-| `im_contact_tags` / `im_contact_preferences` / `im_contact_recommendations` | Durable contact UI metadata (tags, star, remark, recommendations); Postgres-backed when IM DB is configured — not an in-memory production path |
+| `social-postgres` normalized store | Durable tables (`im_friend_requests`, `im_friendships`, `im_user_blocks`, contact tags/preferences/recommendations) written atomically with the journal |
+| `im_contact_tags` / `im_contact_preferences` / `im_contact_recommendations` | Durable PostgreSQL contact UI metadata (tags, star, remark, recommendations) |
 | `conversation-runtime` | Direct chat conversation bind on friend accept (unified-process only) |
 | `session-gateway` realtime plane | Push social domain events to connected clients |
 
+Startup does not replay the journal into a second Social authority. Normalized PostgreSQL stores are queried by service methods; the co-located Conversation cache is disposable and refreshed after committed Social writes.
+
 Bootstrap entrypoint: `social_service::build_social_runtime_from_env()`.
 
-Unified-process wiring: `sdkwork_api_im_assembly::ApiAssembly::wire_embedded_realtime_plane()`.
+Unified-process wiring is owned by the standalone gateway's `embedded_plane_wiring::wire_embedded_realtime_plane()`, which delegates Social fanout registration to `sdkwork_api_im_assembly::wire_social_runtime_embedded_plane()` and retains the RTC, Conversation, and Social relay handles for the process lifetime.
 
 Direct-message access in unified-process uses `SocialRuntime::ensure_direct_message_allowed()` (refreshes journal authority + block check); gateway assembly must not call `pub(crate)` runtime internals.
 
@@ -40,22 +40,22 @@ Infra `/metrics` on the social-service process merges standard HTTP metrics with
 
 ```
 Client → /im/v3/api/social/* → SocialRuntime mutation
-  → SocialPostgresMaterializer (materialize-before-append when Postgres pool configured)
-    → single-commit: per-store writes
-    → multi-commit batch (e.g. friend accept): one PostgreSQL transaction across supplemental tables
-  → commit journal append (compensate supplemental writes on append failure)
-  → projection apply (contacts list)
+  → SocialPostgresAtomicWriteAuthority
+    → allocate journal ordering sequences
+    → append `im_commit_journal` rows and update normalized Social tables in one PostgreSQL transaction
+    → roll back the complete transaction on any failure
+  → refresh the disposable co-located Conversation cache
   → SocialRealtimeFanout when embedded session-gateway is co-located (direct push)
-  → else `im_outbox_events` enqueue (`aggregate_type=social`) when Postgres outbox is wired (split-deploy)
+  → else `im_outbox_events` enqueue (`aggregate_type=social`) for split deployment
   → optional DirectChatConversationBinder (conversation-runtime bind before direct_chat.bound)
-  → in-memory state update
+  → update the bounded process-local hot cache
 ```
 
-Materialization failures before journal append reject the write and increment `im_social_postgres_materialization_failures_total`. Journal append failures after successful materialize increment `im_social_postgres_journal_append_failures_after_materialize_total` and attempt compensate rollback.
+Atomic journal/normalized-state failures reject the write, roll back the transaction, and increment `im_social_postgres_atomic_write_failures_total`. There is no compensate-after-append path and no fallback append to a second authority.
 
 ## Read Path
 
-List and count handlers acquire a read lock, refresh once from journal authority when needed, then serve from in-memory runtime state. Full journal replay on every query is not used.
+List and count handlers query normalized PostgreSQL stores for authoritative state and may use bounded process-local indexes only as a hot cache. Full journal replay is not part of request handling or server bootstrap.
 
 Control-plane snapshot routes (`friend_request_snapshot`, `friendship_snapshot`) enforce participant ACL: only requester/target or friendship members may read.
 
@@ -71,12 +71,12 @@ Control-plane decline/cancel/remove/activate mutations bind `declinedByUserId` /
 | `POST /im/v3/api/social/friendships/{friendshipId}/remove` | Remove friendship (event-sourced) |
 | `POST /im/v3/api/social/user_blocks` | Domain block (not preference-only); exposed by IM OpenAPI and generated SDK as `social.userBlocks.create` |
 | `DELETE /im/v3/api/social/user_blocks/{blockId}` | Domain block release; exposed by IM OpenAPI and generated SDK as `social.userBlocks.delete` |
-| `GET /im/v3/api/social/users` | User search (Postgres supplemental read model when IM DB configured) |
+| `GET /im/v3/api/social/users` | User search from the PostgreSQL normalized read model |
 | `GET /im/v3/api/social/user_blocks` | Block list (**supplemental Postgres mount only**; not in OpenAPI/SDK; internal/gateway read mount) |
 | `GET /im/v3/api/social/direct_chats` | Direct chat inventory (**supplemental Postgres mount only**; not in OpenAPI/SDK) |
 | `GET /im/v3/api/chat/contacts` | Projected contact list (friendships) |
-| `/im/v3/api/social/contacts/*` | Tags and preferences — **keyset cursor** list for tags (`updated_at`, `tag_id`); Postgres-backed when IM DB available |
-| `POST /im/v3/api/social/contacts/{targetUserId}/recommendations` | Durable recommendation rows in `im_contact_recommendations` (Postgres when IM DB configured) |
+| `/im/v3/api/social/contacts/*` | PostgreSQL-backed tags and preferences; tag lists use the (`updated_at`, `tag_id`) keyset cursor |
+| `POST /im/v3/api/social/contacts/{targetUserId}/recommendations` | Durable PostgreSQL recommendation rows in `im_contact_recommendations` |
 
 Contact tags, preferences, and recommendations **fail closed** in production/staging when the IM Postgres pool is unavailable (`503` / `contact_store_unavailable`). In-memory fallback is limited to `SDKWORK_IM_ENVIRONMENT=dev|test` and the Rust test harness.
 
@@ -85,7 +85,7 @@ Contact tags, preferences, and recommendations **fail closed** in production/sta
 `sdkwork_api_im_assembly::assemble_api_router()` always merges:
 
 1. `sdkwork_routes_im_social_open_api::build_runtime_public_app` — event-sourced mutations and authoritative list/count surfaces (`friend_requests`, `friendships`, `user_blocks` create/delete, contacts tags/preferences).
-2. When IM Postgres is configured: `sdkwork_routes_im_social_open_api::gateway_mount` — supplemental **read-only** Postgres handlers (user search, block list, direct chat list/get, profile/settings). Supplemental routes **must not** duplicate runtime open-api method+path pairs (for example `GET /im/v3/api/social/friendships`).
+2. `sdkwork_routes_im_social_open_api::gateway_mount` — normalized PostgreSQL handlers (user search, block list, direct chat list/get, profile/settings). These routes **must not** duplicate runtime open-api method+path pairs (for example `GET /im/v3/api/social/friendships`).
 
 Dev startup (`pnpm dev`, `pnpm gateway:run:standalone`) uses `scripts/dev/run-standalone-gateway-dev.mjs`: terminate stale Windows gateway processes, wait for executable unlock, `cargo build`, then run the binary (avoids `cargo run` exe lock failures on Windows).
 
@@ -131,7 +131,7 @@ When social authority is durable (Postgres journal or file journal), friend acce
 
 ## Message Post Atomic Write (Conversation)
 
-When Postgres is configured, `build_conversation_runtime_from_env()` wires:
+`build_conversation_runtime_from_env()` requires PostgreSQL and wires:
 
 | Component | Role |
 | --- | --- |
@@ -143,7 +143,7 @@ Unified-process with embedded session-gateway uses direct `publish_message_poste
 
 ## Social Realtime Outbox Relay
 
-When Postgres is configured, `build_social_runtime_from_env()` wires `PostgresOutboxStore` + Snowflake `IdGenerator` on `SocialRuntime`.
+`build_social_runtime_from_env()` requires PostgreSQL and wires `PostgresOutboxStore` plus the runtime ID generator on `SocialRuntime`.
 
 | Component | Role |
 | --- | --- |
@@ -159,7 +159,7 @@ Production fail-closed: set `SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER=1` when split
 
 - Env: `SDKWORK_IM_FRIEND_REQUEST_DAILY_LIMIT` (default **50** per requester per UTC day)
 - Checked in `SocialRuntime.submit_friend_request` before journal append; quota increments only after durable commit succeeds (failed/idempotent retries do not consume quota)
-- **Multi-instance authority**: when Postgres supplemental stores are configured, daily counts are read from `im_friend_requests.created_at` for the UTC day; process-local counters are used only for dev/memory journal paths
+- **Multi-instance authority**: daily counts are read from `im_friend_requests.created_at` for the UTC day; process-local counters exist only in explicit memory-backed tests
 - HTTP `429` with `friend_request_rate_limited` and `Retry-After` (seconds until next UTC day)
 - Gateway per-tenant rate limiting remains the outer abuse-protection layer for all social HTTP surfaces
 
@@ -174,7 +174,7 @@ Production fail-closed: set `SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER=1` when split
 - **Space groups** (`space-service`): see [TECH-im-space-open-api-alignment.md](./TECH-im-space-open-api-alignment.md) for group CRUD authorization, conversation binding, channel access rules, and SdkWorkApiResponse envelopes. Space member, invitation, ban, and channel ACL handlers are backed by real Postgres stores (`PostgresSpaceMemberStore`, `PostgresInvitationStore`, `PostgresBanStore`, `PostgresChannelAccessRuleStore`); group member roster uses `PostgresGroupMemberStore`.
 - **Conversation roster persistence**: conversation creation paths (`create_conversation`, `bind_direct_chat`, `create_thread`, `create_agent_dialog`, `create_system_channel`, `create_agent_handoff`), membership mutations (add/remove/leave/linked-member sync), role/owner changes (`change_conversation_member_role`, `transfer_conversation_owner`), and read-cursor updates persist normalized `im_conversation_members` and `im_conversation_read_cursors` through `comms-conversation-service`, as declared in `database/contract/table-registry.json`. RTC/session-gateway authorization and message search read these canonical tables and require members to be visible immediately after creation, so persistence runs before `maybe_evict_after_write`.
 - **Projection personalization** (`projection-service`): conversation preferences and message favorites durable snapshots via `personalization_snapshot.rs` (metadata catalog `projection-personalization`); restored on bootstrap with other projection snapshots.
-- **Streaming sessions** (`streaming-service`): stream session/frame state persists to `im_stream_sessions` / `im_stream_frames` via `PostgresStreamStateStore` when IM Postgres is configured (`streaming_service::build_runtime_from_env()`).
+- **Streaming sessions** (`streaming-service`): server stream session/frame state persists to `im_stream_sessions` / `im_stream_frames` via `PostgresStreamStateStore` (`streaming_service::build_runtime_from_env()`); memory fallback is limited to explicit development/test bootstrap behavior.
 
 ## Friend Request TTL
 

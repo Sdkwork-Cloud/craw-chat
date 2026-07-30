@@ -20,3 +20,4 @@ sdkwork_im_database_pool = { workspace = true }
 sdkwork_utils_rust.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+tracing.workspace = true

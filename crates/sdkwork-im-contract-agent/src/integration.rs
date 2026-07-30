@@ -1,4 +1,4 @@
-use sdkwork_im_contract_core::ContractError;
+use sdkwork_im_contract_core::{ContractError, PrivilegedOperationContext};
 use serde::{Deserialize, Serialize};
 
 use crate::AgentMentionDispatchRequest;
@@ -213,6 +213,58 @@ pub struct AgentDispatchReplyCompletion {
     pub agents_turn_id: String,
 }
 
+pub const GLOBAL_AGENT_DISPATCH_CLAIM_LIMIT_MAX: usize = 100;
+
+#[derive(Clone, Copy, Debug)]
+pub struct GlobalAgentDispatchClaimRequest<'a> {
+    context: &'a PrivilegedOperationContext,
+    now: &'a str,
+    lease_expires_at: &'a str,
+    limit: usize,
+}
+
+impl<'a> GlobalAgentDispatchClaimRequest<'a> {
+    pub fn try_new(
+        context: &'a PrivilegedOperationContext,
+        now: &'a str,
+        lease_expires_at: &'a str,
+        limit: usize,
+    ) -> Result<Self, ContractError> {
+        if now.trim().is_empty() || lease_expires_at.trim().is_empty() {
+            return Err(ContractError::Invalid(
+                "global agent dispatch claim timestamps are required".into(),
+            ));
+        }
+        if limit == 0 || limit > GLOBAL_AGENT_DISPATCH_CLAIM_LIMIT_MAX {
+            return Err(ContractError::Invalid(format!(
+                "global agent dispatch claim limit must be between 1 and {GLOBAL_AGENT_DISPATCH_CLAIM_LIMIT_MAX}"
+            )));
+        }
+        Ok(Self {
+            context,
+            now,
+            lease_expires_at,
+            limit,
+        })
+    }
+
+    pub const fn context(&self) -> &PrivilegedOperationContext {
+        self.context
+    }
+
+    pub const fn now(&self) -> &str {
+        self.now
+    }
+
+    pub const fn lease_expires_at(&self) -> &str {
+        self.lease_expires_at
+    }
+
+    pub const fn limit(&self) -> usize {
+        self.limit
+    }
+}
+
 pub trait AgentIntegrationStore: Send + Sync {
     fn replace_conversation_agents(
         &self,
@@ -243,12 +295,9 @@ pub trait AgentIntegrationStore: Send + Sync {
         limit: usize,
     ) -> Result<Vec<AgentDispatchRecord>, ContractError>;
 
-    fn claim_dispatches_global(
+    fn claim_global_dispatches(
         &self,
-        lease_owner: &str,
-        now: &str,
-        lease_expires_at: &str,
-        limit: usize,
+        request: GlobalAgentDispatchClaimRequest<'_>,
     ) -> Result<Vec<AgentDispatchRecord>, ContractError>;
 
     fn resolve_binding(

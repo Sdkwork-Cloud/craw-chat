@@ -227,10 +227,10 @@ pub struct AppState {
 /// This is safe because epochs are monotonic and never reused.
 pub struct CallingRuntime {
     /// Concurrent session storage with per-key fine-grained locking.
-    /// Key: `rtc_session_scope_key(tenant_id, rtc_session_id)`
+    /// Key: `rtc_session_scope_key(tenant_id, organization_id, rtc_session_id)`
     pub(crate) sessions: DashMap<String, Session>,
     /// Concurrent signal storage with per-key fine-grained locking.
-    /// Key: `rtc_session_scope_key(tenant_id, rtc_session_id)`
+    /// Key: `rtc_session_scope_key(tenant_id, organization_id, rtc_session_id)`
     /// Value: BTreeMap ordered by signal_seq for efficient range queries.
     pub(crate) signals: DashMap<String, BTreeMap<u64, SignalEvent>>,
     /// Durable state persistence layer.
@@ -540,7 +540,11 @@ impl CallingRuntime {
         auth: &AppContext,
         rtc_session_id: &str,
     ) -> Result<(), CallingError> {
-        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
+        let scope_key = rtc_session_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        );
         let conversation_id = self
             .sessions
             .get(scope_key.as_str())
@@ -748,9 +752,10 @@ impl CallingRuntime {
     pub(crate) fn ensure_rtc_state(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         rtc_session_id: &str,
     ) -> Result<(), CallingError> {
-        let scope_key = rtc_session_scope_key(tenant_id, rtc_session_id);
+        let scope_key = rtc_session_scope_key(tenant_id, organization_id, rtc_session_id);
         // Fast path: session already in memory. Use `contains_key` (read
         // lock, immediately released) to avoid holding a shard lock across
         // the state-store load on the slow path.
@@ -767,7 +772,7 @@ impl CallingRuntime {
         // state — this closes the TOCTOU window.
         let restored = self
             .state_store
-            .load_state(tenant_id, rtc_session_id)
+            .load_state(tenant_id, organization_id, rtc_session_id)
             .map_err(|err| {
                 CallingError::state_store(ContractError::Unavailable(format!(
                     "call state store load failed: {err:?}"
@@ -790,10 +795,21 @@ impl CallingRuntime {
         auth: &AppContext,
         rtc_session_id: &str,
     ) -> Result<Session, CallingError> {
-        self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        self.ensure_rtc_state(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        )?;
         let session_ref = self
             .sessions
-            .get(rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
+            .get(
+                rtc_session_scope_key(
+                    auth.tenant_id.as_str(),
+                    auth.organization_id.as_str(),
+                    rtc_session_id,
+                )
+                .as_str(),
+            )
             .ok_or_else(|| CallingError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "call_session_not_found",
@@ -848,9 +864,16 @@ impl CallingRuntime {
             ));
         }
 
-        let scope_key =
-            rtc_session_scope_key(auth.tenant_id.as_str(), request.rtc_session_id.as_str());
-        self.ensure_rtc_state(auth.tenant_id.as_str(), request.rtc_session_id.as_str())?;
+        let scope_key = rtc_session_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            request.rtc_session_id.as_str(),
+        );
+        self.ensure_rtc_state(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            request.rtc_session_id.as_str(),
+        )?;
 
         // Enforce global in-memory sessions cap for new sessions only.
         // Existing sessions (idempotent replays) are allowed through. The
@@ -1041,8 +1064,16 @@ impl CallingRuntime {
         request: InviteRtcSessionRequest,
     ) -> Result<SessionMutationOutcome, CallingError> {
         validate_invite_request_payload_size(&request)?;
-        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
-        self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        let scope_key = rtc_session_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        );
+        self.ensure_rtc_state(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        )?;
         self.ensure_conversation_bound_member_for_existing_session(auth, rtc_session_id)?;
 
         let mut session_ref =
@@ -1223,8 +1254,16 @@ impl CallingRuntime {
     ) -> Result<SessionMutationOutcome, CallingError> {
         validate_update_request_payload_size(&request)?;
 
-        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
-        self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        let scope_key = rtc_session_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        );
+        self.ensure_rtc_state(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        )?;
         self.ensure_conversation_bound_member_for_existing_session(auth, rtc_session_id)?;
         let mut session_ref =
             self.sessions
@@ -1394,8 +1433,16 @@ impl CallingRuntime {
     ) -> Result<SessionMutationOutcome, CallingError> {
         validate_update_request_payload_size(&request)?;
 
-        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
-        self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        let scope_key = rtc_session_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        );
+        self.ensure_rtc_state(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        )?;
         self.ensure_conversation_bound_member_for_existing_session(auth, rtc_session_id)?;
         let mut session_ref =
             self.sessions
@@ -1553,8 +1600,16 @@ impl CallingRuntime {
     ) -> Result<SessionMutationOutcome, CallingError> {
         validate_update_request_payload_size(&request)?;
 
-        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
-        self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        let scope_key = rtc_session_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        );
+        self.ensure_rtc_state(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        )?;
         self.ensure_conversation_bound_member_for_existing_session(auth, rtc_session_id)?;
         let mut session_ref =
             self.sessions
@@ -1690,8 +1745,16 @@ impl CallingRuntime {
     ) -> Result<SignalEvent, CallingError> {
         validate_post_signal_request_payload_size(&request)?;
 
-        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
-        self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        let scope_key = rtc_session_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        );
+        self.ensure_rtc_state(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        )?;
         self.ensure_conversation_bound_member_for_existing_session(auth, rtc_session_id)?;
 
         let sender = resolve_rtc_signal_sender(auth);
@@ -1876,8 +1939,16 @@ impl CallingRuntime {
             });
         }
 
-        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
-        self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        let scope_key = rtc_session_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        );
+        self.ensure_rtc_state(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        )?;
         let session_ref = self
             .sessions
             .get(scope_key.as_str())
@@ -1943,8 +2014,16 @@ impl CallingRuntime {
         // arbitrary principals or sessions. Auth is checked BEFORE the
         // provider-availability check so unauthorized callers never learn
         // whether a provider is wired.
-        self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
-        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
+        self.ensure_rtc_state(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        )?;
+        let scope_key = rtc_session_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        );
         let session_ref = self
             .sessions
             .get(scope_key.as_str())
@@ -2143,8 +2222,16 @@ impl CallingRuntime {
         rtc_session_id: &str,
         participant_id: &str,
     ) -> Result<RtcParticipantCredential, CallingError> {
-        self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
-        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
+        self.ensure_rtc_state(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        )?;
+        let scope_key = rtc_session_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        );
         let session_ref = self
             .sessions
             .get(scope_key.as_str())
@@ -2485,8 +2572,16 @@ impl CallingRuntime {
     }
 
     fn persist_state(&self, auth: &AppContext, rtc_session_id: &str) -> Result<(), CallingError> {
-        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
-        let record = self.state_record(auth.tenant_id.as_str(), rtc_session_id)?;
+        let scope_key = rtc_session_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        );
+        let record = self.state_record(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            rtc_session_id,
+        )?;
         match self.state_store.save_state(record) {
             Ok(()) => {
                 if self
@@ -2576,9 +2671,10 @@ impl CallingRuntime {
     fn state_record(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         rtc_session_id: &str,
     ) -> Result<StateRecord, CallingError> {
-        let scope_key = rtc_session_scope_key(tenant_id, rtc_session_id);
+        let scope_key = rtc_session_scope_key(tenant_id, organization_id, rtc_session_id);
         let session = self
             .sessions
             .get(scope_key.as_str())
@@ -2698,13 +2794,20 @@ impl CallingRuntime {
             .iter()
             .filter(|entry| entry.state.is_active())
             .filter(|entry| is_non_terminal_session_stale(&entry, now.as_str(), ring_timeout_secs))
-            .map(|entry| (entry.tenant_id.clone(), entry.rtc_session_id.clone()))
+            .map(|entry| {
+                (
+                    entry.tenant_id.clone(),
+                    entry.organization_id.clone(),
+                    entry.rtc_session_id.clone(),
+                )
+            })
             .collect::<Vec<_>>();
         let mut expired = 0usize;
-        for (tenant_id, rtc_session_id) in candidates {
+        for (tenant_id, organization_id, rtc_session_id) in candidates {
             if matches!(
                 self.expire_stale_session_system(
                     tenant_id.as_str(),
+                    organization_id.as_str(),
                     rtc_session_id.as_str(),
                     now.as_str(),
                     ring_timeout_secs,
@@ -2720,11 +2823,12 @@ impl CallingRuntime {
     fn expire_stale_session_system(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         rtc_session_id: &str,
         ended_at: &str,
         ring_timeout_secs: u64,
     ) -> Result<bool, CallingError> {
-        let scope_key = rtc_session_scope_key(tenant_id, rtc_session_id);
+        let scope_key = rtc_session_scope_key(tenant_id, organization_id, rtc_session_id);
         let Some(mut session_ref) = self.sessions.get_mut(scope_key.as_str()) else {
             return Ok(false);
         };
@@ -2764,10 +2868,10 @@ impl CallingRuntime {
             // relay drains (`tenant_id`, `organization_id`). Sessions
             // persisted before `organization_id` existed default to empty;
             // fall back to the relay default so events are still drained.
-            organization_id: if session.organization_id.is_empty() {
+            organization_id: if organization_id.is_empty() {
                 "default".into()
             } else {
-                session.organization_id.clone()
+                organization_id.to_owned()
             },
             user_id: initiator_id.clone(),
             actor_id: initiator_id,
@@ -2874,11 +2978,12 @@ impl StateStore for RuntimeMemoryStateStore {
     fn load_state(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         rtc_session_id: &str,
     ) -> Result<Option<StateRecord>, sdkwork_communication_rtc_service::RtcContractError> {
         Ok(self
             .states
-            .get(rtc_session_scope_key(tenant_id, rtc_session_id).as_str())
+            .get(rtc_session_scope_key(tenant_id, organization_id, rtc_session_id).as_str())
             .map(|entry| entry.clone()))
     }
 
@@ -2886,7 +2991,11 @@ impl StateStore for RuntimeMemoryStateStore {
         &self,
         record: StateRecord,
     ) -> Result<(), sdkwork_communication_rtc_service::RtcContractError> {
-        let key = rtc_session_scope_key(record.tenant_id.as_str(), record.rtc_session_id.as_str());
+        let key = rtc_session_scope_key(
+            record.tenant_id.as_str(),
+            record.session.organization_id.as_str(),
+            record.rtc_session_id.as_str(),
+        );
 
         // Use DashMap's entry API for atomic epoch-based fencing
         match self.states.get_mut(key.as_str()) {
@@ -2923,11 +3032,12 @@ impl StateStore for RuntimeMemoryStateStore {
     fn clear_state(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         rtc_session_id: &str,
     ) -> Result<bool, sdkwork_communication_rtc_service::RtcContractError> {
         Ok(self
             .states
-            .remove(rtc_session_scope_key(tenant_id, rtc_session_id).as_str())
+            .remove(rtc_session_scope_key(tenant_id, organization_id, rtc_session_id).as_str())
             .is_some())
     }
 }

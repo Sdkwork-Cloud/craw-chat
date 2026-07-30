@@ -6,7 +6,7 @@ use sdkwork_im_contract_agent::{
     AgentAssignmentSource, AgentBindingStatus, AgentDispatchRecord, AgentDispatchStatus,
     AgentIntegrationStore, AgentMentionDispatchRequest, AgentReplyCommitResult,
     ConversationAgentAssignmentRecord, ConversationAgentBindingRecord,
-    ReplaceConversationAgentAssignments,
+    GlobalAgentDispatchClaimRequest, ReplaceConversationAgentAssignments,
 };
 use sdkwork_utils_rust::sha256_hash;
 
@@ -137,6 +137,7 @@ from claimed order by next_attempt_at, id
 "#;
 
 const CLAIM_DISPATCH_GLOBAL_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=agent-dispatch-worker-claim */
 with exhausted as materialized (
     update im_agent_dispatch
     set status = 7, lease_owner = null, lease_expires_at = null,
@@ -465,28 +466,31 @@ impl AgentIntegrationStore for PostgresAgentIntegrationStore {
         })
     }
 
-    fn claim_dispatches_global(
+    fn claim_global_dispatches(
         &self,
-        lease_owner: &str,
-        now: &str,
-        lease_expires_at: &str,
-        limit: usize,
+        request: GlobalAgentDispatchClaimRequest<'_>,
     ) -> Result<Vec<AgentDispatchRecord>, ContractError> {
-        if lease_owner.trim().is_empty() || limit == 0 || limit > MAX_CLAIM_BATCH {
+        let context = request.context();
+        let actor_kind = context.actor_kind().as_str();
+        let actor_id = context.actor_id();
+        let trace_id = context.trace_id();
+        if actor_id.trim().is_empty() || request.limit() > MAX_CLAIM_BATCH {
             return Err(ContractError::Invalid(
                 "invalid global dispatch lease request".into(),
             ));
         }
-        let now = postgres_timestamptz(now, "now")?;
-        let lease_expires_at = postgres_timestamptz(lease_expires_at, "lease_expires_at")?;
+        let now = postgres_timestamptz(request.now(), "now")?;
+        let lease_expires_at =
+            postgres_timestamptz(request.lease_expires_at(), "lease_expires_at")?;
         if lease_expires_at <= now {
             return Err(ContractError::Invalid(
                 "dispatch lease must expire after now".into(),
             ));
         }
         let pool = self.pool.clone();
-        let lease_owner = lease_owner.to_owned();
-        run_postgres_io(move || {
+        let lease_owner = actor_id.to_owned();
+        let limit = request.limit();
+        let result: Result<Vec<AgentDispatchRecord>, ContractError> = run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "claim global agent dispatches")?;
             client
                 .query(
@@ -497,7 +501,30 @@ impl AgentIntegrationStore for PostgresAgentIntegrationStore {
                 .into_iter()
                 .map(dispatch_from_row)
                 .collect()
-        })
+        });
+        match &result {
+            Ok(claims) => tracing::info!(
+                target: "sdkwork.im.security",
+                event = "im.agent_dispatch_claim.operation_completed",
+                actor_kind,
+                actor_id,
+                trace_id,
+                outcome = "succeeded",
+                claimed_count = claims.len(),
+                "cross-organization agent dispatch claim completed"
+            ),
+            Err(error) => tracing::warn!(
+                target: "sdkwork.im.security",
+                event = "im.agent_dispatch_claim.operation_completed",
+                actor_kind,
+                actor_id,
+                trace_id,
+                outcome = "failed",
+                error = ?error,
+                "cross-organization agent dispatch claim failed"
+            ),
+        }
+        result
     }
 
     fn resolve_binding(

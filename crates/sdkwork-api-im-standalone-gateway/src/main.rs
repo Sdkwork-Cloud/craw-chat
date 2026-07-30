@@ -1,17 +1,14 @@
 mod embedded_dependency_routes;
-mod embedded_plane_wiring;
-mod readiness;
 
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
-use std::sync::Arc;
 
 use axum::Router;
 use sdkwork_api_config::StandaloneConfigLoader;
 use sdkwork_api_product_runtime::{
     RouterProductRuntimeOptions, build_product_runtime_router, resolve_product_site_dir_from_env,
 };
-use sdkwork_web_bootstrap::{ServiceRouterConfig, service_router};
+use sdkwork_web_bootstrap::{ComposedApiAssembly, WebFrameworkBuilder};
 use tower_http::cors::CorsLayer;
 
 const DEFAULT_BIND: &str = "127.0.0.1:18079";
@@ -42,16 +39,6 @@ async fn async_main(
     sdkwork_im_service_readiness::bootstrap_im_service_database_from_env()
         .await
         .map_err(|error| format!("failed to bootstrap IM database pools: {error}"))?;
-    let retention_scheduler =
-        im_adapters_postgres_journal::spawn_retention_purge_scheduler_from_env();
-
-    sdkwork_iam_database_host::bootstrap_iam_database_from_env()
-        .await
-        .map_err(|error| format!("failed to bootstrap IAM database lifecycle: {error}"))?;
-    embedded_dependency_routes::bootstrap_embedded_dependency_databases()
-        .await
-        .map_err(|error| format!("failed to bootstrap dependency databases: {error}"))?;
-
     sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env().await;
     let environment = resolve_environment();
     sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env(
@@ -60,16 +47,12 @@ async fn async_main(
     .await
     .map_err(|error| format!("failed to ensure IM IAM tenant application: {error}"))?;
 
-    let (iam, iam_host) = sdkwork_api_iam_assembly::bootstrap_iam_for_application()
-        .await
-        .map_err(|error| format!("failed to assemble IAM owner API surfaces: {error}"))?;
+    let (iam_contribution, iam_host) =
+        sdkwork_api_iam_assembly::bootstrap_iam_app_for_application()
+            .await
+            .map_err(|error| format!("failed to assemble IAM App API surface: {error}"))?;
     let iam_resolver = sdkwork_iam_web_adapter::IamWebRequestContextResolver::from_database_pool(
         Some(iam_host.pool().clone()),
-    );
-    let iam_router = sdkwork_iam_web_adapter::wrap_router_with_iam_owner_web_framework(
-        iam.router,
-        iam_resolver,
-        iam.route_manifest,
     );
 
     let realtime_drain_timeout = session_gateway::resolve_session_gateway_drain_timeout()?;
@@ -81,34 +64,26 @@ async fn async_main(
         &realtime_plane.bootstrap,
     ))
     .await?;
-    embedded_plane_wiring::wire_embedded_realtime_plane(
-        &realtime_state,
-        &api_assembly.social_runtime,
-    );
-
-    let dependencies = embedded_dependency_routes::bootstrap_embedded_dependency_routes()
+    let mut dependencies = embedded_dependency_routes::bootstrap_embedded_dependency_routes()
         .await
         .map_err(|error| format!("failed to assemble dependency APIs: {error}"))?;
-    let agent_dispatch_worker = bootstrap_agent_dispatch_worker(
-        dependencies.agents_session_facade.clone(),
-        environment.as_str(),
-    )?;
-    let gateway_readiness = readiness::resolve_required_gateway_readiness_check(
-        realtime_plane.bootstrap.assembly.readiness(),
-        dependencies.agents_readiness_check.clone(),
-    )
-    .await;
+    let standalone_runtime = api_assembly
+        .runtime
+        .wire_standalone_runtime(&realtime_state, dependencies.agents_session_facade.clone())?;
     let product_runtime_router = build_gateway_product_runtime_router(base_url.as_str()).await?;
 
-    let business_router = product_runtime_router
-        .merge(api_assembly.router)
-        .merge(dependencies.router)
-        .merge(iam_router);
-    let app = service_router(
-        business_router,
-        ServiceRouterConfig::default().with_readiness_check(gateway_readiness),
-    )
-    .layer(build_cors_layer(environment.as_str()));
+    let sdkwork_api_im_assembly::ApiAssembly {
+        contribution: im_contribution,
+        runtime: im_runtime,
+    } = api_assembly;
+    let mut contributions = vec![im_contribution, iam_contribution];
+    contributions.append(&mut dependencies.contributions);
+    let composed = ComposedApiAssembly::try_compose("SDKWork IM Standalone API", contributions)
+        .map_err(|error| format!("compose standalone API profile failed: {error}"))?;
+    let hosted = composed.into_hosted(WebFrameworkBuilder::new(iam_resolver));
+    let app = product_runtime_router
+        .merge(hosted.router)
+        .layer(build_cors_layer(environment.as_str()));
 
     let listener = tokio::net::TcpListener::bind(bind_address)
         .await
@@ -125,80 +100,10 @@ async fn async_main(
     .with_graceful_shutdown(shutdown_signal())
     .await?;
 
-    if let Some(handle) = retention_scheduler {
-        handle.shutdown();
-    }
-    if let Some(handle) = agent_dispatch_worker {
-        handle.shutdown().await;
-    }
+    standalone_runtime.shutdown().await;
     realtime_plane.shutdown(realtime_drain_timeout).await?;
+    drop(im_runtime);
     Ok(())
-}
-
-fn bootstrap_agent_dispatch_worker(
-    agents_session_facade: Option<Arc<dyn sdkwork_agents_runtime_facade::AgentsSessionFacade>>,
-    environment: &str,
-) -> Result<Option<conversation_runtime::AgentDispatchWorkerHandle>, String> {
-    let development = is_development_environment(environment);
-    let Some(agents_session_facade) = agents_session_facade else {
-        return if development {
-            tracing::warn!("Agents facade unavailable; IM agent dispatch worker is disabled");
-            Ok(None)
-        } else {
-            Err("Agents facade is required by the IM agent dispatch worker".into())
-        };
-    };
-    let Some(runtime) = conversation_runtime::resolve_embedded_conversation_runtime() else {
-        return if development {
-            tracing::warn!(
-                "conversation runtime unavailable; IM agent dispatch worker is disabled"
-            );
-            Ok(None)
-        } else {
-            Err("conversation runtime is required by the IM agent dispatch worker".into())
-        };
-    };
-    let shared_pool = match sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool() {
-        Ok(pool) => pool,
-        Err(error) if development => {
-            tracing::warn!(
-                error = %error,
-                "PostgreSQL unavailable; IM agent dispatch worker is disabled in development"
-            );
-            return Ok(None);
-        }
-        Err(error) => {
-            return Err(format!(
-                "IM agent dispatch worker requires the shared PostgreSQL pool: {error}"
-            ));
-        }
-    };
-    let pool = im_adapters_postgres_journal::PostgresJournalPool::from_pool(shared_pool);
-    let message_store =
-        Arc::new(im_adapters_postgres_journal::PostgresMessageStore::from_pool(pool.clone()));
-    let integration_store = Arc::new(
-        im_adapters_postgres_journal::PostgresAgentIntegrationStore::from_pool_with_runtime_ids(
-            pool,
-        ),
-    );
-    let source_loader =
-        Arc::new(conversation_runtime::MessageStoreAgentDispatchSourceLoader::new(message_store));
-    let reply_committer =
-        Arc::new(conversation_runtime::ConversationRuntimeAgentReplyCommitter::new(runtime));
-    let worker = conversation_runtime::AgentDispatchWorker::new(
-        integration_store,
-        agents_session_facade,
-        source_loader,
-        reply_committer,
-        conversation_runtime::resolve_agent_dispatch_worker_id()?,
-    )?;
-    let config = conversation_runtime::AgentDispatchWorkerConfig::from_env()?;
-    let handle = conversation_runtime::spawn_agent_dispatch_worker(worker, config);
-    sdkwork_im_service_readiness::register_im_process_boolean_readiness_check(
-        "im agent dispatch worker",
-        handle.health_signal(),
-    )?;
-    Ok(Some(handle))
 }
 
 async fn build_gateway_product_runtime_router(base_url: &str) -> Result<Router, String> {
