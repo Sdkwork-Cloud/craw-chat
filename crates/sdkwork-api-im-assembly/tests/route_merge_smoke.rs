@@ -50,6 +50,11 @@ async fn automation_app_mount_does_not_export_backend_governance() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/automation/governance")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("automation.read")
                 .body(Body::empty())
                 .expect("request should build"),
         )

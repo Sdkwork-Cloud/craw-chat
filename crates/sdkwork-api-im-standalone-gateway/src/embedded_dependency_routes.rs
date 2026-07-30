@@ -48,12 +48,6 @@ pub fn apply_embedded_dependency_env() -> Result<(), String> {
     apply_knowledgebase_runtime_env_from_im_shared_profile()?;
     apply_agents_runtime_env_from_im_shared_profile()?;
     apply_embedded_dependency_app_roots();
-    // Avoid overlapping `/app/v3/api/recharges/*` routes: sdkwork-order owns the surface, while
-    // sdkwork-payment only provides a deprecated proxy implementation.
-    set_env_var("SDKWORK_PAYMENT_DISABLE_RECHARGE_PROXY", "true");
-    // Avoid overlapping `GET /app/v3/api/orders/{orderId}/payments`: sdkwork-order owns the
-    // list handler (`payments.orderPayments.list`); payment uses federated mount options.
-    set_env_var("SDKWORK_PAYMENT_FEDERATED_COMMERCE", "true");
     Ok(())
 }
 
@@ -134,7 +128,7 @@ async fn bootstrap_embedded_invoice_contribution()
 
 async fn bootstrap_embedded_payment_contribution()
 -> Result<sdkwork_web_bootstrap::ApiAssemblyContribution, String> {
-    sdkwork_api_payment_assembly::assemble_app_api_contribution_from_env().await
+    sdkwork_api_payment_assembly::assemble_federated_app_api_contribution_from_env().await
 }
 
 async fn bootstrap_embedded_shop_contribution()

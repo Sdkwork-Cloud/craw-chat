@@ -110,7 +110,7 @@
       },
       {
         "name": "paymentAppApiContribution",
-        "export": "sdkwork_api_payment_assembly::assemble_app_api_contribution_from_env"
+        "export": "sdkwork_api_payment_assembly::assemble_federated_app_api_contribution_from_env"
       },
       {
         "name": "shopAppApiContribution",
@@ -397,7 +397,7 @@
         "sameOriginAllowed": true,
         "profileCoverage": ["standalone"],
         "cargoDependency": "sdkwork-api-payment-assembly",
-        "embeddedExecutableExport": "sdkwork_api_payment_assembly::assemble_app_api_contribution_from_env",
+        "embeddedExecutableExport": "sdkwork_api_payment_assembly::assemble_federated_app_api_contribution_from_env",
         "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_payment_contribution"]
       },
       {
@@ -410,7 +410,7 @@
         "sameOriginAllowed": true,
         "profileCoverage": ["standalone"],
         "cargoDependency": "sdkwork-api-payment-assembly",
-        "embeddedExecutableExport": "sdkwork_api_payment_assembly::assemble_app_api_contribution_from_env",
+        "embeddedExecutableExport": "sdkwork_api_payment_assembly::assemble_federated_app_api_contribution_from_env",
         "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_payment_contribution"]
       },
       {
