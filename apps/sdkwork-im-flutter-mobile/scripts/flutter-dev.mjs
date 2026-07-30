@@ -1,12 +1,18 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
-import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import {
+  removeImRuntimeStateFile,
+  resolveImTemporaryFilePath,
+  writeImPrivateJsonFile,
+} from '../../../scripts/lib/im-temporary-state.mjs';
+
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const repositoryRoot = path.resolve(appRoot, '..', '..');
 const SUPPORTED_TARGETS = new Set(['android', 'ios']);
 const PROFILE_ID = /^(?:standalone|cloud)\.(?:development|test|staging|production)$/u;
 const DEVICE_ID = /^[A-Za-z0-9._:-]+$/u;
@@ -53,12 +59,17 @@ export function createFlutterDefineConfig(env = process.env) {
   };
 }
 
-export function createFlutterDevPlan({ args = [], env = process.env, root = appRoot } = {}) {
+export function createFlutterDevPlan({
+  args = [],
+  env = process.env,
+  repoRoot = repositoryRoot,
+  root = appRoot,
+  runtimeStateOptions = {},
+} = {}) {
   const target = option(args, '--target');
   if (!SUPPORTED_TARGETS.has(target)) throw new Error('--target must be android or ios');
   const profileId = requiredEnv(env, 'SDKWORK_IM_PROFILE_ID');
   if (!PROFILE_ID.test(profileId)) throw new Error('SDKWORK_IM_PROFILE_ID must be a canonical profile id');
-  const configPath = path.join(root, '.runtime', 'sdkwork-app', 'flutter', `${profileId}.${target}.json`);
   const flutterArgs = ['run'];
   const deviceId = String(env.SDKWORK_FLUTTER_DEVICE_ID ?? '').trim();
   if (deviceId && !DEVICE_ID.test(deviceId)) {
@@ -69,28 +80,42 @@ export function createFlutterDevPlan({ args = [], env = process.env, root = appR
   const config = createFlutterDefineConfig(env);
   config.SDKWORK_RUNTIME_TARGET = runtimeTarget;
   config.SDKWORK_IM_RUNTIME_TARGET = runtimeTarget;
+  const configPath = resolveImTemporaryFilePath({
+    ...runtimeStateOptions,
+    extension: '.json',
+    fileName: `${profileId}.${target}.dart-define`,
+    purpose: 'flutter-dev',
+    repoRoot,
+  });
   flutterArgs.push('--dart-define-from-file', configPath);
   return {
     command: process.platform === 'win32' ? 'flutter.bat' : 'flutter',
     config,
     configPath,
     flutterArgs,
+    repoRoot,
+    root,
+    runtimeStateOptions,
     target,
   };
 }
 
 export function runFlutterDevelopment(plan, { spawn = spawnSync } = {}) {
-  fs.mkdirSync(path.dirname(plan.configPath), { recursive: true });
-  fs.writeFileSync(plan.configPath, `${JSON.stringify(plan.config, null, 2)}\n`, { mode: 0o600 });
-  const result = spawn(plan.command, plan.flutterArgs, {
-    cwd: appRoot,
-    env: process.env,
-    stdio: 'inherit',
-    shell: process.platform === 'win32',
-    windowsHide: true,
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`flutter run exited with code ${result.status ?? 1}`);
+  const stateOptions = { repoRoot: plan.repoRoot, ...plan.runtimeStateOptions };
+  try {
+    writeImPrivateJsonFile(plan.configPath, plan.config, stateOptions);
+    const result = spawn(plan.command, plan.flutterArgs, {
+      cwd: plan.root,
+      env: process.env,
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+      windowsHide: true,
+    });
+    if (result.error) throw result.error;
+    if (result.status !== 0) throw new Error(`flutter run exited with code ${result.status ?? 1}`);
+  } finally {
+    removeImRuntimeStateFile(plan.configPath, stateOptions);
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

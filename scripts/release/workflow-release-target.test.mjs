@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
@@ -10,8 +11,11 @@ import {
   validateReleaseTarget,
 } from './workflow-release-target.mjs';
 
-const tempRoot = path.resolve('.runtime', 'tests', 'workflow-release-target');
+let tempRoot;
 
+test.beforeEach(() => {
+  tempRoot = mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-workflow-release-target-'));
+});
 test.afterEach(() => rmSync(tempRoot, { recursive: true, force: true }));
 
 test('packages and validates the H5 build output deterministically', () => {
@@ -75,6 +79,7 @@ test('build plans bind H5 and Flutter to cloud.production source config', () => 
     version: '0.1.0',
   });
   assert.equal(flutterPlan.flutterConfig.SDKWORK_IM_PROFILE_ID, 'cloud.production');
+  assert.equal(path.relative(tempRoot, flutterPlan.flutterConfigPath).startsWith('..'), true);
   assert.ok(flutterPlan.steps[0].args.includes('--dart-define-from-file'));
 });
 

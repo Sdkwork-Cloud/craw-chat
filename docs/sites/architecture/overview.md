@@ -62,16 +62,14 @@ along with rendered docs and per-service OpenAPI proxies.
 
 ## Runtime Directory Boundary
 
-`SDKWORK_IM_RUNTIME_DIR` identifies deployment-owned process files, diagnostics, and bounded
-temporary runtime material. It is not an IM business database and does not contain an authoritative
-copy of current Conversation, Message, Member, or ReadCursor state. Normalized IM business state is
-stored in PostgreSQL.
+Deployment-owned process files, diagnostics, logs, and bounded temporary material use the packaged
+server paths for the selected operating system. They are not an IM business database and never
+contain an authoritative copy of Conversation, Message, Member, or ReadCursor state. Normalized IM
+business state is stored in PostgreSQL, and production profiles fail closed when required durable
+adapters are unavailable.
 
-Some services still expose explicitly configured file-backed facilities for development and test
-profiles, including the social runtime fallback. Those facilities are single-node test aids, not a
-production persistence option. Production profiles use the required durable PostgreSQL adapters and
-fail closed when those adapters are unavailable. The runtime directory never provides state
-reconstruction or a second business-state authority.
+Source-checkout build output stays in tool-native ignored directories. Process coordination and
+disposable generated configuration use private OS/CI temporary storage outside the repository.
 
 ## Storage Management Is Now A Shared Module Baseline
 

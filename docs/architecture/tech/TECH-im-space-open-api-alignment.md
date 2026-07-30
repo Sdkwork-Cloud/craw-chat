@@ -103,7 +103,7 @@ The wire view types must remain aligned with `apis/open-api/im/sdkwork-im-im.ope
 - Journal coverage for channel, invitation, ban, and channel-access-rule mutations.
 - Channel roster synchronization beyond system-channel bootstrap.
 - Durable outbox or saga delivery for group conversation creation, roster changes, and owner transfer.
-- Live PostgreSQL concurrency certification in CI using `SDKWORK_IM_DATABASE_URL`.
+- Live PostgreSQL concurrency certification in CI using `SDKWORK_DATABASE_URL`.
 
 PostgreSQL is the only server authority for the atomic Space/Group write path described here. Client-local storage does not implement or mirror this write authority.
 
@@ -122,5 +122,5 @@ node ../sdkwork-specs/tools/check-rust-backend-composition.mjs --root .
 The ignored live transaction test can be executed against a migrated disposable PostgreSQL database:
 
 ```bash
-SDKWORK_IM_DATABASE_URL=postgresql://... cargo test -p im-adapters-postgres-journal --test append_live_integration_test coordinated_append_allocates_sequences_and_rolls_back_callback_failures -- --ignored --nocapture
+SDKWORK_DATABASE_URL=postgresql://... cargo test -p im-adapters-postgres-journal --test append_live_integration_test coordinated_append_allocates_sequences_and_rolls_back_callback_failures -- --ignored --nocapture
 ```

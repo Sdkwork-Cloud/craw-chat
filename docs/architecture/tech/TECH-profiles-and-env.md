@@ -46,8 +46,7 @@ Production server installs use:
 - `deployments/templates/chat.toml.example`
 - `/etc/sdkwork/chat/server.env`
 
-Do not use retired pre-topology-v5 profile names or legacy per-profile runtime config trees under
-`.runtime/`.
+Do not use retired pre-topology-v5 profile names or legacy source-tree runtime config directories.
 
 ## Authentication Boundary
 
@@ -79,7 +78,7 @@ with `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET`. Protected service routes should 
 | `SDKWORK_IM_REALTIME_NODE_ID` | Realtime node identity used by cluster routing. Required when `SDKWORK_IM_REALTIME_ROUTE_STORE_URL` or `SDKWORK_IM_REALTIME_CLUSTER_BUS_URL` is set. |
 | `SDKWORK_IM_REALTIME_CLUSTER_BUS_URL` | Redis pub/sub URL for multi-node route handoff. |
 | `SDKWORK_IM_REALTIME_CLUSTER_BUS_SECRET` | HMAC secret for signed cluster route events when Redis cluster bus or route store is enabled. |
-| `SDKWORK_IM_DATABASE_URL` | Postgres-backed realtime stores for HA deployments. |
+| `SDKWORK_DATABASE_URL` | Postgres-backed realtime stores for HA deployments. |
 | `SDKWORK_IM_REALTIME_MAX_WEBSOCKET_CONNECTIONS` | WebSocket connection ceiling per node. |
 | `SDKWORK_IM_SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS` | HTTP overload gate for public realtime routes. |
 | `SDKWORK_IM_SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES` | Maximum accepted HTTP body size for session-gateway. |

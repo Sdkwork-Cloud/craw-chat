@@ -14,7 +14,7 @@ The public app exports `/healthz`, `/readyz`, `/livez`, `/metrics`, `/openapi.js
 
 ## Configuration and limits
 
-- `SDKWORK_IM_ENVIRONMENT` and `SDKWORK_IM_DATABASE_URL` govern the injected/default Audit runtime.
+- `SDKWORK_IM_ENVIRONMENT` and `SDKWORK_DATABASE_URL` govern the injected/default Audit runtime.
 - Ops profile and bind values use the standard Ops environment keys.
 - `SDKWORK_IM_PORTAL_MAX_IN_FLIGHT_REQUESTS` bounds concurrent portal requests.
 

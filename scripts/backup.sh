@@ -20,7 +20,7 @@ RETENTION_DAYS="${SDKWORK_IM_BACKUP_RETENTION_DAYS:-30}"
 DELETE_LIMIT="${SDKWORK_IM_BACKUP_DELETE_LIMIT:-100}"
 MAX_DELETE_LIMIT=1000
 MAX_RETENTION_DAYS=36500
-DATABASE_URL="${SDKWORK_IM_DATABASE_URL:-}"
+DATABASE_URL="${SDKWORK_DATABASE_URL:-}"
 REDIS_NODES="${SDKWORK_IM_REDIS_CLUSTER_NODES:-${SDKWORK_IM_REDIS_URL:-}}"
 TMP_DIR="${TMPDIR:-/tmp}"
 DRY_RUN=false
@@ -545,7 +545,7 @@ main() {
     log_info "2. Backing up PostgreSQL database..."
 
     if [[ -z "$DATABASE_URL" ]]; then
-        log_error "SDKWORK_IM_DATABASE_URL not set; cannot back up database"
+        log_error "SDKWORK_DATABASE_URL not set; cannot back up database"
         return 1
     fi
     require_tool pg_dump || return 1

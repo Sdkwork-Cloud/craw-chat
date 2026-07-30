@@ -3,13 +3,15 @@
 
 # Runtime Directory
 
-When `SDKWORK_IM_RUNTIME_DIR` is set, IM services persist replay checkpoints, subscriptions,
-presence, streams, RTC state, notifications, automation, and projection snapshots to disk.
+Normalized IM business state, replay checkpoints, subscriptions, presence, stream state,
+notifications, automation, and projections use their declared PostgreSQL-backed adapters. A local
+runtime directory is not a second persistence authority.
 
 ## Development default
 
-Server-only development uses profile-specific runtime directories under `.runtime/` when configured
-through topology env files. Prefer explicit `SDKWORK_IM_RUNTIME_DIR` in production installs.
+Server-only development uses topology v5 source profiles. Build output and caches stay in native
+tool directories; process coordination and disposable generated configuration stay in private,
+repository-keyed OS/CI temporary directories outside the source checkout.
 
 ## Packaged server
 
@@ -20,4 +22,3 @@ Production installs use paths declared in `deployments/templates/server.env.exam
 - run: `/run/sdkwork/chat`
 
 See [Server Lifecycle](/deployment/server-lifecycle).
-

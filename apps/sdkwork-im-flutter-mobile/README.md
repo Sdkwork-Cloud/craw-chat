@@ -24,9 +24,10 @@ pnpm dev:flutter-ios             # iOS device, standalone.development
 pnpm dev:flutter-ios:cloud       # iOS device, cloud.development
 ```
 
-The shared lifecycle resolves the enclosing IM topology and materializes a gitignored
-`.runtime/sdkwork-app/flutter/*.json` file for `--dart-define-from-file`. Set
-`SDKWORK_FLUTTER_DEVICE_ID` when Flutter cannot select the intended device automatically.
+The shared lifecycle resolves the enclosing IM topology and materializes a private, uniquely named
+OS/CI temporary JSON file for `--dart-define-from-file`. The file is created with restrictive
+permissions and removed after Flutter exits. Set `SDKWORK_FLUTTER_DEVICE_ID` when Flutter cannot
+select the intended device automatically.
 
 Architecture-local examples remain under:
 

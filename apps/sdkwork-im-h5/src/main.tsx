@@ -2,7 +2,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import { bootstrapImH5CapabilityIntegrations } from './bootstrap';
-import '@sdkwork/i18n-pc-react/styles.css';
 import '@sdkwork/ui-pc-react/styles.css';
 import './index.css';
 

@@ -154,17 +154,17 @@ assert.equal(
 
 const parsedSplitConfig = parsePostgresConfig({
   configText: [
-    'SDKWORK_IM_DATABASE_ENGINE=postgresql',
-    'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
-    'SDKWORK_IM_DATABASE_PORT=15432',
-    'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
-    'SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev',
-    'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
-    'SDKWORK_IM_DATABASE_PASSWORD=chat pass',
-    'SDKWORK_IM_DATABASE_SSL_MODE=disable',
-    'SDKWORK_IM_DATABASE_ADMIN_USERNAME=postgres',
-    'SDKWORK_IM_DATABASE_ADMIN_PASSWORD=admin pass',
-    'SDKWORK_IM_DATABASE_ADMIN_DATABASE=postgres',
+    'SDKWORK_DATABASE_ENGINE=postgresql',
+    'SDKWORK_DATABASE_HOST=127.0.0.1',
+    'SDKWORK_DATABASE_PORT=15432',
+    'SDKWORK_DATABASE_NAME=sdkwork_ai_dev',
+    'SDKWORK_DATABASE_SCHEMA=sdkwork_ai_dev',
+    'SDKWORK_DATABASE_USERNAME=sdkwork_ai_dev',
+    'SDKWORK_DATABASE_PASSWORD=chat pass',
+    'SDKWORK_DATABASE_SSL_MODE=disable',
+    'SDKWORK_DATABASE_ADMIN_USERNAME=postgres',
+    'SDKWORK_DATABASE_ADMIN_PASSWORD=admin pass',
+    'SDKWORK_DATABASE_ADMIN_DATABASE=postgres',
     '',
   ].join('\n'),
   configPath: '.env.postgres',
@@ -193,9 +193,9 @@ assert.equal(
 
 const parsedUrlConfig = parsePostgresConfig({
   configText: [
-    'SDKWORK_CLAW_DATABASE_URL=postgresql://url_user:url_pass@db.internal:5432/url_db?sslmode=require',
-    'SDKWORK_CLAW_DATABASE_SCHEMA=url_schema',
-    'SDKWORK_CLAW_DATABASE_ADMIN_URL=postgresql://postgres:admin_pass@db.internal:5432/postgres?sslmode=require',
+    'SDKWORK_DATABASE_URL=postgresql://url_user:url_pass@db.internal:5432/url_db?sslmode=require',
+    'SDKWORK_DATABASE_SCHEMA=url_schema',
+    'SDKWORK_DATABASE_ADMIN_URL=postgresql://postgres:admin_pass@db.internal:5432/postgres?sslmode=require',
     '',
   ].join('\n'),
   configPath: '.env.postgres',
@@ -210,19 +210,19 @@ assert.equal(parsedUrlConfig.admin.password, 'admin_pass');
 
 const parsedWslPsqlConfig = parsePostgresConfig({
   configText: [
-    'SDKWORK_IM_DATABASE_ENGINE=postgresql',
-    'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
-    'SDKWORK_IM_DATABASE_PORT=5432',
-    'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
-    'SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev',
-    'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
-    'SDKWORK_CLAW_DATABASE_PASSWORD=sdkworkdev123',
-    'SDKWORK_IM_DATABASE_SSL_MODE=disable',
-    'SDKWORK_IM_DATABASE_ADMIN_USERNAME=postgres',
-    'SDKWORK_IM_DATABASE_ADMIN_PASSWORD=admin pass',
-    'SDKWORK_IM_DATABASE_PSQL_COMMAND=wsl.exe',
-    'SDKWORK_IM_DATABASE_PSQL_ARGS=-d Ubuntu-22.04 -- psql',
-    'SDKWORK_IM_DATABASE_PSQL_PATH_STYLE=wsl',
+    'SDKWORK_DATABASE_ENGINE=postgresql',
+    'SDKWORK_DATABASE_HOST=127.0.0.1',
+    'SDKWORK_DATABASE_PORT=5432',
+    'SDKWORK_DATABASE_NAME=sdkwork_ai_dev',
+    'SDKWORK_DATABASE_SCHEMA=sdkwork_ai_dev',
+    'SDKWORK_DATABASE_USERNAME=sdkwork_ai_dev',
+    'SDKWORK_DATABASE_PASSWORD=sdkworkdev123',
+    'SDKWORK_DATABASE_SSL_MODE=disable',
+    'SDKWORK_DATABASE_ADMIN_USERNAME=postgres',
+    'SDKWORK_DATABASE_ADMIN_PASSWORD=admin pass',
+    'SDKWORK_DATABASE_PSQL_COMMAND=wsl.exe',
+    'SDKWORK_DATABASE_PSQL_ARGS=-d Ubuntu-22.04 -- psql',
+    'SDKWORK_DATABASE_PSQL_PATH_STYLE=wsl',
     '',
   ].join('\n'),
   configPath: '.env.postgres',
@@ -257,15 +257,15 @@ assert.equal(parsedYamlConfig.database.sslmode, 'require');
 assert.throws(
   () => parsePostgresConfig({
     configText: [
-      'SDKWORK_CLAW_DATABASE_PROVIDER=postgresql',
-      'SDKWORK_CLAW_DATABASE_HOST=127.0.0.1',
-      'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
-      'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
+      'SDKWORK_DATABASE_PROVIDER=postgresql',
+      'SDKWORK_DATABASE_HOST=127.0.0.1',
+      'SDKWORK_DATABASE_NAME=sdkwork_ai_dev',
+      'SDKWORK_DATABASE_USERNAME=sdkwork_ai_dev',
       '',
     ].join('\n'),
     configPath: '.env.postgres',
   }),
-  /SDKWORK_IM_DATABASE_PASSWORD/u,
+  /SDKWORK_DATABASE_PASSWORD/u,
   'PostgreSQL DB script must reject incomplete app connection config before invoking psql',
 );
 
@@ -339,7 +339,7 @@ assert.throws(
     mode: 'init',
     repoRoot,
   }),
-  /SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD|SDKWORK_CLAW_DATABASE_ADMIN_URL/u,
+  /SDKWORK_DATABASE_ADMIN_PASSWORD|SDKWORK_DATABASE_ADMIN_URL/u,
   'database init must fail before invoking psql when the admin password is missing',
 );
 
@@ -360,7 +360,7 @@ assert.ok(
   'migrate mode must invoke sdkwork-database-cli bootstrap',
 );
 assert.equal(
-  migratePlan.steps[0].env.SDKWORK_IM_DATABASE_AUTO_MIGRATE,
+  migratePlan.steps[0].env.SDKWORK_DATABASE_AUTO_MIGRATE,
   'true',
   'framework bootstrap must enable auto migrate for the CLI process',
 );
@@ -406,17 +406,17 @@ assert.deepEqual(
 );
 
 for (const required of [
-  'SDKWORK_IM_DATABASE_ENGINE=postgresql',
-  'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
-  'SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_PASSWORD=sdkworkdev123',
-  'SDKWORK_IM_DATABASE_SSL_MODE=disable',
-  'SDKWORK_IM_DATABASE_ADMIN_USERNAME=postgres',
-  'SDKWORK_IM_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
-  'SDKWORK_IM_DATABASE_ADMIN_DATABASE=postgres',
-  'SDKWORK_IM_DATABASE_ADMIN_SSL_MODE=disable',
+  'SDKWORK_DATABASE_ENGINE=postgresql',
+  'SDKWORK_DATABASE_HOST=127.0.0.1',
+  'SDKWORK_DATABASE_NAME=sdkwork_ai_dev',
+  'SDKWORK_DATABASE_SCHEMA=sdkwork_ai_dev',
+  'SDKWORK_DATABASE_USERNAME=sdkwork_ai_dev',
+  'SDKWORK_DATABASE_PASSWORD=sdkworkdev123',
+  'SDKWORK_DATABASE_SSL_MODE=disable',
+  'SDKWORK_DATABASE_ADMIN_USERNAME=postgres',
+  'SDKWORK_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
+  'SDKWORK_DATABASE_ADMIN_DATABASE=postgres',
+  'SDKWORK_DATABASE_ADMIN_SSL_MODE=disable',
 ]) {
   assert.ok(envExample.includes(required), `.env.postgres.example must document ${required}`);
 }
@@ -426,8 +426,8 @@ for (const doc of [configIndex, ubuntuWslGuide, devGuide]) {
     'pnpm db:postgres:plan',
     'pnpm db:postgres:init',
     'pnpm db:postgres:migrate',
-    'SDKWORK_IM_DATABASE_ADMIN_PASSWORD',
-    'SDKWORK_IM_DATABASE_SCHEMA',
+    'SDKWORK_DATABASE_ADMIN_PASSWORD',
+    'SDKWORK_DATABASE_SCHEMA',
   ]) {
     assert.ok(doc.includes(required), `PostgreSQL docs must include ${required}`);
   }

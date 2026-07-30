@@ -9,7 +9,7 @@
 ## Prerequisites
 
 - Operator access to audit-service endpoints
-- `SDKWORK_IM_DATABASE_URL` set (if Postgres-backed audit is configured)
+- `SDKWORK_DATABASE_URL` set (if Postgres-backed audit is configured)
 - Appropriate authorization for audit data access
 
 ## Procedure

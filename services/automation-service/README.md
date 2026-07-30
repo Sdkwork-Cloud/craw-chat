@@ -20,7 +20,7 @@ This README is the SDKWork module entrypoint for `automation-service`. The machi
 
 ## Configuration
 
-- Production requires `SDKWORK_IM_DATABASE_URL` for the execution store and PostgreSQL commit journal.
+- Production requires `SDKWORK_DATABASE_URL` for the execution store and PostgreSQL commit journal.
 - `SDKWORK_IM_AUTOMATION_EXECUTION_STORE_FILE` is a bounded, single-node `dev`/`test` facility and is rejected in production.
 - Request concurrency and body limits are configured by `SDKWORK_IM_AUTOMATION_MAX_IN_FLIGHT_REQUESTS` and `SDKWORK_IM_AUTOMATION_MAX_REQUEST_BODY_BYTES`.
 

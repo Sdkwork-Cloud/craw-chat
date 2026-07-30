@@ -22,7 +22,7 @@ The mirror is bounded to 200 route records while retaining the exact total, and 
 - `SDKWORK_IM_OPS_SERVICE_BIND_ADDR`, with `SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND` as the bind fallback
 - `SDKWORK_IM_OPS_MAX_IN_FLIGHT_REQUESTS`
 - `SDKWORK_IM_OPS_MAX_REQUEST_BODY_BYTES`
-- `SDKWORK_IM_DATABASE_URL` for database-backed operational actions such as retention purge
+- `SDKWORK_DATABASE_URL` for database-backed operational actions such as retention purge
 
 The public app exports `/healthz`, `/readyz`, `/livez`, `/metrics`, `/openapi.json`, and `/docs`. `/metrics` includes the shared HTTP metrics and retention-purge metrics.
 

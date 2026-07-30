@@ -30,7 +30,7 @@ use crate::openapi::{docs, openapi_json};
 use crate::state::{AppState, CallingRuntime, RuntimeMemoryStateStore};
 
 /// Environment variable for the PostgreSQL RTC state database URL.
-const ENV_RTC_STATE_DATABASE_URL: &str = "SDKWORK_RTC_STATE_DATABASE_URL";
+const ENV_RTC_STATE_DATABASE_URL: &str = "SDKWORK_DATABASE_URL";
 /// Environment variable for the Redis RTC state cache URL (optional).
 const ENV_RTC_STATE_REDIS_URL: &str = "SDKWORK_RTC_STATE_REDIS_URL";
 /// Environment variable to require durable storage in production.
@@ -48,8 +48,8 @@ const ENV_RTC_VOLCENGINE_APP_KEY: &str = "SDKWORK_RTC_VOLCENGINE_APP_KEY";
 const ENV_RTC_REQUIRE_PROVIDER: &str = "SDKWORK_RTC_REQUIRE_PROVIDER";
 /// Environment variable for the PostgreSQL outbox database URL (durable
 /// event publishing). When unset, lifecycle events are not enqueued.
-const ENV_RTC_OUTBOX_DATABASE_URL: &str = "SDKWORK_RTC_OUTBOX_DATABASE_URL";
-const ENV_IM_DATABASE_URL: &str = "SDKWORK_IM_DATABASE_URL";
+const ENV_RTC_OUTBOX_DATABASE_URL: &str = "SDKWORK_DATABASE_URL";
+const ENV_IM_DATABASE_URL: &str = "SDKWORK_DATABASE_URL";
 /// Environment variable to require a wired outbox store in production.
 /// When `true` or `1`, missing outbox configuration aborts startup.
 const ENV_RTC_REQUIRE_OUTBOX: &str = "SDKWORK_RTC_REQUIRE_OUTBOX";
@@ -132,7 +132,7 @@ pub fn build_default_rtc_provider() -> Option<Arc<dyn RtcProviderPort>> {
 ///
 /// ## Priority
 ///
-/// 1. **PostgreSQL** (`SDKWORK_RTC_STATE_DATABASE_URL`) — durable source
+/// 1. **PostgreSQL** (`SDKWORK_DATABASE_URL`) — durable source
 ///    of truth with epoch-based fencing via `SELECT ... FOR UPDATE`.
 /// 2. **Redis** (`SDKWORK_RTC_STATE_REDIS_URL`) — hot-path cache with
 ///    Lua-atomic epoch fencing. Not durable; data is lost on Redis
@@ -147,7 +147,7 @@ pub fn build_default_rtc_provider() -> Option<Arc<dyn RtcProviderPort>> {
 /// data loss in production by refusing to boot into a non-durable mode.
 ///
 /// Production deployments SHOULD set:
-/// - `SDKWORK_RTC_STATE_DATABASE_URL=postgres://...`
+/// - `SDKWORK_DATABASE_URL=postgres://...`
 /// - `SDKWORK_RTC_STATE_REDIS_URL=redis://...` (optional, for hot cache)
 /// - `SDKWORK_RTC_STATE_REQUIRE_DURABLE=true`
 fn build_default_state_store() -> Arc<dyn StateStore> {
@@ -205,7 +205,7 @@ fn build_default_state_store() -> Arc<dyn StateStore> {
 
 /// Resolve the transactional outbox store from environment configuration.
 ///
-/// When `SDKWORK_RTC_OUTBOX_DATABASE_URL` is set, constructs a
+/// When `SDKWORK_DATABASE_URL` is set, constructs a
 /// `PostgresOutboxStore` backed by an r2d2 connection pool. The outbox
 /// implements the `FOR UPDATE SKIP LOCKED` drain pattern for
 /// multi-worker concurrent event delivery.
@@ -300,11 +300,11 @@ fn enforce_require_redis_signal_rate_limit(
 /// store, RTC provider, outbox store, audit emitter, and ID generator.
 ///
 /// Uses [`build_default_state_store`] to resolve the persistence layer
-/// from `SDKWORK_RTC_STATE_DATABASE_URL` / `SDKWORK_RTC_STATE_REDIS_URL`.
+/// from `SDKWORK_DATABASE_URL` / `SDKWORK_RTC_STATE_REDIS_URL`.
 /// Uses [`build_default_rtc_provider`] to resolve the RTC provider from
 /// `SDKWORK_RTC_VOLCENGINE_APP_ID` / `SDKWORK_RTC_VOLCENGINE_APP_KEY`.
 /// Uses [`build_default_outbox_store_optional`] to resolve the outbox
-/// from `SDKWORK_RTC_OUTBOX_DATABASE_URL`.
+/// from `SDKWORK_DATABASE_URL`.
 /// Uses [`build_default_audit_emitter`] for SIEM-compatible audit emission.
 /// Uses [`build_default_id_generator`] for cluster-safe Snowflake IDs.
 ///

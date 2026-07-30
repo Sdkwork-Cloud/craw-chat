@@ -14,7 +14,7 @@ use im_adapters_social_postgres::{SocialPostgresConfig, SocialPostgresPool};
 use super::http::PostgresAppState;
 use super::id::build_runtime_id_generator_for_social;
 
-pub const DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+pub const DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
 
 pub async fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> PostgresAppState {
     let pool_arc = Arc::new(pool.inner().clone());

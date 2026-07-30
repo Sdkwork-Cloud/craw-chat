@@ -122,7 +122,7 @@ fn test_postgres_realtime_live_integration_test_is_guarded_by_database_url_env()
     let source = include_str!("postgres_realtime_live_integration_test.rs");
 
     assert!(
-        source.contains("SDKWORK_IM_POSTGRES_TEST_DATABASE_URL"),
+        source.contains("SDKWORK_DATABASE_URL"),
         "live PostgreSQL integration test must be guarded by an explicit database URL env var"
     );
     assert!(
@@ -155,7 +155,7 @@ fn test_session_gateway_postgres_realtime_live_runtime_test_covers_core_runtime_
     );
 
     for required_evidence in [
-        "SDKWORK_IM_POSTGRES_TEST_DATABASE_URL",
+        "SDKWORK_DATABASE_URL",
         "PostgresRealtimeCheckpointStore::from_pool",
         "PostgresRealtimeSubscriptionStore::from_pool",
         "PostgresRealtimeEventWindowStore::from_pool",
@@ -180,7 +180,7 @@ fn test_session_gateway_postgres_realtime_websocket_live_drill_covers_reconnect_
     );
 
     for required_evidence in [
-        "SDKWORK_IM_POSTGRES_TEST_DATABASE_URL",
+        "SDKWORK_DATABASE_URL",
         "PostgresRealtimeCheckpointStore::from_pool",
         "PostgresRealtimeSubscriptionStore::from_pool",
         "PostgresRealtimeEventWindowStore::from_pool",

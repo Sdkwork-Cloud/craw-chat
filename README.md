@@ -395,7 +395,7 @@ Deep dive: [docs/架构/08-安全-多租户-SaaS-私有化-部署设计.md](./do
 - Topology v5 profiles only; `pnpm dev` is exactly `pnpm dev:standalone` (`standalone.development`).
 - RTC SDK authority is sibling [`../sdkwork-rtc`](../sdkwork-rtc) (`sdkwork-rtc-sdk` must not live under this repo's `sdks/`).
 - Do not hand-edit generated SDK output; do not replace generated SDK calls with raw HTTP.
-- Runtime directory (`SDKWORK_IM_RUNTIME_DIR`) is an architectural contract, not an auxiliary log directory.
+- Repository-generated state follows the SDKWork boundary: tool output stays in native ignored directories, while process state and disposable config stay in private OS/CI temporary storage.
 - Storage management converges on shared module baselines (`im-storage-contracts` + `im-storage-runtime`); do not rebuild provider logic in consuming surfaces.
 - Retired topology vocabulary must not be reintroduced; see the `bannedPatterns` list in `scripts/dev/sdkwork-im-topology-baggage.test.mjs` and the `retired` section of [`specs/topology.spec.json`](./specs/topology.spec.json).
 

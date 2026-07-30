@@ -1,8 +1,14 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { createFlutterDefineConfig, createFlutterDevPlan } from './flutter-dev.mjs';
+import {
+  createFlutterDefineConfig,
+  createFlutterDevPlan,
+  runFlutterDevelopment,
+} from './flutter-dev.mjs';
 
 const cloudEnv = {
   SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
@@ -24,18 +30,19 @@ test('materializes topology values without token or secret fields', () => {
 });
 
 test('creates a profile-scoped local dart-define plan', () => {
-  const root = path.resolve('fixture-flutter-root');
+  const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-flutter-state-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-flutter-app-'));
   const plan = createFlutterDevPlan({
     args: ['--target', 'android'],
     env: { ...cloudEnv, SDKWORK_FLUTTER_DEVICE_ID: 'emulator-5554' },
+    repoRoot: root,
     root,
+    runtimeStateOptions: { env: {}, temporaryDirectory },
   });
   assert.equal(plan.target, 'android');
   assert.equal(plan.config.SDKWORK_RUNTIME_TARGET, 'flutter-android');
-  assert.equal(
-    plan.configPath,
-    path.join(root, '.runtime', 'sdkwork-app', 'flutter', 'cloud.development.android.json'),
-  );
+  assert.equal(path.relative(root, plan.configPath).startsWith('..'), true);
+  assert.match(path.basename(plan.configPath), /^cloud\.development\.android\.dart-define-.*\.json$/u);
   assert.deepEqual(plan.flutterArgs, [
     'run',
     '--device-id',
@@ -43,6 +50,33 @@ test('creates a profile-scoped local dart-define plan', () => {
     '--dart-define-from-file',
     plan.configPath,
   ]);
+  fs.rmSync(root, { force: true, recursive: true });
+  fs.rmSync(temporaryDirectory, { force: true, recursive: true });
+});
+
+test('removes the private dart-define file after Flutter success and failure', () => {
+  for (const status of [0, 1]) {
+    const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-flutter-state-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-flutter-app-'));
+    const plan = createFlutterDevPlan({
+      args: ['--target', 'android'],
+      env: cloudEnv,
+      repoRoot: root,
+      root,
+      runtimeStateOptions: { env: {}, temporaryDirectory },
+    });
+    const execute = () => runFlutterDevelopment(plan, {
+      spawn: () => {
+        assert.equal(fs.existsSync(plan.configPath), true);
+        return { status };
+      },
+    });
+    if (status === 0) execute();
+    else assert.throws(execute, /flutter run exited/u);
+    assert.equal(fs.existsSync(plan.configPath), false);
+    fs.rmSync(root, { force: true, recursive: true });
+    fs.rmSync(temporaryDirectory, { force: true, recursive: true });
+  }
 });
 
 test('projects an iOS runtime target into the selected profile', () => {

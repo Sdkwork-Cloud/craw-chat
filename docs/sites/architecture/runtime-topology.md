@@ -1,6 +1,6 @@
 ﻿# Runtime Topology
 
-Sdkwork IM uses topology v4 connectivity planes. See `specs/topology.spec.json` and
+Sdkwork IM uses topology v5 connectivity planes. See `specs/topology.spec.json` and
 `docs/topology-greenfield.md`.
 
 ## Development default
@@ -37,5 +37,5 @@ layout.
 
 ## Retired
 
-Pre-topology-v4 minimal-node/minimal/default profile ids are removed. Do not use legacy per-profile
-runtime config trees under `.runtime/` or retired env templates under `deployments/templates/`.
+Pre-topology-v5 minimal-node/minimal/default profile ids are removed. Do not use legacy per-profile
+source-tree runtime config directories or retired env templates under `deployments/templates/`.

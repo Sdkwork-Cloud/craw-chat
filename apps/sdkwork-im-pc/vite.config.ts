@@ -256,6 +256,7 @@ function sdkworkChatLocalApiPlugin(): Plugin {
 
 export default defineConfig(({mode}) => {
   return {
+    cacheDir: path.resolve(__dirname, 'node_modules', '.vite', 'sdkwork-im-pc'),
     plugins: [
       createSdkworkCredentialEntryBootstrapVitePlugin({
         accessToken: process.env.SDKWORK_ACCESS_TOKEN,

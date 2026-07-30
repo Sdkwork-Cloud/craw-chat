@@ -1,23 +1,23 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import {
   ensureSdkworkUiDist,
   resolveSdkworkUiPackageRoot,
 } from './sdkwork-ui-runtime-lib.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, '..', '..');
-const testRoot = path.join(repoRoot, '.runtime', 'sdkwork-ui-runtime-lib-test');
+const fixtureWorkspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-ui-runtime-'));
+const testRoot = path.join(fixtureWorkspaceRoot, 'sdkwork-im');
 const appRoot = path.join(testRoot, 'apps', 'sdkwork-im-pc');
 const uiPackageRoot = path.join(
-  testRoot,
-  '..',
+  fixtureWorkspaceRoot,
   'sdkwork-ui',
   'sdkwork-ui-pc-react',
 );
+const cleanupFixture = () => fs.rmSync(fixtureWorkspaceRoot, { force: true, recursive: true });
+process.once('exit', cleanupFixture);
 
 fs.rmSync(testRoot, { force: true, recursive: true });
 fs.mkdirSync(appRoot, { recursive: true });
@@ -124,3 +124,5 @@ assert.deepEqual(
 );
 
 console.log('sdkwork ui runtime dependency contract passed');
+process.removeListener('exit', cleanupFixture);
+cleanupFixture();

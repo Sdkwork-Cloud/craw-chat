@@ -44,14 +44,14 @@ function envValue(env, canonicalName, ...legacyNames) {
 }
 
 function assertNoCanonicalLegacyAliases(env) {
-  if (normalizeDatabaseField(env.SDKWORK_IM_DATABASE_PROVIDER)) {
+  if (normalizeDatabaseField(env.SDKWORK_DATABASE_PROVIDER)) {
     throw new Error(
-      'SDKWORK_IM_DATABASE_PROVIDER is not standard; use SDKWORK_IM_DATABASE_ENGINE',
+      'SDKWORK_DATABASE_PROVIDER is not standard; use SDKWORK_DATABASE_ENGINE',
     );
   }
-  if (normalizeDatabaseField(env.SDKWORK_IM_DATABASE_SSLMODE)) {
+  if (normalizeDatabaseField(env.SDKWORK_DATABASE_SSLMODE)) {
     throw new Error(
-      'SDKWORK_IM_DATABASE_SSLMODE is not standard; use SDKWORK_IM_DATABASE_SSL_MODE',
+      'SDKWORK_DATABASE_SSLMODE is not standard; use SDKWORK_DATABASE_SSL_MODE',
     );
   }
 }
@@ -60,9 +60,9 @@ function resolvePostgresDatabaseUrlFromFields(env) {
   assertNoCanonicalLegacyAliases(env);
   const engine = envValue(
     env,
-    'SDKWORK_IM_DATABASE_ENGINE',
-    'SDKWORK_CLAW_DATABASE_ENGINE',
-    'SDKWORK_CLAW_DATABASE_PROVIDER',
+    'SDKWORK_DATABASE_ENGINE',
+    'SDKWORK_DATABASE_ENGINE',
+    'SDKWORK_DATABASE_PROVIDER',
   );
   if (!engine) {
     return undefined;
@@ -71,38 +71,38 @@ function resolvePostgresDatabaseUrlFromFields(env) {
     throw new Error(`unsupported Sdkwork IM database engine: ${engine}`);
   }
 
-  const host = envValue(env, 'SDKWORK_IM_DATABASE_HOST', 'SDKWORK_CLAW_DATABASE_HOST');
-  const database = envValue(env, 'SDKWORK_IM_DATABASE_NAME', 'SDKWORK_CLAW_DATABASE_NAME');
+  const host = envValue(env, 'SDKWORK_DATABASE_HOST', 'SDKWORK_DATABASE_HOST');
+  const database = envValue(env, 'SDKWORK_DATABASE_NAME', 'SDKWORK_DATABASE_NAME');
   const username = envValue(
     env,
-    'SDKWORK_IM_DATABASE_USERNAME',
-    'SDKWORK_CLAW_DATABASE_USERNAME',
+    'SDKWORK_DATABASE_USERNAME',
+    'SDKWORK_DATABASE_USERNAME',
   );
   const password = envValue(
     env,
-    'SDKWORK_IM_DATABASE_PASSWORD',
-    'SDKWORK_CLAW_DATABASE_PASSWORD',
+    'SDKWORK_DATABASE_PASSWORD',
+    'SDKWORK_DATABASE_PASSWORD',
   );
   const missing = [];
   if (!host) {
-    missing.push('SDKWORK_IM_DATABASE_HOST');
+    missing.push('SDKWORK_DATABASE_HOST');
   }
   if (!database) {
-    missing.push('SDKWORK_IM_DATABASE_NAME');
+    missing.push('SDKWORK_DATABASE_NAME');
   }
   if (!username) {
-    missing.push('SDKWORK_IM_DATABASE_USERNAME');
+    missing.push('SDKWORK_DATABASE_USERNAME');
   }
   if (!password) {
-    missing.push('SDKWORK_IM_DATABASE_PASSWORD');
+    missing.push('SDKWORK_DATABASE_PASSWORD');
   }
   if (missing.length > 0) {
     throw new Error(
-      `SDKWORK_IM_DATABASE_ENGINE=postgresql requires ${missing.join(', ')}`,
+      `SDKWORK_DATABASE_ENGINE=postgresql requires ${missing.join(', ')}`,
     );
   }
 
-  const port = envValue(env, 'SDKWORK_IM_DATABASE_PORT', 'SDKWORK_CLAW_DATABASE_PORT');
+  const port = envValue(env, 'SDKWORK_DATABASE_PORT', 'SDKWORK_DATABASE_PORT');
   const credentials = `${encodeURIComponent(username)}${password ? `:${encodeURIComponent(password)}` : ''}`;
   const authority = `${credentials}@${host}${port ? `:${port}` : ''}`;
   const params = new URLSearchParams();
@@ -111,9 +111,9 @@ function resolvePostgresDatabaseUrlFromFields(env) {
     'sslmode',
     envValue(
       env,
-      'SDKWORK_IM_DATABASE_SSL_MODE',
-      'SDKWORK_CLAW_DATABASE_SSL_MODE',
-      'SDKWORK_CLAW_DATABASE_SSLMODE',
+      'SDKWORK_DATABASE_SSL_MODE',
+      'SDKWORK_DATABASE_SSL_MODE',
+      'SDKWORK_DATABASE_SSLMODE',
     ),
   );
   const query = params.toString();
@@ -121,9 +121,9 @@ function resolvePostgresDatabaseUrlFromFields(env) {
 }
 
 const AGENTS_DATABASE_ENV_KEYS = [
-  'SDKWORK_AGENTS_DATABASE_URL',
-  'SDKWORK_AGENTS_STORE_DATABASE_URL',
-  'SDKWORK_AGENT_SERVER_DATABASE_URL',
+  'SDKWORK_DATABASE_URL',
+  'SDKWORK_DATABASE_URL',
+  'SDKWORK_DATABASE_URL',
 ];
 
 const COMMERCE_T1_DATABASE_PREFIXES = [
@@ -145,30 +145,30 @@ function databaseBridgeEnv({
   maxConnections,
 }) {
   const resolvedMaxConnections = maxConnections
-    ?? envValue(env, 'SDKWORK_IM_DATABASE_MAX_CONNECTIONS', 'SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS');
+    ?? envValue(env, 'SDKWORK_DATABASE_MAX_CONNECTIONS', 'SDKWORK_DATABASE_MAX_CONNECTIONS');
   const bridged = {
-    SDKWORK_IM_DATABASE_ENGINE: 'postgresql',
-    SDKWORK_IM_DATABASE_URL: databaseUrl,
-    SDKWORK_CLAW_DATABASE_URL: databaseUrl,
+    SDKWORK_DATABASE_ENGINE: 'postgresql',
+    SDKWORK_DATABASE_URL: databaseUrl,
+    SDKWORK_DATABASE_URL: databaseUrl,
     ...(resolvedMaxConnections
       ? {
-        SDKWORK_IM_DATABASE_MAX_CONNECTIONS: resolvedMaxConnections,
-        SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS: resolvedMaxConnections,
+        SDKWORK_DATABASE_MAX_CONNECTIONS: resolvedMaxConnections,
+        SDKWORK_DATABASE_MAX_CONNECTIONS: resolvedMaxConnections,
       }
       : {}),
   };
-  bridged.SDKWORK_IAM_DATABASE_URL = databaseUrl;
   bridged.SDKWORK_DATABASE_URL = databaseUrl;
-  bridged.SDKWORK_DRIVE_DATABASE_URL = databaseUrl;
-  bridged.SDKWORK_KNOWLEDGEBASE_DATABASE_URL = databaseUrl;
+  bridged.SDKWORK_DATABASE_URL = databaseUrl;
+  bridged.SDKWORK_DATABASE_URL = databaseUrl;
+  bridged.SDKWORK_DATABASE_URL = databaseUrl;
   for (const key of AGENTS_DATABASE_ENV_KEYS) {
     bridged[key] = databaseUrl;
   }
   for (const prefix of COMMERCE_T1_DATABASE_PREFIXES) {
     bridged[`${prefix}_DATABASE_URL`] = databaseUrl;
   }
-  bridged.SDKWORK_MAIL_DATABASE_URL = databaseUrl;
-  bridged.SDKWORK_NOTARY_DATABASE_URL = databaseUrl;
+  bridged.SDKWORK_DATABASE_URL = databaseUrl;
+  bridged.SDKWORK_DATABASE_URL = databaseUrl;
   return bridged;
 }
 
@@ -177,13 +177,13 @@ export function resolveSdkworkImSharedDatabaseConfig({
   repoRoot: _root = repoRoot,
 } = {}) {
   assertNoCanonicalLegacyAliases(env);
-  const databaseUrl = normalizeDatabaseUrl(env.SDKWORK_IM_DATABASE_URL)
-    ?? normalizeDatabaseUrl(env.SDKWORK_CLAW_DATABASE_URL)
+  const databaseUrl = normalizeDatabaseUrl(env.SDKWORK_DATABASE_URL)
+    ?? normalizeDatabaseUrl(env.SDKWORK_DATABASE_URL)
     ?? resolvePostgresDatabaseUrlFromFields(env);
 
   if (!databaseUrl) {
     throw new Error(
-      'SDKWORK_IM_DATABASE_URL or SDKWORK_IM_DATABASE_ENGINE=postgresql configuration is required; IM SQLite default has been removed',
+      'SDKWORK_DATABASE_URL or SDKWORK_DATABASE_ENGINE=postgresql configuration is required; IM SQLite default has been removed',
     );
   }
 

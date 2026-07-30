@@ -34,7 +34,7 @@ impl ServiceReadiness {
                 .or_else(|| std::env::var("SDKWORK_IM_REALTIME_CLUSTER_BUS_URL").ok())
                 .map(|value| value.trim().to_owned())
                 .filter(|value| !value.is_empty()),
-            postgres_configured: std::env::var("SDKWORK_IM_DATABASE_URL")
+            postgres_configured: std::env::var("SDKWORK_DATABASE_URL")
                 .ok()
                 .map(|value| !value.trim().is_empty())
                 .unwrap_or(false),

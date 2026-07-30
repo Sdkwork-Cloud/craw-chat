@@ -15,7 +15,7 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
-DATABASE_URL="${SDKWORK_IM_DATABASE_URL:-}"
+DATABASE_URL="${SDKWORK_DATABASE_URL:-}"
 MIGRATIONS_DIR="${SDKWORK_IM_MIGRATIONS_DIR:-$ROOT_DIR/database/migrations}"
 DRY_RUN=false
 ROLLBACK_VERSION=""
@@ -52,7 +52,7 @@ log_info "Migrations dir: $MIGRATIONS_DIR"
 echo ""
 
 if [ -z "$DATABASE_URL" ]; then
-    log_error "SDKWORK_IM_DATABASE_URL not set"
+    log_error "SDKWORK_DATABASE_URL not set"
     exit 1
 fi
 

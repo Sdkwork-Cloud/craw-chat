@@ -234,6 +234,11 @@ for (const packageItem of releasePlan.packages) {
         `${packageItem.id} should include ${expectedArtifact}`,
       );
     }
+    assert.equal(
+      packageItem.artifacts.some((artifact) => artifact.kind === 'h5-web-dist' && artifact.required === false),
+      true,
+      `${packageItem.id} should include optional h5-web-dist`,
+    );
     assert.match(packageItem.archiveName, /^sdkwork-im-web-universal-cloud-browser-zip-.+\.zip$/u);
   } else if (packageItem.profile === 'server') {
     assert.equal(packageItem.deploymentProfile, 'standalone', `${packageItem.id} deployment profile`);
@@ -259,6 +264,11 @@ for (const packageItem of releasePlan.packages) {
         `${packageItem.id} should include ${expectedArtifact}`,
       );
     }
+    assert.equal(
+      packageItem.artifacts.some((artifact) => artifact.kind === 'h5-web-dist' && artifact.required === false),
+      true,
+      `${packageItem.id} should include optional h5-web-dist`,
+    );
     assert.match(packageItem.archiveName, /^sdkwork-im-.+standalone-server-.+\.(zip|tar\.gz)$/u);
   } else {
     assert.equal(packageItem.deploymentProfile, 'standalone', `${packageItem.id} deployment profile`);
@@ -267,7 +277,7 @@ for (const packageItem of releasePlan.packages) {
     assert.equal(packageItem.databasePolicy?.requiresExternalDatabase, true, `${packageItem.id} external database`);
     assert.equal(packageItem.databasePolicy?.passwordFile?.required, true, `${packageItem.id} password file required`);
     assert.ok(
-      packageItem.databasePolicy?.envOverrides?.includes('SDKWORK_IM_DATABASE_PASSWORD_FILE'),
+      packageItem.databasePolicy?.envOverrides?.includes('SDKWORK_DATABASE_PASSWORD_FILE'),
       `${packageItem.id} database password file env override`,
     );
     for (const expectedArtifact of ['desktop-installers', 'desktop-manifest']) {
@@ -320,8 +330,11 @@ const browserProductionDryRunPayload = JSON.parse(execFileSync(
 ));
 assert.deepEqual(
   browserProductionDryRunPayload.plan.steps.map((step) => step.label),
-  ['build sdkwork-im-pc web assets'],
-  'browser production build should build only the PC web assets',
+  [
+    'build sdkwork-im-pc web assets',
+    'build sdkwork-im-h5 web assets',
+  ],
+  'browser production build should build both adaptive browser renderers',
 );
 
 const dryRunBuildPlan = packageBuilder.createSdkworkImInstallPackageBuildPlan({
@@ -504,6 +517,7 @@ assert.equal(browserInstallManifest.package.format, 'zip');
 const browserStagingArchivePaths = new Set(browserDryRunStagingPlan.actions.map((action) => action.archivePath).filter(Boolean));
 for (const expectedPath of [
   'web/sdkwork-im-pc/dist',
+  'web/sdkwork-im-h5/dist',
   'web-manifest.json',
 ]) {
   assert.equal(
@@ -545,6 +559,7 @@ for (const expectedPath of [
   'service/macos/com.sdkwork.im.api-standalone-gateway.plist',
   'service/windows/sdkwork-api-im-standalone-gateway-service.xml',
   'web/sdkwork-im-pc/dist',
+  'web/sdkwork-im-h5/dist',
 ]) {
   assert.equal(
     stagingArchivePaths.has(expectedPath),
@@ -570,6 +585,7 @@ for (const expectedText of [
   'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com',
   'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com',
   'SDKWORK_IM_ADMIN_SITE_DIR=/opt/sdkwork/chat/web/sdkwork-im-pc/dist',
+  'SDKWORK_IM_H5_SITE_DIR=/opt/sdkwork/chat/web/sdkwork-im-h5/dist',
 ]) {
   assert.match(linuxGeneratedEnv, new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
 }

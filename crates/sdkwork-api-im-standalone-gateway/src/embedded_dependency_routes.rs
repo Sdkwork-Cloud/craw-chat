@@ -243,26 +243,21 @@ async fn embedded_shop_service_host()
 ///
 /// This must be called from the main thread BEFORE the Tokio runtime is created
 /// to avoid data races on the process environment. After this returns, all
-/// `SDKWORK_*_DATABASE_URL`, `SDKWORK_KNOWLEDGEBASE_*`, commerce T1 `SDKWORK_*_APP_ROOT`,
-/// and related env vars are resolved and the async bootstrap functions can
-/// safely read them.
+/// embedded modules share the validated `SDKWORK_DATABASE_*` profile, while
+/// module runtime settings and `SDKWORK_*_APP_ROOT` values are resolved before
+/// async bootstrap functions read them.
 ///
 /// # Safety
 ///
 /// See `set_env_var` safety contract — callers must ensure no other threads exist.
 pub fn apply_embedded_dependency_env() -> Result<(), String> {
-    apply_drive_database_env_from_im_shared_profile()?;
-    apply_commerce_t1_database_env_from_im_shared_profile()?;
-    apply_mail_database_env_from_im_shared_profile()?;
+    validate_workspace_server_database_env()?;
     apply_knowledgebase_runtime_env_from_im_shared_profile()?;
     apply_agents_runtime_env_from_im_shared_profile()?;
-    apply_notary_database_env_from_im_shared_profile()?;
     apply_course_runtime_env_from_im_shared_profile()?;
-    apply_iam_database_env_from_im_shared_profile()?;
-    apply_web_store_database_env_from_im_shared_profile()?;
+    apply_web_store_app_root();
     apply_commerce_t1_app_roots_from_im_shared_profile();
     apply_embedded_dependency_app_roots();
-    normalize_embedded_dependency_database_urls()?;
     // Avoid overlapping `/app/v3/api/recharges/*` routes: sdkwork-order owns the surface, while
     // sdkwork-payment only provides a deprecated proxy implementation.
     set_env_var("SDKWORK_PAYMENT_DISABLE_RECHARGE_PROXY", "true");
@@ -277,6 +272,15 @@ pub fn apply_embedded_dependency_env() -> Result<(), String> {
         "SDKWORK_COURSE_APP_ROOT",
         resolve_course_app_root().to_string_lossy().as_ref(),
     );
+    Ok(())
+}
+
+fn validate_workspace_server_database_env() -> Result<(), String> {
+    let config = sdkwork_database_config::DatabaseConfig::from_env("IM")
+        .map_err(|error| format!("resolve workspace database profile failed: {error}"))?;
+    if config.engine != sdkwork_database_config::DatabaseEngine::Postgres {
+        return Err("IM standalone gateway requires SDKWORK_DATABASE_ENGINE=postgresql".to_owned());
+    }
     Ok(())
 }
 
@@ -316,7 +320,7 @@ where
             Ok(())
         }
         Err(error) => {
-            if embedded_dependency_database_env_is_configured(dependency) {
+            if workspace_database_env_is_configured() {
                 Err(format!(
                     "{dependency} database lifecycle sync failed: {error}"
                 ))
@@ -335,7 +339,7 @@ where
 }
 
 async fn sync_drive_embedded_database() -> Result<(), String> {
-    if !database_env_is_configured("SDKWORK_DRIVE") {
+    if !workspace_database_env_is_configured() {
         return Ok(());
     }
     ensure_embedded_database_module_ready("drive", "sdkwork-drive")?;
@@ -349,7 +353,7 @@ async fn sync_drive_embedded_database() -> Result<(), String> {
 }
 
 async fn sync_knowledgebase_embedded_database() -> Result<(), String> {
-    if !database_env_is_configured("SDKWORK_KNOWLEDGEBASE") {
+    if !workspace_database_env_is_configured() {
         return Ok(());
     }
     ensure_embedded_database_module_ready("knowledgebase", "sdkwork-knowledgebase")?;
@@ -359,7 +363,7 @@ async fn sync_knowledgebase_embedded_database() -> Result<(), String> {
 }
 
 async fn sync_webstore_embedded_database() -> Result<(), String> {
-    if !database_env_is_configured("SDKWORK_WEB_STORE") {
+    if !workspace_database_env_is_configured() {
         return Ok(());
     }
     ensure_embedded_database_module_ready("web_store", "sdkwork-web-framework")?;
@@ -374,7 +378,7 @@ async fn sync_webstore_embedded_database() -> Result<(), String> {
 }
 
 async fn sync_mail_embedded_database() -> Result<(), String> {
-    if !database_env_is_configured("SDKWORK_MAIL") {
+    if !workspace_database_env_is_configured() {
         return Ok(());
     }
     ensure_embedded_database_module_ready("mail", "sdkwork-mail")?;
@@ -384,7 +388,7 @@ async fn sync_mail_embedded_database() -> Result<(), String> {
 }
 
 async fn sync_notary_embedded_database() -> Result<(), String> {
-    if !database_env_is_configured("SDKWORK_NOTARY") {
+    if !workspace_database_env_is_configured() {
         return Ok(());
     }
     ensure_embedded_database_module_ready("notary", "sdkwork-notary")?;
@@ -394,7 +398,7 @@ async fn sync_notary_embedded_database() -> Result<(), String> {
 }
 
 async fn sync_course_embedded_database() -> Result<(), String> {
-    if !database_env_is_configured("SDKWORK_COURSE") {
+    if !workspace_database_env_is_configured() {
         return Ok(());
     }
     ensure_embedded_database_module_ready("course", "sdkwork-course")?;
@@ -430,7 +434,7 @@ fn commerce_t1_dependency_id(module: &CommerceT1Module) -> &'static str {
 }
 
 async fn sync_commerce_t1_module_database(module: &CommerceT1Module) -> Result<(), String> {
-    if !database_env_is_configured(module.env_prefix) {
+    if !workspace_database_env_is_configured() {
         return Ok(());
     }
     if !embedded_database_manifest_available(module.repo_dir) {
@@ -481,10 +485,7 @@ async fn sync_commerce_t1_module_database(module: &CommerceT1Module) -> Result<(
 }
 
 async fn sync_agents_embedded_database() -> Result<(), String> {
-    if !agents_database_env_is_configured("SDKWORK_AGENTS")
-        && !agents_database_env_is_configured("SDKWORK_AGENTS_STORE")
-        && !agents_database_env_is_configured("SDKWORK_AGENT_SERVER")
-    {
+    if !workspace_database_env_is_configured() {
         return Ok(());
     }
     if !embedded_database_manifest_available("sdkwork-agents") {
@@ -495,32 +496,6 @@ async fn sync_agents_embedded_database() -> Result<(), String> {
         .await
         .map_err(|error| format!("agents database bootstrap failed: {error}"))?;
     Ok(())
-}
-
-fn embedded_dependency_database_env_is_configured(dependency: &str) -> bool {
-    match dependency {
-        "drive" => database_env_is_configured("SDKWORK_DRIVE"),
-        "knowledgebase" => database_env_is_configured("SDKWORK_KNOWLEDGEBASE"),
-        "mail" => database_env_is_configured("SDKWORK_MAIL"),
-        "notary" => database_env_is_configured("SDKWORK_NOTARY"),
-        "course" => database_env_is_configured("SDKWORK_COURSE"),
-        "account" => database_env_is_configured("SDKWORK_ACCOUNT"),
-        "catalog" => database_env_is_configured("SDKWORK_CATALOG"),
-        "inventory" => database_env_is_configured("SDKWORK_INVENTORY"),
-        "invoice" => database_env_is_configured("SDKWORK_INVOICE"),
-        "membership" => database_env_is_configured("SDKWORK_MEMBERSHIP"),
-        "merchandise" => database_env_is_configured("SDKWORK_MERCHANDISE"),
-        "order" => database_env_is_configured("SDKWORK_ORDER"),
-        "payment" => database_env_is_configured("SDKWORK_PAYMENT"),
-        "promotion" => database_env_is_configured("SDKWORK_PROMOTION"),
-        "shop" => database_env_is_configured("SDKWORK_SHOP"),
-        "agents" => {
-            agents_database_env_is_configured("SDKWORK_AGENTS")
-                || agents_database_env_is_configured("SDKWORK_AGENTS_STORE")
-                || agents_database_env_is_configured("SDKWORK_AGENT_SERVER")
-        }
-        _ => false,
-    }
 }
 
 fn apply_embedded_dependency_app_roots() {
@@ -565,67 +540,6 @@ fn ensure_embedded_dependency_app_root(env_prefix: &str, repo_dir: &str) {
                 .as_ref(),
         );
     }
-}
-
-fn normalize_embedded_dependency_database_urls() -> Result<(), String> {
-    normalize_server_postgres_database_env("SDKWORK_IAM")?;
-    normalize_server_postgres_database_env("SDKWORK_DRIVE")?;
-    normalize_server_postgres_database_env("SDKWORK_KNOWLEDGEBASE")?;
-    normalize_server_postgres_database_env("SDKWORK_WEB_STORE")?;
-    normalize_server_postgres_database_env("SDKWORK_MAIL")?;
-    normalize_server_postgres_database_env("SDKWORK_NOTARY")?;
-    normalize_server_postgres_database_env("SDKWORK_COURSE")?;
-    for module in COMMERCE_T1_MODULES {
-        normalize_server_postgres_database_env(module.env_prefix)?;
-    }
-    for prefix in [
-        "SDKWORK_AGENTS",
-        "SDKWORK_AGENTS_STORE",
-        "SDKWORK_AGENT_SERVER",
-    ] {
-        normalize_server_postgres_database_env(prefix)?;
-    }
-    Ok(())
-}
-
-fn normalize_server_postgres_database_env(prefix: &str) -> Result<(), String> {
-    if std::env::var(format!("{prefix}_DATABASE_SQLITE_URL"))
-        .ok()
-        .is_some_and(|value| !value.trim().is_empty())
-    {
-        return Err(format!(
-            "{prefix} server database configuration must not define a SQLite URL"
-        ));
-    }
-    if let Ok(engine) = std::env::var(format!("{prefix}_DATABASE_ENGINE")) {
-        let engine = engine.trim().to_ascii_lowercase();
-        if !engine.is_empty() && !matches!(engine.as_str(), "postgres" | "postgresql") {
-            return Err(format!(
-                "{prefix} server database engine must be PostgreSQL"
-            ));
-        }
-    }
-    let url_key = format!("{prefix}_DATABASE_URL");
-    let Ok(url) = std::env::var(&url_key) else {
-        return Ok(());
-    };
-    let trimmed = url.trim();
-    if trimmed.is_empty() {
-        return Ok(());
-    }
-    let normalized = normalized_server_postgres_database_url(prefix, trimmed)?;
-    if normalized != trimmed {
-        set_env_var(url_key.as_str(), normalized.as_str());
-    }
-    Ok(())
-}
-
-fn normalized_server_postgres_database_url(prefix: &str, url: &str) -> Result<String, String> {
-    let scheme = url.trim().to_ascii_lowercase();
-    if !scheme.starts_with("postgres://") && !scheme.starts_with("postgresql://") {
-        return Err(format!("{prefix} server database URL must use PostgreSQL"));
-    }
-    Ok(sdkwork_database_config::claw_database::postgres_url_with_search_path(url.trim(), prefix))
 }
 
 pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependencyRoutes, String> {
@@ -868,53 +782,13 @@ async fn bootstrap_embedded_course_routes() -> Result<Router, String> {
     Ok(assembly.router)
 }
 
-fn apply_notary_database_env_from_im_shared_profile() -> Result<(), String> {
-    if notary_database_env_is_configured() {
-        return Ok(());
-    }
-
-    let url =
-        sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_NOTARY")
-            .map_err(|error| {
-                format!("resolve notary database URL from IM shared profile failed: {error}")
-            })?;
-    bridge_database_env_from_im_shared_profile("SDKWORK_NOTARY", url.as_str())
-}
-
-fn apply_iam_database_env_from_im_shared_profile() -> Result<(), String> {
-    if std::env::var("SDKWORK_IAM_DATABASE_URL")
-        .ok()
-        .map(|value| !value.trim().is_empty())
-        .unwrap_or(false)
-    {
-        return Ok(());
-    }
-    let url = sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_IAM")
-        .map_err(|_| "resolve IAM PostgreSQL configuration failed".to_owned())?;
-    bridge_database_env_from_im_shared_profile("SDKWORK_IAM", url.as_str())
-}
-
-fn apply_web_store_database_env_from_im_shared_profile() -> Result<(), String> {
+fn apply_web_store_app_root() {
     set_env_var(
         "SDKWORK_WEB_STORE_APP_ROOT",
         resolve_sibling_app_root("sdkwork-web-framework")
             .to_string_lossy()
             .as_ref(),
     );
-    if database_env_is_configured("SDKWORK_WEB_STORE") {
-        return Ok(());
-    }
-    let url =
-        sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_WEB_STORE")
-            .map_err(|_| "resolve web store PostgreSQL configuration failed".to_owned())?;
-    bridge_database_env_from_im_shared_profile("SDKWORK_WEB_STORE", url.as_str())
-}
-
-fn notary_database_env_is_configured() -> bool {
-    std::env::var("SDKWORK_NOTARY_DATABASE_URL")
-        .ok()
-        .map(|value| !value.trim().is_empty())
-        .unwrap_or(false)
 }
 
 fn resolve_notary_app_root() -> PathBuf {
@@ -925,36 +799,6 @@ fn resolve_course_app_root() -> PathBuf {
     resolve_sibling_app_root("sdkwork-course")
 }
 
-fn apply_drive_database_env_from_im_shared_profile() -> Result<(), String> {
-    if drive_database_env_is_configured() {
-        return Ok(());
-    }
-
-    let url = sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_DRIVE")
-        .map_err(|error| {
-            format!("resolve drive database URL from IM shared profile failed: {error}")
-        })?;
-    bridge_database_env_from_im_shared_profile("SDKWORK_DRIVE", url.as_str())
-}
-
-fn apply_commerce_t1_database_env_from_im_shared_profile() -> Result<(), String> {
-    for module in COMMERCE_T1_MODULES {
-        if t1_database_env_is_configured(module.env_prefix) {
-            continue;
-        }
-        let url =
-            sdkwork_database_config::claw_database::resolve_unified_database_url(module.env_prefix)
-                .map_err(|_| {
-                    format!(
-                        "resolve {} PostgreSQL configuration failed",
-                        commerce_t1_dependency_id(module)
-                    )
-                })?;
-        bridge_database_env_from_im_shared_profile(module.env_prefix, url.as_str())?;
-    }
-    Ok(())
-}
-
 fn apply_commerce_t1_app_roots_from_im_shared_profile() {
     for module in COMMERCE_T1_MODULES {
         if !embedded_database_manifest_available(module.repo_dir) {
@@ -962,25 +806,6 @@ fn apply_commerce_t1_app_roots_from_im_shared_profile() {
         }
         ensure_embedded_dependency_app_root(module.env_prefix, module.repo_dir);
     }
-}
-
-fn t1_database_env_is_configured(prefix: &str) -> bool {
-    database_env_is_configured(prefix)
-}
-
-fn apply_mail_database_env_from_im_shared_profile() -> Result<(), String> {
-    if mail_database_env_is_configured() {
-        return Ok(());
-    }
-    let url = sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_MAIL")
-        .map_err(|_| "resolve Mail PostgreSQL configuration failed".to_owned())?;
-    bridge_database_env_from_im_shared_profile("SDKWORK_MAIL", url.as_str())
-}
-
-fn bridge_database_env_from_im_shared_profile(prefix: &str, url: &str) -> Result<(), String> {
-    let normalized = normalized_server_postgres_database_url(prefix, url)?;
-    set_env_var(&format!("{prefix}_DATABASE_URL"), normalized.as_str());
-    Ok(())
 }
 
 fn apply_agents_runtime_env_from_im_shared_profile() -> Result<(), String> {
@@ -1020,27 +845,7 @@ fn apply_agents_runtime_env_from_im_shared_profile() -> Result<(), String> {
             .to_string_lossy()
             .as_ref(),
     );
-    apply_agents_database_env_from_im_shared_profile()
-}
-
-fn apply_agents_database_env_from_im_shared_profile() -> Result<(), String> {
-    for prefix in [
-        "SDKWORK_AGENTS",
-        "SDKWORK_AGENTS_STORE",
-        "SDKWORK_AGENT_SERVER",
-    ] {
-        if agents_database_env_is_configured(prefix) {
-            continue;
-        }
-        let url = sdkwork_database_config::claw_database::resolve_unified_database_url(prefix)
-            .map_err(|_| format!("resolve {prefix} PostgreSQL configuration failed"))?;
-        bridge_database_env_from_im_shared_profile(prefix, url.as_str())?;
-    }
     Ok(())
-}
-
-fn agents_database_env_is_configured(prefix: &str) -> bool {
-    database_env_is_configured(prefix)
 }
 
 fn apply_course_runtime_env_from_im_shared_profile() -> Result<(), String> {
@@ -1074,13 +879,6 @@ fn apply_course_runtime_env_from_im_shared_profile() -> Result<(), String> {
     {
         set_env_var("SDKWORK_COURSE_TENANT_ID", "100001");
     }
-    if course_database_env_is_configured() {
-        return Ok(());
-    }
-    let url =
-        sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_COURSE")
-            .map_err(|_| "resolve Course PostgreSQL configuration failed".to_owned())?;
-    bridge_database_env_from_im_shared_profile("SDKWORK_COURSE", url.as_str())?;
     bridge_course_integration_upstream_env(
         "SDKWORK_COURSE_AUDIT_URL",
         "SDKWORK_IM_AUDIT_SERVICE_UPSTREAM",
@@ -1156,14 +954,7 @@ fn apply_knowledgebase_runtime_env_from_im_shared_profile() -> Result<(), String
     {
         set_env_var("SDKWORK_KNOWLEDGEBASE_TENANT_ID", "100001");
     }
-    if knowledgebase_database_env_is_configured() {
-        return Ok(());
-    }
-    let url = sdkwork_database_config::claw_database::resolve_unified_database_url(
-        "SDKWORK_KNOWLEDGEBASE",
-    )
-    .map_err(|_| "resolve Knowledgebase PostgreSQL configuration failed".to_owned())?;
-    bridge_database_env_from_im_shared_profile("SDKWORK_KNOWLEDGEBASE", url.as_str())
+    Ok(())
 }
 
 async fn ensure_drive_tenant_application_bootstrap_from_env() -> Result<(), String> {
@@ -1198,41 +989,8 @@ fn resolve_sibling_app_root(directory: &str) -> PathBuf {
         })
 }
 
-fn drive_database_env_is_configured() -> bool {
-    database_env_is_configured("SDKWORK_DRIVE")
-}
-
-fn mail_database_env_is_configured() -> bool {
-    database_env_is_configured("SDKWORK_MAIL")
-}
-
-fn course_database_env_is_configured() -> bool {
-    std::env::var("SDKWORK_COURSE_DATABASE_URL")
-        .ok()
-        .map(|value| !value.trim().is_empty())
-        .unwrap_or(false)
-}
-
-fn knowledgebase_database_env_is_configured() -> bool {
-    std::env::var("SDKWORK_KNOWLEDGEBASE_DATABASE_URL")
-        .ok()
-        .map(|value| !value.trim().is_empty())
-        .unwrap_or(false)
-}
-
-fn database_env_is_configured(prefix: &str) -> bool {
-    std::env::var(format!("{prefix}_DATABASE_URL"))
-        .ok()
-        .map(|value| !value.trim().is_empty())
-        .unwrap_or(false)
-        || std::env::var(format!("{prefix}_DATABASE_SQLITE_URL"))
-            .ok()
-            .map(|value| !value.trim().is_empty())
-            .unwrap_or(false)
-        || std::env::var(format!("{prefix}_DATABASE_HOST"))
-            .ok()
-            .map(|value| !value.trim().is_empty())
-            .unwrap_or(false)
+fn workspace_database_env_is_configured() -> bool {
+    sdkwork_database_config::workspace_database::workspace_database_env_is_configured()
 }
 
 /// Set an environment variable.
@@ -1270,7 +1028,7 @@ mod tests {
     use super::{
         apply_course_runtime_env_from_im_shared_profile,
         apply_knowledgebase_runtime_env_from_im_shared_profile, is_development_environment,
-        normalize_knowledgebase_environment, normalized_server_postgres_database_url,
+        normalize_knowledgebase_environment,
     };
 
     #[test]
@@ -1280,7 +1038,7 @@ mod tests {
             std::env::remove_var("SDKWORK_COURSE_ORGANIZATION_ID");
         }
         apply_course_runtime_env_from_im_shared_profile()
-            .expect("course database config must resolve to PostgreSQL");
+            .expect("course runtime defaults must resolve");
         assert_eq!(
             std::env::var("SDKWORK_COURSE_TENANT_ID").expect("tenant id"),
             "100001"
@@ -1298,7 +1056,7 @@ mod tests {
             std::env::remove_var("SDKWORK_KNOWLEDGEBASE_ORGANIZATION_ID");
         }
         apply_knowledgebase_runtime_env_from_im_shared_profile()
-            .expect("knowledgebase database config must resolve to PostgreSQL");
+            .expect("knowledgebase runtime defaults must resolve");
         assert_eq!(
             std::env::var("SDKWORK_KNOWLEDGEBASE_TENANT_ID").expect("tenant id"),
             "100001"
@@ -1316,16 +1074,6 @@ mod tests {
             normalize_knowledgebase_environment("development"),
             "development"
         );
-    }
-
-    #[test]
-    fn server_database_url_rejects_sqlite_without_leaking_the_url() {
-        let sqlite_url = "sqlite:///tmp/private/im.sqlite?token=secret";
-        let error = normalized_server_postgres_database_url("SDKWORK_DRIVE", sqlite_url)
-            .expect_err("server dependency databases must reject SQLite");
-        assert!(error.contains("must use PostgreSQL"));
-        assert!(!error.contains(sqlite_url));
-        assert!(!error.contains("secret"));
     }
 
     #[test]

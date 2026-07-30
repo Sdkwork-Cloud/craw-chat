@@ -1,6 +1,6 @@
 //! Live PostgreSQL coverage for domain-scoped, leased outbox claims.
 //!
-//! Run with `SDKWORK_IM_DATABASE_URL=postgresql://... cargo test -p
+//! Run with `SDKWORK_DATABASE_URL=postgresql://... cargo test -p
 //! im-adapters-postgres-journal --test outbox_claim_live_integration_test --
 //! --ignored --nocapture`.
 
@@ -46,10 +46,10 @@ fn event(
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+#[ignore = "requires live PostgreSQL via SDKWORK_DATABASE_URL"]
 async fn outbox_claims_are_domain_scoped_exclusive_and_fenced() {
-    let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
-        .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
+    let database_url = std::env::var("SDKWORK_DATABASE_URL")
+        .expect("SDKWORK_DATABASE_URL must be set for live integration test");
     sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
         .await
         .expect("shared IM database pools should bootstrap");

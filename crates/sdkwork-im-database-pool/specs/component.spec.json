@@ -47,7 +47,7 @@
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
-    "configKeys": ["SDKWORK_IM_DATABASE_URL", "SDKWORK_IM_DATABASE_ENGINE", "SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT"]
+    "configKeys": ["SDKWORK_DATABASE_URL", "SDKWORK_DATABASE_ENGINE", "SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT"]
   },
   "integration": {
     "authority": "One process PostgreSQL identity owns the canonical SQLx lifecycle pool and bounded compatibility r2d2 pool.",

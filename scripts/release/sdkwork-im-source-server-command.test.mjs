@@ -1,5 +1,6 @@
 ﻿import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -53,8 +54,9 @@ assert.equal(
   'source server command must expose a secret-safe serializable plan',
 );
 
-const tempDir = path.join(repoRoot, '.runtime', 'source-server-command-test');
-fs.mkdirSync(tempDir, { recursive: true });
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-source-server-command-'));
+const cleanupTempDir = () => fs.rmSync(tempDir, { force: true, recursive: true });
+process.once('exit', cleanupTempDir);
 const envFile = path.join(tempDir, 'server.env');
 const configFile = path.join(tempDir, 'chat.toml');
 fs.writeFileSync(
@@ -68,7 +70,7 @@ fs.writeFileSync(
     'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com',
     'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com',
     'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com',
-    'SDKWORK_IM_DATABASE_PASSWORD=secret-password',
+    'SDKWORK_DATABASE_PASSWORD=secret-password',
     '',
   ].join('\n'),
 );
@@ -130,6 +132,11 @@ assert.equal(
   'source build plan must default portal static site assets to the source checkout dist directory',
 );
 assert.equal(
+  buildPlan.steps[0].env.SDKWORK_IM_H5_SITE_DIR,
+  path.join(repoRoot, 'apps', 'sdkwork-im-h5', 'dist'),
+  'source build plan must default H5 static site assets to the source checkout dist directory',
+);
+assert.equal(
   buildPlan.steps[0].env.SDKWORK_IM_SERVER_BINARY_PATH,
   path.join(repoRoot, 'target', 'release', 'sdkwork-api-im-standalone-gateway'),
   'source build plan must default the runtime binary path to the release binary built in the source checkout',
@@ -141,6 +148,7 @@ assert.deepEqual(
   [
     'SDKWORK_IM_ADMIN_SITE_DIR',
     'SDKWORK_IM_PORTAL_SITE_DIR',
+    'SDKWORK_IM_H5_SITE_DIR',
     'SDKWORK_IM_SERVER_BINARY_PATH',
     'SDKWORK_IM_CONFIG_FILE',
     'SDKWORK_IM_DEPLOYMENT_PROFILE',
@@ -235,14 +243,18 @@ assert.equal(
   'source deploy runner must execute the audited plan with the resolved deployment env',
 );
 
-const sourceDeployGuide = fs.readFileSync(
-  path.join(repoRoot, 'docs', '閮ㄧ讲', '婧愮爜閮ㄧ讲.md'),
-  'utf8',
-);
-const deploymentReadme = fs.readFileSync(
-  path.join(repoRoot, 'docs', '閮ㄧ讲', 'README.md'),
-  'utf8',
-);
+const deploymentDocsRoot = fs.readdirSync(path.join(repoRoot, 'docs'), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => path.join(repoRoot, 'docs', entry.name))
+  .find((directory) => fs.existsSync(path.join(directory, 'postgresql-database-configuration.md')));
+assert.ok(deploymentDocsRoot, 'deployment docs directory must expose the stable PostgreSQL marker');
+const sourceDeployGuidePath = fs.readdirSync(deploymentDocsRoot)
+  .filter((entry) => entry.endsWith('.md') && entry !== 'README.md')
+  .map((entry) => path.join(deploymentDocsRoot, entry))
+  .find((filePath) => fs.readFileSync(filePath, 'utf8').includes('pnpm run build:server:source'));
+assert.ok(sourceDeployGuidePath, 'deployment docs must contain the source server guide');
+const sourceDeployGuide = fs.readFileSync(sourceDeployGuidePath, 'utf8');
+const deploymentReadme = fs.readFileSync(path.join(deploymentDocsRoot, 'README.md'), 'utf8');
 assert.ok(
   sourceDeployGuide.includes('pnpm run build:server:source')
     && sourceDeployGuide.includes('pnpm run start:server:source')
@@ -251,8 +263,10 @@ assert.ok(
   'source deployment guide must document the pnpm workflow and base URL source of truth',
 );
 assert.ok(
-  deploymentReadme.includes('[婧愮爜閮ㄧ讲](./婧愮爜閮ㄧ讲.md)'),
+  deploymentReadme.includes(`](./${path.basename(sourceDeployGuidePath)})`),
   'deployment README must link the source deployment guide',
 );
 
 console.log('sdkwork-im source server command contract passed');
+process.removeListener('exit', cleanupTempDir);
+cleanupTempDir();

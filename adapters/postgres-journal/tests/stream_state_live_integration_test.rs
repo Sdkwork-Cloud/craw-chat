@@ -79,10 +79,10 @@ fn frame(scope: &StreamScope, sequence: u64, payload: &str) -> StreamFrame {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+#[ignore = "requires live PostgreSQL via SDKWORK_DATABASE_URL"]
 async fn stream_store_is_scoped_atomic_and_bounded() {
     let database_url =
-        std::env::var("SDKWORK_IM_DATABASE_URL").expect("SDKWORK_IM_DATABASE_URL must be set");
+        std::env::var("SDKWORK_DATABASE_URL").expect("SDKWORK_DATABASE_URL must be set");
     sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
         .await
         .expect("shared IM database pools should bootstrap");

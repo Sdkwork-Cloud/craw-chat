@@ -25,7 +25,7 @@ use super::{
     postgres_direct_message_gate::PostgresDirectMessageAccessGate,
 };
 
-const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+const IM_DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
 
 /// Production-capable commit journal backend for conversation runtime processes.
 #[derive(Clone)]

@@ -72,5 +72,5 @@ export function resolveStandaloneGatewayDevTargetDir({
   const configuredTargetDir = String(env.CARGO_TARGET_DIR ?? '').trim();
   return configuredTargetDir
     ? path.resolve(repoRoot, configuredTargetDir)
-    : path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev');
+    : path.join(repoRoot, 'target', 'sdkwork', 'sdkwork-api-im-standalone-gateway-dev');
 }

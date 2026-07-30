@@ -29,7 +29,7 @@ assert.equal(unlocked.unlocked, true);
 const defaultTargetDir = resolveStandaloneGatewayDevTargetDir({ env: {}, repoRoot });
 assert.equal(
   defaultTargetDir,
-  path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev'),
+  path.join(repoRoot, 'target', 'sdkwork', 'sdkwork-api-im-standalone-gateway-dev'),
   'the default build target must contain the executable selected by the launcher',
 );
 
@@ -45,13 +45,13 @@ assert.equal(
 
 const resolved = resolveStandaloneGatewayDevExecutable({
   env: {
-    CARGO_TARGET_DIR: path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev'),
+    CARGO_TARGET_DIR: path.join(repoRoot, 'target', 'sdkwork', 'sdkwork-api-im-standalone-gateway-dev'),
   },
   repoRoot,
 });
 assert.match(
   resolved.replaceAll('\\', '/'),
-  /\/\.runtime\/cargo-target\/sdkwork-api-im-standalone-gateway-dev\/debug\/sdkwork-api-im-standalone-gateway\.exe$/u,
+  /\/target\/sdkwork\/sdkwork-api-im-standalone-gateway-dev\/debug\/sdkwork-api-im-standalone-gateway\.exe$/u,
 );
 
 console.log('wait-for-dev-gateway-exe-unlock.test.mjs passed');

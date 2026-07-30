@@ -151,7 +151,7 @@ else
 fi
 
 # 1.3 IAM数据库配置
-IAM_DB=$(get_config_value "SDKWORK_IM_IAM_DATABASE_URL" "$CONFIG_FILE")
+IAM_DB=$(get_config_value "SDKWORK_DATABASE_URL" "$CONFIG_FILE")
 if [ "$PROFILE" == "production" ]; then
     if [ -n "$IAM_DB" ]; then
         # 测试数据库连接
@@ -167,7 +167,7 @@ if [ "$PROFILE" == "production" ]; then
         fi
     else
         check_fail "IAM database not configured" \
-            "Set SDKWORK_IM_IAM_DATABASE_URL in production"
+            "Set SDKWORK_DATABASE_URL in production"
     fi
 else
     if [ -n "$IAM_DB" ]; then
@@ -252,7 +252,7 @@ else
 fi
 
 # 2.2 PostgreSQL连接池配置
-MAX_CONN=$(get_config_value "SDKWORK_IM_DATABASE_MAX_CONNECTIONS" "$CONFIG_FILE")
+MAX_CONN=$(get_config_value "SDKWORK_DATABASE_MAX_CONNECTIONS" "$CONFIG_FILE")
 if [ -n "$MAX_CONN" ]; then
     if [ "$PROFILE" == "production" ]; then
         if [ "$MAX_CONN" -ge 50 ]; then
@@ -270,11 +270,11 @@ if [ -n "$MAX_CONN" ]; then
     fi
 else
     check_warning "Database connection pool size not configured" \
-        "Set SDKWORK_IM_DATABASE_MAX_CONNECTIONS"
+        "Set SDKWORK_DATABASE_MAX_CONNECTIONS"
 fi
 
 # 2.3 主数据库配置
-DB_URL=$(get_config_value "SDKWORK_IM_DATABASE_URL" "$CONFIG_FILE")
+DB_URL=$(get_config_value "SDKWORK_DATABASE_URL" "$CONFIG_FILE")
 if [ -n "$DB_URL" ]; then
     check_pass "Main database URL configured"
     
@@ -300,7 +300,7 @@ if [ -n "$DB_URL" ]; then
     fi
 else
     check_fail "Main database not configured" \
-        "Set SDKWORK_IM_DATABASE_URL"
+        "Set SDKWORK_DATABASE_URL"
 fi
 
 # ============================================================================

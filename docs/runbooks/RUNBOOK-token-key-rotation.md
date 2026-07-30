@@ -9,7 +9,7 @@
 ## Prerequisites
 
 - Operator access to IAM admin console
-- `SDKWORK_IM_DATABASE_URL` set for the target environment
+- `SDKWORK_DATABASE_URL` set for the target environment
 - Maintenance window (low-traffic period recommended)
 
 ## Procedure

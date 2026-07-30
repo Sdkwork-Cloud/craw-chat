@@ -15,7 +15,7 @@ The no-argument standalone builder creates an empty realtime cluster and environ
 
 - `SDKWORK_IM_CONTROL_PLANE_MAX_IN_FLIGHT_REQUESTS`
 - `SDKWORK_IM_CONTROL_PLANE_MAX_REQUEST_BODY_BYTES`
-- `SDKWORK_IM_ENVIRONMENT` and `SDKWORK_IM_DATABASE_URL` for the Audit runtime
+- `SDKWORK_IM_ENVIRONMENT` and `SDKWORK_DATABASE_URL` for the Audit runtime
 - Standard Ops profile, node, and bind environment keys for the Ops runtime
 
 The public app exports `/healthz`, `/readyz`, `/livez`, `/metrics`, `/openapi.json`, `/backend/v3/api/control/openapi.json`, and `/docs`. Control-plane operations inherit backend dual-token IAM, permission checks, request limits, and SDKWork response/problem envelopes.

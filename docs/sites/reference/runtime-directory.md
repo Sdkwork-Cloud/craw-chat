@@ -11,10 +11,14 @@ second copy of current IM state and is not a source for rebuilding that state.
 
 ## Development And Test
 
-Development and test profiles may configure service-specific, single-node file fallbacks under
-`.runtime/`. The current social runtime can also use `SDKWORK_IM_RUNTIME_DIR` when explicitly
-configured. These facilities support local verification only; they are not production persistence
-and must not be promoted into a shared or highly available deployment.
+Development and test business state uses the declared PostgreSQL profile. Build output and caches
+remain in tool-native ignored directories such as Cargo `target/`, Vite `node_modules/.vite/`, and
+Flutter `.dart_tool/`. Process coordination and disposable generated configuration use private,
+repository-keyed OS/CI temporary directories and are cleaned by their owning lifecycle.
+
+Repository, application, and nested source-module runtime-state directories are forbidden. Ignore
+rules remain as defense against accidental commits, but they do not authorize creating such a
+directory.
 
 ## Packaged Server Paths
 

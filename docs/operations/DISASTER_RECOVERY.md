@@ -139,19 +139,19 @@ microservice that commits or reads normalized IM state.
 | Attribute | Value |
 | --- | --- |
 | Detection | `PostgreSQLDown` alert (`pg_up == 0` for 1 min); write errors on conversation/message APIs |
-| Recovery mechanism | Promote a synchronous streaming replica to primary; reconfigure services via `SDKWORK_IM_DATABASE_URL` |
+| Recovery mechanism | Promote a synchronous streaming replica to primary; reconfigure services via `SDKWORK_DATABASE_URL` |
 | Owner | SRE on-call + on-call engineer |
 | Typical recovery time | 5-15 minutes (Enterprise RTO 30 min) |
 | Data loss | Zero if a synchronous replica was promoted; otherwise up to last WAL flush |
 
 Recovery path:
 
-1. Confirm primary is down (not a network blip): `psql $SDKWORK_IM_DATABASE_URL -c "SELECT 1"`.
+1. Confirm primary is down (not a network blip): `psql $SDKWORK_DATABASE_URL -c "SELECT 1"`.
 2. Pick the most up-to-date replica: `SELECT application_name, write_lag, flush_lag, replay_lag
    FROM pg_stat_replication`.
 3. Promote the replica using the managed PostgreSQL operator (`kubectl` for CloudNativePG) or
    `pg_ctl promote` for self-managed.
-4. Update `SDKWORK_IM_DATABASE_URL` and roll the microservice fleet:
+4. Update `SDKWORK_DATABASE_URL` and roll the microservice fleet:
    `kubectl -n sdkwork-im rollout restart deployment`.
 5. Verify health: `/healthz`, `/readyz`, and a test message send.
 
@@ -371,7 +371,7 @@ kubectl --context=dr-context -n sdkwork-im scale deployment im-gateway --replica
 #    Update the global load balancer or DNS record (TTL <= 60s)
 scripts/dr-switch-dns.sh --to dr-region
 
-# 6. Update SDKWORK_IM_DATABASE_URL and SDKWORK_IM_REDIS_CLUSTER_NODES to DR endpoints
+# 6. Update SDKWORK_DATABASE_URL and SDKWORK_IM_REDIS_CLUSTER_NODES to DR endpoints
 #    via the configmap rollout
 kubectl --context=dr-context -n sdkwork-im rollout restart deployment
 ```
@@ -598,7 +598,7 @@ in order, top to bottom, without skipping steps.
 
 ## Detect
 - [ ] `PostgreSQLDown` alert fired (pg_up == 0 for 1 min)
-- [ ] Confirm: `psql $SDKWORK_IM_DATABASE_URL -c "SELECT 1"` fails
+- [ ] Confirm: `psql $SDKWORK_DATABASE_URL -c "SELECT 1"` fails
 - [ ] Check scope: is Redis also down? (if yes, suspect network/host - escalate to section 4.3)
 
 ## Decide
@@ -609,7 +609,7 @@ in order, top to bottom, without skipping steps.
 ## Recover
 - [ ] Promote replica (operator: `kubectl cnpg promote <cluster> <replica>`
       or self-managed: `pg_ctl promote -D <data-dir>`)
-- [ ] Update `SDKWORK_IM_DATABASE_URL` in configmap
+- [ ] Update `SDKWORK_DATABASE_URL` in configmap
 - [ ] Roll services: `kubectl -n sdkwork-im rollout restart deployment`
 - [ ] Reconfigure former primary as a replica of the new primary (after repair)
 

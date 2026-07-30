@@ -1,7 +1,7 @@
 //! Live PostgreSQL coverage for atomic conversation journal + outbox writes.
 //!
 //! Run with:
-//! SDKWORK_IM_DATABASE_URL=postgresql://... cargo test -p im-adapters-postgres-journal --test conversation_event_outbox_live_integration_test -- --ignored --nocapture
+//! SDKWORK_DATABASE_URL=postgresql://... cargo test -p im-adapters-postgres-journal --test conversation_event_outbox_live_integration_test -- --ignored --nocapture
 
 use im_adapters_postgres_journal::{
     PostgresDurableConversationEventWriter, PostgresJournalConfig, PostgresJournalPool,
@@ -123,10 +123,10 @@ async fn execute(pool: PostgresJournalPool, sql: &'static str, params: Vec<Strin
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+#[ignore = "requires live PostgreSQL via SDKWORK_DATABASE_URL"]
 async fn conversation_event_outbox_is_atomic_idempotent_and_self_healing() {
-    let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
-        .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
+    let database_url = std::env::var("SDKWORK_DATABASE_URL")
+        .expect("SDKWORK_DATABASE_URL must be set for live integration test");
     sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
         .await
         .expect("shared IM database pools should bootstrap");

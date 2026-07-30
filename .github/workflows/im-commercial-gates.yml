@@ -197,17 +197,17 @@ jobs:
 
       - name: Test PostgreSQL realtime live integration gate
         env:
-          SDKWORK_IM_POSTGRES_TEST_DATABASE_URL: postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test
+          SDKWORK_DATABASE_URL: postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test
         run: cargo test -p im-adapters-postgres-realtime --test postgres_realtime_live_integration_test -- --nocapture
 
       - name: Test session-gateway PostgreSQL realtime runtime live integration gate
         env:
-          SDKWORK_IM_POSTGRES_TEST_DATABASE_URL: postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test
+          SDKWORK_DATABASE_URL: postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test
         run: cargo test -p session-gateway --test postgres_realtime_live_runtime_test -- --nocapture
 
       - name: Test session-gateway PostgreSQL realtime websocket live drill gate
         env:
-          SDKWORK_IM_POSTGRES_TEST_DATABASE_URL: postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test
+          SDKWORK_DATABASE_URL: postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test
         run: cargo test -p session-gateway --test postgres_realtime_websocket_live_drill_test -- --nocapture
 
 

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdir, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import esbuild from '../../apps/sdkwork-im-pc/node_modules/esbuild/lib/main.js';
@@ -60,9 +61,8 @@ async function loadInstrumentedDriveCacheApi(): Promise<{
     'services',
     'ChatService.ts',
   );
-  const runtimeDirectory = path.join(appRoot, '.runtime', 'generation-tests');
+  const runtimeDirectory = await mkdtemp(path.join(os.tmpdir(), 'sdkwork-im-drive-uploader-'));
   const outputPath = path.join(runtimeDirectory, `chat-service-drive-cache-${process.pid}.mjs`);
-  await mkdir(runtimeDirectory, { recursive: true });
 
   const instrumentationPlugin: Plugin = {
     name: 'chat-service-drive-cache-generation-test',
@@ -122,11 +122,11 @@ async function loadInstrumentedDriveCacheApi(): Promise<{
     return {
       api: loaded.__driveUploaderCacheTestApi,
       cleanup: async () => {
-        await rm(outputPath, { force: true });
+        await rm(runtimeDirectory, { force: true, recursive: true });
       },
     };
   } catch (error) {
-    await rm(outputPath, { force: true });
+    await rm(runtimeDirectory, { force: true, recursive: true });
     throw error;
   }
 }

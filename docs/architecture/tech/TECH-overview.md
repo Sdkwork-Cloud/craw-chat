@@ -63,14 +63,13 @@ binary that binds `127.0.0.1:18081` in `services/control-plane-api/src/main.rs`.
 includes `GET /openapi.json`, `GET /openapi/index.json`, and `GET /openapi/runtime-summary.json`,
 along with rendered docs and per-service OpenAPI proxies.
 
-## Runtime Directory Is Architectural, Not Auxiliary
+## Runtime State Boundary
 
-When `SDKWORK_IM_RUNTIME_DIR` is set, the app node switches from in-memory defaults to file-backed
-stores for replay, realtime checkpoints, subscriptions, presence, streams, RTC, notifications,
-automation, and projection snapshots.
-
-That means the runtime directory is part of the runtime contract, not just a convenience folder for
-logs.
+Normalized business state uses the declared PostgreSQL-backed adapters. Packaged process files,
+diagnostics, logs, and bounded temporary material use the operating-system deployment paths; they
+are never an alternate business-state authority. Source-checkout build output stays in tool-native
+ignored directories, while process coordination and disposable configuration use private OS/CI
+temporary storage outside the repository.
 
 ## Storage Management Is Now A Shared Module Baseline
 

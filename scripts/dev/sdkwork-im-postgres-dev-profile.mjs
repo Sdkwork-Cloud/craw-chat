@@ -73,9 +73,9 @@ export function resolvePostgresDevProfile({
 }
 
 export function isPostgresDevProfile(env = process.env) {
-  const engine = normalizeText(env.SDKWORK_IM_DATABASE_ENGINE)
-    ?? normalizeText(env.SDKWORK_CLAW_DATABASE_ENGINE)
-    ?? normalizeText(env.SDKWORK_CLAW_DATABASE_PROVIDER);
+  const engine = normalizeText(env.SDKWORK_DATABASE_ENGINE)
+    ?? normalizeText(env.SDKWORK_DATABASE_ENGINE)
+    ?? normalizeText(env.SDKWORK_DATABASE_PROVIDER);
   if (!engine) {
     return true;
   }

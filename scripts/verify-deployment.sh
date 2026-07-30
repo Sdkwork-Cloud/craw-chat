@@ -17,7 +17,7 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
 GATEWAY_URL="http://localhost:18079"
 WS_URL="ws://localhost:18079"
-DATABASE_URL="${SDKWORK_IM_DATABASE_URL:-}"
+DATABASE_URL="${SDKWORK_DATABASE_URL:-}"
 REDIS_NODES="${SDKWORK_IM_REDIS_CLUSTER_NODES:-${SDKWORK_IM_REDIS_URL:-}}"
 
 # 瑙ｆ瀽鍙傛暟
@@ -83,13 +83,13 @@ if [ -n "$DATABASE_URL" ]; then
             ACTIVE=$(psql "$DATABASE_URL" -t -c "SELECT count(*) FROM pg_stat_activity WHERE datname=current_database()" 2>/dev/null | tr -d ' ')
             check_pass "Active database connections: ${ACTIVE:-unknown}"
         else
-            check_fail "PostgreSQL connection failed" "Verify SDKWORK_IM_DATABASE_URL and credentials"
+            check_fail "PostgreSQL connection failed" "Verify SDKWORK_DATABASE_URL and credentials"
         fi
     else
         check_warn "psql client not installed" "Cannot verify database connectivity"
     fi
 else
-    check_warn "SDKWORK_IM_DATABASE_URL not set" "Export it or pass --database-url"
+    check_warn "SDKWORK_DATABASE_URL not set" "Export it or pass --database-url"
 fi
 
 # ============================================================================

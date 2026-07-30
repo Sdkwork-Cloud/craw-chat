@@ -26,10 +26,10 @@ fn test_numeric_scope() -> u64 {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+#[ignore = "requires live PostgreSQL via SDKWORK_DATABASE_URL"]
 async fn agent_assignments_binding_and_dispatch_are_idempotent_scoped_and_leased() {
-    let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
-        .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
+    let database_url = std::env::var("SDKWORK_DATABASE_URL")
+        .expect("SDKWORK_DATABASE_URL must be set for live integration test");
     sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
         .await
         .expect("shared IM database pools should bootstrap");
@@ -305,10 +305,10 @@ fn message_envelope(
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+#[ignore = "requires live PostgreSQL via SDKWORK_DATABASE_URL"]
 async fn agent_reply_and_dispatch_completion_commit_and_rollback_atomically() {
-    let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
-        .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
+    let database_url = std::env::var("SDKWORK_DATABASE_URL")
+        .expect("SDKWORK_DATABASE_URL must be set for live integration test");
     sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
         .await
         .expect("shared IM database pools should bootstrap");

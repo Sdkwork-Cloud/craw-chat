@@ -48,7 +48,6 @@ const canonicalDocs = [
 
 const ignoredDirectoryNames = new Set([
   '.git',
-  '.runtime',
   'dist',
   'node_modules',
   'target',

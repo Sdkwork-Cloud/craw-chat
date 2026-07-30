@@ -46,7 +46,7 @@
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
-    "configKeys": ["SDKWORK_IM_DATABASE_URL", "SDKWORK_IM_DATABASE_ENGINE", "SDKWORK_IM_APP_ROOT"]
+    "configKeys": ["SDKWORK_DATABASE_URL", "SDKWORK_DATABASE_ENGINE", "SDKWORK_IM_APP_ROOT"]
   },
   "integration": {
     "authority": "The repository database manifest and PostgreSQL schema are authoritative; this host performs lifecycle orchestration only.",

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, verify } from 'node:crypto';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
@@ -10,8 +11,11 @@ import {
   stableUuid,
 } from './workflow-supply-chain-evidence.mjs';
 
-const tempRoot = path.resolve('.runtime', 'tests', 'workflow-supply-chain');
+let tempRoot;
 
+test.beforeEach(() => {
+  tempRoot = mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-workflow-supply-chain-'));
+});
 test.afterEach(() => rmSync(tempRoot, { recursive: true, force: true }));
 
 test('creates a verifiable detached signature and byte-bound SBOM/provenance', () => {

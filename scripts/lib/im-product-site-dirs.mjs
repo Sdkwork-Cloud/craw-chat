@@ -1,12 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { resolveImRuntimeStateDirectory } from './im-temporary-state.mjs';
+
 function normalizeText(value) {
   const normalized = String(value ?? '').trim();
   return normalized || undefined;
 }
 
-function resolveConfiguredSiteDir(value, { envName, repoRoot }) {
+function resolveConfiguredSiteDir(value, { envName, repoRoot, rendererName = 'PC renderer' }) {
   const normalized = normalizeText(value);
   if (!normalized) {
     return undefined;
@@ -16,14 +18,14 @@ function resolveConfiguredSiteDir(value, { envName, repoRoot }) {
     ? path.normalize(normalized)
     : path.resolve(repoRoot, normalized);
   if (!fs.existsSync(path.join(siteDir, 'index.html'))) {
-    throw new Error(`${envName} must reference a PC renderer directory containing index.html: ${siteDir}`);
+    throw new Error(`${envName} must reference a ${rendererName} directory containing index.html: ${siteDir}`);
   }
   return siteDir;
 }
 
-function resolveConfiguredSiteDirFromEnv(envNames, { env, repoRoot }) {
+function resolveConfiguredSiteDirFromEnv(envNames, { env, rendererName, repoRoot }) {
   for (const envName of envNames) {
-    const siteDir = resolveConfiguredSiteDir(env[envName], { envName, repoRoot });
+    const siteDir = resolveConfiguredSiteDir(env[envName], { envName, rendererName, repoRoot });
     if (siteDir) {
       return siteDir;
     }
@@ -91,22 +93,34 @@ export async function resolveImProductSiteDirEnv({
   }
 
   const resolvedRuntimeSiteRoot = runtimeSiteRoot
-    ?? path.join(repoRoot, '.runtime', 'dev-sites');
+    ?? resolveImRuntimeStateDirectory({ repoRoot, purpose: 'dev-sites' });
   const configuredSiteDir = resolveConfiguredPcSiteDir({ env, repoRoot });
+  const configuredH5SiteDir = resolveConfiguredSiteDirFromEnv(
+    ['SDKWORK_IM_H5_SITE_DIR'],
+    { env, rendererName: 'H5 renderer', repoRoot },
+  );
   const pcDistDir = path.join(repoRoot, 'apps', 'sdkwork-im-pc', 'dist');
+  const h5DistDir = path.join(repoRoot, 'apps', 'sdkwork-im-h5', 'dist');
   const pcDevFallbackDir = path.join(resolvedRuntimeSiteRoot, 'sdkwork-im-pc');
   let pcSiteDir = configuredSiteDir;
+  const h5SiteDir = configuredH5SiteDir
+    ?? (fs.existsSync(path.join(h5DistDir, 'index.html')) ? h5DistDir : undefined);
 
   if (!pcSiteDir && fs.existsSync(path.join(pcDistDir, 'index.html'))) {
     pcSiteDir = pcDistDir;
   }
-  if (!pcSiteDir) {
+  if (!pcSiteDir && !h5SiteDir) {
     writeDevSiteFallback(pcDevFallbackDir, 'Sdkwork IM PC Dev Renderer');
     pcSiteDir = pcDevFallbackDir;
   }
 
   return {
-    SDKWORK_IM_ADMIN_SITE_DIR: pcSiteDir,
-    SDKWORK_IM_PORTAL_SITE_DIR: pcSiteDir,
+    ...(pcSiteDir
+      ? {
+          SDKWORK_IM_ADMIN_SITE_DIR: pcSiteDir,
+          SDKWORK_IM_PORTAL_SITE_DIR: pcSiteDir,
+        }
+      : {}),
+    ...(h5SiteDir ? { SDKWORK_IM_H5_SITE_DIR: h5SiteDir } : {}),
   };
 }

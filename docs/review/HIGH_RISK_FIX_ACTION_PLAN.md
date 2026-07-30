@@ -96,7 +96,7 @@ else
 fi
 
 # 检查IAM数据库配置
-IAM_DB=$(grep "SDKWORK_IM_IAM_DATABASE_URL" .env)
+IAM_DB=$(grep "SDKWORK_DATABASE_URL" .env)
 if [ -z "$IAM_DB" ]; then
     echo "❌ HIGH: IAM database not configured"
     exit 1
@@ -133,7 +133,7 @@ exit 0
   - 验证命令: `grep SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE .env`
   
 - [ ] **IAM数据库连接已配置**
-  - 配置项: `SDKWORK_IM_IAM_DATABASE_URL`已设置
+  - 配置项: `SDKWORK_DATABASE_URL`已设置
   - 验证: 数据库连接测试成功
   
 - [ ] **开发环境fallback已禁用**
@@ -372,7 +372,7 @@ jobs:
       
       - name: Check IAM Database
         run: |
-          if ! grep -q "SDKWORK_IM_IAM_DATABASE_URL" etc/topology/cloud.split-services.production.env; then
+          if ! grep -q "SDKWORK_DATABASE_URL" etc/topology/cloud.split-services.production.env; then
             echo "❌ HIGH: IAM database must be configured"
             exit 1
           fi

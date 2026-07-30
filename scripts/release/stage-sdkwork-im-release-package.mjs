@@ -157,6 +157,13 @@ function createBrowserStagingActions({ packageItem, root, stagingRoot }) {
       true,
       stagingRoot,
     ),
+    copyAction(
+      path.join(root, 'apps', 'sdkwork-im-h5', 'dist'),
+      path.join(stagingRoot, 'web', 'sdkwork-im-h5', 'dist'),
+      'sdkwork-im-h5 web dist',
+      false,
+      stagingRoot,
+    ),
     generatedAction(
       path.join(stagingRoot, 'web-manifest.json'),
       'web manifest',
@@ -231,6 +238,13 @@ function createServerStagingActions({ packageItem, root, stagingRoot }) {
       path.join(stagingRoot, 'web', 'sdkwork-im-pc', 'dist'),
       'sdkwork-im-pc web dist',
       true,
+      stagingRoot,
+    ),
+    copyAction(
+      path.join(root, 'apps', 'sdkwork-im-h5', 'dist'),
+      path.join(stagingRoot, 'web', 'sdkwork-im-h5', 'dist'),
+      'sdkwork-im-h5 web dist',
+      false,
       stagingRoot,
     ),
     generatedAction(
@@ -364,6 +378,9 @@ async function stageSdkworkImReleasePackage(plan) {
   await mkdir(plan.stagingRoot, { recursive: true });
   for (const action of plan.actions) {
     if (action.kind === 'copy') {
+      if (!action.required && !existsSync(action.sourcePath)) {
+        continue;
+      }
       await copyPath(action.sourcePath, action.targetPath);
     } else if (action.kind === 'generate') {
       await mkdir(path.dirname(action.targetPath), { recursive: true });
@@ -441,15 +458,15 @@ function createServerEnvExample(packageItem) {
     'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com',
     'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com',
     'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com',
-    'SDKWORK_IM_DATABASE_ENGINE=postgresql',
-    'SDKWORK_IM_DATABASE_HOST=db.example.com',
-    'SDKWORK_IM_DATABASE_PORT=5432',
-    'SDKWORK_IM_DATABASE_NAME=sdkwork_ai_prod',
-    'SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_prod_chat_prod',
-    'SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_prod',
-    `SDKWORK_IM_DATABASE_PASSWORD_FILE=${paths.configDir}/database.secret`,
-    'SDKWORK_IM_DATABASE_SSL_MODE=require',
-    'SDKWORK_IM_DATABASE_MAX_CONNECTIONS=20',
+    'SDKWORK_DATABASE_ENGINE=postgresql',
+    'SDKWORK_DATABASE_HOST=db.example.com',
+    'SDKWORK_DATABASE_PORT=5432',
+    'SDKWORK_DATABASE_NAME=sdkwork_ai_prod',
+    'SDKWORK_DATABASE_SCHEMA=sdkwork_ai_prod',
+    'SDKWORK_DATABASE_USERNAME=sdkwork_ai_prod',
+    `SDKWORK_DATABASE_PASSWORD_FILE=${paths.configDir}/database.secret`,
+    'SDKWORK_DATABASE_SSL_MODE=require',
+    'SDKWORK_DATABASE_MAX_CONNECTIONS=20',
     'SDKWORK_IM_CONVERSATION_MAX_IN_MEMORY=10000',
     'SDKWORK_IM_CONVERSATION_CACHE_MAX_BYTES=536870912',
     'SDKWORK_IM_REDIS_ENABLED=true',
@@ -463,6 +480,7 @@ function createServerEnvExample(packageItem) {
     'SDKWORK_IM_BROWSER_ORIGINS=https://im.sdkwork.com',
     `SDKWORK_IM_ADMIN_SITE_DIR=${paths.installRoot}/web/sdkwork-im-pc/dist`,
     `SDKWORK_IM_PORTAL_SITE_DIR=${paths.installRoot}/web/sdkwork-im-pc/dist`,
+    `SDKWORK_IM_H5_SITE_DIR=${paths.installRoot}/web/sdkwork-im-h5/dist`,
     '',
   ].join('\n');
 }
@@ -486,6 +504,7 @@ function createInstallGuide(packageItem) {
     '- `config/postgresql.yaml.example`: PostgreSQL template using file-based password storage.',
     '- `service/`: systemd, launchd, and Windows service templates.',
     '- `web/sdkwork-im-pc/dist`: production PC web assets.',
+    '- `web/sdkwork-im-h5/dist`: production H5 web assets when included.',
     '',
     '## Quick Start',
     '',
@@ -520,6 +539,21 @@ function createWebManifest(packageItem) {
     web: {
       root: 'web/sdkwork-im-pc/dist',
       entrypoint: 'web/sdkwork-im-pc/dist/index.html',
+      clients: {
+        pc: {
+          root: 'web/sdkwork-im-pc/dist',
+          entrypoint: 'web/sdkwork-im-pc/dist/index.html',
+        },
+        h5: {
+          root: 'web/sdkwork-im-h5/dist',
+          entrypoint: 'web/sdkwork-im-h5/dist/index.html',
+          optional: true,
+        },
+      },
+      fallbackOrder: {
+        desktop: ['pc', 'h5'],
+        mobile: ['h5', 'pc'],
+      },
       publicRuntimeConfig: 'served by deployment environment before SDK client construction',
     },
     security: {

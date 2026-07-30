@@ -25,7 +25,7 @@ provider payloads, or internal topology information.
 
 ## Configuration
 
-- `SDKWORK_IM_DATABASE_URL`
+- `SDKWORK_DATABASE_URL`
 - `SDKWORK_IM_REDIS_ENABLED`
 - `SDKWORK_IM_REDIS_URL`
 - `SDKWORK_IM_DEPLOYMENT_PROFILE`

@@ -1,6 +1,6 @@
 //! Live PostgreSQL coverage for backward keyset message history pagination.
 //!
-//! Run with `SDKWORK_IM_DATABASE_URL=postgresql://... cargo test -p
+//! Run with `SDKWORK_DATABASE_URL=postgresql://... cargo test -p
 //! im-adapters-postgres-journal --test message_history_live_integration_test --
 //! --ignored --nocapture`.
 
@@ -42,10 +42,10 @@ fn message(tenant_id: &str, conversation_id: &str, message_seq: u64) -> StoredMe
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+#[ignore = "requires live PostgreSQL via SDKWORK_DATABASE_URL"]
 async fn backward_history_is_stable_when_new_messages_arrive_between_pages() {
-    let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
-        .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
+    let database_url = std::env::var("SDKWORK_DATABASE_URL")
+        .expect("SDKWORK_DATABASE_URL must be set for live integration test");
     sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
         .await
         .expect("shared IM database pools should bootstrap");

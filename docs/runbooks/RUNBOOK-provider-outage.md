@@ -50,7 +50,7 @@ Resolve credentials from the environment's secret manager without echoing them. 
 smallest read-only check:
 
 ```bash
-psql "$SDKWORK_IM_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT 1;"
+psql "$SDKWORK_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT 1;"
 redis-cli -u "$SDKWORK_IM_REDIS_URL" PING
 ```
 

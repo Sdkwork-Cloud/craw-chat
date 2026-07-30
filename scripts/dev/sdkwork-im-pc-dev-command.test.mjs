@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -684,13 +685,13 @@ assert.equal(
   'standalone single-ingress must keep application HTTP on application.public-ingress',
 );
 assert.equal(
-  browserPlan.processes[0].env.SDKWORK_IM_DATABASE_URL,
+  browserPlan.processes[0].env.SDKWORK_DATABASE_URL,
   'postgresql://sdkwork_ai_dev:sdkworkdev123@127.0.0.1:5432/sdkwork_ai_dev?sslmode=disable',
   'standalone gateway must receive the canonical PostgreSQL dev database URL by default',
 );
 assert.equal(
-  browserPlan.processes[0].env.SDKWORK_CLAW_DATABASE_URL,
-  browserPlan.processes[0].env.SDKWORK_IM_DATABASE_URL,
+  browserPlan.processes[0].env.SDKWORK_DATABASE_URL,
+  browserPlan.processes[0].env.SDKWORK_DATABASE_URL,
   'standalone gateway must receive the current compatibility database URL bridge',
 );
 assert.equal(
@@ -829,13 +830,13 @@ assert.equal(
 
 const postgresDatabaseConfig = resolveSdkworkImSharedDatabaseConfig({
   env: {
-    SDKWORK_CLAW_DATABASE_URL: 'postgresql://sdkwork_ai_dev:sdkworkdev123@127.0.0.1:15432/sdkwork_ai_dev?sslmode=disable',
+    SDKWORK_DATABASE_URL: 'postgresql://sdkwork_ai_dev:sdkworkdev123@127.0.0.1:15432/sdkwork_ai_dev?sslmode=disable',
   },
   repoRoot,
 });
 assert.equal(postgresDatabaseConfig.kind, 'postgresql');
 assert.equal(
-  postgresDatabaseConfig.env.SDKWORK_CLAW_DATABASE_URL,
+  postgresDatabaseConfig.env.SDKWORK_DATABASE_URL,
   'postgresql://sdkwork_ai_dev:sdkworkdev123@127.0.0.1:15432/sdkwork_ai_dev?sslmode=disable',
   'shared DB helper must pass PostgreSQL URLs to the Rust server unchanged',
 );
@@ -845,25 +846,25 @@ assert.equal(postgresDatabaseConfig.postgres.database, 'sdkwork_ai_dev');
 
 const postgresStructuredDatabaseConfig = resolveSdkworkImSharedDatabaseConfig({
   env: {
-    SDKWORK_CLAW_DATABASE_PROVIDER: 'postgresql',
-    SDKWORK_CLAW_DATABASE_HOST: '127.0.0.1',
-    SDKWORK_CLAW_DATABASE_PORT: '15432',
-    SDKWORK_CLAW_DATABASE_NAME: 'sdkwork_ai_dev',
-    SDKWORK_CLAW_DATABASE_USERNAME: 'sdkwork_ai_dev',
-    SDKWORK_CLAW_DATABASE_PASSWORD: 'chat pass',
-    SDKWORK_CLAW_DATABASE_SSLMODE: 'disable',
-    SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS: '12',
+    SDKWORK_DATABASE_PROVIDER: 'postgresql',
+    SDKWORK_DATABASE_HOST: '127.0.0.1',
+    SDKWORK_DATABASE_PORT: '15432',
+    SDKWORK_DATABASE_NAME: 'sdkwork_ai_dev',
+    SDKWORK_DATABASE_USERNAME: 'sdkwork_ai_dev',
+    SDKWORK_DATABASE_PASSWORD: 'chat pass',
+    SDKWORK_DATABASE_SSLMODE: 'disable',
+    SDKWORK_DATABASE_MAX_CONNECTIONS: '12',
   },
   repoRoot,
 });
 assert.equal(postgresStructuredDatabaseConfig.kind, 'postgresql');
 assert.equal(
-  postgresStructuredDatabaseConfig.env.SDKWORK_CLAW_DATABASE_URL,
+  postgresStructuredDatabaseConfig.env.SDKWORK_DATABASE_URL,
   'postgresql://sdkwork_ai_dev:chat%20pass@127.0.0.1:15432/sdkwork_ai_dev?sslmode=disable',
   'shared DB helper must assemble PostgreSQL URLs from structured database fields',
 );
 assert.equal(
-  postgresStructuredDatabaseConfig.env.SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS,
+  postgresStructuredDatabaseConfig.env.SDKWORK_DATABASE_MAX_CONNECTIONS,
   '12',
   'shared DB helper must pass structured PostgreSQL max connection settings to the Rust server',
 );
@@ -873,24 +874,24 @@ assert.equal(postgresStructuredDatabaseConfig.postgres.database, 'sdkwork_ai_dev
 assert.throws(
   () => resolveSdkworkImSharedDatabaseConfig({
     env: {
-      SDKWORK_CLAW_DATABASE_PROVIDER: 'postgres',
-      SDKWORK_CLAW_DATABASE_HOST: '127.0.0.1',
-      SDKWORK_CLAW_DATABASE_NAME: 'sdkwork_ai_dev',
-      SDKWORK_CLAW_DATABASE_USERNAME: 'sdkwork_ai_dev',
+      SDKWORK_DATABASE_PROVIDER: 'postgres',
+      SDKWORK_DATABASE_HOST: '127.0.0.1',
+      SDKWORK_DATABASE_NAME: 'sdkwork_ai_dev',
+      SDKWORK_DATABASE_USERNAME: 'sdkwork_ai_dev',
     },
     repoRoot,
   }),
-  /SDKWORK_IM_DATABASE_PASSWORD/u,
+  /SDKWORK_DATABASE_PASSWORD/u,
   'structured PostgreSQL configuration must require an explicit password',
 );
 assert.throws(
   () => resolveSdkworkImSharedDatabaseConfig({
     env: {
-      SDKWORK_CLAW_DATABASE_PROVIDER: 'mysql',
-      SDKWORK_CLAW_DATABASE_HOST: '127.0.0.1',
-      SDKWORK_CLAW_DATABASE_NAME: 'sdkwork_ai_dev',
-      SDKWORK_CLAW_DATABASE_USERNAME: 'sdkwork_ai_dev',
-      SDKWORK_CLAW_DATABASE_PASSWORD: 'sdkworkdev123',
+      SDKWORK_DATABASE_PROVIDER: 'mysql',
+      SDKWORK_DATABASE_HOST: '127.0.0.1',
+      SDKWORK_DATABASE_NAME: 'sdkwork_ai_dev',
+      SDKWORK_DATABASE_USERNAME: 'sdkwork_ai_dev',
+      SDKWORK_DATABASE_PASSWORD: 'sdkworkdev123',
     },
     repoRoot,
   }),
@@ -900,21 +901,21 @@ assert.throws(
 
 const postgresUrlPrecedenceConfig = resolveSdkworkImSharedDatabaseConfig({
   env: {
-    SDKWORK_CLAW_DATABASE_URL: 'postgresql://url_user:url_pass@127.0.0.1:25432/url_db?sslmode=require',
-    SDKWORK_CLAW_DATABASE_PROVIDER: 'postgresql',
-    SDKWORK_CLAW_DATABASE_HOST: '127.0.0.1',
-    SDKWORK_CLAW_DATABASE_PORT: '15432',
-    SDKWORK_CLAW_DATABASE_NAME: 'structured_db',
-    SDKWORK_CLAW_DATABASE_USERNAME: 'structured_user',
-    SDKWORK_CLAW_DATABASE_PASSWORD: 'structured_pass',
-    SDKWORK_CLAW_DATABASE_SSLMODE: 'disable',
+    SDKWORK_DATABASE_URL: 'postgresql://url_user:url_pass@127.0.0.1:25432/url_db?sslmode=require',
+    SDKWORK_DATABASE_PROVIDER: 'postgresql',
+    SDKWORK_DATABASE_HOST: '127.0.0.1',
+    SDKWORK_DATABASE_PORT: '15432',
+    SDKWORK_DATABASE_NAME: 'structured_db',
+    SDKWORK_DATABASE_USERNAME: 'structured_user',
+    SDKWORK_DATABASE_PASSWORD: 'structured_pass',
+    SDKWORK_DATABASE_SSLMODE: 'disable',
   },
   repoRoot,
 });
 assert.equal(
-  postgresUrlPrecedenceConfig.env.SDKWORK_CLAW_DATABASE_URL,
+  postgresUrlPrecedenceConfig.env.SDKWORK_DATABASE_URL,
   'postgresql://url_user:url_pass@127.0.0.1:25432/url_db?sslmode=require',
-  'explicit SDKWORK_CLAW_DATABASE_URL must take precedence over structured PostgreSQL fields',
+  'explicit SDKWORK_DATABASE_URL must take precedence over structured PostgreSQL fields',
 );
 assert.doesNotMatch(
   sharedDatabaseSource,
@@ -922,14 +923,14 @@ assert.doesNotMatch(
   'shared DB helper must not carry Spring datasource configuration in the Rust server architecture',
 );
 for (const requiredName of [
-  'SDKWORK_IM_DATABASE_ENGINE=postgresql',
-  'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
-  'SDKWORK_IM_DATABASE_PORT=5432',
-  'SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_PASSWORD=sdkworkdev123',
-  'SDKWORK_IM_DATABASE_SSL_MODE=disable',
-  'SDKWORK_IM_DATABASE_MAX_CONNECTIONS=10',
+  'SDKWORK_DATABASE_ENGINE=postgresql',
+  'SDKWORK_DATABASE_HOST=127.0.0.1',
+  'SDKWORK_DATABASE_PORT=5432',
+  'SDKWORK_DATABASE_NAME=sdkwork_ai_dev',
+  'SDKWORK_DATABASE_USERNAME=sdkwork_ai_dev',
+  'SDKWORK_DATABASE_PASSWORD=sdkworkdev123',
+  'SDKWORK_DATABASE_SSL_MODE=disable',
+  'SDKWORK_DATABASE_MAX_CONNECTIONS=10',
 ]) {
   assert.ok(
     postgresEnvExampleSource.includes(requiredName),
@@ -955,8 +956,8 @@ assert.ok(
     && postgresDevelopmentGuideSource.includes('pnpm dev:browser:postgres')
     && postgresDevelopmentGuideSource.includes('pnpm dev:desktop:postgres')
     && postgresDevelopmentGuideSource.includes('.env.postgres')
-    && postgresDevelopmentGuideSource.includes('SDKWORK_IM_DATABASE_ENGINE=postgresql')
-    && postgresDevelopmentGuideSource.includes('SDKWORK_IM_DATABASE_SSL_MODE=disable')
+    && postgresDevelopmentGuideSource.includes('SDKWORK_DATABASE_ENGINE=postgresql')
+    && postgresDevelopmentGuideSource.includes('SDKWORK_DATABASE_SSL_MODE=disable')
     && postgresDevelopmentGuideSource.includes('pnpm dev:desktop 默认使用 PostgreSQL')
     && postgresDevelopmentGuideSource.includes('Copy-Item .env.postgres.example .env.postgres'),
   'development PostgreSQL guide must document local env profile setup and both dev startup commands',
@@ -972,20 +973,21 @@ assert.ok(
   'production PostgreSQL guide must document config-root, password-file, and service deployment workflow',
 );
 
-const tempEnvDir = path.join(repoRoot, '.runtime', 'dev-command-test');
-fs.mkdirSync(tempEnvDir, { recursive: true });
+const tempEnvDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-dev-command-'));
+const cleanupTempEnvDir = () => fs.rmSync(tempEnvDir, { force: true, recursive: true });
+process.once('exit', cleanupTempEnvDir);
 const tempPostgresEnvFile = path.join(tempEnvDir, 'postgres.env');
 fs.writeFileSync(
   tempPostgresEnvFile,
   [
-    'SDKWORK_IM_DATABASE_ENGINE=postgresql',
-    'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
-    'SDKWORK_IM_DATABASE_PORT=15433',
-    'SDKWORK_IM_DATABASE_NAME=env_file_db',
-    'SDKWORK_IM_DATABASE_USERNAME=env_file_user',
-    'SDKWORK_IM_DATABASE_PASSWORD=env file pass',
-    'SDKWORK_IM_DATABASE_SSL_MODE=disable',
-    'SDKWORK_IM_DATABASE_MAX_CONNECTIONS=15',
+    'SDKWORK_DATABASE_ENGINE=postgresql',
+    'SDKWORK_DATABASE_HOST=127.0.0.1',
+    'SDKWORK_DATABASE_PORT=15433',
+    'SDKWORK_DATABASE_NAME=env_file_db',
+    'SDKWORK_DATABASE_USERNAME=env_file_user',
+    'SDKWORK_DATABASE_PASSWORD=env file pass',
+    'SDKWORK_DATABASE_SSL_MODE=disable',
+    'SDKWORK_DATABASE_MAX_CONNECTIONS=15',
     '',
   ].join('\n'),
 );
@@ -995,17 +997,17 @@ const postgresEnvFilePlan = createSdkworkChatPcDevPlan({
   repoRoot,
 });
 assert.equal(
-  postgresEnvFilePlan.processes[0].env.SDKWORK_IM_DATABASE_URL,
+  postgresEnvFilePlan.processes[0].env.SDKWORK_DATABASE_URL,
   'postgresql://env_file_user:env%20file%20pass@127.0.0.1:15433/env_file_db?sslmode=disable',
   'dev command must load --dev-env-file and pass the canonical assembled PostgreSQL URL to the unified server',
 );
 assert.equal(
-  postgresEnvFilePlan.processes[0].env.SDKWORK_CLAW_DATABASE_URL,
+  postgresEnvFilePlan.processes[0].env.SDKWORK_DATABASE_URL,
   'postgresql://env_file_user:env%20file%20pass@127.0.0.1:15433/env_file_db?sslmode=disable',
   'dev command must keep the current Rust-compatible PostgreSQL URL bridge',
 );
 assert.equal(
-  postgresEnvFilePlan.processes[0].env.SDKWORK_IM_DATABASE_MAX_CONNECTIONS,
+  postgresEnvFilePlan.processes[0].env.SDKWORK_DATABASE_MAX_CONNECTIONS,
   '15',
   'dev command must load canonical PostgreSQL max connections from --dev-env-file',
 );
@@ -1052,18 +1054,18 @@ assert.equal(
   'desktop renderer must point IM HTTP traffic at application.public-ingress',
 );
 assert.equal(
-  desktopPlan.processes[0].env.SDKWORK_IM_DATABASE_ENGINE,
+  desktopPlan.processes[0].env.SDKWORK_DATABASE_ENGINE,
   'postgresql',
   'desktop dev must default to PostgreSQL for the standalone development stack',
 );
 assert.match(
-  desktopPlan.processes[0].env.SDKWORK_IM_DATABASE_URL,
+  desktopPlan.processes[0].env.SDKWORK_DATABASE_URL,
   /^postgresql:\/\//u,
   'desktop dev must use the PostgreSQL development database URL by default',
 );
 assert.equal(
-  desktopPlan.processes[0].env.SDKWORK_CLAW_DATABASE_URL,
-  desktopPlan.processes[0].env.SDKWORK_IM_DATABASE_URL,
+  desktopPlan.processes[0].env.SDKWORK_DATABASE_URL,
+  desktopPlan.processes[0].env.SDKWORK_DATABASE_URL,
   'desktop dev must bridge the canonical PostgreSQL URL to the current Rust-compatible env name',
 );
 assert.ok(
@@ -1375,3 +1377,5 @@ assert.throws(
 );
 
 console.log('sdkwork-im-pc root dev command contract passed');
+process.removeListener('exit', cleanupTempEnvDir);
+cleanupTempEnvDir();

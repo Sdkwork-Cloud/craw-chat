@@ -1,7 +1,7 @@
 # Runtime Operations
 
 Runtime inspection, repair, backup, preview, and restore flows are tied to the packaged server
-install contract and explicit `SDKWORK_IM_RUNTIME_DIR` configuration.
+install contract, declared PostgreSQL storage, and operating-system process paths.
 
 ## Development
 

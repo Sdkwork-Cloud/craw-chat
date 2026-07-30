@@ -13,7 +13,7 @@ use tracing::info;
 
 use crate::state::{AppState, RuntimeMemoryStreamStateStore, StreamingRuntime};
 
-const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+const IM_DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
 
 static DEFAULT_STREAMING_RUNTIME: OnceLock<Arc<StreamingRuntime>> = OnceLock::new();
 

@@ -518,7 +518,6 @@
     "dist",
     "node_modules",
     "node_modules.*",
-    ".runtime",
     ".vite",
     "tmp",
     "target"

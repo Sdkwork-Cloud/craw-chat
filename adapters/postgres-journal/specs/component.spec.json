@@ -150,7 +150,7 @@
     "dependencyApiSurfaces": [],
     "events": ["im_commit_journal", "im_outbox_events"],
     "configKeys": [
-      "SDKWORK_IM_DATABASE_URL",
+      "SDKWORK_DATABASE_URL",
       "SDKWORK_IM_ENVIRONMENT",
       "SDKWORK_IM_OUTBOX_MAX_ATTEMPTS",
       "SDKWORK_IM_RETENTION_PURGE_BATCH_SIZE",

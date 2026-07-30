@@ -328,7 +328,7 @@ impl IdGenerator for SnowflakeIdGeneratorAdapter { /* delegate */ }
 | 提交 | 主验证命令 | 附加 |
 | --- | --- | --- |
 | 1 | `cargo test -p im-storage-contracts --tests` | schema 契约测试断言 org 列 |
-| 2 | `cargo test -p im-adapters-postgres-journal --tests` | 真实 PG（`SDKWORK_IM_POSTGRES_TEST_DATABASE_URL`）集成测试 |
+| 2 | `cargo test -p im-adapters-postgres-journal --tests` | 真实 PG（`SDKWORK_DATABASE_URL`）集成测试 |
 | 3 | `cargo test -p im-domain-core --tests` | ID 单调唯一性测试 |
 | 4 | `cargo test -p im-app-context --tests` | organization 解析回归 |
 | 5 | `cargo test -p sdkwork-api-im-standalone-gateway --tests` | 双实例并发发消息，seq 单调且无空洞 |

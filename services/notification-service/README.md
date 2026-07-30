@@ -19,7 +19,7 @@ This README is the SDKWork module entrypoint for `notification-service`. The mac
 
 ## Configuration
 
-- Production requires `SDKWORK_IM_DATABASE_URL` for the notification store and PostgreSQL commit journal.
+- Production requires `SDKWORK_DATABASE_URL` for the notification store and PostgreSQL commit journal.
 - `SDKWORK_IM_NOTIFICATION_TASK_STORE_FILE` is a bounded, single-node `dev`/`test` facility and is rejected in production.
 
 ## SaaS/Private/Local Behavior

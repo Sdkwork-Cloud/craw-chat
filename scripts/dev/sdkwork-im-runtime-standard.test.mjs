@@ -63,29 +63,29 @@ assert.equal(manifest.artifacts.installConfig.uninstallCommand, 'sdkwork uninsta
 
 const envExample = read('.env.postgres.example');
 for (const required of [
-  'SDKWORK_IM_DATABASE_ENGINE=postgresql',
-  'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
-  'SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_PASSWORD=sdkworkdev123',
-  'SDKWORK_IM_DATABASE_SSL_MODE=disable',
-  'SDKWORK_IM_DATABASE_ADMIN_USERNAME=postgres',
-  'SDKWORK_IM_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
-  'SDKWORK_IM_DATABASE_ADMIN_DATABASE=postgres',
-  'SDKWORK_IM_DATABASE_ADMIN_SSL_MODE=disable',
+  'SDKWORK_DATABASE_ENGINE=postgresql',
+  'SDKWORK_DATABASE_HOST=127.0.0.1',
+  'SDKWORK_DATABASE_NAME=sdkwork_ai_dev',
+  'SDKWORK_DATABASE_SCHEMA=sdkwork_ai_dev',
+  'SDKWORK_DATABASE_USERNAME=sdkwork_ai_dev',
+  'SDKWORK_DATABASE_PASSWORD=sdkworkdev123',
+  'SDKWORK_DATABASE_SSL_MODE=disable',
+  'SDKWORK_DATABASE_ADMIN_USERNAME=postgres',
+  'SDKWORK_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
+  'SDKWORK_DATABASE_ADMIN_DATABASE=postgres',
+  'SDKWORK_DATABASE_ADMIN_SSL_MODE=disable',
 ]) {
   assert.ok(envExample.includes(required), `.env.postgres.example must document ${required}`);
 }
 for (const required of [
-  'SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev',
+  'SDKWORK_DATABASE_NAME=sdkwork_ai_dev',
   'SDKWORK_IM_REDIS_ENABLED=true',
   'SDKWORK_IM_REDIS_HOST=127.0.0.1',
   'SDKWORK_IM_REDIS_PORT=6379',
   'SDKWORK_IM_REDIS_DATABASE=0',
   'SDKWORK_IM_REDIS_KEY_PREFIX=chat',
   'SDKWORK_IM_REDIS_TLS=false',
-  'SDKWORK_IM_DATABASE_MAX_CONNECTIONS=10',
+  'SDKWORK_DATABASE_MAX_CONNECTIONS=10',
 ]) {
   assert.ok(envExample.includes(required), `.env.postgres.example must document ${required}`);
 }
@@ -95,12 +95,12 @@ assert.doesNotMatch(
   'IM runtime identity must remain application-scoped; only unified bootstrap admin keys are shared',
 );
 for (const required of [
-  'SDKWORK_CLAW_DATABASE_ADMIN_HOST',
-  'SDKWORK_CLAW_DATABASE_ADMIN_PORT',
-  'SDKWORK_CLAW_DATABASE_ADMIN_USERNAME',
-  'SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD',
-  'SDKWORK_CLAW_DATABASE_ADMIN_DATABASE',
-  'SDKWORK_CLAW_DATABASE_ADMIN_SSL_MODE',
+  'SDKWORK_DATABASE_ADMIN_HOST',
+  'SDKWORK_DATABASE_ADMIN_PORT',
+  'SDKWORK_DATABASE_ADMIN_USERNAME',
+  'SDKWORK_DATABASE_ADMIN_PASSWORD',
+  'SDKWORK_DATABASE_ADMIN_DATABASE',
+  'SDKWORK_DATABASE_ADMIN_SSL_MODE',
 ]) {
   assert.match(envExample, new RegExp(`^${required}=`, 'mu'));
 }
@@ -110,57 +110,57 @@ const sharedDbModule = await import(
 );
 const canonicalPostgres = sharedDbModule.resolveSdkworkImSharedDatabaseConfig({
   env: {
-    SDKWORK_IM_DATABASE_ENGINE: 'postgresql',
-    SDKWORK_IM_DATABASE_HOST: '127.0.0.1',
-    SDKWORK_IM_DATABASE_PORT: '15432',
-    SDKWORK_IM_DATABASE_NAME: 'sdkwork_ai_dev',
-    SDKWORK_IM_DATABASE_USERNAME: 'sdkwork_ai_dev',
-    SDKWORK_IM_DATABASE_PASSWORD: 'chat pass',
-    SDKWORK_IM_DATABASE_SSL_MODE: 'disable',
-    SDKWORK_IM_DATABASE_MAX_CONNECTIONS: '11',
+    SDKWORK_DATABASE_ENGINE: 'postgresql',
+    SDKWORK_DATABASE_HOST: '127.0.0.1',
+    SDKWORK_DATABASE_PORT: '15432',
+    SDKWORK_DATABASE_NAME: 'sdkwork_ai_dev',
+    SDKWORK_DATABASE_USERNAME: 'sdkwork_ai_dev',
+    SDKWORK_DATABASE_PASSWORD: 'chat pass',
+    SDKWORK_DATABASE_SSL_MODE: 'disable',
+    SDKWORK_DATABASE_MAX_CONNECTIONS: '11',
   },
   repoRoot,
 });
 assert.equal(canonicalPostgres.kind, 'postgresql');
 assert.equal(
-  canonicalPostgres.env.SDKWORK_IM_DATABASE_URL,
+  canonicalPostgres.env.SDKWORK_DATABASE_URL,
   'postgresql://sdkwork_ai_dev:chat%20pass@127.0.0.1:15432/sdkwork_ai_dev?sslmode=disable',
 );
 assert.equal(
-  canonicalPostgres.env.SDKWORK_CLAW_DATABASE_URL,
-  canonicalPostgres.env.SDKWORK_IM_DATABASE_URL,
+  canonicalPostgres.env.SDKWORK_DATABASE_URL,
+  canonicalPostgres.env.SDKWORK_DATABASE_URL,
   'runtime bridge must keep the current Rust-compatible database URL during migration',
 );
-assert.equal(canonicalPostgres.env.SDKWORK_IM_DATABASE_MAX_CONNECTIONS, '11');
-assert.equal(canonicalPostgres.env.SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS, '11');
+assert.equal(canonicalPostgres.env.SDKWORK_DATABASE_MAX_CONNECTIONS, '11');
+assert.equal(canonicalPostgres.env.SDKWORK_DATABASE_MAX_CONNECTIONS, '11');
 
 assert.throws(
   () => sharedDbModule.resolveSdkworkImSharedDatabaseConfig({
     env: {
-      SDKWORK_IM_DATABASE_PROVIDER: 'postgresql',
-      SDKWORK_IM_DATABASE_HOST: '127.0.0.1',
-      SDKWORK_IM_DATABASE_NAME: 'sdkwork_ai_dev',
-      SDKWORK_IM_DATABASE_USERNAME: 'sdkwork_ai_dev',
-      SDKWORK_IM_DATABASE_PASSWORD: 'sdkworkdev123',
+      SDKWORK_DATABASE_PROVIDER: 'postgresql',
+      SDKWORK_DATABASE_HOST: '127.0.0.1',
+      SDKWORK_DATABASE_NAME: 'sdkwork_ai_dev',
+      SDKWORK_DATABASE_USERNAME: 'sdkwork_ai_dev',
+      SDKWORK_DATABASE_PASSWORD: 'sdkworkdev123',
     },
     repoRoot,
   }),
-  /SDKWORK_IM_DATABASE_PROVIDER.*not standard/u,
+  /SDKWORK_DATABASE_PROVIDER.*not standard/u,
   'new app config must reject legacy DATABASE_PROVIDER spelling',
 );
 assert.throws(
   () => sharedDbModule.resolveSdkworkImSharedDatabaseConfig({
     env: {
-      SDKWORK_IM_DATABASE_ENGINE: 'postgresql',
-      SDKWORK_IM_DATABASE_HOST: '127.0.0.1',
-      SDKWORK_IM_DATABASE_NAME: 'sdkwork_ai_dev',
-      SDKWORK_IM_DATABASE_USERNAME: 'sdkwork_ai_dev',
-      SDKWORK_IM_DATABASE_PASSWORD: 'sdkworkdev123',
-      SDKWORK_IM_DATABASE_SSLMODE: 'disable',
+      SDKWORK_DATABASE_ENGINE: 'postgresql',
+      SDKWORK_DATABASE_HOST: '127.0.0.1',
+      SDKWORK_DATABASE_NAME: 'sdkwork_ai_dev',
+      SDKWORK_DATABASE_USERNAME: 'sdkwork_ai_dev',
+      SDKWORK_DATABASE_PASSWORD: 'sdkworkdev123',
+      SDKWORK_DATABASE_SSLMODE: 'disable',
     },
     repoRoot,
   }),
-  /SDKWORK_IM_DATABASE_SSLMODE.*not standard/u,
+  /SDKWORK_DATABASE_SSLMODE.*not standard/u,
   'new app config must reject legacy DATABASE_SSLMODE spelling',
 );
 
@@ -184,7 +184,7 @@ assert.deepEqual(linuxServer.runtimePaths, {
 assert.equal(linuxServer.databasePolicy.defaultEngine, 'postgresql');
 assert.equal(linuxServer.databasePolicy.configFile.path, '/etc/sdkwork/chat/chat.toml');
 assert.equal(linuxServer.databasePolicy.passwordFile.path, '/etc/sdkwork/chat/database.secret');
-assert.ok(linuxServer.databasePolicy.envOverrides.includes('SDKWORK_IM_DATABASE_ENGINE'));
+assert.ok(linuxServer.databasePolicy.envOverrides.includes('SDKWORK_DATABASE_ENGINE'));
 assert.ok(linuxServer.databasePolicy.envOverrides.includes('SDKWORK_IM_LOG_DIR'));
 
 const windowsServer = plan.packages.find((item) => item.id === 'windows-x64-standalone-server-zip');
@@ -202,7 +202,7 @@ assert.equal(linuxDesktop.databasePolicy.requiresExternalDatabase, true);
 assert.equal(linuxDesktop.databasePolicy.configFile.path, '~/.sdkwork/chat/config/chat.toml');
 assert.equal(linuxDesktop.databasePolicy.dataDirectory.path, '~/.sdkwork/chat/data');
 assert.equal(linuxDesktop.databasePolicy.passwordFile.path, '~/.sdkwork/chat/config/database.secret');
-assert.ok(linuxDesktop.databasePolicy.envOverrides.includes('SDKWORK_IM_DATABASE_PASSWORD_FILE'));
+assert.ok(linuxDesktop.databasePolicy.envOverrides.includes('SDKWORK_DATABASE_PASSWORD_FILE'));
 
 const serverEnvTemplate = read('deployments/templates/server.env.example');
 const quickstartServerEnvTemplate = read('deployments/templates/quickstart-server-compose.env.example');
@@ -213,8 +213,8 @@ for (const required of [
   'SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/chat',
   'SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat',
   'SDKWORK_IM_RUN_DIR=/run/sdkwork/chat',
-  'SDKWORK_IM_DATABASE_ENGINE=postgresql',
-  'SDKWORK_IM_DATABASE_PASSWORD_FILE=/etc/sdkwork/chat/database.secret',
+  'SDKWORK_DATABASE_ENGINE=postgresql',
+  'SDKWORK_DATABASE_PASSWORD_FILE=/etc/sdkwork/chat/database.secret',
   'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18079',
   'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com',
   'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com',
@@ -234,7 +234,7 @@ for (const required of [
   'SDKWORK_IM_DEPLOYMENT_PROFILE=standalone',
   'SDKWORK_IM_RUNTIME_TARGET=server',
   'SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml',
-  'SDKWORK_IM_DATABASE_ENGINE=postgresql',
+  'SDKWORK_DATABASE_ENGINE=postgresql',
 ]) {
   assert.ok(
     quickstartServerEnvTemplate.includes(required),
@@ -367,8 +367,8 @@ const docs = [
 for (const required of [
   'SDKWORK_IM_DEPLOYMENT_PROFILE',
   'SDKWORK_IM_RUNTIME_TARGET',
-  'SDKWORK_IM_DATABASE_ENGINE',
-  'SDKWORK_IM_DATABASE_SSL_MODE',
+  'SDKWORK_DATABASE_ENGINE',
+  'SDKWORK_DATABASE_SSL_MODE',
   '/etc/sdkwork/chat/chat.toml',
   '/etc/sdkwork/chat/database.secret',
   '/sdkwork/chat',
@@ -380,7 +380,7 @@ for (const required of [
 }
 assert.doesNotMatch(
   docs,
-  /SDKWORK_CLAW_DATABASE_PROVIDER|SDKWORK_CLAW_DATABASE_SSLMODE|SDKWORK_IM_DEPLOYMENT_MODE|deployment_mode = "server"/u,
+  /SDKWORK_DATABASE_PROVIDER|SDKWORK_DATABASE_SSLMODE|SDKWORK_IM_DEPLOYMENT_MODE|deployment_mode = "server"/u,
 );
 
 console.log('sdkwork-chat runtime standard contract passed');

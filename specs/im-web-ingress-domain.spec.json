@@ -29,7 +29,17 @@
     "selection": "user-agent",
     "defaultClient": "pc",
     "desktopClient": "pc",
-    "mobileClient": "h5"
+    "mobileClient": "h5",
+    "fallbackOrder": {
+      "desktop": [
+        "pc",
+        "h5"
+      ],
+      "mobile": [
+        "h5",
+        "pc"
+      ]
+    }
   },
   "domainConvention": {
     "development": "<application-code>-dev.<base-domain>",

@@ -21,11 +21,13 @@ use url::{Host, Url};
 
 mod admin_sandbox;
 mod sandbox_policy;
+mod web_client_routing;
 
 use admin_sandbox::{handle_admin_sandbox_request, SharedAdminSandboxState};
 use im_portal_snapshots::{build_portal_snapshot_for_section, build_portal_workspace_view};
 use ops_service::OpsRuntime;
 use sandbox_policy::ensure_admin_sandbox_allowed;
+use web_client_routing::{select_available_web_client, WebClient};
 
 const JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 const BACKEND_ADMIN_API_PREFIX: &str = "/backend/v3/api/admin";
@@ -80,13 +82,20 @@ const PORTAL_SNAPSHOT_SECTIONS: &[&str] = &[
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProductSiteDir {
     pub pc_site_dir: PathBuf,
+    pub h5_site_dir: Option<PathBuf>,
 }
 
 impl ProductSiteDir {
     pub fn new(pc_site_dir: impl Into<PathBuf>) -> Self {
         Self {
             pc_site_dir: pc_site_dir.into(),
+            h5_site_dir: None,
         }
+    }
+
+    pub fn with_h5_site_dir(mut self, h5_site_dir: impl Into<PathBuf>) -> Self {
+        self.h5_site_dir = Some(h5_site_dir.into());
+        self
     }
 }
 
@@ -97,15 +106,12 @@ pub fn resolve_product_site_dir_from_env(repo_root: impl AsRef<StdPath>) -> Resu
     let portal_site_dir =
         resolve_site_dir_from_env(&["SDKWORK_IM_PORTAL_SITE_DIR", "SDKWORK_PORTAL_SITE_DIR"]);
     let configured_site_dir = select_shared_product_site_dir(admin_site_dir, portal_site_dir)?;
-    let pc_site_dir = configured_site_dir.unwrap_or_else(|| {
-        resolve_default_product_site_dir(
-            repo_root,
-            &["apps", "sdkwork-im-pc", "dist"],
-            &[".runtime", "dev-sites", "sdkwork-im-pc"],
-        )
-    });
+    let pc_site_dir = configured_site_dir
+        .unwrap_or_else(|| repo_root.join("apps").join("sdkwork-im-pc").join("dist"));
+    let h5_site_dir = resolve_site_dir_from_env(&["SDKWORK_IM_H5_SITE_DIR"])
+        .unwrap_or_else(|| repo_root.join("apps").join("sdkwork-im-h5").join("dist"));
 
-    Ok(ProductSiteDir::new(pc_site_dir))
+    Ok(ProductSiteDir::new(pc_site_dir).with_h5_site_dir(h5_site_dir))
 }
 
 fn select_shared_product_site_dir(
@@ -134,30 +140,6 @@ fn site_dirs_are_equivalent(left: &StdPath, right: &StdPath) -> bool {
         (Ok(left), Ok(right)) => left == right,
         _ => false,
     }
-}
-
-fn resolve_default_product_site_dir(
-    repo_root: &StdPath,
-    packaged_segments: &[&str],
-    dev_fallback_segments: &[&str],
-) -> PathBuf {
-    let packaged_dir = join_path_segments(repo_root, packaged_segments);
-    if site_index_html_exists(packaged_dir.as_path()) {
-        return packaged_dir;
-    }
-
-    let dev_fallback_dir = join_path_segments(repo_root, dev_fallback_segments);
-    if site_index_html_exists(dev_fallback_dir.as_path()) {
-        return dev_fallback_dir;
-    }
-
-    packaged_dir
-}
-
-fn join_path_segments(base: &StdPath, segments: &[&str]) -> PathBuf {
-    segments
-        .iter()
-        .fold(base.to_path_buf(), |path, segment| path.join(segment))
 }
 
 fn site_index_html_exists(site_dir: &StdPath) -> bool {
@@ -257,7 +239,19 @@ impl RouterProductRuntime {
 }
 
 async fn validate_product_site_dir(site_dir: ProductSiteDir) -> Result<()> {
-    validate_site_dir(site_dir.pc_site_dir.as_path(), "PC renderer").await
+    let pc_result = validate_site_dir(site_dir.pc_site_dir.as_path(), "PC renderer").await;
+    let h5_result = match site_dir.h5_site_dir.as_deref() {
+        Some(h5_site_dir) => validate_site_dir(h5_site_dir, "H5 renderer").await,
+        None => Err(anyhow::anyhow!("H5 renderer is not configured")),
+    };
+    if pc_result.is_err() && h5_result.is_err() {
+        anyhow::bail!(
+            "at least one browser renderer must contain index.html; PC: {}; H5: {}",
+            pc_result.expect_err("PC renderer result should be an error"),
+            h5_result.expect_err("H5 renderer result should be an error")
+        );
+    }
+    Ok(())
 }
 
 pub async fn build_product_runtime_router(
@@ -295,8 +289,8 @@ pub async fn build_product_runtime_router(
         .route("/admin", get(redirect_admin_root))
         .route("/admin/", get(serve_admin_site))
         .route("/admin/{*path}", get(serve_admin_site))
-        .route("/", get(serve_pc_site))
-        .route("/{*path}", get(serve_pc_site))
+        .route("/", get(serve_web_site))
+        .route("/{*path}", get(serve_web_site))
         .with_state(state))
 }
 
@@ -469,19 +463,68 @@ async fn redirect_admin_root() -> Redirect {
     Redirect::permanent("/admin/")
 }
 
-async fn serve_admin_site(State(state): State<RuntimeProxyState>, uri: Uri) -> Response {
+async fn serve_admin_site(
+    State(state): State<RuntimeProxyState>,
+    headers: HeaderMap,
+    uri: Uri,
+) -> Response {
     let request_path = uri.path().strip_prefix("/admin").unwrap_or("/");
-    serve_site_request(state.site_dir.pc_site_dir.as_path(), request_path).await
+    let Some((_, site_dir)) = select_request_site_dir(&state.site_dir, &headers) else {
+        return text_response(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "No browser renderer is available",
+        );
+    };
+    let mut response = serve_site_request(site_dir, request_path).await;
+    apply_user_agent_vary(response.headers_mut());
+    response
 }
 
-async fn serve_pc_site(State(state): State<RuntimeProxyState>, uri: Uri) -> Response {
-    match resolve_site_request_asset(state.site_dir.pc_site_dir.as_path(), uri.path()).await {
+async fn serve_web_site(
+    State(state): State<RuntimeProxyState>,
+    headers: HeaderMap,
+    uri: Uri,
+) -> Response {
+    let Some((client, site_dir)) = select_request_site_dir(&state.site_dir, &headers) else {
+        return text_response(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "No browser renderer is available",
+        );
+    };
+    let mut response = match resolve_site_request_asset(site_dir, uri.path()).await {
         Ok(ResolvedSiteAsset::StaticFile(path)) => serve_site_file(path.as_path()).await,
-        Ok(ResolvedSiteAsset::SpaShell(path)) => {
+        Ok(ResolvedSiteAsset::SpaShell(path)) if client == WebClient::Pc => {
             serve_pc_shell(path.as_path(), state.portal_api_base_url.as_str()).await
         }
+        Ok(ResolvedSiteAsset::SpaShell(path)) => serve_site_file(path.as_path()).await,
         Err(response) => response,
-    }
+    };
+    apply_user_agent_vary(response.headers_mut());
+    response
+}
+
+fn select_request_site_dir<'a>(
+    site_dir: &'a ProductSiteDir,
+    headers: &HeaderMap,
+) -> Option<(WebClient, &'a StdPath)> {
+    let user_agent = headers
+        .get(header::USER_AGENT)
+        .and_then(|value| value.to_str().ok());
+    let pc_available = site_index_html_exists(site_dir.pc_site_dir.as_path());
+    let h5_available = site_dir
+        .h5_site_dir
+        .as_deref()
+        .is_some_and(site_index_html_exists);
+    let client = select_available_web_client(user_agent, pc_available, h5_available)?;
+    let selected_dir = match client {
+        WebClient::Pc => site_dir.pc_site_dir.as_path(),
+        WebClient::H5 => site_dir.h5_site_dir.as_deref()?,
+    };
+    Some((client, selected_dir))
+}
+
+fn apply_user_agent_vary(headers: &mut HeaderMap) {
+    headers.insert(header::VARY, HeaderValue::from_static("user-agent"));
 }
 
 async fn serve_site_request(site_dir: &StdPath, request_path: &str) -> Response {
@@ -1003,6 +1046,19 @@ mod tests {
             .expect("runtime request should succeed")
     }
 
+    async fn fetch_response_with_user_agent(
+        base_url: &str,
+        path: &str,
+        user_agent: &str,
+    ) -> reqwest::Response {
+        reqwest::Client::new()
+            .get(format!("{base_url}{path}"))
+            .header(header::USER_AGENT, user_agent)
+            .send()
+            .await
+            .expect("runtime request should succeed")
+    }
+
     fn response_header(response: &reqwest::Response, name: &str) -> Option<String> {
         response
             .headers()
@@ -1153,6 +1209,94 @@ mod tests {
                 .expect("PC asset body should be readable"),
             "console.log('pc-asset');"
         );
+    }
+
+    #[tokio::test]
+    async fn router_runtime_selects_h5_for_mobile_and_pc_for_desktop_on_one_origin() {
+        let pc_site_dir = TestSiteDir::new("adaptive-pc");
+        pc_site_dir.write("index.html", "<!doctype html><title>pc-shell</title>");
+        pc_site_dir.write("assets/client.js", "console.log('pc');");
+        let h5_site_dir = TestSiteDir::new("adaptive-h5");
+        h5_site_dir.write("index.html", "<!doctype html><title>h5-shell</title>");
+        h5_site_dir.write("assets/client.js", "console.log('h5');");
+
+        let runtime = start_runtime(
+            ProductSiteDir::new(pc_site_dir.path().to_path_buf())
+                .with_h5_site_dir(h5_site_dir.path().to_path_buf()),
+        )
+        .await;
+        tokio::task::yield_now().await;
+        let base_url = runtime
+            .public_base_url()
+            .expect("runtime should expose a public base url");
+
+        let desktop = fetch_response_with_user_agent(base_url, "/", "Windows NT 10.0").await;
+        assert_eq!(desktop.status(), StatusCode::OK);
+        assert_eq!(
+            response_header(&desktop, header::VARY.as_str()).as_deref(),
+            Some("user-agent")
+        );
+        assert!(desktop
+            .text()
+            .await
+            .expect("PC body should be readable")
+            .contains("pc-shell"));
+
+        let mobile = fetch_response_with_user_agent(base_url, "/", "iPhone Mobile").await;
+        assert_eq!(mobile.status(), StatusCode::OK);
+        assert_eq!(
+            response_header(&mobile, header::VARY.as_str()).as_deref(),
+            Some("user-agent")
+        );
+        assert!(mobile
+            .text()
+            .await
+            .expect("H5 body should be readable")
+            .contains("h5-shell"));
+
+        let mobile_asset =
+            fetch_response_with_user_agent(base_url, "/assets/client.js", "Android Mobile").await;
+        assert_eq!(
+            mobile_asset
+                .text()
+                .await
+                .expect("H5 asset should be readable"),
+            "console.log('h5');"
+        );
+    }
+
+    #[tokio::test]
+    async fn router_runtime_falls_back_when_either_renderer_is_missing() {
+        let missing_pc = TestSiteDir::new("missing-pc");
+        let h5_site_dir = TestSiteDir::new("fallback-h5");
+        h5_site_dir.write("index.html", "<!doctype html><title>h5-fallback</title>");
+        let h5_runtime = start_runtime(
+            ProductSiteDir::new(missing_pc.path().to_path_buf())
+                .with_h5_site_dir(h5_site_dir.path().to_path_buf()),
+        )
+        .await;
+        let h5_base_url = h5_runtime
+            .public_base_url()
+            .expect("H5 fallback runtime should expose a URL");
+        let desktop = fetch_response_with_user_agent(h5_base_url, "/", "Windows NT 10.0").await;
+        assert!(desktop
+            .text()
+            .await
+            .expect("H5 fallback should be readable")
+            .contains("h5-fallback"));
+
+        let pc_site_dir = TestSiteDir::new("fallback-pc");
+        pc_site_dir.write("index.html", "<!doctype html><title>pc-fallback</title>");
+        let pc_runtime = start_runtime(ProductSiteDir::new(pc_site_dir.path().to_path_buf())).await;
+        let pc_base_url = pc_runtime
+            .public_base_url()
+            .expect("PC fallback runtime should expose a URL");
+        let mobile = fetch_response_with_user_agent(pc_base_url, "/", "iPhone Mobile").await;
+        assert!(mobile
+            .text()
+            .await
+            .expect("PC fallback should be readable")
+            .contains("pc-fallback"));
     }
 
     #[tokio::test]
@@ -1573,7 +1717,7 @@ mod tests {
     }
 
     #[test]
-    fn resolve_product_site_dir_uses_shared_pc_dev_fallback_when_packaged_dist_missing() {
+    fn resolve_product_site_dir_uses_the_standard_pc_dist_without_runtime_fallbacks() {
         let repo_root = std::env::temp_dir().join(format!(
             "sdkwork-api-product-runtime-dev-fallback-{}",
             SystemTime::now()
@@ -1581,13 +1725,10 @@ mod tests {
                 .expect("system time should be after unix epoch")
                 .as_nanos()
         ));
-        let dev_pc = repo_root
-            .join(".runtime")
-            .join("dev-sites")
-            .join("sdkwork-im-pc");
-        fs::create_dir_all(&dev_pc).expect("dev PC renderer dir should be creatable");
-        fs::write(dev_pc.join("index.html"), "<!doctype html>")
-            .expect("dev PC renderer index should be writable");
+        let pc_dist = repo_root.join("apps").join("sdkwork-im-pc").join("dist");
+        fs::create_dir_all(&pc_dist).expect("PC renderer dist should be creatable");
+        fs::write(pc_dist.join("index.html"), "<!doctype html>")
+            .expect("PC renderer index should be writable");
 
         unsafe {
             std::env::remove_var("SDKWORK_IM_ADMIN_SITE_DIR");
@@ -1597,8 +1738,8 @@ mod tests {
         }
 
         let resolved = resolve_product_site_dir_from_env(&repo_root)
-            .expect("shared PC renderer fallback should resolve");
-        assert_eq!(resolved.pc_site_dir, dev_pc);
+            .expect("standard PC renderer dist should resolve");
+        assert_eq!(resolved.pc_site_dir, pc_dist);
 
         let _ = fs::remove_dir_all(&repo_root);
     }

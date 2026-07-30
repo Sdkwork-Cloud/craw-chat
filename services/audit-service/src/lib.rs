@@ -203,7 +203,7 @@ pub struct AuditRuntime {
 ///
 /// `InMemory` is the default and the only backend used outside production.
 /// `Postgres` is selected only when `SDKWORK_IM_ENVIRONMENT=prod` (the
-/// process default) and `SDKWORK_IM_DATABASE_URL` is set; initialization
+/// process default) and `SDKWORK_DATABASE_URL` is set; initialization
 /// failure there is fail-closed (the runtime refuses to start rather than
 /// fall back to volatile storage).
 enum AuditBackend {
@@ -642,8 +642,8 @@ impl AuditRuntime {
     /// Selection rules (see `log_audit_persistence_warning`/ADR):
     /// - `SDKWORK_IM_ENVIRONMENT=dev|test` → in-memory backend.
     /// - `SDKWORK_IM_ENVIRONMENT=prod` (the default) without
-    ///   `SDKWORK_IM_DATABASE_URL` → fail-closed startup panic.
-    /// - `SDKWORK_IM_ENVIRONMENT=prod` with `SDKWORK_IM_DATABASE_URL` →
+    ///   `SDKWORK_DATABASE_URL` → fail-closed startup panic.
+    /// - `SDKWORK_IM_ENVIRONMENT=prod` with `SDKWORK_DATABASE_URL` →
     ///   PostgreSQL backend. Initialization failure is fail-closed: the
     ///   process panics rather than silently degrading to in-memory storage.
     pub fn from_env() -> Self {
@@ -1319,7 +1319,7 @@ fn verify_production_sslmode(database_url: &str) {
         || lowered.contains("sslmode=verifyfull");
     if !requires_tls {
         panic!(
-            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain sslmode=require or sslmode=verify-full in production (current environment={environment}). Refusing to start with a plaintext database connection."
+            "P0-12 production fail-closed: SDKWORK_DATABASE_URL must contain sslmode=require or sslmode=verify-full in production (current environment={environment}). Refusing to start with a plaintext database connection."
         );
     }
 }
@@ -1495,15 +1495,15 @@ fn compute_audit_record_chain_hash(input: AuditRecordHashInput<'_>) -> String {
     sha256_hash(&canonical_bytes)
 }
 
-const AUDIT_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+const AUDIT_DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
 
 /// Resolve the audit backend from process environment variables.
 ///
 /// Selection rules:
 /// - `SDKWORK_IM_ENVIRONMENT=dev|test` → in-memory backend (info! log).
 /// - `SDKWORK_IM_ENVIRONMENT=prod` (the default) without
-///   `SDKWORK_IM_DATABASE_URL` → fail-closed startup panic.
-/// - `SDKWORK_IM_ENVIRONMENT=prod` with `SDKWORK_IM_DATABASE_URL` →
+///   `SDKWORK_DATABASE_URL` → fail-closed startup panic.
+/// - `SDKWORK_IM_ENVIRONMENT=prod` with `SDKWORK_DATABASE_URL` →
 ///   PostgreSQL backend. Initialization failure is fail-closed: the process
 ///   panics rather than silently degrading to in-memory storage.
 fn resolve_audit_backend_from_env() -> AuditBackend {
@@ -1523,7 +1523,7 @@ fn resolve_audit_backend_from_env() -> AuditBackend {
         (WebEnvironment::Prod, None) => {
             error!(
                 env = "SDKWORK_IM_ENVIRONMENT=prod",
-                hint = "set SDKWORK_IM_DATABASE_URL to enable durable audit storage",
+                hint = "set SDKWORK_DATABASE_URL to enable durable audit storage",
                 "audit-service fail-closed: production requires durable audit storage"
             );
             panic!(

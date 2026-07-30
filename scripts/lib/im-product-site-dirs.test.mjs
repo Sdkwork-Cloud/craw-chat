@@ -30,16 +30,35 @@ test('product site resolution uses the canonical PC build for every route surfac
 
 test('product site resolution creates one shared fallback when the PC build is absent', async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'sdkwork-im-pc-site-fallback-'));
+  let runtimeSiteRoot;
   try {
     const resolved = await resolveImProductSiteDirEnv({ env: {}, repoRoot: tempRoot });
-    const expectedFallback = path.join(tempRoot, '.runtime', 'dev-sites', 'sdkwork-im-pc');
+    const expectedFallback = resolved.SDKWORK_IM_ADMIN_SITE_DIR;
+    runtimeSiteRoot = path.dirname(expectedFallback);
 
+    assert.equal(path.relative(tempRoot, expectedFallback).startsWith('..'), true);
     assert.equal(resolved.SDKWORK_IM_ADMIN_SITE_DIR, expectedFallback);
     assert.equal(resolved.SDKWORK_IM_PORTAL_SITE_DIR, expectedFallback);
     assert.match(
       await readFile(path.join(expectedFallback, 'index.html'), 'utf8'),
       /Sdkwork IM PC Dev Renderer/u,
     );
+  } finally {
+    if (runtimeSiteRoot) await rm(runtimeSiteRoot, { force: true, recursive: true });
+    await rm(tempRoot, { force: true, recursive: true });
+  }
+});
+
+test('product site resolution uses H5 without fabricating a PC fallback', async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'sdkwork-im-h5-site-fallback-'));
+  try {
+    const h5DistDir = path.join(tempRoot, 'apps', 'sdkwork-im-h5', 'dist');
+    await writeSiteIndex(h5DistDir, 'SDKWork IM H5');
+
+    const resolved = await resolveImProductSiteDirEnv({ env: {}, repoRoot: tempRoot });
+    assert.equal(resolved.SDKWORK_IM_H5_SITE_DIR, h5DistDir);
+    assert.equal(resolved.SDKWORK_IM_ADMIN_SITE_DIR, undefined);
+    assert.equal(resolved.SDKWORK_IM_PORTAL_SITE_DIR, undefined);
   } finally {
     await rm(tempRoot, { force: true, recursive: true });
   }

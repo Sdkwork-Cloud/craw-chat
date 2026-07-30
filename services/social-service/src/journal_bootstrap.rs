@@ -12,7 +12,7 @@ use tracing::info;
 
 use crate::runtime::{SocialRuntime, SocialStateStore};
 
-const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+const IM_DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
 
 /// Build a social runtime from process environment.
 pub fn build_social_runtime_from_env() -> Result<Arc<SocialRuntime>, String> {

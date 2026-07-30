@@ -361,7 +361,7 @@ fn encrypt_message(plaintext: &str, recipient_pub_key: &PublicKey) -> EncryptedM
 **问题5: 数据库连接池默认值偏低 🟡 中风险**
 ```
 位置: .env.postgres.example
-配置: SDKWORK_IM_DATABASE_MAX_CONNECTIONS=10
+配置: SDKWORK_DATABASE_MAX_CONNECTIONS=10
 风险: 高并发场景连接池耗尽，请求排队或超时
 影响: 
   - 1000并发用户，每用户10请求/分钟
@@ -373,8 +373,8 @@ fn encrypt_message(plaintext: &str, recipient_pub_key: &PublicKey) -> EncryptedM
 **改进方案**:
 ```bash
 # 1. 调整生产默认值
-SDKWORK_IM_DATABASE_MAX_CONNECTIONS=50
-SDKWORK_IM_DATABASE_MIN_CONNECTIONS=10
+SDKWORK_DATABASE_MAX_CONNECTIONS=50
+SDKWORK_DATABASE_MIN_CONNECTIONS=10
 
 # 2. 动态连接池调整
 // 根据负载自动扩缩

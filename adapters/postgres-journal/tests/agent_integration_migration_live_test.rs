@@ -30,10 +30,10 @@ fn isolated_url(base_url: &str, schema: &str) -> String {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL with schema create/drop permission"]
+#[ignore = "requires live PostgreSQL via SDKWORK_DATABASE_URL with schema create/drop permission"]
 async fn agents_contract_bootstraps_through_0006_in_an_isolated_schema() {
-    let base_url = std::env::var("SDKWORK_IM_DATABASE_URL")
-        .expect("SDKWORK_IM_DATABASE_URL must be set for live migration test");
+    let base_url = std::env::var("SDKWORK_DATABASE_URL")
+        .expect("SDKWORK_DATABASE_URL must be set for live migration test");
     let suffix = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system time must be after epoch")

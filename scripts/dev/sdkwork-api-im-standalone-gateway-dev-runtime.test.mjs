@@ -17,7 +17,7 @@ const defaultCargoEnv = createStandaloneGatewayCargoEnv({
 });
 assert.equal(
   defaultCargoEnv.env.CARGO_TARGET_DIR,
-  path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev'),
+  path.join(repoRoot, 'target', 'sdkwork', 'sdkwork-api-im-standalone-gateway-dev'),
   'pnpm dev:server must build into an isolated target dir so a locked gateway executable cannot block rebuilds',
 );
 assert.equal(

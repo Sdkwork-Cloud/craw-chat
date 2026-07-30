@@ -100,8 +100,8 @@ function scanDirectory(dirPath) {
         const stat = statSync(fullPath);
 
         if (stat.isDirectory()) {
-            // Skip target, node_modules, .runtime
-            if (entry === 'target' || entry === 'node_modules' || entry === '.runtime') {
+            // Skip tool-owned generated directories.
+            if (entry === 'target' || entry === 'node_modules') {
                 continue;
             }
             scanDirectory(fullPath);

@@ -207,20 +207,20 @@ fn parse_optional_duration_env(var: &str, default_secs: u64) -> Result<Option<Du
 
 fn read_im_postgres_pool_tuning() -> ImPostgresPoolTuning {
     let connection_timeout = parse_duration_env(
-        "SDKWORK_IM_DATABASE_POOL_CONNECTION_TIMEOUT_SECONDS",
+        "SDKWORK_DATABASE_POOL_CONNECTION_TIMEOUT_SECONDS",
         ImPostgresPoolTuning::DEFAULT_CONNECTION_TIMEOUT_SECS,
     )
-    .expect("invalid SDKWORK_IM_DATABASE_POOL_CONNECTION_TIMEOUT_SECONDS");
+    .expect("invalid SDKWORK_DATABASE_POOL_CONNECTION_TIMEOUT_SECONDS");
     let max_lifetime = parse_optional_duration_env(
-        "SDKWORK_IM_DATABASE_POOL_MAX_LIFETIME_SECONDS",
+        "SDKWORK_DATABASE_POOL_MAX_LIFETIME_SECONDS",
         ImPostgresPoolTuning::DEFAULT_MAX_LIFETIME_SECS,
     )
-    .expect("invalid SDKWORK_IM_DATABASE_POOL_MAX_LIFETIME_SECONDS");
+    .expect("invalid SDKWORK_DATABASE_POOL_MAX_LIFETIME_SECONDS");
     let idle_timeout = parse_optional_duration_env(
-        "SDKWORK_IM_DATABASE_POOL_IDLE_TIMEOUT_SECONDS",
+        "SDKWORK_DATABASE_POOL_IDLE_TIMEOUT_SECONDS",
         ImPostgresPoolTuning::DEFAULT_IDLE_TIMEOUT_SECS,
     )
-    .expect("invalid SDKWORK_IM_DATABASE_POOL_IDLE_TIMEOUT_SECONDS");
+    .expect("invalid SDKWORK_DATABASE_POOL_IDLE_TIMEOUT_SECONDS");
     ImPostgresPoolTuning {
         connection_timeout,
         max_lifetime,
@@ -292,7 +292,7 @@ fn verify_production_sslmode(database_url: &str) -> Result<(), String> {
         || lowered.contains("sslmode=verifyfull");
     if !requires_tls {
         return Err(format!(
-            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain \
+            "P0-12 production fail-closed: SDKWORK_DATABASE_URL must contain \
              sslmode=require or sslmode=verify-full in production \
              (current environment={environment}). Refusing to start with a \
              plaintext database connection."

@@ -12,6 +12,7 @@ const repoRoot = path.resolve(path.dirname(__filename), '..', '..');
 const SAFE_PLAN_ENV_KEYS = Object.freeze([
   'SDKWORK_IM_ADMIN_SITE_DIR',
   'SDKWORK_IM_PORTAL_SITE_DIR',
+  'SDKWORK_IM_H5_SITE_DIR',
   'SDKWORK_IM_SERVER_BINARY_PATH',
   'SDKWORK_IM_CONFIG_FILE',
   'SDKWORK_IM_DEPLOYMENT_PROFILE',
@@ -210,6 +211,7 @@ function createResolvedSourceServerEnv({
   const fileEnv = readSourceServerEnvFile(envFile);
   rejectRetiredSourceServerEnv(fileEnv, env);
   const sourceDistDir = path.join(root, 'apps', 'sdkwork-im-pc', 'dist');
+  const sourceH5DistDir = path.join(root, 'apps', 'sdkwork-im-h5', 'dist');
   const resolvedBinaryPath = binaryPath
     || env.SDKWORK_IM_SERVER_BINARY_PATH
     || fileEnv.SDKWORK_IM_SERVER_BINARY_PATH
@@ -224,6 +226,9 @@ function createResolvedSourceServerEnv({
       SDKWORK_IM_PORTAL_SITE_DIR: env.SDKWORK_IM_PORTAL_SITE_DIR
         || fileEnv.SDKWORK_IM_PORTAL_SITE_DIR
         || sourceDistDir,
+      SDKWORK_IM_H5_SITE_DIR: env.SDKWORK_IM_H5_SITE_DIR
+        || fileEnv.SDKWORK_IM_H5_SITE_DIR
+        || sourceH5DistDir,
       SDKWORK_IM_SERVER_BINARY_PATH: resolvedBinaryPath,
       SDKWORK_IM_CONFIG_FILE: env.SDKWORK_IM_CONFIG_FILE
         || fileEnv.SDKWORK_IM_CONFIG_FILE

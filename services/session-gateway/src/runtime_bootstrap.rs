@@ -41,7 +41,7 @@ use tracing::warn;
 
 const REALTIME_CLUSTER_BUS_URL_ENV: &str = "SDKWORK_IM_REALTIME_CLUSTER_BUS_URL";
 const REALTIME_ROUTE_STORE_URL_ENV: &str = "SDKWORK_IM_REALTIME_ROUTE_STORE_URL";
-const REALTIME_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+const REALTIME_DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
 const REALTIME_PERMISSIVE_SCOPE_ACCESS_ENV: &str = "SDKWORK_IM_REALTIME_PERMISSIVE_SCOPE_ACCESS";
 
 fn resolve_realtime_scope_access_policy() -> std::sync::Arc<dyn crate::RealtimeScopeAccessPolicy> {
@@ -128,7 +128,7 @@ pub async fn bootstrap_realtime_plane_from_env() -> Result<RealtimePlaneBootstra
         return Err(
             "HA topology detected (cluster bus enabled) but no PostgreSQL pool available \
              for disconnect fence storage. In-memory fallback is unsafe for multi-node \
-             deployments. Set SDKWORK_IM_DATABASE_URL to a shared Postgres instance \
+             deployments. Set SDKWORK_DATABASE_URL to a shared Postgres instance \
              or disable cluster mode by unsetting SDKWORK_IM_REALTIME_CLUSTER_BUS_URL."
                 .to_owned(),
         );

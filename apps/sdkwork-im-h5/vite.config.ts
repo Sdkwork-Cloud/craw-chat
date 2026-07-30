@@ -6,6 +6,7 @@ import { defineConfig, loadEnv } from 'vite';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
+    cacheDir: path.resolve(__dirname, 'node_modules', '.vite', 'sdkwork-im-h5'),
     plugins: [react(), tailwindcss()],
     define: {
       // Replaced define to avoid passing server secrets to client.
@@ -15,8 +16,6 @@ export default defineConfig(({ mode }) => {
         { find: /^@\/(.*)/, replacement: path.resolve(__dirname, 'src/$1') },
         { find: /^@sdkwork\/im-h5-(.*)/, replacement: path.resolve(__dirname, 'packages/sdkwork-im-h5-$1/src') },
         { find: /^@sdkwork\/im-h5-(.*)\/(.*)/, replacement: path.resolve(__dirname, 'packages/sdkwork-im-h5-$1/src/$2') },
-        { find: /^@sdkwork\/utils$/, replacement: path.resolve(__dirname, '../../node_modules/@sdkwork/utils') },
-        { find: /^@sdkwork\/sdk-common$/, replacement: path.resolve(__dirname, '../../node_modules/@sdkwork/sdk-common') },
         { find: /^@sdkwork\/im-app-sdk$/, replacement: path.resolve(__dirname, '../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/src/index.ts') },
         { find: /^@sdkwork\/im-backend-sdk$/, replacement: path.resolve(__dirname, '../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/src/index.ts') },
         { find: /^@sdkwork\/im-sdk$/, replacement: path.resolve(__dirname, '../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts') },

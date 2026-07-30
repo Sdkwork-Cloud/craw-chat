@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
 import { createDeployPlan } from './workflow-deploy.mjs';
 
-const tempRoot = path.resolve('.runtime', 'tests', 'workflow-deploy');
+let tempRoot;
 
+test.beforeEach(() => {
+  tempRoot = mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-workflow-deploy-'));
+});
 test.afterEach(() => rmSync(tempRoot, { recursive: true, force: true }));
 
 test('creates an explicit deployctl apply plan from immutable evidence', () => {

@@ -361,7 +361,7 @@ for (const handlerName of [
 const legacyRequestContextName = ['App', 'Request', 'Context'].join('');
 const legacyRequestContextFiles = [];
 const sourceExtensions = new Set(['.json', '.md', '.mjs', '.rs', '.toml', '.ts', '.tsx', '.yaml', '.yml']);
-const ignoredDirectories = new Set(['.git', '.runtime', 'dist', 'generated', 'node_modules', 'target']);
+const ignoredDirectories = new Set(['.git', 'dist', 'generated', 'node_modules', 'target']);
 const pendingDirectories = [repoRoot];
 while (pendingDirectories.length > 0) {
   const directory = pendingDirectories.pop();

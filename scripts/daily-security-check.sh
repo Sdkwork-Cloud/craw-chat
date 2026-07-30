@@ -150,7 +150,7 @@ fi
 # ============================================================================
 print_header "4. Database Connection Anomaly"
 
-DB_URL="${SDKWORK_IM_DATABASE_URL:-}"
+DB_URL="${SDKWORK_DATABASE_URL:-}"
 if [ -n "$DB_URL" ] && command -v psql >/dev/null 2>&1; then
     ACTIVE_CONN=$(psql "$DB_URL" -t -c "SELECT count(*) FROM pg_stat_activity WHERE usename NOT IN ('postgres', 'replication')" 2>/dev/null | tr -d '[:space:]')
     MAX_CONN=$(psql "$DB_URL" -t -c "SELECT setting::int FROM pg_settings WHERE name='max_connections'" 2>/dev/null | tr -d '[:space:]')

@@ -1,6 +1,6 @@
 //! Live PostgreSQL append repro for journal binding issues.
 //! Run with:
-//! SDKWORK_IM_DATABASE_URL=postgresql://... cargo test -p im-adapters-postgres-journal --test append_live_integration_test -- --ignored --nocapture
+//! SDKWORK_DATABASE_URL=postgresql://... cargo test -p im-adapters-postgres-journal --test append_live_integration_test -- --ignored --nocapture
 
 use im_adapters_postgres_journal::PostgresJournalConfig;
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
@@ -45,11 +45,11 @@ fn sample_envelope(event_id: &str, conversation_id: &str) -> CommitEnvelope {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+#[ignore = "requires live PostgreSQL via SDKWORK_DATABASE_URL"]
 async fn append_agent_dialog_envelope_live() {
     let _test_guard = LIVE_POSTGRES_TEST_LOCK.lock().await;
-    let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
-        .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
+    let database_url = std::env::var("SDKWORK_DATABASE_URL")
+        .expect("SDKWORK_DATABASE_URL must be set for live integration test");
     sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
         .await
         .expect("shared IM database pools should bootstrap");
@@ -80,11 +80,11 @@ async fn append_agent_dialog_envelope_live() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+#[ignore = "requires live PostgreSQL via SDKWORK_DATABASE_URL"]
 async fn append_and_batch_replays_validate_the_immutable_event_fingerprint() {
     let _test_guard = LIVE_POSTGRES_TEST_LOCK.lock().await;
-    let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
-        .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
+    let database_url = std::env::var("SDKWORK_DATABASE_URL")
+        .expect("SDKWORK_DATABASE_URL must be set for live integration test");
     sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
         .await
         .expect("shared IM database pools should bootstrap");
@@ -190,11 +190,11 @@ async fn append_and_batch_replays_validate_the_immutable_event_fingerprint() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+#[ignore = "requires live PostgreSQL via SDKWORK_DATABASE_URL"]
 async fn coordinated_append_allocates_sequences_and_rolls_back_callback_failures() {
     let _test_guard = LIVE_POSTGRES_TEST_LOCK.lock().await;
-    let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
-        .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
+    let database_url = std::env::var("SDKWORK_DATABASE_URL")
+        .expect("SDKWORK_DATABASE_URL must be set for live integration test");
     sdkwork_im_database_pool::bootstrap_im_process_database_pools_from_env()
         .await
         .expect("shared IM database pools should bootstrap");

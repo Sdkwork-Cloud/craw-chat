@@ -176,7 +176,7 @@ export function createStandaloneGatewayProcess({
     SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT:
       normalizeText(env.SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT) ?? 'development',
     CARGO_TARGET_DIR: normalizeText(env.SDKWORK_IM_STANDALONE_GATEWAY_CARGO_TARGET_DIR)
-      ?? path.join(resolvedRepoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev'),
+      ?? path.join(resolvedRepoRoot, 'target', 'sdkwork', 'sdkwork-api-im-standalone-gateway-dev'),
   };
 
   return {

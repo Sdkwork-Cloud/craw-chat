@@ -20,7 +20,7 @@ use crate::write_authority::SpaceWriteAuthority;
 /// Environment variable name for database connection URL.
 /// Referenced in doc comments but loaded via configuration system.
 #[allow(dead_code)]
-pub const DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+pub const DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
 
 pub async fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> AppState {
     let pool_arc = Arc::new(pool.inner().clone());
@@ -56,14 +56,14 @@ pub async fn try_app_state_from_database_url_env() -> Option<AppState> {
     Some(app_state_from_postgres_pool(pool).await)
 }
 
-/// Builds the embedded space router when `SDKWORK_IM_DATABASE_URL` is configured.
+/// Builds the embedded space router when `SDKWORK_DATABASE_URL` is configured.
 pub async fn try_build_embedded_app_from_database_url_env() -> Option<Router> {
     try_app_state_from_database_url_env()
         .await
         .map(build_embedded_app)
 }
 
-/// Builds the public space router when `SDKWORK_IM_DATABASE_URL` is configured.
+/// Builds the public space router when `SDKWORK_DATABASE_URL` is configured.
 pub async fn try_build_public_app_from_database_url_env() -> Option<Router> {
     try_app_state_from_database_url_env()
         .await

@@ -8,7 +8,7 @@
 Every IM HTTP and RPC process enables the canonical process-shared SQLx pool before database bootstrap. Embedded IAM and other modules using `sdkwork-database-sqlx` reuse that handle when identity matches.
 
 Legacy synchronous IM adapters still require one process-singleton r2d2 PostgreSQL pool.
-`SDKWORK_IM_DATABASE_MAX_CONNECTIONS` is the total process budget, not a per-driver value. Profiles
+`SDKWORK_DATABASE_MAX_CONNECTIONS` is the total process budget, not a per-driver value. Profiles
 for standalone gateway composition also embed the Drive API assembly. Drive repositories currently
 require the framework-owned, identity-checked `sqlx::AnyPool` compatibility pool declared by
 `sdkwork-drive/docs/architecture/decisions/ADR-20260719-drive-pool-driver-migration.md`.

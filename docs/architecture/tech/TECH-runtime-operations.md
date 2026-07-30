@@ -4,7 +4,7 @@
 # Runtime Operations
 
 Runtime inspection, repair, backup, preview, and restore flows are tied to the packaged server
-install contract and explicit `SDKWORK_IM_RUNTIME_DIR` configuration.
+install contract, declared PostgreSQL storage, and operating-system process paths.
 
 ## Development
 
@@ -19,4 +19,3 @@ curl http://127.0.0.1:18079/healthz
 
 Use [Server Lifecycle](/deployment/server-lifecycle) scripts for install verification, service
 management, and PostgreSQL-backed storage configuration.
-

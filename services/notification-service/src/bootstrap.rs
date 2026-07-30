@@ -21,7 +21,7 @@ use tracing::info;
 
 use crate::state::{AppState, NotificationRuntime};
 
-const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+const IM_DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
 const NOTIFICATION_TASK_STORE_FILE_ENV: &str = "SDKWORK_IM_NOTIFICATION_TASK_STORE_FILE";
 
 static DEFAULT_NOTIFICATION_RUNTIME: OnceLock<Arc<NotificationRuntime>> = OnceLock::new();

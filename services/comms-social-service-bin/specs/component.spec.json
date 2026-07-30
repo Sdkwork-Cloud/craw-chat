@@ -42,7 +42,7 @@
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
-    "configKeys": ["SDKWORK_IM_COMMS_SOCIAL_SERVICE_BIND_ADDR", "SDKWORK_IM_DATABASE_URL"]
+    "configKeys": ["SDKWORK_IM_COMMS_SOCIAL_SERVICE_BIND_ADDR", "SDKWORK_DATABASE_URL"]
   },
   "integration": {
     "authority": "The host owns process bootstrap and listener lifecycle; social domain and PostgreSQL schemas remain in their owning modules.",

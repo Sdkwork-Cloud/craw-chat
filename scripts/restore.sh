@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
 S3_BUCKET="${SDKWORK_IM_BACKUP_BUCKET:-s3://backup-sdkwork-im}"
-DATABASE_URL="${SDKWORK_IM_DATABASE_URL:-}"
+DATABASE_URL="${SDKWORK_DATABASE_URL:-}"
 REDIS_NODES="${SDKWORK_IM_REDIS_CLUSTER_NODES:-${SDKWORK_IM_REDIS_URL:-}}"
 TMP_DIR="${TMPDIR:-/tmp}"
 
@@ -83,7 +83,7 @@ echo ""
 log_info "1. Restoring PostgreSQL database..."
 
 if [ -z "$DATABASE_URL" ]; then
-    log_error "SDKWORK_IM_DATABASE_URL not set; cannot restore database"
+    log_error "SDKWORK_DATABASE_URL not set; cannot restore database"
     exit 1
 fi
 

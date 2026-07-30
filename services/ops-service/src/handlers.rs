@@ -19,7 +19,7 @@ use crate::error::OpsError;
 use crate::helpers::{ensure_ops_read_access, ensure_ops_write_access};
 use crate::state::AppState;
 
-const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+const IM_DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
 const RETENTION_PURGE_DEFAULT_BATCH_SIZE: i64 = 500;
 const RETENTION_PURGE_MAX_BATCH_SIZE: i64 = 5_000;
 

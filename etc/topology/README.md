@@ -109,14 +109,14 @@ the deployment process before activating group Knowledgebase initialization.
 | --- | --- |
 | `SDKWORK_IM_REALTIME_NODE_ID` | Realtime node identity for cluster routing |
 | `SDKWORK_IM_REALTIME_CLUSTER_BUS_URL` | Redis pub/sub URL for cross-node route events |
-| `SDKWORK_IM_DATABASE_URL` | Postgres-backed realtime stores (**required** when cluster bus is enabled - fail-closed) |
+| `SDKWORK_DATABASE_URL` | Postgres-backed realtime stores (**required** when cluster bus is enabled - fail-closed) |
 | `SDKWORK_IM_REALTIME_MAX_WEBSOCKET_CONNECTIONS` | WebSocket connection ceiling |
 | `SDKWORK_IM_SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS` | HTTP in-flight request gate |
 | `SDKWORK_IM_SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES` | Max HTTP request body size |
 | `SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT_SECS` | Total application drain deadline in seconds; default `45`, valid range `5`-`300`, invalid values fail startup |
 
 > **HA fail-closed**: When `SDKWORK_IM_REALTIME_CLUSTER_BUS_URL` is set (multi-node topology),
-> `SDKWORK_IM_DATABASE_URL` must also be set to a shared Postgres instance. The bootstrap
+> `SDKWORK_DATABASE_URL` must also be set to a shared Postgres instance. The bootstrap
 > will reject startup if cluster bus is enabled without Postgres-backed disconnect fence
 > storage, because in-memory fallback is unsafe across nodes.
 
@@ -165,15 +165,15 @@ Standalone applies one final edge `HybridIpRateLimiter` after IM, IAM, and embed
 | `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` | Comma-separated trusted proxy IPs for X-Forwarded-For validation |
 | `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` | Max tracked client IPs before forced eviction (default `5000`) |
 
-IAM database pool (`SDKWORK_IM_DATABASE_*` / `SDKWORK_IM_DATABASE_URL`) enables `resolve_iam_auth_pool_from_env` for authoritative dual-token verification in session-gateway.
+IAM database pool (`SDKWORK_IM_DATABASE_*` / `SDKWORK_DATABASE_URL`) enables `resolve_iam_auth_pool_from_env` for authoritative dual-token verification in session-gateway.
 
 ## Service persistence backends
 
 | Service | Backend | Config switch | Production behavior |
 | --- | --- | --- | --- |
-| session-gateway | PostgreSQL + Redis (realtime stores, route store) | `SDKWORK_IM_DATABASE_URL`, `SDKWORK_IM_REDIS_URL` | **Fail-closed** in production without Postgres pools and membership-gated realtime scopes |
-| conversation-service | PostgreSQL normalized Conversation/Message authority + bounded cache | `SDKWORK_IM_DATABASE_URL` | **Fail-closed** in production without the normalized repository; cache never determines correctness |
-| audit-service | PostgreSQL (durable) | `SDKWORK_IM_DATABASE_URL` | **Fail-closed panic** in production without durable Postgres storage |
+| session-gateway | PostgreSQL + Redis (realtime stores, route store) | `SDKWORK_DATABASE_URL`, `SDKWORK_IM_REDIS_URL` | **Fail-closed** in production without Postgres pools and membership-gated realtime scopes |
+| conversation-service | PostgreSQL normalized Conversation/Message authority + bounded cache | `SDKWORK_DATABASE_URL` | **Fail-closed** in production without the normalized repository; cache never determines correctness |
+| audit-service | PostgreSQL (durable) | `SDKWORK_DATABASE_URL` | **Fail-closed panic** in production without durable Postgres storage |
 | ops-service | In-memory diagnostics (transient by design) | None needed | Diagnostic views are rebuilt from live services; no persistence required |
 
 ## Verification

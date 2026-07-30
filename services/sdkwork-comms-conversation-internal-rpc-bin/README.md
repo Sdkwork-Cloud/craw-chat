@@ -6,4 +6,4 @@ Environment:
 
 - `SDKWORK_IM_COMMS_CONVERSATION_INTERNAL_RPC_BIND_ADDR` — listener bind address
 - `SDKWORK_IM_COMMS_CONVERSATION_INTERNAL_RPC_PUBLIC_ENDPOINT` — optional advertised endpoint
-- `SDKWORK_IM_DATABASE_URL` — required in production for postgres-backed runtime paths
+- `SDKWORK_DATABASE_URL` — required in production for postgres-backed runtime paths

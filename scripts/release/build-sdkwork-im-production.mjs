@@ -110,12 +110,23 @@ function createSdkworkImProductionBuildPlan({
   const includeServer = target === 'server' || target === 'all';
   const includeDesktop = target === 'desktop' || target === 'all';
   const includeWebAssets = includeBrowser || includeServer || includeDesktop;
+  const includeH5WebAssets = includeBrowser || includeServer;
 
   if (includeWebAssets) {
     steps.push({
       label: 'build sdkwork-im-pc web assets',
       command: pnpmCommand(),
       args: ['release:build'],
+      cwd: root,
+      env,
+    });
+  }
+
+  if (includeH5WebAssets) {
+    steps.push({
+      label: 'build sdkwork-im-h5 web assets',
+      command: pnpmCommand(),
+      args: ['--dir', 'apps/sdkwork-im-h5', 'run', '_sdkwork:build'],
       cwd: root,
       env,
     });
@@ -168,6 +179,7 @@ function createSdkworkImProductionBuildPlan({
     expectedArtifacts: {
       serverBinary: path.join(root, 'target', 'release', process.platform === 'win32' ? 'sdkwork-api-im-standalone-gateway.exe' : 'sdkwork-api-im-standalone-gateway'),
       pcWebDist: path.join(root, 'apps', 'sdkwork-im-pc', 'dist'),
+      h5WebDist: path.join(root, 'apps', 'sdkwork-im-h5', 'dist'),
       desktopBundleRoot: path.join(
         root,
         'apps',
@@ -190,6 +202,7 @@ function renderSdkworkImProductionBuildPlan(plan) {
     ...plan.steps.map((step) => `[sdkwork-im-production-build]   ${step.label}: ${step.command} ${step.args.join(' ')}`),
     `[sdkwork-im-production-build] expected server binary: ${plan.expectedArtifacts.serverBinary}`,
     `[sdkwork-im-production-build] expected web dist: ${plan.expectedArtifacts.pcWebDist}`,
+    `[sdkwork-im-production-build] expected H5 web dist: ${plan.expectedArtifacts.h5WebDist}`,
     `[sdkwork-im-production-build] expected desktop bundle root: ${plan.expectedArtifacts.desktopBundleRoot}`,
   ];
 }

@@ -10,6 +10,10 @@ import {
   resolveReadablePackageEntry,
   resolveWorkspaceDonorRoots,
 } from './vite-runtime-lib.mjs';
+import {
+  createImTemporaryDirectory,
+  removeImTemporaryDirectory,
+} from '../lib/im-temporary-state.mjs';
 
 const REQUIRED_APP_PACKAGES = [
   'tsx',
@@ -49,8 +53,7 @@ function materializeRuntimeTsconfig({ appRoot, tsconfigPath = path.join(appRoot,
     return undefined;
   }
 
-  const runtimeConfigDir = path.join(appRoot, '.runtime', 'tsx');
-  fs.mkdirSync(runtimeConfigDir, { recursive: true });
+  const runtimeConfigDir = createImTemporaryDirectory({ repoRoot: appRoot, purpose: 'tsx' });
   const runtimeConfigPath = path.join(runtimeConfigDir, 'tsconfig.runtime.json');
   const extendsPath = path.relative(runtimeConfigDir, tsconfigPath).replaceAll(path.sep, '/');
   const baseUrl = path.relative(runtimeConfigDir, appRoot).replaceAll(path.sep, '/') || '.';
@@ -61,15 +64,16 @@ function materializeRuntimeTsconfig({ appRoot, tsconfigPath = path.join(appRoot,
       paths: runtimePaths,
     },
   };
-  const runtimeConfigTempPath = path.join(
-    runtimeConfigDir,
-    `tsconfig.runtime.${process.pid}.${Date.now()}.json.tmp`,
-  );
-
-  fs.writeFileSync(runtimeConfigTempPath, `${JSON.stringify(runtimeConfig, null, 2)}\n`, 'utf8');
-  fs.renameSync(runtimeConfigTempPath, runtimeConfigPath);
-
-  return runtimeConfigPath;
+  try {
+    fs.writeFileSync(runtimeConfigPath, `${JSON.stringify(runtimeConfig, null, 2)}\n`, {
+      encoding: 'utf8',
+      mode: 0o600,
+    });
+    return { directory: runtimeConfigDir, path: runtimeConfigPath };
+  } catch (error) {
+    removeImTemporaryDirectory(runtimeConfigDir, { repoRoot: appRoot });
+    throw error;
+  }
 }
 
 export function resolveReadableTsxCliPath({
@@ -97,15 +101,21 @@ ensureLocalNodeModules({
 });
 const tsxCliPath = resolveReadableTsxCliPath({ appRoot, donorRoots });
 const tsxArgs = process.argv.slice(2);
-const runtimeTsconfigPath = hasExplicitTsconfig(tsxArgs)
+const runtimeTsconfig = hasExplicitTsconfig(tsxArgs)
   ? undefined
   : materializeRuntimeTsconfig({ appRoot });
 
 process.argv = [
   process.argv[0],
   tsxCliPath,
-  ...(runtimeTsconfigPath ? ['--tsconfig', runtimeTsconfigPath] : []),
+  ...(runtimeTsconfig ? ['--tsconfig', runtimeTsconfig.path] : []),
   ...tsxArgs,
 ];
 
-await import(pathToFileURL(tsxCliPath).href);
+try {
+  await import(pathToFileURL(tsxCliPath).href);
+} finally {
+  if (runtimeTsconfig) {
+    removeImTemporaryDirectory(runtimeTsconfig.directory, { repoRoot: appRoot });
+  }
+}

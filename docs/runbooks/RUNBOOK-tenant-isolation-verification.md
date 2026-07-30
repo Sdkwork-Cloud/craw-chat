@@ -42,7 +42,7 @@ predicate because an HTTP route currently performs an earlier check.
 Use known test-scope identifiers and read-only plans against normalized authority tables:
 
 ```bash
-psql "$SDKWORK_IM_DATABASE_URL" -v ON_ERROR_STOP=1 -c "
+psql "$SDKWORK_DATABASE_URL" -v ON_ERROR_STOP=1 -c "
   EXPLAIN (ANALYZE, BUFFERS)
   SELECT message_id, message_seq
   FROM im_conversation_messages

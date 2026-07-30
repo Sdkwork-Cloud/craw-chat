@@ -20,7 +20,7 @@ use tracing::info;
 use crate::runtime::AutomationRuntime;
 use crate::state::AppState;
 
-const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+const IM_DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
 const AUTOMATION_EXECUTION_STORE_FILE_ENV: &str = "SDKWORK_IM_AUTOMATION_EXECUTION_STORE_FILE";
 
 static DEFAULT_AUTOMATION_RUNTIME: OnceLock<Arc<AutomationRuntime>> = OnceLock::new();

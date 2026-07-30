@@ -334,7 +334,7 @@ fn verify_production_sslmode(database_url: &str) -> Result<(), ContractError> {
         || lowered.contains("sslmode=verifyfull");
     if !requires_tls {
         return Err(ContractError::Unavailable(format!(
-            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain \
+            "P0-12 production fail-closed: SDKWORK_DATABASE_URL must contain \
                  sslmode=require or sslmode=verify-full in production \
                  (current environment={environment}). Refusing to start with a \
                  plaintext database connection."

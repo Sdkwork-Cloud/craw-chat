@@ -95,7 +95,7 @@ export function createStandaloneGatewayCargoEnv({
   const explicitTargetDir = normalizeText(env.CARGO_TARGET_DIR);
   const cargoTargetDir = explicitTargetDir
     ? path.resolve(repoRoot, explicitTargetDir)
-    : path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-api-im-standalone-gateway-dev');
+    : path.join(repoRoot, 'target', 'sdkwork', 'sdkwork-api-im-standalone-gateway-dev');
   const explicitIncremental = normalizeText(env.CARGO_INCREMENTAL);
 
   return {

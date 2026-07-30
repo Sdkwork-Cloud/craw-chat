@@ -296,7 +296,7 @@ fn verify_production_sslmode(database_url: &str) -> Result<(), ContractError> {
         || lowered.contains("sslmode=verifyfull");
     if !requires_tls {
         return Err(ContractError::Unavailable(format!(
-            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain \
+            "P0-12 production fail-closed: SDKWORK_DATABASE_URL must contain \
                  sslmode=require or sslmode=verify-full in production \
                  (current environment={environment}). Refusing to start with a \
                  plaintext database connection."
@@ -1724,9 +1724,12 @@ fn postgres_io_thread_panic() -> ContractError {
     ContractError::Unavailable("postgres journal blocking IO worker panicked".into())
 }
 
-fn resolve_im_postgres_search_path_schema() -> Option<String> {
-    let schema = sdkwork_database_config::claw_database::resolve_unified_postgres_schema("IM");
-    (schema != "public").then_some(schema)
+fn resolve_im_postgres_search_path_schema() -> Result<Option<String>, ContractError> {
+    let schema = sdkwork_database_config::workspace_database::resolve_workspace_postgres_schema()
+        .map_err(|error| {
+        ContractError::Unavailable(format!("invalid workspace postgres profile: {error}"))
+    })?;
+    Ok((schema != "public").then_some(schema))
 }
 
 fn apply_postgres_search_path(
@@ -1755,7 +1758,7 @@ pub(crate) fn postgres_pool_client(
     let mut client = pool
         .get()
         .map_err(|error| postgres_unavailable(action, error))?;
-    if let Some(schema) = resolve_im_postgres_search_path_schema() {
+    if let Some(schema) = resolve_im_postgres_search_path_schema()? {
         apply_postgres_search_path(&mut client, schema.as_str())?;
     }
     Ok(client)

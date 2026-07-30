@@ -106,11 +106,14 @@
             "id": "im-browser",
             "role": "client",
             "script": "_sdkwork:client:browser:standalone",
+            "applicationRoot": "apps/sdkwork-im-pc",
+            "bindEnv": "SDKWORK_IM_WEB_DEV_INGRESS_BIND",
             "runtimeTargets": [
               "browser"
             ],
             "clientArchitectures": [
-              "pc-web"
+              "pc-web",
+              "h5"
             ],
             "required": true
           },
@@ -123,18 +126,6 @@
             ],
             "clientArchitectures": [
               "tauri"
-            ],
-            "required": true
-          },
-          {
-            "id": "im-h5",
-            "role": "client",
-            "script": "_sdkwork:client:h5:standalone",
-            "runtimeTargets": [
-              "browser"
-            ],
-            "clientArchitectures": [
-              "h5"
             ],
             "required": true
           },
@@ -163,6 +154,39 @@
             "required": true
           }
         ],
+        "browserDeliveries": [
+          {
+            "id": "im-adaptive-web",
+            "applicationRoot": "apps/sdkwork-im-pc",
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ],
+            "originMode": "same-origin",
+            "deliveryMode": "dev-server-proxy",
+            "clientProcessId": "im-browser",
+            "apiSurfaceId": "application.public-ingress",
+            "preserveCanonicalPaths": true
+          }
+        ],
+        "accessEndpoints": [
+          {
+            "id": "im-web",
+            "kind": "user-interface",
+            "source": {
+              "processId": "im-browser"
+            },
+            "path": "/",
+            "primary": true,
+            "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ]
+          }
+        ],
         "capabilitySubset": [
           "application-http",
           "application-websocket",
@@ -178,11 +202,14 @@
             "id": "im-browser",
             "role": "client",
             "script": "_sdkwork:client:browser:cloud",
+            "applicationRoot": "apps/sdkwork-im-pc",
+            "bindEnv": "SDKWORK_IM_WEB_DEV_INGRESS_BIND",
             "runtimeTargets": [
               "browser"
             ],
             "clientArchitectures": [
-              "pc-web"
+              "pc-web",
+              "h5"
             ],
             "required": true
           },
@@ -195,18 +222,6 @@
             ],
             "clientArchitectures": [
               "tauri"
-            ],
-            "required": true
-          },
-          {
-            "id": "im-h5",
-            "role": "client",
-            "script": "_sdkwork:client:h5:cloud",
-            "runtimeTargets": [
-              "browser"
-            ],
-            "clientArchitectures": [
-              "h5"
             ],
             "required": true
           },
@@ -233,6 +248,24 @@
               "flutter"
             ],
             "required": true
+          }
+        ],
+        "accessEndpoints": [
+          {
+            "id": "im-web",
+            "kind": "user-interface",
+            "source": {
+              "processId": "im-browser"
+            },
+            "path": "/",
+            "primary": true,
+            "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ]
           }
         ],
         "healthSurfaces": [

@@ -76,16 +76,10 @@ for (const deploymentProfile of ['cloud', 'standalone']) {
         profileSource.includes(`VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=${cloudApiBaseUrl}`),
       );
     } else {
-      assert.ok(
-        profileSource.includes(
-          'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=http://127.0.0.1:18079',
-        ),
-      );
-      assert.ok(
-        profileSource.includes(
-          'VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=http://127.0.0.1:18079',
-        ),
-      );
+      if (environment === 'development') {
+        assert.doesNotMatch(profileSource, /PLATFORM_API_GATEWAY_HTTP_URL/u);
+        assert.match(profileSource, /SDKWORK_IM_WEB_DEV_INGRESS_BIND=0\.0\.0\.0:3801/u);
+      }
     }
   }
 }
@@ -103,17 +97,15 @@ assert.match(
   pcSdkBaseUrlSource,
   /resolveImApiBaseUrl[\s\S]*VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL/u,
 );
-const h5ImSdkSource = readText(
-  'apps/sdkwork-im-h5/packages/sdkwork-im-h5-core/src/sdk/imSdkClient.ts',
-);
+const h5ImSdkSource = readText('apps/sdkwork-im-h5/src/bootstrap/environment.ts');
 assert.match(
   h5ImSdkSource,
-  /resolveImSdkApiBaseUrl[\s\S]*VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_HTTP_URL/u,
+  /resolveH5RuntimeEnvironment[\s\S]*VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*VITE_SDKWORK_IM_API_BASE_URL/u,
 );
 const pcDevSource = readText('scripts/lib/im-pc-dev.mjs');
 assert.match(
   pcDevSource,
-  /createManagedSdkworkApiGatewayProcess[\s\S]*isStandaloneSingleIngress\(env\)/u,
+  /const standaloneSingleIngress = isStandaloneSingleIngress\(mergedEnv\)[\s\S]*createStandaloneGatewayProcess/u,
 );
 assert.deepEqual(routing.routing, {
   hostMatch: 'exact',
@@ -122,6 +114,37 @@ assert.deepEqual(routing.routing, {
   defaultClient: 'pc',
   desktopClient: 'pc',
   mobileClient: 'h5',
+  fallbackOrder: {
+    desktop: ['pc', 'h5'],
+    mobile: ['h5', 'pc'],
+  },
 });
+const packageManifest = readJson('package.json');
+assert.equal(
+  packageManifest.scripts['_sdkwork:client:browser:standalone'],
+  'node scripts/dev/run-sdkwork-im-adaptive-web-dev.mjs',
+);
+assert.equal(
+  packageManifest.scripts['_sdkwork:client:browser:cloud'],
+  'node scripts/dev/run-sdkwork-im-adaptive-web-dev.mjs',
+);
+const standaloneBrowser = topology.orchestration.profiles['standalone.development'].processes
+  .find((process) => process.id === 'im-browser');
+assert.deepEqual(standaloneBrowser.clientArchitectures, ['pc-web', 'h5']);
+assert.equal(standaloneBrowser.bindEnv, 'SDKWORK_IM_WEB_DEV_INGRESS_BIND');
+assert.equal(
+  topology.orchestration.profiles['standalone.development'].processes
+    .some((process) => process.id === 'im-h5'),
+  false,
+);
+const adaptiveIngressSource = readText('scripts/dev/run-sdkwork-im-adaptive-web-dev.mjs');
+assert.match(
+  adaptiveIngressSource,
+  /isCanonicalImApiPath[\s\S]*resolveAvailableImWebClient/u,
+);
+const pcViteSource = readText('apps/sdkwork-im-pc/vite.config.ts');
+const h5ViteSource = readText('apps/sdkwork-im-h5/vite.config.ts');
+assert.match(pcViteSource, /node_modules[\s\S]*\.vite[\s\S]*sdkwork-im-pc/u);
+assert.match(h5ViteSource, /node_modules[\s\S]*\.vite[\s\S]*sdkwork-im-h5/u);
 
 console.log('sdkwork-im web domain routing standard passed');

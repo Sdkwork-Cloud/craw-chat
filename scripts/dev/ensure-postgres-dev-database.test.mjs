@@ -26,12 +26,12 @@ function withTempRepo(testFn) {
 withTempRepo((tempRoot) => {
   const examplePath = path.join(tempRoot, '.env.postgres.example');
   fs.writeFileSync(examplePath, [
-    'SDKWORK_IM_DATABASE_ENGINE=postgresql',
-    'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
-    'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
-    'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
-    'SDKWORK_CLAW_DATABASE_PASSWORD=example',
-    'SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD=admin-example',
+    'SDKWORK_DATABASE_ENGINE=postgresql',
+    'SDKWORK_DATABASE_HOST=127.0.0.1',
+    'SDKWORK_DATABASE_NAME=sdkwork_ai_dev',
+    'SDKWORK_DATABASE_USERNAME=sdkwork_ai_dev',
+    'SDKWORK_DATABASE_PASSWORD=example',
+    'SDKWORK_DATABASE_ADMIN_PASSWORD=admin-example',
     '',
   ].join('\n'));
   const createdPath = ensurePostgresDevEnvFile(tempRoot);
@@ -46,15 +46,15 @@ assert.equal(
 
 const merged = mergePostgresDevRuntimeEnv({
   env: {
-    SDKWORK_CLAW_DATABASE_PASSWORD: 'shell-password',
+    SDKWORK_DATABASE_PASSWORD: 'shell-password',
     SDKWORK_IM_PC_DEV_PORT: '4176',
   },
   fileEnv: {
-    SDKWORK_CLAW_DATABASE_PASSWORD: 'file-password',
-    SDKWORK_CLAW_DATABASE_USERNAME: 'sdkwork_ai_dev',
+    SDKWORK_DATABASE_PASSWORD: 'file-password',
+    SDKWORK_DATABASE_USERNAME: 'sdkwork_ai_dev',
   },
 });
-assert.equal(merged.SDKWORK_CLAW_DATABASE_PASSWORD, 'file-password');
+assert.equal(merged.SDKWORK_DATABASE_PASSWORD, 'file-password');
 assert.equal(merged.SDKWORK_IM_PC_DEV_PORT, '4176');
 
 console.log('ensure-postgres-dev-database.test.mjs passed');

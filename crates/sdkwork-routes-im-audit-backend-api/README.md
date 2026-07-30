@@ -14,7 +14,7 @@ The public app exports `/healthz`, `/readyz`, `/livez`, `/metrics`, `/openapi.js
 ## Persistence and configuration
 
 - `SDKWORK_IM_ENVIRONMENT=dev|test` selects the in-memory development/test process backend.
-- Production is the default environment and requires `SDKWORK_IM_DATABASE_URL`; missing or invalid durable storage fails startup.
+- Production is the default environment and requires `SDKWORK_DATABASE_URL`; missing or invalid durable storage fails startup.
 - Production PostgreSQL URLs must satisfy the audit service TLS policy.
 - `SDKWORK_IM_AUDIT_MAX_IN_FLIGHT_REQUESTS`, `SDKWORK_IM_AUDIT_MAX_CONCURRENT_SCANS`, and `SDKWORK_IM_AUDIT_MAX_REQUEST_BODY_BYTES` bound request and scan concurrency.
 

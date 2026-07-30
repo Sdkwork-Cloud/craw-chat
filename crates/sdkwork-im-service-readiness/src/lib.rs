@@ -210,7 +210,7 @@ pub fn evaluate_im_runtime_dependency_health_from_env() -> bool {
 }
 
 fn resolve_im_database_url_from_env() -> Option<String> {
-    std::env::var("SDKWORK_IM_DATABASE_URL")
+    std::env::var("SDKWORK_DATABASE_URL")
         .ok()
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())

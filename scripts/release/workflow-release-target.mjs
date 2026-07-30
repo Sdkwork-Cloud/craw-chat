@@ -18,6 +18,12 @@ import { fileURLToPath } from 'node:url';
 
 import { createFlutterDefineConfig } from '../../apps/sdkwork-im-flutter-mobile/scripts/flutter-dev.mjs';
 import { loadProfile } from '../lib/im-topology.mjs';
+import {
+  removeImRuntimeStateFile,
+  resolveImTemporaryFilePath,
+  writeImPrivateFile,
+  writeImPrivateJsonFile,
+} from '../lib/im-temporary-state.mjs';
 import { createTar, createZip } from './build-sdkwork-im-install-package.mjs';
 import { normalizeSdkworkImReleaseVersion } from './sdkwork-im-release-version.mjs';
 
@@ -141,7 +147,17 @@ function createBuildPlan({ env = process.env, packageId, platform = process.plat
     });
   } else if (definition.buildKind.startsWith('flutter-')) {
     flutterConfig = createFlutterDefineConfig(buildEnv);
-    flutterConfigPath = path.join(root, '.runtime', 'release', `${packageId}.dart-define.json`);
+    const flutterRuntimeTarget = definition.buildKind === 'flutter-ios-ipa'
+      ? 'flutter-ios'
+      : 'flutter-android';
+    flutterConfig.SDKWORK_RUNTIME_TARGET = flutterRuntimeTarget;
+    flutterConfig.SDKWORK_IM_RUNTIME_TARGET = flutterRuntimeTarget;
+    flutterConfigPath = resolveImTemporaryFilePath({
+      extension: '.dart-define.json',
+      fileName: packageId,
+      purpose: 'release',
+      repoRoot: root,
+    });
     const flutterTarget = definition.buildKind === 'flutter-android-apk'
       ? 'apk'
       : definition.buildKind === 'flutter-android-aab'
@@ -184,22 +200,24 @@ function createBuildPlan({ env = process.env, packageId, platform = process.plat
     });
   }
 
-  return { definition, flutterConfig, flutterConfigPath, packageId, releaseVersion, steps };
+  return { definition, flutterConfig, flutterConfigPath, packageId, releaseVersion, root, steps };
 }
 
 function runBuildPlan(plan) {
-  let androidKeystorePath = null;
-  if (plan.flutterConfigPath) {
-    mkdirSync(path.dirname(plan.flutterConfigPath), { recursive: true });
-    writeFileSync(plan.flutterConfigPath, `${JSON.stringify(plan.flutterConfig, null, 2)}\n`, { mode: 0o600 });
-  }
-  if (plan.definition.buildKind.startsWith('flutter-android-')) {
-    androidKeystorePath = prepareAndroidSigning(plan);
-  }
+  const privateFiles = [];
   try {
+    if (plan.flutterConfigPath) {
+      writeImPrivateJsonFile(plan.flutterConfigPath, plan.flutterConfig, { repoRoot: plan.root });
+      privateFiles.push(plan.flutterConfigPath);
+    }
+    if (plan.definition.buildKind.startsWith('flutter-android-')) {
+      privateFiles.push(prepareAndroidSigning(plan));
+    }
     for (const step of plan.steps) runStep(step);
   } finally {
-    if (androidKeystorePath) rmSync(androidKeystorePath, { force: true });
+    for (const privateFile of privateFiles.reverse()) {
+      removeImRuntimeStateFile(privateFile, { repoRoot: plan.root });
+    }
   }
 }
 
@@ -208,9 +226,13 @@ function prepareAndroidSigning(plan) {
   const encodedKeystore = requireText(step.env.SDKWORK_ANDROID_KEYSTORE_BASE64, 'SDKWORK_ANDROID_KEYSTORE_BASE64');
   const keystore = Buffer.from(encodedKeystore, 'base64');
   if (keystore.length === 0) throw new Error('SDKWORK_ANDROID_KEYSTORE_BASE64 did not decode to key material');
-  const keystorePath = path.join(REPO_ROOT, '.runtime', 'release', 'android-release.keystore');
-  mkdirSync(path.dirname(keystorePath), { recursive: true });
-  writeFileSync(keystorePath, keystore, { mode: 0o600 });
+  const keystorePath = resolveImTemporaryFilePath({
+    extension: '.keystore',
+    fileName: 'android-release',
+    purpose: 'release',
+    repoRoot: plan.root,
+  });
+  writeImPrivateFile(keystorePath, keystore, { repoRoot: plan.root });
   step.env = {
     ...step.env,
     ORG_GRADLE_PROJECT_SDKWORK_RELEASE_KEYSTORE_FILE: keystorePath,

@@ -1,6 +1,6 @@
 //! Live PostgreSQL coverage for atomic message post and outbox persistence.
 //!
-//! Run with `SDKWORK_IM_DATABASE_URL=postgresql://... cargo test -p
+//! Run with `SDKWORK_DATABASE_URL=postgresql://... cargo test -p
 //! im-adapters-postgres-journal --test message_post_outbox_live_integration_test --
 //! --ignored --nocapture`.
 
@@ -450,10 +450,10 @@ async fn cleanup_tenant(pool: PostgresJournalPool, tenant_id: String) {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+#[ignore = "requires live PostgreSQL via SDKWORK_DATABASE_URL"]
 async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
-    let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
-        .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
+    let database_url = std::env::var("SDKWORK_DATABASE_URL")
+        .expect("SDKWORK_DATABASE_URL must be set for live integration test");
     bootstrap_live_database_pools().await;
     let pool = PostgresJournalConfig::new(database_url)
         .connect_pool()
@@ -886,10 +886,10 @@ async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires live PostgreSQL via SDKWORK_IM_DATABASE_URL"]
+#[ignore = "requires live PostgreSQL via SDKWORK_DATABASE_URL"]
 async fn message_post_dispatch_event_and_two_outboxes_are_atomic_and_idempotent() {
-    let database_url = std::env::var("SDKWORK_IM_DATABASE_URL")
-        .expect("SDKWORK_IM_DATABASE_URL must be set for live integration test");
+    let database_url = std::env::var("SDKWORK_DATABASE_URL")
+        .expect("SDKWORK_DATABASE_URL must be set for live integration test");
     bootstrap_live_database_pools().await;
     let pool = PostgresJournalConfig::new(database_url)
         .connect_pool()

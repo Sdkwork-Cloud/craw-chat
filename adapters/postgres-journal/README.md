@@ -19,7 +19,7 @@ Postgres journal adapter for domain event persistence. Consumes `sdkwork-databas
 
 Database connection uses `SDKWORK_IM_DATABASE_*` environment variables through `sdkwork-database-config`.
 
-Retention purge scheduler (enabled by default when `SDKWORK_IM_DATABASE_URL` is set):
+Retention purge scheduler (enabled by default when `SDKWORK_DATABASE_URL` is set):
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

@@ -114,7 +114,8 @@
       "SDKWORK_IM_ADMIN_SITE_DIR",
       "SDKWORK_ADMIN_SITE_DIR",
       "SDKWORK_IM_PORTAL_SITE_DIR",
-      "SDKWORK_PORTAL_SITE_DIR"
+      "SDKWORK_PORTAL_SITE_DIR",
+      "SDKWORK_IM_H5_SITE_DIR"
     ],
     "routeManifest": null,
     "layerRole": "runtime-composition"
