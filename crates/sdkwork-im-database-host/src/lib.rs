@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use sdkwork_database_config::DatabaseConfig;
+use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_database_lifecycle::{LifecycleOrchestrator, lifecycle_options_from_env};
 use sdkwork_database_spi::{DatabaseAssetProvider, DatabaseManifest, DefaultDatabaseModule};
 use sdkwork_database_sqlx::{DatabasePool, create_pool_from_config};
@@ -53,6 +53,7 @@ pub async fn bootstrap_im_database_from_env() -> Result<ImDatabaseHost, String> 
     let _ = dotenvy::dotenv();
     let config = DatabaseConfig::from_env("IM")
         .map_err(|error| format!("read IM database config failed: {error}"))?;
+    ensure_im_postgres_engine(config.engine)?;
     let pool = create_pool_from_config(config)
         .await
         .map_err(|error| format!("create IM database pool failed: {error}"))?;
@@ -60,13 +61,18 @@ pub async fn bootstrap_im_database_from_env() -> Result<ImDatabaseHost, String> 
 }
 
 fn ensure_im_postgres_authority(pool: &DatabasePool) -> Result<(), String> {
-    match pool {
-        DatabasePool::Postgres(_, _) => Ok(()),
-        DatabasePool::Sqlite(_, _) => Err(
-            "IM authoritative server persistence requires PostgreSQL; SQLite is client-local only"
-                .to_owned(),
-        ),
+    ensure_im_postgres_engine(pool.engine())
+}
+
+fn ensure_im_postgres_engine(engine: DatabaseEngine) -> Result<(), String> {
+    if engine == DatabaseEngine::Postgres {
+        return Ok(());
     }
+
+    Err(
+        "IM authoritative server persistence requires PostgreSQL; SQLite is client-local only"
+            .to_owned(),
+    )
 }
 
 fn resolve_app_root() -> PathBuf {
@@ -82,28 +88,15 @@ fn resolve_app_root() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
-    use sdkwork_database_sqlx::create_pool_from_config;
+    use sdkwork_database_config::DatabaseEngine;
 
     use super::*;
 
-    #[tokio::test]
-    async fn bootstrap_rejects_sqlite_before_database_lifecycle() {
-        let pool = create_pool_from_config(DatabaseConfig {
-            engine: DatabaseEngine::Sqlite,
-            url: "sqlite::memory:".to_owned(),
-            max_connections: 1,
-            ..DatabaseConfig::default()
-        })
-        .await
-        .expect("create isolated client-local fixture");
-
-        let error = match bootstrap_im_database(pool.clone()).await {
-            Ok(_) => panic!("server bootstrap must reject SQLite"),
-            Err(error) => error,
-        };
+    #[test]
+    fn server_database_contract_rejects_sqlite_before_pool_creation() {
+        let error = ensure_im_postgres_engine(DatabaseEngine::Sqlite)
+            .expect_err("server bootstrap must reject SQLite");
         assert!(error.contains("requires PostgreSQL"));
         assert!(error.contains("client-local only"));
-        pool.close().await;
     }
 }
