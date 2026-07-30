@@ -1,5 +1,6 @@
 pub const PREFIX: &str = "/backend/v3/api/admin";
 
+pub const AUTOMATION_GOVERNANCE: &str = "/backend/v3/api/automation/governance";
 pub const PROTOCOL_REGISTRY: &str = "/backend/v3/api/control/protocol_registry";
 pub const PROTOCOL_GOVERNANCE: &str = "/backend/v3/api/control/protocol_governance";
 pub const PROVIDER_REGISTRY: &str = "/backend/v3/api/control/provider_registry";

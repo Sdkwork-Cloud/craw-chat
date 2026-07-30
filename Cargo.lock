@@ -7478,6 +7478,7 @@ name = "sdkwork-routes-im-governance-backend-api"
 version = "0.1.0"
 dependencies = [
  "audit-service",
+ "automation-service",
  "axum 0.8.9",
  "governance-service",
  "ops-service",

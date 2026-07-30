@@ -70,8 +70,10 @@
     "runtimeEntrypoints": [
       "build_public_app",
       "build_public_app_with_governance_sinks",
+      "build_public_app_with_automation_runtime_and_governance_sinks",
       "gateway_mount",
-      "gateway_mount_with_governance_sinks"
+      "gateway_mount_with_governance_sinks",
+      "gateway_mount_with_automation_runtime_and_governance_sinks"
     ],
     "routeManifest": "src/manifest.rs",
     "sdkClients": [],

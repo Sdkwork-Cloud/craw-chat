@@ -9,6 +9,12 @@ pub const API_SURFACE: &str = "backend-api";
 pub const ROUTES: &[HttpRoute] = &[
     HttpRoute::dual_token(
         HttpMethod::Get,
+        paths::AUTOMATION_GOVERNANCE,
+        "automation",
+        "automation.governance.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
         paths::PROTOCOL_REGISTRY,
         "governance",
         "governance.protocolRegistry.retrieve",

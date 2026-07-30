@@ -6,12 +6,18 @@ use sdkwork_im_openapi::{
 };
 
 pub(crate) fn build_automation_service_openapi_document() -> Result<serde_json::Value, String> {
-    let routes = extract_routes_from_function(
+    let mut routes = extract_routes_from_function(
         include_str!("app.rs"),
-        "build_domain_api_router",
+        "build_app_api_router",
         &[],
         &["/openapi.json", "/docs"],
     )?;
+    routes.extend(extract_routes_from_function(
+        include_str!("app.rs"),
+        "build_backend_api_router",
+        &[],
+        &["/openapi.json", "/docs"],
+    )?);
 
     Ok(build_openapi_document(
         &automation_service_openapi_spec(),

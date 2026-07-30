@@ -119,9 +119,9 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
     router = router.merge(
         sdkwork_routes_im_audit_backend_api::gateway_mount_with_runtime(audit_runtime.clone()),
     );
-    router = router.merge(
-        sdkwork_routes_im_automation_app_api::gateway_mount_with_runtime(automation_runtime),
-    );
+    router = router.merge(sdkwork_routes_im_automation_app_api::gateway_mount_with_runtime(
+        automation_runtime.clone(),
+    ));
     router = router.merge(sdkwork_routes_im_calls_open_api::gateway_mount());
     router = router.merge(
         sdkwork_routes_im_chat_open_api::gateway_mount_with_state(conversation_state.clone())
@@ -132,7 +132,8 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
             .await?,
     );
     router = router.merge(
-        sdkwork_routes_im_governance_backend_api::gateway_mount_with_governance_sinks(
+        sdkwork_routes_im_governance_backend_api::gateway_mount_with_automation_runtime_and_governance_sinks(
+            automation_runtime,
             realtime_cluster,
             ops_runtime.clone(),
             audit_runtime,

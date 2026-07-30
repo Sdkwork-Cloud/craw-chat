@@ -41,8 +41,9 @@ pub use state::AppState;
 
 // Re-export app builders and router constructors.
 pub use app::{
-    apply_public_http_guardrails, build_app, build_business_router, build_default_app,
-    build_domain_api_router, build_public_app, build_public_app_from_api_router,
+    apply_public_http_guardrails, build_app, build_app_api_router, build_backend_api_router,
+    build_business_router, build_default_app, build_domain_api_router, build_public_app,
+    build_public_app_from_api_router,
 };
 
 // Re-export public governance helpers.

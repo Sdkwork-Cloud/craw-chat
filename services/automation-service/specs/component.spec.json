@@ -93,9 +93,16 @@
     }
   ],
   "contracts": {
-    "publicExports": [],
+    "publicExports": [
+      "automation_service::build_app_api_router",
+      "automation_service::build_backend_api_router",
+      "automation_service::build_domain_api_router",
+      "automation_service::build_runtime_from_env"
+    ],
     "runtimeEntrypoints": [
-      "Cargo.toml"
+      "automation_service::build_app_api_router",
+      "automation_service::build_backend_api_router",
+      "automation_service::build_domain_api_router"
     ],
     "sdkClients": [],
     "events": [],

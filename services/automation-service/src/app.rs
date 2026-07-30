@@ -26,9 +26,12 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_domain_api_router(state: AppState) -> Router {
+    build_app_api_router(state.clone()).merge(build_backend_api_router(state))
+}
+
+pub fn build_app_api_router(state: AppState) -> Router {
     Router::new()
         .route("/app/v3/api/automation/executions", post(request_execution))
-        .route("/backend/v3/api/automation/governance", get(get_governance))
         .route(
             "/app/v3/api/automation/agent_responses",
             post(start_agent_response),
@@ -53,6 +56,12 @@ pub fn build_domain_api_router(state: AppState) -> Router {
             "/app/v3/api/automation/executions/{execution_id}",
             get(get_execution),
         )
+        .with_state(state)
+}
+
+pub fn build_backend_api_router(state: AppState) -> Router {
+    Router::new()
+        .route("/backend/v3/api/automation/governance", get(get_governance))
         .with_state(state)
 }
 

@@ -49,12 +49,6 @@ pub const ROUTES: &[HttpRoute] = &[
         "automation",
         "automation.agentToolCalls.complete",
     ),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::GOVERNANCE,
-        "automation",
-        "automation.governance.retrieve",
-    ),
 ];
 
 pub fn route_manifest() -> HttpRouteManifest {

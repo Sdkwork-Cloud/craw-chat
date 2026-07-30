@@ -23,18 +23,39 @@ pub fn build_public_app_with_governance_sinks(
     ops_runtime: Arc<ops_service::OpsRuntime>,
     audit_runtime: Arc<audit_service::AuditRuntime>,
 ) -> Router {
+    build_public_app_with_automation_runtime_and_governance_sinks(
+        automation_service::default_automation_runtime(),
+        realtime_cluster,
+        ops_runtime,
+        audit_runtime,
+    )
+}
+
+pub fn build_public_app_with_automation_runtime_and_governance_sinks(
+    automation_runtime: Arc<automation_service::AutomationRuntime>,
+    realtime_cluster: Arc<session_gateway::RealtimeClusterBridge>,
+    ops_runtime: Arc<ops_service::OpsRuntime>,
+    audit_runtime: Arc<audit_service::AuditRuntime>,
+) -> Router {
     governance_service::build_public_app_from_api_router(
-        build_gateway_router_with_governance_sinks(realtime_cluster, ops_runtime, audit_runtime),
+        build_gateway_router_with_governance_sinks(
+            automation_runtime,
+            realtime_cluster,
+            ops_runtime,
+            audit_runtime,
+        ),
     )
 }
 
 fn build_gateway_router_with_governance_sinks(
+    automation_runtime: Arc<automation_service::AutomationRuntime>,
     realtime_cluster: Arc<session_gateway::RealtimeClusterBridge>,
     ops_runtime: Arc<ops_service::OpsRuntime>,
     audit_runtime: Arc<audit_service::AuditRuntime>,
 ) -> Router {
     web_bootstrap::wrap_router(governance_service::apply_public_http_guardrails(
         routes::build_api_router_with_governance_sinks(
+            automation_runtime,
             realtime_cluster,
             ops_runtime,
             audit_runtime,
@@ -59,5 +80,24 @@ pub fn gateway_mount_with_governance_sinks(
     ops_runtime: Arc<ops_service::OpsRuntime>,
     audit_runtime: Arc<audit_service::AuditRuntime>,
 ) -> axum::Router {
-    build_gateway_router_with_governance_sinks(realtime_cluster, ops_runtime, audit_runtime)
+    gateway_mount_with_automation_runtime_and_governance_sinks(
+        automation_service::default_automation_runtime(),
+        realtime_cluster,
+        ops_runtime,
+        audit_runtime,
+    )
+}
+
+pub fn gateway_mount_with_automation_runtime_and_governance_sinks(
+    automation_runtime: Arc<automation_service::AutomationRuntime>,
+    realtime_cluster: Arc<session_gateway::RealtimeClusterBridge>,
+    ops_runtime: Arc<ops_service::OpsRuntime>,
+    audit_runtime: Arc<audit_service::AuditRuntime>,
+) -> axum::Router {
+    build_gateway_router_with_governance_sinks(
+        automation_runtime,
+        realtime_cluster,
+        ops_runtime,
+        audit_runtime,
+    )
 }

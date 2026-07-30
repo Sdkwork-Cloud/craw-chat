@@ -9,4 +9,3 @@ pub const AGENT_TOOL_CALLS: &str = "/app/v3/api/automation/agent_tool_calls";
 pub const EXECUTION_TOOL_CALL_COMPLETE: &str =
     "/app/v3/api/automation/executions/{executionId}/agent_tool_calls/{toolCallId}/complete";
 pub const EXECUTION: &str = "/app/v3/api/automation/executions/{executionId}";
-pub const GOVERNANCE: &str = "/backend/v3/api/automation/governance";
