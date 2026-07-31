@@ -19,6 +19,15 @@ export interface ImH5SessionBridgeOptions {
   storage?: ImH5SessionStorageLike | null;
 }
 
+export interface ImH5SessionValidationRuntime {
+  clearSession(): Promise<void>;
+  hydrateTokenManager(): Promise<{
+    accessToken?: string | null;
+    authToken?: string | null;
+  }>;
+  retrieveCurrentSession(): Promise<unknown>;
+}
+
 function resolveBrowserStorage(): ImH5SessionStorageLike | null {
   return typeof globalThis.localStorage === 'undefined'
     ? null
@@ -98,6 +107,22 @@ export function createImH5SessionBridge(
       return readImH5PersistedSession(storage);
     },
   };
+}
+
+export async function restoreAndValidateImH5Session(
+  runtime: ImH5SessionValidationRuntime,
+): Promise<boolean> {
+  try {
+    const tokens = await runtime.hydrateTokenManager();
+    if (tokens.accessToken && tokens.authToken) {
+      await runtime.retrieveCurrentSession();
+      return true;
+    }
+  } catch {
+    // Invalid or expired sessions converge on the same terminal cleanup below.
+  }
+  await runtime.clearSession();
+  return false;
 }
 
 export function emitImH5SessionChanged(

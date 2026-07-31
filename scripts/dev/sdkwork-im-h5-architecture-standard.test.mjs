@@ -22,7 +22,11 @@ function listFiles(root, extensions = ['.ts', '.tsx']) {
     const absolute = path.join(root, entry);
     const stat = statSync(absolute);
     if (stat.isDirectory()) {
-      if (['node_modules', 'dist', 'target', '__tests__'].includes(entry)) {
+      if (
+        entry === 'node_modules'
+        || entry.startsWith('node_modules.')
+        || ['dist', 'target', '__tests__'].includes(entry)
+      ) {
         continue;
       }
       files.push(...listFiles(absolute, extensions));

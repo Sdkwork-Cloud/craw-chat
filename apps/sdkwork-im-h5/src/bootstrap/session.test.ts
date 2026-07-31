@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   createImH5SessionBridge,
   readImH5PersistedSession,
+  restoreAndValidateImH5Session,
   type ImH5SessionStorageLike,
 } from './session';
 
@@ -64,4 +65,65 @@ test('clears persisted state and notifies session observers', () => {
 
   assert.equal(readImH5PersistedSession(storage), null);
   assert.deepEqual(notifications, [null]);
+});
+
+test('validates a hydrated dual-token session through appbase IAM', async () => {
+  let retrieveCount = 0;
+  let clearCount = 0;
+
+  const authenticated = await restoreAndValidateImH5Session({
+    clearSession: async () => {
+      clearCount += 1;
+    },
+    hydrateTokenManager: async () => ({
+      accessToken: 'access-token',
+      authToken: 'auth-token',
+    }),
+    retrieveCurrentSession: async () => {
+      retrieveCount += 1;
+    },
+  });
+
+  assert.equal(authenticated, true);
+  assert.equal(retrieveCount, 1);
+  assert.equal(clearCount, 0);
+});
+
+test('clears an incomplete hydrated session before current-session retrieval', async () => {
+  let retrieveCount = 0;
+  let clearCount = 0;
+
+  const authenticated = await restoreAndValidateImH5Session({
+    clearSession: async () => {
+      clearCount += 1;
+    },
+    hydrateTokenManager: async () => ({ accessToken: 'access-token' }),
+    retrieveCurrentSession: async () => {
+      retrieveCount += 1;
+    },
+  });
+
+  assert.equal(authenticated, false);
+  assert.equal(retrieveCount, 0);
+  assert.equal(clearCount, 1);
+});
+
+test('clears a hydrated session rejected by appbase IAM', async () => {
+  let clearCount = 0;
+
+  const authenticated = await restoreAndValidateImH5Session({
+    clearSession: async () => {
+      clearCount += 1;
+    },
+    hydrateTokenManager: async () => ({
+      accessToken: 'access-token',
+      authToken: 'auth-token',
+    }),
+    retrieveCurrentSession: async () => {
+      throw new Error('Unauthorized');
+    },
+  });
+
+  assert.equal(authenticated, false);
+  assert.equal(clearCount, 1);
 });

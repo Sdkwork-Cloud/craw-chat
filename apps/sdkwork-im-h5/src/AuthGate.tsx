@@ -13,6 +13,7 @@ import {
 import {
   IM_H5_IAM_SESSION_CHANGED_EVENT,
   readImH5PersistedSession,
+  restoreAndValidateImH5Session,
   type ImH5PersistedSession,
 } from './bootstrap/session';
 
@@ -88,16 +89,11 @@ export function AuthGate({ children }: AuthGateProps) {
 
     const bootstrap = async () => {
       const runtime = getImAppAuthRuntime().runtime;
-      try {
-        const tokens = await runtime.hydrateTokenManager();
-        if (!tokens.accessToken || !tokens.authToken) {
-          await runtime.clearSession();
-        } else {
-          await runtime.service.auth.sessions.current.retrieve();
-        }
-      } catch {
-        await runtime.clearSession();
-      }
+      await restoreAndValidateImH5Session({
+        clearSession: () => runtime.clearSession(),
+        hydrateTokenManager: () => runtime.hydrateTokenManager(),
+        retrieveCurrentSession: () => runtime.service.auth.sessions.current.retrieve(),
+      });
       if (disposed) {
         return;
       }

@@ -722,21 +722,37 @@ importers:
       '@sdkwork/ui-mobile-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-ui/sdkwork-ui-mobile-react
+      i18next:
+        specifier: 'catalog:'
+        version: 26.3.1(typescript@5.8.3)
       lucide-react:
-        specifier: '>=1.0.0'
+        specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
       motion:
-        specifier: '>=12.0.0'
+        specifier: 'catalog:'
         version: 12.40.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react:
-        specifier: '>=18'
+        specifier: '>=18.2.0 <20.0.0'
         version: 19.2.4
+      react-dom:
+        specifier: '>=18.2.0 <20.0.0'
+        version: 19.2.4(react@19.2.4)
       react-i18next:
-        specifier: '>=17.0.0'
-        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        specifier: 'catalog:'
+        version: 17.0.8(i18next@26.3.1(typescript@5.8.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.8.3)
       react-router:
-        specifier: '>=7.0.0'
+        specifier: 'catalog:'
         version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.8.3
 
   ../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-runtime:
     dependencies:
@@ -755,6 +771,9 @@ importers:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-sdk-ports:
     dependencies:
