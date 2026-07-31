@@ -227,6 +227,127 @@ where
     Value::Object(document)
 }
 
+/// Merge route and component inventories from an extension OpenAPI document.
+///
+/// The base document retains its identity and server metadata. Conflicting
+/// paths, component entries, or tag definitions fail closed so a composed
+/// runtime cannot silently publish a contract different from its routers.
+pub fn merge_openapi_documents(mut base: Value, extension: Value) -> Result<Value, String> {
+    let base_object = base
+        .as_object_mut()
+        .ok_or_else(|| "base OpenAPI document must be a JSON object".to_owned())?;
+    let extension_object = extension
+        .as_object()
+        .ok_or_else(|| "extension OpenAPI document must be a JSON object".to_owned())?;
+
+    merge_object_member(base_object, extension_object, "paths", "OpenAPI paths")?;
+    merge_component_sections(base_object, extension_object)?;
+    merge_tags(base_object, extension_object)?;
+
+    Ok(base)
+}
+
+fn merge_component_sections(
+    base: &mut Map<String, Value>,
+    extension: &Map<String, Value>,
+) -> Result<(), String> {
+    let Some(extension_components) = extension.get("components") else {
+        return Ok(());
+    };
+    let extension_components = extension_components
+        .as_object()
+        .ok_or_else(|| "extension OpenAPI components must be a JSON object".to_owned())?;
+    let base_components = base
+        .entry("components")
+        .or_insert_with(|| Value::Object(Map::new()))
+        .as_object_mut()
+        .ok_or_else(|| "base OpenAPI components must be a JSON object".to_owned())?;
+
+    for (section, extension_value) in extension_components {
+        let extension_entries = extension_value.as_object().ok_or_else(|| {
+            format!("extension OpenAPI components.{section} must be a JSON object")
+        })?;
+        let base_entries = base_components
+            .entry(section.clone())
+            .or_insert_with(|| Value::Object(Map::new()))
+            .as_object_mut()
+            .ok_or_else(|| format!("base OpenAPI components.{section} must be a JSON object"))?;
+        let location = format!("OpenAPI components.{section}");
+        merge_named_entries(base_entries, extension_entries, location.as_str())?;
+    }
+
+    Ok(())
+}
+
+fn merge_object_member(
+    base: &mut Map<String, Value>,
+    extension: &Map<String, Value>,
+    member: &str,
+    location: &str,
+) -> Result<(), String> {
+    let Some(extension_value) = extension.get(member) else {
+        return Ok(());
+    };
+    let extension_entries = extension_value
+        .as_object()
+        .ok_or_else(|| format!("extension {location} must be a JSON object"))?;
+    let base_entries = base
+        .entry(member.to_owned())
+        .or_insert_with(|| Value::Object(Map::new()))
+        .as_object_mut()
+        .ok_or_else(|| format!("base {location} must be a JSON object"))?;
+    merge_named_entries(base_entries, extension_entries, location)
+}
+
+fn merge_named_entries(
+    base: &mut Map<String, Value>,
+    extension: &Map<String, Value>,
+    location: &str,
+) -> Result<(), String> {
+    for (name, value) in extension {
+        if let Some(existing) = base.get(name) {
+            if existing != value {
+                return Err(format!("conflicting {location} entry '{name}'"));
+            }
+            continue;
+        }
+        base.insert(name.clone(), value.clone());
+    }
+    Ok(())
+}
+
+fn merge_tags(base: &mut Map<String, Value>, extension: &Map<String, Value>) -> Result<(), String> {
+    let Some(extension_tags) = extension.get("tags") else {
+        return Ok(());
+    };
+    let extension_tags = extension_tags
+        .as_array()
+        .ok_or_else(|| "extension OpenAPI tags must be a JSON array".to_owned())?;
+    let base_tags = base
+        .entry("tags")
+        .or_insert_with(|| Value::Array(Vec::new()))
+        .as_array_mut()
+        .ok_or_else(|| "base OpenAPI tags must be a JSON array".to_owned())?;
+
+    for tag in extension_tags {
+        let name = tag
+            .get("name")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "OpenAPI tag entries must declare a string name".to_owned())?;
+        if let Some(existing) = base_tags
+            .iter()
+            .find(|existing| existing.get("name").and_then(Value::as_str) == Some(name))
+        {
+            if existing != tag {
+                return Err(format!("conflicting OpenAPI tag entry '{name}'"));
+            }
+            continue;
+        }
+        base_tags.push(tag.clone());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -349,6 +470,42 @@ mod tests {
             ),
             "roles.permissions.delete"
         );
+    }
+
+    #[test]
+    fn merge_openapi_documents_combines_paths_components_and_tags() {
+        let base = json!({
+            "openapi": "3.1.2",
+            "tags": [{"name": "control"}],
+            "paths": {"/backend/v3/api/control": {"get": {}}},
+            "components": {"schemas": {"Control": {"type": "object"}}}
+        });
+        let extension = json!({
+            "openapi": "3.1.0",
+            "tags": [{"name": "automation"}],
+            "paths": {"/backend/v3/api/automation/governance": {"get": {}}},
+            "components": {"schemas": {"Automation": {"type": "object"}}}
+        });
+
+        let merged = merge_openapi_documents(base, extension).expect("documents should merge");
+
+        assert_eq!(merged["openapi"], "3.1.2");
+        assert!(merged["paths"]["/backend/v3/api/control"].is_object());
+        assert!(merged["paths"]["/backend/v3/api/automation/governance"].is_object());
+        assert!(merged["components"]["schemas"]["Control"].is_object());
+        assert!(merged["components"]["schemas"]["Automation"].is_object());
+        assert_eq!(merged["tags"].as_array().map(Vec::len), Some(2));
+    }
+
+    #[test]
+    fn merge_openapi_documents_rejects_conflicting_paths() {
+        let base = json!({"paths": {"/same": {"get": {"operationId": "one"}}}});
+        let extension = json!({"paths": {"/same": {"get": {"operationId": "two"}}}});
+
+        let error = merge_openapi_documents(base, extension)
+            .expect_err("conflicting routes must fail closed");
+
+        assert!(error.contains("/same"));
     }
 }
 

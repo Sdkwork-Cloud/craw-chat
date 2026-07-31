@@ -37,13 +37,20 @@ pub fn build_public_app_with_automation_runtime_and_governance_sinks(
     ops_runtime: Arc<ops_service::OpsRuntime>,
     audit_runtime: Arc<audit_service::AuditRuntime>,
 ) -> Router {
-    governance_service::build_public_app_from_api_router(
+    let openapi_document = sdkwork_im_openapi::merge_openapi_documents(
+        governance_service::render_openapi_document(),
+        automation_service::build_automation_backend_openapi_document()
+            .expect("authored automation backend router must produce OpenAPI"),
+    )
+    .expect("governance backend OpenAPI surfaces must compose without conflicts");
+    governance_service::build_public_app_from_api_router_with_openapi(
         build_gateway_router_with_governance_sinks(
             automation_runtime,
             realtime_cluster,
             ops_runtime,
             audit_runtime,
         ),
+        openapi_document,
     )
 }
 

@@ -11,12 +11,5 @@
       "types": "./src/index.ts"
     }
   },
-  "dependencies": {
-    "react": "catalog:",
-    "motion": "catalog:",
-    "lucide-react": "catalog:",
-    "react-router": "catalog:",
-    "react-i18next": "catalog:",
-    "@sdkwork/im-h5-commons": "workspace:*"
-  }
+  "dependencies": { "@sdkwork/knowledgebase-mobile-react-knowledge": "workspace:*" }
 }

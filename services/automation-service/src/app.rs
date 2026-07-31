@@ -21,10 +21,6 @@ use crate::helpers::{resolve_max_http_request_body_bytes, resolve_max_in_flight_
 use crate::runtime::AutomationRuntime;
 use crate::state::{AppState, PublicAppGuardrails};
 
-pub fn build_default_app() -> Router {
-    build_app(crate::bootstrap::default_automation_runtime())
-}
-
 pub fn build_domain_api_router(state: AppState) -> Router {
     build_app_api_router(state.clone()).merge(build_backend_api_router(state))
 }
@@ -77,26 +73,7 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
         ))
 }
 
-pub fn build_public_app() -> Router {
-    let runtime = crate::bootstrap::default_automation_runtime();
-    let api_router =
-        apply_public_http_guardrails(build_domain_api_router(AppState::new(runtime.clone())));
-    build_public_app_from_api_router(runtime, api_router)
-}
-
-pub fn build_app(runtime: Arc<AutomationRuntime>) -> Router {
-    let api_router = build_domain_api_router(AppState::new(runtime.clone()));
-    build_public_app_from_api_router(runtime, api_router)
-}
-
-pub fn build_business_router(runtime: Arc<AutomationRuntime>) -> Router {
-    build_service_router(
-        runtime.clone(),
-        build_domain_api_router(AppState::new(runtime)),
-    )
-}
-
-pub fn build_public_app_from_api_router(
+pub fn build_app_public_router_from_api_router(
     runtime: Arc<AutomationRuntime>,
     api_router: Router,
 ) -> Router {

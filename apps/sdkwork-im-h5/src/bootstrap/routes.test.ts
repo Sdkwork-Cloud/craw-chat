@@ -23,13 +23,16 @@ const MOUNTED_ROUTE_PATHS = [
   "/notary/cases/:caseId/parties/:partyId/video-qr",
 ] as const;
 
-test("route registry matches every route mounted by ImApp", () => {
+test("route registry matches every route mounted by the H5 shell", () => {
   assert.deepEqual(
     IM_H5_ROUTE_REGISTRY.map((route) => route.path),
     MOUNTED_ROUTE_PATHS,
   );
   assert.equal(
-    new Set(IM_H5_ROUTE_REGISTRY.map((route) => route.routeId)).size,
+    new Set(IM_H5_ROUTE_REGISTRY.map((route) => route.id)).size,
     IM_H5_ROUTE_REGISTRY.length,
   );
+  for (const route of IM_H5_ROUTE_REGISTRY) {
+    assert.match(route.id, /^(app|console|admin)\.[a-z0-9-]+\.[a-z0-9-]+\.[a-zA-Z0-9-]+$/u);
+  }
 });

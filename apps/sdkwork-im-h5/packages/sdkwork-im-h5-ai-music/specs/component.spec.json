@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/im-h5-ai-music",
+    "displayName": "SDKWork IM H5 AI Music Adapter",
+    "version": "1.0.0",
+    "type": "node-package",
+    "root": "sdkwork-im/apps/sdkwork-im-h5/packages/sdkwork-im-h5-ai-music",
+    "domain": "communication",
+    "capability": "ai-music-adapter",
+    "surface": "app",
+    "languages": ["typescript"],
+    "generated": false,
+    "manifests": ["package.json"]
+  },
+  "canonicalSpecs": [
+    { "file": "COMPONENT_SPEC.md", "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component contract." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Source boundaries." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Naming." },
+    { "file": "TYPESCRIPT_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md", "purpose": "TypeScript." },
+    { "file": "APP_H5_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md", "purpose": "H5 composition." },
+    { "file": "TEST_SPEC.md", "path": "../../../../../sdkwork-specs/TEST_SPEC.md", "purpose": "Verification." }
+  ],
+  "contracts": {
+    "layerRole": "frontend-feature",
+    "publicExports": ["."],
+    "providedPorts": [{ "name": "imH5AiMusicAdapter", "export": "." }],
+    "requiredPorts": [{ "name": "musicMobileReactGeneration", "package": "@sdkwork/music-mobile-react-generation", "export": "." }],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "events": [],
+    "configKeys": []
+  },
+  "verification": { "commands": ["pnpm --dir apps/sdkwork-im-h5 typecheck"] }
+}

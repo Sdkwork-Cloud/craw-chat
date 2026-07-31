@@ -29,12 +29,15 @@
     "./composition": {
       "import": "./src/composition/index.ts",
       "types": "./src/composition/index.ts"
+    },
+    "./routes": {
+      "import": "./src/routes/index.ts",
+      "types": "./src/routes/index.ts"
     }
   },
   "dependencies": {
     "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/im-sdk": "workspace:*",
-    "@sdkwork/notary-app-sdk": "workspace:*",
     "@sdkwork/sdk-common": "catalog:",
     "@sdkwork/utils": "workspace:*",
     "zustand": "catalog:"

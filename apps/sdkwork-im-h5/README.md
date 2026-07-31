@@ -23,19 +23,48 @@ on sibling SDK packages (`@sdkwork/im-app-sdk`, `@sdkwork/im-sdk`,
 packages (`@sdkwork/auth-pc-react`, `@sdkwork/auth-runtime-pc-react`,
 `@sdkwork/appbase-pc-react`, `@sdkwork/ui-pc-react`, `@sdkwork/i18n-pc-react`).
 
-H5-native capability packages live under `packages/sdkwork-im-h5-*`:
+IM-owned H5 capability packages live under `packages/sdkwork-im-h5-*`:
 
 - `sdkwork-im-h5-core` - bootstrap, SDK client construction, runtime stores
 - `sdkwork-im-h5-commons` - shared UI primitives, locale resources
+- `sdkwork-im-h5-shell` - capability module registry, route contribution assembly, mobile navigation
 - `sdkwork-im-h5-chat` - conversation and inbox surfaces
-- `sdkwork-im-h5-user` - profile, settings, account pages
+- `sdkwork-im-h5-user` - legacy, unmounted mixed user surfaces pending owner resolution
 - `sdkwork-im-h5-types` - shared TypeScript type contracts
-- Feature packages: `sdkwork-im-h5-{ai-image,ai-video,ai-voice,ai-writing,
-  approval,attendance,calendar,cloud-drive,community,contacts,course,
-  enterprise,hardware,knowledge,meeting,notary,orders,recruitment,report,
-  shopping,vip,channels}`
+- IM-owned feature packages: `sdkwork-im-h5-{chat,contacts,channels}`
+- Fail-closed packages with unresolved ownership: `sdkwork-im-h5-{ai-writing,approval,
+  attendance,calendar,enterprise,recruitment,report,user}`
 
-Package presence does not mean the feature is mounted or release-ready. The current `ImApp` mounts
+The application composes reusable mobile React modules from their owning sibling repositories:
+
+- Drive: `@sdkwork/drive-mobile-react-drive`
+- Image generation: `@sdkwork/image-mobile-react-generation`
+- Music generation: `@sdkwork/music-mobile-react-generation`
+- Video generation: `@sdkwork/video-mobile-react-generation`
+- Voice generation and summary: `@sdkwork/voice-mobile-react-generation`
+- Community: `@sdkwork/community-mobile-react-community`
+- Course: `@sdkwork/course-mobile-react-courses`
+- AIoT hardware: `@sdkwork/aiot-mobile-react-hardware`
+- Knowledgebase: `@sdkwork/knowledgebase-mobile-react-knowledge`
+- RTC meeting: `@sdkwork/rtc-mobile-react-meeting`
+- Notary: `@sdkwork/notary-h5-notary`
+- Orders: `@sdkwork/order-mobile-react-orders`
+- Shop: `@sdkwork/shop-mobile-react-shopping`
+- Membership: `@sdkwork/membership-mobile-react-subscription`
+
+The corresponding `sdkwork-im-h5-{ai-image,ai-music,ai-video,ai-voice,cloud-drive,community,
+course,hardware,knowledge,meeting,notary,orders,shopping,vip}` packages are compatibility adapters only. Each keeps the
+historic IM package import stable while re-exporting its canonical owner module. Shared generic
+mobile primitives come from `@sdkwork/ui-mobile-react`; IM-specific chat UI remains in
+`sdkwork-im-h5-commons`.
+
+`@sdkwork/im-h5-shell` is the composition entrypoint. Its default catalog enables only `chat` and
+`notary`, matching the existing release UI. Application variants can select known modules through
+`moduleIds` or inject fully declared capability modules through `modules`; routes, lifecycle hooks,
+and bottom navigation are derived from that selection. Catalog entries without a composed runtime
+remain in `CONTRACT_PENDING_IM_H5_MODULES` and are ignored rather than mounted with local fallbacks.
+
+Package presence does not mean the feature is mounted or release-ready. The current H5 shell composes
 Chat inbox, Conversation, Workspace Notary, and the Notary workflow routes. Contacts has a formal
 cursor-paged IM SDK service boundary but is not mounted by the root router. Organization directory,
 Agent lifecycle, QR scanning, Chat RTC media UI, legacy Chat operations, AI Image/Video/Writing/Music,
@@ -105,23 +134,29 @@ node scripts/dev/sdkwork-im-h5-architecture-standard.test.mjs
 # H5 utils standard
 node scripts/dev/sdkwork-im-h5-utils-standard.test.mjs
 
-# H5 service contract tests
+# IM-owned H5 service contract tests
 pnpm --dir apps/sdkwork-im-h5 exec tsx --test \
   packages/sdkwork-im-h5-chat/src/services/ChatService.test.ts \
   packages/sdkwork-im-h5-chat/src/services/chatRealtimeService.test.ts \
   packages/sdkwork-im-h5-contacts/src/services/ContactService.test.ts \
-  packages/sdkwork-im-h5-notary/src/services/notaryService.test.ts \
   packages/sdkwork-im-h5-commons/src/ApiClient.test.ts \
   packages/sdkwork-im-h5-channels/src/services/ChannelService.test.ts \
-  packages/sdkwork-im-h5-hardware/src/services/HardwareService.test.ts \
   packages/sdkwork-im-h5-recruitment/src/services/RecruitmentService.test.ts \
-  packages/sdkwork-im-h5-knowledge/src/services/KnowledgeBaseService.test.ts \
-  packages/sdkwork-im-h5-shopping/src/services/ProductService.test.ts \
-  packages/sdkwork-im-h5-shopping/src/services/CartService.test.ts \
-  packages/sdkwork-im-h5-orders/src/services/OrderService.test.ts \
-  packages/sdkwork-im-h5-community/src/services/CommunityService.test.ts \
-  packages/sdkwork-im-h5-course/src/services/CourseService.test.ts \
   packages/sdkwork-im-h5-user/src/services/UserServices.test.ts
+
+# Canonical migrated module tests
+pnpm --dir apps/sdkwork-im-h5 exec tsx --test \
+  ../../../sdkwork-notary/apps/sdkwork-notary-h5/packages/sdkwork-notary-h5-notary/src/services/notaryService.test.ts \
+  ../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/services/OrderService.test.ts \
+  ../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src/services/HardwareService.test.ts \
+  ../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src/services/KnowledgeBaseService.test.ts \
+  ../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/services/ProductService.test.ts \
+  ../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/services/CartService.test.ts \
+  ../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/services/CommunityService.test.ts \
+  ../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/services/CourseService.test.ts \
+  ../../../sdkwork-image/apps/sdkwork-image-common/packages/sdkwork-image-mobile-react-generation/src/services/AIImageService.test.ts \
+  ../../../sdkwork-video/apps/sdkwork-video-common/packages/sdkwork-video-mobile-react-generation/src/services/AIVideoService.test.ts \
+  ../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation/src/services/VoiceSummaryService.test.ts
 
 # App manifest standard
 node ../sdkwork-specs/tools/check-app-manifest-standard.mjs --root apps/sdkwork-im-h5

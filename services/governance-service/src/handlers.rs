@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
 use axum::response::{Html, Response};
@@ -28,15 +30,17 @@ use crate::helpers::{
     provider_policy_history_response, provider_registry_snapshot_response,
     record_control_plane_audit, schema_response, validate_optional_tenant_id,
 };
-use crate::openapi::{control_plane_openapi_document, control_plane_openapi_spec};
+use crate::openapi::control_plane_openapi_spec;
 use crate::state::AppState;
 
 fn resource_item<T>(item: T) -> SdkWorkResourceData<T> {
     SdkWorkResourceData { item }
 }
 
-pub(crate) async fn openapi_document() -> Json<JsonValue> {
-    Json(control_plane_openapi_document())
+pub(crate) async fn openapi_document(
+    Extension(document): Extension<Arc<JsonValue>>,
+) -> Json<JsonValue> {
+    Json(document.as_ref().clone())
 }
 
 pub(crate) async fn docs() -> Html<String> {

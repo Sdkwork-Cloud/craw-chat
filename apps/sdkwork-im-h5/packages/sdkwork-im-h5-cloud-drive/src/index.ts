@@ -1,2 +1,2 @@
-export * from './pages/CloudDriveApp';
-export * from './services/CloudDriveService';
+/** Compatibility adapter. Canonical Drive mobile UI lives in sdkwork-drive. */
+export * from '@sdkwork/drive-mobile-react-drive';

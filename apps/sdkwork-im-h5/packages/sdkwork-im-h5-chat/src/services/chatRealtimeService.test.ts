@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test, { afterEach } from "node:test";
 
-import type { ImLiveConnection, ImSubscription } from "@sdkwork/im-sdk";
-import { initImSdkClient, resetImSdkClient } from "@sdkwork/im-h5-core";
+import type { ImLiveConnection, ImSubscription } from "@sdkwork/im-h5-core/sdk";
+import { initImSdkClient, resetImSdkClient } from "@sdkwork/im-h5-core/sdk";
 
 import {
   disposeChatLiveConnection,

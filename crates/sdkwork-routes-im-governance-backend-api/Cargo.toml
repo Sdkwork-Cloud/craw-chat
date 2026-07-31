@@ -14,6 +14,7 @@ axum.workspace = true
 sdkwork_web_contract.workspace = true
 sdkwork_web_core.workspace = true
 sdkwork_im_web_bootstrap.workspace = true
+sdkwork-im-openapi = { path = "../sdkwork-im-openapi" }
 governance-service = { path = "../../services/governance-service" }
 audit-service = { path = "../../services/audit-service" }
 ops-service = { path = "../../services/ops-service" }

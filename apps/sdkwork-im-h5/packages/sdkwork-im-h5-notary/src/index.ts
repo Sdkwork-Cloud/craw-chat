@@ -1,21 +1,2 @@
-export * from "./pages/NotaryRecords";
-export * from "./pages/NotaryFiles";
-export * from "./pages/NotaryMessages";
-export * from "./pages/NotaryMessageDetail";
-export * from "./pages/NotarySessionChat";
-export * from "./pages/NotaryMe";
-export * from "./pages/CreateNotaryProcess";
-export * from "./pages/NotarySearchList";
-export * from "./pages/NotaryAddParty";
-export * from "./pages/NotaryDetail";
-export * from "./pages/NotaryVideoCall";
-export * from "./pages/NotaryPartyVideoQR";
-export * from "./pages/NotaryPartySignature";
-export * from "./pages/WorkspaceNotary";
-export * from "./layouts/NotaryLayout";
-
-// Components & Services
-export * from "./components/NotaryFileItem";
-export * from "./components/NotaryDraftLifecycle";
-export * from "./services/notaryService";
-export * from "./state/notaryDraftSession";
+/** Compatibility adapter. Canonical Notary H5 UI lives in sdkwork-notary. */
+export * from '@sdkwork/notary-h5-notary';

@@ -271,6 +271,26 @@ function writeProxyFailure(response, message) {
   response.end(message);
 }
 
+function viteDependencyCachePath(requestUrl) {
+  try {
+    const pathname = new URL(requestUrl ?? '/', 'http://sdkwork.local').pathname;
+    return pathname.startsWith('/node_modules/.vite/') ? pathname : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeStaleViteDependencyResponse(response, client) {
+  response.writeHead(410, {
+    'cache-control': 'no-store',
+    'content-type': 'text/plain; charset=utf-8',
+    vary: 'user-agent',
+  });
+  response.end(
+    `Sdkwork IM ${client} Vite dependency cache URL is stale; reload the browser page.`,
+  );
+}
+
 function availableRendererClients(renderers) {
   return [...renderers.values()]
     .filter((renderer) => renderer.ready)
@@ -284,6 +304,12 @@ function proxyRendererRequest(request, response, renderers) {
   });
   if (!preferred) {
     writeProxyFailure(response, 'No Sdkwork IM browser renderer is available.');
+    return;
+  }
+  const viteCachePath = viteDependencyCachePath(request.url);
+  const expectedViteCachePrefix = `/node_modules/.vite/${CLIENT_DEFINITIONS[preferred].label}/`;
+  if (viteCachePath && !viteCachePath.startsWith(expectedViteCachePrefix)) {
+    writeStaleViteDependencyResponse(response, preferred);
     return;
   }
   const fallback = preferred === IM_WEB_CLIENTS.PC ? IM_WEB_CLIENTS.H5 : IM_WEB_CLIENTS.PC;

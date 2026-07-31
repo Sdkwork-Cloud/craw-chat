@@ -1,14 +1,17 @@
 {
   "name": "@sdkwork/im-h5-ai-voice",
   "version": "0.0.0",
+  "private": true,
+  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
   "dependencies": {
-    "@sdkwork/im-h5-commons": "workspace:*",
-    "react": "catalog:",
-    "react-i18next": "catalog:",
-    "react-router": "catalog:",
-    "lucide-react": "catalog:",
-    "motion": "catalog:"
+    "@sdkwork/voice-mobile-react-generation": "workspace:*"
   }
 }

@@ -11,7 +11,7 @@ import type {
   MessageFavoriteView,
   PostMessageResult,
   UpdateConversationPreferencesRequest,
-} from "@sdkwork/im-sdk";
+} from "@sdkwork/im-h5-core/sdk";
 import type { Chat, Message, User } from "@sdkwork/im-h5-types";
 
 import { getChatImSdkClient } from "./chatConversationService";

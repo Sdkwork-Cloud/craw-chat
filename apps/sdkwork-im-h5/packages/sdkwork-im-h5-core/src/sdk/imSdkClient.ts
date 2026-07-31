@@ -22,3 +22,30 @@ export function resetImSdkClient(): void {
 }
 
 export type { ImSdkClient, ImSdkClientOptions };
+
+export type {
+  ContactsResponse,
+  ConversationInboxEntry,
+  ConversationInboxPage,
+  ConversationMessageEntry,
+  ConversationMessageListResponse,
+  CreateConversationRequest,
+  CreateConversationResult,
+  FavoriteMessageRequest,
+  FavoriteMessagesResponse,
+  ImConnectOptions,
+  ImDecodedMessage,
+  ImLiveConnection,
+  ImLiveConnectionState,
+  ImMessageContext,
+  ImRealtimeEventContext,
+  ImRealtimeScopeSubscription,
+  ImSubscription,
+  MessageFavoriteView,
+  MessageHistoryListParams,
+  PostMessageResult,
+  QueryParams,
+  SocialFriendRequestMutationResponse,
+  SocialUserSearchResponse,
+  UpdateConversationPreferencesRequest,
+} from "@sdkwork/im-sdk";

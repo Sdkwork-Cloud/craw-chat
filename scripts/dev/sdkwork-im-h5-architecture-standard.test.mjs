@@ -63,6 +63,17 @@ for (const required of [
   'packages/sdkwork-im-h5-chat/src/pages/ChatInboxPage.tsx',
   'packages/sdkwork-im-h5-chat/src/pages/ChatConversationPage.tsx',
   'packages/sdkwork-im-h5-chat/src/services/chatRealtimeService.ts',
+  'packages/sdkwork-im-h5-core/src/routes/routeRegistry.ts',
+  'packages/sdkwork-im-h5-core/src/composition/sdk-registry.ts',
+  'packages/sdkwork-im-h5-core/src/composition/module-registry.ts',
+  'packages/sdkwork-im-h5-core/src/composition/host-registry.ts',
+  'packages/sdkwork-im-h5-core/src/session/index.ts',
+  'packages/sdkwork-im-h5-shell/package.json',
+  'packages/sdkwork-im-h5-shell/specs/component.spec.json',
+  'packages/sdkwork-im-h5-shell/src/ImH5Shell.tsx',
+  'packages/sdkwork-im-h5-shell/src/moduleRegistry.ts',
+  'packages/sdkwork-im-h5-shell/src/modules/chatModule.tsx',
+  'packages/sdkwork-im-h5-shell/src/modules/notaryModule.tsx',
   'config/browser/runtime-env.development.example.json',
   'config/browser/runtime-env.test.example.json',
   'config/browser/runtime-env.staging.example.json',
@@ -126,19 +137,24 @@ for (const forbidden of [
 // AI Studio legacy content must not remain in source files.
 const appSource = read('src/App.tsx');
 const imAppSource = read('src/ImApp.tsx');
+const shellSource = read('packages/sdkwork-im-h5-shell/src/ImH5Shell.tsx');
+const shellModuleRegistrySource = read('packages/sdkwork-im-h5-shell/src/moduleRegistry.ts');
+const shellRouteCatalogSource = read('packages/sdkwork-im-h5-shell/src/routeCatalog.ts');
+const shellChatModuleSource = read('packages/sdkwork-im-h5-shell/src/modules/chatModule.tsx');
+const shellNotaryModuleSource = read('packages/sdkwork-im-h5-shell/src/modules/notaryModule.tsx');
 const readmeSource = read('README.md');
 const serverSource = read('server.ts');
 const viteSource = read('vite.config.ts');
-const aiImageSource = read('packages/sdkwork-im-h5-ai-image/src/services/AIImageService.ts');
-const aiVideoSource = read('packages/sdkwork-im-h5-ai-video/src/services/AIVideoService.ts');
+const aiImageSource = read('../../../sdkwork-image/apps/sdkwork-image-common/packages/sdkwork-image-mobile-react-generation/src/services/AIImageService.ts');
+const aiVideoSource = read('../../../sdkwork-video/apps/sdkwork-video-common/packages/sdkwork-video-mobile-react-generation/src/services/AIVideoService.ts');
 const aiWritingSource = read('packages/sdkwork-im-h5-ai-writing/src/services/AIWritingService.ts');
-const aiImagePageSource = read('packages/sdkwork-im-h5-ai-image/src/pages/AIImagePage.tsx');
-const aiVideoPageSource = read('packages/sdkwork-im-h5-ai-video/src/pages/AIVideoPage.tsx');
+const aiImagePageSource = read('../../../sdkwork-image/apps/sdkwork-image-common/packages/sdkwork-image-mobile-react-generation/src/pages/AIImagePage.tsx');
+const aiVideoPageSource = read('../../../sdkwork-video/apps/sdkwork-video-common/packages/sdkwork-video-mobile-react-generation/src/pages/AIVideoPage.tsx');
 const aiWritingPageSource = read('packages/sdkwork-im-h5-ai-writing/src/pages/AIWritingPage.tsx');
-const aiMusicPageSource = read('packages/sdkwork-im-h5-ai-music/src/pages/AIMusicPage.tsx');
-const aiVoiceSynthPageSource = read('packages/sdkwork-im-h5-ai-voice/src/pages/AIVoiceSynthPage.tsx');
-const voiceSummaryPageSource = read('packages/sdkwork-im-h5-ai-voice/src/pages/VoiceSummaryApp.tsx');
-const voiceSummarySource = read('packages/sdkwork-im-h5-ai-voice/src/services/VoiceSummaryService.ts');
+const aiMusicPageSource = read('../../../sdkwork-music/apps/sdkwork-music-common/packages/sdkwork-music-mobile-react-generation/src/pages/AIMusicPage.tsx');
+const aiVoiceSynthPageSource = read('../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation/src/pages/AIVoiceSynthPage.tsx');
+const voiceSummaryPageSource = read('../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation/src/pages/VoiceSummaryApp.tsx');
+const voiceSummarySource = read('../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation/src/services/VoiceSummaryService.ts');
 const voiceCatalogSource = read('packages/sdkwork-im-h5-commons/src/services/VoiceService.ts');
 const legacyApiClientSource = read('packages/sdkwork-im-h5-commons/src/ApiClient.ts');
 const deferredCapabilityServices = [
@@ -146,17 +162,17 @@ const deferredCapabilityServices = [
   ['ApprovalService', 'ApprovalCapabilityUnavailableError', 'packages/sdkwork-im-h5-approval/src/services/ApprovalService.ts'],
   ['AttendanceService', 'AttendanceCapabilityUnavailableError', 'packages/sdkwork-im-h5-attendance/src/services/AttendanceService.ts'],
   ['ReportService', 'ReportCapabilityUnavailableError', 'packages/sdkwork-im-h5-report/src/services/ReportService.ts'],
-  ['CloudDriveService', 'CloudDriveCapabilityUnavailableError', 'packages/sdkwork-im-h5-cloud-drive/src/services/CloudDriveService.ts'],
-  ['MeetingService', 'MeetingCapabilityUnavailableError', 'packages/sdkwork-im-h5-meeting/src/services/MeetingService.ts'],
+  ['CloudDriveService', 'CloudDriveCapabilityUnavailableError', '../../../sdkwork-drive/apps/sdkwork-drive-common/packages/sdkwork-drive-mobile-react-drive/src/services/CloudDriveService.ts'],
+  ['MeetingService', 'MeetingCapabilityUnavailableError', '../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting/src/services/MeetingService.ts'],
   ['ChannelService', 'ChannelCapabilityUnavailableError', 'packages/sdkwork-im-h5-channels/src/services/ChannelService.ts'],
-  ['HardwareService', 'HardwareCapabilityUnavailableError', 'packages/sdkwork-im-h5-hardware/src/services/HardwareService.ts'],
+  ['HardwareService', 'HardwareCapabilityUnavailableError', '../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src/services/HardwareService.ts'],
   ['RecruitmentService', 'RecruitmentCapabilityUnavailableError', 'packages/sdkwork-im-h5-recruitment/src/services/RecruitmentService.ts'],
-  ['KnowledgeBaseService', 'KnowledgeBaseCapabilityUnavailableError', 'packages/sdkwork-im-h5-knowledge/src/services/KnowledgeBaseService.ts'],
-  ['ProductService', 'ShoppingCapabilityUnavailableError', 'packages/sdkwork-im-h5-shopping/src/services/ProductService.ts'],
-  ['CartService', 'ShoppingCapabilityUnavailableError', 'packages/sdkwork-im-h5-shopping/src/services/CartService.ts'],
-  ['OrderService', 'OrderCapabilityUnavailableError', 'packages/sdkwork-im-h5-orders/src/services/OrderService.ts'],
-  ['CommunityService', 'CommunityCapabilityUnavailableError', 'packages/sdkwork-im-h5-community/src/services/CommunityService.ts'],
-  ['CourseService', 'CourseCapabilityUnavailableError', 'packages/sdkwork-im-h5-course/src/services/CourseService.ts'],
+  ['KnowledgeBaseService', 'KnowledgeBaseCapabilityUnavailableError', '../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src/services/KnowledgeBaseService.ts'],
+  ['ProductService', 'ShoppingCapabilityUnavailableError', '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/services/ProductService.ts'],
+  ['CartService', 'ShoppingCapabilityUnavailableError', '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/services/CartService.ts'],
+  ['OrderService', 'OrderCapabilityUnavailableError', '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/services/OrderService.ts'],
+  ['CommunityService', 'CommunityCapabilityUnavailableError', '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/services/CommunityService.ts'],
+  ['CourseService', 'CourseCapabilityUnavailableError', '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/services/CourseService.ts'],
   ['ProfileService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/ProfileService.ts'],
   ['SettingsService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/SettingsService.ts'],
   ['CharacterService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/CharacterService.ts'],
@@ -174,53 +190,53 @@ const deferredCapabilityPages = [
   'packages/sdkwork-im-h5-report/src/pages/ReportApp.tsx',
   'packages/sdkwork-im-h5-report/src/pages/ReportDetail.tsx',
   'packages/sdkwork-im-h5-report/src/pages/CreateReport.tsx',
-  'packages/sdkwork-im-h5-cloud-drive/src/pages/CloudDriveApp.tsx',
-  'packages/sdkwork-im-h5-meeting/src/pages/MeetingApp.tsx',
-  'packages/sdkwork-im-h5-meeting/src/pages/MeetingDetail.tsx',
-  'packages/sdkwork-im-h5-meeting/src/pages/CreateMeeting.tsx',
+  '../../../sdkwork-drive/apps/sdkwork-drive-common/packages/sdkwork-drive-mobile-react-drive/src/pages/CloudDriveApp.tsx',
+  '../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting/src/pages/MeetingApp.tsx',
+  '../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting/src/pages/MeetingDetail.tsx',
+  '../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting/src/pages/CreateMeeting.tsx',
   'packages/sdkwork-im-h5-channels/src/pages/ChannelsPage.tsx',
-  'packages/sdkwork-im-h5-hardware/src/pages/HardwareList.tsx',
-  'packages/sdkwork-im-h5-hardware/src/pages/HardwareDetail.tsx',
-  'packages/sdkwork-im-h5-hardware/src/pages/HardwareBind.tsx',
+  '../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src/pages/HardwareList.tsx',
+  '../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src/pages/HardwareDetail.tsx',
+  '../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src/pages/HardwareBind.tsx',
   'packages/sdkwork-im-h5-recruitment/src/pages/RecruitmentApp.tsx',
   'packages/sdkwork-im-h5-recruitment/src/pages/CandidateDetail.tsx',
   'packages/sdkwork-im-h5-recruitment/src/pages/CreateJob.tsx',
-  'packages/sdkwork-im-h5-knowledge/src/pages/KnowledgeBaseApp.tsx',
-  'packages/sdkwork-im-h5-knowledge/src/pages/KnowledgeBaseDetail.tsx',
-  'packages/sdkwork-im-h5-knowledge/src/pages/CreateKnowledgeBase.tsx',
-  'packages/sdkwork-im-h5-knowledge/src/pages/KnowledgeBaseDocumentList.tsx',
-  'packages/sdkwork-im-h5-knowledge/src/pages/CreateDocument.tsx',
-  'packages/sdkwork-im-h5-shopping/src/pages/ShoppingCart.tsx',
-  'packages/sdkwork-im-h5-shopping/src/pages/Shopping.tsx',
-  'packages/sdkwork-im-h5-shopping/src/pages/ShopDetails.tsx',
-  'packages/sdkwork-im-h5-shopping/src/pages/ProductDetails.tsx',
-  'packages/sdkwork-im-h5-shopping/src/pages/CustomerServiceChat.tsx',
-  'packages/sdkwork-im-h5-shopping/src/pages/CheckoutPage.tsx',
-  'packages/sdkwork-im-h5-shopping/src/pages/CategoryPage.tsx',
-  'packages/sdkwork-im-h5-shopping/src/pages/CashierPage.tsx',
-  'packages/sdkwork-im-h5-orders/src/pages/VoucherCodePage.tsx',
-  'packages/sdkwork-im-h5-orders/src/pages/OrderDetail.tsx',
-  'packages/sdkwork-im-h5-orders/src/pages/OrderCenter.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CommunityDetail.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CommunityEditField.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CommunityEditImage.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CommunityEditTabs.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CommunityGroupManagement.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CommunityGroupQRs.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CommunityList.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CommunityMembers.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CommunityPostCreate.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CommunityProfile.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CommunityQRCode.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CreateCommunity.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/CreateCommunityGroup.tsx',
-  'packages/sdkwork-im-h5-community/src/pages/MyCommunities.tsx',
-  'packages/sdkwork-im-h5-course/src/pages/CourseDetail.tsx',
-  'packages/sdkwork-im-h5-course/src/pages/CourseHome.tsx',
-  'packages/sdkwork-im-h5-course/src/pages/CourseLiveRoom.tsx',
-  'packages/sdkwork-im-h5-course/src/pages/CoursePlayer.tsx',
-  'packages/sdkwork-im-h5-course/src/pages/CoursePurchase.tsx',
-  'packages/sdkwork-im-h5-course/src/pages/MyCourses.tsx',
+  '../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src/pages/KnowledgeBaseApp.tsx',
+  '../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src/pages/KnowledgeBaseDetail.tsx',
+  '../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src/pages/CreateKnowledgeBase.tsx',
+  '../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src/pages/KnowledgeBaseDocumentList.tsx',
+  '../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src/pages/CreateDocument.tsx',
+  '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/pages/ShoppingCart.tsx',
+  '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/pages/Shopping.tsx',
+  '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/pages/ShopDetails.tsx',
+  '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/pages/ProductDetails.tsx',
+  '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/pages/CustomerServiceChat.tsx',
+  '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/pages/CheckoutPage.tsx',
+  '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/pages/CategoryPage.tsx',
+  '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/pages/CashierPage.tsx',
+  '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/pages/VoucherCodePage.tsx',
+  '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/pages/OrderDetail.tsx',
+  '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/pages/OrderCenter.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityDetail.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityEditField.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityEditImage.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityEditTabs.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityGroupManagement.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityGroupQRs.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityList.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityMembers.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityPostCreate.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityProfile.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityQRCode.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CreateCommunity.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CreateCommunityGroup.tsx',
+  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/MyCommunities.tsx',
+  '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CourseDetail.tsx',
+  '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CourseHome.tsx',
+  '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CourseLiveRoom.tsx',
+  '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CoursePlayer.tsx',
+  '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CoursePurchase.tsx',
+  '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/MyCourses.tsx',
   'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseCenter.tsx',
   'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseInvite.tsx',
   'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseJoin.tsx',
@@ -243,12 +259,17 @@ assert.equal(readmeSource.includes('ai.studio'), false, 'README.md must not refe
 assert.equal(readmeSource.includes('GEMINI_API_KEY'), false, 'README.md must not reference GEMINI_API_KEY');
 assert.equal(readmeSource.includes('ai.google.dev'), false, 'README.md must not reference ai.google.dev');
 assert.equal(viteSource.includes('DISABLE_HMR'), false, 'AI Studio DISABLE_HMR env var must be removed from vite.config.ts');
-assert.match(imAppSource, /React\.lazy/u, 'H5 optional capability routes must use lazy loading');
+assert.match(imAppSource, /@sdkwork\/im-h5-shell/u, 'root ImApp must remain a shell compatibility export');
+assert.doesNotMatch(imAppSource, /<Routes|ChatConversationPage|WorkspaceNotary/u, 'root ImApp must not own route UI');
+assert.match(shellNotaryModuleSource, /React\.lazy/u, 'H5 optional capability routes must use lazy loading');
 assert.match(
-  imAppSource,
+  shellNotaryModuleSource,
   /import\("@sdkwork\/im-h5-notary"\)/u,
   'H5 notary routes must load their capability package on demand',
 );
+assert.match(shellSource, /resolveImH5ShellModules/u, 'H5 shell must resolve selected capability modules');
+assert.match(shellSource, /module\.routes/u, 'H5 shell must assemble capability route contributions');
+assert.match(shellModuleRegistrySource, /CONTRACT_PENDING_IM_H5_MODULES/u, 'unavailable modules must remain fail closed');
 assert.match(
   viteSource,
   /cacheDir:\s*path\.resolve\(__dirname, 'node_modules', '\.vite', 'sdkwork-im-h5'\)/u,
@@ -332,8 +353,8 @@ const channelPageSource = read('packages/sdkwork-im-h5-channels/src/pages/Channe
 const channelServiceSource = read('packages/sdkwork-im-h5-channels/src/services/ChannelService.ts');
 assert.doesNotMatch(channelPageSource, /mockData|CREATIVE_WORKS/u);
 assert.doesNotMatch(channelServiceSource, /mockData|CREATIVE_WORKS/u);
-const shoppingCartStoreSource = read('packages/sdkwork-im-h5-shopping/src/store/useCartStore.ts');
-const shoppingAddressStoreSource = read('packages/sdkwork-im-h5-shopping/src/store/useAddressStore.ts');
+const shoppingCartStoreSource = read('../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/store/useCartStore.ts');
+const shoppingAddressStoreSource = read('../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/store/useAddressStore.ts');
 assert.doesNotMatch(shoppingCartStoreSource, /localStorage|sessionStorage|persist\s*\(/u);
 assert.doesNotMatch(shoppingCartStoreSource, /catch\s*\([^)]*\)\s*\{\s*\}/u);
 assert.doesNotMatch(shoppingAddressStoreSource, /localStorage|sessionStorage|persist\s*\(/u);
@@ -363,7 +384,8 @@ const chatConversationService = read('packages/sdkwork-im-h5-chat/src/services/c
 const chatRealtime = read('packages/sdkwork-im-h5-chat/src/services/chatRealtimeService.ts');
 
 assert.match(imApp, /parseConversationRoute/u);
-assert.match(imApp, /ChatConversationPage/u);
+assert.match(shellChatModuleSource, /ChatConversationPage/u);
+assert.match(shellRouteCatalogSource, /app\.communication\.chat\.conversation/u);
 assert.match(chatConversationService, /listMessages/u);
 assert.match(chatConversationService, /postText/u);
 assert.match(
@@ -395,7 +417,7 @@ const tokenManager = read('src/bootstrap/tokenManager.ts');
 const hostAdapters = read('src/bootstrap/hostAdapters.ts');
 const routesBootstrap = read('src/bootstrap/routes.ts');
 assert.match(app, /HashRouter/u);
-assert.match(app, /ImApp/u);
+assert.match(app, /ImH5Shell/u);
 assert.match(app, /AuthGate/u);
 assert.match(app, /IM_APP_HOME_PATH/u);
 assert.match(runtime, /createIamRuntime/u);
@@ -415,12 +437,110 @@ const iamRuntime = read('src/bootstrap/iamRuntime.ts');
 const appPackageJson = JSON.parse(readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
 const corePackageJson = JSON.parse(readFileSync(path.join(coreRoot, 'package.json'), 'utf8'));
 
+for (const packageName of readdirSync(path.join(appRoot, 'packages'))) {
+  const packageRoot = path.join(appRoot, 'packages', packageName);
+  if (!statSync(packageRoot).isDirectory() || !existsSync(path.join(packageRoot, 'package.json'))) {
+    continue;
+  }
+  assert.ok(
+    existsSync(path.join(packageRoot, 'specs', 'component.spec.json')),
+    `${packageName} must own specs/component.spec.json`,
+  );
+  assert.ok(
+    existsSync(path.join(packageRoot, 'specs', 'README.md')),
+    `${packageName} must index its local specs`,
+  );
+  assert.ok(
+    existsSync(path.join(packageRoot, 'README.md')),
+    `${packageName} must document its reusable module contract`,
+  );
+}
+
+for (const forbiddenBusinessRoot of ['src/components', 'src/pages']) {
+  assert.deepEqual(
+    listFiles(path.join(appRoot, forbiddenBusinessRoot)),
+    [],
+    `${forbiddenBusinessRoot} must not contain business UI in the thin application root`,
+  );
+}
+
+for (const packageName of readdirSync(path.join(appRoot, 'packages'))) {
+  if (packageName === 'sdkwork-im-h5-core') {
+    continue;
+  }
+  const featureSource = readAll(path.join(appRoot, 'packages', packageName, 'src'));
+  assert.doesNotMatch(
+    featureSource,
+    /from\s+['"]@sdkwork\/(?:[^'"]+-(?:app|backend)-sdk|im-sdk)['"]/u,
+    `${packageName} must consume SDK access through @sdkwork/im-h5-core public exports`,
+  );
+}
+
+const migratedCapabilityAdapters = [
+  ['ai-image', '@sdkwork/image-mobile-react-generation'],
+  ['ai-music', '@sdkwork/music-mobile-react-generation'],
+  ['ai-video', '@sdkwork/video-mobile-react-generation'],
+  ['ai-voice', '@sdkwork/voice-mobile-react-generation'],
+  ['cloud-drive', '@sdkwork/drive-mobile-react-drive'],
+  ['community', '@sdkwork/community-mobile-react-community'],
+  ['course', '@sdkwork/course-mobile-react-courses'],
+  ['hardware', '@sdkwork/aiot-mobile-react-hardware'],
+  ['knowledge', '@sdkwork/knowledgebase-mobile-react-knowledge'],
+  ['meeting', '@sdkwork/rtc-mobile-react-meeting'],
+  ['notary', '@sdkwork/notary-h5-notary'],
+  ['orders', '@sdkwork/order-mobile-react-orders'],
+  ['shopping', '@sdkwork/shop-mobile-react-shopping'],
+  ['vip', '@sdkwork/membership-mobile-react-subscription'],
+];
+
+for (const musicPlaybackSource of [
+  '../../../sdkwork-music/apps/sdkwork-music-common/packages/sdkwork-music-mobile-react-playback/src/store/audioStore.ts',
+  '../../../sdkwork-music/apps/sdkwork-music-common/packages/sdkwork-music-mobile-react-playback/src/pages/MusicPlayerPage.tsx',
+  '../../../sdkwork-music/apps/sdkwork-music-common/packages/sdkwork-music-mobile-react-playback/src/components/GlobalMiniPlayer.tsx',
+]) {
+  assert.ok(
+    existsSync(path.join(appRoot, musicPlaybackSource)),
+    `music playback source must be owned by sdkwork-music: ${musicPlaybackSource}`,
+  );
+}
+for (const retiredImMusicSource of [
+  'src/pages/MusicPlayerPage.tsx',
+  'src/components/player/GlobalMiniPlayer.tsx',
+  'packages/sdkwork-im-h5-core/src/store/audioStore.ts',
+  'packages/sdkwork-im-h5-core/src/sdk/notaryAppSdkClient.ts',
+]) {
+  assert.equal(
+    existsSync(path.join(appRoot, retiredImMusicSource)),
+    false,
+    `${retiredImMusicSource} must not remain in the IM application boundary`,
+  );
+}
+
+for (const [capability, canonicalPackage] of migratedCapabilityAdapters) {
+  const packageRoot = path.join(appRoot, 'packages', `sdkwork-im-h5-${capability}`);
+  const sourceEntries = readdirSync(path.join(packageRoot, 'src')).sort();
+  const packageJson = JSON.parse(readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
+  assert.deepEqual(
+    sourceEntries,
+    ['index.ts'],
+    `sdkwork-im-h5-${capability} must remain a thin compatibility adapter`,
+  );
+  assert.ok(
+    packageJson.dependencies?.[canonicalPackage],
+    `sdkwork-im-h5-${capability} must depend on ${canonicalPackage}`,
+  );
+}
+
 assert.match(authRuntime, /platform:\s*"h5"/u);
 assert.match(authRuntime, /createSdkworkAppbasePcAuthRuntime/u);
-assert.match(authRuntime, /disposeChatLiveConnection/u);
+assert.match(authRuntime, /notifyImH5SessionChanged/u);
+assert.doesNotMatch(authRuntime, /@sdkwork\/im-h5-chat|disposeChatLiveConnection/u);
 assert.match(iamRuntime, /createImAppAuthRuntime/u);
 assert.ok(appPackageJson.dependencies['@sdkwork/auth-runtime-pc-react']);
+assert.ok(appPackageJson.dependencies['@sdkwork/im-h5-shell']);
 assert.ok(appPackageJson.dependencies['react-router-dom']);
+assert.equal(appPackageJson.dependencies?.['@sdkwork/iam-backend-sdk'], undefined);
+assert.equal(appPackageJson.dependencies?.['@sdkwork/im-backend-sdk'], undefined);
 assert.equal(corePackageJson.dependencies?.['@sdkwork/auth-runtime-pc-react'], undefined);
 
 const authGate = read('src/AuthGate.tsx');

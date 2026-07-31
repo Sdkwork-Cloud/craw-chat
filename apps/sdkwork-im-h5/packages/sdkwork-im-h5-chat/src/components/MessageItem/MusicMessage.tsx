@@ -2,7 +2,7 @@ import React from "react";
 import type { Message } from "@sdkwork/im-h5-types";
 import { Music2, Play } from "lucide-react";
 import { cn } from "@sdkwork/im-h5-commons";
-import { useAudioStore } from "@sdkwork/im-h5-core";
+import { useAudioStore } from "@sdkwork/music-mobile-react-playback";
 import { useTranslation } from "react-i18next";
 
 export const MusicMessage = ({

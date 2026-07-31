@@ -418,6 +418,9 @@ export default defineConfig(({mode}) => {
       strictPort: true,
     },
     optimizeDeps: {
+      include: [
+        'dompurify',
+      ],
       exclude: [
         '@sdkwork/im-app-sdk',
         '@sdkwork/im-backend-sdk',

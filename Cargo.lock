@@ -2017,6 +2017,7 @@ name = "governance-service"
 version = "0.1.0"
 dependencies = [
  "audit-service",
+ "automation-service",
  "axum 0.8.9",
  "http-body-util",
  "im-app-context",
@@ -7202,6 +7203,9 @@ dependencies = [
  "sdkwork-database-spi",
  "sdkwork-database-sqlx",
  "sdkwork-payment-database-host",
+ "sdkwork-payment-providers",
+ "sdkwork-web-bootstrap",
+ "sdkwork-web-core",
 ]
 
 [[package]]
@@ -7485,6 +7489,7 @@ dependencies = [
  "axum 0.8.9",
  "governance-service",
  "ops-service",
+ "sdkwork-im-openapi",
  "sdkwork-im-web-bootstrap",
  "sdkwork-web-contract",
  "sdkwork-web-core",

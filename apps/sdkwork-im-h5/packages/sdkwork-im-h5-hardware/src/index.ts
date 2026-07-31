@@ -1,5 +1,2 @@
-export * from './types';
-export * from './services/HardwareService';
-export * from './pages/HardwareList';
-export * from './pages/HardwareDetail';
-export * from './pages/HardwareBind';
+/** Compatibility adapter. Canonical AIoT mobile UI lives in sdkwork-aiot. */
+export * from '@sdkwork/aiot-mobile-react-hardware';

@@ -93,7 +93,9 @@
     }
   ],
   "contracts": {
-    "publicExports": [],
+    "publicExports": [
+      "sdkwork_im_openapi::merge_openapi_documents"
+    ],
     "runtimeEntrypoints": [
       "Cargo.toml"
     ],

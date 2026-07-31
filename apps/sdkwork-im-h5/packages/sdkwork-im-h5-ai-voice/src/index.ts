@@ -1,4 +1,2 @@
-export * from "./pages/VoiceSummaryApp";
-export * from "./pages/AIVoiceSynthPage";
-export * from "./components/VoiceParamSlider";
-export * from "./services/VoiceSummaryService";
+/** Compatibility adapter. Canonical Voice mobile UI lives in sdkwork-voice. */
+export * from '@sdkwork/voice-mobile-react-generation';

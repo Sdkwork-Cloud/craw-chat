@@ -1,22 +1,7 @@
-export * from './types';
-export * from './services/CommunityService';
-export * from './pages/CommunityList';
-export * from './pages/CommunityDetail';
-export * from './pages/CommunityPostCreate';
-export * from './pages/CreateCommunityGroup';
-export * from './pages/CreateCommunity';
-export * from './pages/CommunityGroupQRs';
-export * from './pages/CommunityProfile';
-export * from './pages/CommunityGroupManagement';
-export * from './pages/MyCommunities';
-export * from './pages/CommunityEditField';
-export * from './pages/CommunityEditTabs';
-export * from './pages/CommunityEditImage';
-export * from './pages/CommunityMembers';
-export * from './pages/CommunityQRCode';
-export * from './components/CommunityHeader';
-export * from './components/CommunityCard';
-export * from './components/PaymentSheet';
-export * from './components/SuccessModal';
-export * from './components/PostItem';
+import { configureCommunityAuthSessionPort } from '@sdkwork/community-mobile-react-community';
+import { AuthService } from '@sdkwork/im-h5-user';
 
+configureCommunityAuthSessionPort(AuthService);
+
+/** Compatibility adapter. Canonical Community mobile UI lives in sdkwork-community. */
+export * from '@sdkwork/community-mobile-react-community';

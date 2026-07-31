@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": { "name": "@sdkwork/im-h5-shopping", "displayName": "SDKWork IM H5 Shop Adapter", "version": "0.0.0", "type": "react-package", "root": "sdkwork-im/apps/sdkwork-im-h5/packages/sdkwork-im-h5-shopping", "domain": "communication", "capability": "shop-adapter", "surface": "app", "languages": ["typescript", "react"], "generated": false, "manifests": ["package.json"] },
+  "canonicalSpecs": [{ "file": "COMPONENT_SPEC.md", "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component contract." }, { "file": "APP_H5_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md", "purpose": "H5 composition." }],
+  "contracts": { "layerRole": "frontend-feature", "publicExports": ["."], "providedPorts": [{ "name": "imH5ShopAdapter", "export": "." }], "requiredPorts": [{ "name": "shopMobileReactShopping", "package": "@sdkwork/shop-mobile-react-shopping", "export": "." }], "runtimeEntrypoints": [], "routeManifest": null, "sdkClients": [], "sdkDependencies": [], "events": [], "configKeys": [] },
+  "verification": { "commands": ["pnpm --dir apps/sdkwork-im-h5 typecheck"] }
+}

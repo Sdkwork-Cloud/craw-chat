@@ -1,6 +1,2 @@
-export * from './pages/CourseHome';
-export * from './pages/CourseDetail';
-export * from './pages/CoursePurchase';
-export * from './pages/CoursePlayer';
-export * from './pages/MyCourses';
-export * from './pages/CourseLiveRoom';
+/** Compatibility adapter. Canonical Course mobile UI lives in sdkwork-course. */
+export * from '@sdkwork/course-mobile-react-courses';

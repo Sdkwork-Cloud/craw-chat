@@ -76,6 +76,27 @@ test('routes one browser origin by user agent while keeping API paths on the app
   assert.equal(mobile.body, 'h5:/workspace/inbox');
   assert.equal(mobile.headers.vary, 'user-agent');
 
+  const canonicalViteDependency = await fetchText(
+    ingressOrigin,
+    '/node_modules/.vite/sdkwork-im-pc/deps/dompurify.js?v=current',
+    'Windows NT 10.0',
+  );
+  assert.equal(
+    canonicalViteDependency.body,
+    'pc:/node_modules/.vite/sdkwork-im-pc/deps/dompurify.js?v=current',
+  );
+
+  const staleViteDependency = await fetchText(
+    ingressOrigin,
+    '/node_modules/.vite/deps/dompurify.js?v=stale',
+    'Windows NT 10.0',
+  );
+  assert.equal(staleViteDependency.statusCode, 410);
+  assert.match(staleViteDependency.headers['content-type'], /^text\/plain/u);
+  assert.equal(staleViteDependency.headers['cache-control'], 'no-store');
+  assert.equal(staleViteDependency.headers.vary, 'user-agent');
+  assert.doesNotMatch(staleViteDependency.body, /<html/u);
+
   const api = await fetchText(ingressOrigin, '/im/v3/api/realtime/ws?transport=polling', 'iPhone Mobile');
   assert.equal(api.body, 'api:/im/v3/api/realtime/ws?transport=polling');
   assert.equal(api.headers.vary, undefined);

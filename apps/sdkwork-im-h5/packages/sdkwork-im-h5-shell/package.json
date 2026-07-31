@@ -1,0 +1,32 @@
+{
+  "name": "@sdkwork/im-h5-shell",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./moduleRegistry": {
+      "import": "./src/moduleRegistry.ts",
+      "types": "./src/moduleRegistry.ts"
+    },
+    "./routeCatalog": {
+      "import": "./src/routeCatalog.ts",
+      "types": "./src/routeCatalog.ts"
+    }
+  },
+  "dependencies": {
+    "@sdkwork/im-h5-chat": "workspace:*",
+    "@sdkwork/im-h5-commons": "workspace:*",
+    "@sdkwork/im-h5-core": "workspace:*",
+    "@sdkwork/im-h5-notary": "workspace:*",
+    "lucide-react": "catalog:",
+    "react": "catalog:",
+    "react-i18next": "catalog:",
+    "react-router": "catalog:"
+  }
+}

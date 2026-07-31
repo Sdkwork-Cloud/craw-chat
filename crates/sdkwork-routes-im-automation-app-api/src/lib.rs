@@ -16,7 +16,7 @@ pub fn build_public_app() -> Router {
 pub fn build_public_app_with_runtime(
     runtime: Arc<automation_service::AutomationRuntime>,
 ) -> Router {
-    automation_service::build_public_app_from_api_router(
+    automation_service::build_app_public_router_from_api_router(
         runtime.clone(),
         build_gateway_router_with_runtime(runtime),
     )

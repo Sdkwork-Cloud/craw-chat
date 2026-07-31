@@ -11,10 +11,5 @@
       "types": "./src/index.ts"
     }
   },
-  "dependencies": {
-    "react": "catalog:",
-    "react-router": "catalog:",
-    "lucide-react": "catalog:",
-    "@sdkwork/im-h5-commons": "workspace:*"
-  }
+  "dependencies": { "@sdkwork/membership-mobile-react-subscription": "workspace:*" }
 }

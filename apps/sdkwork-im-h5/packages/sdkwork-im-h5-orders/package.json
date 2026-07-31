@@ -12,11 +12,6 @@
     }
   },
   "dependencies": {
-    "@sdkwork/im-h5-commons": "workspace:*",
-    "lucide-react": "catalog:",
-    "motion": "catalog:",
-    "react": "catalog:",
-    "react-i18next": "catalog:",
-    "react-router": "catalog:"
+    "@sdkwork/order-mobile-react-orders": "workspace:*"
   }
 }

@@ -12,14 +12,11 @@
     }
   },
   "dependencies": {
-    "@sdkwork/drive-app-sdk": "workspace:*",
-    "@sdkwork/im-app-sdk": "workspace:*",
     "@sdkwork/im-h5-commons": "workspace:*",
     "@sdkwork/im-h5-contacts": "workspace:*",
     "@sdkwork/im-h5-core": "workspace:*",
     "@sdkwork/im-h5-types": "workspace:*",
-    "@sdkwork/im-sdk": "workspace:*",
-    "@sdkwork/sdk-common": "catalog:",
+    "@sdkwork/music-mobile-react-playback": "workspace:*",
     "@sdkwork/utils": "workspace:*",
     "motion": "catalog:",
     "lucide-react": "catalog:",

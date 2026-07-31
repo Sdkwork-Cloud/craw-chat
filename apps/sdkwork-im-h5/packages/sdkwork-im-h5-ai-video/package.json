@@ -12,11 +12,6 @@
     }
   },
   "dependencies": {
-    "react": "catalog:",
-    "motion": "catalog:",
-    "lucide-react": "catalog:",
-    "@sdkwork/im-h5-commons": "workspace:*",
-    "react-i18next": "catalog:",
-    "react-router": "catalog:"
+    "@sdkwork/video-mobile-react-generation": "workspace:*"
   }
 }

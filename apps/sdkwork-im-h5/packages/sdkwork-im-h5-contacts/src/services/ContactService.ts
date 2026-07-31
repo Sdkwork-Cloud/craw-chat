@@ -1,4 +1,4 @@
-import { getImSdkClient } from "@sdkwork/im-h5-core";
+import { getImSdkClient } from "@sdkwork/im-h5-core/sdk";
 import type { User } from "@sdkwork/im-h5-types";
 import type {
   ContactsResponse,
@@ -6,7 +6,7 @@ import type {
   CreateConversationResult,
   SocialFriendRequestMutationResponse,
   SocialUserSearchResponse,
-} from "@sdkwork/im-sdk";
+} from "@sdkwork/im-h5-core/sdk";
 import { MAX_LIST_PAGE_SIZE, uuid } from "@sdkwork/utils";
 
 const CONTACT_PAGE_SIZE = Math.min(50, MAX_LIST_PAGE_SIZE);

@@ -16,7 +16,6 @@
     "@sdkwork/im-h5-core": "workspace:*",
     "@sdkwork/im-h5-knowledge": "workspace:*",
     "@sdkwork/im-h5-types": "workspace:*",
-    "@sdkwork/im-sdk": "workspace:*",
     "@sdkwork/utils": "workspace:*",
     "lucide-react": "catalog:",
     "motion": "catalog:",

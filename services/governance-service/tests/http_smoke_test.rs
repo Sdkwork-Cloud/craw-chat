@@ -74,6 +74,7 @@ async fn test_healthz_returns_ok_and_service_metadata() {
 
 #[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
+    init_governance_http_test_env();
     let app = sdkwork_routes_im_governance_backend_api::build_public_app();
 
     let response = app

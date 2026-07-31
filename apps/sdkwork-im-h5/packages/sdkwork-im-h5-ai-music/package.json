@@ -12,10 +12,6 @@
     }
   },
   "dependencies": {
-    "@sdkwork/im-h5-commons": "workspace:*",
-    "lucide-react": "catalog:",
-    "react": "catalog:",
-    "react-i18next": "catalog:",
-    "react-router": "catalog:"
+    "@sdkwork/music-mobile-react-generation": "workspace:*"
   }
 }

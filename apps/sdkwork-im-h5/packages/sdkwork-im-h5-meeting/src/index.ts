@@ -1,4 +1,2 @@
-export * from "./pages/MeetingApp";
-export * from "./pages/CreateMeeting";
-export * from "./pages/MeetingDetail";
-export * from "./services/MeetingService";
+/** Compatibility adapter. Canonical meeting media UI lives in sdkwork-rtc. */
+export * from '@sdkwork/rtc-mobile-react-meeting';

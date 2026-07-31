@@ -5,19 +5,21 @@ use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 
-pub(crate) fn build_automation_service_openapi_document() -> Result<serde_json::Value, String> {
-    let mut routes = extract_routes_from_function(
+pub(crate) fn build_automation_app_openapi_document() -> Result<serde_json::Value, String> {
+    build_automation_openapi_document("build_app_api_router")
+}
+
+pub fn build_automation_backend_openapi_document() -> Result<serde_json::Value, String> {
+    build_automation_openapi_document("build_backend_api_router")
+}
+
+fn build_automation_openapi_document(router_builder: &str) -> Result<serde_json::Value, String> {
+    let routes = extract_routes_from_function(
         include_str!("app.rs"),
-        "build_app_api_router",
+        router_builder,
         &[],
         &["/openapi.json", "/docs"],
     )?;
-    routes.extend(extract_routes_from_function(
-        include_str!("app.rs"),
-        "build_backend_api_router",
-        &[],
-        &["/openapi.json", "/docs"],
-    )?);
 
     Ok(build_openapi_document(
         &automation_service_openapi_spec(),
@@ -32,7 +34,7 @@ pub(crate) fn automation_service_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
         title: "Sdkwork IM Automation Service API",
         version: env!("CARGO_PKG_VERSION"),
-        description: "Live OpenAPI contract generated from the automation-service router for execution requests, governance inspection, agent response streams, tool call workflows, and execution lookup flows.",
+        description: "Live OpenAPI contract generated from the selected automation API router for execution requests, governance inspection, agent response streams, tool call workflows, and execution lookup flows.",
         openapi_path: "/openapi.json",
         docs_path: "/docs",
     }

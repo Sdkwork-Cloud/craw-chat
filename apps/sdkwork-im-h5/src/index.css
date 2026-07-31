@@ -1,4 +1,20 @@
 @import "tailwindcss";
+@source "../../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src";
+@source "../../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src";
+@source "../../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src";
+@source "../../../../sdkwork-drive/apps/sdkwork-drive-common/packages/sdkwork-drive-mobile-react-drive/src";
+@source "../../../../sdkwork-image/apps/sdkwork-image-common/packages/sdkwork-image-mobile-react-generation/src";
+@source "../../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src";
+@source "../../../../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-mobile-react-subscription/src";
+@source "../../../../sdkwork-music/apps/sdkwork-music-common/packages/sdkwork-music-mobile-react-generation/src";
+@source "../../../../sdkwork-music/apps/sdkwork-music-common/packages/sdkwork-music-mobile-react-playback/src";
+@source "../../../../sdkwork-notary/apps/sdkwork-notary-h5/packages/sdkwork-notary-h5-notary/src";
+@source "../../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src";
+@source "../../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting/src";
+@source "../../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src";
+@source "../../../../sdkwork-video/apps/sdkwork-video-common/packages/sdkwork-video-mobile-react-generation/src";
+@source "../../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation/src";
+@source "../../../../sdkwork-ui/sdkwork-ui-mobile-react/src";
 
 @theme {
   --color-primary-blue: var(--sdkwork-im-h5-primary-blue);

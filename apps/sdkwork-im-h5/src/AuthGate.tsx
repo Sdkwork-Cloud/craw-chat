@@ -10,8 +10,11 @@ import {
   getImAppAuthRuntime,
   resolveImAuthRuntimeConfig,
 } from './bootstrap/iamRuntime';
-
-export const IM_H5_IAM_SESSION_CHANGED_EVENT = 'sdkwork:im:h5:iam:session:changed';
+import {
+  IM_H5_IAM_SESSION_CHANGED_EVENT,
+  readImH5PersistedSession,
+  type ImH5PersistedSession,
+} from './bootstrap/session';
 
 const AUTH_BASE_PATH = '/auth';
 const AUTH_LOGIN_PATH = '/auth/login';
@@ -19,13 +22,6 @@ const AUTH_HOME_PATH = '/';
 
 interface AuthGateProps {
   children: ReactNode;
-}
-
-interface SdkworkChatSessionLike {
-  accessToken?: string;
-  authToken?: string;
-  userId?: string;
-  tenantId?: string;
 }
 
 function isAuthRoute(pathname: string): boolean {
@@ -44,30 +40,6 @@ function buildAuthLoginPath(redirectTarget: string): string {
   const params = new URLSearchParams();
   params.set('redirect', redirectTarget || AUTH_HOME_PATH);
   return `${AUTH_LOGIN_PATH}?${params.toString()}`;
-}
-
-function readPersistedSession(): SdkworkChatSessionLike | null {
-  if (typeof localStorage === 'undefined') {
-    return null;
-  }
-
-  try {
-    const raw = localStorage.getItem('sdkwork-im-h5-session');
-    if (!raw) {
-      return null;
-    }
-    const parsed = JSON.parse(raw) as SdkworkChatSessionLike;
-    if (!parsed?.authToken || !parsed.accessToken) {
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function isAuthenticated(): boolean {
-  return Boolean(readPersistedSession());
 }
 
 function resolveAuthLocale(): string | null {
@@ -94,14 +66,14 @@ export function AuthGate({ children }: AuthGateProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isBootstrapped, setIsBootstrapped] = useState(false);
-  const [session, setSession] = useState<SdkworkChatSessionLike | null>(() => readPersistedSession());
+  const [session, setSession] = useState<ImH5PersistedSession | null>(null);
 
   const redirectTarget = useMemo(
     () => resolveRedirectTarget(location.pathname, location.search, location.hash),
     [location.hash, location.pathname, location.search],
   );
 
-  const authenticated = useMemo(() => isAuthenticated(), [session]);
+  const authenticated = Boolean(session?.accessToken && session.authToken);
   const isAuthPath = isAuthRoute(location.pathname);
 
   const authAppearance = useMemo(() => resolveAuthAppearance(), []);
@@ -115,11 +87,21 @@ export function AuthGate({ children }: AuthGateProps) {
     let disposed = false;
 
     const bootstrap = async () => {
-      await Promise.resolve();
+      const runtime = getImAppAuthRuntime().runtime;
+      try {
+        const tokens = await runtime.hydrateTokenManager();
+        if (!tokens.accessToken || !tokens.authToken) {
+          await runtime.clearSession();
+        } else {
+          await runtime.service.auth.sessions.current.retrieve();
+        }
+      } catch {
+        await runtime.clearSession();
+      }
       if (disposed) {
         return;
       }
-      setSession(readPersistedSession());
+      setSession(readImH5PersistedSession());
       setIsBootstrapped(true);
     };
 
@@ -136,8 +118,8 @@ export function AuthGate({ children }: AuthGateProps) {
     }
 
     const handleSessionChanged = (event: Event) => {
-      const detail = (event as CustomEvent<{ session?: SdkworkChatSessionLike }>).detail;
-      setSession(detail?.session ?? readPersistedSession());
+      const detail = (event as CustomEvent<{ session?: ImH5PersistedSession | null }>).detail;
+      setSession(detail?.session ?? readImH5PersistedSession());
     };
 
     window.addEventListener(IM_H5_IAM_SESSION_CHANGED_EVENT, handleSessionChanged);

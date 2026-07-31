@@ -12,3 +12,4 @@ export * from "./services/ChatService";
 export * from "./services/chatConversationService";
 export * from "./services/chatRealtimeService";
 export * from "./services/chatMediaUploadService";
+export * from "./ChatLifecycle";

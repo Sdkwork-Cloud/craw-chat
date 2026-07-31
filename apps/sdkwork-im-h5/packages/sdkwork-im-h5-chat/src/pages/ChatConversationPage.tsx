@@ -4,8 +4,12 @@ import { MAX_LIST_PAGE_SIZE } from '@sdkwork/utils';
 import type {
   ConversationMessageEntry,
   ConversationMessageListResponse,
-} from '@sdkwork/im-sdk';
-import { listMessages, postText } from '../services/chatConversationService';
+} from '@sdkwork/im-h5-core/sdk';
+import {
+  listMessages,
+  markConversationRead,
+  postText,
+} from '../services/chatConversationService';
 import {
   subscribeConversationLiveMessages,
 } from '../services/chatRealtimeService';
@@ -55,6 +59,9 @@ export function ChatConversationPage({ conversationId }: ChatConversationPagePro
           ? response.pageInfo.nextCursor
           : undefined,
       );
+      if (!cursor) {
+        void markConversationRead(conversationId, response.highWatermark).catch(() => undefined);
+      }
     } catch {
       if (generation === requestGeneration.current) {
         setError(true);

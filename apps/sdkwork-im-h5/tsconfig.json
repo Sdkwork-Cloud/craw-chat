@@ -30,8 +30,32 @@
       "react-dom": [
         "./node_modules/@types/react-dom/index.d.ts"
       ],
+      "react-dom/client": [
+        "./node_modules/@types/react-dom/client.d.ts"
+      ],
       "react-router-dom": [
         "./node_modules/react-router-dom/dist/index.d.ts"
+      ],
+      "react-i18next": [
+        "./node_modules/react-i18next/dist/es/index.d.ts"
+      ],
+      "react-router": [
+        "./node_modules/react-router/dist/development/index.d.ts"
+      ],
+      "lucide-react": [
+        "./node_modules/lucide-react/dist/lucide-react.d.ts"
+      ],
+      "motion/react": [
+        "./node_modules/motion/dist/react.d.ts"
+      ],
+      "clsx": [
+        "./node_modules/clsx/clsx.d.mts"
+      ],
+      "tailwind-merge": [
+        "./node_modules/tailwind-merge/dist/types.d.ts"
+      ],
+      "zustand": [
+        "./node_modules/zustand/index.d.ts"
       ],
       "@sdkwork/im-app-sdk": [
         "../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/src/index.ts"
@@ -102,6 +126,57 @@
       "@sdkwork/utils": [
         "../../../sdkwork-utils/packages/sdkwork-utils-typescript/src/index.ts"
       ],
+      "@sdkwork/notary-h5-core": [
+        "../../../sdkwork-notary/apps/sdkwork-notary-h5/packages/sdkwork-notary-h5-core/src/index.ts"
+      ],
+      "@sdkwork/notary-h5-notary": [
+        "../../../sdkwork-notary/apps/sdkwork-notary-h5/packages/sdkwork-notary-h5-notary/src/index.ts"
+      ],
+      "@sdkwork/order-mobile-react-orders": [
+        "../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/index.ts"
+      ],
+      "@sdkwork/ui-mobile-react": [
+        "../../../sdkwork-ui/sdkwork-ui-mobile-react/src/index.ts"
+      ],
+      "@sdkwork/aiot-mobile-react-hardware": [
+        "../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src/index.ts"
+      ],
+      "@sdkwork/community-mobile-react-community": [
+        "../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/index.ts"
+      ],
+      "@sdkwork/course-mobile-react-courses": [
+        "../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/index.ts"
+      ],
+      "@sdkwork/drive-mobile-react-drive": [
+        "../../../sdkwork-drive/apps/sdkwork-drive-common/packages/sdkwork-drive-mobile-react-drive/src/index.ts"
+      ],
+      "@sdkwork/image-mobile-react-generation": [
+        "../../../sdkwork-image/apps/sdkwork-image-common/packages/sdkwork-image-mobile-react-generation/src/index.ts"
+      ],
+      "@sdkwork/knowledgebase-mobile-react-knowledge": [
+        "../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src/index.ts"
+      ],
+      "@sdkwork/membership-mobile-react-subscription": [
+        "../../../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-mobile-react-subscription/src/index.ts"
+      ],
+      "@sdkwork/music-mobile-react-generation": [
+        "../../../sdkwork-music/apps/sdkwork-music-common/packages/sdkwork-music-mobile-react-generation/src/index.ts"
+      ],
+      "@sdkwork/music-mobile-react-playback": [
+        "../../../sdkwork-music/apps/sdkwork-music-common/packages/sdkwork-music-mobile-react-playback/src/index.ts"
+      ],
+      "@sdkwork/rtc-mobile-react-meeting": [
+        "../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting/src/index.ts"
+      ],
+      "@sdkwork/shop-mobile-react-shopping": [
+        "../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/index.ts"
+      ],
+      "@sdkwork/video-mobile-react-generation": [
+        "../../../sdkwork-video/apps/sdkwork-video-common/packages/sdkwork-video-mobile-react-generation/src/index.ts"
+      ],
+      "@sdkwork/voice-mobile-react-generation": [
+        "../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation/src/index.ts"
+      ],
       "@sdkwork/im-h5-types/*": [
         "./packages/sdkwork-im-h5-types/src/*"
       ],
@@ -115,10 +190,18 @@
         "./packages/sdkwork-im-h5-commons/src/index.ts"
       ],
       "@sdkwork/im-h5-core/*": [
-        "./packages/sdkwork-im-h5-core/src/*"
+        "./packages/sdkwork-im-h5-core/src/*",
+        "./packages/sdkwork-im-h5-core/src/*/index.ts"
       ],
       "@sdkwork/im-h5-core": [
         "./packages/sdkwork-im-h5-core/src/index.ts"
+      ],
+      "@sdkwork/im-h5-shell": [
+        "./packages/sdkwork-im-h5-shell/src/index.ts"
+      ],
+      "@sdkwork/im-h5-shell/*": [
+        "./packages/sdkwork-im-h5-shell/src/*",
+        "./packages/sdkwork-im-h5-shell/src/*/index.ts"
       ],
       "@sdkwork/im-h5-chat/*": [
         "./packages/sdkwork-im-h5-chat/src/*"

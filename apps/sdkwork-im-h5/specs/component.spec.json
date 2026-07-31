@@ -65,6 +65,11 @@
       "purpose": "Application shell and module composition rules."
     },
     {
+      "file": "APP_COMPOSITION_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_COMPOSITION_SPEC.md",
+      "purpose": "Core-owned H5 composition and SDK inventory rules."
+    },
+    {
       "file": "APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
       "path": "../../../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
       "purpose": "H5 client architecture alignment rules."
@@ -83,24 +88,94 @@
     ],
     "requiredPorts": [
       {
-        "name": "imSdk",
+        "name": "imH5Shell",
         "export": ".",
-        "package": "@sdkwork/im-sdk"
+        "package": "@sdkwork/im-h5-shell"
       },
       {
-        "name": "imAppSdk",
-        "export": ".",
-        "package": "@sdkwork/im-app-sdk"
+        "name": "imH5SdkAccess",
+        "export": "./sdk",
+        "package": "@sdkwork/im-h5-core"
       },
       {
-        "name": "driveAppSdk",
-        "export": ".",
-        "package": "@sdkwork/drive-app-sdk"
+        "name": "imH5SessionLifecycle",
+        "export": "./session",
+        "package": "@sdkwork/im-h5-core"
       },
       {
-        "name": "notaryAppSdk",
+        "name": "mobileReactUi",
         "export": ".",
-        "package": "@sdkwork/notary-app-sdk"
+        "package": "@sdkwork/ui-mobile-react"
+      },
+      {
+        "name": "aiotMobileReactHardware",
+        "export": ".",
+        "package": "@sdkwork/aiot-mobile-react-hardware"
+      },
+      {
+        "name": "communityMobileReactCommunity",
+        "export": ".",
+        "package": "@sdkwork/community-mobile-react-community"
+      },
+      {
+        "name": "courseMobileReactCourses",
+        "export": ".",
+        "package": "@sdkwork/course-mobile-react-courses"
+      },
+      {
+        "name": "driveMobileReactDrive",
+        "export": ".",
+        "package": "@sdkwork/drive-mobile-react-drive"
+      },
+      {
+        "name": "imageMobileReactGeneration",
+        "export": ".",
+        "package": "@sdkwork/image-mobile-react-generation"
+      },
+      {
+        "name": "knowledgebaseMobileReactKnowledge",
+        "export": ".",
+        "package": "@sdkwork/knowledgebase-mobile-react-knowledge"
+      },
+      {
+        "name": "membershipMobileReactSubscription",
+        "export": ".",
+        "package": "@sdkwork/membership-mobile-react-subscription"
+      },
+      {
+        "name": "musicMobileReactGeneration",
+        "export": ".",
+        "package": "@sdkwork/music-mobile-react-generation"
+      },
+      {
+        "name": "notaryH5Notary",
+        "export": ".",
+        "package": "@sdkwork/notary-h5-notary"
+      },
+      {
+        "name": "orderMobileReactOrders",
+        "export": ".",
+        "package": "@sdkwork/order-mobile-react-orders"
+      },
+      {
+        "name": "rtcMobileReactMeeting",
+        "export": ".",
+        "package": "@sdkwork/rtc-mobile-react-meeting"
+      },
+      {
+        "name": "shopMobileReactShopping",
+        "export": ".",
+        "package": "@sdkwork/shop-mobile-react-shopping"
+      },
+      {
+        "name": "videoMobileReactGeneration",
+        "export": ".",
+        "package": "@sdkwork/video-mobile-react-generation"
+      },
+      {
+        "name": "voiceMobileReactGeneration",
+        "export": ".",
+        "package": "@sdkwork/voice-mobile-react-generation"
       }
     ],
     "runtimeEntrypoints": [
@@ -108,33 +183,7 @@
     ],
     "routeManifest": null,
     "sdkClients": [],
-    "sdkDependencies": [
-      {
-        "workspace": "sdkwork-drive-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api"
-      },
-      {
-        "workspace": "sdkwork-iam-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api"
-      },
-      {
-        "workspace": "sdkwork-im-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api"
-      },
-      {
-        "workspace": "sdkwork-notary-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api"
-      },
-      {
-        "workspace": "sdkwork-im-sdk",
-        "surface": "open-api",
-        "credentialMode": "protected-open-api-api-key-or-dual-token"
-      }
-    ],
+    "sdkDependencies": [],
     "events": [],
     "configKeys": [
       "VITE_SDKWORK_IM_DEPLOYMENT_PROFILE",

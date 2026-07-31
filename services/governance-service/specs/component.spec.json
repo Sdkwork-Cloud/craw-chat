@@ -93,7 +93,12 @@
     }
   ],
   "contracts": {
-    "publicExports": [],
+    "publicExports": [
+      "governance_service::apply_public_http_guardrails",
+      "governance_service::build_control_surface_with_cluster_and_governance_sinks",
+      "governance_service::build_public_app_from_api_router_with_openapi",
+      "governance_service::render_openapi_document"
+    ],
     "runtimeEntrypoints": [
       "Cargo.toml"
     ],

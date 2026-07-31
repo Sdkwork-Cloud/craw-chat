@@ -2,8 +2,15 @@ import {
   createSdkworkAppbasePcAuthRuntime,
   type SdkworkAppbasePcAuthRuntimeComposition,
 } from '@sdkwork/auth-runtime-pc-react';
-import { disposeChatLiveConnection } from '@sdkwork/im-h5-chat';
+import { notifyImH5SessionChanged } from '@sdkwork/im-h5-core/session';
+import { resolveH5RuntimeEnvironment } from './environment';
 import { resolveImAuthRuntimeConfig } from './imAuthConfig';
+import { initSdkClients } from './sdkClients';
+import {
+  createImH5SessionBridge,
+  emitImH5SessionChanged,
+} from './session';
+import { getTokenManagerBinding } from './tokenManager';
 
 export interface ImAppAuthRuntimeOptions {
   appId?: string;
@@ -14,16 +21,7 @@ export interface ImAppAuthRuntimeOptions {
 let imAppAuthRuntimeComposition: SdkworkAppbasePcAuthRuntimeComposition | null = null;
 
 function resolveAppId(): string {
-  return 'sdkwork-im-h5';
-}
-
-function resolveAppbaseAppApiBaseUrl(): string {
-  const meta = import.meta as ImportMeta & {
-    env?: Record<string, string | undefined>;
-  };
-  return meta.env?.SDKWORK_IM_API_BASE_URL
-    ?? meta.env?.VITE_SDKWORK_IM_API_BASE_URL
-    ?? '/';
+  return resolveH5RuntimeEnvironment().appKey;
 }
 
 export function createImAppAuthRuntime(
@@ -34,6 +32,17 @@ export function createImAppAuthRuntime(
   }
 
   const runtimeConfig = resolveImAuthRuntimeConfig();
+  const environment = resolveH5RuntimeEnvironment();
+  const tokenManager = getTokenManagerBinding();
+  const sdkClients = initSdkClients(tokenManager);
+  const sessionBridge = createImH5SessionBridge({
+    notifySessionChanged: (session) => {
+      emitImH5SessionChanged(session);
+      if (!session) {
+        notifyImH5SessionChanged();
+      }
+    },
+  });
 
   imAppAuthRuntimeComposition = createSdkworkAppbasePcAuthRuntime({
     app: {
@@ -43,18 +52,24 @@ export function createImAppAuthRuntime(
       platform: "h5",
     },
     baseUrls: {
-      appbaseAppApiBaseUrl: resolveAppbaseAppApiBaseUrl(),
+      appbaseAppApiBaseUrl: environment.iamApiBaseUrl,
     },
     hooks: {
-      onSessionChanged: () => {
-        try {
-          disposeChatLiveConnection();
-        } catch {
-          // ignore teardown errors during session refresh
+      onSessionChanged: (session) => {
+        emitImH5SessionChanged(session);
+        if (session) {
+          notifyImH5SessionChanged();
         }
       },
     },
+    sdkClients: [
+      sdkClients.driveAppSdkClient,
+      sdkClients.imSdkClient,
+      sdkClients.notaryAppSdkClient,
+    ],
+    sessionBridge,
     sessionAuth: true,
+    tokenManager,
   });
 
   void runtimeConfig;

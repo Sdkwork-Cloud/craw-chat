@@ -14,7 +14,7 @@ use sdkwork_web_core::WebRequestContext;
 
 use crate::dto::*;
 use crate::error::AutomationError;
-use crate::openapi::{build_automation_service_openapi_document, render_automation_docs_html};
+use crate::openapi::{build_automation_app_openapi_document, render_automation_docs_html};
 use crate::state::AppState;
 
 fn resource_item<T>(item: T) -> SdkWorkResourceData<T> {
@@ -22,7 +22,7 @@ fn resource_item<T>(item: T) -> SdkWorkResourceData<T> {
 }
 
 pub(crate) async fn openapi_json() -> Result<Json<serde_json::Value>, AutomationError> {
-    Ok(Json(build_automation_service_openapi_document().map_err(
+    Ok(Json(build_automation_app_openapi_document().map_err(
         |message| AutomationError::internal("openapi_export_failed", message),
     )?))
 }

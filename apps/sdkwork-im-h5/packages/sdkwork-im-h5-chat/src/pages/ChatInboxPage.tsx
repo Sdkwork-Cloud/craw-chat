@@ -6,7 +6,7 @@ import { MAX_LIST_PAGE_SIZE } from "@sdkwork/utils";
 import type {
   ConversationInboxEntry,
   ConversationInboxPage,
-} from "@sdkwork/im-sdk";
+} from "@sdkwork/im-h5-core/sdk";
 
 import { listInbox } from "../services/chatConversationService";
 import { subscribeInboxLiveRefresh } from "../services/chatRealtimeService";

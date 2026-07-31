@@ -8,7 +8,7 @@ import type {
   ImRealtimeScopeSubscription,
   ImSdkClient,
   ImSubscription,
-} from '@sdkwork/im-sdk';
+} from '@sdkwork/im-h5-core/sdk';
 import { getChatImSdkClient } from './chatConversationService';
 
 export type ChatLiveConnectionStatus = 'idle' | 'connecting' | 'open' | 'closed' | 'error';

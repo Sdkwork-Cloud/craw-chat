@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use audit_service::AuditRuntime;
 use axum::Router;
-use axum::extract::{DefaultBodyLimit, State};
+use axum::extract::{DefaultBodyLimit, Extension, State};
 use axum::http::Request;
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -15,6 +15,7 @@ use sdkwork_im_web_bootstrap::{
 };
 use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 use sdkwork_web_core::WebRequestContext;
+use serde_json::Value as JsonValue;
 use session_gateway::RealtimeClusterBridge;
 use tokio::sync::Semaphore;
 
@@ -43,7 +44,17 @@ pub fn build_public_app() -> Router {
 }
 
 pub fn build_public_app_from_api_router(api_router: Router) -> Router {
-    mount_im_infra_routes(build_service_router(api_router), im_service_router_config())
+    build_public_app_from_api_router_with_openapi(api_router, crate::render_openapi_document())
+}
+
+pub fn build_public_app_from_api_router_with_openapi(
+    api_router: Router,
+    document: JsonValue,
+) -> Router {
+    mount_im_infra_routes(
+        build_service_router(api_router, document),
+        im_service_router_config(),
+    )
 }
 
 pub fn default_control_state() -> AppState {
@@ -183,10 +194,13 @@ pub fn build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
 }
 
 fn build_business_router_with_state(state: AppState) -> Router {
-    build_service_router(build_control_surface_with_state(state))
+    build_service_router(
+        build_control_surface_with_state(state),
+        crate::render_openapi_document(),
+    )
 }
 
-fn build_service_router(api_router: Router) -> Router {
+fn build_service_router(api_router: Router, document: JsonValue) -> Router {
     Router::new()
         .route("/openapi.json", get(openapi_document))
         .route(
@@ -195,6 +209,7 @@ fn build_service_router(api_router: Router) -> Router {
         )
         .route("/docs", get(docs))
         .merge(api_router)
+        .layer(Extension(Arc::new(document)))
 }
 
 fn build_app_with_state(state: AppState) -> Router {

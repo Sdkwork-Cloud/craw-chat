@@ -2,6 +2,7 @@
   "schemaVersion": 5,
   "kind": "sdkwork.app.topology",
   "appId": "sdkwork-im",
+  "applicationCode": "im",
   "archetype": "realtime-application-platform",
   "profileRoot": "etc/topology",
   "profilePattern": "{deploymentProfile}.{environment}.env",
@@ -82,9 +83,6 @@
       "httpUrlEnv": "SDKWORK_IM_OPERATIONS_CONTROL_HTTP_URL",
       "optional": true
     }
-  },
-  "database": {
-    "appPrefix": "SDKWORK_IM"
   },
   "components": {
     "standaloneGateway": {

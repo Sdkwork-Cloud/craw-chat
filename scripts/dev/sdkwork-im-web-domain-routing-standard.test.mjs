@@ -146,5 +146,10 @@ const pcViteSource = readText('apps/sdkwork-im-pc/vite.config.ts');
 const h5ViteSource = readText('apps/sdkwork-im-h5/vite.config.ts');
 assert.match(pcViteSource, /node_modules[\s\S]*\.vite[\s\S]*sdkwork-im-pc/u);
 assert.match(h5ViteSource, /node_modules[\s\S]*\.vite[\s\S]*sdkwork-im-h5/u);
+assert.match(
+  pcViteSource,
+  /optimizeDeps:\s*\{[\s\S]*include:\s*\[[\s\S]*['"]dompurify['"]/u,
+  'PC Vite must prebundle dompurify before serving browser modules',
+);
 
 console.log('sdkwork-im web domain routing standard passed');

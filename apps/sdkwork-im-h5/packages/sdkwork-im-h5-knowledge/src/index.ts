@@ -1,11 +1,2 @@
-export * from "./pages/KnowledgeBaseApp";
-export * from "./pages/KnowledgeBaseDetail";
-export * from "./pages/CreateKnowledgeBase";
-export * from "./pages/KnowledgeBaseDocumentList";
-export * from "./pages/CreateDocument";
-export * from "./components/KnowledgeBaseCard";
-export * from "./components/BatchActionBar";
-export * from "./components/KnowledgeBaseHeaderFilter";
-export * from "./components/EmptyKnowledgeBaseState";
-export * from "./components/KnowledgeDocumentCard";
-export * from "./services/KnowledgeBaseService";
+/** Compatibility adapter. Canonical Knowledgebase mobile UI lives in sdkwork-knowledgebase. */
+export * from '@sdkwork/knowledgebase-mobile-react-knowledge';

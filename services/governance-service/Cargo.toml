@@ -25,6 +25,7 @@ sdkwork_web_core.workspace = true
 sdkwork_routes_web_framework_backend_api.workspace = true
 
 [dev-dependencies]
+automation-service = { path = "../automation-service" }
 audit-service = { path = "../audit-service" }
 http-body-util.workspace = true
 ops-service = { path = "../ops-service" }

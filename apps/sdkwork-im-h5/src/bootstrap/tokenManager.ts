@@ -6,8 +6,10 @@
  * Drive app SDK, IM app SDK, and other authenticated dependency app SDKs.
  */
 
-import type { AuthTokenManager } from '@sdkwork/sdk-common';
-import { getImAppAuthRuntime } from './iamRuntime';
+import {
+  createTokenManager,
+  type AuthTokenManager,
+} from '@sdkwork/sdk-common';
 
 export type H5TokenManagerBinding = AuthTokenManager;
 
@@ -18,7 +20,7 @@ export function resolveTokenManagerBinding(): H5TokenManagerBinding {
     return cachedBinding;
   }
 
-  cachedBinding = getImAppAuthRuntime().tokenManager;
+  cachedBinding = createTokenManager();
 
   return cachedBinding;
 }
@@ -28,6 +30,7 @@ export function getTokenManagerBinding(): H5TokenManagerBinding {
 }
 
 export function resetTokenManagerBinding(): void {
+  cachedBinding?.clearTokens();
   cachedBinding = null;
 }
 

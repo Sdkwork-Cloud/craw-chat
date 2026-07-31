@@ -78,7 +78,8 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
 
-    let app = sdkwork_routes_im_governance_backend_api::build_public_app_with_governance_sinks(
+    let app = sdkwork_routes_im_governance_backend_api::build_public_app_with_automation_runtime_and_governance_sinks(
+        Arc::new(automation_service::AutomationRuntime::default()),
         cluster.clone(),
         ops_runtime.clone(),
         audit_runtime.clone(),

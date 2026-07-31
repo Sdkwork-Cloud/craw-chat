@@ -1,4 +1,2 @@
-export * from "./pages/OrderCenter";
-export * from "./pages/OrderDetail";
-export * from "./pages/VoucherCodePage";
-export * from "./services/OrderService";
+/** Compatibility adapter. Canonical Order mobile UI lives in sdkwork-order. */
+export * from '@sdkwork/order-mobile-react-orders';
