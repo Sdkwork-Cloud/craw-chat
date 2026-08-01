@@ -22,12 +22,12 @@ import {
   showConfirm,
   ListItem,
   Switch,
+  showToast,
 } from "@sdkwork/im-h5-commons";
 import { ChatService } from "../services/ChatService";
 import type { Chat, Message } from "@sdkwork/im-h5-types";
 import { SearchHistoryOverlay } from "../components/Chat/SearchHistoryOverlay";
 import { useTranslation } from "react-i18next";
-import { showToast } from "@sdkwork/im-h5-commons";
 
 import { ChatProfileMembers } from "../components/Chat/ChatProfileMembers";
 
@@ -49,14 +49,16 @@ const { id } = useParams();
 
   useEffect(() => {
     if (id) {
-      ChatService.getChatById(id).then((c) => {
-        if (c) {
-          setChat(c);
-          setIsMuted(c.settings?.isMuted ?? false);
-          setIsPinned(c.isPinned ?? false);
-          setShowAvatar(c.settings?.showAvatar ?? true);
-          setCleanMode(c.settings?.cleanMode ?? false);
-        }
+      void ChatService.getChatById(id).then((c) => {
+        if (!c) return;
+        setChat(c);
+        setIsMuted(c.settings?.isMuted ?? false);
+        setIsPinned(c.isPinned ?? false);
+        setShowAvatar(c.settings?.showAvatar ?? true);
+        setCleanMode(c.settings?.cleanMode ?? false);
+      }).catch((error) => {
+        console.error(error);
+        showToast(t("chat.profile.load_failed", "Unable to load conversation settings"));
       });
     }
   }, [id]);

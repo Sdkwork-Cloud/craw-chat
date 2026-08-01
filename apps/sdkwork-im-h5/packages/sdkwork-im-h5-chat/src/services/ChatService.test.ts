@@ -246,7 +246,7 @@ test("marks a conversation read at the server history high watermark", async () 
   assert.deepEqual(readCursor, { readSeq: 42 });
 });
 
-test("fails closed instead of scanning only one favorites page", async () => {
+test("scans cursor-paginated favorites before failing to unstar", async () => {
   let listCalls = 0;
   const service = createChatService(() => createSdk({
     messages: {
@@ -262,9 +262,6 @@ test("fails closed instead of scanning only one favorites page", async () => {
     },
   }));
 
-  await assert.rejects(
-    service.starMessage("conversation-1", "message-1", false),
-    ChatCapabilityUnavailableError,
-  );
-  assert.equal(listCalls, 0);
+  await assert.rejects(service.starMessage("conversation-1", "message-1", false), /repeated cursor/);
+  assert.equal(listCalls, 2);
 });

@@ -14,6 +14,7 @@ import { ChatInputArea } from "../components/Chat/ChatInputArea";
 import { MessageContextMenu } from "../components/Chat/MessageContextMenu";
 import { MessageList } from "../components/Chat/MessageList";
 import { VoiceRecordingOverlay } from "../components/Chat/VoiceRecordingOverlay";
+import { FullscreenMediaOverlay } from "../components/Chat/FullscreenMediaOverlay";
 import { ChatService } from "../services/ChatService";
 import { subscribeConversationLiveMessages } from "../services/chatRealtimeService";
 
@@ -38,6 +39,7 @@ export function ChatDetail() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [emojis, setEmojis] = useState<string[]>([]);
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
+  const [fullscreenMedia, setFullscreenMedia] = useState<{ type: "image" | "video"; url: string } | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0, messageId: null as string | null });
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -86,6 +88,7 @@ export function ChatDetail() {
   useEffect(() => () => {
     if (recordingTimer.current) clearInterval(recordingTimer.current);
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    cancelVoiceRef.current = true;
     mediaRecorder.current?.stop();
   }, []);
 
@@ -94,7 +97,14 @@ export function ChatDetail() {
     if (!content || sending || !chatId) return;
     setSending(true);
     try {
-      const message = await ChatService.sendMessage(chatId, sessionUser?.id ?? "", content);
+      const replyTo = replyingTo ? {
+        messageId: replyingTo.id,
+        senderDisplayName: replyingTo.senderId === sessionUser?.id
+          ? t("chat.detail.me", "Me")
+          : chat?.participants.find((participant) => participant.id === replyingTo.senderId)?.name ?? replyingTo.senderId,
+        contentPreview: replyingTo.content.slice(0, 200),
+      } : undefined;
+      const message = await ChatService.sendMessage(chatId, sessionUser?.id ?? "", content, "text", undefined, replyTo);
       setMessages((previous) => mergeMessages(previous, [message]));
       editor?.commands.clearContent();
       setReplyingTo(null);
@@ -193,7 +203,7 @@ export function ChatDetail() {
         handleTouchStart={handleTouchStart}
         handleTouchEnd={() => longPressTimer.current && clearTimeout(longPressTimer.current)}
         handleTouchMove={() => longPressTimer.current && clearTimeout(longPressTimer.current)}
-        setFullscreenMedia={() => undefined}
+        setFullscreenMedia={setFullscreenMedia}
         highlightedMsgId={highlightedMsgId}
         setHighlightedMsgId={setHighlightedMsgId}
         setActivePanel={setActivePanel}
@@ -225,6 +235,7 @@ export function ChatDetail() {
         onFileSelected={(file, kind) => void sendMedia(file, kind)}
       />
       <VoiceRecordingOverlay isRecording={isRecording} recordingTime={recordingTime} />
+      <FullscreenMediaOverlay media={fullscreenMedia} onClose={() => setFullscreenMedia(null)} />
       <MessageContextMenu
         contextMenu={contextMenu}
         messages={messages}

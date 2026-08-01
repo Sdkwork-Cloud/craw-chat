@@ -15,6 +15,7 @@ import type {
   CreateContactTagRequest,
   CreateConversationRequest,
   CreateConversationResult,
+  ConversationSummaryView,
   CreateSystemChannelRequest,
   CreateThreadConversationRequest,
   ConversationMember,
@@ -113,6 +114,7 @@ export interface ImTransportClientLike {
     };
     conversations: {
       create(body: CreateConversationRequest): Promise<CreateConversationResult>;
+      retrieve(conversationId: string): Promise<ConversationSummaryView>;
       agentDialogs: {
         create(body: CreateAgentDialogRequest): Promise<CreateConversationResult>;
       };

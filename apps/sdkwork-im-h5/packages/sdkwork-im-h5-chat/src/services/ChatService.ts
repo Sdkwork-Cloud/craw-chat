@@ -12,6 +12,7 @@ import type {
   FavoriteMessagesResponse,
   ListMembersResponse,
   MessageFavoriteView,
+  MessageReplyReference,
   PostMessageResult,
   UpdateConversationPreferencesRequest,
 } from "@sdkwork/im-h5-core/sdk";
@@ -47,6 +48,7 @@ export interface ChatSdkPort {
       },
     ): Promise<unknown>;
     create(body: CreateConversationRequest): Promise<CreateConversationResult>;
+    getSummary?(conversationId: string): Promise<{ conversationId: string; messageCount: number; lastMessageSeq: number; lastSummary?: string | null; lastMessageAt?: string }>;
     list(params?: { cursor?: string; pageSize?: number; q?: string }): Promise<ConversationInboxPage>;
     listMessages(
       conversationId: string,
@@ -58,7 +60,7 @@ export interface ChatSdkPort {
     postText(
       conversationId: string,
       text: string,
-      body?: { clientMsgId?: string | null },
+      body?: { clientMsgId?: string | null; replyTo?: MessageReplyReference | null },
     ): Promise<PostMessageResult>;
     postMessage?(conversationId: string, body: { text?: string; parts?: unknown[]; clientMsgId?: string }): Promise<PostMessageResult>;
     updatePreferences(
@@ -72,7 +74,7 @@ export interface ChatSdkPort {
     favorites: {
       create(messageId: string, body: FavoriteMessageRequest): Promise<MessageFavoriteView>;
       delete(favoriteId: string): Promise<unknown>;
-      list(params?: { pageSize?: number }): Promise<FavoriteMessagesResponse>;
+      list(params?: { pageSize?: number; cursor?: string; favoriteType?: string }): Promise<FavoriteMessagesResponse>;
     };
   };
 }
@@ -150,11 +152,15 @@ export function createChatService(
             ...(isPeer && peer.avatarUrl ? { avatar: peer.avatarUrl } : {}),
           };
         });
+      const summary = resolveClient().conversations.getSummary
+        ? await resolveClient().conversations.getSummary(conversationId)
+        : undefined;
       return {
         id: conversationId,
         type: participants.length > 2 ? "group" : "direct",
         participants,
         unreadCount: 0,
+        ...(summary?.lastSummary || summary?.lastMessageAt ? { lastMessage: { id: `${conversationId}:${summary.lastMessageSeq}`, chatId: conversationId, content: summary.lastSummary ?? "", senderId: "system", timestamp: parseTimestamp(summary.lastMessageAt ?? new Date().toISOString()), type: "text" as const } } : {}),
         name: profile.displayName || inboxEntry?.displayName || undefined,
         avatar: profile.avatarUrl || inboxEntry?.avatarUrl || undefined,
         isPinned: preferences.isPinned,
@@ -197,12 +203,14 @@ export function createChatService(
       content: string,
       type: Message["type"] = "text",
       metadata?: unknown,
+      replyTo?: MessageReplyReference,
     ): Promise<Message> {
       if (type !== "text" || metadata !== undefined) {
         throw new ChatCapabilityUnavailableError(`Legacy ${type} message composition`);
       }
       const result = await resolveClient().conversations.postText(conversationId, content, {
         clientMsgId: uuid(),
+        ...(replyTo ? { replyTo } : {}),
       });
       const storedMessage = await findMessageById(conversationId, result.messageId);
       if (!storedMessage) {
@@ -365,9 +373,29 @@ export function createChatService(
         return;
       }
 
-      throw new ChatCapabilityUnavailableError(
-        `Favorite retrieval for message ${messageId} in conversation ${conversationId}`,
-      );
+      let cursor: string | undefined;
+      const visitedCursors = new Set<string>();
+      do {
+        const page = await resolveClient().messages.favorites.list({
+          pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE),
+          ...(cursor ? { cursor } : {}),
+          favoriteType: "chat",
+        });
+        assertCursorPage(page.pageInfo, "IM message favorites");
+        const favorite = page.items.find((item) => item.messageId === messageId && item.conversationId === conversationId);
+        if (favorite) {
+          await resolveClient().messages.favorites.delete(favorite.favoriteId);
+          return;
+        }
+        cursor = page.pageInfo.hasMore ? page.pageInfo.nextCursor ?? undefined : undefined;
+        if (cursor) {
+          if (visitedCursors.has(cursor)) {
+            throw new Error("IM message favorites returned a repeated cursor.");
+          }
+          visitedCursors.add(cursor);
+        }
+      } while (cursor);
+      throw new Error(`Favorite not found for message ${messageId}.`);
     },
 
     async getEmojis(): Promise<string[]> {
@@ -438,6 +466,11 @@ function mapMessageEntry(message: ConversationMessageEntry): Message {
           ? "file"
           : "text";
   const mediaUrl = media?.resource.publicUrl ?? media?.resource.url ?? media?.resource.uri;
+  const replyTo = message.body.replyTo ? {
+    id: message.body.replyTo.messageId,
+    senderName: message.body.replyTo.senderDisplayName,
+    content: message.body.replyTo.contentPreview,
+  } : undefined;
   return {
     chatId: message.conversationId,
     content: mediaUrl ?? message.body.text ?? message.summary ?? "",
@@ -445,7 +478,8 @@ function mapMessageEntry(message: ConversationMessageEntry): Message {
     senderId: message.sender.id,
     timestamp: parseTimestamp(message.occurredAt),
     type: messageType,
-    ...(media ? { metadata: { fileName: media.resource.fileName ?? undefined, mimeType: media.resource.mimeType ?? undefined, size: media.resource.sizeBytes ?? undefined, duration: media.resource.durationSeconds ?? undefined, driveUri: media.drive.driveUri, nodeId: media.drive.nodeId } } : {}),
+    ...(replyTo ? { replyTo, metadata: { replyTo: replyTo.id } } : {}),
+    ...(media ? { metadata: { ...(replyTo ? { replyTo: replyTo.id } : {}), fileName: media.resource.fileName ?? undefined, mimeType: media.resource.mimeType ?? undefined, size: media.resource.sizeBytes ?? undefined, duration: media.resource.durationSeconds ?? undefined, driveUri: media.drive.driveUri, nodeId: media.drive.nodeId } } : {}),
   };
 }
 

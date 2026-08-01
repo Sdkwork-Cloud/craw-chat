@@ -4,6 +4,7 @@ import type {
   ContentPart,
   ConversationMember,
   ConversationProfileView,
+  ConversationSummaryView,
   ConversationPreferencesView,
   ConversationAgentAssignments,
   CreateAgentDialogRequest,
@@ -111,6 +112,12 @@ export class ImConversationsModule {
 
   create(body: CreateConversationRequest): Promise<CreateConversationResult> {
     return this.transportClient.chat.conversations.create(body);
+  }
+
+  getSummary(conversationId: string): Promise<ConversationSummaryView> {
+    return this.transportClient.chat.conversations.retrieve(
+      requireStringIdentifier(conversationId, 'conversationId'),
+    );
   }
 
   list(params?: QueryParams): Promise<ConversationInboxPage> {

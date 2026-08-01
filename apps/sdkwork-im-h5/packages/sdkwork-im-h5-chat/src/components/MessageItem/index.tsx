@@ -162,7 +162,7 @@ return (
           {msg.type === "call" && <CallMessage msg={msg} />}
           {msg.type === "link" && <LinkMessage msg={msg} isMe={isMe} />}
           {msg.type === "miniapp" && <MiniappMessage msg={msg} isMe={isMe} />}
-          {msg.type === "file" && <FileMessage msg={msg} isMe={isMe} />}
+          {msg.type === "file" && <FileMessage msg={msg} isMe={isMe} onClick={() => { if (msg.content) window.open(msg.content, "_blank", "noopener,noreferrer"); }} />}
           {msg.type === "music" && <MusicMessage msg={msg} isMe={isMe} />}
         </div>
       </div>

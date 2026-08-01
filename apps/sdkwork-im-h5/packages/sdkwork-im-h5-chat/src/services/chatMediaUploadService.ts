@@ -2,12 +2,11 @@ import {
   getDriveAppSdkClient,
   type SdkworkDriveAppClient,
 } from '@sdkwork/im-h5-core/sdk';
+import type { DriveUploaderBlobLike, DriveUploaderProfile, DriveUploaderUploadResult } from '@sdkwork/drive-app-sdk';
 
 export function getDriveAppSdkClientWithSession(): SdkworkDriveAppClient {
   return getDriveAppSdkClient();
 }
-
-import type { DriveUploaderBlobLike, DriveUploaderProfile, DriveUploaderUploadResult } from '@sdkwork/drive-app-sdk';
 
 export interface ChatMediaUpload {
   drive: { driveUri: string; spaceId: string; nodeId: string };

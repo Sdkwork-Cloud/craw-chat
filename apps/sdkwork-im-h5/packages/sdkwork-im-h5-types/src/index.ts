@@ -24,6 +24,11 @@ export interface Message {
     | "music";
   isStarred?: boolean;
   metadata?: Record<string, any>; // To store additional info like file sizes, thumbnail urls, call duration etc.
+  replyTo?: {
+    id: string;
+    senderName: string;
+    content: string;
+  };
 }
 
 export interface Chat {
