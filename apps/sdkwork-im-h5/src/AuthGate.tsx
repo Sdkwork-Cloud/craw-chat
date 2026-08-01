@@ -16,6 +16,7 @@ import {
   restoreAndValidateImH5Session,
   type ImH5PersistedSession,
 } from './bootstrap/session';
+import { useAppStore } from '@sdkwork/im-h5-core';
 
 const AUTH_BASE_PATH = '/auth';
 const AUTH_LOGIN_PATH = '/auth/login';
@@ -68,6 +69,7 @@ export function AuthGate({ children }: AuthGateProps) {
   const navigate = useNavigate();
   const [isBootstrapped, setIsBootstrapped] = useState(false);
   const [session, setSession] = useState<ImH5PersistedSession | null>(null);
+  const setCurrentUser = useAppStore((state) => state.setCurrentUser);
 
   const redirectTarget = useMemo(
     () => resolveRedirectTarget(location.pathname, location.search, location.hash),
@@ -76,6 +78,10 @@ export function AuthGate({ children }: AuthGateProps) {
 
   const authenticated = Boolean(session?.accessToken && session.authToken);
   const isAuthPath = isAuthRoute(location.pathname);
+
+  useEffect(() => {
+    setCurrentUser(resolveSessionUser(session?.user));
+  }, [session, setCurrentUser]);
 
   const authAppearance = useMemo(() => resolveAuthAppearance(), []);
   const authRuntimeConfig = useMemo(() => resolveImAuthRuntimeConfig() as SdkworkAuthRuntimeConfig, []);
@@ -157,3 +163,19 @@ export function AuthGate({ children }: AuthGateProps) {
 }
 
 export default AuthGate;
+
+function resolveSessionUser(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const id = readString(record.id) ?? readString(record.userId);
+  if (!id) return null;
+  return {
+    id,
+    name: readString(record.displayName) ?? readString(record.name) ?? readString(record.username) ?? id,
+    ...(readString(record.avatarUrl) ? { avatar: readString(record.avatarUrl) } : {}),
+  };
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}

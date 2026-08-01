@@ -5,6 +5,7 @@ export * from "./pages/AgentList";
 export * from "./pages/AgentSearch";
 export * from "./pages/AgentCreate";
 export * from "./pages/AddFriend";
+export * from "./pages/NewFriends";
 export * from "./pages/Scan";
 export * from "./pages/OrganizationList";
 export * from "./pages/OrganizationDetail";

@@ -1,23 +1,4 @@
 ﻿import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
-import {
-  Search,
-  PlusCircle,
-  MessageSquarePlus,
-  UserPlus,
-  Bot,
-  Scan,
-  Pin,
-  BellOff,
-  Trash2,
-} from "lucide-react";
-import { format } from "date-fns";
-import {
-  Avatar,
-  Badge,
-  IconButton,
-  cn,
-} from "@sdkwork/im-h5-commons";
 import type { Chat } from "@sdkwork/im-h5-types";
 import { ChatService } from "../services/ChatService";
 import { motion, AnimatePresence } from "motion/react";
@@ -25,12 +6,18 @@ import { ChatListContextMenu } from "../components/Chat/ChatListContextMenu";
 import { ChatListItem } from "../components/Chat/ChatListItem";
 import { ChatListHeader } from "../components/Chat/ChatListHeader";
 import { useTranslation } from "react-i18next";
+import { subscribeInboxLiveRefresh } from "../services/chatRealtimeService";
+import { showToast } from "@sdkwork/im-h5-commons";
 
 export const ChatList: React.FC = () => {
   const { t } = useTranslation();
-const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [chats, setChats] = useState<Chat[]>([]);
+  const [nextCursor, setNextCursor] = useState<string>();
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const chatsRef = useRef<Chat[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Context Menu State
@@ -43,20 +30,31 @@ const navigate = useNavigate();
 
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const loadChats = useCallback(() => {
-    ChatService.getChats().then((data) => {
-      // Sort pinned chats to top
-      const sorted = [...data].sort((a, b) => {
-        if (a.isPinned && !b.isPinned) return -1;
-        if (!a.isPinned && b.isPinned) return 1;
-        return 0; // Keep original order for others
-      });
+  const loadChats = useCallback(async (cursor?: string) => {
+    if (cursor) setIsLoadingMore(true);
+    else setIsLoading(true);
+    setLoadError(false);
+    try {
+      const page = await ChatService.listChatPage(cursor);
+      const merged = mergeChats(cursor ? chatsRef.current : [], page.items);
+      const sorted = sortChats(merged);
+      chatsRef.current = sorted;
       setChats(sorted);
-    });
-  }, []);
+      setNextCursor(page.hasMore ? page.nextCursor : undefined);
+    } catch (error) {
+      console.error(error);
+      setLoadError(true);
+      showToast(t("chat.list.load_failed", "Unable to load conversations"));
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, [t]);
 
   useEffect(() => {
-    loadChats();
+    void loadChats();
+    const unsubscribe = subscribeInboxLiveRefresh(() => { void loadChats(); });
+    return unsubscribe;
   }, [loadChats]);
 
   // Handle click outside to close menu
@@ -158,6 +156,21 @@ const navigate = useNavigate();
 
       {/* Chat List */}
       <div className="flex-1 overflow-y-auto pt-1 pb-[84px]">
+        {isLoading && chats.length === 0 && (
+          <div className="flex h-24 items-center justify-center text-[14px] text-text-sub">
+            {t("common.loading", "Loading...")}
+          </div>
+        )}
+        {!isLoading && loadError && chats.length === 0 && (
+          <button type="button" className="flex h-24 w-full items-center justify-center text-[14px] text-primary-blue" onClick={() => void loadChats()}>
+            {t("common.retry", "Tap to retry")}
+          </button>
+        )}
+        {!isLoading && !loadError && chats.length === 0 && (
+          <div className="flex h-24 items-center justify-center text-[14px] text-text-sub">
+            {t("chat.list.empty", "No conversations yet")}
+          </div>
+        )}
         {chats.map((chat, index) => (
           <ChatListItem
             key={chat.id}
@@ -170,6 +183,16 @@ const navigate = useNavigate();
             handleTouchMove={handleTouchMove}
           />
         ))}
+        {nextCursor && (
+          <button
+            type="button"
+            disabled={isLoadingMore}
+            className="h-12 w-full text-[14px] font-medium text-primary-blue disabled:opacity-50"
+            onClick={() => loadChats(nextCursor)}
+          >
+            {isLoadingMore ? t("common.loading", "Loading...") : t("common.load_more", "Load more")}
+          </button>
+        )}
       </div>
 
       <ChatListContextMenu
@@ -183,3 +206,13 @@ const navigate = useNavigate();
     </div>
   );
 };
+
+function mergeChats(previous: readonly Chat[], incoming: readonly Chat[]): Chat[] {
+  const chats = new Map(previous.map((chat) => [chat.id, chat]));
+  for (const chat of incoming) chats.set(chat.id, chat);
+  return Array.from(chats.values());
+}
+
+function sortChats(chats: readonly Chat[]): Chat[] {
+  return [...chats].sort((left, right) => Number(Boolean(right.isPinned)) - Number(Boolean(left.isPinned)));
+}

@@ -4,6 +4,9 @@ import type {
   ContactsResponse,
   CreateConversationRequest,
   CreateConversationResult,
+  FriendRequest,
+  SocialFriendRequestAcceptanceResponse,
+  SocialFriendRequestListResponse,
   SocialFriendRequestMutationResponse,
   SocialUserSearchResponse,
 } from "@sdkwork/im-h5-core/sdk";
@@ -32,6 +35,14 @@ export interface ContactPage {
   nextCursor?: string;
 }
 
+export interface FriendRequestPage {
+  items: FriendRequest[];
+  hasMore: boolean;
+  nextCursor?: string;
+}
+
+export type FriendRequestDirection = "incoming" | "outgoing";
+
 export interface ContactsSdkPort {
   conversations: {
     create(body: CreateConversationRequest): Promise<CreateConversationResult>;
@@ -44,10 +55,20 @@ export interface ContactsSdkPort {
       list(params?: { cursor?: string; pageSize?: number; q?: string }): Promise<SocialUserSearchResponse>;
     };
     friendRequests: {
+      list(params?: {
+        cursor?: string;
+        direction?: string;
+        pageSize?: number;
+        status?: string;
+      }): Promise<SocialFriendRequestListResponse>;
       create(body: {
         requestMessage?: string;
         targetUserId: string;
       }): Promise<SocialFriendRequestMutationResponse>;
+      accept(requestId: string): Promise<SocialFriendRequestAcceptanceResponse>;
+      decline(requestId: string): Promise<SocialFriendRequestMutationResponse>;
+      cancel(requestId: string): Promise<SocialFriendRequestMutationResponse>;
+      pendingCount(): Promise<{ count: number }>;
     };
   };
 }
@@ -124,6 +145,41 @@ export function createContactService(
 
     searchFriends,
 
+    async listFriendRequests(
+      direction: FriendRequestDirection,
+      cursor?: string,
+      status = "pending",
+    ): Promise<FriendRequestPage> {
+      const response = await resolveClient().social.friendRequests.list({
+        direction,
+        pageSize: CONTACT_PAGE_SIZE,
+        status,
+        ...(cursor ? { cursor } : {}),
+      });
+      assertCursorPage(response.pageInfo, "IM friend requests");
+      return {
+        items: response.items,
+        hasMore: response.pageInfo.hasMore === true,
+        ...(response.pageInfo.nextCursor ? { nextCursor: response.pageInfo.nextCursor } : {}),
+      };
+    },
+
+    getPendingFriendRequestCount(): Promise<number> {
+      return resolveClient().social.friendRequests.pendingCount().then(({ count }) => count);
+    },
+
+    acceptFriendRequest(requestId: string): Promise<SocialFriendRequestAcceptanceResponse> {
+      return resolveClient().social.friendRequests.accept(requireIdentifier(requestId, "request ID"));
+    },
+
+    declineFriendRequest(requestId: string): Promise<SocialFriendRequestMutationResponse> {
+      return resolveClient().social.friendRequests.decline(requireIdentifier(requestId, "request ID"));
+    },
+
+    cancelFriendRequest(requestId: string): Promise<SocialFriendRequestMutationResponse> {
+      return resolveClient().social.friendRequests.cancel(requireIdentifier(requestId, "request ID"));
+    },
+
     async searchFriend(query: string): Promise<ContactSearchResult | null> {
       const results = await searchFriends(query);
       return results.length === 1 ? results[0] : null;
@@ -156,6 +212,14 @@ export function createContactService(
       return result.conversationId;
     },
   };
+}
+
+function requireIdentifier(value: string, label: string): string {
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new Error(`A ${label} is required.`);
+  }
+  return normalized;
 }
 
 function assertCursorPage(

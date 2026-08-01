@@ -18,6 +18,29 @@ interface ChatSdkOverrides {
 function createSdk(overrides: ChatSdkOverrides = {}): ChatSdkPort {
   return {
     conversations: {
+      getPreferences: async () => ({
+        tenantId: "tenant-1",
+        conversationId: "conversation-1",
+        principalKind: "user",
+        principalId: "current-user",
+        isPinned: false,
+        isMuted: false,
+        isMarkedUnread: false,
+        isHidden: false,
+        updatedAt: "2026-07-29T00:00:00Z",
+      }),
+      getProfile: async () => ({
+        tenantId: "tenant-1",
+        conversationId: "conversation-1",
+        displayName: "Conversation",
+        avatarUrl: "",
+        notice: "",
+        updatedAt: "2026-07-29T00:00:00Z",
+      }),
+      listMembers: async () => ({
+        items: [],
+        pageInfo: { mode: "cursor", hasMore: false },
+      }),
       addMember: async () => ({}),
       create: async () => ({ conversationId: "conversation-created", eventId: "event-1" }),
       list: async () => ({
@@ -178,12 +201,11 @@ test("fails closed when the generated SDK has no history-search operation", asyn
   );
 });
 
-test("fails closed when exact conversation retrieval is unavailable", async () => {
+test("retrieves conversation profile, members, and preferences through the SDK", async () => {
   const service = createChatService(() => createSdk());
-  await assert.rejects(
-    service.getChatById("conversation-1"),
-    ChatCapabilityUnavailableError,
-  );
+  const chat = await service.getChatById("conversation-1");
+  assert.equal(chat?.id, "conversation-1");
+  assert.equal(chat?.type, "direct");
 });
 
 test("fails closed instead of creating an unauthorized group by name", async () => {

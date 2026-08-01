@@ -27,6 +27,7 @@ import { ChatService } from "../services/ChatService";
 import type { Chat, Message } from "@sdkwork/im-h5-types";
 import { SearchHistoryOverlay } from "../components/Chat/SearchHistoryOverlay";
 import { useTranslation } from "react-i18next";
+import { showToast } from "@sdkwork/im-h5-commons";
 
 import { ChatProfileMembers } from "../components/Chat/ChatProfileMembers";
 
@@ -51,6 +52,8 @@ const { id } = useParams();
       ChatService.getChatById(id).then((c) => {
         if (c) {
           setChat(c);
+          setIsMuted(c.settings?.isMuted ?? false);
+          setIsPinned(c.isPinned ?? false);
           setShowAvatar(c.settings?.showAvatar ?? true);
           setCleanMode(c.settings?.cleanMode ?? false);
         }
@@ -62,9 +65,16 @@ const { id } = useParams();
     if (showSearch && searchQuery.trim() && id) {
       setIsSearching(true);
       const timer = setTimeout(async () => {
-        const results = await ChatService.searchChatHistory(id, searchQuery);
-        setSearchResults(results);
-        setIsSearching(false);
+        try {
+          const results = await ChatService.searchChatHistory(id, searchQuery);
+          setSearchResults(results);
+        } catch (error) {
+          console.error(error);
+          setSearchResults([]);
+          showToast(t("chat.profile.search_unavailable", "Message search is unavailable"));
+        } finally {
+          setIsSearching(false);
+        }
       }, 300);
       return () => clearTimeout(timer);
     } else {
@@ -74,8 +84,15 @@ const { id } = useParams();
   }, [searchQuery, showSearch, id]);
 
   const handleUpdateSettings = async (updates: Partial<Chat["settings"]>) => {
-    if (id) {
-      await ChatService.updateChatSettings(id, updates);
+    if (!id) return;
+    try {
+      const preferences: { isMuted?: boolean; isPinned?: boolean } = {};
+      if (updates.isMuted !== undefined) preferences.isMuted = updates.isMuted;
+      if (updates.isPinned !== undefined) preferences.isPinned = updates.isPinned;
+      await ChatService.updateChatSettings(id, preferences);
+    } catch (error) {
+      console.error(error);
+      showToast(t("chat.profile.update_failed", "Unable to update conversation settings"));
     }
   };
 
@@ -107,7 +124,7 @@ const { id } = useParams();
           <ListItem
             icon={Search}
             label={t('chat.profile.search_history')}
-            onClick={() => setShowSearch(true)}
+            onClick={() => { setSearchQuery(""); setShowSearch(true); }}
           />
         </div>
 
@@ -116,12 +133,12 @@ const { id } = useParams();
           <ListItem
             icon={Bell}
             label={t('chat.profile.mute')}
-            rightElement={<Switch checked={isMuted} onChange={setIsMuted} />}
+            rightElement={<Switch checked={isMuted} onChange={(value) => { setIsMuted(value); void handleUpdateSettings({ isMuted: value }); }} />}
           />
           <ListItem
             icon={Pin}
             label={t('chat.profile.pin')}
-            rightElement={<Switch checked={isPinned} onChange={setIsPinned} />}
+            rightElement={<Switch checked={isPinned} onChange={(value) => { setIsPinned(value); void handleUpdateSettings({ isPinned: value }); }} />}
           />
         </div>
 
@@ -135,7 +152,7 @@ const { id } = useParams();
                 checked={showAvatar}
                 onChange={(val: boolean) => {
                   setShowAvatar(val);
-                  handleUpdateSettings({ showAvatar: val });
+                  showToast(t("chat.profile.display_setting_local", "Display settings are local to this client"));
                 }}
               />
             }
@@ -148,7 +165,7 @@ const { id } = useParams();
                 checked={cleanMode}
                 onChange={(val: boolean) => {
                   setCleanMode(val);
-                  handleUpdateSettings({ cleanMode: val });
+                  showToast(t("chat.profile.display_setting_local", "Display settings are local to this client"));
                 }}
               />
             }
@@ -169,9 +186,7 @@ const { id } = useParams();
             rightElement={<div />}
             onClick={async () => {
               if (await showConfirm(t('chat.profile.clear_history_confirm'))) {
-                ChatService.clearChatHistory(id as string).then(() => {
-                  navigate(`/chat/${id}`, { replace: true });
-                });
+                showToast(t("chat.profile.clear_history_unavailable", "Clear history is unavailable"));
               }
             }}
           />

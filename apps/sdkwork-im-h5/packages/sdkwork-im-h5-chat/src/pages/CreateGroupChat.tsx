@@ -22,19 +22,45 @@ const navigate = useNavigate();
   const [contactsDict, setContactsDict] = useState<Record<string, User[]>>({});
   const [isCreating, setIsCreating] = useState(false);
   const [existingChat, setExistingChat] = useState<Chat | null>(null);
+  const [nextCursor, setNextCursor] = useState<string>();
+  const [hasMoreContacts, setHasMoreContacts] = useState(false);
+  const [loadingMoreContacts, setLoadingMoreContacts] = useState(false);
 
   const [activeLetter, setActiveLetter] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const letterIndicatorTimeout = useRef<any>(null);
 
   useEffect(() => {
-    ContactService.getContacts().then((data) => {
-      setContacts(data as User[]);
-    });
-    ContactService.getContactsDict().then((data) => {
-      setContactsDict(data as Record<string, User[]>);
+    void ContactService.listContactPage().then((page) => {
+      setContacts(page.items as User[]);
+      setContactsDict(groupContacts(page.items as User[]));
+      setNextCursor(page.nextCursor);
+      setHasMoreContacts(page.hasMore);
+    }).catch((error) => {
+      console.error(error);
+      showToast(t("chat.create_group.contacts_failed", "Unable to load contacts"));
     });
   }, []);
+
+  const loadMoreContacts = async () => {
+    if (!nextCursor || !hasMoreContacts || loadingMoreContacts) return;
+    setLoadingMoreContacts(true);
+    try {
+      const page = await ContactService.listContactPage(nextCursor);
+      const merged = new Map(contacts.map((contact) => [contact.id, contact]));
+      for (const contact of page.items) merged.set(contact.id, contact as User);
+      const items = Array.from(merged.values());
+      setContacts(items);
+      setContactsDict(groupContacts(items));
+      setNextCursor(page.nextCursor);
+      setHasMoreContacts(page.hasMore);
+    } catch (error) {
+      console.error(error);
+      showToast(t("chat.create_group.contacts_failed", "Unable to load contacts"));
+    } finally {
+      setLoadingMoreContacts(false);
+    }
+  };
 
   useEffect(() => {
     if (baseChatId) {
@@ -202,6 +228,11 @@ const navigate = useNavigate();
                 </div>
               ))
           )}
+          {hasMoreContacts && nextCursor && (
+            <button type="button" onClick={() => void loadMoreContacts()} disabled={loadingMoreContacts} className="mx-auto my-3 min-h-10 px-4 text-[14px] text-primary-blue disabled:text-text-sub">
+              {loadingMoreContacts ? t("common.loading", "Loading...") : t("common.load_more", "Load more")}
+            </button>
+          )}
         </div>
       </div>
 
@@ -213,3 +244,16 @@ const navigate = useNavigate();
     </div>
   );
 };
+
+function groupContacts(contacts: User[]): Record<string, User[]> {
+  const grouped: Record<string, User[]> = {};
+  for (const contact of contacts) {
+    const first = contact.name.charAt(0).toUpperCase();
+    const key = /^[A-Z]$/u.test(first) ? first : "#";
+    (grouped[key] ??= []).push(contact);
+  }
+  for (const key of Object.keys(grouped)) {
+    grouped[key].sort((left, right) => left.name.localeCompare(right.name));
+  }
+  return grouped;
+}

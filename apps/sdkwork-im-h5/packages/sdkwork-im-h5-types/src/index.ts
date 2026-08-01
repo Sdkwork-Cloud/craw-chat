@@ -37,6 +37,8 @@ export interface Chat {
   settings?: {
     showAvatar?: boolean;
     cleanMode?: boolean;
+    isMuted?: boolean;
+    isPinned?: boolean;
   };
   isPinned?: boolean;
 }

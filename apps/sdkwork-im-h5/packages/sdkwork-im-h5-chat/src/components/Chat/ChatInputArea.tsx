@@ -46,6 +46,7 @@ interface ChatInputAreaProps {
     metadata?: Record<string, any>,
   ) => void;
   emojis: string[];
+  onFileSelected?: (file: File, kind: "image" | "video" | "file") => void;
 }
 
 export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
@@ -67,6 +68,7 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
   handleSend,
   handleSendCustom,
   emojis,
+  onFileSelected,
 }) => {
   const { t } = useTranslation();
 const togglePanel = (panel: "emoji" | "action") => {
@@ -193,7 +195,7 @@ const togglePanel = (panel: "emoji" | "action") => {
 
       <AnimatePresence initial={false}>
         {activePanel === "action" && (
-          <ChatActionPanel handleSendCustom={handleSendCustom} />
+          <ChatActionPanel handleSendCustom={handleSendCustom} onFileSelected={onFileSelected} />
         )}
         {activePanel === "emoji" && (
           <ChatEmojiPanel emojis={emojis} editor={editor} />

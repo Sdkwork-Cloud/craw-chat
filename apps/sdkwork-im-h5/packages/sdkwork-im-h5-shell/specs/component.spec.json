@@ -27,16 +27,20 @@
   ],
   "contracts": {
     "layerRole": "frontend-shell",
-    "publicExports": [".", "./moduleRegistry", "./routeCatalog"],
+    "publicExports": [".", "./moduleCatalog", "./moduleNavigation", "./moduleRegistry", "./routeCatalog"],
     "providedPorts": [
       { "name": "imH5Shell", "export": "." },
       { "name": "imH5ModuleRegistry", "export": "./moduleRegistry" },
+      { "name": "imH5ModuleCatalog", "export": "./moduleCatalog" },
+      { "name": "imH5ModuleNavigation", "export": "./moduleNavigation" },
       { "name": "imH5RouteCatalog", "export": "./routeCatalog" }
     ],
     "requiredPorts": [
       { "name": "imH5RouteRegistry", "package": "@sdkwork/im-h5-core", "export": "." },
       { "name": "imH5Commons", "package": "@sdkwork/im-h5-commons", "export": "." },
       { "name": "imH5Chat", "package": "@sdkwork/im-h5-chat", "export": "." },
+      { "name": "imH5Contacts", "package": "@sdkwork/im-h5-contacts", "export": "." },
+      { "name": "imH5DriveAdapter", "package": "@sdkwork/im-h5-cloud-drive", "export": "." },
       { "name": "imH5NotaryAdapter", "package": "@sdkwork/im-h5-notary", "export": "." }
     ],
     "runtimeEntrypoints": ["ImH5Shell"],

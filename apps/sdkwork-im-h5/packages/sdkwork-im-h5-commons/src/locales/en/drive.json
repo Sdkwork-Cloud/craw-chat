@@ -4,12 +4,14 @@
   "storage_space": "Personal Space",
   "storage_used": "Used {{percent}}%",
   "storage_available": "Available {{available}} GB",
+  "storage_available_unknown": "No storage limit",
   "actions": {
     "recent": "Recent",
     "files": "Files",
     "transfer": "Transfer",
     "quick": "Quick"
   },
+  "action_unavailable": "This capability is not available yet",
   "sections": {
     "recent_used": "Recently Used",
     "all_files": "All Files"
@@ -27,5 +29,17 @@
   "enter_new_name": "Please enter new name",
   "folder_created": "Folder created",
   "file_uploaded": "File uploaded",
-  "file_deleted": "File deleted"
+  "file_deleted": "File deleted",
+  "search_prompt": "Enter a file name",
+  "enter_folder_name": "Enter a folder name",
+  "default_folder_name": "New Folder",
+  "filter_title": "Filter Files",
+  "filter_all": "All",
+  "filter_files": "Files Only",
+  "filter_folders": "Folders Only",
+  "share_claim_title": "Accept Shared File",
+  "share_claim_claiming": "Accepting shared file...",
+  "share_claim_claimed": "The shared file was added to Cloud Drive",
+  "share_claim_failed": "The share link is invalid or expired",
+  "view_drive": "View Cloud Drive"
 }

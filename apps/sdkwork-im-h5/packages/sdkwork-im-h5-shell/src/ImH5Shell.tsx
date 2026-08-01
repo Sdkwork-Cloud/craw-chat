@@ -6,8 +6,13 @@ import type {
   ImH5ModuleId,
   ImH5RouteContribution,
 } from "./contracts";
-import { DEFAULT_IM_H5_MODULES, resolveImH5ShellModules } from "./moduleRegistry";
+import {
+  DEFAULT_IM_H5_MODULES,
+  resolveImH5ShellModules,
+  validateImH5ShellModules,
+} from "./moduleRegistry";
 import { IM_APP_HOME_PATH } from "./modules/chatModule";
+import { resolveImH5ShellHomePath } from "./moduleNavigation";
 import { TabBar } from "./navigation/TabBar";
 
 export interface ImH5ShellProps {
@@ -53,6 +58,10 @@ export function listImH5ShellRouteMetadata(modules: readonly ImH5CapabilityModul
 
 export function ImH5Shell({ children, moduleIds = DEFAULT_IM_H5_MODULES, modules }: ImH5ShellProps) {
   const resolvedModules = modules ? [...modules] : resolveImH5ShellModules(moduleIds);
+  if (modules) {
+    validateImH5ShellModules(resolvedModules);
+  }
+  const homePath = resolveImH5ShellHomePath(resolvedModules, IM_APP_HOME_PATH);
   return (
     <>
       {resolvedModules.map((module) => {
@@ -65,7 +74,7 @@ export function ImH5Shell({ children, moduleIds = DEFAULT_IM_H5_MODULES, modules
             module.routes.map((route) => renderRoute(route, resolvedModules))
           )}
           {children}
-          <Route path="*" element={<Navigate to={IM_APP_HOME_PATH} replace />} />
+          <Route path="*" element={<Navigate to={homePath} replace />} />
         </Routes>
       </React.Suspense>
     </>

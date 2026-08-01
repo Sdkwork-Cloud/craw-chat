@@ -30,6 +30,10 @@ function createSdk(overrides: ContactsSdkOverrides = {}): ContactsSdkPort {
         ...overrides.social?.contacts,
       },
       friendRequests: {
+        list: async () => ({
+          items: [],
+          pageInfo: { mode: "cursor", hasMore: false },
+        }),
         create: async (body) => ({
           friendRequest: {
             tenantId: "tenant-1",
@@ -42,6 +46,10 @@ function createSdk(overrides: ContactsSdkOverrides = {}): ContactsSdkPort {
             updatedAt: "2026-07-29T00:00:00Z",
           },
         }),
+        accept: async () => { throw new Error("Unexpected friend request acceptance"); },
+        decline: async () => { throw new Error("Unexpected friend request decline"); },
+        cancel: async () => { throw new Error("Unexpected friend request cancellation"); },
+        pendingCount: async () => ({ count: 0 }),
         ...overrides.social?.friendRequests,
       },
       users: {
@@ -163,6 +171,56 @@ test("creates a real friend request for the selected user ID", async () => {
 
   await service.addFriend(" user-1 ", " Hello ");
   assert.deepEqual(request, { targetUserId: "user-1", requestMessage: "Hello" });
+});
+
+test("lists and resolves friend requests through the injected IM SDK", async () => {
+  const calls: string[] = [];
+  let listParams: unknown;
+  const service = createContactService(() => createSdk({
+    social: {
+      friendRequests: {
+        list: async (params) => {
+          listParams = params;
+          return {
+            items: [{
+              tenantId: "tenant-1",
+              friendRequestId: "request-1",
+              requesterUserId: "user-1",
+              targetUserId: "current-user",
+              status: "pending",
+              createdAt: "2026-07-31T00:00:00Z",
+              updatedAt: "2026-07-31T00:00:00Z",
+            }],
+            pageInfo: { mode: "cursor", hasMore: true, nextCursor: "next" },
+          };
+        },
+        pendingCount: async () => ({ count: 1 }),
+        accept: async (requestId) => {
+          calls.push(`accept:${requestId}`);
+          return {} as Awaited<ReturnType<ContactsSdkPort["social"]["friendRequests"]["accept"]>>;
+        },
+        decline: async (requestId) => {
+          calls.push(`decline:${requestId}`);
+          return {} as Awaited<ReturnType<ContactsSdkPort["social"]["friendRequests"]["decline"]>>;
+        },
+      },
+    },
+  }));
+
+  const page = await service.listFriendRequests("incoming", "cursor-1");
+  assert.deepEqual(listParams, {
+    cursor: "cursor-1",
+    direction: "incoming",
+    pageSize: 50,
+    status: "pending",
+  });
+  assert.equal(page.items[0]?.friendRequestId, "request-1");
+  assert.equal(page.nextCursor, "next");
+  assert.equal(await service.getPendingFriendRequestCount(), 1);
+
+  await service.acceptFriendRequest(" request-1 ");
+  await service.declineFriendRequest(" request-2 ");
+  assert.deepEqual(calls, ["accept:request-1", "decline:request-2"]);
 });
 
 test("starts a direct conversation with a UUID request key", async () => {

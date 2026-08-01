@@ -12,9 +12,13 @@
     }
   },
   "dependencies": {
+    "@tiptap/extension-placeholder": "catalog:",
+    "@tiptap/react": "catalog:",
+    "@tiptap/starter-kit": "catalog:",
     "@sdkwork/im-h5-commons": "workspace:*",
     "@sdkwork/im-h5-contacts": "workspace:*",
     "@sdkwork/im-h5-core": "workspace:*",
+    "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/im-h5-types": "workspace:*",
     "@sdkwork/music-mobile-react-playback": "workspace:*",
     "@sdkwork/utils": "workspace:*",

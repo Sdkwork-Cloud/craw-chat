@@ -4,10 +4,13 @@ import type {
   ConversationInboxPage,
   ConversationMessageEntry,
   ConversationMessageListResponse,
+  ConversationPreferencesView,
+  ConversationProfileView,
   CreateConversationRequest,
   CreateConversationResult,
   FavoriteMessageRequest,
   FavoriteMessagesResponse,
+  ListMembersResponse,
   MessageFavoriteView,
   PostMessageResult,
   UpdateConversationPreferencesRequest,
@@ -15,8 +18,22 @@ import type {
 import type { Chat, Message, User } from "@sdkwork/im-h5-types";
 
 import { getChatImSdkClient } from "./chatConversationService";
+import { createChatMediaDownloadUrl, uploadChatMedia, type ChatMediaUpload } from "./chatMediaUploadService";
 
 const LEGACY_CHAT_PAGE_SIZE = 50;
+
+export interface ChatPage {
+  items: Chat[];
+  hasMore: boolean;
+  nextCursor?: string;
+}
+
+export interface MessagePage {
+  items: Message[];
+  hasMore: boolean;
+  highWatermark: number;
+  nextCursor?: string;
+}
 
 export interface ChatSdkPort {
   conversations: {
@@ -35,11 +52,15 @@ export interface ChatSdkPort {
       conversationId: string,
       params?: { cursor?: string; pageSize?: number },
     ): Promise<ConversationMessageListResponse>;
+    getPreferences(conversationId: string): Promise<ConversationPreferencesView>;
+    getProfile(conversationId: string): Promise<ConversationProfileView>;
+    listMembers(conversationId: string, params?: { cursor?: string; pageSize?: number }): Promise<ListMembersResponse>;
     postText(
       conversationId: string,
       text: string,
       body?: { clientMsgId?: string | null },
     ): Promise<PostMessageResult>;
+    postMessage?(conversationId: string, body: { text?: string; parts?: unknown[]; clientMsgId?: string }): Promise<PostMessageResult>;
     updatePreferences(
       conversationId: string,
       body: UpdateConversationPreferencesRequest,
@@ -87,13 +108,72 @@ export function createChatService(
   };
 
   return {
+    async listChatPage(cursor?: string, q?: string): Promise<ChatPage> {
+      const page = await resolveClient().conversations.list({
+        pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE),
+        ...(cursor ? { cursor } : {}),
+        ...(q?.trim() ? { q: q.trim() } : {}),
+      });
+      assertCursorPage(page.pageInfo, "IM inbox");
+      return {
+        items: page.items.map(mapInboxEntry),
+        hasMore: page.pageInfo.hasMore === true,
+        ...(page.pageInfo.nextCursor ? { nextCursor: page.pageInfo.nextCursor } : {}),
+      };
+    },
+
     async getChats(): Promise<Chat[]> {
       const page = await listInbox();
       return page.items.map(mapInboxEntry);
     },
 
-    async getChatById(_conversationId: string): Promise<Chat | undefined> {
-      throw new ChatCapabilityUnavailableError("Conversation retrieval by ID");
+    async getChatById(conversationId: string): Promise<Chat | undefined> {
+      const [profile, members, preferences, inbox] = await Promise.all([
+        resolveClient().conversations.getProfile(conversationId),
+        resolveClient().conversations.listMembers(conversationId, {
+          pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE),
+        }),
+        resolveClient().conversations.getPreferences(conversationId),
+        resolveClient().conversations.list({ pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE) }),
+      ]);
+      assertCursorPage(members.pageInfo, "IM conversation members");
+      assertCursorPage(inbox.pageInfo, "IM inbox");
+      const inboxEntry = inbox.items.find((entry) => entry.conversationId === conversationId);
+      const participants = members.items
+        .filter((member) => member.state === "joined" || member.state === "linked")
+        .map((member) => {
+          const peer = inboxEntry?.peer;
+          const isPeer = peer && (peer.userId ?? peer.principalId) === member.principalId;
+          return {
+            id: member.principalId,
+            name: isPeer ? (peer.displayName ?? peer.principalId) : member.principalId,
+            ...(isPeer && peer.avatarUrl ? { avatar: peer.avatarUrl } : {}),
+          };
+        });
+      return {
+        id: conversationId,
+        type: participants.length > 2 ? "group" : "direct",
+        participants,
+        unreadCount: 0,
+        name: profile.displayName || inboxEntry?.displayName || undefined,
+        avatar: profile.avatarUrl || inboxEntry?.avatarUrl || undefined,
+        isPinned: preferences.isPinned,
+        settings: { showAvatar: true, cleanMode: false, isMuted: preferences.isMuted, isPinned: preferences.isPinned },
+      };
+    },
+
+    async getMessagePage(conversationId: string, cursor?: string): Promise<MessagePage> {
+      const page = await resolveClient().conversations.listMessages(conversationId, {
+        pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE),
+        ...(cursor ? { cursor } : {}),
+      });
+      assertCursorPage(page.pageInfo, "IM message history");
+      return {
+        items: await Promise.all(page.items.map(mapMessageEntryWithDownloadUrl)),
+        highWatermark: page.highWatermark,
+        hasMore: page.pageInfo.hasMore === true,
+        ...(page.pageInfo.nextCursor ? { nextCursor: page.pageInfo.nextCursor } : {}),
+      };
     },
 
     async getMessages(conversationId: string): Promise<Message[]> {
@@ -101,7 +181,7 @@ export function createChatService(
         pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE),
       });
       assertCursorPage(page.pageInfo, "IM message history");
-      return page.items.map(mapMessageEntry);
+      return Promise.all(page.items.map(mapMessageEntryWithDownloadUrl));
     },
 
     async searchChatHistory(
@@ -128,7 +208,27 @@ export function createChatService(
       if (!storedMessage) {
         throw new Error("The accepted message was not returned by IM history.");
       }
-      return mapMessageEntry(storedMessage);
+      return mapMessageEntryWithDownloadUrl(storedMessage);
+    },
+
+    async sendMediaMessage(
+      conversationId: string,
+      file: Parameters<typeof uploadChatMedia>[1],
+      kind: ChatMediaUpload["resource"]["kind"],
+      options: Parameters<typeof uploadChatMedia>[3] = {},
+    ): Promise<Message> {
+      const media = await uploadChatMedia(conversationId, file, kind, options);
+      const client = resolveClient();
+      if (!client.conversations.postMessage) {
+        throw new ChatCapabilityUnavailableError("Media message composition");
+      }
+      const result = await client.conversations.postMessage(conversationId, {
+        parts: [{ kind: "media", drive: media.drive, resource: media.resource, mediaRole: "attachment" }],
+        clientMsgId: uuid(),
+      });
+      const storedMessage = await findMessageById(conversationId, result.messageId);
+      if (!storedMessage) throw new Error("The accepted media message was not returned by IM history.");
+      return mapMessageEntryWithDownloadUrl(storedMessage);
     },
 
     async searchChats(query: string): Promise<Chat[]> {
@@ -196,10 +296,15 @@ export function createChatService(
     },
 
     async updateChatSettings(
-      _conversationId: string,
-      _settings: Partial<Chat["settings"]>,
+      conversationId: string,
+      settings: Partial<Chat["settings"]>,
     ): Promise<Chat | undefined> {
-      throw new ChatCapabilityUnavailableError("Legacy chat display settings");
+      const preferences: UpdateConversationPreferencesRequest = {};
+      if (settings.isMuted !== undefined) preferences.isMuted = settings.isMuted;
+      if (settings.isPinned !== undefined) preferences.isPinned = settings.isPinned;
+      if (Object.keys(preferences).length === 0) return undefined;
+      await resolveClient().conversations.updatePreferences(conversationId, preferences);
+      return undefined;
     },
 
     async pinChat(conversationId: string, isPinned: boolean): Promise<void> {
@@ -320,14 +425,40 @@ function mapInboxEntry(entry: ConversationInboxEntry): Chat {
 }
 
 function mapMessageEntry(message: ConversationMessageEntry): Message {
+  const mediaPart = message.body.parts.find((part) => part.kind === "media");
+  const media = mediaPart?.kind === "media" ? mediaPart : undefined;
+  const mediaKind = media?.resource.kind;
+  const messageType: Message["type"] = mediaKind === "image"
+    ? "image"
+    : mediaKind === "video"
+      ? "video"
+      : mediaKind === "voice" || mediaKind === "audio"
+        ? "voice"
+        : mediaKind === "file" || mediaKind === "document"
+          ? "file"
+          : "text";
+  const mediaUrl = media?.resource.publicUrl ?? media?.resource.url ?? media?.resource.uri;
   return {
     chatId: message.conversationId,
-    content: message.body.text ?? message.summary ?? "",
+    content: mediaUrl ?? message.body.text ?? message.summary ?? "",
     id: message.messageId,
     senderId: message.sender.id,
     timestamp: parseTimestamp(message.occurredAt),
-    type: "text",
+    type: messageType,
+    ...(media ? { metadata: { fileName: media.resource.fileName ?? undefined, mimeType: media.resource.mimeType ?? undefined, size: media.resource.sizeBytes ?? undefined, duration: media.resource.durationSeconds ?? undefined, driveUri: media.drive.driveUri, nodeId: media.drive.nodeId } } : {}),
   };
+}
+
+async function mapMessageEntryWithDownloadUrl(message: ConversationMessageEntry): Promise<Message> {
+  const mapped = mapMessageEntry(message);
+  const nodeId = typeof mapped.metadata?.nodeId === "string" ? mapped.metadata.nodeId : undefined;
+  if (!nodeId || mapped.type === "text") return mapped;
+  try {
+    return { ...mapped, content: await createChatMediaDownloadUrl(nodeId) };
+  } catch (error) {
+    console.error("Unable to resolve Drive-backed chat media", error);
+    return mapped;
+  }
 }
 
 function parseTimestamp(value: string): number {

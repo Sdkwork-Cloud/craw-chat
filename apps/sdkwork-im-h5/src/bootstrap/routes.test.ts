@@ -6,6 +6,17 @@ import { IM_H5_ROUTE_REGISTRY } from "./routes";
 const MOUNTED_ROUTE_PATHS = [
   "/",
   "/chat/:conversationId",
+  "/chat/:id/profile",
+  "/create-group",
+  "/call/voice/:id",
+  "/call/video/:id",
+  "/workspace/contacts",
+  "/search",
+  "/add-friend",
+  "/contacts/friend-requests",
+  "/contacts/org",
+  "/workspace/drive",
+  "/workspace/drive/share/:token",
   "/workspace",
   "/workspace/notary",
   "/notary",
@@ -23,7 +34,7 @@ const MOUNTED_ROUTE_PATHS = [
   "/notary/cases/:caseId/parties/:partyId/video-qr",
 ] as const;
 
-test("route registry matches every route mounted by the H5 shell", () => {
+test("route registry matches every built-in H5 shell route contribution", () => {
   assert.deepEqual(
     IM_H5_ROUTE_REGISTRY.map((route) => route.path),
     MOUNTED_ROUTE_PATHS,

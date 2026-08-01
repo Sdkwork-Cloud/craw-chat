@@ -1,7 +1,12 @@
 export * from "./contracts";
 export * from "./ImH5Shell";
+export * from "./moduleCatalog";
+export * from "./moduleNavigation";
 export * from "./moduleRegistry";
+export * from "./moduleValidation";
 export * from "./modules/chatModule";
+export * from "./modules/contactsModule";
+export * from "./modules/driveModule";
 export * from "./routeCatalog";
 export { TabBar } from "./navigation/TabBar";
 export { default } from "./ImH5Shell";

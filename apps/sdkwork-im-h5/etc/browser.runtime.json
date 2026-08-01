@@ -7,5 +7,9 @@
     "applicationHttp": "VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
     "applicationWebSocket": "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL",
     "sdkGatewayHttp": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
+  },
+  "moduleComposition": {
+    "binding": "VITE_SDKWORK_IM_H5_MODULES",
+    "defaultModuleIds": ["chat", "notary"]
   }
 }

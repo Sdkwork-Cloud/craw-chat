@@ -58,6 +58,7 @@ for (const required of [
   'src/main.tsx',
   'src/index.css',
   'src/bootstrap/environment.ts',
+  'src/bootstrap/composition.ts',
   'src/bootstrap/runtime.ts',
   'src/bootstrap/sdkClients.ts',
   'src/bootstrap/iamRuntime.ts',
@@ -75,8 +76,12 @@ for (const required of [
   'packages/sdkwork-im-h5-shell/package.json',
   'packages/sdkwork-im-h5-shell/specs/component.spec.json',
   'packages/sdkwork-im-h5-shell/src/ImH5Shell.tsx',
+  'packages/sdkwork-im-h5-shell/src/moduleCatalog.ts',
+  'packages/sdkwork-im-h5-shell/src/moduleNavigation.ts',
   'packages/sdkwork-im-h5-shell/src/moduleRegistry.ts',
+  'packages/sdkwork-im-h5-shell/src/moduleValidation.ts',
   'packages/sdkwork-im-h5-shell/src/modules/chatModule.tsx',
+  'packages/sdkwork-im-h5-shell/src/modules/contactsModule.tsx',
   'packages/sdkwork-im-h5-shell/src/modules/notaryModule.tsx',
   'config/browser/runtime-env.development.example.json',
   'config/browser/runtime-env.test.example.json',
@@ -143,8 +148,11 @@ const appSource = read('src/App.tsx');
 const imAppSource = read('src/ImApp.tsx');
 const shellSource = read('packages/sdkwork-im-h5-shell/src/ImH5Shell.tsx');
 const shellModuleRegistrySource = read('packages/sdkwork-im-h5-shell/src/moduleRegistry.ts');
+const shellModuleCatalogSource = read('packages/sdkwork-im-h5-shell/src/moduleCatalog.ts');
 const shellRouteCatalogSource = read('packages/sdkwork-im-h5-shell/src/routeCatalog.ts');
 const shellChatModuleSource = read('packages/sdkwork-im-h5-shell/src/modules/chatModule.tsx');
+const shellContactsModuleSource = read('packages/sdkwork-im-h5-shell/src/modules/contactsModule.tsx');
+const shellDriveModuleSource = read('packages/sdkwork-im-h5-shell/src/modules/driveModule.tsx');
 const shellNotaryModuleSource = read('packages/sdkwork-im-h5-shell/src/modules/notaryModule.tsx');
 const readmeSource = read('README.md');
 const serverSource = read('server.ts');
@@ -161,12 +169,13 @@ const voiceSummaryPageSource = read('../../../sdkwork-voice/apps/sdkwork-voice-c
 const voiceSummarySource = read('../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation/src/services/VoiceSummaryService.ts');
 const voiceCatalogSource = read('packages/sdkwork-im-h5-commons/src/services/VoiceService.ts');
 const legacyApiClientSource = read('packages/sdkwork-im-h5-commons/src/ApiClient.ts');
+const cloudDriveServiceSource = read('../../../sdkwork-drive/apps/sdkwork-drive-common/packages/sdkwork-drive-mobile-react-drive/src/services/CloudDriveService.ts');
+const cloudDrivePageSource = read('../../../sdkwork-drive/apps/sdkwork-drive-common/packages/sdkwork-drive-mobile-react-drive/src/pages/CloudDriveApp.tsx');
 const deferredCapabilityServices = [
   ['CalendarService', 'CalendarCapabilityUnavailableError', 'packages/sdkwork-im-h5-calendar/src/services/CalendarService.ts'],
   ['ApprovalService', 'ApprovalCapabilityUnavailableError', 'packages/sdkwork-im-h5-approval/src/services/ApprovalService.ts'],
   ['AttendanceService', 'AttendanceCapabilityUnavailableError', 'packages/sdkwork-im-h5-attendance/src/services/AttendanceService.ts'],
   ['ReportService', 'ReportCapabilityUnavailableError', 'packages/sdkwork-im-h5-report/src/services/ReportService.ts'],
-  ['CloudDriveService', 'CloudDriveCapabilityUnavailableError', '../../../sdkwork-drive/apps/sdkwork-drive-common/packages/sdkwork-drive-mobile-react-drive/src/services/CloudDriveService.ts'],
   ['MeetingService', 'MeetingCapabilityUnavailableError', '../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting/src/services/MeetingService.ts'],
   ['ChannelService', 'ChannelCapabilityUnavailableError', 'packages/sdkwork-im-h5-channels/src/services/ChannelService.ts'],
   ['HardwareService', 'HardwareCapabilityUnavailableError', '../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src/services/HardwareService.ts'],
@@ -194,7 +203,6 @@ const deferredCapabilityPages = [
   'packages/sdkwork-im-h5-report/src/pages/ReportApp.tsx',
   'packages/sdkwork-im-h5-report/src/pages/ReportDetail.tsx',
   'packages/sdkwork-im-h5-report/src/pages/CreateReport.tsx',
-  '../../../sdkwork-drive/apps/sdkwork-drive-common/packages/sdkwork-drive-mobile-react-drive/src/pages/CloudDriveApp.tsx',
   '../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting/src/pages/MeetingApp.tsx',
   '../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting/src/pages/MeetingDetail.tsx',
   '../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting/src/pages/CreateMeeting.tsx',
@@ -272,8 +280,24 @@ assert.match(
   'H5 notary routes must load their capability package on demand',
 );
 assert.match(shellSource, /resolveImH5ShellModules/u, 'H5 shell must resolve selected capability modules');
+assert.match(shellSource, /resolveImH5ShellHomePath/u, 'H5 shell must derive fallback navigation from selected modules');
 assert.match(shellSource, /module\.routes/u, 'H5 shell must assemble capability route contributions');
-assert.match(shellModuleRegistrySource, /CONTRACT_PENDING_IM_H5_MODULES/u, 'unavailable modules must remain fail closed');
+assert.match(shellModuleCatalogSource, /CONTRACT_PENDING_IM_H5_MODULES/u, 'unavailable modules must remain fail closed');
+assert.match(shellModuleCatalogSource, /DEFAULT_IM_H5_MODULES\s*=\s*\["chat", "notary"\]/u, 'default H5 product composition must remain unchanged');
+assert.match(shellModuleRegistrySource, /contacts:\s*contactsModule/u, 'contacts must be available as an optional built-in module');
+assert.match(shellModuleRegistrySource, /drive:\s*driveModule/u, 'Drive must be available as an optional built-in module');
+assert.match(shellContactsModuleSource, /React\.lazy/u, 'H5 contacts routes must use lazy loading');
+assert.match(
+  shellContactsModuleSource,
+  /import\("@sdkwork\/im-h5-contacts"\)/u,
+  'H5 contacts routes must load their capability package on demand',
+);
+assert.match(shellDriveModuleSource, /React\.lazy/u, 'H5 Drive routes must use lazy loading');
+assert.match(
+  shellDriveModuleSource,
+  /import\("@sdkwork\/im-h5-cloud-drive"\)/u,
+  'H5 Drive routes must load the owner compatibility package on demand',
+);
 assert.match(
   viteSource,
   /cacheDir:\s*path\.resolve\(__dirname, 'node_modules', '\.vite', 'sdkwork-im-h5'\)/u,
@@ -334,6 +358,14 @@ assert.match(aiVideoSource, /AIVideoCapabilityUnavailableError/u);
 assert.match(aiWritingSource, /AIWritingCapabilityUnavailableError/u);
 assert.match(voiceSummarySource, /VoiceSummaryCapabilityUnavailableError/u);
 assert.match(voiceCatalogSource, /VoiceCapabilityUnavailableError/u);
+assert.match(cloudDriveServiceSource, /configureCloudDriveRuntime/u);
+assert.match(cloudDriveServiceSource, /client\.drive\.nodes\.list/u);
+assert.match(cloudDriveServiceSource, /client\.uploader\.upload/u);
+assert.doesNotMatch(
+  `${cloudDriveServiceSource}\n${cloudDrivePageSource}`,
+  /fetch\s*\(|axios|localStorage|sessionStorage|Math\.random|\/mock\//u,
+  'Cloud Drive must use the injected owner SDK without local transport or fabricated state',
+);
 for (const [name, errorName, source] of deferredCapabilityServices) {
   assert.doesNotMatch(source, /fetch\s*\(|localStorage|sessionStorage/u, `${name} must not own transport or browser business state`);
   assert.doesNotMatch(source, /Math\.random|Date\.now|setInterval|setTimeout|\/mock\//u, `${name} must not fabricate work or results`);
@@ -414,6 +446,7 @@ assert.match(chatRealtime, /teardownConnectionIfIdle/u);
 assert.match(chatRealtime, /disposeChatLiveConnection/u);
 
 const app = read('src/App.tsx');
+const composition = read('src/bootstrap/composition.ts');
 const runtime = read('src/bootstrap/runtime.ts');
 const environment = read('src/bootstrap/environment.ts');
 const sdkClients = read('src/bootstrap/sdkClients.ts');
@@ -422,11 +455,16 @@ const hostAdapters = read('src/bootstrap/hostAdapters.ts');
 const routesBootstrap = read('src/bootstrap/routes.ts');
 assert.match(app, /HashRouter/u);
 assert.match(app, /ImH5Shell/u);
+assert.match(app, /resolveConfiguredImH5ModuleIds/u);
+assert.match(app, /moduleIds=\{moduleIds\}/u);
 assert.match(app, /AuthGate/u);
 assert.match(app, /IM_APP_HOME_PATH/u);
 assert.match(runtime, /createIamRuntime/u);
 assert.match(environment, /resolveH5RuntimeEnvironment/u);
 assert.match(environment, /deploymentProfile/u);
+assert.match(composition, /VITE_SDKWORK_IM_H5_MODULES/u);
+assert.match(composition, /DEFAULT_IM_H5_MODULES/u);
+assert.match(composition, /COMPOSABLE_IM_H5_MODULES/u);
 assert.match(sdkClients, /initSdkClients/u);
 assert.match(sdkClients, /getDriveAppSdkClientFromBootstrap/u);
 assert.match(tokenManager, /resolveTokenManagerBinding/u);

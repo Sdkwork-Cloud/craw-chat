@@ -14,6 +14,14 @@
       "import": "./src/moduleRegistry.ts",
       "types": "./src/moduleRegistry.ts"
     },
+    "./moduleCatalog": {
+      "import": "./src/moduleCatalog.ts",
+      "types": "./src/moduleCatalog.ts"
+    },
+    "./moduleNavigation": {
+      "import": "./src/moduleNavigation.ts",
+      "types": "./src/moduleNavigation.ts"
+    },
     "./routeCatalog": {
       "import": "./src/routeCatalog.ts",
       "types": "./src/routeCatalog.ts"
@@ -22,7 +30,9 @@
   "dependencies": {
     "@sdkwork/im-h5-chat": "workspace:*",
     "@sdkwork/im-h5-commons": "workspace:*",
+    "@sdkwork/im-h5-contacts": "workspace:*",
     "@sdkwork/im-h5-core": "workspace:*",
+    "@sdkwork/im-h5-cloud-drive": "workspace:*",
     "@sdkwork/im-h5-notary": "workspace:*",
     "lucide-react": "catalog:",
     "react": "catalog:",

@@ -4,12 +4,14 @@
   "storage_space": "个人空间",
   "storage_used": "已用 {{percent}}%",
   "storage_available": "可用 {{available}} GB",
+  "storage_available_unknown": "未设置容量上限",
   "actions": {
     "recent": "最近",
     "files": "文件",
     "transfer": "传输",
     "quick": "快捷"
   },
+  "action_unavailable": "该能力尚未开放",
   "sections": {
     "recent_used": "最近使用",
     "all_files": "全部文件"
@@ -27,5 +29,17 @@
   "enter_new_name": "请输入新名称",
   "folder_created": "已新建文件夹",
   "file_uploaded": "文件已上传",
-  "file_deleted": "文件已删除"
+  "file_deleted": "文件已删除",
+  "search_prompt": "请输入文件名称",
+  "enter_folder_name": "请输入文件夹名称",
+  "default_folder_name": "新建文件夹",
+  "filter_title": "筛选文件",
+  "filter_all": "全部",
+  "filter_files": "仅文件",
+  "filter_folders": "仅文件夹",
+  "share_claim_title": "接收共享文件",
+  "share_claim_claiming": "正在接收共享文件...",
+  "share_claim_claimed": "共享文件已加入云盘",
+  "share_claim_failed": "共享链接无效或已失效",
+  "view_drive": "查看云盘"
 }

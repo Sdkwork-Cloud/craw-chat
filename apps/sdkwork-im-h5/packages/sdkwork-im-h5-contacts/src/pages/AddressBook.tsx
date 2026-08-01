@@ -12,7 +12,6 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { IconButton, showToast } from "@sdkwork/im-h5-commons";
-import { MAX_LIST_PAGE_SIZE } from "@sdkwork/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { ContactService, type Contact } from "../services/ContactService";
 import { TopFunctionRow } from "../components/TopFunctionRow";
@@ -97,11 +96,9 @@ const navigate = useNavigate();
       for (const contact of page.items) {
         byId.set(contact.id, contact);
       }
-      const bounded = Array.from(byId.values()).slice(0, MAX_LIST_PAGE_SIZE);
-      setContactsData(groupContacts(bounded));
-      const reachedWindowLimit = bounded.length >= MAX_LIST_PAGE_SIZE;
-      setNextCursor(reachedWindowLimit ? undefined : page.nextCursor);
-      setHasMore(!reachedWindowLimit && page.hasMore);
+      setContactsData(groupContacts(Array.from(byId.values())));
+      setNextCursor(page.nextCursor);
+      setHasMore(page.hasMore);
       setLoadError(false);
     } catch (error) {
       console.error(error);
@@ -180,7 +177,7 @@ const navigate = useNavigate();
             icon={UserPlus}
             title={t('contacts.new_friends')}
             bgColor="bg-[#FA9D3B]"
-            onClick={() => navigate("/add-friend")}
+            onClick={() => navigate("/contacts/friend-requests")}
           />
           <TopFunctionRow
             icon={Users}
