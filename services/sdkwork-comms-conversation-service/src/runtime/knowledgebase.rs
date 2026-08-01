@@ -4118,11 +4118,14 @@ fn group_knowledgebase_durable_snapshot(
     scope: &GroupKnowledgebaseScope,
 ) -> Result<GroupKnowledgebaseDurableSnapshot, RuntimeError> {
     scope.validate()?;
-    let aggregate_store = runtime.aggregate_store.as_ref().ok_or_else(|| {
-        RuntimeError::Contract(ContractError::Unavailable(
-            "group knowledgebase requires the normalized Conversation aggregate store".into(),
-        ))
-    })?;
+    let Some(aggregate_store) = runtime.aggregate_store.as_ref() else {
+        // Dev/test runtimes without a durable aggregate store treat the hot
+        // conversation state as authoritative, matching the runtime's fallback
+        // rule for aggregate-store-less processes. KB membership
+        // synchronization is a best-effort side channel: it must never block
+        // the IM membership mutation.
+        return group_knowledgebase_hot_snapshot(runtime, scope);
+    };
     let conversation = aggregate_store
         .load_conversation(
             scope.tenant_id.as_str(),
@@ -4236,6 +4239,81 @@ fn group_knowledgebase_durable_snapshot(
 
     Ok(GroupKnowledgebaseDurableSnapshot {
         membership_epoch: conversation.member_epoch,
+        roster,
+        archive,
+    })
+}
+
+/// Builds the membership snapshot from the hot conversation state for
+/// aggregate-store-less runtimes (dev/test fixtures and embedded wiring).
+/// The hot aggregate and roster are authoritative in that configuration,
+/// which mirrors `ensure_conversation_loaded`'s in-memory authority rule.
+fn group_knowledgebase_hot_snapshot(
+    runtime: &ConversationRuntime<ConversationCommitJournal>,
+    scope: &GroupKnowledgebaseScope,
+) -> Result<GroupKnowledgebaseDurableSnapshot, RuntimeError> {
+    runtime.ensure_conversation_loaded(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        scope.conversation_id.as_str(),
+    )?;
+    let scope_key = conversation_scope_key(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        scope.conversation_id.as_str(),
+    );
+    let state = read_runtime_state(
+        &runtime.state,
+        "conversation-runtime.state.knowledgebase.hot-snapshot",
+    );
+    let conversation = state
+        .conversations
+        .get(scope_key.as_str())
+        .ok_or_else(|| RuntimeError::ConversationNotFound(scope.conversation_id.clone()))?;
+    if conversation.aggregate.conversation_type() != "group" {
+        return Err(RuntimeError::ConversationTypeInvalid(
+            "group knowledgebase hot state targets a non-group Conversation".into(),
+        ));
+    }
+    let commit_seq = conversation.aggregate.commit_seq();
+    let archive = match conversation.aggregate.lifecycle_state() {
+        ConversationLifecycleState::Active => None,
+        ConversationLifecycleState::Archived if commit_seq > 0 => {
+            Some(GroupKnowledgebaseArchiveReconciliation {
+                source_event_id: group_knowledgebase_archive_reconciliation_source_event_id(
+                    scope,
+                    commit_seq,
+                ),
+                actor_id: GROUP_KNOWLEDGEBASE_RECONCILIATION_ACTOR_ID.into(),
+            })
+        }
+        ConversationLifecycleState::Archived => {
+            return Err(RuntimeError::Conflict(
+                "group knowledgebase hot archived Conversation has no committed transition".into(),
+            ));
+        }
+    };
+    let mut roster = ConversationRoster::default();
+    for member in conversation.roster.members().values() {
+        if !member.is_active() {
+            continue;
+        }
+        let record = member_to_record(
+            scope.tenant_id.as_str(),
+            scope.organization_id.as_str(),
+            scope.conversation_id.as_str(),
+            member,
+        );
+        roster.upsert_member(group_knowledgebase_member_from_normalized_record(scope, &record)?);
+    }
+    if roster.active_principal_count() > im_domain_core::space::MAX_CHAT_GROUP_MAX_MEMBERS as usize
+    {
+        return Err(RuntimeError::Conflict(
+            "group knowledgebase hot roster exceeds the maximum group size".into(),
+        ));
+    }
+    Ok(GroupKnowledgebaseDurableSnapshot {
+        membership_epoch: conversation.aggregate.member_epoch(),
         roster,
         archive,
     })

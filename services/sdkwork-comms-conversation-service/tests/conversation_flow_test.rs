@@ -352,6 +352,32 @@ impl DurableMessageMutationWriter for NormalizedNoopMessageMutationWriter {
             .lock()
             .expect("recorded mutations should lock")
             .push(mutation);
+        Ok(Some(CommitPosition::new("normalized-test", 1)))
+    }
+}
+
+/// Reports the normalized state already carries the mutation (a cross-instance
+/// no-op), so the runtime must converge hot state without a second journal
+/// event.
+#[derive(Default)]
+struct NormalizedAlreadyAppliedMessageMutationWriter {
+    calls: Mutex<usize>,
+}
+
+impl NormalizedAlreadyAppliedMessageMutationWriter {
+    fn call_count(&self) -> usize {
+        *self.calls.lock().expect("writer calls should lock")
+    }
+}
+
+impl DurableMessageMutationWriter for NormalizedAlreadyAppliedMessageMutationWriter {
+    fn persist_message_mutation(
+        &self,
+        _envelope: CommitEnvelope,
+        _mutation: StoredMessageMutation,
+        _outbox: OutboxEventRecord,
+    ) -> Result<Option<CommitPosition>, ContractError> {
+        *self.calls.lock().expect("writer calls should lock") += 1;
         Ok(None)
     }
 }
@@ -709,6 +735,10 @@ impl ConversationAggregateStore for TestAggregateStore {
         let members = match self {
             Self::MemberOnly { member, .. } => vec![member.clone()],
             Self::Snapshot { state, .. } => state.members.clone(),
+            Self::Recording { members, .. } => members
+                .lock()
+                .expect("recording members should lock")
+                .clone(),
             _ => Vec::new(),
         };
         Ok(members.into_iter().find(|member| {
@@ -1153,6 +1183,9 @@ fn runtime_with_current_durable_message(
         .with_id_generator(Arc::new(MessageMutationTestIdGenerator::default()))
         .with_durable_message_mutation_writer(Arc::new(
             NormalizedNoopMessageMutationWriter::default(),
+        ))
+        .with_durable_conversation_event_writer(Arc::new(
+            RecordingNormalizedConversationWriter::default(),
         ));
     runtime
         .create_conversation(CreateConversationCommand {
@@ -1453,6 +1486,9 @@ fn test_high_cardinality_message_edit_hydrates_page_external_sender() {
         .with_id_generator(Arc::new(MessageMutationTestIdGenerator::default()))
         .with_durable_message_mutation_writer(Arc::new(
             NormalizedNoopMessageMutationWriter::default(),
+        ))
+        .with_durable_conversation_event_writer(Arc::new(
+            RecordingNormalizedConversationWriter::default(),
         ));
 
     let edited = runtime
@@ -7443,7 +7479,7 @@ fn test_recall_message_converges_hot_state_when_normalized_state_is_already_reca
         })
         .expect("post should succeed");
 
-    let writer = Arc::new(NormalizedNoopMessageMutationWriter::default());
+    let writer = Arc::new(NormalizedAlreadyAppliedMessageMutationWriter::default());
     let runtime = runtime
         .with_outbox_store(Arc::new(NoopMessageMutationOutboxStore))
         .with_id_generator(Arc::new(MessageMutationTestIdGenerator::default()))
@@ -11060,8 +11096,9 @@ fn test_group_creation_remains_lazy_when_knowledgebase_scope_is_unavailable() {
 
 #[test]
 fn test_change_member_role_persists_aggregate_state() {
+    let aggregate_store = TestAggregateStore::recording();
     let runtime = ConversationRuntime::new(InMemoryJournal::default())
-        .with_aggregate_store(Arc::new(TestAggregateStore::recording()));
+        .with_aggregate_store(Arc::new(aggregate_store.clone()));
 
     runtime
         .create_conversation(CreateConversationCommand {
@@ -11083,9 +11120,6 @@ fn test_change_member_role_persists_aggregate_state() {
             invited_by: "1".into(),
         })
         .expect("owner should be able to add member");
-
-    let aggregate_store = TestAggregateStore::recording();
-    let runtime = runtime.with_aggregate_store(Arc::new(aggregate_store.clone()));
 
     runtime
         .change_conversation_member_role_with_actor_kind(
@@ -11116,8 +11150,9 @@ fn test_change_member_role_persists_aggregate_state() {
 
 #[test]
 fn test_transfer_owner_persists_aggregate_state() {
+    let aggregate_store = TestAggregateStore::recording();
     let runtime = ConversationRuntime::new(InMemoryJournal::default())
-        .with_aggregate_store(Arc::new(TestAggregateStore::recording()));
+        .with_aggregate_store(Arc::new(aggregate_store.clone()));
 
     runtime
         .create_conversation(CreateConversationCommand {
@@ -11139,9 +11174,6 @@ fn test_transfer_owner_persists_aggregate_state() {
             invited_by: "1".into(),
         })
         .expect("owner should be able to add member");
-
-    let aggregate_store = TestAggregateStore::recording();
-    let runtime = runtime.with_aggregate_store(Arc::new(aggregate_store.clone()));
 
     runtime
         .transfer_conversation_owner_with_actor_kind(

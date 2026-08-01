@@ -219,6 +219,16 @@ where
             initial_agent_assignments,
             knowledgebase_initialization_requested,
         } = options;
+        // Explicit group-KB initialization binds a group to an organization
+        // space. A tenant-wide session has no organization scope to bind and
+        // must not silently create an unbound space.
+        if knowledgebase_initialization_requested
+            && matches!(command.organization_id.trim(), "" | "0")
+        {
+            return Err(RuntimeError::PermissionDenied(
+                "group knowledgebase initialization requires an organization-scoped session".into(),
+            ));
+        }
         validate_payload_size(
             "conversationId",
             command.conversation_id.as_str(),

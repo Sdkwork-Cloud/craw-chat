@@ -3,7 +3,8 @@ use im_domain_core::retention::retention_until_from_envelope;
 use im_platform_contracts::{
     AgentAssignmentSource, AgentDispatchReplyCompletion, AgentIntegrationStore,
     AgentReplyCommitResult, CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAgentAssignmentItem,
-    ConversationAggregateStore, ConversationMemberRecord, ConversationSeqAllocator, IdGenerator,
+    ConversationAggregateStore, ConversationMemberPageCursor, ConversationMemberRecord,
+    ConversationSeqAllocator, IdGenerator,
     MessageStore, NormalizedConversationBusinessBindingRecord, NormalizedConversationCommit,
     NormalizedConversationCurrentState, NormalizedConversationHandoffRecord,
     NormalizedConversationPolicyRecord, NormalizedConversationRecord, OutboxStore,
@@ -3274,9 +3275,14 @@ where
         let Some(aggregate_store) = self.aggregate_store.as_ref() else {
             return Ok(());
         };
-        let numeric_member_id = member_id
-            .parse::<i64>()
-            .map_err(|_| RuntimeError::MemberNotFound(member_id.to_owned()))?;
+        // The product-facing member id is the `cm_...` form emitted by
+        // `member_episode_id`; the normalized storage key is its deterministic
+        // hash. Directory views may also surface the numeric storage id, so
+        // resolve both representations before the store lookup.
+        let numeric_member_id = match member_id.parse::<i64>() {
+            Ok(id) => id,
+            Err(_) => normalized_member_storage_id(member_id),
+        };
         let normalized_organization_id =
             im_domain_events::normalize_commit_organization_id(organization_id);
         let member_record = aggregate_store
@@ -3310,12 +3316,104 @@ where
             .conversations
             .get_mut(scope_key.as_str())
             .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+        // Preserve the existing hot member id (the product-facing `cm_...` form):
+        // a cold refresh must update role/state without churning the roster key
+        // or the principal index under command paths that address the member id.
+        let member = if let Some(existing) = conversation
+            .roster
+            .resolve_active_member_with_kind(
+                member.principal_id.as_str(),
+                member.principal_kind.as_str(),
+            )
+        {
+            ConversationMember {
+                member_id: existing.member_id.clone(),
+                ..member
+            }
+        } else {
+            member
+        };
         conversation.roster.upsert_member(member.clone());
         state.sync_actor_inbox_member(normalized_organization_id.as_str(), &member);
         state.touch_conversation(scope_key.as_str());
         drop(state);
         self.maybe_evict_after_write();
         Ok(())
+    }
+
+    fn ensure_member_loaded_by_principal(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        principal_id: &str,
+    ) -> Result<(), RuntimeError> {
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
+        let normalized_organization_id =
+            im_domain_events::normalize_commit_organization_id(organization_id);
+        let scope_key = conversation_scope_key(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+        );
+        {
+            let state = read_runtime_state(
+                &self.state,
+                "conversation-runtime.state.ensure_member_by_principal.hot",
+            );
+            if let Some(conversation) = state.conversations.get(scope_key.as_str()) {
+                if conversation.roster.resolve_current_member(principal_id).is_some() {
+                    return Ok(());
+                }
+            }
+        }
+        let Some(aggregate_store) = self.aggregate_store.as_ref() else {
+            return Ok(());
+        };
+        // Cold loads defer the roster to targeted lookups. The aggregate store
+        // keys members by (principal_kind, principal_id), so a kind-less
+        // command (e.g. a read cursor update) discovers the principal across
+        // explicit keyset pages before authorizing it.
+        let mut page_cursor: Option<ConversationMemberPageCursor> = None;
+        loop {
+            let page = aggregate_store
+                .load_members_page(
+                    tenant_id,
+                    normalized_organization_id.as_str(),
+                    conversation_id,
+                    page_cursor.as_ref(),
+                    CONVERSATION_MEMBER_LIST_MAX_LIMIT,
+                )
+                .map_err(RuntimeError::from)?;
+            if let Some(record) = page
+                .items
+                .into_iter()
+                .find(|record| record.principal_id == principal_id)
+            {
+                let member = conversation_member_from_record(&record);
+                let mut state = write_runtime_state(
+                    &self.state,
+                    "conversation-runtime.state.ensure_member_by_principal.hydrate",
+                );
+                let conversation = state
+                    .conversations
+                    .get_mut(scope_key.as_str())
+                    .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+                conversation.roster.upsert_member(member.clone());
+                state.sync_actor_inbox_member(normalized_organization_id.as_str(), &member);
+                state.touch_conversation(scope_key.as_str());
+                return Ok(());
+            }
+            if !page.has_more {
+                return Ok(());
+            }
+            let Some(next_cursor) = page.next_cursor else {
+                return Err(RuntimeError::Contract(ContractError::Invalid(
+                    "conversation aggregate store returned has_more without next_cursor".into(),
+                )));
+            };
+            page_cursor = Some(next_cursor);
+        }
     }
 
     fn ensure_read_cursor_loaded(
@@ -5384,7 +5482,12 @@ where
         conversation_id: &str,
         principal_id: &str,
     ) -> Result<ConversationMember, RuntimeError> {
-        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
+        self.ensure_member_loaded_by_principal(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_id,
+        )?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(
             &self.state,

@@ -244,7 +244,7 @@ where
         conversation_id: &str,
     ) -> Result<(), RuntimeError> {
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
-        {
+        let hot_agent_assignments_present = {
             let state = read_runtime_state(
                 &self.state,
                 "conversation-runtime.state.agents.normalized-refresh-check",
@@ -265,15 +265,29 @@ where
             {
                 return Ok(());
             }
-        }
+            conversation.aggregate.agent_assignments().is_some()
+        };
 
         let normalized_organization_id =
             im_domain_events::normalize_commit_organization_id(organization_id);
-        let normalized_conversation = self.load_normalized_conversation(
+        let normalized_conversation = match self.load_normalized_conversation(
             tenant_id,
             normalized_organization_id.as_str(),
             conversation_id,
-        )?;
+        ) {
+            Ok(conversation) => conversation,
+            // A write-recording or in-memory aggregate store does not serve
+            // the normalized Conversation row. The hot aggregate is
+            // authoritative for assignments already materialized in memory;
+            // production PostgreSQL always serves the row.
+            Err(RuntimeError::ConversationNotFound(_))
+                if self.agent_integration_store.is_none()
+                    && hot_agent_assignments_present =>
+            {
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        };
         if normalized_conversation.tenant_id != tenant_id
             || normalized_conversation.organization_id != normalized_organization_id
             || normalized_conversation.conversation_id != conversation_id
