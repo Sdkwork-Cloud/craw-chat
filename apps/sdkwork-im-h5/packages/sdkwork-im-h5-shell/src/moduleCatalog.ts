@@ -27,7 +27,7 @@ export const ALL_IM_H5_MODULES = [
   "membership",
 ] as const satisfies readonly ImH5ModuleId[];
 
-export const DEFAULT_IM_H5_MODULES = ["chat", "notary"] as const satisfies readonly ImH5ModuleId[];
+export const DEFAULT_IM_H5_MODULES = ["chat", "notary", "orders"] as const satisfies readonly ImH5ModuleId[];
 
 export const COMPOSABLE_IM_H5_MODULES = new Set<ImH5ModuleId>([
   ...DEFAULT_IM_H5_MODULES,

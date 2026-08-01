@@ -10,6 +10,6 @@
   },
   "moduleComposition": {
     "binding": "VITE_SDKWORK_IM_H5_MODULES",
-    "defaultModuleIds": ["chat", "notary"]
+    "defaultModuleIds": ["chat", "notary", "orders"]
   }
 }

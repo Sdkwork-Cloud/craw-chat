@@ -13,8 +13,12 @@ import {
   initDriveAppSdkClient,
   resetDriveAppSdkClient,
   createDriveAppSdkClientConfig,
+  initOrderAppSdkClient,
+  resetOrderAppSdkClient,
+  createOrderAppSdkClientConfig,
   type ImSdkClient,
   type SdkworkDriveAppClient,
+  type SdkworkAppClient as SdkworkOrderAppClient,
 } from '@sdkwork/im-h5-core/sdk';
 import {
   createNotaryH5ComposedApi,
@@ -29,6 +33,7 @@ import { getTokenManagerBinding } from './tokenManager';
 export interface H5SdkClientComposition {
   readonly driveAppSdkClient: SdkworkDriveAppClient;
   readonly imSdkClient: ImSdkClient;
+  readonly orderAppSdkClient: SdkworkOrderAppClient;
   readonly notaryAppSdkClient: ReturnType<typeof initNotaryH5AppSdkClient>;
   readonly notaryApi: NotaryH5ComposedApi;
 }
@@ -56,6 +61,13 @@ export function initSdkClients(
     }),
   );
 
+  const orderAppSdkClient = initOrderAppSdkClient(
+    createOrderAppSdkClientConfig({
+      baseUrl: environment.orderAppApiBaseUrl,
+      tokenManager,
+    }),
+  );
+
   const notaryAppSdkClient = initNotaryH5AppSdkClient({
     baseUrl: environment.sdkGatewayApiBaseUrl,
     authMode: 'dual-token',
@@ -70,6 +82,7 @@ export function initSdkClients(
   sdkClientComposition = {
     driveAppSdkClient,
     imSdkClient,
+    orderAppSdkClient,
     notaryAppSdkClient,
     notaryApi,
   };
@@ -87,6 +100,7 @@ export function getDriveAppSdkClientFromBootstrap(): SdkworkDriveAppClient {
 export function resetSdkClients(): void {
   resetNotaryH5SdkClients();
   resetDriveAppSdkClient();
+  resetOrderAppSdkClient();
   resetImSdkClient();
   sdkClientComposition = null;
 }

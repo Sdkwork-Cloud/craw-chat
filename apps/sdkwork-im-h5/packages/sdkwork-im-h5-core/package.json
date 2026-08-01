@@ -38,6 +38,7 @@
   "dependencies": {
     "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/im-sdk": "workspace:*",
+    "@sdkwork/order-app-sdk": "workspace:*",
     "@sdkwork/sdk-common": "catalog:",
     "@sdkwork/utils": "workspace:*",
     "zustand": "catalog:"

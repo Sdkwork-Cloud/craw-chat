@@ -206,6 +206,13 @@ export default defineConfig({
         ),
       },
       {
+        find: /^@sdkwork\/order-app-sdk$/,
+        replacement: path.resolve(
+          __dirname,
+          '../../../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/src/index.ts',
+        ),
+      },
+      {
         find: /^@sdkwork\/rtc-sdk$/,
         replacement: path.resolve(
           __dirname,

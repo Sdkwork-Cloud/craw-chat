@@ -44,6 +44,10 @@ export const IM_H5_ROUTE_DEFINITIONS = {
   notaryPartySignature: defineRoute({ id: "app.notary.parties.signature", legacyRouteId: "im-h5-notary-party-signature", moduleId: "notary", domain: "notary", capability: "parties", screen: "signature", path: "/notary/cases/:caseId/parties/:partyId/signature", titleKey: "notary.parties.signatureTitle", presentation: "stack" }),
   notaryPartyVideo: defineRoute({ id: "app.notary.parties.video", legacyRouteId: "im-h5-notary-party-video", moduleId: "notary", domain: "notary", capability: "parties", screen: "video", path: "/notary/cases/:caseId/parties/:partyId/video", titleKey: "notary.parties.videoTitle", presentation: "stack" }),
   notaryPartyVideoQr: defineRoute({ id: "app.notary.parties.video-qr", legacyRouteId: "im-h5-notary-party-video-qr", moduleId: "notary", domain: "notary", capability: "parties", screen: "video-qr", path: "/notary/cases/:caseId/parties/:partyId/video-qr", titleKey: "notary.parties.videoQrTitle", presentation: "stack" }),
+  ordersCenter: defineRoute({ id: "app.commerce.orders.center", moduleId: "orders", domain: "commerce", capability: "orders", screen: "center", path: "/orders", titleKey: "orders.title", layoutGroup: "main", presentation: "tab" }),
+  ordersDetail: defineRoute({ id: "app.commerce.orders.detail", moduleId: "orders", domain: "commerce", capability: "orders", screen: "detail", path: "/orders/:orderId", titleKey: "orders.detail_title", presentation: "stack" }),
+  ordersCashier: defineRoute({ id: "app.commerce.orders.cashier", moduleId: "orders", domain: "commerce", capability: "orders", screen: "cashier", path: "/orders/:orderId/cashier", titleKey: "orders.cashier_title", presentation: "stack" }),
+  ordersVoucher: defineRoute({ id: "app.commerce.orders.voucher", moduleId: "orders", domain: "commerce", capability: "orders", screen: "voucher", path: "/orders/voucher", titleKey: "orders.voucher_title", presentation: "stack" }),
 } as const;
 
 export const IM_H5_APP_ROUTE_METADATA: readonly ImH5RouteMetadata[] = Object.values(

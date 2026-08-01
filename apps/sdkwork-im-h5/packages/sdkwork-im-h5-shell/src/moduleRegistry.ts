@@ -10,6 +10,7 @@ import { chatModule } from "./modules/chatModule";
 import { contactsModule } from "./modules/contactsModule";
 import { driveModule } from "./modules/driveModule";
 import { notaryModule } from "./modules/notaryModule";
+import { ordersModule } from "./modules/ordersModule";
 
 export * from "./moduleCatalog";
 export { validateImH5ShellModules } from "./moduleValidation";
@@ -19,6 +20,7 @@ export const BUILTIN_IM_H5_MODULE_REGISTRY: Readonly<Partial<Record<ImH5ModuleId
   contacts: contactsModule,
   drive: driveModule,
   notary: notaryModule,
+  orders: ordersModule,
 };
 
 export function resolveImH5ShellModules(

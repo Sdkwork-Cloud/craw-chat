@@ -65,6 +65,7 @@ export function createImAppAuthRuntime(
     sdkClients: [
       sdkClients.driveAppSdkClient,
       sdkClients.imSdkClient,
+      sdkClients.orderAppSdkClient,
       sdkClients.notaryAppSdkClient,
     ],
     sessionBridge,

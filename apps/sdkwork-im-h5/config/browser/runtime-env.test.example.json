@@ -10,7 +10,8 @@
     "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "http://127.0.0.1:4179",
     "VITE_SDKWORK_IM_API_BASE_URL": "http://127.0.0.1:4179",
     "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "http://127.0.0.1:4179",
-    "VITE_SDKWORK_IAM_API_BASE_URL": "http://127.0.0.1:4179"
+    "VITE_SDKWORK_IAM_API_BASE_URL": "http://127.0.0.1:4179",
+    "VITE_SDKWORK_ORDER_APP_API_BASE_URL": "http://127.0.0.1:4179"
   },
   "featureFlags": {
     "qrLoginEnabled": false,

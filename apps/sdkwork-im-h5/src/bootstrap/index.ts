@@ -12,6 +12,10 @@ import {
   configureCloudDriveRuntime,
   resetCloudDriveRuntime,
 } from '@sdkwork/drive-mobile-react-drive';
+import {
+  configureOrderMobileRuntime,
+  resetOrderMobileRuntime,
+} from '@sdkwork/order-mobile-react-orders';
 import { initSdkClients, resetSdkClients } from './sdkClients';
 import { resolveTokenManagerBinding, resetTokenManagerBinding } from './tokenManager';
 import { registerHostAdapter, resetHostAdapters } from './hostAdapters';
@@ -36,6 +40,7 @@ export async function bootstrapImH5CapabilityIntegrations(): Promise<H5Bootstrap
   const sdkClients = initSdkClients();
   const tokenManager = resolveTokenManagerBinding();
   configureCloudDriveRuntime({ client: sdkClients.driveAppSdkClient });
+  configureOrderMobileRuntime({ client: sdkClients.orderAppSdkClient });
 
   const hostAdapters: H5BootstrapResult['hostAdapters'] = [];
   for (const meta of IM_H5_ROUTE_REGISTRY) {
@@ -59,6 +64,7 @@ export function getH5BootstrapResult(): H5BootstrapResult | null {
 
 export function resetH5Bootstrap(): void {
   resetCloudDriveRuntime();
+  resetOrderMobileRuntime();
   resetSdkClients();
   resetTokenManagerBinding();
   resetHostAdapters();

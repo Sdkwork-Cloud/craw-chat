@@ -32,6 +32,10 @@ const MOUNTED_ROUTE_PATHS = [
   "/notary/cases/:caseId/parties/:partyId/signature",
   "/notary/cases/:caseId/parties/:partyId/video",
   "/notary/cases/:caseId/parties/:partyId/video-qr",
+  "/orders",
+  "/orders/:orderId",
+  "/orders/:orderId/cashier",
+  "/orders/voucher",
 ] as const;
 
 test("route registry matches every built-in H5 shell route contribution", () => {

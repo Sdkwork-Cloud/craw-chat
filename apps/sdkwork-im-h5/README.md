@@ -58,21 +58,22 @@ historic IM package import stable while re-exporting its canonical owner module.
 mobile primitives come from `@sdkwork/ui-mobile-react`; IM-specific chat UI remains in
 `sdkwork-im-h5-commons`.
 
-`@sdkwork/im-h5-shell` is the composition entrypoint. Its default catalog enables only `chat` and
-`notary`, matching the existing release UI. Application variants can select known modules through
+`@sdkwork/im-h5-shell` is the composition entrypoint. Its default catalog enables `chat`, `notary`,
+and `orders`. Application variants can select known modules through
 `moduleIds` or inject fully declared capability modules through `modules`; routes, lifecycle hooks,
 and bottom navigation are derived from that selection. Catalog entries without a composed runtime
 remain in `CONTRACT_PENDING_IM_H5_MODULES` and are rejected rather than mounted with local fallbacks.
 The application root reads the public, typed `VITE_SDKWORK_IM_H5_MODULES` composition key. Omitting it
-preserves the release default; for example, `chat,notary,contacts,drive` builds the currently completed
-SDK-backed modules into one H5 variant.
+preserves the release default; for example, `chat,notary,contacts,drive,orders` builds the currently
+completed SDK-backed modules into one H5 variant.
 
 Package presence does not mean the feature is mounted or release-ready. The current H5 shell composes
-Chat inbox, Conversation, Workspace Notary, and the Notary workflow routes by default. Contacts and
+Chat inbox, Conversation, Workspace Notary, the Notary workflow routes, and the Order center (order
+list, order detail, cashier, and voucher redemption) by default. Contacts and
 Cloud Drive are optional composed modules backed by injected owner SDK clients. Organization directory,
 Agent lifecycle, QR scanning, Chat RTC media UI, legacy Chat operations, AI Image/Video/Writing/Music,
 Voice Synthesis, Voice Summary, Calendar, Approval, Attendance, Reports, Meeting, Channels,
-Hardware, Recruitment, local Knowledge CRUD, Shopping, Checkout, Orders, Payments, Vouchers, Refunds,
+Hardware, Recruitment, local Knowledge CRUD, Shopping, Checkout (physical order creation), Refunds,
 Fulfillment, Community, Courses, and Enterprise routes are fail-closed until their owner SDK and
 permission composition is complete. Legacy User profile, settings, Moments, Characters, Works, voice,
 billing, and life-service pages are also fail-closed; browser storage and synthetic records are not

@@ -12,6 +12,7 @@ export interface H5RuntimeEnvironment {
   readonly imApiBaseUrl: string;
   readonly sdkGatewayApiBaseUrl: string;
   readonly driveAppApiBaseUrl: string;
+  readonly orderAppApiBaseUrl: string;
   readonly iamApiBaseUrl: string;
 }
 
@@ -66,6 +67,9 @@ export function resolveH5RuntimeEnvironment(): H5RuntimeEnvironment {
       ?? '/',
     driveAppApiBaseUrl: readEnvValue('SDKWORK_DRIVE_APP_API_BASE_URL')
       ?? readEnvValue('VITE_SDKWORK_DRIVE_APP_API_BASE_URL')
+      ?? '/',
+    orderAppApiBaseUrl: readEnvValue('SDKWORK_ORDER_APP_API_BASE_URL')
+      ?? readEnvValue('VITE_SDKWORK_ORDER_APP_API_BASE_URL')
       ?? '/',
     iamApiBaseUrl: readEnvValue('SDKWORK_IAM_API_BASE_URL')
       ?? readEnvValue('VITE_SDKWORK_IAM_API_BASE_URL')

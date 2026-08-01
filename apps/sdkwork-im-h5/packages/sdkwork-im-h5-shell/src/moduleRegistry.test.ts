@@ -14,7 +14,7 @@ import {
 import { resolveImH5ShellHomePath } from "./moduleNavigation";
 
 test("keeps the default H5 product composition unchanged", () => {
-  assert.deepEqual(DEFAULT_IM_H5_MODULES, ["chat", "notary"]);
+  assert.deepEqual(DEFAULT_IM_H5_MODULES, ["chat", "notary", "orders"]);
 });
 
 test("classifies the SDK-backed contacts module as optional and composable", () => {
@@ -27,11 +27,16 @@ test("classifies the SDK-backed Drive module as optional and composable", () => 
   assert.equal(CONTRACT_PENDING_IM_H5_MODULES.has("drive"), false);
 });
 
+test("classifies the SDK-backed Order module as composable", () => {
+  assert.equal(COMPOSABLE_IM_H5_MODULES.has("orders"), true);
+  assert.equal(CONTRACT_PENDING_IM_H5_MODULES.has("orders"), false);
+});
+
 test("keeps modules without an owner runtime contract pending", () => {
-  assert.equal(CONTRACT_PENDING_IM_H5_MODULES.has("orders"), true);
+  assert.equal(CONTRACT_PENDING_IM_H5_MODULES.has("shop"), true);
   assert.throws(
-    () => requireImH5ShellModule("orders", {}),
-    /H5 module orders is not composed/u,
+    () => requireImH5ShellModule("shop", {}),
+    /H5 module shop is not composed/u,
   );
 });
 

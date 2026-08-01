@@ -10,7 +10,8 @@
     "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "https://staging-api.sdkwork.com",
     "VITE_SDKWORK_IM_API_BASE_URL": "https://staging-api.sdkwork.com",
     "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "https://staging-drive.sdkwork.com",
-    "VITE_SDKWORK_IAM_API_BASE_URL": "https://staging-iam.sdkwork.com"
+    "VITE_SDKWORK_IAM_API_BASE_URL": "https://staging-iam.sdkwork.com",
+    "VITE_SDKWORK_ORDER_APP_API_BASE_URL": "https://staging-order.sdkwork.com"
   },
   "featureFlags": {
     "qrLoginEnabled": true,
