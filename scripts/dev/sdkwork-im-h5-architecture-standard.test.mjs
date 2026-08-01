@@ -260,7 +260,6 @@ const deferredCapabilityPages = [
   'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseSearch.tsx',
   'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseSite.tsx',
   'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseYellowPages.tsx',
-  'packages/sdkwork-im-h5-chat/src/pages/ChatDetail.tsx',
   'packages/sdkwork-im-h5-user/src/components/UnavailableUserPages.tsx',
 ].map(read);
 
@@ -395,12 +394,13 @@ assert.doesNotMatch(shoppingCartStoreSource, /localStorage|sessionStorage|persis
 assert.doesNotMatch(shoppingCartStoreSource, /catch\s*\([^)]*\)\s*\{\s*\}/u);
 assert.doesNotMatch(shoppingAddressStoreSource, /localStorage|sessionStorage|persist\s*\(/u);
 assert.doesNotMatch(shoppingAddressStoreSource, /INITIAL_ADDRESSES|Date\.now|Math\.random/u);
-const legacyChatActionPanelSource = read(
+const chatActionPanelSource = read(
   'packages/sdkwork-im-h5-chat/src/components/Chat/ChatActionPanel.tsx',
 );
-assert.match(legacyChatActionPanelSource, /attachments_unavailable/u);
+assert.match(chatActionPanelSource, /onFileSelected/u);
+assert.match(chatActionPanelSource, /selectFile/u);
 assert.doesNotMatch(
-  legacyChatActionPanelSource,
+  chatActionPanelSource,
   /Math\.random|Date\.now|setInterval|setTimeout|\/mock\//u,
 );
 const unavailableUserPageSource = read(
@@ -420,7 +420,7 @@ const chatConversationService = read('packages/sdkwork-im-h5-chat/src/services/c
 const chatRealtime = read('packages/sdkwork-im-h5-chat/src/services/chatRealtimeService.ts');
 
 assert.match(imApp, /parseConversationRoute/u);
-assert.match(shellChatModuleSource, /ChatConversationPage/u);
+assert.match(shellChatModuleSource, /ChatDetail/u);
 assert.match(shellRouteCatalogSource, /app\.communication\.chat\.conversation/u);
 assert.match(chatConversationService, /listMessages/u);
 assert.match(chatConversationService, /postText/u);

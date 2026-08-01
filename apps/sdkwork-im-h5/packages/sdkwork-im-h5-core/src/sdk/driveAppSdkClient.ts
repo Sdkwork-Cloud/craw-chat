@@ -6,6 +6,11 @@ import {
 } from '@sdkwork/drive-app-sdk';
 
 export type { SdkworkDriveAppClient, DriveAppClientOptions, SdkworkAppConfig };
+export type {
+  DriveUploaderBlobLike,
+  DriveUploaderProfile,
+  DriveUploaderUploadResult,
+} from '@sdkwork/drive-app-sdk';
 
 let driveAppSdkClient: SdkworkDriveAppClient | null = null;
 

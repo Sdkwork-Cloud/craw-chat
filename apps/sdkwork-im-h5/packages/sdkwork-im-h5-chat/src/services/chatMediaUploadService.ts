@@ -1,8 +1,10 @@
 import {
   getDriveAppSdkClient,
+  type DriveUploaderBlobLike,
+  type DriveUploaderProfile,
+  type DriveUploaderUploadResult,
   type SdkworkDriveAppClient,
 } from '@sdkwork/im-h5-core/sdk';
-import type { DriveUploaderBlobLike, DriveUploaderProfile, DriveUploaderUploadResult } from '@sdkwork/drive-app-sdk';
 
 export function getDriveAppSdkClientWithSession(): SdkworkDriveAppClient {
   return getDriveAppSdkClient();
