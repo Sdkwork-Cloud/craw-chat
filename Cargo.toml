@@ -180,7 +180,10 @@ sdkwork_iam_web_adapter = { path = "../sdkwork-iam/crates/sdkwork-iam-web-adapte
 sdkwork_iam_bootstrap = { path = "../sdkwork-iam/crates/sdkwork-iam-bootstrap", package = "sdkwork-iam-bootstrap" }
 sdkwork_iam_database_host = { path = "../sdkwork-iam/crates/sdkwork-iam-database-host", package = "sdkwork-iam-database-host" }
 sdkwork_im_iam_application_bootstrap = { path = "crates/sdkwork-im-iam-application-bootstrap", package = "sdkwork-im-iam-application-bootstrap" }
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "tls-rustls"] }
+# sqlx default features include `any` (pulls sqlx-sqlite -> libsqlite3-sys), which
+# conflicts with the kernel Codex graph's rusqlite (libsqlite3-sys 0.37) `links`
+# constraint. Keep sqlx postgres-only, matching the sdkwork-database declaration.
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "postgres", "tls-rustls"] }
 # IM consumes RTC media/provider runtime from the canonical `sdkwork-rtc`
 # authority workspace. Signaling remains IM-owned; RTC must not depend back on IM.
 sdkwork-communication-rtc-service = { path = "../sdkwork-rtc/crates/sdkwork-communication-rtc-service" }
@@ -276,6 +279,12 @@ sdkwork-promotion-service-host = { path = "../sdkwork-promotion/crates/sdkwork-p
 sdkwork-api-shop-assembly = { path = "../sdkwork-shop/crates/sdkwork-api-shop-assembly" }
 sdkwork-shop-service-host = { path = "../sdkwork-shop/crates/sdkwork-shop-service-host" }
 sdkwork-iam-embedded-application-bootstrap = { path = "../sdkwork-iam/crates/sdkwork-iam-embedded-application-bootstrap" }
+
+[patch.crates-io]
+# Keep the embedded Codex graph aligned with the upstream workspace patches.
+# Codex app-server-client enables websocket proxy support supplied by these upstream forks.
+tokio-tungstenite = { git = "https://github.com/openai-oss-forks/tokio-tungstenite", rev = "0e5b2d73aa18dd9f0a50ee9ff199d5aef7594186" }
+tungstenite = { git = "https://github.com/openai-oss-forks/tungstenite-rs", rev = "4fffad30fe373adbdcffab9545e9e9bf4f2fc19f" }
 
 [profile.release]
 lto = true
