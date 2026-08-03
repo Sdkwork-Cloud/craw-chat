@@ -61,10 +61,10 @@ pub fn canonical_direct_chat_conversation_id(
     let seed = encode_key_segments([
         tenant_id,
         normalize_commit_organization_id(organization_id).as_str(),
-        "direct_chat",
+        "direct",
         direct_chat_business_id,
     ]);
-    deterministic_conversation_resource_id("c_direct_", seed.as_str())
+    deterministic_conversation_resource_id("c_", seed.as_str())
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -124,7 +124,10 @@ mod tests {
         assert_eq!(business_a, business_b);
 
         let conversation = canonical_direct_chat_conversation_id("t1", "0", business_a.as_str());
-        assert!(conversation.starts_with("c_direct_"));
+        // The conversation runtime is the canonical id authority: direct chat
+        // conversation ids use the `c_` prefix with a `direct` seed segment.
+        assert!(conversation.starts_with("c_"));
+        assert!(!conversation.starts_with("c_direct_"));
     }
 
     #[test]

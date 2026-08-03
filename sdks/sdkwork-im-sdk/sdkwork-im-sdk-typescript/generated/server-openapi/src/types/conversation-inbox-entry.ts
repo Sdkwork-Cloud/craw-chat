@@ -17,6 +17,6 @@ export interface ConversationInboxEntry {
   messageCount: number;
   lastMessageSeq: number;
   lastSummary?: string | null;
-  lastMessageAt?: string;
+  lastMessageAt?: string | null;
   unreadCount: number;
 }

@@ -16,5 +16,5 @@ export interface ConversationMessageEntry {
   streamSessionId?: string | null;
   rtcSessionId?: string | null;
   occurredAt: string;
-  committedAt?: string;
+  committedAt?: string | null;
 }

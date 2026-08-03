@@ -9,10 +9,12 @@ const MODULE_SELECTION_CONFIG_KEY = "VITE_SDKWORK_IM_H5_MODULES";
 const knownModuleIds = new Set<string>(ALL_IM_H5_MODULES);
 
 function readModuleSelection(): string | undefined {
-  const meta = import.meta as ImportMeta & {
-    env?: Record<string, string | undefined>;
-  };
-  const value = meta.env?.[MODULE_SELECTION_CONFIG_KEY];
+  // Static access so vite inlines the value in both dev and production
+  // builds; dynamic `import.meta.env?.[key]` lookups stay undefined at
+  // runtime because vite only rewrites literal `import.meta.env` reads.
+  const value = import.meta.env?.VITE_SDKWORK_IM_H5_MODULES as
+    | string
+    | undefined;
   return typeof value === "string" && value.trim() ? value : undefined;
 }
 

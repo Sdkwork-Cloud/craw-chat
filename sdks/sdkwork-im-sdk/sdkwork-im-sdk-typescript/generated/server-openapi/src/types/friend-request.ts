@@ -5,7 +5,7 @@ export interface FriendRequest {
   targetUserId: string;
   status: string;
   requestMessage?: string | null;
-  expiredAt?: string;
+  expiredAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

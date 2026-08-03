@@ -9,7 +9,7 @@ export interface UserBlock {
   scope: BlockScope;
   status: UserBlockStatus;
   directChatId?: string | null;
-  expiresAt?: string;
+  expiresAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -19,6 +19,7 @@ function createSdk(overrides: ContactsSdkOverrides = {}): ContactsSdkPort {
   return {
     conversations: {
       create: async () => ({ conversationId: "conversation-1", eventId: "event-1" }),
+      addMember: async () => ({}),
       ...overrides.conversations,
     },
     social: {
@@ -223,23 +224,33 @@ test("lists and resolves friend requests through the injected IM SDK", async () 
   assert.deepEqual(calls, ["accept:request-1", "decline:request-2"]);
 });
 
-test("starts a direct conversation with a UUID request key", async () => {
+test("starts a direct conversation with a client id and attaches the member", async () => {
   let request: unknown;
+  let memberRequest: unknown;
   const service = createContactService(() => createSdk({
     conversations: {
       create: async (body) => {
         request = body;
-        return { conversationId: "conversation-1", eventId: "event-1" };
+        return { conversationId: (body as { conversationId?: string }).conversationId ?? "conversation-1", eventId: "event-1" };
+      },
+      addMember: async (_conversationId, body) => {
+        memberRequest = body;
       },
     },
   }));
 
   const conversationId = await service.startDirectConversation("user-1");
 
-  assert.equal(conversationId, "conversation-1");
-  assert.deepEqual((request as { memberUserIds?: string[] }).memberUserIds, ["user-1"]);
-  assert.match(
-    String((request as { clientRequestKey?: string }).clientRequestKey),
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
+  assert.match(conversationId, /^direct-/u);
+  assert.deepEqual(
+    (request as { conversationId?: string }).conversationId,
+    conversationId,
   );
+  assert.equal((request as { memberUserIds?: string[] }).memberUserIds, undefined);
+  assert.equal((request as { clientRequestKey?: string }).clientRequestKey, undefined);
+  assert.deepEqual(memberRequest, {
+    principalId: "user-1",
+    principalKind: "user",
+    role: "member",
+  });
 });

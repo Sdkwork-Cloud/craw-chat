@@ -251,6 +251,32 @@ fn search_keyset_next_cursor(rows: &[(MessageSearchHit, String)], limit: usize) 
     .ok()
 }
 
+/// Resolve the keyset cursor into typed bind values.
+///
+/// The keyset SQL compares against `$N::timestamptz`, so the created-at value
+/// must bind as `DateTime<Utc>`; binding a `&str` fails the postgres type check
+/// (`error serializing parameter`) even when the cursor is `Start`.
+fn resolve_keyset_cursor_timestamp(
+    list_cursor: &SearchListCursor,
+) -> Result<(Option<chrono::DateTime<chrono::Utc>>, Option<i64>), ContractError> {
+    match list_cursor {
+        SearchListCursor::Start => Ok((None, None)),
+        SearchListCursor::Keyset {
+            created_at,
+            message_id,
+        } => {
+            let parsed = chrono::DateTime::parse_from_rfc3339(created_at.as_str())
+                .map_err(|_| {
+                    ContractError::Invalid(
+                        "search cursor createdAt must be an RFC3339 timestamp".into(),
+                    )
+                })?
+                .with_timezone(&chrono::Utc);
+            Ok((Some(parsed), Some(*message_id)))
+        }
+    }
+}
+
 fn normalize_search_page_size(limit: usize) -> usize {
     limit.clamp(1, SDKWORK_SEARCH_PAGE_SIZE_MAX)
 }
@@ -302,13 +328,7 @@ impl SearchProvider for PostgresSearchProvider {
             let mut client = postgres_pool_client(&pool, "search")?;
 
             let fetch_limit = search_fetch_limit(limit);
-            let (keyset_created_at, keyset_message_id) = match list_cursor {
-                SearchListCursor::Keyset {
-                    created_at,
-                    message_id,
-                } => (Some(created_at), Some(message_id)),
-                SearchListCursor::Start => (None, None),
-            };
+            let (keyset_created_at, keyset_message_id) = resolve_keyset_cursor_timestamp(&list_cursor)?;
             let (rows, count_sql) = match client.query(
                 SEARCH_KEYSET_SQL,
                 &[
@@ -317,7 +337,7 @@ impl SearchProvider for PostgresSearchProvider {
                     &tsquery,
                     &conv.as_deref(),
                     &fetch_limit,
-                    &keyset_created_at.as_deref(),
+                    &keyset_created_at,
                     &keyset_message_id,
                 ],
             ) {
@@ -332,7 +352,7 @@ impl SearchProvider for PostgresSearchProvider {
                                 &tsquery,
                                 &conv.as_deref(),
                                 &fetch_limit,
-                                &keyset_created_at.as_deref(),
+                                &keyset_created_at,
                                 &keyset_message_id,
                             ],
                         )
@@ -432,13 +452,7 @@ impl PostgresSearchProvider {
             let mut client = postgres_pool_client(&pool, "search_for_member")?;
 
             let fetch_limit = search_fetch_limit(limit);
-            let (keyset_created_at, keyset_message_id) = match list_cursor {
-                SearchListCursor::Keyset {
-                    created_at,
-                    message_id,
-                } => (Some(created_at), Some(message_id)),
-                SearchListCursor::Start => (None, None),
-            };
+            let (keyset_created_at, keyset_message_id) = resolve_keyset_cursor_timestamp(&list_cursor)?;
             let (rows, count_sql) = match client.query(
                 SEARCH_MEMBER_KEYSET_SQL,
                 &[
@@ -449,7 +463,7 @@ impl PostgresSearchProvider {
                     &fetch_limit,
                     &principal_kind,
                     &principal_id,
-                    &keyset_created_at.as_deref(),
+                    &keyset_created_at,
                     &keyset_message_id,
                 ],
             ) {
@@ -466,7 +480,7 @@ impl PostgresSearchProvider {
                                 &fetch_limit,
                                 &principal_kind,
                                 &principal_id,
-                                &keyset_created_at.as_deref(),
+                                &keyset_created_at,
                                 &keyset_message_id,
                             ],
                         )
@@ -591,6 +605,43 @@ mod tests {
         assert!(matches!(
             parse_search_cursor(Some(r#"{"createdAt":"","messageId":0}"#)),
             Err(ContractError::Invalid(message)) if message.contains("invalid")
+        ));
+    }
+
+    #[test]
+    fn test_resolve_keyset_cursor_timestamp_start_is_typed_nulls() {
+        let (created_at, message_id) =
+            resolve_keyset_cursor_timestamp(&SearchListCursor::Start).expect("start cursor");
+        assert!(created_at.is_none());
+        assert!(message_id.is_none());
+    }
+
+    #[test]
+    fn test_resolve_keyset_cursor_timestamp_parses_rfc3339_utc() {
+        let cursor = SearchListCursor::Keyset {
+            created_at: "2026-05-06T00:00:00Z".to_owned(),
+            message_id: 42,
+        };
+        let (created_at, message_id) =
+            resolve_keyset_cursor_timestamp(&cursor).expect("keyset cursor");
+        assert_eq!(
+            created_at.expect("created_at"),
+            chrono::DateTime::parse_from_rfc3339("2026-05-06T00:00:00Z")
+                .expect("parse")
+                .with_timezone(&chrono::Utc)
+        );
+        assert_eq!(message_id, Some(42));
+    }
+
+    #[test]
+    fn test_resolve_keyset_cursor_timestamp_rejects_invalid_timestamp() {
+        let cursor = SearchListCursor::Keyset {
+            created_at: "not-a-timestamp".to_owned(),
+            message_id: 42,
+        };
+        assert!(matches!(
+            resolve_keyset_cursor_timestamp(&cursor),
+            Err(ContractError::Invalid(message)) if message.contains("RFC3339")
         ));
     }
 

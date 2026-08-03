@@ -32,6 +32,7 @@ impl ConversationStateService {
                 .then_with(|| left.joined_at.cmp(&right.joined_at))
                 .then_with(|| left.principal_id.cmp(&right.principal_id))
         });
+        self.enrich_directory_display(organization_id, &mut items);
         items
     }
 
@@ -63,10 +64,11 @@ impl ConversationStateService {
                     keyset_cursor,
                     page_size,
                 );
-        let items = members
+        let mut items = members
             .into_iter()
             .map(|member| ConversationMemberDirectoryEntry::from_member(&member))
             .collect::<Vec<_>>();
+        self.enrich_directory_display(organization_id, &mut items);
         let next_cursor = if has_more {
             items
                 .last()
@@ -88,6 +90,42 @@ impl ConversationStateService {
             items,
             page_info: cursor_window_page_info(Some(page_size), next_cursor, has_more),
         })
+    }
+
+    /// Fills missing `displayName`/`avatarUrl` member attributes from the IM
+    /// user profile table for user principals (read-time enrichment only; the
+    /// in-memory member store is never mutated).
+    fn enrich_directory_display(
+        &self,
+        organization_id: &str,
+        entries: &mut [ConversationMemberDirectoryEntry],
+    ) {
+        for entry in entries {
+            if entry.principal_kind != "user"
+                || entry.attributes.contains_key("displayName")
+                || entry.attributes.contains_key("display_name")
+            {
+                continue;
+            }
+            let Some(display) = self.resolve_user_display(
+                &entry.tenant_id,
+                organization_id,
+                &entry.principal_id,
+                "user",
+            ) else {
+                continue;
+            };
+            entry
+                .attributes
+                .entry("displayName".to_owned())
+                .or_insert(display.display_name);
+            if let Some(avatar_url) = display.avatar_url {
+                entry
+                    .attributes
+                    .entry("avatarUrl".to_owned())
+                    .or_insert(avatar_url);
+            }
+        }
     }
 }
 

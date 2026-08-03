@@ -156,6 +156,7 @@ pub const LOAD_REALTIME_EVENT_WINDOW_DIAGNOSTICS_SQL: &str = r#"
 with window_counts as (
     select
         tenant_id,
+        organization_id,
         client_route_scope_key,
         count(*) as pending_event_count
     from im_realtime_device_events
@@ -166,7 +167,7 @@ select
     count(e.realtime_seq) as pending_event_count,
     coalesce(max(window_counts.pending_event_count), 0) as max_client_route_window_event_count,
     coalesce(max(c.trimmed_through_seq), 0) as max_trimmed_through_seq,
-    coalesce(sum(c.capacity_trimmed_event_count), 0) as capacity_trimmed_event_count,
+    coalesce(sum(c.capacity_trimmed_event_count), 0)::bigint as capacity_trimmed_event_count,
     coalesce(max(c.capacity_trimmed_through_seq), 0) as max_capacity_trimmed_through_seq,
     max(c.last_capacity_trimmed_at) as last_capacity_trimmed_at,
     min(e.occurred_at) as oldest_pending_occurred_at
@@ -202,6 +203,7 @@ join im_realtime_device_events e
  and e.client_route_scope_key = c.client_route_scope_key
 group by
     c.tenant_id,
+    c.organization_id,
     c.principal_kind,
     c.principal_id,
     c.device_id,

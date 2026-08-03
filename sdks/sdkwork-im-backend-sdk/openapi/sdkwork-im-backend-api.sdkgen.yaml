@@ -6995,46 +6995,5 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/SdkWorkPageData'
-    SdkWorkResourceData:
-      type: object
-      additionalProperties: false
-      required:
-        - item
-      properties:
-        item:
-          type: object
-          additionalProperties: true
-          description: Typed domain resource for the operation.
-    SdkWorkCommandData:
-      type: object
-      additionalProperties: false
-      required:
-        - accepted
-      properties:
-        accepted:
-          type: boolean
-          const: true
-        resourceId:
-          type: string
-        status:
-          type: string
-    SdkWorkResourceResponse:
-      allOf:
-        - $ref: '#/components/schemas/SdkWorkApiResponse'
-        - type: object
-          required:
-            - data
-          properties:
-            data:
-              $ref: '#/components/schemas/SdkWorkResourceData'
-    SdkWorkCommandResponse:
-      allOf:
-        - $ref: '#/components/schemas/SdkWorkApiResponse'
-        - type: object
-          required:
-            - data
-          properties:
-            data:
-              $ref: '#/components/schemas/SdkWorkCommandData'
 x-sdkwork-owner: sdkwork-im
 x-sdkwork-api-authority: sdkwork-im.backend

@@ -13,6 +13,8 @@ import type {
   ListMembersResponse,
   MessageFavoriteView,
   MessageReplyReference,
+  MessageSearchPage,
+  MessageSearchParams,
   PostMessageResult,
   UpdateConversationPreferencesRequest,
 } from "@sdkwork/im-h5-core/sdk";
@@ -22,6 +24,7 @@ import { getChatImSdkClient } from "./chatConversationService";
 import { createChatMediaDownloadUrl, uploadChatMedia, type ChatMediaUpload } from "./chatMediaUploadService";
 
 const LEGACY_CHAT_PAGE_SIZE = 50;
+const MAX_SEARCH_MESSAGE_LOOKUP_PAGES = 10;
 
 export interface ChatPage {
   items: Chat[];
@@ -71,6 +74,7 @@ export interface ChatSdkPort {
   };
   messages: {
     deleteForMe(messageId: string): Promise<void>;
+    search(params: MessageSearchParams): Promise<MessageSearchPage>;
     favorites: {
       create(messageId: string, body: FavoriteMessageRequest): Promise<MessageFavoriteView>;
       delete(favoriteId: string): Promise<unknown>;
@@ -107,6 +111,29 @@ export function createChatService(
     });
     assertCursorPage(page.pageInfo, "IM message history");
     return page.items.find((message) => message.messageId === messageId);
+  };
+
+  const findMessageByIdAnywhere = async (
+    conversationId: string,
+    messageId: string,
+  ): Promise<ConversationMessageEntry | undefined> => {
+    let cursor: string | undefined;
+    for (let depth = 0; depth < MAX_SEARCH_MESSAGE_LOOKUP_PAGES; depth += 1) {
+      const page = await resolveClient().conversations.listMessages(conversationId, {
+        pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE),
+        ...(cursor ? { cursor } : {}),
+      });
+      assertCursorPage(page.pageInfo, "IM message history");
+      const found = page.items.find((message) => message.messageId === messageId);
+      if (found) {
+        return found;
+      }
+      if (!page.pageInfo.nextCursor) {
+        return undefined;
+      }
+      cursor = page.pageInfo.nextCursor;
+    }
+    return undefined;
   };
 
   return {
@@ -191,10 +218,26 @@ export function createChatService(
     },
 
     async searchChatHistory(
-      _conversationId: string,
-      _query: string,
+      conversationId: string,
+      query: string,
     ): Promise<Message[]> {
-      throw new ChatCapabilityUnavailableError("Message history search");
+      const trimmed = query.trim();
+      if (!trimmed) {
+        return [];
+      }
+      const page = await resolveClient().messages.search({
+        q: trimmed,
+        conversationId,
+        pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE),
+      });
+      assertCursorPage(page.pageInfo, "IM message search");
+      const messages = await Promise.all(
+        page.items.map(async (hit) => {
+          const entry = await findMessageByIdAnywhere(hit.conversationId, hit.messageId);
+          return entry ? mapMessageEntryWithDownloadUrl(entry) : undefined;
+        }),
+      );
+      return messages.filter((message): message is Message => message !== undefined);
     },
 
     async sendMessage(
@@ -249,10 +292,17 @@ export function createChatService(
     },
 
     async createDirectChat(user: User, greeting?: string): Promise<Chat> {
+      // Direct conversations accept a client-supplied id and attach members
+      // through the member endpoint; memberUserIds is a group-only field.
+      const conversationId = `direct-${uuid()}`;
       const result = await resolveClient().conversations.create({
-        clientRequestKey: uuid(),
+        conversationId,
         conversationType: "direct",
-        memberUserIds: [user.id],
+      });
+      await resolveClient().conversations.addMember(conversationId, {
+        principalId: user.id,
+        principalKind: "user",
+        role: "member",
       });
       if (greeting?.trim()) {
         await resolveClient().conversations.postText(result.conversationId, greeting.trim(), {

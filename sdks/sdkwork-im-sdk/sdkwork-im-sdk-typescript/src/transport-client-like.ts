@@ -178,6 +178,9 @@ export interface ImTransportClientLike {
     messages: {
       edit(messageId: string, body: EditMessageRequest): Promise<MessageMutationResult>;
       recall(messageId: string, body?: RecallMessageRequest): Promise<MessageMutationResult>;
+      search(
+        params: import('./messages-module.js').MessageSearchParams,
+      ): Promise<import('./messages-module.js').MessageSearchPage>;
       reactions: {
         create(messageId: string, body: MessageReactionRequest): Promise<MessageReactionMutationResult>;
         remove(messageId: string, body: MessageReactionRequest): Promise<MessageReactionMutationResult>;

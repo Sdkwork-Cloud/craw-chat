@@ -4446,6 +4446,62 @@ paths:
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+  /im/v3/api/chat/messages/search:
+    get:
+      tags:
+        - chat
+      operationId: messages.search
+      summary: Search conversation message history
+      description: >-
+        Full-text search over message history scoped to the authenticated principal. When conversationId is omitted the
+        search covers every conversation the principal is a member of. Results are returned newest-first with an opaque
+        keyset cursor for older pages.
+      parameters:
+        - $ref: '#/components/parameters/SearchQQuery'
+        - $ref: '#/components/parameters/ConversationIdQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/CursorQuery'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageSearchResponse'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: HTTP 503 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - ApiKey: []
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/{messageId}/edit:
     parameters:
       - $ref: '#/components/parameters/MessageIdPath'
@@ -7258,6 +7314,19 @@ components:
       schema:
         type: string
         maxLength: 256
+    SearchQQuery:
+      name: q
+      in: query
+      required: true
+      schema:
+        type: string
+        maxLength: 256
+    ConversationIdQuery:
+      name: conversationId
+      in: query
+      required: false
+      schema:
+        type: string
     StatusQuery:
       name: status
       in: query
@@ -7928,6 +7997,43 @@ components:
                 - items
                 - pageInfo
                 - highWatermark
+          required:
+            - data
+    MessageSearchHit:
+      type: object
+      additionalProperties: false
+      properties:
+        conversationId:
+          type: string
+        messageId:
+          type: string
+        messageSeq:
+          type: integer
+          format: int32
+          minimum: 0
+      required:
+        - conversationId
+        - messageId
+        - messageSeq
+    MessageSearchResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          additionalProperties: false
+          properties:
+            data:
+              type: object
+              additionalProperties: false
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/MessageSearchHit'
+                pageInfo:
+                  $ref: '#/components/schemas/PageInfo'
+              required:
+                - items
+                - pageInfo
           required:
             - data
     PostMessageRequest:

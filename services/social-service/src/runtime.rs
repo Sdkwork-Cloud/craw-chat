@@ -1337,6 +1337,32 @@ impl SocialRuntime {
         binder.bind_direct_chat_conversation(input)
     }
 
+    /// Generate the next numeric snowflake record id for social entities
+    /// persisted in bigint-keyed tables (friendships, direct chats).
+    pub(crate) fn next_social_record_id(
+        &self,
+        label: &str,
+    ) -> Result<String, crate::friendship::SocialServiceError> {
+        self.id_generator
+            .as_ref()
+            .ok_or_else(|| {
+                crate::friendship::SocialServiceError::dependency_unavailable(
+                    "id_generator_unavailable",
+                    format!(
+                        "social {label} record id generation requires a configured id generator"
+                    ),
+                )
+            })?
+            .next_id()
+            .map(|value| value.to_string())
+            .map_err(|error| {
+                crate::friendship::SocialServiceError::invalid(
+                    "id_generation_failed",
+                    format!("social {label} id generation failed: {error:?}"),
+                )
+            })
+    }
+
     fn resolve_social_realtime_delivery(&self) -> (bool, bool) {
         let has_fanout = self
             .realtime_fanout

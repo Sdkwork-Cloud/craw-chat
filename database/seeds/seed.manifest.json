@@ -16,13 +16,13 @@
   },
   "profiles": {
     "minimal": {
-      "common": ["001_bootstrap.sql"],
+      "common": ["001_bootstrap.sql", "002_im_demo_data.sql"],
       "locales": {
         "zh-CN": []
       }
     },
     "standard": {
-      "common": ["001_bootstrap.sql"],
+      "common": ["001_bootstrap.sql", "002_im_demo_data.sql"],
       "locales": {
         "zh-CN": []
       }

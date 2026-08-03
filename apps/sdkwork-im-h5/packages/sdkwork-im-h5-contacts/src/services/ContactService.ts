@@ -46,6 +46,15 @@ export type FriendRequestDirection = "incoming" | "outgoing";
 export interface ContactsSdkPort {
   conversations: {
     create(body: CreateConversationRequest): Promise<CreateConversationResult>;
+    addMember(
+      conversationId: string,
+      body: {
+        principalId: string;
+        principalKind: string;
+        role: string;
+        attributes?: Record<string, unknown>;
+      },
+    ): Promise<unknown>;
   };
   social: {
     contacts: {
@@ -204,12 +213,19 @@ export function createContactService(
       if (!normalizedTargetUserId) {
         throw new Error("A target user ID is required.");
       }
-      const result = await resolveClient().conversations.create({
-        clientRequestKey: uuid(),
+      // Direct conversations accept a client-supplied id and attach members
+      // through the member endpoint; memberUserIds is a group-only field.
+      const conversationId = `direct-${uuid()}`;
+      await resolveClient().conversations.create({
+        conversationId,
         conversationType: "direct",
-        memberUserIds: [normalizedTargetUserId],
       });
-      return result.conversationId;
+      await resolveClient().conversations.addMember(conversationId, {
+        principalId: normalizedTargetUserId,
+        principalKind: "user",
+        role: "member",
+      });
+      return conversationId;
     },
   };
 }

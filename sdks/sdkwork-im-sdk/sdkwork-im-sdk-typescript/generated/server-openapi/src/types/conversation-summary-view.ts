@@ -4,5 +4,5 @@ export interface ConversationSummaryView {
   messageCount: number;
   lastMessageSeq: number;
   lastSummary?: string | null;
-  lastMessageAt?: string;
+  lastMessageAt?: string | null;
 }

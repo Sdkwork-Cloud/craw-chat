@@ -138,7 +138,7 @@ do update set
     commit_fingerprint = excluded.commit_fingerprint,
     updated_at = excluded.updated_at,
     retention_until = excluded.retention_until
-where $14 is not null and im_conversations.commit_seq = $14
+where $14::bigint is not null and im_conversations.commit_seq = $14
 returning commit_seq
 "#;
 
@@ -2840,7 +2840,7 @@ mod tests {
     fn normalized_conversation_cas_uses_dedicated_complete_fingerprint() {
         let upsert = UPSERT_NORMALIZED_CONVERSATION_SQL.to_ascii_lowercase();
         assert!(upsert.contains("commit_fingerprint"));
-        assert!(upsert.contains("where $14 is not null and im_conversations.commit_seq = $14"));
+        assert!(upsert.contains("where $14::bigint is not null and im_conversations.commit_seq = $14"));
 
         let replay = LOAD_NORMALIZED_CONVERSATION_REPLAY_MATCH_SQL.to_ascii_lowercase();
         assert!(replay.contains("commit_fingerprint = $12"));

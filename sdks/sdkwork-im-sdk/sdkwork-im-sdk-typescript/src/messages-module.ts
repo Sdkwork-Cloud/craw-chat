@@ -7,6 +7,8 @@ import type {
   MessagePinMutationResult,
   MessageReactionMutationResult,
   MessageReactionRequest,
+  MessageSearchHit,
+  PageInfo,
   QueryParams,
   RecallMessageRequest,
 } from '../generated/server-openapi/dist/index.js';
@@ -16,6 +18,18 @@ import type {
 } from './openapi-compat-types.js';
 import { requireStringIdentifier } from './identifier-boundary.js';
 import type { ImTransportClientLike } from './transport-client-like.js';
+
+export interface MessageSearchParams {
+  q: string;
+  conversationId?: string;
+  pageSize?: number;
+  cursor?: string;
+}
+
+export interface MessageSearchPage {
+  items: MessageSearchHit[];
+  pageInfo: PageInfo;
+}
 
 export class ImMessagesModule {
   readonly favorites = {
@@ -28,6 +42,17 @@ export class ImMessagesModule {
   };
 
   constructor(private readonly transportClient: ImTransportClientLike) {}
+
+  search(params: MessageSearchParams): Promise<MessageSearchPage> {
+    const query = params.q.trim();
+    if (!query) {
+      return Promise.resolve({ items: [], pageInfo: { mode: 'cursor', hasMore: false } });
+    }
+    return this.transportClient.chat.messages.search({
+      ...params,
+      q: query,
+    });
+  }
 
   addReaction(
     messageId: string,

@@ -4,5 +4,5 @@ export interface BlockUserRequest {
   blockedUserId: string;
   scope: BlockScope;
   directChatId?: string | null;
-  expiresAt?: string;
+  expiresAt?: string | null;
 }

@@ -16,6 +16,8 @@
 -- observability: monitor preflight failure, lock wait, DDL duration, and replica lag
 -- cancellation: cancel before commit; PostgreSQL rolls back the complete transaction
 -- recovery: correct through a forward migration and restore only from verified normalized backups
+-- idempotency: the contract baseline already carries the typed current state; every DDL is guarded
+--   so fresh installs bootstrap as a no-op while legacy pre-squash databases still transform
 -- contract_version: 2.1.0
 
 BEGIN;
@@ -32,16 +34,44 @@ BEGIN
 END;
 $$;
 
-ALTER TABLE im_conversations
-    ADD COLUMN archived_at TIMESTAMPTZ,
-    ADD COLUMN archive_event_id TEXT,
-    ADD COLUMN commit_fingerprint TEXT NOT NULL,
-    ADD CONSTRAINT chk_im_conversations_archive_metadata CHECK (
-        (lifecycle_state = 'active' AND archived_at IS NULL AND archive_event_id IS NULL)
-        OR (lifecycle_state = 'archived' AND archived_at IS NOT NULL AND archive_event_id IS NOT NULL)
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_attribute
+        WHERE attrelid = 'im_conversations'::regclass AND attname = 'archived_at' AND NOT attisdropped
+    ) THEN
+        ALTER TABLE im_conversations ADD COLUMN archived_at TIMESTAMPTZ;
+    END IF;
 
-CREATE TABLE im_conversation_policies (
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_attribute
+        WHERE attrelid = 'im_conversations'::regclass AND attname = 'archive_event_id' AND NOT attisdropped
+    ) THEN
+        ALTER TABLE im_conversations ADD COLUMN archive_event_id TEXT;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_attribute
+        WHERE attrelid = 'im_conversations'::regclass AND attname = 'commit_fingerprint' AND NOT attisdropped
+    ) THEN
+        ALTER TABLE im_conversations ADD COLUMN commit_fingerprint TEXT NOT NULL;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_im_conversations_archive_metadata'
+          AND conrelid = 'im_conversations'::regclass
+    ) THEN
+        ALTER TABLE im_conversations
+            ADD CONSTRAINT chk_im_conversations_archive_metadata CHECK (
+                (lifecycle_state = 'active' AND archived_at IS NULL AND archive_event_id IS NULL)
+                OR (lifecycle_state = 'archived' AND archived_at IS NOT NULL AND archive_event_id IS NOT NULL)
+            );
+    END IF;
+END;
+$$;
+
+CREATE TABLE IF NOT EXISTS im_conversation_policies (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
@@ -60,7 +90,7 @@ CREATE TABLE im_conversation_policies (
     CONSTRAINT chk_im_conversation_policies_max_members CHECK (max_members IS NULL OR max_members > 0)
 );
 
-CREATE TABLE im_conversation_business_bindings (
+CREATE TABLE IF NOT EXISTS im_conversation_business_bindings (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
@@ -80,7 +110,7 @@ CREATE TABLE im_conversation_business_bindings (
     )
 );
 
-CREATE TABLE im_conversation_handoffs (
+CREATE TABLE IF NOT EXISTS im_conversation_handoffs (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,

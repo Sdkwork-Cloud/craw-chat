@@ -11,6 +11,7 @@ interface ChatSdkOverrides {
   conversations?: Partial<ChatSdkPort["conversations"]>;
   messages?: {
     deleteForMe?: ChatSdkPort["messages"]["deleteForMe"];
+    search?: ChatSdkPort["messages"]["search"];
     favorites?: Partial<ChatSdkPort["messages"]["favorites"]>;
   };
 }
@@ -86,6 +87,12 @@ function createSdk(overrides: ChatSdkOverrides = {}): ChatSdkPort {
         }),
         ...overrides.messages?.favorites,
       },
+      search: async () => ({
+        items: [],
+        pageInfo: { mode: "cursor", hasMore: false },
+      }),
+      ...(overrides.messages?.deleteForMe ? { deleteForMe: overrides.messages.deleteForMe } : {}),
+      ...(overrides.messages?.search ? { search: overrides.messages.search } : {}),
     },
   };
 }
@@ -193,12 +200,133 @@ test("uses one UUID request key and de-duplicates group members", async () => {
   assert.deepEqual((request as { memberUserIds?: string[] }).memberUserIds, ["user-1", "user-2"]);
 });
 
-test("fails closed when the generated SDK has no history-search operation", async () => {
-  const service = createChatService(() => createSdk());
-  await assert.rejects(
-    service.searchChatHistory("conversation-1", "hello"),
-    ChatCapabilityUnavailableError,
+test("creates a direct chat with a client id and attaches the member", async () => {
+  let createRequest: unknown;
+  let memberBody: unknown;
+  let memberConversationId: unknown;
+  const service = createChatService(() => createSdk({
+    conversations: {
+      create: async (body) => {
+        createRequest = body;
+        return { conversationId: (body as { conversationId?: string }).conversationId ?? "direct-1", eventId: "event-1" };
+      },
+      addMember: async (conversationId, body) => {
+        memberConversationId = conversationId;
+        memberBody = body;
+      },
+    },
+  }));
+
+  const chat = await service.createDirectChat({ id: "user-1", name: "Alice" } as never);
+
+  assert.equal(chat.type, "direct");
+  assert.match(chat.id, /^direct-/u);
+  assert.equal(
+    (createRequest as { conversationId?: string }).conversationId,
+    chat.id,
   );
+  assert.equal((createRequest as { memberUserIds?: string[] }).memberUserIds, undefined);
+  assert.equal((createRequest as { clientRequestKey?: string }).clientRequestKey, undefined);
+  assert.equal(memberConversationId, chat.id);
+  assert.deepEqual(memberBody, {
+    principalId: "user-1",
+    principalKind: "user",
+    role: "member",
+  });
+});
+
+test("searches history through the SDK and maps hits to messages", async () => {
+  let receivedParams: unknown;
+  const service = createChatService(() => createSdk({
+    messages: {
+      search: async (params) => {
+        receivedParams = params;
+        return {
+          items: [{ conversationId: "conversation-1", messageId: "message-42", messageSeq: 5 }],
+          pageInfo: { mode: "cursor", hasMore: false },
+        };
+      },
+    },
+    conversations: {
+      listMessages: async () => ({
+        items: [{
+          tenantId: "tenant-1",
+          conversationId: "conversation-1",
+          messageId: "message-42",
+          messageSeq: 5,
+          sender: { id: "user-1", kind: "user" },
+          body: {
+            parts: [{ kind: "text", text: "Hello world" }],
+          },
+          summary: "Hello world",
+          messageType: "standard",
+          deliveryMode: "at_least_once",
+          occurredAt: "2026-07-29T00:00:00Z",
+        }],
+        pageInfo: { mode: "cursor", hasMore: false },
+        highWatermark: 5,
+      }),
+    },
+  }));
+  const results = await service.searchChatHistory("conversation-1", "hello");
+  assert.equal(results.length, 1);
+  assert.equal(results[0].id, "message-42");
+  assert.equal(results[0].chatId, "conversation-1");
+  assert.equal(results[0].content, "Hello world");
+  assert.equal((receivedParams as { q?: string }).q, "hello");
+  assert.equal((receivedParams as { conversationId?: string }).conversationId, "conversation-1");
+});
+
+test("searches history with a trimmed query and skips hits without history entries", async () => {
+  const service = createChatService(() => createSdk({
+    messages: {
+      search: async () => ({
+        items: [
+          { conversationId: "conversation-1", messageId: "message-42", messageSeq: 5 },
+          { conversationId: "conversation-1", messageId: "message-99", messageSeq: 9 },
+        ],
+        pageInfo: { mode: "cursor", hasMore: false },
+      }),
+    },
+    conversations: {
+      listMessages: async () => ({
+        items: [{
+          tenantId: "tenant-1",
+          conversationId: "conversation-1",
+          messageId: "message-42",
+          messageSeq: 5,
+          sender: { id: "user-1", kind: "user" },
+          body: {
+            parts: [{ kind: "text", text: "Hello world" }],
+          },
+          summary: "Hello world",
+          messageType: "standard",
+          deliveryMode: "at_least_once",
+          occurredAt: "2026-07-29T00:00:00Z",
+        }],
+        pageInfo: { mode: "cursor", hasMore: false },
+        highWatermark: 9,
+      }),
+    },
+  }));
+  const results = await service.searchChatHistory("conversation-1", "  hello  ");
+  assert.equal(results.length, 1);
+  assert.equal(results[0].id, "message-42");
+});
+
+test("returns no results for an empty search query", async () => {
+  let searchCalls = 0;
+  const service = createChatService(() => createSdk({
+    messages: {
+      search: async () => {
+        searchCalls += 1;
+        return { items: [], pageInfo: { mode: "cursor", hasMore: false } };
+      },
+    },
+  }));
+  const results = await service.searchChatHistory("conversation-1", "   ");
+  assert.deepEqual(results, []);
+  assert.equal(searchCalls, 0);
 });
 
 test("retrieves conversation profile, members, and preferences through the SDK", async () => {

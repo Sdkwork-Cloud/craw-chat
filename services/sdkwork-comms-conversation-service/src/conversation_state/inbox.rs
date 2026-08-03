@@ -282,11 +282,24 @@ impl ConversationStateService {
         } else {
             None
         };
-        let peer = direct_inbox_peer_for_member(
+        let mut peer = direct_inbox_peer_for_member(
             conversation_type.as_str(),
             scope_member_views.iter(),
             &member,
         );
+        // Resolve missing peer display attributes from the IM user profile
+        // table so direct chats show names instead of raw principal IDs.
+        if let Some(view) = peer.as_mut()
+            && view.display_name.is_none()
+            && view.principal_kind == "user"
+            && let Some(display) =
+                self.resolve_user_display(&member.tenant_id, organization_id, &view.principal_id, "user")
+        {
+            view.display_name = Some(display.display_name);
+            if view.avatar_url.is_none() {
+                view.avatar_url = display.avatar_url;
+            }
+        }
         let profile_display_name = conversation_profile
             .as_ref()
             .and_then(|profile| non_empty_owned(profile.display_name.as_str()));

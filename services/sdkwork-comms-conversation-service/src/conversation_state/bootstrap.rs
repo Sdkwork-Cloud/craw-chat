@@ -3,9 +3,12 @@ use std::sync::{Arc, OnceLock};
 use im_adapters_postgres_journal::{
     PostgresAgentIntegrationStore, PostgresJournalPool, PostgresOutboxStore, PostgresSearchProvider,
 };
+use im_adapters_social_postgres::user_profile_store::PostgresUserProfileStore;
 use im_platform_contracts::{AgentIntegrationStore, OutboxStore};
 
-use crate::conversation_state::ConversationStateService;
+use crate::conversation_state::{
+    ConversationStateService, PostgresUserProfileResolver, UserProfileResolver,
+};
 
 /// Process-local cache and normalized-query dependencies used by Conversation HTTP/RPC handlers.
 ///
@@ -54,13 +57,18 @@ pub fn build_conversation_state_runtime_from_env() -> ConversationStateRuntime {
         };
     };
 
-    let pool = PostgresJournalPool::from_pool(shared_pool);
+    let pool = PostgresJournalPool::from_pool(shared_pool.clone());
     service.configure_conversation_event_outbox(Arc::new(PostgresOutboxStore::from_pool(
         pool.clone(),
     )) as Arc<dyn OutboxStore>);
     service.configure_agent_integration_store(Arc::new(
         PostgresAgentIntegrationStore::from_pool_with_runtime_ids(pool.clone()),
     ) as Arc<dyn AgentIntegrationStore>);
+    service.configure_user_profile_resolver(Arc::new(
+        PostgresUserProfileResolver::new(Arc::new(PostgresUserProfileStore::new(Arc::new(
+            shared_pool,
+        )))),
+    ) as Arc<dyn UserProfileResolver>);
 
     ConversationStateRuntime {
         service,

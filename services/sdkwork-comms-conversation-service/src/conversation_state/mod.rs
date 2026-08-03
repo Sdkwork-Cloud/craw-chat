@@ -33,6 +33,7 @@ mod message_delivery_index;
 mod message_favorites;
 mod message_visibilities;
 mod model;
+mod profile_resolver;
 mod read_receipts;
 mod received_message_index;
 mod scope;
@@ -79,6 +80,7 @@ pub use model::{
     RealtimeFanoutTarget, RegisteredClientRouteView, SummarySenderView, TimelineViewEntry,
     TimelineWindowView, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
 };
+pub use profile_resolver::{PostgresUserProfileResolver, ResolvedUserDisplay, UserProfileResolver};
 
 pub const CONVERSATION_STATE_TIMELINE_DEFAULT_LIMIT: usize = 100;
 pub const CONVERSATION_STATE_TIMELINE_MAX_LIMIT: usize = 1000;
@@ -143,6 +145,7 @@ pub struct ConversationStateService {
         std::sync::OnceLock<std::sync::Arc<dyn im_platform_contracts::OutboxStore>>,
     agent_integration_store:
         std::sync::OnceLock<std::sync::Arc<dyn im_platform_contracts::AgentIntegrationStore>>,
+    user_profile_resolver: std::sync::OnceLock<std::sync::Arc<dyn UserProfileResolver>>,
 }
 
 impl ConversationStateService {
@@ -166,6 +169,30 @@ impl ConversationStateService {
         store: std::sync::Arc<dyn im_platform_contracts::AgentIntegrationStore>,
     ) {
         let _ = self.agent_integration_store.set(store);
+    }
+
+    pub fn configure_user_profile_resolver(
+        &self,
+        resolver: std::sync::Arc<dyn UserProfileResolver>,
+    ) {
+        let _ = self.user_profile_resolver.set(resolver);
+    }
+
+    /// Resolves display attributes for a user principal from the IM user
+    /// profile table; returns `None` when no resolver is configured, the
+    /// principal is not a user, or the profile carries no nickname.
+    pub(crate) fn resolve_user_display(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Option<ResolvedUserDisplay> {
+        if principal_kind != "user" {
+            return None;
+        }
+        let resolver = self.user_profile_resolver.get()?;
+        resolver.resolve_display(tenant_id, organization_id, principal_id)
     }
 }
 

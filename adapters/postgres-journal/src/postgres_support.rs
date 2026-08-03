@@ -309,17 +309,29 @@ pub(crate) fn now_rfc3339() -> String {
     im_time::utc_now_rfc3339_millis()
 }
 
+use tracing;
+
 pub(crate) fn postgres_unavailable(
     action: &'static str,
-    _error: impl std::fmt::Display,
+    error: impl std::fmt::Display,
 ) -> ContractError {
+    tracing::error!(
+        action,
+        error = %error,
+        "postgres journal operation failed"
+    );
     ContractError::Unavailable(format!("postgres journal {action} failed"))
 }
 
 pub(crate) fn postgres_unavailable_db(
     action: &'static str,
-    _error: r2d2_postgres::postgres::Error,
+    error: r2d2_postgres::postgres::Error,
 ) -> ContractError {
+    tracing::error!(
+        action,
+        error = %error,
+        "postgres journal database operation failed"
+    );
     ContractError::Unavailable(format!("postgres journal {action} failed"))
 }
 

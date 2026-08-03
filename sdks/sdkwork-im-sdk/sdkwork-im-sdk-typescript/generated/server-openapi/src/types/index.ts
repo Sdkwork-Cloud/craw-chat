@@ -28,6 +28,8 @@ export type { ContentPart } from './content-part';
 export type { MessageBody } from './message-body';
 export type { ConversationMessageEntry } from './conversation-message-entry';
 export type { ConversationMessageListResponse } from './conversation-message-list-response';
+export type { MessageSearchHit } from './message-search-hit';
+export type { MessageSearchResponse } from './message-search-response';
 export type { PostMessageRequest } from './post-message-request';
 export type { EditMessageRequest } from './edit-message-request';
 export type { RecallMessageRequest } from './recall-message-request';

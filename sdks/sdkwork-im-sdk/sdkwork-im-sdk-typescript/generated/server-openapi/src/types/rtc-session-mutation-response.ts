@@ -13,7 +13,7 @@ export interface RtcSessionMutationResponse {
   signalingStreamId?: string | null;
   artifactMessageId?: string | null;
   startedAt: string;
-  endedAt?: string;
+  endedAt?: string | null;
   requestKey: string;
   deliveryStatus: 'applied' | 'replayed';
   proofVersion: string;

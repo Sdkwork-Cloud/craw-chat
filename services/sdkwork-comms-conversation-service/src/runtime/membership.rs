@@ -230,8 +230,14 @@ where
         let window = conversation
             .roster
             .list_active_members_window_filtered(offset, limit, query);
+        let mut items = window.items;
+        self.enrich_member_display_attributes(
+            auth.tenant_id.as_str(),
+            organization_id.as_str(),
+            &mut items,
+        );
         Ok(cursor_list_page_data(
-            window.items,
+            items,
             limit,
             window.next_offset.map(|value| value.to_string()),
             window.has_more,
@@ -1517,11 +1523,18 @@ where
                 }
                 (false, _) => None,
             };
+            let mut items = page
+                .items
+                .iter()
+                .map(conversation_member_from_record)
+                .collect::<Vec<_>>();
+            self.enrich_member_display_attributes(
+                tenant_id,
+                normalized_organization_id.as_str(),
+                &mut items,
+            );
             return Ok(cursor_list_page_data(
-                page.items
-                    .iter()
-                    .map(conversation_member_from_record)
-                    .collect(),
+                items,
                 limit,
                 next_cursor,
                 page.has_more,
@@ -1561,12 +1574,13 @@ where
         } else {
             None
         };
-        Ok(cursor_list_page_data(
-            window.items,
-            limit,
-            next_cursor,
-            window.has_more,
-        ))
+        let mut items = window.items;
+        self.enrich_member_display_attributes(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            &mut items,
+        );
+        Ok(cursor_list_page_data(items, limit, next_cursor, window.has_more))
     }
 
     pub fn update_read_cursor(

@@ -23,17 +23,17 @@ export class SpacesBansApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<{ items: SpaceBanView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<{ items: SpaceBanView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Create spaces bans */
   async create(spaceId: string, body: SpaceBanCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceBanView> {
-    return this.client.request<SpaceBanView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceBanView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** retrieve spaces bans */
   async retrieve(spaceId: string, userId: string, requestOptions?: ApiRequestOptions): Promise<SpaceBanView> {
-    return this.client.request<SpaceBanView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<SpaceBanView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Delete spaces bans */
@@ -63,17 +63,17 @@ export class SpacesInvitesApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<{ items: SpaceInviteView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<{ items: SpaceInviteView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Create spaces invites */
   async create(spaceId: string, body: SpaceInviteCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceInviteView> {
-    return this.client.request<SpaceInviteView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceInviteView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** retrieve spaces invites */
   async retrieve(spaceId: string, inviteCode: string, requestOptions?: ApiRequestOptions): Promise<SpaceInviteView> {
-    return this.client.request<SpaceInviteView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<SpaceInviteView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Delete spaces invites */
@@ -83,7 +83,7 @@ export class SpacesInvitesApi {
 
 /** Accept spaces invites */
   async accept(spaceId: string, inviteCode: string, requestOptions?: ApiRequestOptions): Promise<SdkWorkCommandData> {
-    return this.client.request<SdkWorkCommandData>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}/accept`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any });
+    return this.client.request<SdkWorkCommandData>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}/accept`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, sdkworkUnwrapKind: 'command' });
   }
 }
 
@@ -106,12 +106,12 @@ export class SpacesChannelsAccessRulesApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<{ items: SpaceChannelAccessRuleView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<{ items: SpaceChannelAccessRuleView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Create spaces channels access Rules */
   async create(spaceId: string, channelId: string, body: SpaceChannelAccessRuleCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceChannelAccessRuleView> {
-    return this.client.request<SpaceChannelAccessRuleView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceChannelAccessRuleView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Delete spaces channels access Rules */
@@ -141,22 +141,22 @@ export class SpacesChannelsApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<{ items: SpaceChannelView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<{ items: SpaceChannelView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Create spaces channels */
   async create(spaceId: string, body: SpaceChannelCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceChannelView> {
-    return this.client.request<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** retrieve spaces channels */
   async retrieve(spaceId: string, channelId: string, requestOptions?: ApiRequestOptions): Promise<SpaceChannelView> {
-    return this.client.request<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Update spaces channels */
   async update(spaceId: string, channelId: string, body: SpaceChannelUpdateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceChannelView> {
-    return this.client.request<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Delete spaces channels */
@@ -184,22 +184,22 @@ export class SpacesGroupsMembersApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<{ items: SpaceGroupMemberView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<{ items: SpaceGroupMemberView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Create spaces groups members */
   async create(spaceId: string, groupId: string, body: SpaceGroupMemberCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceGroupMemberView> {
-    return this.client.request<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** retrieve spaces groups members */
   async retrieve(spaceId: string, groupId: string, userId: string, requestOptions?: ApiRequestOptions): Promise<SpaceGroupMemberView> {
-    return this.client.request<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Update spaces groups members */
   async update(spaceId: string, groupId: string, userId: string, body: SpaceGroupMemberUpdateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceGroupMemberView> {
-    return this.client.request<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Delete spaces groups members */
@@ -229,22 +229,22 @@ export class SpacesGroupsApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<{ items: SpaceGroupView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<{ items: SpaceGroupView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Create spaces groups */
   async create(spaceId: string, body: SpaceGroupCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceGroupView> {
-    return this.client.request<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** retrieve spaces groups */
   async retrieve(spaceId: string, groupId: string, requestOptions?: ApiRequestOptions): Promise<SpaceGroupView> {
-    return this.client.request<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Update spaces groups */
   async update(spaceId: string, groupId: string, body: SpaceGroupUpdateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceGroupView> {
-    return this.client.request<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Delete spaces groups */
@@ -272,22 +272,22 @@ export class SpacesMembersApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<{ items: SpaceMemberView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<{ items: SpaceMemberView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Create spaces members */
   async create(spaceId: string, body: SpaceMemberCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceMemberView> {
-    return this.client.request<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** retrieve spaces members */
   async retrieve(spaceId: string, userId: string, requestOptions?: ApiRequestOptions): Promise<SpaceMemberView> {
-    return this.client.request<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Update spaces members */
   async update(spaceId: string, userId: string, body: SpaceMemberUpdateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceMemberView> {
-    return this.client.request<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Delete spaces members */
@@ -321,7 +321,7 @@ export class SpacesApi {
 
 /** Create a space */
   async create(body: SpaceCreateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceView> {
-    return this.client.request<SpaceView>(imApiPath(`/spaces`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceView>(imApiPath(`/spaces`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** List spaces */
@@ -330,17 +330,17 @@ export class SpacesApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<{ items: SpaceView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<{ items: SpaceView[]; pageInfo: PageInfo; }>(appendQueryString(imApiPath(`/spaces`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Retrieve a space */
   async retrieve(spaceId: string, requestOptions?: ApiRequestOptions): Promise<SpaceView> {
-    return this.client.request<SpaceView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<SpaceView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Update a space */
   async update(spaceId: string, body: SpaceUpdateRequest, requestOptions?: ApiRequestOptions): Promise<SpaceView> {
-    return this.client.request<SpaceView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json' });
+    return this.client.request<SpaceView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Delete a space */

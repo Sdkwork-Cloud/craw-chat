@@ -1263,12 +1263,19 @@ fn friend_request_participants(
     Ok((user_pair, actor_pair))
 }
 
+/// Resolve the canonical conversation id for the accepted pair and pair the
+/// caller-supplied numeric record id with it.
+///
+/// The conversation id authority is the conversation runtime (`c_` prefix over
+/// the `direct` seed segment); the direct chat *record* id on the social side
+/// is a numeric snowflake stored in `im_direct_chats.direct_chat_id (bigint)`.
 fn resolve_accept_direct_chat_ids(
     tenant_id: &str,
     organization_id: &str,
     actor_pair: &NormalizedActorPair,
+    direct_chat_id: String,
 ) -> Result<(String, String), SocialServiceError> {
-    resolve_direct_chat_binding_ids(DirectChatBindingIdInput {
+    let (conversation_id, _) = resolve_direct_chat_binding_ids(DirectChatBindingIdInput {
         tenant_id,
         organization_id,
         left_actor_kind: "user",
@@ -1278,7 +1285,8 @@ fn resolve_accept_direct_chat_ids(
         requested_conversation_id: "",
         requested_direct_chat_id: "",
     })
-    .map_err(|error| SocialServiceError::invalid("invalid_direct_chat", error))
+    .map_err(|error| SocialServiceError::invalid("invalid_direct_chat", error))?;
+    Ok((conversation_id, direct_chat_id))
 }
 
 fn map_direct_chat_binder_error(error: String) -> SocialServiceError {
@@ -2386,11 +2394,16 @@ impl SocialRuntime {
             .commits
             .iter()
             .any(|commit| commit.event_type == "friend_request.accepted");
-        let friendship_id = deterministic_social_id("fs_", request_id);
+        let friendship_id = self.next_social_record_id("friendship")?;
         let friendship_event_id = deterministic_social_id("evt_fs_activate_", request_id);
         let direct_chat_event_id = deterministic_social_id("evt_dc_bind_", request_id);
-        let (conversation_id, direct_chat_id) =
-            resolve_accept_direct_chat_ids(tenant_id, auth.organization_id.as_str(), &actor_pair)?;
+        let direct_chat_record_id = self.next_social_record_id("direct_chat")?;
+        let (conversation_id, direct_chat_id) = resolve_accept_direct_chat_ids(
+            tenant_id,
+            auth.organization_id.as_str(),
+            &actor_pair,
+            direct_chat_record_id,
+        )?;
         let payload = FriendRequestAcceptedPayload {
             request_id: request_id.into(),
             requester_user_id: stored.friend_request.requester_user_id.clone(),
@@ -2602,7 +2615,10 @@ impl SocialRuntime {
                     tenant_id: tenant_id.to_owned(),
                     organization_id: auth.organization_id.clone(),
                     conversation_id: conversation_id.clone(),
-                    direct_chat_id: planned_direct_chat_id.clone(),
+                    // The conversation runtime derives the canonical direct
+                    // chat business id from the actor pair; the social record
+                    // id (numeric snowflake) is stored only on the social side.
+                    direct_chat_id: String::new(),
                     left_actor_id: actor_pair.left_actor_id.clone(),
                     left_actor_kind: "user".to_owned(),
                     right_actor_id: actor_pair.right_actor_id.clone(),

@@ -13,5 +13,5 @@ export interface RtcSession {
   signalingStreamId?: string | null;
   artifactMessageId?: string | null;
   startedAt: string;
-  endedAt?: string;
+  endedAt?: string | null;
 }

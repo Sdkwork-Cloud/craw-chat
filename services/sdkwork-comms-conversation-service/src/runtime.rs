@@ -2812,6 +2812,9 @@ pub struct ConversationRuntime<J> {
     durable_message_post_writer: Option<Arc<dyn DurableMessagePostWriter>>,
     durable_message_mutation_writer: Option<Arc<dyn DurableMessageMutationWriter>>,
     durable_conversation_event_writer: Option<Arc<dyn DurableConversationEventWriter>>,
+    /// 可选的用户画像解析器。注入后成员列表为 user 成员富化
+    /// displayName/avatarUrl attributes（读时填充，不改写持久化状态）。
+    user_profile_resolver: Option<Arc<dyn crate::conversation_state::UserProfileResolver>>,
 }
 
 impl<J> ConversationRuntime<J>
@@ -2836,6 +2839,7 @@ where
             durable_message_post_writer: None,
             durable_message_mutation_writer: None,
             durable_conversation_event_writer: None,
+            user_profile_resolver: None,
         }
     }
 
@@ -2903,6 +2907,58 @@ where
     ) -> Self {
         self.durable_conversation_event_writer = Some(writer);
         self
+    }
+
+    pub fn with_user_profile_resolver(
+        mut self,
+        resolver: Arc<dyn crate::conversation_state::UserProfileResolver>,
+    ) -> Self {
+        self.user_profile_resolver = Some(resolver);
+        self
+    }
+
+    /// 解析用户画像显示属性（displayName/avatarUrl），未配置解析器时返回 None。
+    pub(crate) fn resolve_user_display(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        user_id: &str,
+    ) -> Option<crate::conversation_state::ResolvedUserDisplay> {
+        let resolver = self.user_profile_resolver.as_ref()?;
+        resolver.resolve_display(tenant_id, organization_id, user_id)
+    }
+
+    /// 为 user 成员补齐缺失的 displayName/avatarUrl attributes（读时富化，
+    /// 不改写持久化状态）。
+    pub(crate) fn enrich_member_display_attributes(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        members: &mut [ConversationMember],
+    ) {
+        for member in members {
+            if member.principal_kind != "user"
+                || member.attributes.contains_key("displayName")
+                || member.attributes.contains_key("display_name")
+            {
+                continue;
+            }
+            let Some(display) =
+                self.resolve_user_display(tenant_id, organization_id, &member.principal_id)
+            else {
+                continue;
+            };
+            member
+                .attributes
+                .entry("displayName".to_owned())
+                .or_insert(display.display_name);
+            if let Some(avatar_url) = display.avatar_url {
+                member
+                    .attributes
+                    .entry("avatarUrl".to_owned())
+                    .or_insert(avatar_url);
+            }
+        }
     }
 
     /// 运行时是否已配置 DB 真值存储路径。

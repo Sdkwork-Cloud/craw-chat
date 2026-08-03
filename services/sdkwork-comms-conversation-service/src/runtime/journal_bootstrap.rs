@@ -173,9 +173,16 @@ pub fn build_conversation_runtime_from_env()
         )
             as Arc<dyn DurableConversationEventWriter>);
         if let Ok(shared_pool) = sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool() {
-            let block_store = Arc::new(PostgresUserBlockStore::new(Arc::new(shared_pool)));
+            let block_store = Arc::new(PostgresUserBlockStore::new(Arc::new(shared_pool.clone())));
             runtime = runtime.with_direct_message_access_gate(Arc::new(
                 PostgresDirectMessageAccessGate::new(block_store),
+            ));
+            runtime = runtime.with_user_profile_resolver(Arc::new(
+                crate::conversation_state::PostgresUserProfileResolver::new(Arc::new(
+                    im_adapters_social_postgres::user_profile_store::PostgresUserProfileStore::new(
+                        Arc::new(shared_pool),
+                    ),
+                )),
             ));
             info!("conversation-runtime wired postgres direct message access gate");
         }

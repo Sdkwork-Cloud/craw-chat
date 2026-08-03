@@ -9,6 +9,7 @@ use sdkwork_api_product_runtime::{
     RouterProductRuntimeOptions, build_product_runtime_router, resolve_product_site_dir_from_env,
 };
 use sdkwork_web_bootstrap::{ComposedApiAssembly, WebFrameworkBuilder};
+use sdkwork_im_web_bootstrap::im_service_context_profile;
 use tower_http::cors::CorsLayer;
 
 const DEFAULT_BIND: &str = "127.0.0.1:18079";
@@ -80,7 +81,21 @@ async fn async_main(
     contributions.append(&mut dependencies.contributions);
     let composed = ComposedApiAssembly::try_compose("SDKWork IM Standalone API", contributions)
         .map_err(|error| format!("compose standalone API profile failed: {error}"))?;
-    let hosted = composed.into_hosted(WebFrameworkBuilder::new(iam_resolver));
+    // The composed WebFramework defaults to a deny-all CORS policy; the
+    // standalone profile reuses the canonical dev policy (loopback origins)
+    // plus the explicitly configured browser origins.
+    let security_policy = sdkwork_web_bootstrap::security_policy_for_environment(
+        &sdkwork_web_bootstrap::web_environment_from_env(&["SDKWORK_IM_ENVIRONMENT"]),
+        sdkwork_web_bootstrap::cors_allowed_origins_from_env(&[
+            "SDKWORK_CORS_ALLOWED_ORIGINS",
+            "SDKWORK_IM_BROWSER_ORIGINS",
+        ]),
+    );
+    let hosted = composed.into_hosted(
+        WebFrameworkBuilder::new(iam_resolver)
+            .profile(im_service_context_profile())
+            .security_policy(security_policy),
+    );
     let app = product_runtime_router
         .merge(hosted.router)
         .layer(build_cors_layer(environment.as_str()));

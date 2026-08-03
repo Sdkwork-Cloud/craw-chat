@@ -14,7 +14,7 @@ export class PresenceMeApi {
 
 /** Retrieve current principal presence */
   async retrieve(requestOptions?: ApiRequestOptions): Promise<PresenceView> {
-    return this.client.request<PresenceView>(imApiPath(`/presence/me`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any });
+    return this.client.request<PresenceView>(imApiPath(`/presence/me`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -30,7 +30,7 @@ export class PresenceApi {
 
 /** Publish current client route presence heartbeat */
   async heartbeat(body: PresenceHeartbeatRequest, requestOptions?: ApiRequestOptions): Promise<PresenceView> {
-    return this.client.request<PresenceView>(imApiPath(`/presence/heartbeat`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json' });
+    return this.client.request<PresenceView>(imApiPath(`/presence/heartbeat`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 

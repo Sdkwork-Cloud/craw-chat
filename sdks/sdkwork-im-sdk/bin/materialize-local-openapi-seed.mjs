@@ -129,6 +129,8 @@ const queryParameters = {
     default: 20,
   }, { required: false }),
   QQuery: parameter('q', 'query', stringSchema({ maxLength: 256 }), { required: false }),
+  SearchQQuery: parameter('q', 'query', stringSchema({ maxLength: 256 }), { required: true }),
+  ConversationIdQuery: parameter('conversationId', 'query', stringSchema(), { required: false }),
   StatusQuery: parameter('status', 'query', stringSchema({ enum: ['pending', 'accepted', 'declined', 'canceled', 'expired', 'all'] }), { required: false }),
 };
 
@@ -369,6 +371,22 @@ const schemas = {
           pageInfo: ref('PageInfo'),
           highWatermark: sequenceSchema(),
         }, ['items', 'pageInfo', 'highWatermark']),
+      }, ['data']),
+    ],
+  },
+  MessageSearchHit: objectSchema({
+    conversationId: stringSchema(),
+    messageId: stringSchema(),
+    messageSeq: sequenceSchema(),
+  }, ['conversationId', 'messageId', 'messageSeq']),
+  MessageSearchResponse: {
+    allOf: [
+      ref('SdkWorkApiResponse'),
+      objectSchema({
+        data: objectSchema({
+          items: arrayOf(ref('MessageSearchHit')),
+          pageInfo: ref('PageInfo'),
+        }, ['items', 'pageInfo']),
       }, ['data']),
     ],
   },
@@ -1204,6 +1222,17 @@ const paths = Object.fromEntries([
   pathItem('/chat/conversations/{conversationId}/messages/{messageId}/interaction_summary', {
     parameters: [p('ConversationIdPath'), p('MessageIdPath')],
     get: operation({ tag: 'chat', operationId: 'conversations.messages.interactionSummary.retrieve', summary: 'Retrieve message interaction summary', parameters: [p('ConversationIdPath'), p('MessageIdPath')], response: 'MessageInteractionSummaryView' }),
+  }),
+  pathItem('/chat/messages/search', {
+    get: operation({
+      tag: 'chat',
+      operationId: 'messages.search',
+      summary: 'Search conversation message history',
+      description: 'Full-text search over message history scoped to the authenticated principal. When conversationId is omitted the search covers every conversation the principal is a member of. Results are returned newest-first with an opaque keyset cursor for older pages.',
+      parameters: [p('SearchQQuery'), p('ConversationIdQuery'), p('PageSizeQuery'), p('CursorQuery')],
+      response: 'MessageSearchResponse',
+      statuses: ['400', '401', '403', '503'],
+    }),
   }),
   pathItem('/chat/messages/{messageId}/edit', {
     parameters: [p('MessageIdPath')],

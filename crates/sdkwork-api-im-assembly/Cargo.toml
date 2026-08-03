@@ -13,6 +13,7 @@ path = "src/lib.rs"
 axum.workspace = true
 tokio.workspace = true
 sdkwork-web-bootstrap.workspace = true
+sdkwork-web-core = { path = "../../../sdkwork-web-framework/crates/sdkwork-web-core" }
 sdkwork_web_core.workspace = true
 chrono = "0.4.44"
 tracing.workspace = true
@@ -37,21 +38,21 @@ sdkwork_im_database_pool = { workspace = true }
 sdkwork_im_service_readiness = { workspace = true }
 calls-service = { path = "../../services/im-calls-service" }
 sdkwork-agents-runtime-facade.workspace = true
-sdkwork_routes_im_audit_backend_api.workspace = true
-sdkwork_routes_im_automation_app_api.workspace = true
+sdkwork-routes-im-audit-backend-api = { path = "../sdkwork-routes-im-audit-backend-api" }
+sdkwork-routes-im-automation-app-api = { path = "../sdkwork-routes-im-automation-app-api" }
 sdkwork-routes-im-calls-open-api.workspace = true
-sdkwork_routes_im_chat_open_api.workspace = true
-sdkwork_routes_im_governance_backend_api.workspace = true
-sdkwork_routes_im_knowledgebase_app_api.workspace = true
-sdkwork_routes_im_media_app_api.workspace = true
-sdkwork_routes_im_notification_app_api.workspace = true
-sdkwork_routes_im_ops_backend_api.workspace = true
-sdkwork_routes_im_portal_app_api.workspace = true
-sdkwork_routes_im_realtime_open_api.workspace = true
-sdkwork_routes_im_social_backend_api.workspace = true
-sdkwork_routes_im_social_open_api.workspace = true
-sdkwork_routes_im_space_open_api.workspace = true
-sdkwork_routes_im_stream_app_api.workspace = true
+sdkwork-routes-im-chat-open-api = { path = "../sdkwork-routes-im-chat-open-api" }
+sdkwork-routes-im-governance-backend-api = { path = "../sdkwork-routes-im-governance-backend-api" }
+sdkwork-routes-im-knowledgebase-app-api = { path = "../sdkwork-routes-im-knowledgebase-app-api" }
+sdkwork-routes-im-media-app-api = { path = "../sdkwork-routes-im-media-app-api" }
+sdkwork-routes-im-notification-app-api = { path = "../sdkwork-routes-im-notification-app-api" }
+sdkwork-routes-im-ops-backend-api = { path = "../sdkwork-routes-im-ops-backend-api" }
+sdkwork-routes-im-portal-app-api = { path = "../sdkwork-routes-im-portal-app-api" }
+sdkwork-routes-im-realtime-open-api = { path = "../sdkwork-routes-im-realtime-open-api" }
+sdkwork-routes-im-social-backend-api = { path = "../sdkwork-routes-im-social-backend-api" }
+sdkwork-routes-im-social-open-api = { path = "../sdkwork-routes-im-social-open-api" }
+sdkwork-routes-im-space-open-api = { path = "../sdkwork-routes-im-space-open-api" }
+sdkwork-routes-im-stream-app-api = { path = "../sdkwork-routes-im-stream-app-api" }
 
 [dev-dependencies]
 tower.workspace = true
