@@ -103,7 +103,6 @@
           {
             "id": "im-browser",
             "role": "client",
-            "script": "_sdkwork:client:browser:standalone",
             "applicationRoot": "apps/sdkwork-im-pc",
             "bindEnv": "SDKWORK_IM_WEB_DEV_INGRESS_BIND",
             "runtimeTargets": [
@@ -164,7 +163,51 @@
             "deliveryMode": "dev-server-proxy",
             "clientProcessId": "im-browser",
             "apiSurfaceId": "application.public-ingress",
-            "preserveCanonicalPaths": true
+            "preserveCanonicalPaths": true,
+            "renderers": {
+              "pc-web": {
+                "applicationRoot": "apps/sdkwork-im-pc",
+                "command": "node",
+                "args": [
+                  "../../scripts/dev/run-vite-cli.mjs",
+                  "--host",
+                  "{host}",
+                  "--port",
+                  "{port}",
+                  "--strictPort"
+                ],
+                "defaultPort": 4176,
+                "portEnv": "SDKWORK_IM_PC_INTERNAL_DEV_PORT",
+                "env": {
+                  "VITE_SDKWORK_IM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IAM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_HTTP_URL": "{httpOrigin}"
+                }
+              },
+              "h5": {
+                "applicationRoot": "apps/sdkwork-im-h5",
+                "command": "node",
+                "args": [
+                  "../../scripts/dev/run-vite-cli.mjs",
+                  "--host",
+                  "{host}",
+                  "--port",
+                  "{port}",
+                  "--strictPort"
+                ],
+                "defaultPort": 4178,
+                "portEnv": "SDKWORK_IM_H5_INTERNAL_DEV_PORT",
+                "env": {
+                  "VITE_SDKWORK_IM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IAM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_HTTP_URL": "{httpOrigin}"
+                }
+              }
+            }
           }
         ],
         "accessEndpoints": [
@@ -199,7 +242,6 @@
           {
             "id": "im-browser",
             "role": "client",
-            "script": "_sdkwork:client:browser:cloud",
             "applicationRoot": "apps/sdkwork-im-pc",
             "bindEnv": "SDKWORK_IM_WEB_DEV_INGRESS_BIND",
             "runtimeTargets": [
@@ -246,6 +288,65 @@
               "flutter"
             ],
             "required": true
+          }
+        ],
+        "browserDeliveries": [
+          {
+            "id": "im-adaptive-web",
+            "applicationRoot": "apps/sdkwork-im-pc",
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ],
+            "originMode": "same-origin",
+            "deliveryMode": "dev-server-proxy",
+            "clientProcessId": "im-browser",
+            "apiSurfaceId": "application.public-ingress",
+            "preserveCanonicalPaths": true,
+            "renderers": {
+              "pc-web": {
+                "applicationRoot": "apps/sdkwork-im-pc",
+                "command": "node",
+                "args": [
+                  "../../scripts/dev/run-vite-cli.mjs",
+                  "--host",
+                  "{host}",
+                  "--port",
+                  "{port}",
+                  "--strictPort"
+                ],
+                "defaultPort": 4176,
+                "portEnv": "SDKWORK_IM_PC_INTERNAL_DEV_PORT",
+                "env": {
+                  "VITE_SDKWORK_IM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IAM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_HTTP_URL": "{httpOrigin}"
+                }
+              },
+              "h5": {
+                "applicationRoot": "apps/sdkwork-im-h5",
+                "command": "node",
+                "args": [
+                  "../../scripts/dev/run-vite-cli.mjs",
+                  "--host",
+                  "{host}",
+                  "--port",
+                  "{port}",
+                  "--strictPort"
+                ],
+                "defaultPort": 4178,
+                "portEnv": "SDKWORK_IM_H5_INTERNAL_DEV_PORT",
+                "env": {
+                  "VITE_SDKWORK_IM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IAM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_HTTP_URL": "{httpOrigin}"
+                }
+              }
+            }
           }
         ],
         "accessEndpoints": [

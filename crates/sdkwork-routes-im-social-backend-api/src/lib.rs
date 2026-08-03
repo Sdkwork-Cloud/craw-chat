@@ -22,7 +22,10 @@ pub fn build_control_public_app(social_runtime: Arc<SocialRuntime>) -> Router {
 /// Embedded gateway assembly: domain routes only; outer gateway owns infra probes.
 pub fn build_control_embedded_public_app(social_runtime: Arc<SocialRuntime>) -> Router {
     web_bootstrap::wrap_router(routes::build_control_app(
-        social_service::friendship::AppState { social_runtime },
+        social_service::friendship::AppState {
+            social_runtime,
+            user_profile_store: None,
+        },
     ))
 }
 

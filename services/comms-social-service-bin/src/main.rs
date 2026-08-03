@@ -40,8 +40,12 @@ async fn run() -> Result<(), String> {
     let postgres_state = social_service::app_state_from_postgres_pool(postgres_pool).await;
     let mut app =
         sdkwork_routes_im_social_backend_api::build_control_public_app(social_runtime.clone());
+    let social_profile_store: Option<
+        std::sync::Arc<dyn im_adapters_social_postgres::user_profile_store::UserProfileStore>,
+    > = Some(postgres_state.user_profile_store.clone());
     app = app.merge(sdkwork_routes_im_social_open_api::build_runtime_public_app(
         social_runtime.clone(),
+        social_profile_store,
     ));
     app = app.merge(social_service::build_app(social_runtime));
     app =

@@ -95,9 +95,11 @@ export function NewFriends() {
         )}
         {items.map((request) => (
           <div key={request.friendRequestId} className="flex items-center gap-3 border-b border-border-color px-4 py-3">
-            <Avatar fallback={request.requesterUserId} size="md" />
+            <Avatar fallback={request.requesterDisplayName || request.requesterUserId} size="md" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[16px] font-medium text-text-main">{request.requesterUserId}</p>
+              <p className="truncate text-[16px] font-medium text-text-main">
+                {request.requesterDisplayName || request.requesterUserId}
+              </p>
               <p className="truncate text-[13px] text-text-sub">
                 {request.requestMessage || t("contacts.friend_request_default")}
               </p>

@@ -8,4 +8,6 @@ export interface FriendRequest {
   expiredAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  requesterDisplayName?: string | null;
+  requesterAvatarUrl?: string | null;
 }

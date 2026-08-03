@@ -26,6 +26,22 @@ import { createChatMediaDownloadUrl, uploadChatMedia, type ChatMediaUpload } fro
 const LEGACY_CHAT_PAGE_SIZE = 50;
 const MAX_SEARCH_MESSAGE_LOOKUP_PAGES = 10;
 
+/**
+ * Wire-level view of a conversation member. The conversation runtime returns
+ * `attributes` (displayName/avatarUrl enrichment) alongside the generated
+ * member fields; the local view keeps the service layer type-safe without
+ * changing generated SDK output.
+ */
+type EnrichedConversationMember = ListMembersResponse["items"][number] & {
+  attributes?: Record<string, string>;
+};
+
+function memberDisplayName(member: EnrichedConversationMember): string | undefined {
+  const attributes = member.attributes;
+  const displayName = attributes?.["displayName"] ?? attributes?.["display_name"];
+  return typeof displayName === "string" && displayName.trim() ? displayName.trim() : undefined;
+}
+
 export interface ChatPage {
   items: Chat[];
   hasMore: boolean;
@@ -173,10 +189,17 @@ export function createChatService(
         .map((member) => {
           const peer = inboxEntry?.peer;
           const isPeer = peer && (peer.userId ?? peer.principalId) === member.principalId;
+          const enriched = member as EnrichedConversationMember;
+          const memberName = memberDisplayName(enriched);
           return {
             id: member.principalId,
-            name: isPeer ? (peer.displayName ?? peer.principalId) : member.principalId,
+            name: isPeer
+              ? (peer.displayName ?? memberName ?? peer.principalId)
+              : (memberName ?? member.principalId),
             ...(isPeer && peer.avatarUrl ? { avatar: peer.avatarUrl } : {}),
+            ...(!isPeer && enriched.attributes?.avatarUrl
+              ? { avatar: enriched.attributes.avatarUrl }
+              : {}),
           };
         });
       const summary = resolveClient().conversations.getSummary

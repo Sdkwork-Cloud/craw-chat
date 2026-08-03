@@ -163,12 +163,16 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
             social_runtime.clone(),
         ),
     );
-    router = router.merge(sdkwork_routes_im_social_open_api::build_runtime_public_app(
-        social_runtime.clone(),
-    ));
 
     let pool = resolve_embedded_social_postgres_pool()?;
     let social_state = social_service::app_state_from_postgres_pool(pool.clone()).await;
+    let social_profile_store: Option<
+        std::sync::Arc<dyn im_adapters_social_postgres::user_profile_store::UserProfileStore>,
+    > = Some(social_state.user_profile_store.clone());
+    router = router.merge(sdkwork_routes_im_social_open_api::build_runtime_public_app(
+        social_runtime.clone(),
+        social_profile_store,
+    ));
     router = router.merge(sdkwork_routes_im_social_open_api::gateway_mount(
         social_state.clone(),
     ));

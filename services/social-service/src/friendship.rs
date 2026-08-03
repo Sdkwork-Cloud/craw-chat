@@ -515,6 +515,10 @@ pub(crate) struct FriendRequestHttpView {
     expired_at: Option<String>,
     created_at: String,
     updated_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    requester_display_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    requester_avatar_url: Option<String>,
 }
 
 impl From<FriendRequest> for FriendRequestHttpView {
@@ -529,6 +533,49 @@ impl From<FriendRequest> for FriendRequestHttpView {
             expired_at: value.expired_at,
             created_at: value.created_at,
             updated_at: value.updated_at,
+            requester_display_name: None,
+            requester_avatar_url: None,
+        }
+    }
+}
+
+/// Resolves requester display attributes from the IM user profile table so
+/// friend request lists show names instead of raw user IDs. No-op when no
+/// profile store is configured (in-memory/control surfaces).
+pub(crate) fn enrich_friend_request_display(
+    profile_store: Option<&std::sync::Arc<
+        dyn im_adapters_social_postgres::user_profile_store::UserProfileStore,
+    >>,
+    tenant_id: &str,
+    organization_id: &str,
+    items: &mut [FriendRequestHttpView],
+) {
+    let Some(profile_store) = profile_store else {
+        return;
+    };
+    for view in items {
+        let Some(profile) = profile_store
+            .get_by_user_id(tenant_id, organization_id, view.requester_user_id.as_str())
+            .ok()
+            .flatten()
+        else {
+            continue;
+        };
+        if let Some(nickname) = profile
+            .im_nickname
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            view.requester_display_name = Some(nickname.to_owned());
+        }
+        if let Some(avatar_url) = profile
+            .im_avatar_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            view.requester_avatar_url = Some(avatar_url.to_owned());
         }
     }
 }
@@ -715,6 +762,8 @@ pub(crate) struct SocialFriendshipSnapshotResponse {
 #[derive(Clone)]
 pub struct AppState {
     pub social_runtime: std::sync::Arc<SocialRuntime>,
+    pub user_profile_store:
+        Option<std::sync::Arc<dyn im_adapters_social_postgres::user_profile_store::UserProfileStore>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -3495,11 +3544,19 @@ pub(crate) async fn list_friend_requests(
                 cursor: cursor.as_ref(),
             })?;
         let has_more = page.next_cursor.is_some();
+        let mut items = page
+            .items
+            .into_iter()
+            .map(FriendRequestHttpView::from)
+            .collect::<Vec<_>>();
+        enrich_friend_request_display(
+            state.user_profile_store.as_ref(),
+            tenant_id,
+            auth.organization_id.as_str(),
+            &mut items,
+        );
         Ok(cursor_list_page_data(
-            page.items
-                .into_iter()
-                .map(FriendRequestHttpView::from)
-                .collect::<Vec<_>>(),
+            items,
             limit,
             page.next_cursor,
             has_more,

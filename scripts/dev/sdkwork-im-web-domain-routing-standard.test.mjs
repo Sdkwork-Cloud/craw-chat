@@ -120,28 +120,38 @@ assert.deepEqual(routing.routing, {
   },
 });
 const packageManifest = readJson('package.json');
-assert.equal(
-  packageManifest.scripts['_sdkwork:client:browser:standalone'],
-  'node scripts/dev/run-sdkwork-im-adaptive-web-dev.mjs',
-);
-assert.equal(
-  packageManifest.scripts['_sdkwork:client:browser:cloud'],
-  'node scripts/dev/run-sdkwork-im-adaptive-web-dev.mjs',
-);
+assert.equal(packageManifest.scripts['_sdkwork:client:browser:standalone'], undefined);
+assert.equal(packageManifest.scripts['_sdkwork:client:browser:cloud'], undefined);
 const standaloneBrowser = topology.orchestration.profiles['standalone.development'].processes
   .find((process) => process.id === 'im-browser');
 assert.deepEqual(standaloneBrowser.clientArchitectures, ['pc-web', 'h5']);
 assert.equal(standaloneBrowser.bindEnv, 'SDKWORK_IM_WEB_DEV_INGRESS_BIND');
+assert.equal(standaloneBrowser.script, undefined);
 assert.equal(
   topology.orchestration.profiles['standalone.development'].processes
     .some((process) => process.id === 'im-h5'),
   false,
 );
-const adaptiveIngressSource = readText('scripts/dev/run-sdkwork-im-adaptive-web-dev.mjs');
-assert.match(
-  adaptiveIngressSource,
-  /isCanonicalImApiPath[\s\S]*resolveAvailableImWebClient/u,
-);
+const adaptiveDelivery = topology.orchestration.profiles['standalone.development']
+  .browserDeliveries.find((delivery) => delivery.id === 'im-adaptive-web');
+assert.equal(adaptiveDelivery.deliveryMode, 'dev-server-proxy');
+assert.equal(adaptiveDelivery.preserveCanonicalPaths, true);
+assert.equal(adaptiveDelivery.clientProcessId, 'im-browser');
+assert.deepEqual(Object.keys(adaptiveDelivery.renderers).sort(), ['h5', 'pc-web']);
+for (const [architecture, renderer] of Object.entries(adaptiveDelivery.renderers)) {
+  assert.equal(renderer.command, 'node');
+  assert.ok(
+    renderer.args.some((arg) => arg.includes('run-vite-cli.mjs')),
+    `${architecture} renderer must launch through the shared vite runner`,
+  );
+  assert.ok(renderer.defaultPort > 0, `${architecture} renderer needs defaultPort`);
+  assert.match(
+    renderer.portEnv,
+    /^SDKWORK_IM_[A-Z0-9_]+_INTERNAL_DEV_PORT$/u,
+    `${architecture} renderer needs a canonical portEnv`,
+  );
+  assert.equal(renderer.env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL, '{httpOrigin}');
+}
 const pcViteSource = readText('apps/sdkwork-im-pc/vite.config.ts');
 const h5ViteSource = readText('apps/sdkwork-im-h5/vite.config.ts');
 assert.match(pcViteSource, /node_modules[\s\S]*\.vite[\s\S]*sdkwork-im-pc/u);

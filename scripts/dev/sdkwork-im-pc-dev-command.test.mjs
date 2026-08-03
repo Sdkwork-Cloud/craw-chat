@@ -691,8 +691,8 @@ assert.equal(
 );
 assert.equal(
   browserPlan.processes[0].env.SDKWORK_IM_BROWSER_ORIGINS,
-  'http://127.0.0.1:4176,http://localhost:4176',
-  'standalone gateway must allow the selected desktop Vite origin at the gateway CORS layer',
+  'http://127.0.0.1:3801,http://im-dev.sdkwork.com:3801,http://localhost:3801',
+  'standalone gateway must allow the adaptive web ingress origin at the gateway CORS layer',
 );
 assert.equal(
   browserPlan.processes[1].env.SDKWORK_IM_PC_DEV_PORT,
@@ -814,8 +814,8 @@ const shiftedPortPlan = createSdkworkChatPcDevPlan({
 });
 assert.equal(
   shiftedPortPlan.processes[0].env.SDKWORK_IM_BROWSER_ORIGINS,
-  'http://127.0.0.1:4178,http://localhost:4178',
-  'standalone gateway CORS origins must follow the resolved fallback dev port',
+  'http://127.0.0.1:3801,http://im-dev.sdkwork.com:3801,http://localhost:3801',
+  'standalone gateway CORS must keep the adaptive web ingress origin when the renderer port shifts',
 );
 assert.equal(
   shiftedPortPlan.processes[1].env.SDKWORK_IM_PC_DEV_PORT,

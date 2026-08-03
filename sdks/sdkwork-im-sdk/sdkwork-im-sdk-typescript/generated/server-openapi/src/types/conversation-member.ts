@@ -9,4 +9,7 @@ export interface ConversationMember {
   role: string;
   state: MembershipState;
   joinedAt: string;
+  invitedBy?: string | null;
+  removedAt?: string | null;
+  attributes?: Record<string, string>;
 }

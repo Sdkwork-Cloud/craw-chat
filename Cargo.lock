@@ -12275,6 +12275,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum 0.8.9",
+ "sdkwork-agent-kernel",
  "sdkwork-agent-server",
  "sdkwork-agents-contract",
  "sdkwork-agents-database-host",
@@ -13529,6 +13530,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "cron",
+ "rusqlite",
  "sdkwork-agent-kernel",
  "sdkwork-agents-contract",
  "sdkwork-agents-runtime-facade",
@@ -14711,6 +14713,7 @@ name = "sdkwork-routes-im-social-open-api"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "im-adapters-social-postgres",
  "sdkwork-im-web-bootstrap",
  "sdkwork-web-contract",
  "sdkwork-web-core",

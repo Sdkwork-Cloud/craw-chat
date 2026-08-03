@@ -767,6 +767,8 @@ const schemas = {
     expiredAt: nullable(stringSchema({ format: 'date-time' })),
     createdAt: stringSchema({ format: 'date-time' }),
     updatedAt: stringSchema({ format: 'date-time' }),
+    requesterDisplayName: nullable(stringSchema()),
+    requesterAvatarUrl: nullable(stringSchema()),
   }, ['tenantId', 'friendRequestId', 'requesterUserId', 'targetUserId', 'status', 'createdAt', 'updatedAt']),
   Friendship: objectSchema({
     tenantId: stringSchema(),
@@ -942,6 +944,12 @@ const schemas = {
     role: stringSchema(),
     state: ref('MembershipState'),
     joinedAt: stringSchema({ format: 'date-time' }),
+    invitedBy: nullable(stringSchema()),
+    removedAt: nullable(stringSchema({ format: 'date-time' })),
+    attributes: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
   }, ['tenantId', 'conversationId', 'memberId', 'principalId', 'principalKind', 'role', 'state', 'joinedAt']),
   ListMembersResponse: objectSchema({
     items: arrayOf(ref('ConversationMember')),

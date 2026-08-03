@@ -37,6 +37,7 @@ fn wrapped_control_api_app(state: AppState) -> axum::Router {
 async fn open_api_friend_requests_list_returns_sdkwork_envelope() {
     let app = wrapped_open_api_app(AppState {
         social_runtime: Arc::new(SocialRuntime::for_test()),
+        user_profile_store: None,
     });
 
     let mut request = Request::builder()
@@ -84,6 +85,7 @@ async fn open_api_friend_requests_list_returns_sdkwork_envelope() {
 async fn backend_control_friend_requests_list_uses_page_size_query() {
     let app = wrapped_control_api_app(AppState {
         social_runtime: Arc::new(SocialRuntime::for_test()),
+        user_profile_store: None,
     });
 
     let mut request = Request::builder()
@@ -120,6 +122,7 @@ async fn backend_control_friend_requests_list_uses_page_size_query() {
 async fn backend_control_friend_requests_list_rejects_limit_alias() {
     let app = wrapped_control_api_app(AppState {
         social_runtime: Arc::new(SocialRuntime::for_test()),
+        user_profile_store: None,
     });
 
     let mut request = Request::builder()
@@ -141,6 +144,7 @@ async fn backend_control_friend_requests_list_rejects_limit_alias() {
 async fn backend_control_friend_request_create_returns_created_resource_item() {
     let app = wrapped_control_api_app(AppState {
         social_runtime: Arc::new(SocialRuntime::for_test()),
+        user_profile_store: None,
     });
 
     let body = serde_json::json!({
@@ -196,6 +200,7 @@ async fn backend_control_friend_request_create_returns_created_resource_item() {
 async fn open_api_contact_tag_create_returns_created_and_delete_returns_no_content() {
     let app = wrapped_open_api_app(AppState {
         social_runtime: Arc::new(SocialRuntime::for_test()),
+        user_profile_store: None,
     });
 
     let body = serde_json::json!({
@@ -264,6 +269,7 @@ async fn open_api_contact_tag_create_returns_created_and_delete_returns_no_conte
 async fn open_api_friend_request_create_uses_friend_request_id_wire_field() {
     let app = wrapped_open_api_app(AppState {
         social_runtime: Arc::new(SocialRuntime::for_test()),
+        user_profile_store: None,
     });
 
     let body = serde_json::json!({
@@ -316,6 +322,7 @@ async fn open_api_friend_request_create_uses_friend_request_id_wire_field() {
 async fn open_api_friend_request_accept_keeps_its_direct_conversation_wire_shape() {
     let app = wrapped_open_api_app(AppState {
         social_runtime: Arc::new(SocialRuntime::for_test()),
+        user_profile_store: None,
     });
 
     let mut create_request = Request::builder()
@@ -401,6 +408,7 @@ async fn open_api_friend_request_accept_keeps_its_direct_conversation_wire_shape
 async fn open_api_friend_requests_list_accepts_all_direction() {
     let app = wrapped_open_api_app(AppState {
         social_runtime: Arc::new(SocialRuntime::for_test()),
+        user_profile_store: None,
     });
 
     let mut request = Request::builder()
@@ -438,6 +446,7 @@ async fn open_api_friend_requests_list_accepts_all_direction() {
 async fn open_api_contact_tags_list_returns_sdkwork_envelope() {
     let app = wrapped_open_api_app(AppState {
         social_runtime: Arc::new(SocialRuntime::for_test()),
+        user_profile_store: None,
     });
 
     let mut request = Request::builder()

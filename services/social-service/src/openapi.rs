@@ -251,11 +251,19 @@ async fn list_friend_requests(
                 })?;
 
         let has_more = page.next_cursor.is_some();
+        let mut items = page
+            .items
+            .into_iter()
+            .map(FriendRequestHttpView::from)
+            .collect::<Vec<_>>();
+        friendship::enrich_friend_request_display(
+            state.user_profile_store.as_ref(),
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            &mut items,
+        );
         Ok(cursor_list_page_data(
-            page.items
-                .into_iter()
-                .map(FriendRequestHttpView::from)
-                .collect::<Vec<_>>(),
+            items,
             limit,
             page.next_cursor,
             has_more,

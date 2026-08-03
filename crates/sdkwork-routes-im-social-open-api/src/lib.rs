@@ -21,9 +21,17 @@ pub fn build_supplemental_public_app(state: PostgresAppState) -> Router {
 
 pub fn build_runtime_public_app(
     social_runtime: std::sync::Arc<social_service::SocialRuntime>,
+    user_profile_store: Option<
+        std::sync::Arc<
+            dyn im_adapters_social_postgres::user_profile_store::UserProfileStore,
+        >,
+    >,
 ) -> Router {
     web_bootstrap::wrap_router(social_service::build_open_api_router(
-        social_service::friendship::AppState { social_runtime },
+        social_service::friendship::AppState {
+            social_runtime,
+            user_profile_store,
+        },
     ))
 }
 

@@ -9086,6 +9086,12 @@ components:
         updatedAt:
           type: string
           format: date-time
+        requesterDisplayName:
+          type: string
+          nullable: true
+        requesterAvatarUrl:
+          type: string
+          nullable: true
       required:
         - tenantId
         - friendRequestId
@@ -9552,6 +9558,17 @@ components:
         joinedAt:
           type: string
           format: date-time
+        invitedBy:
+          type: string
+          nullable: true
+        removedAt:
+          type: string
+          format: date-time
+          nullable: true
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
       required:
         - tenantId
         - conversationId

@@ -87,7 +87,10 @@ pub fn build_control_domain_api_router(state: AppState) -> Router {
 
 pub fn build_control_public_router(social_runtime: Arc<SocialRuntime>) -> Router {
     mount_im_infra_routes(
-        build_control_domain_api_router(AppState { social_runtime }),
+        build_control_domain_api_router(AppState {
+            social_runtime,
+            user_profile_store: None,
+        }),
         im_service_router_config(),
     )
 }
