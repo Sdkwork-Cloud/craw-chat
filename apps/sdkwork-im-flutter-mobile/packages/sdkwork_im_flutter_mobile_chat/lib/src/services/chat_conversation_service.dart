@@ -1,6 +1,7 @@
 import 'package:sdkwork_im_flutter_mobile_core/sdkwork_im_flutter_mobile_core.dart';
 
 import 'chat_message_history_utils.dart';
+import 'client_message_id.dart';
 
 const int _defaultMessagePageSize = 50;
 const int _maxMessagePageSize = 200;
@@ -83,7 +84,7 @@ class ChatConversationService {
     final response = await _client.chat.conversationsMessagesCreate(
       conversationId,
       PostMessageRequest(
-        clientMsgId: 'flutter-${DateTime.now().millisecondsSinceEpoch}',
+        clientMsgId: newClientMessageId(),
         summary: fileName,
         parts: [
           MediaContentPart(

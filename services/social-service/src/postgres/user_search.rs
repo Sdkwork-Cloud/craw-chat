@@ -52,11 +52,17 @@ pub async fn search_users(
     Query(query): Query<SearchUsersQuery>,
 ) -> Response {
     let keyword = query.q.unwrap_or_default().trim().to_owned();
-    let page_size = query
-        .paging
-        .resolve()
-        .map(|params| params.page_size.clamp(1, 50))
-        .unwrap_or(20);
+    // Strict shared validation (40003 on out-of-range), then the domain cap for
+    // this bounded search surface. The response pageInfo reflects the applied cap.
+    let page_size = match query.paging.resolve_page_size() {
+        Ok(page_size) => page_size.min(50),
+        Err(_) => {
+            return finish_api_json::<SdkWorkPageData<SocialUserSearchResult>>(
+                &ctx,
+                Err(ApiProblem::bad_request("page_size must be between 1 and 200")),
+            );
+        }
+    };
     if keyword.is_empty() {
         let result: ApiResult<SdkWorkPageData<SocialUserSearchResult>> =
             Ok(cursor_list_page_data(Vec::new(), page_size, None, false));

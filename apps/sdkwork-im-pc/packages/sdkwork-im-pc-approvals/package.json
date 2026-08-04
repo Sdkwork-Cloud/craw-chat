@@ -5,6 +5,7 @@
   "types": "./src/index.tsx",
   "dependencies": {
     "@sdkwork/im-pc-commons": "workspace:*",
+    "@sdkwork/utils": "workspace:*",
     "lucide-react": "catalog:",
     "react": "catalog:"
   },

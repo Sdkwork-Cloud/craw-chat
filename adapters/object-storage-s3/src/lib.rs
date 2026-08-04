@@ -179,10 +179,13 @@ impl S3CompatibleObjectStorageProvider {
         if self.config.gateway_mode {
             descriptor
                 .with_required_capabilities(["s3-gateway", "presign"])
-                .with_optional_capabilities(["multipart"])
+                .with_optional_capabilities(["retention"])
         } else {
+            // `multipart` is intentionally not declared: no multipart upload
+            // implementation exists in this adapter. Only presigned transfer
+            // and retention metadata are real capabilities.
             descriptor
-                .with_required_capabilities(["s3", "presign", "multipart"])
+                .with_required_capabilities(["s3", "presign"])
                 .with_optional_capabilities(["retention"])
         }
     }
@@ -316,27 +319,14 @@ impl ObjectStorageProvider for S3CompatibleObjectStorageProvider {
         request: ObjectStoragePutRequest,
     ) -> Result<ObjectStorageObjectDescriptor, ContractError> {
         Self::validate_content_type(&request.content_type, &request.object_key)?;
-        // The etag records the configured server-side encryption mode so that
-        // callers can verify SSE behavior. A real implementation would issue an
-        // HTTP PUT to the S3 endpoint with the SSE headers
-        // (X-Amz-Server-Side-Encryption[:Aws-Kms-Key-Id]) set and surface the
-        // ETag returned by S3.
-        let encryption_tag = match &self.config.kms_key_id {
-            Some(_) => "sse-kms",
-            None => "sse-s3",
-        };
-        Ok(ObjectStorageObjectDescriptor {
-            bucket: request.bucket,
-            object_key: request.object_key.clone(),
-            content_length: request.content_length,
-            etag: Some(format!(
-                "{}:{}:{}:{}",
-                self.config.provider_kind,
-                encryption_tag,
-                request.object_key,
-                request.content_length
-            )),
-        })
+        // Server-side object PUT is not implemented. The production data path
+        // uploads through SigV4-presigned URLs (`signed_upload_url`), which is
+        // the only supported transfer mode; a direct `put_object` must fail
+        // closed instead of returning a fabricated descriptor or ETag.
+        Err(ContractError::UnsupportedCapability(format!(
+            "{}: server-side put_object is not supported; upload through signed_upload_url instead (bucket={}, object_key={})",
+            self.config.plugin_id, request.bucket, request.object_key
+        )))
     }
 
     fn signed_upload_url(
@@ -708,6 +698,39 @@ mod tests {
                 "blob.bin"
             )
             .is_ok()
+        );
+    }
+
+    #[test]
+    fn put_object_fails_closed_with_unsupported_capability() {
+        // Server-side object PUT is not implemented; it must fail closed with
+        // UnsupportedCapability instead of fabricating a descriptor/ETag.
+        let provider = S3CompatibleObjectStorageProvider::aws_default();
+        let error = provider
+            .put_object(ObjectStoragePutRequest {
+                bucket: "media".into(),
+                object_key: "rtc/demo.mp4".into(),
+                content_length: 128,
+                content_type: Some("video/mp4".into()),
+                storage_class: Some("standard".into()),
+            })
+            .expect_err("put_object must be unsupported");
+        assert!(
+            matches!(error, ContractError::UnsupportedCapability(message) if message.contains("signed_upload_url"))
+        );
+    }
+
+    #[test]
+    fn descriptor_does_not_declare_multipart_without_implementation() {
+        let provider = S3CompatibleObjectStorageProvider::aws_default();
+        let descriptor = provider.descriptor();
+        assert_eq!(descriptor.required_capabilities, vec!["s3", "presign"]);
+        assert!(
+            !descriptor
+                .optional_capabilities
+                .iter()
+                .any(|capability| capability == "multipart"),
+            "multipart must not be declared without an implementation"
         );
     }
 }

@@ -8,6 +8,7 @@ import '../services/chat_conversation_service.dart';
 import '../services/chat_media_upload_service.dart';
 import '../services/chat_realtime_service.dart';
 import '../services/chat_message_history_utils.dart';
+import '../services/client_message_id.dart';
 import '../services/offline_send_queue.dart';
 
 enum _MessageHistoryUpdateMode { replace, older, newer }
@@ -275,8 +276,7 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
     if (text.isEmpty || _sending) {
       return;
     }
-    final clientMsgId =
-        'flutter-${DateTime.now().millisecondsSinceEpoch}-${widget.conversationId.hashCode}';
+    final clientMsgId = newClientMessageId();
     setState(() => _sending = true);
     try {
       await widget.conversationService.sendText(

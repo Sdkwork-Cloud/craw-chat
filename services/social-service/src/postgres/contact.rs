@@ -80,10 +80,10 @@ pub async fn list_contacts(
 ) -> Response {
     let result: ApiResult<SdkWorkPageData<ContactResponse>> =
         crate::postgres::http::run_blocking_postgres_call(state, move |state| {
-            let paging = query
-                .resolve()
-                .map_err(|_| ApiProblem::bad_request("contact pagination parameters are invalid"))?;
-            if paging.page_size == 0 || paging.page_size > CONTACT_LIST_MAX_PAGE_SIZE {
+            let page_size = query
+                .resolve_page_size()
+                .map_err(|_| ApiProblem::bad_request("page_size must be between 1 and 200"))?;
+            if page_size > CONTACT_LIST_MAX_PAGE_SIZE {
                 return Err(ApiProblem::bad_request(format!(
                     "page_size must be between 1 and {CONTACT_LIST_MAX_PAGE_SIZE}"
                 )));
@@ -103,13 +103,13 @@ pub async fn list_contacts(
                     owner_user_id,
                     cursor_updated_at: cursor.as_ref().map(|value| value.updated_at.as_str()),
                     cursor_friendship_id: cursor.as_ref().map(|value| value.friendship_id),
-                    limit: i64::try_from(paging.page_size.saturating_add(1)).unwrap_or(201),
+                    limit: i64::try_from(page_size.saturating_add(1)).unwrap_or(201),
                 })
                 .map_err(|_| ApiProblem::internal_server_error("failed to list social contacts"))?;
 
-            let has_more = records.len() > paging.page_size;
+            let has_more = records.len() > page_size;
             if has_more {
-                records.truncate(paging.page_size);
+                records.truncate(page_size);
             }
             let next_cursor = if has_more {
                 records.last().map(encode_contact_cursor).transpose()?
@@ -119,7 +119,7 @@ pub async fn list_contacts(
             let items = records.into_iter().map(ContactResponse::from).collect();
             Ok(cursor_list_page_data(
                 items,
-                paging.page_size,
+                page_size,
                 next_cursor,
                 has_more,
             ))

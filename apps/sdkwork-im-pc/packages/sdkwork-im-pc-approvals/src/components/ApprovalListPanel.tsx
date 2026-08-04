@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { cn } from '@sdkwork/im-pc-commons';
+import { formatMoney } from '@sdkwork/utils/money';
 import { Search, Filter, CheckCircle } from 'lucide-react';
 import { ApprovalItem } from '../services/ApprovalsService';
 
@@ -49,7 +50,7 @@ export const ApprovalListPanel: React.FC<ApprovalListPanelProps> = ({
                  {getStatusIcon(item.status)}
                </div>
                <div className="text-xs text-gray-400 line-clamp-1 ml-10">{item.description}</div>
-               {item.amount && <div className="text-xs font-medium text-emerald-400 mt-2 ml-10">¥{item.amount.toLocaleString('zh-CN', {minimumFractionDigits: 2})}</div>}
+               {item.amount && <div className="text-xs font-medium text-emerald-400 mt-2 ml-10">{formatMoney(item.amount, { currency: 'CNY', locale: 'zh-CN', mode: 'symbol' }) ?? '--'}</div>}
             </div>
           )) : (
             <div className="h-full flex flex-col items-center justify-center text-gray-500">

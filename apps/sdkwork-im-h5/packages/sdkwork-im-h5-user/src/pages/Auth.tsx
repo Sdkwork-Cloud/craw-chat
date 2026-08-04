@@ -37,9 +37,14 @@ export const AuthPage = () => {
 
   const handleSendCode = async () => {
     if (!account) return showToast(t("auth.enter_account", "请输入账号"));
-    setCountdown(60);
-    await AuthService.sendCode(account);
-    showToast(t("auth.code_sent", "验证码已发送，请查收"));
+    try {
+      await AuthService.sendCode(account);
+      setCountdown(60);
+      showToast(t("auth.code_sent", "验证码已发送，请查收"));
+    } catch (err) {
+      const error = err as Error;
+      showToast(error.message || t("auth.operation_failed", "操作失败"));
+    }
   };
 
   const getRedirectPath = () => {
@@ -98,10 +103,11 @@ export const AuthPage = () => {
 
   const handleThirdPartyLogin = (platform: string) => {
     if (!agreed) return showToast(t("auth.agree_terms_first", "请先阅读并同意条款"));
-    showToast(`${t("auth.redirecting_to", "正在跳转至")}${platform}${t("auth.logging_in", "登录...")}`);
-    setTimeout(() => {
-      navigate(getRedirectPath(), { replace: true });
-    }, 1500);
+    // Third-party OAuth flows are not composed; fail closed instead of
+    // fabricating a successful redirect (PRD §4 release boundary).
+    showToast(
+      `${platform}${t("auth.third_party_unavailable", "登录暂未开放")}`,
+    );
   };
 
   // Switch mode helper

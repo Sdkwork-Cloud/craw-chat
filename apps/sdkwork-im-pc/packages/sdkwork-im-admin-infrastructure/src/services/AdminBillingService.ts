@@ -1,3 +1,4 @@
+import { formatMoney } from '@sdkwork/utils/money';
 import { getBackendSdkClientWithSession } from '@sdkwork/im-pc-admin-sdk';
 
 export interface BillingStatItem {
@@ -100,11 +101,15 @@ function formatCurrency(value: number): string {
   if (!Number.isFinite(value)) {
     return '—';
   }
-  return new Intl.NumberFormat('en-US', {
-    currency: 'USD',
-    maximumFractionDigits: 0,
-    style: 'currency',
-  }).format(value);
+  return (
+    formatMoney(value, {
+      currency: 'USD',
+      locale: 'en-US',
+      mode: 'symbol',
+      minFractionDigits: 0,
+      maxFractionDigits: 0,
+    }) ?? '—'
+  );
 }
 
 function formatCount(value: number): string {

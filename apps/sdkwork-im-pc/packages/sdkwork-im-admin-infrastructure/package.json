@@ -6,6 +6,7 @@
   "dependencies": {
     "@sdkwork/im-pc-admin-sdk": "workspace:*",
     "@sdkwork/im-pc-commons": "workspace:*",
+    "@sdkwork/utils": "workspace:*",
     "lucide-react": "catalog:",
     "react": "catalog:"
   },

@@ -1,8 +1,14 @@
 # journal-redpanda
 
-`journal-redpanda` 是生产默认 `CommitJournal` 适配器目录保留位。
+**Status: planned, not implemented.**
 
-目标能力：
+`journal-redpanda` is a reserved directory for a future Redpanda-backed
+`CommitJournal` adapter. It is **not** a production default and is not wired
+into any build: the directory contains no Rust crate and `Cargo.toml` does not
+reference it. The only currently implemented production journal persistence is
+`adapters/postgres-journal` (PostgreSQL).
+
+Target capabilities once implemented:
 
 - ordered append
 - durable ack
@@ -11,14 +17,14 @@
 - retention
 - partition routing
 
-后续实现要求：
+Implementation requirements (when the adapter is actually built):
 
-- 不改变 `CommitEnvelope` 语义
-- 支持统一 conformance test
-- 支持 SaaS shared / dedicated 与私有化 profile 装配
+- must not change `CommitEnvelope` semantics
+- must pass the shared journal conformance test
+- must support SaaS shared / dedicated and private-profile assembly
 
-当前状态：
+Current state:
 
-- 目录标准已冻结
-- 具体实现待接入 Redpanda 客户端与运维 profile
-
+- no code exists in this directory
+- nothing may claim Redpanda journal delivery until a real implementation
+  and conformance evidence exist

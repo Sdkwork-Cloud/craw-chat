@@ -916,7 +916,7 @@ async fn list_message_favorites(
         Ok(value) => value,
         Err(rejection) => return finish_query_rejection(&ctx, rejection),
     };
-    let paging = match query.paging.resolve() {
+    let page_size = match query.paging.resolve_page_size() {
         Ok(value) => value,
         Err(error) => {
             let detail = match error {
@@ -934,7 +934,7 @@ async fn list_message_favorites(
     let result = run_blocking_conversation_state(service, auth, move |service, auth| {
         Ok(service.message_favorites_window_from_auth_context(
             &auth,
-            Some(paging.page_size),
+            Some(page_size),
             cursor.as_deref(),
             favorite_type.as_deref(),
             search_query.as_deref(),

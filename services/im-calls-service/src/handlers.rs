@@ -16,7 +16,9 @@ use sdkwork_utils_rust::cursor_list_page_data;
 use serde::Deserialize;
 
 use im_app_context::AppContext;
-use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiProblem, ApiResult, created_json, finish_api_json, finish_api_response,
+};
 use sdkwork_web_core::WebRequestContext;
 
 use crate::dto::{
@@ -66,7 +68,8 @@ pub(crate) async fn create_call_session(
         Ok(SessionMutationResponse::from_outcome(outcome, request_key))
     })
     .await;
-    finish_api_json(&ctx, result)
+    // Create semantics: 201 Created (API_SPEC §14.1.3).
+    finish_api_response(&ctx, result.and_then(|data| created_json(&ctx, data)))
 }
 
 pub(crate) async fn retrieve_call_session(
@@ -222,7 +225,8 @@ pub(crate) async fn post_call_signal(
         ))
     })
     .await;
-    finish_api_json(&ctx, result)
+    // Create semantics: 201 Created (API_SPEC §14.1.3).
+    finish_api_response(&ctx, result.and_then(|data| created_json(&ctx, data)))
 }
 
 pub(crate) async fn issue_participant_credential(
@@ -270,7 +274,8 @@ pub(crate) async fn issue_participant_credential(
         })
     })
     .await;
-    finish_api_json(&ctx, result)
+    // Create semantics: 201 Created (API_SPEC §14.1.3).
+    finish_api_response(&ctx, result.and_then(|data| created_json(&ctx, data)))
 }
 
 /// Refresh an expiring participant credential.

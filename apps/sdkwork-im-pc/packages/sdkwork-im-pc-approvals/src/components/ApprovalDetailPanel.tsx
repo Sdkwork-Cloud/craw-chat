@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@sdkwork/im-pc-commons';
+import { formatMoney } from '@sdkwork/utils/money';
 import { ArrowLeft, User, Paperclip, CheckCircle, Clock } from 'lucide-react';
 import { ApprovalItem } from '../services/ApprovalsService';
 
@@ -52,7 +53,7 @@ export const ApprovalDetailPanel: React.FC<ApprovalDetailPanelProps> = ({
              {selectedItem.amount && (
                <div>
                  <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">报销金额</h3>
-                 <p className="text-lg font-medium text-emerald-400">¥{selectedItem.amount.toLocaleString('zh-CN', {minimumFractionDigits: 2})}</p>
+                 <p className="text-lg font-medium text-emerald-400">{formatMoney(selectedItem.amount, { currency: 'CNY', locale: 'zh-CN', mode: 'symbol' }) ?? '--'}</p>
                </div>
              )}
              {selectedItem.attachments && selectedItem.attachments.length > 0 && (

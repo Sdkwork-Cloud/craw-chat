@@ -1885,14 +1885,14 @@ BEGIN
                 COALESCE(NEW.payload_json->>'caption', '') || ' ' ||
                 COALESCE(NEW.payload_json->>'description', '');
 
-    -- Use zhparser if available, otherwise fall back to simple
-    -- (zhparser must be installed and 'chinese_zh' config created)
-    BEGIN
-        NEW.search_vector := to_tsvector('chinese_zh', raw_text);
-    EXCEPTION WHEN OTHERS THEN
-        -- Fallback: simple config (no CJK segmentation, but works for ASCII)
-        NEW.search_vector := to_tsvector('simple', raw_text);
-    END;
+    -- Index and query MUST use the same text search configuration: the
+    -- `@@` operator only matches lexemes produced by the same config.
+    -- All query-side tsquery construction in adapters/postgres-journal/
+    -- search_store.rs is fixed to 'simple', so indexing with 'chinese_zh'
+    -- (zhparser) would silently break every search when zhparser is
+    -- installed. 'simple' is environment-independent; CJK search quality
+    -- is improved separately through the pg_trgm GIN index below.
+    NEW.search_vector := to_tsvector('simple', raw_text);
 
     RETURN NEW;
 END;
@@ -1940,8 +1940,12 @@ CREATE TRIGGER im_messages_search_update
 --   strategy: expand-contract (new trigger coexists with old index)
 --   rollback: revert trigger to 'simple' config
 --   verification:
---     - SELECT to_tsvector('chinese_zh', '你好世界') @@ to_tsquery('chinese_zh', '世界');
---     - EXPLAIN ANALYZE SELECT * FROM im_conversation_messages WHERE search_vector @@ plainto_tsquery('chinese_zh', '你好');
+--     - SELECT to_tsvector('simple', 'hello world') @@ to_tsquery('simple', 'hello:*');
+--     - SELECT search_vector @@ to_tsquery('simple', '你好') FROM im_conversation_messages LIMIT 1;
+--     - EXPLAIN ANALYZE SELECT * FROM im_conversation_messages WHERE search_vector @@ plainto_tsquery('simple', '你好');
+--   note: index and query configurations MUST stay identical ('simple');
+--         zhparser/chinese_zh is intentionally not used because query-side
+--         tsquery construction is fixed to 'simple' (see search_store.rs).
 -- ============================================================
 
 -- ============================================================

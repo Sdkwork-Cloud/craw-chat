@@ -1,8 +1,14 @@
 # meta-cockroach
 
-`meta-cockroach` 是生产默认 `MetadataStore` 适配器目录保留位。
+**Status: planned, not implemented.**
 
-目标能力：
+`meta-cockroach` is a reserved directory for a future CockroachDB-backed
+`MetadataStore` adapter. It is **not** a production default and is not wired
+into any build: the directory contains no Rust crate and `Cargo.toml` does not
+reference it. The only currently implemented production metadata persistence is
+PostgreSQL (`adapters/postgres-journal`, `adapters/social-postgres`).
+
+Target capabilities once implemented:
 
 - transaction
 - unique constraint
@@ -10,14 +16,14 @@
 - secondary index
 - tenant scope
 
-后续实现要求：
+Implementation requirements (when the adapter is actually built):
 
-- 不改变租户与实体主键语义
-- 支持统一 conformance test
-- 支持 SaaS 与私有化 profile 的连接与迁移策略
+- must not change tenant and entity primary-key semantics
+- must pass the shared metadata-store conformance test
+- must support SaaS and private-profile connection and migration strategies
 
-当前状态：
+Current state:
 
-- 目录标准已冻结
-- 具体实现待接入 CockroachDB schema 与迁移脚本
-
+- no code exists in this directory
+- nothing may claim CockroachDB metadata delivery until a real implementation
+  and conformance evidence exist

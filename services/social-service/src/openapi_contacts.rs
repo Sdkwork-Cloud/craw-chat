@@ -167,8 +167,8 @@ async fn list_contact_tags(
     State(state): State<AppState>,
 ) -> Response {
     let result = crate::envelope::run_blocking_social_call(state, move |_state| {
-        let paging = query.paging.resolve().map_err(|_| {
-            SocialServiceError::invalid("cursor_invalid", "contact tag list cursor is invalid")
+        let page_size = query.paging.resolve_page_size().map_err(|_| {
+            SocialServiceError::invalid("page_size_invalid", "page_size must be between 1 and 200")
         })?;
         let cursor = if let Some(raw) = query.paging.cursor.as_deref() {
             Some(parse_contact_tag_inventory_cursor(raw)?)
@@ -177,8 +177,7 @@ async fn list_contact_tags(
         };
         let contact_store = shared_contact_store();
         let store = contact_store.as_ref();
-        let (items, has_more) =
-            backend_list_contact_tags(store, &auth, paging.page_size, cursor.as_ref())?;
+        let (items, has_more) = backend_list_contact_tags(store, &auth, page_size, cursor.as_ref())?;
         let next_cursor = if has_more {
             items
                 .last()
@@ -190,7 +189,7 @@ async fn list_contact_tags(
         let views = items.into_iter().map(ContactTagView::from).collect();
         Ok(cursor_list_page_data(
             views,
-            paging.page_size,
+            page_size,
             next_cursor,
             has_more,
         ))

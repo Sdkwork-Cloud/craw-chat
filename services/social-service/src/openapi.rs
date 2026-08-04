@@ -215,11 +215,13 @@ async fn list_friend_requests(
         let direction = query
             .direction
             .unwrap_or(FriendRequestInventoryDirectionQuery::Incoming);
-        let paging = query.paging.resolve().map_err(|_| {
-            SocialServiceError::invalid("cursor_invalid", "friend request list cursor is invalid")
+        let limit = query.paging.resolve_page_size().map_err(|_| {
+            SocialServiceError::invalid(
+                "page_size_invalid",
+                format!("page_size must be between 1 and 200"),
+            )
         })?;
-        let limit = paging.page_size;
-        if limit == 0 || limit > FRIEND_REQUEST_LIST_MAX_LIMIT {
+        if limit > FRIEND_REQUEST_LIST_MAX_LIMIT {
             return Err(SocialServiceError::invalid(
                 "page_size_invalid",
                 format!("page_size must be between 1 and {FRIEND_REQUEST_LIST_MAX_LIMIT}"),
@@ -455,11 +457,13 @@ async fn list_friendships(
     State(state): State<AppState>,
 ) -> Response {
     let result = crate::envelope::run_blocking_social_call(state, move |state| {
-        let paging = query.resolve().map_err(|_| {
-            SocialServiceError::invalid("cursor_invalid", "friendship list cursor is invalid")
+        let limit = query.resolve_page_size().map_err(|_| {
+            SocialServiceError::invalid(
+                "page_size_invalid",
+                format!("page_size must be between 1 and 200"),
+            )
         })?;
-        let limit = paging.page_size;
-        if limit == 0 || limit > friendship::FRIENDSHIP_LIST_MAX_LIMIT {
+        if limit > friendship::FRIENDSHIP_LIST_MAX_LIMIT {
             return Err(SocialServiceError::invalid(
                 "page_size_invalid",
                 format!(
