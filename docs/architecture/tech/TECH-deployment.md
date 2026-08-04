@@ -40,7 +40,7 @@ corepack prepare pnpm@10.0.0 --activate
 ```text
 /etc/sdkwork/chat/chat.toml
 /etc/sdkwork/chat/server.env
-/etc/sdkwork/chat/database.secret
+/etc/sdkwork/database/database.secret
 /etc/sdkwork/chat/redis.secret
 ```
 
@@ -70,7 +70,7 @@ SDKWORK_DATABASE_PORT=5432
 SDKWORK_DATABASE_NAME=sdkwork_ai_prod
 SDKWORK_DATABASE_SCHEMA=sdkwork_ai_prod
 SDKWORK_DATABASE_USERNAME=sdkwork_ai_prod
-SDKWORK_DATABASE_PASSWORD_FILE=/etc/sdkwork/chat/database.secret
+SDKWORK_DATABASE_PASSWORD_FILE=/etc/sdkwork/database/database.secret
 SDKWORK_DATABASE_SSL_MODE=require
 SDKWORK_DATABASE_MAX_CONNECTIONS=20
 

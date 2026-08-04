@@ -56,7 +56,7 @@ alias window.
 | Default `app_id` | `sdkwork-im` | `sdkwork-im` |
 | Postgres database name | `sdkwork_im` | `sdkwork_im` |
 | Postgres app role | `sdkwork_im_app` | `sdkwork_im_app` |
-| Postgres CI test database/role | `sdkwork_im_test` | `sdkwork_im_test` |
+| Postgres CI test database/role | `sdkwork_ai_test` | `sdkwork_ai_test` |
 | Server binary | `sdkwork-im-server` | `sdkwork-im-server` |
 | Windows install root | `C:\Program Files\SdkworkIm` | `C:\Program Files\SdkworkIm` |
 | macOS launchd bundle id | `com.sdkwork.SdkworkIm.server` | `com.sdkwork.im.server` |

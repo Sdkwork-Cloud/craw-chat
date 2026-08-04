@@ -17,7 +17,7 @@ Linux server/service/container：
 /etc/sdkwork/chat/chat.toml
 /etc/sdkwork/chat/server.env
 /etc/sdkwork/chat/postgresql.yaml
-/etc/sdkwork/chat/database.secret
+/etc/sdkwork/database/database.secret
 /var/lib/sdkwork/chat
 /var/log/sdkwork/chat
 /run/sdkwork/chat
@@ -37,7 +37,7 @@ connection:
   port: 5432
   database: sdkwork_ai_prod
   username: sdkwork_ai_prod
-  passwordFile: /etc/sdkwork/chat/database.secret
+  passwordFile: /etc/sdkwork/database/database.secret
   sslmode: require
   applicationName: sdkwork-chat-server
   connectTimeoutSeconds: 10
@@ -80,7 +80,7 @@ SDKWORK_DATABASE_PORT=5432
 SDKWORK_DATABASE_NAME=sdkwork_ai_prod
 SDKWORK_DATABASE_SCHEMA=sdkwork_ai_prod
 SDKWORK_DATABASE_USERNAME=sdkwork_ai_prod
-SDKWORK_DATABASE_PASSWORD_FILE=/etc/sdkwork/chat/database.secret
+SDKWORK_DATABASE_PASSWORD_FILE=/etc/sdkwork/database/database.secret
 SDKWORK_DATABASE_SSL_MODE=require
 ```
 

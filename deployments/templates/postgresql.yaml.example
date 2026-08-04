@@ -5,7 +5,7 @@ connection:
   port: 5432
   database: sdkwork_ai_prod
   username: sdkwork_ai_prod
-  passwordFile: /etc/sdkwork/chat/database.secret
+  passwordFile: /etc/sdkwork/database/database.secret
   sslmode: require
   applicationName: sdkwork-chat-server
   connectTimeoutSeconds: 10

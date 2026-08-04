@@ -12,7 +12,7 @@ Canonical application identity:
 - Public SDKWork route: `/sdkwork/chat`
 - Standard environment prefix: `SDKWORK_IM_*`
 - Linux server config: `/etc/sdkwork/chat/chat.toml`
-- Linux PostgreSQL password file: `/etc/sdkwork/chat/database.secret`
+- Linux PostgreSQL password file: `/etc/sdkwork/database/database.secret`
 - Linux PostgreSQL helper config: `/etc/sdkwork/chat/postgresql.yaml`
 
 Server, container, browser development, and desktop development orchestration
@@ -39,7 +39,7 @@ depend on a server-side SQL database.
 
 - [线上环境PostgreSQL数据库配置教程](./线上环境PostgreSQL数据库配置教程.md)
   - Production and private deployment workflow.
-  - Uses `/etc/sdkwork/chat/chat.toml`, `/etc/sdkwork/chat/server.env`, `/etc/sdkwork/chat/postgresql.yaml`, and `/etc/sdkwork/chat/database.secret`.
+  - Uses `/etc/sdkwork/chat/chat.toml`, `/etc/sdkwork/chat/server.env`, `/etc/sdkwork/chat/postgresql.yaml`, and `/etc/sdkwork/database/database.secret`.
   - Keeps passwords out of Git, package archives, process command lines, and logs.
   - Uses service lifecycle scripts or the target service manager, including Windows Service, not local dev commands.
 

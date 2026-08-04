@@ -942,7 +942,7 @@ assert.ok(
     && postgresDatabaseConfigIndexSource.includes('pnpm dev')
     && postgresDatabaseConfigIndexSource.includes('pnpm dev:desktop')
     && postgresDatabaseConfigIndexSource.includes('/etc/sdkwork/chat/chat.toml')
-    && postgresDatabaseConfigIndexSource.includes('/etc/sdkwork/chat/database.secret'),
+    && postgresDatabaseConfigIndexSource.includes('/etc/sdkwork/database/database.secret'),
   'PostgreSQL database configuration index must link the environment-specific development and production guides',
 );
 assert.ok(

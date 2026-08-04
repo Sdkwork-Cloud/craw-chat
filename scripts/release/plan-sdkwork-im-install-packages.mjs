@@ -422,6 +422,11 @@ function runtimeConfigLocationsFor(platform, runtimeTarget) {
 }
 
 function postgresPasswordFileFor(platform, runtimeTarget = 'server') {
+  // ENVIRONMENT_SPEC section 7.3: production/staging database config resolves
+  // from the workspace shared directory /etc/sdkwork/database/ on Linux.
+  if (platform === 'linux' && runtimeTarget === 'server') {
+    return '/etc/sdkwork/database/database.secret';
+  }
   const locations = runtimeConfigLocationsFor(platform, runtimeTarget);
   return `${configDirectoryFromConfigFile(locations.configFile)}/database.secret`;
 }

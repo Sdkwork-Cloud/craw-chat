@@ -120,7 +120,7 @@ assert.equal(
 );
 assert.equal(
   serverPackagesByPlatform.get('linux')?.databasePolicy?.passwordFile?.path,
-  '/etc/sdkwork/chat/database.secret',
+  '/etc/sdkwork/database/database.secret',
   'linux PostgreSQL password file should stay under the production config root',
 );
 assert.equal(
@@ -601,7 +601,7 @@ for (const expectedText of [
   'data_directory = "/var/lib/sdkwork/chat"',
   'log_directory = "/var/log/sdkwork/chat"',
   'runtime_directory = "/run/sdkwork/chat"',
-  'password_file = "/etc/sdkwork/chat/database.secret"',
+  'password_file = "/etc/sdkwork/database/database.secret"',
 ]) {
   assert.match(serverYamlTemplate, new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
 }
@@ -620,7 +620,7 @@ for (const expectedText of [
 assert.doesNotMatch(serverEnvTemplate, /\/etc\/sdkwork-im\/default|\/var\/run\/sdkwork-im\/default/u);
 
 const postgresqlTemplate = readText('deployments', 'templates', 'postgresql.yaml.example');
-assert.match(postgresqlTemplate, /passwordFile: \/etc\/sdkwork\/chat\/database\.secret/u);
+assert.match(postgresqlTemplate, /passwordFile: \/etc\/sdkwork\/database\/database\.secret/u);
 assert.doesNotMatch(postgresqlTemplate, /\/etc\/sdkwork-im\/default/u);
 
 const systemdTemplate = readText('deployments', 'systemd', 'sdkwork-api-im-standalone-gateway.service');

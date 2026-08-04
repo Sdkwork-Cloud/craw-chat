@@ -107,7 +107,7 @@ port = 5432
 database = "sdkwork_ai_prod"
 schema = "sdkwork_ai_prod"
 username = "sdkwork_ai_prod"
-password_file = "/etc/sdkwork/chat/database.secret"
+password_file = "/etc/sdkwork/database/database.secret"
 ssl_mode = "require"
 max_connections = 20
 
@@ -143,7 +143,7 @@ SDKWORK_DATABASE_PORT=5432
 SDKWORK_DATABASE_NAME=sdkwork_ai_prod
 SDKWORK_DATABASE_SCHEMA=sdkwork_ai_prod
 SDKWORK_DATABASE_USERNAME=sdkwork_ai_prod
-SDKWORK_DATABASE_PASSWORD_FILE=/etc/sdkwork/chat/database.secret
+SDKWORK_DATABASE_PASSWORD_FILE=/etc/sdkwork/database/database.secret
 SDKWORK_DATABASE_SSL_MODE=require
 SDKWORK_DATABASE_MAX_CONNECTIONS=20
 SDKWORK_IM_LOG_LEVEL=info
@@ -162,7 +162,7 @@ connection:
   port: 5432
   database: sdkwork_ai_prod
   username: sdkwork_ai_prod
-  passwordFile: /etc/sdkwork/chat/database.secret
+  passwordFile: /etc/sdkwork/database/database.secret
   sslmode: require
   applicationName: sdkwork-chat-server
   connectTimeoutSeconds: 10
@@ -191,8 +191,8 @@ replace-with-generated-password
 权限建议：
 
 ```bash
-sudo chown root:sdkwork /etc/sdkwork/chat/database.secret
-sudo chmod 0640 /etc/sdkwork/chat/database.secret
+sudo chown root:sdkwork /etc/sdkwork/database/database.secret
+sudo chmod 0640 /etc/sdkwork/database/database.secret
 ```
 
 Windows Service 场景需确保服务运行账号对 `%ProgramData%/sdkwork/chat/database.secret` 有读取权限，且该文件未进入安装包或 Git。
@@ -214,13 +214,13 @@ Linux 示例：
 test -f /etc/sdkwork/chat/chat.toml
 test -f /etc/sdkwork/chat/server.env
 test -f /etc/sdkwork/chat/postgresql.yaml
-test -f /etc/sdkwork/chat/database.secret
+test -f /etc/sdkwork/database/database.secret
 ```
 
 数据库客户端验证：
 
 ```bash
-PGPASSWORD="$(cat /etc/sdkwork/chat/database.secret)" \
+PGPASSWORD="$(cat /etc/sdkwork/database/database.secret)" \
 psql "postgresql://sdkwork@postgres.internal.example.com:5432/sdkwork?sslmode=require"
 ```
 

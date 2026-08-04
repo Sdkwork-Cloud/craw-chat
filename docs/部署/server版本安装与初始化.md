@@ -62,7 +62,7 @@ Linux archive：
 - Config file: `/etc/sdkwork/chat/chat.toml`
 - Env file: `/etc/sdkwork/chat/server.env`
 - PostgreSQL helper config: `/etc/sdkwork/chat/postgresql.yaml`
-- PostgreSQL password file: `/etc/sdkwork/chat/database.secret`
+- PostgreSQL password file: `/etc/sdkwork/database/database.secret`
 - Data root: `/var/lib/sdkwork/chat`
 - Log root: `/var/log/sdkwork/chat`
 - Run root: `/run/sdkwork/chat`

@@ -229,7 +229,7 @@ DROP TABLE sdkwork_ai_dev.__manual_smoke_check;
 
 ## 9. 生产配置参考
 
-生产 server 不使用 `.env.postgres`。使用 `/etc/sdkwork/chat/chat.toml`、`/etc/sdkwork/chat/server.env`、`/etc/sdkwork/chat/postgresql.yaml`、`/etc/sdkwork/chat/database.secret`。
+生产 server 不使用 `.env.postgres`。使用 `/etc/sdkwork/chat/chat.toml`、`/etc/sdkwork/chat/server.env`、`/etc/sdkwork/chat/postgresql.yaml`、`/etc/sdkwork/database/database.secret`。
 
 `postgresql.yaml` 生产字段示例：
 
@@ -241,7 +241,7 @@ connection:
   port: 5432
   database: sdkwork_ai_prod
   username: sdkwork_ai_prod
-  passwordFile: /etc/sdkwork/chat/database.secret
+  passwordFile: /etc/sdkwork/database/database.secret
   sslmode: require
 
 schema:
@@ -251,6 +251,6 @@ schema:
 安全要求：
 
 - 密码不要提交 Git。
-- 线上环境使用 `/etc/sdkwork/chat/database.secret` 或平台密钥管理系统。
+- 线上环境使用 `/etc/sdkwork/database/database.secret` 或平台密钥管理系统。
 - Server 与 container 默认 PostgreSQL。
 - Desktop 默认使用浏览器本地存储(IndexedDB / localStorage),除非用户显式配置外部 PostgreSQL 数据库。

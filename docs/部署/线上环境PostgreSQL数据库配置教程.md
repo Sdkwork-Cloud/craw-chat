@@ -90,7 +90,7 @@ port = 5432
 database = "sdkwork_ai_prod"
 schema = "sdkwork_ai_prod"
 username = "sdkwork_ai_prod"
-password_file = "/etc/sdkwork/chat/database.secret"
+password_file = "/etc/sdkwork/database/database.secret"
 ssl_mode = "require"
 max_connections = 20
 ```
@@ -113,7 +113,7 @@ SDKWORK_DATABASE_PORT=5432
 SDKWORK_DATABASE_NAME=sdkwork_ai_prod
 SDKWORK_DATABASE_SCHEMA=sdkwork_ai_prod
 SDKWORK_DATABASE_USERNAME=sdkwork_ai_prod
-SDKWORK_DATABASE_PASSWORD_FILE=/etc/sdkwork/chat/database.secret
+SDKWORK_DATABASE_PASSWORD_FILE=/etc/sdkwork/database/database.secret
 SDKWORK_DATABASE_SSL_MODE=require
 SDKWORK_DATABASE_MAX_CONNECTIONS=20
 SDKWORK_DATABASE_MIN_CONNECTIONS=5
@@ -139,7 +139,7 @@ connection:
   port: 5432
   database: sdkwork_ai_prod
   username: sdkwork_ai_prod
-  passwordFile: /etc/sdkwork/chat/database.secret
+  passwordFile: /etc/sdkwork/database/database.secret
   sslmode: require
   applicationName: sdkwork-chat-server
   connectTimeoutSeconds: 10
@@ -168,8 +168,8 @@ replace-with-generated-password
 Linux 权限示例：
 
 ```bash
-sudo chown root:sdkwork /etc/sdkwork/chat/database.secret
-sudo chmod 0640 /etc/sdkwork/chat/database.secret
+sudo chown root:sdkwork /etc/sdkwork/database/database.secret
+sudo chmod 0640 /etc/sdkwork/database/database.secret
 ```
 
 ## 7. 连通性与迁移验证
@@ -177,7 +177,7 @@ sudo chmod 0640 /etc/sdkwork/chat/database.secret
 在受控终端中验证连接，不把密码写进历史记录：
 
 ```bash
-PGPASSWORD="$(cat /etc/sdkwork/chat/database.secret)" \
+PGPASSWORD="$(cat /etc/sdkwork/database/database.secret)" \
   psql "host=postgres.internal.example.com port=5432 dbname=sdkwork_ai_prod user=sdkwork_ai_prod sslmode=require" \
   -c 'SHOW search_path;'
 ```

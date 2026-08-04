@@ -33,7 +33,7 @@ database:
   database: sdkwork_ai_prod
   schema: sdkwork_ai_prod
   username: sdkwork_ai_prod
-  passwordFile: /etc/sdkwork/chat/database.secret
+  passwordFile: /etc/sdkwork/database/database.secret
   sslMode: require
   maxConnections: 20
 

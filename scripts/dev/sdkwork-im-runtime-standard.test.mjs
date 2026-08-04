@@ -182,7 +182,7 @@ assert.deepEqual(linuxServer.runtimePaths, {
 });
 assert.equal(linuxServer.databasePolicy.defaultEngine, 'postgresql');
 assert.equal(linuxServer.databasePolicy.configFile.path, '/etc/sdkwork/chat/chat.toml');
-assert.equal(linuxServer.databasePolicy.passwordFile.path, '/etc/sdkwork/chat/database.secret');
+assert.equal(linuxServer.databasePolicy.passwordFile.path, '/etc/sdkwork/database/database.secret');
 assert.ok(linuxServer.databasePolicy.envOverrides.includes('SDKWORK_DATABASE_ENGINE'));
 assert.ok(linuxServer.databasePolicy.envOverrides.includes('SDKWORK_IM_LOG_DIR'));
 
@@ -213,7 +213,7 @@ for (const required of [
   'SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat',
   'SDKWORK_IM_RUN_DIR=/run/sdkwork/chat',
   'SDKWORK_DATABASE_ENGINE=postgresql',
-  'SDKWORK_DATABASE_PASSWORD_FILE=/etc/sdkwork/chat/database.secret',
+  'SDKWORK_DATABASE_PASSWORD_FILE=/etc/sdkwork/database/database.secret',
   'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18079',
   'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com',
   'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com',
@@ -261,7 +261,7 @@ for (const required of [
   'apiBaseUrl: https://im.sdkwork.com',
   'websocketBaseUrl: wss://im.sdkwork.com',
   'engine: postgresql',
-  'passwordFile: /etc/sdkwork/chat/database.secret',
+  'passwordFile: /etc/sdkwork/database/database.secret',
 ]) {
   assert.ok(serverConfigTemplate.includes(required), `server.yaml.example must document ${required}`);
 }
@@ -372,7 +372,7 @@ for (const required of [
   'SDKWORK_DATABASE_ENGINE',
   'SDKWORK_DATABASE_SSL_MODE',
   '/etc/sdkwork/chat/chat.toml',
-  '/etc/sdkwork/chat/database.secret',
+  '/etc/sdkwork/database/database.secret',
   '/sdkwork/chat',
   'desktop',
   'im_',
