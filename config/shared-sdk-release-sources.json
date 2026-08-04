@@ -64,8 +64,8 @@
       "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-voice.git",
       "ref": "main"
     },
-    "sdkwork-clawrouter": {
-      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-clawrouter.git",
+    "sdkwork-cloudrouter": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-cloudrouter.git",
       "ref": "main"
     }
   }

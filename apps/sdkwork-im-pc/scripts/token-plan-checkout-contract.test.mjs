@@ -409,8 +409,8 @@ assert.equal(
 );
 assert.doesNotMatch(
   [tokenPlanPageSource, imCommerceModalsSource, membershipIntegrationSource, standaloneDependencyRoutesSource].join('\n'),
-  /clawrouter|claw-router|claw_router/iu,
-  'IM Token Plan integration must not depend on ClawRouter business code or SDKs.',
+  /cloudrouter|cloud-router|cloud_router/iu,
+  'IM Token Plan integration must not depend on CloudRouter business code or SDKs.',
 );
 for (const workspacePath of [
   'sdkwork-account-service',

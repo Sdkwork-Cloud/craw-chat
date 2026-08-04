@@ -296,7 +296,7 @@ for (const sourceName of [
   'sdkwork-course',
   'sdkwork-core',
   'sdkwork-ui',
-  'sdkwork-clawrouter',
+  'sdkwork-cloudrouter',
 ]) {
   assert.ok(releaseSources.sources?.[sourceName], `release shared SDK config must include ${sourceName}`);
 }

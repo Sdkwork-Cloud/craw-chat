@@ -459,7 +459,7 @@ export const MusicMessageItem: React.FC<BaseProps & { allMessages?: Message[] }>
       </div>
       <div className="px-4 py-1.5 text-[10px] text-gray-500 uppercase tracking-widest bg-black/20 flex justify-between items-center">
         <span>音乐卡片</span>
-        <span>Claw Music</span>
+        <span>Cloud Music</span>
       </div>
     </div>
   );

@@ -146,11 +146,11 @@ const SOURCE_SPECS = Object.freeze([
     refEnvVar: 'SDKWORK_SHARED_VOICE_GIT_REF',
   },
   {
-    id: 'sdkwork-clawrouter',
-    repoRoot: path.resolve(defaultRepoRoot, '..', 'sdkwork-clawrouter'),
-    requiredPaths: ['package.json', 'apps/sdkwork-clawrouter-pc/package.json'],
-    repoUrlEnvVar: 'SDKWORK_SHARED_CLAW_ROUTER_REPO_URL',
-    refEnvVar: 'SDKWORK_SHARED_CLAW_ROUTER_GIT_REF',
+    id: 'sdkwork-cloudrouter',
+    repoRoot: path.resolve(defaultRepoRoot, '..', 'sdkwork-cloudrouter'),
+    requiredPaths: ['package.json', 'apps/sdkwork-cloudrouter-pc/package.json'],
+    repoUrlEnvVar: 'SDKWORK_SHARED_CLOUDROUTER_REPO_URL',
+    refEnvVar: 'SDKWORK_SHARED_CLOUDROUTER_GIT_REF',
   },
 ]);
 

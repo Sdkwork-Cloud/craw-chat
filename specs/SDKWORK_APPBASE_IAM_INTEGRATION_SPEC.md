@@ -196,7 +196,7 @@ Reference implementations:
 
 ## 5.2 IAM Product Application Provisioning
 
-Standalone and embedded IM gateways that ship IAM locally must provision the product tenant application before credential-entry routes execute. This mirrors Claw Router database installer behavior through the shared embedded bootstrap framework.
+Standalone and embedded IM gateways that ship IAM locally must provision the product tenant application before credential-entry routes execute. This mirrors Cloud Router database installer behavior through the shared embedded bootstrap framework.
 
 Rules:
 
@@ -214,7 +214,7 @@ Reference implementations:
 - `sdkwork-iam/crates/sdkwork-iam-embedded-application-bootstrap`
 - `crates/sdkwork-im-iam-application-bootstrap/src/lib.rs`
 - `crates/sdkwork-api-im-standalone-gateway/src/main.rs`
-- `sdkwork-clawrouter/services/sdkwork-clawrouter-router-service/src/infrastructure/sql/iam_application_bootstrap.rs`
+- `sdkwork-cloudrouter/services/sdkwork-cloudrouter-router-service/src/infrastructure/sql/iam_application_bootstrap.rs`
 
 ## 6. App SDK Client And Token Rules
 

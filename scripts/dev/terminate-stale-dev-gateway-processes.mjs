@@ -3,7 +3,7 @@ import process from 'node:process';
 
 export const STALE_DEV_GATEWAY_PROCESS_NAMES = [
   'sdkwork-api-im-standalone-gateway.exe',
-  'sdkwork-clawrouter-standalone-gateway.exe',
+  'sdkwork-cloudrouter-standalone-gateway.exe',
 ];
 
 /**

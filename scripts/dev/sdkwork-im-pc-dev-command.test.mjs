@@ -540,7 +540,7 @@ for (const sourceName of [
   'sdkwork-im-backend-sdk',
   'sdkwork-im-sdk',
   'sdkwork-notary',
-  'sdkwork-clawrouter',
+  'sdkwork-cloudrouter',
 ]) {
   const sourceConfig = sharedSdkReleaseConfig.sources?.[sourceName];
   assert.ok(sourceConfig, `release shared SDK config must define ${sourceName}`);

@@ -46,9 +46,9 @@
 ## 6) 非阻断说明
 
 - 全仓脚本 `node --test ../scripts/api-spec-java-standard.test.mjs` 存在失败项，
-  定位在 `apps/sdkwork-clawrouter`，不在 `apps/sdkwork-im` 范围内，不影响本应用结论。
+  定位在 `apps/sdkwork-cloudrouter`，不在 `apps/sdkwork-im` 范围内，不影响本应用结论。
 
 ## 7) 建议下一步
 
 1. 以 `apps/sdkwork-im` 为提交范围，优先提交本次命名一致性修复与契约同步。
-2. 另起独立任务处理 `sdkwork-clawrouter` 的全仓 API 路径风格违规，避免与本应用审计混提。
+2. 另起独立任务处理 `sdkwork-cloudrouter` 的全仓 API 路径风格违规，避免与本应用审计混提。

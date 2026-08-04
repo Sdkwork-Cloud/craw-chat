@@ -116,7 +116,7 @@ where
             )
         })
         .collect();
-    let lifecycle = ["SDKWORK_IM_ENVIRONMENT", "SDKWORK_CLAW_ENVIRONMENT"]
+    let lifecycle = ["SDKWORK_IM_ENVIRONMENT", "SDKWORK_CLOUDROUTER_ENVIRONMENT"]
         .into_iter()
         .find_map(|key| values.get(key).cloned());
     if let Some(value) = lifecycle {
@@ -124,9 +124,9 @@ where
     }
     let deployment_is_explicit = [
         "SDKWORK_IM_DEPLOYMENT_PROFILE",
-        "SDKWORK_CLAW_DEPLOYMENT_PROFILE",
+        "SDKWORK_CLOUDROUTER_DEPLOYMENT_PROFILE",
         "SDKWORK_IM_RUNTIME_TARGET",
-        "SDKWORK_CLAW_RUNTIME_TARGET",
+        "SDKWORK_CLOUDROUTER_RUNTIME_TARGET",
     ]
     .into_iter()
     .any(|key| values.contains_key(key));

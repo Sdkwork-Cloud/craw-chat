@@ -393,7 +393,7 @@ for (const relativePath of embedCapabilityI18nRoots) {
 
 
 const musicPlayerSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/MusicPlayer.tsx');
-assert.doesNotMatch(musicPlayerSource, /CLAW MUSIC/u, 'MusicPlayer must not retain clawchat branding');
+assert.doesNotMatch(musicPlayerSource, /CLOUD MUSIC/u, 'MusicPlayer must not retain clawchat branding');
 assert.doesNotMatch(musicPlayerSource, /\.innerHTML\s*=/u, 'MusicPlayer must not mutate DOM via innerHTML');
 
 
