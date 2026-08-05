@@ -30,12 +30,18 @@ export function extractBackendSdkRecords(
   }
 
   const record = asRecord(payload);
+  if (!record) {
+    return [];
+  }
   for (const key of domainCollectionKeys) {
     const nested = record[key];
     if (Array.isArray(nested)) {
       return nested
         .map((entry) => asRecord(entry))
-        .filter((entry) => Object.keys(entry).length > 0);
+        .filter(
+          (entry): entry is Record<string, unknown> =>
+            entry !== null && Object.keys(entry).length > 0,
+        );
     }
   }
   return [];
@@ -43,9 +49,12 @@ export function extractBackendSdkRecords(
 
 export function readBackendPageTotal(value: unknown, fallback: number): number {
   const data = asRecord(unwrapSdkWorkApiEnvelope(value));
+  if (!data) {
+    return fallback;
+  }
   const pageInfo = asRecord(data.pageInfo);
   const total = readNumber(
-    pageInfo,
+    pageInfo ?? {},
     'totalItems',
     'total_items',
     'total',

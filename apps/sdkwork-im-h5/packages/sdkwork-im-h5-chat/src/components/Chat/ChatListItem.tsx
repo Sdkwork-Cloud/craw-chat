@@ -11,7 +11,7 @@ interface ChatListItemProps {
   chatsLength: number;
   contextMenu: {
     isOpen: boolean;
-    chatId?: string;
+    chatId?: string | null;
   };
   handleTouchStart: (e: React.TouchEvent | React.MouseEvent, chatId: string) => void;
   handleTouchEnd: () => void;

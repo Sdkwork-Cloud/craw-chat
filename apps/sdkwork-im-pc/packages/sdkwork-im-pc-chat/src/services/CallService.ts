@@ -207,7 +207,9 @@ const ACTIVE_CALL_STATE_ORDER: Record<Exclude<SdkworkCallState, 'ended' | 'error
   connected: 3,
 };
 
-function isTerminalCallState(state: SdkworkCallState): boolean {
+function isTerminalCallState(
+  state: SdkworkCallState,
+): state is 'ended' | 'rejected' | 'errored' {
   return state === 'ended' || state === 'rejected' || state === 'errored';
 }
 

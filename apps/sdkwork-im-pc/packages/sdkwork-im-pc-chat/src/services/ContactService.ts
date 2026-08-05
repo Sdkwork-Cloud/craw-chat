@@ -280,7 +280,7 @@ function readFriendRequestListPage(
   return {
     items: response.items ?? [],
     hasMore,
-    nextCursor,
+    nextCursor: nextCursor ?? undefined,
   };
 }
 

@@ -94,7 +94,7 @@ const messagesEndRef = useRef<HTMLDivElement>(null);
         const isMe = msg.senderId === currentUser?.id;
         const sender = isMe
           ? currentUser
-          : chat?.participants.find((p) => p.id === msg.senderId);
+          : chat?.participants.find((p) => p.id === msg.senderId) ?? undefined;
         const isAgent = msg.senderId.startsWith("agent_");
 
         const prevMsg = index > 0 ? messages[index - 1] : null;
@@ -115,13 +115,13 @@ const messagesEndRef = useRef<HTMLDivElement>(null);
 
         const hideAvatar = !showAvatar;
         const isOtherFullWidth = !isMe && (!showAvatar || isAgent);
-        const hideTail = hideAvatar || isAgent || isConsecutive;
+        const hideTail = Boolean(hideAvatar || isAgent || isConsecutive);
 
         let replyToMsg: Message | undefined;
         let replyToSenderName: string | undefined;
 
         if (msg.metadata?.replyTo) {
-          replyToMsg = messages.find((m) => m.id === msg.metadata.replyTo);
+          replyToMsg = messages.find((m) => m.id === msg.metadata?.replyTo);
           if (replyToMsg) {
             const replyIsMe = replyToMsg.senderId === currentUser?.id;
             replyToSenderName = replyIsMe

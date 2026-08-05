@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
-import { pathToFileURL } from 'node:url';
-import type { SdkworkAgentAppClient } from '@sdkwork/agents-pc-core/sdk/agentsAppSdkClient';
+import type { SdkworkAgentsAppClient } from '@sdkwork/agents-pc-core/sdk/agentsAppSdkClient';
 import type { AgentManagementProfile } from '@sdkwork/agents-app-sdk';
-import type * as AgentServiceModule from '../../../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/services/AgentService.ts';
+import type * as AgentServiceModule from '@sdkwork/agents-pc-agents';
 
 type AgentServiceExports = typeof AgentServiceModule;
 type AgentConfig = AgentServiceModule.AgentConfig;
@@ -42,10 +41,7 @@ class MemoryStorage implements Storage {
 }
 
 async function loadAgentServiceModule(): Promise<AgentServiceExports> {
-  const moduleUrl = pathToFileURL(
-    '../../../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/services/AgentService.ts',
-  ).href;
-  const loaded = (await import(moduleUrl)) as Partial<AgentServiceExports> & {
+  const loaded = (await import('@sdkwork/agents-pc-agents')) as Partial<AgentServiceExports> & {
     default?: Partial<AgentServiceExports>;
   };
   const createSdkworkAgentService =
@@ -233,15 +229,15 @@ const fakeClient = {
       },
     },
   },
-} as unknown as SdkworkAgentAppClient;
+} as unknown as SdkworkAgentsAppClient;
 
 installSession();
 
 const { createSdkworkAgentService } = await loadAgentServiceModule();
 const agentService = createSdkworkAgentService(() => fakeClient);
 
-await agentService.getAgents();
-await agentService.getMarketAgents();
+await agentService.listAgentsPage({ scope: 'mine' });
+await agentService.listAgentsPage({ scope: 'market' });
 await agentService.createAgent({
   avatar: '',
   description: 'Created in current session',

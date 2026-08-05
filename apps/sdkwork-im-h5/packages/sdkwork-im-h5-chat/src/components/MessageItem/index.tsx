@@ -20,7 +20,7 @@ export interface MessageItemProps {
   hideTail: boolean;
   isOtherFullWidth: boolean;
   sender: User | undefined;
-  currentUser: User | undefined;
+  currentUser: User | null | undefined;
   contextMenu: { isOpen: boolean; messageId: string | null };
   handleTouchStart: (
     e: React.TouchEvent | React.MouseEvent,

@@ -1,14 +1,10 @@
 import assert from 'node:assert/strict';
-import { pathToFileURL } from 'node:url';
-import type * as AgentServiceModule from '../../../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/services/AgentService.ts';
+import type * as AgentServiceModule from '@sdkwork/agents-pc-agents';
 
 type AgentServiceExports = typeof AgentServiceModule;
 
 async function loadAgentServiceModule(): Promise<AgentServiceExports> {
-  const moduleUrl = pathToFileURL(
-    '../../../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/services/AgentService.ts',
-  ).href;
-  const loaded = (await import(moduleUrl)) as Partial<AgentServiceExports> & {
+  const loaded = (await import('@sdkwork/agents-pc-agents')) as Partial<AgentServiceExports> & {
     default?: Partial<AgentServiceExports>;
   };
   const parseAgentCatalogSnapshot =

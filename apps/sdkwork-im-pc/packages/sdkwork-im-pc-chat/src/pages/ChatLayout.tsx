@@ -733,7 +733,7 @@ const ChatLayoutComponent: React.FC = () => {
   );
 
   const preserveGroupAgentSnapshot = (previous: Chat | undefined, next: Chat): Chat => {
-    if (next.type !== "group" || !hasAuthoritativeGroupAgentSnapshot(previous)) {
+    if (!previous || next.type !== "group" || !hasAuthoritativeGroupAgentSnapshot(previous)) {
       return next;
     }
     const nextIsAuthoritative = hasAuthoritativeGroupAgentSnapshot(next);

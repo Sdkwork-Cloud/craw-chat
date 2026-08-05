@@ -1,4 +1,5 @@
 import React from 'react';
+import type { KnowledgebasePcRuntimeConfigurator } from '@sdkwork/im-pc-core';
 
 export type { DriveOpenRequest } from '@sdkwork/drive-pc-drive';
 
@@ -20,7 +21,9 @@ const CAPABILITY_MODULE_LOADERS: Record<string, CapabilityModuleLoader> = {
       import('@sdkwork/knowledgebase-pc-knowledge'),
       import('@sdkwork/im-pc-core'),
     ]);
-    imCore.ensureKnowledgebasePcRuntimeOnModule(knowledgebaseModule.configureKnowledgebasePcRuntime);
+    imCore.ensureKnowledgebasePcRuntimeOnModule(
+      knowledgebaseModule.configureKnowledgebasePcRuntime as KnowledgebasePcRuntimeConfigurator,
+    );
     const KnowledgebaseCapability: React.FC = () => React.createElement(
       knowledgebaseModule.KnowledgebaseHostSurface,
       {

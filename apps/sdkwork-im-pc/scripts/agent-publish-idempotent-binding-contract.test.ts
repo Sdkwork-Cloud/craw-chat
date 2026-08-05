@@ -1,16 +1,12 @@
 import assert from 'node:assert/strict';
-import { pathToFileURL } from 'node:url';
-import type { SdkworkAgentAppClient } from '@sdkwork/agents-pc-core/sdk/agentsAppSdkClient';
-import type * as AgentServiceModule from '../../../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/services/AgentService.ts';
+import type { SdkworkAgentsAppClient } from '@sdkwork/agents-pc-core/sdk/agentsAppSdkClient';
+import type * as AgentServiceModule from '@sdkwork/agents-pc-agents';
 
 type AgentServiceExports = typeof AgentServiceModule;
 type RecordLike = Record<string, unknown>;
 
 async function loadAgentServiceModule(): Promise<AgentServiceExports> {
-  const moduleUrl = pathToFileURL(
-    '../../../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/services/AgentService.ts',
-  ).href;
-  const loaded = (await import(moduleUrl)) as Partial<AgentServiceExports> & {
+  const loaded = (await import('@sdkwork/agents-pc-agents')) as Partial<AgentServiceExports> & {
     default?: Partial<AgentServiceExports>;
   };
   const createSdkworkAgentService =
@@ -63,7 +59,7 @@ const fakeClient = {
       },
     },
   },
-} as unknown as SdkworkAgentAppClient;
+} as unknown as SdkworkAgentsAppClient;
 
 const { createSdkworkAgentService } = await loadAgentServiceModule();
 const agentService = createSdkworkAgentService(() => fakeClient);

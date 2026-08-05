@@ -9,6 +9,26 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./composition": {
+      "types": "./src/composition/index.ts",
+      "import": "./src/composition/index.ts",
+      "default": "./src/composition/index.ts"
+    },
+    "./host": {
+      "types": "./src/host/index.ts",
+      "import": "./src/host/index.ts",
+      "default": "./src/host/index.ts"
+    },
+    "./host/desktopHost": {
+      "types": "./src/host/desktopHost.ts",
+      "import": "./src/host/desktopHost.ts",
+      "default": "./src/host/desktopHost.ts"
+    },
+    "./modules": {
+      "types": "./src/modules/index.ts",
+      "import": "./src/modules/index.ts",
+      "default": "./src/modules/index.ts"
+    },
     "./runtime/desktopEnvironment": {
       "types": "./src/runtime/desktopEnvironment.ts",
       "default": "./src/runtime/desktopEnvironment.ts"
@@ -16,6 +36,11 @@
     "./runtime/groupKnowledgebaseBrowserDestination": {
       "types": "./src/runtime/groupKnowledgebaseBrowserDestination.ts",
       "default": "./src/runtime/groupKnowledgebaseBrowserDestination.ts"
+    },
+    "./sdk": {
+      "types": "./src/sdk/index.ts",
+      "import": "./src/sdk/index.ts",
+      "default": "./src/sdk/index.ts"
     },
     "./sdk/agentAppSdkClient": {
       "types": "./src/sdk/agentAppSdkClient.ts",
@@ -29,33 +54,17 @@
       "types": "./src/sdk/appSdkClient.ts",
       "default": "./src/sdk/appSdkClient.ts"
     },
-    "./sdk/appbaseAppSdkClient": {
-      "types": "./src/sdk/appbaseAppSdkClient.ts",
-      "default": "./src/sdk/appbaseAppSdkClient.ts"
-    },
-    "./sdk/driveAppSdkClient": {
-      "types": "./src/sdk/driveAppSdkClient.ts",
-      "default": "./src/sdk/driveAppSdkClient.ts"
-    },
-    "./sdk/commercePcIntegration": {
-      "types": "./src/sdk/commercePcIntegration.ts",
-      "default": "./src/sdk/commercePcIntegration.ts"
-    },
-    "./sdk/membershipAppSdkClient": {
-      "types": "./src/sdk/membershipAppSdkClient.ts",
-      "default": "./src/sdk/membershipAppSdkClient.ts"
-    },
-    "./sdk/membershipPcIntegration": {
-      "types": "./src/sdk/membershipPcIntegration.ts",
-      "default": "./src/sdk/membershipPcIntegration.ts"
-    },
     "./sdk/appSdkResponseHelpers": {
       "types": "./src/sdk/appSdkResponseHelpers.ts",
       "default": "./src/sdk/appSdkResponseHelpers.ts"
     },
-    "./sdk/mailPcIntegration": {
-      "types": "./src/sdk/mailPcIntegration.ts",
-      "default": "./src/sdk/mailPcIntegration.ts"
+    "./sdk/appbaseAppSdkClient": {
+      "types": "./src/sdk/appbaseAppSdkClient.ts",
+      "default": "./src/sdk/appbaseAppSdkClient.ts"
+    },
+    "./sdk/commercePcIntegration": {
+      "types": "./src/sdk/commercePcIntegration.ts",
+      "default": "./src/sdk/commercePcIntegration.ts"
     },
     "./sdk/communityAppSdkClient": {
       "types": "./src/sdk/communityAppSdkClient.ts",
@@ -69,21 +78,13 @@
       "types": "./src/sdk/courseAppSdkClient.ts",
       "default": "./src/sdk/courseAppSdkClient.ts"
     },
-    "./sdk/coursePcIntegration": {
-      "types": "./src/sdk/coursePcIntegration.ts",
-      "default": "./src/sdk/coursePcIntegration.ts"
-    },
     "./sdk/courseBackendPcIntegration": {
       "types": "./src/sdk/courseBackendPcIntegration.ts",
       "default": "./src/sdk/courseBackendPcIntegration.ts"
     },
-    "./sdk/imSdkClient": {
-      "types": "./src/sdk/imSdkClient.ts",
-      "default": "./src/sdk/imSdkClient.ts"
-    },
-    "./sdk/pcRealtimeConnectionManager": {
-      "types": "./src/sdk/pcRealtimeConnectionManager.ts",
-      "default": "./src/sdk/pcRealtimeConnectionManager.ts"
+    "./sdk/coursePcIntegration": {
+      "types": "./src/sdk/coursePcIntegration.ts",
+      "default": "./src/sdk/coursePcIntegration.ts"
     },
     "./sdk/desktopOfflineChatCache": {
       "types": "./src/sdk/desktopOfflineChatCache.ts",
@@ -93,34 +94,43 @@
       "types": "./src/sdk/desktopOfflineSendQueue.ts",
       "default": "./src/sdk/desktopOfflineSendQueue.ts"
     },
+    "./sdk/driveAppSdkClient": {
+      "types": "./src/sdk/driveAppSdkClient.ts",
+      "default": "./src/sdk/driveAppSdkClient.ts"
+    },
+    "./sdk/imSdkClient": {
+      "types": "./src/sdk/imSdkClient.ts",
+      "default": "./src/sdk/imSdkClient.ts"
+    },
+    "./sdk/mailPcIntegration": {
+      "types": "./src/sdk/mailPcIntegration.ts",
+      "default": "./src/sdk/mailPcIntegration.ts"
+    },
+    "./sdk/membershipAppSdkClient": {
+      "types": "./src/sdk/membershipAppSdkClient.ts",
+      "default": "./src/sdk/membershipAppSdkClient.ts"
+    },
+    "./sdk/membershipPcIntegration": {
+      "types": "./src/sdk/membershipPcIntegration.ts",
+      "default": "./src/sdk/membershipPcIntegration.ts"
+    },
+    "./sdk/pcRealtimeConnectionManager": {
+      "types": "./src/sdk/pcRealtimeConnectionManager.ts",
+      "default": "./src/sdk/pcRealtimeConnectionManager.ts"
+    },
+    "./sdk/sdkBaseUrls": {
+      "types": "./src/sdk/sdkBaseUrls.ts",
+      "import": "./src/sdk/sdkBaseUrls.ts",
+      "default": "./src/sdk/sdkBaseUrls.ts"
+    },
     "./sdk/session": {
       "types": "./src/sdk/session.ts",
       "default": "./src/sdk/session.ts"
-    },
-    "./sdk": {
-      "types": "./src/sdk/index.ts",
-      "import": "./src/sdk/index.ts",
-      "default": "./src/sdk/index.ts"
-    },
-    "./modules": {
-      "types": "./src/modules/index.ts",
-      "import": "./src/modules/index.ts",
-      "default": "./src/modules/index.ts"
-    },
-    "./host": {
-      "types": "./src/host/index.ts",
-      "import": "./src/host/index.ts",
-      "default": "./src/host/index.ts"
     },
     "./session": {
       "types": "./src/session/index.ts",
       "import": "./src/session/index.ts",
       "default": "./src/session/index.ts"
-    },
-    "./composition": {
-      "types": "./src/composition/index.ts",
-      "import": "./src/composition/index.ts",
-      "default": "./src/composition/index.ts"
     }
   },
   "dependencies": {

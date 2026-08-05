@@ -39,7 +39,7 @@ const controls = useAnimation();
   };
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
   if (isOpen && swipeRef.current && !swipeRef.current.contains(event.target as Node)) {
         controls.start({ x: 0 });
         setIsOpen(false);

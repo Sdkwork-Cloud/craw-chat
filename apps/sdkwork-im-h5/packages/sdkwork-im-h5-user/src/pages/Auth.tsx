@@ -28,11 +28,11 @@ export const AuthPage = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
+    let timer: ReturnType<typeof window.setInterval> | null = null;
     if (countdown > 0) {
       timer = setInterval(() => setCountdown((c) => c - 1), 1000);
     }
-    return () => clearInterval(timer);
+    return () => clearInterval(timer ?? undefined);
   }, [countdown]);
 
   const handleSendCode = async () => {

@@ -4,6 +4,7 @@ import type {
   ImCallParticipantCredential,
   ImCallSession,
   ImDecodedMessage,
+  ImLiveConnection,
   ImLiveConnectionState,
   ImMessageContext,
   ImRealtimeEventContext,

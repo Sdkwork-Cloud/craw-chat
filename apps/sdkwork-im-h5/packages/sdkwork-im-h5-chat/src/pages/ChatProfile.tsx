@@ -85,7 +85,7 @@ const { id } = useParams();
     return undefined;
   }, [searchQuery, showSearch, id]);
 
-  const handleUpdateSettings = async (updates: Partial<Chat["settings"]>) => {
+  const handleUpdateSettings = async (updates: Partial<NonNullable<Chat["settings"]>>) => {
     if (!id) return;
     try {
       const preferences: { isMuted?: boolean; isPinned?: boolean } = {};

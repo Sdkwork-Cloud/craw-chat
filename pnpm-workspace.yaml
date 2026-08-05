@@ -139,12 +139,13 @@ packages:
   - "../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/sdkwork-prompts-app-sdk-typescript"
   - "../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/generated/server-openapi"
 
+  - "../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-core"
 catalog:
   react: ^19.0.0
   react-dom: ^19.0.0
   "@types/react": ^19.0.0
   "@types/react-dom": ^19.0.0
-  typescript: ~5.8.2
+  typescript: ~6.0.2
   vite: ^6.2.0
   "@vitejs/plugin-react": ^5.0.4
   vite-plugin-dts: ^4.5.4
@@ -271,4 +272,3 @@ catalog:
   react-signature-canvas: ^1.1.0-alpha.2
   "@types/react-signature-canvas": ^1.0.7
   i18next-browser-languagedetector: ^8.2.1
-  - "../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-core"

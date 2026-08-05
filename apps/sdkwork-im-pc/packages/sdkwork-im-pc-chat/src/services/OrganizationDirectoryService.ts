@@ -920,12 +920,18 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
       };
     }
     for (const membershipId of membershipIds) {
-      const bindings = await listRoleBindingsSafely((params) => client.iam.roleBindings.list({
-        principalId: membershipId,
-        scopeKind: 'organization',
-        scopeId: resolvedOrganizationId,
-        ...params,
-      }));
+      const bindings = await listRoleBindingsSafely((params) => {
+        const roleBindingsApi = client.iam?.roleBindings;
+        if (!roleBindingsApi?.list) {
+          return Promise.resolve([]);
+        }
+        return roleBindingsApi.list({
+          principalId: membershipId,
+          scopeKind: 'organization',
+          scopeId: resolvedOrganizationId,
+          ...params,
+        });
+      });
       for (const binding of bindings) {
         if (isActiveStatus(binding.status)) {
           roleCodes.add(binding.roleCode);
@@ -1065,9 +1071,16 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
         ...(cursor ? { cursor } : {}),
         ...(explicitOrganizationId ? { organizationId: explicitOrganizationId } : {}),
       };
-      const response = await safeDirectoryRequest(() => client.iam?.departments?.list
-        ? client.iam.departments.list(params)
-        : client.listDepartments?.(explicitOrganizationId, params));
+      const response = await safeDirectoryRequest(async () => {
+        const departmentsApi = client.iam?.departments;
+        if (departmentsApi?.list) {
+          return departmentsApi.list(params);
+        }
+        if (client.listDepartments) {
+          return client.listDepartments(explicitOrganizationId, params);
+        }
+        return Promise.resolve(null);
+      });
       if (!response) {
         return { items: [], hasMore: false };
       }
@@ -1186,9 +1199,16 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
         ...(cursor ? { cursor } : {}),
         ...params,
       };
-      const response = await safeDirectoryRequest(() => client.iam?.departmentAssignments?.list
-        ? client.iam.departmentAssignments.list(pageParams)
-        : client.listDepartmentAssignments?.(normalizedDepartmentId, pageParams));
+      const response = await safeDirectoryRequest(async () => {
+        const departmentAssignmentsApi = client.iam?.departmentAssignments;
+        if (departmentAssignmentsApi?.list) {
+          return departmentAssignmentsApi.list(pageParams);
+        }
+        if (client.listDepartmentAssignments) {
+          return client.listDepartmentAssignments(normalizedDepartmentId, pageParams);
+        }
+        return Promise.resolve(null);
+      });
       if (!response) {
         return { items: [], hasMore: false };
       }

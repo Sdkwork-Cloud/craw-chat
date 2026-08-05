@@ -35,7 +35,6 @@ const capabilityModuleSurfaceSource = read(
 const capabilityModuleLoadersSource = read(
   'packages/sdkwork-im-pc-shell/src/capabilityModuleLoaders.ts',
 );
-const drivePcStubSource = read('types/stubs/drive-pc-drive.d.ts');
 const componentSpec = JSON.parse(
   read('packages/sdkwork-im-pc-workspace/specs/component.spec.json'),
 );
@@ -96,7 +95,8 @@ assert.match(
   /DriveOpenRequest/u,
   'the IM shell must re-export the Drive-owned open request type',
 );
-assert.match(drivePcStubSource, /interface DriveOpenRequest/u, 'the app type stub must mirror the Drive host contract');
+// The Drive host contract is enforced by typechecking against the real
+// @sdkwork/drive-pc-drive package; the legacy ambient type stub is gone.
 
 assert.match(serviceSource, /WORKSPACE_PINNED_APPS_STORAGE_KEY/u, 'workspace shortcut preferences need a dedicated storage key');
 assert.match(serviceSource, /savePinnedAppIds/u, 'workspace service must expose pinned shortcut persistence');

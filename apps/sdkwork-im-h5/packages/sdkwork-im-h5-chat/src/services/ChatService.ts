@@ -21,6 +21,7 @@ import type {
 import type { Chat, Message, User } from "@sdkwork/im-h5-types";
 
 import { getChatImSdkClient } from "./chatConversationService";
+import type { ImSdkClient } from "@sdkwork/im-h5-core/sdk";
 import { createChatMediaDownloadUrl, uploadChatMedia, type ChatMediaUpload } from "./chatMediaUploadService";
 
 const LEGACY_CHAT_PAGE_SIZE = 50;
@@ -67,7 +68,7 @@ export interface ChatSdkPort {
       },
     ): Promise<unknown>;
     create(body: CreateConversationRequest): Promise<CreateConversationResult>;
-    getSummary?(conversationId: string): Promise<{ conversationId: string; messageCount: number; lastMessageSeq: number; lastSummary?: string | null; lastMessageAt?: string }>;
+    getSummary?(conversationId: string): Promise<{ conversationId: string; messageCount: number; lastMessageSeq: number; lastSummary?: string | null; lastMessageAt?: string | null }>;
     list(params?: { cursor?: string; pageSize?: number; q?: string }): Promise<ConversationInboxPage>;
     listMessages(
       conversationId: string,
@@ -81,7 +82,7 @@ export interface ChatSdkPort {
       text: string,
       body?: { clientMsgId?: string | null; replyTo?: MessageReplyReference | null },
     ): Promise<PostMessageResult>;
-    postMessage?(conversationId: string, body: { text?: string; parts?: unknown[]; clientMsgId?: string }): Promise<PostMessageResult>;
+    postMessage?: ImSdkClient["conversations"]["postMessage"];
     updatePreferences(
       conversationId: string,
       body: UpdateConversationPreferencesRequest,
@@ -202,8 +203,9 @@ export function createChatService(
               : {}),
           };
         });
-      const summary = resolveClient().conversations.getSummary
-        ? await resolveClient().conversations.getSummary(conversationId)
+      const client = resolveClient();
+      const summary = client.conversations.getSummary
+        ? await client.conversations.getSummary(conversationId)
         : undefined;
       return {
         id: conversationId,
@@ -378,7 +380,7 @@ export function createChatService(
 
     async updateChatSettings(
       conversationId: string,
-      settings: Partial<Chat["settings"]>,
+      settings: Partial<NonNullable<Chat["settings"]>>,
     ): Promise<Chat | undefined> {
       const preferences: UpdateConversationPreferencesRequest = {};
       if (settings.isMuted !== undefined) preferences.isMuted = settings.isMuted;

@@ -364,7 +364,7 @@ function withBrowserWindow(fakeWindow: unknown, run: () => void): void {
     if (previous) {
       Object.defineProperty(globalThis, 'window', previous);
     } else {
-      delete (globalThis as typeof globalThis & { window?: unknown }).window;
+      Reflect.deleteProperty(globalThis, 'window');
     }
   }
 }
