@@ -37,7 +37,6 @@ sdkwork_database_config = { workspace = true }
 sdkwork_web_axum.workspace = true
 sdkwork_web_core.workspace = true
 tokio = { version = "1.48", features = ["rt-multi-thread", "net", "signal"] }
-tower-http = { version = "0.6.6", features = ["cors"] }
 tracing.workspace = true
 
 [dev-dependencies]

@@ -17,6 +17,7 @@ import {
   resetOrderMobileRuntime,
 } from '@sdkwork/order-mobile-react-orders';
 import { initSdkClients, resetSdkClients } from './sdkClients';
+import { createWechatPaymentOAuthChannel } from './wechatPaymentOAuth';
 import { resolveTokenManagerBinding, resetTokenManagerBinding } from './tokenManager';
 import { registerHostAdapter, resetHostAdapters } from './hostAdapters';
 import { registerRoute, resetRoutes, IM_H5_ROUTE_REGISTRY } from './routes';
@@ -40,7 +41,10 @@ export async function bootstrapImH5CapabilityIntegrations(): Promise<H5Bootstrap
   const sdkClients = initSdkClients();
   const tokenManager = resolveTokenManagerBinding();
   configureCloudDriveRuntime({ client: sdkClients.driveAppSdkClient });
-  configureOrderMobileRuntime({ client: sdkClients.orderAppSdkClient });
+  configureOrderMobileRuntime({
+    client: sdkClients.orderAppSdkClient,
+    wechatPaymentOAuth: createWechatPaymentOAuthChannel(sdkClients.iamAppSdkClient),
+  });
 
   const hostAdapters: H5BootstrapResult['hostAdapters'] = [];
   for (const meta of IM_H5_ROUTE_REGISTRY) {

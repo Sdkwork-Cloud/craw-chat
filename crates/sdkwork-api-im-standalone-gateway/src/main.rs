@@ -8,9 +8,9 @@ use sdkwork_api_config::StandaloneConfigLoader;
 use sdkwork_api_product_runtime::{
     RouterProductRuntimeOptions, build_product_runtime_router, resolve_product_site_dir_from_env,
 };
+use sdkwork_web_axum::CanonicalCorsLayer;
 use sdkwork_web_bootstrap::{ComposedApiAssembly, WebFrameworkBuilder};
 use sdkwork_im_web_bootstrap::im_service_context_profile;
-use tower_http::cors::CorsLayer;
 
 const DEFAULT_BIND: &str = "127.0.0.1:18079";
 
@@ -137,7 +137,7 @@ async fn build_gateway_product_runtime_router(base_url: &str) -> Result<Router, 
     .map_err(|error| error.to_string())
 }
 
-fn build_cors_layer(environment: &str) -> CorsLayer {
+fn build_cors_layer(environment: &str) -> CanonicalCorsLayer {
     let mut policy = if is_development_environment(environment) {
         sdkwork_web_core::CorsPolicy::development_private_network()
     } else {

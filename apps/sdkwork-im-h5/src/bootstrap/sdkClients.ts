@@ -21,6 +21,11 @@ import {
   type SdkworkAppClient as SdkworkOrderAppClient,
 } from '@sdkwork/im-h5-core/sdk';
 import {
+  createClient as createIamAppSdkClient,
+  type SdkworkAppClient as SdkworkIamAppClient,
+  type SdkworkAppConfig as SdkworkIamAppConfig,
+} from '@sdkwork/iam-app-sdk';
+import {
   createNotaryH5ComposedApi,
   initNotaryH5AppSdkClient,
   resetNotaryH5SdkClients,
@@ -34,11 +39,29 @@ export interface H5SdkClientComposition {
   readonly driveAppSdkClient: SdkworkDriveAppClient;
   readonly imSdkClient: ImSdkClient;
   readonly orderAppSdkClient: SdkworkOrderAppClient;
+  readonly iamAppSdkClient: SdkworkIamAppClient;
   readonly notaryAppSdkClient: ReturnType<typeof initNotaryH5AppSdkClient>;
   readonly notaryApi: NotaryH5ComposedApi;
 }
 
 let sdkClientComposition: H5SdkClientComposition | null = null;
+
+function createIamAppSdkClientConfig(
+  config: Partial<SdkworkIamAppConfig> = {},
+): SdkworkIamAppConfig {
+  const environment = resolveH5RuntimeEnvironment();
+  return {
+    baseUrl: config.baseUrl ?? environment.iamApiBaseUrl,
+    accessToken: config.accessToken,
+    authToken: config.authToken,
+    tenantId: config.tenantId,
+    organizationId: config.organizationId,
+    headers: config.headers,
+    platform: 'h5',
+    authMode: config.authMode ?? 'dual-token',
+    tokenManager: config.tokenManager,
+  };
+}
 
 export function initSdkClients(
   tokenManager: AuthTokenManager = getTokenManagerBinding(),
@@ -68,6 +91,12 @@ export function initSdkClients(
     }),
   );
 
+  const iamAppSdkClient = createIamAppSdkClient(
+    createIamAppSdkClientConfig({
+      tokenManager,
+    }),
+  );
+
   const notaryAppSdkClient = initNotaryH5AppSdkClient({
     baseUrl: environment.sdkGatewayApiBaseUrl,
     authMode: 'dual-token',
@@ -83,6 +112,7 @@ export function initSdkClients(
     driveAppSdkClient,
     imSdkClient,
     orderAppSdkClient,
+    iamAppSdkClient,
     notaryAppSdkClient,
     notaryApi,
   };
