@@ -30,6 +30,23 @@ pub struct ApiAssemblyRuntime {
     _background: ApiAssemblyBackground,
 }
 
+impl Drop for ApiAssemblyRuntime {
+    fn drop(&mut self) {
+        // JoinHandle fields detach on drop; abort them so embedded gateway
+        // shutdown does not leak background workers. Handles with their own
+        // Drop (retention scheduler, realtime mirror) stop themselves.
+        for task in [
+            self._background._social_shared_channel_sync.as_ref(),
+            self._background._social_friend_request_expiration.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            task.abort();
+        }
+    }
+}
+
 struct ApiAssemblyBackground {
     _retention_scheduler: Option<im_adapters_postgres_journal::RetentionPurgeSchedulerHandle>,
     _social_shared_channel_sync: Option<JoinHandle<()>>,
