@@ -1763,9 +1763,13 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS im_messages_search_update ON im_conversation_messages;
-CREATE TRIGGER im_messages_search_update
-    BEFORE INSERT OR UPDATE ON im_conversation_messages
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'im_messages_search_update') THEN
+        CREATE TRIGGER im_messages_search_update BEFORE INSERT OR UPDATE ON im_conversation_messages
     FOR EACH ROW EXECUTE FUNCTION im_messages_search_trigger();
+    END IF;
+END $$;
 
 -- ============================================================
 -- 第六部分：邀请和封禁
@@ -1905,9 +1909,13 @@ $$ LANGUAGE plpgsql;
 
 -- Recreate the trigger (replace the one from migration 012)
 DROP TRIGGER IF EXISTS im_messages_search_update ON im_conversation_messages;
-CREATE TRIGGER im_messages_search_update
-    BEFORE INSERT OR UPDATE ON im_conversation_messages
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'im_messages_search_update') THEN
+        CREATE TRIGGER im_messages_search_update BEFORE INSERT OR UPDATE ON im_conversation_messages
     FOR EACH ROW EXECUTE FUNCTION im_messages_search_trigger();
+    END IF;
+END $$;
 
 -- ============================================================
 -- CJK search index using pg_trgm (bundled with PostgreSQL 9.4+)
@@ -2304,12 +2312,16 @@ CREATE INDEX IF NOT EXISTS idx_im_conversation_members_principal
 ALTER TABLE im_rtc_sessions
     DROP CONSTRAINT IF EXISTS chk_im_rtc_sessions_state;
 
-ALTER TABLE im_rtc_sessions
-    ADD CONSTRAINT chk_im_rtc_sessions_state CHECK (session_state IN (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_rtc_sessions_state') THEN
+        ALTER TABLE im_rtc_sessions ADD CONSTRAINT chk_im_rtc_sessions_state CHECK (session_state IN (
         'started', 'accepted', 'rejected', 'ended',
         'initiating', 'ringing', 'connecting', 'connected',
         'on_hold', 'reconnecting', 'canceled', 'failed', 'timeout'
     ));
+    END IF;
+END $$;
 
 -- 2. Add lifecycle timestamp columns for SLA / quality analytics
 ALTER TABLE im_rtc_sessions
@@ -2346,24 +2358,32 @@ UPDATE im_rtc_sessions
 ALTER TABLE im_rtc_sessions
     DROP CONSTRAINT IF EXISTS chk_im_rtc_sessions_terminal_reason;
 
-ALTER TABLE im_rtc_sessions
-    ADD CONSTRAINT chk_im_rtc_sessions_terminal_reason CHECK (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_rtc_sessions_terminal_reason') THEN
+        ALTER TABLE im_rtc_sessions ADD CONSTRAINT chk_im_rtc_sessions_terminal_reason CHECK (
         session_state NOT IN ('ended', 'canceled', 'rejected', 'failed', 'timeout')
         OR ended_reason IS NOT NULL
     );
+    END IF;
+END $$;
 
 -- 5. Expand im_rtc_signals.signal_type CHECK to cover new signaling types
 ALTER TABLE im_rtc_signals
     DROP CONSTRAINT IF EXISTS chk_im_rtc_signals_signal_type;
 
-ALTER TABLE im_rtc_signals
-    ADD CONSTRAINT chk_im_rtc_signals_signal_type CHECK (signal_type IN (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_rtc_signals_signal_type') THEN
+        ALTER TABLE im_rtc_signals ADD CONSTRAINT chk_im_rtc_signals_signal_type CHECK (signal_type IN (
         'offer', 'answer', 'ice_candidate', 'renegotiate',
         'add_participant', 'remove_participant', 'kick_participant',
         'mute', 'unmute', 'screen_share_start', 'screen_share_stop',
         'hold', 'resume', 'reconnect', 'quality_report',
         'recording_start', 'recording_stop', 'recording_status'
     ));
+    END IF;
+END $$;
 
 -- 6. Add client_signal_id column for signal idempotency (dedup on retry)
 ALTER TABLE im_rtc_signals
@@ -2416,37 +2436,7 @@ COMMENT ON COLUMN im_rtc_sessions.ended_reason IS
 -- audit, analytics, recording). Dispatched by a relay worker via
 -- FOR UPDATE SKIP LOCKED, mirroring the im_outbox_events pattern.
 
-CREATE TABLE IF NOT EXISTS im_rtc_outbox_events (
-    tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT '0',
-    outbox_id           TEXT NOT NULL,
-    rtc_session_id      TEXT NOT NULL,
-    event_id            TEXT NOT NULL,
-    event_type          TEXT NOT NULL,
-    actor_principal_kind TEXT NOT NULL,
-    actor_principal_id  TEXT NOT NULL,
-    payload_json        JSONB NOT NULL,
-    payload_hash        TEXT NOT NULL,
-    publish_status      TEXT NOT NULL DEFAULT 'pending',
-    attempt_count       INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
-    available_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    published_at        TIMESTAMPTZ,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    retention_until     TIMESTAMPTZ,
-    CONSTRAINT pk_im_rtc_outbox_events PRIMARY KEY (tenant_id, organization_id, outbox_id),
-    CONSTRAINT uk_im_rtc_outbox_events_event UNIQUE (tenant_id, organization_id, event_id),
-    CONSTRAINT chk_im_rtc_outbox_events_status CHECK (publish_status IN ('pending', 'published', 'failed')),
-    CONSTRAINT chk_im_rtc_outbox_events_type CHECK (event_type IN (
-        'session.created', 'session.ringing', 'session.connected',
-        'session.ended', 'session.canceled', 'session.rejected',
-        'session.failed', 'session.timeout', 'session.hold', 'session.resumed',
-        'participant.invited', 'participant.joined', 'participant.left',
-        'participant.kicked', 'participant.credential_issued',
-        'participant.credential_revoked',
-        'recording.started', 'recording.stopped', 'recording.failed'
-    ))
-);
+
 
 CREATE INDEX IF NOT EXISTS idx_im_rtc_outbox_events_status_available
     ON im_rtc_outbox_events (tenant_id, organization_id, publish_status, available_at, outbox_id);
@@ -2464,44 +2454,7 @@ CREATE INDEX IF NOT EXISTS idx_im_rtc_outbox_events_retention_until
 -- Per-participant media quality telemetry for SLA dashboards, MOS scoring,
 -- network diagnostics, and post-call analytics (Teams CQD equivalent).
 
-CREATE TABLE IF NOT EXISTS im_rtc_quality_reports (
-    tenant_id               TEXT NOT NULL,
-    organization_id         TEXT NOT NULL DEFAULT '0',
-    report_id               TEXT NOT NULL,
-    rtc_session_id          TEXT NOT NULL,
-    participant_principal_kind TEXT NOT NULL,
-    participant_principal_id   TEXT NOT NULL,
-    participant_device_id     TEXT NOT NULL,
-    reported_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    -- MOS score (ITU-T P.800, range 1.0-4.5)
-    mos_score               DOUBLE PRECISION CHECK (mos_score IS NULL OR (mos_score >= 1.0 AND mos_score <= 4.5)),
-    -- Network metrics (per reporting window)
-    rtt_ms                  DOUBLE PRECISION CHECK (rtt_ms IS NULL OR rtt_ms >= 0),
-    jitter_ms               DOUBLE PRECISION CHECK (jitter_ms IS NULL OR jitter_ms >= 0),
-    packet_loss_rate        DOUBLE PRECISION CHECK (packet_loss_rate IS NULL OR (packet_loss_rate >= 0 AND packet_loss_rate <= 1.0)),
-    packets_sent            BIGINT CHECK (packets_sent IS NULL OR packets_sent >= 0),
-    packets_received        BIGINT CHECK (packets_received IS NULL OR packets_received >= 0),
-    packets_lost            BIGINT CHECK (packets_lost IS NULL OR packets_lost >= 0),
-    bytes_sent              BIGINT CHECK (bytes_sent IS NULL OR bytes_sent >= 0),
-    bytes_received          BIGINT CHECK (bytes_received IS NULL OR bytes_received >= 0),
-    -- Audio/Video quality
-    audio_bitrate_kbps      INTEGER CHECK (audio_bitrate_kbps IS NULL OR audio_bitrate_kbps >= 0),
-    video_bitrate_kbps      INTEGER CHECK (video_bitrate_kbps IS NULL OR video_bitrate_kbps >= 0),
-    audio_codec             TEXT,
-    video_codec             TEXT,
-    resolution_width        INTEGER CHECK (resolution_width IS NULL OR resolution_width >= 0),
-    resolution_height       INTEGER CHECK (resolution_height IS NULL OR resolution_height >= 0),
-    frame_rate_fps          DOUBLE PRECISION CHECK (frame_rate_fps IS NULL OR frame_rate_fps >= 0),
-    -- Quality classification
-    quality_grade           TEXT CHECK (quality_grade IN ('excellent', 'good', 'fair', 'poor', 'bad')),
-    -- Optional raw provider payload
-    payload_json            JSONB,
-    payload_hash            TEXT,
-    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    retention_until         TIMESTAMPTZ,
-    CONSTRAINT pk_im_rtc_quality_reports PRIMARY KEY (tenant_id, organization_id, report_id),
-    CONSTRAINT uk_im_rtc_quality_reports_session_report UNIQUE (tenant_id, organization_id, rtc_session_id, participant_principal_kind, participant_principal_id, participant_device_id, reported_at)
-);
+
 
 CREATE INDEX IF NOT EXISTS idx_im_rtc_quality_reports_session_time
     ON im_rtc_quality_reports (tenant_id, organization_id, rtc_session_id, reported_at);
@@ -2523,50 +2476,7 @@ CREATE INDEX IF NOT EXISTS idx_im_rtc_quality_reports_retention_until
 -- Tracks issued RTC credentials with TTL, rotation, and revocation state.
 -- Replaces the "issue-and-forget" pattern with explicit lifecycle control.
 
-CREATE TABLE IF NOT EXISTS im_rtc_participant_credentials (
-    tenant_id                   TEXT NOT NULL,
-    organization_id             TEXT NOT NULL DEFAULT '0',
-    credential_id               TEXT NOT NULL,
-    rtc_session_id              TEXT NOT NULL,
-    participant_principal_kind  TEXT NOT NULL,
-    participant_principal_id    TEXT NOT NULL,
-    participant_device_id       TEXT,
-    provider_plugin_id          TEXT NOT NULL,
-    provider_token_id           TEXT,
-    -- Credential state machine
-    credential_state            TEXT NOT NULL DEFAULT 'active',
-    -- TTL management
-    issued_at                   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    expires_at                  TIMESTAMPTZ NOT NULL,
-    rotated_from_credential_id  TEXT,
-    rotated_at                  TIMESTAMPTZ,
-    -- Revocation tracking
-    revoked_at                  TIMESTAMPTZ,
-    revoked_reason              TEXT,
-    revoked_by_principal_kind   TEXT,
-    revoked_by_principal_id     TEXT,
-    -- Opaque credential payload (token/nonce, provider-specific)
-    credential_payload_json     JSONB NOT NULL,
-    credential_payload_hash     TEXT NOT NULL,
-    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    retention_until             TIMESTAMPTZ,
-    CONSTRAINT pk_im_rtc_participant_credentials PRIMARY KEY (tenant_id, organization_id, credential_id),
-    CONSTRAINT uk_im_rtc_participant_credentials_session_part UNIQUE (
-        tenant_id, organization_id, rtc_session_id,
-        participant_principal_kind, participant_principal_id, participant_device_id,
-        credential_state
-    ),
-    CONSTRAINT chk_im_rtc_participant_credentials_state CHECK (credential_state IN (
-        'active', 'expired', 'revoked', 'rotated'
-    )),
-    CONSTRAINT chk_im_rtc_participant_credentials_revocation CHECK (
-        (credential_state = 'revoked') = (revoked_at IS NOT NULL)
-    ),
-    CONSTRAINT chk_im_rtc_participant_credentials_rotation CHECK (
-        (credential_state = 'rotated') = (rotated_at IS NOT NULL AND rotated_from_credential_id IS NOT NULL)
-    )
-);
+
 
 CREATE INDEX IF NOT EXISTS idx_im_rtc_participant_credentials_session
     ON im_rtc_participant_credentials (tenant_id, organization_id, rtc_session_id, participant_principal_kind, participant_principal_id);
@@ -2641,13 +2551,17 @@ ALTER TABLE im_audit_records
 ALTER TABLE im_audit_records
     DROP CONSTRAINT IF EXISTS chk_im_audit_records_retention_class;
 
-ALTER TABLE im_audit_records
-    ADD CONSTRAINT chk_im_audit_records_retention_class CHECK (retention_class IN (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_audit_records_retention_class') THEN
+        ALTER TABLE im_audit_records ADD CONSTRAINT chk_im_audit_records_retention_class CHECK (retention_class IN (
         'security',      -- security events: login, permission denied, cross-tenant attempts
         'access',        -- access events: data read, API calls
         'admin',         -- admin operations: config changes, user management
         'data_lifecycle' -- data events: export, delete, retention purge
     ));
+    END IF;
+END $$;
 
 -- 7. Index the new columns (migration 0007 already created some, use IF NOT EXISTS)
 CREATE INDEX IF NOT EXISTS idx_im_audit_records_tenant_occurred
@@ -3233,152 +3147,9 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '5min';
 
-CREATE TABLE IF NOT EXISTS im_conversation_knowledge_space_link (
-    id BIGINT NOT NULL,
-    link_uuid TEXT NOT NULL,
-    tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL,
-    conversation_id TEXT NOT NULL,
-    knowledge_space_id BIGINT,
-    knowledge_space_uuid TEXT,
-    knowledgebase_binding_id BIGINT,
-    knowledgebase_binding_uuid TEXT,
-    lifecycle_state TEXT NOT NULL DEFAULT 'provisioning',
-    provisioning_operation_id TEXT,
-    creation_idempotency_key TEXT NOT NULL,
-    last_source_event_id TEXT,
-    membership_epoch BIGINT NOT NULL DEFAULT 0 CHECK (membership_epoch >= 0),
-    last_synchronized_membership_epoch BIGINT NOT NULL DEFAULT 0
-        CHECK (last_synchronized_membership_epoch >= 0),
-    last_error_code TEXT,
-    last_error_at TIMESTAMPTZ,
-    created_by TEXT NOT NULL,
-    updated_by TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    archived_at TIMESTAMPTZ,
-    deleted_at TIMESTAMPTZ,
-    version BIGINT NOT NULL DEFAULT 1 CHECK (version > 0),
-    CONSTRAINT pk_im_conversation_knowledge_space_link
-        PRIMARY KEY (tenant_id, organization_id, conversation_id),
-    CONSTRAINT uk_im_conversation_knowledge_space_link_id UNIQUE (id),
-    CONSTRAINT uk_im_conversation_knowledge_space_link_uuid UNIQUE (link_uuid),
-    CONSTRAINT chk_im_conversation_knowledge_space_link_tenant_id CHECK (
-        tenant_id ~ '^[1-9][0-9]*$'
-        AND (
-            char_length(tenant_id) < 19
-            OR (
-                char_length(tenant_id) = 19
-                AND tenant_id <= '9223372036854775807'
-            )
-        )
-    ),
-    CONSTRAINT chk_im_conversation_knowledge_space_link_state CHECK (
-        lifecycle_state IN ('provisioning', 'active', 'failed', 'archived', 'deleted')
-    ),
-    CONSTRAINT chk_im_conversation_knowledge_space_link_active_reference CHECK (
-        lifecycle_state <> 'active'
-        OR (
-            knowledge_space_id > 0
-            AND NULLIF(BTRIM(knowledge_space_uuid), '') IS NOT NULL
-            AND OCTET_LENGTH(knowledge_space_uuid) <= 256
-            AND knowledgebase_binding_id > 0
-            AND NULLIF(BTRIM(knowledgebase_binding_uuid), '') IS NOT NULL
-            AND OCTET_LENGTH(knowledgebase_binding_uuid) <= 256
-        )
-    ),
-    CONSTRAINT chk_im_conversation_knowledge_space_link_target_reference CHECK (
-        (
-            knowledge_space_id IS NULL
-            AND knowledge_space_uuid IS NULL
-            AND knowledgebase_binding_id IS NULL
-            AND knowledgebase_binding_uuid IS NULL
-        )
-        OR (
-            knowledge_space_id > 0
-            AND NULLIF(BTRIM(knowledge_space_uuid), '') IS NOT NULL
-            AND OCTET_LENGTH(knowledge_space_uuid) <= 256
-            AND knowledgebase_binding_id > 0
-            AND NULLIF(BTRIM(knowledgebase_binding_uuid), '') IS NOT NULL
-            AND OCTET_LENGTH(knowledgebase_binding_uuid) <= 256
-        )
-    ),
-    CONSTRAINT chk_im_conversation_knowledge_space_link_archived_at CHECK (
-        (lifecycle_state = 'archived') = (archived_at IS NOT NULL)
-    ),
-    CONSTRAINT chk_im_conversation_knowledge_space_link_deleted_at CHECK (
-        (lifecycle_state = 'deleted') = (deleted_at IS NOT NULL)
-    ),
-    CONSTRAINT chk_im_conversation_knowledge_space_link_membership_sync_epoch CHECK (
-        last_synchronized_membership_epoch <= membership_epoch
-    )
-);
 
-CREATE TABLE IF NOT EXISTS im_group_knowledge_launch_tickets (
-    id BIGINT NOT NULL,
-    ticket_hash TEXT NOT NULL,
-    tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL,
-    conversation_id TEXT NOT NULL,
-    knowledge_space_id BIGINT NOT NULL,
-    knowledge_space_uuid TEXT NOT NULL,
-    knowledgebase_binding_id BIGINT NOT NULL,
-    knowledgebase_binding_uuid TEXT NOT NULL,
-    upstream_link_generation BIGINT NOT NULL,
-    membership_epoch BIGINT NOT NULL CHECK (membership_epoch >= 0),
-    actor_kind TEXT NOT NULL,
-    actor_id TEXT NOT NULL,
-    principal_kind TEXT NOT NULL,
-    principal_id TEXT NOT NULL,
-    session_id TEXT NOT NULL,
-    issuing_app_id TEXT,
-    issued_by TEXT NOT NULL,
-    idempotency_key_hash TEXT NOT NULL,
-    request_fingerprint_hash TEXT NOT NULL,
-    ticket_ciphertext TEXT NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    consumed_at TIMESTAMPTZ,
-    consumed_by_service TEXT,
-    consumed_trace_id TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT pk_im_group_knowledge_launch_tickets PRIMARY KEY (id),
-    CONSTRAINT uk_im_group_knowledge_launch_tickets_hash UNIQUE (ticket_hash),
-    CONSTRAINT uk_im_group_knowledge_launch_tickets_idempotency UNIQUE (
-        tenant_id, organization_id, conversation_id, actor_kind, actor_id,
-        principal_kind, principal_id, session_id, idempotency_key_hash
-    ),
-    CONSTRAINT chk_im_group_knowledge_launch_tickets_tenant_id CHECK (
-        tenant_id ~ '^[1-9][0-9]*$'
-        AND (
-            char_length(tenant_id) < 19
-            OR (
-                char_length(tenant_id) = 19
-                AND tenant_id <= '9223372036854775807'
-            )
-        )
-    ),
-    CONSTRAINT chk_im_group_knowledge_launch_tickets_delegated_user CHECK (
-        actor_kind = 'user'
-        AND principal_kind = 'user'
-        AND actor_id = principal_id
-    ),
-    CONSTRAINT chk_im_group_knowledge_launch_tickets_upstream_link_generation CHECK (
-        upstream_link_generation > 0
-    ),
-    CONSTRAINT chk_im_group_knowledge_launch_tickets_target_reference CHECK (
-        knowledge_space_id > 0
-        AND NULLIF(BTRIM(knowledge_space_uuid), '') IS NOT NULL
-        AND OCTET_LENGTH(knowledge_space_uuid) <= 256
-        AND knowledgebase_binding_id > 0
-        AND NULLIF(BTRIM(knowledgebase_binding_uuid), '') IS NOT NULL
-        AND OCTET_LENGTH(knowledgebase_binding_uuid) <= 256
-    ),
-    CONSTRAINT chk_im_group_knowledge_launch_tickets_expiry CHECK (expires_at > created_at),
-    CONSTRAINT chk_im_group_knowledge_launch_tickets_consumer CHECK (
-        (consumed_at IS NULL AND consumed_by_service IS NULL AND consumed_trace_id IS NULL)
-        OR (consumed_at IS NOT NULL AND consumed_by_service IS NOT NULL AND consumed_trace_id IS NOT NULL)
-    )
-);
+
+
 
 -- A prior development baseline may have created these tables without the UUID
 -- target fence. Add columns explicitly; CREATE TABLE IF NOT EXISTS cannot
@@ -3446,8 +3217,10 @@ ALTER TABLE im_conversation_knowledge_space_link
     DROP CONSTRAINT IF EXISTS chk_im_conversation_knowledge_space_link_active_reference;
 ALTER TABLE im_conversation_knowledge_space_link
     DROP CONSTRAINT IF EXISTS chk_im_conversation_knowledge_space_link_target_reference;
-ALTER TABLE im_conversation_knowledge_space_link
-    ADD CONSTRAINT chk_im_conversation_knowledge_space_link_active_reference CHECK (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_conversation_knowledge_space_link_active_reference') THEN
+        ALTER TABLE im_conversation_knowledge_space_link ADD CONSTRAINT chk_im_conversation_knowledge_space_link_active_reference CHECK (
         lifecycle_state <> 'active'
         OR (
             knowledge_space_id > 0
@@ -3458,8 +3231,12 @@ ALTER TABLE im_conversation_knowledge_space_link
             AND OCTET_LENGTH(knowledgebase_binding_uuid) <= 256
         )
     ) NOT VALID;
-ALTER TABLE im_conversation_knowledge_space_link
-    ADD CONSTRAINT chk_im_conversation_knowledge_space_link_target_reference CHECK (
+    END IF;
+END $$;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_conversation_knowledge_space_link_target_reference') THEN
+        ALTER TABLE im_conversation_knowledge_space_link ADD CONSTRAINT chk_im_conversation_knowledge_space_link_target_reference CHECK (
         (
             knowledge_space_id IS NULL
             AND knowledge_space_uuid IS NULL
@@ -3475,6 +3252,8 @@ ALTER TABLE im_conversation_knowledge_space_link
             AND OCTET_LENGTH(knowledgebase_binding_uuid) <= 256
         )
     ) NOT VALID;
+    END IF;
+END $$;
 ALTER TABLE im_conversation_knowledge_space_link
     VALIDATE CONSTRAINT chk_im_conversation_knowledge_space_link_active_reference;
 ALTER TABLE im_conversation_knowledge_space_link
@@ -3484,12 +3263,18 @@ ALTER TABLE im_group_knowledge_launch_tickets
     DROP CONSTRAINT IF EXISTS chk_im_group_knowledge_launch_tickets_upstream_link_generation;
 ALTER TABLE im_group_knowledge_launch_tickets
     DROP CONSTRAINT IF EXISTS chk_im_group_knowledge_launch_tickets_target_reference;
-ALTER TABLE im_group_knowledge_launch_tickets
-    ADD CONSTRAINT chk_im_group_knowledge_launch_tickets_upstream_link_generation CHECK (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_group_knowledge_launch_tickets_upstream_link_generation') THEN
+        ALTER TABLE im_group_knowledge_launch_tickets ADD CONSTRAINT chk_im_group_knowledge_launch_tickets_upstream_link_generation CHECK (
         upstream_link_generation > 0
     ) NOT VALID;
-ALTER TABLE im_group_knowledge_launch_tickets
-    ADD CONSTRAINT chk_im_group_knowledge_launch_tickets_target_reference CHECK (
+    END IF;
+END $$;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_group_knowledge_launch_tickets_target_reference') THEN
+        ALTER TABLE im_group_knowledge_launch_tickets ADD CONSTRAINT chk_im_group_knowledge_launch_tickets_target_reference CHECK (
         knowledge_space_id > 0
         AND NULLIF(BTRIM(knowledge_space_uuid), '') IS NOT NULL
         AND OCTET_LENGTH(knowledge_space_uuid) <= 256
@@ -3497,6 +3282,8 @@ ALTER TABLE im_group_knowledge_launch_tickets
         AND NULLIF(BTRIM(knowledgebase_binding_uuid), '') IS NOT NULL
         AND OCTET_LENGTH(knowledgebase_binding_uuid) <= 256
     ) NOT VALID;
+    END IF;
+END $$;
 ALTER TABLE im_group_knowledge_launch_tickets
     VALIDATE CONSTRAINT chk_im_group_knowledge_launch_tickets_upstream_link_generation;
 ALTER TABLE im_group_knowledge_launch_tickets
@@ -3528,8 +3315,10 @@ CREATE INDEX IF NOT EXISTS idx_im_group_knowledge_launch_tickets_actor
 -- accepting ids that cannot cross the generated internal RPC boundary.
 ALTER TABLE im_conversation_knowledge_space_link
     DROP CONSTRAINT IF EXISTS chk_im_conversation_knowledge_space_link_tenant_id;
-ALTER TABLE im_conversation_knowledge_space_link
-    ADD CONSTRAINT chk_im_conversation_knowledge_space_link_tenant_id CHECK (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_conversation_knowledge_space_link_tenant_id') THEN
+        ALTER TABLE im_conversation_knowledge_space_link ADD CONSTRAINT chk_im_conversation_knowledge_space_link_tenant_id CHECK (
         tenant_id ~ '^[1-9][0-9]*$'
         AND (
             char_length(tenant_id) < 19
@@ -3539,6 +3328,8 @@ ALTER TABLE im_conversation_knowledge_space_link
             )
         )
     ) NOT VALID;
+    END IF;
+END $$;
 ALTER TABLE im_conversation_knowledge_space_link
     VALIDATE CONSTRAINT chk_im_conversation_knowledge_space_link_tenant_id;
 
@@ -3546,8 +3337,10 @@ ALTER TABLE im_conversation_knowledge_space_link
     ALTER COLUMN organization_id DROP DEFAULT;
 ALTER TABLE im_conversation_knowledge_space_link
     DROP CONSTRAINT IF EXISTS chk_im_conversation_knowledge_space_link_organization_id;
-ALTER TABLE im_conversation_knowledge_space_link
-    ADD CONSTRAINT chk_im_conversation_knowledge_space_link_organization_id CHECK (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_conversation_knowledge_space_link_organization_id') THEN
+        ALTER TABLE im_conversation_knowledge_space_link ADD CONSTRAINT chk_im_conversation_knowledge_space_link_organization_id CHECK (
         organization_id ~ '^[1-9][0-9]*$'
         AND (
             char_length(organization_id) < 19
@@ -3557,13 +3350,17 @@ ALTER TABLE im_conversation_knowledge_space_link
             )
         )
     ) NOT VALID;
+    END IF;
+END $$;
 ALTER TABLE im_conversation_knowledge_space_link
     VALIDATE CONSTRAINT chk_im_conversation_knowledge_space_link_organization_id;
 
 ALTER TABLE im_group_knowledge_launch_tickets
     DROP CONSTRAINT IF EXISTS chk_im_group_knowledge_launch_tickets_tenant_id;
-ALTER TABLE im_group_knowledge_launch_tickets
-    ADD CONSTRAINT chk_im_group_knowledge_launch_tickets_tenant_id CHECK (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_group_knowledge_launch_tickets_tenant_id') THEN
+        ALTER TABLE im_group_knowledge_launch_tickets ADD CONSTRAINT chk_im_group_knowledge_launch_tickets_tenant_id CHECK (
         tenant_id ~ '^[1-9][0-9]*$'
         AND (
             char_length(tenant_id) < 19
@@ -3573,6 +3370,8 @@ ALTER TABLE im_group_knowledge_launch_tickets
             )
         )
     ) NOT VALID;
+    END IF;
+END $$;
 ALTER TABLE im_group_knowledge_launch_tickets
     VALIDATE CONSTRAINT chk_im_group_knowledge_launch_tickets_tenant_id;
 
@@ -3580,8 +3379,10 @@ ALTER TABLE im_group_knowledge_launch_tickets
     ALTER COLUMN organization_id DROP DEFAULT;
 ALTER TABLE im_group_knowledge_launch_tickets
     DROP CONSTRAINT IF EXISTS chk_im_group_knowledge_launch_tickets_organization_id;
-ALTER TABLE im_group_knowledge_launch_tickets
-    ADD CONSTRAINT chk_im_group_knowledge_launch_tickets_organization_id CHECK (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_group_knowledge_launch_tickets_organization_id') THEN
+        ALTER TABLE im_group_knowledge_launch_tickets ADD CONSTRAINT chk_im_group_knowledge_launch_tickets_organization_id CHECK (
         organization_id ~ '^[1-9][0-9]*$'
         AND (
             char_length(organization_id) < 19
@@ -3591,6 +3392,8 @@ ALTER TABLE im_group_knowledge_launch_tickets
             )
         )
     ) NOT VALID;
+    END IF;
+END $$;
 ALTER TABLE im_group_knowledge_launch_tickets
     VALIDATE CONSTRAINT chk_im_group_knowledge_launch_tickets_organization_id;
 
@@ -3627,8 +3430,12 @@ ALTER TABLE im_stream_sessions
 
 ALTER TABLE im_stream_sessions
     DROP CONSTRAINT IF EXISTS chk_im_stream_sessions_version;
-ALTER TABLE im_stream_sessions
-    ADD CONSTRAINT chk_im_stream_sessions_version CHECK (version > 0) NOT VALID;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_stream_sessions_version') THEN
+        ALTER TABLE im_stream_sessions ADD CONSTRAINT chk_im_stream_sessions_version CHECK (version > 0) NOT VALID;
+    END IF;
+END $$;
 ALTER TABLE im_stream_sessions
     VALIDATE CONSTRAINT chk_im_stream_sessions_version;
 
@@ -3664,7 +3471,7 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '2min';
 
-CREATE TABLE im_conversation_agent_assignments (
+CREATE TABLE IF NOT EXISTS im_conversation_agent_assignments (
     id BIGINT NOT NULL PRIMARY KEY,
     uuid VARCHAR(96) NOT NULL UNIQUE,
     tenant_id BIGINT NOT NULL,
@@ -3697,24 +3504,24 @@ CREATE TABLE im_conversation_agent_assignments (
     CONSTRAINT ck_im_conversation_agent_assignments_status CHECK (status IN (0, 1, 2))
 );
 
-CREATE UNIQUE INDEX uk_im_conversation_agent_assignments_position
+CREATE UNIQUE INDEX IF NOT EXISTS uk_im_conversation_agent_assignments_position
     ON im_conversation_agent_assignments (
         tenant_id, organization_id, conversation_id, position
     ) WHERE enabled = TRUE AND status = 0;
-CREATE INDEX idx_im_conversation_agent_assignments_list
+CREATE INDEX IF NOT EXISTS idx_im_conversation_agent_assignments_list
     ON im_conversation_agent_assignments (
         tenant_id, organization_id, conversation_id, status, position, id
     );
-CREATE INDEX idx_im_conversation_agent_assignments_reverse
+CREATE INDEX IF NOT EXISTS idx_im_conversation_agent_assignments_reverse
     ON im_conversation_agent_assignments (
         tenant_id, organization_id, agent_id, status, updated_at DESC, id DESC
     );
-CREATE INDEX idx_im_conversation_agent_assignments_retention
+CREATE INDEX IF NOT EXISTS idx_im_conversation_agent_assignments_retention
     ON im_conversation_agent_assignments (
         tenant_id, organization_id, retention_until, id
     ) WHERE retention_until IS NOT NULL;
 
-CREATE TABLE im_conversation_agent_binding (
+CREATE TABLE IF NOT EXISTS im_conversation_agent_binding (
     id BIGINT NOT NULL PRIMARY KEY,
     uuid VARCHAR(96) NOT NULL UNIQUE,
     binding_id VARCHAR(128) NOT NULL,
@@ -3759,25 +3566,25 @@ CREATE TABLE im_conversation_agent_binding (
     CONSTRAINT ck_im_conversation_agent_binding_version CHECK (version >= 0)
 );
 
-CREATE UNIQUE INDEX uk_im_conversation_agent_binding_active
+CREATE UNIQUE INDEX IF NOT EXISTS uk_im_conversation_agent_binding_active
     ON im_conversation_agent_binding (
         tenant_id, organization_id, conversation_id, agent_id
     ) WHERE status = 1;
-CREATE INDEX idx_im_conversation_agent_binding_resolve
+CREATE INDEX IF NOT EXISTS idx_im_conversation_agent_binding_resolve
     ON im_conversation_agent_binding (
         tenant_id, organization_id, conversation_id, agent_id,
         status, assignment_generation DESC, id DESC
     );
-CREATE INDEX idx_im_conversation_agent_binding_session
+CREATE INDEX IF NOT EXISTS idx_im_conversation_agent_binding_session
     ON im_conversation_agent_binding (
         tenant_id, organization_id, agents_session_id
     ) WHERE agents_session_id IS NOT NULL;
-CREATE INDEX idx_im_conversation_agent_binding_lifecycle
+CREATE INDEX IF NOT EXISTS idx_im_conversation_agent_binding_lifecycle
     ON im_conversation_agent_binding (
         tenant_id, organization_id, status, updated_at, retention_until, id
     );
 
-CREATE TABLE im_agent_dispatch (
+CREATE TABLE IF NOT EXISTS im_agent_dispatch (
     id BIGINT NOT NULL PRIMARY KEY,
     uuid VARCHAR(96) NOT NULL UNIQUE,
     dispatch_id VARCHAR(128) NOT NULL,
@@ -3842,24 +3649,24 @@ CREATE TABLE im_agent_dispatch (
         ) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED
 );
 
-CREATE INDEX idx_im_agent_dispatch_worker
+CREATE INDEX IF NOT EXISTS idx_im_agent_dispatch_worker
     ON im_agent_dispatch (
         tenant_id, organization_id, status, next_attempt_at,
         lease_expires_at, id
     ) WHERE status IN (0, 1, 2, 3, 4);
-CREATE INDEX idx_im_agent_dispatch_source
+CREATE INDEX IF NOT EXISTS idx_im_agent_dispatch_source
     ON im_agent_dispatch (
         tenant_id, organization_id, conversation_id, source_message_seq,
         status, id
     );
-CREATE INDEX idx_im_agent_dispatch_turn
+CREATE INDEX IF NOT EXISTS idx_im_agent_dispatch_turn
     ON im_agent_dispatch (tenant_id, organization_id, agents_turn_id)
     WHERE agents_turn_id IS NOT NULL;
-CREATE INDEX idx_im_agent_dispatch_reply
+CREATE INDEX IF NOT EXISTS idx_im_agent_dispatch_reply
     ON im_agent_dispatch (
         tenant_id, organization_id, conversation_id, reply_message_seq
     ) WHERE reply_message_seq IS NOT NULL;
-CREATE INDEX idx_im_agent_dispatch_retention
+CREATE INDEX IF NOT EXISTS idx_im_agent_dispatch_retention
     ON im_agent_dispatch (tenant_id, organization_id, retention_until, id)
     WHERE retention_until IS NOT NULL;
 
@@ -3891,29 +3698,45 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '5min';
 
-ALTER TABLE im_conversation_agent_assignments
-    ADD CONSTRAINT ck_im_conversation_agent_assignments_scope CHECK (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_im_conversation_agent_assignments_scope') THEN
+        ALTER TABLE im_conversation_agent_assignments ADD CONSTRAINT ck_im_conversation_agent_assignments_scope CHECK (
         tenant_id > 0 AND organization_id >= 0 AND assigned_by > 0
     ) NOT VALID;
+    END IF;
+END $$;
 ALTER TABLE im_conversation_agent_assignments
     VALIDATE CONSTRAINT ck_im_conversation_agent_assignments_scope;
 
-ALTER TABLE im_conversation_agent_binding
-    ADD CONSTRAINT ck_im_conversation_agent_binding_scope CHECK (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_im_conversation_agent_binding_scope') THEN
+        ALTER TABLE im_conversation_agent_binding ADD CONSTRAINT ck_im_conversation_agent_binding_scope CHECK (
         tenant_id > 0 AND organization_id >= 0
         AND created_by > 0 AND updated_by > 0
     ) NOT VALID;
+    END IF;
+END $$;
 ALTER TABLE im_conversation_agent_binding
     VALIDATE CONSTRAINT ck_im_conversation_agent_binding_scope;
 
-ALTER TABLE im_agent_dispatch
-    ADD CONSTRAINT ck_im_agent_dispatch_scope CHECK (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_im_agent_dispatch_scope') THEN
+        ALTER TABLE im_agent_dispatch ADD CONSTRAINT ck_im_agent_dispatch_scope CHECK (
         tenant_id > 0 AND organization_id >= 0 AND requested_by > 0
     ) NOT VALID;
-ALTER TABLE im_agent_dispatch
-    ADD CONSTRAINT ck_im_agent_dispatch_message_ids CHECK (
+    END IF;
+END $$;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_im_agent_dispatch_message_ids') THEN
+        ALTER TABLE im_agent_dispatch ADD CONSTRAINT ck_im_agent_dispatch_message_ids CHECK (
         source_message_id > 0 AND (reply_message_id IS NULL OR reply_message_id > 0)
     ) NOT VALID;
+    END IF;
+END $$;
 ALTER TABLE im_agent_dispatch
     VALIDATE CONSTRAINT ck_im_agent_dispatch_scope;
 ALTER TABLE im_agent_dispatch
@@ -3949,10 +3772,14 @@ SET LOCAL statement_timeout = '2min';
 
 ALTER TABLE im_conversation_agent_assignments
     DROP CONSTRAINT ck_im_conversation_agent_assignments_scope;
-ALTER TABLE im_conversation_agent_assignments
-    ADD CONSTRAINT ck_im_conversation_agent_assignments_scope CHECK (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_im_conversation_agent_assignments_scope') THEN
+        ALTER TABLE im_conversation_agent_assignments ADD CONSTRAINT ck_im_conversation_agent_assignments_scope CHECK (
         tenant_id > 0 AND organization_id >= 0 AND assigned_by >= 0
     ) NOT VALID;
+    END IF;
+END $$;
 ALTER TABLE im_conversation_agent_assignments
     VALIDATE CONSTRAINT ck_im_conversation_agent_assignments_scope;
 
@@ -3986,10 +3813,14 @@ SET LOCAL statement_timeout = '2min';
 
 ALTER TABLE im_conversation_agent_assignments
     DROP CONSTRAINT ck_im_conversation_agent_assignments_generation;
-ALTER TABLE im_conversation_agent_assignments
-    ADD CONSTRAINT ck_im_conversation_agent_assignments_generation CHECK (
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_im_conversation_agent_assignments_generation') THEN
+        ALTER TABLE im_conversation_agent_assignments ADD CONSTRAINT ck_im_conversation_agent_assignments_generation CHECK (
         assignment_generation > 0 AND source_aggregate_version >= 0
     ) NOT VALID;
+    END IF;
+END $$;
 ALTER TABLE im_conversation_agent_assignments
     VALIDATE CONSTRAINT ck_im_conversation_agent_assignments_generation;
 
@@ -4325,84 +4156,11 @@ BEGIN
 END;
 $$;
 
-CREATE TABLE IF NOT EXISTS im_conversation_policies (
-    tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT '0',
-    conversation_id TEXT NOT NULL,
-    policy_epoch BIGINT NOT NULL CHECK (policy_epoch >= 0),
-    policy_version TEXT NOT NULL,
-    capability_flags TEXT[],
-    history_visibility TEXT NOT NULL,
-    retention_policy_ref TEXT NOT NULL,
-    max_members INTEGER,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT pk_im_conversation_policies PRIMARY KEY (tenant_id, organization_id, conversation_id),
-    CONSTRAINT fk_im_conversation_policies_conversation FOREIGN KEY (
-        tenant_id, organization_id, conversation_id
-    ) REFERENCES im_conversations (tenant_id, organization_id, conversation_id) ON DELETE CASCADE,
-    CONSTRAINT chk_im_conversation_policies_max_members CHECK (max_members IS NULL OR max_members > 0)
-);
 
-CREATE TABLE IF NOT EXISTS im_conversation_business_bindings (
-    tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT '0',
-    conversation_id TEXT NOT NULL,
-    business_type TEXT NOT NULL,
-    business_id TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT pk_im_conversation_business_bindings PRIMARY KEY (tenant_id, organization_id, conversation_id),
-    CONSTRAINT uk_im_conversation_business_bindings_business UNIQUE (
-        tenant_id, organization_id, business_type, business_id
-    ),
-    CONSTRAINT fk_im_conversation_business_bindings_conversation FOREIGN KEY (
-        tenant_id, organization_id, conversation_id
-    ) REFERENCES im_conversations (tenant_id, organization_id, conversation_id) ON DELETE CASCADE,
-    CONSTRAINT chk_im_conversation_business_bindings_values CHECK (
-        length(trim(business_type)) > 0 AND length(trim(business_id)) > 0
-    )
-);
 
-CREATE TABLE IF NOT EXISTS im_conversation_handoffs (
-    tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT '0',
-    conversation_id TEXT NOT NULL,
-    handoff_status_epoch BIGINT NOT NULL CHECK (handoff_status_epoch >= 0),
-    status TEXT NOT NULL,
-    source_principal_kind TEXT NOT NULL,
-    source_principal_id TEXT NOT NULL,
-    target_principal_kind TEXT NOT NULL,
-    target_principal_id TEXT NOT NULL,
-    handoff_session_id TEXT NOT NULL,
-    handoff_reason TEXT,
-    accepted_at TIMESTAMPTZ,
-    accepted_by_principal_kind TEXT,
-    accepted_by_principal_id TEXT,
-    resolved_at TIMESTAMPTZ,
-    resolved_by_principal_kind TEXT,
-    resolved_by_principal_id TEXT,
-    closed_at TIMESTAMPTZ,
-    closed_by_principal_kind TEXT,
-    closed_by_principal_id TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT pk_im_conversation_handoffs PRIMARY KEY (tenant_id, organization_id, conversation_id),
-    CONSTRAINT uk_im_conversation_handoffs_session UNIQUE (tenant_id, organization_id, handoff_session_id),
-    CONSTRAINT fk_im_conversation_handoffs_conversation FOREIGN KEY (
-        tenant_id, organization_id, conversation_id
-    ) REFERENCES im_conversations (tenant_id, organization_id, conversation_id) ON DELETE CASCADE,
-    CONSTRAINT chk_im_conversation_handoffs_status CHECK (status IN ('open', 'accepted', 'resolved', 'closed')),
-    CONSTRAINT chk_im_conversation_handoffs_accepted_actor CHECK (
-        (accepted_by_principal_kind IS NULL) = (accepted_by_principal_id IS NULL)
-    ),
-    CONSTRAINT chk_im_conversation_handoffs_resolved_actor CHECK (
-        (resolved_by_principal_kind IS NULL) = (resolved_by_principal_id IS NULL)
-    ),
-    CONSTRAINT chk_im_conversation_handoffs_closed_actor CHECK (
-        (closed_by_principal_kind IS NULL) = (closed_by_principal_id IS NULL)
-    )
-);
+
+
+
 
 COMMIT;
 
@@ -4462,9 +4220,13 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS im_messages_search_update ON im_conversation_messages;
-CREATE TRIGGER im_messages_search_update
-    BEFORE INSERT OR UPDATE ON im_conversation_messages
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'im_messages_search_update') THEN
+        CREATE TRIGGER im_messages_search_update BEFORE INSERT OR UPDATE ON im_conversation_messages
     FOR EACH ROW EXECUTE FUNCTION im_messages_search_trigger();
+    END IF;
+END $$;
 
 -- Re-vectorize existing rows through the trigger.
 UPDATE im_conversation_messages SET search_vector = search_vector;
