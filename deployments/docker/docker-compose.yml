@@ -52,10 +52,10 @@ services:
       # Snowflake node identity (single-instance standalone composition).
       SDKWORK_IM_ID_NODE_ID: ${SDKWORK_IM_ID_NODE_ID:-1}
       # Browser CORS allow-list for the API plane. Add every public domain
-      # that serves the renderer (see nginx/testapidocker-im.conf) plus the
+      # that serves the renderer (see nginx/testimdocker-im.conf) plus the
       # local gateway port used by the PC renderer discovery probe.
       # SDKWORK_CORS_ALLOWED_ORIGINS is the canonical shared key (SOURCE_CONFIG_SPEC).
-      SDKWORK_CORS_ALLOWED_ORIGINS: ${SDKWORK_CORS_ALLOWED_ORIGINS:-http://testapidocker.sdkwork.com,http://testapidocker.birdcoder.com,http://testapidocker.dtupay.com,http://127.0.0.1:18079,http://localhost:18079,http://localhost}
+      SDKWORK_CORS_ALLOWED_ORIGINS: ${SDKWORK_CORS_ALLOWED_ORIGINS:-http://testimdocker.sdkwork.com,http://testimdocker.birdcoder.com,http://testimdocker.dtupay.com,http://127.0.0.1:18079,http://localhost:18079,http://localhost}
       # External dependencies are injected at runtime, not baked into the image.
       # Hosts/ports default to the compose service and can be pointed at
       # managed services via .env. The database name must be a canonical

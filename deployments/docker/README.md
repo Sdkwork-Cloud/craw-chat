@@ -11,7 +11,7 @@ equivalent for `deploymentProfile = "standalone"`, `runtimeTarget = "container"`
 - `docker-compose.yml` — standalone composition (PostgreSQL + IM gateway).
   The gateway bootstraps the schema and applies migrations on first start.
 - `.env.example` — deployment-time environment template (copy to `.env`).
-- `nginx/testapidocker-im.conf` — test-domain vhost (3 domains, WebSocket
+- `nginx/testimdocker-im.conf` — test-domain vhost (3 domains, WebSocket
   upgrade) for a host-installed nginx.
 - `postgres/init/001-create-schema.sh` — creates the workspace schema on first
   PostgreSQL initialization.
@@ -69,12 +69,12 @@ from browsers over the WSL2 localhost relay.
 
 ### 4. nginx (test domains)
 
-Deploy `nginx/testapidocker-im.conf` and `nginx/bootstrap-token.js` (the
+Deploy `nginx/testimdocker-im.conf` and `nginx/bootstrap-token.js` (the
 credential-entry bootstrap script it injects; see section 4b) to the host
 nginx:
 
 ```bash
-sudo cp deployments/docker/nginx/testapidocker-im.conf /etc/nginx/sites-enabled/
+sudo cp deployments/docker/nginx/testimdocker-im.conf /etc/nginx/sites-enabled/
 sudo cp deployments/docker/nginx/bootstrap-token.js /etc/nginx/bootstrap-token.js
 sudo nginx -t && sudo systemctl reload nginx
 ```
@@ -82,17 +82,17 @@ sudo nginx -t && sudo systemctl reload nginx
 Windows host resolution (run `cmd`/`powershell` as Administrator):
 
 ```text
-127.0.0.1 testapidocker.sdkwork.com testapidocker.birdcoder.com testapidocker.dtupay.com
+127.0.0.1 testimdocker.sdkwork.com testimdocker.birdcoder.com testimdocker.dtupay.com
 ```
 
-Then open `http://testapidocker.sdkwork.com` (desktop UA -> PC renderer,
+Then open `http://testimdocker.sdkwork.com` (desktop UA -> PC renderer,
 mobile UA -> H5 renderer on the same origin).
 
-> The `testapidocker.*` vhosts previously pointed at the separate
-> `sdkwork-api-cloud-gateway` container (port 3910, see
-> `testapidocker-api-gateway.conf.orig`); the standalone IM composition owns
-> them now. Any other service needing those domains must be re-mapped
-> explicitly.
+> The `testimdocker.*` test domain family is owned by the standalone IM
+> composition on the shared WSL host. Sibling projects use the adjacent
+> `testapidocker.*` family (see the archived `testapidocker-api-gateway.conf.orig`
+> and the BirdCoder `sdkwork` vhosts); keep vhost `server_name` sets disjoint so
+> nginx never routes one product's requests to another.
 
 ### 4b. Browser bootstrap Access-Token injection
 
@@ -110,7 +110,7 @@ The test nginx fixes this at the deployment layer:
   the window global. Deploy next to the vhost
   (`/etc/nginx/bootstrap-token.js`) and serve it with
   `location = /bootstrap-token.js`.
-- `nginx/testapidocker-im.conf` — `sub_filter` rewrites the served `index.html`
+- `nginx/testimdocker-im.conf` — `sub_filter` rewrites the served `index.html`
   to load that script (`<script src="/bootstrap-token.js"></script>`).
 
 It must be an **external same-origin script**: the gateway responds with a
@@ -192,5 +192,5 @@ fallback). Business API calls use the returned dual tokens:
   master pid file was lost (WSL `/run`); recreate it
   (`echo <master-pid> | sudo tee /run/nginx.pid`) and reload.
 - The nginx worker (`www-data`) must be able to create the vhost log files:
-  `sudo touch /var/log/nginx/testapidocker-im.access.log /var/log/nginx/testapidocker-im.error.log
-  && sudo chown www-data:adm /var/log/nginx/testapidocker-im.*.log`.
+  `sudo touch /var/log/nginx/testimdocker-im.access.log /var/log/nginx/testimdocker-im.error.log
+  && sudo chown www-data:adm /var/log/nginx/testimdocker-im.*.log`.

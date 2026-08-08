@@ -1208,10 +1208,13 @@ impl SocialRuntime {
 
     #[doc(hidden)]
     pub fn for_test() -> Self {
+        let id_generator = sdkwork_im_runtime_id::RuntimeSnowflakeIdGenerator::with_node_id(0)
+            .expect("test snowflake id generator must build");
         Self::new(
             SocialStateStore::memory(),
             Arc::new(MemoryCommitJournal::default()),
         )
+        .with_id_generator(Arc::new(id_generator))
     }
 
     pub fn with_postgres_write_authority(

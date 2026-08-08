@@ -19,10 +19,48 @@ use serde::Serialize;
 
 use crate::friendship::{AppState, SocialServiceError};
 
+/// Record the concrete failure reason server-side before the response
+/// envelopes it with the client-safe Problem `detail` (API_SPEC §15.2 masks
+/// internal messages, so without this the actual dependency failure is
+/// invisible). 5xx failures are logged at error level, client errors at warn.
+pub(crate) fn log_social_api_error(ctx: &WebRequestContext, error: &SocialServiceError) {
+    let trace_id = ctx.resolved_trace_id();
+    let operation_id = ctx
+        .operation
+        .as_ref()
+        .map(|binding| binding.operation_id.as_str())
+        .unwrap_or("<none>");
+    let message = error.message();
+    if error.status().is_server_error() {
+        tracing::error!(
+            error_code = error.code(),
+            status = error.status().as_u16(),
+            trace_id,
+            operation_id,
+            method = ctx.transport.method.as_str(),
+            path = ctx.transport.path.as_str(),
+            "social api request failed: {message}"
+        );
+    } else {
+        tracing::warn!(
+            error_code = error.code(),
+            status = error.status().as_u16(),
+            trace_id,
+            operation_id,
+            method = ctx.transport.method.as_str(),
+            path = ctx.transport.path.as_str(),
+            "social api request rejected: {message}"
+        );
+    }
+}
+
 pub(crate) fn finish_enveloped_json<T: Serialize>(
     ctx: &WebRequestContext,
     result: Result<T, SocialServiceError>,
 ) -> Response {
+    if let Err(error) = &result {
+        log_social_api_error(ctx, error);
+    }
     finish_api_json(ctx, result.map_err(Into::into))
 }
 
@@ -30,6 +68,9 @@ pub(crate) fn finish_created_enveloped_json<T: Serialize>(
     ctx: &WebRequestContext,
     result: Result<T, SocialServiceError>,
 ) -> Response {
+    if let Err(error) = &result {
+        log_social_api_error(ctx, error);
+    }
     finish_api_response(
         ctx,
         result
@@ -42,6 +83,9 @@ pub(crate) fn finish_no_content(
     ctx: &WebRequestContext,
     result: Result<(), SocialServiceError>,
 ) -> Response {
+    if let Err(error) = &result {
+        log_social_api_error(ctx, error);
+    }
     finish_api_response(
         ctx,
         result.map_err(Into::into).and_then(|_| no_content(ctx)),

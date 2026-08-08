@@ -187,6 +187,18 @@ impl SocialServiceError {
         }
     }
 
+    pub(crate) fn status(&self) -> StatusCode {
+        self.status
+    }
+
+    pub(crate) fn code(&self) -> &'static str {
+        self.code
+    }
+
+    pub(crate) fn message(&self) -> &str {
+        self.message.as_str()
+    }
+
     pub(crate) fn from_string(error: String) -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,

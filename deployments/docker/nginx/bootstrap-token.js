@@ -1,6 +1,6 @@
 // sdkwork-im docker test deployment: credential-entry bootstrap Access-Token.
 // Injected into the served index.html by nginx (sub_filter in
-// testapidocker-im.conf) and loaded as an EXTERNAL same-origin script so it
+// testimdocker-im.conf) and loaded as an EXTERNAL same-origin script so it
 // passes the gateway CSP (script-src 'self'; inline scripts are blocked unless
 // nonce-tagged, so the token cannot be inlined).
 // This is the well-known unsigned development fallback JWT documented in
