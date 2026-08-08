@@ -31,6 +31,8 @@ standalone 默认 application ingress 是 `http://127.0.0.1:18079`。
 - [server 版本安装与初始化](./server版本安装与初始化.md)
 - [server 版本配置与 PostgreSQL 接入](./server版本配置与PostgreSQL接入.md)
 - [server 版本 service 托管标准](./server版本service托管标准.md)
+- [Ubuntu .deb 安装包安装指南](./Ubuntu安装包安装指南.md)
+- [Windows .msi 安装包安装指南](./Windows安装包安装指南.md)
 
 生产 side effect 必须显式选择 profile、environment、artifact id、digest、artifact evidence、
 approval 和 rollback target。本文档中的验证命令不会执行 apply 或 rollback。

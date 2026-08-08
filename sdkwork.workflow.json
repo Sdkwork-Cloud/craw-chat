@@ -276,7 +276,7 @@
       {
         "name": "Validate release contract",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nnode scripts/release/sdkwork-im-release-package.test.mjs\nnode scripts/release/plan-sdkwork-im-install-packages.mjs --check --version $env:SDKWORK_PACKAGE_VERSION\npnpm release:package:check -- --json --version $env:SDKWORK_PACKAGE_VERSION"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nnode scripts/release/sdkwork-im-release-package.test.mjs\nnode scripts/release/plan-sdkwork-im-install-packages.mjs --check --version $env:SDKWORK_PACKAGE_VERSION\nnode scripts/release/plan-sdkwork-im-native-install-packages.mjs --check --version $env:SDKWORK_PACKAGE_VERSION\npnpm release:package:check -- --json --version $env:SDKWORK_PACKAGE_VERSION"
       },
       {
         "name": "Build selected production artifacts",
@@ -291,14 +291,14 @@
       {
         "name": "Stage selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nif ($env:SDKWORK_PACKAGE_PROFILE -in @(\"browser\", \"server\", \"desktop\") -and $env:SDKWORK_PACKAGE_PLATFORM -ne \"h5\") {\n  pnpm release:stage -- --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n}"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nif ($env:SDKWORK_PACKAGE_PROFILE -in @(\"browser\", \"server\", \"desktop\") -and $env:SDKWORK_PACKAGE_PLATFORM -ne \"h5\" -and $env:SDKWORK_PACKAGE_FORMAT -notin @(\"deb\", \"msi\", \"pkg\", \"appimage\", \"exe\", \"dmg\")) {\n  pnpm release:stage -- --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n}"
       }
     ],
     "package": [
       {
         "name": "Build selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nif ($env:SDKWORK_PACKAGE_PROFILE -in @(\"browser\", \"server\", \"desktop\") -and $env:SDKWORK_PACKAGE_PLATFORM -ne \"h5\") {\n  node scripts/release/build-sdkwork-im-install-package.mjs --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n} else {\n  node scripts/release/workflow-release-target.mjs package --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n}"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nif ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\" -and $env:SDKWORK_PACKAGE_FORMAT -in @(\"deb\", \"msi\", \"pkg\")) {\n  node scripts/release/build-sdkwork-im-native-installer.mjs --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -eq \"desktop\" -and $env:SDKWORK_PACKAGE_FORMAT -in @(\"deb\", \"msi\", \"exe\", \"appimage\", \"dmg\")) {\n  node scripts/release/workflow-release-target.mjs package --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -in @(\"browser\", \"server\", \"desktop\") -and $env:SDKWORK_PACKAGE_PLATFORM -ne \"h5\") {\n  node scripts/release/build-sdkwork-im-install-package.mjs --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n} else {\n  node scripts/release/workflow-release-target.mjs package --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n}"
       }
     ],
     "sign": [
@@ -319,7 +319,7 @@
       {
         "name": "Validate selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nif ($env:SDKWORK_PACKAGE_PROFILE -in @(\"browser\", \"server\", \"desktop\") -and $env:SDKWORK_PACKAGE_PLATFORM -ne \"h5\") {\n  $extension = if ($env:SDKWORK_PACKAGE_FORMAT -eq \"tar.gz\") { \"tar.gz\" } else { $env:SDKWORK_PACKAGE_FORMAT }\n  $pattern = \"sdkwork-im-$env:SDKWORK_PACKAGE_ID-*.$extension\"\n  $artifact = Get-ChildItem -Path \"dist/release-packages\" -File | Where-Object { $_.Name -like $pattern -and $_.Name -notlike \"*.manifest.json\" } | Select-Object -First 1\n  if (-not $artifact) { throw \"Missing Sdkwork IM release artifact for $env:SDKWORK_PACKAGE_ID matching $pattern\" }\n  node scripts/release/validate-sdkwork-im-install-artifacts.mjs --package-id $env:SDKWORK_PACKAGE_ID --artifact-path $artifact.FullName --version $env:SDKWORK_PACKAGE_VERSION --json\n} else {\n  node scripts/release/workflow-release-target.mjs validate --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n}"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nif ($env:SDKWORK_PACKAGE_PROFILE -eq \"desktop\" -and $env:SDKWORK_PACKAGE_FORMAT -in @(\"deb\", \"msi\", \"exe\", \"appimage\", \"dmg\")) {\n  node scripts/release/workflow-release-target.mjs validate --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -in @(\"browser\", \"server\", \"desktop\") -and $env:SDKWORK_PACKAGE_PLATFORM -ne \"h5\") {\n  $extension = if ($env:SDKWORK_PACKAGE_FORMAT -eq \"tar.gz\") { \"tar.gz\" } else { $env:SDKWORK_PACKAGE_FORMAT }\n  $pattern = \"sdkwork-im-$env:SDKWORK_PACKAGE_ID-*.$extension\"\n  $artifact = Get-ChildItem -Path \"dist/release-packages\" -File | Where-Object { $_.Name -like $pattern -and $_.Name -notlike \"*.manifest.json\" } | Select-Object -First 1\n  if (-not $artifact) { throw \"Missing Sdkwork IM release artifact for $env:SDKWORK_PACKAGE_ID matching $pattern\" }\n  node scripts/release/validate-sdkwork-im-install-artifacts.mjs --package-id $env:SDKWORK_PACKAGE_ID --artifact-path $artifact.FullName --version $env:SDKWORK_PACKAGE_VERSION --json\n} else {\n  node scripts/release/workflow-release-target.mjs validate --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION\n}"
       }
     ],
     "deploy": [
@@ -602,7 +602,9 @@
       "profile": "mobile",
       "platform": "h5",
       "architecture": "universal",
-      "formats": ["zip"],
+      "formats": [
+        "zip"
+      ],
       "runner": "ubuntu-latest",
       "outputGlobs": [
         "dist/release-packages/sdkwork-im-h5-universal-cloud-mobile-zip-0.1.0.zip",
@@ -621,7 +623,9 @@
       "profile": "mobile",
       "platform": "android",
       "architecture": "universal",
-      "formats": ["apk"],
+      "formats": [
+        "apk"
+      ],
       "runner": "ubuntu-latest",
       "outputGlobs": [
         "dist/release-packages/sdkwork-im-android-universal-cloud-mobile-apk-0.1.0.apk",
@@ -640,7 +644,9 @@
       "profile": "mobile",
       "platform": "android",
       "architecture": "universal",
-      "formats": ["aab"],
+      "formats": [
+        "aab"
+      ],
       "runner": "ubuntu-latest",
       "outputGlobs": [
         "dist/release-packages/sdkwork-im-android-universal-cloud-mobile-aab-0.1.0.aab",
@@ -659,7 +665,9 @@
       "profile": "mobile",
       "platform": "ios",
       "architecture": "universal",
-      "formats": ["ipa"],
+      "formats": [
+        "ipa"
+      ],
       "runner": "macos-latest",
       "outputGlobs": [
         "dist/release-packages/sdkwork-im-ios-universal-cloud-mobile-ipa-0.1.0.ipa",
@@ -677,7 +685,9 @@
       "platform": "container",
       "architecture": "x64",
       "variant": "kubernetes",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "ubuntu-latest",
       "outputGlobs": [
         "dist/release-packages/sdkwork-im-container-x64-cloud-container-kubernetes-tar-gz-0.1.0.tar.gz",
@@ -685,6 +695,342 @@
         "dist/release-evidence/container-x64-cloud-container-kubernetes-tar-gz/*"
       ],
       "artifactPath": "dist/release-packages/sdkwork-im-container-x64-cloud-container-kubernetes-tar-gz-0.1.0.tar.gz"
+    },
+    {
+      "id": "linux-ubuntu-x64-standalone-server-deb",
+      "profile": "server",
+      "platform": "linux",
+      "architecture": "x64",
+      "formats": [
+        "deb"
+      ],
+      "runner": "ubuntu-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-linux-ubuntu-x64-standalone-server-deb-0.1.0.deb",
+        "dist/release-packages/sdkwork-im-linux-ubuntu-x64-standalone-server-deb-0.1.0.deb.manifest.json",
+        "dist/release-evidence/linux-ubuntu-x64-standalone-server-deb/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server",
+      "targetPlatform": "linux",
+      "clientArchitecture": null,
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-linux-ubuntu-x64-standalone-server-deb-0.1.0.deb"
+    },
+    {
+      "id": "linux-ubuntu-arm64-standalone-server-deb",
+      "profile": "server",
+      "platform": "linux",
+      "architecture": "arm64",
+      "formats": [
+        "deb"
+      ],
+      "runner": "ubuntu-24.04-arm",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-linux-ubuntu-arm64-standalone-server-deb-0.1.0.deb",
+        "dist/release-packages/sdkwork-im-linux-ubuntu-arm64-standalone-server-deb-0.1.0.deb.manifest.json",
+        "dist/release-evidence/linux-ubuntu-arm64-standalone-server-deb/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server",
+      "targetPlatform": "linux",
+      "clientArchitecture": null,
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-linux-ubuntu-arm64-standalone-server-deb-0.1.0.deb"
+    },
+    {
+      "id": "windows-x64-standalone-server-msi",
+      "profile": "server",
+      "platform": "windows",
+      "architecture": "x64",
+      "formats": [
+        "msi"
+      ],
+      "runner": "windows-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-windows-x64-standalone-server-msi-0.1.0.msi",
+        "dist/release-packages/sdkwork-im-windows-x64-standalone-server-msi-0.1.0.msi.manifest.json",
+        "dist/release-evidence/windows-x64-standalone-server-msi/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server",
+      "targetPlatform": "windows",
+      "clientArchitecture": null,
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-windows-x64-standalone-server-msi-0.1.0.msi"
+    },
+    {
+      "id": "windows-arm64-standalone-server-msi",
+      "profile": "server",
+      "platform": "windows",
+      "architecture": "arm64",
+      "formats": [
+        "msi"
+      ],
+      "runner": "windows-11-arm",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-windows-arm64-standalone-server-msi-0.1.0.msi",
+        "dist/release-packages/sdkwork-im-windows-arm64-standalone-server-msi-0.1.0.msi.manifest.json",
+        "dist/release-evidence/windows-arm64-standalone-server-msi/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server",
+      "targetPlatform": "windows",
+      "clientArchitecture": null,
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-windows-arm64-standalone-server-msi-0.1.0.msi"
+    },
+    {
+      "id": "macos-x64-standalone-server-pkg",
+      "profile": "server",
+      "platform": "macos",
+      "architecture": "x64",
+      "formats": [
+        "pkg"
+      ],
+      "runner": "macos-15-intel",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-macos-x64-standalone-server-pkg-0.1.0.pkg",
+        "dist/release-packages/sdkwork-im-macos-x64-standalone-server-pkg-0.1.0.pkg.manifest.json",
+        "dist/release-evidence/macos-x64-standalone-server-pkg/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server",
+      "targetPlatform": "macos",
+      "clientArchitecture": null,
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-macos-x64-standalone-server-pkg-0.1.0.pkg"
+    },
+    {
+      "id": "macos-arm64-standalone-server-pkg",
+      "profile": "server",
+      "platform": "macos",
+      "architecture": "arm64",
+      "formats": [
+        "pkg"
+      ],
+      "runner": "macos-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-macos-arm64-standalone-server-pkg-0.1.0.pkg",
+        "dist/release-packages/sdkwork-im-macos-arm64-standalone-server-pkg-0.1.0.pkg.manifest.json",
+        "dist/release-evidence/macos-arm64-standalone-server-pkg/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server",
+      "targetPlatform": "macos",
+      "clientArchitecture": null,
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-macos-arm64-standalone-server-pkg-0.1.0.pkg"
+    },
+    {
+      "id": "linux-ubuntu-x64-standalone-desktop-deb",
+      "profile": "desktop",
+      "platform": "linux",
+      "architecture": "x64",
+      "formats": [
+        "deb"
+      ],
+      "runner": "ubuntu-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-linux-ubuntu-x64-standalone-desktop-deb-0.1.0.deb",
+        "dist/release-packages/sdkwork-im-linux-ubuntu-x64-standalone-desktop-deb-0.1.0.deb.manifest.json",
+        "dist/release-evidence/linux-ubuntu-x64-standalone-desktop-deb/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop",
+      "targetPlatform": "linux",
+      "clientArchitecture": "tauri",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-linux-ubuntu-x64-standalone-desktop-deb-0.1.0.deb"
+    },
+    {
+      "id": "linux-ubuntu-x64-standalone-desktop-appimage",
+      "profile": "desktop",
+      "platform": "linux",
+      "architecture": "x64",
+      "formats": [
+        "AppImage"
+      ],
+      "runner": "ubuntu-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-linux-ubuntu-x64-standalone-desktop-appimage-0.1.0.AppImage",
+        "dist/release-packages/sdkwork-im-linux-ubuntu-x64-standalone-desktop-appimage-0.1.0.AppImage.manifest.json",
+        "dist/release-evidence/linux-ubuntu-x64-standalone-desktop-appimage/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop",
+      "targetPlatform": "linux",
+      "clientArchitecture": "tauri",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-linux-ubuntu-x64-standalone-desktop-appimage-0.1.0.AppImage"
+    },
+    {
+      "id": "linux-ubuntu-arm64-standalone-desktop-deb",
+      "profile": "desktop",
+      "platform": "linux",
+      "architecture": "arm64",
+      "formats": [
+        "deb"
+      ],
+      "runner": "ubuntu-24.04-arm",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-linux-ubuntu-arm64-standalone-desktop-deb-0.1.0.deb",
+        "dist/release-packages/sdkwork-im-linux-ubuntu-arm64-standalone-desktop-deb-0.1.0.deb.manifest.json",
+        "dist/release-evidence/linux-ubuntu-arm64-standalone-desktop-deb/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop",
+      "targetPlatform": "linux",
+      "clientArchitecture": "tauri",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-linux-ubuntu-arm64-standalone-desktop-deb-0.1.0.deb"
+    },
+    {
+      "id": "linux-ubuntu-arm64-standalone-desktop-appimage",
+      "profile": "desktop",
+      "platform": "linux",
+      "architecture": "arm64",
+      "formats": [
+        "AppImage"
+      ],
+      "runner": "ubuntu-24.04-arm",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-linux-ubuntu-arm64-standalone-desktop-appimage-0.1.0.AppImage",
+        "dist/release-packages/sdkwork-im-linux-ubuntu-arm64-standalone-desktop-appimage-0.1.0.AppImage.manifest.json",
+        "dist/release-evidence/linux-ubuntu-arm64-standalone-desktop-appimage/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop",
+      "targetPlatform": "linux",
+      "clientArchitecture": "tauri",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-linux-ubuntu-arm64-standalone-desktop-appimage-0.1.0.AppImage"
+    },
+    {
+      "id": "windows-x64-standalone-desktop-msi",
+      "profile": "desktop",
+      "platform": "windows",
+      "architecture": "x64",
+      "formats": [
+        "msi"
+      ],
+      "runner": "windows-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-windows-x64-standalone-desktop-msi-0.1.0.msi",
+        "dist/release-packages/sdkwork-im-windows-x64-standalone-desktop-msi-0.1.0.msi.manifest.json",
+        "dist/release-evidence/windows-x64-standalone-desktop-msi/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop",
+      "targetPlatform": "windows",
+      "clientArchitecture": "tauri",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-windows-x64-standalone-desktop-msi-0.1.0.msi"
+    },
+    {
+      "id": "windows-x64-standalone-desktop-exe",
+      "profile": "desktop",
+      "platform": "windows",
+      "architecture": "x64",
+      "formats": [
+        "exe"
+      ],
+      "runner": "windows-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-windows-x64-standalone-desktop-exe-0.1.0.exe",
+        "dist/release-packages/sdkwork-im-windows-x64-standalone-desktop-exe-0.1.0.exe.manifest.json",
+        "dist/release-evidence/windows-x64-standalone-desktop-exe/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop",
+      "targetPlatform": "windows",
+      "clientArchitecture": "tauri",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-windows-x64-standalone-desktop-exe-0.1.0.exe"
+    },
+    {
+      "id": "windows-arm64-standalone-desktop-msi",
+      "profile": "desktop",
+      "platform": "windows",
+      "architecture": "arm64",
+      "formats": [
+        "msi"
+      ],
+      "runner": "windows-11-arm",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-windows-arm64-standalone-desktop-msi-0.1.0.msi",
+        "dist/release-packages/sdkwork-im-windows-arm64-standalone-desktop-msi-0.1.0.msi.manifest.json",
+        "dist/release-evidence/windows-arm64-standalone-desktop-msi/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop",
+      "targetPlatform": "windows",
+      "clientArchitecture": "tauri",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-windows-arm64-standalone-desktop-msi-0.1.0.msi"
+    },
+    {
+      "id": "windows-arm64-standalone-desktop-exe",
+      "profile": "desktop",
+      "platform": "windows",
+      "architecture": "arm64",
+      "formats": [
+        "exe"
+      ],
+      "runner": "windows-11-arm",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-windows-arm64-standalone-desktop-exe-0.1.0.exe",
+        "dist/release-packages/sdkwork-im-windows-arm64-standalone-desktop-exe-0.1.0.exe.manifest.json",
+        "dist/release-evidence/windows-arm64-standalone-desktop-exe/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop",
+      "targetPlatform": "windows",
+      "clientArchitecture": "tauri",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-windows-arm64-standalone-desktop-exe-0.1.0.exe"
+    },
+    {
+      "id": "macos-x64-standalone-desktop-dmg",
+      "profile": "desktop",
+      "platform": "macos",
+      "architecture": "x64",
+      "formats": [
+        "dmg"
+      ],
+      "runner": "macos-15-intel",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-macos-x64-standalone-desktop-dmg-0.1.0.dmg",
+        "dist/release-packages/sdkwork-im-macos-x64-standalone-desktop-dmg-0.1.0.dmg.manifest.json",
+        "dist/release-evidence/macos-x64-standalone-desktop-dmg/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop",
+      "targetPlatform": "macos",
+      "clientArchitecture": "tauri",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-macos-x64-standalone-desktop-dmg-0.1.0.dmg"
+    },
+    {
+      "id": "macos-arm64-standalone-desktop-dmg",
+      "profile": "desktop",
+      "platform": "macos",
+      "architecture": "arm64",
+      "formats": [
+        "dmg"
+      ],
+      "runner": "macos-latest",
+      "outputGlobs": [
+        "dist/release-packages/sdkwork-im-macos-arm64-standalone-desktop-dmg-0.1.0.dmg",
+        "dist/release-packages/sdkwork-im-macos-arm64-standalone-desktop-dmg-0.1.0.dmg.manifest.json",
+        "dist/release-evidence/macos-arm64-standalone-desktop-dmg/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop",
+      "targetPlatform": "macos",
+      "clientArchitecture": "tauri",
+      "profileBinding": "fixed",
+      "artifactPath": "dist/release-packages/sdkwork-im-macos-arm64-standalone-desktop-dmg-0.1.0.dmg"
     }
   ],
   "security": {

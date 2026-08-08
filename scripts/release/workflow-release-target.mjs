@@ -88,7 +88,36 @@ const PACKAGE_DEFINITIONS = Object.freeze({
     profileId: 'cloud.production',
     runtimeTarget: 'container',
   }),
+  // Desktop native installers: Tauri-produced bundles published directly
+  // under the canonical installer names (profile standalone, runtimeTarget
+  // desktop). The ids mirror plan-sdkwork-im-native-install-packages.mjs.
+  'linux-ubuntu-x64-standalone-desktop-deb': tauriNativeDesktopDefinition({ architecture: 'x64', artifactExtension: 'deb', platform: 'linux', tauriBundleKind: 'deb' }),
+  'linux-ubuntu-arm64-standalone-desktop-deb': tauriNativeDesktopDefinition({ architecture: 'arm64', artifactExtension: 'deb', platform: 'linux', tauriBundleKind: 'deb' }),
+  'linux-ubuntu-x64-standalone-desktop-appimage': tauriNativeDesktopDefinition({ architecture: 'x64', artifactExtension: 'AppImage', platform: 'linux', tauriBundleKind: 'appimage' }),
+  'linux-ubuntu-arm64-standalone-desktop-appimage': tauriNativeDesktopDefinition({ architecture: 'arm64', artifactExtension: 'AppImage', platform: 'linux', tauriBundleKind: 'appimage' }),
+  'windows-x64-standalone-desktop-msi': tauriNativeDesktopDefinition({ architecture: 'x64', artifactExtension: 'msi', platform: 'windows', tauriBundleKind: 'msi' }),
+  'windows-arm64-standalone-desktop-msi': tauriNativeDesktopDefinition({ architecture: 'arm64', artifactExtension: 'msi', platform: 'windows', tauriBundleKind: 'msi' }),
+  'windows-x64-standalone-desktop-exe': tauriNativeDesktopDefinition({ architecture: 'x64', artifactExtension: 'exe', platform: 'windows', tauriBundleKind: 'nsis' }),
+  'windows-arm64-standalone-desktop-exe': tauriNativeDesktopDefinition({ architecture: 'arm64', artifactExtension: 'exe', platform: 'windows', tauriBundleKind: 'nsis' }),
+  'macos-x64-standalone-desktop-dmg': tauriNativeDesktopDefinition({ architecture: 'x64', artifactExtension: 'dmg', platform: 'macos', tauriBundleKind: 'dmg' }),
+  'macos-arm64-standalone-desktop-dmg': tauriNativeDesktopDefinition({ architecture: 'arm64', artifactExtension: 'dmg', platform: 'macos', tauriBundleKind: 'dmg' }),
 });
+
+function tauriNativeDesktopDefinition({ architecture, artifactExtension, platform, tauriBundleKind }) {
+  return Object.freeze({
+    architecture,
+    artifactExtension,
+    buildKind: 'tauri-native-desktop',
+    clientArchitecture: 'tauri',
+    deploymentProfile: 'standalone',
+    platform,
+    profile: 'desktop',
+    profileId: 'standalone.production',
+    runtimeTarget: 'desktop',
+    targetPlatform: `desktop-${platform}`,
+    tauriBundleKind,
+  });
+}
 
 function requireText(value, label) {
   const normalized = String(value ?? '').trim();
@@ -277,7 +306,61 @@ function sourceArtifactFor(packageId, root = REPO_ROOT) {
     const ipaRoot = path.join(root, 'apps', 'sdkwork-im-flutter-mobile', 'build', 'ios', 'ipa');
     return singleFileWithExtension(ipaRoot, '.ipa');
   }
+  if (definition.buildKind === 'tauri-native-desktop') {
+    return singleTauriBundleFile(definition, root);
+  }
   return path.join(root, 'dist', 'cloud-release', packageId);
+}
+
+// Tauri bundle root resolution mirrors collect-sdkwork-im-desktop-bundles.mjs:
+// --bundle-root style override > CARGO_TARGET_DIR > default src-tauri target.
+function resolveTauriBundleRoot(root = REPO_ROOT) {
+  const explicitRoot = String(process.env.SDKWORK_IM_DESKTOP_BUNDLE_ROOT ?? '').trim();
+  if (explicitRoot) {
+    return path.resolve(root, explicitRoot);
+  }
+  const cargoTargetDir = String(process.env.CARGO_TARGET_DIR ?? '').trim();
+  if (cargoTargetDir) {
+    return path.resolve(root, cargoTargetDir, 'release', 'bundle');
+  }
+  return path.join(
+    root,
+    'apps',
+    'sdkwork-im-pc',
+    'packages',
+    'sdkwork-im-pc-desktop',
+    'src-tauri',
+    'target',
+    'release',
+    'bundle',
+  );
+}
+
+function singleTauriBundleFile(definition, root = REPO_ROOT) {
+  const bundleRoot = resolveTauriBundleRoot(root);
+  const kindRoot = path.join(bundleRoot, definition.tauriBundleKind);
+  const extensionsByKind = {
+    deb: ['.deb'],
+    appimage: ['.AppImage'],
+    msi: ['.msi'],
+    nsis: ['.exe'],
+    dmg: ['.dmg'],
+  };
+  const candidates = (extensionsByKind[definition.tauriBundleKind] ?? [])
+    .flatMap((extension) => {
+      if (!existsSync(kindRoot)) {
+        return [];
+      }
+      return listFiles(kindRoot).filter((filePath) => filePath.toLowerCase().endsWith(extension.toLowerCase()));
+    })
+    .filter((filePath) => !filePath.toLowerCase().includes('setup'));
+  if (candidates.length !== 1) {
+    throw new Error(
+      `${kindRoot} must contain exactly one ${definition.tauriBundleKind} installer artifact, found ${candidates.length}`
+      + ' (SDKWORK_DESKTOP_BUNDLE_ROOT / CARGO_TARGET_DIR resolve the bundle root)',
+    );
+  }
+  return candidates[0];
 }
 
 function packageReleaseTarget({ packageId, root = REPO_ROOT, version }) {

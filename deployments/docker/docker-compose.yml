@@ -1,0 +1,117 @@
+# sdkwork-im standalone container composition.
+#
+# runtimeTarget = "container", deploymentProfile = "standalone".
+# Build the image first with `pnpm build:container` (produces
+# sdkwork-im-standalone-gateway:local), then `docker compose up -d`.
+#
+# Port strategy: the gateway container binds 0.0.0.0:18079 inside, and the
+# host maps 18079 -> 18079 so the PC renderer's local gateway discovery
+# (http://127.0.0.1:18079/healthz probe, the standalone default) keeps working
+# from Windows browsers over the WSL2 localhost relay. PostgreSQL stays on the
+# compose network and exposes no host ports, so the composition is
+# conflict-free by construction.
+
+services:
+  postgres:
+    # pgvector image: the embedded knowledgebase database module requires the
+    # `vector` extension at migration time (plain postgres:16-alpine cannot
+    # provide it).
+    image: pgvector/pgvector:pg16
+    # Survive host/WSL restarts together with the gateway (commercial ops).
+    restart: unless-stopped
+    command: ["postgres", "-c", "max_connections=${IM_PG_MAX_CONNECTIONS:-200}"]
+    environment:
+      POSTGRES_DB: ${SDKWORK_IM_POSTGRES_DB:-sdkwork_ai_dev}
+      POSTGRES_USER: ${SDKWORK_IM_POSTGRES_USER:-sdkwork_ai_dev}
+      POSTGRES_PASSWORD: ${SDKWORK_IM_POSTGRES_PASSWORD:-sdkworkdev123}
+    volumes:
+      - im-postgres-data:/var/lib/postgresql/data
+      # Creates the same-named workspace schema on first initialization
+      # (the sdkwork-database lifecycle pins search_path to it).
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SDKWORK_IM_POSTGRES_USER:-sdkwork_ai_dev} -d ${SDKWORK_IM_POSTGRES_DB:-sdkwork_ai_dev}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  im-gateway:
+    image: sdkwork-im-standalone-gateway:local
+    ports:
+      - "${SDKWORK_IM_HOST_PORT:-18079}:18079"
+    environment:
+      # Deployment identity (DEPLOYMENT_SPEC §5.2).
+      SDKWORK_IM_DEPLOYMENT_PROFILE: standalone
+      SDKWORK_IM_RUNTIME_TARGET: container
+      SDKWORK_IM_ENVIRONMENT: ${SDKWORK_IM_ENVIRONMENT:-development}
+      SDKWORK_IM_PROFILE_ID: ${SDKWORK_IM_PROFILE_ID:-standalone.container.development}
+      SDKWORK_ENV: ${SDKWORK_IM_ENVIRONMENT:-development}
+      # Application public ingress bind: topology-resolved, never hard-coded
+      # in source. Container-internal 18079 is the spec default.
+      SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: 0.0.0.0:18079
+      # Snowflake node identity (single-instance standalone composition).
+      SDKWORK_IM_ID_NODE_ID: ${SDKWORK_IM_ID_NODE_ID:-1}
+      # Browser CORS allow-list for the API plane. Add every public domain
+      # that serves the renderer (see nginx/testapidocker-im.conf) plus the
+      # local gateway port used by the PC renderer discovery probe.
+      # SDKWORK_CORS_ALLOWED_ORIGINS is the canonical shared key (SOURCE_CONFIG_SPEC).
+      SDKWORK_CORS_ALLOWED_ORIGINS: ${SDKWORK_CORS_ALLOWED_ORIGINS:-http://testapidocker.sdkwork.com,http://testapidocker.birdcoder.com,http://testapidocker.dtupay.com,http://127.0.0.1:18079,http://localhost:18079,http://localhost}
+      # External dependencies are injected at runtime, not baked into the image.
+      # Hosts/ports default to the compose service and can be pointed at
+      # managed services via .env. The database name must be a canonical
+      # SDKWork workspace identity (sdkwork_ai_dev/test/staging/prod) with the
+      # matching username; SDKWORK_DATABASE_SCHEMA must equal the name.
+      SDKWORK_DATABASE_ENGINE: postgresql
+      SDKWORK_DATABASE_HOST: ${SDKWORK_IM_POSTGRES_HOST:-postgres}
+      SDKWORK_DATABASE_PORT: ${SDKWORK_IM_POSTGRES_PORT:-5432}
+      SDKWORK_DATABASE_NAME: ${SDKWORK_IM_POSTGRES_DB:-sdkwork_ai_dev}
+      SDKWORK_DATABASE_SCHEMA: ${SDKWORK_IM_POSTGRES_SCHEMA:-sdkwork_ai_dev}
+      SDKWORK_DATABASE_USERNAME: ${SDKWORK_IM_POSTGRES_USER:-sdkwork_ai_dev}
+      SDKWORK_DATABASE_PASSWORD: ${SDKWORK_IM_POSTGRES_PASSWORD:-sdkworkdev123}
+      SDKWORK_DATABASE_SSL_MODE: disable
+      # The gateway bootstraps the schema and applies migrations on first
+      # start (the IM database manifest ships with autoMigrate=false, so the
+      # compose deployment opts in explicitly).
+      SDKWORK_DATABASE_AUTO_MIGRATE: "true"
+      SDKWORK_DATABASE_SEED_LOCALE: ${SDKWORK_IM_DATABASE_SEED_LOCALE:-zh-CN}
+      # Shared process pool plumbing required by the IM pool bootstrap.
+      SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT: "2"
+      SDKWORK_DATABASE_TEMPORARY_ANY_POOL_EXCEPTION: "true"
+      # Connection pool sizing (tunable via .env).
+      SDKWORK_DATABASE_MAX_CONNECTIONS: ${SDKWORK_IM_DATABASE_MAX_CONNECTIONS:-50}
+      SDKWORK_DATABASE_MIN_CONNECTIONS: ${SDKWORK_IM_DATABASE_MIN_CONNECTIONS:-5}
+      SDKWORK_DATABASE_ACQUIRE_TIMEOUT: ${SDKWORK_IM_DATABASE_ACQUIRE_TIMEOUT:-30}
+      SDKWORK_DATABASE_IDLE_TIMEOUT: ${SDKWORK_IM_DATABASE_IDLE_TIMEOUT:-600}
+      SDKWORK_DATABASE_MAX_LIFETIME: ${SDKWORK_IM_DATABASE_MAX_LIFETIME:-1800}
+      # IAM super-admin bootstrap password: when set, the IAM bootstrap
+      # provisions/updates the password credential for the default admin user.
+      # Leave empty for default deployments; production must set it.
+      SDKWORK_IAM_SUPER_ADMIN_PASSWORD: ${SDKWORK_IAM_SUPER_ADMIN_PASSWORD:-}
+      # Process log level (tracing reads RUST_LOG directly). Set RUST_LOG=debug
+      # in .env to increase verbosity at deployment time.
+      RUST_LOG: ${RUST_LOG:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    # Gateway readiness probe: compose can restart/replace the gateway when it
+    # stops answering.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18079/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+    # Commercial deployment guardrails: bound the gateway to predictable CPU
+    # and memory (tune via .env) so noisy neighbors cannot starve the host.
+    deploy:
+      resources:
+        limits:
+          cpus: ${SDKWORK_IM_CPU_LIMIT:-4.0}
+          memory: ${SDKWORK_IM_MEMORY_LIMIT:-4g}
+        reservations:
+          cpus: ${SDKWORK_IM_CPU_RESERVATION:-1.0}
+          memory: ${SDKWORK_IM_MEMORY_RESERVATION:-1g}
+
+volumes:
+  im-postgres-data:

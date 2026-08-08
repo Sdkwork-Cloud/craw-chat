@@ -389,8 +389,9 @@ fi
 
 print_header "4. LOW Additional Security Recommendations"
 
-# 4.1 CORS配置
-CORS_ORIGIN=$(get_config_value "SDKWORK_IM_CORS_ALLOWED_ORIGINS" "$CONFIG_FILE")
+# 4.1 CORS配置 (canonical shared key per SOURCE_CONFIG_SPEC; all SDKWork
+#    services read SDKWORK_CORS_ALLOWED_ORIGINS)
+CORS_ORIGIN=$(get_config_value "SDKWORK_CORS_ALLOWED_ORIGINS" "$CONFIG_FILE")
 if [ -n "$CORS_ORIGIN" ]; then
     check_pass "CORS origins configured"
     
@@ -404,7 +405,7 @@ if [ -n "$CORS_ORIGIN" ]; then
     fi
 else
     check_warning "CORS origins not configured" \
-        "Set SDKWORK_IM_CORS_ALLOWED_ORIGINS"
+        "Set SDKWORK_CORS_ALLOWED_ORIGINS"
 fi
 
 # 4.2 Rate Limiting

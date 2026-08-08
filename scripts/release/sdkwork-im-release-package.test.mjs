@@ -779,6 +779,24 @@ const expectedWorkflowTargetIds = [
   'android-universal-cloud-mobile-aab',
   'ios-universal-cloud-mobile-ipa',
   'container-x64-cloud-container-kubernetes-tar-gz',
+  // Native platform installers (server: .deb/.msi/.pkg; desktop: Tauri
+  // bundles published directly; ids mirror the native install package plan).
+  'linux-ubuntu-x64-standalone-server-deb',
+  'linux-ubuntu-arm64-standalone-server-deb',
+  'windows-x64-standalone-server-msi',
+  'windows-arm64-standalone-server-msi',
+  'macos-x64-standalone-server-pkg',
+  'macos-arm64-standalone-server-pkg',
+  'linux-ubuntu-x64-standalone-desktop-deb',
+  'linux-ubuntu-x64-standalone-desktop-appimage',
+  'linux-ubuntu-arm64-standalone-desktop-deb',
+  'linux-ubuntu-arm64-standalone-desktop-appimage',
+  'windows-x64-standalone-desktop-msi',
+  'windows-x64-standalone-desktop-exe',
+  'windows-arm64-standalone-desktop-msi',
+  'windows-arm64-standalone-desktop-exe',
+  'macos-x64-standalone-desktop-dmg',
+  'macos-arm64-standalone-desktop-dmg',
 ];
 const sortedExpectedWorkflowTargetIds = [...expectedWorkflowTargetIds].sort();
 assert.deepEqual(
@@ -843,9 +861,14 @@ for (const [phase, expectedCommand] of Object.entries({
 }
 for (const target of workflowConfig.targets ?? []) {
   const variantToken = target.variant ? `-${target.variant}` : '';
+  // GITHUB_WORKFLOW_SPEC §5: Linux native deb/appimage items carry the
+  // distribution segment (linux-ubuntu-...); archive/zip items do not. The
+  // format token in the id is lowercase kebab-case (AppImage -> appimage).
+  const isLinuxNative = target.platform === 'linux' && ['deb', 'appimage'].includes(String(target.formats?.[0] ?? '').toLowerCase());
+  const platformSegment = isLinuxNative ? 'linux-ubuntu' : target.platform;
   assert.equal(
     target.id,
-    `${target.platform}-${target.architecture}-${target.deploymentProfile}-${target.profile}${variantToken}-${String(target.formats?.[0] ?? '').replaceAll('.', '-')}`,
+    `${platformSegment}-${target.architecture}-${target.deploymentProfile}-${target.profile}${variantToken}-${String(target.formats?.[0] ?? '').replaceAll('.', '-').toLowerCase()}`,
   );
   assert.equal(target.outputGlobs?.includes(target.artifactPath), true, `${target.id} should upload its primary artifact`);
   assert.equal(
@@ -914,6 +937,11 @@ function writeFixture(root, relativePath, content) {
 function packageFormatForManifest(format) {
   if (format === 'tar.gz') {
     return 'TAR_GZ';
+  }
+  // macOS .pkg is not a canonical APP_MANIFEST_SPEC packageFormat token; the
+  // manifest checker accepts OTHER with the concrete format in metadata.
+  if (format === 'pkg') {
+    return 'OTHER';
   }
   return String(format ?? '').replaceAll('.', '_').replaceAll('-', '_').toUpperCase();
 }

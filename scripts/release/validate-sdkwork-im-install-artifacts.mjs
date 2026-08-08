@@ -7,6 +7,7 @@ import { gunzipSync } from 'node:zlib';
 
 import { DEFAULT_RELEASE_VERSION } from './sdkwork-im-release-version.mjs';
 import { createSdkworkImInstallPackagePlan } from './plan-sdkwork-im-install-packages.mjs';
+import { createSdkworkImNativeInstallPackagePlan } from './plan-sdkwork-im-native-install-packages.mjs';
 
 function printHelp() {
   console.log(`Usage: node scripts/release/validate-sdkwork-im-install-artifacts.mjs --package-id <id> --artifact-path <path> [options]
@@ -95,27 +96,37 @@ function validateSdkworkImInstallArtifact({
   }
 
   const packageItem = createSdkworkImInstallPackagePlan({ version }).packages.find((item) => item.id === packageId);
-  if (!packageItem) {
-    issues.push(`unknown package id: ${packageId}`);
-    return {
-      ok: false,
-      issues,
-      packageId,
-      artifactPath: resolvedArtifactPath,
-    };
+  if (packageItem) {
+    return validateArchivePlanArtifact({ artifactPath: resolvedArtifactPath, packageId, packageItem, version });
   }
 
-  const artifactBytes = readFileSync(resolvedArtifactPath);
-  const artifactName = path.basename(resolvedArtifactPath);
+  const nativePackageItem = createSdkworkImNativeInstallPackagePlan({ version }).packages.find((item) => item.id === packageId);
+  if (nativePackageItem) {
+    return validateNativePlanArtifact({ artifactPath: resolvedArtifactPath, packageId, packageItem: nativePackageItem, version });
+  }
+
+  issues.push(`unknown package id: ${packageId}`);
+  return {
+    ok: false,
+    issues,
+    packageId,
+    artifactPath: resolvedArtifactPath,
+  };
+}
+
+function validateArchivePlanArtifact({ artifactPath, packageId, packageItem, version }) {
+  const issues = [];
+  const artifactBytes = readFileSync(artifactPath);
+  const artifactName = path.basename(artifactPath);
   if (artifactBytes.length === 0) {
-    issues.push(`artifact is empty: ${resolvedArtifactPath}`);
+    issues.push(`artifact is empty: ${artifactPath}`);
   }
   if (artifactName !== packageItem.archiveName) {
     issues.push(`artifact name ${artifactName} must be ${packageItem.archiveName}`);
   }
 
   const extension = artifactExtension(artifactName);
-  const adjacentManifest = readAdjacentManifest(resolvedArtifactPath, extension, issues);
+  const adjacentManifest = readAdjacentManifest(artifactPath, extension, issues);
   if (adjacentManifest) {
     issues.push(...validateAdjacentManifest(packageItem, adjacentManifest));
   }
@@ -132,10 +143,246 @@ function validateSdkworkImInstallArtifact({
     ok: issues.length === 0,
     issues,
     packageId: packageItem.id,
-    artifactPath: resolvedArtifactPath,
+    artifactPath,
     artifactName,
     extension,
   };
+}
+
+function validateNativePlanArtifact({ artifactPath, packageId, packageItem, version }) {
+  const issues = [];
+  const artifactBytes = readFileSync(artifactPath);
+  const artifactName = path.basename(artifactPath);
+  if (artifactBytes.length === 0) {
+    issues.push(`artifact is empty: ${artifactPath}`);
+  }
+  if (artifactName !== packageItem.installerName) {
+    issues.push(`artifact name ${artifactName} must be ${packageItem.installerName}`);
+  }
+
+  const extension = artifactExtension(artifactName);
+  const adjacentManifest = readAdjacentManifest(artifactPath, extension, issues);
+  if (adjacentManifest) {
+    issues.push(...validateNativeAdjacentManifest(packageItem, adjacentManifest));
+  }
+
+  if (packageItem.profile === 'server') {
+    if (extension === 'deb') {
+      issues.push(...validateDebArtifact(packageItem, artifactBytes));
+    } else if (extension === 'msi') {
+      issues.push(...validateMsiArtifact(packageItem, artifactBytes));
+    } else if (extension === 'pkg') {
+      issues.push(...validatePkgArtifact(packageItem, artifactBytes));
+    } else {
+      issues.push(`unsupported native server extension for ${packageItem.id}: ${extension}`);
+    }
+  } else {
+    issues.push(...validateNativeDesktopArtifact(packageItem, artifactBytes, extension));
+  }
+
+  return {
+    ok: issues.length === 0,
+    issues,
+    packageId: packageItem.id,
+    artifactPath,
+    artifactName,
+    extension,
+    native: true,
+  };
+}
+
+function validateNativeAdjacentManifest(packageItem, manifest) {
+  const issues = [];
+  if (manifest.product !== 'chat') {
+    issues.push('adjacent manifest product must be chat');
+  }
+  if (manifest.package?.id !== packageItem.id) {
+    issues.push(`adjacent manifest package id must be ${packageItem.id}`);
+  }
+  if (manifest.package?.version !== packageItem.version) {
+    issues.push(`adjacent manifest version must be ${packageItem.version}`);
+  }
+  if (manifest.installer?.file !== packageItem.installerName) {
+    issues.push(`adjacent manifest installer.file must be ${packageItem.installerName}`);
+  }
+  if (manifest.installer?.sha256 && !/^[a-f0-9]{64}$/u.test(manifest.installer.sha256)) {
+    issues.push('adjacent manifest installer.sha256 must be a sha256 hex digest');
+  }
+  if (manifest.nativeInstallLayout?.schemaVersion !== '2026-08-08.sdkwork-im.native-install-layout.v1') {
+    issues.push('adjacent manifest nativeInstallLayout schemaVersion is required');
+  }
+  if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
+    issues.push('adjacent manifest files must be a non-empty array');
+  }
+  for (const file of manifest.files ?? []) {
+    if (!file.path) {
+      issues.push('adjacent manifest file path is required');
+      continue;
+    }
+    if (isSensitiveArchivePath(file.path)) {
+      issues.push(`adjacent manifest must not include sensitive path ${file.path}`);
+    }
+  }
+  return issues;
+}
+
+// .deb: ar(debian-binary, control.tar.gz, data.tar.gz) with deterministic
+// control/data tarballs; byte-level parse validates the exact payload that
+// dpkg will install (PACKAGING_SPEC §6 release gate).
+function validateDebArtifact(packageItem, artifactBytes) {
+  const issues = [];
+  const members = readArArchive(artifactBytes);
+  for (const requiredMember of ['debian-binary', 'control.tar.gz', 'data.tar.gz']) {
+    if (!members.has(requiredMember)) {
+      issues.push(`${packageItem.id} .deb missing ar member ${requiredMember}`);
+      return issues;
+    }
+  }
+  if (members.get('debian-binary').data.toString('utf8').trim() !== '2.0') {
+    issues.push(`${packageItem.id} .deb debian-binary must be 2.0`);
+  }
+
+  const controlEntries = readTarEntries(gunzipSync(members.get('control.tar.gz').data));
+  for (const requiredEntry of ['./control', './postinst', './prerm']) {
+    if (!controlEntries.has(requiredEntry)) {
+      issues.push(`${packageItem.id} .deb control missing ${requiredEntry}`);
+    }
+  }
+  if (controlEntries.has('./control')) {
+    const controlText = controlEntries.get('./control').data.toString('utf8');
+    if (!/^Package: sdkwork-chat$/mu.test(controlText)) {
+      issues.push(`${packageItem.id} .deb control Package must be sdkwork-chat`);
+    }
+    if (!/^Depends: .*libssl3/mu.test(controlText)) {
+      issues.push(`${packageItem.id} .deb control Depends must declare libssl3`);
+    }
+    if (!/^Architecture: (amd64|arm64)$/mu.test(controlText)) {
+      issues.push(`${packageItem.id} .deb control Architecture must be amd64 or arm64`);
+    }
+  }
+  if (controlEntries.has('./postinst') && controlEntries.get('./postinst').mode !== 0o755) {
+    issues.push(`${packageItem.id} .deb postinst must be 0755`);
+  }
+  if (controlEntries.has('./prerm') && controlEntries.get('./prerm').mode !== 0o755) {
+    issues.push(`${packageItem.id} .deb prerm must be 0755`);
+  }
+
+  const dataEntries = readTarEntries(gunzipSync(members.get('data.tar.gz').data));
+  if (dataEntries.size === 0) {
+    issues.push(`${packageItem.id} .deb data.tar.gz must include files`);
+    return issues;
+  }
+  for (const [name, entry] of dataEntries) {
+    if (isSensitiveArchivePath(name)) {
+      issues.push(`${packageItem.id} .deb must not include sensitive path ${name}`);
+    }
+    if (entry.type === 'file' && entry.mode === 0) {
+      issues.push(`${packageItem.id} .deb entry ${name} has mode 0`);
+    }
+  }
+  const expectedArchitecture = packageItem.architecture === 'arm64' ? 'arm64' : 'amd64';
+  const requiredPaths = [
+    `./usr/lib/sdkwork/chat/bin/${packageItem.binaryName}`,
+    './usr/share/doc/sdkwork/chat/INSTALL.md',
+    './usr/share/sdkwork/chat/install-manifest.json',
+    './usr/lib/systemd/system/sdkwork-chat.service',
+    './usr/lib/sdkwork/chat/sdkwork.app.config.json',
+    './usr/lib/sdkwork/chat/database/database.manifest.json',
+  ];
+  for (const requiredPath of requiredPaths) {
+    if (!dataEntries.has(requiredPath)) {
+      issues.push(`${packageItem.id} .deb missing ${requiredPath}`);
+    }
+  }
+  if (![...dataEntries.keys()].some((name) => name.startsWith('./etc/sdkwork/chat/') && name.endsWith('.example'))) {
+    issues.push(`${packageItem.id} .deb must install config templates under ./etc/sdkwork/chat/`);
+  }
+  if (![...dataEntries.keys()].some((name) => name.startsWith('./usr/share/sdkwork/chat/web/sdkwork-im-pc/dist/'))) {
+    issues.push(`${packageItem.id} .deb must install PC web assets under ./usr/share/sdkwork/chat/web/`);
+  }
+  if (![...dataEntries.keys()].some((name) => name.startsWith('./var/lib/sdkwork/chat/modules/sdkwork-iam/database/'))) {
+    issues.push(`${packageItem.id} .deb must install embedded modules under ./var/lib/sdkwork/chat/modules/`);
+  }
+  const binaryEntry = dataEntries.get(`./usr/lib/sdkwork/chat/bin/${packageItem.binaryName}`);
+  if (binaryEntry && binaryEntry.mode !== 0o755) {
+    issues.push(`${packageItem.id} .deb gateway binary must be 0755`);
+  }
+  const manifestEntry = dataEntries.get('./usr/share/sdkwork/chat/install-manifest.json');
+  if (manifestEntry) {
+    try {
+      const installedManifest = JSON.parse(manifestEntry.data.toString('utf8'));
+      if (installedManifest.nativeInstall?.schemaVersion !== '2026-08-08.sdkwork-im.native-install-layout.v1') {
+        issues.push(`${packageItem.id} .deb install-manifest.json must embed nativeInstall layout`);
+      }
+    } catch {
+      issues.push(`${packageItem.id} .deb install-manifest.json must be valid JSON`);
+    }
+  }
+  return issues;
+}
+
+// .msi: OLE2 compound-file signature + non-empty payload; full MSI table
+// verification happens on the WiX build host. Desktop .msi comes from Tauri.
+function validateMsiArtifact(packageItem, artifactBytes) {
+  const issues = [];
+  if (artifactBytes.length < 8 || !isOle2Signature(artifactBytes)) {
+    issues.push(`${packageItem.id} .msi must start with the OLE2 compound-file signature`);
+  }
+  return issues;
+}
+
+// .pkg: xar container signature.
+function validatePkgArtifact(packageItem, artifactBytes) {
+  const issues = [];
+  if (artifactBytes.length < 4 || artifactBytes.subarray(0, 4).toString('ascii') !== 'xar!') {
+    issues.push(`${packageItem.id} .pkg must start with the xar container signature`);
+  }
+  return issues;
+}
+
+// Tauri-produced desktop installers: format signature + non-empty payload.
+function validateNativeDesktopArtifact(packageItem, artifactBytes, extension) {
+  const issues = [];
+  if (extension === 'deb') {
+    issues.push(...validateDebArtifact(packageItem, artifactBytes));
+  } else if (extension === 'msi') {
+    issues.push(...validateMsiArtifact(packageItem, artifactBytes));
+  } else if (extension === 'appimage' && artifactBytes.length < 4) {
+    issues.push(`${packageItem.id} .AppImage is empty`);
+  } else if (extension === 'dmg' && artifactBytes.length < 512) {
+    issues.push(`${packageItem.id} .dmg is too small`);
+  } else if (extension === 'exe' && artifactBytes.length < 512) {
+    issues.push(`${packageItem.id} .exe is too small`);
+  }
+  return issues;
+}
+
+function readArArchive(buffer) {
+  const members = new Map();
+  if (buffer.subarray(0, 8).toString('ascii') !== '!<arch>\n') {
+    return members;
+  }
+  let offset = 8;
+  while (offset + 60 <= buffer.length) {
+    const name = buffer.subarray(offset, offset + 16).toString('ascii').replace(/\s+$/u, '').replace(/\/$/u, '');
+    const sizeText = buffer.subarray(offset + 48, offset + 58).toString('ascii').trim();
+    const size = Number.parseInt(sizeText, 10);
+    if (!name || !Number.isFinite(size) || size < 0) {
+      break;
+    }
+    const dataOffset = offset + 60;
+    members.set(name, {
+      data: buffer.subarray(dataOffset, dataOffset + size),
+      size,
+    });
+    offset = dataOffset + size + (size % 2);
+  }
+  return members;
+}
+
+function isOle2Signature(buffer) {
+  const signature = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+  return signature.every((byte, index) => buffer[index] === byte);
 }
 
 function artifactExtension(fileName) {
@@ -354,8 +601,12 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replaceAll('\\',
 export {
   main,
   parseValidateArgs,
+  readArArchive,
   readTarEntries,
   readZipEntries,
+  validateDebArtifact,
+  validateMsiArtifact,
+  validateNativePlanArtifact,
   validateSdkworkImInstallArtifact,
   validateTarGzArtifact,
   validateZipArtifact,

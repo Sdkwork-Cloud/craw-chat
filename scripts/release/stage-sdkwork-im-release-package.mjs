@@ -14,6 +14,7 @@ import {
   serverRuntimePathsFor,
   validateSdkworkImInstallPackagePlan,
 } from './plan-sdkwork-im-install-packages.mjs';
+import { createSdkworkImNativeInstallPackagePlan } from './plan-sdkwork-im-native-install-packages.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), '..', '..');
@@ -122,20 +123,38 @@ function createSdkworkImReleaseStagingPlan({
   if (planIssues.length > 0) {
     throw new Error(`release package plan is invalid: ${planIssues.join('; ')}`);
   }
-  const packageItem = installPlan.packages.find((item) => item.id === packageId);
+  // Native server package ids (linux-ubuntu-*-standalone-server-deb etc.)
+  // stage the same archive package inputs the native installer consumes;
+  // the staged manifest is re-stamped with the native identity at build time.
+  const stagingPackageId = resolveStagingPackageId(packageId, { version });
+  const packageItem = installPlan.packages.find((item) => item.id === stagingPackageId);
   if (!packageItem) {
     throw new Error(`Unknown release package id: ${packageId}`);
   }
-  const absoluteStagingRoot = path.resolve(root, stagingRoot ?? path.join('dist', 'release-staging', packageId));
+  const absoluteStagingRoot = path.resolve(root, stagingRoot ?? path.join('dist', 'release-staging', stagingPackageId));
   const actions = createStagingActions({ packageItem, root, stagingRoot: absoluteStagingRoot });
 
   return {
     schemaVersion: STAGING_SCHEMA_VERSION,
     package: packageItem,
+    requestedPackageId: packageId === stagingPackageId ? null : packageId,
     root,
     stagingRoot: absoluteStagingRoot,
     actions,
   };
+}
+
+function resolveStagingPackageId(packageId, { version = DEFAULT_RELEASE_VERSION } = {}) {
+  const archivePlan = createSdkworkImInstallPackagePlan({ version });
+  if (archivePlan.packages.some((item) => item.id === packageId)) {
+    return packageId;
+  }
+  const nativeItem = createSdkworkImNativeInstallPackagePlan({ version }).packages
+    .find((item) => item.id === packageId && item.profile === 'server');
+  if (nativeItem?.stagingPackageId) {
+    return nativeItem.stagingPackageId;
+  }
+  return packageId;
 }
 
 function createStagingActions({ packageItem, root, stagingRoot }) {
@@ -765,6 +784,7 @@ export {
   currentHostServerPackageId,
   main,
   parseStagingArgs,
+  resolveStagingPackageId,
   stageSdkworkImReleasePackage,
   validateSdkworkImReleaseStagingPlan,
 };

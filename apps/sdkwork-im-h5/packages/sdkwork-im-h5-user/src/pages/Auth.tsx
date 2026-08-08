@@ -50,7 +50,19 @@ export const AuthPage = () => {
   const getRedirectPath = () => {
     const searchParams = new URLSearchParams(location.search);
     const redirectParam = searchParams.get("redirect");
-    return redirectParam ? decodeURIComponent(redirectParam) : "/";
+    if (!redirectParam) return "/";
+    let decoded = redirectParam;
+    try {
+      decoded = decodeURIComponent(redirectParam);
+    } catch {
+      return "/";
+    }
+    if (!decoded.startsWith("/") || decoded.startsWith("//")) return "/";
+    const target = new URL(decoded, "http://sdkwork-im.local");
+    // A redirect back into the auth surface (possibly nested/encoded) must be
+    // rejected so the login page does not bounce through itself.
+    if (target.pathname === "/auth" || target.pathname.startsWith("/auth/")) return "/";
+    return `${target.pathname}${target.search}${target.hash}`;
   };
 
   const handleSubmit = async () => {

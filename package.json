@@ -225,7 +225,15 @@
     "_sdkwork:deploy:rollback:standalone": "pnpm exec sdkwork-app deploy:rollback --profile standalone.production",
     "_sdkwork:deploy:rollback:cloud": "pnpm exec sdkwork-app deploy:rollback --profile cloud.production",
     "_sdkwork:deploy:validate:standalone": "pnpm exec sdkwork-app deploy:validate --profile standalone.production",
-    "_sdkwork:deploy:validate:cloud": "pnpm exec sdkwork-app deploy:validate --profile cloud.production"
+    "_sdkwork:deploy:validate:cloud": "pnpm exec sdkwork-app deploy:validate --profile cloud.production",
+    "build:container": "node scripts/build-im-standalone-container.mjs",
+    "build:container:check": "node scripts/build-im-standalone-container.mjs --check --dry-run",
+    "install:native:plan": "node scripts/release/plan-sdkwork-im-native-install-packages.mjs",
+    "install:native:plan:check": "node scripts/release/plan-sdkwork-im-native-install-packages.mjs --check",
+    "install:native:build": "node scripts/release/build-sdkwork-im-native-installer.mjs",
+    "install:native:check": "node scripts/release/build-sdkwork-im-native-installer.mjs --check --dry-run",
+    "release:native:package": "node scripts/release/build-sdkwork-im-native-installer.mjs --all",
+    "release:native:package:check": "node scripts/release/build-sdkwork-im-native-installer.mjs --check --dry-run --all"
   },
   "dependencies": {
     "@sdkwork/drive-app-sdk": "workspace:*",

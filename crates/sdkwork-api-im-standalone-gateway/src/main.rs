@@ -86,10 +86,7 @@ async fn async_main(
     // plus the explicitly configured browser origins.
     let security_policy = sdkwork_web_bootstrap::security_policy_for_environment(
         &sdkwork_web_bootstrap::web_environment_from_env(&["SDKWORK_IM_ENVIRONMENT"]),
-        sdkwork_web_bootstrap::cors_allowed_origins_from_env(&[
-            "SDKWORK_CORS_ALLOWED_ORIGINS",
-            "SDKWORK_IM_BROWSER_ORIGINS",
-        ]),
+        sdkwork_web_bootstrap::cors_allowed_origins_from_env(&["SDKWORK_CORS_ALLOWED_ORIGINS"]),
     );
     let hosted = composed.into_hosted(
         WebFrameworkBuilder::new(iam_resolver)
@@ -150,7 +147,7 @@ fn build_cors_layer(environment: &str) -> CanonicalCorsLayer {
             "https://tauri.localhost".to_owned(),
         ]);
     }
-    if let Ok(origins) = std::env::var("SDKWORK_IM_BROWSER_ORIGINS") {
+    if let Ok(origins) = std::env::var("SDKWORK_CORS_ALLOWED_ORIGINS") {
         for origin in origins
             .split(',')
             .map(str::trim)
