@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 import { createDevBootstrapAccessTokenJwt } from '../../../sdkwork-iam/scripts/dev/create-dev-bootstrap-access-token-env.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_BASE_URL = 'http://127.0.0.1:18079';
+const DEFAULT_BASE_URL = 'http://127.0.0.1:18089';
 
 const DEMO_PASSWORD = {
   owner: 'Owner#2026',

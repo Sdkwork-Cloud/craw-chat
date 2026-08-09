@@ -1,5 +1,4 @@
 import React from "react";
-import { FileStack } from "lucide-react";
 
 import { NotaryDraftLifecycle } from "@sdkwork/im-h5-notary";
 
@@ -56,12 +55,8 @@ function nestedRoute(
 export const notaryModule: ImH5CapabilityModule = {
   id: "notary",
   lifecycle: NotaryDraftLifecycle,
-  navigation: [
-    { id: "workspace", moduleId: "notary", path: "/workspace", labelKey: "common.tabs.workspace", icon: FileStack },
-  ],
   routes: [
     { ...IM_H5_ROUTE_DEFINITIONS.notaryWorkspace, render: () => <WorkspaceNotary /> },
-    { ...IM_H5_ROUTE_DEFINITIONS.notaryWorkspaceDetail, render: () => <WorkspaceNotary /> },
     {
       ...IM_H5_ROUTE_DEFINITIONS.notaryRecords,
       render: () => <NotaryLayout />,

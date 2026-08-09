@@ -1,7 +1,7 @@
 
 const http = require('node:http');
 const probe = () => new Promise((resolve) => {
-  const req = http.get({ host: '127.0.0.1', port: 18079, path: '/healthz', timeout: 3000 }, (r) => { r.resume(); resolve(r.statusCode); });
+  const req = http.get({ host: '127.0.0.1', port: 18089, path: '/healthz', timeout: 3000 }, (r) => { r.resume(); resolve(r.statusCode); });
   req.on('error', () => resolve(0));
   req.on('timeout', () => { req.destroy(); resolve(0); });
 });

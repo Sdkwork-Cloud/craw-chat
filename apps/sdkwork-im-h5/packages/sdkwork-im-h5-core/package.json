@@ -41,6 +41,7 @@
     "@sdkwork/order-app-sdk": "workspace:*",
     "@sdkwork/sdk-common": "catalog:",
     "@sdkwork/utils": "workspace:*",
-    "zustand": "catalog:"
+    "zustand": "catalog:",
+    "@sdkwork/account-app-sdk": "workspace:*"
   }
 }

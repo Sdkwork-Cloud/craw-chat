@@ -157,8 +157,17 @@ const navigate = useNavigate();
 
       {/* Main Content Area */}
       <div
-        className="flex-1 overflow-y-auto no-scrollbar relative"
+        className="flex-1 overflow-y-auto no-scrollbar relative pb-[84px]"
         ref={scrollRef}
+        onScroll={(event) => {
+          if (loadingMore || !hasMore || !nextCursor) {
+            return;
+          }
+          const element = event.currentTarget;
+          if (element.scrollTop + element.clientHeight >= element.scrollHeight - 120) {
+            void loadMore();
+          }
+        }}
       >
         {/* Search Bar Placeholder */}
         <div className="px-3 py-2 bg-bg-color">
@@ -230,18 +239,7 @@ const navigate = useNavigate();
             </div>
           ))}
 
-        {hasMore && nextCursor && (
-          <button
-            type="button"
-            disabled={loadingMore}
-            onClick={loadMore}
-            className="mx-auto my-3 block min-h-10 px-4 text-[14px] font-medium text-primary-blue disabled:text-text-sub"
-          >
-            {loadingMore
-              ? t('common.loading', 'Loading...')
-              : t('common.load_more', 'Load more')}
-          </button>
-        )}
+
 
         {/* Footer padding */}
         <div className="h-[40px] flex items-center justify-center pb-safe mb-4">

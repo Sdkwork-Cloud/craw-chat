@@ -57,6 +57,7 @@ const H5_DIST = path.join('apps', 'sdkwork-im-h5', 'dist');
 // Embedded dependency workspaces whose packaged database modules must exist
 // inside the image (the standalone gateway boots each module's lifecycle).
 const EMBEDDED_MODULE_WORKSPACES = [
+  'sdkwork-account',
   'sdkwork-drive',
   'sdkwork-knowledgebase',
   'sdkwork-inventory',

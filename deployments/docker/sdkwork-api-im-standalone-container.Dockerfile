@@ -50,6 +50,7 @@ ENV SDKWORK_IM_RUNTIME_TARGET=container
 # embedded dependency database modules all resolve from the install root.
 ENV SDKWORK_APP_ROOT=${INSTALL_ROOT} \
     SDKWORK_IM_APP_ROOT=${INSTALL_ROOT} \
+    SDKWORK_ACCOUNT_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-account \
     SDKWORK_DRIVE_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-drive \
     SDKWORK_KNOWLEDGEBASE_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-knowledgebase \
     SDKWORK_INVENTORY_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-inventory \

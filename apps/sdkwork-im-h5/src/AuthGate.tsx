@@ -16,7 +16,8 @@ import {
   restoreAndValidateImH5Session,
   type ImH5PersistedSession,
 } from './bootstrap/session';
-import { useAppStore } from '@sdkwork/im-h5-core';
+import { useAppStore, type ImH5SessionUser } from '@sdkwork/im-h5-core';
+import { getSdkClients } from './bootstrap/sdkClients';
 
 const AUTH_BASE_PATH = '/auth';
 const AUTH_LOGIN_PATH = '/auth/login';
@@ -80,8 +81,30 @@ export function AuthGate({ children }: AuthGateProps) {
   const isAuthPath = isAuthRoute(location.pathname);
 
   useEffect(() => {
-    setCurrentUser(resolveSessionUser(session?.user));
-  }, [session, setCurrentUser]);
+    if (!authenticated) {
+      setCurrentUser(null);
+      return;
+    }
+    let disposed = false;
+    const loadCurrentUser = async () => {
+      try {
+        const profile = await getSdkClients().iamAppSdkClient.iam.users.current.retrieve();
+        if (disposed) {
+          return;
+        }
+        const user = resolveIamProfileUser(profile);
+        setCurrentUser(user ?? resolveSessionUser(session?.user));
+      } catch {
+        if (!disposed) {
+          setCurrentUser(resolveSessionUser(session?.user));
+        }
+      }
+    };
+    void loadCurrentUser();
+    return () => {
+      disposed = true;
+    };
+  }, [authenticated, session, setCurrentUser]);
 
   const authAppearance = useMemo(() => resolveAuthAppearance(), []);
   const authRuntimeConfig = useMemo(() => resolveImAuthRuntimeConfig() as SdkworkAuthRuntimeConfig, []);
@@ -163,6 +186,22 @@ export function AuthGate({ children }: AuthGateProps) {
 }
 
 export default AuthGate;
+
+function resolveIamProfileUser(value: unknown): ImH5SessionUser | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const id = readString(record.id) ?? readString(record.userId);
+  if (!id) return null;
+  return {
+    id,
+    name: readString(record.displayName)
+      ?? readString(record.nickname)
+      ?? readString(record.name)
+      ?? readString(record.username)
+      ?? id,
+    ...(readString(record.avatarUrl) ? { avatar: readString(record.avatarUrl) } : {}),
+  };
+}
 
 function resolveSessionUser(value: unknown) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;

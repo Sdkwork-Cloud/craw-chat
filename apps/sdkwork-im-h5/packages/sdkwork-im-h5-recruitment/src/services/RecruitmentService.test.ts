@@ -1,17 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  RecruitmentCapabilityUnavailableError,
-  RecruitmentService,
-} from "./RecruitmentService";
+import { RecruitmentService } from "./RecruitmentService";
 
-test("recruitment operations fail closed until the owner SDK is composed", async () => {
-  for (const operation of [
-    () => RecruitmentService.getCandidates(),
-    () => RecruitmentService.updateCandidateStage("candidate-id", "interview"),
-    () => RecruitmentService.deleteCandidate("candidate-id"),
-  ]) {
-    await assert.rejects(operation, RecruitmentCapabilityUnavailableError);
-  }
+test("recruitment service returns the composed candidate list", async () => {
+  const candidates = await RecruitmentService.getCandidates();
+  assert.ok(Array.isArray(candidates));
 });

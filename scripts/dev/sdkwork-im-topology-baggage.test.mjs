@@ -184,7 +184,7 @@ assert.doesNotMatch(
 );
 assert.match(
   rootReadme,
-  /pnpm dev|topology-greenfield\.md|18079/u,
+  /pnpm dev|topology-greenfield\.md|18089/u,
   'README.md must document topology v2 dev entrypoints',
 );
 
@@ -216,7 +216,7 @@ assert.doesNotMatch(
 );
 assert.match(
   pcReadme,
-  /pnpm dev|18079|topology-greenfield/u,
+  /pnpm dev|18089|topology-greenfield/u,
   'apps/sdkwork-im-pc/README.md must document topology v2 dev entrypoints',
 );
 

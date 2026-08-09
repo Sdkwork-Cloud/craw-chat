@@ -482,10 +482,10 @@ const resolvedEnv = iamEnvModule.resolveSdkworkChatIamCommandEnv({
 assert.deepEqual(resolvedEnv.errors, []);
 assert.equal(resolvedEnv.env.SDKWORK_IAM_MODE, 'private');
 assert.equal(resolvedEnv.env.VITE_SDKWORK_DEPLOYMENT_MODE, 'saas');
-assert.equal(resolvedEnv.env.VITE_SDKWORK_IAM_APP_API_BASE_URL, 'http://127.0.0.1:18079');
-assert.equal(resolvedEnv.env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL, 'http://127.0.0.1:18079');
-assert.equal(resolvedEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL, 'http://127.0.0.1:18079');
-assert.equal(resolvedEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL, 'ws://127.0.0.1:18079');
+assert.equal(resolvedEnv.env.VITE_SDKWORK_IAM_APP_API_BASE_URL, 'http://127.0.0.1:18089');
+assert.equal(resolvedEnv.env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL, 'http://127.0.0.1:18089');
+assert.equal(resolvedEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL, 'http://127.0.0.1:18089');
+assert.equal(resolvedEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL, 'ws://127.0.0.1:18089');
 assert.equal(resolvedEnv.env.SDKWORK_IAM_DEV_FIXED_VERIFY_CODE, '123456');
 
 const webBuildSameOriginEnv = iamEnvModule.resolveSdkworkChatIamCommandEnv({

@@ -33,7 +33,7 @@ test('standalone.development resolves the adaptive browser delivery with both re
   assert.equal(delivery.deliveryMode, 'dev-server-proxy');
   assert.equal(delivery.adaptive, true);
   assert.equal(delivery.browserVisibleOrigin, 'http://127.0.0.1:3801');
-  assert.equal(delivery.apiTargetOrigin, 'http://127.0.0.1:18079');
+  assert.equal(delivery.apiTargetOrigin, 'http://127.0.0.1:18089');
   assert.deepEqual(delivery.renderers.map((renderer) => ({
     architecture: renderer.architecture,
     port: renderer.port,

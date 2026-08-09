@@ -676,12 +676,12 @@ assert.deepEqual(browserStandaloneGatewayProcess, {
 });
 assert.equal(
   browserPlan.processes[0].env.SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
-  'http://127.0.0.1:18079',
+  'http://127.0.0.1:18089',
   'standalone single-ingress must collapse platform SDK traffic onto application.public-ingress',
 );
 assert.equal(
   browserPlan.processes[0].env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
-  'http://127.0.0.1:18079',
+  'http://127.0.0.1:18089',
   'standalone single-ingress must keep application HTTP on application.public-ingress',
 );
 assert.equal(
@@ -709,22 +709,22 @@ assert.deepEqual(browserPlan.processes[1], {
 });
 assert.equal(
   browserPlan.processes[1].env.VITE_SDKWORK_IAM_APP_API_BASE_URL,
-  'http://127.0.0.1:18079',
+  'http://127.0.0.1:18089',
   'browser renderer must point IAM traffic at the collapsed standalone gateway root',
 );
 assert.equal(
   browserPlan.processes[1].env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
-  'http://127.0.0.1:18079',
+  'http://127.0.0.1:18089',
   'browser renderer must point platform SDK traffic at the collapsed standalone gateway root',
 );
 assert.equal(
   browserPlan.processes[1].env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
-  'http://127.0.0.1:18079',
+  'http://127.0.0.1:18089',
   'browser renderer must point IM HTTP traffic at application.public-ingress',
 );
 assert.equal(
   browserPlan.processes[1].env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
-  'ws://127.0.0.1:18079',
+  'ws://127.0.0.1:18089',
   'browser renderer must point IM websocket traffic at application.public-ingress',
 );
 
@@ -1036,17 +1036,17 @@ assert.notDeepEqual(
 );
 assert.equal(
   desktopPlan.processes[1].env.VITE_SDKWORK_IAM_APP_API_BASE_URL,
-  'http://127.0.0.1:18079',
+  'http://127.0.0.1:18089',
   'desktop renderer must point IAM traffic at the collapsed standalone gateway root',
 );
 assert.equal(
   desktopPlan.processes[1].env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
-  'http://127.0.0.1:18079',
+  'http://127.0.0.1:18089',
   'desktop renderer must point platform SDK traffic at the collapsed standalone gateway root',
 );
 assert.equal(
   desktopPlan.processes[1].env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
-  'http://127.0.0.1:18079',
+  'http://127.0.0.1:18089',
   'desktop renderer must point IM HTTP traffic at application.public-ingress',
 );
 assert.equal(
@@ -1154,12 +1154,12 @@ assert.equal(
 assert.equal(
   spawned[1].options.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
   'http://127.0.0.1:18081',
-  'dev runner must point IM HTTP traffic at the resolved application ingress when 18079 is unavailable',
+  'dev runner must point IM HTTP traffic at the resolved application ingress when 18089 is unavailable',
 );
 assert.equal(
   spawned[1].options.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
   'ws://127.0.0.1:18081',
-  'dev runner must point IM websocket traffic at the resolved application ingress when 18079 is unavailable',
+  'dev runner must point IM websocket traffic at the resolved application ingress when 18089 is unavailable',
 );
 assert.deepEqual(
   spawned[0].args,

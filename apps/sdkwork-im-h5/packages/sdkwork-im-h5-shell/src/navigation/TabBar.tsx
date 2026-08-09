@@ -8,28 +8,44 @@ export interface TabBarProps {
   items: readonly ImH5NavigationContribution[];
 }
 
+/**
+ * Bottom tab bar restored to the original sdkwork-im-h5 UI: filled icon
+ * variant with scale/opacity animation on the active tab, outline icon at
+ * reduced opacity otherwise, rendered as an absolute glass bar over the
+ * page bottom and hidden outside the main tab paths.
+ */
 export function TabBar({ items }: TabBarProps) {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const tabPaths = items.map((item) => item.path);
+  // Only show the tab bar on main root pages.
+  if (!tabPaths.includes(location.pathname)) return null;
+
   return (
-    <nav className="glass-tab-bar z-40 flex shrink-0 items-start justify-around border-t border-border-color pb-safe pt-2">
+    <nav className="w-full pb-safe pt-2 flex justify-around items-start glass-tab-bar z-40 shrink-0 absolute bottom-0 left-0">
       {items.map((item) => {
         const active = location.pathname === item.path;
-        const Icon = item.icon;
+        const Icon = active && item.activeIcon ? item.activeIcon : item.icon;
         return (
-          <button
+          <div
             key={item.id}
-            type="button"
-            className={cn(
-              "flex min-w-20 flex-col items-center gap-1 text-[10px]",
-              active ? "text-primary-blue" : "text-text-sub",
-            )}
             onClick={() => navigate(item.path)}
+            className={cn(
+              "flex flex-col items-center gap-1 text-[10px] cursor-pointer transition-colors mb-1",
+              active ? "text-primary-blue" : "text-text-sub"
+            )}
           >
-            <Icon className="h-6 w-6" strokeWidth={active ? 2.5 : 1.75} />
+            <Icon
+              className={cn(
+                "w-6 h-6 transition-all",
+                active ? "opacity-100 scale-110" : "opacity-50 scale-100"
+              )}
+              strokeWidth={active ? undefined : 1.5}
+            />
             <span>{t(item.labelKey)}</span>
-          </button>
+          </div>
         );
       })}
     </nav>

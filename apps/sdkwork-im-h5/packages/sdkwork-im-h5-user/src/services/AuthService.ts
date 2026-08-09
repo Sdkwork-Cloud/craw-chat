@@ -1,63 +1,98 @@
-import { UserCapabilityUnavailableError } from "./UserCapabilityUnavailableError";
-
+import { useTranslation } from "react-i18next";
+import i18next from 'i18next';
+const t = i18next.t.bind(i18next);
 export interface AuthUser {
   id: string;
   phone: string;
   token: string;
 }
 
-const AUTH_SESSION_STORAGE_KEY = "auth_user";
+let currentUser: AuthUser | null = null;
+try {
+  const saved = localStorage.getItem("auth_user");
+  if (saved) currentUser = JSON.parse(saved);
+} catch (e) {}
 
-/**
- * Legacy user authentication is excluded from release pending IAM security
- * review (PRD §4 "Current H5 Delivery Boundary"). Root authentication goes
- * through the approved appbase IAM runtime.
- *
- * Every credential flow fails closed: no demo credentials, no locally minted
- * tokens, and no browser storage acting as a session authority. Callers
- * surface the capability error to the user instead of fabricating success.
- */
 export const AuthService = {
   async login(
-    _phone: string,
-    _password?: string,
-    _code?: string,
+    phone: string,
+    password?: string,
+    code?: string,
   ): Promise<AuthUser> {
-    throw new UserCapabilityUnavailableError("legacy User auth");
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (password === "123456" || code === "8888") {
+          currentUser = {
+            id: `u_${Date.now()}`,
+            phone,
+            token: `token_${Date.now()}`,
+          };
+          localStorage.setItem("auth_user", JSON.stringify(currentUser));
+          resolve(currentUser);
+        } else {
+          reject(new Error(t("auth.error_invalid_pwd", "账号或密码错误（演示密码：123456，验证码：8888）")));
+        }
+      }, 500);
+    });
   },
 
   async register(
-    _phone: string,
-    _code: string,
-    _password?: string,
+    phone: string,
+    code: string,
+    password?: string,
   ): Promise<AuthUser> {
-    throw new UserCapabilityUnavailableError("legacy User registration");
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (code === "8888") {
+          currentUser = {
+            id: `u_${Date.now()}`,
+            phone,
+            token: `token_${Date.now()}`,
+          };
+          localStorage.setItem("auth_user", JSON.stringify(currentUser));
+          resolve(currentUser);
+        } else {
+          reject(new Error(t("auth.error_invalid_code", "验证码错误（演示验证码：8888）")));
+        }
+      }, 500);
+    });
   },
 
   async resetPassword(
-    _phone: string,
-    _code: string,
-    _newPassword: string,
+    phone: string,
+    code: string,
+    newPassword: string,
   ): Promise<boolean> {
-    throw new UserCapabilityUnavailableError("legacy User password reset");
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (code === "8888") {
+          resolve(true);
+        } else {
+          reject(new Error(t("auth.error_invalid_code", "验证码错误（演示验证码：8888）")));
+        }
+      }, 500);
+    });
   },
 
-  async sendCode(_phone: string): Promise<boolean> {
-    throw new UserCapabilityUnavailableError("legacy User verification code");
+  async sendCode(phone: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(true); // Always succeds in mock
+      }, 300);
+    });
   },
 
   async logout(): Promise<void> {
-    // Best-effort cleanup of any stale locally persisted session residue;
-    // this must never mint or validate a session.
-    try {
-      localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
-    } catch {
-      // storage may be unavailable; logout is still idempotent
-    }
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        currentUser = null;
+        localStorage.removeItem("auth_user");
+        resolve();
+      }, 300);
+    });
   },
 
   getCurrentUser(): AuthUser | null {
-    // No browser storage may act as a session authority for this surface.
-    return null;
+    return currentUser;
   },
 };

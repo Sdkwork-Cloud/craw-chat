@@ -13,30 +13,48 @@ import {
 } from "./moduleValidation";
 import { resolveImH5ShellHomePath } from "./moduleNavigation";
 
-test("keeps the default H5 product composition unchanged", () => {
-  assert.deepEqual(DEFAULT_IM_H5_MODULES, ["chat", "notary", "orders"]);
+test("keeps the full H5 product composition (original UI tabs)", () => {
+  assert.deepEqual(DEFAULT_IM_H5_MODULES, [
+    "chat",
+    "contacts",
+    "user",
+    "notary",
+    "orders",
+    "approval",
+    "attendance",
+    "calendar",
+    "report",
+    "recruitment",
+    "enterprise",
+    "meeting",
+    "music",
+    "knowledge",
+    "drive",
+    "voice",
+    "videogen",
+    "imagegen",
+    "musicgen",
+    "writing",
+    "devices",
+    "membership",
+    "course",
+    "community",
+    "shop",
+  ]);
 });
 
-test("classifies the SDK-backed contacts module as optional and composable", () => {
-  assert.equal(COMPOSABLE_IM_H5_MODULES.has("contacts"), true);
-  assert.equal(CONTRACT_PENDING_IM_H5_MODULES.has("contacts"), false);
+test("classifies every composed module as composable", () => {
+  for (const moduleId of DEFAULT_IM_H5_MODULES) {
+    assert.equal(COMPOSABLE_IM_H5_MODULES.has(moduleId), true);
+    assert.equal(CONTRACT_PENDING_IM_H5_MODULES.has(moduleId), false);
+  }
 });
 
-test("classifies the SDK-backed Drive module as optional and composable", () => {
-  assert.equal(COMPOSABLE_IM_H5_MODULES.has("drive"), true);
-  assert.equal(CONTRACT_PENDING_IM_H5_MODULES.has("drive"), false);
-});
-
-test("classifies the SDK-backed Order module as composable", () => {
-  assert.equal(COMPOSABLE_IM_H5_MODULES.has("orders"), true);
-  assert.equal(CONTRACT_PENDING_IM_H5_MODULES.has("orders"), false);
-});
-
-test("keeps modules without an owner runtime contract pending", () => {
-  assert.equal(CONTRACT_PENDING_IM_H5_MODULES.has("shop"), true);
+test("keeps the channels module pending until its surface is composed", () => {
+  assert.equal(CONTRACT_PENDING_IM_H5_MODULES.has("channels"), true);
   assert.throws(
-    () => requireImH5ShellModule("shop", {}),
-    /H5 module shop is not composed/u,
+    () => requireImH5ShellModule("channels", {}),
+    /H5 module channels is not composed/u,
   );
 });
 
@@ -112,7 +130,7 @@ test("rejects an empty composition and derives a home path from selected modules
       id: "contacts",
       moduleId: "contacts",
       path: "/workspace/contacts",
-      labelKey: "common.tabs.contacts",
+      labelKey: "contacts.title",
       icon: () => null,
     }],
     routes: [],
@@ -123,7 +141,7 @@ test("rejects an empty composition and derives a home path from selected modules
       id: "drive",
       moduleId: "drive",
       path: "/workspace/drive",
-      labelKey: "common.tabs.drive",
+      labelKey: "drive.title",
       icon: () => null,
     }],
     routes: [],

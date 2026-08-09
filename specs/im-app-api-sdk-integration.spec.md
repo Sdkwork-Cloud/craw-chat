@@ -92,7 +92,7 @@ Rules:
 - Local `apps/sdkwork-im-pc/package.json` dependencies for SDKWork packages use relative `link:` specifiers.
 - Vite and TypeScript aliases resolve generated IM app/backend SDKs, `@sdkwork/im-sdk`, `@sdkwork/drive-app-sdk`, appbase IAM packages, core PC React, and UI PC React to source entries, not prebuilt `dist`.
 - Vite `optimizeDeps.exclude` must include linked SDKWork source packages so live source edits are not hidden by dependency pre-bundling.
-- Local PC development exposes the IM application plane on `http://127.0.0.1:18079`. Foundation APIs use the single platform gateway root and are mounted there through selected Cargo assembly features; no per-module foundation upstream override is supported.
+- Local PC development exposes the IM application plane on `http://127.0.0.1:18089`. Foundation APIs use the single platform gateway root and are mounted there through selected Cargo assembly features; no per-module foundation upstream override is supported.
 - The chat-pc `pnpm-workspace.yaml` must not register sibling `sdkwork-appbase`, `sdkwork-core`, or `sdkwork-ui` packages as workspace importers. They remain source-linked dependencies; otherwise pnpm install rewrites sibling `node_modules` and breaks isolated local builds.
 - Release builds set `SDKWORK_SHARED_SDK_MODE=git`, run `sdk:shared:prepare`, materialize `sdkwork-im-app-sdk`, `sdkwork-im-backend-sdk`, `sdkwork-im-sdk`, `sdkwork-drive-app-sdk`, `sdkwork-appbase`, `sdkwork-core`, `sdkwork-ui`, and `sdkwork-cloudrouter` from git-backed source checkouts, then build Sdkwork IM PC from those source links. Independent applications remain outside IM source preparation, dependency installation, runtime, and release boundaries.
 

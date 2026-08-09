@@ -139,7 +139,7 @@ export function resolveApplicationPublicHttpUrl(env = process.env) {
   if (bind) {
     return `http://${bind}`;
   }
-  return 'http://127.0.0.1:18079';
+  return 'http://127.0.0.1:18089';
 }
 
 export function resolvePlatformApiGatewayBaseUrl(env = process.env) {
@@ -705,7 +705,7 @@ export async function runSdkworkChatPcDev({
     : { env: {} };
   if (resolvedServerBind.portChanged) {
     stdout.write(
-      `[sdkwork-im-pc-dev] 127.0.0.1:18079 is busy; using http://${resolvedServerBind.bindAddr}\n`,
+      `[sdkwork-im-pc-dev] configured gateway port is busy; using http://${resolvedServerBind.bindAddr}\n`,
     );
   }
   const interfaces = resolveNetworkInterfaceSnapshot(networkInterfaces);

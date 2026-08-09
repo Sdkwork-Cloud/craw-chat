@@ -72,7 +72,7 @@ export const AuthManagement: React.FC = () => {
           )}
         </div>
         <p className="text-[13px] text-text-sub text-center mt-6">
-          {t('user.auto_60aa553e', `以上应用可通过 Sdkwork IM H5 快速登录并获取相关信息。`)}
+          {t('user.auto_60aa553e', `以上应用可通过 ClawChat 快速登录并获取相关信息。`)}
         </p>
       </div>
     </PageLayout>

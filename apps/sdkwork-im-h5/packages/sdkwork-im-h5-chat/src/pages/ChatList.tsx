@@ -155,7 +155,18 @@ export const ChatList: React.FC = () => {
       />
 
       {/* Chat List */}
-      <div className="flex-1 overflow-y-auto pt-1 pb-[84px]">
+      <div
+          className="flex-1 overflow-y-auto pt-1 pb-[84px]"
+          onScroll={(event) => {
+            if (isLoadingMore || !nextCursor) {
+              return;
+            }
+            const element = event.currentTarget;
+            if (element.scrollTop + element.clientHeight >= element.scrollHeight - 120) {
+              void loadChats(nextCursor);
+            }
+          }}
+        >
         {isLoading && chats.length === 0 && (
           <div className="flex h-24 items-center justify-center text-[14px] text-text-sub">
             {t("common.loading", "Loading...")}
@@ -183,16 +194,7 @@ export const ChatList: React.FC = () => {
             handleTouchMove={handleTouchMove}
           />
         ))}
-        {nextCursor && (
-          <button
-            type="button"
-            disabled={isLoadingMore}
-            className="h-12 w-full text-[14px] font-medium text-primary-blue disabled:opacity-50"
-            onClick={() => loadChats(nextCursor)}
-          >
-            {isLoadingMore ? t("common.loading", "Loading...") : t("common.load_more", "Load more")}
-          </button>
-        )}
+
       </div>
 
       <ChatListContextMenu

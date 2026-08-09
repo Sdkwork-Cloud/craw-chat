@@ -37,6 +37,27 @@
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-i18next": "catalog:",
-    "react-router": "catalog:"
+    "react-router": "catalog:",
+    "@sdkwork/music-mobile-react-playback": "workspace:*",
+    "@sdkwork/aiot-mobile-react-hardware": "workspace:*",
+    "@sdkwork/community-mobile-react-community": "workspace:*",
+    "@sdkwork/course-mobile-react-courses": "workspace:*",
+    "@sdkwork/im-h5-ai-image": "workspace:*",
+    "@sdkwork/im-h5-ai-music": "workspace:*",
+    "@sdkwork/im-h5-ai-video": "workspace:*",
+    "@sdkwork/im-h5-ai-voice": "workspace:*",
+    "@sdkwork/im-h5-ai-writing": "workspace:*",
+    "@sdkwork/im-h5-approval": "workspace:*",
+    "@sdkwork/im-h5-attendance": "workspace:*",
+    "@sdkwork/im-h5-calendar": "workspace:*",
+    "@sdkwork/im-h5-enterprise": "workspace:*",
+    "@sdkwork/im-h5-orders": "workspace:*",
+    "@sdkwork/im-h5-recruitment": "workspace:*",
+    "@sdkwork/im-h5-report": "workspace:*",
+    "@sdkwork/im-h5-user": "workspace:*",
+    "@sdkwork/knowledgebase-mobile-react-knowledge": "workspace:*",
+    "@sdkwork/membership-mobile-react-subscription": "workspace:*",
+    "@sdkwork/rtc-mobile-react-meeting": "workspace:*",
+    "@sdkwork/shop-mobile-react-shopping": "workspace:*"
   }
 }

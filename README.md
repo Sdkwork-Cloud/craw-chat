@@ -225,20 +225,20 @@ pnpm sdk:ensure:im-generated-transport  # builds @sdkwork/im-sdk-generated when 
 pnpm dev
 ```
 
-The standalone gateway prints `Listening on http://127.0.0.1:18079` when ready. The preceding
+The standalone gateway prints `Listening on http://127.0.0.1:18089` when ready. The preceding
 `Gateway Surface Groups` block is the startup summary, not a hang.
 
 Default development surfaces (standalone unified topology — platform IAM collapses onto application ingress):
 
 | Surface | URL |
 | --- | --- |
-| Application ingress (IM + embedded IAM) | `http://127.0.0.1:18079` |
-| Platform API gateway (collapsed) | `http://127.0.0.1:18079` |
+| Application ingress (IM + embedded IAM) | `http://127.0.0.1:18089` |
+| Platform API gateway (collapsed) | `http://127.0.0.1:18089` |
 | PC renderer | `http://127.0.0.1:4176` |
 | IM H5 | `http://127.0.0.1:3010` (`pnpm --dir apps/sdkwork-im-h5 dev` / `pnpm --dir apps/sdkwork-im-h5 dev:cloud`) |
 | IM Flutter mobile | `pnpm --dir apps/sdkwork-im-flutter-mobile dev` / `pnpm --dir apps/sdkwork-im-flutter-mobile dev:cloud` |
 
-Health check: `curl http://127.0.0.1:18079/healthz`
+Health check: `curl http://127.0.0.1:18089/healthz`
 
 Other dev commands:
 

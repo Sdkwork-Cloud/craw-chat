@@ -23,7 +23,7 @@ import { createDevBootstrapAccessTokenJwt } from '../../../sdkwork-iam/scripts/d
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
-const DEFAULT_BASE_URL = 'http://127.0.0.1:18079';
+const DEFAULT_BASE_URL = 'http://127.0.0.1:18089';
 
 const DEMO_USERS = [
   { username: 'owner', password: 'Owner#2026', email: 'owner@sdkwork.local' },

@@ -11,13 +11,14 @@ interface ProfileHeaderCardProps {
 export function ProfileHeaderCard({ currentUser, onClick }: ProfileHeaderCardProps) {
   return (
     <button
-      className="mb-2 flex w-full items-center justify-between border-0 border-b border-border-color bg-chat-other-bg px-4 py-8 text-left transition-colors active:bg-active-bg"
+      className="mb-2 flex w-full cursor-pointer items-center justify-between border-0 border-b border-border-color bg-chat-other-bg px-4 py-8 text-left transition-colors active:bg-active-bg"
       onClick={onClick}
       type="button"
     >
       <span className="flex min-w-0 flex-1 items-center gap-4">
         <Avatar
           className="h-[68px] w-[68px] shrink-0 rounded-[18px]"
+          fallback={currentUser?.name ?? "?"}
           size="lg"
           src={currentUser?.avatar ?? ""}
         />

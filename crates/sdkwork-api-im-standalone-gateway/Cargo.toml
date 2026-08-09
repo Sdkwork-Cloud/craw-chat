@@ -28,6 +28,7 @@ sdkwork-api-agents-assembly = { workspace = true }
 sdkwork-agents-runtime-facade.workspace = true
 sdkwork-api-inventory-assembly = { workspace = true }
 sdkwork-api-invoice-assembly = { workspace = true }
+sdkwork-api-account-assembly = { workspace = true }
 sdkwork-api-membership-assembly = { workspace = true }
 sdkwork-api-order-assembly = { workspace = true }
 sdkwork-api-payment-assembly = { workspace = true }

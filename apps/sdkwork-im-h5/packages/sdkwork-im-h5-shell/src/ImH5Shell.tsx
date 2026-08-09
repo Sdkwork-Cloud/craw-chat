@@ -1,5 +1,7 @@
-import React, { type ReactElement, type ReactNode } from "react";
+import React, { useEffect, type ReactElement, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router";
+import { GlobalMiniPlayer } from "@sdkwork/music-mobile-react-playback";
+import { SettingsService } from "@sdkwork/im-h5-user";
 
 import type {
   ImH5CapabilityModule,
@@ -29,6 +31,38 @@ function MainShell({ children, modules }: { children: ReactNode; modules: readon
       <TabBar items={navigation} />
     </div>
   );
+}
+
+/**
+ * Applies the persisted dark-mode preference on startup; falls back to the
+ * system color scheme when the user never chose. Keeps the `.dark` class in
+ * sync so both the theme variables and the `dark:` variants switch together.
+ */
+function applyInitialTheme() {
+  const root = document.documentElement;
+  const applyDark = (dark: boolean) => {
+    root.classList.toggle("dark", dark);
+  };
+  try {
+    const stored = window.localStorage.getItem("clawchat_app_settings");
+    if (stored) {
+      const parsed = JSON.parse(stored) as { darkMode?: boolean };
+      if (typeof parsed.darkMode === "boolean") {
+        applyDark(parsed.darkMode);
+        return;
+      }
+    }
+  } catch {
+    // malformed storage: fall through to the system preference
+  }
+  applyDark(window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
+
+function ThemeInitializer() {
+  useEffect(() => {
+    applyInitialTheme();
+  }, []);
+  return null;
 }
 
 function renderRoute(
@@ -64,10 +98,12 @@ export function ImH5Shell({ children, moduleIds = DEFAULT_IM_H5_MODULES, modules
   const homePath = resolveImH5ShellHomePath(resolvedModules, IM_APP_HOME_PATH);
   return (
     <>
+      <ThemeInitializer />
       {resolvedModules.map((module) => {
         const Lifecycle = module.lifecycle;
         return Lifecycle ? <Lifecycle key={module.id} /> : null;
       })}
+      <GlobalMiniPlayer />
       <React.Suspense fallback={null}>
         <Routes>
           {resolvedModules.flatMap((module) =>

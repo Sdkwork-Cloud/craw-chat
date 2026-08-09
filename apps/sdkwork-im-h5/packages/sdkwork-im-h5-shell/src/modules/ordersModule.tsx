@@ -1,5 +1,4 @@
 import React from "react";
-import { ReceiptText } from "lucide-react";
 
 import type { ImH5CapabilityModule } from "../contracts";
 import { IM_H5_ROUTE_DEFINITIONS } from "../routeCatalog";
@@ -20,9 +19,6 @@ const VoucherCodePage = lazyOrderComponent("VoucherCodePage");
 
 export const ordersModule: ImH5CapabilityModule = {
   id: "orders",
-  navigation: [
-    { id: "orders", moduleId: "orders", path: "/orders", labelKey: "orders.title", icon: ReceiptText },
-  ],
   routes: [
     { ...IM_H5_ROUTE_DEFINITIONS.ordersCenter, render: () => <OrderCenter /> },
     { ...IM_H5_ROUTE_DEFINITIONS.ordersDetail, render: () => <OrderDetail /> },

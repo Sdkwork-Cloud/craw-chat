@@ -1,19 +1,56 @@
-import { MapPinOff } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { PageLayout } from "@sdkwork/im-h5-commons";
+import {
+  AttendanceService,
+  AttendanceRecord,
+} from "../services/AttendanceService";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
+import { AttendanceHeader } from "../components/AttendanceHeader";
+import { PunchButton } from "../components/PunchButton";
+import { AttendanceHistory } from "../components/AttendanceHistory";
 
-import { CapabilityUnavailablePage } from "@sdkwork/im-h5-commons";
+export const AttendanceApp = () => {
+  const { t } = useTranslation();
+const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [time, setTime] = useState(new Date());
 
-export function AttendanceApp() {
-  const { t } = useTranslation("attendance");
-  const navigate = useNavigate();
+  useEffect(() => {
+    AttendanceService.getRecords().then(setRecords);
+
+    const timer = setInterval(() => {
+      setTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleClockIn = async () => {
+    await AttendanceService.clockIn();
+    const latest = await AttendanceService.getRecords();
+    setRecords(latest);
+  };
+
+  const todayRecords = records.filter(
+    (r) => r.date === new Date().toISOString().split("T")[0],
+  );
+  const hasPunchedIn = todayRecords.some((r) => r.type === "in");
+  const hasPunchedOut = todayRecords.some((r) => r.type === "out");
+  const isDoneToday = hasPunchedIn && hasPunchedOut;
 
   return (
-    <CapabilityUnavailablePage
-      icon={MapPinOff}
-      message={t("unavailable")}
-      onBack={() => navigate(-1)}
-      title={t("title")}
-    />
+    <PageLayout title={t('attendance.title')}>
+      <div className="flex flex-col h-full bg-bg-color">
+        <AttendanceHeader time={time} />
+
+        <div className="flex-1 flex flex-col items-center pt-12 px-6">
+          <PunchButton
+            handleClockIn={handleClockIn}
+            isDoneToday={isDoneToday}
+            hasPunchedIn={hasPunchedIn}
+          />
+
+          <AttendanceHistory todayRecords={todayRecords} />
+        </div>
+      </div>
+    </PageLayout>
   );
-}
+};

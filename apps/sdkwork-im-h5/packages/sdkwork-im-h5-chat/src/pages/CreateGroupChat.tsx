@@ -228,11 +228,7 @@ const navigate = useNavigate();
                 </div>
               ))
           )}
-          {hasMoreContacts && nextCursor && (
-            <button type="button" onClick={() => void loadMoreContacts()} disabled={loadingMoreContacts} className="mx-auto my-3 min-h-10 px-4 text-[14px] text-primary-blue disabled:text-text-sub">
-              {loadingMoreContacts ? t("common.loading", "Loading...") : t("common.load_more", "Load more")}
-            </button>
-          )}
+
         </div>
       </div>
 

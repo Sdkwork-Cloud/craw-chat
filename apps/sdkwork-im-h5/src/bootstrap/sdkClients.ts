@@ -16,15 +16,20 @@ import {
   initOrderAppSdkClient,
   resetOrderAppSdkClient,
   createOrderAppSdkClientConfig,
+  initAccountAppSdkClient,
+  resetAccountAppSdkClient,
+  createAccountAppSdkClientConfig,
   type ImSdkClient,
   type SdkworkDriveAppClient,
   type SdkworkAppClient as SdkworkOrderAppClient,
+  type SdkworkAccountAppClient,
 } from '@sdkwork/im-h5-core/sdk';
 import {
-  createClient as createIamAppSdkClient,
-  type SdkworkAppClient as SdkworkIamAppClient,
-  type SdkworkAppConfig as SdkworkIamAppConfig,
-} from '@sdkwork/iam-app-sdk';
+  initIamAppSdkClient,
+  resetIamAppSdkClient,
+  createIamAppSdkClientConfig,
+  type SdkworkIamAppClient,
+} from '@sdkwork/im-h5-core/sdk';
 import {
   createNotaryH5ComposedApi,
   initNotaryH5AppSdkClient,
@@ -39,6 +44,7 @@ export interface H5SdkClientComposition {
   readonly driveAppSdkClient: SdkworkDriveAppClient;
   readonly imSdkClient: ImSdkClient;
   readonly orderAppSdkClient: SdkworkOrderAppClient;
+  readonly accountAppSdkClient: SdkworkAccountAppClient;
   readonly iamAppSdkClient: SdkworkIamAppClient;
   readonly notaryAppSdkClient: ReturnType<typeof initNotaryH5AppSdkClient>;
   readonly notaryApi: NotaryH5ComposedApi;
@@ -46,22 +52,7 @@ export interface H5SdkClientComposition {
 
 let sdkClientComposition: H5SdkClientComposition | null = null;
 
-function createIamAppSdkClientConfig(
-  config: Partial<SdkworkIamAppConfig> = {},
-): SdkworkIamAppConfig {
-  const environment = resolveH5RuntimeEnvironment();
-  return {
-    baseUrl: config.baseUrl ?? environment.iamApiBaseUrl,
-    accessToken: config.accessToken,
-    authToken: config.authToken,
-    tenantId: config.tenantId,
-    organizationId: config.organizationId,
-    headers: config.headers,
-    platform: 'h5',
-    authMode: config.authMode ?? 'dual-token',
-    tokenManager: config.tokenManager,
-  };
-}
+
 
 export function initSdkClients(
   tokenManager: AuthTokenManager = getTokenManagerBinding(),
@@ -91,8 +82,16 @@ export function initSdkClients(
     }),
   );
 
-  const iamAppSdkClient = createIamAppSdkClient(
+  const accountAppSdkClient = initAccountAppSdkClient(
+    createAccountAppSdkClientConfig({
+      baseUrl: environment.sdkGatewayApiBaseUrl,
+      tokenManager,
+    }),
+  );
+
+  const iamAppSdkClient = initIamAppSdkClient(
     createIamAppSdkClientConfig({
+      baseUrl: environment.iamApiBaseUrl,
       tokenManager,
     }),
   );
@@ -112,6 +111,7 @@ export function initSdkClients(
     driveAppSdkClient,
     imSdkClient,
     orderAppSdkClient,
+    accountAppSdkClient,
     iamAppSdkClient,
     notaryAppSdkClient,
     notaryApi,

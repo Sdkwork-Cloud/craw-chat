@@ -14,7 +14,7 @@ import {
 import { resolveSdkworkChatIamCommandEnv } from '../../apps/sdkwork-im-pc/scripts/sdkwork-chat-iam-env.mjs';
 
 const DEFAULT_DEV_GATEWAY_HOST = '127.0.0.1';
-const DEFAULT_DEV_GATEWAY_START_PORT = 18079;
+const DEFAULT_DEV_GATEWAY_START_PORT = 18089;
 const DEFAULT_DEV_GATEWAY_PORT_ATTEMPTS = 20;
 const DEV_GATEWAY_PROBE_TIMEOUT_MS = 500;
 

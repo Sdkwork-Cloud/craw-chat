@@ -16,7 +16,7 @@ import {
 import { resolveImProductSiteDirEnv } from './lib/im-product-site-dirs.mjs';
 import { resolveRealtimeClusterDevEnv } from './lib/im-realtime-cluster-dev.mjs';
 import { resolveSdkworkImSharedDatabaseConfig } from './dev/sdkwork-im-shared-database.mjs';
-import { terminateStaleDevGatewayProcesses } from './dev/terminate-stale-dev-gateway-processes.mjs';
+import { terminateStaleDevGatewayProcesses, terminateStaleGatewayPortListeners } from './dev/terminate-stale-dev-gateway-processes.mjs';
 import { resolveStandaloneGatewayBindEnv } from './dev/sdkwork-api-im-standalone-gateway-dev-runtime.mjs';
 
 const repoRoot = REPO_ROOT;
@@ -138,10 +138,27 @@ async function main() {
   };
 
   terminateStaleDevGatewayProcesses({});
+  const configuredBindPort = Number(
+    String(gatewayEnv.SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND ?? '').split(':').at(-1) ?? '',
+  );
+  const requestedPortLabel = Number.isInteger(configuredBindPort) && configuredBindPort > 0
+    ? String(configuredBindPort)
+    : 'default';
+  if (Number.isInteger(configuredBindPort) && configuredBindPort > 0) {
+    await terminateStaleGatewayPortListeners({
+      ports: [configuredBindPort],
+      stdout: process.stdout,
+    });
+  }
   const bindEnv = await resolveStandaloneGatewayBindEnv({
     env: gatewayEnv,
     maxAttempts: 1,
   });
+  if (bindEnv.portChanged) {
+    console.log(
+      `[sdkwork-api-im-standalone-gateway] configured gateway port ${requestedPortLabel} is busy; using ${bindEnv.bindAddr}`,
+    );
+  }
   const gatewayEnvWithBind = bindEnv.env;
 
   const launcherArgs = [path.join(repoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs')];

@@ -188,12 +188,13 @@ export function ChatDetail() {
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-bg-color">
       <ChatHeader chat={chat} id={chatId} />
-      {nextCursor && (
-        <button type="button" disabled={loadingMore} className="h-9 shrink-0 text-[13px] text-primary-blue" onClick={() => void load(nextCursor)}>
-          {loadingMore ? t("common.loading", "Loading...") : t("chat.detail.load_older", "Load older messages")}
-        </button>
-      )}
       <MessageList
+        onScrollToTop={() => {
+          if (loadingMore || !nextCursor) {
+            return;
+          }
+          void load(nextCursor);
+        }}
         messages={messages}
         chat={chat}
         currentUser={sessionUser}

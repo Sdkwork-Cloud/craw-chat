@@ -67,37 +67,37 @@ assert.equal(
 
 const fallbackBindEnv = await resolveStandaloneGatewayBindEnv({
   env: {},
-  isPortAvailable: async (port) => port === 18081,
-  maxAttempts: 3,
+  isPortAvailable: async (port) => port === 18095,
+  maxAttempts: 7,
 });
 assert.equal(
   fallbackBindEnv.bindAddr,
-  '127.0.0.1:18081',
-  'pnpm dev:server must choose the next available local gateway bind when 18079 is already occupied',
+  '127.0.0.1:18095',
+  'pnpm dev:server must choose the next available local gateway bind when 18089 is already occupied',
 );
 assert.equal(
   fallbackBindEnv.env.SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND,
-  '127.0.0.1:18081',
+  '127.0.0.1:18095',
   'pnpm dev:server must pass the selected bind to the Rust gateway',
 );
 assert.equal(
   fallbackBindEnv.env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
-  'http://127.0.0.1:18081',
+  'http://127.0.0.1:18095',
   'pnpm dev:server must expose the selected gateway URL to browser SDK env resolution',
 );
 assert.equal(
   fallbackBindEnv.env.SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
-  'ws://127.0.0.1:18081',
+  'ws://127.0.0.1:18095',
   'pnpm dev:server must expose the selected websocket URL when the default gateway port is busy',
 );
 assert.equal(
   fallbackBindEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
-  'http://127.0.0.1:18081',
+  'http://127.0.0.1:18095',
   'pnpm dev:server must keep Vite HTTP env aligned with the selected gateway bind',
 );
 assert.equal(
   fallbackBindEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
-  'ws://127.0.0.1:18081',
+  'ws://127.0.0.1:18095',
   'pnpm dev:server must keep Vite websocket env aligned with the selected gateway bind',
 );
 assert.equal(

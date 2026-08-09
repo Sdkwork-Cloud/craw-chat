@@ -1,4 +1,5 @@
 import tailwindcss from '@tailwindcss/vite';
+import { createSdkworkCredentialEntryBootstrapVitePlugin } from '@sdkwork/iam-credential-entry/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
@@ -41,15 +42,29 @@ const sdkworkUtilsSourceRoot = path.resolve(
   '../../../sdkwork-utils/packages/sdkwork-utils-typescript/src',
 );
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   cacheDir: path.resolve(__dirname, 'node_modules', '.vite', 'sdkwork-im-h5'),
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    createSdkworkCredentialEntryBootstrapVitePlugin({
+      accessToken: process.env.SDKWORK_ACCESS_TOKEN,
+      environment: mode,
+    }),
+    react(),
+    tailwindcss(),
+  ],
   define: {
     // Replaced define to avoid passing server secrets to client.
   },
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: [
+      {
+        find: '@sdkwork/iam-credential-entry/vite',
+        replacement: path.resolve(
+          __dirname,
+          '../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry/src/vite.ts',
+        ),
+      },
       { find: 'react/jsx-runtime', replacement: appReactJsxRuntimeEntry },
       { find: 'react/jsx-dev-runtime', replacement: appReactJsxDevRuntimeEntry },
       { find: 'react-dom/client', replacement: appReactDomClientEntry },
@@ -314,4 +329,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

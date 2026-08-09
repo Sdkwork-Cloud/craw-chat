@@ -18,7 +18,7 @@ export const ContactRow: React.FC<{
     <button
       type="button"
       disabled={opening}
-      className="flex w-full items-center bg-bg-color pl-4 pr-3 text-left transition-colors active:bg-active-bg disabled:cursor-wait disabled:opacity-70"
+      className="flex w-full cursor-pointer items-center bg-bg-color pl-4 pr-3 text-left transition-colors active:bg-active-bg disabled:cursor-wait disabled:opacity-70"
       onClick={async () => {
         if (opening) {
           return;
@@ -41,6 +41,7 @@ export const ContactRow: React.FC<{
           alt={contact.name}
           fallback={contact.name}
           size="md"
+          className="rounded-md"
         />
       </div>
       <div

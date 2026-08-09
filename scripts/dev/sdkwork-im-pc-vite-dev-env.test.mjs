@@ -9,12 +9,12 @@ import {
 const resolvedEnv = await resolveSdkworkImPcViteDevEnv({});
 assert.equal(
   resolvedEnv.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
-  'http://127.0.0.1:18079',
+  'http://127.0.0.1:18089',
   'vite dev env must default APPLICATION_PUBLIC to the local unified gateway',
 );
 assert.equal(
   resolvedEnv.VITE_SDKWORK_IAM_APP_API_BASE_URL,
-  'http://127.0.0.1:18079',
+  'http://127.0.0.1:18089',
   'vite dev env must align IAM app API base URL with the local unified gateway',
 );
 

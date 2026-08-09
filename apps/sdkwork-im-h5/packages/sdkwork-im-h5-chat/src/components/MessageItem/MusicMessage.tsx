@@ -44,7 +44,7 @@ export const MusicMessage = ({
     <button
       type="button"
       aria-label={msg.metadata?.title || t('chat.date.unknown_song')}
-      className="flex min-w-[200px] items-center gap-3 text-left disabled:cursor-not-allowed disabled:opacity-60"
+      className="flex min-w-[200px] items-center gap-3 text-left cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
       disabled={!audioUrl}
       onClick={handlePlayClick}
     >

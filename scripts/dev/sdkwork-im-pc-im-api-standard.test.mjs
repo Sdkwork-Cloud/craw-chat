@@ -251,7 +251,7 @@ assert.match(
 );
 assert.match(
   localSpec,
-  /Local PC development exposes the IM application plane on `http:\/\/127\.0\.0\.1:18079`[\s\S]*Foundation APIs use the single platform gateway root/u,
+  /Local PC development exposes the IM application plane on `http:\/\/127\.0\.0\.1:18089`[\s\S]*Foundation APIs use the single platform gateway root/u,
   'local standard must separate the IM application plane from the platform assembly gateway.',
 );
 

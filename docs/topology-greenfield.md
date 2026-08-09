@@ -116,7 +116,7 @@ Development binds:
 
 | Surface / upstream | Bind env | Default bind |
 | --- | --- | --- |
-| application.public-ingress | `SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND` | `127.0.0.1:18079` |
+| application.public-ingress | `SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND` | `127.0.0.1:18089` |
 | platform.api-gateway | `SDKWORK_API_CLOUD_GATEWAY_BIND` | `127.0.0.1:3900` |
 | internal session-gateway | `SDKWORK_IM_INTERNAL_SESSION_GATEWAY_BIND` | `127.0.0.1:18080` |
 
@@ -141,4 +141,4 @@ pnpm test:workflow-commercial-gates
 node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root . --spec specs/topology.spec.json
 ```
 
-Contract tests load fixture profile env. Default dev ingress is `http://127.0.0.1:18079` through `etc/topology/standalone.development.env`.
+Contract tests load fixture profile env. Default dev ingress is `http://127.0.0.1:18089` through `etc/topology/standalone.development.env`.

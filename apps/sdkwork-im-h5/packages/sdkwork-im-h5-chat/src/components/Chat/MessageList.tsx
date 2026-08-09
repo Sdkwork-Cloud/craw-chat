@@ -49,6 +49,7 @@ interface MessageListProps {
   highlightedMsgId: string | null;
   setHighlightedMsgId: (id: string | null) => void;
   setActivePanel: (panel: "none" | "emoji" | "action") => void;
+  onScrollToTop?: () => void;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -65,6 +66,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   highlightedMsgId,
   setHighlightedMsgId,
   setActivePanel,
+  onScrollToTop,
 }) => {
   const { t } = useTranslation();
 const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -89,6 +91,11 @@ const messagesEndRef = useRef<HTMLDivElement>(null);
     <div
       className="flex-1 overflow-y-auto p-4 flex flex-col"
       onClick={() => setActivePanel("none")}
+      onScroll={(event) => {
+        if (event.currentTarget.scrollTop <= 40) {
+          onScrollToTop?.();
+        }
+      }}
     >
       {messages.map((msg, index) => {
         const isMe = msg.senderId === currentUser?.id;

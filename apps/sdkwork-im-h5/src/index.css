@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 @source "../../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src";
 @source "../../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src";
 @source "../../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src";
@@ -47,6 +48,7 @@
 }
 
 :root {
+  color-scheme: light;
   /* Light Mode */
   --sdkwork-im-h5-primary-blue: #2B5CE7;
   --sdkwork-im-h5-bg-color: #F4F6F9;
@@ -65,6 +67,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   /* Dark Mode */
   --sdkwork-im-h5-primary-blue: #2B5CE7;
   --sdkwork-im-h5-bg-color: #0A0A0A;

@@ -1,10 +1,11 @@
 import { MessageCircle } from "lucide-react";
 import { Navigate, useParams } from "react-router";
 
-import { ChatDetail, ChatList, ChatLifecycle, ChatProfile, CreateGroupChat, VideoCall, VoiceCall } from "@sdkwork/im-h5-chat";
+import { ChatDetail, ChatList, ChatLifecycle, ChatProfile, CreateGroupChat, GlobalSearch, VideoCall, VoiceCall } from "@sdkwork/im-h5-chat";
 
 import type { ImH5CapabilityModule } from "../contracts";
 import { IM_H5_ROUTE_DEFINITIONS } from "../routeCatalog";
+import { TabSolidMessage } from "../navigation/solidTabIcons";
 
 export interface ParsedConversationRoute {
   conversationId: string;
@@ -36,7 +37,7 @@ export const chatModule: ImH5CapabilityModule = {
   id: "chat",
   lifecycle: ChatLifecycle,
   navigation: [
-    { id: "chat", moduleId: "chat", path: "/", labelKey: "common.tabs.chat", icon: MessageCircle },
+    { id: "chat", moduleId: "chat", path: "/", labelKey: "common.tabs.chat", icon: MessageCircle, activeIcon: TabSolidMessage },
   ],
   routes: [
     { ...IM_H5_ROUTE_DEFINITIONS.chatInbox, render: () => <ChatList /> },
@@ -45,5 +46,6 @@ export const chatModule: ImH5CapabilityModule = {
     { ...IM_H5_ROUTE_DEFINITIONS.chatCreateGroup, render: () => <CreateGroupChat /> },
     { ...IM_H5_ROUTE_DEFINITIONS.chatVoiceCall, render: () => <VoiceCall /> },
     { ...IM_H5_ROUTE_DEFINITIONS.chatVideoCall, render: () => <VideoCall /> },
+    { ...IM_H5_ROUTE_DEFINITIONS.chatGlobalSearch, render: () => <GlobalSearch /> },
   ],
 };

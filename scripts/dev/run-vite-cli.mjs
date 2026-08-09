@@ -10,6 +10,7 @@ import {
   resolveWorkspaceDonorRoots,
 } from './vite-runtime-lib.mjs';
 import { ensureSdkworkUiDist } from './sdkwork-ui-runtime-lib.mjs';
+import { mergeSdkworkImBootstrapAccessTokenEnv } from './sdkwork-im-bootstrap-access-token.mjs';
 
 const REQUIRED_APP_PACKAGES = [
   '@sdkwork/rtc-sdk-provider-volcengine',
@@ -46,6 +47,14 @@ const viteCliPath = resolveReadablePackageEntry({
 });
 
 await applyWindowsVitePreload();
+
+if (!process.argv.slice(2).includes('build')) {
+  // Dev server only: seed the private bootstrap SDKWORK_ACCESS_TOKEN fixture
+  // into the renderer environment. IAM app-api/backend-api requests require an
+  // Access-Token before dispatch; vite.config.ts surfaces it to the browser
+  // through the credential-entry bootstrap plugin. Builds never inject it.
+  Object.assign(process.env, mergeSdkworkImBootstrapAccessTokenEnv(process.env));
+}
 
 process.argv = [
   process.argv[0],

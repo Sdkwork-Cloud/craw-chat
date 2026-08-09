@@ -27,8 +27,8 @@ Default surfaces when using `pnpm dev` (standalone unified topology — IAM and 
 | Surface | URL |
 | --- | --- |
 | PC renderer | `http://127.0.0.1:4176` |
-| Application ingress (IM + embedded IAM) | `http://127.0.0.1:18079` |
-| Platform API gateway (collapsed) | `http://127.0.0.1:18079` |
+| Application ingress (IM + embedded IAM) | `http://127.0.0.1:18089` |
+| Platform API gateway (collapsed) | `http://127.0.0.1:18089` |
 
 Database profiles:
 
@@ -118,7 +118,7 @@ Anonymous login, registration, and QR auth use `@sdkwork/iam-credential-entry` t
 
 Standalone gateway startup provisions tenant application `sdkwork-im-pc` for tenant `100001` before serving credential-entry routes. See `specs/SDKWORK_APPBASE_IAM_INTEGRATION_SPEC.md`.
 
-When debugging QR login in DevTools, filter network requests to **`18079`** (application ingress), not `4176` (Vite renderer).
+When debugging QR login in DevTools, filter network requests to **`18089`** (application ingress), not `4176` (Vite renderer).
 
 ## Verification
 

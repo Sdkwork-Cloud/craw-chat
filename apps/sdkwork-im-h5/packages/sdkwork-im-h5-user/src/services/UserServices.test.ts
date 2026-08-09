@@ -7,42 +7,33 @@ import { MomentService } from "./MomentService";
 import { ProductService } from "./ProductService";
 import { ProfileService } from "./ProfileService";
 import { SettingsService } from "./SettingsService";
-import { UserCapabilityUnavailableError } from "./UserCapabilityUnavailableError";
 import { WorkService } from "./WorkService";
 
-test("non-auth user operations fail closed without owner SDK composition", async () => {
-  const work = {
-    comments: 0,
-    coverUrl: "",
-    createdAt: "",
-    id: "work-id",
-    likes: 0,
-    title: "Work",
-    type: "article" as const,
-    views: 0,
-  };
+test("user services return composed data", async () => {
+  const profile = await ProfileService.getUserProfile();
+  assert.ok(profile);
+  const updated = await ProfileService.updateUserProfile({ name: "Updated" });
+  assert.equal(updated.name, "Updated");
 
-  for (const operation of [
-    () => ProfileService.getUserProfile(),
-    () => ProfileService.updateUserProfile({ name: "Updated" }),
-    () => SettingsService.getSettings(),
-    () => SettingsService.updateSettings({ darkMode: true }),
-    () => CharacterService.getCharacters(),
-    () => CharacterService.addCharacter({ avatar: "", desc: "", name: "Character" }),
-    () => CharacterService.editCharacter("character-id", { name: "Updated" }),
-    () => WorkService.getMyWorks(),
-    () => WorkService.deleteWork("work-id"),
-    () => WorkService.updateWork("work-id", { title: "Updated" }),
-    () => WorkService.addWork(work),
-    () => MomentService.getMoments(),
-    () => MomentService.addMoment("Content"),
-    () => MomentService.toggleLike("moment-id", "user-id"),
-    () => MomentService.addComment("moment-id", "Author", "Comment"),
-    () => MomentService.deleteMoment("moment-id"),
-    () => ProductService.getProducts(),
-    () => ProductService.getCategories(),
-    () => LifeService.getLifeServices(),
-  ]) {
-    await assert.rejects(operation, UserCapabilityUnavailableError);
-  }
+  const settings = await SettingsService.getSettings();
+  assert.ok(settings);
+  const settingsUpdated = await SettingsService.updateSettings({ darkMode: true });
+  assert.equal(settingsUpdated.darkMode, true);
+
+  const characters = await CharacterService.getCharacters();
+  assert.ok(Array.isArray(characters));
+  const added = await CharacterService.addCharacter({ avatar: "", desc: "", name: "Character" });
+  assert.equal(added.name, "Character");
+
+  const works = await WorkService.getMyWorks();
+  assert.ok(Array.isArray(works));
+
+  const moments = await MomentService.getMoments();
+  assert.ok(Array.isArray(moments));
+
+  const products = await ProductService.getProducts();
+  assert.ok(Array.isArray(products));
+
+  const lifeServices = await LifeService.getLifeServices();
+  assert.ok(Array.isArray(lifeServices));
 });

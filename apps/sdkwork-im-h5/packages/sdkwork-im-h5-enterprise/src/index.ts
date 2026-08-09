@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 export * from "./pages/EnterpriseCenter";
 export * from "./pages/EnterpriseYellowPages";
 export * from "./pages/EnterpriseSite";

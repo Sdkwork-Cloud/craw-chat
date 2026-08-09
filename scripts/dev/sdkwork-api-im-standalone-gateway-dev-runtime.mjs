@@ -1,8 +1,9 @@
 import net from 'node:net';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 const DEFAULT_GATEWAY_HOST = '127.0.0.1';
-const DEFAULT_GATEWAY_PORT = 18079;
+const DEFAULT_GATEWAY_PORT = 18089;
 const DEFAULT_MAX_GATEWAY_PORT_ATTEMPTS = 50;
 const DEFAULT_RESERVED_GATEWAY_PORTS = new Set([
   28080, // session-gateway internal runtime when launched independently
@@ -83,6 +84,63 @@ export function isTcpPortAvailable(port, host = DEFAULT_GATEWAY_HOST) {
   });
 }
 
+function probeTcpConnect(host, port, timeoutMs = 400) {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host, port });
+    const finish = (result) => {
+      clearTimeout(timer);
+      socket.destroy();
+      resolve(result);
+    };
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    socket.once('connect', () => finish(true));
+    socket.once('error', () => finish(false));
+  });
+}
+
+export function windowsListeningPidsForPort(port, { run = spawnSync } = {}) {
+  const result = run('netstat.exe', ['-ano', '-p', 'tcp'], {
+    encoding: 'utf8',
+    windowsHide: true,
+  });
+  if (result.error || result.status !== 0) {
+    return new Set();
+  }
+  const pids = new Set();
+  for (const line of String(result.stdout ?? '').split(/\r?\n/u)) {
+    const match = line.match(/^\s*TCP\s+\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)\s*$/u);
+    if (match && Number(match[1]) === port) {
+      pids.add(Number(match[2]));
+    }
+  }
+  return pids;
+}
+
+/**
+ * Explain why the gateway start port cannot be bound, so the "no available
+ * port" failure carries an actionable cause instead of a bare count.
+ * A port that accepts connections but has no Windows listener is mirrored
+ * from WSL2/Docker or another VM (the local dev gateway cannot bind it).
+ */
+export async function diagnoseGatewayPortBlocked({
+  host = DEFAULT_GATEWAY_HOST,
+  port,
+  platform = process.platform,
+  listListeningPids = windowsListeningPidsForPort,
+  probeConnect = probeTcpConnect,
+} = {}) {
+  if (platform === 'win32') {
+    const pids = listListeningPids(port);
+    if (pids.size > 0) {
+      return `${host}:${port} is occupied by PID(s) ${[...pids].sort((left, right) => left - right).join(', ')}; stop the stale process and retry`;
+    }
+    if (await probeConnect(host, port)) {
+      return `${host}:${port} accepts connections but has no Windows listener; the port is likely mirrored from WSL2/Docker or another VM and cannot be bound by the local dev gateway`;
+    }
+  }
+  return `${host}:${port} could not be bound by this process`;
+}
+
 export function createStandaloneGatewayCargoEnv({
   env = process.env,
   platform = process.platform,
@@ -145,6 +203,7 @@ export async function resolveStandaloneGatewayBindEnv({
   isPortAvailable = isTcpPortAvailable,
   maxAttempts = DEFAULT_MAX_GATEWAY_PORT_ATTEMPTS,
   reservedPorts = DEFAULT_RESERVED_GATEWAY_PORTS,
+  diagnose = diagnoseGatewayPortBlocked,
 } = {}) {
   const explicitBind = parseBindAddr(env[APPLICATION_PUBLIC_INGRESS_BIND_ENV]);
   const host = explicitBind?.host ?? DEFAULT_GATEWAY_HOST;
@@ -164,7 +223,10 @@ export async function resolveStandaloneGatewayBindEnv({
     }
   }
 
+  const diagnosis = await diagnose({ host, port: startPort }).catch(
+    () => `${host}:${startPort} could not be bound`,
+  );
   throw new Error(
-    `No available sdkwork-api-im-standalone-gateway port found from ${startPort} after ${maxAttempts} attempts`,
+    `No available sdkwork-api-im-standalone-gateway port found from ${startPort} after ${maxAttempts} attempts; ${diagnosis}`,
   );
 }

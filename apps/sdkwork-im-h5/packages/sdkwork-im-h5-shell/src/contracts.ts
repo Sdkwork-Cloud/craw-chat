@@ -18,6 +18,11 @@ export interface ImH5NavigationContribution {
     className?: string;
     strokeWidth?: number;
   }>;
+  /** Filled variant rendered when the tab is selected (original tab bar UI). */
+  readonly activeIcon?: ComponentType<{
+    className?: string;
+    strokeWidth?: number;
+  }>;
 }
 
 export interface ImH5CapabilityModule {
@@ -30,6 +35,7 @@ export interface ImH5CapabilityModule {
 export type ImH5ModuleId =
   | "chat"
   | "contacts"
+  | "user"
   | "knowledge"
   | "drive"
   | "orders"
@@ -49,6 +55,7 @@ export type ImH5ModuleId =
   | "musicgen"
   | "writing"
   | "meeting"
+  | "music"
   | "channels"
   | "recruitment"
   | "membership";

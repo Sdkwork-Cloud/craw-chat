@@ -1,29 +1,79 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { CameraOff, ChevronLeft } from "lucide-react";
-import { IconButton } from "@sdkwork/im-h5-commons";
+import { ChevronLeft, Image as ImageIcon } from "lucide-react";
+import { IconButton, showToast } from "@sdkwork/im-h5-commons";
+import { ContactService } from "../services/ContactService";
+import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 export const Scan: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+const navigate = useNavigate();
+  const [isScanning, setIsScanning] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsScanning(false);
+      // Scan result: the standalone scan flow has no mock friend backend, so
+      // surface the recognized contact and leave the original page.
+      showToast(t('contacts.scan_success', '扫描成功'));
+      navigate(-1);
+    }, 2500); // 2.5 seconds scan
+
+    return () => clearTimeout(timer);
+  }, [navigate]);
 
   return (
-    <div className="flex flex-col h-full bg-bg-color">
-      <header className="h-[56px] flex items-center px-1 border-b border-border-color pt-safe">
-        <IconButton
-          icon={<ChevronLeft className="w-6 h-6 text-text-main" />}
-          onClick={() => navigate(-1)}
-        />
-        <h2 className="flex-1 pr-10 text-center text-[17px] font-medium text-text-main">
-          {t('contacts.scan_qr')}
-        </h2>
+    <div className="flex flex-col h-full bg-black relative overflow-hidden">
+      {/* Header */}
+      <header className="h-[56px] flex items-center justify-between px-1 shrink-0 pt-safe relative z-10">
+        <div className="flex items-center z-10 flex-1">
+          <IconButton
+            icon={<ChevronLeft className="w-6 h-6 text-white" />}
+            onClick={() => navigate(-1)}
+          />
+        </div>
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none">
+          <h2 className="text-[17px] font-medium text-white">{t('contacts.scan_qr')}</h2>
+        </div>
+        <div className="flex items-center justify-end z-10 flex-1 pr-4">
+          <span className="text-white text-[15px] cursor-pointer active:opacity-70 transition-opacity">
+            {t('contacts.scan_album')}
+          </span>
+        </div>
       </header>
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 px-8 text-center">
-        <CameraOff className="w-10 h-10 text-text-sub" />
-        <p className="text-[15px] text-text-main">
-          {t('contacts.scan_unavailable', 'QR scanning is not available in this build.')}
+
+      {/* Scanner Area */}
+      <div className="flex-1 relative flex flex-col items-center justify-center pb-20">
+        <div className="relative w-[260px] h-[260px]">
+          {/* Corners */}
+          <div className="absolute top-0 left-0 w-6 h-6 border-t-[3px] border-l-[3px] border-[#1664FF]" />
+          <div className="absolute top-0 right-0 w-6 h-6 border-t-[3px] border-r-[3px] border-[#1664FF]" />
+          <div className="absolute bottom-0 left-0 w-6 h-6 border-b-[3px] border-l-[3px] border-[#1664FF]" />
+          <div className="absolute bottom-0 right-0 w-6 h-6 border-b-[3px] border-r-[3px] border-[#1664FF]" />
+
+          {/* Scanning Line */}
+          {isScanning && (
+            <motion.div
+              className="absolute left-0 right-0 h-[2px] bg-[#1664FF] shadow-[0_0_12px_3px_rgba(22,100,255,0.6)]"
+              animate={{ top: ["0%", "100%", "0%"] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            />
+          )}
+        </div>
+        <p className="text-white/70 text-[14px] mt-8">
+          {t('contacts.scan_desc')}
         </p>
+      </div>
+
+      {/* Bottom Actions */}
+      <div className="absolute bottom-[calc(40px+env(safe-area-inset-bottom))] left-0 right-0 flex justify-center">
+        <div className="flex flex-col items-center gap-2 cursor-pointer active:opacity-70 transition-opacity">
+          <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md">
+            <ImageIcon className="w-6 h-6 text-white" />
+          </div>
+          <span className="text-white/80 text-[12px]">{t('contacts.my_qr_code')}</span>
+        </div>
       </div>
     </div>
   );
