@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Wallet, Smartphone, Zap, Umbrella, Coffee, CircleDollarSign, Package, Ticket, Crown } from "lucide-react";
+import { Wallet, Smartphone, Zap, Umbrella, Coffee, CircleDollarSign, Package, Ticket, Crown, Banknote } from "lucide-react";
 import { cn } from "@sdkwork/im-h5-commons";
 import { LifeService, type LifeServiceItem } from "../services/LifeService";
 import { AccountPortfolioService, type WalletPortfolio } from "../services/AccountPortfolioService";
@@ -16,6 +16,7 @@ const ICON_MAP: Record<string, any> = {
   Package: Package,
   Ticket: Ticket,
   Crown: Crown,
+  Banknote: Banknote,
 };
 
 export const ServicesPage = () => {
@@ -96,8 +97,10 @@ const navigate = useNavigate();
                         ? "/vip-subscription"
                         : item.label === "优惠券"
                           ? "/coupon-redemption"
-                          : "/token-recharge";
-                    const tabParam = item.label === "Token Plan" ? "plan" : item.label === "优惠券" ? "coupon" : "recharge";
+                          : item.label === "提现"
+                            ? "/withdraw"
+                            : "/token-recharge";
+                    const tabParam = item.label === "优惠券" ? "coupon" : "recharge";
                     navigate(path, { state: { tab: tabParam } });
                   }}
                 >

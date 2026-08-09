@@ -10,7 +10,12 @@ import {
 
 type ComponentName = "VipSubscriptionPage" | "TokenBankPurchasePage" | "CouponRedemptionPage";
 
-function lazyComponent(name: ComponentName) {
+/**
+ * Lazy-loads a subscription page while preserving its exact props type.
+ * Named property access (not a union index) keeps the component signature
+ * intact so hosts can inject service/cashier-path props.
+ */
+function lazyComponent<K extends ComponentName>(name: K) {
   return React.lazy(async () => {
     const mod = await import("@sdkwork/order-h5-subscription");
     return { default: mod[name] };
@@ -45,7 +50,12 @@ export const membershipModule: ImH5CapabilityModule = {
   routes: [
     {
       ...IM_H5_ROUTE_DEFINITIONS.membershipVip,
-      render: () => <VipSubscriptionPage service={resolveSubscriptionService()} />,
+      render: () => (
+        <VipSubscriptionPage
+          service={resolveSubscriptionService()}
+          cashierPath={IM_H5_ROUTE_DEFINITIONS.ordersCashier.path}
+        />
+      ),
     },
     {
       ...IM_H5_ROUTE_DEFINITIONS.membershipRecharge,
@@ -53,6 +63,7 @@ export const membershipModule: ImH5CapabilityModule = {
         <TokenBankPurchasePage
           service={resolveSubscriptionService()}
           getBalance={resolveTokenBankBalance}
+          cashierPath={IM_H5_ROUTE_DEFINITIONS.ordersCashier.path}
         />
       ),
     },

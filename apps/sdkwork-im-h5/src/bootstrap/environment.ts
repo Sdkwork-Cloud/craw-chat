@@ -9,6 +9,8 @@
 export interface H5RuntimeEnvironment {
   readonly appKey: string;
   readonly deploymentProfile: 'standalone' | 'cloud';
+  /** Payment cashier region: `cn` (国内) or `overseas` (海外部署). */
+  readonly paymentRegion: 'cn' | 'overseas';
   readonly imApiBaseUrl: string;
   readonly sdkGatewayApiBaseUrl: string;
   readonly driveAppApiBaseUrl: string;
@@ -18,6 +20,7 @@ export interface H5RuntimeEnvironment {
 
 const DEFAULT_APP_KEY = 'sdkwork-im-h5';
 const DEFAULT_DEPLOYMENT_PROFILE: H5RuntimeEnvironment['deploymentProfile'] = 'standalone';
+const DEFAULT_PAYMENT_REGION: H5RuntimeEnvironment['paymentRegion'] = 'cn';
 
 function readEnvValue(key: string): string | undefined {
   const meta = import.meta as ImportMeta & {
@@ -39,6 +42,15 @@ function resolveDeploymentProfile(): H5RuntimeEnvironment['deploymentProfile'] {
   return DEFAULT_DEPLOYMENT_PROFILE;
 }
 
+function resolvePaymentRegion(): H5RuntimeEnvironment['paymentRegion'] {
+  const value = readEnvValue('SDKWORK_PAYMENT_REGION')
+    ?? readEnvValue('VITE_SDKWORK_PAYMENT_REGION');
+  if (value === 'cn' || value === 'overseas') {
+    return value;
+  }
+  return DEFAULT_PAYMENT_REGION;
+}
+
 let cachedEnvironment: H5RuntimeEnvironment | null = null;
 
 export function resolveH5RuntimeEnvironment(): H5RuntimeEnvironment {
@@ -58,6 +70,7 @@ export function resolveH5RuntimeEnvironment(): H5RuntimeEnvironment {
   cachedEnvironment = {
     appKey: readEnvValue('SDKWORK_APP_KEY') ?? DEFAULT_APP_KEY,
     deploymentProfile,
+    paymentRegion: resolvePaymentRegion(),
     imApiBaseUrl: readEnvValue('SDKWORK_IM_API_BASE_URL')
       ?? readEnvValue('VITE_SDKWORK_IM_API_BASE_URL')
       ?? '/',

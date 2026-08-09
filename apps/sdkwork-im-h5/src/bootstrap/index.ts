@@ -44,6 +44,7 @@ export async function bootstrapImH5CapabilityIntegrations(): Promise<H5Bootstrap
   configureOrderMobileRuntime({
     client: sdkClients.orderAppSdkClient,
     wechatPaymentOAuth: createWechatPaymentOAuthChannel(sdkClients.iamAppSdkClient),
+    paymentRegion: environment.paymentRegion,
   });
 
   const hostAdapters: H5BootstrapResult['hostAdapters'] = [];

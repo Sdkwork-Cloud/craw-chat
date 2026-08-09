@@ -58,6 +58,7 @@
     "@sdkwork/knowledgebase-mobile-react-knowledge": "workspace:*",
     "@sdkwork/membership-mobile-react-subscription": "workspace:*",
     "@sdkwork/order-h5-subscription": "workspace:*",
+    "@sdkwork/order-h5-withdraw": "workspace:*",
     "@sdkwork/rtc-mobile-react-meeting": "workspace:*",
     "@sdkwork/shop-mobile-react-shopping": "workspace:*"
   }

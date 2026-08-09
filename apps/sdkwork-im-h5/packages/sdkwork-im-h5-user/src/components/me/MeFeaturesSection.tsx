@@ -43,7 +43,7 @@ export const MeFeaturesSection: React.FC = () => {
         icon={Compass}
         label={t('user.auto_prop_2e5be31b', '我的圈子')}
         colorClass="text-emerald-500"
-        onClick={() => navigate("/me/communities")}
+        onClick={() => navigate("/community")}
       />
       <div className="h-[0.5px] bg-border-color ml-[52px]" />
       <MenuItem
