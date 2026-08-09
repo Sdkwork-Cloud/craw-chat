@@ -63,12 +63,14 @@ const EMBEDDED_MODULE_WORKSPACES = [
   'sdkwork-inventory',
   'sdkwork-invoice',
   'sdkwork-membership',
+  'sdkwork-merchandise',
   'sdkwork-order',
   'sdkwork-payment',
   'sdkwork-shop',
   'sdkwork-notary',
   'sdkwork-agents',
   'sdkwork-iam',
+  'sdkwork-promotion',
 ];
 
 // Additional app-root directories (besides database/) that must be packaged

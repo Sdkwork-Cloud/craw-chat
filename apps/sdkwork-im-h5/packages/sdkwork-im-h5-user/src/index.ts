@@ -29,5 +29,6 @@ export * from "./services/MomentService";
 export * from "./services/ProfileService";
 export * from "./services/SettingsService";
 export * from "./services/AuthService";
+export * from "./services/AccountPortfolioService";
 export * from "./services/CharacterService";
 export * from "./services/UserCapabilityUnavailableError";

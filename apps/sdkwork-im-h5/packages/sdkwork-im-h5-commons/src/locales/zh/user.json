@@ -11,7 +11,8 @@
     "plugins": "插件",
     "switch_account": "切换账号",
     "logout": "退出登录",
-    "logout_confirm": "退出登录后将无法收到新消息通知，确认退出？"
+    "logout_confirm": "退出登录后将无法收到新消息通知，确认退出？",
+    "logging_out": "退出中..."
   },
   "help_about": {
     "title": "帮助与反馈",
@@ -421,5 +422,6 @@
   "auto_prop_nfa62f1e": "开启横屏模式",
   "auto_prop_2ac3f70a": "存储空间",
   "auto_f5bc9": "移除",
-  "auto_c64d4": "提交"
+  "auto_c64d4": "提交",
+  "profile_not_bound": "未绑定"
 }

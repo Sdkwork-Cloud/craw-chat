@@ -42,6 +42,7 @@
     "@sdkwork/iam-app-sdk": "workspace:*",
     "@sdkwork/iam-contracts": "workspace:*",
     "@sdkwork/iam-credential-entry": "workspace:*",
+    "@sdkwork/iam-h5-auth": "workspace:*",
     "@sdkwork/iam-sdk-ports": "workspace:*",
     "@sdkwork/community-mobile-react-community": "workspace:*",
     "@sdkwork/course-mobile-react-courses": "workspace:*",
@@ -113,7 +114,8 @@
     "tailwind-merge": "catalog:",
     "tailwindcss": "catalog:",
     "vite": "catalog:",
-    "zustand": "catalog:"
+    "zustand": "catalog:",
+    "@sdkwork/order-h5-subscription": "workspace:*"
   },
   "devDependencies": {
     "@types/express": "catalog:",

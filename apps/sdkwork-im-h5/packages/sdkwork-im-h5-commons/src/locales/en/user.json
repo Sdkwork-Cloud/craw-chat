@@ -11,7 +11,8 @@
     "plugins": "Plugins",
     "switch_account": "Switch Account",
     "logout": "Log Out",
-    "logout_confirm": "You won't receive notifications after logging out. Confirm to log out?"
+    "logout_confirm": "You won't receive notifications after logging out. Confirm to log out?",
+    "logging_out": "Logging out..."
   },
   "help_about": {
     "title": "Help & Feedback",
@@ -427,5 +428,6 @@
   "auto_3d803059": "你已授权以下应用",
   "auto_49721453": "暂无授权应用",
   "auto_prop_594e8d97": "个性化广告管理",
-  "auto_prop_eee21c8": "评论..."
+  "auto_prop_eee21c8": "评论...",
+  "profile_not_bound": "Not bound"
 }

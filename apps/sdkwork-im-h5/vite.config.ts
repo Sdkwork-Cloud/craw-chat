@@ -256,6 +256,13 @@ export default defineConfig(({ mode }) => ({
         ),
       },
       {
+        find: /^@sdkwork\/iam-h5-auth$/,
+        replacement: path.resolve(
+          __dirname,
+          '../../../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-auth/src/index.ts',
+        ),
+      },
+      {
         find: /^@sdkwork\/i18n-pc-react$/,
         replacement: path.resolve(
           __dirname,

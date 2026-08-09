@@ -510,12 +510,20 @@ fn select_request_site_dir<'a>(
     let user_agent = headers
         .get(header::USER_AGENT)
         .and_then(|value| value.to_str().ok());
+    let sec_ch_ua_mobile = headers
+        .get(SEC_CH_UA_MOBILE_HEADER)
+        .and_then(|value| value.to_str().ok());
     let pc_available = site_index_html_exists(site_dir.pc_site_dir.as_path());
     let h5_available = site_dir
         .h5_site_dir
         .as_deref()
         .is_some_and(site_index_html_exists);
-    let client = select_available_web_client(user_agent, pc_available, h5_available)?;
+    let client = select_available_web_client(
+        user_agent,
+        sec_ch_ua_mobile,
+        pc_available,
+        h5_available,
+    )?;
     let selected_dir = match client {
         WebClient::Pc => site_dir.pc_site_dir.as_path(),
         WebClient::H5 => site_dir.h5_site_dir.as_deref()?,
@@ -523,8 +531,15 @@ fn select_request_site_dir<'a>(
     Some((client, selected_dir))
 }
 
+/// Client-hint header that also drives adaptive web renderer selection
+/// (mirrors the shared Adaptive Web contract from SDKWORK_DEPLOY_SPEC §8).
+const SEC_CH_UA_MOBILE_HEADER: &str = "sec-ch-ua-mobile";
+
 fn apply_user_agent_vary(headers: &mut HeaderMap) {
-    headers.insert(header::VARY, HeaderValue::from_static("user-agent"));
+    headers.insert(
+        header::VARY,
+        HeaderValue::from_static("user-agent, sec-ch-ua-mobile"),
+    );
 }
 
 async fn serve_site_request(site_dir: &StdPath, request_path: &str) -> Response {
@@ -1051,12 +1066,20 @@ mod tests {
         path: &str,
         user_agent: &str,
     ) -> reqwest::Response {
-        reqwest::Client::new()
-            .get(format!("{base_url}{path}"))
-            .header(header::USER_AGENT, user_agent)
-            .send()
+        fetch_response_with_headers(base_url, path, &[(header::USER_AGENT.as_str(), user_agent)])
             .await
-            .expect("runtime request should succeed")
+    }
+
+    async fn fetch_response_with_headers(
+        base_url: &str,
+        path: &str,
+        headers: &[(&str, &str)],
+    ) -> reqwest::Response {
+        let mut request = reqwest::Client::new().get(format!("{base_url}{path}"));
+        for (name, value) in headers {
+            request = request.header(*name, *value);
+        }
+        request.send().await.expect("runtime request should succeed")
     }
 
     fn response_header(response: &reqwest::Response, name: &str) -> Option<String> {
@@ -1234,7 +1257,7 @@ mod tests {
         assert_eq!(desktop.status(), StatusCode::OK);
         assert_eq!(
             response_header(&desktop, header::VARY.as_str()).as_deref(),
-            Some("user-agent")
+            Some("user-agent, sec-ch-ua-mobile")
         );
         assert!(desktop
             .text()
@@ -1246,7 +1269,7 @@ mod tests {
         assert_eq!(mobile.status(), StatusCode::OK);
         assert_eq!(
             response_header(&mobile, header::VARY.as_str()).as_deref(),
-            Some("user-agent")
+            Some("user-agent, sec-ch-ua-mobile")
         );
         assert!(mobile
             .text()
@@ -1263,6 +1286,76 @@ mod tests {
                 .expect("H5 asset should be readable"),
             "console.log('h5');"
         );
+    }
+
+    #[tokio::test]
+    async fn router_runtime_detects_mobile_clients_matching_the_shared_contract() {
+        let pc_site_dir = TestSiteDir::new("shared-contract-pc");
+        pc_site_dir.write("index.html", "<!doctype html><title>pc-shell</title>");
+        let h5_site_dir = TestSiteDir::new("shared-contract-h5");
+        h5_site_dir.write("index.html", "<!doctype html><title>h5-shell</title>");
+
+        let runtime = start_runtime(
+            ProductSiteDir::new(pc_site_dir.path().to_path_buf())
+                .with_h5_site_dir(h5_site_dir.path().to_path_buf()),
+        )
+        .await;
+        tokio::task::yield_now().await;
+        let base_url = runtime
+            .public_base_url()
+            .expect("runtime should expose a public base url");
+
+        for user_agent in [
+            "Mozilla/5.0 (Linux; Android 13) Mobile MicroMessenger/8.0.49",
+            "Mozilla/5.0 (Linux; Android 15) HuaweiBrowser/15.0 Mobile",
+            "Mozilla/5.0 (Linux; Android 14) HarmonyOS 4.2.0 Mobile",
+            "Mozilla/5.0 (Linux; U; Android 13) UCBrowser/13.5 Mobile",
+            "Mozilla/5.0 (Linux; Android 12) Quark/5.9 Mobile",
+        ] {
+            let response = fetch_response_with_user_agent(base_url, "/", user_agent).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert!(
+                response
+                    .text()
+                    .await
+                    .expect("H5 body should be readable")
+                    .contains("h5-shell"),
+                "UA {user_agent:?} should be served the H5 renderer"
+            );
+        }
+
+        let ipad = fetch_response_with_user_agent(
+            base_url,
+            "/",
+            "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) Mobile/15E148",
+        )
+        .await;
+        assert_eq!(ipad.status(), StatusCode::OK);
+        assert!(ipad
+            .text()
+            .await
+            .expect("PC body should be readable")
+            .contains("pc-shell"));
+
+        let hinted = fetch_response_with_headers(
+            base_url,
+            "/",
+            &[
+                (header::USER_AGENT.as_str(), "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"),
+                (SEC_CH_UA_MOBILE_HEADER, "?1"),
+            ],
+        )
+        .await;
+        assert_eq!(hinted.status(), StatusCode::OK);
+        assert_eq!(
+            response_header(&hinted, header::VARY.as_str()).as_deref(),
+            Some("user-agent, sec-ch-ua-mobile")
+        );
+        assert!(hinted
+            .text()
+            .await
+            .expect("H5 body should be readable")
+            .contains("h5-shell"));
     }
 
     #[tokio::test]

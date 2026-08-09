@@ -25,7 +25,8 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
     <PageLayout title={t('user.auto_prop_24baafeb', '个人头像')}>
       <div className="flex flex-col items-center justify-center py-20">
         <Avatar
-          src={profile?.avatar || "https://picsum.photos/seed/me/200/200"}
+          fallback={profile?.name || "?"}
+          src={profile?.avatar ?? ""}
           size="lg"
           className="w-64 h-64 rounded-xl shadow-lg"
         />
@@ -34,7 +35,7 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
           onClick={async () => {
             const url = await showPrompt(
               "请输入新头像的图片网址",
-              profile?.avatar || "https://picsum.photos/seed/new/200",
+              profile?.avatar ?? "",
             );
             if (url) {
               ProfileService.updateUserProfile({ avatar: url });

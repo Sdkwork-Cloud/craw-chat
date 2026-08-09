@@ -1204,6 +1204,10 @@ importers:
         specifier: ^6.0.2
         version: 6.0.2
 
+  ../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-auth: {}
+
+  ../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-core: {}
+
   ../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react:
     dependencies:
       '@sdkwork/appbase-pc-react':
@@ -2028,6 +2032,8 @@ importers:
         specifier: workspace:*
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
+  ../sdkwork-order/apps/sdkwork-order-h5/packages/sdkwork-order-h5-subscription: {}
+
   ../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-checkout:
     dependencies:
       lucide-react:
@@ -2743,6 +2749,9 @@ importers:
       '@sdkwork/iam-credential-entry':
         specifier: workspace:*
         version: link:../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry
+      '@sdkwork/iam-h5-auth':
+        specifier: workspace:*
+        version: link:../../../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-auth
       '@sdkwork/iam-sdk-ports':
         specifier: workspace:*
         version: link:../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports
@@ -2854,6 +2863,9 @@ importers:
       '@sdkwork/notary-h5-notary':
         specifier: workspace:*
         version: link:../../../sdkwork-notary/apps/sdkwork-notary-h5/packages/sdkwork-notary-h5-notary
+      '@sdkwork/order-h5-subscription':
+        specifier: workspace:*
+        version: link:../../../sdkwork-order/apps/sdkwork-order-h5/packages/sdkwork-order-h5-subscription
       '@sdkwork/order-mobile-react-orders':
         specifier: workspace:*
         version: link:../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders
@@ -3430,6 +3442,12 @@ importers:
       '@sdkwork/music-mobile-react-playback':
         specifier: workspace:*
         version: link:../../../../../sdkwork-music/apps/sdkwork-music-common/packages/sdkwork-music-mobile-react-playback
+      '@sdkwork/order-h5-subscription':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-order/apps/sdkwork-order-h5/packages/sdkwork-order-h5-subscription
+      '@sdkwork/order-service':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-service
       '@sdkwork/rtc-mobile-react-meeting':
         specifier: workspace:*
         version: link:../../../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting
@@ -3538,9 +3556,15 @@ importers:
       '@sdkwork/iam-credential-entry':
         specifier: workspace:*
         version: link:../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry
+      '@sdkwork/iam-h5-auth':
+        specifier: workspace:*
+        version: link:../../../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-auth
       '@sdkwork/iam-sdk-ports':
         specifier: workspace:*
         version: link:../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports
+      '@sdkwork/iam-service':
+        specifier: workspace:*
+        version: link:../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-service
       '@sdkwork/im-admin-core':
         specifier: workspace:*
         version: link:packages/sdkwork-im-admin-core

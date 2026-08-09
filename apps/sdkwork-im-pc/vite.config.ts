@@ -314,6 +314,7 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/auth-pc-react/auth', replacement: authPcReactAuthEntry },
         { find: '@sdkwork/auth-runtime-pc-react', replacement: authRuntimePcReactEntry },
         { find: '@sdkwork/auth-pc-react', replacement: authPcReactEntry },
+        { find: '@sdkwork/iam-h5-auth', replacement: path.resolve(repoRoot, '../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-auth/src/index.ts') },
         { find: '@sdkwork/iam-contracts', replacement: iamContractsEntry },
         { find: '@sdkwork/iam-sdk-ports', replacement: iamSdkPortsEntry },
         { find: '@sdkwork/i18n-pc-react', replacement: i18nPcReactEntry },

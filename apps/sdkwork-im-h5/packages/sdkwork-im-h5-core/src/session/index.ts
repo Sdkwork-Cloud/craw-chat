@@ -33,3 +33,34 @@ export function notifyImH5SessionChanged(): void {
     }
   }
 }
+
+/**
+ * Logout executor injected by the app root.
+ *
+ * The IAM runtime composition (and the server-side session revoke) is owned
+ * by the app root bootstrap; feature packages must not construct raw HTTP,
+ * manual auth headers, or their own runtime. The app root registers its
+ * executor here so any feature surface (e.g. the settings page) can request
+ * a full logout through `requestImH5SessionLogout`.
+ */
+export type ImH5SessionLogoutHandler = () => Promise<void>;
+
+let sessionLogoutHandler: ImH5SessionLogoutHandler | null = null;
+
+export function registerImH5SessionLogoutHandler(
+  handler: ImH5SessionLogoutHandler | null,
+): () => void {
+  sessionLogoutHandler = handler;
+  return () => {
+    if (sessionLogoutHandler === handler) {
+      sessionLogoutHandler = null;
+    }
+  };
+}
+
+export async function requestImH5SessionLogout(): Promise<void> {
+  if (!sessionLogoutHandler) {
+    return;
+  }
+  await sessionLogoutHandler();
+}

@@ -56,12 +56,14 @@ ENV SDKWORK_APP_ROOT=${INSTALL_ROOT} \
     SDKWORK_INVENTORY_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-inventory \
     SDKWORK_INVOICE_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-invoice \
     SDKWORK_MEMBERSHIP_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-membership \
+    SDKWORK_MERCHANDISE_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-merchandise \
     SDKWORK_ORDER_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-order \
     SDKWORK_PAYMENT_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-payment \
     SDKWORK_SHOP_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-shop \
     SDKWORK_NOTARY_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-notary \
     SDKWORK_AGENTS_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-agents \
-    SDKWORK_IAM_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-iam
+    SDKWORK_IAM_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-iam \
+    SDKWORK_PROMOTION_APP_ROOT=${INSTALL_ROOT}/modules/sdkwork-promotion
 # Renderer static sites served by the product runtime router (adaptive web:
 # desktop UA -> PC app, mobile UA -> H5 app on the same origin).
 ENV SDKWORK_IM_ADMIN_SITE_DIR=${INSTALL_ROOT}/web/sdkwork-im-pc/dist \

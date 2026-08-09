@@ -64,13 +64,7 @@
       "websocketUrlEnv": "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL",
       "websocketPath": "/im/v3/api/realtime/ws",
       "clientHttpEnv": "VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
-      "clientWebsocketEnv": "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL",
-      "realtimeHosting": "application",
-      "realtimeLinkBindEnvs": [
-        "SDKWORK_IM_REALTIME_TCP_BIND_ADDR",
-        "SDKWORK_IM_REALTIME_UDP_BIND_ADDR",
-        "SDKWORK_IM_REALTIME_QUIC_BIND_ADDR"
-      ]
+      "clientWebsocketEnv": "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL"
     },
     "platform.api-gateway": {
       "connectivityPlane": "platform",

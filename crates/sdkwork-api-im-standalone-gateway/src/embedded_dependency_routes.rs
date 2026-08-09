@@ -25,6 +25,8 @@ const EMBEDDED_DEPENDENCY_APP_ROOTS: &[(&str, &str)] = &[
     ("SDKWORK_INVENTORY", "sdkwork-inventory"),
     ("SDKWORK_INVOICE", "sdkwork-invoice"),
     ("SDKWORK_MEMBERSHIP", "sdkwork-membership"),
+    ("SDKWORK_MERCHANDISE", "sdkwork-merchandise"),
+    ("SDKWORK_PROMOTION", "sdkwork-promotion"),
     ("SDKWORK_ORDER", "sdkwork-order"),
     ("SDKWORK_PAYMENT", "sdkwork-payment"),
     ("SDKWORK_SHOP", "sdkwork-shop"),
@@ -83,6 +85,8 @@ fn ensure_embedded_dependency_app_root(env_prefix: &str, repo_dir: &str) {
 }
 
 pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependencyRoutes, String> {
+    bootstrap_embedded_merchandise_database().await?;
+    bootstrap_embedded_promotion_database().await?;
     let mut contributions = vec![
         bootstrap_embedded_account_contribution().await?,
         bootstrap_embedded_drive_contribution().await?,
@@ -132,6 +136,32 @@ async fn bootstrap_embedded_inventory_contribution()
 async fn bootstrap_embedded_invoice_contribution()
 -> Result<sdkwork_web_bootstrap::ApiAssemblyContribution, String> {
     sdkwork_api_invoice_assembly::assemble_app_api_contribution_from_env().await
+}
+
+/// Bootstrap the merchandise database module only.
+///
+/// sdkwork-merchandise exposes no public App API surface of its own, but its
+/// baseline owns tables that sibling domains join at query time (e.g.
+/// membership reads `commerce_product_sku`); the standalone gateway runs its
+/// database lifecycle so those tables exist in the shared PostgreSQL profile.
+async fn bootstrap_embedded_merchandise_database() -> Result<(), String> {
+    sdkwork_merchandise_database_host::bootstrap_merchandise_database_from_env()
+        .await
+        .map(|_| ())
+        .map_err(|error| format!("bootstrap embedded merchandise database failed: {error}"))
+}
+
+/// Bootstrap the promotion database module only.
+///
+/// sdkwork-promotion exposes no public App API surface of its own, but its
+/// baseline owns the coupon tables (`promotion_code`, `promotion_user_coupon`,
+/// `promotion_offer_version`) that the order coupon redemption port reads; the
+/// standalone gateway runs its database lifecycle so coupon redemption works.
+async fn bootstrap_embedded_promotion_database() -> Result<(), String> {
+    sdkwork_promotion_database_host::bootstrap_promotion_database_from_env()
+        .await
+        .map(|_| ())
+        .map_err(|error| format!("bootstrap embedded promotion database failed: {error}"))
 }
 
 async fn bootstrap_embedded_payment_contribution()

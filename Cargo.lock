@@ -5678,6 +5678,7 @@ dependencies = [
  "sdkwork-agents-kernel-bridge",
  "sdkwork-agents-runtime-facade",
  "sdkwork-api-drive-assembly",
+ "sdkwork-database-sqlx",
  "sdkwork-iam-database-host",
  "sdkwork-iam-embedded-application-bootstrap",
  "sdkwork-iam-web-adapter",
@@ -5823,6 +5824,8 @@ dependencies = [
  "sdkwork-im-iam-application-bootstrap",
  "sdkwork-im-service-readiness",
  "sdkwork-im-web-bootstrap",
+ "sdkwork-merchandise-database-host",
+ "sdkwork-promotion-database-host",
  "sdkwork-web-axum",
  "sdkwork-web-bootstrap",
  "sdkwork-web-core",
@@ -5864,12 +5867,14 @@ name = "sdkwork-api-knowledgebase-assembly"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "sdkwork-database-sqlx",
  "sdkwork-intelligence-knowledgebase-service",
  "sdkwork-routes-knowledgebase-app-api",
  "sdkwork-routes-knowledgebase-backend-api",
  "sdkwork-routes-knowledgebase-internal-api",
  "sdkwork-routes-knowledgebase-open-api",
  "sdkwork-web-bootstrap",
+ "sdkwork-web-core",
  "tokio",
 ]
 
@@ -7414,6 +7419,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-merchandise-database-host"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "sdkwork-database-config",
+ "sdkwork-database-lifecycle",
+ "sdkwork-database-spi",
+ "sdkwork-database-sqlx",
+]
+
+[[package]]
 name = "sdkwork-merchandise-repository-sqlx"
 version = "0.1.0"
 dependencies = [
@@ -7738,6 +7754,17 @@ name = "sdkwork-platform-id-service"
 version = "0.1.0"
 dependencies = [
  "sdkwork-database-id",
+]
+
+[[package]]
+name = "sdkwork-promotion-database-host"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "sdkwork-database-config",
+ "sdkwork-database-lifecycle",
+ "sdkwork-database-spi",
+ "sdkwork-database-sqlx",
 ]
 
 [[package]]

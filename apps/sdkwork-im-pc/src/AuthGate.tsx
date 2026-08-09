@@ -7,6 +7,10 @@ import {
   SdkworkIamAuthRoutes,
 } from '@sdkwork/auth-pc-react';
 import {
+  SdkworkIamH5AuthRoutes,
+  isSdkworkMobileAuthViewport,
+} from '@sdkwork/iam-h5-auth';
+import {
   appAuthService,
   bootstrapLocalDevGatewayDiscovery,
   getSdkworkChatIamRuntime,
@@ -21,6 +25,7 @@ import {
   type SdkworkChatSession,
   type SdkworkChatSessionChangedDetail,
 } from '@sdkwork/im-pc-core';
+import { createImPcMobileAuthController } from './bootstrap/imPcMobileAuthController';
 
 interface AuthGateProps {
   children: ReactNode;
@@ -474,6 +479,11 @@ export function AuthGate({ children }: AuthGateProps) {
   const isAuthPath = isAuthRoute(location.pathname);
   const authAppearance = useMemo(() => resolveSdkworkChatAuthAppearance(), []);
   const authRuntimeConfig = useMemo(() => resolveSdkworkChatAuthRuntimeConfig(), []);
+  const isMobileAuthViewport = useMemo(() => isSdkworkMobileAuthViewport(), []);
+  const mobileAuthController = useMemo(
+    () => (isMobileAuthViewport ? createImPcMobileAuthController() : null),
+    [isMobileAuthViewport],
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -561,6 +571,18 @@ export function AuthGate({ children }: AuthGateProps) {
 
   if (isAuthenticated) {
     return children;
+  }
+
+  // Mobile browsers keep the mobile login/register surface (zip-design);
+  // the desktop window chrome and PC auth layout stay desktop-only.
+  if (isMobileAuthViewport) {
+    return (
+      <SdkworkIamH5AuthRoutes
+        controller={mobileAuthController ?? createImPcMobileAuthController()}
+        basePath={AUTH_BASE_PATH}
+        locale={resolveAuthLocale()}
+      />
+    );
   }
 
   return (

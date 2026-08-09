@@ -41,7 +41,8 @@ export const MyProfile: React.FC = () => {
             <span className="text-[16px] text-text-main">{t('user.auto_b1e1b', '头像')}</span>
             <div className="flex items-center gap-2 text-text-sub">
               <Avatar
-                src={profile?.avatar || "https://picsum.photos/seed/me/200/200"}
+                fallback={profile?.name || "?"}
+                src={profile?.avatar ?? ""}
                 size="md"
                 className="w-14 h-14 rounded-xl"
               />
@@ -59,7 +60,7 @@ export const MyProfile: React.FC = () => {
           />
           <ProfileListItem
             label={t('user.auto_prop_1712c64', '微信号')}
-            rightText={profile?.wechatId || "wxid_123456789"}
+            rightText={profile?.wechatId || t('user.profile_not_bound', '未绑定')}
           />
           <ProfileListItem
             label={t('user.auto_prop_n62fa905a', '我的二维码')}

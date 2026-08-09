@@ -91,7 +91,12 @@ const navigate = useNavigate();
                   key={i}
                   className="flex flex-col items-center gap-2.5 cursor-pointer active:scale-95 transition-transform"
                   onClick={async () => {
-                    const path = item.label === "Vip订阅" ? "/vip-subscription" : "/token-recharge";
+                    const path =
+                      item.label === "Vip订阅"
+                        ? "/vip-subscription"
+                        : item.label === "优惠券"
+                          ? "/coupon-redemption"
+                          : "/token-recharge";
                     const tabParam = item.label === "Token Plan" ? "plan" : item.label === "优惠券" ? "coupon" : "recharge";
                     navigate(path, { state: { tab: tabParam } });
                   }}

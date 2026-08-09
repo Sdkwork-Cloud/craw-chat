@@ -1,22 +1,18 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import {
-  SdkworkIamAuthRoutes,
-  type SdkworkAuthAppearanceConfig,
-  type SdkworkAuthRuntimeConfig,
-  type SdkworkIamRuntimeAuthRuntimeLike,
-} from '@sdkwork/auth-pc-react';
+import { SdkworkIamH5AuthRoutes } from '@sdkwork/iam-h5-auth';
+import { useAppStore, type ImH5SessionUser } from '@sdkwork/im-h5-core';
 import {
   getImAppAuthRuntime,
-  resolveImAuthRuntimeConfig,
 } from './bootstrap/iamRuntime';
+import { createImH5AuthController } from './bootstrap/imH5AuthController';
+import { bindImH5SessionLogoutHandler } from './bootstrap/imAuthService';
 import {
   IM_H5_IAM_SESSION_CHANGED_EVENT,
   readImH5PersistedSession,
   restoreAndValidateImH5Session,
   type ImH5PersistedSession,
 } from './bootstrap/session';
-import { useAppStore, type ImH5SessionUser } from '@sdkwork/im-h5-core';
 import { getSdkClients } from './bootstrap/sdkClients';
 
 const AUTH_BASE_PATH = '/auth';
@@ -53,18 +49,6 @@ function resolveAuthLocale(): string | null {
   return language || null;
 }
 
-function resolveAuthAppearance(): SdkworkAuthAppearanceConfig {
-  return {
-    asidePanelClassName: 'sdkwork-im-h5-auth-aside-panel',
-    bodyClassName: 'sdkwork-im-h5-auth-body',
-    contentContainerClassName: 'sdkwork-im-h5-auth-content',
-    pageClassName: 'sdkwork-im-h5-auth-page',
-    qrFrameClassName: 'sdkwork-im-h5-auth-qr-frame',
-    shellClassName: 'sdkwork-im-h5-auth-card-shell',
-    theme: {},
-  };
-}
-
 export function AuthGate({ children }: AuthGateProps) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -79,6 +63,7 @@ export function AuthGate({ children }: AuthGateProps) {
 
   const authenticated = Boolean(session?.accessToken && session.authToken);
   const isAuthPath = isAuthRoute(location.pathname);
+  const controller = useMemo(() => createImH5AuthController(), []);
 
   useEffect(() => {
     if (!authenticated) {
@@ -105,13 +90,6 @@ export function AuthGate({ children }: AuthGateProps) {
       disposed = true;
     };
   }, [authenticated, session, setCurrentUser]);
-
-  const authAppearance = useMemo(() => resolveAuthAppearance(), []);
-  const authRuntimeConfig = useMemo(() => resolveImAuthRuntimeConfig() as SdkworkAuthRuntimeConfig, []);
-
-  const getRuntime = useCallback((): SdkworkIamRuntimeAuthRuntimeLike => {
-    return getImAppAuthRuntime().runtime as unknown as SdkworkIamRuntimeAuthRuntimeLike;
-  }, []);
 
   useEffect(() => {
     let disposed = false;
@@ -154,6 +132,13 @@ export function AuthGate({ children }: AuthGateProps) {
   }, []);
 
   useEffect(() => {
+    // Feature surfaces (e.g. the settings page) request logout through the
+    // shared session port; the app-owned executor lives here in AuthGate so
+    // it is registered for the lifetime of the gate.
+    return bindImH5SessionLogoutHandler();
+  }, []);
+
+  useEffect(() => {
     if (!isBootstrapped || authenticated || isAuthPath) {
       return;
     }
@@ -173,14 +158,10 @@ export function AuthGate({ children }: AuthGateProps) {
   }
 
   return (
-    <SdkworkIamAuthRoutes
-      appearance={authAppearance}
+    <SdkworkIamH5AuthRoutes
+      controller={controller}
       basePath={AUTH_BASE_PATH}
-      getRuntime={getRuntime}
-      homePath={AUTH_HOME_PATH}
       locale={resolveAuthLocale()}
-      runtimeConfig={authRuntimeConfig}
-      viewportMode="flow"
     />
   );
 }

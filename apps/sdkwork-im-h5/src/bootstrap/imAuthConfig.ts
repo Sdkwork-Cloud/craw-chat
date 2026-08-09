@@ -67,13 +67,20 @@ export function resolveImAuthRuntimeConfig(
   options: ImAuthRuntimeConfigOptions = {},
 ): SdkworkAuthRuntimeConfig {
   const developmentPrefill = resolveDevelopmentPrefill();
+  const loginMethods: SdkworkAuthRuntimeConfig['loginMethods'] = ['password'];
+  if (options.phoneLoginEnabled ?? true) {
+    loginMethods.push('phoneCode');
+  }
+  if (options.emailLoginEnabled ?? true) {
+    loginMethods.push('emailCode');
+  }
   return {
-    loginMethods: ['password'],
+    loginMethods,
     oauthLoginEnabled: false,
     oauthProviders: [],
     qrLoginEnabled: options.qrLoginEnabled ?? false,
-    recoveryMethods: [],
-    registerMethods: ['email', 'phone'],
+    recoveryMethods: ['phone', 'email'],
+    registerMethods: ['phone', 'email'],
     verificationPolicy: SDKWORK_IM_H5_VERIFICATION_POLICY,
     ...(developmentPrefill ? { developmentPrefill } : {}),
   };

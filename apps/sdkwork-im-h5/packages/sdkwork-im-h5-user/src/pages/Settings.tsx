@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft } from "lucide-react";
-import { IconButton } from "@sdkwork/im-h5-commons";
+import { IconButton, showConfirm } from "@sdkwork/im-h5-commons";
+import { requestImH5SessionLogout } from "@sdkwork/im-h5-core/session";
 import { SettingsService } from "../services/SettingsService";
-import { AuthService } from "../services/AuthService";
 import { Group, ListItem } from "../components/SettingsCommons";
 
 export const SettingsPage: React.FC = () => {
@@ -23,10 +23,19 @@ export const SettingsPage: React.FC = () => {
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
+    const confirmed = await showConfirm(
+      t("user:settings.logout_confirm", "退出登录后将无法收到新消息通知，确认退出？"),
+    );
+    if (!confirmed) return;
     setIsLoggingOut(true);
-    await AuthService.logout();
-    setIsLoggingOut(false);
-    navigate("/login", { replace: true });
+    try {
+      await requestImH5SessionLogout();
+    } catch {
+      // The runtime always clears the local session (server revoke failures
+      // included), so AuthGate falls back to the login screen either way.
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -138,7 +147,9 @@ export const SettingsPage: React.FC = () => {
             onClick={() => navigate("/settings/switch-account")}
           />
           <ListItem
-            label={isLoggingOut ? "退出中..." : t("user:settings.logout", "退出登录")}
+            label={isLoggingOut
+              ? t("user:settings.logging_out", "退出中...")
+              : t("user:settings.logout", "退出登录")}
             danger
             hideBorder
             onClick={handleLogout}

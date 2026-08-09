@@ -95,3 +95,8 @@ Do not call `ImSdkClient.connect()` directly from PC feature services; subscribe
 - `sdkwork-routes-im-realtime-open-api` wraps only HTTP realtime/presence routes with IAM interceptors.
 - Unified gateways merge the websocket router before the wrapped business router and exclude `REALTIME_WS` from embedded
   oneshot dispatch.
+- The platform cloud gateway (`sdkwork-api-cloud-gateway`) `MAY` host the
+  realtime plane via `session_gateway::bootstrap_gateway_embedded_realtime_plane`
+  per `ADR-20260809-platform-gateway-realtime-hosting`; the IM standalone
+  gateway remains the `standalone`-profile host. The plane is env-driven and
+  needs no host-specific code changes.
