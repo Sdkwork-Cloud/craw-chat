@@ -11,7 +11,8 @@
     "create_agent": "创建智能体",
     "scan": "扫一扫",
     "mute": "消息免打扰",
-    "unmute": "取消免打扰"
+    "unmute": "取消免打扰",
+    "action_failed": "操作失败，请稍后重试"
   },
   "detail": {
     "legacy_title": "旧版会话",
@@ -45,7 +46,8 @@
     "card_contact": "联系人卡片",
     "card_group_invite_label": "邀请你加入群聊",
     "card_group_label": "群聊邀请",
-    "card_contact_label": "个人名片"
+    "card_contact_label": "个人名片",
+    "star_failed": "收藏操作失败"
   },
   "profile": {
     "title": "聊天信息",

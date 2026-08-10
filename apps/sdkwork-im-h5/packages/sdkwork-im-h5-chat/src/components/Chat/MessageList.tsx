@@ -72,6 +72,7 @@ export const MessageList: React.FC<MessageListProps> = ({
 }) => {
   const { t } = useTranslation();
 const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
 
   useEffect(() => {
     if (highlightedMsgId) {
@@ -82,22 +83,29 @@ const messagesEndRef = useRef<HTMLDivElement>(null);
       return;
     }
 
-    if (messagesEndRef.current) {
+    // Only auto-scroll to the latest message while the user is already at the
+    // bottom. Loading older pages (or history refresh) must not yank the view
+    // back down while the user reads earlier messages.
+    if (isNearBottomRef.current && messagesEndRef.current) {
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 50);
     }
   }, [messages, highlightedMsgId]);
 
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const element = event.currentTarget;
+    isNearBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+    if (element.scrollTop <= 40) {
+      onScrollToTop?.();
+    }
+  };
+
   return (
     <div
       className="flex-1 overflow-y-auto p-4 flex flex-col"
       onClick={() => setActivePanel("none")}
-      onScroll={(event) => {
-        if (event.currentTarget.scrollTop <= 40) {
-          onScrollToTop?.();
-        }
-      }}
+      onScroll={handleScroll}
     >
       {messages.map((msg, index) => {
         const isMe = msg.senderId === currentUser?.id;

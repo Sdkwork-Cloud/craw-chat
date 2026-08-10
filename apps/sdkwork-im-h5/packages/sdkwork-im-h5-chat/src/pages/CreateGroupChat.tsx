@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { ChevronLeft, Search, Check } from "lucide-react";
 import { Avatar, IconButton, cn, showToast } from "@sdkwork/im-h5-commons";
 import { ContactService, type Contact } from "@sdkwork/im-h5-contacts";
+import { useAppStore } from "@sdkwork/im-h5-core";
 import { ChatService } from "../services/ChatService";
 import type { User, Chat } from "@sdkwork/im-h5-types";
 import { useTranslation } from "react-i18next";
@@ -13,6 +14,7 @@ import { ContactSelectionRow } from "../components/ContactSelectionRow";
 export const CreateGroupChat: React.FC = () => {
   const { t } = useTranslation();
 const navigate = useNavigate();
+  const sessionUserId = useAppStore((state) => state.currentUser)?.id;
   const [searchParams] = useSearchParams();
   const baseChatId = searchParams.get("chatId");
 
@@ -82,9 +84,14 @@ const navigate = useNavigate();
           showToast(t('chat.create_group.add_success'));
           navigate(-1); // Go back to chat profile
         } else {
+          // `getChatById` participants include the current user; exclude self
+          // so memberUserIds only carries the peers to add.
+          const peerIds = existingChat.participants
+            .map(p => p.id)
+            .filter(id => id !== sessionUserId);
           const chat = await ChatService.createGroupChat(
             name,
-            [...existingChat.participants.map(p => p.id), ...Array.from(selectedIds)],
+            [...peerIds, ...Array.from(selectedIds)],
           );
           showToast(t('chat.create_group.create_success'));
           navigate(`/chat/${chat.id}`, { replace: true });

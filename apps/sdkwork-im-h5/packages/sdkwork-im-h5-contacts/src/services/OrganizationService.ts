@@ -1,7 +1,7 @@
 import { getIamAppSdkClient } from "@sdkwork/im-h5-core/sdk";
 
 const DIRECTORY_PAGE_SIZE = 100;
-const DIRECTORY_MAX_PAGES = 20;
+const DIRECTORY_MAX_PAGES = 50;
 const DIRECTORY_CACHE_TTL_MS = 5 * 60 * 1000;
 
 export interface OrgDepartment {

@@ -29,13 +29,18 @@ export const ChatList: React.FC = () => {
   }>({ isOpen: false, x: 0, y: 0, chatId: null });
 
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const loadRequestSeq = useRef(0);
 
   const loadChats = useCallback(async (cursor?: string) => {
+    const requestSeq = ++loadRequestSeq.current;
     if (cursor) setIsLoadingMore(true);
     else setIsLoading(true);
     setLoadError(false);
     try {
       const page = await ChatService.listChatPage(cursor);
+      // Ignore stale responses: a realtime refresh or a newer page request may
+      // have superseded this one (otherwise the pagination cursor regresses).
+      if (requestSeq !== loadRequestSeq.current) return;
       const merged = mergeChats(cursor ? chatsRef.current : [], page.items);
       const sorted = sortChats(merged);
       chatsRef.current = sorted;
@@ -43,6 +48,7 @@ export const ChatList: React.FC = () => {
       setNextCursor(page.hasMore ? page.nextCursor : undefined);
     } catch (error) {
       console.error(error);
+      if (requestSeq !== loadRequestSeq.current) return;
       setLoadError(true);
       showToast(t("chat.list.load_failed", "Unable to load conversations"));
     } finally {
@@ -128,26 +134,46 @@ export const ChatList: React.FC = () => {
   }, []);
 
   const handlePinChat = async (chatId: string, isPinned: boolean) => {
-    await ChatService.pinChat(chatId, isPinned);
-    loadChats();
+    try {
+      await ChatService.pinChat(chatId, isPinned);
+      loadChats();
+    } catch (error) {
+      console.error(error);
+      showToast(t("chat.list.action_failed", "Operation failed"));
+    }
     setContextMenu((prev) => ({ ...prev, isOpen: false }));
   };
 
   const handleMarkAsUnread = async (chatId: string) => {
-    await ChatService.markAsUnread(chatId);
-    loadChats();
+    try {
+      await ChatService.markAsUnread(chatId);
+      loadChats();
+    } catch (error) {
+      console.error(error);
+      showToast(t("chat.list.action_failed", "Operation failed"));
+    }
     setContextMenu((prev) => ({ ...prev, isOpen: false }));
   };
 
   const handleToggleMute = async (chatId: string, isMuted: boolean) => {
-    await ChatService.updateChatSettings(chatId, { isMuted });
-    loadChats();
+    try {
+      await ChatService.updateChatSettings(chatId, { isMuted });
+      loadChats();
+    } catch (error) {
+      console.error(error);
+      showToast(t("chat.list.action_failed", "Operation failed"));
+    }
     setContextMenu((prev) => ({ ...prev, isOpen: false }));
   };
 
   const handleDeleteChat = async (chatId: string) => {
-    await ChatService.deleteChat(chatId);
-    loadChats();
+    try {
+      await ChatService.deleteChat(chatId);
+      loadChats();
+    } catch (error) {
+      console.error(error);
+      showToast(t("chat.list.action_failed", "Operation failed"));
+    }
     setContextMenu((prev) => ({ ...prev, isOpen: false }));
   };
 

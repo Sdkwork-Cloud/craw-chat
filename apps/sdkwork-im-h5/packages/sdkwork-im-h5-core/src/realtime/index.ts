@@ -133,6 +133,14 @@ async function openSharedConnection(): Promise<ImLiveConnection> {
       syncLiveSubscriptions(connection);
     } else if (state.status === 'closed' || state.status === 'error') {
       connectionStatus = state.status;
+      // The connection is dead: drop the cached references so the next
+      // lease/ensure call opens a fresh connection (the SDK does not
+      // reconnect automatically). Active leases stay registered and are
+      // re-attached when the replacement connection reaches ready.
+      if (sharedConnection === connection) {
+        sharedConnection = null;
+        sharedConnectionPromise = null;
+      }
     }
   });
 
@@ -474,8 +482,10 @@ export function subscribeScopeEvents(
   const existing = scopeSubscriptions.find((scope) => scope.scopeType === scopeType && scope.scopeId === scopeId);
   if (!existing) {
     scopeSubscriptions.push({ scopeType, scopeId, ...(eventTypes ? { eventTypes } : {}) });
-  } else if (eventTypes && !existing.eventTypes) {
-    existing.eventTypes = eventTypes;
+  } else if (eventTypes) {
+    // Merge event types so later subscribers never override an earlier one's
+    // server-side filter (union semantics).
+    existing.eventTypes = Array.from(new Set([...(existing.eventTypes ?? []), ...eventTypes]));
   }
   const leaseId = createConnectionLeaseId(`scope:${scopeKey}`);
   connectionLeases.add(leaseId);

@@ -38,6 +38,7 @@ import { createChatMediaDownloadUrl, uploadChatMedia, type ChatMediaUpload } fro
 
 const LEGACY_CHAT_PAGE_SIZE = 50;
 const MAX_SEARCH_MESSAGE_LOOKUP_PAGES = 10;
+const MAX_MEMBER_LOOKUP_PAGES = 20;
 
 /**
  * Wire-level view of a conversation member. The conversation runtime returns
@@ -230,13 +231,10 @@ export function createChatService(
     async getChatById(conversationId: string): Promise<Chat | undefined> {
       const [profile, members, preferences, inbox] = await Promise.all([
         resolveClient().conversations.getProfile(conversationId),
-        resolveClient().conversations.listMembers(conversationId, {
-          pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE),
-        }),
+        fetchAllConversationMembers(resolveClient(), conversationId),
         resolveClient().conversations.getPreferences(conversationId),
         resolveClient().conversations.list({ pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE) }),
       ]);
-      assertCursorPage(members.pageInfo, "IM conversation members");
       assertCursorPage(inbox.pageInfo, "IM inbox");
       const inboxEntry = inbox.items.find((entry) => entry.conversationId === conversationId);
       const participants = members.items
@@ -337,7 +335,13 @@ export function createChatService(
       });
       const storedMessage = await findMessageById(conversationId, result.messageId);
       if (!storedMessage) {
-        throw new Error("The accepted message was not returned by IM history.");
+        // History indexing is eventually consistent: retry across pages once
+        // before treating an accepted send as failed.
+        const retried = await findMessageByIdAnywhere(conversationId, result.messageId);
+        if (!retried) {
+          throw new Error("The accepted message was not returned by IM history.");
+        }
+        return mapMessageEntryWithDownloadUrl(retried);
       }
       return mapMessageEntryWithDownloadUrl(storedMessage);
     },
@@ -358,7 +362,13 @@ export function createChatService(
         clientMsgId: uuid(),
       });
       const storedMessage = await findMessageById(conversationId, result.messageId);
-      if (!storedMessage) throw new Error("The accepted media message was not returned by IM history.");
+      if (!storedMessage) {
+        // History indexing is eventually consistent: retry across pages once
+        // before treating an accepted send as failed.
+        const retried = await findMessageByIdAnywhere(conversationId, result.messageId);
+        if (!retried) throw new Error("The accepted media message was not returned by IM history.");
+        return mapMessageEntryWithDownloadUrl(retried);
+      }
       return mapMessageEntryWithDownloadUrl(storedMessage);
     },
 
@@ -590,7 +600,7 @@ export function createChatService(
       isStarred: boolean,
     ): Promise<void> {
       if (isStarred) {
-        const message = await findMessageById(conversationId, messageId);
+        const message = await findMessageByIdAnywhere(conversationId, messageId);
         if (!message) {
           throw new Error(`Message not found: ${messageId}`);
         }
@@ -647,6 +657,27 @@ function assertCursorPage(
   if (pageInfo.hasMore && !pageInfo.nextCursor) {
     throw new Error(`${resource} returned hasMore without nextCursor.`);
   }
+}
+
+async function fetchAllConversationMembers(
+  client: ChatSdkPort,
+  conversationId: string,
+): Promise<ListMembersResponse["items"]> {
+  const members: ListMembersResponse["items"] = [];
+  let cursor: string | undefined;
+  for (let depth = 0; depth < MAX_MEMBER_LOOKUP_PAGES; depth += 1) {
+    const page = await client.conversations.listMembers(conversationId, {
+      pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE),
+      ...(cursor ? { cursor } : {}),
+    });
+    assertCursorPage(page.pageInfo, "IM conversation members");
+    members.push(...page.items);
+    if (!page.pageInfo.hasMore || !page.pageInfo.nextCursor) {
+      break;
+    }
+    cursor = page.pageInfo.nextCursor;
+  }
+  return members;
 }
 
 function mapInboxEntry(entry: ConversationInboxEntry): Chat {

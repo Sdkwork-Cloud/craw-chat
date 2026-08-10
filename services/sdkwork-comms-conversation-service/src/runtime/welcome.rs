@@ -14,12 +14,20 @@
 //!   Welcome 消息。
 //! - 「已有对话」判定排除 Welcome 会话本身，保证消息已落库而标记未写
 //!   （进程崩溃）时，重试路径不会被误判为「已有对话」。
+//!
+//! 并发/历史兼容：同 ID 会话已存在但 bind 无法重放（历史流程创建、
+//! 冷加载后绑定记录缺失、或绑定记录参与方顺序不一致）时，降级为
+//! 形状校验而非 409——会话是 active 的 direct 且系统智能体与用户均为
+//! active 成员则继续投递（消息按确定性 client_msg_id 幂等），否则按
+//! 「已有对话」幂等跳过。该端点契约是「登录后可安全重复调用」，
+//! 绝不因既有会话形态返回冲突。
 
 use super::*;
 use im_domain_core::message::MessageAttributes;
 
 use super::support::{
     canonical_direct_chat_business_id, canonical_direct_chat_conversation_id,
+    conversation_scope_key,
 };
 
 /// 系统智能体 actor 身份（与 `im_domain_events::EventActor` 的
@@ -144,17 +152,21 @@ where
         }
 
         // 3. 确保 系统智能体↔用户 direct chat 存在（canonical ID 幂等，
-        //    系统 actor 允许绑定任意用户）。
+        //    系统 actor 允许绑定任意用户）。同 ID 会话已存在但 bind 无法
+        //    重放时降级形状校验；会话不可投递则按「已有对话」幂等跳过，
+        //    避免对既有会话返回 409 冲突。
         let auth = system_agent_context(tenant_id, organization_id);
-        self.bind_direct_chat_conversation_from_auth_context(
+        let bound = self.ensure_welcome_direct_chat_bound(
             &auth,
-            conversation_id.clone(),
-            direct_chat_id,
-            SYSTEM_AGENT_ACTOR_ID.to_owned(),
-            SYSTEM_AGENT_ACTOR_KIND.to_owned(),
-            user_id.to_owned(),
-            "user".to_owned(),
+            tenant_id,
+            organization_id,
+            conversation_id.as_str(),
+            direct_chat_id.as_str(),
+            user_id,
         )?;
+        if !bound {
+            return Ok(WelcomeDeliveryOutcome::AlreadyEngaged);
+        }
 
         // 4. 投递 Welcome 系统消息。确定性 client_msg_id 使并发或崩溃后
         //    重试只会重放同一条消息。
@@ -199,6 +211,103 @@ where
             message_id: result.message_id,
             message_seq: result.message_seq,
         })
+    }
+
+    /// 确保 系统智能体↔用户 direct chat 已存在（Welcome 专用）。
+    ///
+    /// 常规路径走 canonical bind（不存在时创建，已存在且可重放时重放）。
+    /// 当同 ID 会话已存在但 bind 判定冲突——历史流程创建（无绑定记录）、
+    /// 冷加载后绑定记录缺失、或绑定记录参与方顺序与本次调用不一致——
+    /// 时，降级为形状校验：会话仍可投递则视为绑定已成立（返回 `true`），
+    /// 否则返回 `false` 由调用方按「已有对话」跳过。其他错误原样上抛。
+    fn ensure_welcome_direct_chat_bound(
+        &self,
+        auth: &AppContext,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        direct_chat_id: &str,
+        user_id: &str,
+    ) -> Result<bool, RuntimeError> {
+        let bound = self.bind_direct_chat_conversation_from_auth_context(
+            auth,
+            conversation_id.to_owned(),
+            direct_chat_id.to_owned(),
+            SYSTEM_AGENT_ACTOR_ID.to_owned(),
+            SYSTEM_AGENT_ACTOR_KIND.to_owned(),
+            user_id.to_owned(),
+            "user".to_owned(),
+        );
+        match bound {
+            Ok(_) => Ok(true),
+            Err(RuntimeError::Conflict(_)) => {
+                self.welcome_direct_chat_shape_servable(
+                    tenant_id,
+                    organization_id,
+                    conversation_id,
+                    user_id,
+                )
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Welcome 冲突降级：校验既有同 ID 会话是否仍可作为系统智能体会话
+    /// 投递 Welcome。仅当会话存在、类型为 `direct`、生命周期 `active`、
+    /// 且系统智能体与用户均为 active 成员时返回 `true`；其他形态
+    /// （归档、成员缺失等）视为不可投递，返回 `false`。
+    fn welcome_direct_chat_shape_servable(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        user_id: &str,
+    ) -> Result<bool, RuntimeError> {
+        let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
+        match self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id) {
+            Ok(()) => {}
+            Err(RuntimeError::ConversationNotFound(_)) => return Ok(false),
+            Err(error) => return Err(error),
+        }
+        {
+            let state = read_runtime_state(&self.state, "welcome.direct_chat_shape");
+            let Some(conversation) = state.conversations.get(scope_key.as_str()) else {
+                return Ok(false);
+            };
+            if conversation.aggregate.conversation_type() != "direct"
+                || conversation.aggregate.lifecycle_state() != ConversationLifecycleState::Active
+            {
+                return Ok(false);
+            }
+        }
+        // 权威加载双方成员；任一非 active 成员即不可投递。
+        for (kind, id) in [("system", SYSTEM_AGENT_ACTOR_ID), ("user", user_id)] {
+            match self.ensure_member_loaded(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                kind,
+                id,
+            ) {
+                Ok(()) => {}
+                Err(RuntimeError::PermissionDenied(_)) => return Ok(false),
+                Err(error) => return Err(error),
+            }
+        }
+        // 无持久化聚合存储的运行时（内存/开发）中 ensure_member_loaded
+        // 是空操作，需直接校验热 roster 上的成员资格。
+        let state = read_runtime_state(&self.state, "welcome.direct_chat_shape.roster");
+        let Some(conversation) = state.conversations.get(scope_key.as_str()) else {
+            return Ok(false);
+        };
+        Ok(conversation
+            .roster
+            .resolve_active_member_with_kind(SYSTEM_AGENT_ACTOR_ID, SYSTEM_AGENT_ACTOR_KIND)
+            .is_some()
+            && conversation
+                .roster
+                .resolve_active_member_with_kind(user_id, "user")
+                .is_some())
     }
 }
 
@@ -400,5 +509,180 @@ mod tests {
             .ensure_user_welcome("t_1", "0", "u_alice", None)
             .expect_err("missing welcome state store must fail");
         assert!(error.to_string().contains("welcome state store"));
+    }
+
+    /// 以系统 actor 身份创建 系统智能体↔用户 canonical direct chat，返回会话 ID。
+    fn seed_system_agent_conversation(
+        runtime: &ConversationRuntime<InMemoryJournal>,
+        tenant_id: &str,
+        organization_id: &str,
+        user_id: &str,
+    ) -> String {
+        let auth = system_agent_context(tenant_id, organization_id);
+        let direct_chat_id = canonical_direct_chat_business_id(
+            SYSTEM_AGENT_ACTOR_KIND,
+            SYSTEM_AGENT_ACTOR_ID,
+            "user",
+            user_id,
+        )
+        .expect("canonical direct chat id");
+        let conversation_id = canonical_direct_chat_conversation_id(
+            tenant_id,
+            organization_id,
+            direct_chat_id.as_str(),
+        );
+        runtime
+            .bind_direct_chat_conversation_from_auth_context(
+                &auth,
+                conversation_id.clone(),
+                direct_chat_id,
+                SYSTEM_AGENT_ACTOR_ID.to_owned(),
+                SYSTEM_AGENT_ACTOR_KIND.to_owned(),
+                user_id.to_owned(),
+                "user".to_owned(),
+            )
+            .expect("seed bind should succeed");
+        conversation_id
+    }
+
+    #[test]
+    fn preexisting_conversation_without_binding_record_is_tolerated() {
+        let store = Arc::new(TestWelcomeStateStore::default());
+        let runtime = runtime_with_welcome_store(store.clone());
+        let user_id = "u_carol";
+        let conversation_id = seed_system_agent_conversation(&runtime, "t_1", "0", user_id);
+
+        // 模拟历史流程/冷加载形态：同 ID 会话无 direct_chat_binding_request，
+        // 且 business binding 与当前 canonical 不一致 → bind 无法重放。
+        let scope_key = conversation_scope_key("t_1", "0", &conversation_id);
+        {
+            let mut state = runtime.state.write().unwrap();
+            let conversation = state
+                .conversations
+                .get_mut(scope_key.as_str())
+                .expect("seeded conversation should be hot");
+            conversation.direct_chat_binding_request = None;
+            conversation.aggregate.replace_business_binding(None);
+        }
+
+        // 降级形状校验通过 → 继续投递 Welcome，而非 409。
+        let outcome = runtime
+            .ensure_user_welcome("t_1", "0", user_id, None)
+            .expect("welcome should tolerate a preexisting conversation without a binding record");
+        assert_eq!(outcome.status_label(), "sent");
+        assert!(
+            store.sent.lock().unwrap().is_some(),
+            "welcome marker should be written"
+        );
+    }
+
+    #[test]
+    fn preexisting_conversation_with_reversed_binding_record_is_tolerated() {
+        let store = Arc::new(TestWelcomeStateStore::default());
+        let runtime = runtime_with_welcome_store(store.clone());
+        let user_id = "u_dana";
+
+        // 历史绑定以 (user, system) 顺序落绑定记录：canonical 会话 ID 不变，
+        // 但 anchor/peer 顺序与 Welcome 调用相反 → bind 重放判定冲突。
+        let auth = system_agent_context("t_1", "0");
+        let direct_chat_id = canonical_direct_chat_business_id(
+            SYSTEM_AGENT_ACTOR_KIND,
+            SYSTEM_AGENT_ACTOR_ID,
+            "user",
+            user_id,
+        )
+        .expect("canonical direct chat id");
+        let conversation_id = canonical_direct_chat_conversation_id(
+            "t_1",
+            "0",
+            direct_chat_id.as_str(),
+        );
+        runtime
+            .bind_direct_chat_conversation_from_auth_context(
+                &auth,
+                conversation_id.clone(),
+                direct_chat_id,
+                user_id.to_owned(),
+                "user".to_owned(),
+                SYSTEM_AGENT_ACTOR_ID.to_owned(),
+                SYSTEM_AGENT_ACTOR_KIND.to_owned(),
+            )
+            .expect("seed bind should succeed");
+
+        let outcome = runtime
+            .ensure_user_welcome("t_1", "0", user_id, None)
+            .expect("welcome should tolerate a preexisting reversed binding record");
+        assert_eq!(outcome.status_label(), "sent");
+        assert!(
+            store.sent.lock().unwrap().is_some(),
+            "welcome marker should be written"
+        );
+    }
+
+    #[test]
+    fn preexisting_unservable_conversation_skips_welcome_without_conflict() {
+        let store = Arc::new(TestWelcomeStateStore::default());
+        let runtime = runtime_with_welcome_store(store.clone());
+        let user_id = "u_eve";
+        let conversation_id = seed_system_agent_conversation(&runtime, "t_1", "0", user_id);
+
+        // 会话已归档（不可投递）且无绑定记录 → 跳过而非 409。
+        let scope_key = conversation_scope_key("t_1", "0", &conversation_id);
+        {
+            let mut state = runtime.state.write().unwrap();
+            let conversation = state
+                .conversations
+                .get_mut(scope_key.as_str())
+                .expect("seeded conversation should be hot");
+            conversation.direct_chat_binding_request = None;
+            conversation
+                .aggregate
+                .synchronize_normalized_current_state(
+                    "direct",
+                    "archived",
+                    u64::MAX,
+                    u64::MAX,
+                )
+                .expect("archive sync should apply");
+        }
+
+        let outcome = runtime
+            .ensure_user_welcome("t_1", "0", user_id, None)
+            .expect("welcome should skip unservable conversations without conflict");
+        assert_eq!(outcome, WelcomeDeliveryOutcome::AlreadyEngaged);
+        assert!(
+            store.sent.lock().unwrap().is_none(),
+            "skipped welcome must not write the marker"
+        );
+    }
+
+    #[test]
+    fn preexisting_conversation_without_system_member_skips_welcome() {
+        let store = Arc::new(TestWelcomeStateStore::default());
+        let runtime = runtime_with_welcome_store(store.clone());
+        let user_id = "u_frank";
+        let conversation_id = seed_system_agent_conversation(&runtime, "t_1", "0", user_id);
+
+        // 系统智能体不再是 active 成员（无绑定记录）→ 不可投递 → 跳过。
+        let scope_key = conversation_scope_key("t_1", "0", &conversation_id);
+        {
+            let mut state = runtime.state.write().unwrap();
+            let conversation = state
+                .conversations
+                .get_mut(scope_key.as_str())
+                .expect("seeded conversation should be hot");
+            conversation.direct_chat_binding_request = None;
+            let system_member = conversation
+                .roster
+                .resolve_active_member(SYSTEM_AGENT_ACTOR_ID)
+                .expect("system member should exist after seed");
+            conversation.roster.deactivate_member(system_member);
+        }
+
+        let outcome = runtime
+            .ensure_user_welcome("t_1", "0", user_id, None)
+            .expect("welcome should skip conversations without the system member");
+        assert_eq!(outcome, WelcomeDeliveryOutcome::AlreadyEngaged);
+        assert!(store.sent.lock().unwrap().is_none());
     }
 }

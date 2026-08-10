@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { ChevronLeft, User as UserIcon, Search } from "lucide-react";
 import { IconButton } from "@sdkwork/im-h5-commons";
@@ -25,10 +25,12 @@ export const OrganizationDetail: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<OrgMember[]>([]);
   const [searching, setSearching] = useState(false);
+  const loadGeneration = useRef(0);
 
   useEffect(() => {
     if (!orgId) return;
     setLoading(true);
+    const generation = ++loadGeneration.current;
 
     Promise.all([
       OrganizationService.getOrganizations(),
@@ -36,10 +38,16 @@ export const OrganizationDetail: React.FC = () => {
       deptId ? OrganizationService.getMembers(orgId, deptId) : Promise.resolve([]),
       deptId ? OrganizationService.getDepartmentPath(deptId) : Promise.resolve([]),
     ]).then(([orgs, depts, mems, pth]) => {
+      // Ignore responses for a superseded org/dept navigation.
+      if (generation !== loadGeneration.current) return;
       setOrg(orgs.find((o) => o.id === orgId) || null);
       setDepartments(depts);
       setMembers(mems);
       setPath(pth);
+      setLoading(false);
+    }).catch((error) => {
+      console.error("Unable to load organization detail", error);
+      if (generation !== loadGeneration.current) return;
       setLoading(false);
     });
   }, [orgId, deptId]);

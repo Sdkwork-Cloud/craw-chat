@@ -49,7 +49,12 @@ export function ChatDetail() {
   const recordingTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const mediaInputRef = useRef<HTMLInputElement | null>(null);
   const lastReadWatermarkRef = useRef(0);
+  const chatIdRef = useRef(chatId);
   const [mediaInputKind, setMediaInputKind] = useState<"image" | "video" | "file">("image");
+
+  useEffect(() => {
+    chatIdRef.current = chatId;
+  }, [chatId]);
 
   const editor = useEditor({
     extensions: [StarterKit, Placeholder.configure({ placeholder: t("chat.detail.placeholder") })],
@@ -60,18 +65,22 @@ export function ChatDetail() {
 
   const load = useCallback(async (cursor?: string) => {
     if (!chatId) return;
+    const requestChatId = chatId;
     if (cursor) setLoadingMore(true);
     try {
-      const page = await ChatService.getMessagePage(chatId, cursor);
+      const page = await ChatService.getMessagePage(requestChatId, cursor);
+      // Ignore responses that belong to a previous conversation (fast chat switching).
+      if (chatIdRef.current !== requestChatId) return;
       setLoadError(false);
       setMessages((previous) => mergeMessages(cursor ? previous : [], page.items));
       setNextCursor(page.hasMore ? page.nextCursor : undefined);
       if (!cursor && page.highWatermark > lastReadWatermarkRef.current) {
         lastReadWatermarkRef.current = page.highWatermark;
-        await ChatService.markAsRead(chatId);
+        await ChatService.markAsRead(requestChatId);
       }
     } catch (error) {
       console.error(error);
+      if (chatIdRef.current !== requestChatId) return;
       setLoadError(true);
       showToast(t("chat.detail.load_failed", "Unable to load messages"));
     } finally {
@@ -81,7 +90,11 @@ export function ChatDetail() {
 
   useEffect(() => {
     if (!chatId) return undefined;
+    // Per-conversation read watermark: reset when switching chats so the new
+    // conversation always commits its read cursor.
+    lastReadWatermarkRef.current = 0;
     void Promise.all([ChatService.getChatById(chatId), ChatService.getEmojis()]).then(([value, emojiList]) => {
+      if (chatIdRef.current !== chatId) return;
       if (value) {
         const participants = sessionUser
           ? value.participants.filter((participant) => participant.id !== sessionUser.id)
@@ -89,6 +102,11 @@ export function ChatDetail() {
         setChat({ ...value, participants });
       }
       setEmojis(emojiList);
+    }).catch((error) => {
+      console.error(error);
+      if (chatIdRef.current !== chatId) return;
+      setChat(null);
+      setEmojis([]);
     });
     void ChatService.listPinnedMessages(chatId).then(setPinnedMessageIds).catch((error) => {
       console.error(error);
@@ -145,7 +163,9 @@ export function ChatDetail() {
         contentPreview: replyingTo.content.slice(0, 200),
       } : undefined;
       const message = await ChatService.sendMessage(chatId, sessionUser?.id ?? "", content, "text", undefined, replyTo);
-      setMessages((previous) => replaceLocalMessage(previous, localMessage.id, message));
+      // The realtime echo may already have merged the server message while the
+      // placeholder was pending: merge by id instead of replacing blindly.
+      setMessages((previous) => mergeMessages(replaceLocalMessage(previous, localMessage.id, message), []));
       editor?.commands.clearContent();
       setReplyingTo(null);
     } catch (error) {
@@ -186,7 +206,7 @@ export function ChatDetail() {
       const message = await ChatService.sendMediaMessage(chatId, file, kind, {
         ...(file instanceof File ? { fileName: file.name, mimeType: file.type } : {}),
       });
-      setMessages((previous) => replaceLocalMessage(previous, localMessage.id, message));
+      setMessages((previous) => mergeMessages(replaceLocalMessage(previous, localMessage.id, message), []));
       setActivePanel("none");
     } catch (error) {
       console.error(error);
@@ -202,7 +222,7 @@ export function ChatDetail() {
     setMessages((previous) => previous.map((item) => item.id === message.id ? { ...item, sendState: "sending" as const } : item));
     try {
       const sent = await ChatService.sendMessage(chatId, message.senderId, message.content, "text");
-      setMessages((previous) => replaceLocalMessage(previous, message.id, sent));
+      setMessages((previous) => mergeMessages(replaceLocalMessage(previous, message.id, sent), []));
     } catch (error) {
       console.error(error);
       setMessages((previous) => previous.map((item) => item.id === message.id ? { ...item, sendState: "failed" as const } : item));
@@ -213,6 +233,11 @@ export function ChatDetail() {
   const handleSendCustom = (type: Message["type"]) => {
     if (type === "image" || type === "video" || type === "file") {
       setMediaInputKind(type);
+      // Set accept synchronously: React batches the state update, so the DOM
+      // attribute must be patched before opening the picker.
+      if (mediaInputRef.current) {
+        mediaInputRef.current.accept = type === "image" ? "image/*" : type === "video" ? "video/*" : "";
+      }
       mediaInputRef.current?.click();
       return;
     }
@@ -227,6 +252,7 @@ export function ChatDetail() {
   };
 
   const startVoiceRecording = async () => {
+    if (isRecording) return;
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       showToast(t("chat.detail.voice_unavailable", "Voice recording is unavailable"));
       return;
@@ -370,9 +396,16 @@ export function ChatDetail() {
         onReply={setReplyingTo}
         onStar={(messageId) => {
           const message = messages.find((item) => item.id === messageId);
-          if (message) void ChatService.starMessage(chatId, messageId, !message.isStarred).then(() => {
-            setMessages((previous) => previous.map((item) => item.id === messageId ? { ...item, isStarred: !item.isStarred } : item));
-          });
+          if (message) {
+            void ChatService.starMessage(chatId, messageId, !message.isStarred)
+              .then(() => {
+                setMessages((previous) => previous.map((item) => item.id === messageId ? { ...item, isStarred: !item.isStarred } : item));
+              })
+              .catch((error) => {
+                console.error(error);
+                showToast(t("chat.detail.star_failed", "Unable to update favorite"));
+              });
+          }
           setContextMenu((value) => ({ ...value, isOpen: false }));
         }}
         onDelete={(messageId) => {

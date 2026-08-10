@@ -16,6 +16,8 @@ import { MAX_LIST_PAGE_SIZE, uuid } from "@sdkwork/utils";
 
 const CONTACT_PAGE_SIZE = Math.min(50, MAX_LIST_PAGE_SIZE);
 const USER_SEARCH_PAGE_SIZE = Math.min(20, MAX_LIST_PAGE_SIZE);
+/** Safety cap for the friendship lookup loop (pages of contacts). */
+const FRIENDSHIP_LOOKUP_MAX_PAGES = 20;
 
 /** Realtime user-scope event types that reflect friend request changes. */
 export const FRIEND_REQUEST_REALTIME_EVENT_TYPES = [
@@ -234,13 +236,23 @@ export function createContactService(
 
     async removeFriend(targetUserId: string): Promise<void> {
       const normalizedTargetUserId = requireIdentifier(targetUserId, "target user ID");
-      const page = await listContactPage(undefined, normalizedTargetUserId);
-      const contact = page.items.find((item) => item.id === normalizedTargetUserId);
-      if (!contact?.friendshipId) {
-        throw new Error(`Friendship not found for user: ${normalizedTargetUserId}`);
+      // The contact may sit beyond the first page: walk cursor pages until the
+      // friendship id is found (or the list is exhausted).
+      let cursor: string | undefined;
+      for (let depth = 0; depth < FRIENDSHIP_LOOKUP_MAX_PAGES; depth += 1) {
+        const page = await listContactPage(cursor);
+        const contact = page.items.find((item) => item.id === normalizedTargetUserId);
+        if (contact?.friendshipId) {
+          await resolveClient().social.friendships.remove(contact.friendshipId);
+          notifyFriendRequestsChanged();
+          return;
+        }
+        if (!page.hasMore || !page.nextCursor) {
+          break;
+        }
+        cursor = page.nextCursor;
       }
-      await resolveClient().social.friendships.remove(contact.friendshipId);
-      notifyFriendRequestsChanged();
+      throw new Error(`Friendship not found for user: ${normalizedTargetUserId}`);
     },
 
     async blockContact(targetUserId: string): Promise<ContactPreferencesView> {

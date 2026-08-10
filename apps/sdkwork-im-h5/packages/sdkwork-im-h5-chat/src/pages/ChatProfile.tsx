@@ -125,6 +125,9 @@ const { id } = useParams();
       await ChatService.updateChatSettings(id, preferences);
     } catch (error) {
       console.error(error);
+      // Roll the switch back so the UI never drifts from the server state.
+      if (updates.isMuted !== undefined) setIsMuted(!updates.isMuted);
+      if (updates.isPinned !== undefined) setIsPinned(!updates.isPinned);
       showToast(t("chat.profile.update_failed", "Unable to update conversation settings"));
     }
   };
@@ -240,14 +243,21 @@ const { id } = useParams();
     if (!(await showConfirm(t("chat.profile.remove_friend_confirm", "Remove this contact? The conversation will also be deleted.")))) {
       return;
     }
+    // Friendship removal and conversation deletion are independent: continue
+    // with the conversation even if the friendship lookup fails.
     try {
       await ContactService.removeFriend(directPeer.id);
+    } catch (error) {
+      console.error("Unable to remove friendship", error);
+    }
+    try {
       if (id) await ChatService.deleteChat(id);
-      navigate("/", { replace: true });
     } catch (error) {
       console.error(error);
       showToast(t("chat.profile.action_failed", "Action failed"));
+      return;
     }
+    navigate("/", { replace: true });
   };
 
   return (
@@ -272,7 +282,9 @@ const { id } = useParams();
           chat={chat}
           onAddMember={() => navigate(`/create-group?chatId=${id}`)}
           onMemberClick={chat?.type === "group" && canManageMembers
-            ? (member) => setSelectedMember(member)
+            ? (member) => {
+              if (member.id !== sessionUserId) setSelectedMember(member);
+            }
             : undefined}
         />
 

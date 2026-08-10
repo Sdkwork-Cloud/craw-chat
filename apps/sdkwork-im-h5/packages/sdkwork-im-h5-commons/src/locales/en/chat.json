@@ -11,7 +11,8 @@
     "create_agent": "Create Agent",
     "scan": "Scan",
     "mute": "Mute Notifications",
-    "unmute": "Unmute"
+    "unmute": "Unmute",
+    "action_failed": "Operation failed"
   },
   "detail": {
     "legacy_title": "Legacy conversation",
@@ -45,7 +46,8 @@
     "card_contact": "Contact card",
     "card_group_invite_label": "Invites you to a group",
     "card_group_label": "Group Invitation",
-    "card_contact_label": "Contact Card"
+    "card_contact_label": "Contact Card",
+    "star_failed": "Unable to update favorite"
   },
   "profile": {
     "title": "Chat Info",
