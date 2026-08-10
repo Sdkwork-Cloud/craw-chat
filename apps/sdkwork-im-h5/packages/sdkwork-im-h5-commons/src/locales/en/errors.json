@@ -1,0 +1,23 @@
+{
+  "result": {
+    "40001": "Invalid request parameters, please check and retry",
+    "40002": "Invalid request parameters, please check and retry",
+    "40003": "Invalid request parameters, please check and retry",
+    "40004": "Invalid request parameters, please check and retry",
+    "40101": "Your session has expired, please sign in again",
+    "40102": "Your session has expired, please sign in again",
+    "40103": "Your session has expired, please sign in again",
+    "40104": "Your session has expired, please sign in again",
+    "40401": "The requested resource does not exist or is no longer available",
+    "40901": "The operation conflicts with the current state, please refresh and retry"
+  },
+  "network": "Network connection failed, please check your network and retry",
+  "timeout": "The request timed out, please try again later",
+  "cancelled": "Operation cancelled",
+  "unauthorized": "Your session has expired, please sign in again",
+  "forbidden": "You do not have permission to perform this action",
+  "not_found": "The requested resource does not exist or is no longer available",
+  "rate_limit": "Too many attempts, please try again later",
+  "server": "Something went wrong on our side, please try again later",
+  "unknown": "Operation failed, please try again later"
+}
