@@ -68,19 +68,21 @@ preserves the release default; for example, `chat,notary,contacts,drive,orders` 
 completed SDK-backed modules into one H5 variant.
 
 Package presence does not mean the feature is mounted or release-ready. The current H5 shell composes
-Chat inbox, Conversation, Workspace Notary, the Notary workflow routes, and the Order center (order
-list, order detail, cashier, and voucher redemption) by default. Contacts and
-Cloud Drive are optional composed modules backed by injected owner SDK clients. Organization directory,
-Agent lifecycle, QR scanning, Chat RTC media UI, legacy Chat operations, AI Image/Video/Writing/Music,
-Voice Synthesis, Voice Summary, Calendar, Approval, Attendance, Reports, Meeting, Channels,
-Hardware, Recruitment, local Knowledge CRUD, Shopping, Checkout (physical order creation), Refunds,
-Fulfillment, Community, Courses, and Enterprise routes are fail-closed until their owner SDK and
-permission composition is complete. Legacy User profile, settings, Moments, Characters, Works, voice,
-billing, and life-service pages are also fail-closed; browser storage and synthetic records are not
-accepted substitutes. The separate legacy User Auth implementation is excluded from release and remains
-blocked pending IAM security review; the root app uses the approved appbase IAM runtime instead.
-Group Knowledgebase launch remains a separate opaque-ticket integration and is not implemented by the
-local Knowledge package.
+Chat inbox, Conversation (message send/receive, media upload, recall/edit, favorites, pinned messages,
+search, read receipts), Contacts (address book, friend requests with realtime refresh, remarks,
+starred/blocked contacts, organization directory over IAM, group chat list), Workspace Notary, the
+Notary workflow routes, and the Order center (order list, order detail, cashier, and voucher
+redemption) by default. Cloud Drive is an optional composed module backed by injected owner SDK
+clients. QR scanning (recognition capability pending camera integration), Chat RTC media UI, Agent
+lifecycle, AI Image/Video/Writing/Music, Voice Synthesis, Voice Summary, Calendar, Approval,
+Attendance, Reports, Meeting, Channels, Hardware, Recruitment, local Knowledge CRUD, Shopping,
+Checkout (physical order creation), Refunds, Fulfillment, Community, Courses, and Enterprise routes
+are fail-closed until their owner SDK and permission composition is complete. Legacy User profile,
+settings, Moments, Characters, Works, voice, billing, and life-service pages are also fail-closed;
+browser storage and synthetic records are not accepted substitutes. The separate legacy User Auth
+implementation is excluded from release and remains blocked pending IAM security review; the root app
+uses the approved appbase IAM runtime instead. Group Knowledgebase launch remains a separate
+opaque-ticket integration and is not implemented by the local Knowledge package.
 
 ## Runtime Data Boundaries
 

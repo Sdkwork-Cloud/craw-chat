@@ -1193,6 +1193,11 @@ where
             command.right_actor_id.as_str(),
         )
         .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
+        // Actor kinds must follow the normalized pair: when the pair swaps the
+        // command's left/right orientation, the kinds swap with their ids.
+        // Attaching the un-swapped kinds creates members with mismatched
+        // kind↔id pairs (e.g. ("system", <user_id>) and ("user", "system")).
+        let (anchor_kind, peer_kind) = normalized_direct_chat_binding_kinds(&command, &pair);
         let created_at = conversation_timestamp();
         let scope_key = conversation_scope_key(
             command.tenant_id.as_str(),
@@ -1210,26 +1215,18 @@ where
         );
         let event_id = format!("evt_{}_created", conversation_id);
 
-        if self.load_cold_conversation_for_creation(
+        // 会话已存在时先加载聚合（roster 由下方成员物化填充），保证下方
+        // 重放判定能看到既有会话；不存在时保持创建路径。
+        self.ensure_direct_chat_binding_members_loaded(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
             conversation_id.as_str(),
-        )? {
-            self.ensure_member_loaded(
-                command.tenant_id.as_str(),
-                command.organization_id.as_str(),
-                conversation_id.as_str(),
-                command.left_actor_kind.as_str(),
-                command.left_actor_id.as_str(),
-            )?;
-            self.ensure_member_loaded(
-                command.tenant_id.as_str(),
-                command.organization_id.as_str(),
-                conversation_id.as_str(),
-                command.right_actor_kind.as_str(),
-                command.right_actor_id.as_str(),
-            )?;
-        }
+            &command,
+            &pair,
+            anchor_kind,
+            peer_kind,
+            direct_chat_id.as_str(),
+        )?;
 
         let anchor_attributes = BTreeMap::from([
             (
@@ -1241,7 +1238,7 @@ where
             ("pairHash".into(), pair.pair_hash.clone()),
             ("directChatRole".into(), "anchor".into()),
             ("peerActorId".into(), pair.right_actor_id.clone()),
-            ("peerActorKind".into(), command.right_actor_kind.clone()),
+            ("peerActorKind".into(), peer_kind.to_owned()),
         ]);
         validate_member_attributes_payload_size("directChatAnchorAttributes", &anchor_attributes)?;
         let anchor_member = build_conversation_member_with_attributes(
@@ -1249,11 +1246,11 @@ where
             conversation_id.as_str(),
             member_id(
                 conversation_id.as_str(),
-                command.left_actor_kind.as_str(),
+                anchor_kind,
                 pair.left_actor_id.as_str(),
             ),
             pair.left_actor_id.as_str(),
-            command.left_actor_kind.as_str(),
+            anchor_kind,
             MembershipRole::Owner,
             None,
             created_at.clone(),
@@ -1269,7 +1266,7 @@ where
             ("pairHash".into(), pair.pair_hash.clone()),
             ("directChatRole".into(), "peer".into()),
             ("peerActorId".into(), pair.left_actor_id.clone()),
-            ("peerActorKind".into(), command.left_actor_kind.clone()),
+            ("peerActorKind".into(), anchor_kind.to_owned()),
         ]);
         validate_member_attributes_payload_size("directChatPeerAttributes", &peer_attributes)?;
         let peer_member = build_conversation_member_with_attributes(
@@ -1277,11 +1274,11 @@ where
             conversation_id.as_str(),
             member_id(
                 conversation_id.as_str(),
-                command.right_actor_kind.as_str(),
+                peer_kind,
                 pair.right_actor_id.as_str(),
             ),
             pair.right_actor_id.as_str(),
-            command.right_actor_kind.as_str(),
+            peer_kind,
             MembershipRole::Member,
             Some(pair.left_actor_id.clone()),
             created_at.clone(),
@@ -1312,6 +1309,7 @@ where
             if normalized_direct_chat_binding_state_matches(
                 existing_conversation,
                 &command,
+                &pair,
                 direct_chat_id.as_str(),
             ) {
                 drop(state);
@@ -1344,9 +1342,9 @@ where
                 binder_kind: binder_kind.into(),
                 direct_chat_id: direct_chat_id.clone(),
                 anchor_actor_id: pair.left_actor_id.clone(),
-                anchor_actor_kind: command.left_actor_kind.clone(),
+                anchor_actor_kind: anchor_kind.to_owned(),
                 peer_actor_id: pair.right_actor_id.clone(),
-                peer_actor_kind: command.right_actor_kind.clone(),
+                peer_actor_kind: peer_kind.to_owned(),
                 event_id: event_id.clone(),
             }),
             ..ConversationState::default()
@@ -1408,9 +1406,9 @@ where
                 "directChat": {
                     "directChatId": direct_chat_id.clone(),
                     "anchorActorId": pair.left_actor_id.clone(),
-                    "anchorActorKind": command.left_actor_kind.clone(),
+                    "anchorActorKind": anchor_kind,
                     "peerActorId": pair.right_actor_id.clone(),
-                    "peerActorKind": command.right_actor_kind.clone(),
+                    "peerActorKind": peer_kind,
                     "pairHash": pair.pair_hash.clone()
                 }
             })
@@ -1440,6 +1438,234 @@ where
             event_id,
             request_key,
         ))
+    }
+
+    /// 确保 direct chat 双方 canonical 成员已物化到内存 roster，供绑定
+    /// 重放判定使用。
+    ///
+    /// - 无持久化聚合存储 → 空操作（内存形态由热状态自身携带成员）。
+    /// - 会话不存在 → 空操作（保持创建路径）。
+    /// - canonical 成员存在 → 直接加载。
+    /// - 历史版本把 actor kind 绑在命令原始顺序而非归一化 pair 上，产生
+    ///   的会话成员为错配配对（如 ("system", <user_id>) 与
+    ///   ("user", "system")）；检测到该形状时先修复（upsert canonical
+    ///   成员、移除错配成员），再加载 canonical 成员。
+    #[allow(clippy::too_many_arguments)]
+    fn ensure_direct_chat_binding_members_loaded(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        command: &BindDirectChatConversationCommand,
+        pair: &im_domain_core::social::NormalizedActorPair,
+        anchor_kind: &str,
+        peer_kind: &str,
+        direct_chat_id: &str,
+    ) -> Result<(), RuntimeError> {
+        let Some(aggregate_store) = self.aggregate_store.as_ref() else {
+            return Ok(());
+        };
+        let normalized_organization_id =
+            im_domain_events::normalize_commit_organization_id(organization_id);
+        // 会话聚合必须先在内存中：修复路径需要就地更新 roster；会话不存在
+        // 时保持创建路径，无需物化成员。
+        match self.ensure_conversation_loaded(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+        ) {
+            Ok(()) => {}
+            Err(RuntimeError::ConversationNotFound(_)) => return Ok(()),
+            Err(error) => return Err(error),
+        }
+        let anchor = aggregate_store.load_member(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+            anchor_kind,
+            pair.left_actor_id.as_str(),
+        )?;
+        let peer = aggregate_store.load_member(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+            peer_kind,
+            pair.right_actor_id.as_str(),
+        )?;
+        if member_record_active(anchor.as_ref())
+            && member_record_active(peer.as_ref())
+        {
+            self.ensure_member_loaded(
+                tenant_id,
+                normalized_organization_id.as_str(),
+                conversation_id,
+                anchor_kind,
+                pair.left_actor_id.as_str(),
+            )?;
+            self.ensure_member_loaded(
+                tenant_id,
+                normalized_organization_id.as_str(),
+                conversation_id,
+                peer_kind,
+                pair.right_actor_id.as_str(),
+            )?;
+            return Ok(());
+        }
+        // 历史错配形状探测：命令原始 kind × 归一化 id 的成员是否同时存在。
+        let legacy_anchor = aggregate_store.load_member(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+            command.left_actor_kind.as_str(),
+            pair.left_actor_id.as_str(),
+        )?;
+        let legacy_peer = aggregate_store.load_member(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+            command.right_actor_kind.as_str(),
+            pair.right_actor_id.as_str(),
+        )?;
+        if !member_record_active(legacy_anchor.as_ref())
+            || !member_record_active(legacy_peer.as_ref())
+        {
+            return Ok(());
+        }
+        // 修复同时更新持久化成员与内存 roster，无需再走 ensure_member_loaded
+        // （修复后的成员已就位，避免依赖存储回读）。
+        self.repair_legacy_swapped_direct_chat_binding_members(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+            direct_chat_id,
+            pair,
+            anchor_kind,
+            peer_kind,
+            legacy_anchor.expect("legacy anchor member present"),
+            legacy_peer.expect("legacy peer member present"),
+        )?;
+        Ok(())
+    }
+
+    /// 原地修复历史 kind↔id 错配的 direct chat 成员：以 canonical 配对
+    /// upsert 双方成员，并将错配成员标记为移除（持久化 + 内存 roster）。
+    #[allow(clippy::too_many_arguments)]
+    fn repair_legacy_swapped_direct_chat_binding_members(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        direct_chat_id: &str,
+        pair: &im_domain_core::social::NormalizedActorPair,
+        anchor_kind: &str,
+        peer_kind: &str,
+        legacy_anchor: ConversationMemberRecord,
+        legacy_peer: ConversationMemberRecord,
+    ) -> Result<(), RuntimeError> {
+        let aggregate_store = self.aggregate_store.as_ref().ok_or_else(|| {
+            RuntimeError::Contract(ContractError::Unavailable(
+                "aggregate store is required to repair legacy direct chat binding members".into(),
+            ))
+        })?;
+        let created_at = if legacy_anchor.joined_at.is_empty() {
+            conversation_timestamp()
+        } else {
+            legacy_anchor.joined_at.clone()
+        };
+        let (anchor_member, peer_member) = build_direct_chat_binding_members(
+            tenant_id,
+            conversation_id,
+            direct_chat_id,
+            pair,
+            anchor_kind,
+            peer_kind,
+            created_at.as_str(),
+        );
+        aggregate_store.upsert_member(member_to_record(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            &anchor_member,
+        ))?;
+        aggregate_store.upsert_member(member_to_record(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            &peer_member,
+        ))?;
+        let removed_at = conversation_timestamp();
+        for legacy in [&legacy_anchor, &legacy_peer] {
+            aggregate_store.remove_member(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                legacy.principal_kind.as_str(),
+                legacy.principal_id.as_str(),
+                removed_at.as_str(),
+            )?;
+        }
+
+        let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
+        let mut state = write_runtime_state(
+            &self.state,
+            "conversation-runtime.state.creation.legacy_repair",
+        );
+        {
+            let conversation = state
+                .conversations
+                .get_mut(scope_key.as_str())
+                .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.to_owned()))?;
+            for legacy in [&legacy_anchor, &legacy_peer] {
+                conversation.roster.members_mut().remove(
+                    im_domain_core::conversation::principal_member_key(
+                        legacy.principal_id.as_str(),
+                        legacy.principal_kind.as_str(),
+                    )
+                    .as_str(),
+                );
+                let legacy_member_id = im_domain_core::conversation::member_id(
+                    conversation_id,
+                    legacy.principal_kind.as_str(),
+                    legacy.principal_id.as_str(),
+                );
+                conversation
+                    .roster
+                    .read_cursors_mut()
+                    .retain(|_, cursor| cursor.member_id != legacy_member_id);
+            }
+            conversation.roster.upsert_member(anchor_member.clone());
+            conversation.roster.upsert_member(peer_member.clone());
+            state.touch_conversation(scope_key.as_str());
+        }
+        state.sync_actor_inbox_member(organization_id, &anchor_member);
+        state.sync_actor_inbox_member(organization_id, &peer_member);
+        {
+            let conversation = state
+                .conversations
+                .get_mut(scope_key.as_str())
+                .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.to_owned()))?;
+            let anchor = conversation
+                .roster
+                .resolve_active_member_with_kind(pair.left_actor_id.as_str(), anchor_kind)
+                .ok_or_else(|| {
+                    RuntimeError::Conflict(
+                        "repaired direct chat binding anchor member missing from roster".into(),
+                    )
+                })?;
+            let peer = conversation
+                .roster
+                .resolve_active_member_with_kind(pair.right_actor_id.as_str(), peer_kind)
+                .ok_or_else(|| {
+                    RuntimeError::Conflict(
+                        "repaired direct chat binding peer member missing from roster".into(),
+                    )
+                })?;
+            conversation.roster.ensure_default_read_cursor(&anchor);
+            conversation.roster.ensure_default_read_cursor(&peer);
+        }
+        drop(state);
+        self.maybe_evict_after_write();
+        Ok(())
     }
 
     pub fn create_agent_dialog_from_auth_context(
@@ -2315,6 +2541,70 @@ where
             request_key,
         ))
     }
+}
+
+fn member_record_active(record: Option<&ConversationMemberRecord>) -> bool {
+    record.is_some_and(|record| {
+        matches!(
+            record.membership_state.as_str(),
+            "joined" | "linked"
+        )
+    })
+}
+
+/// 构建 direct chat 双方成员（anchor/Owner + peer/Member），actor kind 与
+/// 归一化 pair 对齐。创建与历史错配自愈共用，保证两者产出一致的成员形状。
+#[allow(clippy::too_many_arguments)]
+fn build_direct_chat_binding_members(
+    tenant_id: &str,
+    conversation_id: &str,
+    direct_chat_id: &str,
+    pair: &im_domain_core::social::NormalizedActorPair,
+    anchor_kind: &str,
+    peer_kind: &str,
+    created_at: &str,
+) -> (ConversationMember, ConversationMember) {
+    let anchor_attributes = BTreeMap::from([
+        ("businessType".into(), "direct_chat".into()),
+        ("businessId".into(), direct_chat_id.to_owned()),
+        ("directChatId".into(), direct_chat_id.to_owned()),
+        ("pairHash".into(), pair.pair_hash.clone()),
+        ("directChatRole".into(), "anchor".into()),
+        ("peerActorId".into(), pair.right_actor_id.clone()),
+        ("peerActorKind".into(), peer_kind.to_owned()),
+    ]);
+    let anchor_member = build_conversation_member_with_attributes(
+        tenant_id,
+        conversation_id,
+        member_id(conversation_id, anchor_kind, pair.left_actor_id.as_str()),
+        pair.left_actor_id.as_str(),
+        anchor_kind,
+        MembershipRole::Owner,
+        None,
+        created_at.to_owned(),
+        anchor_attributes,
+    );
+    let peer_attributes = BTreeMap::from([
+        ("businessType".into(), "direct_chat".into()),
+        ("businessId".into(), direct_chat_id.to_owned()),
+        ("directChatId".into(), direct_chat_id.to_owned()),
+        ("pairHash".into(), pair.pair_hash.clone()),
+        ("directChatRole".into(), "peer".into()),
+        ("peerActorId".into(), pair.left_actor_id.clone()),
+        ("peerActorKind".into(), anchor_kind.to_owned()),
+    ]);
+    let peer_member = build_conversation_member_with_attributes(
+        tenant_id,
+        conversation_id,
+        member_id(conversation_id, peer_kind, pair.right_actor_id.as_str()),
+        pair.right_actor_id.as_str(),
+        peer_kind,
+        MembershipRole::Member,
+        Some(pair.left_actor_id.clone()),
+        created_at.to_owned(),
+        peer_attributes,
+    );
+    (anchor_member, peer_member)
 }
 
 fn append_conversation_creation_batch<J>(

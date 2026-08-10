@@ -22,13 +22,13 @@ const INITIAL_SETTINGS: AppSettings = {
   voiceLock: false,
 };
 
-const STORAGE_KEY = "clawchat_app_settings";
+const STORAGE_KEY = "sdkwork_im_h5_settings";
 
 export let CURRENT_SETTINGS: AppSettings = { ...INITIAL_SETTINGS };
 
 const loadSettings = () => {
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
+    const data = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem("clawchat_app_settings");
     if (data) {
       CURRENT_SETTINGS = JSON.parse(data);
     } else {

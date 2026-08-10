@@ -84,6 +84,10 @@ export function initSdkClients(
   const environment = resolveH5RuntimeEnvironment();
   const imSdkClient = initImSdkClient({
     apiBaseUrl: environment.imApiBaseUrl,
+    // Explicit realtime endpoint: without it the SDK derives the WebSocket URL
+    // from the HTTP base and falls back to the frontend origin, which breaks
+    // the CCP connection (no dev server proxies /im/v3/api/realtime/ws).
+    websocketBaseUrl: environment.imWebsocketBaseUrl,
     platform: "h5",
     tokenManager,
   });

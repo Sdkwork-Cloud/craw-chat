@@ -104,20 +104,25 @@ const navigate = useNavigate();
     void loadFriendRequestCount();
     const handleFriendRequestsChanged = () => { void loadFriendRequestCount(); };
     window.addEventListener(SDKWORK_IM_H5_FRIEND_REQUESTS_CHANGED_EVENT, handleFriendRequestsChanged);
-    const unsubscribeScope = currentUser?.id
-      ? subscribeScopeEvents("user", currentUser.id, (event) => {
-        const eventType = String(event.eventType ?? event.type ?? "");
-        if (FRIEND_REQUEST_REALTIME_EVENT_TYPES.includes(eventType)) {
-          void loadFirstPage();
-          void loadFriendRequestCount();
-        }
-      }, FRIEND_REQUEST_REALTIME_EVENT_TYPES)
-      : undefined;
     return () => {
       window.removeEventListener(SDKWORK_IM_H5_FRIEND_REQUESTS_CHANGED_EVENT, handleFriendRequestsChanged);
-      unsubscribeScope?.();
     };
-  }, [loadFirstPage, loadFriendRequestCount, currentUser?.id]);
+  }, [loadFirstPage, loadFriendRequestCount]);
+
+  // The scope subscription depends on the (asynchronously hydrated) current
+  // user, but the initial loads above must not re-run when the user arrives.
+  useEffect(() => {
+    if (!currentUser?.id) {
+      return undefined;
+    }
+    return subscribeScopeEvents("user", currentUser.id, (event) => {
+      const eventType = String(event.eventType ?? event.type ?? "");
+      if (FRIEND_REQUEST_REALTIME_EVENT_TYPES.includes(eventType)) {
+        void loadFirstPage();
+        void loadFriendRequestCount();
+      }
+    }, FRIEND_REQUEST_REALTIME_EVENT_TYPES);
+  }, [currentUser?.id, loadFirstPage, loadFriendRequestCount]);
 
   const loadMore = async () => {
     if (!hasMore || !nextCursor || loadingMore) {

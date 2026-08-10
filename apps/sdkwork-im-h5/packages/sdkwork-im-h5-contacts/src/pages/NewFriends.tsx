@@ -45,19 +45,24 @@ export function NewFriends() {
     void load();
     const handleChanged = () => { void load(); };
     window.addEventListener(SDKWORK_IM_H5_FRIEND_REQUESTS_CHANGED_EVENT, handleChanged);
-    const unsubscribeScope = currentUser?.id
-      ? subscribeScopeEvents("user", currentUser.id, (event) => {
-        const eventType = String(event.eventType ?? event.type ?? "");
-        if (FRIEND_REQUEST_REALTIME_EVENT_TYPES.includes(eventType)) {
-          void load();
-        }
-      }, FRIEND_REQUEST_REALTIME_EVENT_TYPES)
-      : undefined;
     return () => {
       window.removeEventListener(SDKWORK_IM_H5_FRIEND_REQUESTS_CHANGED_EVENT, handleChanged);
-      unsubscribeScope?.();
     };
-  }, [load, currentUser?.id]);
+  }, [load]);
+
+  // The scope subscription depends on the (asynchronously hydrated) current
+  // user, but the initial load above must not re-run when the user arrives.
+  useEffect(() => {
+    if (!currentUser?.id) {
+      return undefined;
+    }
+    return subscribeScopeEvents("user", currentUser.id, (event) => {
+      const eventType = String(event.eventType ?? event.type ?? "");
+      if (FRIEND_REQUEST_REALTIME_EVENT_TYPES.includes(eventType)) {
+        void load();
+      }
+    }, FRIEND_REQUEST_REALTIME_EVENT_TYPES);
+  }, [currentUser?.id, load]);
 
   const mutate = async (request: FriendRequest, action: "accept" | "decline") => {
     if (mutatingId) return;

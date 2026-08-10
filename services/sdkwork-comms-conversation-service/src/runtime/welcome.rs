@@ -511,6 +511,51 @@ mod tests {
         assert!(error.to_string().contains("welcome state store"));
     }
 
+    #[test]
+    fn welcome_binding_keeps_actor_kinds_aligned_when_user_id_sorts_before_system() {
+        let store = Arc::new(TestWelcomeStateStore::default());
+        let runtime = runtime_with_welcome_store(store.clone());
+
+        // "ce7543e8fe13850499743e08" 字典序小于 "system"，归一化 pair 会把
+        // 用户放在 anchor 位。actor kind 必须跟随归一化 pair 交换，否则成员
+        // 为错配配对（("system", <user_id>) 与 ("user", "system")），Welcome
+        // 消息（sender system:system）无法投递且标记不落，后续重试在冷加载后
+        // 判定冲突（40901）。
+        let user_id = "ce7543e8fe13850499743e08";
+        let outcome = runtime
+            .ensure_user_welcome("t_1", "0", user_id, None)
+            .expect("welcome should be delivered");
+        let WelcomeDeliveryOutcome::Sent { conversation_id, .. } = outcome else {
+            panic!("expected sent outcome, got {outcome:?}");
+        };
+
+        let state_guard = runtime.state.read().unwrap();
+        let stored = state_guard
+            .conversations
+            .get(&conversation_scope_key("t_1", "0", &conversation_id))
+            .expect("welcome conversation should exist");
+        assert!(
+            stored
+                .roster
+                .resolve_active_member_with_kind(SYSTEM_AGENT_ACTOR_ID, SYSTEM_AGENT_ACTOR_KIND)
+                .is_some(),
+            "system actor member must be system:system"
+        );
+        assert!(
+            stored
+                .roster
+                .resolve_active_member_with_kind(user_id, "user")
+                .is_some(),
+            "user member must be user:{user_id}"
+        );
+
+        // 标记已写入 → 再次调用直接短路为 AlreadySent。
+        let second = runtime
+            .ensure_user_welcome("t_1", "0", user_id, None)
+            .expect("re-evaluation should succeed");
+        assert_eq!(second, WelcomeDeliveryOutcome::AlreadySent);
+    }
+
     /// 以系统 actor 身份创建 系统智能体↔用户 canonical direct chat，返回会话 ID。
     fn seed_system_agent_conversation(
         runtime: &ConversationRuntime<InMemoryJournal>,
@@ -577,13 +622,14 @@ mod tests {
     }
 
     #[test]
-    fn preexisting_conversation_with_reversed_binding_record_is_tolerated() {
+    fn preexisting_conversation_with_reversed_binding_record_is_replayed() {
         let store = Arc::new(TestWelcomeStateStore::default());
         let runtime = runtime_with_welcome_store(store.clone());
         let user_id = "u_dana";
 
-        // 历史绑定以 (user, system) 顺序落绑定记录：canonical 会话 ID 不变，
-        // 但 anchor/peer 顺序与 Welcome 调用相反 → bind 重放判定冲突。
+        // 历史调用以 (user, system) 反序绑定：canonical 会话 ID 不变，
+        // anchor/peer 顺序与 Welcome 调用相反。actor kind 必须跟随归一化
+        // pair 交换，成员仍为 system:system + user:u_dana，重放后继续投递。
         let auth = system_agent_context("t_1", "0");
         let direct_chat_id = canonical_direct_chat_business_id(
             SYSTEM_AGENT_ACTOR_KIND,
@@ -611,13 +657,11 @@ mod tests {
 
         let outcome = runtime
             .ensure_user_welcome("t_1", "0", user_id, None)
-            .expect("welcome should tolerate a preexisting reversed binding record");
-        // 反序绑定产生的成员 kind 与 pair 位置绑定（系统智能体成员为
-        // ("system", "user")），形状校验判定不可投递 → 幂等跳过，而非 409。
-        assert_eq!(outcome, WelcomeDeliveryOutcome::AlreadyEngaged);
+            .expect("welcome should replay a preexisting reversed binding record");
+        assert_eq!(outcome.status_label(), "sent");
         assert!(
-            store.sent.lock().unwrap().is_none(),
-            "skipped welcome must not write the marker"
+            store.sent.lock().unwrap().is_some(),
+            "welcome marker should be written"
         );
     }
 

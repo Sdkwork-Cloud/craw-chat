@@ -2378,24 +2378,46 @@ fn direct_chat_binding_request_key(
 
 // Authorization is checked before this comparison. The original binder is audit
 // provenance, while the canonical participant pair and direct-chat id define state identity.
+// Actor kinds follow the normalized pair: when the pair swaps the command's
+// left/right orientation, the kinds must swap with their ids.
+fn normalized_direct_chat_binding_kinds<'a>(
+    command: &'a BindDirectChatConversationCommand,
+    pair: &im_domain_core::social::NormalizedActorPair,
+) -> (&'a str, &'a str) {
+    if pair.left_actor_id == command.left_actor_id {
+        (
+            command.left_actor_kind.as_str(),
+            command.right_actor_kind.as_str(),
+        )
+    } else {
+        (
+            command.right_actor_kind.as_str(),
+            command.left_actor_kind.as_str(),
+        )
+    }
+}
+
 fn direct_chat_binding_state_matches(
     existing: &DirectChatBindingReplayRecord,
     command: &BindDirectChatConversationCommand,
     pair: &im_domain_core::social::NormalizedActorPair,
     direct_chat_id: &str,
 ) -> bool {
+    let (anchor_kind, peer_kind) = normalized_direct_chat_binding_kinds(command, pair);
     existing.direct_chat_id == direct_chat_id
         && existing.anchor_actor_id == pair.left_actor_id
-        && existing.anchor_actor_kind == command.left_actor_kind
+        && existing.anchor_actor_kind == anchor_kind
         && existing.peer_actor_id == pair.right_actor_id
-        && existing.peer_actor_kind == command.right_actor_kind
+        && existing.peer_actor_kind == peer_kind
 }
 
 fn normalized_direct_chat_binding_state_matches(
     existing: &ConversationState,
     command: &BindDirectChatConversationCommand,
+    pair: &im_domain_core::social::NormalizedActorPair,
     direct_chat_id: &str,
 ) -> bool {
+    let (anchor_kind, peer_kind) = normalized_direct_chat_binding_kinds(command, pair);
     existing.aggregate.conversation_type() == "direct"
         && existing.aggregate.lifecycle_state() == ConversationLifecycleState::Active
         && existing
@@ -2406,17 +2428,11 @@ fn normalized_direct_chat_binding_state_matches(
             })
         && existing
             .roster
-            .resolve_active_member_with_kind(
-                command.left_actor_id.as_str(),
-                command.left_actor_kind.as_str(),
-            )
+            .resolve_active_member_with_kind(pair.left_actor_id.as_str(), anchor_kind)
             .is_some()
         && existing
             .roster
-            .resolve_active_member_with_kind(
-                command.right_actor_id.as_str(),
-                command.right_actor_kind.as_str(),
-            )
+            .resolve_active_member_with_kind(pair.right_actor_id.as_str(), peer_kind)
             .is_some()
 }
 

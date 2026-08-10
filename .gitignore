@@ -39,6 +39,8 @@ Thumbs.db
 .idea/
 .vscode/
 /.mimocode/
+/.zcode/
+.zcode/
 
 # Test output
 **/test-results/

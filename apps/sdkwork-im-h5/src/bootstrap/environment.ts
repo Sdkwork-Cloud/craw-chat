@@ -12,6 +12,8 @@ export interface H5RuntimeEnvironment {
   /** Payment cashier region: `cn` (国内) or `overseas` (海外部署). */
   readonly paymentRegion: 'cn' | 'overseas';
   readonly imApiBaseUrl: string;
+  /** IM realtime WebSocket base URL (CCP connection endpoint). */
+  readonly imWebsocketBaseUrl: string;
   readonly sdkGatewayApiBaseUrl: string;
   readonly driveAppApiBaseUrl: string;
   readonly orderAppApiBaseUrl: string;
@@ -114,8 +116,22 @@ export function resolveH5RuntimeEnvironment(): H5RuntimeEnvironment {
     appKey: readEnvValue('SDKWORK_APP_KEY') ?? DEFAULT_APP_KEY,
     deploymentProfile,
     paymentRegion: resolvePaymentRegion(),
+    // IM HTTP API base: explicit override first, then the materialized
+    // platform gateway URL, then a relative fallback (same-origin proxy).
     imApiBaseUrl: readEnvValue('SDKWORK_IM_API_BASE_URL')
       ?? readEnvValue('VITE_SDKWORK_IM_API_BASE_URL')
+      ?? platformGatewayApiBaseUrl
+      ?? '/',
+    // IM realtime WebSocket base: explicit WS URL first, else derived from the
+    // HTTP gateway URL (http->ws). Without this the SDK falls back to a
+    // relative `ws://<frontend-origin>/...` endpoint that no dev server proxies.
+    imWebsocketBaseUrl: readEnvValue('SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL')
+      ?? readEnvValue('VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL')
+      ?? (platformGatewayApiBaseUrl
+        ? platformGatewayApiBaseUrl.replace(/^http/u, 'ws')
+        : undefined)
+      ?? readEnvValue('SDKWORK_IM_API_BASE_URL')?.replace(/^http/u, 'ws')
+      ?? readEnvValue('VITE_SDKWORK_IM_API_BASE_URL')?.replace(/^http/u, 'ws')
       ?? '/',
     sdkGatewayApiBaseUrl: platformGatewayApiBaseUrl
       ?? readEnvValue('SDKWORK_IM_API_BASE_URL')

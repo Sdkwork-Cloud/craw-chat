@@ -81,8 +81,9 @@ impl WelcomeStateStore for PostgresWelcomeStateStore {
 
     fn write_welcome_sent(&self, record: &WelcomeSentRecord) -> Result<(), ContractError> {
         let pool = self.pool.clone();
-        let payload_json = serde_json::to_string(record)
-            .map_err(|error| ContractError::Invalid(format!("welcome.sent serialization: {error}")))?;
+        // 必须以 JSON 原生类型绑定 `$4::jsonb`；`String` 的 ToSql 只接受
+        // TEXT/VARCHAR 等类型，绑定 jsonb 参数会触发 "error serializing parameter"。
+        let payload = Json(record.clone());
         let tenant_id = record.tenant_id.clone();
         let organization_id = record.organization_id.clone();
         let user_id = record.user_id.clone();
@@ -92,7 +93,7 @@ impl WelcomeStateStore for PostgresWelcomeStateStore {
             client
                 .execute(
                     WRITE_WELCOME_SENT_SQL,
-                    &[&tenant_id, &organization_id, &user_id, &payload_json, &updated_at],
+                    &[&tenant_id, &organization_id, &user_id, &payload, &updated_at],
                 )
                 .map_err(|error| postgres_unavailable("write_welcome_sent", error))?;
             Ok(())

@@ -59,14 +59,14 @@ const INITIAL_MOMENTS: Moment[] = [
   },
 ];
 
-const STORAGE_KEY = "clawchat_moments";
+const STORAGE_KEY = "sdkwork_im_h5_moments";
 
 export let MOCK_MOMENTS: Moment[] = [];
 
 const loadMoments = () => {
   if (MOCK_MOMENTS.length > 0) return MOCK_MOMENTS;
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
+    const data = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem("clawchat_moments");
     if (data) {
       MOCK_MOMENTS = JSON.parse(data);
     } else {

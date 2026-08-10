@@ -3,6 +3,7 @@ import {
   type SdkworkAppbasePcAuthRuntimeComposition,
 } from '@sdkwork/auth-runtime-pc-react';
 import { notifyImH5SessionChanged } from '@sdkwork/im-h5-core/session';
+import { setImLiveSessionActiveProvider } from '@sdkwork/im-h5-core/realtime';
 import { resolveH5RuntimeEnvironment } from './environment';
 import { resolveImAuthRuntimeConfig } from './imAuthConfig';
 import { initSdkClients } from './sdkClients';
@@ -35,6 +36,9 @@ export function createImAppAuthRuntime(
   const environment = resolveH5RuntimeEnvironment();
   const tokenManager = getTokenManagerBinding();
   const sdkClients = initSdkClients(tokenManager);
+  // Bind the realtime manager's session gate to the shared TokenManager so
+  // reconnects/invalidations follow the actual authenticated session.
+  setImLiveSessionActiveProvider(() => tokenManager.hasToken());
   const sessionBridge = createImH5SessionBridge({
     notifySessionChanged: (session) => {
       emitImH5SessionChanged(session);

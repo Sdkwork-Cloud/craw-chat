@@ -57,14 +57,14 @@ const INITIAL_WORKS: Work[] = [
   },
 ];
 
-const STORAGE_KEY = "clawchat_my_works";
+const STORAGE_KEY = "sdkwork_im_h5_my_works";
 
 let MOCK_WORKS: Work[] = [];
 
 const loadWorks = () => {
   if (MOCK_WORKS.length > 0) return MOCK_WORKS;
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
+    const data = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem("clawchat_my_works");
     if (data) {
       MOCK_WORKS = JSON.parse(data);
     } else {

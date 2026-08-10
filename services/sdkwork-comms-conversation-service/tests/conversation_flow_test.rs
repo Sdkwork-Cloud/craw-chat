@@ -28,6 +28,9 @@ use im_domain_core::conversation::{
     ConversationAgentAssignment, ConversationAgentAssignmentSource, ConversationMember,
     ConversationPolicy, MembershipRole, MembershipState,
 };
+use im_domain_core::direct_chat::{
+    canonical_direct_chat_business_id, canonical_direct_chat_conversation_id,
+};
 use im_domain_core::message::{
     ContentPart, MentionPart, MentionTargetKind, MessageBody, MessageType, Sender,
 };
@@ -37,11 +40,12 @@ use im_platform_contracts::{
     CommitPosition, ContractError,
     ConversationAggregateState as PersistedConversationAggregateState, ConversationAggregateStore,
     ConversationMemberPage, ConversationMemberPageCursor, ConversationMemberRecord, IdGenerator,
-    MessageStore, MessageWindow, NormalizedConversationBusinessBindingRecord,
-    NormalizedConversationCommit, NormalizedConversationCurrentState,
-    NormalizedConversationHandoffRecord, NormalizedConversationPolicyRecord,
-    NormalizedConversationRecord, OutboxEventClaim, OutboxEventRecord, OutboxStore, ReadCursorPage,
-    ReadCursorPageCursor, ReadCursorRecord, StoredMessageMutation, StoredMessageRecord,
+    InMemoryWelcomeStateStore, MessageStore, MessageWindow,
+    NormalizedConversationBusinessBindingRecord, NormalizedConversationCommit,
+    NormalizedConversationCurrentState, NormalizedConversationHandoffRecord,
+    NormalizedConversationPolicyRecord, NormalizedConversationRecord, OutboxEventClaim,
+    OutboxEventRecord, OutboxStore, ReadCursorPage, ReadCursorPageCursor, ReadCursorRecord,
+    StoredMessageMutation, StoredMessageRecord,
 };
 
 fn ensure_conversation_cursor_test_secret() {
@@ -932,6 +936,274 @@ impl ConversationAggregateStore for TestAggregateStore {
             self,
             Self::MemberOnly { .. } | Self::Snapshot { .. }
         ))
+    }
+}
+
+/// 委托快照读取、记录成员写操作的聚合存储：用于验证自愈修复向存储写入的
+/// canonical 成员与移除的错配成员。
+#[derive(Clone)]
+struct RecordingRepairAggregateStore {
+    inner: TestAggregateStore,
+    upserted: Arc<Mutex<Vec<ConversationMemberRecord>>>,
+    removed: Arc<Mutex<Vec<(String, String)>>>,
+}
+
+impl RecordingRepairAggregateStore {
+    fn from_inner(inner: TestAggregateStore) -> Self {
+        Self {
+            inner,
+            upserted: Arc::new(Mutex::new(Vec::new())),
+            removed: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    fn upserted_members(&self) -> Vec<ConversationMemberRecord> {
+        self.upserted.lock().expect("upserted members should lock").clone()
+    }
+
+    fn removed_pairs(&self) -> Vec<(String, String)> {
+        self.removed.lock().expect("removed pairs should lock").clone()
+    }
+}
+
+impl ConversationAggregateStore for RecordingRepairAggregateStore {
+    fn load_conversation(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<Option<NormalizedConversationRecord>, ContractError> {
+        ConversationAggregateStore::load_conversation(
+            &self.inner,
+            tenant_id,
+            organization_id,
+            conversation_id,
+        )
+    }
+
+    fn load_conversation_current_state(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<Option<NormalizedConversationCurrentState>, ContractError> {
+        ConversationAggregateStore::load_conversation_current_state(
+            &self.inner,
+            tenant_id,
+            organization_id,
+            conversation_id,
+        )
+    }
+
+    fn load_members_page(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        cursor: Option<&ConversationMemberPageCursor>,
+        page_size: usize,
+    ) -> Result<ConversationMemberPage, ContractError> {
+        ConversationAggregateStore::load_members_page(
+            &self.inner,
+            tenant_id,
+            organization_id,
+            conversation_id,
+            cursor,
+            page_size,
+        )
+    }
+
+    fn load_member(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+    ) -> Result<Option<ConversationMemberRecord>, ContractError> {
+        // 模拟真实持久化语义：修复 upsert 的成员先于快照可见，被移除的
+        // 错配成员不再可见。
+        if self
+            .removed
+            .lock()
+            .expect("removed pairs should lock")
+            .iter()
+            .any(|(kind, id)| kind == principal_kind && id == principal_id)
+        {
+            return Ok(None);
+        }
+        if let Some(member) = self
+            .upserted
+            .lock()
+            .expect("upserted members should lock")
+            .iter()
+            .rev()
+            .find(|member| {
+                member.tenant_id == tenant_id
+                    && member.organization_id == organization_id
+                    && member.conversation_id == conversation_id
+                    && member.principal_kind == principal_kind
+                    && member.principal_id == principal_id
+            })
+        {
+            return Ok(Some(member.clone()));
+        }
+        ConversationAggregateStore::load_member(
+            &self.inner,
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_kind,
+            principal_id,
+        )
+    }
+
+    fn load_member_by_id(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        member_id: i64,
+    ) -> Result<Option<ConversationMemberRecord>, ContractError> {
+        ConversationAggregateStore::load_member_by_id(
+            &self.inner,
+            tenant_id,
+            organization_id,
+            conversation_id,
+            member_id,
+        )
+    }
+
+    fn load_event_recipients_page(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        joined_before_or_at: &str,
+        cursor: Option<&ConversationMemberPageCursor>,
+        page_size: usize,
+    ) -> Result<ConversationMemberPage, ContractError> {
+        ConversationAggregateStore::load_event_recipients_page(
+            &self.inner,
+            tenant_id,
+            organization_id,
+            conversation_id,
+            joined_before_or_at,
+            cursor,
+            page_size,
+        )
+    }
+
+    fn upsert_member(&self, member: ConversationMemberRecord) -> Result<(), ContractError> {
+        self.upserted
+            .lock()
+            .expect("upserted members should lock")
+            .push(member);
+        Ok(())
+    }
+
+    fn remove_member(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _conversation_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+        _removed_at: &str,
+    ) -> Result<(), ContractError> {
+        self.removed
+            .lock()
+            .expect("removed pairs should lock")
+            .push((principal_kind.into(), principal_id.into()));
+        Ok(())
+    }
+
+    fn load_read_cursors_page(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        cursor: Option<&ReadCursorPageCursor>,
+        page_size: usize,
+    ) -> Result<ReadCursorPage, ContractError> {
+        ConversationAggregateStore::load_read_cursors_page(
+            &self.inner,
+            tenant_id,
+            organization_id,
+            conversation_id,
+            cursor,
+            page_size,
+        )
+    }
+
+    fn load_read_cursor(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        member_id: i64,
+    ) -> Result<Option<ReadCursorRecord>, ContractError> {
+        ConversationAggregateStore::load_read_cursor(
+            &self.inner,
+            tenant_id,
+            organization_id,
+            conversation_id,
+            member_id,
+        )
+    }
+
+    fn load_read_cursor_for_device(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        member_id: i64,
+        device_id: &str,
+    ) -> Result<Option<ReadCursorRecord>, ContractError> {
+        ConversationAggregateStore::load_read_cursor_for_device(
+            &self.inner,
+            tenant_id,
+            organization_id,
+            conversation_id,
+            member_id,
+            device_id,
+        )
+    }
+
+    fn upsert_read_cursor(&self, cursor: ReadCursorRecord) -> Result<(), ContractError> {
+        ConversationAggregateStore::upsert_read_cursor(&self.inner, cursor)
+    }
+
+    fn load_high_watermark(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<u64, ContractError> {
+        ConversationAggregateStore::load_high_watermark(
+            &self.inner,
+            tenant_id,
+            organization_id,
+            conversation_id,
+        )
+    }
+
+    fn allocate_member_id(&self) -> Result<i64, ContractError> {
+        ConversationAggregateStore::allocate_member_id(&self.inner)
+    }
+
+    fn conversation_exists(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<bool, ContractError> {
+        ConversationAggregateStore::conversation_exists(
+            &self.inner,
+            tenant_id,
+            organization_id,
+            conversation_id,
+        )
     }
 }
 
@@ -10409,6 +10681,114 @@ fn test_bind_direct_chat_conversation_rejects_duplicate_business_binding() {
         duplicate.delivery_status.as_ref().unwrap().as_str(),
         "replayed"
     );
+}
+
+#[test]
+fn test_legacy_swapped_direct_chat_binding_members_are_repaired_on_welcome() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    // 字典序小于 "system"，历史版本创建的会话成员为错配配对。
+    let user_id = "ce7543e8fe13850499743e08";
+
+    let direct_chat_id = canonical_direct_chat_business_id("system", "system", "user", user_id)
+        .expect("canonical direct chat id");
+    let conversation_id =
+        canonical_direct_chat_conversation_id(tenant_id, organization_id, direct_chat_id.as_str());
+
+    // 历史版本把 actor kind 绑在命令原始顺序上：成员为
+    // ("system", <user_id>) Owner + ("user", "system") Member。
+    let mut legacy_anchor = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id.as_str(),
+        "system",
+        user_id,
+    );
+    legacy_anchor.membership_role = "owner".into();
+    legacy_anchor.member_id = 2001;
+    let legacy_peer = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id.as_str(),
+        "user",
+        "system",
+    );
+    let store = RecordingRepairAggregateStore::from_inner(TestAggregateStore::current_state_snapshot(
+        PersistedConversationAggregateState {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            conversation_id: conversation_id.clone(),
+            members: vec![legacy_anchor, legacy_peer],
+            read_cursors: Vec::new(),
+            high_watermark: 0,
+        },
+        NormalizedConversationCurrentState {
+            conversation: NormalizedConversationRecord {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.clone(),
+                conversation_type: "direct".into(),
+                lifecycle_state: "active".into(),
+                archived_at: None,
+                archive_event_id: None,
+                commit_seq: 1,
+                member_epoch: 1,
+                last_activity_at: "2026-07-08T00:00:00.000Z".into(),
+                retention_until: None,
+            },
+            policy: None,
+            business_binding: Some(NormalizedConversationBusinessBindingRecord {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.clone(),
+                business_type: "direct_chat".into(),
+                business_id: direct_chat_id.clone(),
+            }),
+            handoff: None,
+        },
+    ));
+
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(store.clone()))
+        .with_welcome_state_store(Arc::new(InMemoryWelcomeStateStore::default()))
+        .with_direct_message_access_gate(Arc::new(AllowAllDirectMessageAccessGate));
+
+    // 修复前 ("system","system") 不在任何位置：Welcome 投递（sender
+    // system:system）成功即证明成员已按 canonical 配对修复。
+    let outcome = runtime
+        .ensure_user_welcome(tenant_id, organization_id, user_id, None)
+        .expect("welcome should repair legacy swapped members and deliver");
+    assert_eq!(outcome.status_label(), "sent");
+
+    // 持久化修复：upsert canonical 成员、移除错配成员。
+    let upserted = store.upserted_members();
+    assert!(
+        upserted.iter().any(|member| {
+            member.principal_kind == "system" && member.principal_id == "system"
+        }),
+        "repair must upsert system:system"
+    );
+    assert!(
+        upserted.iter().any(|member| {
+            member.principal_kind == "user" && member.principal_id == user_id
+        }),
+        "repair must upsert user:{user_id}"
+    );
+    let removed = store.removed_pairs();
+    assert!(
+        removed.contains(&("system".to_owned(), user_id.to_owned())),
+        "repair must remove the swapped system member"
+    );
+    assert!(
+        removed.contains(&("user".to_owned(), "system".to_owned())),
+        "repair must remove the swapped user member"
+    );
+
+    // 标记已写入 → 再次调用短路为 AlreadySent。
+    let second = runtime
+        .ensure_user_welcome(tenant_id, organization_id, user_id, None)
+        .expect("re-evaluation should succeed");
+    assert_eq!(second.status_label(), "already_sent");
 }
 
 #[test]

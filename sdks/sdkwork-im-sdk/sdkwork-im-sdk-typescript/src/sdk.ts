@@ -28,6 +28,7 @@ import {
   type ImWebSocketFactory,
 } from './realtime.js';
 import { ImCallsModule } from './calls-module.js';
+import { composeSocialSurface } from './social-module.js';
 import type { ImTransportClientLike } from './transport-client-like.js';
 import type {
   ImTransportConnection,
@@ -243,9 +244,10 @@ export class ImSdkClient {
   constructor(options: ImSdkClientOptions = {}) {
     this.options = options;
     this.websocketBaseUrl = resolveWebsocketBaseUrl(options);
-    this.transportClient = new GeneratedSdkworkImClient(toGeneratedConfig(options)) as unknown as ImTransportClientLike;
+    const generatedClient = new GeneratedSdkworkImClient(toGeneratedConfig(options));
+    this.transportClient = generatedClient as unknown as ImTransportClientLike;
     this.chat = this.transportClient.chat;
-    this.social = this.transportClient.social;
+    this.social = composeSocialSurface(generatedClient.social);
     this.messages = new ImMessagesModule(this.transportClient);
     this.conversations = new ImConversationsModule(this.transportClient);
     this.rooms = new ImRoomsModule(this.transportClient);

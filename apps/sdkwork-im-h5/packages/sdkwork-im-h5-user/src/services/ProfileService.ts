@@ -23,7 +23,7 @@ const INITIAL_PROFILE: UserProfile = {
   beans: 0,
 };
 
-const STORAGE_KEY = "clawchat_user_profile";
+const STORAGE_KEY = "sdkwork_im_h5_user_profile";
 
 export let CURRENT_USER_PROFILE: UserProfile = { ...INITIAL_PROFILE };
 
@@ -33,7 +33,7 @@ function readString(value: unknown): string | undefined {
 
 const loadLocalProfile = (): Partial<UserProfile> => {
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
+    const data = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem("clawchat_user_profile");
     if (data) {
       return JSON.parse(data) as Partial<UserProfile>;
     }
