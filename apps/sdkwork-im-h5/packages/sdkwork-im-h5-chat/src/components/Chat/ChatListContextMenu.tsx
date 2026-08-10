@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import { Pin, BellOff, Trash2 } from "lucide-react";
+import { Pin, BellOff, Bell, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import type { Chat } from "@sdkwork/im-h5-types";
 import { useTranslation } from "react-i18next";
@@ -17,6 +17,7 @@ interface ChatListContextMenuProps {
   chats: Chat[];
   handlePinChat: (chatId: string, isPinned: boolean) => void;
   handleMarkAsUnread: (chatId: string) => void;
+  handleToggleMute: (chatId: string, isMuted: boolean) => void;
   handleDeleteChat: (chatId: string) => void;
 }
 
@@ -26,9 +27,11 @@ export const ChatListContextMenu: React.FC<ChatListContextMenuProps> = ({
   chats,
   handlePinChat,
   handleMarkAsUnread,
+  handleToggleMute,
   handleDeleteChat,
 }) => {
   const { t } = useTranslation();
+  const currentChat = chats.find((c) => c.id === contextMenu.chatId);
 return (
     <AnimatePresence>
       {contextMenu.isOpen && (
@@ -66,7 +69,7 @@ return (
                 }}
               >
                 <span>
-                  {chats.find((c) => c.id === contextMenu.chatId)?.isPinned
+                  {currentChat?.isPinned
                     ? t('chat.list.unpin')
                     : t('chat.list.pin')}
                 </span>
@@ -83,6 +86,27 @@ return (
               >
                 <span>{t('chat.list.mark_unread')}</span>
                 <BellOff className="w-4 h-4 opacity-70" />
+              </div>
+              <div className="h-[1px] bg-black/5 dark:bg-white/5 mx-4" />
+              <div
+                className="flex items-center justify-between px-4 py-3.5 text-[15px] text-text-main active:bg-black/5 dark:active:bg-white/5 transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (contextMenu.chatId) {
+                    handleToggleMute(contextMenu.chatId, !currentChat?.settings?.isMuted);
+                  }
+                }}
+              >
+                <span>
+                  {currentChat?.settings?.isMuted
+                    ? t('chat.list.unmute')
+                    : t('chat.list.mute')}
+                </span>
+                {currentChat?.settings?.isMuted ? (
+                  <BellOff className="w-4 h-4 opacity-70" />
+                ) : (
+                  <Bell className="w-4 h-4 opacity-70" />
+                )}
               </div>
               <div className="h-[1px] bg-black/5 dark:bg-white/5 mx-4" />
               <div

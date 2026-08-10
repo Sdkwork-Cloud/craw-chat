@@ -98,7 +98,7 @@ export const ChatList: React.FC = () => {
 
         // Calculate position to prevent overflowing screen edges
         const menuWidth = 180;
-        const menuHeight = 160;
+        const menuHeight = 220;
         const x = Math.min(clientX, window.innerWidth - menuWidth - 20);
         const y = Math.min(clientY, window.innerHeight - menuHeight - 20);
 
@@ -135,6 +135,12 @@ export const ChatList: React.FC = () => {
 
   const handleMarkAsUnread = async (chatId: string) => {
     await ChatService.markAsUnread(chatId);
+    loadChats();
+    setContextMenu((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  const handleToggleMute = async (chatId: string, isMuted: boolean) => {
+    await ChatService.updateChatSettings(chatId, { isMuted });
     loadChats();
     setContextMenu((prev) => ({ ...prev, isOpen: false }));
   };
@@ -203,6 +209,7 @@ export const ChatList: React.FC = () => {
         chats={chats}
         handlePinChat={handlePinChat}
         handleMarkAsUnread={handleMarkAsUnread}
+        handleToggleMute={handleToggleMute}
         handleDeleteChat={handleDeleteChat}
       />
     </div>
@@ -216,5 +223,13 @@ function mergeChats(previous: readonly Chat[], incoming: readonly Chat[]): Chat[
 }
 
 function sortChats(chats: readonly Chat[]): Chat[] {
-  return [...chats].sort((left, right) => Number(Boolean(right.isPinned)) - Number(Boolean(left.isPinned)));
+  return [...chats].sort((left, right) => {
+    const pinnedDelta = Number(Boolean(right.isPinned)) - Number(Boolean(left.isPinned));
+    if (pinnedDelta !== 0) {
+      return pinnedDelta;
+    }
+    const leftTime = left.lastMessage?.timestamp ?? 0;
+    const rightTime = right.lastMessage?.timestamp ?? 0;
+    return rightTime - leftTime;
+  });
 }

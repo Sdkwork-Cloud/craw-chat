@@ -33,6 +33,7 @@ export type { MessageSearchResponse } from './message-search-response';
 export type { PostMessageRequest } from './post-message-request';
 export type { EditMessageRequest } from './edit-message-request';
 export type { RecallMessageRequest } from './recall-message-request';
+export type { WelcomeEnsureView } from './welcome-ensure-view';
 export type { PostMessageResult } from './post-message-result';
 export type { MessageMutationResult } from './message-mutation-result';
 export type { MessageReactionRequest } from './message-reaction-request';
@@ -171,6 +172,7 @@ export type { SocialContactsPreferencesRetrieveResponse } from './social-contact
 export type { SocialContactsPreferencesUpdateResponse } from './social-contacts-preferences-update-response';
 export type { SocialContactsListResponse } from './social-contacts-list-response';
 export type { InboxListResponse } from './inbox-list-response';
+export type { ChatMeWelcomeEnsureResponse } from './chat-me-welcome-ensure-response';
 export type { ConversationsCreateResponse201 } from './conversations-create-response201';
 export type { ConversationsAgentDialogsCreateResponse201 } from './conversations-agent-dialogs-create-response201';
 export type { ConversationsAgentHandoffsCreateResponse201 } from './conversations-agent-handoffs-create-response201';

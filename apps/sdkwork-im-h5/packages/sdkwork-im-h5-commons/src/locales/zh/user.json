@@ -57,7 +57,10 @@
     "privacy_welcome": "我们非常重视您的隐私保护。",
     "privacy_desc": "本指引将向您说明我们如何收集、使用、存储和共享您的个人信息...",
     "storage": "管理聊天记录",
-    "work_group": "工作群"
+    "work_group": "工作群",
+    "blacklist_empty": "暂无黑名单成员",
+    "remove_blacklist_failed": "移出黑名单失败，请稍后重试",
+    "blacklist_load_failed": "加载失败，点击重试"
   },
   "mode": {
     "teen_title": "青少年模式",
@@ -194,6 +197,9 @@
   "auto_prop_n75c995cb": "搜索收藏的内容...",
   "auto_n5f1732f2": "没有找到相关收藏",
   "auto_2109d03d": "换个关键词试试吧",
+  "favorites": {
+    "title": "我的收藏"
+  },
   "auto_5f16e87c": "微信号: wxid_123456789",
   "auto_prop_ccd34": "服务",
   "auto_prop_40bbe269": "订单中心",
@@ -286,7 +292,10 @@
   "auto_4173b4d4": "账单记录",
   "auto_2e635247": "我的钱包",
   "auto_n14f50176": "总资产 (¥)",
-  "auto_2c9904d1": "当前积分",
+  "auto_2c9904d1": "普通积分",
+  "wallet_cash": "现金账户",
+  "wallet_token_bank": "算力积分",
+  "wallet_points_total": "累计",
   "auto_30865237": "智能服务",
   "auto_116b70": "设置",
   "auto_prop_16ab7d9": "已保护",
@@ -423,5 +432,10 @@
   "auto_prop_2ac3f70a": "存储空间",
   "auto_f5bc9": "移除",
   "auto_c64d4": "提交",
-  "profile_not_bound": "未绑定"
+  "profile_not_bound": "未绑定",
+  "voices": {
+    "title": "我的声音",
+    "create": "创建声音",
+    "detail": "声音详情"
+  }
 }

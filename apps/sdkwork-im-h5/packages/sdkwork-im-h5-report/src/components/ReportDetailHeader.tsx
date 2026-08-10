@@ -11,7 +11,7 @@ interface ReportDetailHeaderProps {
 export const ReportDetailHeader: React.FC<ReportDetailHeaderProps> = ({ report }) => {
   const { t } = useTranslation();
   return (
-    <div className="bg-white dark:bg-[#2c2d2e] rounded-xl p-5 shadow-sm border border-border-color/30 text-center flex flex-col items-center relative overflow-hidden">
+    <div className="bg-chat-other-bg rounded-xl p-5 shadow-sm border border-border-color/30 text-center flex flex-col items-center relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
       <Avatar
         size="xl"

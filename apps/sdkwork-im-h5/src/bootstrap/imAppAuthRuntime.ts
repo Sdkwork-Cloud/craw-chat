@@ -69,7 +69,12 @@ export function createImAppAuthRuntime(
       sdkClients.notaryAppSdkClient,
     ],
     sessionBridge,
-    sessionAuth: true,
+    sessionAuth: {
+      // 401 处理不启用 raw `window.location.replace` 跳转，避免在任意
+      // 深层路由（history 模式）下丢失登录回跳目标。AuthGate owns the
+      // login redirect through the session-changed event instead.
+      shouldRedirectOnUnauthorized: () => false,
+    },
     tokenManager,
   });
 

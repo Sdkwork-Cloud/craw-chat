@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
+@source "../../../../sdkwork-agents/apps/sdkwork-agents-h5/packages/sdkwork-agents-h5-agents/src";
+@source "../../../../sdkwork-agents/apps/sdkwork-agents-h5/packages/sdkwork-agents-h5-commons/src";
 @source "../../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src";
 @source "../../../../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-auth/src";
 @source "../../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src";
@@ -12,10 +14,13 @@
 @source "../../../../sdkwork-music/apps/sdkwork-music-common/packages/sdkwork-music-mobile-react-playback/src";
 @source "../../../../sdkwork-notary/apps/sdkwork-notary-h5/packages/sdkwork-notary-h5-notary/src";
 @source "../../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src";
+@source "../../../../sdkwork-order/apps/sdkwork-order-h5/packages/sdkwork-order-h5-subscription/src";
+@source "../../../../sdkwork-order/apps/sdkwork-order-h5/packages/sdkwork-order-h5-withdraw/src";
 @source "../../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting/src";
 @source "../../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src";
 @source "../../../../sdkwork-video/apps/sdkwork-video-common/packages/sdkwork-video-mobile-react-generation/src";
 @source "../../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation/src";
+@source "../../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-my-voices/src";
 @source "../../../../sdkwork-ui/sdkwork-ui-mobile-react/src";
 
 @theme {
@@ -27,14 +32,18 @@
   --color-text-sub: var(--sdkwork-im-h5-text-sub);
   --color-accent-green: var(--sdkwork-im-h5-accent-green);
   --color-accent-red: var(--sdkwork-im-h5-accent-red);
+  --color-accent-blue: var(--sdkwork-im-h5-accent-blue);
   --color-border-color: var(--sdkwork-im-h5-border-color);
   --color-hover-bg: var(--sdkwork-im-h5-hover-bg);
   --color-active-bg: var(--sdkwork-im-h5-active-bg);
   --color-chat-me-bg: var(--sdkwork-im-h5-chat-me-bg);
   --color-chat-other-bg: var(--sdkwork-im-h5-chat-other-bg);
+  --color-chat-active-bg: var(--sdkwork-im-h5-active-bg);
+  --color-chat-btn-bg: var(--sdkwork-im-h5-chat-btn-bg);
   --color-input-bg: var(--sdkwork-im-h5-input-bg);
 
   --animate-gradient-x: gradient-x 3s ease infinite;
+  --animate-spin-slow: spin 3s linear infinite;
 
   @keyframes gradient-x {
     0%, 100% {
@@ -53,17 +62,21 @@
   /* Light Mode */
   --sdkwork-im-h5-primary-blue: #2B5CE7;
   --sdkwork-im-h5-bg-color: #F4F6F9;
-  --sdkwork-im-h5-glass-bg: rgba(255, 255, 255, 0.85);
+  /* 0.95 不透明度：微信开发者工具/X5 内核下 backdrop-filter 渲染差异明显，
+     0.85 会被感知为"透明背景"；0.95 保留玻璃质感且背景足够实。 */
+  --sdkwork-im-h5-glass-bg: rgba(255, 255, 255, 0.95);
   --sdkwork-im-h5-glass-border: rgba(0, 0, 0, 0.08);
   --sdkwork-im-h5-text-main: #1D2129;
   --sdkwork-im-h5-text-sub: #86909C;
   --sdkwork-im-h5-accent-green: #00B42A;
   --sdkwork-im-h5-accent-red: #F53F3F;
+  --sdkwork-im-h5-accent-blue: #2B5CE7;
   --sdkwork-im-h5-border-color: #E5E6EB;
   --sdkwork-im-h5-hover-bg: #F2F3F5;
   --sdkwork-im-h5-active-bg: #E5E6EB;
   --sdkwork-im-h5-chat-me-bg: #95EC69;
   --sdkwork-im-h5-chat-other-bg: #FFFFFF;
+  --sdkwork-im-h5-chat-btn-bg: #F7F7F7;
   --sdkwork-im-h5-input-bg: #F7F7F7;
 }
 
@@ -72,27 +85,38 @@
   /* Dark Mode */
   --sdkwork-im-h5-primary-blue: #2B5CE7;
   --sdkwork-im-h5-bg-color: #0A0A0A;
-  --sdkwork-im-h5-glass-bg: rgba(20, 20, 20, 0.85);
+  --sdkwork-im-h5-glass-bg: rgba(20, 20, 20, 0.95);
   --sdkwork-im-h5-glass-border: rgba(255, 255, 255, 0.1);
   --sdkwork-im-h5-text-main: #F3F4F6;
   --sdkwork-im-h5-text-sub: #9CA3AF;
   --sdkwork-im-h5-accent-green: #26B85C;
   --sdkwork-im-h5-accent-red: #EF4444;
+  --sdkwork-im-h5-accent-blue: #4C7DF0;
   --sdkwork-im-h5-border-color: #262626;
   --sdkwork-im-h5-hover-bg: #1F1F1F;
   --sdkwork-im-h5-active-bg: #262626;
   --sdkwork-im-h5-chat-me-bg: #2B5CE7;
   --sdkwork-im-h5-chat-other-bg: #1F1F1F;
+  --sdkwork-im-h5-chat-btn-bg: #141414;
   --sdkwork-im-h5-input-bg: #141414;
 }
 
 html, body, #root {
   width: 100%;
-  height: 100dvh;
+  /* `vh` fallback for engines without dynamic viewport units
+     (WeChat X5 < Chromium 108); the @supports block overrides where dvh
+     is supported. Kept separate so minifiers never merge the fallback away. */
+  height: 100vh;
   margin: 0;
   padding: 0;
   overflow: hidden;
   background-color: var(--color-bg-color);
+}
+
+@supports (height: 100dvh) {
+  html, body, #root {
+    height: 100dvh;
+  }
 }
 
 body {
@@ -131,6 +155,12 @@ body {
 }
 
 /* Safe area utilities */
+/*
+ * 注意：.pb-safe 会把 padding-bottom 直接覆盖为安全区高度（未定义安全区的
+ * 设备上为 0），因此不能与 p-4 / pb-6 等 Tailwind 内边距类同时使用，否则
+ * 底栏内容会贴到屏幕底部。bottom bar 应改用：
+ *   pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]  （1rem 为基准内边距）
+ */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
   box-sizing: content-box;
@@ -138,6 +168,74 @@ body {
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);
   box-sizing: content-box;
+}
+
+/* Safe-area helpers used by fullscreen overlays and video surfaces. */
+.top-safe {
+  top: env(safe-area-inset-top, 0px);
+}
+.safe-area-top,
+.pt-safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+  box-sizing: content-box;
+}
+
+/* Hide scrollbars on horizontal scrolling bars (category tabs, feeds). */
+.no-scrollbar,
+.hide-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Disable the iOS long-press callout on draggable/long-press cards. */
+.touch-callout-none {
+  -webkit-touch-callout: none;
+}
+
+/*
+ * Enter animations compatible with tailwindcss-animate (`animate-in` +
+ * `fade-in` / `slide-in-from-*` / `zoom-in*`). Defined unlayered so they
+ * always apply; the enter keyframe reads the `--tw-enter-*` variables.
+ */
+@keyframes enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(
+        var(--tw-enter-translate-x, 0),
+        var(--tw-enter-translate-y, 0),
+        0
+      )
+      scale3d(
+        var(--tw-enter-scale, 1),
+        var(--tw-enter-scale, 1),
+        1
+      )
+      rotate(var(--tw-enter-rotate, 0));
+  }
+}
+.animate-in {
+  animation: enter 150ms ease-out;
+}
+.fade-in {
+  --tw-enter-opacity: 0;
+}
+.slide-in-from-bottom {
+  --tw-enter-translate-y: 100%;
+}
+.slide-in-from-right {
+  --tw-enter-translate-x: 100%;
+}
+.zoom-in {
+  --tw-enter-scale: 0;
+}
+.zoom-in-95 {
+  --tw-enter-scale: 0.95;
 }
 
 /* Tiptap Editor Styles */

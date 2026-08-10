@@ -7,8 +7,8 @@ export const EnterpriseYellowPages = () => {
   const { t } = useTranslation();
 return (
     <PageLayout title={t('enterprise.auto_prop_2522c72a', '企业黄页')}>
-      <div className="flex flex-col min-h-full bg-[#f5f6f8] dark:bg-[#1a1b1c]">
-        <div className="p-4 bg-white dark:bg-[#2c2d2e] sticky top-0 z-10">
+      <div className="flex flex-col min-h-full bg-bg-color">
+        <div className="p-4 bg-chat-other-bg sticky top-0 z-10">
           <div className="bg-black/5 dark:bg-white/5 rounded-full flex items-center px-4 py-2">
             <Search className="w-4 h-4 text-text-sub" />
             <input 
@@ -38,7 +38,7 @@ return (
               phone: "010-55555555",
             }
           ].map((item, i) => (
-            <div key={i} className="bg-white dark:bg-[#2c2d2e] rounded-xl p-4 shadow-sm flex flex-col cursor-pointer active:scale-95 transition-transform">
+            <div key={i} className="bg-chat-other-bg rounded-xl p-4 shadow-sm flex flex-col cursor-pointer active:scale-95 transition-transform">
               <div className="flex justify-between items-start mb-2">
                  <h3 className="text-[16px] font-bold text-text-main">{item.name}</h3>
                  <span className="text-[11px] text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded">{item.industry}</span>

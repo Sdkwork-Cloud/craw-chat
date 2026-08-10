@@ -19,10 +19,26 @@ import {
   initAccountAppSdkClient,
   resetAccountAppSdkClient,
   createAccountAppSdkClientConfig,
+  initKnowledgebaseAppSdkClient,
+  resetKnowledgebaseAppSdkClient,
+  createKnowledgebaseAppSdkClientConfig,
+  initAgentsAppSdkClient,
+  resetAgentsAppSdkClient,
+  createAgentsAppSdkClientConfig,
+  initVoiceAppSdkClient,
+  resetVoiceAppSdkClient,
+  createVoiceAppSdkClientConfig,
+  initCmsAppSdkClient,
+  resetCmsAppSdkClient,
+  createCmsAppSdkClientConfig,
   type ImSdkClient,
+  type CmsAppSdkClient,
   type SdkworkDriveAppClient,
   type SdkworkAppClient as SdkworkOrderAppClient,
   type SdkworkAccountAppClient,
+  type SdkworkKnowledgebaseAppClient,
+  type SdkworkAgentsAppClient,
+  type SdkworkVoiceAppClient,
 } from '@sdkwork/im-h5-core/sdk';
 import {
   initIamAppSdkClient,
@@ -48,6 +64,10 @@ export interface H5SdkClientComposition {
   readonly iamAppSdkClient: SdkworkIamAppClient;
   readonly notaryAppSdkClient: ReturnType<typeof initNotaryH5AppSdkClient>;
   readonly notaryApi: NotaryH5ComposedApi;
+  readonly knowledgebaseAppSdkClient: SdkworkKnowledgebaseAppClient;
+  readonly agentsAppSdkClient: SdkworkAgentsAppClient;
+  readonly voiceAppSdkClient: SdkworkVoiceAppClient;
+  readonly cmsAppSdkClient: CmsAppSdkClient;
 }
 
 let sdkClientComposition: H5SdkClientComposition | null = null;
@@ -107,6 +127,34 @@ export function initSdkClients(
     appbase: {},
   });
 
+  const knowledgebaseAppSdkClient = initKnowledgebaseAppSdkClient(
+    createKnowledgebaseAppSdkClientConfig({
+      baseUrl: environment.knowledgebaseAppApiBaseUrl,
+      tokenManager,
+    }),
+  );
+
+  const agentsAppSdkClient = initAgentsAppSdkClient(
+    createAgentsAppSdkClientConfig({
+      baseUrl: environment.agentsAppApiBaseUrl,
+      tokenManager,
+    }),
+  );
+
+  const voiceAppSdkClient = initVoiceAppSdkClient(
+    createVoiceAppSdkClientConfig({
+      baseUrl: environment.voiceAppApiBaseUrl,
+      tokenManager,
+    }),
+  );
+
+  const cmsAppSdkClient = initCmsAppSdkClient(
+    createCmsAppSdkClientConfig({
+      baseUrl: environment.cmsAppApiBaseUrl,
+      tokenManager,
+    }),
+  );
+
   sdkClientComposition = {
     driveAppSdkClient,
     imSdkClient,
@@ -115,6 +163,10 @@ export function initSdkClients(
     iamAppSdkClient,
     notaryAppSdkClient,
     notaryApi,
+    knowledgebaseAppSdkClient,
+    agentsAppSdkClient,
+    voiceAppSdkClient,
+    cmsAppSdkClient,
   };
   return sdkClientComposition;
 }
@@ -131,6 +183,10 @@ export function resetSdkClients(): void {
   resetNotaryH5SdkClients();
   resetDriveAppSdkClient();
   resetOrderAppSdkClient();
+  resetKnowledgebaseAppSdkClient();
+  resetAgentsAppSdkClient();
+  resetVoiceAppSdkClient();
+  resetCmsAppSdkClient();
   resetImSdkClient();
   sdkClientComposition = null;
 }

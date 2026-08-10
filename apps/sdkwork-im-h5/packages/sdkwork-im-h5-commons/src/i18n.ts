@@ -34,6 +34,7 @@ import zhEnterprise from './locales/zh/enterprise.json';
 import zhVip from './locales/zh/vip.json';
 import zhChannels from './locales/zh/channels.json';
 import zhErrors from './locales/zh/errors.json';
+import zhSubscription from './locales/zh/subscription.json';
 
 import enCommon from './locales/en/common.json';
 import enAgents from './locales/en/agents.json';
@@ -67,6 +68,7 @@ import enEnterprise from './locales/en/enterprise.json';
 import enVip from './locales/en/vip.json';
 import enChannels from './locales/en/channels.json';
 import enErrors from './locales/en/errors.json';
+import enSubscription from './locales/en/subscription.json';
 
 const resources = {
   zh: {
@@ -102,7 +104,8 @@ const resources = {
       enterprise: zhEnterprise,
       vip: zhVip,
       channels: zhChannels,
-      errors: zhErrors
+      errors: zhErrors,
+      subscription: zhSubscription
     }
   },
   en: {
@@ -138,7 +141,8 @@ const resources = {
       enterprise: enEnterprise,
       vip: enVip,
       channels: enChannels,
-      errors: enErrors
+      errors: enErrors,
+      subscription: enSubscription
     }
   }
 };

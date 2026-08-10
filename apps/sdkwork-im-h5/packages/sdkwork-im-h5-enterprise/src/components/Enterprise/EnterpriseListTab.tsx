@@ -44,7 +44,7 @@ export const EnterpriseListTab: React.FC<EnterpriseListTabProps> = ({ enterprise
                     {t('enterprise.auto_1721e0f', '已认证')}
                   </span>
                 ) : (
-                  <span className="text-[10px] font-medium text-text-sub bg-[#f5f6f8] dark:bg-[#1a1b1c] px-1 py-0.5 rounded-sm shrink-0 border border-border-color/50">
+                  <span className="text-[10px] font-medium text-text-sub bg-bg-color px-1 py-0.5 rounded-sm shrink-0 border border-border-color/50">
                     {t('enterprise.auto_194b947', '未认证')}
                   </span>
                 )}
@@ -57,7 +57,7 @@ export const EnterpriseListTab: React.FC<EnterpriseListTabProps> = ({ enterprise
               {ent.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="text-[10px] font-medium bg-[#f5f6f8] dark:bg-[#1a1b1c] text-text-sub px-1.5 py-0.5 rounded-sm border border-border-color/50"
+                  className="text-[10px] font-medium bg-bg-color text-text-sub px-1.5 py-0.5 rounded-sm border border-border-color/50"
                 >
                   {tag}
                 </span>

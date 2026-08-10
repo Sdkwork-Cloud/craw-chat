@@ -77,7 +77,7 @@ const navigate = useNavigate();
        </header>
 
        {/* Content */}
-       <div className="flex-1 flex flex-col justify-end p-4 relative z-10 pb-6 pb-safe">
+       <div className="flex-1 flex flex-col justify-end px-4 pt-4 relative z-10 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]">
           <div className="flex justify-between items-end">
              <div className="flex-1 pr-12 text-white">
                 <h1 className="text-[20px] font-bold mb-3 drop-shadow-md leading-snug">{work.title}</h1>

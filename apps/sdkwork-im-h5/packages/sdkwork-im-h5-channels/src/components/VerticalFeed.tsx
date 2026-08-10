@@ -76,7 +76,7 @@ return (
                   src={work.avatar}
                   className="w-11 h-11 border-2 border-white/80"
                 />
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[12px] border border-black cursor-pointer leading-none">
+                <div className="absolute -bottom-2 inset-x-0 mx-auto w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[12px] border border-black cursor-pointer leading-none">
                   +
                 </div>
               </div>

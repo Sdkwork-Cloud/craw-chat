@@ -42,6 +42,8 @@
       { "workspace": "sdkwork-drive-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api" },
       { "workspace": "sdkwork-notary-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api" },
       { "workspace": "sdkwork-order-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api" },
+      { "workspace": "sdkwork-knowledgebase-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api" },
+      { "workspace": "sdkwork-voice-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api" },
       { "workspace": "sdkwork-im-sdk", "surface": "open-api", "credentialMode": "protected-open-api-api-key-or-dual-token" }
     ],
     "permissionComposition": {

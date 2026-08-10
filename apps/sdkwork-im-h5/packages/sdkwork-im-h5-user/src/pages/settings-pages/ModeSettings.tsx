@@ -27,7 +27,7 @@ const [enabled, setEnabled] = useState(false);
         <p className="text-[14px] text-text-sub text-center px-8 mb-8">{t("user:mode.teen_desc", "开启后，将限制部分功能的使用，并限制使用时间。开启或关闭都需要输入独立密码。")}</p>
         <button
           onClick={handleToggle}
-          className="w-[200px] h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="w-[200px] h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
         >{enabled ? t("user:mode.teen_off", "关闭青少年模式") : t("user:mode.teen_on", "开启青少年模式")}</button>
       </div>
     </PageLayout>
@@ -59,7 +59,7 @@ const [enabled, setEnabled] = useState(false);
         <p className="text-[14px] text-text-sub text-center px-8 mb-8">{t("user:mode.care_desc", "开启后，文字和按钮将变得更大，色彩更强。")}</p>
         <button
           onClick={handleToggle}
-          className="w-[200px] h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="w-[200px] h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
         >{enabled ? t("user:mode.care_off", "关闭关怀模式") : t("user:mode.care_on", "开启关怀模式")}</button>
       </div>
     </PageLayout>

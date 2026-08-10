@@ -71,8 +71,8 @@ const [filter, setFilter] = useState<"all" | "expense" | "income">("all");
   }, [filter, searchQuery]);
 
   return (
-    <PageLayout title="账单记录" bgClass="bg-[#F8F9FA] dark:bg-black">
-      <div className="bg-white dark:bg-[#1A1A1A] sticky top-0 z-20 shadow-sm border-b border-border-color">
+    <PageLayout title="账单记录" bgClass="bg-bg-color">
+      <div className="bg-chat-other-bg sticky top-0 z-20 shadow-sm border-b border-border-color">
          <div className="px-4 py-3 pb-1">
             <div className="bg-gray-100 dark:bg-white/5 rounded-full flex items-center h-9 px-3 gap-2 border border-transparent focus-within:border-primary-blue/30 transition-colors">
               <Search className="w-4 h-4 text-text-sub shrink-0" />
@@ -103,7 +103,7 @@ const [filter, setFilter] = useState<"all" | "expense" | "income">("all");
       <div className="p-4 space-y-3">
         {records.length > 0 ? (
           records.map((record) => (
-            <div key={record.id} className="bg-white dark:bg-[#1A1A1A] rounded-xl p-4 flex items-center justify-between shadow-sm border border-border-color cursor-pointer active:bg-gray-50 dark:active:bg-[#2A2A2D] transition-colors">
+            <div key={record.id} className="bg-chat-other-bg rounded-xl p-4 flex items-center justify-between shadow-sm border border-border-color cursor-pointer active:bg-hover-bg transition-colors">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${record.type === 'expense' ? 'bg-red-50 text-red-500 dark:bg-red-900/20' : 'bg-green-50 text-green-500 dark:bg-green-900/20'}`}>
                    {record.type === 'expense' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownLeft className="w-5 h-5" />}

@@ -4,7 +4,7 @@ import type { ImH5CapabilityModule } from "../contracts";
 import { IM_H5_ROUTE_DEFINITIONS } from "../routeCatalog";
 import { TabSolidWorkspace, TabSolidDiscover, TabSolidUser } from "../navigation/solidTabIcons";
 
-type ComponentName = "Workspace" | "Discover" | "Me" | "MyProfile" | "ProfileAvatar" | "ProfileName" | "ProfileTickle" | "ProfileQRCode" | "ProfileMore" | "Gender" | "Region" | "Signature" | "ProfileRingtone" | "ProfileBeans" | "ProfileAddress" | "SettingsPage" | "AccountSecurity" | "WechatID" | "ChangePhoneNumber" | "ChangePassword" | "VoiceLock" | "ResetVoiceLock" | "EmergencyContacts" | "MoreSecurity" | "BindQQ" | "BindEmail" | "RecoverPassword" | "DeleteAccount" | "TeenMode" | "ElderlyMode" | "Notifications" | "ChatSettings" | "ChatBackground" | "EmojiManagement" | "ClearChatHistory" | "Devices" | "General" | "FontSize" | "MediaSettings" | "StorageSpace" | "ManageChatHistory" | "FriendPermissions" | "Blacklist" | "Privacy" | "SystemPermissions" | "AuthManagement" | "AdManagement" | "InfoCollection" | "ThirdPartySharing" | "Plugins" | "HelpFeedback" | "FAQ" | "Feedback" | "About" | "Features" | "Complain" | "TOS" | "PrivacyPolicy" | "SwitchAccount" | "MyCharacters" | "CreateCharacter" | "MyCharacterDetail" | "MyVoices" | "CreateVoice" | "MyVoiceDetail" | "ServicesPage" | "BillingRecordsPage" | "FavoritesPage" | "MyAgentsPage" | "MyWorksPage" | "WorkDetailPage" | "WorkEditPage" | "EmojiPage" | "MomentsPage" | "ChannelsPage" | "SearchPage" | "GamesPage";
+type ComponentName = "Workspace" | "Discover" | "Me" | "MyProfile" | "ProfileAvatar" | "ProfileName" | "ProfileTickle" | "ProfileQRCode" | "ProfileMore" | "Gender" | "Region" | "Signature" | "ProfileRingtone" | "ProfileBeans" | "ProfileAddress" | "SettingsPage" | "AccountSecurity" | "WechatID" | "ChangePhoneNumber" | "ChangePassword" | "VoiceLock" | "ResetVoiceLock" | "EmergencyContacts" | "MoreSecurity" | "BindQQ" | "BindEmail" | "RecoverPassword" | "DeleteAccount" | "TeenMode" | "ElderlyMode" | "Notifications" | "ChatSettings" | "ChatBackground" | "EmojiManagement" | "ClearChatHistory" | "Devices" | "General" | "FontSize" | "MediaSettings" | "StorageSpace" | "ManageChatHistory" | "FriendPermissions" | "Blacklist" | "Privacy" | "SystemPermissions" | "AuthManagement" | "AdManagement" | "InfoCollection" | "ThirdPartySharing" | "Plugins" | "HelpFeedback" | "FAQ" | "Feedback" | "About" | "Features" | "Complain" | "TOS" | "PrivacyPolicy" | "SwitchAccount" | "ServicesPage" | "BillingRecordsPage" | "FavoritesPage" | "MyWorksPage" | "WorkDetailPage" | "WorkEditPage" | "EmojiPage" | "MomentsPage" | "ChannelsPage" | "SearchPage" | "GamesPage";
 
 function lazyComponent(name: ComponentName) {
   return React.lazy(async () => {
@@ -72,16 +72,23 @@ const Complain = lazyComponent("Complain");
 const TOS = lazyComponent("TOS");
 const PrivacyPolicy = lazyComponent("PrivacyPolicy");
 const SwitchAccount = lazyComponent("SwitchAccount");
-const MyCharacters = lazyComponent("MyCharacters");
-const CreateCharacter = lazyComponent("CreateCharacter");
-const MyCharacterDetail = lazyComponent("MyCharacterDetail");
-const MyVoices = lazyComponent("MyVoices");
-const CreateVoice = lazyComponent("CreateVoice");
-const MyVoiceDetail = lazyComponent("MyVoiceDetail");
+// My voice library pages are owned by sdkwork-voice and bridged through the
+// IM H5 AI Voice adapter (canonical voice mobile UI lives in sdkwork-voice).
+const MyVoices = React.lazy(async () => {
+  const mod = await import("@sdkwork/im-h5-ai-voice");
+  return { default: mod.MyVoicesPage };
+});
+const CreateVoice = React.lazy(async () => {
+  const mod = await import("@sdkwork/im-h5-ai-voice");
+  return { default: mod.CreateVoicePage };
+});
+const MyVoiceDetail = React.lazy(async () => {
+  const mod = await import("@sdkwork/im-h5-ai-voice");
+  return { default: mod.MyVoiceDetailPage };
+});
 const ServicesPage = lazyComponent("ServicesPage");
 const BillingRecordsPage = lazyComponent("BillingRecordsPage");
 const FavoritesPage = lazyComponent("FavoritesPage");
-const MyAgentsPage = lazyComponent("MyAgentsPage");
 const MyWorksPage = lazyComponent("MyWorksPage");
 const WorkDetailPage = lazyComponent("WorkDetailPage");
 const WorkEditPage = lazyComponent("WorkEditPage");
@@ -158,16 +165,12 @@ export const userModule: ImH5CapabilityModule = {
     { ...IM_H5_ROUTE_DEFINITIONS.userSettingsAboutTos, render: () => <TOS /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userSettingsAboutPrivacy, render: () => <PrivacyPolicy /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userSettingsSwitchAccount, render: () => <SwitchAccount /> },
-    { ...IM_H5_ROUTE_DEFINITIONS.userCharacters, render: () => <MyCharacters /> },
-    { ...IM_H5_ROUTE_DEFINITIONS.userCharactersCreate, render: () => <CreateCharacter /> },
-    { ...IM_H5_ROUTE_DEFINITIONS.userCharactersDetail, render: () => <MyCharacterDetail /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userVoices, render: () => <MyVoices /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userVoicesCreate, render: () => <CreateVoice /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userVoicesDetail, render: () => <MyVoiceDetail /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userServices, render: () => <ServicesPage /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userBillingRecords, render: () => <BillingRecordsPage /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userFavorites, render: () => <FavoritesPage /> },
-    { ...IM_H5_ROUTE_DEFINITIONS.userMyAgents, render: () => <MyAgentsPage /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userMyWorks, render: () => <MyWorksPage /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userWorkDetail, render: () => <WorkDetailPage /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userWorkEdit, render: () => <WorkEditPage /> },

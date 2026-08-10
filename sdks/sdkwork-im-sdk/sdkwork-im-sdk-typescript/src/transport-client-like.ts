@@ -196,6 +196,11 @@ export interface ImTransportClientLike {
         delete(favoriteId: string): Promise<DeleteMessageFavoriteResponse>;
       };
     };
+    me: {
+      welcome: {
+        ensure(): Promise<import('../generated/server-openapi/dist/index.js').WelcomeEnsureView>;
+      };
+    };
   };
   calls: {
     sessions: {

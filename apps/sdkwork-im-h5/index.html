@@ -7,6 +7,96 @@
     <meta name="theme-color" content="#2B5CE7" />
     <meta name="description" content="Sdkwork IM H5 - Mobile browser instant messaging application." />
     <title>Sdkwork IM H5</title>
+    <script>
+      // 微信开发者工具 / X5 内核（Chromium < 94）缺失的 ES2022+ API polyfill。
+      // tiptap/prosemirror 依赖 Array.prototype.at（Chrome 92+）与
+      // Array.prototype.findLast（Chrome 97+），老内核下富文本编辑器会崩溃。
+      // 内联脚本在模块加载前执行，dev 与 build 均生效。
+      (function () {
+        var ap = Array.prototype;
+        if (!ap.at) {
+          ap.at = function at(index) {
+            index = Math.trunc(index) || 0;
+            if (index < 0) index += this.length;
+            return index < 0 || index >= this.length ? undefined : this[index];
+          };
+        }
+        if (!ap.findLast) {
+          ap.findLast = function findLast(callback, thisArg) {
+            for (var i = this.length - 1; i >= 0; i--) {
+              if (callback.call(thisArg, this[i], i, this)) return this[i];
+            }
+            return undefined;
+          };
+        }
+        if (!ap.findLastIndex) {
+          ap.findLastIndex = function findLastIndex(callback, thisArg) {
+            for (var i = this.length - 1; i >= 0; i--) {
+              if (callback.call(thisArg, this[i], i, this)) return i;
+            }
+            return -1;
+          };
+        }
+        var sp = String.prototype;
+        if (!sp.at) {
+          sp.at = function at(index) {
+            index = Math.trunc(index) || 0;
+            if (index < 0) index += this.length;
+            return index < 0 || index >= this.length ? undefined : this[index];
+          };
+        }
+        // crypto.randomUUID（Chrome 92+）：云盘等模块检测不到会直接抛错。
+        if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
+          var uuid = function randomUUID() {
+            var buf = new Uint8Array(16);
+            if (crypto.getRandomValues) {
+              crypto.getRandomValues(buf);
+            } else {
+              for (var i = 0; i < 16; i++) buf[i] = Math.floor(Math.random() * 256);
+            }
+            buf[6] = (buf[6] & 0x0f) | 0x40; // version 4
+            buf[8] = (buf[8] & 0x3f) | 0x80; // variant 10
+            var hex = [];
+            for (var j = 0; j < 16; j++) {
+              hex.push((buf[j] < 16 ? '0' : '') + buf[j].toString(16));
+            }
+            return hex.slice(0, 4).join('') + '-' + hex.slice(4, 6).join('')
+              + '-' + hex.slice(6, 8).join('') + '-' + hex.slice(8, 10).join('')
+              + '-' + hex.slice(10, 16).join('');
+          };
+          Object.defineProperty(crypto, 'randomUUID', {
+            value: uuid,
+            writable: true,
+            configurable: true,
+          });
+        }
+      })();
+    </script>
+    <script>
+      // 主题初始化提前到模块加载前（同步执行）：微信开发者工具等慢渲染
+      // 环境下，若等 React useEffect 再切换 .dark，会出现首帧浅色后跳变
+      // 暗色的主题闪烁。逻辑与 packages/sdkwork-im-h5-shell/src/ImH5Shell.tsx
+      // 的 applyInitialTheme 保持一致（localStorage 键名变更需同步两处）。
+      (function () {
+        var root = document.documentElement;
+        var applyDark = function (dark) {
+          root.classList.toggle('dark', !!dark);
+        };
+        try {
+          var stored = window.localStorage.getItem('clawchat_app_settings');
+          if (stored) {
+            var parsed = JSON.parse(stored);
+            if (typeof parsed.darkMode === 'boolean') {
+              applyDark(parsed.darkMode);
+              return;
+            }
+          }
+        } catch (e) {
+          // malformed storage: fall through to the system preference
+        }
+        applyDark(window.matchMedia('(prefers-color-scheme: dark)').matches);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

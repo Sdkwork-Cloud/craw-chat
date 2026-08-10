@@ -29,11 +29,11 @@ export const MomentsHeaderCover: React.FC<MomentsHeaderCoverProps> = ({
           <Avatar
             src={avatarUrl}
             size="lg"
-            className="w-[72px] h-[72px] rounded-xl border-2 border-white dark:border-[#1C1C1E] bg-white dark:bg-[#1C1C1E] shadow-sm"
+            className="w-[72px] h-[72px] rounded-xl border-2 border-white dark:border-[#1C1C1E] bg-chat-other-bg shadow-sm"
           />
         </div>
       </div>
-      <div className="h-10 w-full bg-white dark:bg-[#1C1C1E]" />
+      <div className="h-10 w-full bg-chat-other-bg" />
     </>
   );
 };

@@ -5,13 +5,13 @@
   "appKey": "sdkwork-im-h5",
   "deploymentProfile": "cloud",
   "publicRuntimeConfig": {
-    "VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL": "https://staging-im.sdkwork.com",
-    "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL": "wss://staging-im.sdkwork.com",
-    "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "https://staging-api.sdkwork.com",
-    "VITE_SDKWORK_IM_API_BASE_URL": "https://staging-api.sdkwork.com",
-    "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "https://staging-drive.sdkwork.com",
-    "VITE_SDKWORK_IAM_API_BASE_URL": "https://staging-iam.sdkwork.com",
-    "VITE_SDKWORK_ORDER_APP_API_BASE_URL": "https://staging-order.sdkwork.com"
+    "VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL": "https://im-staging.sdkwork.com",
+    "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL": "wss://im-staging.sdkwork.com",
+    "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "https://api-staging.sdkwork.com",
+    "VITE_SDKWORK_IM_API_BASE_URL": "https://api-staging.sdkwork.com",
+    "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "https://drive-staging.sdkwork.com",
+    "VITE_SDKWORK_IAM_API_BASE_URL": "https://iam-staging.sdkwork.com",
+    "VITE_SDKWORK_ORDER_APP_API_BASE_URL": "https://order-staging.sdkwork.com"
   },
   "featureFlags": {
     "qrLoginEnabled": true,

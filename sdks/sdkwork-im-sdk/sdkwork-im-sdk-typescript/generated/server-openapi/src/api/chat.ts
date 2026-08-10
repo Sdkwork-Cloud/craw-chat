@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { ApiRequestOptions, HttpClient } from '../http/client';
 
-import type { AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ConversationAgentAssignments, ConversationInboxEntry, ConversationMember, ConversationMessageEntry, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, MessageFavoriteType, MessageFavoriteView, MessageInteractionSummaryView, MessageMutationResult, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, MessageSearchHit, PageInfo, PostMessageRequest, PostMessageResult, ReadCursorView, RecallMessageRequest, RemoveConversationMemberRequest, RoomView, TransferConversationOwnerRequest, UpdateConversationAgentsRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest } from '../types';
+import type { AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ConversationAgentAssignments, ConversationInboxEntry, ConversationMember, ConversationMessageEntry, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, MessageFavoriteType, MessageFavoriteView, MessageInteractionSummaryView, MessageMutationResult, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, MessageSearchHit, PageInfo, PostMessageRequest, PostMessageResult, ReadCursorView, RecallMessageRequest, RemoveConversationMemberRequest, RoomView, TransferConversationOwnerRequest, UpdateConversationAgentsRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest, WelcomeEnsureView } from '../types';
 
 
 export class ChatRoomsApi {
@@ -542,6 +542,31 @@ export class ChatConversationsApi {
   }
 }
 
+export class ChatMeWelcomeApi {
+  private client: HttpClient;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+
+/** Ensure the current user received the system-agent Welcome message */
+  async ensure(requestOptions?: ApiRequestOptions): Promise<WelcomeEnsureView> {
+    return this.client.request<WelcomeEnsureView>(imApiPath(`/chat/me/welcome/ensure`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, sdkworkUnwrapKind: 'item' });
+  }
+}
+
+export class ChatMeApi {
+  private client: HttpClient;
+  public readonly welcome: ChatMeWelcomeApi;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+    this.welcome = new ChatMeWelcomeApi(client);
+  }
+
+}
+
 export interface ChatInboxListParams {
   pageSize?: number;
   cursor?: string;
@@ -572,6 +597,7 @@ export class ChatInboxApi {
 export class ChatApi {
   private client: HttpClient;
   public readonly inbox: ChatInboxApi;
+  public readonly me: ChatMeApi;
   public readonly conversations: ChatConversationsApi;
   public readonly messages: ChatMessagesApi;
   public readonly rooms: ChatRoomsApi;
@@ -579,6 +605,7 @@ export class ChatApi {
   constructor(client: HttpClient) {
     this.client = client;
     this.inbox = new ChatInboxApi(client);
+    this.me = new ChatMeApi(client);
     this.conversations = new ChatConversationsApi(client);
     this.messages = new ChatMessagesApi(client);
     this.rooms = new ChatRoomsApi(client);

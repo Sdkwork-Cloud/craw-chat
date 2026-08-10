@@ -49,7 +49,7 @@ const { id } = useParams();
 
         {/* Resume */}
         <div
-          className="bg-white dark:bg-[#2c2d2e] rounded-xl p-4 mb-6 shadow-sm border border-border-color/30 flex justify-between items-center active:scale-95 transition-transform"
+          className="bg-chat-other-bg rounded-xl p-4 mb-6 shadow-sm border border-border-color/30 flex justify-between items-center active:scale-95 transition-transform"
           onClick={() => showToast(t('recruitment.detail.downloadStart'))}
         >
           <div className="flex items-center gap-3">
@@ -71,7 +71,7 @@ const { id } = useParams();
         {/* Actions */}
         <div className="flex gap-3">
           <button
-            className="flex-1 bg-white dark:bg-[#2c2d2e] border border-border-color text-text-main py-3 rounded-lg font-medium active:bg-bg-color flex justify-center items-center gap-2"
+            className="flex-1 bg-chat-other-bg border border-border-color text-text-main py-3 rounded-lg font-medium active:bg-bg-color flex justify-center items-center gap-2"
             onClick={async () => {
               await RecruitmentService.updateCandidateStage(
                 candidate.id,

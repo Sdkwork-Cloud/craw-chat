@@ -44,8 +44,34 @@ function createSdk(): ChatConversationSdkPort {
         updatedAt: "2026-07-31T00:00:00Z",
       }),
     },
+    me: {
+      welcome: {
+        ensure: async () => ({
+          status: "sent",
+          conversationId: "conversation-welcome",
+          messageId: "message-welcome",
+          messageSeq: "1",
+        }),
+      },
+    },
   };
 }
+
+test("ensureWelcome calls the self-service welcome endpoint", async () => {
+  let ensureCalled = false;
+  const sdk = createSdk();
+  sdk.me.welcome.ensure = async () => {
+    ensureCalled = true;
+    return {
+      status: "already_sent",
+      conversationId: "conversation-welcome",
+      messageId: "message-welcome",
+      messageSeq: "1",
+    };
+  };
+  await createChatConversationService(() => sdk).ensureWelcome();
+  assert.equal(ensureCalled, true);
+});
 
 test("posts text with a unique client message id", async () => {
   let options: { clientMsgId?: string | null } | undefined;

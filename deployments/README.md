@@ -9,8 +9,14 @@ The default development profile is `standalone.development` through `pnpm dev`. 
 cloud profiles use PostgreSQL. Desktop SQLite is an application-owned bounded offline cache and is not a
 server persistence alternative.
 
-`deploy.yaml` is a deployment manifest v2 authority for `standalone.production` and
-`cloud.production` only. Development profiles are resolved by topology v5 and are never deploy targets.
+`deploy.yaml` is a deployment manifest v2 authority for `standalone.production`,
+`cloud.test`, `cloud.staging`, and `cloud.production`. The cloud profiles expose
+the IM web surfaces on their registered environment hosts (`im-test.sdkwork.com`,
+`im-staging.sdkwork.com`, `im.sdkwork.com`) per
+`../sdkwork-specs/APP_RUNTIME_TOPOLOGY_NAMING.md` section 9. Development
+profiles are resolved by topology v5 and are never deploy targets;
+`cloud.development` consumes `im-dev.sdkwork.com:3801` and `api-dev.sdkwork.com`
+through source config only.
 Cloud deployment exposes the IM client through the deployed `platform.api-gateway`; it does not
 install or start `sdkwork-api-im-standalone-gateway`. Standalone deployment owns that gateway as its single
 application ingress.

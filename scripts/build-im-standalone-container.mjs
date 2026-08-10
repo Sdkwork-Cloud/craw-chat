@@ -360,6 +360,7 @@ async function main() {
     const build = await dockerBuild(settings);
     const manifest = {
       schemaVersion: IMAGE_MANIFEST_SCHEMA_VERSION,
+      packageId: 'linux-x64-standalone-container-docker',
       image: settings.tag,
       version: settings.version,
       digest: build.digest,

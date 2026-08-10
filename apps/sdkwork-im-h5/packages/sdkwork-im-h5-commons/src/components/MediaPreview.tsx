@@ -46,7 +46,7 @@ if (!media) return null;
 
         {/* Media Content */}
         <div
-          className="flex-1 flex items-center justify-center absolute inset-0 cursor-default p-4 pt-16 pb-safe"
+          className="flex-1 flex items-center justify-center absolute inset-0 cursor-default px-4 pt-16 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]"
           onClick={onClose}
         >
           {media.type === "image" && (

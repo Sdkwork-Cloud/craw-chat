@@ -3,12 +3,13 @@ use im_adapters_postgres_journal::{
     PostgresConversationSeqAllocator, PostgresDurableConversationEventWriter,
     PostgresDurableMessageMutationWriter, PostgresDurableMessagePostWriter, PostgresJournalConfig,
     PostgresMessageStore, PostgresOutboxStore, PostgresRetentionScopeStore,
+    PostgresWelcomeStateStore,
 };
 use im_adapters_redis_cache::RedisSeqAllocator;
 use im_adapters_social_postgres::user_block_store::PostgresUserBlockStore;
 use im_platform_contracts::{
     AgentIntegrationStore, ConversationAggregateStore, ConversationSeqAllocator, MessageStore,
-    OutboxStore, RetentionScopeStore,
+    OutboxStore, RetentionScopeStore, WelcomeStateStore,
 };
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_im_contract_core::ContractError;
@@ -155,8 +156,10 @@ pub fn build_conversation_runtime_from_env()
                 pool.clone(),
                 id_generator.clone(),
             )) as Arc<dyn AgentIntegrationStore>)
-            .with_retention_scope_store(Arc::new(PostgresRetentionScopeStore::from_pool(pool))
-                as Arc<dyn RetentionScopeStore>)
+            .with_retention_scope_store(Arc::new(PostgresRetentionScopeStore::from_pool(
+                pool.clone(),
+            )) as Arc<dyn RetentionScopeStore>)
+            .with_welcome_state_store(Arc::new(PostgresWelcomeStateStore::from_pool(pool)) as Arc<dyn WelcomeStateStore>)
             .with_id_generator(id_generator.clone())
             .with_durable_message_post_writer(Arc::new(
                 PostgresDurableMessagePostWriter::from_journal(&postgres_journal),

@@ -5,12 +5,19 @@ import { useNavigate } from "react-router";
 
 import { Avatar, IconButton, showToast } from "@sdkwork/im-h5-commons";
 import type { FriendRequest } from "@sdkwork/im-h5-core/sdk";
+import { subscribeScopeEvents } from "@sdkwork/im-h5-core/realtime";
+import { useAppStore } from "@sdkwork/im-h5-core";
 
-import { ContactService } from "../services/ContactService";
+import {
+  ContactService,
+  FRIEND_REQUEST_REALTIME_EVENT_TYPES,
+  SDKWORK_IM_H5_FRIEND_REQUESTS_CHANGED_EVENT,
+} from "../services/ContactService";
 
 export function NewFriends() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const currentUser = useAppStore((state) => state.currentUser);
   const [items, setItems] = useState<FriendRequest[]>([]);
   const [nextCursor, setNextCursor] = useState<string>();
   const [loading, setLoading] = useState(true);
@@ -36,7 +43,21 @@ export function NewFriends() {
 
   useEffect(() => {
     void load();
-  }, [load]);
+    const handleChanged = () => { void load(); };
+    window.addEventListener(SDKWORK_IM_H5_FRIEND_REQUESTS_CHANGED_EVENT, handleChanged);
+    const unsubscribeScope = currentUser?.id
+      ? subscribeScopeEvents("user", currentUser.id, (event) => {
+        const eventType = String(event.eventType ?? event.type ?? "");
+        if (FRIEND_REQUEST_REALTIME_EVENT_TYPES.includes(eventType)) {
+          void load();
+        }
+      }, FRIEND_REQUEST_REALTIME_EVENT_TYPES)
+      : undefined;
+    return () => {
+      window.removeEventListener(SDKWORK_IM_H5_FRIEND_REQUESTS_CHANGED_EVENT, handleChanged);
+      unsubscribeScope?.();
+    };
+  }, [load, currentUser?.id]);
 
   const mutate = async (request: FriendRequest, action: "accept" | "decline") => {
     if (mutatingId) return;
@@ -68,7 +89,7 @@ export function NewFriends() {
             onClick={() => navigate(-1)}
           />
         </div>
-        <h2 className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[17px] font-medium text-text-main">
+        <h2 className="pointer-events-none absolute inset-x-0 text-center text-[17px] font-medium text-text-main">
           {t("contacts.new_friends")}
         </h2>
         <button

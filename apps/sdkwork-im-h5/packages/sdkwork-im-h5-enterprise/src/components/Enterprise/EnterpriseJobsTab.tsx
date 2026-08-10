@@ -20,7 +20,7 @@ export const EnterpriseJobsTab = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="bg-white dark:bg-[#2c2d2e] flex flex-col"
+      className="bg-chat-other-bg flex flex-col"
     >
       {jobs.map((job, i) => (
         <div
@@ -37,13 +37,13 @@ export const EnterpriseJobsTab = ({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-1 bg-[#f5f6f8] dark:bg-[#1a1b1c] text-text-sub text-[12px] font-bold rounded-sm">
+            <span className="px-2.5 py-1 bg-bg-color text-text-sub text-[12px] font-bold rounded-sm">
               {job.req.split(" | ")[0]}
             </span>
-            <span className="px-2.5 py-1 bg-[#f5f6f8] dark:bg-[#1a1b1c] text-text-sub text-[12px] font-bold rounded-sm">
+            <span className="px-2.5 py-1 bg-bg-color text-text-sub text-[12px] font-bold rounded-sm">
               {job.req.split(" | ")[1]}
             </span>
-            <span className="px-2.5 py-1 bg-[#f5f6f8] dark:bg-[#1a1b1c] text-text-sub text-[12px] font-bold rounded-sm">
+            <span className="px-2.5 py-1 bg-bg-color text-text-sub text-[12px] font-bold rounded-sm">
               {job.req.split(" | ")[2]}
             </span>
           </div>

@@ -17,6 +17,7 @@ mod retention_scheduler;
 mod search_store;
 mod seq_allocator;
 mod stream_state_store;
+mod welcome_state_store;
 
 pub use agent_integration_store::PostgresAgentIntegrationStore;
 pub use aggregate_store::PostgresAggregateStore;
@@ -49,6 +50,7 @@ pub use retention_scheduler::{
 pub use search_store::{MemberSearchQuery, PostgresSearchProvider};
 pub use seq_allocator::PostgresConversationSeqAllocator;
 pub use stream_state_store::PostgresStreamStateStore;
+pub use welcome_state_store::PostgresWelcomeStateStore;
 
 pub(crate) use journal_queries::{APPEND_EVENT_SQL, LOAD_EVENT_BY_POSITION_SQL};
 pub(crate) use journal_repository::{

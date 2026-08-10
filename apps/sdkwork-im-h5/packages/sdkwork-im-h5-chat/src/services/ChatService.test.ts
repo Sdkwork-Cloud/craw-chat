@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type {
+  CmsAppSdkClient,
+  ConversationMessageEntry,
+} from "@sdkwork/im-h5-core/sdk";
+
 import {
   ChatCapabilityUnavailableError,
   createChatService,
@@ -12,7 +17,60 @@ interface ChatSdkOverrides {
   messages?: {
     deleteForMe?: ChatSdkPort["messages"]["deleteForMe"];
     search?: ChatSdkPort["messages"]["search"];
+    recall?: ChatSdkPort["messages"]["recall"];
+    edit?: ChatSdkPort["messages"]["edit"];
     favorites?: Partial<ChatSdkPort["messages"]["favorites"]>;
+  };
+}
+
+interface CmsSdkOverrides {
+  favorites?: {
+    create?: CmsAppSdkClient["favorites"]["create"];
+    list?: CmsAppSdkClient["favorites"]["list"];
+    delete?: CmsAppSdkClient["favorites"]["delete"];
+  };
+}
+
+function createCmsSdk(overrides: CmsSdkOverrides = {}): CmsAppSdkClient {
+  return {
+    favorites: {
+      create: async () => ({ item: {
+        id: "1",
+        favoriteId: "fav-1",
+        favoriteType: "chat",
+        targetType: "im_message",
+        targetId: "message-1",
+        targetUuid: null,
+        targetUrl: null,
+        title: "Hello",
+        summary: "Hello",
+        sourceDisplayName: "User",
+        media: null,
+        favoritedAt: "2026-07-29T00:00:00Z",
+      } }),
+      list: async () => ({
+        items: [],
+        pageInfo: { mode: "cursor", nextCursor: null, hasMore: false },
+      }),
+      delete: async () => ({ deleted: true }),
+      ...overrides.favorites,
+    },
+  } as unknown as CmsAppSdkClient;
+}
+
+function messageEntry(overrides: Partial<ConversationMessageEntry> = {}): ConversationMessageEntry {
+  return {
+    tenantId: "tenant-1",
+    conversationId: "conversation-1",
+    messageId: "message-1",
+    messageSeq: 1,
+    summary: "Hello",
+    sender: { id: "user-1", kind: "user", displayName: "User" },
+    body: { text: "Hello", parts: [] },
+    messageType: "standard",
+    deliveryMode: "chat",
+    occurredAt: "2026-07-29T00:00:00Z",
+    ...overrides,
   };
 }
 
@@ -93,6 +151,8 @@ function createSdk(overrides: ChatSdkOverrides = {}): ChatSdkPort {
       }),
       ...(overrides.messages?.deleteForMe ? { deleteForMe: overrides.messages.deleteForMe } : {}),
       ...(overrides.messages?.search ? { search: overrides.messages.search } : {}),
+      ...(overrides.messages?.recall ? { recall: overrides.messages.recall } : {}),
+      ...(overrides.messages?.edit ? { edit: overrides.messages.edit } : {}),
     },
   };
 }
@@ -124,6 +184,35 @@ test("lists one bounded server cursor page", async () => {
 
   assert.deepEqual(receivedParams, { pageSize: 50 });
   assert.equal(chats[0]?.id, "conversation-1");
+});
+
+test("forwards conversation type filter to the server page", async () => {
+  let receivedParams: unknown;
+  const service = createChatService(() => createSdk({
+    conversations: {
+      list: async (params) => {
+        receivedParams = params;
+        return {
+          items: [{
+            tenantId: "tenant-1",
+            conversationId: "group-1",
+            conversationType: "group",
+            displayName: "Team",
+            lastActivityAt: "2026-07-29T00:00:00Z",
+            messageCount: 0,
+            lastMessageSeq: 0,
+            unreadCount: 0,
+          }],
+          pageInfo: { mode: "cursor", hasMore: false },
+        };
+      },
+    },
+  }));
+
+  const chats = await service.listChatPage(undefined, undefined, "group");
+
+  assert.deepEqual(receivedParams, { pageSize: 50, conversationType: "group" });
+  assert.equal(chats.items[0]?.type, "group");
 });
 
 test("rejects incomplete cursor metadata", async () => {
@@ -374,10 +463,116 @@ test("marks a conversation read at the server history high watermark", async () 
   assert.deepEqual(readCursor, { readSeq: 42 });
 });
 
-test("scans cursor-paginated favorites before failing to unstar", async () => {
+test("stars a message through the CMS favorites surface with derived type", async () => {
+  let createdBody: Parameters<CmsAppSdkClient["favorites"]["create"]>[0] | undefined;
+  const service = createChatService(
+    () => createSdk({
+      conversations: {
+        listMessages: async () => ({
+          items: [
+            messageEntry({
+              body: {
+                text: "https://github.com/facebook/react",
+                parts: [],
+              },
+            }),
+          ],
+          pageInfo: { mode: "cursor", hasMore: false },
+          highWatermark: 1,
+        }),
+      },
+    }),
+    () => createCmsSdk({
+      favorites: {
+        create: async (body) => {
+          createdBody = body;
+          return { item: {
+            id: "1",
+            favoriteId: "fav-1",
+            favoriteType: "link",
+            targetType: "im_message",
+            targetId: "message-1",
+            targetUuid: null,
+            targetUrl: null,
+            title: "https://github.com/facebook/react",
+            summary: "https://github.com/facebook/react",
+            sourceDisplayName: "User",
+            media: null,
+            favoritedAt: "2026-07-29T00:00:00Z",
+          } };
+        },
+      },
+    }),
+  );
+
+  await service.starMessage("conversation-1", "message-1", true);
+  assert.equal(createdBody?.targetType, "im_message");
+  assert.equal(createdBody?.targetId, "message-1");
+  assert.equal(createdBody?.favoriteType, "link");
+  assert.equal(createdBody?.sourceDisplayName, "User");
+});
+
+test("derives image favorite type from media message parts", async () => {
+  let createdBody: Parameters<CmsAppSdkClient["favorites"]["create"]>[0] | undefined;
+  const service = createChatService(
+    () => createSdk({
+      conversations: {
+        listMessages: async () => ({
+          items: [
+            messageEntry({
+              body: {
+                text: "",
+                parts: [
+                  {
+                    kind: "media",
+                    drive: { driveUri: "drive://space-1/node-1", spaceId: "space-1", nodeId: "node-1" },
+                    resource: {
+                      source: "drive",
+                      uri: "drive://node-1",
+                      mediaKind: "image",
+                    },
+                  },
+                ],
+              },
+            }),
+          ],
+          pageInfo: { mode: "cursor", hasMore: false },
+          highWatermark: 1,
+        }),
+      },
+    }),
+    () => createCmsSdk({
+      favorites: {
+        create: async (body) => {
+          createdBody = body;
+          return { item: {
+            id: "1",
+            favoriteId: "fav-1",
+            favoriteType: "image",
+            targetType: "im_message",
+            targetId: "message-1",
+            targetUuid: null,
+            targetUrl: null,
+            title: "image",
+            summary: "",
+            sourceDisplayName: "User",
+            media: null,
+            favoritedAt: "2026-07-29T00:00:00Z",
+          } };
+        },
+      },
+    }),
+  );
+
+  await service.starMessage("conversation-1", "message-1", true);
+  assert.equal(createdBody?.favoriteType, "image");
+});
+
+test("scans cursor-paginated CMS favorites before failing to unstar", async () => {
   let listCalls = 0;
-  const service = createChatService(() => createSdk({
-    messages: {
+  const service = createChatService(
+    () => createSdk(),
+    () => createCmsSdk({
       favorites: {
         list: async () => {
           listCalls += 1;
@@ -387,9 +582,197 @@ test("scans cursor-paginated favorites before failing to unstar", async () => {
           };
         },
       },
-    },
-  }));
+    }),
+  );
 
   await assert.rejects(service.starMessage("conversation-1", "message-1", false), /repeated cursor/);
   assert.equal(listCalls, 2);
+});
+
+test("unstars a message by deleting the matching CMS im_message favorite", async () => {
+  let deletedId: string | undefined;
+  const service = createChatService(
+    () => createSdk(),
+    () => createCmsSdk({
+      favorites: {
+        list: async () => ({
+          items: [
+            {
+              id: "1",
+              favoriteId: "fav-9",
+              favoriteType: "chat",
+              targetType: "im_message",
+              targetId: "message-1",
+              targetUuid: null,
+              targetUrl: null,
+              title: "Hello",
+              summary: "Hello",
+              sourceDisplayName: "User",
+              media: null,
+              favoritedAt: "2026-07-29T00:00:00Z",
+            },
+          ],
+          pageInfo: { mode: "cursor", nextCursor: null, hasMore: false },
+        }),
+        delete: async (favoriteId) => {
+          deletedId = favoriteId;
+          return { deleted: true };
+        },
+      },
+    }),
+  );
+
+  await service.starMessage("conversation-1", "message-1", false);
+  assert.equal(deletedId, "fav-9");
+});
+
+test("recalls a message through the IM SDK", async () => {
+  const calls: string[] = [];
+  const service = createChatService(() => createSdk({
+    messages: {
+      recall: async (messageId) => {
+        calls.push(messageId);
+        return { conversationId: "conversation-1", eventId: "event-1", messageId, messageSeq: 1 };
+      },
+    },
+  }));
+
+  await service.recallMessage("conversation-1", "message-1");
+
+  assert.deepEqual(calls, ["message-1"]);
+});
+
+test("edits a text message and re-reads it from history", async () => {
+  let editedBody: unknown;
+  const service = createChatService(() => createSdk({
+    conversations: {
+      listMessages: async () => ({
+        items: [
+          messageEntry({
+            messageId: "message-1",
+            summary: "Edited content",
+            body: { text: "Edited content", parts: [] },
+          }),
+        ],
+        pageInfo: { mode: "cursor", hasMore: false },
+        highWatermark: 1,
+      }),
+    },
+    messages: {
+      edit: async (_messageId, body) => {
+        editedBody = body;
+        return { conversationId: "conversation-1", eventId: "event-1", messageId: "message-1", messageSeq: 2 };
+      },
+    },
+  }));
+
+  const message = await service.editMessage("conversation-1", "message-1", "  Edited content  ");
+
+  assert.deepEqual(editedBody, { text: "Edited content" });
+  assert.equal(message.content, "Edited content");
+});
+
+test("rejects editing with empty content before calling the SDK", async () => {
+  let calls = 0;
+  const service = createChatService(() => createSdk({
+    messages: {
+      edit: async () => {
+        calls += 1;
+        return { conversationId: "conversation-1", eventId: "event-1", messageId: "message-1", messageSeq: 2 };
+      },
+    },
+  }));
+
+  await assert.rejects(
+    service.editMessage("conversation-1", "message-1", "   "),
+    /required/,
+  );
+  assert.equal(calls, 0);
+});
+
+test("updates the conversation profile through updateProfile", async () => {
+  let receivedBody: unknown;
+  const service = createChatService(() => createSdk({
+    conversations: {
+      updateProfile: async (_conversationId, body) => {
+        receivedBody = body;
+        return {
+          tenantId: "tenant-1",
+          conversationId: "conversation-1",
+          displayName: "New name",
+          avatarUrl: "",
+          notice: "",
+          updatedAt: "2026-07-29T00:00:00Z",
+        };
+      },
+    },
+  }));
+
+  await service.updateChatProfile("conversation-1", { displayName: "New name" });
+
+  assert.deepEqual(receivedBody, { displayName: "New name" });
+});
+
+test("resolves the current member role for group management", async () => {
+  const service = createChatService(() => createSdk({
+    conversations: {
+      getCurrentMember: async () => ({
+        tenantId: "tenant-1",
+        conversationId: "conversation-1",
+        memberId: "member-1",
+        principalId: "current-user",
+        principalKind: "user",
+        role: "owner",
+        state: "joined",
+        joinedAt: "2026-07-29T00:00:00Z",
+      }),
+    },
+  }));
+
+  assert.equal(await service.getMyConversationRole("conversation-1"), "owner");
+});
+
+test("removes a group member by resolving its member id", async () => {
+  const calls: Array<[string, unknown]> = [];
+  const service = createChatService(() => createSdk({
+    conversations: {
+      listMembers: async () => ({
+        items: [
+          {
+            tenantId: "tenant-1",
+            conversationId: "conversation-1",
+            memberId: "member-2",
+            principalId: "user-2",
+            principalKind: "user",
+            role: "member",
+            state: "joined",
+            joinedAt: "2026-07-29T00:00:00Z",
+          },
+        ],
+        pageInfo: { mode: "cursor", hasMore: false },
+      }),
+      removeMember: async (conversationId, body) => {
+        calls.push([conversationId, body]);
+      },
+    },
+  }));
+
+  await service.removeGroupMember("conversation-1", "user-2");
+
+  assert.deepEqual(calls, [["conversation-1", { memberId: "member-2" }]]);
+});
+
+test("leaves a group conversation through the members endpoint", async () => {
+  let leftConversationId: string | undefined;
+  const service = createChatService(() => createSdk({
+    conversations: {
+      leave: async (conversationId) => {
+        leftConversationId = conversationId;
+      },
+    },
+  }));
+
+  await service.leaveGroupChat("conversation-1");
+
+  assert.equal(leftConversationId, "conversation-1");
 });

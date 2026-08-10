@@ -108,6 +108,66 @@ test('clears an incomplete hydrated session before current-session retrieval', a
   assert.equal(clearCount, 1);
 });
 
+test('keeps a hydrated session when current-session validation fails transiently', async () => {
+  let clearCount = 0;
+
+  const authenticated = await restoreAndValidateImH5Session({
+    clearSession: async () => {
+      clearCount += 1;
+    },
+    hydrateTokenManager: async () => ({
+      accessToken: 'access-token',
+      authToken: 'auth-token',
+    }),
+    retrieveCurrentSession: async () => {
+      throw new Error('network error: fetch failed');
+    },
+  });
+
+  assert.equal(authenticated, true);
+  assert.equal(clearCount, 0);
+});
+
+test('keeps a hydrated session when current-session validation hits a server 5xx', async () => {
+  let clearCount = 0;
+
+  const authenticated = await restoreAndValidateImH5Session({
+    clearSession: async () => {
+      clearCount += 1;
+    },
+    hydrateTokenManager: async () => ({
+      accessToken: 'access-token',
+      authToken: 'auth-token',
+    }),
+    retrieveCurrentSession: async () => {
+      throw Object.assign(new Error('HTTP 503: gateway unavailable'), { httpStatus: 503 });
+    },
+  });
+
+  assert.equal(authenticated, true);
+  assert.equal(clearCount, 0);
+});
+
+test('clears a hydrated session definitively rejected with HTTP 401', async () => {
+  let clearCount = 0;
+
+  const authenticated = await restoreAndValidateImH5Session({
+    clearSession: async () => {
+      clearCount += 1;
+    },
+    hydrateTokenManager: async () => ({
+      accessToken: 'access-token',
+      authToken: 'auth-token',
+    }),
+    retrieveCurrentSession: async () => {
+      throw Object.assign(new Error('HTTP 401: unauthorized'), { httpStatus: 401 });
+    },
+  });
+
+  assert.equal(authenticated, false);
+  assert.equal(clearCount, 1);
+});
+
 test('clears a hydrated session rejected by appbase IAM', async () => {
   let clearCount = 0;
 
@@ -125,5 +185,26 @@ test('clears a hydrated session rejected by appbase IAM', async () => {
   });
 
   assert.equal(authenticated, false);
+  assert.equal(clearCount, 1);
+});
+
+test('clears a hydrated session when token manager hydration fails', async () => {
+  let clearCount = 0;
+  let retrieveCount = 0;
+
+  const authenticated = await restoreAndValidateImH5Session({
+    clearSession: async () => {
+      clearCount += 1;
+    },
+    hydrateTokenManager: async () => {
+      throw new Error('storage unavailable');
+    },
+    retrieveCurrentSession: async () => {
+      retrieveCount += 1;
+    },
+  });
+
+  assert.equal(authenticated, false);
+  assert.equal(retrieveCount, 0);
   assert.equal(clearCount, 1);
 });

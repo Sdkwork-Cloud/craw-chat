@@ -1,9 +1,9 @@
 {
   "SDKWORK_DEPLOYMENT_PROFILE": "cloud",
   "SDKWORK_ENVIRONMENT": "staging",
-  "SDKWORK_IAM_APP_API_BASE_URL": "https://api-staging.sdkwork.com",
-  "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL": "https://api-staging.sdkwork.com",
-  "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL": "wss://api-staging.sdkwork.com",
+  "SDKWORK_IAM_APP_API_BASE_URL": "https://im-staging.sdkwork.com",
+  "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL": "https://im-staging.sdkwork.com",
+  "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL": "wss://im-staging.sdkwork.com",
   "SDKWORK_IM_DEPLOYMENT_PROFILE": "cloud",
   "SDKWORK_IM_ENVIRONMENT": "staging",
   "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "https://api-staging.sdkwork.com",

@@ -788,9 +788,9 @@ const expectedWorkflowTargetIds = [
   'macos-x64-standalone-server-pkg',
   'macos-arm64-standalone-server-pkg',
   'linux-ubuntu-x64-standalone-desktop-deb',
-  'linux-ubuntu-x64-standalone-desktop-appimage',
+  'linux-x64-standalone-desktop-appimage',
   'linux-ubuntu-arm64-standalone-desktop-deb',
-  'linux-ubuntu-arm64-standalone-desktop-appimage',
+  'linux-arm64-standalone-desktop-appimage',
   'windows-x64-standalone-desktop-msi',
   'windows-x64-standalone-desktop-exe',
   'windows-arm64-standalone-desktop-msi',
@@ -861,10 +861,12 @@ for (const [phase, expectedCommand] of Object.entries({
 }
 for (const target of workflowConfig.targets ?? []) {
   const variantToken = target.variant ? `-${target.variant}` : '';
-  // GITHUB_WORKFLOW_SPEC §5: Linux native deb/appimage items carry the
-  // distribution segment (linux-ubuntu-...); archive/zip items do not. The
-  // format token in the id is lowercase kebab-case (AppImage -> appimage).
-  const isLinuxNative = target.platform === 'linux' && ['deb', 'appimage'].includes(String(target.formats?.[0] ?? '').toLowerCase());
+  // GITHUB_WORKFLOW_SPEC §5: Linux native deb/rpm items carry the
+  // distribution segment (linux-ubuntu-...); appimage and archive/zip items
+  // do not (the framework schema treats only deb/rpm as linux native
+  // package formats). The format token in the id is lowercase kebab-case
+  // (AppImage -> appimage).
+  const isLinuxNative = target.platform === 'linux' && ['deb', 'rpm'].includes(String(target.formats?.[0] ?? '').toLowerCase());
   const platformSegment = isLinuxNative ? 'linux-ubuntu' : target.platform;
   assert.equal(
     target.id,

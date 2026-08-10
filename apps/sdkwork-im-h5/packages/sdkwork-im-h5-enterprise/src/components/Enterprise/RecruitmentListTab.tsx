@@ -21,7 +21,7 @@ export const RecruitmentListTab: React.FC<RecruitmentListTabProps> = ({ recruitm
       {recruitments.map((job, i) => (
         <div
           key={i}
-          className="px-4 py-3 border-b border-border-color/50 flex flex-col gap-2 active:bg-chat-active-bg transition-colors cursor-pointer group hover:bg-[#fcfdff] dark:hover:bg-[#333538] relative overflow-hidden"
+          className="px-4 py-3 border-b border-border-color/50 flex flex-col gap-2 active:bg-chat-active-bg transition-colors cursor-pointer group hover:bg-hover-bg relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-primary-blue/5 opacity-0 group-active:opacity-100 transition-opacity" />
           <div className="flex justify-between items-center">
@@ -31,7 +31,7 @@ export const RecruitmentListTab: React.FC<RecruitmentListTabProps> = ({ recruitm
             <span className="text-[15px] font-extrabold text-red-500">{job.salary}</span>
           </div>
           <div className="flex items-center gap-3 text-[12px] text-text-sub mt-0.5">
-            <div className="flex items-center gap-1.5 bg-[#f5f6f8] dark:bg-[#1a1b1c] px-2 py-0.5 rounded-sm">
+            <div className="flex items-center gap-1.5 bg-bg-color px-2 py-0.5 rounded-sm">
               <Briefcase className="w-3.5 h-3.5 opacity-70" />
               <span className="font-medium opacity-90">{job.req}</span>
             </div>

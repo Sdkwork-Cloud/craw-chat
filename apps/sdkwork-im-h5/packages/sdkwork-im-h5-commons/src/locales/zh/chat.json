@@ -9,7 +9,9 @@
     "start_group": "发起群聊",
     "add_friend": "添加朋友",
     "create_agent": "创建智能体",
-    "scan": "扫一扫"
+    "scan": "扫一扫",
+    "mute": "消息免打扰",
+    "unmute": "取消免打扰"
   },
   "detail": {
     "legacy_title": "旧版会话",
@@ -35,7 +37,15 @@
     "miniapp": "小程序",
     "no_mic_permission": "无法访问麦克风权限",
     "too_short": "说话时间太短",
-    "copied": "已复制"
+    "copied": "已复制",
+    "send_failed_retry": "发送失败，点击重试",
+    "pinned_messages": "置顶消息",
+    "pin_failed": "置顶消息失败",
+    "card_group_invite": "群邀请已发送",
+    "card_contact": "联系人卡片",
+    "card_group_invite_label": "邀请你加入群聊",
+    "card_group_label": "群聊邀请",
+    "card_contact_label": "个人名片"
   },
   "profile": {
     "title": "聊天信息",
@@ -47,7 +57,29 @@
     "clean_mode": "清爽模式",
     "set_background": "设置当前聊天背景",
     "clear_history": "清空聊天记录",
-    "clear_history_confirm": "确定要清空聊天记录吗？"
+    "clear_history_confirm": "确定要清空聊天记录吗？",
+    "group_name": "群聊名称",
+    "group_notice": "群公告",
+    "group_name_hint": "请输入群聊名称",
+    "group_notice_hint": "请输入群公告",
+    "remark": "设置备注",
+    "remark_hint": "请输入备注",
+    "profile_updated": "资料已更新",
+    "profile_update_failed": "更新资料失败",
+    "star_contact": "设为星标联系人",
+    "remove_member": "移除成员",
+    "member_removed": "已移除该成员",
+    "member_remove_failed": "移除成员失败",
+    "leave_group": "退出群聊",
+    "leave_group_confirm": "确定要退出该群聊吗？",
+    "leave_group_failed": "退出群聊失败",
+    "set_background_unavailable": "聊天背景功能暂不可用",
+    "block_contact": "加入黑名单",
+    "block_contact_confirm": "将对方加入黑名单？加入后对方将无法再给你发消息。",
+    "blocked": "已加入黑名单",
+    "remove_friend": "删除好友",
+    "remove_friend_confirm": "确定删除该好友？会话记录也会一并删除。",
+    "action_failed": "操作失败，请稍后重试"
   },
   "context": {
     "copy": "复制",
@@ -56,7 +88,14 @@
     "forward_disabled": "由于演示版本限制，暂不支持转发",
     "unstar": "取消收藏",
     "star": "收藏",
-    "delete": "删除"
+    "delete": "删除",
+    "edit": "编辑",
+    "recall": "撤回",
+    "recall_failed": "撤回消息失败",
+    "edit_failed": "编辑消息失败",
+    "edit_saved": "消息已编辑",
+    "pin_message": "置顶消息",
+    "unpin_message": "取消置顶"
   },
   "call": {
     "unknown": "未知联系人",
@@ -77,7 +116,8 @@
     "create_failed": "操作失败，请重试",
     "creating": "创建中...",
     "complete": "完成",
-    "search": "搜索联系人"
+    "search": "搜索联系人",
+    "group_name_placeholder": "输入群聊名称（选填）"
   },
   "search": {
     "placeholder": "搜索",
@@ -112,6 +152,7 @@
     "play_error": "无法播放语音",
     "release_to_send": "松开 发送",
     "slide_to_cancel": "上滑 取消",
-    "miniapp_title": "小程序"
+    "miniapp_title": "小程序",
+    "system_agent_name": "系统智能体"
   }
 }

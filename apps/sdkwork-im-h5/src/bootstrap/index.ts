@@ -16,8 +16,20 @@ import {
   configureOrderMobileRuntime,
   resetOrderMobileRuntime,
 } from '@sdkwork/order-mobile-react-orders';
+import {
+  configureKnowledgeBaseRuntime,
+  resetKnowledgeBaseRuntime,
+} from '@sdkwork/knowledgebase-mobile-react-knowledge';
+import {
+  configureAgentService,
+  configureAgentChatService,
+  configureKnowledgeSelectionAdapter,
+  createKnowledgebaseSelectionAdapter,
+} from '@sdkwork/agents-h5-agents';
+import { useAppStore } from '@sdkwork/im-h5-core';
 import { initSdkClients, resetSdkClients } from './sdkClients';
 import { createWechatPaymentOAuthChannel } from './wechatPaymentOAuth';
+import { configureVoiceMyVoicesRuntime } from '@sdkwork/im-h5-ai-voice';
 import { resolveTokenManagerBinding, resetTokenManagerBinding } from './tokenManager';
 import { registerHostAdapter, resetHostAdapters } from './hostAdapters';
 import { registerRoute, resetRoutes, IM_H5_ROUTE_REGISTRY } from './routes';
@@ -46,6 +58,21 @@ export async function bootstrapImH5CapabilityIntegrations(): Promise<H5Bootstrap
     wechatPaymentOAuth: createWechatPaymentOAuthChannel(sdkClients.iamAppSdkClient),
     paymentRegion: environment.paymentRegion,
   });
+  configureKnowledgeBaseRuntime({
+    client: sdkClients.knowledgebaseAppSdkClient,
+    // Scope the local knowledge base registry to the signed-in user.
+    resolveScopeKey: () => useAppStore.getState().currentUser?.id,
+  });
+  // Agents capability: inject the IM-constructed agents app SDK client so the
+  // agents H5 views never construct raw HTTP or their own transport. The chat
+  // transport shares the same injected client (sessions/turns).
+  configureAgentService(() => sdkClients.agentsAppSdkClient as never);
+  configureAgentChatService(() => sdkClients.agentsAppSdkClient as never);
+  configureKnowledgeSelectionAdapter(
+    createKnowledgebaseSelectionAdapter(sdkClients.knowledgebaseAppSdkClient),
+  );
+  // My voices capability: inject the voice app SDK client + Drive media ports.
+  configureVoiceMyVoicesRuntime();
 
   const hostAdapters: H5BootstrapResult['hostAdapters'] = [];
   for (const meta of IM_H5_ROUTE_REGISTRY) {
@@ -70,6 +97,7 @@ export function getH5BootstrapResult(): H5BootstrapResult | null {
 export function resetH5Bootstrap(): void {
   resetCloudDriveRuntime();
   resetOrderMobileRuntime();
+  resetKnowledgeBaseRuntime();
   resetSdkClients();
   resetTokenManagerBinding();
   resetHostAdapters();

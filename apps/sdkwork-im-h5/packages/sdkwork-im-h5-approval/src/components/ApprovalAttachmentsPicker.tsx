@@ -16,7 +16,7 @@ export const ApprovalAttachmentsPicker: React.FC<ApprovalAttachmentsPickerProps>
   const { t } = useTranslation();
 
   return (
-    <div className="bg-white dark:bg-[#1a1b1c] mt-2 border-y border-border-color/30 p-4">
+    <div className="bg-chat-other-bg mt-2 border-y border-border-color/30 p-4">
       <div className="text-[15px] text-text-main font-medium mb-3">
         {t('approval.createForm.attachments')}
       </div>

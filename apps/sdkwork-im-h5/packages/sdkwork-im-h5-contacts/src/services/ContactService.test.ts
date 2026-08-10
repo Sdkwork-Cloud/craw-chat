@@ -11,6 +11,7 @@ interface ContactsSdkOverrides {
   social?: {
     contacts?: Partial<ContactsSdkPort["social"]["contacts"]>;
     friendRequests?: Partial<ContactsSdkPort["social"]["friendRequests"]>;
+    friendships?: Partial<ContactsSdkPort["social"]["friendships"]>;
     users?: Partial<ContactsSdkPort["social"]["users"]>;
   };
 }
@@ -28,6 +29,14 @@ function createSdk(overrides: ContactsSdkOverrides = {}): ContactsSdkPort {
           items: [],
           pageInfo: { mode: "cursor", hasMore: false },
         }),
+        preferences: {
+          retrieve: async () => {
+            throw new Error("Unexpected contact preferences retrieval");
+          },
+          update: async () => {
+            throw new Error("Unexpected contact preferences update");
+          },
+        },
         ...overrides.social?.contacts,
       },
       friendRequests: {
@@ -52,6 +61,10 @@ function createSdk(overrides: ContactsSdkOverrides = {}): ContactsSdkPort {
         cancel: async () => { throw new Error("Unexpected friend request cancellation"); },
         pendingCount: async () => ({ count: 0 }),
         ...overrides.social?.friendRequests,
+      },
+      friendships: {
+        remove: async () => { throw new Error("Unexpected friendship removal"); },
+        ...overrides.social?.friendships,
       },
       users: {
         list: async () => ({
@@ -253,4 +266,136 @@ test("starts a direct conversation with a client id and attaches the member", as
     principalKind: "user",
     role: "member",
   });
+});
+
+test("removes a friendship through the resolved contact friendship id", async () => {
+  let removedFriendshipId: string | undefined;
+  const service = createContactService(() => createSdk({
+    social: {
+      contacts: {
+        list: async () => ({
+          items: [{
+            tenantId: "tenant-1",
+            ownerUserId: "current-user",
+            targetUserId: "user-1",
+            displayName: "Alice",
+            avatarUrl: "",
+            contactType: "friend",
+            relationshipState: "friends",
+            friendshipId: "friendship-9",
+            establishedAt: "2026-07-29T00:00:00Z",
+            lastInteractionAt: "2026-07-29T00:00:00Z",
+            isStarred: false,
+            isBlocked: false,
+            updatedAt: "2026-07-29T00:00:00Z",
+          }],
+          pageInfo: { mode: "cursor", hasMore: false },
+        }),
+      },
+      friendships: {
+        remove: async (friendshipId) => {
+          removedFriendshipId = friendshipId;
+          return { friendshipId, deleted: true };
+        },
+      },
+    },
+  }));
+
+  await service.removeFriend("user-1");
+
+  assert.equal(removedFriendshipId, "friendship-9");
+});
+
+test("rejects removing a friendship without a resolved friendship id", async () => {
+  let removeCalls = 0;
+  const service = createContactService(() => createSdk({
+    social: {
+      friendships: {
+        remove: async () => {
+          removeCalls += 1;
+          return {};
+        },
+      },
+    },
+  }));
+
+  await assert.rejects(service.removeFriend("user-1"), /Friendship not found/);
+  assert.equal(removeCalls, 0);
+});
+
+test("blocks a contact through contact preferences", async () => {
+  let receivedBody: unknown;
+  const service = createContactService(() => createSdk({
+    social: {
+      contacts: {
+        preferences: {
+          retrieve: async () => {
+            throw new Error("Unexpected preferences retrieval");
+          },
+          update: async (targetUserId, body) => {
+            receivedBody = body;
+            return {
+              tenantId: "tenant-1",
+              ownerUserId: "current-user",
+              targetUserId,
+              isStarred: false,
+              remark: "",
+              isBlocked: true,
+              updatedAt: "2026-07-29T00:00:00Z",
+            };
+          },
+        },
+      },
+    },
+  }));
+
+  const preferences = await service.blockContact(" user-1 ");
+
+  assert.deepEqual(receivedBody, { isBlocked: true });
+  assert.equal(preferences.isBlocked, true);
+});
+
+test("retrieves and updates contact preferences through the SDK", async () => {
+  const calls: string[] = [];
+  const service = createContactService(() => createSdk({
+    social: {
+      contacts: {
+        preferences: {
+          retrieve: async (targetUserId) => {
+            calls.push(`retrieve:${targetUserId}`);
+            return {
+              tenantId: "tenant-1",
+              ownerUserId: "current-user",
+              targetUserId,
+              isStarred: true,
+              remark: "Preferred",
+              isBlocked: false,
+              updatedAt: "2026-07-29T00:00:00Z",
+            };
+          },
+          update: async (targetUserId, body) => {
+            calls.push(`update:${targetUserId}`);
+            return {
+              tenantId: "tenant-1",
+              ownerUserId: "current-user",
+              targetUserId,
+              isStarred: body.isStarred ?? false,
+              remark: body.remark ?? "",
+              isBlocked: false,
+              updatedAt: "2026-07-29T00:00:00Z",
+            };
+          },
+        },
+      },
+    },
+  }));
+
+  const retrieved = await service.getContactPreferences("user-1");
+  assert.equal(retrieved.remark, "Preferred");
+  assert.equal(retrieved.isStarred, true);
+
+  const updated = await service.updateContactPreferences("user-1", { isStarred: false });
+  assert.equal(updated.isStarred, false);
+
+  assert.deepEqual(calls, ["retrieve:user-1", "update:user-1"]);
 });

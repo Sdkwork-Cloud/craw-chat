@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DispatchConversationMessageRequest, DispatchConversationMessageResponse } from "./message_dispatch_service_pb.js";
+import { DispatchConversationMessageRequest, DispatchConversationMessageResponse, SendWelcomeMessageRequest, SendWelcomeMessageResponse } from "./message_dispatch_service_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -19,6 +19,27 @@ export const MessageDispatchService = {
       name: "DispatchConversationMessage",
       I: DispatchConversationMessageRequest,
       O: DispatchConversationMessageResponse,
+      kind: MethodKind.Unary,
+    },
+  }
+} as const;
+
+/**
+ * System-agent onboarding: ensures the target user receives the system
+ * Welcome message exactly once. Trusted callers only (service-mTLS).
+ *
+ * @generated from service sdkwork.communication.internal.v1.UserWelcomeService
+ */
+export const UserWelcomeService = {
+  typeName: "sdkwork.communication.internal.v1.UserWelcomeService",
+  methods: {
+    /**
+     * @generated from rpc sdkwork.communication.internal.v1.UserWelcomeService.SendWelcomeMessage
+     */
+    sendWelcomeMessage: {
+      name: "SendWelcomeMessage",
+      I: SendWelcomeMessageRequest,
+      O: SendWelcomeMessageResponse,
       kind: MethodKind.Unary,
     },
   }

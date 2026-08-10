@@ -29,7 +29,7 @@ const navigate = useNavigate();
 
   return (
     <PageLayout title={t('recruitment.title')}>
-      <div className="flex flex-col h-full bg-[#f5f6f8] dark:bg-[#1a1b1c]">
+      <div className="flex flex-col h-full bg-bg-color">
         {/* Header Stats */}
         <RecruitmentHeader ongoingCount={12} interviewCount={2} reviewCount={5} />
 
@@ -41,11 +41,11 @@ const navigate = useNavigate();
             <div className="flex gap-2">
               <IconButton
                 icon={<Filter className="w-4 h-4 text-text-sub" />}
-                className="bg-white dark:bg-[#2c2d2e] p-1.5 w-auto h-auto rounded-md shadow-sm"
+                className="bg-chat-other-bg p-1.5 w-auto h-auto rounded-md shadow-sm"
               />
               <IconButton
                 icon={<Search className="w-4 h-4 text-text-sub" />}
-                className="bg-white dark:bg-[#2c2d2e] p-1.5 w-auto h-auto rounded-md shadow-sm"
+                className="bg-chat-other-bg p-1.5 w-auto h-auto rounded-md shadow-sm"
               />
             </div>
           </div>

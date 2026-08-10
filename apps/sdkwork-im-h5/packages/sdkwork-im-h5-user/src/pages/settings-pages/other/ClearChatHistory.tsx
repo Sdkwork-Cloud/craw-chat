@@ -15,7 +15,7 @@ export const ClearChatHistory: React.FC = () => {
           {t('user.auto_60cf3dc4', `将清空所有个人和群聊的聊天记录，此操作不可恢复。`)}
         </p>
         <button
-          className="w-full h-12 bg-[#FA5151] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="w-full h-12 bg-accent-red text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           onClick={() => {
             showToast("已清空");
             navigate(-1);

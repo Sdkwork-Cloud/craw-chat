@@ -55,7 +55,7 @@ export const AuthManagement: React.FC = () => {
                 </div>
               </div>
               <button
-                className="text-[14px] text-[#FA5151] font-medium active:opacity-70 px-3 py-1.5 rounded-full bg-[#FA5151]/10"
+                className="text-[14px] text-accent-red font-medium active:opacity-70 px-3 py-1.5 rounded-full bg-accent-red/10"
                 onClick={() => {
                   setApps(apps.filter((x) => x.id !== app.id));
                   showToast("已解除授权");

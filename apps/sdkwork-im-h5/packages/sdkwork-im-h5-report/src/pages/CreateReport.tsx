@@ -56,7 +56,7 @@ const navigate = useNavigate();
               className={`flex-1 py-2 rounded-lg font-medium text-[15px] transition-colors ${
                 formData.type === type
                   ? "bg-primary-blue text-white"
-                  : "bg-white dark:bg-[#2c2d2e] border border-border-color/30 text-text-sub"
+                  : "bg-chat-other-bg border border-border-color/30 text-text-sub"
               }`}
             >
               {type}
@@ -65,7 +65,7 @@ const navigate = useNavigate();
         </div>
 
         {/* Content */}
-        <div className="bg-white dark:bg-[#2c2d2e] rounded-xl overflow-hidden shadow-sm border border-border-color/30 flex flex-col">
+        <div className="bg-chat-other-bg rounded-xl overflow-hidden shadow-sm border border-border-color/30 flex flex-col">
           <div className="px-4 py-3 bg-bg-color/50 border-b border-border-color/30 flex items-center gap-2">
             <FileText className="w-4 h-4 text-primary-blue" />
             <span className="text-[14px] font-bold text-text-main">已完成工作</span>
@@ -80,7 +80,7 @@ const navigate = useNavigate();
           />
         </div>
 
-        <div className="bg-white dark:bg-[#2c2d2e] rounded-xl overflow-hidden shadow-sm border border-border-color/30 flex flex-col">
+        <div className="bg-chat-other-bg rounded-xl overflow-hidden shadow-sm border border-border-color/30 flex flex-col">
           <div className="px-4 py-3 bg-bg-color/50 border-b border-border-color/30 flex items-center gap-2">
             <Target className="w-4 h-4 text-orange-500" />
             <span className="text-[14px] font-bold text-text-main">工作计划</span>
@@ -93,7 +93,7 @@ const navigate = useNavigate();
           />
         </div>
 
-        <div className="bg-white dark:bg-[#2c2d2e] rounded-xl overflow-hidden shadow-sm border border-border-color/30 flex flex-col">
+        <div className="bg-chat-other-bg rounded-xl overflow-hidden shadow-sm border border-border-color/30 flex flex-col">
           <div className="px-4 py-3 bg-bg-color/50 border-b border-border-color/30 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-500" />
             <span className="text-[14px] font-bold text-text-main">需协调问题</span>
@@ -110,7 +110,7 @@ const navigate = useNavigate();
         </div>
 
         {/* Attachments */}
-        <div className="bg-white dark:bg-[#2c2d2e] rounded-xl p-4 shadow-sm border border-border-color/30">
+        <div className="bg-chat-other-bg rounded-xl p-4 shadow-sm border border-border-color/30">
           <h3 className="text-[14px] font-bold text-text-main mb-3">附件</h3>
           <div className="flex gap-2">
             <div

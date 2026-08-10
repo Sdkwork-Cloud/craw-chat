@@ -26,7 +26,7 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
         </h3>
         <p className="text-[14px] text-text-sub mb-8">{t('user.auto_2c94233e', '当前余额')}</p>
         <button
-          className="w-[200px] h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="w-[200px] h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           onClick={async () => {
             const amount = await showPrompt("请输入充值数量", "100");
             if (amount && !isNaN(Number(amount)) && Number(amount) > 0) {

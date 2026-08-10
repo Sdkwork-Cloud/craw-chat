@@ -16,7 +16,7 @@ export const EnterpriseProductsTab = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="bg-white dark:bg-[#2c2d2e] flex flex-col"
+      className="bg-chat-other-bg flex flex-col"
     >
       {products.map((prod, i) => (
         <div
@@ -24,7 +24,7 @@ export const EnterpriseProductsTab = ({
           className="p-4 border-b border-border-color/50 flex gap-4 cursor-pointer active:bg-chat-active-bg transition-colors group"
           onClick={() => onSelectProduct(prod)}
         >
-          <div className="w-24 h-24 bg-[#f5f6f8] dark:bg-[#1a1b1c] rounded-xl flex items-center justify-center shrink-0 border border-border-color/30 group-hover:shadow-md transition-shadow">
+          <div className="w-24 h-24 bg-bg-color rounded-xl flex items-center justify-center shrink-0 border border-border-color/30 group-hover:shadow-md transition-shadow">
             <Package className="w-10 h-10 text-primary-blue/60" />
           </div>
           <div className="flex flex-col flex-1 py-1">

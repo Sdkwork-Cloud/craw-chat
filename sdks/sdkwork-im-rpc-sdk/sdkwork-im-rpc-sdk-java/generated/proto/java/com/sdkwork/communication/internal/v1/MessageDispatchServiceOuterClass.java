@@ -36,6 +36,16 @@ public final class MessageDispatchServiceOuterClass extends com.google.protobuf.
   static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_sdkwork_communication_internal_v1_DispatchConversationMessageResponse_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_sdkwork_communication_internal_v1_SendWelcomeMessageRequest_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_sdkwork_communication_internal_v1_SendWelcomeMessageRequest_fieldAccessorTable;
+  static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_sdkwork_communication_internal_v1_SendWelcomeMessageResponse_descriptor;
+  static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_sdkwork_communication_internal_v1_SendWelcomeMessageResponse_fieldAccessorTable;
 
   public static com.google.protobuf.Descriptors.FileDescriptor
       getDescriptor() {
@@ -64,16 +74,31 @@ public final class MessageDispatchServiceOuterClass extends com.google.protobuf.
       "age\030\001 \001(\0132).sdkwork.communication.app.v3" +
       ".MessageViewR\007message\022?\n\010metadata\030\017 \001(\0132" +
       "#.sdkwork.common.v1.ResponseMetadataR\010me" +
-      "tadata2\307\001\n\026MessageDispatchService\022\254\001\n\033Di" +
-      "spatchConversationMessage\022E.sdkwork.comm" +
-      "unication.internal.v1.DispatchConversati" +
-      "onMessageRequest\032F.sdkwork.communication" +
-      ".internal.v1.DispatchConversationMessage" +
-      "ResponseB\225\001\n%com.sdkwork.communication.i" +
-      "nternal.v1P\001Zjgithub.com/sdkwork/im-rpc-" +
-      "sdk-go/generated/proto/sdkwork/communica" +
-      "tion/internal/v1;communicationinternalv1" +
-      "b\006proto3"
+      "tadata\"\316\001\n\031SendWelcomeMessageRequest\022\033\n\t" +
+      "tenant_id\030\001 \001(\tR\010tenantId\022\'\n\017organizatio" +
+      "n_id\030\002 \001(\tR\016organizationId\022\027\n\007user_id\030\003 " +
+      "\001(\tR\006userId\022\022\n\004text\030\004 \001(\tR\004text\022>\n\010metad" +
+      "ata\030\017 \001(\0132\".sdkwork.common.v1.RequestMet" +
+      "adataR\010metadata\"\336\001\n\032SendWelcomeMessageRe" +
+      "sponse\022\026\n\006status\030\001 \001(\tR\006status\022\'\n\017conver" +
+      "sation_id\030\002 \001(\tR\016conversationId\022\035\n\nmessa" +
+      "ge_id\030\003 \001(\tR\tmessageId\022\037\n\013message_seq\030\004 " +
+      "\001(\tR\nmessageSeq\022?\n\010metadata\030\017 \001(\0132#.sdkw" +
+      "ork.common.v1.ResponseMetadataR\010metadata" +
+      "2\307\001\n\026MessageDispatchService\022\254\001\n\033Dispatch" +
+      "ConversationMessage\022E.sdkwork.communicat" +
+      "ion.internal.v1.DispatchConversationMess" +
+      "ageRequest\032F.sdkwork.communication.inter" +
+      "nal.v1.DispatchConversationMessageRespon" +
+      "se2\250\001\n\022UserWelcomeService\022\221\001\n\022SendWelcom" +
+      "eMessage\022<.sdkwork.communication.interna" +
+      "l.v1.SendWelcomeMessageRequest\032=.sdkwork" +
+      ".communication.internal.v1.SendWelcomeMe" +
+      "ssageResponseB\225\001\n%com.sdkwork.communicat" +
+      "ion.internal.v1P\001Zjgithub.com/sdkwork/im" +
+      "-rpc-sdk-go/generated/proto/sdkwork/comm" +
+      "unication/internal/v1;communicationinter" +
+      "nalv1b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -93,6 +118,18 @@ public final class MessageDispatchServiceOuterClass extends com.google.protobuf.
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_internal_v1_DispatchConversationMessageResponse_descriptor,
         new java.lang.String[] { "Message", "Metadata", });
+    internal_static_sdkwork_communication_internal_v1_SendWelcomeMessageRequest_descriptor =
+      getDescriptor().getMessageType(2);
+    internal_static_sdkwork_communication_internal_v1_SendWelcomeMessageRequest_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_sdkwork_communication_internal_v1_SendWelcomeMessageRequest_descriptor,
+        new java.lang.String[] { "TenantId", "OrganizationId", "UserId", "Text", "Metadata", });
+    internal_static_sdkwork_communication_internal_v1_SendWelcomeMessageResponse_descriptor =
+      getDescriptor().getMessageType(3);
+    internal_static_sdkwork_communication_internal_v1_SendWelcomeMessageResponse_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_sdkwork_communication_internal_v1_SendWelcomeMessageResponse_descriptor,
+        new java.lang.String[] { "Status", "ConversationId", "MessageId", "MessageSeq", "Metadata", });
     descriptor.resolveAllFeaturesImmutable();
     com.sdkwork.common.v1.Context.getDescriptor();
     com.sdkwork.communication.app.v3.MessageServiceOuterClass.getDescriptor();

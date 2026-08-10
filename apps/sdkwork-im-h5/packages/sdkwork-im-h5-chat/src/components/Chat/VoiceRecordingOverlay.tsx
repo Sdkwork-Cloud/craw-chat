@@ -26,7 +26,7 @@ const formatTime = (secs: number) => {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 10, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
-          className="absolute bottom-[130px] left-1/2 -translate-x-1/2 z-50 flex flex-col items-center pointer-events-none"
+          className="absolute bottom-[130px] inset-x-0 z-50 flex flex-col items-center pointer-events-none"
         >
           <div className="bg-bg-color/95 dark:bg-[#1A1A1A]/95 backdrop-blur-2xl rounded-3xl px-6 py-5 min-w-[220px] flex flex-col items-center gap-3 shadow-2xl border border-border-color">
             <div className="text-text-main font-mono text-2xl tracking-wider font-semibold">

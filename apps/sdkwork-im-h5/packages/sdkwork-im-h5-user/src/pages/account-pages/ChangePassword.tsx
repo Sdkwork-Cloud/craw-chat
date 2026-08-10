@@ -32,7 +32,7 @@ export const ChangePassword: React.FC = () => {
         </div>
         <p className="text-[13px] text-text-sub mb-8">{t("user:account_sec.pwd_requirements", "密码必须包含字母和数字，且长度不少于8位。")}</p>
         <button
-          className="w-full h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           onClick={() => showToast(t("user:account_sec.operation_executed", "操作已执行"))}
         >{t("user:account_sec.done", "完成")}</button>
       </div>

@@ -12,7 +12,7 @@ export const StorageSpace: React.FC = () => {
   return (
     <PageLayout title={t("user:other_settings.storage_space", "存储空间")}>
       <div className="flex flex-col items-center py-10 px-4">
-        <div className="w-32 h-32 rounded-full border-[12px] border-[#00B42A] flex items-center justify-center mb-6">
+        <div className="w-32 h-32 rounded-full border-[12px] border-accent-green flex items-center justify-center mb-6">
           <div className="text-center">
             <div className="text-[24px] font-bold text-text-main">
               {cleared ? "1.2" : "2.4"}
@@ -27,7 +27,7 @@ export const StorageSpace: React.FC = () => {
           手机剩余空间 {cleared ? "129.2 GB" : "128 GB"}
         </p>
         <button
-          className="w-full h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity mb-4"
+          className="w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity mb-4"
           disabled={cleared}
           onClick={() => {
             setCleared(true);

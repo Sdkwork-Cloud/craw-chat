@@ -2318,6 +2318,69 @@ paths:
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+  /im/v3/api/chat/me/welcome/ensure:
+    post:
+      tags:
+        - chat
+      operationId: chat.me.welcome.ensure
+      summary: Ensure the current user received the system-agent Welcome message
+      description: >-
+        Idempotent self-service check. Sends the system Welcome message (messageType=system, sender=system agent) into
+        the system-agent direct chat exactly once: skipped when the user already received it or already had
+        conversations with messages. Safe to call after every login.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/WelcomeEnsureView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - ApiKey: []
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
+      x-sdkwork-route-auth: api-key-or-dual-token
+      x-sdkwork-auth-mode: api-key-or-dual-token
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/conversations:
     post:
       tags:
@@ -8156,6 +8219,29 @@ components:
         idempotencyKey:
           type: string
           nullable: true
+    WelcomeEnsureView:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+            - sent
+            - already_sent
+            - already_engaged
+        conversationId:
+          type: string
+        messageId:
+          type: string
+        messageSeq:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+        - status
+        - conversationId
+        - messageId
+        - messageSeq
     PostMessageResult:
       type: object
       additionalProperties: false

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CharacterService } from "./CharacterService";
 import { LifeService } from "./LifeService";
 import { MomentService } from "./MomentService";
 import { ProductService } from "./ProductService";
@@ -19,11 +18,6 @@ test("user services return composed data", async () => {
   assert.ok(settings);
   const settingsUpdated = await SettingsService.updateSettings({ darkMode: true });
   assert.equal(settingsUpdated.darkMode, true);
-
-  const characters = await CharacterService.getCharacters();
-  assert.ok(Array.isArray(characters));
-  const added = await CharacterService.addCharacter({ avatar: "", desc: "", name: "Character" });
-  assert.equal(added.name, "Character");
 
   const works = await WorkService.getMyWorks();
   assert.ok(Array.isArray(works));

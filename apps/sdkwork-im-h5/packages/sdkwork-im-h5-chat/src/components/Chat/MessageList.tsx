@@ -50,6 +50,7 @@ interface MessageListProps {
   setHighlightedMsgId: (id: string | null) => void;
   setActivePanel: (panel: "none" | "emoji" | "action") => void;
   onScrollToTop?: () => void;
+  onRetry?: (msg: Message) => void;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -67,6 +68,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   setHighlightedMsgId,
   setActivePanel,
   onScrollToTop,
+  onRetry,
 }) => {
   const { t } = useTranslation();
 const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -135,6 +137,18 @@ const messagesEndRef = useRef<HTMLDivElement>(null);
               ? t('chat.detail.me')
               : chat?.participants.find((p) => p.id === replyToMsg!.senderId)
                   ?.name || t('chat.detail.unknown');
+          } else if (msg.replyTo) {
+            // The quoted message is outside the loaded pages: fall back to the
+            // server-provided reply snapshot so the reference still renders.
+            replyToMsg = {
+              id: msg.replyTo.id,
+              chatId: chat?.id ?? "",
+              senderId: "",
+              content: msg.replyTo.content,
+              timestamp: 0,
+              type: "text",
+            };
+            replyToSenderName = msg.replyTo.senderName || t('chat.detail.unknown');
           }
         }
 
@@ -183,6 +197,7 @@ const messagesEndRef = useRef<HTMLDivElement>(null);
                     .getElementById(`msg-${id}`)
                     ?.scrollIntoView({ behavior: "smooth", block: "center" });
                 }}
+                onRetry={onRetry}
               />
             </div>
           </React.Fragment>

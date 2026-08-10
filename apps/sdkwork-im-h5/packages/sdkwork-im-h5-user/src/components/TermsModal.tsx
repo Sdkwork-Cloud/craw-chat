@@ -16,7 +16,7 @@ if (!showTerms) return null;
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-[#1C1C1E] w-full max-w-[320px] rounded-2xl flex flex-col overflow-hidden max-h-[70vh]"
+        className="bg-chat-other-bg w-full max-w-[320px] rounded-2xl flex flex-col overflow-hidden max-h-[70vh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="py-4 border-b border-border-color text-center font-medium text-[16px]">

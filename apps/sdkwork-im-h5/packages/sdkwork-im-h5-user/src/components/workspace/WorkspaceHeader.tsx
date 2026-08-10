@@ -20,7 +20,7 @@ const navigate = useNavigate();
 
   return (
     <header className="h-[56px] px-4 flex items-center justify-between sticky top-0 z-50 shrink-0 pt-safe bg-bg-color/80 backdrop-blur-xl border-b border-border-color/50">
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none">
+      <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
         <h1 className="text-[18px] font-bold text-text-main tracking-tight">{t("workspace.title")}</h1>
       </div>
       <div className="flex-1 flex gap-2 relative z-10">

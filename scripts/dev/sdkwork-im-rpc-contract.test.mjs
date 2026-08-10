@@ -409,6 +409,7 @@ const expectedServices = {
     'RoomOrchestrationService',
     'MessageDispatchService',
     'GroupKnowledgebaseLaunchTicketService',
+    'UserWelcomeService',
   ],
 };
 

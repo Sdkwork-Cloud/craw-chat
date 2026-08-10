@@ -256,7 +256,15 @@ function sdkworkChatLocalApiPlugin(): Plugin {
 
 export default defineConfig(({mode}) => {
   return {
-    cacheDir: path.resolve(__dirname, 'node_modules', '.vite', 'sdkwork-im-pc'),
+    // Keep the dependency cache outside `node_modules`: the workspace's
+    // node_modules donor/junction machinery (`ensureLocalNodeModules` renames
+    // node_modules wholesale to `*.__stale__donor*`) and pnpm reinstalls would
+    // otherwise wipe the cache mid-session, forcing a full dep re-optimization
+    // that invalidates every in-flight `?v=` dep URL. A root-level `.vite`
+    // cache also serves dep URLs as `/.vite/deps/...` instead of
+    // `/node_modules/.vite/<app>/...`, which the adaptive dev proxy treats as
+    // stale (410 Gone) whenever the request is routed to another renderer.
+    cacheDir: path.resolve(__dirname, '.vite'),
     plugins: [
       createSdkworkCredentialEntryBootstrapVitePlugin({
         accessToken: process.env.SDKWORK_ACCESS_TOKEN,
@@ -419,8 +427,70 @@ export default defineConfig(({mode}) => {
       strictPort: true,
     },
     optimizeDeps: {
+      // Pre-bundle every runtime-discovered dependency so the dev server never
+      // re-optimizes mid-session (re-optimization invalidates all in-flight
+      // `?v=` dep URLs in the browser module graph).
       include: [
         'dompurify',
+        // Rich text editor (chat composer).
+        '@tiptap/core',
+        '@tiptap/starter-kit',
+        '@tiptap/extension-image',
+        '@tiptap/extension-placeholder',
+        '@tiptap/react/menus',
+        'tiptap-markdown',
+        // Code blocks / markdown rendering.
+        'react-syntax-highlighter',
+        'react-syntax-highlighter/dist/esm/languages/prism/bash',
+        'react-syntax-highlighter/dist/esm/languages/prism/css',
+        'react-syntax-highlighter/dist/esm/languages/prism/javascript',
+        'react-syntax-highlighter/dist/esm/languages/prism/json',
+        'react-syntax-highlighter/dist/esm/languages/prism/jsx',
+        'react-syntax-highlighter/dist/esm/languages/prism/markdown',
+        'react-syntax-highlighter/dist/esm/languages/prism/markup',
+        'react-syntax-highlighter/dist/esm/languages/prism/python',
+        'react-syntax-highlighter/dist/esm/languages/prism/rust',
+        'react-syntax-highlighter/dist/esm/languages/prism/tsx',
+        'react-syntax-highlighter/dist/esm/languages/prism/typescript',
+        'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus',
+        'rehype-raw',
+        'remark-gfm',
+        'marked',
+        // Radix UI primitives (admin console and feature surfaces).
+        '@radix-ui/react-avatar',
+        '@radix-ui/react-checkbox',
+        '@radix-ui/react-context-menu',
+        '@radix-ui/react-dialog',
+        '@radix-ui/react-dropdown-menu',
+        '@radix-ui/react-hover-card',
+        '@radix-ui/react-label',
+        '@radix-ui/react-menubar',
+        '@radix-ui/react-popover',
+        '@radix-ui/react-radio-group',
+        '@radix-ui/react-scroll-area',
+        '@radix-ui/react-select',
+        '@radix-ui/react-separator',
+        '@radix-ui/react-slider',
+        '@radix-ui/react-slot',
+        '@radix-ui/react-switch',
+        '@radix-ui/react-tabs',
+        '@radix-ui/react-tooltip',
+        '@tanstack/react-table',
+        // Code editor and PDF/export tooling.
+        '@monaco-editor/react',
+        'html2canvas',
+        'html2canvas-pro',
+        'jspdf',
+        'qrcode',
+        'signature_pad',
+        // Desktop shell (Tauri) and misc UI.
+        '@tauri-apps/api/core',
+        '@tauri-apps/api/event',
+        'cmdk',
+        'motion/react',
+        'react-day-picker',
+        'react-resizable-panels',
+        'sonner',
       ],
       exclude: [
         '@sdkwork/im-app-sdk',

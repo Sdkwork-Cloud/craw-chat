@@ -19,7 +19,7 @@ export const ChatListHeader: React.FC<ChatListHeaderProps> = ({
 
   return (
     <header className="h-[56px] px-4 flex items-center justify-between glass-header sticky top-0 z-10 shrink-0 pt-safe relative">
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none">
+      <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
         <h1 className="text-[17px] font-semibold text-text-main">Sdkwork IM H5</h1>
       </div>
       <div className="flex-1" />

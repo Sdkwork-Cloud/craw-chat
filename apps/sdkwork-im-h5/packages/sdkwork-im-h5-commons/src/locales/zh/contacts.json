@@ -1,5 +1,5 @@
 {
-  "open_conversation_failed": "\u65e0\u6cd5\u6253\u5f00\u4f1a\u8bdd",
+  "open_conversation_failed": "无法打开会话",
   "title": "通讯录",
   "search": "搜索",
   "new_friends": "新的朋友",
@@ -95,5 +95,9 @@
   "voice_female2": "知性女声",
   "voice_male1": "阳光男声",
   "voice_male2": "沉稳男声",
-  "create_success": "Agent created"
+  "create_success": "Agent created",
+  "no_group_chats": "暂无群聊",
+  "add_failed_already_friend": "你们已经是好友了",
+  "add_failed_pending": "好友申请已发送，请等待对方处理",
+  "add_failed_blocked": "无法添加：对方已将你拉黑或限制了添加"
 }

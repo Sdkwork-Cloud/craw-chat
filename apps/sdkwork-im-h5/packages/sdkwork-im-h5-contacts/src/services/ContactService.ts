@@ -1,6 +1,7 @@
 import { getImSdkClient } from "@sdkwork/im-h5-core/sdk";
 import type { User } from "@sdkwork/im-h5-types";
 import type {
+  ContactPreferencesView,
   ContactsResponse,
   CreateConversationRequest,
   CreateConversationResult,
@@ -9,17 +10,72 @@ import type {
   SocialFriendRequestListResponse,
   SocialFriendRequestMutationResponse,
   SocialUserSearchResponse,
+  UpdateContactPreferencesRequest,
 } from "@sdkwork/im-h5-core/sdk";
 import { MAX_LIST_PAGE_SIZE, uuid } from "@sdkwork/utils";
 
 const CONTACT_PAGE_SIZE = Math.min(50, MAX_LIST_PAGE_SIZE);
 const USER_SEARCH_PAGE_SIZE = Math.min(20, MAX_LIST_PAGE_SIZE);
 
+/** Realtime user-scope event types that reflect friend request changes. */
+export const FRIEND_REQUEST_REALTIME_EVENT_TYPES = [
+  "friend_request.submitted",
+  "friend_request.accepted",
+  "friend_request.declined",
+  "friend_request.canceled",
+];
+
+/** Broadcast after any local friend request mutation so mounted lists refresh. */
+export const SDKWORK_IM_H5_FRIEND_REQUESTS_CHANGED_EVENT = "sdkwork-im-h5:friend-requests-changed";
+
+function notifyFriendRequestsChanged(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(SDKWORK_IM_H5_FRIEND_REQUESTS_CHANGED_EVENT));
+  }
+}
+
+export type FriendRequestSubmitConflict = "already_friend" | "pending" | "blocked" | "unknown";
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
+}
+
+function pickString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return "";
+}
+
+/**
+ * Classify friend request submission failures into user-facing conflicts
+ * (already friends / request pending / blocked) from the ProblemDetail body.
+ */
+export function classifyFriendRequestSubmitError(error: unknown): FriendRequestSubmitConflict {
+  const record = toRecord(error);
+  const body = toRecord(record.body ?? record.detail ?? record.problem ?? record.data);
+  const code = pickString(body.code, body.title, record.code).toLowerCase();
+  const message = pickString(body.detail, body.title, body.message, record.message, record.error).toLowerCase();
+  if (code.includes("friendship_pair") || message.includes("already a friend") || message.includes("already exists")) {
+    return "already_friend";
+  }
+  if (code.includes("friend_request_pair") || code.includes("friend_request_conflict") || message.includes("already pending") || message.includes("open friend request")) {
+    return "pending";
+  }
+  if (code.includes("blocked") || code.includes("friend_request_blocked")) {
+    return "blocked";
+  }
+  return "unknown";
+}
+
 export interface Contact extends User {
   avatar: string;
   conversationId?: string;
   friendshipId?: string;
   relationshipState?: string;
+  isBlocked?: boolean;
 }
 
 export interface ContactSearchResult extends User {
@@ -59,6 +115,13 @@ export interface ContactsSdkPort {
   social: {
     contacts: {
       list(params?: { cursor?: string; pageSize?: number; q?: string }): Promise<ContactsResponse>;
+      preferences: {
+        retrieve(targetUserId: string): Promise<ContactPreferencesView>;
+        update(targetUserId: string, body: UpdateContactPreferencesRequest): Promise<ContactPreferencesView>;
+      };
+    };
+    friendships: {
+      remove(friendshipId: string): Promise<unknown>;
     };
     users: {
       list(params?: { cursor?: string; pageSize?: number; q?: string }): Promise<SocialUserSearchResponse>;
@@ -103,6 +166,7 @@ export function createContactService(
         conversationId: item.conversationId ?? item.directChatId ?? item.chatId ?? undefined,
         friendshipId: item.friendshipId,
         relationshipState: item.relationshipState,
+        isBlocked: item.isBlocked ?? undefined,
       })),
       hasMore: response.pageInfo.hasMore === true,
       ...(response.pageInfo.nextCursor ? { nextCursor: response.pageInfo.nextCursor } : {}),
@@ -152,6 +216,42 @@ export function createContactService(
       return page.items;
     },
 
+    async getContactPreferences(targetUserId: string): Promise<ContactPreferencesView> {
+      return resolveClient().social.contacts.preferences.retrieve(
+        requireIdentifier(targetUserId, "target user ID"),
+      );
+    },
+
+    async updateContactPreferences(
+      targetUserId: string,
+      body: UpdateContactPreferencesRequest,
+    ): Promise<ContactPreferencesView> {
+      return resolveClient().social.contacts.preferences.update(
+        requireIdentifier(targetUserId, "target user ID"),
+        body,
+      );
+    },
+
+    async removeFriend(targetUserId: string): Promise<void> {
+      const normalizedTargetUserId = requireIdentifier(targetUserId, "target user ID");
+      const page = await listContactPage(undefined, normalizedTargetUserId);
+      const contact = page.items.find((item) => item.id === normalizedTargetUserId);
+      if (!contact?.friendshipId) {
+        throw new Error(`Friendship not found for user: ${normalizedTargetUserId}`);
+      }
+      await resolveClient().social.friendships.remove(contact.friendshipId);
+      notifyFriendRequestsChanged();
+    },
+
+    async blockContact(targetUserId: string): Promise<ContactPreferencesView> {
+      const preferences = await resolveClient().social.contacts.preferences.update(
+        requireIdentifier(targetUserId, "target user ID"),
+        { isBlocked: true },
+      );
+      notifyFriendRequestsChanged();
+      return preferences;
+    },
+
     searchFriends,
 
     async listFriendRequests(
@@ -178,15 +278,27 @@ export function createContactService(
     },
 
     acceptFriendRequest(requestId: string): Promise<SocialFriendRequestAcceptanceResponse> {
-      return resolveClient().social.friendRequests.accept(requireIdentifier(requestId, "request ID"));
+      return resolveClient().social.friendRequests.accept(requireIdentifier(requestId, "request ID"))
+        .then((response) => {
+          notifyFriendRequestsChanged();
+          return response;
+        });
     },
 
     declineFriendRequest(requestId: string): Promise<SocialFriendRequestMutationResponse> {
-      return resolveClient().social.friendRequests.decline(requireIdentifier(requestId, "request ID"));
+      return resolveClient().social.friendRequests.decline(requireIdentifier(requestId, "request ID"))
+        .then((response) => {
+          notifyFriendRequestsChanged();
+          return response;
+        });
     },
 
     cancelFriendRequest(requestId: string): Promise<SocialFriendRequestMutationResponse> {
-      return resolveClient().social.friendRequests.cancel(requireIdentifier(requestId, "request ID"));
+      return resolveClient().social.friendRequests.cancel(requireIdentifier(requestId, "request ID"))
+        .then((response) => {
+          notifyFriendRequestsChanged();
+          return response;
+        });
     },
 
     async searchFriend(query: string): Promise<ContactSearchResult | null> {
@@ -205,6 +317,9 @@ export function createContactService(
       return resolveClient().social.friendRequests.create({
         targetUserId: normalizedTargetUserId,
         ...(requestMessage?.trim() ? { requestMessage: requestMessage.trim() } : {}),
+      }).then((response) => {
+        notifyFriendRequestsChanged();
+        return response;
       });
     },
 

@@ -16,7 +16,7 @@ const navigate = useNavigate();
     <motion.div
       whileTap={{ scale: 0.98 }}
       onClick={() => navigate(`/workspace/recruitment/${candidate.id}`)}
-      className="bg-white dark:bg-[#2c2d2e] p-4 rounded-xl cursor-pointer shadow-sm border border-border-color/30"
+      className="bg-chat-other-bg p-4 rounded-xl cursor-pointer shadow-sm border border-border-color/30"
     >
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-3">
@@ -43,7 +43,7 @@ const navigate = useNavigate();
         </div>
       </div>
 
-      <div className="text-[14px] text-text-main bg-[#f8f9fa] dark:bg-[#202122] p-3 rounded-lg flex flex-col gap-2">
+      <div className="text-[14px] text-text-main bg-hover-bg p-3 rounded-lg flex flex-col gap-2">
         <div className="flex items-center gap-2 text-[13px]">
           <Briefcase className="w-4 h-4 text-text-sub" />
           <span>{t('recruitment.apply', { job: candidate.jobTitle })}</span>

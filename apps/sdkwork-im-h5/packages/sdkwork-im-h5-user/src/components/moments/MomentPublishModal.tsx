@@ -29,10 +29,10 @@ return (
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: "100%" }}
       transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="fixed inset-0 z-50 bg-[#F2F2F7] dark:bg-black flex flex-col pt-safe"
+      className="fixed inset-0 z-50 bg-bg-color flex flex-col pt-safe"
     >
       {/* Header */}
-      <div className="h-[56px] flex items-center justify-between px-4 bg-white dark:bg-[#1C1C1E] shrink-0 shadow-sm relative z-10 border-b border-black/5 dark:border-white/5">
+      <div className="h-[56px] flex items-center justify-between px-4 bg-chat-other-bg shrink-0 shadow-sm relative z-10 border-b border-black/5 dark:border-white/5">
         <button 
           onClick={onClose}
           className="text-[16px] text-text-main font-medium active:opacity-50"
@@ -44,7 +44,7 @@ return (
         >{t('user.auto_aaeb7', '发表')}</button>
       </div>
 
-      <div className="flex-1 bg-white dark:bg-[#1C1C1E] p-4 overflow-y-auto w-full">
+      <div className="flex-1 bg-chat-other-bg p-4 overflow-y-auto w-full">
         <textarea
           className="w-full h-32 bg-transparent outline-none text-[16px] text-text-main resize-none placeholder:text-text-sub"
           placeholder={t('user.auto_prop_387d57bc', '这一刻的想法...')}
@@ -70,7 +70,7 @@ return (
           {images.length < 9 && (
             <button 
               onClick={addFakeImage}
-              className="aspect-square bg-[#F5F5F5] dark:bg-[#2A2A2D] flex items-center justify-center rounded active:bg-[#EBEBEB] dark:active:bg-white/10 transition-colors"
+              className="aspect-square bg-hover-bg flex items-center justify-center rounded active:bg-active-bg dark:active:bg-white/10 transition-colors"
             >
               <ImageIcon className="w-8 h-8 text-text-sub opacity-50" />
             </button>

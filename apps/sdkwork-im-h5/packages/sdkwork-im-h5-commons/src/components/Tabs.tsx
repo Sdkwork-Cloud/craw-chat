@@ -58,7 +58,7 @@ const scrollRef = useRef<HTMLDivElement>(null);
           >
             {labelText}
             {isActive && (
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-[3px] bg-blue-500 rounded-t-full" />
+              <div className="absolute bottom-0 inset-x-0 mx-auto w-4 h-[3px] bg-blue-500 rounded-t-full" />
             )}
           </div>
         );

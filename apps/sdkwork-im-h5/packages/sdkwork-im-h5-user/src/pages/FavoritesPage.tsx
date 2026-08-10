@@ -1,9 +1,10 @@
 import { useTranslation } from "react-i18next";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { cn, showToast, ActionSheet } from "@sdkwork/im-h5-commons";
 import { PageLayout } from "../components/PageLayout";
 import { FavoriteCard, type FavoriteItem } from "../components/FavoriteCard";
+import { favoriteService } from "../services/FavoriteService";
 
 export const FavoritesPage = () => {
   const { t } = useTranslation();
@@ -11,6 +12,29 @@ const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [actionSheetItem, setActionSheetItem] = useState<FavoriteItem | null>(null);
   const [isLongPressed, setIsLongPressed] = useState(false);
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    favoriteService
+      .getFavorites()
+      .then((items) => {
+        if (!cancelled) {
+          setFavorites(items);
+          setLoaded(true);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load favorites", error);
+        if (!cancelled) {
+          setLoaded(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const startLongPress = (item: FavoriteItem) => {
   const handlePressStart = () => {
@@ -56,7 +80,17 @@ const [searchQuery, setSearchQuery] = useState("");
   const handleActionSheetSelect = (action: string) => {
   if (!actionSheetItem) return;
     if (action === 'delete') {
-       showToast(t('user.auto_fn_5372638f', '已删除收藏'));
+       const item = actionSheetItem;
+       favoriteService
+         .removeFavorite(item.id)
+         .then(() => {
+           setFavorites((current) => current.filter((entry) => entry.id !== item.id));
+           showToast(t('user.auto_fn_5372638f', '已删除收藏'));
+         })
+         .catch((error) => {
+           console.error("Failed to remove favorite", error);
+           showToast(t('user.auto_2109d03d', '删除失败，请稍后重试'));
+         });
     } else if (action === 'share') {
        showToast(t('user.auto_fn_16ae6d7', '已分享'));
     }
@@ -73,76 +107,7 @@ const [searchQuery, setSearchQuery] = useState("");
     { id: "chat", label: "聊天记录" },
   ];
 
-  const FAVORITES: FavoriteItem[] = [
-    {
-      id: "1",
-      title: "如何高效利用时间工作？(深度好文)",
-      type: "article",
-      typeLabel: "文章",
-      time: "昨天",
-      source: "效率黑客",
-      preview: "时间管理不是为了让你做更多的事情，而是为了让你能够做最重要的事情...",
-      icon: "FileText",
-      color: "text-blue-500",
-    },
-    {
-      id: "2",
-      title: "公司年度旅游照片合集",
-      type: "image",
-      typeLabel: "相册",
-      time: "2023-10-01",
-      source: "HR 部门",
-      preview: "[9张图片]",
-      icon: "Image",
-      color: "text-green-500",
-    },
-    {
-      id: "3",
-      title: "王总语音记录 (关于项目调整)",
-      type: "voice",
-      typeLabel: "语音",
-      time: "2023-09-15",
-      source: "微信聊天",
-      preview: "[语音 45秒]",
-      icon: "Mic",
-      color: "text-orange-500",
-    },
-    {
-      id: "4",
-      title: "ClawChat Q3 研发计划.pdf",
-      type: "file",
-      typeLabel: "文件",
-      time: "2023-09-10",
-      source: "工作群",
-      preview: "4.2 MB",
-      icon: "File",
-      color: "text-purple-500",
-    },
-    {
-      id: "5",
-      title: "GitHub - facebook/react",
-      type: "link",
-      typeLabel: "链接",
-      time: "2023-09-01",
-      source: "张三",
-      preview: "A declarative, efficient, and flexible JavaScript library for building user interfaces.",
-      icon: "Link",
-      color: "text-blue-400",
-    },
-    {
-      id: "6",
-      title: "关于系统架构升级的讨论",
-      type: "chat",
-      typeLabel: "聊天记录",
-      time: "2023-08-20",
-      source: "研发一组",
-      preview: "李四: 我们需要重构网关...\n王五: 赞同，当前性能瓶颈明显。",
-      icon: "MessageCircle",
-      color: "text-emerald-500",
-    }
-  ];
-
-  const filteredFavorites = FAVORITES.filter((item) => {
+  const filteredFavorites = favorites.filter((item) => {
     const matchSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                         item.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         item.preview.toLowerCase().includes(searchQuery.toLowerCase());
@@ -151,8 +116,8 @@ const [searchQuery, setSearchQuery] = useState("");
   });
 
   return (
-    <PageLayout title={t('user.auto_prop_2e5dc52c', '我的收藏')} bgClass="bg-[#F8F9FA] dark:bg-black">
-      <div className="bg-white dark:bg-[#1A1A1A] sticky top-0 z-20 shadow-sm border-b border-border-color flex flex-col">
+    <PageLayout title={t('user.auto_prop_2e5dc52c', '我的收藏')} bgClass="bg-bg-color">
+      <div className="bg-chat-other-bg sticky top-0 z-20 shadow-sm border-b border-border-color flex flex-col">
          <div className="px-4 py-3 pb-2">
             <div className="bg-gray-100 dark:bg-white/5 rounded-full flex items-center h-10 px-3.5 gap-2 border border-transparent focus-within:border-primary-blue/30 transition-colors">
               <Search className="w-[18px] h-[18px] text-text-sub shrink-0" strokeWidth={2} />
@@ -173,7 +138,7 @@ const [searchQuery, setSearchQuery] = useState("");
                  "px-4 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-colors cursor-pointer border",
                  activeFilter === f.id 
                    ? "bg-primary-blue/10 text-primary-blue border-primary-blue/30 dark:bg-blue-900/30 dark:border-blue-800" 
-                   : "bg-transparent text-text-sub border-transparent hover:bg-gray-100 dark:hover:bg-[#2A2A2D]"
+                   : "bg-transparent text-text-sub border-transparent hover:bg-hover-bg"
                )}
              >
                {f.label}
@@ -183,8 +148,8 @@ const [searchQuery, setSearchQuery] = useState("");
       </div>
       
       <div className="flex-1 overflow-y-auto w-full relative">
-        <div className="flex flex-col bg-white dark:bg-[#1C1C1E] min-h-full">
-          {filteredFavorites.length > 0 ? (
+        <div className="flex flex-col bg-chat-other-bg min-h-full">
+          {loaded && filteredFavorites.length > 0 ? (
             filteredFavorites.map((item) => (
               <FavoriteCard
                 key={item.id}
@@ -199,15 +164,15 @@ const [searchQuery, setSearchQuery] = useState("");
                 onLongPressProps={startLongPress(item)}
               />
             ))
-          ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-text-sub bg-[#F8F9FA] dark:bg-black h-full">
-               <div className="w-16 h-16 bg-gray-100 dark:bg-[#1A1A1A] rounded-full flex items-center justify-center mb-4">
+          ) : loaded ? (
+            <div className="flex flex-col items-center justify-center py-20 text-text-sub bg-bg-color h-full">
+               <div className="w-16 h-16 bg-hover-bg rounded-full flex items-center justify-center mb-4">
                   <Search className="w-8 h-8 opacity-40" />
                </div>
                <p className="text-[15px] font-medium">{t('user.auto_n5f1732f2', '没有找到相关收藏')}</p>
                <p className="text-[13px] mt-1 opacity-70">{t('user.auto_2109d03d', '换个关键词试试吧')}</p>
             </div>
-          )}
+          ) : null}
         </div>
         
         {actionSheetItem && (

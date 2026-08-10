@@ -1,6 +1,7 @@
 ﻿import React from "react";
 import { useNavigate } from "react-router";
 import { format } from "date-fns";
+import { BellOff } from "lucide-react";
 import { Avatar, cn } from "@sdkwork/im-h5-commons";
 import type { Chat } from "@sdkwork/im-h5-types";
 import { useTranslation } from "react-i18next";
@@ -72,7 +73,7 @@ const navigate = useNavigate();
       onMouseLeave={handleTouchEnd}
       className={cn(
         "flex px-4 items-stretch gap-3 transition-colors cursor-pointer select-none",
-        isPinned ? "bg-black/[0.03] dark:bg-white/[0.03]" : "bg-white dark:bg-[#1a1b1c]",
+        isPinned ? "bg-black/[0.03] dark:bg-white/[0.03]" : "bg-chat-other-bg",
         contextMenu.isOpen && contextMenu.chatId === chat.id
           ? "bg-active-bg"
           : "active:bg-black/5 dark:active:bg-white/5",
@@ -101,9 +102,14 @@ const navigate = useNavigate();
           <span className="font-medium text-[16px] text-text-main truncate">
             {name}
           </span>
-          <span className="text-[12px] text-text-sub/70 shrink-0 ml-2 font-medium tracking-tight">
-            {timeStr}
-          </span>
+          <div className="flex items-center gap-1 shrink-0 ml-2">
+            {chat.settings?.isMuted && (
+              <BellOff className="w-3.5 h-3.5 text-text-sub/60" />
+            )}
+            <span className="text-[12px] text-text-sub/70 font-medium tracking-tight">
+              {timeStr}
+            </span>
+          </div>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-[14px] text-text-sub truncate leading-tight">

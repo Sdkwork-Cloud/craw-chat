@@ -29,6 +29,8 @@ export interface Message {
     senderName: string;
     content: string;
   };
+  /** Local delivery state for messages composed on this client. */
+  sendState?: "sending" | "failed";
 }
 
 export interface Chat {
@@ -39,6 +41,7 @@ export interface Chat {
   unreadCount: number;
   name?: string; // For groups
   avatar?: string; // For groups
+  notice?: string; // Group notice (conversation profile)
   settings?: {
     showAvatar?: boolean;
     cleanMode?: boolean;

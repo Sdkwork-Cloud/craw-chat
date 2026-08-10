@@ -409,6 +409,12 @@ const schemas = {
   RecallMessageRequest: objectSchema({
     idempotencyKey: nullable(stringSchema()),
   }),
+  WelcomeEnsureView: objectSchema({
+    status: stringSchema({ enum: ['sent', 'already_sent', 'already_engaged'] }),
+    conversationId: stringSchema(),
+    messageId: stringSchema(),
+    messageSeq: intSchema({ minimum: 0 }),
+  }, ['status', 'conversationId', 'messageId', 'messageSeq']),
   PostMessageResult: objectSchema({
     messageId: stringSchema(),
     messageSeq: sequenceSchema(),
@@ -1112,6 +1118,15 @@ const paths = Object.fromEntries([
   }),
   pathItem('/chat/inbox', {
     get: operation({ tag: 'chat', operationId: 'inbox.list', summary: 'List current inbox window', parameters: [p('PageSizeQuery'), p('CursorQuery'), p('ConversationTypeQuery'), p('QQuery')], response: 'ConversationInboxPage' }),
+  }),
+  pathItem('/chat/me/welcome/ensure', {
+    post: operation({
+      tag: 'chat',
+      operationId: 'chat.me.welcome.ensure',
+      summary: 'Ensure the current user received the system-agent Welcome message',
+      description: 'Idempotent self-service check. Sends the system Welcome message (messageType=system, sender=system agent) into the system-agent direct chat exactly once: skipped when the user already received it or already had conversations with messages. Safe to call after every login.',
+      response: 'WelcomeEnsureView',
+    }),
   }),
   pathItem('/chat/conversations', {
     post: operation({ tag: 'chat', operationId: 'conversations.create', summary: 'Create a conversation', request: 'CreateConversationRequest', response: 'CreateConversationResult', successStatus: '201', statuses: ['400', '401', '403', '404', '409'] }),

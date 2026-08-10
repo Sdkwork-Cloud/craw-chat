@@ -694,12 +694,12 @@
           "clientArchitecture": "tauri"
         },
         {
-          "id": "linux-ubuntu-x64-standalone-desktop-appimage",
+          "id": "linux-x64-standalone-desktop-appimage",
           "name": "Sdkwork IM Linux Ubuntu x64 Desktop AppImage",
           "sourceType": "BINARY_URL",
           "packageFormat": "APPIMAGE",
           "platform": "API",
-          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-linux-ubuntu-x64-standalone-desktop-appimage-0.1.0.AppImage",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-linux-x64-standalone-desktop-appimage-0.1.0.AppImage",
           "enabled": false,
           "metadata": {
             "workflowPlatform": "linux",
@@ -736,12 +736,12 @@
           "clientArchitecture": "tauri"
         },
         {
-          "id": "linux-ubuntu-arm64-standalone-desktop-appimage",
+          "id": "linux-arm64-standalone-desktop-appimage",
           "name": "Sdkwork IM Linux Ubuntu arm64 Desktop AppImage",
           "sourceType": "BINARY_URL",
           "packageFormat": "APPIMAGE",
           "platform": "API",
-          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-linux-ubuntu-arm64-standalone-desktop-appimage-0.1.0.AppImage",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-linux-arm64-standalone-desktop-appimage-0.1.0.AppImage",
           "enabled": false,
           "metadata": {
             "workflowPlatform": "linux",
@@ -934,9 +934,9 @@
           "macos-x64-standalone-server-pkg",
           "macos-arm64-standalone-server-pkg",
           "linux-ubuntu-x64-standalone-desktop-deb",
-          "linux-ubuntu-x64-standalone-desktop-appimage",
+          "linux-x64-standalone-desktop-appimage",
           "linux-ubuntu-arm64-standalone-desktop-deb",
-          "linux-ubuntu-arm64-standalone-desktop-appimage",
+          "linux-arm64-standalone-desktop-appimage",
           "windows-x64-standalone-desktop-msi",
           "windows-x64-standalone-desktop-exe",
           "windows-arm64-standalone-desktop-msi",

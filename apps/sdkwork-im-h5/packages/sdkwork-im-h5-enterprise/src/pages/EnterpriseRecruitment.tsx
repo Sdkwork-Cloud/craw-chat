@@ -7,7 +7,7 @@ export const EnterpriseRecruitment = () => {
   const { t } = useTranslation();
 return (
     <PageLayout title={t('enterprise.auto_prop_251b6dd6', '企业招聘')}>
-      <div className="flex flex-col min-h-full bg-[#f5f6f8] dark:bg-[#1a1b1c] p-4 gap-4">
+      <div className="flex flex-col min-h-full bg-bg-color p-4 gap-4">
         {[
           {
             title: "高级前端工程师",
@@ -28,7 +28,7 @@ return (
             location: "深圳·南山",
           }
         ].map((job, i) => (
-          <div key={i} className="bg-white dark:bg-[#2c2d2e] rounded-xl p-4 shadow-sm flex flex-col gap-3 cursor-pointer active:scale-95 transition-transform">
+          <div key={i} className="bg-chat-other-bg rounded-xl p-4 shadow-sm flex flex-col gap-3 cursor-pointer active:scale-95 transition-transform">
              <div className="flex justify-between items-center">
                 <h3 className="text-[16px] font-bold text-text-main">{job.title}</h3>
                 <span className="text-red-500 font-bold text-[15px]">{job.salary}</span>

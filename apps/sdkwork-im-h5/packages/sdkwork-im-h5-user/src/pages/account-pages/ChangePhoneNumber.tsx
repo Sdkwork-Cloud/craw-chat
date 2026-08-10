@@ -25,7 +25,7 @@ export const ChangePhoneNumber: React.FC = () => {
           <p className="text-[14px] text-text-sub text-center mb-8">{t("user:account_sec.bind_phone_desc", "绑定的手机号可用于登录 Sdkwork IM H5，或找回密码。")}</p>
           <button
             onClick={() => setStep(2)}
-            className="w-full h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+            className="w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           >{t("user:account_sec.change_phone", "更换手机号")}</button>
         </div>
       ) : (
@@ -50,12 +50,12 @@ export const ChangePhoneNumber: React.FC = () => {
               className="flex-1 bg-transparent text-[16px] text-text-main outline-none"
             />
             <button
-              className="text-[#00B42A] text-[15px] font-medium ml-4"
+              className="text-accent-green text-[15px] font-medium ml-4"
               onClick={() => showToast(t("user:account_sec.code_sent", "验证码已发送"))}
             >{t("user:account_sec.get_code", "获取验证码")}</button>
           </div>
           <button
-            className="w-full h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+            className="w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
             onClick={handleSubmit}
           >{t("user:account_sec.submit", "提交")}</button>
         </div>

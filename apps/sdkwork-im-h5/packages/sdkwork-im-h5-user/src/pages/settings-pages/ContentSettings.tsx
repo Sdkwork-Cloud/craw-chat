@@ -166,7 +166,7 @@ const [kanYiKan, setKanYiKan] = useState(true);
             <p className="text-[13px] text-text-sub">{t("settings:content.top_stories_desc", "发现朋友关注的热点")}</p>
           </div>
           <div
-            className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${kanYiKan ? "bg-[#00B42A]" : "bg-gray-300"}`}
+            className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${kanYiKan ? "bg-accent-green" : "bg-gray-300 dark:bg-gray-600"}`}
             onClick={() => setKanYiKan(!kanYiKan)}
           >
             <div
@@ -183,7 +183,7 @@ const [kanYiKan, setKanYiKan] = useState(true);
             <p className="text-[13px] text-text-sub">{t("settings:content.search_all_desc", "搜索文章、小程序等")}</p>
           </div>
           <div
-            className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${souYiSou ? "bg-[#00B42A]" : "bg-gray-300"}`}
+            className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${souYiSou ? "bg-accent-green" : "bg-gray-300 dark:bg-gray-600"}`}
             onClick={() => setSouYiSou(!souYiSou)}
           >
             <div

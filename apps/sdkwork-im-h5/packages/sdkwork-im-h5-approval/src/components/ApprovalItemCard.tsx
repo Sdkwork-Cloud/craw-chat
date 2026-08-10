@@ -58,11 +58,11 @@ export const ApprovalItemCard: React.FC<{
     <motion.div
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="bg-white dark:bg-[#2c2d2e] p-4 rounded-xl cursor-pointer shadow-sm border border-border-color/30"
+      className="bg-chat-other-bg p-4 rounded-xl cursor-pointer shadow-sm border border-border-color/30"
     >
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-[#3a3b3c] flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-hover-bg flex items-center justify-center">
             {getTypeIcon(approval.type)}
           </div>
           <div>
@@ -90,7 +90,7 @@ export const ApprovalItemCard: React.FC<{
           </div>
         </div>
       </div>
-      <div className="text-[14px] text-text-main bg-[#f8f9fa] dark:bg-[#202122] p-3 rounded-lg flex items-center justify-between">
+      <div className="text-[14px] text-text-main bg-hover-bg p-3 rounded-lg flex items-center justify-between">
         <span className="truncate pr-4">{approval.title}</span>
         <ChevronRight className="w-4 h-4 text-text-sub shrink-0" />
       </div>

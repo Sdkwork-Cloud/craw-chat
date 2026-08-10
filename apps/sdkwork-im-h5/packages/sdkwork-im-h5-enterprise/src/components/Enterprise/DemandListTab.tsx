@@ -21,7 +21,7 @@ export const DemandListTab: React.FC<DemandListTabProps> = ({ demands }) => {
       {demands.map((dem, i) => (
         <div
           key={i}
-          className="px-4 py-3 border-b border-border-color/50 flex flex-col gap-2 active:bg-chat-active-bg transition-colors cursor-pointer group hover:bg-[#fcfdff] dark:hover:bg-[#333538] relative overflow-hidden"
+          className="px-4 py-3 border-b border-border-color/50 flex flex-col gap-2 active:bg-chat-active-bg transition-colors cursor-pointer group hover:bg-hover-bg relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-primary-blue/5 opacity-0 group-active:opacity-100 transition-opacity" />
           <div className="flex items-center justify-between mb-1">
@@ -29,7 +29,7 @@ export const DemandListTab: React.FC<DemandListTabProps> = ({ demands }) => {
               <span className="bg-red-500/10 text-red-500 text-[10px] px-1.5 py-0.5 rounded-sm font-bold border border-red-500/20">
                 {t('enterprise.auto_2705bd70', '加急求购')}
               </span>
-              <span className="text-[12px] text-text-sub font-medium bg-[#f5f6f8] dark:bg-[#1a1b1c] px-1.5 py-0.5 rounded-sm">
+              <span className="text-[12px] text-text-sub font-medium bg-bg-color px-1.5 py-0.5 rounded-sm">
                 {dem.type}
               </span>
             </div>

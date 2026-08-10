@@ -27,7 +27,7 @@ const DialogInner: React.FC<DialogProps> = ({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-[320px] bg-white dark:bg-[#2c2d2e] rounded-xl overflow-hidden shadow-2xl flex flex-col"
+        className="w-full max-w-[320px] bg-chat-other-bg rounded-xl overflow-hidden shadow-2xl flex flex-col"
       >
         <div className="p-6 text-center">
           <h3 className="text-[17px] font-medium text-text-main mb-4">

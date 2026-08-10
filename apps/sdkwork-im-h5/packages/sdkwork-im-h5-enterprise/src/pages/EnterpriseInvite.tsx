@@ -13,7 +13,7 @@ const navigate = useNavigate();
   };
 
   return (
-    <PageLayout title="邀请入驻" bgClass="bg-[#f5f6f8] dark:bg-[#1a1b1c]">
+    <PageLayout title="邀请入驻" bgClass="bg-bg-color">
       <div className="flex flex-col items-center p-4 pb-[100px] h-full overflow-y-auto relative">
         <div className="w-full bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg mb-4 relative overflow-hidden flex flex-col items-center mt-2 shrink-0">
           <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
@@ -26,7 +26,7 @@ const navigate = useNavigate();
           <p className="text-[13px] opacity-90 z-10 text-center font-medium mt-0">拓展生意脉络，发现更多商机</p>
         </div>
 
-        <div className="w-full bg-white dark:bg-[#2c2d2e] rounded-2xl p-5 shadow-sm mb-4 flex flex-col gap-5 shrink-0">
+        <div className="w-full bg-chat-other-bg rounded-2xl p-5 shadow-sm mb-4 flex flex-col gap-5 shrink-0">
           <h3 className="text-[15px] font-bold text-text-main">入驻专享权益</h3>
           
           <div className="flex items-start gap-4">
@@ -61,7 +61,7 @@ const navigate = useNavigate();
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 pb-safe bg-white dark:bg-[#2c2d2e] border-t border-border-color shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-40">
+      <div className="fixed bottom-0 left-0 right-0 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-chat-other-bg border-t border-border-color shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-40">
         <button 
           className="w-full bg-primary-blue text-white rounded-full py-3 text-[15px] font-bold shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-transform"
           onClick={handleJoin}

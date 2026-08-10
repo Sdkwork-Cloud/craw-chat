@@ -27,7 +27,7 @@ const navigate = useNavigate();
   };
 
   return (
-    <PageLayout title={t('enterprise.auto_prop_375e79da', '申请入驻')} bgClass="bg-white dark:bg-[#1a1b1c]">
+    <PageLayout title={t('enterprise.auto_prop_375e79da', '申请入驻')} bgClass="bg-chat-other-bg">
       <div className="p-4 flex flex-col gap-4 max-w-full pb-8">
         <h2 className="text-[20px] font-bold text-text-main mb-2">{t('enterprise.auto_n5f14612f', '欢迎入驻企业中心')}</h2>
         
@@ -45,7 +45,7 @@ const navigate = useNavigate();
                 </div>
               </div>
             ) : (
-              <label className="w-20 h-20 bg-[#f5f6f8] dark:bg-[#2c2d2e] rounded-xl flex flex-col items-center justify-center cursor-pointer text-text-sub active:scale-95 transition-transform shrink-0">
+              <label className="w-20 h-20 bg-input-bg rounded-xl flex flex-col items-center justify-center cursor-pointer text-text-sub active:scale-95 transition-transform shrink-0">
                 <ImagePlus className="w-6 h-6 mb-1" />
                 <span className="text-[10px]">{t('enterprise.auto_3e676d55', '上传 Logo')}</span>
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload("logo", e)} />
@@ -68,7 +68,7 @@ const navigate = useNavigate();
               </div>
             </div>
           ) : (
-            <label className="w-full h-40 bg-[#f5f6f8] dark:bg-[#2c2d2e] rounded-xl flex flex-col items-center justify-center cursor-pointer text-text-sub active:scale-[0.98] transition-transform">
+            <label className="w-full h-40 bg-input-bg rounded-xl flex flex-col items-center justify-center cursor-pointer text-text-sub active:scale-[0.98] transition-transform">
               <ImagePlus className="w-8 h-8 mb-2 opacity-70" />
               <span className="text-[13px] font-medium opacity-90">{t('enterprise.auto_3132fdd', '点击上传企业宣传图 (横图)')}</span>
               <span className="text-[11px] opacity-60 mt-1">{t('enterprise.auto_n31bee3d', '建议尺寸 1920x1080px')}</span>
@@ -79,19 +79,19 @@ const navigate = useNavigate();
 
         <div className="flex flex-col gap-3 mt-2">
           <label className="text-[14px] font-medium text-text-main">{t('enterprise.auto_25199c7c', '企业名称')}</label>
-          <input className="w-full bg-[#f5f6f8] dark:bg-[#2c2d2e] p-3 rounded-xl border-none outline-none text-[15px] text-text-main" placeholder={t('enterprise.auto_prop_n53bef396', '请输入企业全称')} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+          <input className="w-full bg-input-bg p-3 rounded-xl border-none outline-none text-[15px] text-text-main" placeholder={t('enterprise.auto_prop_n53bef396', '请输入企业全称')} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
         </div>
         <div className="flex flex-col gap-3 mt-2">
           <label className="text-[14px] font-medium text-text-main">{t('enterprise.auto_3f2d03e7', '行业领域')}</label>
-          <input className="w-full bg-[#f5f6f8] dark:bg-[#2c2d2e] p-3 rounded-xl border-none outline-none text-[15px] text-text-main" placeholder={t('enterprise.auto_prop_n4ac33c2b', '请输入所属行业')} value={formData.industry} onChange={e => setFormData({...formData, industry: e.target.value})} />
+          <input className="w-full bg-input-bg p-3 rounded-xl border-none outline-none text-[15px] text-text-main" placeholder={t('enterprise.auto_prop_n4ac33c2b', '请输入所属行业')} value={formData.industry} onChange={e => setFormData({...formData, industry: e.target.value})} />
         </div>
         <div className="flex flex-col gap-3 mt-2">
           <label className="text-[14px] font-medium text-text-main">{t('enterprise.auto_4a63104d', '联系人姓名')}</label>
-          <input className="w-full bg-[#f5f6f8] dark:bg-[#2c2d2e] p-3 rounded-xl border-none outline-none text-[15px] text-text-main" placeholder={t('enterprise.auto_prop_n57cc747c', '请输入联系人姓名')} value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} />
+          <input className="w-full bg-input-bg p-3 rounded-xl border-none outline-none text-[15px] text-text-main" placeholder={t('enterprise.auto_prop_n57cc747c', '请输入联系人姓名')} value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} />
         </div>
         <div className="flex flex-col gap-3 mt-2">
           <label className="text-[14px] font-medium text-text-main">{t('enterprise.auto_3c3996af', '联系电话')}</label>
-          <input className="w-full bg-[#f5f6f8] dark:bg-[#2c2d2e] p-3 rounded-xl border-none outline-none text-[15px] text-text-main" placeholder={t('enterprise.auto_prop_n3c9ea768', '请输入联系电话')} type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+          <input className="w-full bg-input-bg p-3 rounded-xl border-none outline-none text-[15px] text-text-main" placeholder={t('enterprise.auto_prop_n3c9ea768', '请输入联系电话')} type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
         </div>
         
         <button className="w-full py-3 bg-primary-blue text-white font-medium rounded-xl text-[16px] mt-6 shadow-md shadow-blue-500/20 active:scale-95 transition-transform" onClick={handleSubmit}>{t('enterprise.auto_2e953cf8', '提交申请')}</button>

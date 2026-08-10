@@ -28,6 +28,7 @@
     }
   },
   "dependencies": {
+    "@sdkwork/agents-h5-agents": "workspace:*",
     "@sdkwork/im-h5-chat": "workspace:*",
     "@sdkwork/im-h5-commons": "workspace:*",
     "@sdkwork/im-h5-contacts": "workspace:*",

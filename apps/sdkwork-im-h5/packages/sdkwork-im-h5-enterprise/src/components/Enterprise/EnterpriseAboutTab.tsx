@@ -15,7 +15,7 @@ return (
       transition={{ duration: 0.2 }}
       className="flex flex-col gap-2"
     >
-      <div className="bg-white dark:bg-[#2c2d2e] p-5">
+      <div className="bg-chat-other-bg p-5">
         <h2 className="text-[17px] font-bold text-text-main mb-3 flex items-center gap-2">
           <span className="w-1 h-4 bg-primary-blue rounded-full"></span>{t('enterprise.auto_263967b6', '关于我们')}</h2>
         <p className="text-[15px] leading-relaxed text-text-sub space-y-4">
@@ -26,7 +26,7 @@ return (
         </p>
       </div>
 
-      <div className="bg-white dark:bg-[#2c2d2e] p-5">
+      <div className="bg-chat-other-bg p-5">
         <h2 className="text-[17px] font-bold text-text-main mb-4 flex items-center gap-2">
           <span className="w-1 h-4 bg-primary-blue rounded-full"></span>{t('enterprise.auto_25209d5d', '企业资质')}</h2>
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
@@ -44,7 +44,7 @@ return (
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#2c2d2e] pb-6">
+      <div className="bg-chat-other-bg pb-6">
         <h2 className="text-[17px] font-bold text-text-main mb-3 pt-5 px-5 flex items-center gap-2">
           <span className="w-1 h-4 bg-primary-blue rounded-full"></span>{t('enterprise.auto_3c3789dd', '联系方式')}</h2>
         <div className="flex flex-col border-y border-border-color/50">

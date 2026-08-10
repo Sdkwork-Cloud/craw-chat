@@ -14,6 +14,7 @@ import {
   type ImH5PersistedSession,
 } from './bootstrap/session';
 import { getSdkClients } from './bootstrap/sdkClients';
+import { ensureChatWelcomeMessage } from '@sdkwork/im-h5-chat';
 
 const AUTH_BASE_PATH = '/auth';
 const AUTH_LOGIN_PATH = '/auth/login';
@@ -90,6 +91,18 @@ export function AuthGate({ children }: AuthGateProps) {
       disposed = true;
     };
   }, [authenticated, session, setCurrentUser]);
+
+  useEffect(() => {
+    // 注册/登录建立会话后，幂等触发系统智能体 Welcome 检查：
+    // 服务端在用户未收到过 Welcome 且没有过对话时发送系统消息，否则跳过，
+    // 因此重复调用（刷新/重登）不会重复发送。
+    if (!authenticated) {
+      return;
+    }
+    void ensureChatWelcomeMessage().catch(() => {
+      // fire-and-forget：欢迎消息缺失不影响主流程（下次会话再触发）。
+    });
+  }, [authenticated]);
 
   useEffect(() => {
     let disposed = false;

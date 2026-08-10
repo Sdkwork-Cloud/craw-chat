@@ -47,7 +47,7 @@ export const ReportDetail = () => {
         {/* Interaction Bar */}
         <div className="flex gap-3">
           <button
-            className="flex-1 bg-white dark:bg-[#2c2d2e] border border-border-color text-text-main py-3 rounded-xl font-medium shadow-sm flex justify-center items-center gap-2 hover:bg-bg-color active:scale-95 transition-all"
+            className="flex-1 bg-chat-other-bg border border-border-color text-text-main py-3 rounded-xl font-medium shadow-sm flex justify-center items-center gap-2 hover:bg-bg-color active:scale-95 transition-all"
             onClick={() => showToast(t('report.auto_fn_bedac', '已赞'))}
           >
             <ThumbsUp className="w-4 h-4 text-text-sub" />{t('report.auto_8d5e', '赞')}

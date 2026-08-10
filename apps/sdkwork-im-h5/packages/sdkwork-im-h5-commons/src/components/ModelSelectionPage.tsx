@@ -84,7 +84,7 @@ export const ModelSelectionPage = ({
 
       {/* Search Bar */}
       <div className="p-3 bg-bg-color border-b border-border-color/30">
-        <div className="flex items-center bg-gray-100 dark:bg-[#2c2d2e] rounded-full px-3 py-2">
+        <div className="flex items-center bg-hover-bg rounded-full px-3 py-2">
           <Search className="w-4 h-4 text-text-sub mr-2" />
           <input
             type="text"
@@ -98,7 +98,7 @@ export const ModelSelectionPage = ({
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar: Vendors */}
-        <div className="w-24 flex-none bg-gray-50 dark:bg-[#1a1b1c] overflow-y-auto border-r border-border-color/30">
+        <div className="w-24 flex-none bg-chat-other-bg overflow-y-auto border-r border-border-color/30">
           {filteredVendors.map((vendor) => (
             <div
               key={vendor.id}
@@ -107,7 +107,7 @@ export const ModelSelectionPage = ({
                 "py-4 px-2 text-center text-[13px] transition-colors relative cursor-pointer select-none",
                 activeVendorId === vendor.id
                   ? "bg-bg-color text-primary-blue font-medium"
-                  : "text-text-sub hover:bg-gray-100 dark:hover:bg-[#2c2d2e]"
+                  : "text-text-sub hover:bg-hover-bg"
               )}
             >
               {activeVendorId === vendor.id && (
@@ -133,7 +133,7 @@ export const ModelSelectionPage = ({
                     "p-3 rounded-xl border flex flex-col gap-2 cursor-pointer transition-all active:scale-[0.98]",
                     currentModelId === model.id
                       ? "border-primary-blue bg-primary-blue/5 shadow-sm"
-                      : "border-border-color/50 bg-white dark:bg-[#2c2d2e] shadow-sm hover:border-border-color"
+                      : "border-border-color/50 bg-chat-other-bg shadow-sm hover:border-border-color"
                   )}
                 >
                   <div className="flex items-center justify-between">
@@ -157,7 +157,7 @@ export const ModelSelectionPage = ({
                       {model.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="text-[11px] px-2 py-0.5 bg-gray-100 dark:bg-[#3a3b3c] text-text-sub rounded-md font-medium text-center"
+                          className="text-[11px] px-2 py-0.5 bg-hover-bg text-text-sub rounded-md font-medium text-center"
                         >
                           {tag}
                         </span>

@@ -21,7 +21,7 @@ const ICON_MAP: Record<string, any> = {
 
 export const ServicesPage = () => {
   const { t } = useTranslation();
-const navigate = useNavigate();
+  const navigate = useNavigate();
   const [services, setServices] = useState<LifeServiceItem[]>([]);
   const [portfolio, setPortfolio] = useState<WalletPortfolio | null>(null);
 
@@ -41,7 +41,7 @@ const navigate = useNavigate();
   return (
     <PageLayout 
       title={t('user.auto_prop_ccd34', '服务')} 
-      bgClass="bg-[#F3F3F3] dark:bg-black"
+      bgClass="bg-bg-color"
       rightElement={
         <span 
           className="text-[14px] font-medium text-text-main hover:opacity-70 cursor-pointer"
@@ -60,29 +60,32 @@ const navigate = useNavigate();
           </div>
           <div className="flex items-end justify-between w-full relative z-10">
             <div>
-               <div className="text-[11px] text-white/70 mb-2 uppercase tracking-widest font-bold">{t('user.wallet_cash', '现金账户')}</div>
-               <div className="text-[30px] font-bold leading-none tracking-tight font-mono text-white">
-                 {portfolio ? Number(portfolio.cash.availableAmount).toLocaleString("zh-CN", { minimumFractionDigits: 2 }) : "--"}
-               </div>
-               <div className="mt-3 text-[13px] text-white/80 font-medium">
-                 {t('user.wallet_token_bank', 'Token Bank')}：
-                 <span className="font-mono">{portfolio ? Number(portfolio.tokenBank.availableAmount).toLocaleString("zh-CN") : "--"}</span> T
-               </div>
+              <div className="text-[11px] text-white/70 mb-2 uppercase tracking-widest font-bold">{t('user.wallet_cash', '现金账户')}</div>
+              <div className="text-[30px] font-bold leading-none tracking-tight font-mono text-white">
+                {portfolio ? Number(portfolio.cash.availableAmount).toLocaleString("zh-CN", { minimumFractionDigits: 2 }) : "--"}
+              </div>
             </div>
             <div className="text-right">
-               <div className="text-[11px] text-white/70 mb-2 uppercase tracking-widest font-bold">{t('user.auto_2c9904d1', '当前算力积分')}</div>
-               <div className="text-[22px] font-medium leading-none tracking-tight font-mono text-white">
-                 {portfolio ? Number(portfolio.points.availablePoints).toLocaleString("zh-CN") : "--"}
-               </div>
-               <div className="mt-3 text-[12px] text-white/70">
-                 {t('user.wallet_points_total', '累计')}：
-                 <span className="font-mono">{portfolio ? Number(portfolio.points.totalPoints).toLocaleString("zh-CN") : "--"}</span>
-               </div>
+              <div className="text-[11px] text-white/70 mb-2 uppercase tracking-widest font-bold">{t('user.wallet_token_bank', '算力积分')}</div>
+              <div className="text-[30px] font-bold leading-none tracking-tight font-mono text-white">
+                {portfolio ? Number(portfolio.tokenBank.availableAmount).toLocaleString("zh-CN") : "--"}
+                <span className="ml-1 text-[15px] font-medium text-white/60">T</span>
+              </div>
             </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-white/10 relative z-10 flex items-center justify-between text-[12px] text-white/60">
+            <span>
+              {t('user.auto_2c9904d1', '普通积分')}：
+              <span className="font-mono text-white/80">{portfolio ? Number(portfolio.points.availablePoints).toLocaleString("zh-CN") : "--"}</span>
+            </span>
+            <span>
+              {t('user.wallet_points_total', '累计')}：
+              <span className="font-mono text-white/80">{portfolio ? Number(portfolio.points.totalPoints).toLocaleString("zh-CN") : "--"}</span>
+            </span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl p-5 shadow-sm border border-border-color flex flex-col">
+        <div className="bg-chat-other-bg rounded-2xl p-5 shadow-sm border border-border-color flex flex-col">
           <h3 className="text-[15px] text-text-main mb-6 font-bold">{t('user.auto_30865237', '智能服务')}</h3>
           <div className="grid grid-cols-4 gap-y-8 pointer-events-auto">
             {services.map((item, i) => {

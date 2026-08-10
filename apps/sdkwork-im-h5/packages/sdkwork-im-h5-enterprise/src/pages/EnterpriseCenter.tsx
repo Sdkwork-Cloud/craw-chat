@@ -49,7 +49,7 @@ export const EnterpriseCenter = () => {
   return (
     <PageLayout 
       title={t('enterprise.auto_prop_2518cc2f', '企业中心')}
-      bgClass="bg-[#f5f6f8] dark:bg-[#1a1b1c]"
+      bgClass="bg-bg-color"
       rightElement={
         <div className="flex items-center gap-1 pl-2 relative z-[100]">
           <IconButton icon={<Search className="w-5 h-5 text-text-main" />} onClick={() => navigate("/enterprise/search")} />
@@ -85,7 +85,7 @@ export const EnterpriseCenter = () => {
         <EnterpriseHeroBanner />
 
         {/* Tabs */}
-        <div className="bg-white dark:bg-[#2c2d2e] border-b border-border-color/50 sticky top-0 z-20 shadow-sm">
+        <div className="bg-chat-other-bg border-b border-border-color/50 sticky top-0 z-20 shadow-sm">
           <div className="flex w-full items-center px-2">
             {[
               { id: "enterprises", label: "找企业" },
@@ -116,7 +116,7 @@ export const EnterpriseCenter = () => {
         </div>
 
         {/* Content */}
-        <div className="flex flex-col bg-white dark:bg-[#2c2d2e]">
+        <div className="flex flex-col bg-chat-other-bg">
           {activeTab === "enterprises" && <EnterpriseListTab enterprises={ENTERPRISES} />}
           {activeTab === "supplies" && <SupplyListTab supplies={SUPPLIES} />}
           {activeTab === "demands" && <DemandListTab demands={DEMANDS} />}

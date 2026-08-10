@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from "react";
+﻿import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -13,7 +13,14 @@ import {
 } from "lucide-react";
 import { IconButton, showToast } from "@sdkwork/im-h5-commons";
 import { motion, AnimatePresence } from "motion/react";
-import { ContactService, type Contact } from "../services/ContactService";
+import {
+  ContactService,
+  FRIEND_REQUEST_REALTIME_EVENT_TYPES,
+  SDKWORK_IM_H5_FRIEND_REQUESTS_CHANGED_EVENT,
+  type Contact,
+} from "../services/ContactService";
+import { subscribeScopeEvents } from "@sdkwork/im-h5-core/realtime";
+import { useAppStore } from "@sdkwork/im-h5-core";
 import { TopFunctionRow } from "../components/TopFunctionRow";
 import { ContactRow } from "../components/ContactRow";
 import { AlphabetIndexBar } from "../components/AlphabetIndexBar";
@@ -55,6 +62,7 @@ export const AddressBook: React.FC = () => {
 
   
 const navigate = useNavigate();
+  const currentUser = useAppStore((state) => state.currentUser);
   
   const [activeLetter, setActiveLetter] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -65,24 +73,51 @@ const navigate = useNavigate();
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [pendingFriendRequestCount, setPendingFriendRequestCount] = useState(0);
+
+  const loadFriendRequestCount = useCallback(async () => {
+    try {
+      setPendingFriendRequestCount(await ContactService.getPendingFriendRequestCount());
+    } catch (error) {
+      console.error("Unable to load pending friend request count", error);
+    }
+  }, []);
+
+  const loadFirstPage = useCallback(async () => {
+    setLoading(true);
+    try {
+      const page = await ContactService.listContactPage();
+      setContactsData(groupContacts(page.items));
+      setNextCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+      setLoadError(false);
+    } catch (error) {
+      console.error(error);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const page = await ContactService.listContactPage();
-        setContactsData(groupContacts(page.items));
-        setNextCursor(page.nextCursor);
-        setHasMore(page.hasMore);
-        setLoadError(false);
-      } catch (error) {
-        console.error(error);
-        setLoadError(true);
-      } finally {
-        setLoading(false);
-      }
+    void loadFirstPage();
+    void loadFriendRequestCount();
+    const handleFriendRequestsChanged = () => { void loadFriendRequestCount(); };
+    window.addEventListener(SDKWORK_IM_H5_FRIEND_REQUESTS_CHANGED_EVENT, handleFriendRequestsChanged);
+    const unsubscribeScope = currentUser?.id
+      ? subscribeScopeEvents("user", currentUser.id, (event) => {
+        const eventType = String(event.eventType ?? event.type ?? "");
+        if (FRIEND_REQUEST_REALTIME_EVENT_TYPES.includes(eventType)) {
+          void loadFirstPage();
+          void loadFriendRequestCount();
+        }
+      }, FRIEND_REQUEST_REALTIME_EVENT_TYPES)
+      : undefined;
+    return () => {
+      window.removeEventListener(SDKWORK_IM_H5_FRIEND_REQUESTS_CHANGED_EVENT, handleFriendRequestsChanged);
+      unsubscribeScope?.();
     };
-    void loadData();
-  }, []);
+  }, [loadFirstPage, loadFriendRequestCount, currentUser?.id]);
 
   const loadMore = async () => {
     if (!hasMore || !nextCursor || loadingMore) {
@@ -140,7 +175,7 @@ const navigate = useNavigate();
             onClick={() => navigate(-1)}
           />
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 font-semibold text-[17px] text-text-main pointer-events-none">
+        <div className="absolute inset-x-0 text-center font-semibold text-[17px] text-text-main pointer-events-none">
           {t('contacts.title')}
         </div>
         <div className="flex items-center justify-end z-10 w-[80px] gap-1 pr-2">
@@ -186,13 +221,14 @@ const navigate = useNavigate();
             icon={UserPlus}
             title={t('contacts.new_friends')}
             bgColor="bg-[#FA9D3B]"
+            badge={pendingFriendRequestCount}
             onClick={() => navigate("/contacts/friend-requests")}
           />
           <TopFunctionRow
             icon={Users}
             title={t('contacts.group_chats')}
             bgColor="bg-[#07C160]"
-            onClick={() => showToast(t('contacts.capability_unavailable', 'Not available'))}
+            onClick={() => navigate("/contacts/groups")}
           />
           <TopFunctionRow
             icon={Tags}
@@ -222,7 +258,7 @@ const navigate = useNavigate();
           .sort()
           .map((letter) => (
             <div key={letter} id={`contact-section-${letter}`}>
-              <div className="h-7 bg-[#EDEDED] dark:bg-[#1A1A1A] flex items-center pl-4 sticky top-0 z-10">
+              <div className="h-7 bg-hover-bg flex items-center pl-4 sticky top-0 z-10">
                 <span className="text-[13px] font-semibold text-text-sub">
                   {letter}
                 </span>
@@ -263,7 +299,7 @@ const navigate = useNavigate();
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-black/60 backdrop-blur-md rounded-xl flex items-center justify-center z-50 shadow-2xl pointer-events-none"
+            className="absolute inset-0 m-auto w-16 h-16 bg-black/60 backdrop-blur-md rounded-xl flex items-center justify-center z-50 shadow-2xl pointer-events-none"
           >
             <span className="text-white text-3xl font-bold">
               {activeLetter}

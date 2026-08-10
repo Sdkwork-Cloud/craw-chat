@@ -14,8 +14,8 @@ const cloudEnv = {
   SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
   SDKWORK_IM_ENVIRONMENT: 'development',
   SDKWORK_IM_PROFILE_ID: 'cloud.development',
-  SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'https://api-dev.sdkwork.com',
-  SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'wss://api-dev.sdkwork.com',
+  SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'http://im-dev.sdkwork.com:3801',
+  SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'ws://im-dev.sdkwork.com:3801',
   SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api-dev.sdkwork.com',
 };
 
@@ -24,7 +24,7 @@ test('materializes topology values without token or secret fields', () => {
   assert.equal(config.SDKWORK_IM_DEPLOYMENT_PROFILE, 'cloud');
   assert.equal(config.SDKWORK_PROFILE_ID, 'cloud.development');
   assert.equal(config.SDKWORK_RUNTIME_TARGET, 'flutter-android');
-  assert.equal(config.SDKWORK_IAM_APP_API_BASE_URL, 'https://api-dev.sdkwork.com');
+  assert.equal(config.SDKWORK_IAM_APP_API_BASE_URL, 'http://im-dev.sdkwork.com:3801');
   assert.equal(config.SDKWORK_ACCESS_TOKEN, undefined);
   assert.ok(Object.keys(config).every((key) => !/(?:PASSWORD|SECRET|PRIVATE_KEY)$/u.test(key)));
 });

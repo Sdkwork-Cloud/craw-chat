@@ -7,6 +7,7 @@ import {
   validateImH5ShellModules,
 } from "./moduleValidation";
 import { approvalModule } from "./modules/approvalModule";
+import { agentsModule } from "./modules/agentsModule";
 import { attendanceModule } from "./modules/attendanceModule";
 import { calendarModule } from "./modules/calendarModule";
 import { chatModule } from "./modules/chatModule";
@@ -36,6 +37,7 @@ export * from "./moduleCatalog";
 export { validateImH5ShellModules } from "./moduleValidation";
 
 export const BUILTIN_IM_H5_MODULE_REGISTRY: Readonly<Partial<Record<ImH5ModuleId, ImH5CapabilityModule>>> = {
+  agents: agentsModule,
   approval: approvalModule,
   attendance: attendanceModule,
   calendar: calendarModule,

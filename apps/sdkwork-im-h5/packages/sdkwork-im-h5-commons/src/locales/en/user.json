@@ -57,7 +57,10 @@
     "privacy_welcome": "We take your privacy very seriously.",
     "privacy_desc": "This guide explains how we collect, use, store and share your personal info...",
     "storage": "Manage Chat History",
-    "work_group": "Work Group"
+    "work_group": "Work Group",
+    "blacklist_empty": "No blocked contacts yet",
+    "remove_blacklist_failed": "Unable to remove from blacklist. Please try again.",
+    "blacklist_load_failed": "Failed to load. Tap to retry"
   },
   "mode": {
     "teen_title": "Teen Mode",
@@ -194,6 +197,9 @@
   "auto_prop_n75c995cb": "搜索收藏的内容...",
   "auto_n5f1732f2": "没有找到相关收藏",
   "auto_2109d03d": "换个关键词试试吧",
+  "favorites": {
+    "title": "My Favorites"
+  },
   "auto_5f16e87c": "微信号: wxid_123456789",
   "auto_prop_ccd34": "服务",
   "auto_prop_40bbe269": "订单中心",
@@ -286,7 +292,10 @@
   "auto_4173b4d4": "账单记录",
   "auto_2e635247": "我的钱包",
   "auto_n14f50176": "总资产 (¥)",
-  "auto_2c9904d1": "当前积分",
+  "auto_2c9904d1": "Regular Points",
+  "wallet_cash": "Cash Account",
+  "wallet_token_bank": "Token Bank",
+  "wallet_points_total": "Total",
   "auto_30865237": "智能服务",
   "auto_116b70": "设置",
   "auto_prop_16ab7d9": "已保护",
@@ -429,5 +438,10 @@
   "auto_49721453": "暂无授权应用",
   "auto_prop_594e8d97": "个性化广告管理",
   "auto_prop_eee21c8": "评论...",
-  "profile_not_bound": "Not bound"
+  "profile_not_bound": "Not bound",
+  "voices": {
+    "title": "My Voices",
+    "create": "Create Voice",
+    "detail": "Voice Details"
+  }
 }

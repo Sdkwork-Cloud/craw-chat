@@ -106,7 +106,7 @@ export const VoiceSelectionPage = ({
             onClick={onClose}
           />
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
+        <div className="absolute inset-x-0 flex flex-col items-center pointer-events-none">
           <h2 className="text-[17px] font-bold text-text-main">{t('commons.auto_42ffbcdf', '选择音色')}</h2>
         </div>
         <div className="flex-1" />
@@ -149,7 +149,7 @@ export const VoiceSelectionPage = ({
                 )}
               >
                 {activeCategoryId === cat.id && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-primary-blue rounded-r-full" />
+                  <div className="absolute left-0 inset-y-0 my-auto w-1 h-4 bg-primary-blue rounded-r-full" />
                 )}
                 {cat.name}
               </div>

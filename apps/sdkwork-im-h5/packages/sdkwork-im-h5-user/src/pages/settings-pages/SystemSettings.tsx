@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { PageLayout, Group, ListItem } from "../../components/SettingsCommons";
 import { ShieldAlert } from "lucide-react";
 import {
@@ -6,23 +6,50 @@ import {
   showToast,
   showPrompt,
 } from "@sdkwork/im-h5-commons";
+import { ContactService, type Contact } from "@sdkwork/im-h5-contacts";
 import { useNavigate } from "react-router";
 import { useTranslation } from 'react-i18next';
 
 export const Blacklist = () => {
   const { t } = useTranslation();
-const [blacklist, setBlacklist] = useState([
-    {
-      id: 1,
-      name: t("settings:system.blocked_user_1", "微商推广张三"),
-      avatar: "https://picsum.photos/seed/b1/100",
-    },
-    {
-      id: 2,
-      name: t("settings:system.blocked_user_2", "贷款专员李四"),
-      avatar: "https://picsum.photos/seed/b2/100",
-    },
-  ]);
+  const [blacklist, setBlacklist] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const blocked: Contact[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await ContactService.listContactPage(cursor);
+        blocked.push(...page.items.filter((contact) => contact.isBlocked === true));
+        cursor = page.hasMore ? page.nextCursor : undefined;
+      } while (cursor);
+      setBlacklist(blocked);
+      setLoadError(false);
+    } catch (error) {
+      console.error("Unable to load blacklist", error);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const handleRemove = async (user: Contact) => {
+    try {
+      await ContactService.updateContactPreferences(user.id, { isBlocked: false });
+      setBlacklist(blacklist.filter((item) => item.id !== user.id));
+      showToast(t("user:system.removed_from_blacklist", "已移出黑名单"));
+    } catch (error) {
+      console.error("Unable to remove from blacklist", error);
+      showToast(t("user:system.remove_blacklist_failed", "移出黑名单失败，请稍后重试"));
+    }
+  };
 
   return (
     <PageLayout title={t("user:system.blacklist", "通讯录黑名单")}>
@@ -46,13 +73,29 @@ const [blacklist, setBlacklist] = useState([
               </div>
               <button
                 className="px-3 py-1.5 rounded-full border border-border-color text-text-sub text-[13px] active:bg-active-bg transition-colors"
-                onClick={async () => {
-                  showToast(t("user:system.removed_from_blacklist", "已移出黑名单"));
-                  setBlacklist(blacklist.filter((u) => u.id !== user.id));
-                }}
+                onClick={() => void handleRemove(user)}
               >移除</button>
             </div>
           ))}
+          {!loading && !loadError && blacklist.length === 0 && (
+            <div className="p-10 text-center text-[14px] text-text-sub">
+              {t("user:system.blacklist_empty", "暂无黑名单成员")}
+            </div>
+          )}
+          {loading && (
+            <div className="p-10 text-center text-[14px] text-text-sub">
+              {t("common.loading", "Loading...")}
+            </div>
+          )}
+          {!loading && loadError && (
+            <button
+              type="button"
+              className="w-full p-10 text-center text-[14px] text-primary-blue"
+              onClick={() => void load()}
+            >
+              {t("user:system.blacklist_load_failed", "加载失败，点击重试")}
+            </button>
+          )}
         </div>
       </div>
     </PageLayout>
@@ -103,7 +146,7 @@ const navigate = useNavigate();
           placeholder={t("user:system.feedback_placeholder", "请详细描述您遇到的问题或建议...")}
         ></textarea>
         <button
-          className="mt-6 w-full h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="mt-6 w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           onClick={async () => {
             showToast(t("user:system.submit_success", "提交成功，感谢反馈！"));
             navigate(-1);

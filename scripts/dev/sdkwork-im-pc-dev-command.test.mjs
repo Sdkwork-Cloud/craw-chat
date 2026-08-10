@@ -732,8 +732,8 @@ const cloudAssemblyPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
   env: {
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
-    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'https://api-dev.sdkwork.com',
-    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'wss://api-dev.sdkwork.com',
+    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'http://im-dev.sdkwork.com:3801',
+    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'ws://im-dev.sdkwork.com:3801',
     SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api-dev.sdkwork.com',
     SDKWORK_DRIVE_APP_API_UPSTREAM: 'http://127.0.0.1:28080/',
   },

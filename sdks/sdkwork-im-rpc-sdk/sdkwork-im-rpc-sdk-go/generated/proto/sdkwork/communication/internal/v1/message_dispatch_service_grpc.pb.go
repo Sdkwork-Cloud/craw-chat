@@ -117,3 +117,109 @@ var MessageDispatchService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "sdkwork/communication/internal/v1/message_dispatch_service.proto",
 }
+
+const (
+	UserWelcomeService_SendWelcomeMessage_FullMethodName = "/sdkwork.communication.internal.v1.UserWelcomeService/SendWelcomeMessage"
+)
+
+// UserWelcomeServiceClient is the client API for UserWelcomeService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// System-agent onboarding: ensures the target user receives the system
+// Welcome message exactly once. Trusted callers only (service-mTLS).
+type UserWelcomeServiceClient interface {
+	SendWelcomeMessage(ctx context.Context, in *SendWelcomeMessageRequest, opts ...grpc.CallOption) (*SendWelcomeMessageResponse, error)
+}
+
+type userWelcomeServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewUserWelcomeServiceClient(cc grpc.ClientConnInterface) UserWelcomeServiceClient {
+	return &userWelcomeServiceClient{cc}
+}
+
+func (c *userWelcomeServiceClient) SendWelcomeMessage(ctx context.Context, in *SendWelcomeMessageRequest, opts ...grpc.CallOption) (*SendWelcomeMessageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SendWelcomeMessageResponse)
+	err := c.cc.Invoke(ctx, UserWelcomeService_SendWelcomeMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// UserWelcomeServiceServer is the server API for UserWelcomeService service.
+// All implementations should embed UnimplementedUserWelcomeServiceServer
+// for forward compatibility.
+//
+// System-agent onboarding: ensures the target user receives the system
+// Welcome message exactly once. Trusted callers only (service-mTLS).
+type UserWelcomeServiceServer interface {
+	SendWelcomeMessage(context.Context, *SendWelcomeMessageRequest) (*SendWelcomeMessageResponse, error)
+}
+
+// UnimplementedUserWelcomeServiceServer should be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedUserWelcomeServiceServer struct{}
+
+func (UnimplementedUserWelcomeServiceServer) SendWelcomeMessage(context.Context, *SendWelcomeMessageRequest) (*SendWelcomeMessageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SendWelcomeMessage not implemented")
+}
+func (UnimplementedUserWelcomeServiceServer) testEmbeddedByValue() {}
+
+// UnsafeUserWelcomeServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to UserWelcomeServiceServer will
+// result in compilation errors.
+type UnsafeUserWelcomeServiceServer interface {
+	mustEmbedUnimplementedUserWelcomeServiceServer()
+}
+
+func RegisterUserWelcomeServiceServer(s grpc.ServiceRegistrar, srv UserWelcomeServiceServer) {
+	// If the following call panics, it indicates UnimplementedUserWelcomeServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&UserWelcomeService_ServiceDesc, srv)
+}
+
+func _UserWelcomeService_SendWelcomeMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendWelcomeMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserWelcomeServiceServer).SendWelcomeMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserWelcomeService_SendWelcomeMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserWelcomeServiceServer).SendWelcomeMessage(ctx, req.(*SendWelcomeMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// UserWelcomeService_ServiceDesc is the grpc.ServiceDesc for UserWelcomeService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var UserWelcomeService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "sdkwork.communication.internal.v1.UserWelcomeService",
+	HandlerType: (*UserWelcomeServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "SendWelcomeMessage",
+			Handler:    _UserWelcomeService_SendWelcomeMessage_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "sdkwork/communication/internal/v1/message_dispatch_service.proto",
+}

@@ -81,7 +81,7 @@ const [devices, setDevices] = useState([
   return (
     <PageLayout title={t('user.auto_prop_114509', '设备')}>
       <div className="px-4 py-8 flex flex-col items-center border-b border-border-color bg-chat-other-bg">
-        <div className="w-20 h-20 mb-4 bg-[#00B42A] rounded-full flex items-center justify-center shadow-lg shadow-[#00B42A]/20">
+        <div className="w-20 h-20 mb-4 bg-accent-green rounded-full flex items-center justify-center shadow-lg shadow-[#00B42A]/20">
           <Monitor className="w-10 h-10 text-white" />
         </div>
         <h2 className="text-xl font-bold text-text-main mb-1">{t('user.auto_n24dcb9e', '多设备登录管理')}</h2>
@@ -134,7 +134,7 @@ const [devices, setDevices] = useState([
                     </div>
                   </div>
                   <button
-                    className="text-[14px] text-[#FA5151] font-medium active:opacity-70 px-3 py-1.5 rounded-full bg-[#FA5151]/10"
+                    className="text-[14px] text-accent-red font-medium active:opacity-70 px-3 py-1.5 rounded-full bg-accent-red/10"
                     onClick={() => handleLogout(d.id)}
                   >{t('user.auto_9f214', '下线')}</button>
                 </div>

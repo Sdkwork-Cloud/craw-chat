@@ -22,11 +22,11 @@ export const Discover: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f6f9] dark:bg-[#0a0a0a] overflow-y-auto pb-[84px]">
+    <div className="flex flex-col h-full bg-bg-color overflow-y-auto pb-[84px]">
       {/* Header */}
-      <header className="h-[56px] px-4 flex items-center justify-between sticky top-0 z-10 shrink-0 pt-safe bg-[#f4f6f9]/90 dark:bg-[#0a0a0a]/90 backdrop-blur-xl">
+      <header className="h-[56px] px-4 flex items-center justify-between sticky top-0 z-10 shrink-0 pt-safe bg-bg-color/90 backdrop-blur-xl">
         <div className="w-[32px]" />
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
           <h1 className="text-[17px] font-bold text-text-main tracking-tight">{t('user.auto_a99ff', '发现')}</h1>
         </div>
         <div className="flex justify-end">

@@ -38,7 +38,7 @@ export const MomentItemCard: React.FC<MomentItemCardProps> = ({
 }) => {
   const { t } = useTranslation();
 return (
-    <div className="flex gap-3 px-4 py-4 border-b border-black/5 dark:border-white/5 bg-white dark:bg-[#1C1C1E] active:bg-gray-50 dark:active:bg-white/5 transition-colors">
+    <div className="flex gap-3 px-4 py-4 border-b border-black/5 dark:border-white/5 bg-chat-other-bg active:bg-hover-bg transition-colors">
       <Avatar
         src={moment.author.avatar}
         size="md"
@@ -117,7 +117,7 @@ return (
           <div className="relative">
             <button
               onClick={(e) => togglePopover(moment.id, e)}
-              className="w-8 h-5 bg-[#F1F1F2] dark:bg-[#2A2A2D] rounded flex items-center justify-center shrink-0 active:bg-gray-200 dark:active:bg-white/10 transition-colors"
+              className="w-8 h-5 bg-hover-bg rounded flex items-center justify-center shrink-0 active:bg-gray-200 dark:active:bg-white/10 transition-colors"
             >
               <span className="w-1 h-1 bg-text-sub rounded-full mx-[1.5px]" />
               <span className="w-1 h-1 bg-text-sub rounded-full mx-[1.5px]" />
@@ -130,7 +130,7 @@ return (
                   animate={{ opacity: 1, scale: 1, x: 0 }}
                   exit={{ opacity: 0, scale: 0.9, x: 10 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-10 top-1/2 -translate-y-1/2 bg-[#4C4C4C] dark:bg-[#333333] rounded overflow-hidden flex items-center text-white h-[38px] shadow-xl divide-x divide-white/20 origin-right whitespace-nowrap z-20"
+                  className="absolute right-10 inset-y-0 my-auto bg-[#4C4C4C] dark:bg-[#333333] rounded overflow-hidden flex items-center text-white h-[38px] shadow-xl divide-x divide-white/20 origin-right whitespace-nowrap z-20"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button 
@@ -156,9 +156,9 @@ return (
         {/* Likes and Comments Area */}
         {(moment.likes?.length > 0 ||
           moment.comments?.length > 0) && (
-          <div className="bg-[#F3F3F5] dark:bg-[#202022] rounded text-[13px] relative mt-2.5 overflow-visible">
+          <div className="bg-hover-bg rounded text-[13px] relative mt-2.5 overflow-visible">
             {/* Up arrow triangle */}
-            <div className="absolute -top-1.5 left-3 w-3 h-3 bg-[#F3F3F5] dark:bg-[#202022] rotate-45 transform origin-center" />
+            <div className="absolute -top-1.5 left-3 w-3 h-3 bg-hover-bg rotate-45 transform origin-center" />
             
             <div className="relative z-10 p-2.5 space-y-1.5">
               {moment.likes?.length > 0 && (
@@ -204,7 +204,7 @@ return (
               exit={{ opacity: 0, height: 0, marginTop: 0 }}
               className="overflow-hidden"
             >
-              <div className="flex items-center gap-2 bg-[#F3F3F5] dark:bg-[#2A2A2D] rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 bg-hover-bg rounded-lg px-3 py-2">
                 <textarea
                   placeholder={t('user.auto_prop_eee21c8', "评论...")}
                   className="bg-transparent flex-1 outline-none text-[14px] text-text-main resize-none min-h-[20px] max-h-[80px]"

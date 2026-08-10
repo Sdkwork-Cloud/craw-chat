@@ -20,14 +20,28 @@ export interface ChatConversationSdkPort {
     ImSdkClient["conversations"],
     "list" | "listMessages" | "postText" | "updatePreferences" | "updateReadCursor"
   >;
+  me: Pick<ImSdkClient["chat"]["me"], "welcome">;
 }
 
 export function getChatImSdkClient(): ImSdkClient {
   return getImSdkClient();
 }
 
+/**
+ * Adapter exposing the narrow `ChatConversationSdkPort` surface. The IM SDK
+ * exposes `welcome` under `client.chat.me`; the port flattens it so service
+ * callers keep `client.me.welcome` without requiring the full client shape.
+ */
+export function getChatConversationSdkPort(): ChatConversationSdkPort {
+  const client = getImSdkClient();
+  return {
+    conversations: client.conversations,
+    me: client.chat.me,
+  };
+}
+
 export function createChatConversationService(
-  resolveClient: () => ChatConversationSdkPort = getChatImSdkClient,
+  resolveClient: () => ChatConversationSdkPort = getChatConversationSdkPort,
 ) {
   return {
     listInbox(params?: QueryParams): Promise<ConversationInboxPage> {
@@ -66,6 +80,15 @@ export function createChatConversationService(
         isMarkedUnread: false,
       });
     },
+
+    /**
+     * 幂等触发系统智能体 Welcome 检查：后端在用户未收到过 Welcome 且
+     * 没有过对话时发送系统消息，否则跳过。注册/登录后 fire-and-forget 调用。
+     */
+    async ensureWelcome(): Promise<void> {
+      const client = resolveClient();
+      await client.me.welcome.ensure();
+    },
   };
 }
 
@@ -96,4 +119,12 @@ export async function markConversationRead(
   readSeq: number,
 ): Promise<void> {
   return chatConversationService.markConversationRead(conversationId, readSeq);
+}
+
+/**
+ * 幂等触发系统智能体 Welcome 检查（fire-and-forget 语义由调用方决定；
+ * 服务端保证不重复发送）。注册/登录后调用一次即可。
+ */
+export async function ensureChatWelcomeMessage(): Promise<void> {
+  return chatConversationService.ensureWelcome();
 }

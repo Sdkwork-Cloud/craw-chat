@@ -97,7 +97,10 @@ const navigate = useNavigate();
               </div>
               <div
                 className="flex items-center gap-3 px-4 py-3.5 active:bg-active-bg transition-colors cursor-pointer"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  navigate("/scan");
+                }}
               >
                 <Scan className="w-5 h-5 text-text-main" />
                 <span className="text-[15px] font-medium text-text-main">

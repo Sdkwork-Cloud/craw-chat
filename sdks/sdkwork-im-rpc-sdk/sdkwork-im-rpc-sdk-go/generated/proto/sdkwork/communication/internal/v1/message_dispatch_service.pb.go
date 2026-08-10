@@ -191,6 +191,161 @@ func (x *DispatchConversationMessageResponse) GetMetadata() *v1.ResponseMetadata
 	return nil
 }
 
+type SendWelcomeMessageRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	OrganizationId string                 `protobuf:"bytes,2,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	UserId         string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// Optional override of the configured welcome text. Empty means the
+	// server-side default (SDKWORK_IM_CONVERSATION_WELCOME_MESSAGE_TEXT).
+	Text          string              `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	Metadata      *v1.RequestMetadata `protobuf:"bytes,15,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendWelcomeMessageRequest) Reset() {
+	*x = SendWelcomeMessageRequest{}
+	mi := &file_sdkwork_communication_internal_v1_message_dispatch_service_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendWelcomeMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendWelcomeMessageRequest) ProtoMessage() {}
+
+func (x *SendWelcomeMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sdkwork_communication_internal_v1_message_dispatch_service_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendWelcomeMessageRequest.ProtoReflect.Descriptor instead.
+func (*SendWelcomeMessageRequest) Descriptor() ([]byte, []int) {
+	return file_sdkwork_communication_internal_v1_message_dispatch_service_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SendWelcomeMessageRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *SendWelcomeMessageRequest) GetOrganizationId() string {
+	if x != nil {
+		return x.OrganizationId
+	}
+	return ""
+}
+
+func (x *SendWelcomeMessageRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *SendWelcomeMessageRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *SendWelcomeMessageRequest) GetMetadata() *v1.RequestMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type SendWelcomeMessageResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// sent | already_sent | already_engaged
+	Status         string               `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	ConversationId string               `protobuf:"bytes,2,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	MessageId      string               `protobuf:"bytes,3,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	MessageSeq     string               `protobuf:"bytes,4,opt,name=message_seq,json=messageSeq,proto3" json:"message_seq,omitempty"`
+	Metadata       *v1.ResponseMetadata `protobuf:"bytes,15,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SendWelcomeMessageResponse) Reset() {
+	*x = SendWelcomeMessageResponse{}
+	mi := &file_sdkwork_communication_internal_v1_message_dispatch_service_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendWelcomeMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendWelcomeMessageResponse) ProtoMessage() {}
+
+func (x *SendWelcomeMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sdkwork_communication_internal_v1_message_dispatch_service_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendWelcomeMessageResponse.ProtoReflect.Descriptor instead.
+func (*SendWelcomeMessageResponse) Descriptor() ([]byte, []int) {
+	return file_sdkwork_communication_internal_v1_message_dispatch_service_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SendWelcomeMessageResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *SendWelcomeMessageResponse) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *SendWelcomeMessageResponse) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+func (x *SendWelcomeMessageResponse) GetMessageSeq() string {
+	if x != nil {
+		return x.MessageSeq
+	}
+	return ""
+}
+
+func (x *SendWelcomeMessageResponse) GetMetadata() *v1.ResponseMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 var File_sdkwork_communication_internal_v1_message_dispatch_service_proto protoreflect.FileDescriptor
 
 const file_sdkwork_communication_internal_v1_message_dispatch_service_proto_rawDesc = "" +
@@ -211,9 +366,25 @@ const file_sdkwork_communication_internal_v1_message_dispatch_service_proto_rawD
 	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xab\x01\n" +
 	"#DispatchConversationMessageResponse\x12C\n" +
 	"\amessage\x18\x01 \x01(\v2).sdkwork.communication.app.v3.MessageViewR\amessage\x12?\n" +
+	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\xce\x01\n" +
+	"\x19SendWelcomeMessageRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12'\n" +
+	"\x0forganization_id\x18\x02 \x01(\tR\x0eorganizationId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\x12\x12\n" +
+	"\x04text\x18\x04 \x01(\tR\x04text\x12>\n" +
+	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xde\x01\n" +
+	"\x1aSendWelcomeMessageResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12'\n" +
+	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x03 \x01(\tR\tmessageId\x12\x1f\n" +
+	"\vmessage_seq\x18\x04 \x01(\tR\n" +
+	"messageSeq\x12?\n" +
 	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata2\xc7\x01\n" +
 	"\x16MessageDispatchService\x12\xac\x01\n" +
-	"\x1bDispatchConversationMessage\x12E.sdkwork.communication.internal.v1.DispatchConversationMessageRequest\x1aF.sdkwork.communication.internal.v1.DispatchConversationMessageResponseB\xca\x02\n" +
+	"\x1bDispatchConversationMessage\x12E.sdkwork.communication.internal.v1.DispatchConversationMessageRequest\x1aF.sdkwork.communication.internal.v1.DispatchConversationMessageResponse2\xa8\x01\n" +
+	"\x12UserWelcomeService\x12\x91\x01\n" +
+	"\x12SendWelcomeMessage\x12<.sdkwork.communication.internal.v1.SendWelcomeMessageRequest\x1a=.sdkwork.communication.internal.v1.SendWelcomeMessageResponseB\xca\x02\n" +
 	"%com.sdkwork.communication.internal.v1B\x1bMessageDispatchServiceProtoP\x01Z]github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/internal/v1;internalv1\xa2\x02\x03SCI\xaa\x02!Sdkwork.Communication.Internal.V1\xca\x02!Sdkwork\\Communication\\Internal\\V1\xe2\x02-Sdkwork\\Communication\\Internal\\V1\\GPBMetadata\xea\x02$Sdkwork::Communication::Internal::V1b\x06proto3"
 
 var (
@@ -228,25 +399,31 @@ func file_sdkwork_communication_internal_v1_message_dispatch_service_proto_rawDe
 	return file_sdkwork_communication_internal_v1_message_dispatch_service_proto_rawDescData
 }
 
-var file_sdkwork_communication_internal_v1_message_dispatch_service_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_sdkwork_communication_internal_v1_message_dispatch_service_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_sdkwork_communication_internal_v1_message_dispatch_service_proto_goTypes = []any{
 	(*DispatchConversationMessageRequest)(nil),  // 0: sdkwork.communication.internal.v1.DispatchConversationMessageRequest
 	(*DispatchConversationMessageResponse)(nil), // 1: sdkwork.communication.internal.v1.DispatchConversationMessageResponse
-	(*v1.RequestMetadata)(nil),                  // 2: sdkwork.common.v1.RequestMetadata
-	(*v3.MessageView)(nil),                      // 3: sdkwork.communication.app.v3.MessageView
-	(*v1.ResponseMetadata)(nil),                 // 4: sdkwork.common.v1.ResponseMetadata
+	(*SendWelcomeMessageRequest)(nil),           // 2: sdkwork.communication.internal.v1.SendWelcomeMessageRequest
+	(*SendWelcomeMessageResponse)(nil),          // 3: sdkwork.communication.internal.v1.SendWelcomeMessageResponse
+	(*v1.RequestMetadata)(nil),                  // 4: sdkwork.common.v1.RequestMetadata
+	(*v3.MessageView)(nil),                      // 5: sdkwork.communication.app.v3.MessageView
+	(*v1.ResponseMetadata)(nil),                 // 6: sdkwork.common.v1.ResponseMetadata
 }
 var file_sdkwork_communication_internal_v1_message_dispatch_service_proto_depIdxs = []int32{
-	2, // 0: sdkwork.communication.internal.v1.DispatchConversationMessageRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	3, // 1: sdkwork.communication.internal.v1.DispatchConversationMessageResponse.message:type_name -> sdkwork.communication.app.v3.MessageView
-	4, // 2: sdkwork.communication.internal.v1.DispatchConversationMessageResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	0, // 3: sdkwork.communication.internal.v1.MessageDispatchService.DispatchConversationMessage:input_type -> sdkwork.communication.internal.v1.DispatchConversationMessageRequest
-	1, // 4: sdkwork.communication.internal.v1.MessageDispatchService.DispatchConversationMessage:output_type -> sdkwork.communication.internal.v1.DispatchConversationMessageResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 0: sdkwork.communication.internal.v1.DispatchConversationMessageRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	5, // 1: sdkwork.communication.internal.v1.DispatchConversationMessageResponse.message:type_name -> sdkwork.communication.app.v3.MessageView
+	6, // 2: sdkwork.communication.internal.v1.DispatchConversationMessageResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	4, // 3: sdkwork.communication.internal.v1.SendWelcomeMessageRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	6, // 4: sdkwork.communication.internal.v1.SendWelcomeMessageResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	0, // 5: sdkwork.communication.internal.v1.MessageDispatchService.DispatchConversationMessage:input_type -> sdkwork.communication.internal.v1.DispatchConversationMessageRequest
+	2, // 6: sdkwork.communication.internal.v1.UserWelcomeService.SendWelcomeMessage:input_type -> sdkwork.communication.internal.v1.SendWelcomeMessageRequest
+	1, // 7: sdkwork.communication.internal.v1.MessageDispatchService.DispatchConversationMessage:output_type -> sdkwork.communication.internal.v1.DispatchConversationMessageResponse
+	3, // 8: sdkwork.communication.internal.v1.UserWelcomeService.SendWelcomeMessage:output_type -> sdkwork.communication.internal.v1.SendWelcomeMessageResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_sdkwork_communication_internal_v1_message_dispatch_service_proto_init() }
@@ -260,9 +437,9 @@ func file_sdkwork_communication_internal_v1_message_dispatch_service_proto_init(
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sdkwork_communication_internal_v1_message_dispatch_service_proto_rawDesc), len(file_sdkwork_communication_internal_v1_message_dispatch_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_sdkwork_communication_internal_v1_message_dispatch_service_proto_goTypes,
 		DependencyIndexes: file_sdkwork_communication_internal_v1_message_dispatch_service_proto_depIdxs,

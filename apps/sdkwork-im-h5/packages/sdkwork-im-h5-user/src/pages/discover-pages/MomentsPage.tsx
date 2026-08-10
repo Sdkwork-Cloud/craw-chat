@@ -131,9 +131,9 @@ const [moments, setMoments] = useState<Moment[]>([]);
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f2f2f7] dark:bg-black relative overflow-hidden">
+    <div className="flex flex-col h-full bg-bg-color relative overflow-hidden">
       <PageLayout 
-        bgClass="bg-white dark:bg-[#121212]"
+        bgClass="bg-chat-other-bg"
         rightElement={
           <button 
             onClick={() => setShowPublish(true)}
@@ -151,7 +151,7 @@ const [moments, setMoments] = useState<Moment[]>([]);
           />
 
           {/* Moments List */}
-          <div className="pb-safe w-full bg-white dark:bg-[#1C1C1E] min-h-screen">
+          <div className="pb-safe w-full bg-chat-other-bg min-h-screen">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-20 text-text-sub opacity-70">
                 <div className="w-8 h-8 rounded-full border-4 border-text-sub border-t-transparent animate-spin mb-3"></div>

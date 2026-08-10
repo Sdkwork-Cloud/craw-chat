@@ -2,16 +2,18 @@
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "@sdkwork/im-h5-commons";
-import type { Chat } from "@sdkwork/im-h5-types";
+import type { Chat, User } from "@sdkwork/im-h5-types";
 
 interface ChatProfileMembersProps {
   chat: Chat | null;
   onAddMember: () => void;
+  onMemberClick?: (member: User) => void;
 }
 
 export const ChatProfileMembers: React.FC<ChatProfileMembersProps> = ({
   chat,
   onAddMember,
+  onMemberClick,
 }) => {
   const { t } = useTranslation();
 
@@ -19,7 +21,11 @@ export const ChatProfileMembers: React.FC<ChatProfileMembersProps> = ({
     <div className="bg-chat-other-bg px-4 py-6 mb-2 sm:mb-4 sm:rounded-xl sm:mt-2 border-y sm:border border-border-color">
       <div className="flex flex-wrap gap-5">
         {chat?.participants.map((p) => (
-          <div key={p.id} className="flex flex-col items-center gap-2 w-[52px]">
+          <div
+            key={p.id}
+            className={`flex flex-col items-center gap-2 w-[52px] ${onMemberClick ? "cursor-pointer active:opacity-70" : ""}`}
+            onClick={onMemberClick ? () => onMemberClick(p) : undefined}
+          >
             <Avatar
               src={p.avatar}
               size="lg"

@@ -7,7 +7,7 @@ export const EnterpriseProducts = () => {
   const { t } = useTranslation();
 return (
     <PageLayout title={t('enterprise.auto_prop_7c135a88', '产品与服务')}>
-      <div className="flex flex-col min-h-full bg-[#f5f6f8] dark:bg-[#1a1b1c] p-4 gap-4">
+      <div className="flex flex-col min-h-full bg-bg-color p-4 gap-4">
          {[
            {
              name: "业务大模型定制",
@@ -28,7 +28,7 @@ return (
              tags: ["安防监控", "物联网"],
            }
          ].map((prod, i) => (
-           <div key={i} className="bg-white dark:bg-[#2c2d2e] rounded-xl p-5 shadow-sm flex flex-col gap-3">
+           <div key={i} className="bg-chat-other-bg rounded-xl p-5 shadow-sm flex flex-col gap-3">
               <div className="flex items-center gap-3">
                  <div className="w-12 h-12 bg-black/5 dark:bg-white/5 rounded-xl flex items-center justify-center shrink-0">
                     {prod.icon}

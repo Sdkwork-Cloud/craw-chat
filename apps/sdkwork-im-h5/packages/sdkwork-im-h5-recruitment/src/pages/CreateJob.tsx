@@ -51,7 +51,7 @@ const navigate = useNavigate();
     >
       <div className="p-4 space-y-4">
         {/* Basic Info */}
-        <div className="bg-white dark:bg-[#2c2d2e] rounded-xl overflow-hidden shadow-sm border border-border-color/30">
+        <div className="bg-chat-other-bg rounded-xl overflow-hidden shadow-sm border border-border-color/30">
           <CreateJobFormItem
             icon={<Briefcase className="w-5 h-5" />}
             value={formData.title}
@@ -79,7 +79,7 @@ const navigate = useNavigate();
         </div>
 
         {/* Requirements */}
-        <div className="bg-white dark:bg-[#2c2d2e] rounded-xl overflow-hidden shadow-sm border border-border-color/30">
+        <div className="bg-chat-other-bg rounded-xl overflow-hidden shadow-sm border border-border-color/30">
           <CreateJobFormItem
             isSelect
             icon={<Clock className="w-5 h-5" />}
@@ -103,7 +103,7 @@ const navigate = useNavigate();
         </div>
 
         {/* Job Description */}
-        <div className="bg-white dark:bg-[#2c2d2e] rounded-xl p-4 shadow-sm border border-border-color/30">
+        <div className="bg-chat-other-bg rounded-xl p-4 shadow-sm border border-border-color/30">
           <textarea
             className="w-full bg-transparent border-none outline-none text-[15px] text-text-main placeholder:text-text-sub/50 resize-none h-40"
             placeholder={t('recruitment.createJob.requirementPlaceholder')}

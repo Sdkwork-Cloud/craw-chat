@@ -36,7 +36,7 @@ const Icon = item.icon === 'FileText' ? FileText :
       {...onLongPressProps}
     >
       <div className="flex items-start gap-3 pointer-events-none">
-         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gray-50 dark:bg-[#2A2A2D] border border-border-color", item.color)}>
+         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-hover-bg border border-border-color", item.color)}>
             <Icon className="w-5 h-5" strokeWidth={1.5} />
          </div>
          <div className="flex-1 min-w-0">

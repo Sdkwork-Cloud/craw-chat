@@ -70,7 +70,7 @@ return (
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-black/60 backdrop-blur-md rounded-xl flex items-center justify-center z-50 shadow-2xl pointer-events-none"
+            className="absolute inset-0 m-auto w-16 h-16 bg-black/60 backdrop-blur-md rounded-xl flex items-center justify-center z-50 shadow-2xl pointer-events-none"
           >
             <span className="text-white text-3xl font-bold">
               {activeLetter}

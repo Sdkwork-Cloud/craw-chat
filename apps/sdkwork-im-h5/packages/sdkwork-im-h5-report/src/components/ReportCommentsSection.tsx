@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 export const ReportCommentsSection: React.FC = () => {
   const { t } = useTranslation();
   return (
-    <div className="bg-white dark:bg-[#2c2d2e] rounded-xl p-4 shadow-sm border border-border-color/30">
+    <div className="bg-chat-other-bg rounded-xl p-4 shadow-sm border border-border-color/30">
       <h3 className="text-[15px] font-bold text-text-main mb-4">{t('report.auto_30616b26', '最新评论')}</h3>
       <div className="space-y-4 mb-4">
         <div className="flex gap-3">

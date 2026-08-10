@@ -96,7 +96,7 @@ const { t } = useTranslation('ai_writing');
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f6f9] dark:bg-black pt-safe">
+    <div className="flex flex-col h-full bg-bg-color pt-safe">
       <header className="h-[44px] flex items-center justify-between px-2 shrink-0 bg-bg-color border-b border-border-color">
         <IconButton
           icon={<ChevronLeft className="w-6 h-6 text-text-main" />}

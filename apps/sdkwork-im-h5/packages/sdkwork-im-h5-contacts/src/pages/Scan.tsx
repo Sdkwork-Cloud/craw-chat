@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, Image as ImageIcon } from "lucide-react";
 import { IconButton, showToast } from "@sdkwork/im-h5-commons";
-import { ContactService } from "../services/ContactService";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
@@ -33,7 +32,7 @@ const navigate = useNavigate();
             onClick={() => navigate(-1)}
           />
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
           <h2 className="text-[17px] font-medium text-white">{t('contacts.scan_qr')}</h2>
         </div>
         <div className="flex items-center justify-end z-10 flex-1 pr-4">

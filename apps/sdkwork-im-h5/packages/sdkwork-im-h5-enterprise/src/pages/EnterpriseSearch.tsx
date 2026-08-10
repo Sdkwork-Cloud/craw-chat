@@ -10,9 +10,9 @@ const [query, setQuery] = useState("");
   const TRENDING = ["科技", "电商服务", "大米批发", "新媒体代运营", "物流", "招聘前端开发"];
 
   return (
-    <PageLayout title={t('enterprise.auto_prop_c9c86', '搜索')} bgClass="bg-white dark:bg-[#1a1b1c]">
+    <PageLayout title={t('enterprise.auto_prop_c9c86', '搜索')} bgClass="bg-chat-other-bg">
       <div className="p-4 flex flex-col items-center">
-        <div className="w-full bg-[#f5f6f8] dark:bg-[#2c2d2e] rounded-xl flex items-center px-4 py-3 border border-transparent focus-within:border-primary-blue/30 transition-colors">
+        <div className="w-full bg-input-bg rounded-xl flex items-center px-4 py-3 border border-transparent focus-within:border-primary-blue/30 transition-colors">
           <Search className="w-5 h-5 text-text-sub shrink-0" />
           <input 
             className="flex-1 bg-transparent border-none outline-none text-[15px] text-text-main ml-2" 
@@ -35,7 +35,7 @@ const [query, setQuery] = useState("");
                 {TRENDING.map((tag) => (
                   <span 
                     key={tag} 
-                    className="px-3 py-1.5 bg-[#f5f6f8] dark:bg-[#2c2d2e] rounded-full text-[13px] text-text-sub cursor-pointer active:scale-95 transition-transform"
+                    className="px-3 py-1.5 bg-input-bg rounded-full text-[13px] text-text-sub cursor-pointer active:scale-95 transition-transform"
                     onClick={() => setQuery(tag)}
                   >
                     {tag}

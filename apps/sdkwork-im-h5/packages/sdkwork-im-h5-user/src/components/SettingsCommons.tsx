@@ -67,7 +67,7 @@ export const ToggleItem = ({
       <Switch
         checked={checked}
         onChange={onChange}
-        checkedColor="bg-[#00B42A]"
+        checkedColor="bg-accent-green"
       />
     }
   />

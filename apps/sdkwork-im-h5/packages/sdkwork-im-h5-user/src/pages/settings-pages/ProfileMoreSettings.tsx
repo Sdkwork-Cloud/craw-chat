@@ -15,13 +15,13 @@ const [gender, setGender] = useState(t("user:profile.male", t("settings:profile.
           onClick={() => setGender(t("user:profile.male", t("settings:profile.male", "男")))}
           className="flex items-center justify-between px-4 py-3.5 bg-chat-other-bg border-b border-border-color/60 cursor-pointer"
         >
-          <span className="text-[16px] text-text-main">{t("user:profile.male", t("settings:profile.male", "男"))}</span>{gender === t("user:profile.male", t("settings:profile.male", "男")) &&<Check className="w-5 h-5 text-[#00B42A]" />}
+          <span className="text-[16px] text-text-main">{t("user:profile.male", t("settings:profile.male", "男"))}</span>{gender === t("user:profile.male", t("settings:profile.male", "男")) &&<Check className="w-5 h-5 text-accent-green" />}
         </div>
         <div
           onClick={() => setGender(t("user:profile.female", "女"))}
           className="flex items-center justify-between px-4 py-3.5 bg-chat-other-bg cursor-pointer"
         >
-          <span className="text-[16px] text-text-main">{t("user:profile.female", "女")}</span>{gender === t("user:profile.female", "女") &&<Check className="w-5 h-5 text-[#00B42A]" />}
+          <span className="text-[16px] text-text-main">{t("user:profile.female", "女")}</span>{gender === t("user:profile.female", "女") &&<Check className="w-5 h-5 text-accent-green" />}
         </div>
       </Group>
     </PageLayout>
@@ -51,7 +51,7 @@ return (
         placeholder={t("user:profile.sig_placeholder", "介绍一下自己吧...")}
       ></textarea>
       <button
-        className="mt-6 w-full h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+        className="mt-6 w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
         onClick={() => showToast(t("user:profile.save_success", "保存成功"))}
       >{t("settings:profile.save", "保存")}</button>
     </div>

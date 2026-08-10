@@ -10,7 +10,7 @@ interface ReportDetailContentProps {
 export const ReportDetailContent: React.FC<ReportDetailContentProps> = ({ report }) => {
   const { t } = useTranslation();
   return (
-    <div className="bg-white dark:bg-[#2c2d2e] rounded-xl shadow-sm border border-border-color/30 overflow-hidden">
+    <div className="bg-chat-other-bg rounded-xl shadow-sm border border-border-color/30 overflow-hidden">
       {/* Completed Work */}
       <div className="p-4 border-b border-border-color/30">
         <div className="flex items-center gap-2 mb-3">

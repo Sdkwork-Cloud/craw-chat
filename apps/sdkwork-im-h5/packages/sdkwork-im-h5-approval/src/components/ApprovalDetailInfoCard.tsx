@@ -8,7 +8,7 @@ interface ApprovalDetailInfoCardProps {
 
 export const ApprovalDetailInfoCard: React.FC<ApprovalDetailInfoCardProps> = ({ approval }) => {
   return (
-    <div className="bg-white dark:bg-[#1a1b1c] p-5 pb-6 border-b border-border-color/30">
+    <div className="bg-chat-other-bg p-5 pb-6 border-b border-border-color/30">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-primary-blue/10 flex items-center justify-center text-primary-blue text-[18px] font-medium">

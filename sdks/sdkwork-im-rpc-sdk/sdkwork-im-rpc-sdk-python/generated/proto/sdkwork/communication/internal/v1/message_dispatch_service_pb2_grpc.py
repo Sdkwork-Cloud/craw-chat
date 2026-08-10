@@ -75,3 +75,81 @@ class MessageDispatchService:
             timeout,
             metadata,
             _registered_method=True)
+
+
+class UserWelcomeServiceStub:
+    """System-agent onboarding: ensures the target user receives the system
+    Welcome message exactly once. Trusted callers only (service-mTLS).
+    """
+
+    def __init__(self, channel):
+        """Constructor.
+
+        Args:
+            channel: A grpc.Channel.
+        """
+        self.SendWelcomeMessage = channel.unary_unary(
+                '/sdkwork.communication.internal.v1.UserWelcomeService/SendWelcomeMessage',
+                request_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_message__dispatch__service__pb2.SendWelcomeMessageRequest.SerializeToString,
+                response_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_message__dispatch__service__pb2.SendWelcomeMessageResponse.FromString,
+                _registered_method=True)
+
+
+class UserWelcomeServiceServicer:
+    """System-agent onboarding: ensures the target user receives the system
+    Welcome message exactly once. Trusted callers only (service-mTLS).
+    """
+
+    def SendWelcomeMessage(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+
+def add_UserWelcomeServiceServicer_to_server(servicer, server):
+    rpc_method_handlers = {
+            'SendWelcomeMessage': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendWelcomeMessage,
+                    request_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_message__dispatch__service__pb2.SendWelcomeMessageRequest.FromString,
+                    response_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_message__dispatch__service__pb2.SendWelcomeMessageResponse.SerializeToString,
+            ),
+    }
+    generic_handler = grpc.method_handlers_generic_handler(
+            'sdkwork.communication.internal.v1.UserWelcomeService', rpc_method_handlers)
+    server.add_generic_rpc_handlers((generic_handler,))
+    server.add_registered_method_handlers('sdkwork.communication.internal.v1.UserWelcomeService', rpc_method_handlers)
+
+
+ # This class is part of an EXPERIMENTAL API.
+class UserWelcomeService:
+    """System-agent onboarding: ensures the target user receives the system
+    Welcome message exactly once. Trusted callers only (service-mTLS).
+    """
+
+    @staticmethod
+    def SendWelcomeMessage(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sdkwork.communication.internal.v1.UserWelcomeService/SendWelcomeMessage',
+            sdkwork_dot_communication_dot_internal_dot_v1_dot_message__dispatch__service__pb2.SendWelcomeMessageRequest.SerializeToString,
+            sdkwork_dot_communication_dot_internal_dot_v1_dot_message__dispatch__service__pb2.SendWelcomeMessageResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)

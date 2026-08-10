@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Copy, Reply, Forward, Star, Trash2 } from "lucide-react";
+import { Copy, Reply, Forward, Star, Trash2, Pencil, Undo2, Pin } from "lucide-react";
 import { showToast, cn } from "@sdkwork/im-h5-commons";
 import type { Message } from "@sdkwork/im-h5-types";
 import { useTranslation } from "react-i18next";
@@ -18,6 +18,11 @@ interface MessageContextMenuProps {
   onReply: (msg: Message) => void;
   onStar: (msgId: string) => void;
   onDelete: (msgId: string) => void;
+  onEdit?: (msgId: string) => void;
+  onRecall?: (msgId: string) => void;
+  onPin?: (msgId: string) => void;
+  pinnedMessageIds?: string[];
+  currentUserId?: string;
 }
 
 export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
@@ -28,8 +33,18 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
   onReply,
   onStar,
   onDelete,
+  onEdit,
+  onRecall,
+  onPin,
+  pinnedMessageIds = [],
+  currentUserId,
 }) => {
   const { t } = useTranslation();
+  const currentMessage = messages.find((m) => m.id === contextMenu.messageId);
+  const isOwnMessage = currentUserId !== undefined && currentMessage?.senderId === currentUserId;
+  // Locally-composed messages have no server identity yet: edit/recall are
+  // unavailable, only removal (handled locally by the caller) applies.
+  const hasLocalSendState = currentMessage?.sendState === "sending" || currentMessage?.sendState === "failed";
 return (
     <AnimatePresence>
       {contextMenu.isOpen && (
@@ -52,7 +67,7 @@ return (
             className="fixed z-50 w-40 bg-white/95 dark:bg-[#2C2C2C]/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-black/5 dark:border-white/10 overflow-hidden"
           >
             <div className="flex flex-col">
-              {messages.find((m) => m.id === contextMenu.messageId)?.type ===
+              {currentMessage?.type ===
                 "text" && (
                 <>
                   <div
@@ -64,6 +79,21 @@ return (
                   >
                     <span>{t('chat.context.copy')}</span>
                     <Copy className="w-4 h-4 opacity-70" />
+                  </div>
+                  <div className="h-[1px] bg-black/5 dark:bg-white/5 mx-4" />
+                </>
+              )}
+              {isOwnMessage && currentMessage?.type === "text" && onEdit && !hasLocalSendState && (
+                <>
+                  <div
+                    className="flex items-center justify-between px-4 py-3.5 text-[15px] text-text-main active:bg-black/5 dark:active:bg-white/5 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (contextMenu.messageId) onEdit(contextMenu.messageId);
+                    }}
+                  >
+                    <span>{t('chat.context.edit')}</span>
+                    <Pencil className="w-4 h-4 opacity-70" />
                   </div>
                   <div className="h-[1px] bg-black/5 dark:bg-white/5 mx-4" />
                 </>
@@ -103,19 +133,51 @@ return (
                 }}
               >
                 <span>
-                  {messages.find((m) => m.id === contextMenu.messageId)
-                    ?.isStarred
+                  {currentMessage?.isStarred
                     ? t('chat.context.unstar')
                     : t('chat.context.star')}
                 </span>
                 <Star
                   className={cn(
                     "w-4 h-4 opacity-70",
-                    messages.find((m) => m.id === contextMenu.messageId)
-                      ?.isStarred && "fill-current text-yellow-500 opacity-100",
+                    currentMessage?.isStarred && "fill-current text-yellow-500 opacity-100",
                   )}
                 />
               </div>
+              {isOwnMessage && onRecall && !hasLocalSendState && (
+                <>
+                  <div className="h-[1px] bg-black/5 dark:bg-white/5 mx-4" />
+                  <div
+                    className="flex items-center justify-between px-4 py-3.5 text-[15px] text-text-main active:bg-black/5 dark:active:bg-white/5 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (contextMenu.messageId) onRecall(contextMenu.messageId);
+                    }}
+                  >
+                    <span>{t('chat.context.recall')}</span>
+                    <Undo2 className="w-4 h-4 opacity-70" />
+                  </div>
+                </>
+              )}
+              {onPin && !hasLocalSendState && (
+                <>
+                  <div className="h-[1px] bg-black/5 dark:bg-white/5 mx-4" />
+                  <div
+                    className="flex items-center justify-between px-4 py-3.5 text-[15px] text-text-main active:bg-black/5 dark:active:bg-white/5 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (contextMenu.messageId) onPin(contextMenu.messageId);
+                    }}
+                  >
+                    <span>
+                      {pinnedMessageIds.includes(contextMenu.messageId ?? "")
+                        ? t('chat.context.unpin_message')
+                        : t('chat.context.pin_message')}
+                    </span>
+                    <Pin className="w-4 h-4 opacity-70" />
+                  </div>
+                </>
+              )}
               <div className="h-[1px] bg-black/5 dark:bg-white/5 mx-4" />
               <div
                 className="flex items-center justify-between px-4 py-3.5 text-[15px] text-accent-red active:bg-red-50 dark:active:bg-red-950/30 transition-colors cursor-pointer"

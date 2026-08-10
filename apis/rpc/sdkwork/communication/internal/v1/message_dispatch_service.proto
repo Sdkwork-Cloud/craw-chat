@@ -13,6 +13,12 @@ service MessageDispatchService {
   rpc DispatchConversationMessage(DispatchConversationMessageRequest) returns (DispatchConversationMessageResponse);
 }
 
+// System-agent onboarding: ensures the target user receives the system
+// Welcome message exactly once. Trusted callers only (service-mTLS).
+service UserWelcomeService {
+  rpc SendWelcomeMessage(SendWelcomeMessageRequest) returns (SendWelcomeMessageResponse);
+}
+
 message DispatchConversationMessageRequest {
   string tenant_id = 1;
   string organization_id = 2;
@@ -28,5 +34,24 @@ message DispatchConversationMessageRequest {
 
 message DispatchConversationMessageResponse {
   sdkwork.communication.app.v3.MessageView message = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message SendWelcomeMessageRequest {
+  string tenant_id = 1;
+  string organization_id = 2;
+  string user_id = 3;
+  // Optional override of the configured welcome text. Empty means the
+  // server-side default (SDKWORK_IM_CONVERSATION_WELCOME_MESSAGE_TEXT).
+  string text = 4;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message SendWelcomeMessageResponse {
+  // sent | already_sent | already_engaged
+  string status = 1;
+  string conversation_id = 2;
+  string message_id = 3;
+  string message_seq = 4;
   sdkwork.common.v1.ResponseMetadata metadata = 15;
 }

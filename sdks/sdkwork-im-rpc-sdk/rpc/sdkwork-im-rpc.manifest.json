@@ -328,6 +328,14 @@
       "methods": [
         { "method": "ConsumeGroupKnowledgebaseLaunchTicket", "operationId": "internal.groupKnowledgebaseLaunchTickets.consume", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" }
       ]
+    },
+    {
+      "package": "sdkwork.communication.internal.v1",
+      "service": "UserWelcomeService",
+      "surface": "internal",
+      "methods": [
+        { "method": "SendWelcomeMessage", "operationId": "internal.userWelcome.send", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" }
+      ]
     }
   ]
 }

@@ -18,12 +18,12 @@ return (
       </div>
       <h3 className="text-[14px] text-text-sub mb-4">{t('user.auto_n19db12f3', '搜索指定内容')}</h3>
       <div className="grid grid-cols-3 gap-4 text-center">
-        <span className="text-[#2B5CE7] text-[15px]">{t('user.auto_18d4ce8', '朋友圈')}</span>
-        <span className="text-[#2B5CE7] text-[15px]">{t('user.auto_cc639', '文章')}</span>
-        <span className="text-[#2B5CE7] text-[15px]">{t('user.auto_13b8e2c', '公众号')}</span>
-        <span className="text-[#2B5CE7] text-[15px]">{t('user.auto_168ba33', '小程序')}</span>
-        <span className="text-[#2B5CE7] text-[15px]">{t('user.auto_12b4bd', '音乐')}</span>
-        <span className="text-[#2B5CE7] text-[15px]">{t('user.auto_10e55d', '表情')}</span>
+        <span className="text-primary-blue text-[15px]">{t('user.auto_18d4ce8', '朋友圈')}</span>
+        <span className="text-primary-blue text-[15px]">{t('user.auto_cc639', '文章')}</span>
+        <span className="text-primary-blue text-[15px]">{t('user.auto_13b8e2c', '公众号')}</span>
+        <span className="text-primary-blue text-[15px]">{t('user.auto_168ba33', '小程序')}</span>
+        <span className="text-primary-blue text-[15px]">{t('user.auto_12b4bd', '音乐')}</span>
+        <span className="text-primary-blue text-[15px]">{t('user.auto_10e55d', '表情')}</span>
       </div>
     </div>
   </PageLayout>

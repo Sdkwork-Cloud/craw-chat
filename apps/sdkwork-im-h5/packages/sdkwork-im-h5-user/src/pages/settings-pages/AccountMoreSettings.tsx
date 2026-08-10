@@ -13,11 +13,11 @@ const navigate = useNavigate();
         <input
           type="text"
           defaultValue="wxid_123456789"
-          className="w-full bg-transparent border-b-2 border-[#00B42A] text-[18px] text-text-main pb-2 outline-none"
+          className="w-full bg-transparent border-b-2 border-accent-green text-[18px] text-text-main pb-2 outline-none"
         />
         <p className="text-[13px] text-text-sub mt-2">{t('user.auto_5d5135b0', '微信号是账号的唯一凭证，一年只能修改一次。')}</p>
         <button
-          className="mt-8 w-full h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="mt-8 w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           onClick={async () => {
             showToast(t('user.auto_fn_n56575589', '修改申请已提交'));
             navigate(-1);
@@ -39,7 +39,7 @@ const navigate = useNavigate();
           5 8 2 9 0 1
         </p>
         <div
-          className="w-24 h-24 bg-[#00B42A] rounded-full flex items-center justify-center active:scale-95 transition-transform cursor-pointer shadow-lg shadow-green-500/30"
+          className="w-24 h-24 bg-accent-green rounded-full flex items-center justify-center active:scale-95 transition-transform cursor-pointer shadow-lg shadow-green-500/30"
           onClick={async () => {
             showToast(t('user.auto_fn_n2b112257', '正在录音识别中...'));
             setTimeout(() => {
@@ -74,7 +74,7 @@ const navigate = useNavigate();
           className="w-full bg-chat-other-bg p-4 rounded-xl text-text-main outline-none mb-8"
         />
         <button
-          className="w-full h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           onClick={async () => {
             showToast(t('user.auto_fn_3b09d338', '绑定成功'));
             navigate(-1);
@@ -98,7 +98,7 @@ const navigate = useNavigate();
           className="w-full bg-chat-other-bg p-4 rounded-xl text-text-main outline-none mb-8"
         />
         <button
-          className="w-full h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           onClick={async () => {
             showToast(t('user.auto_fn_49fd525', '验证邮件已发送'));
             navigate(-1);
@@ -122,7 +122,7 @@ const navigate = useNavigate();
         <h3 className="text-[18px] font-medium text-text-main mb-4">{t('user.auto_41738847', '账号申诉')}</h3>
         <p className="text-[14px] text-text-sub mb-8">{t('user.auto_n777a8346', '如果你的手机号、QQ、邮箱均无法使用，可以通过申诉找回密码。')}</p>
         <button
-          className="w-full h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           onClick={async () => {
             showToast(t('user.auto_fn_328dc805', '申诉请求已提交'));
             navigate(-1);
@@ -147,7 +147,7 @@ const navigate = useNavigate();
         <p className="text-[14px] text-text-sub mb-8 text-left leading-relaxed">{t('user.auto_3c61f057', '注销后，你的账号将被永久删除，无法恢复。')}<br />
           <br />{t('user.auto_n268ec2ab', '1. 你的所有聊天记录、通讯录将被清空。')}<br />{t('user.auto_5efafa2e', '2. 你的微信豆、余额将被清空。')}<br />{t('user.auto_f8e1ba', '3. 绑定的第三方应用将解除授权。')}</p>
         <button
-          className="w-full h-12 bg-[#FA5151] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="w-full h-12 bg-accent-red text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           onClick={async () => {
             showToast(t('user.auto_fn_2849adb2', '注销已进入最后确认流程'));
             navigate(-1);

@@ -36,6 +36,7 @@ export type ImH5ModuleId =
   | "chat"
   | "contacts"
   | "user"
+  | "agents"
   | "knowledge"
   | "drive"
   | "orders"

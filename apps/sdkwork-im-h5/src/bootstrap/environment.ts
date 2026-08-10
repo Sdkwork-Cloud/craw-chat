@@ -16,6 +16,12 @@ export interface H5RuntimeEnvironment {
   readonly driveAppApiBaseUrl: string;
   readonly orderAppApiBaseUrl: string;
   readonly iamApiBaseUrl: string;
+  readonly knowledgebaseAppApiBaseUrl: string;
+  readonly agentsAppApiBaseUrl: string;
+  /** Voice app SDK base URL (`sdkwork-voice` app-api via gateway or direct). */
+  readonly voiceAppApiBaseUrl: string;
+  /** CMS app API base URL (`sdkwork-cms` app-api via gateway or direct). */
+  readonly cmsAppApiBaseUrl: string;
 }
 
 const DEFAULT_APP_KEY = 'sdkwork-im-h5';
@@ -49,6 +55,43 @@ function resolvePaymentRegion(): H5RuntimeEnvironment['paymentRegion'] {
     return value;
   }
   return DEFAULT_PAYMENT_REGION;
+}
+
+/**
+ * Resolve the agents app SDK gateway root.
+ *
+ * The generated agents SDK rejects same-origin `"/"` as an empty base URL, so
+ * this chain must produce a concrete gateway root. The final fallback is the
+ * browser origin, which keeps the same-origin semantics the other H5 SDKs get
+ * from `"/"` while satisfying the agents SDK validation.
+ */
+function resolveAgentsAppApiBaseUrl(
+  explicitAgentsBaseUrl: string | undefined,
+  platformGatewayApiBaseUrl: string | undefined,
+  applicationPublicHttpUrl: string | undefined,
+): string {
+  const resolved = explicitAgentsBaseUrl
+    ?? platformGatewayApiBaseUrl
+    ?? applicationPublicHttpUrl
+    ?? resolveBrowserOrigin();
+  if (!resolved) {
+    throw new Error(
+      'Agents App SDK requires a gateway root. Set SDKWORK_AGENTS_APP_API_BASE_URL ' +
+        '(or SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL / SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL).',
+    );
+  }
+  return resolved;
+}
+
+function resolveBrowserOrigin(): string | undefined {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+  const origin = window.location?.origin;
+  if (typeof origin === 'string' && origin.trim().length > 0 && origin !== 'null') {
+    return origin.trim();
+  }
+  return undefined;
 }
 
 let cachedEnvironment: H5RuntimeEnvironment | null = null;
@@ -86,6 +129,28 @@ export function resolveH5RuntimeEnvironment(): H5RuntimeEnvironment {
       ?? '/',
     iamApiBaseUrl: readEnvValue('SDKWORK_IAM_API_BASE_URL')
       ?? readEnvValue('VITE_SDKWORK_IAM_API_BASE_URL')
+      ?? '/',
+    knowledgebaseAppApiBaseUrl: readEnvValue('SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL')
+      ?? readEnvValue('VITE_SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL')
+      ?? '/',
+    agentsAppApiBaseUrl: resolveAgentsAppApiBaseUrl(
+      readEnvValue('SDKWORK_AGENTS_APP_API_BASE_URL')
+        ?? readEnvValue('VITE_SDKWORK_AGENTS_APP_API_BASE_URL'),
+      platformGatewayApiBaseUrl,
+      readEnvValue('SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL')
+        ?? readEnvValue('VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL'),
+    ),
+    voiceAppApiBaseUrl: readEnvValue('SDKWORK_VOICE_APP_API_BASE_URL')
+      ?? readEnvValue('VITE_SDKWORK_VOICE_APP_API_BASE_URL')
+      ?? platformGatewayApiBaseUrl
+      ?? readEnvValue('SDKWORK_IM_API_BASE_URL')
+      ?? readEnvValue('VITE_SDKWORK_IM_API_BASE_URL')
+      ?? '/',
+    cmsAppApiBaseUrl: readEnvValue('SDKWORK_CMS_APP_API_BASE_URL')
+      ?? readEnvValue('VITE_SDKWORK_CMS_APP_API_BASE_URL')
+      ?? platformGatewayApiBaseUrl
+      ?? readEnvValue('SDKWORK_IM_API_BASE_URL')
+      ?? readEnvValue('VITE_SDKWORK_IM_API_BASE_URL')
       ?? '/',
   };
 

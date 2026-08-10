@@ -56,7 +56,7 @@ const controls = useAnimation();
   return (
     <div className="relative w-full overflow-hidden" ref={swipeRef}>
         {/* Actions Container - Behind the main content */}
-        <div className="absolute top-0 right-0 h-full flex items-center bg-gray-100 dark:bg-[#111]">
+        <div className="absolute top-0 right-0 h-full flex items-center bg-hover-bg">
             {onEdit && (
                 <button 
                   onClick={() => {
@@ -87,7 +87,7 @@ const controls = useAnimation();
             dragElastic={0.1}
             onDragEnd={handleDragEnd}
             animate={controls}
-            className="relative z-10 w-full bg-white dark:bg-[#1A1A1A]"
+            className="relative z-10 w-full bg-chat-other-bg"
         >
             {children}
         </motion.div>

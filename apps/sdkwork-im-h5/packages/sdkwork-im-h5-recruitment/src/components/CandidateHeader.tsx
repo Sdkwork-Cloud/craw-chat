@@ -4,7 +4,7 @@ import { Briefcase, GraduationCap } from 'lucide-react';
 
 export const CandidateHeader: React.FC<{ candidate: any }> = ({ candidate }) => {
   return (
-    <div className="bg-white dark:bg-[#2c2d2e] rounded-xl p-5 mb-4 shadow-sm border border-border-color/30 flex items-start gap-4">
+    <div className="bg-chat-other-bg rounded-xl p-5 mb-4 shadow-sm border border-border-color/30 flex items-start gap-4">
       <Avatar
         src={candidate.avatar}
         fallback={candidate.name.substring(0, 1)}

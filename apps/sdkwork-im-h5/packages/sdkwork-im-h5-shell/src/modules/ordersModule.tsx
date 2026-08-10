@@ -76,6 +76,15 @@ export const ordersModule: ImH5CapabilityModule = {
         />
       ),
     },
+    {
+      ...IM_H5_ROUTE_DEFINITIONS.ordersCashierEntry,
+      render: () => (
+        <CashierPage
+          orderDetailPath={IM_H5_ROUTE_DEFINITIONS.ordersDetail.path}
+          orderCenterPath={IM_H5_ROUTE_DEFINITIONS.ordersCenter.path}
+        />
+      ),
+    },
     { ...IM_H5_ROUTE_DEFINITIONS.ordersVoucher, render: () => <VoucherCodePage /> },
     {
       ...IM_H5_ROUTE_DEFINITIONS.ordersWithdraw,

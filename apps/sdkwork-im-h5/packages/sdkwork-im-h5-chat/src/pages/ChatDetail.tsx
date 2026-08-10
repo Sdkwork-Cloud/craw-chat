@@ -4,8 +4,10 @@ import Placeholder from "@tiptap/extension-placeholder";
 import StarterKit from "@tiptap/starter-kit";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
+import { uuid } from "@sdkwork/utils";
 
-import { showToast } from "@sdkwork/im-h5-commons";
+import { showPrompt, showToast } from "@sdkwork/im-h5-commons";
+import { Pin } from "lucide-react";
 import { useAppStore } from "@sdkwork/im-h5-core";
 import type { Chat, Message } from "@sdkwork/im-h5-types";
 
@@ -39,11 +41,15 @@ export function ChatDetail() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [emojis, setEmojis] = useState<string[]>([]);
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
+  const [pinnedMessageIds, setPinnedMessageIds] = useState<string[]>([]);
   const [fullscreenMedia, setFullscreenMedia] = useState<{ type: "image" | "video"; url: string } | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0, messageId: null as string | null });
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const recordingTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const mediaInputRef = useRef<HTMLInputElement | null>(null);
+  const lastReadWatermarkRef = useRef(0);
+  const [mediaInputKind, setMediaInputKind] = useState<"image" | "video" | "file">("image");
 
   const editor = useEditor({
     extensions: [StarterKit, Placeholder.configure({ placeholder: t("chat.detail.placeholder") })],
@@ -60,7 +66,10 @@ export function ChatDetail() {
       setLoadError(false);
       setMessages((previous) => mergeMessages(cursor ? previous : [], page.items));
       setNextCursor(page.hasMore ? page.nextCursor : undefined);
-      if (!cursor) await ChatService.markAsRead(chatId);
+      if (!cursor && page.highWatermark > lastReadWatermarkRef.current) {
+        lastReadWatermarkRef.current = page.highWatermark;
+        await ChatService.markAsRead(chatId);
+      }
     } catch (error) {
       console.error(error);
       setLoadError(true);
@@ -81,9 +90,30 @@ export function ChatDetail() {
       }
       setEmojis(emojiList);
     });
+    void ChatService.listPinnedMessages(chatId).then(setPinnedMessageIds).catch((error) => {
+      console.error(error);
+      setPinnedMessageIds([]);
+    });
     void load();
     return subscribeConversationLiveMessages(chatId, () => void load());
   }, [chatId, load, sessionUser]);
+
+  const handlePinMessage = (messageId: string) => {
+    const isPinned = pinnedMessageIds.includes(messageId);
+    void (isPinned
+      ? ChatService.unpinMessage(chatId, messageId)
+      : ChatService.pinMessage(chatId, messageId))
+      .then(() => {
+        setPinnedMessageIds((previous) => isPinned
+          ? previous.filter((id) => id !== messageId)
+          : [...previous, messageId]);
+      })
+      .catch((error) => {
+        console.error(error);
+        showToast(t("chat.detail.pin_failed", "Unable to pin message"));
+      });
+    setContextMenu((value) => ({ ...value, isOpen: false }));
+  };
 
   useEffect(() => () => {
     if (recordingTimer.current) clearInterval(recordingTimer.current);
@@ -96,6 +126,16 @@ export function ChatDetail() {
     const content = editor?.getText().trim() ?? "";
     if (!content || sending || !chatId) return;
     setSending(true);
+    const localMessage: Message = {
+      id: `local-${uuid()}`,
+      chatId,
+      senderId: sessionUser?.id ?? "",
+      content,
+      timestamp: Date.now(),
+      type: "text",
+      sendState: "sending",
+    };
+    setMessages((previous) => mergeMessages(previous, [localMessage]));
     try {
       const replyTo = replyingTo ? {
         messageId: replyingTo.id,
@@ -105,11 +145,12 @@ export function ChatDetail() {
         contentPreview: replyingTo.content.slice(0, 200),
       } : undefined;
       const message = await ChatService.sendMessage(chatId, sessionUser?.id ?? "", content, "text", undefined, replyTo);
-      setMessages((previous) => mergeMessages(previous, [message]));
+      setMessages((previous) => replaceLocalMessage(previous, localMessage.id, message));
       editor?.commands.clearContent();
       setReplyingTo(null);
     } catch (error) {
       console.error(error);
+      setMessages((previous) => markLocalMessageFailed(previous, localMessage.id));
       showToast(t("chat.detail.send_failed", "Unable to send message"));
     } finally {
       setSending(false);
@@ -130,18 +171,59 @@ export function ChatDetail() {
   const sendMedia = async (file: File | Blob, kind: "image" | "video" | "file" | "voice") => {
     if (!chatId || mediaSending) return;
     setMediaSending(true);
+    const localMessage: Message = {
+      id: `local-${uuid()}`,
+      chatId,
+      senderId: sessionUser?.id ?? "",
+      content: "",
+      timestamp: Date.now(),
+      type: kind,
+      sendState: "sending",
+      ...(file instanceof File ? { metadata: { fileName: file.name, mimeType: file.type } } : {}),
+    };
+    setMessages((previous) => mergeMessages(previous, [localMessage]));
     try {
       const message = await ChatService.sendMediaMessage(chatId, file, kind, {
         ...(file instanceof File ? { fileName: file.name, mimeType: file.type } : {}),
       });
-      setMessages((previous) => mergeMessages(previous, [message]));
+      setMessages((previous) => replaceLocalMessage(previous, localMessage.id, message));
       setActivePanel("none");
     } catch (error) {
       console.error(error);
+      setMessages((previous) => markLocalMessageFailed(previous, localMessage.id));
       showToast(t("chat.detail.media_send_failed", "Unable to send attachment"));
     } finally {
       setMediaSending(false);
     }
+  };
+
+  const retrySend = async (message: Message) => {
+    if (message.sendState !== "failed" || !chatId) return;
+    setMessages((previous) => previous.map((item) => item.id === message.id ? { ...item, sendState: "sending" as const } : item));
+    try {
+      const sent = await ChatService.sendMessage(chatId, message.senderId, message.content, "text");
+      setMessages((previous) => replaceLocalMessage(previous, message.id, sent));
+    } catch (error) {
+      console.error(error);
+      setMessages((previous) => previous.map((item) => item.id === message.id ? { ...item, sendState: "failed" as const } : item));
+      showToast(t("chat.detail.send_failed", "Unable to send message"));
+    }
+  };
+
+  const handleSendCustom = (type: Message["type"]) => {
+    if (type === "image" || type === "video" || type === "file") {
+      setMediaInputKind(type);
+      mediaInputRef.current?.click();
+      return;
+    }
+    showToast(t("chat.detail.attachments_unavailable"));
+  };
+
+  const handleMediaInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !chatId) return;
+    void sendMedia(file, mediaInputKind);
   };
 
   const startVoiceRecording = async () => {
@@ -181,13 +263,38 @@ export function ChatDetail() {
   const handleTouchStart = (event: React.TouchEvent | React.MouseEvent, messageId: string) => {
     const point = "touches" in event ? event.touches[0] : event;
     longPressTimer.current = setTimeout(() => {
-      setContextMenu({ isOpen: true, x: Math.min(point.clientX, window.innerWidth - 180), y: Math.min(point.clientY, window.innerHeight - 280), messageId });
+      setContextMenu({ isOpen: true, x: Math.min(point.clientX, window.innerWidth - 180), y: Math.min(point.clientY, window.innerHeight - 420), messageId });
     }, 500);
   };
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-bg-color">
       <ChatHeader chat={chat} id={chatId} />
+      {pinnedMessageIds.length > 0 && (
+        <button
+          type="button"
+          className="flex items-center gap-2 px-4 py-2 bg-chat-other-bg border-b border-border-color shrink-0 active:bg-active-bg transition-colors"
+          onClick={() => {
+            const firstPinnedId = pinnedMessageIds[0];
+            if (firstPinnedId) {
+              document.getElementById(`msg-${firstPinnedId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+          }}
+        >
+          <Pin className="w-4 h-4 text-primary-blue shrink-0" />
+          <span className="text-[13px] text-text-main truncate flex-1">
+            {(() => {
+              const firstPinned = messages.find((item) => item.id === pinnedMessageIds[0]);
+              return firstPinned
+                ? `${firstPinned.content || `[${firstPinned.type}]`}`
+                : t("chat.detail.pinned_messages", "Pinned messages");
+            })()}
+          </span>
+          <span className="text-[12px] text-text-sub shrink-0">
+            {pinnedMessageIds.length > 1 ? `${pinnedMessageIds.length} 条` : ""}
+          </span>
+        </button>
+      )}
       <MessageList
         onScrollToTop={() => {
           if (loadingMore || !nextCursor) {
@@ -208,9 +315,10 @@ export function ChatDetail() {
         highlightedMsgId={highlightedMsgId}
         setHighlightedMsgId={setHighlightedMsgId}
         setActivePanel={setActivePanel}
+        onRetry={(message) => void retrySend(message)}
       />
       {loadError && messages.length === 0 && (
-        <button type="button" className="absolute inset-x-0 top-1/2 z-10 mx-auto w-fit -translate-y-1/2 text-[14px] text-primary-blue" onClick={() => void load()}>
+        <button type="button" className="absolute inset-0 m-auto z-10 w-fit h-fit text-[14px] text-primary-blue" onClick={() => void load()}>
           {t("common.retry", "Tap to retry")}
         </button>
       )}
@@ -231,12 +339,19 @@ export function ChatDetail() {
         handleSendVoice={stopVoiceRecording}
         cancelRecording={cancelVoiceRecording}
         handleSend={() => void send()}
-        handleSendCustom={() => showToast(t("chat.detail.attachments_unavailable"))}
+        handleSendCustom={handleSendCustom}
         emojis={emojis}
         onFileSelected={(file, kind) => void sendMedia(file, kind)}
       />
       <VoiceRecordingOverlay isRecording={isRecording} recordingTime={recordingTime} />
       <FullscreenMediaOverlay media={fullscreenMedia} onClose={() => setFullscreenMedia(null)} />
+      <input
+        ref={mediaInputRef}
+        type="file"
+        accept={mediaInputKind === "image" ? "image/*" : mediaInputKind === "video" ? "video/*" : undefined}
+        className="hidden"
+        onChange={handleMediaInputChange}
+      />
       <MessageContextMenu
         contextMenu={contextMenu}
         messages={messages}
@@ -260,10 +375,46 @@ export function ChatDetail() {
           });
           setContextMenu((value) => ({ ...value, isOpen: false }));
         }}
-        onDelete={(messageId) => void ChatService.deleteMessage(chatId, messageId).then(() => {
-          setMessages((previous) => previous.filter((item) => item.id !== messageId));
+        onDelete={(messageId) => {
+          const message = messages.find((item) => item.id === messageId);
+          if (message?.sendState === "failed" || message?.sendState === "sending") {
+            setMessages((previous) => previous.filter((item) => item.id !== messageId));
+            setContextMenu((value) => ({ ...value, isOpen: false }));
+            return;
+          }
+          void ChatService.deleteMessage(chatId, messageId).then(() => {
+            setMessages((previous) => previous.filter((item) => item.id !== messageId));
+            setContextMenu((value) => ({ ...value, isOpen: false }));
+          });
+        }}
+        onEdit={(messageId) => {
+          const message = messages.find((item) => item.id === messageId);
           setContextMenu((value) => ({ ...value, isOpen: false }));
-        })}
+          if (!message) return;
+          void showPrompt(t("chat.context.edit", "Edit"), message.content).then((text) => {
+            if (text === null) return;
+            const normalized = text.trim();
+            if (!normalized || normalized === message.content) return;
+            void ChatService.editMessage(chatId, messageId, normalized)
+              .then((updated) => setMessages((previous) => mergeMessages(previous, [updated])))
+              .catch((error) => {
+                console.error(error);
+                showToast(t("chat.context.edit_failed", "Unable to edit message"));
+              });
+          });
+        }}
+        onRecall={(messageId) => {
+          setContextMenu((value) => ({ ...value, isOpen: false }));
+          void ChatService.recallMessage(chatId, messageId)
+            .then(() => void load())
+            .catch((error) => {
+              console.error(error);
+              showToast(t("chat.context.recall_failed", "Unable to recall message"));
+            });
+        }}
+        onPin={handlePinMessage}
+        pinnedMessageIds={pinnedMessageIds}
+        currentUserId={sessionUser?.id}
       />
     </div>
   );
@@ -273,4 +424,14 @@ function mergeMessages(previous: readonly Message[], incoming: readonly Message[
   const messages = new Map(previous.map((message) => [message.id, message]));
   for (const message of incoming) messages.set(message.id, message);
   return Array.from(messages.values()).sort((left, right) => left.timestamp - right.timestamp);
+}
+
+function replaceLocalMessage(previous: readonly Message[], localId: string, sent: Message): Message[] {
+  return previous.map((item) => (item.id === localId ? sent : item));
+}
+
+function markLocalMessageFailed(previous: readonly Message[], localId: string): Message[] {
+  return previous.map((item) =>
+    item.id === localId ? { ...item, sendState: "failed" as const } : item,
+  );
 }

@@ -1212,6 +1212,7 @@ fn build_server_runtime_for_app_state()
 
 fn build_test_runtime_for_app_state() -> ConversationRuntime<ConversationCommitJournal> {
     ConversationRuntime::new(ConversationCommitJournal::Memory(InMemoryJournal::default()))
+        .with_welcome_state_store(Arc::new(InMemoryWelcomeStateStore::default()))
 }
 
 fn build_server_group_knowledgebase_for_app_state()
@@ -1522,6 +1523,10 @@ pub fn build_domain_api_router(state: AppState) -> Router {
         .route(
             "/im/v3/api/chat/conversations/{conversation_id}/system_channel/publish",
             post(publish_system_channel_message),
+        )
+        .route(
+            "/im/v3/api/chat/me/welcome/ensure",
+            post(ensure_my_welcome_message),
         )
         .with_state(state)
 }
@@ -3085,6 +3090,26 @@ async fn publish_system_channel_message(
             ),
         )?;
         Ok(SdkWorkResourceData { item })
+    })();
+    finish_api_json(&ctx, result)
+}
+
+async fn ensure_my_welcome_message(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    State(state): State<AppState>,
+) -> Response {
+    let result: ApiResult<SdkWorkResourceData<WelcomeEnsureView>> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        let outcome = state.runtime.ensure_user_welcome(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            auth.user_id.as_str(),
+            None,
+        )?;
+        Ok(SdkWorkResourceData {
+            item: WelcomeEnsureView::from(&outcome),
+        })
     })();
     finish_api_json(&ctx, result)
 }

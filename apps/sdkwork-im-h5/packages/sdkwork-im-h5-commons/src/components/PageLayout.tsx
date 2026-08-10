@@ -31,7 +31,7 @@ const navigate = useNavigate();
             onClick={() => navigate(-1)}
           />
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
           <h2 className="text-[17px] font-medium text-text-main">{title}</h2>
         </div>
         <div className="flex-1 flex justify-end pr-1">{rightElement}</div>

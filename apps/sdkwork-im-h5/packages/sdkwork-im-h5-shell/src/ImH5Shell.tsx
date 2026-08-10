@@ -34,33 +34,54 @@ function MainShell({ children, modules }: { children: ReactNode; modules: readon
 }
 
 /**
+ * Reads the persisted dark-mode preference; `null` when the user never made
+ * an explicit choice (then the system color scheme applies).
+ */
+function readExplicitDarkPreference(): boolean | null {
+  try {
+    const stored = window.localStorage.getItem("clawchat_app_settings");
+    if (stored) {
+      const parsed = JSON.parse(stored) as { darkMode?: boolean };
+      if (typeof parsed.darkMode === "boolean") {
+        return parsed.darkMode;
+      }
+    }
+  } catch {
+    // malformed storage: treated as no explicit preference
+  }
+  return null;
+}
+
+/**
  * Applies the persisted dark-mode preference on startup; falls back to the
  * system color scheme when the user never chose. Keeps the `.dark` class in
  * sync so both the theme variables and the `dark:` variants switch together.
  */
 function applyInitialTheme() {
   const root = document.documentElement;
-  const applyDark = (dark: boolean) => {
-    root.classList.toggle("dark", dark);
-  };
-  try {
-    const stored = window.localStorage.getItem("clawchat_app_settings");
-    if (stored) {
-      const parsed = JSON.parse(stored) as { darkMode?: boolean };
-      if (typeof parsed.darkMode === "boolean") {
-        applyDark(parsed.darkMode);
-        return;
-      }
-    }
-  } catch {
-    // malformed storage: fall through to the system preference
+  const explicit = readExplicitDarkPreference();
+  if (explicit !== null) {
+    root.classList.toggle("dark", explicit);
+    return;
   }
-  applyDark(window.matchMedia("(prefers-color-scheme: dark)").matches);
+  root.classList.toggle("dark", window.matchMedia("(prefers-color-scheme: dark)").matches);
 }
 
 function ThemeInitializer() {
   useEffect(() => {
     applyInitialTheme();
+    // 实时跟随系统/微信开发者工具的主题切换：开发者工具模拟器在页面加载后
+    // 切换深色模式时 matchMedia 事件会触发，若不监听则页面一直停留在启动时
+    // 的配色。用户已在设置中显式选择深/浅色时不覆盖其偏好。
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (event: MediaQueryListEvent) => {
+      if (readExplicitDarkPreference() !== null) {
+        return;
+      }
+      document.documentElement.classList.toggle("dark", event.matches);
+    };
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
   }, []);
   return null;
 }

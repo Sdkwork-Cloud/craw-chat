@@ -68,6 +68,32 @@ for (const deploymentProfile of ['cloud', 'standalone']) {
     );
     assert.match(profileSource, new RegExp(`SDKWORK_IM_ENVIRONMENT=${environment}`, 'u'));
     if (deploymentProfile === 'cloud') {
+      const appPublicUrl = expectedUrls[environment].replace(/\/$/u, '');
+      const appPublicWsUrl = appPublicUrl
+        .replace(/^http:/u, 'ws:')
+        .replace(/^https:/u, 'wss:');
+      assert.ok(
+        profileSource.includes(`SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=${appPublicUrl}`),
+        `cloud env application public http URL must be ${appPublicUrl}`,
+      );
+      assert.ok(
+        profileSource.includes(`SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=${appPublicWsUrl}`),
+        `cloud env application public websocket URL must be ${appPublicWsUrl}`,
+      );
+      assert.ok(
+        profileSource.includes(`VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=${appPublicUrl}`),
+        `cloud env VITE application public http URL must be ${appPublicUrl}`,
+      );
+      assert.ok(
+        profileSource.includes(`VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=${appPublicWsUrl}`),
+        `cloud env VITE application public websocket URL must be ${appPublicWsUrl}`,
+      );
+      const appHttpLine = profileSource.match(/SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=(.+)/u)?.[1] ?? '';
+      assert.doesNotMatch(
+        appHttpLine,
+        /^https?:\/\/api(?:-|\.)/u,
+        'cloud env application public URL must not use the api-* platform host',
+      );
       const cloudApiBaseUrl = expectedCloudApiBaseUrls[environment].replace(/\/$/u, '');
       assert.ok(
         profileSource.includes(`SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=${cloudApiBaseUrl}`),

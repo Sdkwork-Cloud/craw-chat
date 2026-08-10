@@ -32,7 +32,7 @@ const navigate = useNavigate();
             onClick={() => navigate(-1)}
           />
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 font-semibold text-[17px] text-text-main pointer-events-none">
+        <div className="absolute inset-x-0 text-center font-semibold text-[17px] text-text-main pointer-events-none">
           {t('contacts.my_orgs')}
         </div>
         <div className="flex-1 w-[80px]" />

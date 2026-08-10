@@ -6,12 +6,12 @@
   "bundleId": "com.sdkwork.im.h5",
   "packageName": "com.sdkwork.im.h5",
   "server": {
-    "url": "https://staging-im.sdkwork.com",
+    "url": "https://im-staging.sdkwork.com",
     "cleartext": false
   },
   "plugins": {},
   "permissions": [],
   "urlScheme": "sdkwork-im-h5",
-  "associatedDomains": ["applinks:staging-im.sdkwork.com"],
+  "associatedDomains": ["applinks:im-staging.sdkwork.com"],
   "note": "Capacitor host packaging is deferred. This example documents the future native host boundary."
 }

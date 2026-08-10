@@ -10,8 +10,8 @@ const cloudClientEnv = {
   SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
   SDKWORK_IM_ENVIRONMENT: 'development',
   SDKWORK_IM_PROFILE_ID: 'cloud.development',
-  SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'https://api-dev.sdkwork.com',
-  SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'wss://api-dev.sdkwork.com',
+  SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'http://im-dev.sdkwork.com:3801',
+  SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'ws://im-dev.sdkwork.com:3801',
   SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api-dev.sdkwork.com',
   SDKWORK_IM_PLATFORM_API_GATEWAY_AUTOSTART: 'false',
 };
@@ -49,6 +49,6 @@ test('cloud client-only plan contains one renderer and no local API or database 
   assert.equal(plan.processes[0].env.SDKWORK_DATABASE_URL, undefined);
   assert.equal(
     plan.processes[0].env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
-    'https://api-dev.sdkwork.com',
+    'http://im-dev.sdkwork.com:3801',
   );
 });

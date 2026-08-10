@@ -6497,3 +6497,106 @@ fn test_static_principal_directory_rejects_missing_principal_kind() {
         "error should point to the missing principalKind field, got: {error}"
     );
 }
+
+#[tokio::test]
+async fn test_ensure_welcome_message_is_idempotent_over_http() {
+    let app = build_default_test_app();
+
+    // 首次调用：新用户 → 发送系统消息（系统智能体↔用户 direct chat）。
+    let first = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/me/welcome/ensure")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("u_welcome_alice")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("welcome ensure request should succeed");
+    assert_eq!(first.status(), StatusCode::OK);
+    let body = first
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    let item = response_item(&value);
+    assert_eq!(item["status"], "sent");
+    let conversation_id = item["conversationId"]
+        .as_str()
+        .expect("sent welcome should carry conversation id")
+        .to_owned();
+    let message_id = item["messageId"]
+        .as_str()
+        .expect("sent welcome should carry message id")
+        .to_owned();
+    assert!(item["messageSeq"].as_u64().unwrap_or(0) >= 1);
+
+    // 欢迎消息以 messageType=system 且发送者为系统智能体投递。
+    let messages = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("u_welcome_alice")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("list messages should succeed");
+    let messages_body = messages
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let messages_value: serde_json::Value =
+        serde_json::from_slice(&messages_body).expect("response should be valid json");
+    let items = messages_value
+        .pointer("/data/items")
+        .and_then(|items| items.as_array())
+        .expect("message list should carry items");
+    let welcome_message = items
+        .iter()
+        .find(|entry| entry["messageId"] == serde_json::Value::String(message_id.clone()))
+        .expect("welcome message should be listed");
+    assert_eq!(welcome_message["messageType"], "system");
+    assert_eq!(welcome_message["sender"]["kind"], "system");
+    assert_eq!(welcome_message["sender"]["id"], "system");
+
+    // 再次调用：不再重复发送。
+    let second = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/me/welcome/ensure")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("u_welcome_alice")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second welcome ensure should succeed");
+    let second_body = second
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let second_value: serde_json::Value =
+        serde_json::from_slice(&second_body).expect("response should be valid json");
+    assert_eq!(response_item(&second_value)["status"], "already_sent");
+}
+

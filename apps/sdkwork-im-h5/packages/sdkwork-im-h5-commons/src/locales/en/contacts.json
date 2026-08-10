@@ -95,5 +95,9 @@
   "voice_female2": "Intellectual Female",
   "voice_male1": "Sunny Male",
   "voice_male2": "Calm Male",
-  "create_success": "Agent created"
+  "create_success": "Agent created",
+  "no_group_chats": "No group chats yet",
+  "add_failed_already_friend": "Already friends",
+  "add_failed_pending": "A friend request is already pending",
+  "add_failed_blocked": "Unable to add: the user has blocked you or restricted adds"
 }

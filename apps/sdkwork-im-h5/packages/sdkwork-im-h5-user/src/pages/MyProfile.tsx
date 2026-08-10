@@ -25,7 +25,7 @@ export const MyProfile: React.FC = () => {
             onClick={() => navigate(-1)}
           />
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
           <h2 className="text-[17px] font-medium text-text-main">{t('user.auto_24b99e7e', '个人信息')}</h2>
         </div>
         <div className="flex-1" />

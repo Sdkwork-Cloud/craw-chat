@@ -3,6 +3,8 @@ import { createSdkworkCredentialEntryBootstrapVitePlugin } from '@sdkwork/iam-cr
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
+import { wechatCssCompatPlugin } from './scripts/dev/wechat-css-compat.mjs';
+import { wechatJsCompatPlugin } from './scripts/dev/wechat-js-compat.mjs';
 
 const appReactEntry = path.resolve(__dirname, 'node_modules/react/index.js');
 const appReactJsxRuntimeEntry = path.resolve(__dirname, 'node_modules/react/jsx-runtime.js');
@@ -43,17 +45,39 @@ const sdkworkUtilsSourceRoot = path.resolve(
 );
 
 export default defineConfig(({ mode }) => ({
-  cacheDir: path.resolve(__dirname, 'node_modules', '.vite', 'sdkwork-im-h5'),
+  // Keep the dependency cache outside `node_modules`: the workspace's
+  // node_modules donor/junction machinery (`ensureLocalNodeModules` renames
+  // node_modules wholesale to `*.__stale__donor*`) and pnpm reinstalls would
+  // otherwise wipe the cache mid-session, forcing a full dep re-optimization
+  // that invalidates every in-flight `?v=` dep URL. A root-level `.vite`
+  // cache also serves dep URLs as `/.vite/deps/...` instead of
+  // `/node_modules/.vite/<app>/...`, which the adaptive dev proxy treats as
+  // stale (410 Gone) whenever the request is routed to another renderer.
+  cacheDir: path.resolve(__dirname, '.vite'),
   plugins: [
     createSdkworkCredentialEntryBootstrapVitePlugin({
       accessToken: process.env.SDKWORK_ACCESS_TOKEN,
       environment: mode,
     }),
+    wechatJsCompatPlugin(),
     react(),
     tailwindcss(),
+    wechatCssCompatPlugin(),
   ],
   define: {
     // Replaced define to avoid passing server secrets to client.
+  },
+  esbuild: {
+    // Dev esbuild defaults to target `esnext`. Combined with
+    // `useDefineForClassFields: false` (injected for SDK sources without a
+    // tsconfig, or set explicitly in tsconfig.json), esbuild compiles class
+    // static fields into ES2022 static blocks (`static {}`). WeChat DevTools'
+    // embedded kernel (Chromium < 94) rejects those with
+    // "Unexpected token '{'". Aligning the dev target with the build default
+    // (ESBUILD_MODULES_TARGET) lowers static fields to plain assignments,
+    // keeping the assign semantics while staying parseable by WeChat X5 /
+    // older WKWebView.
+    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
   },
   resolve: {
     dedupe: ['react', 'react-dom'],
@@ -127,6 +151,27 @@ export default defineConfig(({ mode }) => ({
         replacement: path.resolve(__dirname, '../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src/index.ts'),
       },
       {
+        find: /^@sdkwork\/agents-h5-agents$/,
+        replacement: path.resolve(
+          __dirname,
+          '../../../sdkwork-agents/apps/sdkwork-agents-h5/packages/sdkwork-agents-h5-agents/src/index.ts',
+        ),
+      },
+      {
+        find: /^@sdkwork\/agents-h5-commons$/,
+        replacement: path.resolve(
+          __dirname,
+          '../../../sdkwork-agents/apps/sdkwork-agents-h5/packages/sdkwork-agents-h5-commons/src/index.ts',
+        ),
+      },
+      {
+        find: /^@sdkwork\/agents-h5-core$/,
+        replacement: path.resolve(
+          __dirname,
+          '../../../sdkwork-agents/apps/sdkwork-agents-h5/packages/sdkwork-agents-h5-core/src/index.ts',
+        ),
+      },
+      {
         find: /^@sdkwork\/community-mobile-react-community$/,
         replacement: path.resolve(__dirname, '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/index.ts'),
       },
@@ -169,6 +214,10 @@ export default defineConfig(({ mode }) => ({
       {
         find: /^@sdkwork\/voice-mobile-react-generation$/,
         replacement: path.resolve(__dirname, '../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation/src/index.ts'),
+      },
+      {
+        find: /^@sdkwork\/voice-mobile-my-voices$/,
+        replacement: path.resolve(__dirname, '../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-my-voices/src/index.ts'),
       },
       {
         find: /^@sdkwork\/im-h5-([^/]+)\/(.+)$/,
@@ -225,6 +274,13 @@ export default defineConfig(({ mode }) => ({
         replacement: path.resolve(
           __dirname,
           '../../../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/src/index.ts',
+        ),
+      },
+      {
+        find: /^@sdkwork\/knowledgebase-app-sdk$/,
+        replacement: path.resolve(
+          __dirname,
+          '../../../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/src/index.ts',
         ),
       },
       {
@@ -285,6 +341,20 @@ export default defineConfig(({ mode }) => ({
       { find: /^@sdkwork\/utils\/(.+)$/, replacement: `${sdkworkUtilsSourceRoot}/$1` },
       { find: /^@sdkwork\/utils$/, replacement: `${sdkworkUtilsSourceRoot}/index.ts` },
     ],
+  },
+  css: {
+    // Lightning CSS lowers modern features (cascade layers, dvh, color-mix)
+    // for old browser targets so WeChat X5 / older WKWebView keep the styles.
+    transformer: 'lightningcss',
+    lightningcss: {
+      targets: {
+        // X5 kernel ≈ Chromium 86-107; iOS WKWebView ≈ Safari 13+.
+        chrome: 86 << 16,
+        android: 86 << 16,
+        ios_saf: 13 << 16,
+        safari: 13 << 16,
+      },
+    },
   },
   server: {
     host: '127.0.0.1',

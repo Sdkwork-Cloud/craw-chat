@@ -32,7 +32,7 @@ const navigate = useNavigate();
       whileTap={{ scale: 0.98 }}
       onClick={() => navigate(`/workspace/report/${report.id}`)}
       className={cn(
-        "bg-white dark:bg-[#2c2d2e] p-4 rounded-xl cursor-pointer shadow-sm border",
+        "bg-chat-other-bg p-4 rounded-xl cursor-pointer shadow-sm border",
         report.isRead
           ? "border-border-color/30"
           : "border-primary-blue/20"
@@ -41,7 +41,7 @@ const navigate = useNavigate();
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-[#3a3b3c] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-hover-bg flex items-center justify-center">
               {getTypeIcon(report.type)}
             </div>
             {!report.isRead && (
@@ -56,7 +56,7 @@ const navigate = useNavigate();
           </div>
         </div>
       </div>
-      <div className="text-[14px] text-text-main bg-[#f8f9fa] dark:bg-[#202122] p-3 rounded-lg flex items-center justify-between">
+      <div className="text-[14px] text-text-main bg-hover-bg p-3 rounded-lg flex items-center justify-between">
         <span className="truncate pr-4 line-clamp-1">
           {report.summary}
         </span>

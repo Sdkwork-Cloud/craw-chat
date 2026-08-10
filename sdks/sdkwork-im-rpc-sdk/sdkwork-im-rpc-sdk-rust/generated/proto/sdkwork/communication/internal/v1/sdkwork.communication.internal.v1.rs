@@ -263,6 +263,35 @@ pub struct DispatchConversationMessageResponse {
     pub metadata: ::core::option::Option<super::super::super::common::v1::ResponseMetadata>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SendWelcomeMessageRequest {
+    #[prost(string, tag="1")]
+    pub tenant_id: ::prost::alloc::string::String,
+    #[prost(string, tag="2")]
+    pub organization_id: ::prost::alloc::string::String,
+    #[prost(string, tag="3")]
+    pub user_id: ::prost::alloc::string::String,
+    /// Optional override of the configured welcome text. Empty means the
+    /// server-side default (SDKWORK_IM_CONVERSATION_WELCOME_MESSAGE_TEXT).
+    #[prost(string, tag="4")]
+    pub text: ::prost::alloc::string::String,
+    #[prost(message, optional, tag="15")]
+    pub metadata: ::core::option::Option<super::super::super::common::v1::RequestMetadata>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SendWelcomeMessageResponse {
+    /// sent | already_sent | already_engaged
+    #[prost(string, tag="1")]
+    pub status: ::prost::alloc::string::String,
+    #[prost(string, tag="2")]
+    pub conversation_id: ::prost::alloc::string::String,
+    #[prost(string, tag="3")]
+    pub message_id: ::prost::alloc::string::String,
+    #[prost(string, tag="4")]
+    pub message_seq: ::prost::alloc::string::String,
+    #[prost(message, optional, tag="15")]
+    pub metadata: ::core::option::Option<super::super::super::common::v1::ResponseMetadata>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct OrchestratedRoomView {
     #[prost(string, tag="1")]
     pub room_id: ::prost::alloc::string::String,

@@ -17,6 +17,7 @@ const navigate = useNavigate();
   const baseChatId = searchParams.get("chatId");
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [groupName, setGroupName] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [contacts, setContacts] = useState<User[]>([]);
   const [contactsDict, setContactsDict] = useState<Record<string, User[]>>({});
@@ -72,6 +73,7 @@ const navigate = useNavigate();
 
   const handleCreate = async () => {
     if (selectedIds.size === 0 || isCreating) return;
+    const name = groupName.trim() || t('chat.create_group.group_chat');
     setIsCreating(true);
     try {
       if (existingChat) {
@@ -81,7 +83,7 @@ const navigate = useNavigate();
           navigate(-1); // Go back to chat profile
         } else {
           const chat = await ChatService.createGroupChat(
-            t('chat.create_group.group_chat'),
+            name,
             [...existingChat.participants.map(p => p.id), ...Array.from(selectedIds)],
           );
           showToast(t('chat.create_group.create_success'));
@@ -89,7 +91,7 @@ const navigate = useNavigate();
         }
       } else {
         const chat = await ChatService.createGroupChat(
-          t('chat.create_group.group_chat'),
+          name,
           Array.from(selectedIds),
         );
         showToast(t('chat.create_group.create_success'));
@@ -165,7 +167,7 @@ const navigate = useNavigate();
             onClick={() => navigate(-1)}
           />
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
           <h2 className="text-[17px] font-medium text-text-main">{t('chat.create_group.title')}</h2>
         </div>
         <div className="flex items-center justify-end z-10 flex-1 pr-3">
@@ -193,6 +195,22 @@ const navigate = useNavigate();
         toggleSelection={toggleSelection}
       />
 
+      {/* Group Name */}
+      {!existingChat && (
+        <div className="px-4 py-2 bg-bg-color">
+          <div className="flex items-center gap-2 bg-chat-other-bg rounded-xl px-3 py-2 border border-border-color focus-within:border-primary-blue transition-colors">
+            <input
+              type="text"
+              placeholder={t('chat.create_group.group_name_placeholder')}
+              className="flex-1 bg-transparent text-[15px] text-text-main focus:outline-none placeholder:text-text-sub"
+              value={groupName}
+              maxLength={64}
+              onChange={(e) => setGroupName(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Search Bar */}
       <div className="px-4 py-2 bg-bg-color">
         <div className="flex items-center gap-2 bg-chat-other-bg rounded-xl px-3 py-2 border border-border-color focus-within:border-primary-blue transition-colors">
@@ -217,7 +235,7 @@ const navigate = useNavigate();
               .sort()
               .map((letter) => (
                 <div key={letter} id={`contact-section-${letter}`}>
-                  <div className="h-7 bg-[#EDEDED] dark:bg-[#1A1A1A] flex items-center pl-4 sticky top-0 z-10">
+                  <div className="h-7 bg-hover-bg flex items-center pl-4 sticky top-0 z-10">
                     <span className="text-[13px] font-semibold text-text-sub">
                       {letter}
                     </span>

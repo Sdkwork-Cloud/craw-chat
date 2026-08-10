@@ -12,7 +12,7 @@ const GAMES = [
       icon: "https://picsum.photos/seed/g1/100",
       players: "1.2亿",
       tags: ["休闲", "竞技"],
-      color: "text-[#F53F3F]",
+      color: "text-accent-red",
       desc: "指尖悦动，挑战高分",
     },
     {
@@ -51,8 +51,8 @@ const GAMES = [
 
   return (
     <PageLayout title={t('user.auto_prop_3394384d', '游戏中心')}>
-      <div className="flex flex-col h-full bg-[#f5f6f8] dark:bg-[#1a1b1c] overflow-y-auto">
-        <div className="p-4 bg-white dark:bg-[#2c2d2e] sticky top-0 z-10">
+      <div className="flex flex-col h-full bg-bg-color overflow-y-auto">
+        <div className="p-4 bg-chat-other-bg sticky top-0 z-10">
           <div className="bg-black/5 dark:bg-white/5 rounded-full flex items-center px-4 py-2">
             <Search className="w-4 h-4 text-text-sub" />
             <input 
@@ -73,7 +73,7 @@ const GAMES = [
             <button className="px-4 py-1.5 bg-white text-purple-600 rounded-full text-[13px] font-bold relative z-10 active:scale-95 transition-transform">{t('user.auto_3916c4b1', '立即开玩')}</button>
           </div>
 
-          <div className="grid grid-cols-4 gap-3 bg-white dark:bg-[#2c2d2e] p-4 rounded-xl shadow-sm">
+          <div className="grid grid-cols-4 gap-3 bg-chat-other-bg p-4 rounded-xl shadow-sm">
              {[
                { icon: <Flame className="w-6 h-6 text-red-500"/>, label: "热游榜" },
                { icon: <Trophy className="w-6 h-6 text-yellow-500"/>, label: "新游榜" },
@@ -89,7 +89,7 @@ const GAMES = [
              ))}
           </div>
 
-          <div className="bg-white dark:bg-[#2c2d2e] rounded-xl p-4 shadow-sm">
+          <div className="bg-chat-other-bg rounded-xl p-4 shadow-sm">
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-bold text-text-main text-[16px] flex items-center">
                 <Flame className="w-5 h-5 mr-1 text-red-500" />{t('user.auto_3c919192', '热玩小游戏榜')}</h3>

@@ -34,7 +34,7 @@ const title = itemIsToday(currentDate)
     : `${currentDate.getMonth() + 1}月${currentDate.getDate()}日`;
 
   return (
-    <div className="flex-1 bg-[#F5F6F8] dark:bg-black p-4 flex flex-col gap-3">
+    <div className="flex-1 bg-bg-color p-4 flex flex-col gap-3">
       <div className="text-[14px] text-text-sub font-medium mb-1">
         {t('calendar.schedules_of', { date: title })}
       </div>
@@ -63,7 +63,7 @@ const title = itemIsToday(currentDate)
               </div>
             </div>
             <div
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full"
+              className="absolute right-3 inset-y-0 my-auto p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDeleteSchedule(schedule.id);

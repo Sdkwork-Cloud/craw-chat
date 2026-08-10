@@ -9,6 +9,7 @@ use sdkwork_im_rpc_sdk_rust::sdkwork::communication::internal::v1::{
     CreateRoomRequest, CreateRoomResponse, DispatchConversationMessageRequest,
     DispatchConversationMessageResponse, EnterRoomRequest, EnterRoomResponse, LeaveRoomRequest,
     LeaveRoomResponse, OrchestratedRoomView, RetrieveRoomRequest, RetrieveRoomResponse,
+    SendWelcomeMessageRequest, SendWelcomeMessageResponse,
 };
 use sdkwork_im_rpc_service_rust::{
     ImRpcBoxFuture, ImRpcBoxStream, ImRpcError, ImRpcRuntimeDispatcher, ImRpcStreamRequest,
@@ -25,6 +26,7 @@ pub const CONVERSATION_INTERNAL_RPC_SERVICE_KEYS: &[&str] = &[
     "sdkwork.communication.internal.v1.RoomOrchestrationService",
     "sdkwork.communication.internal.v1.MessageDispatchService",
     "sdkwork.communication.internal.v1.GroupKnowledgebaseLaunchTicketService",
+    "sdkwork.communication.internal.v1.UserWelcomeService",
 ];
 
 #[derive(Clone)]
@@ -83,6 +85,11 @@ impl ImRpcRuntimeDispatcher for ConversationInternalRpcDispatcher {
                         request.request_bytes.as_slice(),
                     )?;
                     dispatch_internal_conversation_message(&state, &request.metadata, payload).await
+                }
+                "internal.userWelcome.send" => {
+                    let payload =
+                        SendWelcomeMessageRequest::decode(request.request_bytes.as_slice())?;
+                    dispatch_internal_user_welcome_send(&state, payload).await
                 }
                 "internal.groupKnowledgebaseLaunchTickets.consume" => {
                     let payload = ConsumeGroupKnowledgebaseLaunchTicketRequest::decode(
@@ -365,6 +372,41 @@ async fn dispatch_internal_conversation_message(
     ImRpcUnaryResponse::from_message(response)
 }
 
+async fn dispatch_internal_user_welcome_send(
+    state: &AppState,
+    request: SendWelcomeMessageRequest,
+) -> Result<ImRpcUnaryResponse, ImRpcError> {
+    let tenant_id = required_field(request.tenant_id, "tenant_id")?;
+    let organization_id = optional_organization_id(request.organization_id);
+    let user_id = required_field(request.user_id, "user_id")?;
+    let text_override = optional_string(request.text);
+    let blocking_state = state.clone();
+    let outcome = tokio::task::spawn_blocking(move || {
+        blocking_state.rpc_runtime().ensure_user_welcome(
+            tenant_id.as_str(),
+            organization_id.as_str(),
+            user_id.as_str(),
+            text_override.as_deref(),
+        )
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
+    let view = crate::WelcomeEnsureView::from(&outcome);
+    let response = SendWelcomeMessageResponse {
+        status: view.status,
+        conversation_id: view.conversation_id,
+        message_id: view.message_id,
+        message_seq: view.message_seq.to_string(),
+        metadata: None,
+    };
+    ImRpcUnaryResponse::from_message(response)
+}
+
 async fn dispatch_internal_group_knowledgebase_launch_ticket(
     state: &AppState,
     verified_context: Option<&VerifiedInternalRpcContext>,
@@ -571,7 +613,7 @@ mod tests {
 
     #[test]
     fn internal_rpc_service_keys_cover_orchestration_and_dispatch() {
-        assert_eq!(CONVERSATION_INTERNAL_RPC_SERVICE_KEYS.len(), 3);
+        assert_eq!(CONVERSATION_INTERNAL_RPC_SERVICE_KEYS.len(), 4);
         assert!(
             CONVERSATION_INTERNAL_RPC_SERVICE_KEYS
                 .iter()
@@ -586,6 +628,11 @@ mod tests {
             CONVERSATION_INTERNAL_RPC_SERVICE_KEYS
                 .iter()
                 .any(|key| key.ends_with("GroupKnowledgebaseLaunchTicketService"))
+        );
+        assert!(
+            CONVERSATION_INTERNAL_RPC_SERVICE_KEYS
+                .iter()
+                .any(|key| key.ends_with("UserWelcomeService"))
         );
     }
 }

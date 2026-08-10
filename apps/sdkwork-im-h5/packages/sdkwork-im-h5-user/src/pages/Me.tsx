@@ -14,7 +14,7 @@ export const Me: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f6f9] dark:bg-[#0a0a0a] overflow-y-auto pb-[84px]">
+    <div className="flex flex-col h-full bg-bg-color overflow-y-auto pb-[84px]">
       {/* Header */}
       <MeHeader onContactClick={() => navigate('/workspace/contacts')} />
 

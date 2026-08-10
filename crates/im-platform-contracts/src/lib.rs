@@ -11,6 +11,7 @@ mod realtime_publisher;
 mod retention_scope_store;
 mod search_provider;
 mod seq_allocator;
+mod welcome_state_store;
 
 pub use provider::*;
 pub use sdkwork_im_contract_admin::{AdminCapabilityProfileRecord, AdminCapabilityProfileStore};
@@ -47,6 +48,7 @@ pub use push_provider::{PushDeliveryResult, PushMessage, PushProvider};
 pub use retention_scope_store::RetentionScopeStore;
 pub use search_provider::{MessageSearchHit, SearchProvider, SearchResult, SearchableMessage};
 pub use seq_allocator::ConversationSeqAllocator;
+pub use welcome_state_store::{InMemoryWelcomeStateStore, WelcomeSentRecord, WelcomeStateStore};
 
 pub use conversation_aggregate_store::{
     CONVERSATION_AGGREGATE_PAGE_SIZE_DEFAULT, CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,

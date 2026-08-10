@@ -2,23 +2,35 @@ import { MAX_LIST_PAGE_SIZE, uuid } from "@sdkwork/utils";
 import type {
   ConversationInboxEntry,
   ConversationInboxPage,
+  ConversationMember,
   ConversationMessageEntry,
   ConversationMessageListResponse,
   ConversationPreferencesView,
   ConversationProfileView,
   CreateConversationRequest,
   CreateConversationResult,
+  EditMessageRequest,
   FavoriteMessageRequest,
   FavoriteMessagesResponse,
   ListMembersResponse,
   MessageFavoriteView,
+  MessageMutationResult,
+  MessagePinMutationResult,
   MessageReplyReference,
   MessageSearchPage,
   MessageSearchParams,
+  PinnedMessagesResponse,
   PostMessageResult,
   UpdateConversationPreferencesRequest,
+  UpdateConversationProfileRequest,
+} from "@sdkwork/im-h5-core/sdk";
+import {
+  getCmsAppSdkClient,
+  type CmsAppSdkClient,
+  type CmsFavoriteType,
 } from "@sdkwork/im-h5-core/sdk";
 import type { Chat, Message, User } from "@sdkwork/im-h5-types";
+import i18next from "i18next";
 
 import { getChatImSdkClient } from "./chatConversationService";
 import type { ImSdkClient } from "@sdkwork/im-h5-core/sdk";
@@ -41,6 +53,34 @@ function memberDisplayName(member: EnrichedConversationMember): string | undefin
   const attributes = member.attributes;
   const displayName = attributes?.["displayName"] ?? attributes?.["display_name"];
   return typeof displayName === "string" && displayName.trim() ? displayName.trim() : undefined;
+}
+
+/**
+ * Derive the favorites page content shape from the message parts so the
+ * favorites filter tabs (chat/image/file/voice/link) receive real data.
+ */
+function deriveMessageFavoriteType(message: ConversationMessageEntry): CmsFavoriteType {
+  const mediaPart = message.body.parts.find((part) => part.kind === "media");
+  if (mediaPart && mediaPart.kind === "media") {
+    const mediaKind = mediaPart.resource.kind ?? mediaPart.resource.mediaKind;
+    if (mediaKind === "image" || mediaKind === "video") {
+      return "image";
+    }
+    if (mediaKind === "voice" || mediaKind === "audio") {
+      return "voice";
+    }
+    if (mediaKind === "link") {
+      return "link";
+    }
+    if (mediaKind === "file" || mediaKind === "document") {
+      return "file";
+    }
+  }
+  const text = message.body.text ?? message.body.summary ?? message.summary ?? "";
+  if (/(https?:\/\/|www\.)/i.test(text)) {
+    return "link";
+  }
+  return "chat";
 }
 
 export interface ChatPage {
@@ -68,8 +108,11 @@ export interface ChatSdkPort {
       },
     ): Promise<unknown>;
     create(body: CreateConversationRequest): Promise<CreateConversationResult>;
+    getCurrentMember?(conversationId: string): Promise<ConversationMember>;
     getSummary?(conversationId: string): Promise<{ conversationId: string; messageCount: number; lastMessageSeq: number; lastSummary?: string | null; lastMessageAt?: string | null }>;
-    list(params?: { cursor?: string; pageSize?: number; q?: string }): Promise<ConversationInboxPage>;
+    leave?(conversationId: string): Promise<unknown>;
+    list(params?: { cursor?: string; pageSize?: number; q?: string; conversationType?: string }): Promise<ConversationInboxPage>;
+    listPinnedMessages?(conversationId: string): Promise<PinnedMessagesResponse>;
     listMessages(
       conversationId: string,
       params?: { cursor?: string; pageSize?: number },
@@ -83,15 +126,24 @@ export interface ChatSdkPort {
       body?: { clientMsgId?: string | null; replyTo?: MessageReplyReference | null },
     ): Promise<PostMessageResult>;
     postMessage?: ImSdkClient["conversations"]["postMessage"];
+    removeMember?(conversationId: string, body: { memberId: string }): Promise<unknown>;
     updatePreferences(
       conversationId: string,
       body: UpdateConversationPreferencesRequest,
     ): Promise<unknown>;
+    updateProfile?(
+      conversationId: string,
+      body: UpdateConversationProfileRequest,
+    ): Promise<ConversationProfileView>;
     updateReadCursor(conversationId: string, body: { readSeq: number }): Promise<unknown>;
   };
   messages: {
     deleteForMe(messageId: string): Promise<void>;
+    edit?(messageId: string, body: EditMessageRequest): Promise<MessageMutationResult>;
+    pin?(messageId: string): Promise<MessagePinMutationResult>;
+    recall?(messageId: string): Promise<MessageMutationResult>;
     search(params: MessageSearchParams): Promise<MessageSearchPage>;
+    unpin?(messageId: string): Promise<MessagePinMutationResult>;
     favorites: {
       create(messageId: string, body: FavoriteMessageRequest): Promise<MessageFavoriteView>;
       delete(favoriteId: string): Promise<unknown>;
@@ -109,6 +161,7 @@ export class ChatCapabilityUnavailableError extends Error {
 
 export function createChatService(
   resolveClient: () => ChatSdkPort = getChatImSdkClient,
+  resolveCmsClient: () => CmsAppSdkClient = getCmsAppSdkClient,
 ) {
   const listInbox = async (q?: string): Promise<ConversationInboxPage> => {
     const page = await resolveClient().conversations.list({
@@ -154,11 +207,12 @@ export function createChatService(
   };
 
   return {
-    async listChatPage(cursor?: string, q?: string): Promise<ChatPage> {
+    async listChatPage(cursor?: string, q?: string, conversationType?: string): Promise<ChatPage> {
       const page = await resolveClient().conversations.list({
         pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE),
         ...(cursor ? { cursor } : {}),
         ...(q?.trim() ? { q: q.trim() } : {}),
+        ...(conversationType ? { conversationType } : {}),
       });
       assertCursorPage(page.pageInfo, "IM inbox");
       return {
@@ -215,6 +269,7 @@ export function createChatService(
         ...(summary?.lastSummary || summary?.lastMessageAt ? { lastMessage: { id: `${conversationId}:${summary.lastMessageSeq}`, chatId: conversationId, content: summary.lastSummary ?? "", senderId: "system", timestamp: parseTimestamp(summary.lastMessageAt ?? new Date().toISOString()), type: "text" as const } } : {}),
         name: profile.displayName || inboxEntry?.displayName || undefined,
         avatar: profile.avatarUrl || inboxEntry?.avatarUrl || undefined,
+        ...(profile.notice ? { notice: profile.notice } : {}),
         isPinned: preferences.isPinned,
         settings: { showAvatar: true, cleanMode: false, isMuted: preferences.isMuted, isPinned: preferences.isPinned },
       };
@@ -427,6 +482,108 @@ export function createChatService(
       await resolveClient().messages.deleteForMe(messageId);
     },
 
+    async recallMessage(_conversationId: string, messageId: string): Promise<void> {
+      const client = resolveClient();
+      if (!client.messages.recall) {
+        throw new ChatCapabilityUnavailableError("Message recall");
+      }
+      await client.messages.recall(messageId);
+    },
+
+    async editMessage(
+      conversationId: string,
+      messageId: string,
+      text: string,
+    ): Promise<Message> {
+      const client = resolveClient();
+      if (!client.messages.edit) {
+        throw new ChatCapabilityUnavailableError("Message editing");
+      }
+      const trimmed = text.trim();
+      if (!trimmed) {
+        throw new Error("Edited message content is required.");
+      }
+      await client.messages.edit(messageId, { text: trimmed });
+      const storedMessage = await findMessageByIdAnywhere(conversationId, messageId);
+      if (!storedMessage) {
+        throw new Error("The edited message was not returned by IM history.");
+      }
+      return mapMessageEntryWithDownloadUrl(storedMessage);
+    },
+
+    async updateChatProfile(
+      conversationId: string,
+      body: UpdateConversationProfileRequest,
+    ): Promise<void> {
+      const client = resolveClient();
+      if (!client.conversations.updateProfile) {
+        throw new ChatCapabilityUnavailableError("Conversation profile update");
+      }
+      await client.conversations.updateProfile(conversationId, body);
+    },
+
+    async getMyConversationRole(conversationId: string): Promise<string | undefined> {
+      const client = resolveClient();
+      if (!client.conversations.getCurrentMember) {
+        return undefined;
+      }
+      const member = await client.conversations.getCurrentMember(conversationId);
+      return member.role;
+    },
+
+    async removeGroupMember(conversationId: string, userId: string): Promise<void> {
+      const client = resolveClient();
+      if (!client.conversations.removeMember) {
+        throw new ChatCapabilityUnavailableError("Conversation member removal");
+      }
+      const page = await client.conversations.listMembers(conversationId, {
+        pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE),
+      });
+      assertCursorPage(page.pageInfo, "IM conversation members");
+      const member = page.items.find(
+        (item) => item.principalId === userId && item.principalKind === "user",
+      );
+      if (!member) {
+        throw new Error(`Conversation member not found: ${userId}`);
+      }
+      await client.conversations.removeMember(conversationId, { memberId: member.memberId });
+    },
+
+    async leaveGroupChat(conversationId: string): Promise<void> {
+      const client = resolveClient();
+      if (!client.conversations.leave) {
+        throw new ChatCapabilityUnavailableError("Conversation leave");
+      }
+      await client.conversations.leave(conversationId);
+    },
+
+    async listPinnedMessages(conversationId: string): Promise<string[]> {
+      const client = resolveClient();
+      if (!client.conversations.listPinnedMessages) {
+        return [];
+      }
+      const response = await client.conversations.listPinnedMessages(conversationId);
+      return response.items
+        .filter((item) => item.pin !== null && item.pin !== undefined)
+        .map((item) => item.messageId);
+    },
+
+    async pinMessage(_conversationId: string, messageId: string): Promise<void> {
+      const client = resolveClient();
+      if (!client.messages.pin) {
+        throw new ChatCapabilityUnavailableError("Message pinning");
+      }
+      await client.messages.pin(messageId);
+    },
+
+    async unpinMessage(_conversationId: string, messageId: string): Promise<void> {
+      const client = resolveClient();
+      if (!client.messages.unpin) {
+        throw new ChatCapabilityUnavailableError("Message unpinning");
+      }
+      await client.messages.unpin(messageId);
+    },
+
     async starMessage(
       conversationId: string,
       messageId: string,
@@ -438,12 +595,13 @@ export function createChatService(
           throw new Error(`Message not found: ${messageId}`);
         }
         const preview = message.body.text ?? message.summary ?? "";
-        await resolveClient().messages.favorites.create(messageId, {
-          contentPreview: preview,
-          conversationId,
-          favoriteType: "chat",
-          sourceDisplayName: message.sender.displayName ?? message.sender.id,
+        await resolveCmsClient().favorites.create({
+          targetType: "im_message",
+          targetId: messageId,
+          favoriteType: deriveMessageFavoriteType(message),
           title: preview.slice(0, 80) || message.messageType,
+          summary: preview,
+          sourceDisplayName: message.sender.displayName ?? message.sender.id,
         });
         return;
       }
@@ -451,21 +609,21 @@ export function createChatService(
       let cursor: string | undefined;
       const visitedCursors = new Set<string>();
       do {
-        const page = await resolveClient().messages.favorites.list({
+        const page = await resolveCmsClient().favorites.list({
           pageSize: Math.min(LEGACY_CHAT_PAGE_SIZE, MAX_LIST_PAGE_SIZE),
           ...(cursor ? { cursor } : {}),
-          favoriteType: "chat",
         });
-        assertCursorPage(page.pageInfo, "IM message favorites");
-        const favorite = page.items.find((item) => item.messageId === messageId && item.conversationId === conversationId);
+        const favorite = page.items.find(
+          (item) => item.targetType === "im_message" && item.targetId === messageId,
+        );
         if (favorite) {
-          await resolveClient().messages.favorites.delete(favorite.favoriteId);
+          await resolveCmsClient().favorites.delete(favorite.favoriteId);
           return;
         }
         cursor = page.pageInfo.hasMore ? page.pageInfo.nextCursor ?? undefined : undefined;
         if (cursor) {
           if (visitedCursors.has(cursor)) {
-            throw new Error("IM message favorites returned a repeated cursor.");
+            throw new Error("CMS message favorites returned a repeated cursor.");
           }
           visitedCursors.add(cursor);
         }
@@ -499,7 +657,10 @@ function mapInboxEntry(entry: ConversationInboxEntry): Chat {
   const participants: User[] = peer
     ? [{
       id: peer.userId ?? peer.principalId,
-      name: peer.displayName ?? peer.principalId,
+      name:
+        peer.principalKind === "system"
+          ? i18next.t("chat.date.system_agent_name", "系统智能体")
+          : peer.displayName ?? peer.principalId,
       ...(peer.avatarUrl ? { avatar: peer.avatarUrl } : {}),
     }]
     : [];
@@ -522,6 +683,16 @@ function mapInboxEntry(entry: ConversationInboxEntry): Chat {
     ...(entry.avatarUrl ? { avatar: entry.avatarUrl } : {}),
     ...(entry.preferences?.isPinned !== undefined
       ? { isPinned: entry.preferences.isPinned }
+      : {}),
+    ...(entry.preferences
+      ? {
+        settings: {
+          showAvatar: true,
+          cleanMode: false,
+          isMuted: entry.preferences.isMuted ?? false,
+          isPinned: entry.preferences.isPinned ?? false,
+        },
+      }
       : {}),
     ...(lastMessage ? { lastMessage } : {}),
   };

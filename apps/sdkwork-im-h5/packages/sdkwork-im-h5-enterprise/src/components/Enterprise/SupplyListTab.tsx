@@ -18,7 +18,7 @@ export const SupplyListTab: React.FC<SupplyListTabProps> = ({ supplies }) => {
       {supplies.map((sup, i) => (
         <div
           key={i}
-          className="px-4 py-3 border-b border-border-color/50 flex flex-col gap-2 active:bg-chat-active-bg transition-colors cursor-pointer group hover:bg-[#fcfdff] dark:hover:bg-[#333538] relative overflow-hidden"
+          className="px-4 py-3 border-b border-border-color/50 flex flex-col gap-2 active:bg-chat-active-bg transition-colors cursor-pointer group hover:bg-hover-bg relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-primary-blue/5 opacity-0 group-active:opacity-100 transition-opacity" />
           <div className="flex justify-between items-start">

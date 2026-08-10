@@ -72,12 +72,12 @@ const navigate = useNavigate();
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full bg-transparent border-b-2 border-[#00B42A] text-[18px] text-text-main pb-2 outline-none"
+          className="w-full bg-transparent border-b-2 border-accent-green text-[18px] text-text-main pb-2 outline-none"
         />
         <p className="text-[13px] text-text-sub mt-2">{t('user.auto_n1227fe61', '好名字可以让你的朋友更容易记住你。')}</p>
         <button
           onClick={handleSave}
-          className="mt-8 w-full h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="mt-8 w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
         >{t('user.auto_a071b', '保存')}</button>
       </div>
     </PageLayout>
@@ -99,12 +99,12 @@ const [tickle, setTickle] = useState("");
             value={tickle}
             onChange={(e) => setTickle(e.target.value)}
             placeholder={t('user.auto_prop_1ccfb7b', '的肩膀')}
-            className="flex-1 bg-chat-other-bg px-3 py-2 rounded-lg text-[16px] text-text-main outline-none border border-border-color focus:border-[#00B42A] transition-colors"
+            className="flex-1 bg-chat-other-bg px-3 py-2 rounded-lg text-[16px] text-text-main outline-none border border-border-color focus:border-accent-green transition-colors"
           />
         </div>
         <p className="text-[13px] text-text-sub">{t('user.auto_68734489', '设置后，朋友拍你时将显示该文案。')}</p>
         <button
-          className="mt-8 w-full h-12 bg-[#00B42A] text-white rounded-lg font-medium active:opacity-80 transition-opacity"
+          className="mt-8 w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           onClick={async () => {
             showToast(t('user.auto_fn_518ad458', '已保存修改'));
             navigate(-1);

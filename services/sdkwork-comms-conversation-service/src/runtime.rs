@@ -11,6 +11,7 @@ use im_platform_contracts::{
     ReadCursorRecord, RealtimeEventPublisher, ReplaceConversationAgentAssignments,
     RetentionScopeStore, StoredMessageMutation, StoredMessageMutationTarget,
     StoredMessagePinRecord, StoredMessageReactionRecord, StoredMessageRecord,
+    InMemoryWelcomeStateStore, WelcomeSentRecord, WelcomeStateStore,
 };
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{
@@ -85,6 +86,7 @@ pub mod rpc_dispatch;
 mod rpc_state_dispatch;
 mod runtime_metrics;
 mod support;
+mod welcome;
 
 use self::group_lifecycle::ensure_conversation_write_allowed;
 use self::message_realtime::ConversationRealtimeEvent;
@@ -115,6 +117,9 @@ pub use durable_message_mutation::DurableMessageMutationWriter;
 pub use durable_message_post::DurableMessagePostWriter;
 pub use group_knowledgebase_outbox_relay::{
     GroupKnowledgebaseOutboxRelayHandle, spawn_group_knowledgebase_outbox_relay,
+};
+pub use welcome::{
+    SYSTEM_AGENT_ACTOR_ID, SYSTEM_AGENT_ACTOR_KIND, WelcomeDeliveryOutcome, WelcomeEnsureView,
 };
 pub use group_lifecycle::{
     ArchiveGroupConversationCommand, ArchiveGroupConversationResult,
@@ -2815,6 +2820,9 @@ pub struct ConversationRuntime<J> {
     /// 可选的用户画像解析器。注入后成员列表为 user 成员富化
     /// displayName/avatarUrl attributes（读时填充，不改写持久化状态）。
     user_profile_resolver: Option<Arc<dyn crate::conversation_state::UserProfileResolver>>,
+    /// 可选的 Welcome 去重状态存储。注入后 `ensure_user_welcome` 可用
+    /// （服务端 `im_user_settings.welcome.sent` 标记 + 已有对话判定）。
+    welcome_state_store: Option<Arc<dyn WelcomeStateStore>>,
 }
 
 impl<J> ConversationRuntime<J>
@@ -2840,6 +2848,7 @@ where
             durable_message_mutation_writer: None,
             durable_conversation_event_writer: None,
             user_profile_resolver: None,
+            welcome_state_store: None,
         }
     }
 
@@ -2914,6 +2923,11 @@ where
         resolver: Arc<dyn crate::conversation_state::UserProfileResolver>,
     ) -> Self {
         self.user_profile_resolver = Some(resolver);
+        self
+    }
+
+    pub fn with_welcome_state_store(mut self, store: Arc<dyn WelcomeStateStore>) -> Self {
+        self.welcome_state_store = Some(store);
         self
     }
 

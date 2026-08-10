@@ -12,6 +12,9 @@
     }
   },
   "dependencies": {
+    "@sdkwork/im-h5-commons": "workspace:*",
+    "@sdkwork/im-h5-core": "workspace:*",
+    "@sdkwork/voice-mobile-my-voices": "workspace:*",
     "@sdkwork/voice-mobile-react-generation": "workspace:*"
   }
 }

@@ -40,7 +40,7 @@ export const AlphabetIndexBar: React.FC<AlphabetIndexBarProps> = ({
   onIndexClick,
 }) => {
   return (
-    <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-6 z-30 pt-safe font-sans pb-10">
+    <div className="absolute right-0 inset-y-0 my-auto flex flex-col items-center justify-center w-6 z-30 pt-safe font-sans pb-10">
       {INDEX_ALPHABET.map((letter) => (
         <div
           key={letter}

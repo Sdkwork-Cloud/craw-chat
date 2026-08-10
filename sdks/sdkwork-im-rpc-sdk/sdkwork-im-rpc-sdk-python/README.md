@@ -46,7 +46,7 @@ SdkworkImRpc is an SDKWork RPC SDK scaffold generated from proto packages and an
   - ListConversationMemberDirectory: conversations.memberDirectory.list, unary, auth=app-session, idempotency=none
   - ListPinnedMessages: conversations.pins.list, unary, auth=app-session, idempotency=none
 - sdkwork.communication.app.v3.ContactService (app)
-  - ListContacts: contacts.list, unary, auth=app-session, idempotency=none
+  - ListContacts: social.contacts.list, unary, auth=app-session, idempotency=none
   - ListContactTags: social.contacts.tags.list, unary, auth=app-session, idempotency=none
   - CreateContactTag: social.contacts.tags.create, unary, auth=app-session, idempotency=required
   - UpdateContactTag: social.contacts.tags.update, unary, auth=app-session, idempotency=optional
@@ -193,6 +193,10 @@ SdkworkImRpc is an SDKWork RPC SDK scaffold generated from proto packages and an
   - LeaveRoom: internal.rooms.leave, unary, auth=service-mtls, idempotency=required
 - sdkwork.communication.internal.v1.MessageDispatchService (internal)
   - DispatchConversationMessage: internal.messages.dispatch, unary, auth=service-mtls, idempotency=required
+- sdkwork.communication.internal.v1.GroupKnowledgebaseLaunchTicketService (internal)
+  - ConsumeGroupKnowledgebaseLaunchTicket: internal.groupKnowledgebaseLaunchTickets.consume, unary, auth=service-mtls, idempotency=required
+- sdkwork.communication.internal.v1.UserWelcomeService (internal)
+  - SendWelcomeMessage: internal.userWelcome.send, unary, auth=service-mtls, idempotency=required
 
 ## Endpoint and TLS/mTLS
 

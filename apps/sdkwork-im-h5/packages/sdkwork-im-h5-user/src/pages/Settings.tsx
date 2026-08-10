@@ -39,9 +39,9 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f6f9] dark:bg-[#0a0a0a] overflow-y-auto">
+    <div className="flex flex-col h-full bg-bg-color overflow-y-auto">
       {/* Header */}
-      <header className="h-[56px] flex items-center justify-between px-1 sticky top-0 z-10 shrink-0 pt-safe bg-[#f4f6f9]/90 dark:bg-[#0a0a0a]/90 backdrop-blur-xl">
+      <header className="h-[56px] flex items-center justify-between px-1 sticky top-0 z-10 shrink-0 pt-safe bg-bg-color/90 backdrop-blur-xl">
         <div className="flex items-center z-10 flex-1">
           <IconButton
             icon={
@@ -53,7 +53,7 @@ export const SettingsPage: React.FC = () => {
             onClick={() => navigate(-1)}
           />
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
           <h2 className="text-[17px] font-bold text-text-main tracking-tight">{t('user.auto_116b70', '设置')}</h2>
         </div>
         <div className="flex-1" />

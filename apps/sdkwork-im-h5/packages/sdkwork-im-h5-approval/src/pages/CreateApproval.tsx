@@ -49,7 +49,7 @@ export const CreateApproval = () => {
   return (
     <PageLayout title={t('approval.createFrom', { type: formData.type })}>
       <div className="flex flex-col h-full bg-bg-color overflow-y-auto pb-8">
-        <div className="bg-white dark:bg-[#1a1b1c] mt-2 border-y border-border-color/30">
+        <div className="bg-chat-other-bg mt-2 border-y border-border-color/30">
           <ApprovalFormItem label={t('approval.createForm.type')} onClick={() => setIsTypeSheetOpen(true)}>
             <div className="flex justify-between items-center w-full">
               <span className="text-text-main">{formData.type}</span>

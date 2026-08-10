@@ -15,7 +15,7 @@ export const ApprovalTabs: React.FC<{
   ];
 
   return (
-    <div className="flex bg-white dark:bg-[#2c2d2e] rounded-xl shadow-sm mb-4 px-2 py-1">
+    <div className="flex bg-chat-other-bg rounded-xl shadow-sm mb-4 px-2 py-1">
       {tabs.map((tab) => (
         <button
           key={tab.key}

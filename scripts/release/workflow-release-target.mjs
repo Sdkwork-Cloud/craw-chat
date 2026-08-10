@@ -93,8 +93,8 @@ const PACKAGE_DEFINITIONS = Object.freeze({
   // desktop). The ids mirror plan-sdkwork-im-native-install-packages.mjs.
   'linux-ubuntu-x64-standalone-desktop-deb': tauriNativeDesktopDefinition({ architecture: 'x64', artifactExtension: 'deb', platform: 'linux', tauriBundleKind: 'deb' }),
   'linux-ubuntu-arm64-standalone-desktop-deb': tauriNativeDesktopDefinition({ architecture: 'arm64', artifactExtension: 'deb', platform: 'linux', tauriBundleKind: 'deb' }),
-  'linux-ubuntu-x64-standalone-desktop-appimage': tauriNativeDesktopDefinition({ architecture: 'x64', artifactExtension: 'AppImage', platform: 'linux', tauriBundleKind: 'appimage' }),
-  'linux-ubuntu-arm64-standalone-desktop-appimage': tauriNativeDesktopDefinition({ architecture: 'arm64', artifactExtension: 'AppImage', platform: 'linux', tauriBundleKind: 'appimage' }),
+  'linux-x64-standalone-desktop-appimage': tauriNativeDesktopDefinition({ architecture: 'x64', artifactExtension: 'AppImage', platform: 'linux', tauriBundleKind: 'appimage' }),
+  'linux-arm64-standalone-desktop-appimage': tauriNativeDesktopDefinition({ architecture: 'arm64', artifactExtension: 'AppImage', platform: 'linux', tauriBundleKind: 'appimage' }),
   'windows-x64-standalone-desktop-msi': tauriNativeDesktopDefinition({ architecture: 'x64', artifactExtension: 'msi', platform: 'windows', tauriBundleKind: 'msi' }),
   'windows-arm64-standalone-desktop-msi': tauriNativeDesktopDefinition({ architecture: 'arm64', artifactExtension: 'msi', platform: 'windows', tauriBundleKind: 'msi' }),
   'windows-x64-standalone-desktop-exe': tauriNativeDesktopDefinition({ architecture: 'x64', artifactExtension: 'exe', platform: 'windows', tauriBundleKind: 'nsis' }),

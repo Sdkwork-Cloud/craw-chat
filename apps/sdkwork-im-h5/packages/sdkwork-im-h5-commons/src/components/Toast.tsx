@@ -23,15 +23,17 @@ const ToastInner: React.FC<ToastProps> = ({
   }, [duration, onClose]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 50, scale: 0.9 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 20, scale: 0.9 }}
-      transition={{ duration: 0.2 }}
-      className="fixed bottom-[15vh] left-1/2 -translate-x-1/2 z-[9999] px-4 py-2.5 bg-black/80 dark:bg-white/90 text-white dark:text-black text-[15px] font-medium rounded-xl shadow-lg pointer-events-none whitespace-nowrap"
-    >
-      {message}
-    </motion.div>
+    <div className="pointer-events-none fixed inset-x-0 bottom-[15vh] z-[9999] flex justify-center px-6">
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.92 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="max-w-full rounded-xl bg-black/80 px-4 py-2.5 text-center text-[15px] font-medium leading-snug text-white shadow-lg dark:bg-white/90 dark:text-black"
+      >
+        {message}
+      </motion.div>
+    </div>
   );
 };
 

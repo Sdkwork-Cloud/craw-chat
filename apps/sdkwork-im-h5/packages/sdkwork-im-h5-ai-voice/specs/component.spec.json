@@ -26,7 +26,12 @@
     "layerRole": "frontend-feature",
     "publicExports": ["."],
     "providedPorts": [{ "name": "imH5AiVoiceAdapter", "export": "." }],
-    "requiredPorts": [{ "name": "voiceMobileReactGeneration", "package": "@sdkwork/voice-mobile-react-generation", "export": "." }],
+    "requiredPorts": [
+      { "name": "voiceMobileReactGeneration", "package": "@sdkwork/voice-mobile-react-generation", "export": "." },
+      { "name": "voiceMobileMyVoices", "package": "@sdkwork/voice-mobile-my-voices", "export": "." },
+      { "name": "imH5CoreSdk", "package": "@sdkwork/im-h5-core", "export": "./sdk" },
+      { "name": "imH5Commons", "package": "@sdkwork/im-h5-commons", "export": "." }
+    ],
     "runtimeEntrypoints": [],
     "routeManifest": null,
     "sdkClients": [],

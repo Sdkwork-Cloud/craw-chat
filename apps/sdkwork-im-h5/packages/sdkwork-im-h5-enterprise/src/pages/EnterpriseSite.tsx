@@ -34,7 +34,7 @@ const navigate = useNavigate();
   return (
     <PageLayout
       title={t('enterprise.auto_prop_n1c94083e', '极客科技宇宙')}
-      bgClass="bg-[#f5f6f8] dark:bg-[#1a1b1c]"
+      bgClass="bg-bg-color"
       rightElement={
         <div className="flex items-center pr-2">
           <div 
@@ -54,9 +54,9 @@ const navigate = useNavigate();
         </div>
 
         {/* Company Profile Area */}
-        <div className="bg-white dark:bg-[#2c2d2e] px-4 pb-5 rounded-b-3xl shadow-sm relative z-10">
+        <div className="bg-chat-other-bg px-4 pb-5 rounded-b-3xl shadow-sm relative z-10">
           <div className="flex justify-between items-end -mt-10 relative z-20 mb-3">
-            <div className="w-20 h-20 bg-white dark:bg-[#2c2d2e] rounded-2xl flex items-center justify-center p-1 shadow-md border border-border-color/50">
+            <div className="w-20 h-20 bg-chat-other-bg rounded-2xl flex items-center justify-center p-1 shadow-md border border-border-color/50">
               <div className="w-full h-full bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
                 <Building2 className="w-10 h-10 text-blue-600 dark:text-blue-400" />
               </div>
@@ -75,18 +75,18 @@ const navigate = useNavigate();
           </div>
           
           <div className="flex flex-wrap items-center gap-2 mt-3">
-            <span className="px-2.5 py-1 rounded-sm bg-[#f5f6f8] dark:bg-[#1a1b1c] text-text-sub text-[11px] font-bold border border-border-color/50">{t('enterprise.auto_2536e16e', '人工智能')}</span>
-            <span className="px-2.5 py-1 rounded-sm bg-[#f5f6f8] dark:bg-[#1a1b1c] text-text-sub text-[11px] font-bold border border-border-color/50">{t('enterprise.auto_2303e00', '高新技术企业')}</span>
-            <span className="px-2.5 py-1 rounded-sm bg-[#f5f6f8] dark:bg-[#1a1b1c] text-text-sub text-[11px] font-bold border border-border-color/50">{t('enterprise.auto_4ddd94ae', '专精特新重点')}</span>
+            <span className="px-2.5 py-1 rounded-sm bg-bg-color text-text-sub text-[11px] font-bold border border-border-color/50">{t('enterprise.auto_2536e16e', '人工智能')}</span>
+            <span className="px-2.5 py-1 rounded-sm bg-bg-color text-text-sub text-[11px] font-bold border border-border-color/50">{t('enterprise.auto_2303e00', '高新技术企业')}</span>
+            <span className="px-2.5 py-1 rounded-sm bg-bg-color text-text-sub text-[11px] font-bold border border-border-color/50">{t('enterprise.auto_4ddd94ae', '专精特新重点')}</span>
           </div>
 
           <div className="flex items-center gap-5 mt-5 text-[13px] font-medium text-text-main">
-            <div className="flex items-center gap-1.5 bg-[#f5f6f8] dark:bg-[#1a1b1c] px-3 py-1.5 rounded-full">
+            <div className="flex items-center gap-1.5 bg-bg-color px-3 py-1.5 rounded-full">
               <Users className="w-4 h-4 text-text-sub" />
               <span>{t('enterprise.auto_6721ef63', '500-1000人')}</span>
             </div>
             <div 
-              className="flex items-center gap-1.5 bg-[#f5f6f8] dark:bg-[#1a1b1c] px-3 py-1.5 rounded-full cursor-pointer active:opacity-70"
+              className="flex items-center gap-1.5 bg-bg-color px-3 py-1.5 rounded-full cursor-pointer active:opacity-70"
               onClick={() => showToast(t('enterprise.auto_fn_39cd0c2b', '正在打开官网'))}
             >
               <Globe className="w-4 h-4 text-text-sub" />
@@ -96,7 +96,7 @@ const navigate = useNavigate();
         </div>
 
         {/* Tabs */}
-        <div className="bg-white dark:bg-[#2c2d2e] mt-2 border-b border-border-color/50 sticky top-0 z-30 shadow-sm">
+        <div className="bg-chat-other-bg mt-2 border-b border-border-color/50 sticky top-0 z-30 shadow-sm">
           <div className="flex w-full items-center px-4">
             {[
               { id: "about", label: "企业简介" },
@@ -142,7 +142,7 @@ const navigate = useNavigate();
       </div>
 
       {/* Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 h-[68px] bg-white dark:bg-[#2c2d2e] border-t border-border-color flex items-center px-4 gap-4 z-40 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+      <div className="fixed bottom-0 left-0 right-0 h-[68px] bg-chat-other-bg border-t border-border-color flex items-center px-4 gap-4 z-40 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
         <div className="flex items-center justify-center flex-col shrink-0 px-2 cursor-pointer active:opacity-70 text-text-main" onClick={() => navigate("/enterprise/invite")}>
           <Share2 className="w-5 h-5 mb-1" />
           <span className="text-[11px] font-medium">{t('enterprise.auto_a3d65', '分享')}</span>

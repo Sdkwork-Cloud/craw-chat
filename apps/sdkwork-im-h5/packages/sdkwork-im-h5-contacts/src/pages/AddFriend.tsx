@@ -17,6 +17,7 @@ import {
 import { useTranslation } from "react-i18next";
 import {
   ContactService,
+  classifyFriendRequestSubmitError,
   type ContactSearchResult,
 } from "../services/ContactService";
 
@@ -57,7 +58,16 @@ const navigate = useNavigate();
       navigate("/workspace/contacts", { replace: true });
     } catch (e) {
       console.error(e);
-      showToast(t('contacts.add_failed'));
+      const conflict = classifyFriendRequestSubmitError(e);
+      if (conflict === "already_friend") {
+        showToast(t('contacts.add_failed_already_friend', 'Already friends'));
+      } else if (conflict === "pending") {
+        showToast(t('contacts.add_failed_pending', 'A friend request is already pending'));
+      } else if (conflict === "blocked") {
+        showToast(t('contacts.add_failed_blocked', 'Unable to add: the user has blocked you or restricted adds'));
+      } else {
+        showToast(t('contacts.add_failed'));
+      }
       setIsAdding(false);
     }
   };
@@ -67,15 +77,20 @@ const navigate = useNavigate();
     title,
     subtitle,
     colorClass,
+    onClick,
   }: {
     icon: React.ElementType;
     title: string;
     subtitle?: string;
     colorClass?: string;
+    onClick?: () => void;
   }) => {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center gap-4 px-4 py-3.5 bg-chat-other-bg active:bg-active-bg transition-colors cursor-pointer border-b border-border-color last:border-none">
+    <div
+      className={`flex items-center gap-4 px-4 py-3.5 bg-chat-other-bg border-b border-border-color last:border-none ${onClick ? "active:bg-active-bg transition-colors cursor-pointer" : ""}`}
+      onClick={onClick}
+    >
       <div
         className={cn(
           "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
@@ -104,7 +119,7 @@ const navigate = useNavigate();
             onClick={() => navigate(-1)}
           />
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
           <h2 className="text-[17px] font-medium text-text-main">{t('contacts.add_friend')}</h2>
         </div>
         <div className="flex-1" />
@@ -199,12 +214,13 @@ const navigate = useNavigate();
               title={t('contacts.scan_qr')}
               subtitle={t('contacts.scan_qr_desc')}
               colorClass="bg-[#2B5CE7]"
+              onClick={() => navigate("/scan")}
             />
             <ListItem
               icon={Smartphone}
               title={t('contacts.mobile_contacts')}
               subtitle={t('contacts.mobile_contacts_desc')}
-              colorClass="bg-[#00B42A]"
+              colorClass="bg-accent-green"
             />
             <ListItem
               icon={UserPlus}

@@ -14,7 +14,7 @@ export const ApprovalFormItem: React.FC<ApprovalFormItemProps> = ({
   onClick,
 }) => (
   <div
-    className="flex items-center px-4 py-3 border-b border-border-color/30 last:border-b-0 bg-white dark:bg-[#1a1b1c] active:bg-gray-50 dark:active:bg-[#202122] transition-colors"
+    className="flex items-center px-4 py-3 border-b border-border-color/30 last:border-b-0 bg-chat-other-bg active:bg-hover-bg transition-colors"
     onClick={onClick}
   >
     <div className="w-[80px] shrink-0 text-[15px] text-text-main flex items-center">

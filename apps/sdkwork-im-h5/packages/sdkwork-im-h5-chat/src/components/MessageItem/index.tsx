@@ -8,6 +8,7 @@ import { ImageMessage } from "./ImageMessage";
 import { VideoMessage } from "./VideoMessage";
 import { VoiceMessage } from "./VoiceMessage";
 import { CallMessage } from "./CallMessage";
+import { CardMessage } from "./CardMessage";
 import { LinkMessage } from "./LinkMessage";
 import { MiniappMessage } from "./MiniappMessage";
 import { FileMessage } from "./FileMessage";
@@ -33,6 +34,7 @@ export interface MessageItemProps {
   replyToMsg?: Message;
   replyToSenderName?: string;
   onReplyClick?: (id: string) => void;
+  onRetry?: (msg: Message) => void;
 }
 
 export const MessageItem = ({
@@ -52,6 +54,7 @@ export const MessageItem = ({
   replyToMsg,
   replyToSenderName,
   onReplyClick,
+  onRetry,
 }: MessageItemProps) => {
   const { t } = useTranslation();
 return (
@@ -160,10 +163,24 @@ return (
           )}
           {msg.type === "voice" && <VoiceMessage msg={msg} isMe={isMe} />}
           {msg.type === "call" && <CallMessage msg={msg} />}
+          {msg.type === "card" && <CardMessage msg={msg} isMe={isMe} />}
           {msg.type === "link" && <LinkMessage msg={msg} isMe={isMe} />}
           {msg.type === "miniapp" && <MiniappMessage msg={msg} isMe={isMe} />}
           {msg.type === "file" && <FileMessage msg={msg} isMe={isMe} onClick={() => { if (msg.content) window.open(msg.content, "_blank", "noopener,noreferrer"); }} />}
           {msg.type === "music" && <MusicMessage msg={msg} isMe={isMe} />}
+          {msg.sendState === "failed" && isMe && (
+            <button
+              type="button"
+              className="mt-1 flex items-center gap-1 text-[12px] text-accent-red opacity-90"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRetry?.(msg);
+              }}
+            >
+              <span>!</span>
+              <span>{t("chat.detail.send_failed_retry", "Send failed, tap to retry")}</span>
+            </button>
+          )}
         </div>
       </div>
       {isMe && !hideAvatar && (

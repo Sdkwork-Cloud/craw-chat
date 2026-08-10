@@ -301,7 +301,7 @@
             "originMode": "same-origin",
             "deliveryMode": "dev-server-proxy",
             "clientProcessId": "im-browser",
-            "apiSurfaceId": "application.public-ingress",
+            "apiSurfaceId": "platform.api-gateway",
             "preserveCanonicalPaths": true,
             "renderers": {
               "pc-web": {
@@ -423,10 +423,20 @@
     "application.public-ingress": {
       "httpHost": "im.sdkwork.com",
       "websocketHost": "im.sdkwork.com",
-      "note": "chat.sdkwork.com is reserved for LLM conversational apps, not IM"
+      "note": "chat.sdkwork.com is reserved for LLM conversational apps, not IM",
+      "environments": {
+        "development": { "httpHost": "im-dev.sdkwork.com", "websocketHost": "im-dev.sdkwork.com" },
+        "test": { "httpHost": "im-test.sdkwork.com", "websocketHost": "im-test.sdkwork.com" },
+        "staging": { "httpHost": "im-staging.sdkwork.com", "websocketHost": "im-staging.sdkwork.com" }
+      }
     },
     "platform.api-gateway": {
-      "httpHost": "api.sdkwork.com"
+      "httpHost": "api.sdkwork.com",
+      "environments": {
+        "development": { "httpHost": "api-dev.sdkwork.com" },
+        "test": { "httpHost": "api-test.sdkwork.com" },
+        "staging": { "httpHost": "api-staging.sdkwork.com" }
+      }
     }
   },
   "packaging": {

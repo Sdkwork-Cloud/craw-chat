@@ -18,6 +18,7 @@ test("keeps the full H5 product composition (original UI tabs)", () => {
     "chat",
     "contacts",
     "user",
+    "agents",
     "notary",
     "orders",
     "approval",

@@ -40,20 +40,20 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className="relative bg-[#f5f6f8] dark:bg-[#1a1b1c] rounded-t-2xl overflow-hidden pb-safe flex flex-col max-h-[85vh]"
+        className="relative bg-bg-color rounded-t-2xl overflow-hidden pb-safe flex flex-col max-h-[85vh]"
       >
-        <div className="flex items-center justify-between p-4 bg-white dark:bg-[#2c2d2e] border-b border-border-color">
+        <div className="flex items-center justify-between p-4 bg-chat-other-bg border-b border-border-color">
           <h3 className="text-[17px] font-bold text-text-main">
             {t("enterprise.auto_3b8d0de0", "职位详情")}
           </h3>
           <div
-            className="w-8 h-8 rounded-full bg-[#f5f6f8] dark:bg-[#1a1b1c] flex items-center justify-center cursor-pointer"
+            className="w-8 h-8 rounded-full bg-bg-color flex items-center justify-center cursor-pointer"
             onClick={onClose}
           >
             <X className="w-5 h-5 text-text-sub" />
           </div>
         </div>
-        <div className="overflow-y-auto p-5 bg-white dark:bg-[#2c2d2e]">
+        <div className="overflow-y-auto p-5 bg-chat-other-bg">
           <div className="flex justify-between items-start mb-3">
             <h2 className="text-[22px] font-bold text-text-main leading-tight">
               {job.title}
@@ -66,14 +66,14 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             {reqParts.map((part, idx) => (
               <span
                 key={idx}
-                className="px-2.5 py-1 bg-[#f5f6f8] dark:bg-[#1a1b1c] text-text-sub text-[13px] font-medium rounded-sm border border-border-color/50"
+                className="px-2.5 py-1 bg-bg-color text-text-sub text-[13px] font-medium rounded-sm border border-border-color/50"
               >
                 {part}
               </span>
             ))}
           </div>
 
-          <div className="flex items-center gap-3 mb-6 p-4 rounded-xl bg-[#f5f6f8] dark:bg-[#1a1b1c] border border-border-color/30">
+          <div className="flex items-center gap-3 mb-6 p-4 rounded-xl bg-bg-color border border-border-color/30">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 flex items-center justify-center shrink-0">
               <Briefcase className="w-6 h-6 text-primary-blue" />
             </div>
@@ -97,7 +97,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             </p>
           </div>
         </div>
-        <div className="p-4 bg-white dark:bg-[#2c2d2e] border-t border-border-color mt-2 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+        <div className="p-4 bg-chat-other-bg border-t border-border-color mt-2 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
           <button
             className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full py-3.5 text-[16px] font-bold shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-transform"
             onClick={onChat}

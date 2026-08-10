@@ -6,45 +6,18 @@ settings:
 
 catalogs:
   default:
-    '@playwright/test':
-      specifier: ^1.52.0
-      version: 1.61.1
     '@sdkwork/sdk-common':
       specifier: 1.0.2
       version: 1.0.2
-    '@tailwindcss/typography':
-      specifier: ^0.5.19
-      version: 0.5.20
     '@tailwindcss/vite':
       specifier: ^4.1.14
       version: 4.2.2
-    '@tanstack/react-virtual':
-      specifier: ^3.13.24
-      version: 3.14.3
-    '@tauri-apps/api':
-      specifier: ^2.9.0
-      version: 2.11.1
-    '@tauri-apps/cli':
-      specifier: ^2.9.0
-      version: 2.11.2
-    '@tiptap/core':
-      specifier: ^3.23.4
-      version: 3.27.1
-    '@tiptap/extension-bubble-menu':
-      specifier: ^3.23.4
-      version: 3.27.1
-    '@tiptap/extension-floating-menu':
-      specifier: ^3.23.4
-      version: 3.27.1
-    '@tiptap/extension-image':
-      specifier: ^3.23.4
-      version: 3.27.1
-    '@tiptap/extension-link':
-      specifier: ^3.23.4
-      version: 3.27.1
-    '@tiptap/extension-mention':
-      specifier: ^3.23.4
-      version: 3.27.1
+    '@testing-library/jest-dom':
+      specifier: ^6.9.1
+      version: 6.9.1
+    '@testing-library/react':
+      specifier: ^16.3.2
+      version: 16.3.2
     '@tiptap/extension-placeholder':
       specifier: ^3.23.4
       version: 3.27.1
@@ -78,30 +51,15 @@ catalogs:
     '@vitejs/plugin-react':
       specifier: ^5.0.4
       version: 5.2.0
-    '@volcengine/rtc':
-      specifier: ^4.68.4
-      version: 4.68.5
-    '@zxing/browser':
-      specifier: ^0.2.0
-      version: 0.2.0
-    '@zxing/library':
-      specifier: ^0.22.0
-      version: 0.22.0
     autoprefixer:
       specifier: ^10.4.21
       version: 10.5.0
-    class-variance-authority:
-      specifier: ^0.7.1
-      version: 0.7.1
     clsx:
       specifier: ^2.1.1
       version: 2.1.1
     date-fns:
       specifier: ^4.1.0
       version: 4.4.0
-    dompurify:
-      specifier: ^3.2.7
-      version: 3.4.11
     dotenv:
       specifier: ^17.2.3
       version: 17.4.2
@@ -114,9 +72,6 @@ catalogs:
     express:
       specifier: ^4.21.2
       version: 4.22.2
-    framer-motion:
-      specifier: ^12.23.24
-      version: 12.40.0
     html-to-image:
       specifier: ^1.11.13
       version: 1.11.13
@@ -150,15 +105,9 @@ catalogs:
     react-easy-crop:
       specifier: ^5.5.7
       version: 5.5.7
-    react-hook-form:
-      specifier: ^7.72.1
-      version: 7.79.0
     react-i18next:
       specifier: ^17.0.8
       version: 17.0.8
-    react-markdown:
-      specifier: ^10.1.0
-      version: 10.1.0
     react-qr-code:
       specifier: ^2.0.21
       version: 2.2.0
@@ -171,18 +120,12 @@ catalogs:
     react-signature-canvas:
       specifier: ^1.1.0-alpha.2
       version: 1.1.0-alpha.2
-    signature_pad:
-      specifier: ^5.1.3
-      version: 5.1.3
     tailwind-merge:
       specifier: ^3.5.0
       version: 3.6.0
     tailwindcss:
       specifier: ^4.1.14
       version: 4.2.2
-    tiptap-markdown:
-      specifier: ^0.9.0
-      version: 0.9.0
     tsx:
       specifier: ^4.21.0
       version: 4.22.4
@@ -192,6 +135,12 @@ catalogs:
     vite:
       specifier: ^6.2.0
       version: 6.4.3
+    vite-plugin-dts:
+      specifier: ^4.5.4
+      version: 4.5.4
+    vitest:
+      specifier: ^4.1.8
+      version: 4.1.9
     zustand:
       specifier: ^5.0.12
       version: 5.0.14
@@ -350,6 +299,78 @@ importers:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+
+  ../sdkwork-agents/apps/sdkwork-agents-h5/packages/sdkwork-agents-h5-agents:
+    dependencies:
+      '@sdkwork/agents-h5-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-agents-h5-commons
+      '@sdkwork/agents-h5-core':
+        specifier: workspace:*
+        version: link:../sdkwork-agents-h5-core
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+      '@tiptap/extension-placeholder':
+        specifier: 'catalog:'
+        version: 3.27.1(@tiptap/extensions@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1))
+      '@tiptap/pm':
+        specifier: 'catalog:'
+        version: 3.27.1
+      '@tiptap/react':
+        specifier: 'catalog:'
+        version: 3.27.1(@floating-ui/dom@1.7.6)(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@tiptap/starter-kit':
+        specifier: 'catalog:'
+        version: 3.27.1
+      emoji-picker-react:
+        specifier: 'catalog:'
+        version: 4.19.1(react@19.2.4)
+      lucide-react:
+        specifier: 'catalog:'
+        version: 1.7.0(react@19.2.4)
+      motion:
+        specifier: 'catalog:'
+        version: 12.40.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: 'catalog:'
+        version: 19.2.4
+
+  ../sdkwork-agents/apps/sdkwork-agents-h5/packages/sdkwork-agents-h5-commons:
+    dependencies:
+      clsx:
+        specifier: 'catalog:'
+        version: 2.1.1
+      motion:
+        specifier: 'catalog:'
+        version: 12.40.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      tailwind-merge:
+        specifier: 'catalog:'
+        version: 3.6.0
+
+  ../sdkwork-agents/apps/sdkwork-agents-h5/packages/sdkwork-agents-h5-core:
+    dependencies:
+      '@sdkwork/agents-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript
+      '@sdkwork/iam-contracts':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts
+      '@sdkwork/knowledgebase-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/skills-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-skills/sdks/sdkwork-skills-app-sdk/sdkwork-skills-app-sdk-typescript
+      '@sdkwork/voice-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-voice/sdks/sdkwork-voice-app-sdk/sdkwork-voice-app-sdk-typescript
 
   ../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents:
     dependencies:
@@ -482,6 +503,9 @@ importers:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
     devDependencies:
       tsx:
         specifier: 'catalog:'
@@ -609,6 +633,9 @@ importers:
 
   ../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react:
     dependencies:
+      '@sdkwork/base-data-backend-sdk':
+        specifier: workspace:*
+        version: link:../../../../sdks/sdkwork-base-data-backend-sdk/sdkwork-base-data-backend-sdk-typescript
       '@sdkwork/runtime-bootstrap':
         specifier: workspace:*
         version: link:../../../common/foundation/sdkwork-runtime-bootstrap
@@ -650,6 +677,15 @@ importers:
         specifier: ^17.0.7
         version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
 
+  ../sdkwork-appbase/sdks/sdkwork-base-data-backend-sdk/sdkwork-base-data-backend-sdk-typescript:
+    dependencies:
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+
   ../sdkwork-catalog/sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript:
     dependencies:
       '@sdkwork/sdk-common':
@@ -661,6 +697,9 @@ importers:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
     devDependencies:
       '@types/node':
         specifier: 20.19.39
@@ -677,6 +716,9 @@ importers:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
     devDependencies:
       '@types/node':
         specifier: 20.19.39
@@ -807,6 +849,9 @@ importers:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-core/sdkwork-core-pc-react:
     dependencies:
@@ -1207,9 +1252,52 @@ importers:
         specifier: ^6.0.2
         version: 6.0.2
 
-  ../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-auth: {}
+  ../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-auth:
+    dependencies:
+      '@sdkwork/i18n-pc-react':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react
+      '@sdkwork/iam-contracts':
+        specifier: workspace:*
+        version: link:../../../sdkwork-iam-common/packages/sdkwork-iam-contracts
+      '@sdkwork/iam-h5-core':
+        specifier: workspace:*
+        version: link:../sdkwork-iam-h5-core
+      '@sdkwork/iam-service':
+        specifier: workspace:*
+        version: link:../../../sdkwork-iam-common/packages/sdkwork-iam-service
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+      lucide-react:
+        specifier: 'catalog:'
+        version: 1.7.0(react@19.2.4)
+      react:
+        specifier: '>=18.2.0 <20.0.0'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=18.2.0 <20.0.0'
+        version: 19.2.4(react@19.2.4)
+      react-router-dom:
+        specifier: '>=7.0.0 <8.0.0'
+        version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+    devDependencies:
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.3
 
-  ../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-core: {}
+  ../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-core:
+    dependencies:
+      '@sdkwork/iam-contracts':
+        specifier: workspace:*
+        version: link:../../../sdkwork-iam-common/packages/sdkwork-iam-contracts
+      '@sdkwork/iam-runtime':
+        specifier: workspace:*
+        version: link:../../../sdkwork-iam-common/packages/sdkwork-iam-runtime
+    devDependencies:
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.3
 
   ../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react:
     dependencies:
@@ -1349,6 +1437,9 @@ importers:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-iam/sdks/sdkwork-iam-open-sdk/sdkwork-iam-open-sdk-typescript:
     dependencies:
@@ -1379,6 +1470,12 @@ importers:
 
   ../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge:
     dependencies:
+      '@sdkwork/knowledgebase-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
       '@sdkwork/ui-mobile-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-ui/sdkwork-ui-mobile-react
@@ -1397,6 +1494,10 @@ importers:
       react-router:
         specifier: '>=7.0.0'
         version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+    devDependencies:
+      tsx:
+        specifier: 'catalog:'
+        version: 4.22.4
 
   ../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-admin-core:
     dependencies:
@@ -1410,6 +1511,12 @@ importers:
         specifier: workspace:*
         version: link:../sdkwork-knowledgebase-pc-core
     devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
       vitest:
         specifier: ^3.2.4
         version: 3.2.6(@types/debug@4.1.13)(@types/node@25.9.3)(jiti@2.7.0)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
@@ -1466,6 +1573,12 @@ importers:
         specifier: ^19.0.0
         version: 19.2.4
     devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
       vitest:
         specifier: ^3.2.4
         version: 3.2.6(@types/debug@4.1.13)(@types/node@25.9.3)(jiti@2.7.0)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
@@ -1508,6 +1621,13 @@ importers:
       sdkwork-knowledgebase-pc-core:
         specifier: workspace:*
         version: link:../sdkwork-knowledgebase-pc-core
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
 
   ../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-knowledgebase:
     dependencies:
@@ -1581,6 +1701,12 @@ importers:
         specifier: ^0.9.0
         version: 0.9.0(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))
     devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
       vitest:
         specifier: ^3.2.4
         version: 3.2.6(@types/debug@4.1.13)(@types/node@25.9.3)(jiti@2.7.0)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
@@ -1593,6 +1719,9 @@ importers:
       '@sdkwork/sdk-common':
         specifier: ^1.0.2
         version: 1.0.3
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
     devDependencies:
       typescript:
         specifier: ^5.8.2
@@ -1786,12 +1915,18 @@ importers:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-memory/sdks/sdkwork-memory-app-sdk/sdkwork-memory-app-sdk-typescript:
     dependencies:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-music/apps/sdkwork-music-common/packages/sdkwork-music-mobile-react-generation:
     dependencies:
@@ -2261,12 +2396,18 @@ importers:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-promotion/sdks/sdkwork-promotion-backend-sdk/sdkwork-promotion-backend-sdk-typescript:
     dependencies:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-prompts/sdks/sdkwork-prompts-app-sdk/generated/server-openapi:
     dependencies:
@@ -2486,6 +2627,9 @@ importers:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
     devDependencies:
       typescript:
         specifier: 'catalog:'
@@ -2703,6 +2847,33 @@ importers:
         specifier: '>=7.0.0'
         version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
 
+  ../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-my-voices:
+    dependencies:
+      '@sdkwork/voice-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../sdks/sdkwork-voice-app-sdk/sdkwork-voice-app-sdk-typescript
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: '>=1.0.0'
+        version: 1.7.0(react@19.2.4)
+      motion:
+        specifier: '>=12.0.0'
+        version: 12.40.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: '>=18'
+        version: 19.2.4
+      react-i18next:
+        specifier: '>=17.0.0'
+        version: 17.0.8(i18next@26.3.4(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+      react-router:
+        specifier: '>=7.0.0'
+        version: 7.18.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      tailwind-merge:
+        specifier: ^3.5.0
+        version: 3.6.0
+
   ../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation:
     dependencies:
       '@sdkwork/ui-mobile-react':
@@ -2800,6 +2971,9 @@ importers:
 
   apps/sdkwork-im-h5:
     dependencies:
+      '@sdkwork/agents-h5-agents':
+        specifier: workspace:*
+        version: link:../../../sdkwork-agents/apps/sdkwork-agents-h5/packages/sdkwork-agents-h5-agents
       '@sdkwork/aiot-mobile-react-hardware':
         specifier: workspace:*
         version: link:../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware
@@ -2926,6 +3100,9 @@ importers:
       '@sdkwork/image-mobile-react-generation':
         specifier: workspace:*
         version: link:../../../sdkwork-image/apps/sdkwork-image-common/packages/sdkwork-image-mobile-react-generation
+      '@sdkwork/knowledgebase-app-sdk':
+        specifier: workspace:*
+        version: link:../../../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript
       '@sdkwork/knowledgebase-mobile-react-knowledge':
         specifier: workspace:*
         version: link:../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge
@@ -3062,6 +3239,9 @@ importers:
       html-to-image:
         specifier: 'catalog:'
         version: 1.11.13
+      lightningcss:
+        specifier: 1.32.0
+        version: 1.32.0
       tsx:
         specifier: 'catalog:'
         version: 4.22.4
@@ -3089,6 +3269,15 @@ importers:
 
   apps/sdkwork-im-h5/packages/sdkwork-im-h5-ai-voice:
     dependencies:
+      '@sdkwork/im-h5-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-im-h5-commons
+      '@sdkwork/im-h5-core':
+        specifier: workspace:*
+        version: link:../sdkwork-im-h5-core
+      '@sdkwork/voice-mobile-my-voices':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-my-voices
       '@sdkwork/voice-mobile-react-generation':
         specifier: workspace:*
         version: link:../../../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation
@@ -3325,12 +3514,18 @@ importers:
       '@sdkwork/account-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-account/sdks/sdkwork-account-app-sdk/sdkwork-account-app-sdk-typescript
+      '@sdkwork/agents-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript
       '@sdkwork/drive-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript
       '@sdkwork/im-sdk':
         specifier: workspace:*
         version: link:../../../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript
+      '@sdkwork/knowledgebase-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript
       '@sdkwork/order-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript
@@ -3340,6 +3535,9 @@ importers:
       '@sdkwork/utils':
         specifier: workspace:*
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+      '@sdkwork/voice-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-voice/sdks/sdkwork-voice-app-sdk/sdkwork-voice-app-sdk-typescript
       zustand:
         specifier: 'catalog:'
         version: 5.0.14(@types/react@19.2.14)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
@@ -3445,6 +3643,9 @@ importers:
 
   apps/sdkwork-im-h5/packages/sdkwork-im-h5-shell:
     dependencies:
+      '@sdkwork/agents-h5-agents':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-agents/apps/sdkwork-agents-h5/packages/sdkwork-agents-h5-agents
       '@sdkwork/aiot-mobile-react-hardware':
         specifier: workspace:*
         version: link:../../../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware
@@ -3555,6 +3756,9 @@ importers:
 
   apps/sdkwork-im-h5/packages/sdkwork-im-h5-user:
     dependencies:
+      '@sdkwork/im-h5-ai-voice':
+        specifier: workspace:*
+        version: link:../sdkwork-im-h5-ai-voice
       '@sdkwork/im-h5-channels':
         specifier: workspace:*
         version: link:../sdkwork-im-h5-channels

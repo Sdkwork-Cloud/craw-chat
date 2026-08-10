@@ -51,14 +51,14 @@ const [mounted, setMounted] = useState(false);
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="relative bg-[#f1f2f4] dark:bg-black rounded-t-xl overflow-hidden pb-safe"
+            className="relative bg-bg-color rounded-t-xl overflow-hidden pb-safe"
           >
             {title && (
               <div className="py-3 px-4 text-center text-[13px] text-text-sub font-medium border-b border-border-color">
                 {title}
               </div>
             )}
-            <div className="flex flex-col bg-bg-color">
+            <div className="flex flex-col">
               {options.map((option, index) => (
                 <div
                   key={index}

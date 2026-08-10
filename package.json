@@ -233,7 +233,8 @@
     "install:native:build": "node scripts/release/build-sdkwork-im-native-installer.mjs",
     "install:native:check": "node scripts/release/build-sdkwork-im-native-installer.mjs --check --dry-run",
     "release:native:package": "node scripts/release/build-sdkwork-im-native-installer.mjs --all",
-    "release:native:package:check": "node scripts/release/build-sdkwork-im-native-installer.mjs --check --dry-run --all"
+    "release:native:package:check": "node scripts/release/build-sdkwork-im-native-installer.mjs --check --dry-run --all",
+    "test:h5-knowledgebase-app-sdk-integration": "node apps/sdkwork-im-h5/scripts/knowledgebase-app-sdk-integration-contract.test.mjs"
   },
   "dependencies": {
     "@sdkwork/drive-app-sdk": "workspace:*",
