@@ -67,6 +67,18 @@
       ],
       "@packages/sdkwork-knowledgebase-pc-commons/src/*": [
         "./../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-commons/src/*"
+      ],
+      "@sdkwork/community-app-sdk": [
+        "./../../../sdkwork-community/sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/community-runtime": [
+        "./../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-runtime/src/index.ts"
+      ],
+      "@sdkwork/community-sdk-ports": [
+        "./../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-sdk-ports/src/index.ts"
+      ],
+      "@sdkwork/community-contracts": [
+        "./../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-contracts/src/index.ts"
       ]
     },
     "allowImportingTsExtensions": true,

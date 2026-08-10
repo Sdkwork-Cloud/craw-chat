@@ -41,6 +41,12 @@ import {
   type SdkworkVoiceAppClient,
 } from '@sdkwork/im-h5-core/sdk';
 import {
+  createCommunityAppSdkClient,
+  createGeneratedCommunityAppSdkPort,
+  type CommunityAppSdkClient,
+} from '@sdkwork/community-runtime';
+import type { SdkworkCommunityAppSdkPort } from '@sdkwork/community-sdk-ports';
+import {
   initIamAppSdkClient,
   resetIamAppSdkClient,
   createIamAppSdkClientConfig,
@@ -68,6 +74,8 @@ export interface H5SdkClientComposition {
   readonly agentsAppSdkClient: SdkworkAgentsAppClient;
   readonly voiceAppSdkClient: SdkworkVoiceAppClient;
   readonly cmsAppSdkClient: CmsAppSdkClient;
+  readonly communityAppSdkClient: CommunityAppSdkClient;
+  readonly communityAppSdkPort: SdkworkCommunityAppSdkPort;
 }
 
 let sdkClientComposition: H5SdkClientComposition | null = null;
@@ -159,6 +167,16 @@ export function initSdkClients(
     }),
   );
 
+  const communityAppSdkClient = createCommunityAppSdkClient({
+    config: {
+      appApiBaseUrl: environment.imApiBaseUrl,
+    },
+    tokenManager,
+  });
+  const communityAppSdkPort = createGeneratedCommunityAppSdkPort(
+    communityAppSdkClient.client,
+  );
+
   sdkClientComposition = {
     driveAppSdkClient,
     imSdkClient,
@@ -171,6 +189,8 @@ export function initSdkClients(
     agentsAppSdkClient,
     voiceAppSdkClient,
     cmsAppSdkClient,
+    communityAppSdkClient,
+    communityAppSdkPort,
   };
   return sdkClientComposition;
 }

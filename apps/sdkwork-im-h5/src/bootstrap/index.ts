@@ -28,6 +28,7 @@ import {
 } from '@sdkwork/agents-h5-agents';
 import { useAppStore } from '@sdkwork/im-h5-core';
 import { initSdkClients, resetSdkClients } from './sdkClients';
+import { bootstrapImCommunityH5Port } from './communityPort';
 import { createWechatPaymentOAuthChannel } from './wechatPaymentOAuth';
 import { configureVoiceMyVoicesRuntime } from '@sdkwork/im-h5-ai-voice';
 import { resolveTokenManagerBinding, resetTokenManagerBinding } from './tokenManager';
@@ -73,6 +74,9 @@ export async function bootstrapImH5CapabilityIntegrations(): Promise<H5Bootstrap
   );
   // My voices capability: inject the voice app SDK client + Drive media ports.
   configureVoiceMyVoicesRuntime();
+  // Community (圈子) capability: bind the mobile React package to the
+  // generated Community App SDK port (auth session port side effect included).
+  bootstrapImCommunityH5Port();
 
   const hostAdapters: H5BootstrapResult['hostAdapters'] = [];
   for (const meta of IM_H5_ROUTE_REGISTRY) {

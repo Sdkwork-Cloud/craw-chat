@@ -41,6 +41,8 @@
     "@sdkwork/auth-pc-react": "workspace:*",
     "@sdkwork/auth-runtime-pc-react": "workspace:*",
     "@sdkwork/community-mobile-react-community": "workspace:*",
+    "@sdkwork/community-runtime": "workspace:*",
+    "@sdkwork/community-sdk-ports": "workspace:*",
     "@sdkwork/course-mobile-react-courses": "workspace:*",
     "@sdkwork/drive-mobile-react-drive": "workspace:*",
     "@sdkwork/iam-app-sdk": "workspace:*",

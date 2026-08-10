@@ -6,18 +6,51 @@ settings:
 
 catalogs:
   default:
+    '@playwright/test':
+      specifier: ^1.52.0
+      version: 1.61.1
     '@sdkwork/sdk-common':
       specifier: 1.0.2
       version: 1.0.2
+    '@tailwindcss/typography':
+      specifier: ^0.5.19
+      version: 0.5.20
     '@tailwindcss/vite':
       specifier: ^4.1.14
       version: 4.2.2
+    '@tanstack/react-virtual':
+      specifier: ^3.13.24
+      version: 3.14.3
+    '@tauri-apps/api':
+      specifier: ^2.9.0
+      version: 2.11.1
+    '@tauri-apps/cli':
+      specifier: ^2.9.0
+      version: 2.11.2
     '@testing-library/jest-dom':
       specifier: ^6.9.1
       version: 6.9.1
     '@testing-library/react':
       specifier: ^16.3.2
       version: 16.3.2
+    '@tiptap/core':
+      specifier: ^3.23.4
+      version: 3.27.1
+    '@tiptap/extension-bubble-menu':
+      specifier: ^3.23.4
+      version: 3.27.1
+    '@tiptap/extension-floating-menu':
+      specifier: ^3.23.4
+      version: 3.27.1
+    '@tiptap/extension-image':
+      specifier: ^3.23.4
+      version: 3.27.1
+    '@tiptap/extension-link':
+      specifier: ^3.23.4
+      version: 3.27.1
+    '@tiptap/extension-mention':
+      specifier: ^3.23.4
+      version: 3.27.1
     '@tiptap/extension-placeholder':
       specifier: ^3.23.4
       version: 3.27.1
@@ -51,15 +84,30 @@ catalogs:
     '@vitejs/plugin-react':
       specifier: ^5.0.4
       version: 5.2.0
+    '@volcengine/rtc':
+      specifier: ^4.68.4
+      version: 4.68.5
+    '@zxing/browser':
+      specifier: ^0.2.0
+      version: 0.2.0
+    '@zxing/library':
+      specifier: ^0.22.0
+      version: 0.22.0
     autoprefixer:
       specifier: ^10.4.21
       version: 10.5.0
+    class-variance-authority:
+      specifier: ^0.7.1
+      version: 0.7.1
     clsx:
       specifier: ^2.1.1
       version: 2.1.1
     date-fns:
       specifier: ^4.1.0
       version: 4.4.0
+    dompurify:
+      specifier: ^3.2.7
+      version: 3.4.11
     dotenv:
       specifier: ^17.2.3
       version: 17.4.2
@@ -72,6 +120,9 @@ catalogs:
     express:
       specifier: ^4.21.2
       version: 4.22.2
+    framer-motion:
+      specifier: ^12.23.24
+      version: 12.40.0
     html-to-image:
       specifier: ^1.11.13
       version: 1.11.13
@@ -105,9 +156,15 @@ catalogs:
     react-easy-crop:
       specifier: ^5.5.7
       version: 5.5.7
+    react-hook-form:
+      specifier: ^7.72.1
+      version: 7.79.0
     react-i18next:
       specifier: ^17.0.8
       version: 17.0.8
+    react-markdown:
+      specifier: ^10.1.0
+      version: 10.1.0
     react-qr-code:
       specifier: ^2.0.21
       version: 2.2.0
@@ -120,12 +177,18 @@ catalogs:
     react-signature-canvas:
       specifier: ^1.1.0-alpha.2
       version: 1.1.0-alpha.2
+    signature_pad:
+      specifier: ^5.1.3
+      version: 5.1.3
     tailwind-merge:
       specifier: ^3.5.0
       version: 3.6.0
     tailwindcss:
       specifier: ^4.1.14
       version: 4.2.2
+    tiptap-markdown:
+      specifier: ^0.9.0
+      version: 0.9.0
     tsx:
       specifier: ^4.21.0
       version: 4.22.4
@@ -734,12 +797,30 @@ importers:
 
   ../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community:
     dependencies:
+      '@sdkwork/community-contracts':
+        specifier: workspace:*
+        version: link:../sdkwork-community-contracts
+      '@sdkwork/community-sdk-ports':
+        specifier: workspace:*
+        version: link:../sdkwork-community-sdk-ports
       '@sdkwork/ui-mobile-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-ui/sdkwork-ui-mobile-react
       '@sdkwork/utils':
         specifier: workspace:*
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+      '@tiptap/extension-placeholder':
+        specifier: 'catalog:'
+        version: 3.27.1(@tiptap/extensions@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1))
+      '@tiptap/react':
+        specifier: 'catalog:'
+        version: 3.27.1(@floating-ui/dom@1.7.6)(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@tiptap/starter-kit':
+        specifier: 'catalog:'
+        version: 3.27.1
+      html-to-image:
+        specifier: 'catalog:'
+        version: 1.11.13
       i18next:
         specifier: 'catalog:'
         version: 26.3.1(typescript@6.0.3)
@@ -749,12 +830,18 @@ importers:
       motion:
         specifier: 'catalog:'
         version: 12.40.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      qrcode.react:
+        specifier: 'catalog:'
+        version: 4.2.0(react@19.2.4)
       react:
         specifier: '>=18.2.0 <20.0.0'
         version: 19.2.4
       react-dom:
         specifier: '>=18.2.0 <20.0.0'
         version: 19.2.4(react@19.2.4)
+      react-easy-crop:
+        specifier: 'catalog:'
+        version: 5.5.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-i18next:
         specifier: 'catalog:'
         version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
@@ -2986,6 +3073,12 @@ importers:
       '@sdkwork/community-mobile-react-community':
         specifier: workspace:*
         version: link:../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community
+      '@sdkwork/community-runtime':
+        specifier: workspace:*
+        version: link:../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-runtime
+      '@sdkwork/community-sdk-ports':
+        specifier: workspace:*
+        version: link:../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-sdk-ports
       '@sdkwork/course-mobile-react-courses':
         specifier: workspace:*
         version: link:../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses
@@ -3422,6 +3515,9 @@ importers:
       date-fns:
         specifier: 'catalog:'
         version: 4.4.0
+      i18next:
+        specifier: 'catalog:'
+        version: 26.3.1(typescript@6.0.3)
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
@@ -3433,7 +3529,7 @@ importers:
         version: 19.2.4
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.8(i18next@26.3.4(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
       react-router:
         specifier: 'catalog:'
         version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)

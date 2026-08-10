@@ -184,7 +184,6 @@ const deferredCapabilityServices = [
   ['ProductService', 'ShoppingCapabilityUnavailableError', '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/services/ProductService.ts'],
   ['CartService', 'ShoppingCapabilityUnavailableError', '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/services/CartService.ts'],
   ['OrderService', 'OrderCapabilityUnavailableError', '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/services/OrderService.ts'],
-  ['CommunityService', 'CommunityCapabilityUnavailableError', '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/services/CommunityService.ts'],
   ['CourseService', 'CourseCapabilityUnavailableError', '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/services/CourseService.ts'],
   ['ProfileService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/ProfileService.ts'],
   ['SettingsService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/SettingsService.ts'],
@@ -229,20 +228,6 @@ const deferredCapabilityPages = [
   '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/pages/VoucherCodePage.tsx',
   '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/pages/OrderDetail.tsx',
   '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/pages/OrderCenter.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityDetail.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityEditField.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityEditImage.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityEditTabs.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityGroupManagement.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityGroupQRs.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityList.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityMembers.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityPostCreate.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityProfile.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityQRCode.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CreateCommunity.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CreateCommunityGroup.tsx',
-  '../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/MyCommunities.tsx',
   '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CourseDetail.tsx',
   '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CourseHome.tsx',
   '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CourseLiveRoom.tsx',
@@ -384,6 +369,12 @@ for (const source of [
 for (const source of deferredCapabilityPages) {
   assert.match(source, /CapabilityUnavailablePage/u);
 }
+// Community (圈子) migrated to sdkwork-community: pages are real implementations
+// backed by the injected Community App SDK port, not fail-closed placeholders.
+const communityListSource = read('../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/pages/CommunityList.tsx');
+const communityServiceSource = read('../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/services/CommunityService.ts');
+assert.doesNotMatch(communityListSource, /CapabilityUnavailablePage/u, 'community pages must be real implementations');
+assert.match(communityServiceSource, /getCommunityRuntimePort/u, 'community service must consume the injected App SDK port');
 const channelPageSource = read('packages/sdkwork-im-h5-channels/src/pages/ChannelsPage.tsx');
 const channelServiceSource = read('packages/sdkwork-im-h5-channels/src/services/ChannelService.ts');
 assert.doesNotMatch(channelPageSource, /mockData|CREATIVE_WORKS/u);

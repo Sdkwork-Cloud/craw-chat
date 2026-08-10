@@ -28,7 +28,6 @@ import zhNotary from './locales/zh/notary.json';
 import zhUser from './locales/zh/user.json';
 import zhKnowledge from './locales/zh/knowledge.json';
 import zhOrders from './locales/zh/orders.json';
-import zhCommunity from './locales/zh/community.json';
 import zhCourse from './locales/zh/course.json';
 import zhEnterprise from './locales/zh/enterprise.json';
 import zhVip from './locales/zh/vip.json';
@@ -62,7 +61,6 @@ import enNotary from './locales/en/notary.json';
 import enUser from './locales/en/user.json';
 import enKnowledge from './locales/en/knowledge.json';
 import enOrders from './locales/en/orders.json';
-import enCommunity from './locales/en/community.json';
 import enCourse from './locales/en/course.json';
 import enEnterprise from './locales/en/enterprise.json';
 import enVip from './locales/en/vip.json';
@@ -99,7 +97,6 @@ const resources = {
       commons: zhCommons,
       knowledge: zhKnowledge,
       orders: zhOrders,
-      community: zhCommunity,
       course: zhCourse,
       enterprise: zhEnterprise,
       vip: zhVip,
@@ -136,7 +133,6 @@ const resources = {
       commons: enCommons,
       knowledge: enKnowledge,
       orders: enOrders,
-      community: enCommunity,
       course: enCourse,
       enterprise: enEnterprise,
       vip: enVip,
