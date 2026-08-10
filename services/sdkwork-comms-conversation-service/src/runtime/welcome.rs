@@ -612,10 +612,12 @@ mod tests {
         let outcome = runtime
             .ensure_user_welcome("t_1", "0", user_id, None)
             .expect("welcome should tolerate a preexisting reversed binding record");
-        assert_eq!(outcome.status_label(), "sent");
+        // 反序绑定产生的成员 kind 与 pair 位置绑定（系统智能体成员为
+        // ("system", "user")），形状校验判定不可投递 → 幂等跳过，而非 409。
+        assert_eq!(outcome, WelcomeDeliveryOutcome::AlreadyEngaged);
         assert!(
-            store.sent.lock().unwrap().is_some(),
-            "welcome marker should be written"
+            store.sent.lock().unwrap().is_none(),
+            "skipped welcome must not write the marker"
         );
     }
 

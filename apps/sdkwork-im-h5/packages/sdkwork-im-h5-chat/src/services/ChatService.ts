@@ -237,7 +237,7 @@ export function createChatService(
       ]);
       assertCursorPage(inbox.pageInfo, "IM inbox");
       const inboxEntry = inbox.items.find((entry) => entry.conversationId === conversationId);
-      const participants = members.items
+      const participants = members
         .filter((member) => member.state === "joined" || member.state === "linked")
         .map((member) => {
           const peer = inboxEntry?.peer;
