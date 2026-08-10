@@ -65,6 +65,8 @@
   "cashier_no_qr": "收银台暂未生成二维码",
   "cashier_pay_ready_tip": "支付尚未完成，请选择支付方式后重试",
   "cashier_pay_now": "立即支付",
+  "cashier_retry_launch": "重新唤起支付",
+  "cashier_recommended": "推荐",
   "cashier_pay_method": "支付方式",
   "cashier_open_external": "打开外部收银台",
   "cashier_cancel_pay": "取消支付",

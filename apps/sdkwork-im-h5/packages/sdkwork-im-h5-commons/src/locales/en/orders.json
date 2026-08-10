@@ -65,6 +65,8 @@
   "cashier_no_qr": "No cashier QR code is available yet",
   "cashier_pay_ready_tip": "Payment not completed, choose a method and retry",
   "cashier_pay_now": "Pay now",
+  "cashier_retry_launch": "Retry payment",
+  "cashier_recommended": "Recommended",
   "cashier_pay_method": "Payment Method",
   "cashier_open_external": "Open External Cashier",
   "cashier_cancel_pay": "Cancel Payment",
