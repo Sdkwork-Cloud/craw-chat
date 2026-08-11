@@ -4,7 +4,7 @@ import type { ImH5CapabilityModule } from "../contracts";
 import { IM_H5_ROUTE_DEFINITIONS } from "../routeCatalog";
 import { TabSolidWorkspace, TabSolidDiscover, TabSolidUser } from "../navigation/solidTabIcons";
 
-type ComponentName = "Workspace" | "Discover" | "Me" | "MyProfile" | "ProfileAvatar" | "ProfileName" | "ProfileTickle" | "ProfileQRCode" | "ProfileMore" | "Gender" | "Region" | "Signature" | "ProfileRingtone" | "ProfileBeans" | "ProfileAddress" | "SettingsPage" | "AccountSecurity" | "WechatID" | "ChangePhoneNumber" | "ChangePassword" | "VoiceLock" | "ResetVoiceLock" | "EmergencyContacts" | "MoreSecurity" | "BindQQ" | "BindEmail" | "RecoverPassword" | "DeleteAccount" | "TeenMode" | "ElderlyMode" | "Notifications" | "ChatSettings" | "ChatBackground" | "EmojiManagement" | "ClearChatHistory" | "Devices" | "General" | "FontSize" | "MediaSettings" | "StorageSpace" | "ManageChatHistory" | "FriendPermissions" | "Blacklist" | "Privacy" | "SystemPermissions" | "AuthManagement" | "AdManagement" | "InfoCollection" | "ThirdPartySharing" | "Plugins" | "HelpFeedback" | "FAQ" | "Feedback" | "About" | "Features" | "Complain" | "TOS" | "PrivacyPolicy" | "SwitchAccount" | "ServicesPage" | "BillingRecordsPage" | "FavoritesPage" | "MyWorksPage" | "WorkDetailPage" | "WorkEditPage" | "EmojiPage" | "MomentsPage" | "ChannelsPage" | "SearchPage" | "GamesPage";
+type ComponentName = "Workspace" | "Discover" | "Me" | "MyProfile" | "ProfileAvatar" | "ProfileName" | "ProfileTickle" | "ProfileQRCode" | "ProfileMore" | "Gender" | "Region" | "Signature" | "ProfileRingtone" | "ProfileBeans" | "ProfileAddress" | "SettingsPage" | "AccountSecurity" | "WechatID" | "ChangePhoneNumber" | "ChangePassword" | "VoiceLock" | "ResetVoiceLock" | "EmergencyContacts" | "MoreSecurity" | "BindQQ" | "BindEmail" | "RecoverPassword" | "DeleteAccount" | "TeenMode" | "ElderlyMode" | "Notifications" | "ChatSettings" | "ChatBackground" | "EmojiManagement" | "ClearChatHistory" | "Devices" | "General" | "FontSize" | "MediaSettings" | "StorageSpace" | "ManageChatHistory" | "FriendPermissions" | "Blacklist" | "Privacy" | "SystemPermissions" | "AuthManagement" | "AdManagement" | "InfoCollection" | "ThirdPartySharing" | "Plugins" | "HelpFeedback" | "FAQ" | "Feedback" | "About" | "Features" | "Complain" | "TOS" | "PrivacyPolicy" | "SwitchAccount" | "ServicesPage" | "BillingRecordsPage" | "FavoritesPage" | "MyWorksPage" | "WorkDetailPage" | "WorkEditPage" | "EmojiPage" | "ChannelsPage" | "SearchPage" | "GamesPage";
 
 function lazyComponent(name: ComponentName) {
   return React.lazy(async () => {
@@ -93,7 +93,6 @@ const MyWorksPage = lazyComponent("MyWorksPage");
 const WorkDetailPage = lazyComponent("WorkDetailPage");
 const WorkEditPage = lazyComponent("WorkEditPage");
 const EmojiPage = lazyComponent("EmojiPage");
-const MomentsPage = lazyComponent("MomentsPage");
 const ChannelsPage = lazyComponent("ChannelsPage");
 const SearchPage = lazyComponent("SearchPage");
 const GamesPage = lazyComponent("GamesPage");
@@ -175,7 +174,6 @@ export const userModule: ImH5CapabilityModule = {
     { ...IM_H5_ROUTE_DEFINITIONS.userWorkDetail, render: () => <WorkDetailPage /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userWorkEdit, render: () => <WorkEditPage /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userEmoji, render: () => <EmojiPage /> },
-    { ...IM_H5_ROUTE_DEFINITIONS.userDiscoverMoments, render: () => <MomentsPage /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userDiscoverChannels, render: () => <ChannelsPage /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userDiscoverSearch, render: () => <SearchPage /> },
     { ...IM_H5_ROUTE_DEFINITIONS.userDiscoverGames, render: () => <GamesPage /> },

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from "react";
-import { X, Loader2 } from "lucide-react";
-import { IconButton } from "@sdkwork/im-h5-commons";
+import { X, Compass, Loader2 } from "lucide-react";
+import { CapabilityUnavailablePage, IconButton } from "@sdkwork/im-h5-commons";
 import { VerticalFeed } from "../components/VerticalFeed";
 import { WaterfallFeed } from "../components/WaterfallFeed";
 import { PromptsTab } from "../components/PromptsTab";
@@ -9,18 +9,19 @@ import { MeTab } from "../components/MeTab";
 import { BottomTabbar } from "../components/BottomTabbar";
 import { RemixActionSheet } from "../components/RemixActionSheet";
 import { WorkDetailModal } from "../components/WorkDetailModal";
-import { ChannelService } from "../services/ChannelService";
+import { ChannelCapabilityUnavailableError, ChannelService } from "../services/ChannelService";
 import { CreativeWork } from "../types";
 
 export const ChannelsPage: React.FC = () => {
   const { t } = useTranslation();
-const [activeBottomTab, setActiveBottomTab] = useState<"home" | "explore" | "prompts" | "me">("home");
+  const [activeBottomTab, setActiveBottomTab] = useState<"home" | "explore" | "prompts" | "me">("home");
   const [feedTab, setFeedTab] = useState<"关注" | "朋友" | "推荐">("推荐");
   const [remixWork, setRemixWork] = useState<CreativeWork | null>(null);
   const [selectedWork, setSelectedWork] = useState<CreativeWork | null>(null);
   const [works, setWorks] = useState<CreativeWork[]>([]);
   const [waterfallWorks, setWaterfallWorks] = useState<CreativeWork[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -28,14 +29,34 @@ const [activeBottomTab, setActiveBottomTab] = useState<"home" | "explore" | "pro
   
   const loadData = async () => {
     setLoading(true);
-    const [feedData, waterfallData] = await Promise.all([
-      ChannelService.getFeedWorks(),
-      ChannelService.getWaterfallWorks()
-    ]);
-    setWorks(feedData);
-    setWaterfallWorks(waterfallData);
-    setLoading(false);
+    try {
+      const [feedData, waterfallData] = await Promise.all([
+        ChannelService.getFeedWorks(),
+        ChannelService.getWaterfallWorks()
+      ]);
+      setWorks(feedData);
+      setWaterfallWorks(waterfallData);
+    } catch (error) {
+      if (error instanceof ChannelCapabilityUnavailableError) {
+        setUnavailable(true);
+        return;
+      }
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (unavailable) {
+    return (
+      <CapabilityUnavailablePage
+        icon={Compass}
+        title={t("channels.title")}
+        message={t("channels.unavailable")}
+        onBack={() => window.history.back()}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-black text-white relative overflow-hidden">

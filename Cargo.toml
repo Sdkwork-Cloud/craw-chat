@@ -268,11 +268,13 @@ sdkwork-api-invoice-assembly = { path = "../sdkwork-invoice/crates/sdkwork-api-i
 sdkwork-invoice-service-host = { path = "../sdkwork-invoice/crates/sdkwork-invoice-service-host" }
 sdkwork-api-membership-assembly = { path = "../sdkwork-membership/crates/sdkwork-api-membership-assembly" }
 sdkwork-membership-service-host = { path = "../sdkwork-membership/crates/sdkwork-membership-service-host" }
+sdkwork-routes-membership-backend-api = { path = "../sdkwork-membership/crates/sdkwork-routes-membership-backend-api" }
 sdkwork-api-merchandise-assembly = { path = "../sdkwork-merchandise/crates/sdkwork-api-merchandise-assembly" }
 sdkwork-merchandise-service-host = { path = "../sdkwork-merchandise/crates/sdkwork-merchandise-service-host" }
 sdkwork-merchandise-database-host = { path = "../sdkwork-merchandise/crates/sdkwork-merchandise-database-host" }
 sdkwork-api-order-assembly = { path = "../sdkwork-order/crates/sdkwork-api-order-assembly" }
 sdkwork-order-service-host = { path = "../sdkwork-order/crates/sdkwork-order-service-host" }
+sdkwork-routes-order-backend-api = { path = "../sdkwork-order/crates/sdkwork-routes-order-backend-api" }
 sdkwork-api-payment-assembly = { path = "../sdkwork-payment/crates/sdkwork-api-payment-assembly" }
 sdkwork-payment-service-host = { path = "../sdkwork-payment/crates/sdkwork-payment-service-host" }
 sdkwork-api-promotion-assembly = { path = "../sdkwork-promotion/crates/sdkwork-api-promotion-assembly" }

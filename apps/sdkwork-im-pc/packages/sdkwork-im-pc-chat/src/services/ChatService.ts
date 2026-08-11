@@ -62,6 +62,7 @@ import type { Chat, ChatAgentAssignment, Message } from '@sdkwork/im-pc-types';
 import { resolveSdkworkChatPcClientId } from './ClientIdentityService';
 import { contactService } from './ContactService';
 import { createDefaultAvatar } from './DefaultAvatarService';
+import { SYSTEM_ASSISTANT_AGENT } from './SystemAssistantService';
 import i18n from '../i18n';
 
 type ConversationMessageEntry = ConversationMessageListResponse['items'][number];
@@ -1438,6 +1439,12 @@ function buildConversationName(entry: ConversationInboxEntry): string {
   if (isAgentDialogConversationId(entry.conversationId)) {
     return 'AI assistant chat';
   }
+  // The system-agent welcome conversation is a canonical direct chat whose
+  // peer carries principalKind=system (no profile display name); surface it
+  // as the System Assistant like the H5 surface does.
+  if (toRecord(entry.peer).principalKind === 'system') {
+    return SYSTEM_ASSISTANT_AGENT.name;
+  }
   return normalizeConversationType(entry.conversationType) === 'group'
     ? 'Group chat'
     : 'Direct chat';
@@ -1530,10 +1537,14 @@ function mapLiveEventToMessage(context: ImRealtimeEventContext): Message | undef
 function mapInboxEntryToChat(entry: ConversationInboxEntry, viewState: ConversationViewState | undefined): Chat {
   const updatedAt = parseTimestamp(entry.lastActivityAt);
   const conversationType = viewState?.type ?? normalizeConversationType(entry.conversationType);
+  // The system-agent welcome conversation carries no profile avatar; surface
+  // the System Assistant identity like its name (see buildConversationName).
+  const isSystemAgentPeer = toRecord(entry.peer).principalKind === 'system';
   return {
     id: entry.conversationId,
     name: viewState?.name ?? buildConversationName(entry),
-    avatar: viewState?.avatar ?? createFallbackConversationAvatar(conversationType),
+    avatar: viewState?.avatar
+      ?? (isSystemAgentPeer ? SYSTEM_ASSISTANT_AGENT.avatar : createFallbackConversationAvatar(conversationType)),
     type: conversationType,
     unreadCount: entry.unreadCount,
     updatedAt,

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { LifeService } from "./LifeService";
-import { MomentService } from "./MomentService";
 import { ProductService } from "./ProductService";
 import { ProfileService } from "./ProfileService";
 import { SettingsService } from "./SettingsService";
@@ -21,9 +20,6 @@ test("user services return composed data", async () => {
 
   const works = await WorkService.getMyWorks();
   assert.ok(Array.isArray(works));
-
-  const moments = await MomentService.getMoments();
-  assert.ok(Array.isArray(moments));
 
   const products = await ProductService.getProducts();
   assert.ok(Array.isArray(products));

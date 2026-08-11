@@ -1,17 +1,22 @@
 import React from "react";
+import { useNavigate } from "react-router";
 
 interface GlobalSearchQuickTagsProps {
   t: (key: string) => string;
 }
 
 export const GlobalSearchQuickTags: React.FC<GlobalSearchQuickTagsProps> = ({ t }) => {
+  const navigate = useNavigate();
   return (
     <div className="p-6">
       <h3 className="text-center text-[13px] text-text-sub mb-6">
         {t('chat.search.search_specific')}
       </h3>
       <div className="grid grid-cols-3 gap-y-6 text-center">
-        <span className="text-[15px] text-primary-blue active:opacity-70 cursor-pointer">
+        <span
+          className="text-[15px] text-primary-blue active:opacity-70 cursor-pointer"
+          onClick={() => navigate("/discover/moments")}
+        >
           {t('chat.search.moments')}
         </span>
         <span className="text-[15px] text-primary-blue active:opacity-70 cursor-pointer border-x border-border-color">

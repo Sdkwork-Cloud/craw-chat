@@ -7,7 +7,16 @@ import { ChatListItem } from "../components/Chat/ChatListItem";
 import { ChatListHeader } from "../components/Chat/ChatListHeader";
 import { useTranslation } from "react-i18next";
 import { subscribeInboxLiveRefresh } from "../services/chatRealtimeService";
+import { ensureChatWelcomeMessage } from "../services/chatConversationService";
 import { showToast } from "@sdkwork/im-h5-commons";
+
+/**
+ * The system-agent welcome conversation is a canonical direct chat whose peer
+ * principal is the "system" actor; the inbox mapper surfaces it under that id.
+ */
+function isSystemAgentChat(chat: Chat): boolean {
+  return chat.participants.some((participant) => participant.id === "system");
+}
 
 export const ChatList: React.FC = () => {
   const { t } = useTranslation();
@@ -62,6 +71,24 @@ export const ChatList: React.FC = () => {
     const unsubscribe = subscribeInboxLiveRefresh(() => { void loadChats(); });
     return unsubscribe;
   }, [loadChats]);
+
+  // System-agent conversation fallback: the login-time welcome check and the
+  // inbox first page race each other, and the system conversation may sort
+  // past the first page once newer chats exist. The desktop app merges the
+  // assistant chat back into the list explicitly; retry the idempotent
+  // welcome ensure once here so the entry (and its system messages) stays
+  // reachable. The server skips repeat delivery, so this cannot spam.
+  const welcomeEnsuredRef = useRef(false);
+  useEffect(() => {
+    if (chats.some(isSystemAgentChat) || welcomeEnsuredRef.current) return;
+    welcomeEnsuredRef.current = true;
+    void ensureChatWelcomeMessage()
+      .then(() => void loadChats())
+      .catch((error) => {
+        // fire-and-forget: welcome availability must not block the list.
+        console.error("[sdkwork-im-h5] welcome/ensure fallback failed", error);
+      });
+  }, [chats, loadChats]);
 
   // Handle click outside to close menu
   useEffect(() => {

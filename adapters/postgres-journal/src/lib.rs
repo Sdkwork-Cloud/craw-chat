@@ -10,6 +10,7 @@ mod message_store;
 mod notification_task_store;
 mod outbox_store;
 mod postgres_support;
+mod principal_directory;
 mod retention_cleanup;
 mod retention_metrics;
 mod retention_reconcile;
@@ -35,6 +36,7 @@ pub use postgres_support::{
     PostgresJournalConfig, PostgresJournalConnectionManager, PostgresJournalPool,
     PostgresJournalTlsConnector, conversation_member_access_gate_from_pool,
 };
+pub use principal_directory::PostgresPrincipalDirectory;
 pub use retention_cleanup::{
     RETENTION_PURGE_BATCH_SIZE_MAX, RetentionCleanupReport, RetentionPurgeRequest,
     purge_expired_retention_batch,

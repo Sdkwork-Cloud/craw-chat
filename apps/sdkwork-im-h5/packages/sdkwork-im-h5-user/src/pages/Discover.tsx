@@ -46,16 +46,6 @@ export const Discover: React.FC = () => {
             colorClass="text-[#3b82f6]"
             hasBorder={false}
             onClick={() => navigate("/discover/moments")}
-            rightElement={
-              <div className="relative">
-                <img
-                  src="https://picsum.photos/seed/moment/32/32"
-                  alt="New moment"
-                  className="w-8 h-8 rounded-md"
-                />
-                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-chat-other-bg" />
-              </div>
-            }
           />
         </div>
 

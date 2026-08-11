@@ -56,6 +56,7 @@ export type ImH5ModuleId =
   | "musicgen"
   | "writing"
   | "meeting"
+  | "moments"
   | "music"
   | "channels"
   | "recruitment"

@@ -18,7 +18,6 @@ export * from "./pages/WorkDetailPage";
 export * from "./pages/WorkEditPage";
 export * from "./pages/DiscoverSubPages";
 export * from "./services/WorkService";
-export * from "./services/MomentService";
 export * from "./services/ProfileService";
 export * from "./services/SettingsService";
 export * from "./services/AuthService";

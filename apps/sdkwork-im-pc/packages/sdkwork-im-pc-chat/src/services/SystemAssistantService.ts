@@ -17,6 +17,8 @@ export interface SystemAssistantStartupResult {
 export interface SystemAssistantService {
   ensureSystemAssistantChat(chats: Chat[]): Promise<SystemAssistantStartupResult>;
   isSystemAssistantChat(chat: Chat): boolean;
+  /** The server-delivered system-agent welcome conversation (canonical direct chat). */
+  isSystemAssistantWelcomeChat(chat: Chat): boolean;
   selectInitialChat(chats: Chat[]): Chat | null;
 }
 
@@ -50,7 +52,18 @@ class SdkworkSystemAssistantService implements SystemAssistantService {
 
     const isBackendAgentDialog = /^a_[a-f0-9]+$/u.test(normalizedId)
       || /^c_agent_[a-f0-9]+$/u.test(normalizedId);
-    return isBackendAgentDialog && chat.name === SYSTEM_ASSISTANT_AGENT.name;
+    if (isBackendAgentDialog && chat.name === SYSTEM_ASSISTANT_AGENT.name) {
+      return true;
+    }
+
+    return this.isSystemAssistantWelcomeChat(chat);
+  }
+
+  isSystemAssistantWelcomeChat(chat: Chat): boolean {
+    const normalizedId = chat.id.trim().toLowerCase();
+    // The system-agent welcome conversation is a canonical direct chat
+    // (`c_<hash>` shape) named as the System Assistant by the inbox mapper.
+    return /^c_[a-f0-9]+$/u.test(normalizedId) && chat.name === SYSTEM_ASSISTANT_AGENT.name;
   }
 
   selectInitialChat(chats: Chat[]): Chat | null {

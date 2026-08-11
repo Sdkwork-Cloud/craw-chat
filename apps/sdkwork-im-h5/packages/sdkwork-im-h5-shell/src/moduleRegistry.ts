@@ -20,6 +20,7 @@ import { enterpriseModule } from "./modules/enterpriseModule";
 import { imagegenModule } from "./modules/imagegenModule";
 import { knowledgeModule } from "./modules/knowledgeModule";
 import { meetingModule } from "./modules/meetingModule";
+import { momentsModule } from "./modules/momentsModule";
 import { musicModule } from "./modules/musicModule";
 import { membershipModule } from "./modules/membershipModule";
 import { musicgenModule } from "./modules/musicgenModule";
@@ -51,6 +52,7 @@ export const BUILTIN_IM_H5_MODULE_REGISTRY: Readonly<Partial<Record<ImH5ModuleId
   imagegen: imagegenModule,
   knowledge: knowledgeModule,
   meeting: meetingModule,
+  moments: momentsModule,
   music: musicModule,
   membership: membershipModule,
   musicgen: musicgenModule,

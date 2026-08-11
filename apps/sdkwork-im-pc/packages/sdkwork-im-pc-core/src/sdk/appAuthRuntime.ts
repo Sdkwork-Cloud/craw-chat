@@ -65,6 +65,7 @@ import {
   readAppSdkSessionTokens,
   type SdkworkChatSession,
 } from './session';
+import { ensurePcWelcomeMessage } from './pcWelcome';
 
 type IamEnvironment = 'dev' | 'prod' | 'test';
 type IamDeploymentMode = 'local' | 'private' | 'saas';
@@ -207,6 +208,9 @@ function createSdkworkChatIamRuntime(): SdkworkAppbasePcAuthRuntimeComposition {
         syncImSessionToCommunityPc();
         syncImSessionToCoursePc();
         syncImSessionToCourseBackendPc();
+        // Login: idempotently ensure the system-agent welcome message
+        // (server deduplicates; skipped internally when the session is gone).
+        void ensurePcWelcomeMessage();
       },
     },
     sdkClients: getAuthenticatedSdkClients(),

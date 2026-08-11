@@ -61,6 +61,10 @@ async fn async_main(
     let realtime_state =
         session_gateway::AppState::from_realtime_bootstrap(&realtime_plane.bootstrap);
 
+    embedded_dependency_routes::bootstrap_embedded_dependency_databases()
+        .await
+        .map_err(|error| format!("synchronize embedded dependency databases failed: {error}"))?;
+
     let api_assembly = sdkwork_api_im_assembly::assemble_api_router_with_realtime_bootstrap(Some(
         &realtime_plane.bootstrap,
     ))

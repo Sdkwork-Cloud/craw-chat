@@ -28,6 +28,7 @@ test("keeps the full H5 product composition (original UI tabs)", () => {
     "recruitment",
     "enterprise",
     "meeting",
+    "moments",
     "music",
     "knowledge",
     "drive",

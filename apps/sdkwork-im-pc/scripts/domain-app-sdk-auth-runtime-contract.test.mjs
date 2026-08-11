@@ -74,3 +74,21 @@ for (const { domain, getter, resetter } of domainSdkClients) {
 }
 
 console.log('domain app SDK auth runtime contract checks passed');
+
+// The login session hook must idempotently trigger the system-agent welcome
+// message (server deduplicates); losing this wiring silently drops the
+// welcome conversation for new accounts.
+assert.match(
+  appAuthRuntimeSource,
+  /ensurePcWelcomeMessage/u,
+  'Auth runtime must import the PC welcome ensure hook.',
+);
+const sessionHookSource = appAuthRuntimeSource.slice(
+  appAuthRuntimeSource.indexOf('onSessionChanged'),
+);
+assert.match(
+  sessionHookSource,
+  /ensurePcWelcomeMessage\(\)/u,
+  'Auth runtime onSessionChanged must invoke ensurePcWelcomeMessage().',
+);
+console.log('PC welcome session hook contract checks passed');

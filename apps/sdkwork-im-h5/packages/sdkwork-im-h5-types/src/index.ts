@@ -13,6 +13,7 @@ export interface Message {
   timestamp: number;
   type:
     | "text"
+    | "system"
     | "image"
     | "video"
     | "voice"

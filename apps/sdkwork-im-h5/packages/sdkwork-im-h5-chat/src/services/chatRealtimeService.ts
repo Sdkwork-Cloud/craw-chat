@@ -16,6 +16,7 @@ export {
   subscribeConversationEvents,
   subscribeScopeEvents,
   subscribeInboxLiveRefresh,
+  notifyImInboxRefresh,
   ensureImLiveConnection as ensureChatLiveConnection,
   invalidateImLiveConnection as invalidateChatLiveConnection,
   recoverImLiveConnection as recoverChatLiveConnection,

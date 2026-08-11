@@ -52,7 +52,34 @@ pub fn apply_embedded_dependency_env() -> Result<(), String> {
     apply_knowledgebase_runtime_env_from_im_shared_profile()?;
     apply_agents_runtime_env_from_im_shared_profile()?;
     apply_embedded_dependency_app_roots();
+    apply_embedded_commerce_backend_env();
     Ok(())
+}
+
+/// Point the community commerce integration (tier publishing + order payment
+/// verification) at this collapsed single-ingress when no external
+/// membership/order backend is configured. The standalone gateway serves the
+/// membership/order backend business surfaces in-process, so the community
+/// service reaches them through the gateway's own public origin.
+fn apply_embedded_commerce_backend_env() {
+    let Some(gateway_public_url) = std::env::var("SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+    else {
+        return;
+    };
+    for key in [
+        "SDKWORK_MEMBERSHIP_BACKEND_API_BASE_URL",
+        "SDKWORK_ORDER_BACKEND_API_BASE_URL",
+    ] {
+        if std::env::var(key)
+            .ok()
+            .map(|value| value.trim().is_empty())
+            .unwrap_or(true)
+        {
+            set_env_var(key, gateway_public_url.as_str());
+        }
+    }
 }
 
 fn validate_workspace_server_database_env() -> Result<(), String> {
@@ -141,10 +168,51 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
     let agents_runtime = build_embedded_agents_runtime().await?;
     let agents_session_facade = agents_runtime.session_facade;
     contributions.push(agents_runtime.contribution);
+    // Service-to-service backend surfaces: the embedded community service
+    // registers membership packages and verifies paid orders through the
+    // membership/order backend business APIs, both served by this ingress.
+    contributions.push(bootstrap_embedded_membership_backend_contribution().await?);
+    contributions.push(bootstrap_embedded_order_backend_contribution().await?);
     Ok(EmbeddedDependencyRoutes {
         contributions,
         agents_session_facade,
     })
+}
+
+/// Embed the membership backend business surface so circle tier publishing
+/// (`memberships/packages` registration) works through the collapsed ingress.
+async fn bootstrap_embedded_membership_backend_contribution()
+-> Result<sdkwork_web_bootstrap::ApiAssemblyContribution, String> {
+    let assembly = sdkwork_api_membership_assembly::assemble_backend_business_router_from_env()
+        .await
+        .map_err(|error| format!("compose embedded membership Backend API failed: {error}"))?;
+    sdkwork_web_bootstrap::ApiAssemblyContribution::from_manifest(
+        "sdkwork-membership-backend",
+        "SDKWork Membership Backend API",
+        assembly.router,
+        sdkwork_routes_membership_backend_api::gateway_route_manifest(),
+        Vec::new(),
+        Arc::new(sdkwork_web_bootstrap::AlwaysReady),
+    )
+    .map_err(|error| format!("compose embedded membership Backend API failed: {error}"))
+}
+
+/// Embed the order backend business surface so the community membership
+/// activation can verify the paid order through the collapsed ingress.
+async fn bootstrap_embedded_order_backend_contribution()
+-> Result<sdkwork_web_bootstrap::ApiAssemblyContribution, String> {
+    let assembly = sdkwork_api_order_assembly::assemble_backend_business_router_from_env()
+        .await
+        .map_err(|error| format!("compose embedded order Backend API failed: {error}"))?;
+    sdkwork_web_bootstrap::ApiAssemblyContribution::from_manifest(
+        "sdkwork-order-backend",
+        "SDKWork Order Backend API",
+        assembly.router,
+        sdkwork_routes_order_backend_api::gateway_route_manifest(),
+        Vec::new(),
+        Arc::new(sdkwork_web_bootstrap::AlwaysReady),
+    )
+    .map_err(|error| format!("compose embedded order Backend API failed: {error}"))
 }
 
 async fn bootstrap_embedded_course_routes()

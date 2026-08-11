@@ -35,9 +35,11 @@ sdkwork-api-inventory-assembly = { workspace = true }
 sdkwork-api-invoice-assembly = { workspace = true }
 sdkwork-api-account-assembly = { workspace = true }
 sdkwork-api-membership-assembly = { workspace = true }
+sdkwork-routes-membership-backend-api = { workspace = true }
 sdkwork-merchandise-database-host = { workspace = true }
 sdkwork-promotion-database-host = { workspace = true }
 sdkwork-api-order-assembly = { workspace = true }
+sdkwork-routes-order-backend-api = { workspace = true }
 sdkwork-api-payment-assembly = { workspace = true }
 sdkwork-api-shop-assembly = { workspace = true }
 sdkwork-iam-embedded-application-bootstrap = { workspace = true }

@@ -1,4 +1,6 @@
 import i18n from 'i18next';
+import { COURSE_I18N_RESOURCES } from '@sdkwork/course-mobile-react-courses/i18n';
+import { COMMUNITY_I18N_RESOURCES } from '@sdkwork/community-mobile-react-community/i18n';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
@@ -28,10 +30,10 @@ import zhNotary from './locales/zh/notary.json';
 import zhUser from './locales/zh/user.json';
 import zhKnowledge from './locales/zh/knowledge.json';
 import zhOrders from './locales/zh/orders.json';
-import zhCourse from './locales/zh/course.json';
 import zhEnterprise from './locales/zh/enterprise.json';
 import zhVip from './locales/zh/vip.json';
 import zhChannels from './locales/zh/channels.json';
+import zhMoments from './locales/zh/moments.json';
 import zhErrors from './locales/zh/errors.json';
 import zhSubscription from './locales/zh/subscription.json';
 
@@ -61,10 +63,10 @@ import enNotary from './locales/en/notary.json';
 import enUser from './locales/en/user.json';
 import enKnowledge from './locales/en/knowledge.json';
 import enOrders from './locales/en/orders.json';
-import enCourse from './locales/en/course.json';
 import enEnterprise from './locales/en/enterprise.json';
 import enVip from './locales/en/vip.json';
 import enChannels from './locales/en/channels.json';
+import enMoments from './locales/en/moments.json';
 import enErrors from './locales/en/errors.json';
 import enSubscription from './locales/en/subscription.json';
 
@@ -76,6 +78,8 @@ const resources = {
       chat: zhChat,
       voice_synth: zhVoiceSynth,
       voice_summary: zhVoiceSummary,
+      course: COURSE_I18N_RESOURCES.zh.translation.course,
+      community: COMMUNITY_I18N_RESOURCES.zh.translation.community,
       ai_video: zhAIVideo,
       ai_music: zhAIMusic,
       ai_image: zhAIImage,
@@ -97,10 +101,10 @@ const resources = {
       commons: zhCommons,
       knowledge: zhKnowledge,
       orders: zhOrders,
-      course: zhCourse,
       enterprise: zhEnterprise,
       vip: zhVip,
       channels: zhChannels,
+      moments: zhMoments,
       errors: zhErrors,
       subscription: zhSubscription
     }
@@ -112,6 +116,8 @@ const resources = {
       chat: enChat,
       voice_synth: enVoiceSynth,
       voice_summary: enVoiceSummary,
+      course: COURSE_I18N_RESOURCES.en.translation.course,
+      community: COMMUNITY_I18N_RESOURCES.en.translation.community,
       ai_video: enAIVideo,
       ai_music: enAIMusic,      
       ai_image: enAIImage,
@@ -133,10 +139,10 @@ const resources = {
       commons: enCommons,
       knowledge: enKnowledge,
       orders: enOrders,
-      course: enCourse,
       enterprise: enEnterprise,
       vip: enVip,
       channels: enChannels,
+      moments: enMoments,
       errors: enErrors,
       subscription: enSubscription
     }

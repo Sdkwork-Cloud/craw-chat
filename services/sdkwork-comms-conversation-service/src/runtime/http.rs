@@ -51,6 +51,11 @@ const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 pub const PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV: &str =
     "SDKWORK_IM_PRINCIPAL_DIRECTORY_CATALOG_PATH";
 pub const ALLOW_ALL_PRINCIPALS_ENV: &str = "SDKWORK_IM_ALLOW_ALL_PRINCIPALS";
+/// Dynamic directory mode: every IAM-authenticated user principal is admitted
+/// on first sight (recorded for audit) unless explicitly disabled. Keeps new
+/// IAM registrations usable without catalog redeploys.
+pub const PRINCIPAL_DIRECTORY_MODE_ENV: &str = "SDKWORK_IM_PRINCIPAL_DIRECTORY";
+pub const PRINCIPAL_DIRECTORY_MODE_POSTGRES: &str = "postgres";
 
 #[derive(Clone)]
 pub struct AppState {
@@ -164,29 +169,10 @@ struct PublicAppGuardrails {
     request_gate: Arc<Semaphore>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum PrincipalDirectoryError {
-    PrincipalNotFound {
-        tenant_id: String,
-        principal_id: String,
-        principal_kind: String,
-    },
-    PrincipalDisabled {
-        tenant_id: String,
-        principal_id: String,
-        principal_kind: String,
-    },
-    Unavailable(String),
-}
-
-pub trait PrincipalDirectory: Send + Sync {
-    fn ensure_active_principal(
-        &self,
-        tenant_id: &str,
-        principal_id: &str,
-        principal_kind: &str,
-    ) -> Result<(), PrincipalDirectoryError>;
-}
+// Principal directory contract moved to `im_platform_contracts`; re-exported
+// here so existing `conversation_runtime::http::PrincipalDirectory` paths
+// keep resolving.
+pub use im_platform_contracts::{PrincipalDirectory, PrincipalDirectoryError};
 
 #[derive(Default)]
 struct AllowAllPrincipalDirectory;
@@ -1304,8 +1290,13 @@ pub fn app_state_with_principal_directory(
 
 /// Resolve conversation HTTP [`AppState`] from process environment.
 ///
-/// Production requires a principal directory catalog. Development and test
-/// environments may omit the catalog and fall back to allow-all principals.
+/// Directory selection precedence:
+/// 1. `SDKWORK_IM_PRINCIPAL_DIRECTORY_CATALOG_PATH` — static JSON catalog
+///    (explicit whitelist; new users must be added to the catalog);
+/// 2. `SDKWORK_IM_PRINCIPAL_DIRECTORY=postgres` — dynamic directory:
+///    IAM-authenticated users are admitted on first sight and recorded for
+///    audit, unless an explicit disable flag exists;
+/// 3. `SDKWORK_IM_ALLOW_ALL_PRINCIPALS=true` (development/test only).
 pub fn bootstrap_conversation_app_state_from_env() -> Result<AppState, String> {
     if let Some(catalog_path) = std::env::var(PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV)
         .ok()
@@ -1316,6 +1307,33 @@ pub fn bootstrap_conversation_app_state_from_env() -> Result<AppState, String> {
             StaticPrincipalDirectory::from_json_file(FsPath::new(catalog_path.as_str()))?;
         return try_server_app_state_with_principal_directory(Arc::new(directory))
             .map_err(|error| error.to_string());
+    }
+
+    if std::env::var(PRINCIPAL_DIRECTORY_MODE_ENV)
+        .ok()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .as_deref()
+        == Some(PRINCIPAL_DIRECTORY_MODE_POSTGRES)
+    {
+        let journal = resolve_conversation_commit_journal_from_env().map_err(|error| {
+            format!("postgres principal directory requires the IM PostgreSQL journal: {error}")
+        })?;
+        let pool = match &journal {
+            ConversationCommitJournal::Postgres(journal) => journal.pool().clone(),
+            ConversationCommitJournal::Memory(_) => {
+                return Err(
+                    "postgres principal directory requires the IM PostgreSQL journal".into()
+                );
+            }
+        };
+        tracing::info!(
+            env = %PRINCIPAL_DIRECTORY_MODE_ENV,
+            "conversation-runtime using postgres dynamic principal directory (authenticated users are admitted on first sight)"
+        );
+        return try_server_app_state_with_principal_directory(Arc::new(
+            im_adapters_postgres_journal::PostgresPrincipalDirectory::from_pool(pool),
+        ))
+        .map_err(|error| error.to_string());
     }
 
     let allow_all_explicit = std::env::var(ALLOW_ALL_PRINCIPALS_ENV)
@@ -1340,7 +1358,8 @@ pub fn bootstrap_conversation_app_state_from_env() -> Result<AppState, String> {
         if !dev_or_test {
             return Err(format!(
                 "principal directory is required in production: set {PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV} \
-                 to a JSON catalog file path"
+                 to a JSON catalog file path, or set {PRINCIPAL_DIRECTORY_MODE_ENV}={PRINCIPAL_DIRECTORY_MODE_POSTGRES} \
+                 for the dynamic postgres directory"
             ));
         }
         tracing::warn!(
@@ -1353,6 +1372,7 @@ pub fn bootstrap_conversation_app_state_from_env() -> Result<AppState, String> {
 
     Err(format!(
         "principal directory is required: set {PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV} to a JSON catalog file path, \
+         or set {PRINCIPAL_DIRECTORY_MODE_ENV}={PRINCIPAL_DIRECTORY_MODE_POSTGRES} for the dynamic postgres directory, \
          or set {ALLOW_ALL_PRINCIPALS_ENV}=true for development-only mode"
     ))
 }
@@ -4044,6 +4064,28 @@ mod tests {
         assert!(
             value["data"]["conversationId"].is_null(),
             "create response must be nested under data.item, not flattened under data"
+        );
+    }
+
+    #[test]
+    fn bootstrap_postgres_principal_directory_mode_is_selected() {
+        // Selecting the dynamic directory without an IM PostgreSQL
+        // configuration must fail with a mode-specific error (proves the
+        // branch is reachable before the allow-all fallback).
+        // SAFETY: single-threaded test; the variable is restored immediately
+        // after the bootstrap call and no other test reads this key.
+        unsafe { std::env::set_var(PRINCIPAL_DIRECTORY_MODE_ENV, PRINCIPAL_DIRECTORY_MODE_POSTGRES) };
+        let result = bootstrap_conversation_app_state_from_env();
+        unsafe { std::env::remove_var(PRINCIPAL_DIRECTORY_MODE_ENV) };
+        let error = match result {
+            Err(error) => error,
+            Ok(_) => panic!(
+                "postgres principal directory without database configuration must fail closed"
+            ),
+        };
+        assert!(
+            error.contains("postgres principal directory"),
+            "error should point at the postgres directory mode, got: {error}"
         );
     }
 }

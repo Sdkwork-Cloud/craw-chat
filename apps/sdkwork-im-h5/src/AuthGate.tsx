@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SdkworkIamH5AuthRoutes } from '@sdkwork/iam-h5-auth';
 import { useAppStore, type ImH5SessionUser } from '@sdkwork/im-h5-core';
@@ -8,6 +8,11 @@ import {
 import { createImH5AuthController } from './bootstrap/imH5AuthController';
 import { bindImH5SessionLogoutHandler } from './bootstrap/imAuthService';
 import {
+  clearImH5AuthRedirectTarget,
+  persistImH5AuthRedirectTarget,
+  resolveImH5AuthRedirectTarget,
+} from './bootstrap/authRedirect';
+import {
   IM_H5_IAM_SESSION_CHANGED_EVENT,
   readImH5PersistedSession,
   restoreAndValidateImH5Session,
@@ -15,6 +20,8 @@ import {
 } from './bootstrap/session';
 import { getSdkClients } from './bootstrap/sdkClients';
 import { ensureChatWelcomeMessage } from '@sdkwork/im-h5-chat';
+import { notifyImInboxRefresh } from '@sdkwork/im-h5-core/realtime';
+import { resetMomentsSessionState } from '@sdkwork/im-h5-moments';
 
 const AUTH_BASE_PATH = '/auth';
 const AUTH_LOGIN_PATH = '/auth/login';
@@ -56,6 +63,19 @@ export function AuthGate({ children }: AuthGateProps) {
   const [isBootstrapped, setIsBootstrapped] = useState(false);
   const [session, setSession] = useState<ImH5PersistedSession | null>(null);
   const setCurrentUser = useAppStore((state) => state.setCurrentUser);
+  const currentUserId = useAppStore((state) => state.currentUser?.id);
+
+  // Clear viewer-scoped feature state (e.g. the moments like memory) whenever
+  // the signed-in user changes — logout, session expiry, or account switch —
+  // so a new user never inherits the previous user's like state.
+  const previousUserIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (currentUserId === previousUserIdRef.current) {
+      return;
+    }
+    previousUserIdRef.current = currentUserId;
+    resetMomentsSessionState();
+  }, [currentUserId]);
 
   const redirectTarget = useMemo(
     () => resolveRedirectTarget(location.pathname, location.search, location.hash),
@@ -99,9 +119,18 @@ export function AuthGate({ children }: AuthGateProps) {
     if (!authenticated) {
       return;
     }
-    void ensureChatWelcomeMessage().catch(() => {
-      // fire-and-forget：欢迎消息缺失不影响主流程（下次会话再触发）。
-    });
+    void ensureChatWelcomeMessage()
+      .then(() => {
+        // 欢迎会话已就绪（sent 或已存在）：通知在场页面刷新 inbox，
+        // 保证新用户注册/登录后会话列表不为空。注册页面在会话创建前
+        // 可能已加载过空列表，此处主动补一次刷新。
+        notifyImInboxRefresh();
+      })
+      .catch((error) => {
+        // fire-and-forget：欢迎消息缺失不影响主流程（下次会话再触发），
+        // 但失败必须可观测，否则“登录后无欢迎消息”无法定位原因。
+        console.error('[sdkwork-im-h5] welcome/ensure failed', error);
+      });
   }, [authenticated]);
 
   useEffect(() => {
@@ -155,15 +184,27 @@ export function AuthGate({ children }: AuthGateProps) {
     if (!isBootstrapped || authenticated || isAuthPath) {
       return;
     }
+    // The intended target is persisted so it survives the WeChat
+    // authorization round trip (the callback URL drops the `redirect`
+    // parameter); in-page password/code login uses the query parameter.
+    persistImH5AuthRedirectTarget(redirectTarget);
     navigate(buildAuthLoginPath(redirectTarget), { replace: true });
   }, [isAuthPath, authenticated, isBootstrapped, navigate, redirectTarget]);
+
+  useEffect(() => {
+    // Consumed the persisted redirect target once the user landed back on the
+    // authenticated surface.
+    if (authenticated && !isAuthPath) {
+      clearImH5AuthRedirectTarget();
+    }
+  }, [authenticated, isAuthPath]);
 
   if (!isBootstrapped) {
     return <div className="sdkwork-im-h5-auth-loading">Loading authentication...</div>;
   }
 
   if (authenticated && isAuthPath) {
-    return <Navigate replace to={redirectTarget} />;
+    return <Navigate replace to={resolveImH5AuthRedirectTarget(location.search)} />;
   }
 
   if (authenticated) {

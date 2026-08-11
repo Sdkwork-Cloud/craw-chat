@@ -244,11 +244,16 @@ export function createChatService(
           const isPeer = peer && (peer.userId ?? peer.principalId) === member.principalId;
           const enriched = member as EnrichedConversationMember;
           const memberName = memberDisplayName(enriched);
+          // The system-agent welcome conversation carries no profile display
+          // name; surface the same label the inbox mapper uses.
+          const isSystemAgent = isPeer && peer.principalKind === "system";
           return {
             id: member.principalId,
-            name: isPeer
-              ? (peer.displayName ?? memberName ?? peer.principalId)
-              : (memberName ?? member.principalId),
+            name: isSystemAgent
+              ? i18next.t("chat.date.system_agent_name", "系统智能体")
+              : isPeer
+                ? (peer.displayName ?? memberName ?? peer.principalId)
+                : (memberName ?? member.principalId),
             ...(isPeer && peer.avatarUrl ? { avatar: peer.avatarUrl } : {}),
             ...(!isPeer && enriched.attributes?.avatarUrl
               ? { avatar: enriched.attributes.avatarUrl }
@@ -733,6 +738,10 @@ function mapMessageEntry(message: ConversationMessageEntry): Message {
   const mediaPart = message.body.parts.find((part) => part.kind === "media");
   const media = mediaPart?.kind === "media" ? mediaPart : undefined;
   const mediaKind = media?.resource.kind;
+  // Wire messages with a media part stay media-typed; everything else keeps
+  // its server-declared message type so system messages (the system-agent
+  // welcome, data/signal/stream_ref parts) render distinctly instead of being
+  // flattened into empty text bubbles.
   const messageType: Message["type"] = mediaKind === "image"
     ? "image"
     : mediaKind === "video"
@@ -741,8 +750,15 @@ function mapMessageEntry(message: ConversationMessageEntry): Message {
         ? "voice"
         : mediaKind === "file" || mediaKind === "document"
           ? "file"
-          : "text";
+          : message.messageType === "system"
+            || message.body.parts.some(
+              (part) => part.kind === "data" || part.kind === "signal" || part.kind === "stream_ref",
+            )
+            ? "system"
+            : "text";
   const mediaUrl = media?.resource.publicUrl ?? media?.resource.url ?? media?.resource.uri;
+  const textPart = message.body.parts.find((part) => part.kind === "text");
+  const partText = textPart?.kind === "text" ? textPart.text : undefined;
   const replyTo = message.body.replyTo ? {
     id: message.body.replyTo.messageId,
     senderName: message.body.replyTo.senderDisplayName,
@@ -750,7 +766,10 @@ function mapMessageEntry(message: ConversationMessageEntry): Message {
   } : undefined;
   return {
     chatId: message.conversationId,
-    content: mediaUrl ?? message.body.text ?? message.summary ?? "",
+    // Text is carried in the first text part (the body has no text field);
+    // media messages use the resource URL, and the server-derived summary is
+    // the last resort.
+    content: mediaUrl ?? partText ?? message.body.text ?? message.body.summary ?? message.summary ?? "",
     id: message.messageId,
     senderId: message.sender.id,
     timestamp: parseTimestamp(message.occurredAt),

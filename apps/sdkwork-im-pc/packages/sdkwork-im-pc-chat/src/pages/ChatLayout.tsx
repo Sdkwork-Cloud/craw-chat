@@ -50,8 +50,10 @@ import { settingsService, type AppSettings } from "../services/SettingsService";
 import { systemAssistantService } from "../services/SystemAssistantService";
 import {
   appAuthService,
+  ensurePcWelcomeMessage,
   isAppSdkSessionAuthenticated,
   readAppSdkSessionTokens,
+  SDKWORK_IM_INBOX_REFRESH_EVENT,
   SDKWORK_IM_SESSION_CHANGED_EVENT,
 } from "@sdkwork/im-pc-core";
 import {
@@ -1182,6 +1184,10 @@ const ChatLayoutComponent: React.FC = () => {
       }
 
       setRuntimeReady(true);
+      // Recovered-session fallback: a page refresh restores the session
+      // without an `onSessionChanged` event, so the login hook never fires;
+      // trigger the idempotent welcome check here too (server deduplicates).
+      void ensurePcWelcomeMessage();
       void loadChatStartup(() => isMounted);
     };
 
@@ -1208,14 +1214,32 @@ const ChatLayoutComponent: React.FC = () => {
       if (!isAppSdkSessionAuthenticated(readAppSdkSessionTokens())) {
         setRuntimeReady(false);
         setIsChatStartupLoading(false);
+        return;
+      }
+      // Account switch / re-login while the chat surface stays mounted (the
+      // auth modal never unmounts children): restore the runtime and reload
+      // the conversation data for the new session.
+      setRuntimeReady(true);
+      void loadChatStartup(() => isMounted);
+    };
+
+    const handleInboxRefresh = () => {
+      // The welcome conversation is created asynchronously after login, so
+      // the initial page load may have missed it; reload the first inbox page
+      // once it is ready (server deduplicates the welcome message). The
+      // refresh must never surface an unhandled rejection to the console.
+      if (isMounted && isAppSdkSessionAuthenticated(readAppSdkSessionTokens())) {
+        void refreshChats(() => isMounted).catch(() => undefined);
       }
     };
 
     void startRuntime();
     window.addEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, handleSessionChanged);
+    window.addEventListener(SDKWORK_IM_INBOX_REFRESH_EVENT, handleInboxRefresh);
     return () => {
       isMounted = false;
       window.removeEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, handleSessionChanged);
+      window.removeEventListener(SDKWORK_IM_INBOX_REFRESH_EVENT, handleInboxRefresh);
     };
   }, []);
 

@@ -102,6 +102,10 @@
       "types": "./src/sdk/imSdkClient.ts",
       "default": "./src/sdk/imSdkClient.ts"
     },
+    "./sdk/pcWelcome": {
+      "types": "./src/sdk/pcWelcome.ts",
+      "default": "./src/sdk/pcWelcome.ts"
+    },
     "./sdk/mailPcIntegration": {
       "types": "./src/sdk/mailPcIntegration.ts",
       "default": "./src/sdk/mailPcIntegration.ts"

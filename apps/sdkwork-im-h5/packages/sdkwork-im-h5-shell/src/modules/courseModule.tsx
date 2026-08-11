@@ -2,7 +2,7 @@ import React from "react";
 import type { ImH5CapabilityModule } from "../contracts";
 import { IM_H5_ROUTE_DEFINITIONS } from "../routeCatalog";
 
-type ComponentName = "CourseHome" | "MyCourses" | "CourseDetail" | "CoursePurchase" | "CoursePlayer" | "CourseLiveRoom";
+type ComponentName = "CourseHome" | "MyCourses" | "CourseDetail" | "CoursePurchase" | "CoursePlayer" | "CourseLiveRoom" | "CourseSearch";
 
 function lazyComponent(name: ComponentName) {
   return React.lazy(async () => {
@@ -17,6 +17,7 @@ const CourseDetail = lazyComponent("CourseDetail");
 const CoursePurchase = lazyComponent("CoursePurchase");
 const CoursePlayer = lazyComponent("CoursePlayer");
 const CourseLiveRoom = lazyComponent("CourseLiveRoom");
+const CourseSearch = lazyComponent("CourseSearch");
 
 export const courseModule: ImH5CapabilityModule = {
   id: "course",
@@ -27,5 +28,6 @@ export const courseModule: ImH5CapabilityModule = {
     { ...IM_H5_ROUTE_DEFINITIONS.coursePurchase, render: () => <CoursePurchase /> },
     { ...IM_H5_ROUTE_DEFINITIONS.coursePlayer, render: () => <CoursePlayer /> },
     { ...IM_H5_ROUTE_DEFINITIONS.courseLive, render: () => <CourseLiveRoom /> },
+    { ...IM_H5_ROUTE_DEFINITIONS.courseSearch, render: () => <CourseSearch /> },
   ],
 };

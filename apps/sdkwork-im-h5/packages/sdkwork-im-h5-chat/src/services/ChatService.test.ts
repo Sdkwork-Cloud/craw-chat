@@ -626,6 +626,101 @@ test("unstars a message by deleting the matching CMS im_message favorite", async
   assert.equal(deletedId, "fav-9");
 });
 
+test("maps a system-type message with a text part to a system message", async () => {
+  const service = createChatService(() => createSdk({
+    conversations: {
+      listMessages: async () => ({
+        items: [
+          messageEntry({
+            messageId: "welcome-1",
+            messageType: "system",
+            sender: { id: "system", kind: "system", displayName: "System" },
+            summary: "欢迎使用 SDKWork 即时通讯！",
+            body: {
+              // The server message body carries text parts, not a text field.
+              parts: [{ kind: "text", text: "欢迎使用 SDKWork 即时通讯！" }],
+            },
+          }),
+        ],
+        pageInfo: { mode: "cursor", hasMore: false },
+        highWatermark: 1,
+      }),
+    },
+  }));
+
+  const [message] = await service.getMessages("conversation-1");
+
+  assert.equal(message?.type, "system");
+  assert.equal(message?.senderId, "system");
+  assert.equal(message?.content, "欢迎使用 SDKWork 即时通讯！");
+});
+
+test("maps a data-part message to a system message with a derived summary", async () => {
+  const service = createChatService(() => createSdk({
+    conversations: {
+      listMessages: async () => ({
+        items: [
+          messageEntry({
+            messageId: "signal-1",
+            messageType: "standard",
+            sender: { id: "user-1", kind: "user" },
+            summary: "Call started",
+            body: {
+              parts: [{
+                kind: "data",
+                schemaRef: "urn:sdkwork:sdkwork-im:message:call",
+                encoding: "json",
+                payload: "{}",
+              }],
+            },
+          }),
+        ],
+        pageInfo: { mode: "cursor", hasMore: false },
+        highWatermark: 1,
+      }),
+    },
+  }));
+
+  const [message] = await service.getMessages("conversation-1");
+
+  assert.equal(message?.type, "system");
+  assert.equal(message?.content, "Call started");
+});
+
+test("keeps media messages media-typed even when the server declares them system", async () => {
+  const service = createChatService(() => createSdk({
+    conversations: {
+      listMessages: async () => ({
+        items: [
+          messageEntry({
+            messageId: "media-1",
+            messageType: "system",
+            sender: { id: "system", kind: "system" },
+            summary: "image",
+            body: {
+              parts: [{
+                kind: "media",
+                drive: { driveUri: "drive://space-1/node-1", spaceId: "space-1", nodeId: "node-1" },
+                resource: {
+                  source: "drive",
+                  uri: "drive://node-1",
+                  kind: "image",
+                },
+              }],
+            },
+          }),
+        ],
+        pageInfo: { mode: "cursor", hasMore: false },
+        highWatermark: 1,
+      }),
+    },
+  }));
+
+  const [message] = await service.getMessages("conversation-1");
+
+  assert.equal(message?.type, "image");
+});
+
 test("recalls a message through the IM SDK", async () => {
   const calls: string[] = [];
   const service = createChatService(() => createSdk({

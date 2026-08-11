@@ -79,4 +79,22 @@ assert.ok(
   'ChatWindow must render managed agent welcomeMessage through MessageList fallback messages',
 );
 
+// The system-agent welcome conversation (canonical direct chat with a
+// principalKind=system peer) must be named and recognized as the System
+// Assistant so new accounts see a readable conversation after login.
+const systemAssistantText = readFileSync(
+  '../../../sdkwork-im/apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/SystemAssistantService.ts',
+  'utf8',
+);
+assert.ok(
+  /principalKind === ['"]system['"]/u.test(chatServiceText),
+  'ChatService must name system-peer conversations as the System Assistant',
+);
+assert.ok(
+  /return \/\^c_\[a-f0-9\]\+\$\/u\.test\(normalizedId\) && chat\.name === SYSTEM_ASSISTANT_AGENT\.name/u.test(
+    systemAssistantText,
+  ),
+  'SystemAssistantService must recognize canonical system-agent welcome conversations',
+);
+
 console.log('sdkwork im pc agent chat welcome message contract passed.');

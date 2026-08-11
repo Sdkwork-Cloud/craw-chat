@@ -79,6 +79,30 @@
       ],
       "@sdkwork/community-contracts": [
         "./../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-contracts/src/index.ts"
+      ],
+      "@sdkwork/course-app-sdk": [
+        "./../../../sdkwork-course/sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/course-backend-sdk": [
+        "./../../../sdkwork-course/sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/course-runtime": [
+        "./../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-runtime/src/index.ts"
+      ],
+      "@sdkwork/course-sdk-ports": [
+        "./../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-sdk-ports/src/index.ts"
+      ],
+      "@sdkwork/course-contracts": [
+        "./../../../sdkwork-course/sdks/_shared/course-contracts/src/index.ts"
+      ],
+      "@sdkwork/course-mobile-react-courses": [
+        "./../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/index.ts"
+      ],
+      "@sdkwork/course-pc-course": [
+        "./../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/index.ts"
+      ],
+      "@sdkwork/course-pc-console": [
+        "./../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-console/src/index.ts"
       ]
     },
     "allowImportingTsExtensions": true,

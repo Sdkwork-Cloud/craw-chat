@@ -27,6 +27,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const isSystemAssistantChat = systemAssistantService.isSystemAssistantChat(chat);
+  const isSystemAssistantWelcomeChat = systemAssistantService.isSystemAssistantWelcomeChat(chat);
   const assistantSenderProfiles = useMemo<Record<string, User>>(() => (
     isSystemAssistantChat
       ? {
@@ -36,11 +37,23 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
             name: t('chat.systemAssistant.displayName'),
             status: 'online',
           },
+          // The server-delivered welcome message is sent by the system actor
+          // (sender id "system"); without this entry the message renders with
+          // an unknown sender profile.
+          system: {
+            avatar: SYSTEM_ASSISTANT_AGENT.avatar,
+            id: 'system',
+            name: t('chat.systemAssistant.displayName'),
+            status: 'online',
+          },
         }
       : ({} as Record<string, User>)
   ), [isSystemAssistantChat, t]);
   const assistantWelcomeMessages = useMemo<Message[]>(() => (
-    isSystemAssistantChat
+    // The server-delivered welcome conversation already carries the real
+    // welcome message in its history; a locally synthesized copy would render
+    // as a duplicate next to it (fallback merge only deduplicates by id).
+    isSystemAssistantChat && !isSystemAssistantWelcomeChat
       ? [
           {
             chatId: chat.id,
@@ -52,7 +65,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
           },
         ]
       : []
-  ), [chat.id, chat.updatedAt, isSystemAssistantChat, t]);
+  ), [chat.id, chat.updatedAt, isSystemAssistantChat, isSystemAssistantWelcomeChat, t]);
   const agentSenderProfiles = useMemo<Record<string, User>>(() => (
     !isSystemAssistantChat && chat.welcomeMessage
       ? {

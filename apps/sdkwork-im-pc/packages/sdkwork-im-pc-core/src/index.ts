@@ -22,6 +22,7 @@ export * from './sdk/appAuthService';
 export * from './sdk/appAuthRuntime';
 export * from './sdk/imSdkClient';
 export * from './sdk/pcRealtimeConnectionManager';
+export * from './sdk/pcWelcome';
 export * from './sdk/runtimeGatewayDiscovery';
 export * from './sdk/session';
 export * from './sdk/desktopOfflineStore';

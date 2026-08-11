@@ -111,8 +111,10 @@ const messagesEndRef = useRef<HTMLDivElement>(null);
         const isMe = msg.senderId === currentUser?.id;
         const sender = isMe
           ? currentUser
-          : chat?.participants.find((p) => p.id === msg.senderId) ?? undefined;
-        const isAgent = msg.senderId.startsWith("agent_");
+          : msg.senderId === "system"
+            ? { id: "system", name: t('chat.date.system_agent_name', '系统智能体') }
+            : chat?.participants.find((p) => p.id === msg.senderId) ?? undefined;
+        const isAgent = msg.senderId.startsWith("agent_") || msg.senderId === "system";
 
         const prevMsg = index > 0 ? messages[index - 1] : null;
         let showTime = false;

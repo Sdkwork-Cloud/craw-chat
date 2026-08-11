@@ -803,6 +803,9 @@ importers:
       '@sdkwork/community-sdk-ports':
         specifier: workspace:*
         version: link:../sdkwork-community-sdk-ports
+      '@sdkwork/order-mobile-react-orders':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders
       '@sdkwork/ui-mobile-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-ui/sdkwork-ui-mobile-react
@@ -979,24 +982,51 @@ importers:
 
   ../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses:
     dependencies:
+      '@sdkwork/course-sdk-ports':
+        specifier: workspace:*
+        version: link:../sdkwork-course-sdk-ports
       '@sdkwork/ui-mobile-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-ui/sdkwork-ui-mobile-react
       '@sdkwork/utils':
         specifier: workspace:*
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+      i18next:
+        specifier: 'catalog:'
+        version: 26.3.1(typescript@6.0.3)
       lucide-react:
         specifier: '>=1.0.0'
         version: 1.7.0(react@19.2.4)
       react:
         specifier: '>=18'
         version: 19.2.4
+      react-dom:
+        specifier: '>=18'
+        version: 19.2.4(react@19.2.4)
       react-i18next:
         specifier: '>=17.0.0'
-        version: 17.0.8(i18next@26.3.4(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
       react-router:
         specifier: '>=7.0.0'
         version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+
+  ../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-runtime:
+    dependencies:
+      '@sdkwork/course-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript
+      '@sdkwork/course-sdk-ports':
+        specifier: workspace:*
+        version: link:../sdkwork-course-sdk-ports
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+
+  ../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-sdk-ports:
+    dependencies:
+      '@sdkwork/course-contracts':
+        specifier: workspace:*
+        version: link:../../../../sdks/_shared/course-contracts
 
   ../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-console:
     dependencies:
@@ -1033,6 +1063,8 @@ importers:
       react-i18next:
         specifier: ^17.0.0
         version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+
+  ../sdkwork-course/sdks/_shared/course-contracts: {}
 
   ../sdkwork-course/sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript:
     dependencies:
@@ -3079,9 +3111,18 @@ importers:
       '@sdkwork/community-sdk-ports':
         specifier: workspace:*
         version: link:../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-sdk-ports
+      '@sdkwork/course-app-sdk':
+        specifier: workspace:*
+        version: link:../../../sdkwork-course/sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript
       '@sdkwork/course-mobile-react-courses':
         specifier: workspace:*
         version: link:../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses
+      '@sdkwork/course-runtime':
+        specifier: workspace:*
+        version: link:../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-runtime
+      '@sdkwork/course-sdk-ports':
+        specifier: workspace:*
+        version: link:../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-sdk-ports
       '@sdkwork/drive-mobile-react-drive':
         specifier: workspace:*
         version: link:../../../sdkwork-drive/apps/sdkwork-drive-common/packages/sdkwork-drive-mobile-react-drive
@@ -3160,6 +3201,9 @@ importers:
       '@sdkwork/im-h5-meeting':
         specifier: workspace:*
         version: link:packages/sdkwork-im-h5-meeting
+      '@sdkwork/im-h5-moments':
+        specifier: workspace:*
+        version: link:packages/sdkwork-im-h5-moments
       '@sdkwork/im-h5-notary':
         specifier: workspace:*
         version: link:packages/sdkwork-im-h5-notary
@@ -3682,6 +3726,46 @@ importers:
       '@sdkwork/rtc-mobile-react-meeting':
         specifier: workspace:*
         version: link:../../../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting
+
+  apps/sdkwork-im-h5/packages/sdkwork-im-h5-moments:
+    dependencies:
+      '@sdkwork/community-contracts':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-contracts
+      '@sdkwork/community-sdk-ports':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-sdk-ports
+      '@sdkwork/im-h5-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-im-h5-commons
+      '@sdkwork/im-h5-core':
+        specifier: workspace:*
+        version: link:../sdkwork-im-h5-core
+      '@sdkwork/im-h5-types':
+        specifier: workspace:*
+        version: link:../sdkwork-im-h5-types
+      i18next:
+        specifier: 'catalog:'
+        version: 26.3.1(typescript@6.0.3)
+      lucide-react:
+        specifier: 'catalog:'
+        version: 1.7.0(react@19.2.4)
+      motion:
+        specifier: 'catalog:'
+        version: 12.40.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: 'catalog:'
+        version: 19.2.4
+      react-i18next:
+        specifier: 'catalog:'
+        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+      react-router:
+        specifier: 'catalog:'
+        version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.19.21
 
   apps/sdkwork-im-h5/packages/sdkwork-im-h5-notary:
     dependencies:

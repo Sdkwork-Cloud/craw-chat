@@ -5,6 +5,7 @@ mod id_generator;
 mod message_mutation;
 mod message_store;
 mod outbox_store;
+mod principal_directory;
 mod provider;
 mod push_provider;
 mod realtime_publisher;
@@ -44,6 +45,7 @@ pub use sdkwork_im_contract_stream::{
 };
 
 pub use cluster_bus::ClusterEventBus;
+pub use principal_directory::{PrincipalDirectory, PrincipalDirectoryError};
 pub use push_provider::{PushDeliveryResult, PushMessage, PushProvider};
 pub use retention_scope_store::RetentionScopeStore;
 pub use search_provider::{MessageSearchHit, SearchProvider, SearchResult, SearchableMessage};

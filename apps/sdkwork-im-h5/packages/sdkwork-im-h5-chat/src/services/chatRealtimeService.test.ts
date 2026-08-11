@@ -8,6 +8,7 @@ import {
   disposeChatLiveConnection,
   getChatLiveConnectionStatus,
   invalidateChatLiveConnection,
+  notifyImInboxRefresh,
   setImLiveSessionActiveProvider,
   subscribeInboxLiveRefresh,
 } from "./chatRealtimeService";
@@ -60,6 +61,37 @@ test("does not fire refresh handlers for the connection open caused by the subsc
   // must not trigger an immediate second load.
   assert.equal(refreshCount, 0);
   unsubscribe();
+});
+
+test("notifyImInboxRefresh fires every registered inbox refresh handler without touching the connection", async () => {
+  let firstRefresh = 0;
+  let secondRefresh = 0;
+  const connection = createConnection();
+  const client = initImSdkClient({ apiBaseUrl: "https://im.example.test" });
+  client.connect = async () => connection;
+
+  const unsubscribeFirst = subscribeInboxLiveRefresh(() => {
+    firstRefresh += 1;
+  });
+  const unsubscribeSecond = subscribeInboxLiveRefresh(() => {
+    secondRefresh += 1;
+  });
+  await settlePromises();
+
+  // The welcome conversation is ready: subscribers reload their first page
+  // even though the realtime stream itself has no new event to deliver.
+  notifyImInboxRefresh();
+  assert.equal(firstRefresh, 1);
+  assert.equal(secondRefresh, 1);
+
+  unsubscribeFirst();
+  notifyImInboxRefresh();
+  assert.equal(firstRefresh, 1);
+  assert.equal(secondRefresh, 2);
+  unsubscribeSecond();
+
+  // No subscribers: must be a no-op, not a throw.
+  notifyImInboxRefresh();
 });
 
 test("fires refresh handlers when a reconnected connection transitions back to open", async (t) => {

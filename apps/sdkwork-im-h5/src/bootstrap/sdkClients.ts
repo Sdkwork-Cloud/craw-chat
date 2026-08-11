@@ -47,6 +47,12 @@ import {
 } from '@sdkwork/community-runtime';
 import type { SdkworkCommunityAppSdkPort } from '@sdkwork/community-sdk-ports';
 import {
+  createCourseAppSdkClient,
+  createGeneratedCourseAppSdkPort,
+  type CourseAppSdkClient as CourseAppSdkClientWrapper,
+} from '@sdkwork/course-runtime';
+import type { CourseAppSdkPort } from '@sdkwork/course-sdk-ports';
+import {
   initIamAppSdkClient,
   resetIamAppSdkClient,
   createIamAppSdkClientConfig,
@@ -76,6 +82,8 @@ export interface H5SdkClientComposition {
   readonly cmsAppSdkClient: CmsAppSdkClient;
   readonly communityAppSdkClient: CommunityAppSdkClient;
   readonly communityAppSdkPort: SdkworkCommunityAppSdkPort;
+  readonly courseAppSdkClient: CourseAppSdkClientWrapper;
+  readonly courseAppSdkPort: CourseAppSdkPort;
 }
 
 let sdkClientComposition: H5SdkClientComposition | null = null;
@@ -177,6 +185,16 @@ export function initSdkClients(
     communityAppSdkClient.client,
   );
 
+  const courseAppSdkClient = createCourseAppSdkClient({
+    config: {
+      appApiBaseUrl: environment.imApiBaseUrl,
+    },
+    tokenManager,
+  });
+  const courseAppSdkPort = createGeneratedCourseAppSdkPort(
+    courseAppSdkClient.client,
+  );
+
   sdkClientComposition = {
     driveAppSdkClient,
     imSdkClient,
@@ -191,6 +209,8 @@ export function initSdkClients(
     cmsAppSdkClient,
     communityAppSdkClient,
     communityAppSdkPort,
+    courseAppSdkClient,
+    courseAppSdkPort,
   };
   return sdkClientComposition;
 }

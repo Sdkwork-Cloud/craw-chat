@@ -57,6 +57,23 @@ export const MessageItem = ({
   onRetry,
 }: MessageItemProps) => {
   const { t } = useTranslation();
+  // System messages (system-agent notices, call signals) render as a centered
+  // hint bar without avatar/bubble chrome instead of an empty bubble.
+  if (msg.type === "system") {
+    return (
+      <div
+        id={`msg-${msg.id}`}
+        className={cn(
+          "flex w-full justify-center py-1.5",
+          isHighlighted && "bg-black/5 dark:bg-white/5 rounded-xl",
+        )}
+      >
+        <span className="max-w-[85%] rounded-full bg-black/5 dark:bg-white/10 px-3 py-1 text-[12px] leading-relaxed text-text-sub text-center break-words">
+          {msg.content || t("chat.detail.system_message", "System message")}
+        </span>
+      </div>
+    );
+  }
 return (
     <div
       id={`msg-${msg.id}`}

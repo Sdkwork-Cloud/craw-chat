@@ -31,7 +31,8 @@ IM-owned H5 capability packages live under `packages/sdkwork-im-h5-*`:
 - `sdkwork-im-h5-chat` - conversation and inbox surfaces
 - `sdkwork-im-h5-user` - legacy, unmounted mixed user surfaces pending owner resolution
 - `sdkwork-im-h5-types` - shared TypeScript type contracts
-- IM-owned feature packages: `sdkwork-im-h5-{chat,contacts,channels}`
+- `sdkwork-im-h5-moments` - moments (朋友圈) feature: feed, publish, likes, comments, delete over the injected Community App SDK port
+- IM-owned feature packages: `sdkwork-im-h5-{chat,contacts,channels,moments}`
 - Fail-closed packages with unresolved ownership: `sdkwork-im-h5-{ai-writing,approval,
   attendance,calendar,enterprise,recruitment,report,user}`
 
@@ -73,12 +74,17 @@ search, read receipts), Contacts (address book, friend requests with realtime re
 starred/blocked contacts, organization directory over IAM, group chat list), Workspace Notary, the
 Notary workflow routes, and the Order center (order list, order detail, cashier, and voucher
 redemption) by default. Cloud Drive is an optional composed module backed by injected owner SDK
-clients. QR scanning (recognition capability pending camera integration), Chat RTC media UI, Agent
+clients. Community (circles) and Course (course center, detail, enrollment, player, live room, my
+courses) are optional composed modules backed by injected owner SDK ports
+(`@sdkwork/community-runtime` / `@sdkwork/course-runtime`). Moments (朋友圈) is an IM-owned composed
+module (`@sdkwork/im-h5-moments`) backed by the injected Community App SDK port (feed, publish into a
+selected circle, likes, comments, delete); entry media upload is a deferred capability. QR scanning
+(recognition capability pending camera integration), Chat RTC media UI, Agent
 lifecycle, AI Image/Video/Writing/Music, Voice Synthesis, Voice Summary, Calendar, Approval,
 Attendance, Reports, Meeting, Channels, Hardware, Recruitment, local Knowledge CRUD, Shopping,
-Checkout (physical order creation), Refunds, Fulfillment, Community, Courses, and Enterprise routes
+Checkout (physical order creation), Refunds, Fulfillment, and Enterprise routes
 are fail-closed until their owner SDK and permission composition is complete. Legacy User profile,
-settings, Moments, Characters, Works, voice, billing, and life-service pages are also fail-closed;
+settings, Characters, Works, voice, billing, and life-service pages are also fail-closed;
 browser storage and synthetic records are not accepted substitutes. The separate legacy User Auth
 implementation is excluded from release and remains blocked pending IAM security review; the root app
 uses the approved appbase IAM runtime instead. Group Knowledgebase launch remains a separate

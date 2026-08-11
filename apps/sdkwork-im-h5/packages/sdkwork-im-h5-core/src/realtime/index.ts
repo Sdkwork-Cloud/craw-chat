@@ -905,6 +905,22 @@ export function subscribeInboxLiveRefresh(handler: () => void): () => void {
   };
 }
 
+/**
+ * Signals subscribers that the inbox changed outside the realtime stream
+ * (e.g. the system-agent welcome conversation was just created by
+ * `welcome/ensure`). Registration-driven pages reload their first page; the
+ * connection itself is untouched.
+ */
+export function notifyImInboxRefresh(): void {
+  for (const handler of inboxRefreshHandlers) {
+    try {
+      handler();
+    } catch {
+      // A failing view observer must not block the remaining refreshes.
+    }
+  }
+}
+
 export function onImLiveConnectionOpen(listener: ConnectionOpenListener): () => void {
   openListeners.add(listener);
   return () => {
@@ -924,6 +940,7 @@ export const imLiveService = {
   subscribeConversationEvents,
   subscribeScopeEvents,
   subscribeInboxLiveRefresh,
+  notifyImInboxRefresh,
   onImLiveConnectionOpen,
   ensureImLiveConnection,
   invalidateImLiveConnection,

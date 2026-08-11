@@ -29,6 +29,8 @@ import {
 import { useAppStore } from '@sdkwork/im-h5-core';
 import { initSdkClients, resetSdkClients } from './sdkClients';
 import { bootstrapImCommunityH5Port } from './communityPort';
+import { bootstrapImCourseH5Port } from './coursePort';
+import { bootstrapImMomentsH5Port } from './momentsPort';
 import { createWechatPaymentOAuthChannel } from './wechatPaymentOAuth';
 import { configureVoiceMyVoicesRuntime } from '@sdkwork/im-h5-ai-voice';
 import { resolveTokenManagerBinding, resetTokenManagerBinding } from './tokenManager';
@@ -77,6 +79,15 @@ export async function bootstrapImH5CapabilityIntegrations(): Promise<H5Bootstrap
   // Community (圈子) capability: bind the mobile React package to the
   // generated Community App SDK port (auth session port side effect included).
   bootstrapImCommunityH5Port();
+  // Course (课程) capability: bind the canonical course mobile React package
+  // to the generated Course App SDK port. Without this binding the course
+  // pages fail closed with CourseCapabilityUnavailableError.
+  bootstrapImCourseH5Port();
+  // Moments (朋友圈) capability: bind the moments feature package to the
+  // generated Community App SDK port (feed / publish / reactions / comments).
+  // Without this binding the moments pages fail closed with
+  // MomentCapabilityUnavailableError.
+  bootstrapImMomentsH5Port();
 
   const hostAdapters: H5BootstrapResult['hostAdapters'] = [];
   for (const meta of IM_H5_ROUTE_REGISTRY) {

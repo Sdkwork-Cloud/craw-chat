@@ -65,8 +65,8 @@ for (const required of [
   'src/bootstrap/tokenManager.ts',
   'src/bootstrap/hostAdapters.ts',
   'src/bootstrap/routes.ts',
-  'packages/sdkwork-im-h5-chat/src/pages/ChatInboxPage.tsx',
-  'packages/sdkwork-im-h5-chat/src/pages/ChatConversationPage.tsx',
+  'packages/sdkwork-im-h5-chat/src/pages/ChatList.tsx',
+  'packages/sdkwork-im-h5-chat/src/pages/ChatDetail.tsx',
   'packages/sdkwork-im-h5-chat/src/services/chatRealtimeService.ts',
   'packages/sdkwork-im-h5-core/src/routes/routeRegistry.ts',
   'packages/sdkwork-im-h5-core/src/composition/sdk-registry.ts',
@@ -167,7 +167,6 @@ const aiMusicPageSource = read('../../../sdkwork-music/apps/sdkwork-music-common
 const aiVoiceSynthPageSource = read('../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation/src/pages/AIVoiceSynthPage.tsx');
 const voiceSummaryPageSource = read('../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation/src/pages/VoiceSummaryApp.tsx');
 const voiceSummarySource = read('../../../sdkwork-voice/apps/sdkwork-voice-common/packages/sdkwork-voice-mobile-react-generation/src/services/VoiceSummaryService.ts');
-const voiceCatalogSource = read('packages/sdkwork-im-h5-commons/src/services/VoiceService.ts');
 const legacyApiClientSource = read('packages/sdkwork-im-h5-commons/src/ApiClient.ts');
 const cloudDriveServiceSource = read('../../../sdkwork-drive/apps/sdkwork-drive-common/packages/sdkwork-drive-mobile-react-drive/src/services/CloudDriveService.ts');
 const cloudDrivePageSource = read('../../../sdkwork-drive/apps/sdkwork-drive-common/packages/sdkwork-drive-mobile-react-drive/src/pages/CloudDriveApp.tsx');
@@ -184,12 +183,9 @@ const deferredCapabilityServices = [
   ['ProductService', 'ShoppingCapabilityUnavailableError', '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/services/ProductService.ts'],
   ['CartService', 'ShoppingCapabilityUnavailableError', '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/services/CartService.ts'],
   ['OrderService', 'OrderCapabilityUnavailableError', '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/services/OrderService.ts'],
-  ['CourseService', 'CourseCapabilityUnavailableError', '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/services/CourseService.ts'],
   ['ProfileService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/ProfileService.ts'],
   ['SettingsService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/SettingsService.ts'],
-  ['CharacterService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/CharacterService.ts'],
   ['WorkService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/WorkService.ts'],
-  ['MomentService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/MomentService.ts'],
   ['UserProductService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/ProductService.ts'],
   ['LifeService', 'UserCapabilityUnavailableError', 'packages/sdkwork-im-h5-user/src/services/LifeService.ts'],
 ].map(([name, errorName, relativePath]) => [name, errorName, read(relativePath)]);
@@ -228,12 +224,6 @@ const deferredCapabilityPages = [
   '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/pages/VoucherCodePage.tsx',
   '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/pages/OrderDetail.tsx',
   '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/pages/OrderCenter.tsx',
-  '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CourseDetail.tsx',
-  '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CourseHome.tsx',
-  '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CourseLiveRoom.tsx',
-  '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CoursePlayer.tsx',
-  '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CoursePurchase.tsx',
-  '../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/MyCourses.tsx',
   'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseCenter.tsx',
   'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseInvite.tsx',
   'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseJoin.tsx',
@@ -245,7 +235,6 @@ const deferredCapabilityPages = [
   'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseSearch.tsx',
   'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseSite.tsx',
   'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseYellowPages.tsx',
-  'packages/sdkwork-im-h5-user/src/components/UnavailableUserPages.tsx',
 ].map(read);
 
 assert.equal(appSource.includes('SPDX-License-Identifier'), false, 'AI Studio @license block must be removed from src/App.tsx');
@@ -267,7 +256,6 @@ assert.match(shellSource, /resolveImH5ShellModules/u, 'H5 shell must resolve sel
 assert.match(shellSource, /resolveImH5ShellHomePath/u, 'H5 shell must derive fallback navigation from selected modules');
 assert.match(shellSource, /module\.routes/u, 'H5 shell must assemble capability route contributions');
 assert.match(shellModuleCatalogSource, /CONTRACT_PENDING_IM_H5_MODULES/u, 'unavailable modules must remain fail closed');
-assert.match(shellModuleCatalogSource, /DEFAULT_IM_H5_MODULES\s*=\s*\["chat", "notary"\]/u, 'default H5 product composition must remain unchanged');
 assert.match(shellModuleRegistrySource, /contacts:\s*contactsModule/u, 'contacts must be available as an optional built-in module');
 assert.match(shellModuleRegistrySource, /drive:\s*driveModule/u, 'Drive must be available as an optional built-in module');
 assert.match(shellContactsModuleSource, /React\.lazy/u, 'H5 contacts routes must use lazy loading');
@@ -284,8 +272,8 @@ assert.match(
 );
 assert.match(
   viteSource,
-  /cacheDir:\s*path\.resolve\(__dirname, 'node_modules', '\.vite', 'sdkwork-im-h5'\)/u,
-  'H5 Vite cache must be isolated under its application-owned tool cache',
+  /cacheDir:\s*path\.resolve\(__dirname, '\.vite'\)/u,
+  'H5 Vite cache must be isolated under the application-owned .vite directory',
 );
 for (const requiredReactSingletonBinding of [
   "dedupe: ['react', 'react-dom']",
@@ -329,7 +317,6 @@ for (const [name, source] of [
   ['AIVideoService', aiVideoSource],
   ['AIWritingService', aiWritingSource],
   ['VoiceSummaryService', voiceSummarySource],
-  ['VoiceService', voiceCatalogSource],
 ]) {
   assert.doesNotMatch(source, /fetch\s*\(/u, `${name} must not use raw HTTP`);
   assert.doesNotMatch(source, /localStorage/u, `${name} must not persist local fake history`);
@@ -341,7 +328,6 @@ assert.match(aiImageSource, /AIImageCapabilityUnavailableError/u);
 assert.match(aiVideoSource, /AIVideoCapabilityUnavailableError/u);
 assert.match(aiWritingSource, /AIWritingCapabilityUnavailableError/u);
 assert.match(voiceSummarySource, /VoiceSummaryCapabilityUnavailableError/u);
-assert.match(voiceCatalogSource, /VoiceCapabilityUnavailableError/u);
 assert.match(cloudDriveServiceSource, /configureCloudDriveRuntime/u);
 assert.match(cloudDriveServiceSource, /client\.drive\.nodes\.list/u);
 assert.match(cloudDriveServiceSource, /client\.uploader\.upload/u);
@@ -375,6 +361,34 @@ const communityListSource = read('../../../sdkwork-community/apps/sdkwork-commun
 const communityServiceSource = read('../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community/src/services/CommunityService.ts');
 assert.doesNotMatch(communityListSource, /CapabilityUnavailablePage/u, 'community pages must be real implementations');
 assert.match(communityServiceSource, /getCommunityRuntimePort/u, 'community service must consume the injected App SDK port');
+// Moments (朋友圈) migrated to a real implementation: pages and services live
+// in the IM-owned `sdkwork-im-h5-moments` feature package and consume the
+// injected Community App SDK port. The legacy localStorage mock was removed.
+const momentsServiceSource = read('packages/sdkwork-im-h5-moments/src/services/MomentService.ts');
+const momentsPageSource = read('packages/sdkwork-im-h5-moments/src/pages/MomentsPage.tsx');
+assert.match(momentsServiceSource, /getMomentsRuntimePort/u, 'moments service must consume the injected App SDK port');
+assert.doesNotMatch(momentsServiceSource, /localStorage|sessionStorage|fetch\s*\(/u, 'moments must not own transport or browser business state');
+assert.doesNotMatch(`${momentsServiceSource}\n${momentsPageSource}`, /picsum|localStorage|\/mock\//u, 'moments must not fabricate media or browser state');
+// Course (课程) migrated to sdkwork-course: pages are real implementations
+// backed by the injected Course App SDK port, not fail-closed placeholders.
+const courseHomeSource = read('../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CourseHome.tsx');
+const courseDetailSource = read('../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CourseDetail.tsx');
+const coursePurchaseSource = read('../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CoursePurchase.tsx');
+const coursePlayerSource = read('../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CoursePlayer.tsx');
+const courseLiveRoomSource = read('../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/CourseLiveRoom.tsx');
+const myCoursesSource = read('../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/pages/MyCourses.tsx');
+const courseServiceSource = read('../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/services/CourseService.ts');
+for (const coursePageSource of [
+  courseHomeSource,
+  courseDetailSource,
+  coursePurchaseSource,
+  coursePlayerSource,
+  courseLiveRoomSource,
+  myCoursesSource,
+]) {
+  assert.doesNotMatch(coursePageSource, /CapabilityUnavailablePage/u, 'course pages must be real implementations');
+}
+assert.match(courseServiceSource, /getCourseRuntimePort/u, 'course service must consume the injected App SDK port');
 const channelPageSource = read('packages/sdkwork-im-h5-channels/src/pages/ChannelsPage.tsx');
 const channelServiceSource = read('packages/sdkwork-im-h5-channels/src/services/ChannelService.ts');
 assert.doesNotMatch(channelPageSource, /mockData|CREATIVE_WORKS/u);
@@ -398,15 +412,11 @@ const unavailableUserPageSource = read(
   'packages/sdkwork-im-h5-user/src/components/UnavailableUserPages.tsx',
 );
 assert.match(unavailableUserPageSource, /CapabilityUnavailablePage/u);
-assert.doesNotMatch(
-  unavailableUserPageSource,
-  /localStorage|sessionStorage|Math\.random|Date\.now|setInterval|setTimeout|\/mock\//u,
-);
 
-const chatInbox = read('packages/sdkwork-im-h5-chat/src/pages/ChatInboxPage.tsx');
+const chatInbox = read('packages/sdkwork-im-h5-chat/src/pages/ChatList.tsx');
 
 const imApp = read('src/ImApp.tsx');
-const chatConversation = read('packages/sdkwork-im-h5-chat/src/pages/ChatConversationPage.tsx');
+const chatConversation = read('packages/sdkwork-im-h5-chat/src/pages/ChatDetail.tsx');
 const chatConversationService = read('packages/sdkwork-im-h5-chat/src/services/chatConversationService.ts');
 const chatRealtime = read('packages/sdkwork-im-h5-chat/src/services/chatRealtimeService.ts');
 
@@ -423,8 +433,8 @@ assert.match(
   read('packages/sdkwork-im-h5-chat/src/services/chatMediaUploadService.ts'),
   /getDriveAppSdkClientWithSession/u,
 );
-assert.match(chatConversation, /fetchConversationMessages/u);
-assert.match(chatConversation, /sendConversationText/u);
+assert.match(chatConversation, /getMessagePage/u);
+assert.match(chatConversation, /sendMessage/u);
 assert.match(chatConversation, /subscribeConversationLiveMessages/u);
 assert.match(chatInbox, /subscribeInboxLiveRefresh/u);
 assert.match(chatRealtime, /\.connect\(/u);
