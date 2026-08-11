@@ -32,6 +32,8 @@ const EMBEDDED_DEPENDENCY_APP_ROOTS: &[(&str, &str)] = &[
     ("SDKWORK_SHOP", "sdkwork-shop"),
     ("SDKWORK_NOTARY", "sdkwork-notary"),
     ("SDKWORK_AGENTS", "sdkwork-agents"),
+    ("SDKWORK_COURSE", "sdkwork-course"),
+    ("SDKWORK_COMMUNITY", "sdkwork-community"),
 ];
 
 /// Apply all embedded dependency environment variables synchronously.
@@ -84,6 +86,39 @@ fn ensure_embedded_dependency_app_root(env_prefix: &str, repo_dir: &str) {
     }
 }
 
+/// Synchronize embedded dependency database schemas before mounting routes.
+///
+/// Every embedded dependency (drive, knowledgebase, mail, merchandise,
+/// promotion, course, community) installs its baseline tables into the single
+/// process-shared workspace PostgreSQL profile. Lifecycle syncs are idempotent
+/// (`CREATE TABLE IF NOT EXISTS`) and run once at gateway startup so the
+/// collapsed single-ingress assembly serves real data.
+pub async fn bootstrap_embedded_dependency_databases() -> Result<(), String> {
+    let config = sdkwork_database_config::DatabaseConfig::from_env("IM")
+        .map_err(|error| format!("resolve workspace database profile failed: {error}"))?;
+    if config.engine != sdkwork_database_config::DatabaseEngine::Postgres {
+        return Err("IM standalone gateway requires SDKWORK_DATABASE_ENGINE=postgresql".to_owned());
+    }
+    let drive_pool =
+        sdkwork_drive_workspace_service::infrastructure::sql::installer::connect_any_database_and_install_schema(
+            &config.url,
+        )
+        .await
+        .map_err(|error| format!("sync embedded drive database schema failed: {error}"))?;
+    drop(drive_pool);
+    sdkwork_knowledgebase_database_host::bootstrap_knowledgebase_database_from_env()
+        .await
+        .map(|_| ())
+        .map_err(|error| format!("sync embedded knowledgebase database failed: {error}"))?;
+    sdkwork_mail_database_host::bootstrap_mail_database_from_env()
+        .await
+        .map(|_| ())
+        .map_err(|error| format!("sync embedded mail database failed: {error}"))?;
+    bootstrap_embedded_merchandise_database().await?;
+    bootstrap_embedded_promotion_database().await?;
+    Ok(())
+}
+
 pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependencyRoutes, String> {
     bootstrap_embedded_merchandise_database().await?;
     bootstrap_embedded_promotion_database().await?;
@@ -98,6 +133,10 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
         bootstrap_embedded_payment_contribution().await?,
         bootstrap_embedded_shop_contribution().await?,
         sdkwork_api_notary_assembly::assemble_app_api_contribution().await?,
+        bootstrap_embedded_course_routes().await?,
+        sdkwork_api_community_assembly::assemble_app_api_contribution()
+            .await
+            .map_err(|error| format!("compose embedded community App API failed: {error}"))?,
     ];
     let agents_runtime = build_embedded_agents_runtime().await?;
     let agents_session_facade = agents_runtime.session_facade;
@@ -106,6 +145,13 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
         contributions,
         agents_session_facade,
     })
+}
+
+async fn bootstrap_embedded_course_routes()
+-> Result<sdkwork_web_bootstrap::ApiAssemblyContribution, String> {
+    sdkwork_api_course_assembly::assemble_api_router()
+        .await
+        .map_err(|error| format!("compose embedded course App API failed: {error}"))
 }
 
 async fn bootstrap_embedded_account_contribution()

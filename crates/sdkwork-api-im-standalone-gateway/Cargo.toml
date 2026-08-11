@@ -22,6 +22,11 @@ sdkwork_im_service_readiness = { workspace = true }
 sdkwork_im_iam_application_bootstrap = { workspace = true }
 session-gateway = { path = "../../services/session-gateway" }
 sdkwork-api-drive-assembly = { workspace = true }
+sdkwork-api-course-assembly = { workspace = true }
+sdkwork-api-community-assembly = { workspace = true }
+sdkwork-knowledgebase-database-host = { workspace = true }
+sdkwork-drive-workspace-service = { workspace = true }
+sdkwork-mail-database-host = { workspace = true }
 sdkwork-api-notary-assembly = { workspace = true }
 sdkwork-api-knowledgebase-assembly = { workspace = true }
 sdkwork-api-agents-assembly = { workspace = true }

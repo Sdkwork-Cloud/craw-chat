@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use axum::{
     body::Body,
     extract::{Path, State},
-    http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri},
+    http::{header, HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri},
     response::{Redirect, Response},
     routing::{any, get},
     Router,
@@ -948,15 +948,41 @@ fn text_response(status: StatusCode, message: impl Into<String>) -> Response {
 }
 
 fn json_error_response(status: StatusCode, message: &str) -> Response {
-    Response::builder()
+    // API_SPEC §15: every HTTP 4xx/5xx body MUST be RFC 9457
+    // `application/problem+json` with a numeric `ProblemDetail.code` and a
+    // server-owned `traceId`. Statuses that lack a dedicated platform code
+    // fall back to the closest registered platform error (API_SPEC §15.3).
+    let result_code = match status {
+        StatusCode::NOT_FOUND => sdkwork_utils_rust::SdkWorkResultCode::NotFound,
+        StatusCode::BAD_GATEWAY => sdkwork_utils_rust::SdkWorkResultCode::BadGateway,
+        StatusCode::SERVICE_UNAVAILABLE => sdkwork_utils_rust::SdkWorkResultCode::ServiceUnavailable,
+        StatusCode::GATEWAY_TIMEOUT => sdkwork_utils_rust::SdkWorkResultCode::GatewayTimeout,
+        StatusCode::METHOD_NOT_ALLOWED => sdkwork_utils_rust::SdkWorkResultCode::MethodNotAllowed,
+        _ if status.is_client_error() => sdkwork_utils_rust::SdkWorkResultCode::MalformedRequest,
+        _ => sdkwork_utils_rust::SdkWorkResultCode::InternalError,
+    };
+    let problem = sdkwork_utils_rust::SdkWorkProblemDetail::platform(
+        result_code,
+        message,
+        sdkwork_utils_rust::uuid(),
+    );
+    let mut response = Response::builder()
         .status(status)
-        .header(header::CONTENT_TYPE, JSON_CONTENT_TYPE)
-        .body(Body::from(format!(
-            "{{\"error\":{{\"message\":\"{}\"}},\"status\":{}}}",
-            escape_json_string(message),
-            status.as_u16()
-        )))
-        .expect("json proxy error response should build")
+        .header(
+            header::CONTENT_TYPE,
+            "application/problem+json; charset=utf-8",
+        )
+        .body(Body::from(
+            serde_json::to_string(&problem).expect("problem detail should serialize"),
+        ))
+        .expect("json proxy error response should build");
+    if let Ok(value) = HeaderValue::from_str(&problem.trace_id) {
+        response.headers_mut().insert(
+            HeaderName::from_static("x-sdkwork-trace-id"),
+            value,
+        );
+    }
+    response
 }
 
 fn escape_json_string(value: &str) -> String {
@@ -1135,10 +1161,19 @@ mod tests {
         assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
         assert_eq!(
             content_type.as_deref(),
-            Some("application/json; charset=utf-8")
+            Some("application/problem+json; charset=utf-8")
         );
-        assert!(body_text.contains("SDKWORK_ADMIN_PROXY_TARGET"));
-        assert!(body_text.contains("/backend/v3/api/admin"));
+        let problem: serde_json::Value = serde_json::from_str(body_text.as_str())
+            .expect("503 body should be a standard ProblemDetail envelope");
+        assert_eq!(problem["status"], 503);
+        assert_eq!(problem["code"], 50301);
+        assert!(problem["traceId"].is_string());
+        // API_SPEC §15.2 client-safe detail: ServiceUnavailable bodies must not
+        // leak configuration/implementation specifics to clients.
+        assert_eq!(
+            problem["detail"].as_str(),
+            Some("A required dependency is temporarily unavailable")
+        );
     }
 
     #[tokio::test]
@@ -1622,20 +1657,32 @@ mod tests {
             .await
             .expect("agent api request should complete");
         assert_eq!(agent_api.status(), StatusCode::SERVICE_UNAVAILABLE);
-        assert!(agent_api
-            .text()
-            .await
-            .expect("agent api body should be readable")
-            .contains("SDKWORK_IM_PC_API_UPSTREAM"));
+        let agent_problem: serde_json::Value = serde_json::from_str(
+            agent_api
+                .text()
+                .await
+                .expect("agent api body should be readable")
+                .as_str(),
+        )
+        .expect("agent 503 body should be a standard ProblemDetail envelope");
+        assert_eq!(agent_problem["status"], 503);
+        assert_eq!(agent_problem["code"], 50301);
+        assert!(agent_problem["traceId"].is_string());
 
         let admin_api =
             fetch_response(base_url.as_str(), "/backend/v3/api/admin/storage/config").await;
         assert_eq!(admin_api.status(), StatusCode::SERVICE_UNAVAILABLE);
-        assert!(admin_api
-            .text()
-            .await
-            .expect("admin api body should be readable")
-            .contains("SDKWORK_ADMIN_PROXY_TARGET"));
+        let admin_problem: serde_json::Value = serde_json::from_str(
+            admin_api
+                .text()
+                .await
+                .expect("admin api body should be readable")
+                .as_str(),
+        )
+        .expect("admin 503 body should be a standard ProblemDetail envelope");
+        assert_eq!(admin_problem["status"], 503);
+        assert_eq!(admin_problem["code"], 50301);
+        assert!(admin_problem["traceId"].is_string());
     }
 
     #[tokio::test]

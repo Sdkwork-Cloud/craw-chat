@@ -17,6 +17,7 @@ im-storage-runtime.workspace = true
 ops-service = { path = "../../services/ops-service" }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 sdkwork-api-config.workspace = true
+sdkwork_utils_rust.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "net", "sync"] }
