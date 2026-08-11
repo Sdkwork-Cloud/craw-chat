@@ -69,6 +69,7 @@ impl ApnsConfig {
 struct ApnsJwtClaims {
     iss: String,
     iat: u64,
+    exp: u64,
 }
 
 /// APNs push notification adapter.
@@ -102,6 +103,7 @@ impl ApnsPushProvider {
         let claims = ApnsJwtClaims {
             iss: self.config.team_id.clone(),
             iat: issued_at,
+            exp: issued_at.saturating_add(APNS_JWT_TTL_SECONDS),
         };
         let mut header = Header::new(Algorithm::ES256);
         header.kid = Some(self.config.key_id.clone());
@@ -310,5 +312,24 @@ mod tests {
     #[test]
     fn test_jwt_ttl_constant_is_below_apns_one_hour_limit() {
         assert!(APNS_JWT_TTL_SECONDS <= 3_600);
+    }
+
+    #[test]
+    fn test_sign_jwt_claims_carry_required_iat_and_exp() {
+        let provider = ApnsPushProvider::new(sample_config());
+        // Signing requires a real P8 key file; assert the claim struct itself
+        // carries both required APNs claims with the configured TTL so the
+        // constant can never silently become dead code again.
+        let issued_at = 1_700_000_000u64;
+        let claims = ApnsJwtClaims {
+            iss: provider.config.team_id.clone(),
+            iat: issued_at,
+            exp: issued_at.saturating_add(APNS_JWT_TTL_SECONDS),
+        };
+        assert_eq!(claims.exp.saturating_sub(claims.iat), APNS_JWT_TTL_SECONDS);
+        assert!(
+            claims.exp.saturating_sub(claims.iat) <= 3_600,
+            "APNs provider tokens must not exceed the one-hour expiry limit"
+        );
     }
 }

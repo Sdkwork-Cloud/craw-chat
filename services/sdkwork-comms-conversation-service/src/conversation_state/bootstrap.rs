@@ -64,11 +64,9 @@ pub fn build_conversation_state_runtime_from_env() -> ConversationStateRuntime {
     service.configure_agent_integration_store(Arc::new(
         PostgresAgentIntegrationStore::from_pool_with_runtime_ids(pool.clone()),
     ) as Arc<dyn AgentIntegrationStore>);
-    service.configure_user_profile_resolver(Arc::new(
-        PostgresUserProfileResolver::new(Arc::new(PostgresUserProfileStore::new(Arc::new(
-            shared_pool,
-        )))),
-    ) as Arc<dyn UserProfileResolver>);
+    service.configure_user_profile_resolver(Arc::new(PostgresUserProfileResolver::new(Arc::new(
+        PostgresUserProfileStore::new(Arc::new(shared_pool)),
+    ))) as Arc<dyn UserProfileResolver>);
 
     ConversationStateRuntime {
         service,

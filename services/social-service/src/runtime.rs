@@ -1733,7 +1733,7 @@ impl SocialRuntime {
         sender_user_id: &str,
         peer_user_id: &str,
     ) -> Result<(), String> {
-        let _read_lock = self.acquire_cross_instance_read_lock()?;
+        self.acquire_cross_instance_read_lock()?;
         self.refresh_state_from_authority_for_read()?;
         if let Some(user_block) = self.active_direct_message_block_for_pair(
             tenant_id,

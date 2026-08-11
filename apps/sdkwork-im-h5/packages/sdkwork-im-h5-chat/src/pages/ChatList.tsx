@@ -52,8 +52,9 @@ export const ChatList: React.FC = () => {
       if (requestSeq !== loadRequestSeq.current) return;
       const merged = mergeChats(cursor ? chatsRef.current : [], page.items);
       const sorted = sortChats(merged);
-      chatsRef.current = sorted;
-      setChats(sorted);
+      const bounded = boundChatList(sorted);
+      chatsRef.current = bounded;
+      setChats(bounded);
       setNextCursor(page.hasMore ? page.nextCursor : undefined);
     } catch (error) {
       console.error(error);
@@ -285,4 +286,27 @@ function sortChats(chats: readonly Chat[]): Chat[] {
     const rightTime = right.lastMessage?.timestamp ?? 0;
     return rightTime - leftTime;
   });
+}
+
+// Inbox cap: keep pinned conversations plus the newest MAX_CHATS, trimming the
+// oldest unpinned tail so cursor-paginated accumulation cannot grow the list
+// without bound. Newer conversations always stay visible.
+const MAX_CHATS = 500;
+
+function boundChatList(chats: readonly Chat[]): Chat[] {
+  if (chats.length <= MAX_CHATS) {
+    return chats as Chat[];
+  }
+  const pinnedCount = chats.filter((chat) => chat.isPinned).length;
+  const trimCount = Math.max(0, chats.length - MAX_CHATS - pinnedCount);
+  if (trimCount === 0) {
+    return chats as Chat[];
+  }
+  const oldestUnpinned = chats
+    .map((chat, index) => ({ chat, index }))
+    .filter(({ chat }) => !chat.isPinned)
+    .slice(-trimCount)
+    .map(({ index }) => index);
+  const excluded = new Set(oldestUnpinned);
+  return chats.filter((_, index) => !excluded.has(index));
 }

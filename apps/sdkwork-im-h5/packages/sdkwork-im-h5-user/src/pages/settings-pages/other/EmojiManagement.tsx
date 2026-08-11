@@ -8,7 +8,7 @@ export const EmojiManagement: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <PageLayout title={t("user:other_settings.emoji_mgr", "表情管理")}>
+    <PageLayout title={t("user:other_settings.emoji_mgr", "Sticker management")}>
       <div className="flex flex-col items-center py-20 bg-bg-color h-full">
         <div className="flex gap-2 mb-8">
           <div className="w-16 h-16 rounded-xl bg-chat-other-bg flex items-center justify-center text-3xl shadow-sm border border-border-color">

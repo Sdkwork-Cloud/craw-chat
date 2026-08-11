@@ -23,7 +23,7 @@ export const ReportDetailHeader: React.FC<ReportDetailHeaderProps> = ({ report }
       </h2>
       <div className="text-[13px] text-text-sub flex items-center justify-center gap-1.5 bg-bg-color px-3 py-1 rounded-full">
         <Clock className="w-3.5 h-3.5" />
-        {t('report.auto_n67688416', `提交于 ${report.date}`)}
+        {t('report.auto_n67688416', `Submitted on ${report.date}`)}
       </div>
     </div>
   );

@@ -16,7 +16,7 @@ use tokio::sync::Semaphore;
 use crate::error::OpsError;
 use crate::handlers::{
     get_cluster, get_diagnostics, get_lag, get_ops_health, get_provider_binding_drift,
-    get_provider_bindings, get_runtime_dir, post_retention_purge,
+    get_provider_bindings, get_replay_status, get_runtime_dir, post_retention_purge,
 };
 use crate::openapi::{docs, openapi_json};
 use crate::state::{AppState, OpsRuntime, PublicAppGuardrails};
@@ -43,6 +43,10 @@ pub fn build_domain_api_router(state: AppState) -> Router {
         .route("/backend/v3/api/ops/health", get(get_ops_health))
         .route("/backend/v3/api/ops/cluster", get(get_cluster))
         .route("/backend/v3/api/ops/lag", get(get_lag))
+        .route(
+            "/backend/v3/api/ops/replay_status",
+            get(get_replay_status),
+        )
         .route("/backend/v3/api/ops/runtime_dir", get(get_runtime_dir))
         .route(
             "/backend/v3/api/ops/provider_bindings",

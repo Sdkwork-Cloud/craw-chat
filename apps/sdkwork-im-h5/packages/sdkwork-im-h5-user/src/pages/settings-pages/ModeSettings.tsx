@@ -18,17 +18,17 @@ const [enabled, setEnabled] = useState(false);
   };
 
   return (
-    <PageLayout title={t("user:mode.teen_title", "青少年模式")}>
+    <PageLayout title={t("user:mode.teen_title", "Teen mode")}>
       <div className="flex flex-col items-center py-10">
         <div className="w-16 h-16 bg-primary-blue/10 rounded-full flex items-center justify-center mb-4">
           <span className="text-primary-blue text-2xl">👦</span>
         </div>
-        <h3 className="text-[18px] font-medium text-text-main mb-2">{t("user:mode.teen_title", "青少年模式")}</h3>
-        <p className="text-[14px] text-text-sub text-center px-8 mb-8">{t("user:mode.teen_desc", "开启后，将限制部分功能的使用，并限制使用时间。开启或关闭都需要输入独立密码。")}</p>
+        <h3 className="text-[18px] font-medium text-text-main mb-2">{t("user:mode.teen_title", "Teen mode")}</h3>
+        <p className="text-[14px] text-text-sub text-center px-8 mb-8">{t("user:mode.teen_desc", "When enabled, some features and usage time are limited. Turning it on or off requires a separate password.")}</p>
         <button
           onClick={handleToggle}
           className="w-[200px] h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
-        >{enabled ? t("user:mode.teen_off", "关闭青少年模式") : t("user:mode.teen_on", "开启青少年模式")}</button>
+        >{enabled ? t("user:mode.teen_off", "Turn off teen mode") : t("user:mode.teen_on", "Turn on teen mode")}</button>
       </div>
     </PageLayout>
   );
@@ -50,17 +50,17 @@ const [enabled, setEnabled] = useState(false);
   };
 
   return (
-    <PageLayout title={t("user:mode.care_title", "关怀模式")}>
+    <PageLayout title={t("user:mode.care_title", "Care mode")}>
       <div className="flex flex-col items-center py-10">
         <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mb-4">
           <span className="text-orange-500 text-2xl">❤️</span>
         </div>
-        <h3 className="text-[18px] font-medium text-text-main mb-2">{t("user:mode.care_title", "关怀模式")}</h3>
-        <p className="text-[14px] text-text-sub text-center px-8 mb-8">{t("user:mode.care_desc", "开启后，文字和按钮将变得更大，色彩更强。")}</p>
+        <h3 className="text-[18px] font-medium text-text-main mb-2">{t("user:mode.care_title", "Care mode")}</h3>
+        <p className="text-[14px] text-text-sub text-center px-8 mb-8">{t("user:mode.care_desc", "When enabled, text and buttons become larger with stronger colors.")}</p>
         <button
           onClick={handleToggle}
           className="w-[200px] h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
-        >{enabled ? t("user:mode.care_off", "关闭关怀模式") : t("user:mode.care_on", "开启关怀模式")}</button>
+        >{enabled ? t("user:mode.care_off", "Turn off care mode") : t("user:mode.care_on", "Turn on care mode")}</button>
       </div>
     </PageLayout>
   );

@@ -1,4 +1,13 @@
-import { useTranslation } from "react-i18next";
+/**
+ * Attendance capability — fail-closed (PRD).
+ *
+ * Audited as a pure localStorage mock with no owner backend SDK. The fake
+ * in-memory records, fake clock-in and `clawchat_*` storage are removed:
+ * every method throws a typed `AttendanceCapabilityUnavailableError` so any
+ * page that reaches this surface shows a typed unavailable state instead of
+ * fabricated attendance data.
+ */
+
 export interface AttendanceRecord {
   id: string;
   type: "in" | "out";
@@ -7,78 +16,19 @@ export interface AttendanceRecord {
   location: string;
 }
 
-const STORAGE_KEY = "clawchat_attendance";
-
-let mockRecords: AttendanceRecord[] = [];
-
-const INITIAL_RECORDS: AttendanceRecord[] = [
-  {
-    id: "1",
-    type: "in",
-    time: "08:55",
-    date: "2023-10-23",
-    location: "腾讯滨海大厦",
-  },
-  {
-    id: "2",
-    type: "out",
-    time: "18:05",
-    date: "2023-10-23",
-    location: "腾讯滨海大厦",
-  },
-];
-
-const loadRecords = () => {
-  if (mockRecords.length > 0) return mockRecords;
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      mockRecords = JSON.parse(data);
-    } else {
-      mockRecords = [...INITIAL_RECORDS];
-      saveRecords();
-    }
-  } catch (e) {
-    mockRecords = [...INITIAL_RECORDS];
+export class AttendanceCapabilityUnavailableError extends Error {
+  constructor(capability: string) {
+    super(`${capability} is unavailable because its owner SDK is not composed.`);
+    this.name = "AttendanceCapabilityUnavailableError";
   }
-  return mockRecords;
-};
-
-const saveRecords = () => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(mockRecords));
-  } catch (e) {}
-};
+}
 
 export class AttendanceService {
   static async getRecords(): Promise<AttendanceRecord[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([...loadRecords()]);
-      }, 300);
-    });
+    throw new AttendanceCapabilityUnavailableError("Attendance records");
   }
 
   static async clockIn(): Promise<AttendanceRecord> {
-    loadRecords();
-    const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
-    const todayRecords = mockRecords.filter((r) => r.date === todayStr);
-    const hasPunchedIn = todayRecords.some((r) => r.type === "in");
-
-    const newRecord: AttendanceRecord = {
-      id: Math.random().toString(36).substring(7),
-      type: hasPunchedIn ? "out" : "in",
-      time: now.toLocaleTimeString("zh-CN", {
-        hour12: false,
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      date: todayStr,
-      location: "腾讯滨海大厦",
-    };
-    mockRecords.push(newRecord);
-    saveRecords();
-    return newRecord;
+    throw new AttendanceCapabilityUnavailableError("Attendance clock-in");
   }
 }

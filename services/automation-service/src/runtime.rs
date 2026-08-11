@@ -178,10 +178,7 @@ impl AutomationExecutionRuntimeStore {
 
     fn prune_expired(&mut self, now: Instant, ttl: Duration) -> Vec<String> {
         let mut evicted = Vec::new();
-        loop {
-            let Some(key) = self.terminal_order.front().cloned() else {
-                break;
-            };
+        while let Some(key) = self.terminal_order.front().cloned() {
             let expired = self
                 .by_execution
                 .get(key.as_str())
@@ -483,10 +480,7 @@ impl AgentResponseRuntimeStore {
 
     fn prune_expired(&mut self, now: Instant, ttl: Duration) -> usize {
         let mut evicted = 0;
-        loop {
-            let Some(key) = self.terminal_order.front().cloned() else {
-                break;
-            };
+        while let Some(key) = self.terminal_order.front().cloned() {
             let expired = self
                 .by_stream
                 .get(key.as_str())

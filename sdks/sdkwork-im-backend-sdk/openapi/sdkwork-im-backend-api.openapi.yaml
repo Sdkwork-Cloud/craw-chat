@@ -413,17 +413,139 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+  /backend/v3/api/ops/replay_status:
+    get:
+      tags:
+        - ops
+      operationId: replayStatus.retrieve
+      summary: Retrieve commit-journal replay status
+      description: >-
+        Reports the commit-journal replay surface: whether the shared
+        PostgreSQL journal pool is configured and the journal head cursor
+        (committed offset and row count). Returns a real status view instead
+        of 404 when the journal is not configured in this service.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/JournalReplayStatusView'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/ops/retention/purge:
+    post:
+      tags:
+        - ops
+      operationId: retention.purge
+      summary: Purge expired retention batches
+      description: >-
+        Runs a bounded retention purge batch over expired commit-journal and
+        derived rows. Optional `batch_size` query parameter bounds the batch
+        (default 500, maximum 5000).
+      parameters:
+        - name: batch_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+            maximum: 5000
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/RetentionPurgeResponse'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
   /backend/v3/api/audit/records:
     get:
       tags:
         - audit
       operationId: records.list
       summary: List audit records
+      description: >-
+        Keyset window over the audit ledger. The implementation reads the
+        `afterAuditSeq` sequence cursor and `page_size` only; continuation
+        values come from `data.pageInfo.nextCursor` of the prior page. Other
+        pagination aliases (`cursor`, `page`, `q`) are not accepted by the
+        service and must not be sent.
       parameters:
         - $ref: '#/components/parameters/PageSizeQuery'
-        - $ref: '#/components/parameters/CursorQuery'
-        - $ref: '#/components/parameters/PageQuery'
-        - $ref: '#/components/parameters/QQuery'
+        - $ref: '#/components/parameters/AfterAuditSeqQuery'
       responses:
         '200':
           description: OK
@@ -532,6 +654,59 @@ paths:
                           item:
                             type: object
                             additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/audit/verify:
+    get:
+      tags:
+        - audit
+      operationId: verify.retrieve
+      summary: Verify audit chain integrity
+      description: >-
+        Verifies the hash chain of the current tenant's audit ledger and
+        returns the chain head and validity result.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/AuditChainVerification'
         '401':
           description: Problem detail response
           content:
@@ -5840,6 +6015,17 @@ components:
       required: false
       schema:
         type: string
+    AfterAuditSeqQuery:
+      name: afterAuditSeq
+      in: query
+      required: false
+      description: >-
+        Audit sequence keyset cursor. Echo the numeric `auditSeq` value
+        returned by the prior page's `data.pageInfo.nextCursor`.
+      schema:
+        type: integer
+        format: int64
+        minimum: 0
   schemas:
     ProblemDetail:
       type: object
@@ -5880,6 +6066,119 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FieldError'
+    AuditChainVerification:
+      type: object
+      additionalProperties: false
+      required:
+        - tenantId
+        - verifiedAt
+        - total
+        - chainHeadHash
+        - chainValid
+      properties:
+        tenantId:
+          type: string
+        verifiedAt:
+          type: string
+          format: date-time
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        chainHeadHash:
+          type: string
+          nullable: true
+        chainValid:
+          type: boolean
+    JournalReplayStatusView:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - mode
+        - databaseConfigured
+        - journalReady
+        - generatedAt
+      properties:
+        status:
+          type: string
+          enum:
+            - enabled
+            - not_configured
+            - unavailable
+        mode:
+          type: string
+          enum:
+            - postgres-journal
+            - unconfigured
+        databaseConfigured:
+          type: boolean
+        journalReady:
+          type: boolean
+        totalCommits:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+        headCommitOffset:
+          type: integer
+          format: int64
+          nullable: true
+        latestOccurredAt:
+          type: string
+          format: date-time
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        generatedAt:
+          type: string
+          format: date-time
+    RetentionPurgeResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - generatedAt
+        - batchSize
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        batchSize:
+          type: integer
+          format: int64
+        commitJournalDeleted:
+          type: integer
+          format: int64
+          minimum: 0
+        conversationMessagesDeleted:
+          type: integer
+          format: int64
+          minimum: 0
+        messageMediaRefsDeleted:
+          type: integer
+          format: int64
+          minimum: 0
+        outboxEventsDeleted:
+          type: integer
+          format: int64
+          minimum: 0
+        inboxEventsDeleted:
+          type: integer
+          format: int64
+          minimum: 0
+        realtimeDeviceEventsDeleted:
+          type: integer
+          format: int64
+          minimum: 0
+        rtcSessionsDeleted:
+          type: integer
+          format: int64
+          minimum: 0
+        rtcSignalsDeleted:
+          type: integer
+          format: int64
+          minimum: 0
     ActivateFriendshipRequest:
       additionalProperties: false
       properties:

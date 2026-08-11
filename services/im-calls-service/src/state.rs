@@ -586,14 +586,13 @@ impl CallingRuntime {
         mut payload: serde_json::Value,
         recipient_principal_ids: Vec<String>,
     ) {
-        if !recipient_principal_ids.is_empty() {
-            if let Some(object) = payload.as_object_mut() {
+        if !recipient_principal_ids.is_empty()
+            && let Some(object) = payload.as_object_mut() {
                 object.insert(
                     "recipient_principal_ids".to_string(),
                     serde_json::json!(recipient_principal_ids),
                 );
             }
-        }
 
         if im_domain_core::rtc_outbox::resolve_rtc_outbox_recipients(event_type, &payload)
             .is_empty()
@@ -677,6 +676,7 @@ impl CallingRuntime {
     /// Emit a security/mutation audit event. Best-effort: never blocks
     /// user-facing operations. Emission failures are logged and swallowed
     /// so a faulty audit sink cannot take down call signaling.
+    #[allow(clippy::too_many_arguments)]
     fn emit_audit(
         &self,
         auth: &AppContext,
@@ -2793,7 +2793,7 @@ impl CallingRuntime {
             .sessions
             .iter()
             .filter(|entry| entry.state.is_active())
-            .filter(|entry| is_non_terminal_session_stale(&entry, now.as_str(), ring_timeout_secs))
+            .filter(|entry| is_non_terminal_session_stale(entry, now.as_str(), ring_timeout_secs))
             .map(|entry| {
                 (
                     entry.tenant_id.clone(),

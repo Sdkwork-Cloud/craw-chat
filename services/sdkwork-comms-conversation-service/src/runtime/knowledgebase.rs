@@ -4281,8 +4281,7 @@ fn group_knowledgebase_hot_snapshot(
         ConversationLifecycleState::Archived if commit_seq > 0 => {
             Some(GroupKnowledgebaseArchiveReconciliation {
                 source_event_id: group_knowledgebase_archive_reconciliation_source_event_id(
-                    scope,
-                    commit_seq,
+                    scope, commit_seq,
                 ),
                 actor_id: GROUP_KNOWLEDGEBASE_RECONCILIATION_ACTOR_ID.into(),
             })
@@ -4304,7 +4303,9 @@ fn group_knowledgebase_hot_snapshot(
             scope.conversation_id.as_str(),
             member,
         );
-        roster.upsert_member(group_knowledgebase_member_from_normalized_record(scope, &record)?);
+        roster.upsert_member(group_knowledgebase_member_from_normalized_record(
+            scope, &record,
+        )?);
     }
     if roster.active_principal_count() > im_domain_core::space::MAX_CHAT_GROUP_MAX_MEMBERS as usize
     {

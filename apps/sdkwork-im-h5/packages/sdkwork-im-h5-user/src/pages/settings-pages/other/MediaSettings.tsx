@@ -25,10 +25,10 @@ export const MediaSettings: React.FC = () => {
   };
 
   return (
-    <PageLayout title={t("user:other_settings.media_file_call", "照片、视频、文件和通话")}>
+    <PageLayout title={t("user:other_settings.media_file_call", "Photos, videos, files and calls")}>
       <Group>
         <ToggleItem
-          label={t('user.auto_prop_3c4e8950', "自动下载")}
+          label={t('user.auto_prop_3c4e8950', "Auto-download")}
           checked={autoDownload}
           onChange={(v: boolean) => handleToggle("autoDownload", v)}
           hideBorder
@@ -39,12 +39,12 @@ export const MediaSettings: React.FC = () => {
       </p>
       <Group>
         <ToggleItem
-          label={t('user.auto_prop_e2dc0', "照片")}
+          label={t('user.auto_prop_e2dc0', "Photos")}
           checked={savePhoto}
           onChange={(v: boolean) => handleToggle("savePhoto", v)}
         />
         <ToggleItem
-          label={t('user.auto_prop_11478b', "视频")}
+          label={t('user.auto_prop_11478b', "Videos")}
           checked={saveVideo}
           onChange={(v: boolean) => handleToggle("saveVideo", v)}
           hideBorder

@@ -7,7 +7,9 @@
 // standalone gateway). Those routes require a paired IAM session (dual-token:
 // `Authorization` bearer auth token + `Access-Token` header) with
 // `commerce.memberships.manage` / `commerce.orders.read`; the dev profile
-// uses the demo `owner` account (granted the manage permission in dev data).
+// uses the dedicated `commerce-svc` service account (registered in dev
+// data with the commerce manage/read permissions), so ordinary user logins
+// (single-session policy) never revoke the integration session.
 //
 // The minted tokens are 30-day sessions; run this script to refresh them
 // before expiry and it rewrites the four SDKWORK_*_BACKEND_*_TOKEN lines in
@@ -26,8 +28,8 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const TOPOLOGY_ENV = path.join(REPO_ROOT, 'etc', 'topology', 'standalone.development.env');
 
 const GATEWAY_BASE_URL = process.env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL ?? 'http://127.0.0.1:18089';
-const OWNER_USERNAME = 'owner';
-const OWNER_PASSWORD = 'Owner#2026';
+const OWNER_USERNAME = 'commerce-svc';
+const OWNER_PASSWORD = 'CommerceSvc#2026';
 
 async function mintOwnerSessionTokens() {
   const bootstrapToken = createDevBootstrapAccessTokenJwt({
@@ -87,7 +89,7 @@ function rewriteTokenLines(envPath, authToken, accessToken) {
 async function main() {
   const { authToken, accessToken } = await mintOwnerSessionTokens();
   rewriteTokenLines(TOPOLOGY_ENV, authToken, accessToken);
-  console.log('minted 30-day commerce integration session (owner) and wrote:');
+  console.log('minted 30-day commerce integration session (commerce-svc) and wrote:');
   console.log(`  ${TOPOLOGY_ENV}`);
   console.log('restart the gateway (`pnpm dev`) for the tokens to take effect.');
 }

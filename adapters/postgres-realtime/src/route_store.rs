@@ -306,8 +306,27 @@ impl PostgresBackedRouteStore {
         )?;
         self.memory.register_node(binding.owner_node_id.as_str());
         self.memory.observe_external_binding(binding.clone());
+        // The in-memory directory is a cache over the Postgres store: prune
+        // bindings that have not been active (no bind/lookup/heartbeat) for
+        // the TTL so churned clients cannot grow it without bound. Postgres
+        // remains the source of truth and re-hydrates pruned bindings on the
+        // next lookup.
+        self.memory
+            .prune_stale(unix_timestamp_millis().saturating_sub(ROUTE_BINDING_STALE_TTL_MS));
         Some(binding)
     }
+}
+
+/// Bindings with no activity for this long are evicted from the in-memory
+/// route directory (they are re-hydrated from Postgres on demand).
+const ROUTE_BINDING_STALE_TTL_MS: u64 = 30 * 60 * 1000;
+
+/// Current wall-clock time in UTC milliseconds since the Unix epoch.
+fn unix_timestamp_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 fn binding_from_row(row: &Row) -> RouteBinding {

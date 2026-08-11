@@ -32,9 +32,17 @@ export const ALL_IM_H5_MODULES = [
 ] as const satisfies readonly ImH5ModuleId[];
 
 /**
- * Full product composition restored to the original sdkwork-im-h5 UI: the
- * five main tabs (chat / agents / workspace / discover / me) plus every
- * capability surface from the original app.
+ * Default product composition: the five main tabs (chat / agents / workspace /
+ * discover / me) plus every capability surface with a real owner SDK or an
+ * approved canonical owner-repo UI composed in this app root.
+ *
+ * Fail-closed rule (PRD): capabilities without an owner SDK / end-to-end
+ * evidence must not be registered by default. approval / attendance /
+ * calendar / report / recruitment / enterprise were audited as pure
+ * localStorage mocks with no backend SDK — they are removed from the default
+ * composition. Their route entries stay in the shell registry for opt-in via
+ * `VITE_SDKWORK_IM_H5_MODULES`, where their services now fail closed with
+ * typed `*CapabilityUnavailableError`s instead of fabricating data.
  */
 export const DEFAULT_IM_H5_MODULES = [
   "chat",
@@ -43,12 +51,6 @@ export const DEFAULT_IM_H5_MODULES = [
   "agents",
   "notary",
   "orders",
-  "approval",
-  "attendance",
-  "calendar",
-  "report",
-  "recruitment",
-  "enterprise",
   "meeting",
   "moments",
   "music",

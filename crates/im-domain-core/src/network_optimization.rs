@@ -343,9 +343,7 @@ impl ArqManager {
     pub fn get_retransmit_candidates(&mut self) -> Vec<PendingMessage> {
         let timeout_secs = self.current_timeout.as_secs();
 
-        self.pending
-            .iter()
-            .filter_map(|(_, msg)| {
+        self.pending.values().filter_map(|msg| {
                 let last_time = msg.last_retry.as_ref().unwrap_or(&msg.sent_at);
                 let last = chrono::DateTime::parse_from_rfc3339(last_time)
                     .ok()?
@@ -363,9 +361,7 @@ impl ArqManager {
 
     /// Get messages that exceeded retry limit.
     pub fn get_failed_messages(&mut self) -> Vec<PendingMessage> {
-        self.pending
-            .iter()
-            .filter_map(|(_, msg)| {
+        self.pending.values().filter_map(|msg| {
                 if msg.retries >= self.max_retries {
                     Some(msg.clone())
                 } else {

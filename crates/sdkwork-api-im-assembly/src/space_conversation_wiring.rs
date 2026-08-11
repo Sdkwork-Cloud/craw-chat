@@ -68,8 +68,10 @@ impl SpaceGroupConversationBinder for ConversationServiceSpaceConversationBinder
                 input.group_name,
             )
             .map_err(|error| format!("{error:?}"))?;
-        let mut policy = ConversationPolicy::default();
-        policy.max_members = Some(input.max_members);
+        let policy = ConversationPolicy {
+            max_members: Some(input.max_members),
+            ..ConversationPolicy::default()
+        };
         self.runtime
             .apply_conversation_policy_with_actor_kind(
                 ApplyConversationPolicyCommand {

@@ -33,7 +33,7 @@ pub fn default_notification_runtime() -> Arc<NotificationRuntime> {
     }
 
     DEFAULT_NOTIFICATION_RUNTIME
-        .get_or_init(|| build_notification_runtime_or_fallback())
+        .get_or_init(build_notification_runtime_or_fallback)
         .clone()
 }
 
@@ -71,6 +71,43 @@ pub fn build_runtime_from_env() -> Result<Arc<NotificationRuntime>, String> {
         }
     };
     Ok(Arc::new(runtime))
+}
+
+/// Spawns the background notification delivery worker for the given runtime.
+///
+/// The worker claims `requested` tasks (lease-based, `FOR UPDATE SKIP
+/// LOCKED`) and writes each task into the recipient's realtime event window
+/// (`im_realtime_device_events`). PostgreSQL delivery is used when a
+/// PostgreSQL pool is configured; hosts without one (dev in-memory runtimes)
+/// fall back to a documented no-op sink so the pipeline stays observable.
+pub fn spawn_notification_delivery_worker_from_env(
+    runtime: Arc<NotificationRuntime>,
+) -> tokio::task::JoinHandle<()> {
+    use crate::delivery::{
+        NoopNotificationRealtimeDelivery, PostgresNotificationRealtimeDelivery,
+        spawn_delivery_worker,
+    };
+
+    let task_store = runtime.task_store();
+    let realtime: Arc<dyn crate::delivery::NotificationRealtimeDelivery> =
+        match resolve_postgres_realtime_pool_from_env() {
+            Some(pool) => Arc::new(PostgresNotificationRealtimeDelivery::from_pool(pool)),
+            None => Arc::new(NoopNotificationRealtimeDelivery),
+        };
+    spawn_delivery_worker(task_store, realtime)
+}
+
+/// Resolves the process PostgreSQL pool for the realtime delivery sink.
+fn resolve_postgres_realtime_pool_from_env()
+-> Option<im_adapters_postgres_journal::PostgresJournalPool> {
+    if let Ok(config) = DatabaseConfig::from_env("IM")
+        && config.engine == DatabaseEngine::Postgres
+            && let Ok(journal) = PostgresJournalConfig::from_database_config(&config).connect_pool()
+            {
+                return Some(journal);
+            }
+    let database_url = resolve_im_database_url_from_env()?;
+    PostgresJournalConfig::new(database_url).connect_pool().ok()
 }
 
 pub fn default_app_state() -> AppState {
@@ -148,8 +185,8 @@ fn resolve_notification_task_store_from_env(
 
 fn resolve_notification_commit_journal_from_env() -> Result<Arc<NotificationCommitJournal>, String>
 {
-    if let Ok(config) = DatabaseConfig::from_env("IM") {
-        if config.engine == DatabaseEngine::Postgres {
+    if let Ok(config) = DatabaseConfig::from_env("IM")
+        && config.engine == DatabaseEngine::Postgres {
             let journal = PostgresJournalConfig::from_database_config(&config)
                 .connect()
                 .map_err(|error| {
@@ -158,7 +195,6 @@ fn resolve_notification_commit_journal_from_env() -> Result<Arc<NotificationComm
             info!("notification-service using postgres commit journal");
             return Ok(Arc::new(NotificationCommitJournal::Postgres(journal)));
         }
-    }
 
     if let Some(database_url) = resolve_im_database_url_from_env() {
         let journal = PostgresJournalConfig::new(database_url)
@@ -174,7 +210,7 @@ fn resolve_notification_commit_journal_from_env() -> Result<Arc<NotificationComm
     if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
         info!("notification-service using in-memory commit journal (development only)");
         return Ok(Arc::new(NotificationCommitJournal::Memory(
-            NoopJournalForDev::default(),
+            NoopJournalForDev,
         )));
     }
 

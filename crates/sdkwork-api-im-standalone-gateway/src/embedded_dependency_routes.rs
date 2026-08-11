@@ -34,6 +34,8 @@ const EMBEDDED_DEPENDENCY_APP_ROOTS: &[(&str, &str)] = &[
     ("SDKWORK_AGENTS", "sdkwork-agents"),
     ("SDKWORK_COURSE", "sdkwork-course"),
     ("SDKWORK_COMMUNITY", "sdkwork-community"),
+    ("SDKWORK_CATALOG", "sdkwork-catalog"),
+    ("SDKWORK_MAIL", "sdkwork-mail"),
 ];
 
 /// Apply all embedded dependency environment variables synchronously.
@@ -141,6 +143,10 @@ pub async fn bootstrap_embedded_dependency_databases() -> Result<(), String> {
         .await
         .map(|_| ())
         .map_err(|error| format!("sync embedded mail database failed: {error}"))?;
+    sdkwork_catalog_database_host::bootstrap_catalog_database_from_env()
+        .await
+        .map(|_| ())
+        .map_err(|error| format!("sync embedded catalog database failed: {error}"))?;
     bootstrap_embedded_merchandise_database().await?;
     bootstrap_embedded_promotion_database().await?;
     Ok(())
@@ -164,6 +170,8 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
         sdkwork_api_community_assembly::assemble_app_api_contribution()
             .await
             .map_err(|error| format!("compose embedded community App API failed: {error}"))?,
+        bootstrap_embedded_catalog_contribution().await?,
+        bootstrap_embedded_mail_contribution().await?,
     ];
     let agents_runtime = build_embedded_agents_runtime().await?;
     let agents_session_facade = agents_runtime.session_facade;
@@ -220,6 +228,20 @@ async fn bootstrap_embedded_course_routes()
     sdkwork_api_course_assembly::assemble_api_router()
         .await
         .map_err(|error| format!("compose embedded course App API failed: {error}"))
+}
+
+async fn bootstrap_embedded_catalog_contribution()
+-> Result<sdkwork_web_bootstrap::ApiAssemblyContribution, String> {
+    sdkwork_api_catalog_assembly::assemble_api_router_from_env()
+        .await
+        .map_err(|error| format!("compose embedded catalog App API failed: {error}"))
+}
+
+async fn bootstrap_embedded_mail_contribution()
+-> Result<sdkwork_web_bootstrap::ApiAssemblyContribution, String> {
+    sdkwork_api_mail_assembly::assemble_api_router()
+        .await
+        .map_err(|error| format!("compose embedded mail App API failed: {error}"))
 }
 
 async fn bootstrap_embedded_account_contribution()

@@ -17,7 +17,6 @@ use im_platform_contracts::{
     StreamTransitionOutcome,
 };
 use im_storage_contracts::{StorageDomainSnapshot, StorageDomainSnapshotStore};
-use im_time::rfc3339_le;
 
 fn lock_memory_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexGuard<'a, T> {
     match mutex.lock() {
@@ -503,7 +502,9 @@ impl RealtimeDisconnectFenceStore for MemoryRealtimeDisconnectFenceStore {
         let mut fences = lock_memory_mutex(&self.fences, "realtime disconnect fence store");
         let should_clear = fences
             .get(key.as_str())
-            .map(|record| rfc3339_le(record.disconnected_at.as_str(), cutoff_disconnected_at))
+            .map(|record| {
+                im_time::rfc3339_le(record.disconnected_at.as_str(), cutoff_disconnected_at)
+            })
             .unwrap_or(false);
         if !should_clear {
             return Ok(false);
@@ -671,7 +672,7 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
             lock_memory_mutex(&self.subscriptions, "realtime subscription store");
         let should_clear = subscriptions
             .get(key.as_str())
-            .map(|record| rfc3339_le(record.synced_at.as_str(), cutoff_synced_at))
+            .map(|record| im_time::rfc3339_le(record.synced_at.as_str(), cutoff_synced_at))
             .unwrap_or(false);
         if !should_clear {
             return Ok(false);
@@ -796,7 +797,7 @@ impl StreamStateStore for MemoryStreamStateStore {
             return Ok(StreamTransitionOutcome::VersionConflict);
         }
         state.sessions.insert(key, next_session.clone());
-        Ok(StreamTransitionOutcome::Applied(next_session))
+        Ok(StreamTransitionOutcome::Applied(Box::new(next_session)))
     }
 
     fn list_frames_after(
@@ -930,6 +931,129 @@ impl NotificationTaskStore for MemoryNotificationTaskStore {
             .take(page_size.saturating_add(1))
             .filter_map(|task_key| state.tasks.get(task_key.as_str()).cloned())
             .collect())
+    }
+
+    fn claim_tasks(
+        &self,
+        limit: usize,
+        now: &str,
+    ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
+        let mut state = lock_memory_mutex(&self.state, "notification task store");
+        let mut claimable = state
+            .tasks
+            .values()
+            .filter(|record| {
+                record.task.status == im_domain_core::notification::NotificationStatus::Requested
+                    && im_time::rfc3339_le(record.available_at.as_str(), now)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        claimable.sort_by(|left, right| {
+            im_time::rfc3339_cmp(left.available_at.as_str(), right.available_at.as_str())
+                .then_with(|| left.notification_id.cmp(&right.notification_id))
+        });
+        claimable.truncate(limit);
+        let lease_expires_at = notification_lease_expiry(now);
+        let mut claimed = Vec::with_capacity(claimable.len());
+        for mut record in claimable {
+            let notification_key = notification_scope_key(
+                record.tenant_id.as_str(),
+                record.organization_id.as_str(),
+                record.notification_id.as_str(),
+            );
+            if let Some(previous) = state.tasks.get(notification_key.as_str()).cloned() {
+                remove_notification_recipient_index(
+                    &mut state.tasks_by_recipient,
+                    notification_key.as_str(),
+                    &previous,
+                );
+            }
+            record.available_at = lease_expires_at.clone();
+            record.updated_at = now.to_owned();
+            insert_notification_recipient_index(
+                &mut state.tasks_by_recipient,
+                notification_key.as_str(),
+                &record,
+            );
+            state.tasks.insert(notification_key, record.clone());
+            claimed.push(record);
+        }
+        Ok(claimed)
+    }
+
+    fn complete_task(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        notification_id: &str,
+        dispatched_at: &str,
+    ) -> Result<(), ContractError> {
+        let mut state = lock_memory_mutex(&self.state, "notification task store");
+        let notification_key = notification_scope_key(tenant_id, organization_id, notification_id);
+        let Some(record) = state.tasks.get(notification_key.as_str()).cloned() else {
+            return Ok(());
+        };
+        if record.task.status != im_domain_core::notification::NotificationStatus::Requested {
+            return Ok(());
+        }
+        let mut completed = record.clone();
+        completed.task.status = im_domain_core::notification::NotificationStatus::Dispatched;
+        completed.task.dispatched_at = Some(dispatched_at.to_owned());
+        completed.task.failure_reason = None;
+        completed.updated_at = dispatched_at.to_owned();
+        remove_notification_recipient_index(
+            &mut state.tasks_by_recipient,
+            notification_key.as_str(),
+            &record,
+        );
+        insert_notification_recipient_index(
+            &mut state.tasks_by_recipient,
+            notification_key.as_str(),
+            &completed,
+        );
+        state.tasks.insert(notification_key, completed);
+        Ok(())
+    }
+
+    fn fail_task(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        notification_id: &str,
+        failure_reason: &str,
+        now: &str,
+    ) -> Result<(), ContractError> {
+        let mut state = lock_memory_mutex(&self.state, "notification task store");
+        let notification_key = notification_scope_key(tenant_id, organization_id, notification_id);
+        let Some(record) = state.tasks.get(notification_key.as_str()).cloned() else {
+            return Ok(());
+        };
+        if record.task.status != im_domain_core::notification::NotificationStatus::Requested {
+            return Ok(());
+        }
+        let mut failed = record.clone();
+        failed.attempt_count = failed.attempt_count.saturating_add(1);
+        if failed.attempt_count >= im_platform_contracts::resolve_notification_max_attempts() {
+            failed.task.status = im_domain_core::notification::NotificationStatus::Failed;
+            failed.task.failure_reason = Some(failure_reason.to_owned());
+        } else {
+            failed.task.status = im_domain_core::notification::NotificationStatus::Requested;
+            failed.task.failure_reason = Some(failure_reason.to_owned());
+            failed.available_at = notification_retry_available_at(now, failed.attempt_count);
+        }
+        failed.updated_at = now.to_owned();
+        remove_notification_recipient_index(
+            &mut state.tasks_by_recipient,
+            notification_key.as_str(),
+            &record,
+        );
+        insert_notification_recipient_index(
+            &mut state.tasks_by_recipient,
+            notification_key.as_str(),
+            &failed,
+        );
+        state.tasks.insert(notification_key, failed);
+        Ok(())
     }
 }
 
@@ -1126,7 +1250,7 @@ impl PresenceStateStore for MemoryPresenceStateStore {
         Ok(state
             .online_by_seen_at
             .iter()
-            .filter(|key| rfc3339_le(key.last_seen_at.as_str(), cutoff_seen_at))
+            .filter(|key| im_time::rfc3339_le(key.last_seen_at.as_str(), cutoff_seen_at))
             .take(limit)
             .filter_map(|key| state.by_device.get(key.device_key.as_str()).cloned())
             .collect())
@@ -1304,6 +1428,22 @@ fn remove_notification_recipient_index(
     if task_keys.is_empty() {
         index.remove(recipient_key.as_str());
     }
+}
+
+fn notification_lease_expiry(now: &str) -> String {
+    im_time::rfc3339_add_secs(
+        now,
+        im_platform_contracts::resolve_notification_claim_lease_secs(),
+    )
+    .unwrap_or_else(|| now.to_owned())
+}
+
+fn notification_retry_available_at(now: &str, attempt_count: u32) -> String {
+    im_time::rfc3339_add_secs(
+        now,
+        im_platform_contracts::notification_backoff_secs(attempt_count),
+    )
+    .unwrap_or_else(|| now.to_owned())
 }
 
 fn execution_scope_key(

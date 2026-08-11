@@ -76,10 +76,10 @@ async fn agents_contract_bootstraps_through_0006_in_an_isolated_schema() {
                  WHERE connamespace = current_schema()::regnamespace \
                    AND conname = ANY($1) ORDER BY conname",
                 &[&vec![
-                    "ck_im_agent_dispatch_message_ids",
-                    "ck_im_agent_dispatch_scope",
-                    "ck_im_conversation_agent_binding_scope",
-                    "ck_im_conversation_agent_assignments_scope",
+                    "chk_im_agent_dispatch_message_ids",
+                    "chk_im_agent_dispatch_scope",
+                    "chk_im_conversation_agent_binding_scope",
+                    "chk_im_conversation_agent_assignments_scope",
                 ]],
             )
             .expect("subject guard constraints should be queryable")
@@ -93,11 +93,11 @@ async fn agents_contract_bootstraps_through_0006_in_an_isolated_schema() {
     assert_eq!(
         constraints,
         vec![
-            ("ck_im_agent_dispatch_message_ids".to_string(), true),
-            ("ck_im_agent_dispatch_scope".to_string(), true),
-            ("ck_im_conversation_agent_binding_scope".to_string(), true,),
+            ("chk_im_agent_dispatch_message_ids".to_string(), true),
+            ("chk_im_agent_dispatch_scope".to_string(), true),
+            ("chk_im_conversation_agent_binding_scope".to_string(), true,),
             (
-                "ck_im_conversation_agent_assignments_scope".to_string(),
+                "chk_im_conversation_agent_assignments_scope".to_string(),
                 true,
             ),
         ]

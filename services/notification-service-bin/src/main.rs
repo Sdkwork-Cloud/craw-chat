@@ -26,7 +26,14 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("notification-service failed to bind local listener: {error}"))?;
 
-    axum::serve(
+    // Background delivery worker: claims `requested` notification tasks and
+    // dispatches them into the recipients' realtime event windows.
+    let delivery_worker =
+        notification_service::bootstrap::spawn_notification_delivery_worker_from_env(
+            runtime.clone(),
+        );
+
+    let server = axum::serve(
         listener,
         sdkwork_routes_im_notification_app_api::build_public_app_with_runtime(runtime),
     )
@@ -34,6 +41,8 @@ async fn run() -> Result<(), String> {
         sdkwork_im_service_readiness::shutdown_signal().await;
     })
     .await
-    .map_err(|error| format!("notification-service server should run: {error}"))?;
-    Ok(())
+    .map_err(|error| format!("notification-service server should run: {error}"));
+
+    delivery_worker.abort();
+    server
 }

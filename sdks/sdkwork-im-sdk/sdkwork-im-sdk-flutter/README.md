@@ -26,3 +26,19 @@ Verification:
 cd sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/composed/im_sdk_composed
 flutter test
 ```
+
+## Release Snapshot Boundary
+
+This workspace inherits the current SDK release snapshot from
+`artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`.
+
+- `state = template_only_pending_generation`
+- `generationStatus = generated`
+- `releaseStatus = not_published`
+- `plannedVersion = null`
+- `versionStatus = version_unassigned_pending_freeze`
+- `versionDecisionSourcePath = null`
+
+The release catalog remains the machine-readable source of truth:
+`sdk-release-catalog.json`.
+

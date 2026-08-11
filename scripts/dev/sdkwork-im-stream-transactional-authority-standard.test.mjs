@@ -44,16 +44,25 @@ assert.doesNotMatch(postgres, /DEFAULT_ORGANIZATION_ID/u);
 const insertFrameSql = postgres.match(/const INSERT_FRAME_SQL:[\s\S]*?"#;/u)?.[0] ?? '';
 assert.doesNotMatch(insertFrameSql, /on conflict[^\n]*do nothing/iu);
 
-const postgresMigration = [
-  'database',
-  'migrations',
-  'postgres',
-  '0004_stream_transactional_authority.up.sql',
-];
+// The `0004_stream_transactional_authority` migration was squashed into the
+// immutable baseline; the stream transactional schema (optimistic version
+// column, active-session partial index, version guard) is baseline-owned now.
+const baseline = readText('database', 'ddl', 'baseline', 'postgres', '0001_im_baseline.sql');
+assert.match(baseline, /CREATE TABLE IF NOT EXISTS im_stream_sessions/u);
+assert.match(baseline, /version BIGINT NOT NULL DEFAULT 1 CHECK \(version > 0\)/u);
+assert.match(
+  baseline,
+  /CREATE INDEX IF NOT EXISTS idx_im_stream_sessions_active[\s\S]*?WHERE stream_state NOT IN \('completed', 'aborted', 'expired'\)/u,
+);
+assert.match(baseline, /chk_im_stream_sessions_version/u);
+const streamRegistry = JSON.parse(
+  readText('database', 'contract', 'table-registry.json'),
+).tables.filter((entry) => entry.table_name === 'im_stream_sessions');
+assert.equal(streamRegistry.length, 1, 'im_stream_sessions must be registered exactly once');
 assert.equal(
-  fs.existsSync(path.join(repoRoot, ...postgresMigration)),
-  true,
-  `missing ${postgresMigration.join('/')}`,
+  streamRegistry[0].migration,
+  'database/ddl/baseline/postgres/0001_im_baseline.sql',
+  'im_stream_sessions must retain immutable baseline provenance',
 );
 
 const liveIntegration = readText(

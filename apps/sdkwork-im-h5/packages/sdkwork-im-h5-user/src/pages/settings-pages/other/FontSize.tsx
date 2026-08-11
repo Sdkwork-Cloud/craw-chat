@@ -20,7 +20,7 @@ export const FontSize: React.FC = () => {
   };
 
   return (
-    <PageLayout title={t("user:other_settings.font_size", "字体大小")}>
+    <PageLayout title={t("user:other_settings.font_size", "Font size")}>
       <div className="flex flex-col h-full">
         <div className="flex-1 p-6 flex flex-col gap-4">
           <div className="bg-chat-other-bg p-4 rounded-xl self-start max-w-[80%]">

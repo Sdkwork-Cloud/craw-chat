@@ -1,29 +1,39 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { PageLayout, Group, ListItem, ToggleItem } from "../SettingsSubPages";
+import { showToast } from "@sdkwork/im-h5-commons";
 
+/**
+ * Voice lock — fail-closed (PRD).
+ *
+ * Voice-lock enrollment/verification has no composed backend flow; the toggle
+ * must not pretend to enable a security feature. The toggle is read-only and
+ * surfaces the typed unavailable state on interaction.
+ */
 export const VoiceLock: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [enabled, setEnabled] = useState(false);
+
+  const unavailable = () =>
+    showToast(t("commons.feature_unavailable", "This feature is not available yet while the real service is being integrated."));
 
   return (
-    <PageLayout title={t("user:account_sec.voice_lock", "声音锁")}>
+    <PageLayout title={t("user:account_sec.voice_lock", "Voice lock")}>
       <Group className="mt-4">
         <ToggleItem
-          label={t("user:account_sec.login_sdkwork_im_h5", "登录 Sdkwork IM H5")}
-          checked={enabled}
-          onChange={setEnabled}
+          label={t("user:account_sec.login_sdkwork_im_h5", "Log into Sdkwork IM H5")}
+          checked={false}
+          onChange={unavailable}
           hideBorder
         />
       </Group>
-      <p className="text-[13px] text-text-sub px-4 mb-8">{t("user:account_sec.voice_lock_desc", "开启后，可以使用声音解锁应用或验证身份。")}</p>
+      <p className="text-[13px] text-text-sub px-4 mb-8">{t("user:account_sec.voice_lock_desc", "When enabled, you can unlock the app or verify your identity with your voice.")}</p>
       <Group>
         <ListItem
-          label={t("user:account_sec.reset_voice_lock", "重设声音锁")}
+          label={t("user:account_sec.reset_voice_lock", "Reset voice lock")}
           hideBorder
-          onClick={() => navigate("/settings/account/voice-lock/reset")}
+          onClick={unavailable}
         />
       </Group>
     </PageLayout>

@@ -12,7 +12,7 @@ export const MeSettingsSection: React.FC = () => {
     <div className="mb-6 border-y border-border-color flex flex-col bg-chat-other-bg">
       <MenuItem
         icon={Settings}
-        label={t('user.auto_prop_116b70', '设置')}
+        label={t('user.auto_prop_116b70', 'Settings')}
         colorClass="text-zinc-500"
         onClick={() => navigate("/settings")}
       />

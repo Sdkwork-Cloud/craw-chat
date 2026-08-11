@@ -41,11 +41,11 @@ export const EnterpriseListTab: React.FC<EnterpriseListTabProps> = ({ enterprise
                 {ent.isAuth ? (
                   <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-1 py-0.5 rounded-sm shrink-0 border border-blue-200 dark:border-blue-800/50 flex items-center gap-0.5">
                     <ShieldCheck className="w-3 h-3" />
-                    {t('enterprise.auto_1721e0f', '已认证')}
+                    {t('enterprise.auto_1721e0f', 'Verified')}
                   </span>
                 ) : (
                   <span className="text-[10px] font-medium text-text-sub bg-bg-color px-1 py-0.5 rounded-sm shrink-0 border border-border-color/50">
-                    {t('enterprise.auto_194b947', '未认证')}
+                    {t('enterprise.auto_194b947', 'Unverified')}
                   </span>
                 )}
               </div>

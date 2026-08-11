@@ -24,5 +24,5 @@
     "fri": "Fri",
     "sat": "Sat"
   },
-  "auto_18a12f7d": "{`${year}年${month + 1}月`}"
+  "auto_18a12f7d": "{`${year}/${month + 1}`}"
 }

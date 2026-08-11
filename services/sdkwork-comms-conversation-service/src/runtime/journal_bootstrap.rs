@@ -159,7 +159,9 @@ pub fn build_conversation_runtime_from_env()
             .with_retention_scope_store(Arc::new(PostgresRetentionScopeStore::from_pool(
                 pool.clone(),
             )) as Arc<dyn RetentionScopeStore>)
-            .with_welcome_state_store(Arc::new(PostgresWelcomeStateStore::from_pool(pool)) as Arc<dyn WelcomeStateStore>)
+            .with_welcome_state_store(
+                Arc::new(PostgresWelcomeStateStore::from_pool(pool)) as Arc<dyn WelcomeStateStore>
+            )
             .with_id_generator(id_generator.clone())
             .with_durable_message_post_writer(Arc::new(
                 PostgresDurableMessagePostWriter::from_journal(&postgres_journal),

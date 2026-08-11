@@ -88,7 +88,7 @@ export const ModelSelectionPage = ({
           <Search className="w-4 h-4 text-text-sub mr-2" />
           <input
             type="text"
-            placeholder={t('commons.auto_prop_n459b5466', '搜索服务商或模型...')}
+            placeholder={t('commons.auto_prop_n459b5466', 'Search providers or models...')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 bg-transparent text-[14px] text-text-main outline-none placeholder:text-text-sub"
@@ -167,11 +167,11 @@ export const ModelSelectionPage = ({
                 </div>
               ))}
               {activeVendor.models.length === 0 && (
-                <div className="text-center text-text-sub text-[13px] py-10">{t('commons.auto_n430a3663', '没有找到符合条件的模型')}</div>
+                <div className="text-center text-text-sub text-[13px] py-10">{t('commons.auto_n430a3663', 'No matching models found')}</div>
               )}
             </div>
           ) : (
-            <div className="text-center text-text-sub text-[13px] py-10">{t('commons.auto_13d09251', '请选择一个服务商')}</div>
+            <div className="text-center text-text-sub text-[13px] py-10">{t('commons.auto_13d09251', 'Please select a provider')}</div>
           )}
         </div>
       </div>

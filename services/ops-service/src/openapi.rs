@@ -179,7 +179,7 @@ fn ops_service_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
         title: "Sdkwork IM Ops Service API",
         version: env!("CARGO_PKG_VERSION"),
-        description: "Live OpenAPI contract generated from the ops-service router for cluster, lag, diagnostics, runtime_dir, retention, and provider binding inspections.",
+        description: "Live OpenAPI contract generated from the ops-service router for cluster, lag, diagnostics, replay_status, runtime_dir, retention, and provider binding inspections.",
         openapi_path: "/openapi.json",
         docs_path: "/docs",
     }

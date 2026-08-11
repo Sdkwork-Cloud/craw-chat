@@ -22,7 +22,7 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
   }, []);
 
   return (
-    <PageLayout title={t('user.auto_prop_24baafeb', '个人头像')}>
+    <PageLayout title={t('user.auto_prop_24baafeb', 'Profile photo')}>
       <div className="flex flex-col items-center justify-center py-20">
         <Avatar
           fallback={profile?.name || "?"}
@@ -39,11 +39,11 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
             );
             if (url) {
               ProfileService.updateUserProfile({ avatar: url });
-              showToast(t('user.auto_fn_n44c8107b', '已应用新头像'));
+              showToast(t('user.auto_fn_n44c8107b', 'New profile photo applied'));
               window.location.reload();
             }
           }}
-        >{t('user.auto_304cf589', '更换头像')}</button>
+        >{t('user.auto_304cf589', 'Change photo')}</button>
       </div>
     </PageLayout>
   );
@@ -61,12 +61,12 @@ const navigate = useNavigate();
 
   const handleSave = async () => {
     await ProfileService.updateUserProfile({ name });
-    showToast(t('user.auto_fn_518ad458', '已保存修改'));
+    showToast(t('user.auto_fn_518ad458', 'Changes saved'));
     navigate(-1);
   };
 
   return (
-    <PageLayout title={t('user.auto_prop_3053486f', '更改名字')}>
+    <PageLayout title={t('user.auto_prop_3053486f', 'Change name')}>
       <div className="px-4 py-6">
         <input
           type="text"
@@ -74,11 +74,11 @@ const navigate = useNavigate();
           onChange={(e) => setName(e.target.value)}
           className="w-full bg-transparent border-b-2 border-accent-green text-[18px] text-text-main pb-2 outline-none"
         />
-        <p className="text-[13px] text-text-sub mt-2">{t('user.auto_n1227fe61', '好名字可以让你的朋友更容易记住你。')}</p>
+        <p className="text-[13px] text-text-sub mt-2">{t('user.auto_n1227fe61', 'A good name makes it easier for friends to remember you.')}</p>
         <button
           onClick={handleSave}
           className="mt-8 w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
-        >{t('user.auto_a071b', '保存')}</button>
+        >{t('user.auto_a071b', 'Save')}</button>
       </div>
     </PageLayout>
   );
@@ -90,26 +90,26 @@ export const ProfileTickle = () => {
 const [tickle, setTickle] = useState("");
   const navigate = useNavigate();
   return (
-    <PageLayout title={t('user.auto_prop_17cb85a', '拍一拍')}>
+    <PageLayout title={t('user.auto_prop_17cb85a', 'Nudge')}>
       <div className="px-4 py-6">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-[16px] text-text-main">{t('user.auto_n5f2a95e3', '朋友拍了拍我')}</span>
+          <span className="text-[16px] text-text-main">{t('user.auto_n5f2a95e3', 'Friends nudged me')}</span>
           <input
             type="text"
             value={tickle}
             onChange={(e) => setTickle(e.target.value)}
-            placeholder={t('user.auto_prop_1ccfb7b', '的肩膀')}
+            placeholder={t('user.auto_prop_1ccfb7b', 'on the shoulder')}
             className="flex-1 bg-chat-other-bg px-3 py-2 rounded-lg text-[16px] text-text-main outline-none border border-border-color focus:border-accent-green transition-colors"
           />
         </div>
-        <p className="text-[13px] text-text-sub">{t('user.auto_68734489', '设置后，朋友拍你时将显示该文案。')}</p>
+        <p className="text-[13px] text-text-sub">{t('user.auto_68734489', 'This text shows when friends nudge you.')}</p>
         <button
           className="mt-8 w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           onClick={async () => {
-            showToast(t('user.auto_fn_518ad458', '已保存修改'));
+            showToast(t('user.auto_fn_518ad458', 'Changes saved'));
             navigate(-1);
           }}
-        >{t('user.auto_b7804', '完成')}</button>
+        >{t('user.auto_b7804', 'Done')}</button>
       </div>
     </PageLayout>
   );
@@ -125,7 +125,7 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
   }, []);
 
   return (
-    <PageLayout title={t('user.auto_prop_n62fa905a', '我的二维码')}>
+    <PageLayout title={t('user.auto_prop_n62fa905a', 'My QR code')}>
       <div className="flex flex-col items-center py-10 px-4">
         <div className="w-full max-w-[320px] bg-chat-other-bg rounded-2xl shadow-sm border border-border-color p-6">
           <div className="flex items-center gap-4 mb-6">
@@ -143,11 +143,11 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
           </div>
           <div
             className="w-full aspect-square bg-white rounded-xl flex items-center justify-center p-4"
-            onClick={() => showToast(t('user.auto_fn_732c5cd8', '已保存二维码到相册'))}
+            onClick={() => showToast(t('user.auto_fn_732c5cd8', 'QR code saved to album'))}
           >
             <QrCode className="w-full h-full text-black" />
           </div>
-          <p className="text-[13px] text-text-sub text-center mt-6">{t('user.auto_6512840a', '扫一扫上面的二维码图案，加我为朋友')}</p>
+          <p className="text-[13px] text-text-sub text-center mt-6">{t('user.auto_6512840a', 'Scan the QR code above to add me as a friend')}</p>
         </div>
       </div>
     </PageLayout>
@@ -165,20 +165,20 @@ const navigate = useNavigate();
   }, []);
 
   return (
-    <PageLayout title={t('user.auto_prop_30254bd4', '更多信息')}>
+    <PageLayout title={t('user.auto_prop_30254bd4', 'More info')}>
       <Group>
         <ListItem
-          label={t('user.auto_prop_bf6e4', '性别')}
+          label={t('user.auto_prop_bf6e4', 'Gender')}
           rightText={profile?.gender || "未设置"}
           onClick={() => navigate("/my-profile/more/gender")}
         />
         <ListItem
-          label={t('user.auto_prop_ae20a', '地区')}
+          label={t('user.auto_prop_ae20a', 'Region')}
           rightText={profile?.region || "未设置"}
           onClick={() => navigate("/my-profile/more/region")}
         />
         <ListItem
-          label={t('user.auto_prop_2500444c', '个性签名')}
+          label={t('user.auto_prop_2500444c', 'Signature')}
           rightText={profile?.signature || "未填写"}
           hideBorder
           onClick={() => navigate("/my-profile/more/signature")}
@@ -192,13 +192,13 @@ export const ProfileRingtone = () => {
   const { t } = useTranslation();
   
 return (
-  <PageLayout title={t('user.auto_prop_30ca7afd', '来电铃声')}>
+  <PageLayout title={t('user.auto_prop_30ca7afd', 'Ringtone')}>
     <div className="flex flex-col items-center py-20">
       <div className="w-20 h-20 bg-primary-blue/10 rounded-full flex items-center justify-center mb-6">
         <span className="text-primary-blue text-3xl">🎵</span>
       </div>
-      <h3 className="text-[18px] font-medium text-text-main mb-2">{t('user.auto_4a536159', '默认铃声')}</h3>
-      <p className="text-[14px] text-text-sub mb-8">{t('user.auto_6f2aec0', '当前使用系统默认铃声')}</p>
+      <h3 className="text-[18px] font-medium text-text-main mb-2">{t('user.auto_4a536159', 'Default ringtone')}</h3>
+      <p className="text-[14px] text-text-sub mb-8">{t('user.auto_6f2aec0', 'Using the system default ringtone')}</p>
       <button
         className="w-[200px] h-12 bg-chat-other-bg text-text-main rounded-lg font-medium active:bg-active-bg transition-colors border border-border-color"
         onClick={async () => {
@@ -207,7 +207,7 @@ return (
             showToast(`已应用新铃声: ${ringtone}`);
           }
         }}
-      >{t('user.auto_305433fb', '更换铃声')}</button>
+      >{t('user.auto_305433fb', 'Change ringtone')}</button>
     </div>
   </PageLayout>
   );

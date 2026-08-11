@@ -24,7 +24,7 @@ pub use agent_integration_store::PostgresAgentIntegrationStore;
 pub use aggregate_store::PostgresAggregateStore;
 pub use automation_execution_store::PostgresAutomationExecutionStore;
 pub use im_platform_contracts::CommitJournalReplayCursor as JournalReplayCursor;
-pub use journal_repository::PostgresCommitJournal;
+pub use journal_repository::{CommitJournalReplayState, PostgresCommitJournal, JournalReplayStateRequest};
 pub use message_post_persistence::{
     PostgresDurableConversationEventWriter, PostgresDurableMessageMutationWriter,
     PostgresDurableMessagePostWriter,
@@ -41,6 +41,7 @@ pub use retention_cleanup::{
     RETENTION_PURGE_BATCH_SIZE_MAX, RetentionCleanupReport, RetentionPurgeRequest,
     purge_expired_retention_batch,
 };
+pub(crate) use retention_cleanup::{log_retention_purge_outcome, purge_retention_batch_on_txn};
 pub use retention_metrics::{RetentionPurgeMetrics, retention_purge_metrics};
 pub use retention_reconcile::{
     PostgresRetentionScopeStore, RetentionReconcileReport, clear_conversation_retention_until,
@@ -56,8 +57,9 @@ pub use welcome_state_store::PostgresWelcomeStateStore;
 
 pub(crate) use journal_queries::{APPEND_EVENT_SQL, LOAD_EVENT_BY_POSITION_SQL};
 pub(crate) use journal_repository::{
-    compose_partition_key, is_unique_violation, journal_aggregate_seq, journal_position_conflict,
-    journal_retention_until, resolve_journal_event_id_replay,
+    allocate_next_ordering_sequences, compose_partition_key, is_unique_violation,
+    journal_aggregate_seq, journal_position_conflict, journal_retention_until,
+    lock_journal_partitions, resolve_journal_event_id_replay,
 };
 pub(crate) use postgres_support::{
     now_rfc3339, postgres_bigint_input, postgres_bigint_output, postgres_jsonb_payload,

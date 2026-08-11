@@ -272,12 +272,45 @@ pub trait ConversationAggregateStore: Send + Sync {
         member_id: i64,
         device_id: &str,
     ) -> Result<Option<ReadCursorRecord>, ContractError> {
+        // Device-scoped cursor first, shared (empty-device) cursor as the
+        // fallback — the semantics the PostgreSQL adapter implements in one
+        // query (`device_id = $5 or device_id = '' order by case when
+        // device_id = $5 then 0 else 1 end limit 1`).
         if device_id.is_empty() {
             return self.load_read_cursor(tenant_id, organization_id, conversation_id, member_id);
         }
-        Err(ContractError::UnsupportedCapability(
-            "device-scoped normalized read cursor lookup is not implemented".into(),
-        ))
+        match self.load_read_cursor_exact(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            member_id,
+            device_id,
+        )? {
+            Some(cursor) => Ok(Some(cursor)),
+            None => self.load_read_cursor(tenant_id, organization_id, conversation_id, member_id),
+        }
+    }
+
+    /// Loads the read cursor for exactly this device without falling back to
+    /// the shared (empty-device) cursor. The default assumes stores keep no
+    /// device-scoped cursors and returns `Ok(None)`; stores that do maintain
+    /// device-scoped cursors override this.
+    fn load_read_cursor_exact(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        member_id: i64,
+        device_id: &str,
+    ) -> Result<Option<ReadCursorRecord>, ContractError> {
+        let _ = (
+            tenant_id,
+            organization_id,
+            conversation_id,
+            member_id,
+            device_id,
+        );
+        Ok(None)
     }
 
     fn upsert_read_cursor(&self, cursor: ReadCursorRecord) -> Result<(), ContractError>;

@@ -12,6 +12,7 @@ import type {
   EditMessageRequest,
   FavoriteMessageRequest,
   FavoriteMessagesResponse,
+  ImDecodedMessage,
   ListMembersResponse,
   MessageFavoriteView,
   MessageMutationResult,
@@ -250,7 +251,7 @@ export function createChatService(
           return {
             id: member.principalId,
             name: isSystemAgent
-              ? i18next.t("chat.date.system_agent_name", "系统智能体")
+              ? i18next.t("chat.date.system_agent_name", "System Agent")
               : isPeer
                 ? (peer.displayName ?? memberName ?? peer.principalId)
                 : (memberName ?? member.principalId),
@@ -300,6 +301,64 @@ export function createChatService(
       return Promise.all(page.items.map(mapMessageEntryWithDownloadUrl));
     },
 
+    /**
+     * Maps a realtime decoded message into the local view model so live
+     * subscriptions can merge incrementally instead of re-pulling the whole
+     * page per event. Media download grants are resolved through the cached
+     * grant helper (issued once per node, never on every event).
+     */
+    async mapRealtimeMessage(decoded: ImDecodedMessage): Promise<Message | undefined> {
+      const conversationId = decoded.conversationId;
+      const messageId = decoded.messageId;
+      if (!conversationId || !messageId) {
+        return undefined;
+      }
+      const media = decoded.attachments?.[0];
+      const mediaResource = media?.resource;
+      const mediaKind = mediaResource?.mediaKind ?? mediaResource?.kind ?? undefined;
+      const messageType: Message["type"] = mediaKind === "image"
+        ? "image"
+        : mediaKind === "video"
+          ? "video"
+          : mediaKind === "voice" || mediaKind === "audio"
+            ? "voice"
+            : mediaKind === "file" || mediaKind === "document"
+              ? "file"
+              : decoded.messageType === "system"
+                ? "system"
+                : "text";
+      const mediaUrl = mediaResource?.publicUrl ?? mediaResource?.url ?? mediaResource?.uri;
+      const textPart = decoded.body?.parts.find((part) => part.kind === "text");
+      const partText = textPart?.kind === "text" ? textPart.text : undefined;
+      const replyTo = decoded.replyTo ? {
+        id: decoded.replyTo.messageId,
+        senderName: decoded.replyTo.senderDisplayName,
+        content: decoded.replyTo.contentPreview,
+      } : undefined;
+      const message: Message = {
+        chatId: conversationId,
+        content: mediaUrl ?? partText ?? decoded.body?.text ?? decoded.body?.summary ?? decoded.summary ?? "",
+        id: messageId,
+        senderId: decoded.sender?.id ?? "",
+        timestamp: parseTimestamp(decoded.occurredAt ?? new Date().toISOString()),
+        type: messageType,
+        ...(replyTo ? { replyTo, metadata: { replyTo: replyTo.id } } : {}),
+        ...(mediaResource
+          ? { metadata: { ...(replyTo ? { replyTo: replyTo.id } : {}), fileName: mediaResource.fileName ?? undefined, mimeType: mediaResource.mimeType ?? undefined, size: mediaResource.sizeBytes ?? undefined, duration: mediaResource.durationSeconds ?? undefined } }
+          : {}),
+      };
+      const nodeId = mediaResource?.id;
+      if (!nodeId || messageType === "text") {
+        return message;
+      }
+      try {
+        return { ...message, content: await createChatMediaDownloadUrl(nodeId) };
+      } catch (error) {
+        console.error("Unable to resolve Drive-backed realtime media", error);
+        return message;
+      }
+    },
+
     async searchChatHistory(
       conversationId: string,
       query: string,
@@ -330,12 +389,16 @@ export function createChatService(
       type: Message["type"] = "text",
       metadata?: unknown,
       replyTo?: MessageReplyReference,
+      clientMsgId?: string,
     ): Promise<Message> {
       if (type !== "text" || metadata !== undefined) {
         throw new ChatCapabilityUnavailableError(`Legacy ${type} message composition`);
       }
       const result = await resolveClient().conversations.postText(conversationId, content, {
-        clientMsgId: uuid(),
+        // The caller keeps the idempotency key stable across retries of the
+        // same local message (see ChatDetail); a fresh key is only a fallback
+        // for callers without a local message lifecycle.
+        clientMsgId: clientMsgId ?? uuid(),
         ...(replyTo ? { replyTo } : {}),
       });
       const storedMessage = await findMessageById(conversationId, result.messageId);
@@ -356,6 +419,7 @@ export function createChatService(
       file: Parameters<typeof uploadChatMedia>[1],
       kind: ChatMediaUpload["resource"]["kind"],
       options: Parameters<typeof uploadChatMedia>[3] = {},
+      clientMsgId?: string,
     ): Promise<Message> {
       const media = await uploadChatMedia(conversationId, file, kind, options);
       const client = resolveClient();
@@ -364,7 +428,8 @@ export function createChatService(
       }
       const result = await client.conversations.postMessage(conversationId, {
         parts: [{ kind: "media", drive: media.drive, resource: media.resource, mediaRole: "attachment" }],
-        clientMsgId: uuid(),
+        // Stable across retries of the same local message (same key as text).
+        clientMsgId: clientMsgId ?? uuid(),
       });
       const storedMessage = await findMessageById(conversationId, result.messageId);
       if (!storedMessage) {
@@ -695,7 +760,7 @@ function mapInboxEntry(entry: ConversationInboxEntry): Chat {
       id: peer.userId ?? peer.principalId,
       name:
         peer.principalKind === "system"
-          ? i18next.t("chat.date.system_agent_name", "系统智能体")
+          ? i18next.t("chat.date.system_agent_name", "System Agent")
           : peer.displayName ?? peer.principalId,
       ...(peer.avatarUrl ? { avatar: peer.avatarUrl } : {}),
     }]

@@ -42,22 +42,22 @@ return (
                    </div>
                    <div className="flex-1 min-w-0">
                       <h3 className="text-white font-semibold text-[16px] mb-1 line-clamp-1 truncate">Remix: {remixWork.title}</h3>
-                      <p className="text-white/50 text-[13px]">{t('channels.auto_752d22d0', '与 @{remixWork.author} 一起共创')}</p>
+                      <p className="text-white/50 text-[13px]">{t('channels.auto_752d22d0', 'Co-create with @{remixWork.author}')}</p>
                    </div>
                 </div>
 
                 <div className="grid grid-cols-4 gap-4 mb-6">
-                   <RemixOption icon={Layers} label={t('channels.auto_prop_a8fc5', '合拍')} color="bg-blue-500" />
-                   {remixWork.type === "video" && <RemixOption icon={Scissors} label={t('channels.auto_prop_13ff89c', '剪同款')} color="bg-orange-500" />}
-                   {remixWork.type === "image" && <RemixOption icon={Wand2} label={t('channels.auto_prop_3c237dd', 'AI 改图')} color="bg-purple-500" />}
-                   <RemixOption icon={Music} label={t('channels.auto_prop_1c24459', '用原声')} color="bg-rose-500" />
-                   {remixWork.type === "video" && <RemixOption icon={LayoutTemplate} label={t('channels.auto_prop_fbf36', '绿幕')} color="bg-emerald-500" />}
+                   <RemixOption icon={Layers} label={t('channels.auto_prop_a8fc5', 'Duet')} color="bg-blue-500" />
+                   {remixWork.type === "video" && <RemixOption icon={Scissors} label={t('channels.auto_prop_13ff89c', 'Remix')} color="bg-orange-500" />}
+                   {remixWork.type === "image" && <RemixOption icon={Wand2} label={t('channels.auto_prop_3c237dd', 'AI edit')} color="bg-purple-500" />}
+                   <RemixOption icon={Music} label={t('channels.auto_prop_1c24459', 'Original audio')} color="bg-rose-500" />
+                   {remixWork.type === "video" && <RemixOption icon={LayoutTemplate} label={t('channels.auto_prop_fbf36', 'Green screen')} color="bg-emerald-500" />}
                 </div>
 
                 <button 
                    className="w-full py-3.5 bg-white/10 active:bg-white/20 rounded-xl text-white font-medium text-[16px] transition-colors mb-2"
                    onClick={() => setRemixWork(null)}
-                >{t('channels.auto_a9472', '取消')}</button>
+                >{t('channels.auto_a9472', 'Cancel')}</button>
              </motion.div>
           </motion.div>
        )}

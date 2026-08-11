@@ -1492,9 +1492,7 @@ where
             peer_kind,
             pair.right_actor_id.as_str(),
         )?;
-        if member_record_active(anchor.as_ref())
-            && member_record_active(peer.as_ref())
-        {
+        if member_record_active(anchor.as_ref()) && member_record_active(peer.as_ref()) {
             self.ensure_member_loaded(
                 tenant_id,
                 normalized_organization_id.as_str(),
@@ -2544,12 +2542,7 @@ where
 }
 
 fn member_record_active(record: Option<&ConversationMemberRecord>) -> bool {
-    record.is_some_and(|record| {
-        matches!(
-            record.membership_state.as_str(),
-            "joined" | "linked"
-        )
-    })
+    record.is_some_and(|record| matches!(record.membership_state.as_str(), "joined" | "linked"))
 }
 
 /// 构建 direct chat 双方成员（anchor/Owner + peer/Member），actor kind 与
@@ -2607,6 +2600,7 @@ fn build_direct_chat_binding_members(
     (anchor_member, peer_member)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn append_conversation_creation_batch<J>(
     runtime: &ConversationRuntime<J>,
     conversation: &ConversationState,

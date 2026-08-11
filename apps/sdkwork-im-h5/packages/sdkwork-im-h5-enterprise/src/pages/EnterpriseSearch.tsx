@@ -10,13 +10,13 @@ const [query, setQuery] = useState("");
   const TRENDING = ["科技", "电商服务", "大米批发", "新媒体代运营", "物流", "招聘前端开发"];
 
   return (
-    <PageLayout title={t('enterprise.auto_prop_c9c86', '搜索')} bgClass="bg-chat-other-bg">
+    <PageLayout title={t('enterprise.auto_prop_c9c86', 'Search')} bgClass="bg-chat-other-bg">
       <div className="p-4 flex flex-col items-center">
         <div className="w-full bg-input-bg rounded-xl flex items-center px-4 py-3 border border-transparent focus-within:border-primary-blue/30 transition-colors">
           <Search className="w-5 h-5 text-text-sub shrink-0" />
           <input 
             className="flex-1 bg-transparent border-none outline-none text-[15px] text-text-main ml-2" 
-            placeholder={t('enterprise.auto_prop_66466fbc', '搜索企业、供应或职位')}
+            placeholder={t('enterprise.auto_prop_66466fbc', 'Search companies, supply or jobs')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
@@ -30,7 +30,7 @@ const [query, setQuery] = useState("");
 
         {!query && (
           <div className="w-full mt-6 flex flex-col self-start">
-             <h3 className="text-[14px] font-bold text-text-main mb-3">{t('enterprise.auto_3594a461', '热门搜索')}</h3>
+             <h3 className="text-[14px] font-bold text-text-main mb-3">{t('enterprise.auto_3594a461', 'Trending searches')}</h3>
              <div className="flex flex-wrap gap-3">
                 {TRENDING.map((tag) => (
                   <span 
@@ -48,7 +48,7 @@ const [query, setQuery] = useState("");
         {query && (
           <div className="w-full mt-12 flex flex-col items-center justify-center text-text-sub gap-2">
              <Search className="w-10 h-10 opacity-30" />
-             <span className="text-[14px]">{t('enterprise.auto_6a2c51b5', '搜索 "{query}" 相关内容')}</span>
+             <span className="text-[14px]">{t('enterprise.auto_6a2c51b5', 'Search results related to "{query}"')}</span>
           </div>
         )}
       </div>

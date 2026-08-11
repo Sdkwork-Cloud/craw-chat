@@ -127,6 +127,10 @@ pub struct RouteDirectory {
 struct RouteDirectoryState {
     routes_by_key: HashMap<String, RouteBinding>,
     routes_by_node: HashMap<String, BTreeSet<String>>,
+    /// Last activity (bind/observe/lookup) timestamp in UTC milliseconds per
+    /// route key; drives `prune_stale` so the in-memory directory cannot grow
+    /// without bound across churned clients.
+    last_active_ms: HashMap<String, u64>,
 }
 
 impl RouteDirectoryState {
@@ -137,11 +141,14 @@ impl RouteDirectoryState {
         self.routes_by_node
             .entry(route.owner_node_id)
             .or_default()
-            .insert(route_key);
+            .insert(route_key.clone());
+        self.last_active_ms
+            .insert(route_key, unix_timestamp_millis());
     }
 
     fn remove_route(&mut self, route_key: &str) -> Option<RouteBinding> {
         let removed = self.routes_by_key.remove(route_key)?;
+        self.last_active_ms.remove(route_key);
         self.remove_route_key_from_node(removed.owner_node_id.as_str(), route_key);
         Some(removed)
     }
@@ -409,19 +416,38 @@ impl RouteDirectory {
         principal_kind: &str,
         device_id: &str,
     ) -> Option<RouteBinding> {
-        lock_route_mutex(&self.routes, "routes")
-            .routes_by_key
-            .get(
-                route_key(
-                    tenant_id,
-                    organization_id,
-                    principal_id,
-                    principal_kind,
-                    device_id,
-                )
-                .as_str(),
-            )
-            .cloned()
+        let mut routes = lock_route_mutex(&self.routes, "routes");
+        let key = route_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
+        let binding = routes.routes_by_key.get(&key).cloned()?;
+        routes.last_active_ms.insert(key, unix_timestamp_millis());
+        Some(binding)
+    }
+
+    /// Removes every binding whose last activity (bind/observe/lookup) is
+    /// older than `stale_before_ms` (a UTC millisecond timestamp). Returns the
+    /// number of pruned bindings. Bindings that were merely migrated between
+    /// nodes keep their activity stamp; the Postgres store remains the source
+    /// of truth, so a pruned binding is transparently re-hydrated on the next
+    /// lookup.
+    pub fn prune_stale(&self, stale_before_ms: u64) -> usize {
+        let mut routes = lock_route_mutex(&self.routes, "routes");
+        let stale_keys = routes
+            .last_active_ms
+            .iter()
+            .filter(|(_, last_active)| **last_active < stale_before_ms)
+            .map(|(key, _)| key.clone())
+            .collect::<Vec<_>>();
+        let pruned = stale_keys.len();
+        for key in stale_keys {
+            routes.remove_route(&key);
+        }
+        pruned
     }
 
     pub fn release(
@@ -664,6 +690,14 @@ pub fn encode_route_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>
         encoded.push_str(segment);
     }
     encoded
+}
+
+/// Current wall-clock time in UTC milliseconds since the Unix epoch.
+fn unix_timestamp_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 mod route_store;
@@ -1045,5 +1079,53 @@ mod tests {
         );
         let lifecycle = result.expect("panic status should be captured");
         assert!(lifecycle.is_some());
+    }
+
+    #[test]
+    fn test_prune_stale_removes_inactive_bindings() {
+        let directory = RouteDirectory::default();
+        directory.register_node("node_a");
+        directory
+            .bind(RouteBindingRequest::new(
+                "100001", "1", "user", "d_pad", "node_a",
+            ))
+            .expect("route should bind");
+
+        // A far-future threshold makes every binding look stale.
+        assert_eq!(directory.prune_stale(u64::MAX), 1);
+        assert!(
+            directory
+                .lookup("100001", "default", "1", "user", "d_pad")
+                .is_none(),
+            "stale bindings must be evicted from the directory"
+        );
+        assert_eq!(directory.routes_for_node("node_a").len(), 0);
+    }
+
+    #[test]
+    fn test_lookup_refreshes_last_active_stamp_so_binding_survives_prune() {
+        let directory = RouteDirectory::default();
+        directory.register_node("node_a");
+        directory
+            .bind(RouteBindingRequest::new(
+                "100001", "1", "user", "d_pad", "node_a",
+            ))
+            .expect("route should bind");
+        assert!(
+            directory
+                .lookup("100001", "default", "1", "user", "d_pad")
+                .is_some()
+        );
+
+        // A threshold slightly in the past: the binding's stamp was refreshed
+        // by the lookup, so it must survive pruning.
+        let threshold = unix_timestamp_millis().saturating_sub(1_000);
+        assert_eq!(directory.prune_stale(threshold), 0);
+        assert!(
+            directory
+                .lookup("100001", "default", "1", "user", "d_pad")
+                .is_some(),
+            "recently active bindings must survive pruning"
+        );
     }
 }

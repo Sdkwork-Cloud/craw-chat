@@ -14,7 +14,7 @@ import {
   Building2,
   Contact,
 } from "lucide-react";
-import { cn, IconButton } from "@sdkwork/im-h5-commons";
+import { cn, IconButton, showToast } from "@sdkwork/im-h5-commons";
 import { DiscoverItem } from "../components/DiscoverItem";
 
 export const Discover: React.FC = () => {
@@ -27,7 +27,7 @@ export const Discover: React.FC = () => {
       <header className="h-[56px] px-4 flex items-center justify-between sticky top-0 z-10 shrink-0 pt-safe bg-bg-color/90 backdrop-blur-xl">
         <div className="w-[32px]" />
         <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
-          <h1 className="text-[17px] font-bold text-text-main tracking-tight">{t('user.auto_a99ff', '发现')}</h1>
+          <h1 className="text-[17px] font-bold text-text-main tracking-tight">{t('user.auto_a99ff', 'Discover')}</h1>
         </div>
         <div className="flex justify-end">
           <IconButton
@@ -42,7 +42,7 @@ export const Discover: React.FC = () => {
         <div className="mb-2 border-y border-border-color bg-chat-other-bg">
           <DiscoverItem
             icon={Camera}
-            label={t('user.auto_prop_18d4ce8', '朋友圈')}
+            label={t('user.auto_prop_18d4ce8', 'Moments')}
             colorClass="text-[#3b82f6]"
             hasBorder={false}
             onClick={() => navigate("/discover/moments")}
@@ -53,7 +53,7 @@ export const Discover: React.FC = () => {
         <div className="mb-2 border-y border-border-color bg-chat-other-bg">
           <DiscoverItem
             icon={BookOpen}
-            label={t('user.auto_prop_298bb0a4', '在线课程')}
+            label={t('user.auto_prop_298bb0a4', 'Online courses')}
             colorClass="text-emerald-500"
             hasBorder={false}
             onClick={() => navigate("/course")}
@@ -64,7 +64,7 @@ export const Discover: React.FC = () => {
         <div className="mb-2 border-y border-border-color flex flex-col bg-chat-other-bg">
           <DiscoverItem
             icon={Video}
-            label={t('user.auto_prop_9f0e5', '作品')}
+            label={t('user.auto_prop_9f0e5', 'Works')}
             hasBorder={false}
             colorClass="text-orange-500"
             onClick={() => navigate("/discover/channels")}
@@ -75,7 +75,7 @@ export const Discover: React.FC = () => {
         <div className="mb-2 border-y border-border-color bg-chat-other-bg">
           <DiscoverItem
             icon={Compass}
-            label={t('user.auto_prop_ae548', '圈子')}
+            label={t('user.auto_prop_ae548', 'Communities')}
             colorClass="text-blue-500"
             hasBorder={false}
             onClick={() => navigate("/community")}
@@ -86,19 +86,21 @@ export const Discover: React.FC = () => {
         <div className="mb-2 border-y border-border-color flex flex-col bg-chat-other-bg">
           <DiscoverItem
             icon={Building2}
-            label={t('user.auto_prop_2518cc2f', '企业中心')}
+            label={t('user.auto_prop_2518cc2f', 'Business Center')}
             colorClass="text-indigo-500"
-            onClick={() => navigate("/enterprise")}
+            onClick={() =>
+              showToast(t('commons.feature_unavailable', 'This feature is not available yet; the real service is being connected. Stay tuned.'))
+            }
           />
           <DiscoverItem
             icon={Scan}
-            label={t('user.auto_prop_17b4816', '扫一扫')}
+            label={t('user.auto_prop_17b4816', 'Scan')}
             colorClass="text-blue-500"
             onClick={() => navigate("/scan")}
           />
           <DiscoverItem
             icon={Search}
-            label={t('user.auto_prop_181a338', '搜一搜')}
+            label={t('user.auto_prop_181a338', 'Search')}
             colorClass="text-rose-500"
             hasBorder={false}
             onClick={() => navigate("/discover/search")}
@@ -109,13 +111,13 @@ export const Discover: React.FC = () => {
         <div className="mb-2 border-y border-border-color flex flex-col bg-chat-other-bg">
           <DiscoverItem
             icon={Gamepad2}
-            label={t('user.auto_prop_dbad7', '游戏')}
+            label={t('user.auto_prop_dbad7', 'Games')}
             colorClass="text-green-500"
             onClick={() => navigate("/discover/games")}
           />
           <DiscoverItem
             icon={ShoppingBag}
-            label={t('user.auto_prop_118adc', '购物')}
+            label={t('user.auto_prop_118adc', 'Shopping')}
             colorClass="text-orange-500"
             hasBorder={false}
             onClick={() => navigate("/discover/shopping")}

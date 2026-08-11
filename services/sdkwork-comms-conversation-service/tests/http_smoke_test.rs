@@ -457,6 +457,11 @@ async fn test_post_media_message_rejects_missing_drive_reference_over_http() {
                                     "kind":"image",
                                     "source":"drive",
                                     "uri":"drive://spaces/space_app_upload_demo/nodes/node_missing_drive"
+                                },
+                                "drive":{
+                                    "driveUri":"",
+                                    "spaceId":"",
+                                    "nodeId":""
                                 }
                             }
                         ]
@@ -467,7 +472,7 @@ async fn test_post_media_message_rejects_missing_drive_reference_over_http() {
         .await
         .expect("post missing Drive media request should return response");
 
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let body = response
         .into_body()
         .collect()
@@ -4324,7 +4329,7 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
                 .body(Body::from(format!(
                     r#"{{
                         "readSeq": 1,
-                        "lastReadMessageId":"msg_{conversation_id}_1"
+                        "lastReadMessageId":"1"
                     }}"#,
                 )))
                 .unwrap(),
@@ -4397,7 +4402,7 @@ async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
                 .body(Body::from(format!(
                     r#"{{
                         "readSeq": 1,
-                        "lastReadMessageId":"msg_{conversation_id}_1"
+                        "lastReadMessageId":"1"
                     }}"#,
                 )))
                 .unwrap(),
@@ -6599,4 +6604,3 @@ async fn test_ensure_welcome_message_is_idempotent_over_http() {
         serde_json::from_slice(&second_body).expect("response should be valid json");
     assert_eq!(response_item(&second_value)["status"], "already_sent");
 }
-

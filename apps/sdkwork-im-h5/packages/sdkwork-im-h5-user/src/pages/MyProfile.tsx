@@ -26,7 +26,7 @@ export const MyProfile: React.FC = () => {
           />
         </div>
         <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
-          <h2 className="text-[17px] font-medium text-text-main">{t('user.auto_24b99e7e', '个人信息')}</h2>
+          <h2 className="text-[17px] font-medium text-text-main">{t('user.auto_24b99e7e', 'Personal info')}</h2>
         </div>
         <div className="flex-1" />
       </header>
@@ -38,7 +38,7 @@ export const MyProfile: React.FC = () => {
             onClick={() => navigate("/my-profile/avatar")}
             className="flex items-center justify-between px-4 py-3 bg-chat-other-bg active:bg-active-bg transition-colors cursor-pointer border-b border-border-color"
           >
-            <span className="text-[16px] text-text-main">{t('user.auto_b1e1b', '头像')}</span>
+            <span className="text-[16px] text-text-main">{t('user.auto_b1e1b', 'Avatar')}</span>
             <div className="flex items-center gap-2 text-text-sub">
               <Avatar
                 fallback={profile?.name || "?"}
@@ -50,30 +50,30 @@ export const MyProfile: React.FC = () => {
             </div>
           </div>
           <ProfileListItem
-            label={t('user.auto_prop_a88ea', '名字')}
+            label={t('user.auto_prop_a88ea', 'Name')}
             rightText={profile?.name || "User"}
             onClick={() => navigate("/my-profile/name")}
           />
           <ProfileListItem
-            label={t('user.auto_prop_17cb85a', '拍一拍')}
+            label={t('user.auto_prop_17cb85a', 'Nudge')}
             onClick={() => navigate("/my-profile/tickle")}
           />
           <ProfileListItem
-            label={t('user.auto_prop_1712c64', '微信号')}
-            rightText={profile?.wechatId || t('user.profile_not_bound', '未绑定')}
+            label={t('user.auto_prop_1712c64', 'WeChat ID')}
+            rightText={profile?.wechatId || t('user.profile_not_bound', 'Not linked')}
           />
           <ProfileListItem
-            label={t('user.auto_prop_n62fa905a', '我的二维码')}
+            label={t('user.auto_prop_n62fa905a', 'My QR code')}
             rightElement={<QrCode className="w-5 h-5" />}
             onClick={() => navigate("/my-profile/qrcode")}
           />
-          <ProfileListItem label={t('user.auto_prop_cd0a6', '更多')} onClick={() => navigate("/my-profile/more")} />
+          <ProfileListItem label={t('user.auto_prop_cd0a6', 'More')} onClick={() => navigate("/my-profile/more")} />
         </div>
 
         {/* Group 2 */}
         <div className="mb-2 border-y border-border-color flex flex-col">
           <ProfileListItem
-            label={t('user.auto_prop_30ca7afd', '来电铃声')}
+            label={t('user.auto_prop_30ca7afd', 'Ringtone')}
             onClick={() => navigate("/my-profile/ringtone")}
           />
         </div>
@@ -81,11 +81,11 @@ export const MyProfile: React.FC = () => {
         {/* Group 3 */}
         <div className="border-y border-border-color flex flex-col">
           <ProfileListItem
-            label={t('user.auto_prop_17164b3', '微信豆')}
+            label={t('user.auto_prop_17164b3', 'Credits')}
             onClick={() => navigate("/my-profile/beans")}
           />
           <ProfileListItem
-            label={t('user.auto_prop_2e5be3e3', '我的地址')}
+            label={t('user.auto_prop_2e5be3e3', 'My addresses')}
             onClick={() => navigate("/my-profile/address")}
           />
         </div>

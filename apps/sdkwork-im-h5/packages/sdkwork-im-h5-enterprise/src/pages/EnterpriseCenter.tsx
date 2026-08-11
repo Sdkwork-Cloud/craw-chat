@@ -48,7 +48,7 @@ export const EnterpriseCenter = () => {
 
   return (
     <PageLayout 
-      title={t('enterprise.auto_prop_2518cc2f', '企业中心')}
+      title={t('enterprise.auto_prop_2518cc2f', 'Business Center')}
       bgClass="bg-bg-color"
       rightElement={
         <div className="flex items-center gap-1 pl-2 relative z-[100]">

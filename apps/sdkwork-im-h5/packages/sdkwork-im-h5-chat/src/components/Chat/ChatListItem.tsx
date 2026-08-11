@@ -113,12 +113,12 @@ const navigate = useNavigate();
         </div>
         <div className="flex justify-between items-center">
           <span className="text-[14px] text-text-sub truncate leading-tight">
-            {chat.lastMessage?.content.includes(t("chat:list.at_me", "@我")) ||
+            {chat.lastMessage?.content.includes(t("chat:list.at_me", "@me")) ||
             chat.lastMessage?.content.includes("@Me") ? (
               <>
                 <span className="text-primary-blue">{t("chat.list.me")}</span>
                 {chat.lastMessage.content
-                  .replace(t("chat:list.at_me", "@我"), "")
+                  .replace(t("chat:list.at_me", "@me"), "")
                   .replace("@Me", "")}
               </>
             ) : (

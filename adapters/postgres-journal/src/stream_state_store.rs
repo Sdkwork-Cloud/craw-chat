@@ -15,6 +15,15 @@ use crate::{
     postgres_timestamptz, postgres_unavailable, run_postgres_io,
 };
 
+/// SDKWork list-standard page size cap (default 20, max 200 per
+/// `DATABASE_SPEC.md` section 20.5). Mirrors `message_store.rs`.
+const STREAM_FRAME_PAGE_SIZE_MAX: usize = 200;
+
+/// Clamp a requested stream-frame page size to the SDKWork list bounds.
+fn normalize_stream_frame_page_size(page_size: usize) -> usize {
+    page_size.clamp(1, STREAM_FRAME_PAGE_SIZE_MAX)
+}
+
 const LOAD_SESSION_SQL: &str = r#"
 select tenant_id, organization_id, stream_id, owner_principal_kind, owner_principal_id,
     stream_type, scope_kind, scope_id, durability_class, ordering_scope, schema_ref,
@@ -193,6 +202,7 @@ impl StreamStateStore for PostgresStreamStateStore {
     ) -> Result<Vec<StreamFrame>, ContractError> {
         let pool = self.pool.clone();
         let scope = scope.clone();
+        let page_size = normalize_stream_frame_page_size(page_size);
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "stream frame page")?;
             let after = u64_as_i64(after_frame_seq, "after_frame_seq")?;
@@ -341,7 +351,7 @@ fn transition_session(
     }
     txn.commit()
         .map_err(|error| postgres_unavailable("stream session transition commit", error))?;
-    Ok(StreamTransitionOutcome::Applied(next_session))
+    Ok(StreamTransitionOutcome::Applied(Box::new(next_session)))
 }
 
 fn insert_session(

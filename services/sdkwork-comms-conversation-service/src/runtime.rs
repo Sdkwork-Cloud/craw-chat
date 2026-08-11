@@ -4,14 +4,14 @@ use im_platform_contracts::{
     AgentAssignmentSource, AgentDispatchReplyCompletion, AgentIntegrationStore,
     AgentReplyCommitResult, CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAgentAssignmentItem,
     ConversationAggregateStore, ConversationMemberPageCursor, ConversationMemberRecord,
-    ConversationSeqAllocator, IdGenerator,
-    MessageStore, NormalizedConversationBusinessBindingRecord, NormalizedConversationCommit,
+    ConversationSeqAllocator, IdGenerator, InMemoryWelcomeStateStore, MessageStore,
+    NormalizedConversationBusinessBindingRecord, NormalizedConversationCommit,
     NormalizedConversationCurrentState, NormalizedConversationHandoffRecord,
-    NormalizedConversationPolicyRecord, NormalizedConversationRecord, OutboxStore,
-    ReadCursorRecord, RealtimeEventPublisher, ReplaceConversationAgentAssignments,
+    NormalizedConversationPolicyRecord, NormalizedConversationRecord, NotificationTaskRecord,
+    OutboxStore, ReadCursorRecord, RealtimeEventPublisher, ReplaceConversationAgentAssignments,
     RetentionScopeStore, StoredMessageMutation, StoredMessageMutationTarget,
-    StoredMessagePinRecord, StoredMessageReactionRecord, StoredMessageRecord,
-    InMemoryWelcomeStateStore, WelcomeSentRecord, WelcomeStateStore,
+    StoredMessagePinRecord, StoredMessageReactionRecord, StoredMessageRecord, WelcomeSentRecord,
+    WelcomeStateStore,
 };
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{
@@ -40,6 +40,7 @@ use im_domain_core::message::{
     MessagePinned, MessageReactionAdded, MessageReactionRemoved, MessageRecalled, MessageType,
     MessageUnpinned, ReactionActorIdentity, Sender,
 };
+use im_domain_core::notification::{NotificationStatus, NotificationTask};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 pub use im_platform_contracts::{
     AGENT_MENTION_DISPATCH_EVENT_TYPE, AGENT_MENTION_DISPATCH_OUTBOX_AGGREGATE_TYPE,
@@ -118,9 +119,6 @@ pub use durable_message_post::DurableMessagePostWriter;
 pub use group_knowledgebase_outbox_relay::{
     GroupKnowledgebaseOutboxRelayHandle, spawn_group_knowledgebase_outbox_relay,
 };
-pub use welcome::{
-    SYSTEM_AGENT_ACTOR_ID, SYSTEM_AGENT_ACTOR_KIND, WelcomeDeliveryOutcome, WelcomeEnsureView,
-};
 pub use group_lifecycle::{
     ArchiveGroupConversationCommand, ArchiveGroupConversationResult,
     ConversationGroupArchivedPayload,
@@ -148,6 +146,9 @@ pub use knowledgebase::{
     UnavailableGroupKnowledgebasePort,
 };
 pub use membership::MessageHistoryReadRequest;
+pub use welcome::{
+    SYSTEM_AGENT_ACTOR_ID, SYSTEM_AGENT_ACTOR_KIND, WelcomeDeliveryOutcome, WelcomeEnsureView,
+};
 
 const CONVERSATION_MAX_ID_BYTES: usize = 256;
 const CONVERSATION_MAX_KIND_BYTES: usize = 64;
@@ -817,6 +818,11 @@ struct MessageMutationReplayRecord {
     result: MessageMutationResult,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ReactionMutationReplayRecord {
+    result: MessageReactionMutationResult,
+}
+
 trait ReplayCacheEntrySize {
     fn estimated_cache_bytes(&self) -> usize;
 }
@@ -840,6 +846,19 @@ impl ReplayCacheEntrySize for MessageMutationReplayRecord {
             .saturating_add(self.result.message_id.len())
             .saturating_add(self.result.event_id.len())
             .saturating_add(std::mem::size_of::<u64>())
+    }
+}
+
+impl ReplayCacheEntrySize for ReactionMutationReplayRecord {
+    fn estimated_cache_bytes(&self) -> usize {
+        self.result
+            .conversation_id
+            .len()
+            .saturating_add(self.result.message_id.len())
+            .saturating_add(self.result.reaction_key.len())
+            .saturating_add(self.result.event_id.as_ref().map_or(0, String::len))
+            .saturating_add(std::mem::size_of::<u64>())
+            .saturating_add(std::mem::size_of::<bool>())
     }
 }
 
@@ -955,6 +974,25 @@ fn message_mutation_request_key(sender: &Sender, idempotency_key: &str) -> Strin
     )
 }
 
+/// Idempotency key scope for reaction mutations. The operation tag and
+/// reaction key are part of the key so add/remove commands never replay each
+/// other's result even when a client reuses an idempotency key.
+fn reaction_mutation_request_key(
+    operation: &str,
+    sender: &Sender,
+    reaction_key: &str,
+    idempotency_key: &str,
+) -> String {
+    format!(
+        "{}:{}:{}:{}:{}",
+        operation,
+        sender.kind.as_str(),
+        sender.id.as_str(),
+        reaction_key.trim(),
+        idempotency_key.trim()
+    )
+}
+
 #[allow(clippy::large_enum_variant)]
 enum PostMessageMutation {
     Applied {
@@ -999,6 +1037,8 @@ pub struct AddMessageReactionCommand {
     pub message_id: String,
     pub reaction_key: String,
     pub reacted_by: Sender,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idempotency_key: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1010,6 +1050,8 @@ pub struct RemoveMessageReactionCommand {
     pub message_id: String,
     pub reaction_key: String,
     pub removed_by: Sender,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idempotency_key: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1484,6 +1526,7 @@ impl AddMessageReactionCommand {
             message_id,
             reaction_key,
             reacted_by: sender_from_auth_context(auth),
+            idempotency_key: None,
         }
     }
 }
@@ -1496,6 +1539,7 @@ impl RemoveMessageReactionCommand {
             message_id,
             reaction_key,
             removed_by: sender_from_auth_context(auth),
+            idempotency_key: None,
         }
     }
 }
@@ -1654,6 +1698,7 @@ struct ConversationState {
     direct_chat_binding_request: Option<DirectChatBindingReplayRecord>,
     posted_message_requests: BoundedReplayCache<PostedMessageReplayRecord>,
     message_mutation_requests: BoundedReplayCache<MessageMutationReplayRecord>,
+    reaction_mutation_requests: BoundedReplayCache<ReactionMutationReplayRecord>,
     last_accessed_at_ms: u64,
 }
 
@@ -1664,6 +1709,7 @@ impl ConversationState {
             .saturating_add(self.message_log.estimated_heap_bytes())
             .saturating_add(self.posted_message_requests.estimated_heap_bytes())
             .saturating_add(self.message_mutation_requests.estimated_heap_bytes())
+            .saturating_add(self.reaction_mutation_requests.estimated_heap_bytes())
     }
 }
 
@@ -3405,13 +3451,10 @@ where
         // Preserve the existing hot member id (the product-facing `cm_...` form):
         // a cold refresh must update role/state without churning the roster key
         // or the principal index under command paths that address the member id.
-        let member = if let Some(existing) = conversation
-            .roster
-            .resolve_active_member_with_kind(
-                member.principal_id.as_str(),
-                member.principal_kind.as_str(),
-            )
-        {
+        let member = if let Some(existing) = conversation.roster.resolve_active_member_with_kind(
+            member.principal_id.as_str(),
+            member.principal_kind.as_str(),
+        ) {
             ConversationMember {
                 member_id: existing.member_id.clone(),
                 ..member
@@ -3447,11 +3490,14 @@ where
                 &self.state,
                 "conversation-runtime.state.ensure_member_by_principal.hot",
             );
-            if let Some(conversation) = state.conversations.get(scope_key.as_str()) {
-                if conversation.roster.resolve_current_member(principal_id).is_some() {
+            if let Some(conversation) = state.conversations.get(scope_key.as_str())
+                && conversation
+                    .roster
+                    .resolve_current_member(principal_id)
+                    .is_some()
+                {
                     return Ok(());
                 }
-            }
         }
         let Some(aggregate_store) = self.aggregate_store.as_ref() else {
             return Ok(());
@@ -3623,7 +3669,7 @@ where
             .read_cursors()
             .values()
             .map(|cursor| cursor_to_record(tenant_id, organization_id, conversation_id, cursor))
-            .collect();
+            .collect::<Result<Vec<_>, RuntimeError>>()?;
         persist_aggregate_records(store.as_ref(), members, read_cursors)
     }
 
@@ -3647,7 +3693,7 @@ where
             .read_cursors()
             .values()
             .map(|cursor| cursor_to_record(tenant_id, organization_id, conversation_id, cursor))
-            .collect();
+            .collect::<Result<Vec<_>, RuntimeError>>()?;
         self.persist_normalized_conversation_changes_with_assignments(
             tenant_id,
             organization_id,
@@ -4207,28 +4253,35 @@ where
                             }
                         }
 
-                        let stored_record = StoredMessageRecord {
-                            tenant_id: message.tenant_id.clone(),
-                            organization_id: command.organization_id.clone(),
-                            conversation_id: message.conversation_id.clone(),
-                            message_id: message.message_id.parse::<i64>().unwrap_or(0),
-                            message_seq: message.message_seq,
-                            sender_principal_kind: message.sender.kind.clone(),
-                            sender_principal_id: message.sender.id.clone(),
-                            sender_device_id: message.sender.device_id.clone(),
-                            client_msg_id: message.client_msg_id.clone(),
-                            message_type: message.message_type.as_wire_value().to_owned(),
-                            payload_json: runtime_json_string(&message.body)?,
-                            payload_hash: sha256_message_hash(&message.body),
-                            created_at: message.occurred_at.clone(),
-                            updated_at: message.occurred_at.clone(),
-                            deleted_at: None,
-                            retention_until,
-                            reactions: Vec::new(),
-                            pin: None,
-                        };
-
                         if let Some(writer) = &self.durable_message_post_writer {
+                            // Only durable writers consume the numeric storage
+                            // form of the message id, so the strict parse is
+                            // performed here (never for pure in-memory hosts).
+                            let stored_record = StoredMessageRecord {
+                                tenant_id: message.tenant_id.clone(),
+                                organization_id: command.organization_id.clone(),
+                                conversation_id: message.conversation_id.clone(),
+                                message_id: message.message_id.parse::<i64>().map_err(|_| {
+                                    RuntimeError::Conflict(format!(
+                                        "message id is not a valid numeric id for durable storage: {}",
+                                        message.message_id
+                                    ))
+                                })?,
+                                message_seq: message.message_seq,
+                                sender_principal_kind: message.sender.kind.clone(),
+                                sender_principal_id: message.sender.id.clone(),
+                                sender_device_id: message.sender.device_id.clone(),
+                                client_msg_id: message.client_msg_id.clone(),
+                                message_type: message.message_type.as_wire_value().to_owned(),
+                                payload_json: runtime_json_string(&message.body)?,
+                                payload_hash: sha256_message_hash(&message.body),
+                                created_at: message.occurred_at.clone(),
+                                updated_at: message.occurred_at.clone(),
+                                deleted_at: None,
+                                retention_until,
+                                reactions: Vec::new(),
+                                pin: None,
+                            };
                             if let Some(completion) = dispatch_completion.clone() {
                                 writer
                                     .persist_agent_reply_and_complete_dispatch(
@@ -4239,13 +4292,34 @@ where
                                     )
                                     .map_err(RuntimeError::from)?;
                             } else {
+                                // Notification requests for the other
+                                // conversation members are written in the
+                                // same transaction as the message, so a
+                                // committed message always carries its
+                                // notification requests (idempotent on
+                                // replay via `on conflict do nothing`).
+                                // The notification-service delivery worker
+                                // claims these rows and dispatches them into
+                                // the recipients' realtime event windows.
+                                // TODO(fix3): keep the task derivation in sync
+                                // with `notification-service::state::request_message_posted_notifications`
+                                // (category/summary/payload semantics); the
+                                // standalone seam remains for co-located hosts.
+                                let notification_tasks = build_message_posted_notification_tasks(
+                                    command.tenant_id.as_str(),
+                                    command.organization_id.as_str(),
+                                    conversation,
+                                    &message,
+                                    event_id.as_str(),
+                                );
                                 writer
-                                    .persist_message_post_batch_with_agent_dispatch(
+                                    .persist_message_post_batch_with_notification_fanout(
                                         journal_envelopes,
                                         stored_record,
                                         outboxes,
                                         agent_dispatch_request,
                                         10,
+                                        notification_tasks,
                                     )
                                     .map_err(RuntimeError::from)?;
                             }
@@ -4823,6 +4897,30 @@ where
             let message_id = stored.message.message_id.clone();
             let message_seq = stored.message.message_seq;
 
+            if let Some(idempotency_key) = command
+                .idempotency_key
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
+                let request_key = reaction_mutation_request_key(
+                    "add",
+                    &command.reacted_by,
+                    command.reaction_key.as_str(),
+                    idempotency_key,
+                );
+                if let Some(existing) = conversation.reaction_mutation_requests.get(&request_key) {
+                    if existing.result.message_id == message_id
+                        && existing.result.reaction_key == command.reaction_key
+                    {
+                        return Ok(existing.result.clone());
+                    }
+                    return Err(RuntimeError::Conflict(format!(
+                        "message reaction request conflicts with existing idempotency key: {request_key}"
+                    )));
+                }
+            }
+
             let mut reacted_by = command.reacted_by.clone();
             if reacted_by.member_id.is_none() {
                 reacted_by.member_id = Some(reacted_member.member_id.clone());
@@ -4913,6 +5011,43 @@ where
             )
         };
 
+        if let Some(idempotency_key) = command
+            .idempotency_key
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            let mut state = write_runtime_state(
+                &self.state,
+                "conversation-runtime.state.add_message_reaction.idempotency",
+            );
+            let scope_key = conversation_scope_key(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                reaction.conversation_id.as_str(),
+            );
+            if let Some(conversation) = state.conversations.get_mut(scope_key.as_str()) {
+                conversation.reaction_mutation_requests.insert(
+                    reaction_mutation_request_key(
+                        "add",
+                        &command.reacted_by,
+                        reaction.reaction_key.as_str(),
+                        idempotency_key,
+                    ),
+                    ReactionMutationReplayRecord {
+                        result: MessageReactionMutationResult {
+                            conversation_id: reaction.conversation_id.clone(),
+                            message_id: reaction.message_id.clone(),
+                            message_seq: reaction.message_seq,
+                            reaction_key: reaction.reaction_key.clone(),
+                            event_id: event_id.clone(),
+                            changed,
+                        },
+                    },
+                );
+            }
+        }
+
         if changed {
             self.publish_message_mutation_realtime_after_commit(
                 command.tenant_id.as_str(),
@@ -4997,6 +5132,30 @@ where
             let conversation_id = stored.message.conversation_id.clone();
             let message_id = stored.message.message_id.clone();
             let message_seq = stored.message.message_seq;
+
+            if let Some(idempotency_key) = command
+                .idempotency_key
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
+                let request_key = reaction_mutation_request_key(
+                    "remove",
+                    &command.removed_by,
+                    command.reaction_key.as_str(),
+                    idempotency_key,
+                );
+                if let Some(existing) = conversation.reaction_mutation_requests.get(&request_key) {
+                    if existing.result.message_id == message_id
+                        && existing.result.reaction_key == command.reaction_key
+                    {
+                        return Ok(existing.result.clone());
+                    }
+                    return Err(RuntimeError::Conflict(format!(
+                        "message reaction request conflicts with existing idempotency key: {request_key}"
+                    )));
+                }
+            }
 
             let mut removed_by = command.removed_by.clone();
             if removed_by.member_id.is_none() {
@@ -5087,6 +5246,43 @@ where
                 realtime_payload,
             )
         };
+
+        if let Some(idempotency_key) = command
+            .idempotency_key
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            let mut state = write_runtime_state(
+                &self.state,
+                "conversation-runtime.state.remove_message_reaction.idempotency",
+            );
+            let scope_key = conversation_scope_key(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                reaction.conversation_id.as_str(),
+            );
+            if let Some(conversation) = state.conversations.get_mut(scope_key.as_str()) {
+                conversation.reaction_mutation_requests.insert(
+                    reaction_mutation_request_key(
+                        "remove",
+                        &command.removed_by,
+                        reaction.reaction_key.as_str(),
+                        idempotency_key,
+                    ),
+                    ReactionMutationReplayRecord {
+                        result: MessageReactionMutationResult {
+                            conversation_id: reaction.conversation_id.clone(),
+                            message_id: reaction.message_id.clone(),
+                            message_seq: reaction.message_seq,
+                            reaction_key: reaction.reaction_key.clone(),
+                            event_id: event_id.clone(),
+                            changed,
+                        },
+                    },
+                );
+            }
+        }
 
         if changed {
             self.publish_message_mutation_realtime_after_commit(
@@ -5945,13 +6141,81 @@ fn member_to_record(
     }
 }
 
+/// Builds the notification request rows for a freshly posted message: one
+/// `requested` task per active conversation member except the sender. The
+/// rows are persisted by the durable writer in the same transaction as the
+/// message, and the notification delivery worker dispatches them afterwards.
+fn build_message_posted_notification_tasks(
+    tenant_id: &str,
+    organization_id: &str,
+    conversation: &ConversationState,
+    message: &Message,
+    event_id: &str,
+) -> Vec<NotificationTaskRecord> {
+    let requested_at = utc_now_rfc3339_millis();
+    let message_type = message.message_type.as_wire_value();
+    let category = if message_type == "signal" {
+        "rtc.event"
+    } else {
+        "message.new"
+    };
+    let payload = json!({
+        "conversationId": message.conversation_id,
+        "messageId": message.message_id,
+        "messageSeq": message.message_seq,
+        "messageType": message_type,
+    })
+    .to_string();
+    let summary = message.body.summary.clone();
+    conversation
+        .roster
+        .members()
+        .values()
+        .filter(|member| member.is_active())
+        .filter(|member| {
+            member.principal_id != message.sender.id || member.principal_kind != message.sender.kind
+        })
+        .map(|member| {
+            let notification_id = format!(
+                "ntf_{}_{}_{}",
+                message.message_id, member.principal_kind, member.principal_id
+            );
+            NotificationTaskRecord {
+                tenant_id: tenant_id.to_owned(),
+                organization_id: organization_id.to_owned(),
+                notification_id: notification_id.clone(),
+                task: NotificationTask {
+                    tenant_id: tenant_id.to_owned(),
+                    notification_id,
+                    source_event_id: event_id.to_owned(),
+                    source_event_type: "message.posted".into(),
+                    category: category.into(),
+                    channel: "inapp".into(),
+                    recipient_id: member.principal_id.clone(),
+                    recipient_kind: member.principal_kind.clone(),
+                    status: NotificationStatus::Requested,
+                    title: summary.clone(),
+                    body: summary.clone(),
+                    payload: Some(payload.clone()),
+                    requested_at: requested_at.clone(),
+                    dispatched_at: None,
+                    failure_reason: None,
+                },
+                updated_at: requested_at.clone(),
+                attempt_count: 0,
+                available_at: requested_at.clone(),
+            }
+        })
+        .collect()
+}
+
 fn cursor_to_record(
     tenant_id: &str,
     organization_id: &str,
     conversation_id: &str,
     cursor: &ConversationReadCursor,
-) -> ReadCursorRecord {
-    ReadCursorRecord {
+) -> Result<ReadCursorRecord, RuntimeError> {
+    Ok(ReadCursorRecord {
         tenant_id: tenant_id.to_owned(),
         organization_id: organization_id.to_owned(),
         conversation_id: conversation_id.to_owned(),
@@ -5963,9 +6227,16 @@ fn cursor_to_record(
         last_read_message_id: cursor
             .last_read_message_id
             .clone()
-            .map(|id| id.parse::<i64>().unwrap_or(0)),
+            .map(|id| {
+                id.parse::<i64>().map_err(|_| {
+                    RuntimeError::ReadCursorInvalid(format!(
+                        "last_read_message_id is not a valid numeric message id: {id}"
+                    ))
+                })
+            })
+            .transpose()?,
         updated_at: cursor.updated_at.clone(),
-    }
+    })
 }
 
 fn normalized_member_storage_id(member_id: &str) -> i64 {

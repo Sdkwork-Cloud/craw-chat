@@ -27,14 +27,14 @@ export const DemandListTab: React.FC<DemandListTabProps> = ({ demands }) => {
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <span className="bg-red-500/10 text-red-500 text-[10px] px-1.5 py-0.5 rounded-sm font-bold border border-red-500/20">
-                {t('enterprise.auto_2705bd70', '加急求购')}
+                {t('enterprise.auto_2705bd70', 'Urgent buying')}
               </span>
               <span className="text-[12px] text-text-sub font-medium bg-bg-color px-1.5 py-0.5 rounded-sm">
                 {dem.type}
               </span>
             </div>
             <span className="text-[13px] font-bold text-primary-blue">
-              {t('enterprise.auto_69caab14', `预算: ${dem.budget}`)}
+              {t('enterprise.auto_69caab14', `Budget: ${dem.budget}`)}
             </span>
           </div>
           <h3 className="text-[15px] font-bold text-text-main group-hover:text-primary-blue transition-colors">

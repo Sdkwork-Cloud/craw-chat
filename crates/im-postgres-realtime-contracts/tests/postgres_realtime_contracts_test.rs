@@ -58,9 +58,9 @@ fn test_postgres_realtime_schema_enforces_event_window_checkpoint_parentage() {
         "schema must create the durable realtime checkpoint table"
     );
     assert!(
-        schema.contains("foreign key (tenant_id, client_route_scope_key)")
+        schema.contains("foreign key (tenant_id, organization_id, client_route_scope_key)")
             && schema
-                .contains("references im_realtime_checkpoints (tenant_id, client_route_scope_key)")
+                .contains("references im_realtime_checkpoints (tenant_id, organization_id, client_route_scope_key)")
             && schema.contains("on delete cascade"),
         "event-window rows must be tied to checkpoint rows so orphaned client route windows cannot survive checkpoint cleanup"
     );

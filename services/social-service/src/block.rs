@@ -581,7 +581,7 @@ impl SocialRuntime {
             ));
         }
 
-        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.acquire_cross_instance_write_lock()?;
         self.refresh_state_from_authority_for_write()?;
         let state = self
             .state
@@ -874,7 +874,7 @@ pub(crate) async fn user_block_snapshot(
     State(state): State<AppState>,
 ) -> Response {
     let result = crate::envelope::run_blocking_social_call(state, move |state| {
-        let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+        state.social_runtime.acquire_cross_instance_read_lock()?;
         state
             .social_runtime
             .refresh_state_from_authority_for_read()?;

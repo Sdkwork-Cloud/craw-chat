@@ -7,10 +7,10 @@ export const AdManagement: React.FC = () => {
   const [adEnabled, setAdEnabled] = useState(true);
 
   return (
-    <PageLayout title={t('user.auto_prop_594e8d97', "个性化广告管理")}>
+    <PageLayout title={t('user.auto_prop_594e8d97', "Personalized ad management")}>
       <Group>
         <ToggleItem
-          label={t('user.auto_prop_7a722ee4', "个性化广告")}
+          label={t('user.auto_prop_7a722ee4', "Personalized ads")}
           checked={adEnabled}
           onChange={setAdEnabled}
           hideBorder

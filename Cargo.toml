@@ -253,6 +253,7 @@ sdkwork-knowledgebase-database-host = { path = "../sdkwork-knowledgebase/crates/
 sdkwork-api-knowledgebase-assembly = { path = "../sdkwork-knowledgebase/crates/sdkwork-api-knowledgebase-assembly" }
 sdkwork-webstore-database-host = { path = "../sdkwork-web-framework/crates/sdkwork-webstore-database-host" }
 sdkwork-mail-database-host = { path = "../sdkwork-mail/crates/sdkwork-mail-database-host" }
+sdkwork-catalog-database-host = { path = "../sdkwork-catalog/crates/sdkwork-catalog-database-host" }
 sdkwork-api-mail-assembly = { path = "../sdkwork-mail/crates/sdkwork-api-mail-assembly" }
 sdkwork-notary-database-host = { path = "../sdkwork-notary/crates/sdkwork-notary-database-host" }
 sdkwork-course-database-host = { path = "../sdkwork-course/crates/sdkwork-course-database-host" }

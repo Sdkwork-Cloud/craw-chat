@@ -16,7 +16,8 @@ use tracing::{error, info, warn};
 use crate::retention_metrics::RetentionPurgeMetrics;
 use crate::{
     PostgresJournalConfig, PostgresJournalPool, RetentionCleanupReport, RetentionPurgeRequest,
-    postgres_pool_client, postgres_unavailable, purge_expired_retention_batch,
+    log_retention_purge_outcome, postgres_pool_client, postgres_unavailable,
+    purge_retention_batch_on_txn,
 };
 
 const DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
@@ -229,30 +230,62 @@ fn run_retention_purge_tick(
     metrics: &RetentionPurgeMetrics,
 ) -> Result<(), ContractError> {
     let started = Instant::now();
-    let lock = RetentionPurgeLock::try_acquire(pool)?;
-    if !lock.acquired {
-        metrics.record_skipped_lock();
-        return Ok(());
-    }
     let mut batches = 0_u32;
     let mut aggregate = RetentionCleanupReport::default();
-    loop {
-        let context = PrivilegedOperationContext::try_new(
-            PrivilegedOperationActorKind::ServiceWorker,
-            RETENTION_PURGE_SCHEDULER_ACTOR_ID,
-            sdkwork_utils_rust::id::uuid(),
-        )?;
-        let request = RetentionPurgeRequest::try_new(context, Some(config.batch_size))?;
-        let report = purge_expired_retention_batch(pool, request)?;
-        aggregate.merge(&report);
-        batches += 1;
-        metrics.record_batch(
-            &report,
-            started.elapsed().as_micros().min(u64::MAX as u128) as u64,
-        );
-        if report.is_empty() || batches >= config.max_batches_per_tick {
-            break;
+    // Transaction-scoped advisory lock (`pg_try_advisory_xact_lock`): the lock
+    // is acquired inside the transaction that runs the entire tick and is
+    // released automatically by the commit/rollback. A crashed or wedged
+    // process can never leak the lock, unlike the previous session-scoped
+    // lock whose best-effort unlock ran on a different connection and
+    // silently failed (leaving the lock held forever by a pooled connection).
+    let lock_acquired = crate::run_postgres_io(|| {
+        let mut client = postgres_pool_client(pool, "retention purge lock")?;
+        let mut txn = client
+            .transaction()
+            .map_err(|error| postgres_unavailable("retention purge lock begin", error))?;
+        let acquired = txn
+            .query_one(
+                "select pg_try_advisory_xact_lock($1)",
+                &[&RETENTION_PURGE_ADVISORY_LOCK_KEY],
+            )
+            .map(|row| row.get::<_, bool>(0))
+            .map_err(|error| postgres_unavailable("retention purge lock acquire", error))?;
+        if !acquired {
+            txn.rollback()
+                .map_err(|error| postgres_unavailable("retention purge lock release", error))?;
+            return Ok(false);
         }
+        loop {
+            let context = PrivilegedOperationContext::try_new(
+                PrivilegedOperationActorKind::ServiceWorker,
+                RETENTION_PURGE_SCHEDULER_ACTOR_ID,
+                sdkwork_utils_rust::id::uuid(),
+            )?;
+            let actor_kind = context.actor_kind().as_str().to_owned();
+            let actor_id = context.actor_id().to_owned();
+            let trace_id = context.trace_id().to_owned();
+            let request = RetentionPurgeRequest::try_new(context, Some(config.batch_size))?;
+            let limit = request.batch_size();
+            let report = purge_retention_batch_on_txn(&mut txn, limit);
+            log_retention_purge_outcome(&actor_kind, &actor_id, &trace_id, limit, &report);
+            let report = report?;
+            aggregate.merge(&report);
+            batches += 1;
+            metrics.record_batch(
+                &report,
+                started.elapsed().as_micros().min(u64::MAX as u128) as u64,
+            );
+            if report.is_empty() || batches >= config.max_batches_per_tick {
+                break;
+            }
+        }
+        txn.commit()
+            .map_err(|error| postgres_unavailable("retention purge tick commit", error))?;
+        Ok(true)
+    })?;
+    if !lock_acquired {
+        metrics.record_skipped_lock();
+        return Ok(());
     }
     if aggregate.total_deleted() > 0 {
         info!(
@@ -272,55 +305,6 @@ fn run_retention_purge_tick(
         );
     }
     Ok(())
-}
-
-struct RetentionPurgeLock {
-    acquired: bool,
-    pool: PostgresJournalPool,
-}
-
-impl RetentionPurgeLock {
-    fn try_acquire(pool: &PostgresJournalPool) -> Result<Self, ContractError> {
-        let pool = pool.clone();
-        let pool_for_lock = pool.clone();
-        let acquired = crate::run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool_for_lock, "retention purge lock")?;
-            let row = client
-                .query_one(
-                    "SELECT pg_try_advisory_lock($1)",
-                    &[&RETENTION_PURGE_ADVISORY_LOCK_KEY],
-                )
-                .map_err(|error| postgres_unavailable("retention purge lock acquire", error))?;
-            Ok(row.get::<_, bool>(0))
-        })?;
-        Ok(Self { acquired, pool })
-    }
-}
-
-impl Drop for RetentionPurgeLock {
-    fn drop(&mut self) {
-        if !self.acquired {
-            return;
-        }
-        let pool = self.pool.clone();
-        if let Err(error) = crate::run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "retention purge unlock")?;
-            client
-                .execute(
-                    "SELECT pg_advisory_unlock($1)",
-                    &[&RETENTION_PURGE_ADVISORY_LOCK_KEY],
-                )
-                .map_err(|error| postgres_unavailable("retention purge lock release", error))?;
-            Ok(())
-        }) {
-            warn!(
-                target: "sdkwork.im",
-                event = "im.retention_purge.lock_release_failed",
-                error = %format!("{error:?}"),
-                "failed to release retention purge advisory lock"
-            );
-        }
-    }
 }
 
 fn scheduler_enabled_from_env() -> bool {

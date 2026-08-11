@@ -36,14 +36,14 @@ export const AuthPage = () => {
   }, [countdown]);
 
   const handleSendCode = async () => {
-    if (!account) return showToast(t("auth.enter_account", "请输入账号"));
+    if (!account) return showToast(t("auth.enter_account", "Enter your account"));
     try {
       await AuthService.sendCode(account);
       setCountdown(60);
-      showToast(t("auth.code_sent", "验证码已发送，请查收"));
+      showToast(t("auth.code_sent", "Verification code sent, please check your messages"));
     } catch (err) {
       const error = err as Error;
-      showToast(error.message || t("auth.operation_failed", "操作失败"));
+      showToast(error.message || t("auth.operation_failed", "Operation failed"));
     }
   };
 
@@ -66,59 +66,59 @@ export const AuthPage = () => {
   };
 
   const handleSubmit = async () => {
-    if (!agreed) return showToast(t("auth.agree_terms_first", "请先阅读并同意条款"));
-    if (!account) return showToast(t("auth.enter_valid_account", "请输入正确的账号"));
+    if (!agreed) return showToast(t("auth.agree_terms_first", "Please read and agree to the terms first"));
+    if (!account) return showToast(t("auth.enter_valid_account", "Enter a valid account"));
 
     setLoading(true);
     try {
       if (mode === "login-pwd") {
         if (!password) {
           setLoading(false);
-          return showToast(t("auth.enter_password", "请输入密码"));
+          return showToast(t("auth.enter_password", "Enter your password"));
         }
         await AuthService.login(account, password);
         navigate(getRedirectPath(), { replace: true });
       } else if (mode === "login-code") {
         if (!code) {
           setLoading(false);
-          return showToast(t("auth.enter_code", "请输入验证码"));
+          return showToast(t("auth.enter_code", "Enter the verification code"));
         }
         await AuthService.login(account, undefined, code);
         navigate(getRedirectPath(), { replace: true });
       } else if (mode === "register") {
         if (!code) {
           setLoading(false);
-          return showToast(t("auth.enter_code", "请输入验证码"));
+          return showToast(t("auth.enter_code", "Enter the verification code"));
         }
         await AuthService.register(account, code, password);
         navigate(getRedirectPath(), { replace: true });
       } else if (mode === "forgot") {
         if (!code) {
           setLoading(false);
-          return showToast(t("auth.enter_code", "请输入验证码"));
+          return showToast(t("auth.enter_code", "Enter the verification code"));
         }
         if (!password) {
           setLoading(false);
-          return showToast(t("auth.enter_new_password", "请输入新密码"));
+          return showToast(t("auth.enter_new_password", "Enter a new password"));
         }
         await AuthService.resetPassword(account, code, password);
-        showToast(t("auth.password_reset_success", "密码重置成功，请重新登录"));
+        showToast(t("auth.password_reset_success", "Password reset successfully, please log in again"));
         setMode("login-pwd");
       }
     } catch (err) {
       const error = err as Error;
-      showToast(error.message || t("auth.operation_failed", "操作失败"));
+      showToast(error.message || t("auth.operation_failed", "Operation failed"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleThirdPartyLogin = (platform: string) => {
-    if (!agreed) return showToast(t("auth.agree_terms_first", "请先阅读并同意条款"));
+    if (!agreed) return showToast(t("auth.agree_terms_first", "Please read and agree to the terms first"));
     // Third-party OAuth flows are not composed; fail closed instead of
     // fabricating a successful redirect (PRD §4 release boundary).
     showToast(
-      `${platform}${t("auth.third_party_unavailable", "登录暂未开放")}`,
+      `${platform}${t("auth.third_party_unavailable", "Login is not available yet")}`,
     );
   };
 
@@ -173,12 +173,12 @@ export const AuthPage = () => {
               onClick={handleSubmit}
             >
               {loading
-                ? t("auth.please_wait", "请稍候...")
+                ? t("auth.please_wait", "Please wait...")
                 : mode.startsWith("login")
-                  ? t("auth.agree_and_login", "同意并登录")
+                  ? t("auth.agree_and_login", "Agree and log in")
                   : mode === "register"
-                    ? t("auth.agree_and_register", "同意并注册")
-                    : t("auth.confirm", "确认")}
+                    ? t("auth.agree_and_register", "Agree and register")
+                    : t("auth.confirm", "Confirm")}
             </button>
 
             <div className="flex justify-between items-center text-[14px] text-[#576B95] px-1 font-medium">
@@ -187,7 +187,7 @@ export const AuthPage = () => {
                   className="cursor-pointer active:opacity-70"
                   onClick={() => changeMode("login-code")}
                 >
-                  {t("auth.login_with_code", "用验证码登录")}
+                  {t("auth.login_with_code", "Log in with code")}
                 </span>
               )}
               {mode === "login-code" && (
@@ -195,7 +195,7 @@ export const AuthPage = () => {
                   className="cursor-pointer active:opacity-70"
                   onClick={() => changeMode("login-pwd")}
                 >
-                  {t("auth.login_with_pwd", "用密码登录")}
+                  {t("auth.login_with_pwd", "Log in with password")}
                 </span>
               )}
               {(mode === "login-pwd" || mode === "login-code") && (
@@ -204,13 +204,13 @@ export const AuthPage = () => {
                     className="cursor-pointer active:opacity-70"
                     onClick={() => changeMode("forgot")}
                   >
-                    {t("auth.forgot_password", "找回密码")}
+                    {t("auth.forgot_password", "Forgot password")}
                   </span>
                   <span
                     className="cursor-pointer active:opacity-70"
                     onClick={() => changeMode("register")}
                   >
-                    {t("auth.register_account", "注册账号")}
+                    {t("auth.register_account", "Register account")}
                   </span>
                 </div>
               )}
@@ -219,7 +219,7 @@ export const AuthPage = () => {
                   className="cursor-pointer active:opacity-70"
                   onClick={() => changeMode("login-pwd")}
                 >
-                  {t("auth.back_to_login", "返回登录")}
+                  {t("auth.back_to_login", "Back to login")}
                 </span>
               )}
             </div>

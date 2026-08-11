@@ -35,14 +35,13 @@ pub(crate) struct InboxWindowQuery<'a> {
 fn decode_inbox_keyset_cursor(
     cursor: &str,
 ) -> Option<crate::conversation_state::model::InboxListCursor> {
-    let wire: crate::conversation_state::model::InboxKeysetCursorWire = if cursor.contains('.') {
-        let payload =
-            crate::conversation_state::cursor_auth::decode_signed_conversation_state_cursor(cursor)
-                .ok()?;
-        serde_json::from_value(payload).ok()?
-    } else {
-        serde_json::from_str(cursor).ok()?
-    };
+    // Inbox keyset cursors are opaque signed tokens only: bare JSON is
+    // rejected because a client could otherwise forge pagination state.
+    let payload =
+        crate::conversation_state::cursor_auth::decode_signed_conversation_state_cursor(cursor)
+            .ok()?;
+    let wire: crate::conversation_state::model::InboxKeysetCursorWire =
+        serde_json::from_value(payload).ok()?;
     if wire.activity_at.trim().is_empty() || wire.scope.trim().is_empty() {
         return None;
     }
@@ -292,8 +291,12 @@ impl ConversationStateService {
         if let Some(view) = peer.as_mut()
             && view.display_name.is_none()
             && view.principal_kind == "user"
-            && let Some(display) =
-                self.resolve_user_display(&member.tenant_id, organization_id, &view.principal_id, "user")
+            && let Some(display) = self.resolve_user_display(
+                &member.tenant_id,
+                organization_id,
+                &view.principal_id,
+                "user",
+            )
         {
             view.display_name = Some(display.display_name);
             if view.avatar_url.is_none() {
@@ -851,6 +854,36 @@ mod deadlock_regression_tests {
             entry.display_source.as_deref(),
             Some("conversation_profile")
         );
+    }
+
+    #[test]
+    fn inbox_keyset_cursor_rejects_unsigned_bare_json() {
+        let _cursor_secret = TestEnvGuard::set_cursor_secret();
+        // Bare JSON without a signature must be rejected: inbox cursors are
+        // opaque signed tokens and unsigned payloads would allow clients to
+        // forge pagination state.
+        assert!(
+            decode_inbox_keyset_cursor(
+                r#"{"activityAt":"2026-07-08T00:00:00Z","scope":"c_inbox_cursor_auth"}"#
+            )
+            .is_none()
+        );
+
+        let payload = serde_json::json!({
+            "activityAt": "2026-07-08T00:00:00Z",
+            "scope": "c_inbox_cursor_auth",
+        });
+        let encoded =
+            crate::conversation_state::cursor_auth::encode_signed_conversation_state_cursor(
+                &payload,
+            )
+            .expect("signed inbox cursor should encode");
+        let decoded = decode_inbox_keyset_cursor(encoded.as_str())
+            .expect("signed inbox cursor should decode");
+        assert!(matches!(
+            decoded,
+            crate::conversation_state::model::InboxListCursor::Keyset { .. }
+        ));
     }
 
     #[test]

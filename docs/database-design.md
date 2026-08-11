@@ -25,7 +25,7 @@ and other sibling databases are external dependencies and are intentionally excl
 
 - Schema version: `1`
 - Module: `im`
-- Contract version: `2.0.0`
+- Contract version: `2.1.0`
 - Lifecycle strategy: `baseline-plus-migrations`
 - Registered IM tables: 63
 - Runtime engines: `postgres`
@@ -36,14 +36,14 @@ and other sibling databases are external dependencies and are intentionally excl
 
 | Table | Profile | Write owner | Authority role | Migration / DDL source |
 | --- | --- | --- | --- | --- |
-| `im_agent_dispatch` | `operational_state` | `comms-conversation-service` | system of record | `database/migrations/postgres/0005_agents_integration_expand.up.sql` |
+| `im_agent_dispatch` | `operational_state` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_audit_records` | `audit_log` | `audit-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_automation_executions` | `automation_execution` | `automation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_client_sync_cursors` | `client_sync_cursor_authority` | `session-gateway` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_client_sync_events` | `client_sync_event_log` | `session-gateway` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_commit_journal` | `event_log` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
-| `im_conversation_agent_assignments` | `conversation_agent_assignment` | `comms-conversation-service` | system of record | `database/migrations/postgres/0005_agents_integration_expand.up.sql` |
-| `im_conversation_agent_binding` | `relation_entity` | `comms-conversation-service` | system of record | `database/migrations/postgres/0005_agents_integration_expand.up.sql` |
+| `im_conversation_agent_assignments` | `conversation_agent_assignment` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
+| `im_conversation_agent_binding` | `relation_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_conversation_business_bindings` | `relation_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_conversation_handoffs` | `tenant_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_conversation_knowledge_space_link` | `relation_entity` | `comms-conversation-service` | owned relation / operational state | `database/ddl/baseline/postgres/0001_im_baseline.sql` |

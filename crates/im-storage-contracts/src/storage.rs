@@ -226,7 +226,7 @@ impl StorageCatalog {
                     StorageCredentialMode::AccessKeyPair,
                     StorageCredentialMode::SessionAccessKeyPair,
                 ])
-                .with_capabilities(["presign", "multipart", "bucket-probe"]),
+                .with_capabilities(["presign"]),
                 StorageProviderSchema::new(
                     "object-storage-tencent",
                     "Tencent COS",
@@ -238,7 +238,7 @@ impl StorageCatalog {
                     StorageCredentialMode::AccessKeyPair,
                     StorageCredentialMode::SessionAccessKeyPair,
                 ])
-                .with_capabilities(["presign", "multipart", "bucket-probe"]),
+                .with_capabilities(["presign"]),
                 StorageProviderSchema::new(
                     "object-storage-volcengine",
                     "Volcengine TOS",
@@ -250,7 +250,7 @@ impl StorageCatalog {
                     StorageCredentialMode::AccessKeyPair,
                     StorageCredentialMode::SessionAccessKeyPair,
                 ])
-                .with_capabilities(["presign", "multipart", "bucket-probe"]),
+                .with_capabilities(["presign"]),
                 StorageProviderSchema::new(
                     "object-storage-aws",
                     "Amazon S3",
@@ -268,7 +268,7 @@ impl StorageCatalog {
                     StorageCredentialMode::SessionAccessKeyPair,
                     StorageCredentialMode::RoleAssumption,
                 ])
-                .with_capabilities(["presign", "multipart", "bucket-probe"]),
+                .with_capabilities(["presign"]),
                 StorageProviderSchema::new(
                     "object-storage-google",
                     "Google Cloud Storage",
@@ -302,7 +302,7 @@ impl StorageCatalog {
                     StorageCredentialMode::ServiceAccountJson,
                     StorageCredentialMode::InteroperabilityKey,
                 ])
-                .with_capabilities(["presign", "bucket-probe"]),
+                .with_capabilities(["presign"]),
                 StorageProviderSchema::new(
                     "object-storage-microsoft",
                     "Azure Blob Storage",
@@ -357,7 +357,7 @@ impl StorageCatalog {
                     StorageCredentialMode::SasToken,
                     StorageCredentialMode::ServicePrincipal,
                 ])
-                .with_capabilities(["presign", "bucket-probe"]),
+                .with_capabilities(["presign"]),
             ],
         }
     }

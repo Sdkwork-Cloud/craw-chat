@@ -450,10 +450,21 @@ impl StorageRuntimeState {
                 action: action.into(),
                 scope: scope.clone(),
                 provider_plugin_id: provider_plugin_id.into(),
-                created_at_ms: self.next_audit_sequence,
+                // Audit events must carry a real wall-clock timestamp (UTC
+                // milliseconds since the Unix epoch); the sequence is only the
+                // monotonic ordering/id component.
+                created_at_ms: unix_timestamp_millis(),
             },
         );
     }
+}
+
+/// Current wall-clock time in UTC milliseconds since the Unix epoch.
+fn unix_timestamp_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 impl<S> StoreBackedStorageRuntime<S>

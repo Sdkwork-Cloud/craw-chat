@@ -51,9 +51,12 @@ pub enum StreamAppendOutcome {
     VersionConflict,
 }
 
+/// Transition result. The applied record is boxed so the enum stays compact:
+/// `StreamSessionRecord` is a large control structure and `VersionConflict`
+/// carries no payload; boxing avoids a ~500-byte enum on every match.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StreamTransitionOutcome {
-    Applied(StreamSessionRecord),
+    Applied(Box<StreamSessionRecord>),
     VersionConflict,
 }
 

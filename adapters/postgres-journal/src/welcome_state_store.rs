@@ -93,7 +93,13 @@ impl WelcomeStateStore for PostgresWelcomeStateStore {
             client
                 .execute(
                     WRITE_WELCOME_SENT_SQL,
-                    &[&tenant_id, &organization_id, &user_id, &payload, &updated_at],
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &user_id,
+                        &payload,
+                        &updated_at,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("write_welcome_sent", error))?;
             Ok(())
@@ -113,8 +119,7 @@ impl WelcomeStateStore for PostgresWelcomeStateStore {
         let user_id = user_id.to_owned();
         let exclude_conversation_id = exclude_conversation_id.to_owned();
         run_postgres_io(move || {
-            let mut client =
-                postgres_pool_client(&pool, "user_has_conversations_with_messages")?;
+            let mut client = postgres_pool_client(&pool, "user_has_conversations_with_messages")?;
             let row = client
                 .query_one(
                     USER_HAS_CONVERSATIONS_WITH_MESSAGES_SQL,

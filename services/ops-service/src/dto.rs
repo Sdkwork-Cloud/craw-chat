@@ -249,3 +249,22 @@ pub struct ProviderBindingDriftView {
     pub baseline_tenant_id: Option<String>,
     pub items: Vec<ProviderBindingDriftItemView>,
 }
+
+/// Commit-journal replay status view (`GET /backend/v3/api/ops/replay_status`).
+///
+/// `status` is `enabled` when the shared PostgreSQL journal pool is configured
+/// and the head query succeeded, `not_configured` when `SDKWORK_DATABASE_URL`
+/// is absent, and `unavailable` when the pool or the query failed.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JournalReplayStatusView {
+    pub status: String,
+    pub mode: String,
+    pub database_configured: bool,
+    pub journal_ready: bool,
+    pub total_commits: Option<u64>,
+    pub head_commit_offset: Option<i64>,
+    pub latest_occurred_at: Option<String>,
+    pub detail: Option<String>,
+    pub generated_at: String,
+}

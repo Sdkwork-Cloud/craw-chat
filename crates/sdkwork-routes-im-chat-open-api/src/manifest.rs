@@ -178,7 +178,7 @@ pub const ROUTES: &[HttpRoute] = &[
         HttpMethod::Get,
         paths::MESSAGE_INTERACTION_SUMMARY,
         "chat",
-        "messages.interactionSummary.retrieve",
+        "conversations.messages.interactionSummary.retrieve",
     ),
     HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,
@@ -285,6 +285,12 @@ pub const ROUTES: &[HttpRoute] = &[
         paths::CONVERSATION_SYSTEM_CHANNEL_PUBLISH,
         "chat",
         "conversations.systemChannel.publish",
+    ),
+    HttpRoute::api_key_or_dual_token(
+        HttpMethod::Post,
+        paths::ME_WELCOME_ENSURE,
+        "chat",
+        "chat.me.welcome.ensure",
     ),
 ];
 

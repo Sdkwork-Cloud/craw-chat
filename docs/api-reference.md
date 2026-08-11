@@ -14,17 +14,17 @@ the contract authority; SDK-family OpenAPI under `sdks/` is a deterministic mate
 
 | Surface | Prefix | Operations | Authored authority | SDK authority | SDK family |
 | --- | --- | ---: | --- | --- | --- |
-| Open API | `/im/v3/api` | 125 | `apis/open-api/im/sdkwork-im-im.openapi.yaml` | `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml` | `sdkwork-im-sdk` |
+| Open API | `/im/v3/api` | 138 | `apis/open-api/im/sdkwork-im-im.openapi.yaml` | `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml` | `sdkwork-im-sdk` |
 | App API | `/app/v3/api` | 25 | `apis/app-api/communication/sdkwork-im-app-api.openapi.yaml` | `sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml` | `sdkwork-im-app-sdk` |
-| Backend API | `/backend/v3/api` | 111 | `apis/backend-api/communication/sdkwork-im-backend-api.openapi.yaml` | `sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml` | `sdkwork-im-backend-sdk` |
-| **Total** | - | **261** | - | - | - |
+| Backend API | `/backend/v3/api` | 114 | `apis/backend-api/communication/sdkwork-im-backend-api.openapi.yaml` | `sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml` | `sdkwork-im-backend-sdk` |
+| **Total** | - | **277** | - | - | - |
 
 ## Operation Inventory
 
 Each row is extracted from the authored OpenAPI `paths` object. Method, path, and `operationId`
 are public contract identifiers and must change at the OpenAPI source before this file is regenerated.
 
-### Open API (125)
+### Open API (138)
 
 | Method | Path | operationId |
 | --- | --- | --- |
@@ -46,6 +46,7 @@ are public contract identifiers and must change at the OpenAPI source before thi
 | `POST` | `/im/v3/api/chat/conversations/{conversationId}/agent_handoff/resolve` | `conversations.agentHandoff.resolve` |
 | `GET` | `/im/v3/api/chat/conversations/{conversationId}/agents` | `conversations.agents.retrieve` |
 | `PUT` | `/im/v3/api/chat/conversations/{conversationId}/agents` | `conversations.agents.update` |
+| `GET` | `/im/v3/api/chat/conversations/{conversationId}/binding` | `conversations.binding.retrieve` |
 | `GET` | `/im/v3/api/chat/conversations/{conversationId}/member_directory` | `conversations.memberDirectory.list` |
 | `GET` | `/im/v3/api/chat/conversations/{conversationId}/members` | `conversations.members.list` |
 | `POST` | `/im/v3/api/chat/conversations/{conversationId}/members/accept_invitation` | `conversations.members.acceptInvitation` |
@@ -69,9 +70,11 @@ are public contract identifiers and must change at the OpenAPI source before thi
 | `POST` | `/im/v3/api/chat/conversations/agent_dialogs` | `conversations.agentDialogs.create` |
 | `POST` | `/im/v3/api/chat/conversations/agent_handoffs` | `conversations.agentHandoffs.create` |
 | `POST` | `/im/v3/api/chat/conversations/direct_chats/bindings` | `conversations.directChats.bindings.create` |
+| `POST` | `/im/v3/api/chat/conversations/shared_channel_links/sync` | `conversations.sharedChannelLinks.sync` |
 | `POST` | `/im/v3/api/chat/conversations/system_channels` | `conversations.systemChannels.create` |
 | `POST` | `/im/v3/api/chat/conversations/threads` | `conversations.threads.create` |
 | `GET` | `/im/v3/api/chat/inbox` | `inbox.list` |
+| `POST` | `/im/v3/api/chat/me/welcome/ensure` | `chat.me.welcome.ensure` |
 | `POST` | `/im/v3/api/chat/messages/{messageId}/edit` | `messages.edit` |
 | `POST` | `/im/v3/api/chat/messages/{messageId}/favorites` | `messages.favorites.create` |
 | `POST` | `/im/v3/api/chat/messages/{messageId}/pin` | `messages.pin` |
@@ -82,6 +85,7 @@ are public contract identifiers and must change at the OpenAPI source before thi
 | `DELETE` | `/im/v3/api/chat/messages/{messageId}/visibility` | `messages.visibility.delete` |
 | `GET` | `/im/v3/api/chat/messages/favorites` | `messages.favorites.list` |
 | `DELETE` | `/im/v3/api/chat/messages/favorites/{favoriteId}` | `messages.favorites.delete` |
+| `GET` | `/im/v3/api/chat/messages/search` | `messages.search` |
 | `POST` | `/im/v3/api/chat/rooms` | `rooms.create` |
 | `GET` | `/im/v3/api/chat/rooms/{roomId}` | `rooms.retrieve` |
 | `POST` | `/im/v3/api/chat/rooms/{roomId}/enter` | `rooms.enter` |
@@ -100,16 +104,24 @@ are public contract identifiers and must change at the OpenAPI source before thi
 | `POST` | `/im/v3/api/social/contacts/tags` | `social.contacts.tags.create` |
 | `PATCH` | `/im/v3/api/social/contacts/tags/{tagId}` | `social.contacts.tags.update` |
 | `DELETE` | `/im/v3/api/social/contacts/tags/{tagId}` | `social.contacts.tags.delete` |
+| `GET` | `/im/v3/api/social/direct_chats` | `social.directChats.list` |
+| `GET` | `/im/v3/api/social/direct_chats/{directChatId}` | `social.directChats.retrieve` |
 | `GET` | `/im/v3/api/social/friend_requests` | `social.friendRequests.list` |
 | `POST` | `/im/v3/api/social/friend_requests` | `social.friendRequests.create` |
 | `POST` | `/im/v3/api/social/friend_requests/{friendRequestId}/accept` | `social.friendRequests.accept` |
 | `POST` | `/im/v3/api/social/friend_requests/{friendRequestId}/cancel` | `social.friendRequests.cancel` |
 | `POST` | `/im/v3/api/social/friend_requests/{friendRequestId}/decline` | `social.friendRequests.decline` |
 | `GET` | `/im/v3/api/social/friend_requests/pending/count` | `social.friendRequests.pending.count.retrieve` |
+| `GET` | `/im/v3/api/social/friendships` | `social.friendships.list` |
 | `POST` | `/im/v3/api/social/friendships/{friendshipId}/remove` | `social.friendships.remove` |
+| `GET` | `/im/v3/api/social/user_blocks` | `social.userBlocks.list` |
 | `POST` | `/im/v3/api/social/user_blocks` | `social.userBlocks.create` |
 | `DELETE` | `/im/v3/api/social/user_blocks/{blockId}` | `social.userBlocks.delete` |
 | `GET` | `/im/v3/api/social/users` | `social.users.list` |
+| `GET` | `/im/v3/api/social/users/{userId}/profile` | `social.users.profile.retrieve` |
+| `PATCH` | `/im/v3/api/social/users/{userId}/profile` | `social.users.profile.update` |
+| `GET` | `/im/v3/api/social/users/{userId}/settings` | `social.users.settings.retrieve` |
+| `PATCH` | `/im/v3/api/social/users/{userId}/settings` | `social.users.settings.update` |
 | `GET` | `/im/v3/api/spaces` | `spaces.list` |
 | `POST` | `/im/v3/api/spaces` | `spaces.create` |
 | `GET` | `/im/v3/api/spaces/{spaceId}` | `spaces.retrieve` |
@@ -137,6 +149,7 @@ are public contract identifiers and must change at the OpenAPI source before thi
 | `GET` | `/im/v3/api/spaces/{spaceId}/groups/{groupId}/members/{userId}` | `spaces.groups.members.retrieve` |
 | `PATCH` | `/im/v3/api/spaces/{spaceId}/groups/{groupId}/members/{userId}` | `spaces.groups.members.update` |
 | `DELETE` | `/im/v3/api/spaces/{spaceId}/groups/{groupId}/members/{userId}` | `spaces.groups.members.delete` |
+| `POST` | `/im/v3/api/spaces/{spaceId}/groups/{groupId}/transfer_owner` | `spaces.groups.transferOwner` |
 | `GET` | `/im/v3/api/spaces/{spaceId}/invites` | `spaces.invites.list` |
 | `POST` | `/im/v3/api/spaces/{spaceId}/invites` | `spaces.invites.create` |
 | `GET` | `/im/v3/api/spaces/{spaceId}/invites/{inviteCode}` | `spaces.invites.retrieve` |
@@ -184,7 +197,7 @@ are public contract identifiers and must change at the OpenAPI source before thi
 | `GET` | `/app/v3/api/portal/workspace` | `workspace.retrieve` |
 | `GET` | `/app/v3/api/principal/profiles/provider_health` | `principalProfileHealth.retrieve` |
 
-### Backend API (111)
+### Backend API (114)
 
 | Method | Path | operationId |
 | --- | --- | --- |
@@ -247,6 +260,7 @@ are public contract identifiers and must change at the OpenAPI source before thi
 | `GET` | `/backend/v3/api/audit/export` | `export.retrieve` |
 | `GET` | `/backend/v3/api/audit/records` | `records.list` |
 | `POST` | `/backend/v3/api/audit/records` | `records.create` |
+| `GET` | `/backend/v3/api/audit/verify` | `verify.retrieve` |
 | `GET` | `/backend/v3/api/automation/governance` | `governance.retrieve` |
 | `POST` | `/backend/v3/api/control/nodes/{nodeId}/activate` | `nodes.activate` |
 | `POST` | `/backend/v3/api/control/nodes/{nodeId}/drain` | `nodes.drain` |
@@ -298,6 +312,8 @@ are public contract identifiers and must change at the OpenAPI source before thi
 | `GET` | `/backend/v3/api/ops/lag` | `lag.retrieve` |
 | `GET` | `/backend/v3/api/ops/provider_bindings` | `ops.providerBindings.list` |
 | `GET` | `/backend/v3/api/ops/provider_bindings/drift` | `ops.providerBindings.drift.retrieve` |
+| `GET` | `/backend/v3/api/ops/replay_status` | `replayStatus.retrieve` |
+| `POST` | `/backend/v3/api/ops/retention/purge` | `retention.purge` |
 | `GET` | `/backend/v3/api/ops/runtime_dir` | `runtimeDir.retrieve` |
 
 ## Regeneration And Verification

@@ -44,25 +44,25 @@ const prompts = [
     <div className="w-full h-full bg-[#121212] overflow-y-auto pb-[60px]">
        <div className="pt-safe px-4 pb-3 mt-4 sticky top-0 bg-[#121212]/95 backdrop-blur-md z-10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[20px] font-bold text-white tracking-wide">{t('channels.auto_n4842822b', '提示词宇宙')}<Sparkles className="inline-block w-5 h-5 text-purple-400 mb-1" /></h2>
+            <h2 className="text-[20px] font-bold text-white tracking-wide">{t('channels.auto_n4842822b', 'Prompt Universe')}<Sparkles className="inline-block w-5 h-5 text-purple-400 mb-1" /></h2>
           </div>
           
           <div className="bg-[#2B2B2B] h-10 rounded-full flex items-center px-4 gap-2">
              <Search className="w-4 h-4 text-white/50" />
              <input 
                type="text" 
-               placeholder={t('channels.auto_prop_n4dac60c7', '搜索海量优质提示词...')}
+               placeholder={t('channels.auto_prop_n4dac60c7', 'Search thousands of great prompts...')}
                className="bg-transparent flex-1 outline-none text-[14px] text-white placeholder:text-white/40"
              />
           </div>
           
           <div className="flex gap-4 mt-4 overflow-x-auto no-scrollbar pb-1">
-             <FilterTag active label={t('channels.auto_prop_a6c80', '全部')} />
-             <FilterTag label={t('channels.auto_prop_28c94a22', '图像生成')} />
-             <FilterTag label={t('channels.auto_prop_40e7d16c', '视频创作')} />
-             <FilterTag label={t('channels.auto_prop_n7f15ef82', '音乐&音效')} />
-             <FilterTag label={t('channels.auto_prop_2fb45628', '文本写作')} />
-             <FilterTag label={t('channels.auto_prop_a057e', '代码')} />
+             <FilterTag active label={t('channels.auto_prop_a6c80', 'All')} />
+             <FilterTag label={t('channels.auto_prop_28c94a22', 'Image generation')} />
+             <FilterTag label={t('channels.auto_prop_40e7d16c', 'Video creation')} />
+             <FilterTag label={t('channels.auto_prop_n7f15ef82', 'Music & sound effects')} />
+             <FilterTag label={t('channels.auto_prop_2fb45628', 'Text writing')} />
+             <FilterTag label={t('channels.auto_prop_a057e', 'Code')} />
           </div>
        </div>
 
@@ -85,14 +85,14 @@ const prompts = [
                
                <div className="flex items-center justify-between text-white/50 text-[12px]">
                   <div className="flex items-center gap-4">
-                     <span className="flex items-center gap-1"><Wand2 className="w-3.5 h-3.5" />{t('channels.auto_n3a4f3f94', '{prompt.uses} 次使用')}</span>
+                     <span className="flex items-center gap-1"><Wand2 className="w-3.5 h-3.5" />{t('channels.auto_n3a4f3f94', 'Used {prompt.uses} times')}</span>
                      <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {prompt.likes}</span>
                   </div>
                   
                   <div className="flex items-center gap-3">
                      <Share2 className="w-4 h-4" />
                      <button className="flex items-center gap-1 bg-white text-black px-3 py-1 rounded-full font-bold active:scale-95 transition-transform">
-                        <Play className="w-3 h-3 fill-black" />{t('channels.auto_1163f3', '试用')}</button>
+                        <Play className="w-3 h-3 fill-black" />{t('channels.auto_1163f3', 'Try it')}</button>
                   </div>
                </div>
             </div>

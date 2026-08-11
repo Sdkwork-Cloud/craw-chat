@@ -4,6 +4,7 @@ use std::ops::Bound::{Excluded, Unbounded};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use im_domain_core::notification::NotificationStatus;
 use im_platform_contracts::{
     AutomationExecutionRecord, AutomationExecutionStore, ContractError, NotificationTaskListCursor,
     NotificationTaskRecord, NotificationTaskStore,
@@ -162,6 +163,162 @@ impl NotificationTaskStore for FileNotificationTaskStore {
                     .cloned()
             })
             .collect())
+    }
+
+    fn claim_tasks(
+        &self,
+        limit: usize,
+        now: &str,
+    ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
+        let _guard = lock_file_store(&self.io_lock);
+        let mut records = self.read_records()?;
+        let mut claimable = records
+            .by_notification
+            .values()
+            .filter(|record| {
+                record.task.status == NotificationStatus::Requested
+                    && im_time::rfc3339_le(record.available_at.as_str(), now)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        claimable.sort_by(|left, right| {
+            im_time::rfc3339_cmp(left.available_at.as_str(), right.available_at.as_str())
+                .then_with(|| left.notification_id.cmp(&right.notification_id))
+        });
+        claimable.truncate(limit);
+        let lease_expires_at = im_time::rfc3339_add_secs(
+            now,
+            im_platform_contracts::resolve_notification_claim_lease_secs(),
+        )
+        .unwrap_or_else(|| now.to_owned());
+        let mut claimed = Vec::with_capacity(claimable.len());
+        for mut record in claimable {
+            let key = notification_scope_key(
+                record.tenant_id.as_str(),
+                record.organization_id.as_str(),
+                record.notification_id.as_str(),
+            );
+            if let Some(previous) = records.by_notification.get(key.as_str()).cloned() {
+                remove_notification_recipient_index(
+                    &mut records.tasks_by_recipient,
+                    key.as_str(),
+                    &previous,
+                );
+            }
+            record.available_at = lease_expires_at.clone();
+            record.updated_at = now.to_owned();
+            insert_notification_recipient_index(
+                &mut records.tasks_by_recipient,
+                key.as_str(),
+                &record,
+            );
+            records.by_notification.insert(key, record.clone());
+            claimed.push(record);
+        }
+        try_update_json_records(
+            self.file_path.as_path(),
+            "notification task store",
+            move |persisted: &mut PersistedNotificationTaskRecords| {
+                *persisted = records;
+                validate_notification_record_capacity(persisted)
+            },
+        )?;
+        Ok(claimed)
+    }
+
+    fn complete_task(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        notification_id: &str,
+        dispatched_at: &str,
+    ) -> Result<(), ContractError> {
+        let _guard = lock_file_store(&self.io_lock);
+        let key = notification_scope_key(tenant_id, organization_id, notification_id);
+        try_update_json_records(
+            self.file_path.as_path(),
+            "notification task store",
+            move |records: &mut PersistedNotificationTaskRecords| {
+                let Some(record) = records.by_notification.get(key.as_str()).cloned() else {
+                    return validate_notification_record_capacity(records);
+                };
+                if record.task.status != NotificationStatus::Requested {
+                    return validate_notification_record_capacity(records);
+                }
+                remove_notification_recipient_index(
+                    &mut records.tasks_by_recipient,
+                    key.as_str(),
+                    &record,
+                );
+                let mut completed = record.clone();
+                completed.task.status = NotificationStatus::Dispatched;
+                completed.task.dispatched_at = Some(dispatched_at.to_owned());
+                completed.task.failure_reason = None;
+                completed.updated_at = dispatched_at.to_owned();
+                insert_notification_recipient_index(
+                    &mut records.tasks_by_recipient,
+                    key.as_str(),
+                    &completed,
+                );
+                records.by_notification.insert(key, completed);
+                validate_notification_record_capacity(records)
+            },
+        )
+    }
+
+    fn fail_task(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        notification_id: &str,
+        failure_reason: &str,
+        now: &str,
+    ) -> Result<(), ContractError> {
+        let _guard = lock_file_store(&self.io_lock);
+        let key = notification_scope_key(tenant_id, organization_id, notification_id);
+        let failure_reason = failure_reason.to_owned();
+        let now = now.to_owned();
+        try_update_json_records(
+            self.file_path.as_path(),
+            "notification task store",
+            move |records: &mut PersistedNotificationTaskRecords| {
+                let Some(record) = records.by_notification.get(key.as_str()).cloned() else {
+                    return validate_notification_record_capacity(records);
+                };
+                if record.task.status != NotificationStatus::Requested {
+                    return validate_notification_record_capacity(records);
+                }
+                remove_notification_recipient_index(
+                    &mut records.tasks_by_recipient,
+                    key.as_str(),
+                    &record,
+                );
+                let mut failed = record.clone();
+                failed.attempt_count = failed.attempt_count.saturating_add(1);
+                if failed.attempt_count
+                    >= im_platform_contracts::resolve_notification_max_attempts()
+                {
+                    failed.task.status = NotificationStatus::Failed;
+                    failed.task.failure_reason = Some(failure_reason);
+                } else {
+                    failed.task.status = NotificationStatus::Requested;
+                    failed.task.failure_reason = Some(failure_reason);
+                    failed.available_at = im_time::rfc3339_add_secs(
+                        now.as_str(),
+                        im_platform_contracts::notification_backoff_secs(failed.attempt_count),
+                    )
+                    .unwrap_or_else(|| now.clone());
+                }
+                failed.updated_at = now.clone();
+                insert_notification_recipient_index(
+                    &mut records.tasks_by_recipient,
+                    key.as_str(),
+                    &failed,
+                );
+                records.by_notification.insert(key, failed);
+                validate_notification_record_capacity(records)
+            },
+        )
     }
 }
 

@@ -13,8 +13,8 @@ export const EnterpriseHeroBanner: React.FC = () => {
       
       <div className="relative z-10 flex items-center justify-between">
         <div className="flex flex-col">
-          <h2 className="text-[18px] font-extrabold text-white mb-1 tracking-wide">{t('enterprise.auto_n30585810', '极客企业中心')}</h2>
-          <p className="text-[13px] text-white/80 font-medium tracking-wide">{t('enterprise.auto_n3c3c50e6', '发现优质商机，建立靠谱人脉')}</p>
+          <h2 className="text-[18px] font-extrabold text-white mb-1 tracking-wide">{t('enterprise.auto_n30585810', 'Geek Business Center')}</h2>
+          <p className="text-[13px] text-white/80 font-medium tracking-wide">{t('enterprise.auto_n3c3c50e6', 'Discover great opportunities and build reliable connections')}</p>
         </div>
         <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-inner rotate-3">
           <Building2 className="w-6 h-6 text-white" />

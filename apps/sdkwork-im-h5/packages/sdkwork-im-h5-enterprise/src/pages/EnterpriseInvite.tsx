@@ -66,7 +66,7 @@ const navigate = useNavigate();
           className="w-full bg-primary-blue text-white rounded-full py-3 text-[15px] font-bold shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-transform"
           onClick={handleJoin}
         >接受邀请并入驻</button>
-        <div className="text-center mt-3 text-[12px] text-text-sub">点击接受邀请，即表示您同意<span className="text-primary-blue cursor-pointer" onClick={() =>showToast("企业服务协议")}>《企业服务协议》</span>
+        <div className="text-center mt-3 text-[12px] text-text-sub">点击接受邀请，即表示您同意<span className="text-primary-blue cursor-pointer" onClick={() =>showToast(t('commons.feature_unavailable', 'This feature is not available yet while the real service is being integrated.'))}>《企业服务协议》</span>
         </div>
       </div>
     </PageLayout>

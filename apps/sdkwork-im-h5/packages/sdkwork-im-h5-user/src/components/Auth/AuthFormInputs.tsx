@@ -38,11 +38,11 @@ export const AuthFormInputs: React.FC<AuthFormInputsProps> = ({
       {/* Account Input */}
       <div className="flex items-center border-b border-border-color py-3 focus-within:border-[#07C160] transition-colors group">
         <span className="text-[16px] text-text-main mr-4 font-medium opacity-50">
-          {t("auth.account", "账号")}
+          {t("auth.account", "Account")}
         </span>
         <input
           type="text"
-          placeholder={t("auth.account_placeholder", "手机号或邮箱")}
+          placeholder={t("auth.account_placeholder", "Phone number or email")}
           value={account}
           onChange={(e) => setAccount(e.target.value.trim())}
           className="flex-1 bg-transparent text-[16px] text-text-main outline-none placeholder:text-text-sub/50"
@@ -61,8 +61,8 @@ export const AuthFormInputs: React.FC<AuthFormInputsProps> = ({
             type={showPwd ? "text" : "password"}
             placeholder={
               mode === "forgot"
-                ? t("auth.set_new_password", "设置新密码")
-                : t("auth.enter_password", "请输入密码")
+                ? t("auth.set_new_password", "Set a new password")
+                : t("auth.enter_password", "Enter your password")
             }
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -87,7 +87,7 @@ export const AuthFormInputs: React.FC<AuthFormInputsProps> = ({
         >
           <input
             type="text"
-            placeholder={t("auth.enter_code", "请输入验证码")}
+            placeholder={t("auth.enter_code", "Enter the verification code")}
             maxLength={6}
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
@@ -98,7 +98,7 @@ export const AuthFormInputs: React.FC<AuthFormInputsProps> = ({
             disabled={countdown > 0}
             className="text-[#576B95] text-[15px] pl-4 font-medium disabled:opacity-50 active:opacity-70 transition-opacity"
           >
-            {countdown > 0 ? `${countdown}s` : t("auth.get_code", "获取验证码")}
+            {countdown > 0 ? `${countdown}s` : t("auth.get_code", "Get code")}
           </button>
         </motion.div>
       )}

@@ -57,8 +57,8 @@ pub fn spawn_rtc_outbox_relay_from_env(
 }
 
 fn resolve_rtc_outbox_store_from_env() -> Option<Arc<dyn OutboxStore>> {
-    if let Ok(config) = DatabaseConfig::from_env("IM") {
-        if config.engine == DatabaseEngine::Postgres {
+    if let Ok(config) = DatabaseConfig::from_env("IM")
+        && config.engine == DatabaseEngine::Postgres {
             return PostgresJournalConfig::from_database_config(&config)
                 .connect_pool()
                 .ok()
@@ -66,7 +66,6 @@ fn resolve_rtc_outbox_store_from_env() -> Option<Arc<dyn OutboxStore>> {
                     Arc::new(PostgresOutboxStore::from_pool(pool)) as Arc<dyn OutboxStore>
                 });
         }
-    }
 
     let database_url = std::env::var(IM_DATABASE_URL_ENV)
         .ok()

@@ -352,6 +352,22 @@ BEGIN
     END IF;
 END $$;
 
+-- The baseline creates the schema from scratch, so the parentage FK can be
+-- validated immediately (no legacy orphan rows exist on a fresh install).
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_im_realtime_device_events_checkpoint'
+          AND conrelid = 'im_realtime_device_events'::regclass
+          AND NOT convalidated
+    ) THEN
+        ALTER TABLE im_realtime_device_events
+            VALIDATE CONSTRAINT fk_im_realtime_device_events_checkpoint;
+    END IF;
+END $$;
+
 -- ============================================================
 -- 10. 实时订阅
 -- ============================================================
@@ -3494,14 +3510,14 @@ CREATE TABLE IF NOT EXISTS im_conversation_agent_assignments (
     retention_until TIMESTAMPTZ,
     CONSTRAINT uk_im_conversation_agent_assignments_scope
         UNIQUE (tenant_id, organization_id, conversation_id, agent_id),
-    CONSTRAINT ck_im_conversation_agent_assignments_source CHECK (
+    CONSTRAINT chk_im_conversation_agent_assignments_source CHECK (
         assignment_source IN (0, 1)
     ),
-    CONSTRAINT ck_im_conversation_agent_assignments_generation CHECK (
+    CONSTRAINT chk_im_conversation_agent_assignments_generation CHECK (
         assignment_generation > 0 AND source_aggregate_version > 0
     ),
-    CONSTRAINT ck_im_conversation_agent_assignments_position CHECK (position >= 0),
-    CONSTRAINT ck_im_conversation_agent_assignments_status CHECK (status IN (0, 1, 2))
+    CONSTRAINT chk_im_conversation_agent_assignments_position CHECK (position >= 0),
+    CONSTRAINT chk_im_conversation_agent_assignments_status CHECK (status IN (0, 1, 2))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_im_conversation_agent_assignments_position
@@ -3554,16 +3570,16 @@ CREATE TABLE IF NOT EXISTS im_conversation_agent_binding (
         ),
     CONSTRAINT uk_im_conversation_agent_binding_idempotency
         UNIQUE (tenant_id, organization_id, idempotency_key),
-    CONSTRAINT ck_im_conversation_agent_binding_generation CHECK (
+    CONSTRAINT chk_im_conversation_agent_binding_generation CHECK (
         assignment_generation > 0
     ),
-    CONSTRAINT ck_im_conversation_agent_binding_status CHECK (
+    CONSTRAINT chk_im_conversation_agent_binding_status CHECK (
         status IN (0, 1, 2, 3, 4)
     ),
-    CONSTRAINT ck_im_conversation_agent_binding_active_session CHECK (
+    CONSTRAINT chk_im_conversation_agent_binding_active_session CHECK (
         status <> 1 OR agents_session_id IS NOT NULL
     ),
-    CONSTRAINT ck_im_conversation_agent_binding_version CHECK (version >= 0)
+    CONSTRAINT chk_im_conversation_agent_binding_version CHECK (version >= 0)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_im_conversation_agent_binding_active
@@ -3627,19 +3643,19 @@ CREATE TABLE IF NOT EXISTS im_agent_dispatch (
         ),
     CONSTRAINT uk_im_agent_dispatch_idempotency
         UNIQUE (tenant_id, organization_id, idempotency_key),
-    CONSTRAINT ck_im_agent_dispatch_message_seq CHECK (
+    CONSTRAINT chk_im_agent_dispatch_message_seq CHECK (
         source_message_seq > 0 AND (reply_message_seq IS NULL OR reply_message_seq > 0)
     ),
-    CONSTRAINT ck_im_agent_dispatch_generation CHECK (assignment_generation > 0),
-    CONSTRAINT ck_im_agent_dispatch_status CHECK (status IN (0, 1, 2, 3, 4, 5, 6, 7)),
-    CONSTRAINT ck_im_agent_dispatch_attempts CHECK (
+    CONSTRAINT chk_im_agent_dispatch_generation CHECK (assignment_generation > 0),
+    CONSTRAINT chk_im_agent_dispatch_status CHECK (status IN (0, 1, 2, 3, 4, 5, 6, 7)),
+    CONSTRAINT chk_im_agent_dispatch_attempts CHECK (
         attempt_count >= 0 AND max_attempts > 0 AND attempt_count <= max_attempts
     ),
-    CONSTRAINT ck_im_agent_dispatch_reply_pair CHECK (
+    CONSTRAINT chk_im_agent_dispatch_reply_pair CHECK (
         (reply_message_id IS NULL AND reply_message_seq IS NULL)
         OR (reply_message_id IS NOT NULL AND reply_message_seq IS NOT NULL)
     ),
-    CONSTRAINT ck_im_agent_dispatch_reply_distinct CHECK (
+    CONSTRAINT chk_im_agent_dispatch_reply_distinct CHECK (
         reply_message_id IS NULL OR reply_message_id <> source_message_id
     ),
     CONSTRAINT fk_im_agent_dispatch_binding
@@ -3700,47 +3716,47 @@ SET LOCAL statement_timeout = '5min';
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_im_conversation_agent_assignments_scope') THEN
-        ALTER TABLE im_conversation_agent_assignments ADD CONSTRAINT ck_im_conversation_agent_assignments_scope CHECK (
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_conversation_agent_assignments_scope') THEN
+        ALTER TABLE im_conversation_agent_assignments ADD CONSTRAINT chk_im_conversation_agent_assignments_scope CHECK (
         tenant_id > 0 AND organization_id >= 0 AND assigned_by > 0
     ) NOT VALID;
     END IF;
 END $$;
 ALTER TABLE im_conversation_agent_assignments
-    VALIDATE CONSTRAINT ck_im_conversation_agent_assignments_scope;
+    VALIDATE CONSTRAINT chk_im_conversation_agent_assignments_scope;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_im_conversation_agent_binding_scope') THEN
-        ALTER TABLE im_conversation_agent_binding ADD CONSTRAINT ck_im_conversation_agent_binding_scope CHECK (
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_conversation_agent_binding_scope') THEN
+        ALTER TABLE im_conversation_agent_binding ADD CONSTRAINT chk_im_conversation_agent_binding_scope CHECK (
         tenant_id > 0 AND organization_id >= 0
         AND created_by > 0 AND updated_by > 0
     ) NOT VALID;
     END IF;
 END $$;
 ALTER TABLE im_conversation_agent_binding
-    VALIDATE CONSTRAINT ck_im_conversation_agent_binding_scope;
+    VALIDATE CONSTRAINT chk_im_conversation_agent_binding_scope;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_im_agent_dispatch_scope') THEN
-        ALTER TABLE im_agent_dispatch ADD CONSTRAINT ck_im_agent_dispatch_scope CHECK (
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_agent_dispatch_scope') THEN
+        ALTER TABLE im_agent_dispatch ADD CONSTRAINT chk_im_agent_dispatch_scope CHECK (
         tenant_id > 0 AND organization_id >= 0 AND requested_by > 0
     ) NOT VALID;
     END IF;
 END $$;
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_im_agent_dispatch_message_ids') THEN
-        ALTER TABLE im_agent_dispatch ADD CONSTRAINT ck_im_agent_dispatch_message_ids CHECK (
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_agent_dispatch_message_ids') THEN
+        ALTER TABLE im_agent_dispatch ADD CONSTRAINT chk_im_agent_dispatch_message_ids CHECK (
         source_message_id > 0 AND (reply_message_id IS NULL OR reply_message_id > 0)
     ) NOT VALID;
     END IF;
 END $$;
 ALTER TABLE im_agent_dispatch
-    VALIDATE CONSTRAINT ck_im_agent_dispatch_scope;
+    VALIDATE CONSTRAINT chk_im_agent_dispatch_scope;
 ALTER TABLE im_agent_dispatch
-    VALIDATE CONSTRAINT ck_im_agent_dispatch_message_ids;
+    VALIDATE CONSTRAINT chk_im_agent_dispatch_message_ids;
 
 COMMIT;
 
@@ -3771,17 +3787,17 @@ SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '2min';
 
 ALTER TABLE im_conversation_agent_assignments
-    DROP CONSTRAINT ck_im_conversation_agent_assignments_scope;
+    DROP CONSTRAINT chk_im_conversation_agent_assignments_scope;
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_im_conversation_agent_assignments_scope') THEN
-        ALTER TABLE im_conversation_agent_assignments ADD CONSTRAINT ck_im_conversation_agent_assignments_scope CHECK (
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_conversation_agent_assignments_scope') THEN
+        ALTER TABLE im_conversation_agent_assignments ADD CONSTRAINT chk_im_conversation_agent_assignments_scope CHECK (
         tenant_id > 0 AND organization_id >= 0 AND assigned_by >= 0
     ) NOT VALID;
     END IF;
 END $$;
 ALTER TABLE im_conversation_agent_assignments
-    VALIDATE CONSTRAINT ck_im_conversation_agent_assignments_scope;
+    VALIDATE CONSTRAINT chk_im_conversation_agent_assignments_scope;
 
 COMMIT;
 
@@ -3812,17 +3828,17 @@ SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '2min';
 
 ALTER TABLE im_conversation_agent_assignments
-    DROP CONSTRAINT ck_im_conversation_agent_assignments_generation;
+    DROP CONSTRAINT chk_im_conversation_agent_assignments_generation;
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_im_conversation_agent_assignments_generation') THEN
-        ALTER TABLE im_conversation_agent_assignments ADD CONSTRAINT ck_im_conversation_agent_assignments_generation CHECK (
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_im_conversation_agent_assignments_generation') THEN
+        ALTER TABLE im_conversation_agent_assignments ADD CONSTRAINT chk_im_conversation_agent_assignments_generation CHECK (
         assignment_generation > 0 AND source_aggregate_version >= 0
     ) NOT VALID;
     END IF;
 END $$;
 ALTER TABLE im_conversation_agent_assignments
-    VALIDATE CONSTRAINT ck_im_conversation_agent_assignments_generation;
+    VALIDATE CONSTRAINT chk_im_conversation_agent_assignments_generation;
 
 COMMIT;
 

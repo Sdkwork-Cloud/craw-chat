@@ -18,15 +18,15 @@ const [sound, setSound] = useState(true);
   const [callInvite, setCallInvite] = useState(true);
 
   return (
-    <PageLayout title={t('user.auto_prop_n33c3c11e', '新消息通知')}>
+    <PageLayout title={t('user.auto_prop_n33c3c11e', 'New message notifications')}>
       <Group>
         <ToggleItem
-          label={t('user.auto_prop_n5cd900af', '接收新消息通知')}
+          label={t('user.auto_prop_n5cd900af', 'Receive new message notifications')}
           checked={newMsg}
           onChange={setNewMsg}
         />
         <ToggleItem
-          label={t('user.auto_prop_3d755865', '接收语音和视频通话邀请通知')}
+          label={t('user.auto_prop_3d755865', 'Receive voice and video call invitation notifications')}
           checked={callInvite}
           onChange={setCallInvite}
           hideBorder
@@ -34,16 +34,16 @@ const [sound, setSound] = useState(true);
       </Group>
       <Group>
         <ToggleItem
-          label={t('user.auto_prop_n1ab714b3', '通知显示消息详情')}
+          label={t('user.auto_prop_n1ab714b3', 'Show message details in notifications')}
           checked={preview}
           onChange={setPreview}
           hideBorder
         />
       </Group>
       <Group>
-        <ToggleItem label={t('user.auto_prop_b5d03', '声音')} checked={sound} onChange={setSound} />
+        <ToggleItem label={t('user.auto_prop_b5d03', 'Sounds')} checked={sound} onChange={setSound} />
         <ToggleItem
-          label={t('user.auto_prop_129c81', '震动')}
+          label={t('user.auto_prop_129c81', 'Vibration')}
           checked={vibrate}
           onChange={setVibrate}
           hideBorder
@@ -58,24 +58,24 @@ export const ChatSettings = () => {
   
 const navigate = useNavigate();
   return (
-    <PageLayout title={t('user.auto_prop_fe21f', '聊天')}>
+    <PageLayout title={t('user.auto_prop_fe21f', 'Chats')}>
       <Group>
         <ListItem
-          label={t('user.auto_prop_3bafd582', '聊天背景')}
+          label={t('user.auto_prop_3bafd582', 'Chat wallpaper')}
           hideBorder
           onClick={() => navigate("/settings/chat/background")}
         />
       </Group>
       <Group>
         <ListItem
-          label={t('user.auto_prop_3f7c6ea2', '表情管理')}
+          label={t('user.auto_prop_3f7c6ea2', 'Sticker management')}
           hideBorder
           onClick={() => navigate("/settings/chat/emoji")}
         />
       </Group>
       <Group>
         <ListItem
-          label={t('user.auto_prop_n48c7a567', '清空聊天记录')}
+          label={t('user.auto_prop_n48c7a567', 'Clear chat history')}
           hideBorder
           onClick={() => navigate("/settings/chat/clear")}
         />
@@ -109,30 +109,30 @@ const navigate = useNavigate();
   };
 
   return (
-    <PageLayout title={t('user.auto_prop_11e84e', '通用')}>
+    <PageLayout title={t('user.auto_prop_11e84e', 'General')}>
       <Group>
         <ToggleItem
-          label={t('user.auto_prop_33f0e76f', '深色模式')}
+          label={t('user.auto_prop_33f0e76f', 'Dark mode')}
           checked={isDark}
           onChange={handleThemeToggle}
         />
-        <ListItem label={t('user.auto_prop_15ff64d', '多语言')} rightText={t('user.auto_prop_3957780d', '简体中文')} />
+        <ListItem label={t('user.auto_prop_15ff64d', 'Language')} rightText={t('user.auto_prop_3957780d', 'Simplified Chinese')} />
         <ListItem
-          label={t('user.auto_prop_2aba3fa4', '字体大小')}
+          label={t('user.auto_prop_2aba3fa4', 'Font size')}
           hideBorder
           onClick={() => navigate("/settings/general/font-size")}
         />
       </Group>
       <Group>
         <ListItem
-          label={t('user.auto_prop_n1e44caf5', '照片、视频、文件和通话')}
+          label={t('user.auto_prop_n1e44caf5', 'Photos, videos, files and calls')}
           hideBorder
           onClick={() => navigate("/settings/general/media")}
         />
       </Group>
       <Group>
         <ToggleItem
-          label={t('user.auto_prop_nfa62f1e', '开启横屏模式')}
+          label={t('user.auto_prop_nfa62f1e', 'Landscape mode')}
           checked={landscape}
           onChange={handleLandscapeToggle}
           hideBorder
@@ -140,7 +140,7 @@ const navigate = useNavigate();
       </Group>
       <Group>
         <ListItem
-          label={t('user.auto_prop_2ac3f70a', '存储空间')}
+          label={t('user.auto_prop_2ac3f70a', 'Storage')}
           hideBorder
           onClick={() => navigate("/settings/general/storage")}
         />
@@ -155,15 +155,15 @@ export const Plugins = () => {
 const [kanYiKan, setKanYiKan] = useState(true);
   const [souYiSou, setSouYiSou] = useState(true);
   return (
-    <PageLayout title={t("settings:content.plugins", "插件")}>
+    <PageLayout title={t("settings:content.plugins", "Plugins")}>
       <Group>
         <div className="flex items-center px-4 py-3.5 bg-chat-other-bg border-b border-border-color/60">
           <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
             <span className="text-white text-xl">📰</span>
           </div>
           <div className="flex-1">
-            <h4 className="text-[16px] text-text-main">{t("settings:content.top_stories", "看一看")}</h4>
-            <p className="text-[13px] text-text-sub">{t("settings:content.top_stories_desc", "发现朋友关注的热点")}</p>
+            <h4 className="text-[16px] text-text-main">{t("settings:content.top_stories", "Top Stories")}</h4>
+            <p className="text-[13px] text-text-sub">{t("settings:content.top_stories_desc", "Discover what your friends are following")}</p>
           </div>
           <div
             className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${kanYiKan ? "bg-accent-green" : "bg-gray-300 dark:bg-gray-600"}`}
@@ -179,8 +179,8 @@ const [kanYiKan, setKanYiKan] = useState(true);
             <span className="text-white text-xl">🔍</span>
           </div>
           <div className="flex-1">
-            <h4 className="text-[16px] text-text-main">{t("settings:content.search_all", "搜一搜")}</h4>
-            <p className="text-[13px] text-text-sub">{t("settings:content.search_all_desc", "搜索文章、小程序等")}</p>
+            <h4 className="text-[16px] text-text-main">{t("settings:content.search_all", "Search")}</h4>
+            <p className="text-[13px] text-text-sub">{t("settings:content.search_all_desc", "Search articles, mini programs, etc.")}</p>
           </div>
           <div
             className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${souYiSou ? "bg-accent-green" : "bg-gray-300 dark:bg-gray-600"}`}

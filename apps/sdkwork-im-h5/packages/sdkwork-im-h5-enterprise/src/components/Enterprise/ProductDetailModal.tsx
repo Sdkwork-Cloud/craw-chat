@@ -41,7 +41,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       >
         <div className="flex items-center justify-between p-4 bg-chat-other-bg">
           <h3 className="text-[17px] font-bold text-text-main">
-            {t("enterprise.auto_25105619", "产品详情")}
+            {t("enterprise.auto_25105619", "Product details")}
           </h3>
           <div
             className="w-8 h-8 rounded-full bg-bg-color flex items-center justify-center cursor-pointer"
@@ -64,7 +64,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
           <div className="bg-chat-other-bg rounded-xl p-4 shadow-sm">
             <h4 className="text-[14px] font-bold text-text-main mb-2">
-              {t("enterprise.auto_250baa7b", "产品描述")}
+              {t("enterprise.auto_250baa7b", "Product description")}
             </h4>
             <p className="text-[14px] text-text-sub leading-relaxed whitespace-pre-wrap">
               {product.desc}
@@ -76,7 +76,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full py-3.5 text-[16px] font-bold shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-transform"
             onClick={onConsult}
           >
-            {t("enterprise.auto_289280b4", "咨询产品")}
+            {t("enterprise.auto_289280b4", "Ask about product")}
           </button>
         </div>
       </motion.div>

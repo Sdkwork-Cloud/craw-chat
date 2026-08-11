@@ -28,10 +28,13 @@ fn test_volcengine_s3_adapter_exposes_expected_contract_shape() {
     assert_eq!(descriptor.provider_kind, "volcengine");
     assert_eq!(
         descriptor.required_capabilities,
-        vec!["s3", "presign", "multipart"]
+        vec!["s3", "presign"]
     );
 
-    let object = provider
+    // Server-side put_object is intentionally fail-closed: the production
+    // data path uploads through SigV4-presigned URLs (signed_upload_url), so
+    // the provider must reject direct server-side writes instead of faking them.
+    let put_error = provider
         .put_object(ObjectStoragePutRequest {
             bucket: "media-demo".into(),
             object_key: "tenant/100001/demo.mp4".into(),
@@ -39,13 +42,10 @@ fn test_volcengine_s3_adapter_exposes_expected_contract_shape() {
             content_type: Some("video/mp4".into()),
             storage_class: Some("standard".into()),
         })
-        .expect("put_object should succeed");
-    assert_eq!(object.bucket, "media-demo");
+        .expect_err("server-side put_object must fail closed");
     assert!(
-        object
-            .etag
-            .as_deref()
-            .is_some_and(|etag| etag.contains("volcengine"))
+        matches!(put_error, ContractError::UnsupportedCapability(_)),
+        "server-side put_object must be UnsupportedCapability, got {put_error:?}"
     );
 
     // volcengine_default() carries no SigV4 credentials, so in dev/test the

@@ -8,9 +8,7 @@
 
 use std::sync::Arc;
 
-use im_adapters_social_postgres::user_profile_store::{
-    PostgresUserProfileStore, UserProfileStore,
-};
+use im_adapters_social_postgres::user_profile_store::{PostgresUserProfileStore, UserProfileStore};
 
 /// Display attributes resolved for a user principal.
 #[derive(Clone, Debug, PartialEq, Eq)]

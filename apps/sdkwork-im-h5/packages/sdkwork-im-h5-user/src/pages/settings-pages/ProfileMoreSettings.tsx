@@ -7,21 +7,21 @@ import { useTranslation } from 'react-i18next';
 
 export const Gender = () => {
   const { t } = useTranslation();
-const [gender, setGender] = useState(t("user:profile.male", t("settings:profile.male", "男")));
+const [gender, setGender] = useState(t("user:profile.male", t("settings:profile.male", "Male")));
   return (
-    <PageLayout title={t("user:profile.set_gender", "设置性别")}>
+    <PageLayout title={t("user:profile.set_gender", "Set gender")}>
       <Group>
         <div
-          onClick={() => setGender(t("user:profile.male", t("settings:profile.male", "男")))}
+          onClick={() => setGender(t("user:profile.male", t("settings:profile.male", "Male")))}
           className="flex items-center justify-between px-4 py-3.5 bg-chat-other-bg border-b border-border-color/60 cursor-pointer"
         >
-          <span className="text-[16px] text-text-main">{t("user:profile.male", t("settings:profile.male", "男"))}</span>{gender === t("user:profile.male", t("settings:profile.male", "男")) &&<Check className="w-5 h-5 text-accent-green" />}
+          <span className="text-[16px] text-text-main">{t("user:profile.male", t("settings:profile.male", "Male"))}</span>{gender === t("user:profile.male", t("settings:profile.male", "Male")) &&<Check className="w-5 h-5 text-accent-green" />}
         </div>
         <div
-          onClick={() => setGender(t("user:profile.female", "女"))}
+          onClick={() => setGender(t("user:profile.female", "Female"))}
           className="flex items-center justify-between px-4 py-3.5 bg-chat-other-bg cursor-pointer"
         >
-          <span className="text-[16px] text-text-main">{t("user:profile.female", "女")}</span>{gender === t("user:profile.female", "女") &&<Check className="w-5 h-5 text-accent-green" />}
+          <span className="text-[16px] text-text-main">{t("user:profile.female", "Female")}</span>{gender === t("user:profile.female", "Female") &&<Check className="w-5 h-5 text-accent-green" />}
         </div>
       </Group>
     </PageLayout>
@@ -32,9 +32,9 @@ export const Region = () => {
   const { t } = useTranslation();
   
 return (
-  <PageLayout title={t("user:profile.set_region", "设置地区")}>
+  <PageLayout title={t("user:profile.set_region", "Set region")}>
     <Group>
-      <ListItem label={t("user:profile.china", "中国大陆")} rightText={t("user:profile.beijing", "北京")} hideBorder />
+      <ListItem label={t("user:profile.china", "Mainland China")} rightText={t("user:profile.beijing", "Beijing")} hideBorder />
     </Group>
   </PageLayout>
 );
@@ -44,16 +44,16 @@ export const Signature = () => {
   const { t } = useTranslation();
   
 return (
-  <PageLayout title={t("user:profile.signature", t("settings:profile.signature", "个性签名"))}>
+  <PageLayout title={t("user:profile.signature", t("settings:profile.signature", "Signature"))}>
     <div className="p-4">
       <textarea
         className="w-full h-32 bg-chat-other-bg p-4 rounded-xl text-text-main outline-none resize-none"
-        placeholder={t("user:profile.sig_placeholder", "介绍一下自己吧...")}
+        placeholder={t("user:profile.sig_placeholder", "Introduce yourself...")}
       ></textarea>
       <button
         className="mt-6 w-full h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
-        onClick={() => showToast(t("user:profile.save_success", "保存成功"))}
-      >{t("settings:profile.save", "保存")}</button>
+        onClick={() => showToast(t("commons.feature_unavailable", "This feature is not available yet while the real service is being integrated."))}
+      >{t("settings:profile.save", "Save")}</button>
     </div>
   </PageLayout>
 );

@@ -65,7 +65,7 @@ const controls = useAnimation();
                       onEdit();
                   }}
                   className="h-full w-[60px] bg-blue-500 text-white flex items-center justify-center text-[15px] font-medium active:bg-blue-600 transition-colors"
-                >{t('commons.auto_ff33b', '编辑')}</button>
+                >{t('commons.auto_ff33b', 'Edit')}</button>
             )}
             {onDelete && (
                 <button 
@@ -75,7 +75,7 @@ const controls = useAnimation();
                       onDelete();
                   }}
                   className="h-full w-[60px] bg-red-500 text-white flex items-center justify-center text-[15px] font-medium active:bg-red-600 transition-colors"
-                >{t('commons.auto_a8844', '删除')}</button>
+                >{t('commons.auto_a8844', 'Delete')}</button>
             )}
         </div>
 

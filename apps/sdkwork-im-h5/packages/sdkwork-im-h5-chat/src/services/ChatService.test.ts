@@ -269,6 +269,84 @@ test("returns the server message after posting text", async () => {
   );
 });
 
+test("reuses the caller-provided clientMsgId for postText", async () => {
+  const clientMsgIds: Array<string | null | undefined> = [];
+  const service = createChatService(() => createSdk({
+    conversations: {
+      postText: async (_conversationId, _text, options) => {
+        clientMsgIds.push((options as { clientMsgId?: string | null }).clientMsgId);
+        return {
+          deliveryStatus: "applied",
+          eventId: "event-message",
+          messageId: "message-1",
+          messageSeq: 1,
+        };
+      },
+      listMessages: async () => ({
+        items: [{
+          tenantId: "tenant-1",
+          conversationId: "conversation-1",
+          messageId: "message-1",
+          messageSeq: 1,
+          sender: { id: "user-1", kind: "user" },
+          body: { text: "Hello", parts: [] },
+          messageType: "standard",
+          deliveryMode: "persistent",
+          occurredAt: "2026-07-29T00:00:00Z",
+        }],
+        pageInfo: { mode: "cursor", hasMore: false },
+        highWatermark: 1,
+      }),
+    },
+  }));
+
+  // A send and its retry must carry the SAME clientMsgId so the server
+  // deduplicates instead of posting the message twice.
+  await service.sendMessage("conversation-1", "user-1", "Hello", "text", undefined, undefined, "stable-key-1");
+  await service.sendMessage("conversation-1", "user-1", "Hello", "text", undefined, undefined, "stable-key-1");
+
+  assert.deepEqual(clientMsgIds, ["stable-key-1", "stable-key-1"]);
+});
+
+test("generates a fresh clientMsgId when the caller provides none", async () => {
+  let clientMsgId: unknown;
+  const service = createChatService(() => createSdk({
+    conversations: {
+      postText: async (_conversationId, _text, options) => {
+        clientMsgId = (options as { clientMsgId?: string }).clientMsgId;
+        return {
+          deliveryStatus: "applied",
+          eventId: "event-message",
+          messageId: "message-1",
+          messageSeq: 1,
+        };
+      },
+      listMessages: async () => ({
+        items: [{
+          tenantId: "tenant-1",
+          conversationId: "conversation-1",
+          messageId: "message-1",
+          messageSeq: 1,
+          sender: { id: "user-1", kind: "user" },
+          body: { text: "Hello", parts: [] },
+          messageType: "standard",
+          deliveryMode: "persistent",
+          occurredAt: "2026-07-29T00:00:00Z",
+        }],
+        pageInfo: { mode: "cursor", hasMore: false },
+        highWatermark: 1,
+      }),
+    },
+  }));
+
+  await service.sendMessage("conversation-1", "user-1", "Hello");
+
+  assert.match(
+    String(clientMsgId),
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu,
+  );
+});
+
 test("uses one UUID request key and de-duplicates group members", async () => {
   let request: unknown;
   const service = createChatService(() => createSdk({

@@ -1,12 +1,17 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
 import { CheckSquare, FileText, Users, Briefcase } from "lucide-react";
+import { showToast } from "@sdkwork/im-h5-commons";
 import { WorkspaceAppIcon } from "./WorkspaceAppIcon";
 
 export const WorkspaceHRAdminSection: React.FC = () => {
   const { t } = useTranslation();
-const navigate = useNavigate();
+
+  // The approval / recruitment capability modules are not composed by default
+  // (audited as mock-only, no owner SDK). Keep the entries but fail closed on
+  // click instead of navigating to routes that no longer exist.
+  const unavailable = () =>
+    showToast(t("commons.feature_unavailable", "This feature is not available yet while the real service is being integrated."));
 
   return (
     <div className="pt-2 pb-6 px-4">
@@ -20,46 +25,28 @@ const navigate = useNavigate();
           label={t("workspace.leave")}
           colorClass="text-primary-blue"
           bgClass="bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20"
-          onClick={() =>
-            navigate(
-              `/workspace/approval/create?type=${encodeURIComponent(
-                t("approval.createForm.typeLeave")
-              )}`
-            )
-          }
+          onClick={unavailable}
         />
         <WorkspaceAppIcon
           icon={Briefcase}
           label={t("workspace.business_trip")}
           colorClass="text-primary-blue"
           bgClass="bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20"
-          onClick={() =>
-            navigate(
-              `/workspace/approval/create?type=${encodeURIComponent(
-                t("workspace.business_trip")
-              )}`
-            )
-          }
+          onClick={unavailable}
         />
         <WorkspaceAppIcon
           icon={CheckSquare}
           label={t("workspace.reimbursement")}
           colorClass="text-primary-blue"
           bgClass="bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20"
-          onClick={() =>
-            navigate(
-              `/workspace/approval/create?type=${encodeURIComponent(
-                t("approval.createForm.typeExpense")
-              )}`
-            )
-          }
+          onClick={unavailable}
         />
         <WorkspaceAppIcon
           icon={Users}
           label={t("workspace.recruitment")}
           colorClass="text-primary-blue"
           bgClass="bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20"
-          onClick={() => navigate("/workspace/recruitment")}
+          onClick={unavailable}
         />
       </div>
     </div>

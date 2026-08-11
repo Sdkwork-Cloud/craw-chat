@@ -389,7 +389,7 @@ impl SocialRuntime {
             updated_at: request.established_at,
         };
 
-        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.acquire_cross_instance_write_lock()?;
         self.refresh_state_from_authority_for_write()?;
         let mut state = self
             .state
@@ -527,7 +527,7 @@ impl SocialRuntime {
             "invalid_external_member_link",
         )?;
 
-        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.acquire_cross_instance_write_lock()?;
         self.refresh_state_from_authority_for_write()?;
         let connection = self
             .external_connection_snapshot(
@@ -787,7 +787,7 @@ pub(crate) async fn external_connection_snapshot(
     State(state): State<AppState>,
 ) -> Response {
     let result = crate::envelope::run_blocking_social_call(state, move |state| {
-        let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+        state.social_runtime.acquire_cross_instance_read_lock()?;
         state
             .social_runtime
             .refresh_state_from_authority_for_read()?;
@@ -857,7 +857,7 @@ pub(crate) async fn external_member_link_snapshot(
     State(state): State<AppState>,
 ) -> Response {
     let result = crate::envelope::run_blocking_social_call(state, move |state| {
-        let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+        state.social_runtime.acquire_cross_instance_read_lock()?;
         state
             .social_runtime
             .refresh_state_from_authority_for_read()?;

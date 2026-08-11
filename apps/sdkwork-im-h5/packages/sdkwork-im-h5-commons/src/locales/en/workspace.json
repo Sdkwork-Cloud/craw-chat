@@ -28,6 +28,6 @@
   "business_trip": "Business Trip",
   "reimbursement": "Reimbursement",
   "recruitment": "Recruitment",
-  "voice_summary": "语音纪要",
-  "voice_summary_desc": "一键生成录音纪要"
+  "voice_summary": "Voice Summary",
+  "voice_summary_desc": "Generate a recording summary in one tap"
 }

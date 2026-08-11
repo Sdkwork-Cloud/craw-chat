@@ -23,7 +23,7 @@ pub fn default_streaming_runtime() -> Arc<StreamingRuntime> {
     }
 
     DEFAULT_STREAMING_RUNTIME
-        .get_or_init(|| build_streaming_runtime_or_fallback())
+        .get_or_init(build_streaming_runtime_or_fallback)
         .clone()
 }
 
@@ -64,8 +64,8 @@ pub fn default_app_state() -> AppState {
 }
 
 fn resolve_stream_state_store_from_env() -> Result<Arc<dyn StreamStateStore>, String> {
-    if let Ok(config) = DatabaseConfig::from_env("IM") {
-        if config.engine == DatabaseEngine::Postgres {
+    if let Ok(config) = DatabaseConfig::from_env("IM")
+        && config.engine == DatabaseEngine::Postgres {
             match PostgresJournalConfig::from_database_config(&config).connect_pool() {
                 Ok(pool) => {
                     info!("streaming-service using postgres stream state store");
@@ -84,7 +84,6 @@ fn resolve_stream_state_store_from_env() -> Result<Arc<dyn StreamStateStore>, St
                 }
             }
         }
-    }
 
     if let Some(database_url) = resolve_im_database_url_from_env() {
         match PostgresJournalConfig::new(database_url).connect_pool() {

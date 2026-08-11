@@ -39,7 +39,7 @@ function MainShell({ children, modules }: { children: ReactNode; modules: readon
  */
 function readExplicitDarkPreference(): boolean | null {
   try {
-    const stored = window.localStorage.getItem("clawchat_app_settings");
+    const stored = window.localStorage.getItem("sdkwork_im_h5_settings");
     if (stored) {
       const parsed = JSON.parse(stored) as { darkMode?: boolean };
       if (typeof parsed.darkMode === "boolean") {

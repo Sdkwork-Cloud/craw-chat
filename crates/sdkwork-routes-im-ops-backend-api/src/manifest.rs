@@ -7,25 +7,25 @@ use crate::paths;
 pub const API_SURFACE: &str = "backend-api";
 
 pub const ROUTES: &[HttpRoute] = &[
-    HttpRoute::dual_token(HttpMethod::Get, paths::HEALTH, "ops", "ops.health.retrieve"),
+    HttpRoute::dual_token(HttpMethod::Get, paths::HEALTH, "ops", "health.retrieve"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::CLUSTER,
         "ops",
-        "ops.cluster.retrieve",
+        "cluster.retrieve",
     ),
-    HttpRoute::dual_token(HttpMethod::Get, paths::LAG, "ops", "ops.lag.retrieve"),
+    HttpRoute::dual_token(HttpMethod::Get, paths::LAG, "ops", "lag.retrieve"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::REPLAY_STATUS,
         "ops",
-        "ops.replayStatus.retrieve",
+        "replayStatus.retrieve",
     ),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::RUNTIME_DIR,
         "ops",
-        "ops.runtimeDir.retrieve",
+        "runtimeDir.retrieve",
     ),
     HttpRoute::dual_token(
         HttpMethod::Get,
@@ -43,13 +43,13 @@ pub const ROUTES: &[HttpRoute] = &[
         HttpMethod::Get,
         paths::DIAGNOSTICS,
         "ops",
-        "ops.diagnostics.retrieve",
+        "diagnostics.retrieve",
     ),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::RETENTION_PURGE,
         "ops",
-        "ops.retention.purge.create",
+        "retention.purge",
     ),
 ];
 

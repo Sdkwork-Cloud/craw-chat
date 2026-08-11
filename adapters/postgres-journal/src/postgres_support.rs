@@ -309,7 +309,6 @@ pub(crate) fn now_rfc3339() -> String {
     im_time::utc_now_rfc3339_millis()
 }
 
-use tracing;
 
 pub(crate) fn postgres_unavailable(
     action: &'static str,

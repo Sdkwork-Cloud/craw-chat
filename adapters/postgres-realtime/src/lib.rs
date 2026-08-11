@@ -1171,22 +1171,41 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
                 return Ok(None);
             };
             let after_seq = u64_to_i64("trimmed_through_seq", checkpoint.trimmed_through_seq)?;
-            let limit = i64::MAX;
-            let events = transaction
-                .query(
-                    LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
-                    &[
-                        &tenant_id,
-                        &organization_id,
-                        &client_route_scope_key,
-                        &after_seq,
-                        &limit,
-                    ],
-                )
-                .map_err(|error| postgres_unavailable("list event window events", error))?
-                .into_iter()
-                .map(realtime_event_from_row)
-                .collect::<Result<Vec<_>, ContractError>>()?;
+            // Load the window in bounded batches keyed on `realtime_seq` instead
+            // of materializing the whole result set in one query (`limit =
+            // i64::MAX`): each statement's result set stays small while the
+            // returned window still contains every pending event, in order.
+            const EVENT_WINDOW_LOAD_BATCH_SIZE: i64 = 500;
+            let mut events = Vec::new();
+            let mut cursor_seq = after_seq;
+            loop {
+                let batch = transaction
+                    .query(
+                        LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
+                        &[
+                            &tenant_id,
+                            &organization_id,
+                            &client_route_scope_key,
+                            &cursor_seq,
+                            &EVENT_WINDOW_LOAD_BATCH_SIZE,
+                        ],
+                    )
+                    .map_err(|error| postgres_unavailable("list event window events", error))?
+                    .into_iter()
+                    .map(realtime_event_from_row)
+                    .collect::<Result<Vec<_>, ContractError>>()?;
+                if batch.is_empty() {
+                    break;
+                }
+                cursor_seq = u64_to_i64(
+                    "realtime_seq",
+                    batch
+                        .last()
+                        .expect("non-empty batch must have a last event")
+                        .realtime_seq,
+                )?;
+                events.extend(batch);
+            }
             transaction
                 .commit()
                 .map_err(|error| postgres_unavailable("commit event window load", error))?;

@@ -44,7 +44,7 @@ export const RecruitmentListTab: React.FC<RecruitmentListTabProps> = ({ recruitm
               <span className="text-[12px] text-text-sub font-medium">{job.company}</span>
             </div>
             <button className="px-3 py-1 bg-primary-blue text-white rounded-full text-[12px] font-medium shadow-md shadow-blue-500/20 active:scale-95 transition-transform">
-              {t('enterprise.auto_24da2ec', '马上聊')}
+              {t('enterprise.auto_24da2ec', 'Chat now')}
             </button>
           </div>
         </div>

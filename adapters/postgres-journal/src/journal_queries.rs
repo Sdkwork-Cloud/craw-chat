@@ -57,6 +57,16 @@ from im_commit_journal
 where partition_key = $1 and tenant_id = $2 and organization_id = $3
 "#;
 
+/// Journal replay high-water mark: committed row count and the head
+/// `commit_offset` of the append-only ledger (`ops replay_status`).
+pub(crate) const REPLAY_STATE_SQL: &str = r#"/* sdkwork:cross-organization-operation=journal-replay-state */
+
+select count(*)::bigint as total,
+       max(commit_offset) as head_offset,
+       max(occurred_at) as latest_occurred_at
+from im_commit_journal
+"#;
+
 pub(crate) const LOAD_RECORDED_AGGREGATE_SQL: &str = r#"
 select
     event_id,

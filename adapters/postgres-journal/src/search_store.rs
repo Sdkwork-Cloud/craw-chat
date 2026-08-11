@@ -328,7 +328,8 @@ impl SearchProvider for PostgresSearchProvider {
             let mut client = postgres_pool_client(&pool, "search")?;
 
             let fetch_limit = search_fetch_limit(limit);
-            let (keyset_created_at, keyset_message_id) = resolve_keyset_cursor_timestamp(&list_cursor)?;
+            let (keyset_created_at, keyset_message_id) =
+                resolve_keyset_cursor_timestamp(&list_cursor)?;
             let (rows, count_sql) = match client.query(
                 SEARCH_KEYSET_SQL,
                 &[
@@ -452,7 +453,8 @@ impl PostgresSearchProvider {
             let mut client = postgres_pool_client(&pool, "search_for_member")?;
 
             let fetch_limit = search_fetch_limit(limit);
-            let (keyset_created_at, keyset_message_id) = resolve_keyset_cursor_timestamp(&list_cursor)?;
+            let (keyset_created_at, keyset_message_id) =
+                resolve_keyset_cursor_timestamp(&list_cursor)?;
             let (rows, count_sql) = match client.query(
                 SEARCH_MEMBER_KEYSET_SQL,
                 &[

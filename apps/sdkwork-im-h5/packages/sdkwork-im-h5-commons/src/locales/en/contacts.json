@@ -99,5 +99,7 @@
   "no_group_chats": "No group chats yet",
   "add_failed_already_friend": "Already friends",
   "add_failed_pending": "A friend request is already pending",
-  "add_failed_blocked": "Unable to add: the user has blocked you or restricted adds"
+  "add_failed_blocked": "Unable to add: the user has blocked you or restricted adds",
+  "scan_unavailable_title": "QR scanning is not available yet",
+  "scan_unavailable_desc": "Scanning is not connected yet; scanned contacts cannot be resolved right now."
 }

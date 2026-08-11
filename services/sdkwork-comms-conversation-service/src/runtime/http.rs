@@ -717,6 +717,7 @@ impl ArchiveGroupConversationResponse {
 #[serde(rename_all = "camelCase")]
 struct MessageReactionRequest {
     reaction_key: String,
+    idempotency_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1255,9 +1256,24 @@ pub fn default_app_state() -> AppState {
 fn try_server_app_state_with_principal_directory(
     principal_directory: Arc<dyn PrincipalDirectory>,
 ) -> Result<AppState, RuntimeError> {
+    // The allow-all / header-only paths are development-and-test only. In that
+    // mode the coordinator uses the in-memory knowledgebase store and the
+    // in-memory journal; production always requires the shared PostgreSQL
+    // process pool and fails closed instead of degrading.
+    let dev_or_test = im_app_context::allows_header_only_app_context_fallback();
+    let group_knowledgebase = if dev_or_test {
+        build_test_group_knowledgebase_for_app_state()?
+    } else {
+        build_server_group_knowledgebase_for_app_state()?
+    };
+    let runtime = if dev_or_test {
+        Arc::new(build_test_runtime_for_app_state())
+    } else {
+        Arc::new(build_server_runtime_for_app_state()?)
+    };
     let state = AppState {
-        group_knowledgebase: build_server_group_knowledgebase_for_app_state()?,
-        runtime: Arc::new(build_server_runtime_for_app_state()?),
+        group_knowledgebase,
+        runtime,
         principal_directory,
         group_knowledgebase_outbox_relay_owner: Arc::new(GroupKnowledgebaseOutboxRelayOwner::new()),
         group_knowledgebase_launch_rate_limiter: GroupKnowledgebaseLaunchRateLimiter::from_env(),
@@ -1322,7 +1338,7 @@ pub fn bootstrap_conversation_app_state_from_env() -> Result<AppState, String> {
             ConversationCommitJournal::Postgres(journal) => journal.pool().clone(),
             ConversationCommitJournal::Memory(_) => {
                 return Err(
-                    "postgres principal directory requires the IM PostgreSQL journal".into()
+                    "postgres principal directory requires the IM PostgreSQL journal".into(),
                 );
             }
         };
@@ -3203,11 +3219,14 @@ async fn add_message_reaction(
 
         Ok(state
             .runtime
-            .add_message_reaction(AddMessageReactionCommand::from_auth_context(
-                &auth,
+            .add_message_reaction(AddMessageReactionCommand {
+                tenant_id: auth.tenant_id.clone(),
+                organization_id: organization_id_from_auth_context(&auth),
                 message_id,
-                request.reaction_key,
-            ))?)
+                reaction_key: request.reaction_key,
+                reacted_by: sender_from_auth_context(&auth),
+                idempotency_key: request.idempotency_key,
+            })?)
     })();
     created_resource_response(&ctx, result)
 }
@@ -3229,13 +3248,16 @@ async fn remove_message_reaction(
             .into());
         }
 
-        Ok(state.runtime.remove_message_reaction(
-            RemoveMessageReactionCommand::from_auth_context(
-                &auth,
+        Ok(state
+            .runtime
+            .remove_message_reaction(RemoveMessageReactionCommand {
+                tenant_id: auth.tenant_id.clone(),
+                organization_id: organization_id_from_auth_context(&auth),
                 message_id,
-                request.reaction_key,
-            ),
-        )?)
+                reaction_key: request.reaction_key,
+                removed_by: sender_from_auth_context(&auth),
+                idempotency_key: request.idempotency_key,
+            })?)
     })();
     resource_response(&ctx, result)
 }
@@ -4074,7 +4096,12 @@ mod tests {
         // branch is reachable before the allow-all fallback).
         // SAFETY: single-threaded test; the variable is restored immediately
         // after the bootstrap call and no other test reads this key.
-        unsafe { std::env::set_var(PRINCIPAL_DIRECTORY_MODE_ENV, PRINCIPAL_DIRECTORY_MODE_POSTGRES) };
+        unsafe {
+            std::env::set_var(
+                PRINCIPAL_DIRECTORY_MODE_ENV,
+                PRINCIPAL_DIRECTORY_MODE_POSTGRES,
+            )
+        };
         let result = bootstrap_conversation_app_state_from_env();
         unsafe { std::env::remove_var(PRINCIPAL_DIRECTORY_MODE_ENV) };
         let error = match result {

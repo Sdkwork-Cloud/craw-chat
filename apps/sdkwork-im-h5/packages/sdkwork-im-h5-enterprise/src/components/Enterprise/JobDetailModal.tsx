@@ -44,7 +44,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
       >
         <div className="flex items-center justify-between p-4 bg-chat-other-bg border-b border-border-color">
           <h3 className="text-[17px] font-bold text-text-main">
-            {t("enterprise.auto_3b8d0de0", "职位详情")}
+            {t("enterprise.auto_3b8d0de0", "Job details")}
           </h3>
           <div
             className="w-8 h-8 rounded-full bg-bg-color flex items-center justify-center cursor-pointer"
@@ -79,10 +79,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             </div>
             <div>
               <h4 className="text-[15px] font-bold text-text-main">
-                {t("enterprise.auto_n5277daa7", "招聘负责人")}
+                {t("enterprise.auto_n5277daa7", "Recruiting manager")}
               </h4>
               <span className="text-[13px] text-text-sub">
-                {t("enterprise.auto_51555a28", "极客科技宇宙 HR")}
+                {t("enterprise.auto_51555a28", "Geek Tech Universe HR")}
               </span>
             </div>
           </div>
@@ -90,7 +90,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           <div className="mb-2">
             <h4 className="text-[16px] font-bold text-text-main mb-3 flex items-center gap-2">
               <span className="w-1 h-3.5 bg-primary-blue rounded-full"></span>
-              {t("enterprise.auto_3b886242", "职位描述")}
+              {t("enterprise.auto_3b886242", "Job description")}
             </h4>
             <p className="text-[15px] text-text-sub leading-relaxed whitespace-pre-wrap">
               {job.desc}
@@ -102,7 +102,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full py-3.5 text-[16px] font-bold shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-transform"
             onClick={onChat}
           >
-            {t("enterprise.auto_39188763", "立即沟通")}
+            {t("enterprise.auto_39188763", "Chat now")}
           </button>
         </div>
       </motion.div>

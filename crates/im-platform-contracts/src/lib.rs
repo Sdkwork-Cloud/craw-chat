@@ -38,6 +38,8 @@ pub use sdkwork_im_contract_message::{
 };
 pub use sdkwork_im_contract_notification::{
     NotificationTaskListCursor, NotificationTaskRecord, NotificationTaskStore,
+    notification_backoff_secs, resolve_notification_claim_lease_secs,
+    resolve_notification_max_attempts,
 };
 pub use sdkwork_im_contract_stream::{
     StreamAppendOutcome, StreamCreateOutcome, StreamScope, StreamSessionRecord, StreamStateStore,

@@ -1,98 +1,69 @@
-import { useTranslation } from "react-i18next";
-import i18next from 'i18next';
-const t = i18next.t.bind(i18next);
-export interface AuthUser {
-  id: string;
-  phone: string;
-  token: string;
-}
+import { useAppStore } from "@sdkwork/im-h5-core";
+import { requestImH5SessionLogout } from "@sdkwork/im-h5-core/session";
+import { UserCapabilityUnavailableError } from "./UserCapabilityUnavailableError";
 
-let currentUser: AuthUser | null = null;
-try {
-  const saved = localStorage.getItem("auth_user");
-  if (saved) currentUser = JSON.parse(saved);
-} catch (e) {}
-
+/**
+ * Fail-closed auth service.
+ *
+ * The real login / registration / verification-code / password-reset flows are
+ * owned by `@sdkwork/iam-h5-auth` (wired in the app root AuthGate through
+ * `createImH5AuthController` against the IAM app-api runtime). This legacy
+ * service must never fabricate sessions, tokens, or verification codes — every
+ * credential-flow method throws a typed `UserCapabilityUnavailableError` so
+ * callers surface a typed unavailable state instead of fake success.
+ *
+ * `getCurrentUser` and `logout` are real: they read the authenticated IAM
+ * current user from the app store (populated by AuthGate via
+ * `iam.users.current.retrieve()`) and request the IAM session revoke through
+ * the app-owned logout handler.
+ */
 export const AuthService = {
   async login(
-    phone: string,
-    password?: string,
-    code?: string,
-  ): Promise<AuthUser> {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (password === "123456" || code === "8888") {
-          currentUser = {
-            id: `u_${Date.now()}`,
-            phone,
-            token: `token_${Date.now()}`,
-          };
-          localStorage.setItem("auth_user", JSON.stringify(currentUser));
-          resolve(currentUser);
-        } else {
-          reject(new Error(t("auth.error_invalid_pwd", "账号或密码错误（演示密码：123456，验证码：8888）")));
-        }
-      }, 500);
-    });
+    _phone: string,
+    _password?: string,
+    _code?: string,
+  ): Promise<never> {
+    throw new UserCapabilityUnavailableError("Password/code login");
   },
 
   async register(
-    phone: string,
-    code: string,
-    password?: string,
-  ): Promise<AuthUser> {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (code === "8888") {
-          currentUser = {
-            id: `u_${Date.now()}`,
-            phone,
-            token: `token_${Date.now()}`,
-          };
-          localStorage.setItem("auth_user", JSON.stringify(currentUser));
-          resolve(currentUser);
-        } else {
-          reject(new Error(t("auth.error_invalid_code", "验证码错误（演示验证码：8888）")));
-        }
-      }, 500);
-    });
+    _phone: string,
+    _code: string,
+    _password?: string,
+  ): Promise<never> {
+    throw new UserCapabilityUnavailableError("Account registration");
   },
 
   async resetPassword(
-    phone: string,
-    code: string,
-    newPassword: string,
-  ): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (code === "8888") {
-          resolve(true);
-        } else {
-          reject(new Error(t("auth.error_invalid_code", "验证码错误（演示验证码：8888）")));
-        }
-      }, 500);
-    });
+    _phone: string,
+    _code: string,
+    _newPassword: string,
+  ): Promise<never> {
+    throw new UserCapabilityUnavailableError("Password reset");
   },
 
-  async sendCode(phone: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(true); // Always succeds in mock
-      }, 300);
-    });
+  async sendCode(_phone: string): Promise<never> {
+    throw new UserCapabilityUnavailableError("Verification code delivery");
   },
 
   async logout(): Promise<void> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        currentUser = null;
-        localStorage.removeItem("auth_user");
-        resolve();
-      }, 300);
-    });
+    await requestImH5SessionLogout();
   },
 
-  getCurrentUser(): AuthUser | null {
-    return currentUser;
+  /**
+   * Real IAM current user (id / name / avatar) as resolved by AuthGate from
+   * `iamAppSdkClient.iam.users.current.retrieve()`. `null` when no session
+   * exists or the profile has not been loaded yet.
+   */
+  getCurrentUser() {
+    const user = useAppStore.getState().currentUser;
+    if (!user) {
+      return null;
+    }
+    return {
+      id: user.id,
+      name: user.name,
+      ...(user.avatar ? { avatar: user.avatar } : {}),
+    };
   },
 };

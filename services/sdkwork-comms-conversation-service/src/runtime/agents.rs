@@ -281,8 +281,7 @@ where
             // authoritative for assignments already materialized in memory;
             // production PostgreSQL always serves the row.
             Err(RuntimeError::ConversationNotFound(_))
-                if self.agent_integration_store.is_none()
-                    && hot_agent_assignments_present =>
+                if self.agent_integration_store.is_none() && hot_agent_assignments_present =>
             {
                 return Ok(());
             }

@@ -259,7 +259,7 @@ impl StreamStateStore for NullStreamStore {
         _expected_version: u64,
         session: StreamSessionRecord,
     ) -> Result<StreamTransitionOutcome, ContractError> {
-        Ok(StreamTransitionOutcome::Applied(session))
+        Ok(StreamTransitionOutcome::Applied(Box::new(session)))
     }
     fn list_frames_after(
         &self,
@@ -322,6 +322,35 @@ impl NotificationTaskStore for NullNotificationStore {
         _page_size: usize,
     ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
         Ok(Vec::new())
+    }
+
+    fn claim_tasks(
+        &self,
+        _limit: usize,
+        _now: &str,
+    ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
+        Ok(Vec::new())
+    }
+
+    fn complete_task(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _notification_id: &str,
+        _dispatched_at: &str,
+    ) -> Result<(), ContractError> {
+        Ok(())
+    }
+
+    fn fail_task(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _notification_id: &str,
+        _failure_reason: &str,
+        _now: &str,
+    ) -> Result<(), ContractError> {
+        Ok(())
     }
 }
 

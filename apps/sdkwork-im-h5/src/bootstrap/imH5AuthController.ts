@@ -36,9 +36,14 @@ function readDevCode(response: unknown): string | undefined {
  * Verification-code delivery port injected into the H5 auth controller.
  *
  * The request goes through the IAM app-api `verificationCodeRequests.create`
- * endpoint (generated SDK surface — no raw HTTP). In dev fixed-code mode the
- * backend echoes the demo code; the toast lets a developer complete the
- * login without a real messaging channel.
+ * endpoint (generated SDK surface — no raw HTTP).
+ *
+ * DEV-ONLY TOOL (not a business demo): when the backend runs in dev
+ * fixed-code mode it echoes the demo code in the envelope; the toast lets a
+ * developer complete the login without a real messaging channel. Production
+ * deployments never return `devCode`, so this branch is inert there. It is
+ * kept strictly gated by the backend echo — the frontend never fabricates or
+ * accepts a hard-coded demo code on its own.
  */
 const verificationCodeClient: SdkworkIamH5VerificationCodeClient = {
   async send({ scene, target, verifyType }) {

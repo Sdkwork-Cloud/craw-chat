@@ -11,5 +11,6 @@
   "auto_prop_n27578f97": "搜索音色...",
   "auto_n5f11116c": "没有找到相关音色",
   "auto_300803f1": "克隆我的声音",
-  "verification_dev_code": "演示验证码：{{code}}"
+  "verification_dev_code": "开发环境验证码：{{code}}",
+  "feature_unavailable": "该功能暂不可用，正在接入真实服务，敬请期待。"
 }

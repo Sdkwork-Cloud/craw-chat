@@ -97,7 +97,7 @@ assert.equal(
   'database table registry must not contain duplicate table names',
 );
 assert.equal(registeredTables.length, 63, 'canonical IM table registry must contain 63 tables');
-assert.equal(baselineRegisteredTables.length, 60, 'PostgreSQL baseline must own 60 tables');
+assert.equal(baselineRegisteredTables.length, 63, 'PostgreSQL baseline must own 63 tables');
 
 for (const entry of tableRegistry.tables) {
   assert.equal(entry.module_prefix, 'im', `${entry.table_name} must register module_prefix=im`);

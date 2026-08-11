@@ -33,7 +33,7 @@ function readString(value: unknown): string | undefined {
 
 const loadLocalProfile = (): Partial<UserProfile> => {
   try {
-    const data = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem("clawchat_user_profile");
+    const data = localStorage.getItem(STORAGE_KEY);
     if (data) {
       return JSON.parse(data) as Partial<UserProfile>;
     }

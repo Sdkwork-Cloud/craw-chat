@@ -73,12 +73,16 @@ async fn first_sight_user_is_admitted_and_recorded() {
             r#"
 select setting_value
 from im_user_settings
-where tenant_id = $1 and organization_id = '0' and user_id = $2 and setting_key = 'principal.seen'
+where tenant_id = $1 and organization_id = $2 and user_id = $3 and setting_key = 'principal.seen'
 "#,
-            &[&tenant_id, &user_id],
+            &[&tenant_id, &"0", &user_id],
         )
         .expect("seen record should be readable");
-    assert_eq!(rows.len(), 1, "first-sight admission must be recorded for audit");
+    assert_eq!(
+        rows.len(),
+        1,
+        "first-sight admission must be recorded for audit"
+    );
 
     // Repeat admission stays admitted (idempotent upsert).
     directory
@@ -118,10 +122,7 @@ async fn disabled_user_is_rejected() {
         .ensure_active_principal(&tenant_id, user_id, "user")
         .expect_err("disabled user must be rejected");
     assert!(
-        matches!(
-            error,
-            PrincipalDirectoryError::PrincipalDisabled { .. }
-        ),
+        matches!(error, PrincipalDirectoryError::PrincipalDisabled { .. }),
         "expected PrincipalDisabled, got {error:?}"
     );
 }

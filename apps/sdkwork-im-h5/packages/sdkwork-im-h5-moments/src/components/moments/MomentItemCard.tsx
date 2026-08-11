@@ -117,7 +117,7 @@ export const MomentItemCard: React.FC<MomentItemCardProps> = ({
               <button
                 className="text-[#576B95] dark:text-[#7d90a9] text-[13px] active:opacity-50"
                 onClick={(e) => handleDelete(moment.id, e)}
-              >{t('moments.delete', '删除')}</button>
+              >{t('moments.delete', 'Delete')}</button>
             )}
           </div>
 
@@ -146,14 +146,14 @@ export const MomentItemCard: React.FC<MomentItemCardProps> = ({
                     onClick={(e) => handleLike(moment.id, e)}
                   >
                     <Heart className={cn("w-4 h-4", moment.isLiked && "fill-current text-white")} />
-                    <span className="text-[13px] font-medium">{moment.isLiked ? t('moments.unlike', '取消') : t('moments.like', '赞')}</span>
+                    <span className="text-[13px] font-medium">{moment.isLiked ? t('moments.unlike', 'Unlike') : t('moments.like', 'Like')}</span>
                   </button>
                   <button
                     className="flex items-center justify-center gap-1.5 px-6 h-full active:bg-[#3C3C3C] dark:active:bg-[#222222] transition-colors min-w-[76px]"
                     onClick={(e) => openComment(moment.id, e)}
                   >
                     <MessageCircle className="w-4 h-4" />
-                    <span className="text-[13px] font-medium">{t('moments.comment', '评论')}</span>
+                    <span className="text-[13px] font-medium">{t('moments.comment', 'Comment')}</span>
                   </button>
                 </motion.div>
               )}
@@ -188,7 +188,7 @@ export const MomentItemCard: React.FC<MomentItemCardProps> = ({
                       </span>
                       {c.content.startsWith("回复 ") && c.content.includes(":") ? (
                         <>
-                          <span className="text-text-main mx-1">{t('moments.reply', '回复')}</span>
+                          <span className="text-text-main mx-1">{t('moments.reply', 'Reply')}</span>
                           <span className="text-[#576B95] dark:text-[#7d90a9] font-medium cursor-pointer active:opacity-70">{c.content.split(":")[0].replace("回复 ", "")}</span>
                           <span>: {c.content.substring(c.content.indexOf(":") + 1)}</span>
                         </>
@@ -214,7 +214,7 @@ export const MomentItemCard: React.FC<MomentItemCardProps> = ({
             >
               <div className="flex items-center gap-2 bg-hover-bg rounded-lg px-3 py-2">
                 <textarea
-                  placeholder={t('moments.comment_placeholder', '评论...')}
+                  placeholder={t('moments.comment_placeholder', 'Comment...')}
                   className="bg-transparent flex-1 outline-none text-[14px] text-text-main resize-none min-h-[20px] max-h-[80px]"
                   value={commentText}
                   rows={1}

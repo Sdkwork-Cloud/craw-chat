@@ -14,7 +14,7 @@ fn test_rpc_service_manifest_declares_im_rpc_sdk_family() {
 
 #[test]
 fn test_rpc_service_manifest_lists_unique_standard_services() {
-    assert_eq!(RPC_SERVICE_BINDINGS.len(), 23);
+    assert_eq!(RPC_SERVICE_BINDINGS.len(), 24);
 
     let mut service_keys = HashSet::new();
     for binding in RPC_SERVICE_BINDINGS {
@@ -74,7 +74,7 @@ fn test_bind_all_rpc_services_registers_every_manifest_service() {
 
 #[test]
 fn test_rpc_method_manifest_lists_unique_standard_methods() {
-    assert_eq!(RPC_METHOD_BINDINGS.len(), 162);
+    assert_eq!(RPC_METHOD_BINDINGS.len(), 163);
 
     let mut method_keys = HashSet::new();
     for binding in RPC_METHOD_BINDINGS {

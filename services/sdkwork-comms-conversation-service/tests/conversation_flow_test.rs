@@ -958,11 +958,17 @@ impl RecordingRepairAggregateStore {
     }
 
     fn upserted_members(&self) -> Vec<ConversationMemberRecord> {
-        self.upserted.lock().expect("upserted members should lock").clone()
+        self.upserted
+            .lock()
+            .expect("upserted members should lock")
+            .clone()
     }
 
     fn removed_pairs(&self) -> Vec<(String, String)> {
-        self.removed.lock().expect("removed pairs should lock").clone()
+        self.removed
+            .lock()
+            .expect("removed pairs should lock")
+            .clone()
     }
 }
 
@@ -3198,6 +3204,7 @@ fn test_message_reaction_hydrates_durable_message_when_hot_locator_misses() {
                 session_id: None,
                 metadata: Default::default(),
             },
+            idempotency_key: None,
         })
         .expect("durable message should hydrate before reaction");
 
@@ -5615,16 +5622,13 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
             principal_id: "1".into(),
             device_id: None,
             read_seq: 1,
-            last_read_message_id: Some("msg_c_cursor_1".into()),
+            last_read_message_id: Some("1".into()),
         })
         .expect("read cursor update should succeed");
 
     assert_eq!(cursor.member_id, "cm_c_cursor_user_1");
     assert_eq!(cursor.read_seq, 1);
-    assert_eq!(
-        cursor.last_read_message_id.as_deref(),
-        Some("msg_c_cursor_1")
-    );
+    assert_eq!(cursor.last_read_message_id.as_deref(), Some("1"));
 
     let regressed = runtime
         .update_read_cursor(UpdateReadCursorCommand {
@@ -5634,15 +5638,12 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
             principal_id: "1".into(),
             device_id: None,
             read_seq: 0,
-            last_read_message_id: Some("msg_c_cursor_0".into()),
+            last_read_message_id: Some("0".into()),
         })
         .expect("regressed read cursor update should be idempotent");
 
     assert_eq!(regressed.read_seq, 1);
-    assert_eq!(
-        regressed.last_read_message_id.as_deref(),
-        Some("msg_c_cursor_1")
-    );
+    assert_eq!(regressed.last_read_message_id.as_deref(), Some("1"));
 
     let advanced = runtime
         .update_read_cursor(UpdateReadCursorCommand {
@@ -5652,15 +5653,12 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
             principal_id: "1".into(),
             device_id: None,
             read_seq: 2,
-            last_read_message_id: Some("msg_c_cursor_2".into()),
+            last_read_message_id: Some("2".into()),
         })
         .expect("advanced read cursor update should succeed");
 
     assert_eq!(advanced.read_seq, 2);
-    assert_eq!(
-        advanced.last_read_message_id.as_deref(),
-        Some("msg_c_cursor_2")
-    );
+    assert_eq!(advanced.last_read_message_id.as_deref(), Some("2"));
 
     let events = journal.recorded();
     let read_events: Vec<_> = events
@@ -5827,7 +5825,7 @@ fn test_read_cursor_rejects_actor_kind_mismatch_against_member_principal_kind() 
             principal_id: "1".into(),
             device_id: None,
             read_seq: 1,
-            last_read_message_id: Some("msg_c_cursor_actor_kind_guard_1".into()),
+            last_read_message_id: Some("1".into()),
         },
         "agent",
     );
@@ -5993,6 +5991,7 @@ fn test_conversation_policy_capability_flags_disable_pin() {
                 session_id: Some("s_owner".into()),
                 metadata: Default::default(),
             },
+            idempotency_key: None,
         })
         .expect("reaction should stay enabled");
     assert!(reaction.changed);
@@ -6268,7 +6267,7 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
             principal_id: "agent.demo".into(),
             device_id: None,
             read_seq: 1,
-            last_read_message_id: Some(format!("msg_{conversation_id}_1")),
+            last_read_message_id: Some("1".into()),
         })
         .expect("agent read cursor update should succeed");
 
@@ -7354,7 +7353,7 @@ fn test_read_cursor_does_not_advance_when_journal_append_fails() {
         principal_id: "1".into(),
         device_id: None,
         read_seq: 1,
-        last_read_message_id: Some("msg_c_group_cursor_commit_fail_1".into()),
+        last_read_message_id: Some("1".into()),
     });
     assert!(matches!(
         update_attempt,
@@ -7851,6 +7850,7 @@ fn test_add_reaction_does_not_leak_reaction_when_journal_append_fails() {
             session_id: Some("s_owner".into()),
             metadata: Default::default(),
         },
+        idempotency_key: None,
     });
     assert!(matches!(
         reaction_attempt,
@@ -7919,6 +7919,7 @@ fn test_remove_reaction_does_not_leak_reaction_removal_when_journal_append_fails
                 session_id: Some("s_owner".into()),
                 metadata: Default::default(),
             },
+            idempotency_key: None,
         })
         .expect("reaction add should succeed before forced failure");
 
@@ -7935,6 +7936,7 @@ fn test_remove_reaction_does_not_leak_reaction_removal_when_journal_append_fails
             session_id: Some("s_owner".into()),
             metadata: Default::default(),
         },
+        idempotency_key: None,
     });
     assert!(matches!(
         remove_attempt,
@@ -9265,7 +9267,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
             principal_id: "1".into(),
             device_id: None,
             read_seq: 1,
-            last_read_message_id: Some("msg_c_cursor_time_1".into()),
+            last_read_message_id: Some("1".into()),
         })
         .expect("first read cursor update should succeed");
 
@@ -9279,7 +9281,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
             principal_id: "1".into(),
             device_id: None,
             read_seq: 2,
-            last_read_message_id: Some("msg_c_cursor_time_2".into()),
+            last_read_message_id: Some("2".into()),
         })
         .expect("second read cursor update should succeed");
 
@@ -9595,6 +9597,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
                 session_id: Some("s_owner".into()),
                 metadata: Default::default(),
             },
+            idempotency_key: None,
         })
         .expect("add reaction should succeed");
     assert!(added.changed);
@@ -9616,6 +9619,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
                 session_id: Some("s_owner".into()),
                 metadata: Default::default(),
             },
+            idempotency_key: None,
         })
         .expect("duplicate add should be idempotent");
     assert!(!duplicate_add.changed);
@@ -9634,6 +9638,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
                 session_id: Some("s_owner".into()),
                 metadata: Default::default(),
             },
+            idempotency_key: None,
         })
         .expect("remove reaction should succeed");
     assert!(removed.changed);
@@ -9655,6 +9660,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
                 session_id: Some("s_owner".into()),
                 metadata: Default::default(),
             },
+            idempotency_key: None,
         })
         .expect("duplicate remove should be idempotent");
     assert!(!duplicate_remove.changed);
@@ -9673,6 +9679,182 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
             .filter(|event| event.event_type == "message.reaction_removed")
             .count(),
         1
+    );
+}
+
+#[test]
+fn test_reaction_commands_replay_original_result_for_matching_idempotency_key() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_reaction_idempotency_key".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    let posted = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_reaction_idempotency_key".into(),
+            sender: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_reaction_idem_key".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("reaction idempotency target".into()),
+                parts: vec![ContentPart::text("reaction idempotency target")],
+                render_hints: Default::default(),
+                reply_to: None,
+            },
+        })
+        .expect("post message should succeed");
+
+    let first = runtime
+        .add_message_reaction(AddMessageReactionCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            reacted_by: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            idempotency_key: Some("reaction-add-key-1".into()),
+        })
+        .expect("first add reaction should succeed");
+    assert!(first.changed);
+
+    let replayed = runtime
+        .add_message_reaction(AddMessageReactionCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            reacted_by: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            idempotency_key: Some("reaction-add-key-1".into()),
+        })
+        .expect("replayed add reaction should return the original result");
+    assert_eq!(replayed, first);
+
+    // Reusing the add idempotency key for a remove is a distinct operation
+    // (the key space is operation-tagged), so it must not replay the add
+    // result; it applies normally with its own key.
+    let distinct_remove = runtime
+        .remove_message_reaction(RemoveMessageReactionCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            removed_by: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            idempotency_key: Some("reaction-add-key-1".into()),
+        })
+        .expect("remove with the add key is a distinct operation");
+    assert!(distinct_remove.changed);
+
+    // Re-add the reaction (new key) so the remove below has state to remove.
+    let re_added = runtime
+        .add_message_reaction(AddMessageReactionCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            reacted_by: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            idempotency_key: Some("reaction-add-key-2".into()),
+        })
+        .expect("re-add reaction should succeed");
+    assert!(re_added.changed);
+
+    let removed = runtime
+        .remove_message_reaction(RemoveMessageReactionCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            removed_by: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            idempotency_key: Some("reaction-remove-key-1".into()),
+        })
+        .expect("remove with its own key should succeed");
+    assert!(removed.changed);
+
+    let replayed_remove = runtime
+        .remove_message_reaction(RemoveMessageReactionCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            message_id: posted.message_id.clone(),
+            reaction_key: "thumbs_up".into(),
+            removed_by: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_owner".into()),
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            idempotency_key: Some("reaction-remove-key-1".into()),
+        })
+        .expect("replayed remove should return the original result");
+    assert_eq!(replayed_remove, removed);
+
+    // The mutation itself stays idempotent: each distinct operation emits
+    // exactly one event (add x2, remove x2).
+    let events = journal.recorded();
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.event_type == "message.reaction_added")
+            .count(),
+        2
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.event_type == "message.reaction_removed")
+            .count(),
+        2
     );
 }
 
@@ -9882,6 +10064,7 @@ fn test_reaction_and_pin_state_remains_idempotent() {
                 session_id: Some("s_owner".into()),
                 metadata: Default::default(),
             },
+            idempotency_key: None,
         })
         .expect("add reaction should succeed");
     source_runtime
@@ -9914,6 +10097,7 @@ fn test_reaction_and_pin_state_remains_idempotent() {
                 session_id: Some("s_owner".into()),
                 metadata: Default::default(),
             },
+            idempotency_key: None,
         })
         .expect("duplicate reaction should be idempotent");
     assert!(!duplicate_reaction.changed);
@@ -9949,6 +10133,7 @@ fn test_reaction_and_pin_state_remains_idempotent() {
                 session_id: Some("s_owner".into()),
                 metadata: Default::default(),
             },
+            idempotency_key: None,
         })
         .expect("remove reaction should succeed");
     assert!(removed.changed);
@@ -10713,40 +10898,41 @@ fn test_legacy_swapped_direct_chat_binding_members_are_repaired_on_welcome() {
         "user",
         "system",
     );
-    let store = RecordingRepairAggregateStore::from_inner(TestAggregateStore::current_state_snapshot(
-        PersistedConversationAggregateState {
-            tenant_id: tenant_id.into(),
-            organization_id: organization_id.into(),
-            conversation_id: conversation_id.clone(),
-            members: vec![legacy_anchor, legacy_peer],
-            read_cursors: Vec::new(),
-            high_watermark: 0,
-        },
-        NormalizedConversationCurrentState {
-            conversation: NormalizedConversationRecord {
+    let store =
+        RecordingRepairAggregateStore::from_inner(TestAggregateStore::current_state_snapshot(
+            PersistedConversationAggregateState {
                 tenant_id: tenant_id.into(),
                 organization_id: organization_id.into(),
                 conversation_id: conversation_id.clone(),
-                conversation_type: "direct".into(),
-                lifecycle_state: "active".into(),
-                archived_at: None,
-                archive_event_id: None,
-                commit_seq: 1,
-                member_epoch: 1,
-                last_activity_at: "2026-07-08T00:00:00.000Z".into(),
-                retention_until: None,
+                members: vec![legacy_anchor, legacy_peer],
+                read_cursors: Vec::new(),
+                high_watermark: 0,
             },
-            policy: None,
-            business_binding: Some(NormalizedConversationBusinessBindingRecord {
-                tenant_id: tenant_id.into(),
-                organization_id: organization_id.into(),
-                conversation_id: conversation_id.clone(),
-                business_type: "direct_chat".into(),
-                business_id: direct_chat_id.clone(),
-            }),
-            handoff: None,
-        },
-    ));
+            NormalizedConversationCurrentState {
+                conversation: NormalizedConversationRecord {
+                    tenant_id: tenant_id.into(),
+                    organization_id: organization_id.into(),
+                    conversation_id: conversation_id.clone(),
+                    conversation_type: "direct".into(),
+                    lifecycle_state: "active".into(),
+                    archived_at: None,
+                    archive_event_id: None,
+                    commit_seq: 1,
+                    member_epoch: 1,
+                    last_activity_at: "2026-07-08T00:00:00.000Z".into(),
+                    retention_until: None,
+                },
+                policy: None,
+                business_binding: Some(NormalizedConversationBusinessBindingRecord {
+                    tenant_id: tenant_id.into(),
+                    organization_id: organization_id.into(),
+                    conversation_id: conversation_id.clone(),
+                    business_type: "direct_chat".into(),
+                    business_id: direct_chat_id.clone(),
+                }),
+                handoff: None,
+            },
+        ));
 
     let runtime = ConversationRuntime::new(InMemoryJournal::default())
         .with_aggregate_store(Arc::new(store.clone()))
@@ -10763,15 +10949,15 @@ fn test_legacy_swapped_direct_chat_binding_members_are_repaired_on_welcome() {
     // 持久化修复：upsert canonical 成员、移除错配成员。
     let upserted = store.upserted_members();
     assert!(
-        upserted.iter().any(|member| {
-            member.principal_kind == "system" && member.principal_id == "system"
-        }),
+        upserted
+            .iter()
+            .any(|member| { member.principal_kind == "system" && member.principal_id == "system" }),
         "repair must upsert system:system"
     );
     assert!(
-        upserted.iter().any(|member| {
-            member.principal_kind == "user" && member.principal_id == user_id
-        }),
+        upserted
+            .iter()
+            .any(|member| { member.principal_kind == "user" && member.principal_id == user_id }),
         "repair must upsert user:{user_id}"
     );
     let removed = store.removed_pairs();

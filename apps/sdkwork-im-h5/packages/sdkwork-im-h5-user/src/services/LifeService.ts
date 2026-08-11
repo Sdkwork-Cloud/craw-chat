@@ -1,7 +1,11 @@
-import { useTranslation } from "react-i18next";
-import i18next from 'i18next';
-const t = i18next.t.bind(i18next);
-import { CircleDollarSign, Package, Ticket, Crown } from "lucide-react";
+/**
+ * Life services — fail-closed (PRD).
+ *
+ * Audited as a pure in-memory mock with no owner backend SDK. The fake list
+ * is removed: `getLifeServices` throws a typed
+ * `LifeServiceCapabilityUnavailableError` so consumers surface a typed
+ * unavailable state instead of fabricated entries.
+ */
 
 export interface LifeServiceItem {
   iconName: string;
@@ -9,17 +13,15 @@ export interface LifeServiceItem {
   color: string;
 }
 
-const MOCK_LIFE_SERVICES: LifeServiceItem[] = [
-  { iconName: "CircleDollarSign", label: t("user:life.token_recharge", "Token充值"), color: "text-slate-700 dark:text-slate-300" },
-  { iconName: "Banknote", label: t("user:life.withdraw", "提现"), color: "text-slate-700 dark:text-slate-300" },
-  { iconName: "Ticket", label: t("user:life.vouchers", "优惠券"), color: "text-slate-700 dark:text-slate-300" },
-  { iconName: "Crown", label: t("user:life.vip_subscription", "Vip订阅"), color: "text-amber-500" },
-];
+export class LifeServiceCapabilityUnavailableError extends Error {
+  constructor(capability: string) {
+    super(`${capability} is unavailable because its owner SDK is not composed.`);
+    this.name = "LifeServiceCapabilityUnavailableError";
+  }
+}
 
 export const LifeService = {
   getLifeServices: async (): Promise<LifeServiceItem[]> => {
-    return new Promise((resolve) =>
-      setTimeout(() => resolve([...MOCK_LIFE_SERVICES]), 100),
-    );
+    throw new LifeServiceCapabilityUnavailableError("Life services list");
   },
 };

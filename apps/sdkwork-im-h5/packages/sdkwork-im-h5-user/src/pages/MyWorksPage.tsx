@@ -10,6 +10,7 @@ export const MyWorksPage = () => {
   const { t } = useTranslation();
 const navigate = useNavigate();
   const [works, setWorks] = useState<Work[]>([]);
+  const [unavailable, setUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
     "all" | "video" | "article" | "audio" | "ai_image"
@@ -27,7 +28,7 @@ const navigate = useNavigate();
       const data = await WorkService.getMyWorks();
       setWorks(data);
     } catch (error) {
-      showToast(t('user.auto_fn_27b527b1', '加载失败'));
+      setUnavailable(true);
     } finally {
       setLoading(false);
     }
@@ -71,12 +72,12 @@ const navigate = useNavigate();
        try {
          await WorkService.deleteWork(actionSheetItem.id);
          setWorks(works.filter((w) => w.id !== actionSheetItem.id));
-         showToast(t('user.auto_fn_536f8d1b', '已删除作品'));
+         showToast(t('user.auto_fn_536f8d1b', 'Work deleted'));
        } catch (error) {
-         showToast(t('user.auto_fn_2794e158', '删除失败'));
+         showToast(t('user.auto_fn_2794e158', 'Delete failed'));
        }
     } else if (action === 'share') {
-       showToast(t('user.auto_fn_267caab4', '分享成功'));
+       showToast(t('commons.feature_unavailable', 'This feature is not available yet while the real service is being integrated.'));
     }
     setActionSheetItem(null);
   };
@@ -102,7 +103,7 @@ const navigate = useNavigate();
         >
           <ChevronLeft className="w-6 h-6 text-text-main" />
         </div>
-        <span className="text-[17px] font-medium text-text-main">{t('user.auto_2e5aeeb8', '我的作品')}</span>
+        <span className="text-[17px] font-medium text-text-main">{t('user.auto_2e5aeeb8', 'My works')}</span>
         <div className="w-10 h-10" />
       </header>
 
@@ -133,7 +134,14 @@ const navigate = useNavigate();
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-text-sub opacity-70">
             <div className="w-8 h-8 rounded-full border-4 border-text-sub border-t-transparent animate-spin mb-3"></div>
-            <span className="text-[14px]">{t('user.auto_7f6f37e', '加载中...')}</span>
+            <span className="text-[14px]">{t('user.auto_7f6f37e', 'Loading...')}</span>
+          </div>
+        ) : unavailable ? (
+          <div className="flex flex-col items-center justify-center gap-3 px-8 text-center py-20">
+            <FolderOpen className="w-12 h-12 stroke-current opacity-40" />
+            <p className="text-[15px] text-text-main">
+              {t('commons.feature_unavailable', 'This feature is not available yet while the real service is being integrated.')}
+            </p>
           </div>
         ) : filteredWorks.length > 0 ? (
           <div className="grid grid-cols-2 gap-[2px]">

@@ -1362,26 +1362,18 @@ fn parse_inbox_list_cursor(
             "numeric offset inbox cursors are unsupported; use the opaque keyset cursor from data.pageInfo.nextCursor",
         ));
     }
-    let wire: super::model::InboxKeysetCursorWire = if cursor.contains('.') {
-        let payload =
-            crate::conversation_state::cursor_auth::decode_signed_conversation_state_cursor(cursor)
-                .map_err(|error| {
-                    ConversationStateAccessError::bad_request("cursor_invalid", error)
-                })?;
+    // Inbox keyset cursors are opaque signed tokens only: bare JSON is
+    // rejected because a client could otherwise forge pagination state.
+    let payload =
+        crate::conversation_state::cursor_auth::decode_signed_conversation_state_cursor(cursor)
+            .map_err(|error| ConversationStateAccessError::bad_request("cursor_invalid", error))?;
+    let wire: super::model::InboxKeysetCursorWire =
         serde_json::from_value(payload).map_err(|_| {
             ConversationStateAccessError::bad_request(
                 "cursor_invalid",
                 format!("inbox cursor is invalid: {cursor}"),
             )
-        })?
-    } else {
-        serde_json::from_str(cursor).map_err(|_| {
-            ConversationStateAccessError::bad_request(
-                "cursor_invalid",
-                format!("inbox cursor is invalid: {cursor}"),
-            )
-        })?
-    };
+        })?;
     if wire.activity_at.trim().is_empty() || wire.scope.trim().is_empty() {
         return Err(ConversationStateAccessError::bad_request(
             "cursor_invalid",

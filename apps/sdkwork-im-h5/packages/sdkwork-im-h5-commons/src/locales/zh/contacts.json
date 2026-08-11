@@ -99,5 +99,7 @@
   "no_group_chats": "暂无群聊",
   "add_failed_already_friend": "你们已经是好友了",
   "add_failed_pending": "好友申请已发送，请等待对方处理",
-  "add_failed_blocked": "无法添加：对方已将你拉黑或限制了添加"
+  "add_failed_blocked": "无法添加：对方已将你拉黑或限制了添加",
+  "scan_unavailable_title": "扫码功能暂不可用",
+  "scan_unavailable_desc": "扫码能力尚未接入，暂时无法识别联系人。"
 }

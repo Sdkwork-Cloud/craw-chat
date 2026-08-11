@@ -499,7 +499,9 @@ mod tests {
             panic!("dashboard builder must return a dashboard snapshot");
         };
         assert_eq!(snapshot.meta.section, "dashboard");
-        assert_eq!(snapshot.meta.ops_status, "unknown");
+        // A default/unconfigured OpsRuntime reports fail-closed `unavailable`
+        // health (not `ok`), so the dashboard mirrors that honest status.
+        assert_eq!(snapshot.meta.ops_status, "unavailable");
         assert_eq!(snapshot.availability.state, PortalDataState::Unavailable);
         assert!(snapshot.metrics.is_none());
     }

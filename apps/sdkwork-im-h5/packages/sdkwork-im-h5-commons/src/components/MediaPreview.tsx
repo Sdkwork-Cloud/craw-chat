@@ -84,7 +84,7 @@ if (!media) return null;
               className="flex flex-col items-center justify-center text-white/60"
               onClick={(e) => e.stopPropagation()}
             >
-              <span className="text-[14px]">{t('commons.auto_n59aa5386', '不支持该格式预览，请下载后查看')}</span>
+              <span className="text-[14px]">{t('commons.auto_n59aa5386', 'This format cannot be previewed, please download it to view')}</span>
             </div>
           )}
         </div>

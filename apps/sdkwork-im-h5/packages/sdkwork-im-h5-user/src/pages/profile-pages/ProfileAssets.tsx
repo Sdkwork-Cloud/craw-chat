@@ -16,7 +16,7 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
   }, []);
 
   return (
-    <PageLayout title={t('user.auto_prop_17164b3', '微信豆')}>
+    <PageLayout title={t('user.auto_prop_17164b3', 'Credits')}>
       <div className="flex flex-col items-center py-10">
         <div className="w-20 h-20 bg-yellow-500/10 rounded-full flex items-center justify-center mb-4">
           <span className="text-yellow-500 text-3xl">💰</span>
@@ -24,7 +24,7 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
         <h3 className="text-[32px] font-bold text-text-main mb-1">
           {profile?.beans || 0}
         </h3>
-        <p className="text-[14px] text-text-sub mb-8">{t('user.auto_2c94233e', '当前余额')}</p>
+        <p className="text-[14px] text-text-sub mb-8">{t('user.auto_2c94233e', 'Current balance')}</p>
         <button
           className="w-[200px] h-12 bg-accent-green text-white rounded-lg font-medium active:opacity-80 transition-opacity"
           onClick={async () => {
@@ -35,16 +35,16 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
                 "123456",
               );
               if (pass && pass.length === 6) {
-                showToast(t('user.auto_fn_n60cfc4a5', '充值成功！'));
+                showToast(t('user.auto_fn_n60cfc4a5', 'Recharge successful!'));
                 setProfile((p) =>
                   p ? { ...p, beans: (p.beans || 0) + Number(amount) } : p,
                 );
               } else {
-                showToast(t('user.auto_fn_n2e3dc594', '支付取消或密码错误'));
+                showToast(t('user.auto_fn_n2e3dc594', 'Payment canceled or incorrect password'));
               }
             }
           }}
-        >{t('user.auto_a2797', '充值')}</button>
+        >{t('user.auto_a2797', 'Recharge')}</button>
       </div>
     </PageLayout>
   );
@@ -71,7 +71,7 @@ const [addresses, setAddresses] = useState([
   ]);
 
   return (
-    <PageLayout title={t('user.auto_prop_2e5be3e3', '我的地址')}>
+    <PageLayout title={t('user.auto_prop_2e5be3e3', 'My addresses')}>
       <div className="flex flex-col h-full bg-bg-color w-full">
         <div className="flex-1 overflow-y-auto w-full pt-2">
           {addresses.map((addr) => (
@@ -88,7 +88,7 @@ const [addresses, setAddresses] = useState([
                     {addr.phone}
                   </span>
                   {addr.isDefault && (
-                    <span className="text-[10px] bg-primary-blue/10 text-primary-blue px-1.5 py-0.5 rounded-sm shrink-0 border border-primary-blue/30">{t('user.auto_13c7cc', '默认')}</span>
+                    <span className="text-[10px] bg-primary-blue/10 text-primary-blue px-1.5 py-0.5 rounded-sm shrink-0 border border-primary-blue/30">{t('user.auto_13c7cc', 'Default')}</span>
                   )}
                 </div>
                 <p className="text-[14px] text-text-main leading-relaxed">
@@ -109,10 +109,10 @@ const [addresses, setAddresses] = useState([
                         a.id === addr.id ? { ...a, address: newAddr } : a,
                       ),
                     );
-                    showToast(t('user.auto_fn_25ddaeda', '修改成功'));
+                    showToast(t('user.auto_fn_25ddaeda', 'Updated'));
                   }
                 }}
-              >{t('user.auto_ff33b', '编辑')}</button>
+              >{t('user.auto_ff33b', 'Edit')}</button>
             </div>
           ))}
 
@@ -136,12 +136,12 @@ const [addresses, setAddresses] = useState([
                           isDefault: false,
                         },
                       ]);
-                      showToast(t('user.auto_fn_3340e954', '添加成功'));
+                      showToast(t('user.auto_fn_3340e954', 'Added'));
                     }
                   }
                 }
               }}
-            >{t('user.auto_7ab45e53', '+ 新增地址')}</button>
+            >{t('user.auto_7ab45e53', '+ Add address')}</button>
           </div>
         </div>
       </div>

@@ -85,14 +85,14 @@ const [searchQuery, setSearchQuery] = useState("");
          .removeFavorite(item.id)
          .then(() => {
            setFavorites((current) => current.filter((entry) => entry.id !== item.id));
-           showToast(t('user.auto_fn_5372638f', '已删除收藏'));
+           showToast(t('user.auto_fn_5372638f', 'Favorite deleted'));
          })
          .catch((error) => {
            console.error("Failed to remove favorite", error);
-           showToast(t('user.auto_2109d03d', '删除失败，请稍后重试'));
+           showToast(t('user.auto_2109d03d', 'Try another keyword'));
          });
     } else if (action === 'share') {
-       showToast(t('user.auto_fn_16ae6d7', '已分享'));
+       showToast(t('user.auto_fn_16ae6d7', 'Shared'));
     }
     setActionSheetItem(null);
   };
@@ -116,7 +116,7 @@ const [searchQuery, setSearchQuery] = useState("");
   });
 
   return (
-    <PageLayout title={t('user.auto_prop_2e5dc52c', '我的收藏')} bgClass="bg-bg-color">
+    <PageLayout title={t('user.auto_prop_2e5dc52c', 'My favorites')} bgClass="bg-bg-color">
       <div className="bg-chat-other-bg sticky top-0 z-20 shadow-sm border-b border-border-color flex flex-col">
          <div className="px-4 py-3 pb-2">
             <div className="bg-gray-100 dark:bg-white/5 rounded-full flex items-center h-10 px-3.5 gap-2 border border-transparent focus-within:border-primary-blue/30 transition-colors">
@@ -125,7 +125,7 @@ const [searchQuery, setSearchQuery] = useState("");
                  value={searchQuery}
                  onChange={e => setSearchQuery(e.target.value)}
                  className="flex-1 bg-transparent text-[15px] text-text-main outline-none placeholder:text-text-sub"
-                 placeholder={t('user.auto_prop_n75c995cb', '搜索收藏的内容...')}
+                 placeholder={t('user.auto_prop_n75c995cb', 'Search favorites...')}
               />
             </div>
          </div>
@@ -169,8 +169,8 @@ const [searchQuery, setSearchQuery] = useState("");
                <div className="w-16 h-16 bg-hover-bg rounded-full flex items-center justify-center mb-4">
                   <Search className="w-8 h-8 opacity-40" />
                </div>
-               <p className="text-[15px] font-medium">{t('user.auto_n5f1732f2', '没有找到相关收藏')}</p>
-               <p className="text-[13px] mt-1 opacity-70">{t('user.auto_2109d03d', '换个关键词试试吧')}</p>
+               <p className="text-[15px] font-medium">{t('user.auto_n5f1732f2', 'No matching favorites')}</p>
+               <p className="text-[13px] mt-1 opacity-70">{t('user.auto_2109d03d', 'Try another keyword')}</p>
             </div>
           ) : null}
         </div>

@@ -108,7 +108,9 @@
     "mute": "Mute",
     "video_call": "Video Call",
     "speaker": "Speaker",
-    "earpiece": "Earpiece"
+    "earpiece": "Earpiece",
+    "unavailable_title": "Calls are not available yet",
+    "unavailable_desc": "Call signaling and media are not integrated yet, so calls cannot be placed."
   },
   "create_group": {
     "title": "New Group",

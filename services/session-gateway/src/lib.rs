@@ -273,7 +273,12 @@ impl AppState {
             bootstrap.node_id.clone(),
             RealtimeAuthContextResolver::new(bootstrap.iam_auth_pool.clone()),
         );
-        state.readiness = bootstrap.assembly.readiness();
+        // Attach the IAM auth pool so /readyz runs a real `SELECT 1` probe
+        // instead of trusting the SDKWORK_DATABASE_URL env flag alone.
+        state.readiness = bootstrap
+            .assembly
+            .readiness()
+            .with_iam_auth_pool(bootstrap.iam_auth_pool.clone());
         state
     }
 

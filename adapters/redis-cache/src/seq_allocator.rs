@@ -16,6 +16,10 @@ use crate::redis_blocking::{RedisBlockingTimeouts, run_bounded_redis_command};
 use crate::redis_key::encode_redis_key_segments;
 
 const DEFAULT_BATCH_SIZE: u32 = 1000;
+/// Upper bound on locally cached sequence batches. Entries beyond this limit
+/// are evicted in LRU order so a long-running node serving many conversations
+/// cannot grow the cache without bound.
+const MAX_CACHED_BATCHES: usize = 4096;
 
 fn seq_key(tenant_id: &str, org_id: &str, conversation_id: &str) -> String {
     format!(
@@ -24,13 +28,70 @@ fn seq_key(tenant_id: &str, org_id: &str, conversation_id: &str) -> String {
     )
 }
 
+/// One locally cached sequence batch.
+struct SeqBatch {
+    next_seq: u64,
+    upper_bound: u64,
+    /// Monotonic clock tick refreshed on every hit; drives LRU eviction.
+    last_used: u64,
+}
+
+/// Bounded batch cache with LRU eviction.
+#[derive(Default)]
+struct BatchCache {
+    batches: HashMap<String, SeqBatch>,
+    clock: u64,
+}
+
+impl BatchCache {
+    fn next_seq(&mut self, key: &str) -> Option<u64> {
+        let batch = self.batches.get_mut(key)?;
+        if batch.next_seq > batch.upper_bound {
+            return None;
+        }
+        self.clock = self.clock.saturating_add(1);
+        batch.last_used = self.clock;
+        let seq = batch.next_seq;
+        batch.next_seq = seq.saturating_add(1);
+        Some(seq)
+    }
+
+    fn insert(&mut self, key: String, next_seq: u64, upper_bound: u64) {
+        self.clock = self.clock.saturating_add(1);
+        let is_new = !self.batches.contains_key(&key);
+        self.batches.insert(
+            key,
+            SeqBatch {
+                next_seq,
+                upper_bound,
+                last_used: self.clock,
+            },
+        );
+        if is_new && self.batches.len() > MAX_CACHED_BATCHES {
+            // Evict the least recently used entry.
+            let victim_key = self
+                .batches
+                .iter()
+                .min_by_key(|(_, batch)| batch.last_used)
+                .map(|(key, _)| key.clone());
+            if let Some(victim_key) = victim_key {
+                self.batches.remove(&victim_key);
+            }
+        }
+    }
+
+    fn remove(&mut self, key: &str) {
+        self.batches.remove(key);
+    }
+}
+
 /// Redis-backed conversation sequence allocator with local batch caching.
 pub struct RedisSeqAllocator {
     client: redis::Client,
     batch_size: u32,
     timeouts: RedisBlockingTimeouts,
-    /// Local batch cache: key -> (next_seq_in_batch, batch_upper_bound)
-    batches: Mutex<HashMap<String, (u64, u64)>>,
+    /// Local batch cache: key -> batch with LRU eviction.
+    batches: Mutex<BatchCache>,
 }
 
 impl RedisSeqAllocator {
@@ -39,7 +100,7 @@ impl RedisSeqAllocator {
             client,
             batch_size: DEFAULT_BATCH_SIZE,
             timeouts: RedisBlockingTimeouts::from_env(),
-            batches: Mutex::new(HashMap::new()),
+            batches: Mutex::new(BatchCache::default()),
         }
     }
 
@@ -66,11 +127,7 @@ impl im_platform_contracts::ConversationSeqAllocator for RedisSeqAllocator {
                 .batches
                 .lock()
                 .map_err(|_| ContractError::Unavailable("seq_allocator lock poisoned".into()))?;
-            if let Some((next_seq, upper_bound)) = batches.get_mut(&key)
-                && *next_seq <= *upper_bound
-            {
-                let seq = *next_seq;
-                *next_seq = seq.saturating_add(1);
+            if let Some(seq) = batches.next_seq(&key) {
                 return Ok(seq);
             }
         }
@@ -110,7 +167,7 @@ impl im_platform_contracts::ConversationSeqAllocator for RedisSeqAllocator {
             .batches
             .lock()
             .map_err(|_| ContractError::Unavailable("seq_allocator lock poisoned".into()))?;
-        batches.insert(key, (next_seq, new_upper));
+        batches.insert(key, next_seq, new_upper);
 
         Ok(first_seq)
     }
@@ -136,5 +193,62 @@ mod tests {
         const _: () = assert!(DEFAULT_BATCH_SIZE >= 100);
         const _: () = assert!(DEFAULT_BATCH_SIZE <= 10000);
         assert_eq!(DEFAULT_BATCH_SIZE, 1000);
+    }
+
+    #[test]
+    fn test_batch_cache_evicts_least_recently_used_entry() {
+        let mut cache = BatchCache::default();
+        for index in 0..MAX_CACHED_BATCHES {
+            cache.insert(format!("k{index}"), 1, 10);
+        }
+        // Touch k0 so it becomes the most recently used entry; k1 is now the
+        // least recently used one.
+        assert_eq!(cache.next_seq("k0"), Some(1));
+        cache.insert("overflow".into(), 1, 10);
+        assert_eq!(
+            cache.batches.len(),
+            MAX_CACHED_BATCHES,
+            "cache must never exceed its capacity"
+        );
+        assert!(
+            cache.next_seq("k1").is_none(),
+            "least recently used entry must be evicted"
+        );
+        assert_eq!(
+            cache.next_seq("k0"),
+            Some(2),
+            "recently used entry must survive eviction"
+        );
+        assert_eq!(
+            cache.next_seq("overflow"),
+            Some(1),
+            "newest entry must survive eviction"
+        );
+    }
+
+    #[test]
+    fn test_batch_cache_exhausted_batch_is_replaced_not_duplicated() {
+        let mut cache = BatchCache::default();
+        cache.insert("k".into(), 11, 10);
+        assert!(
+            cache.next_seq("k").is_none(),
+            "an exhausted batch must not serve sequences"
+        );
+        cache.insert("k".into(), 21, 30);
+        assert_eq!(cache.next_seq("k"), Some(21));
+        assert_eq!(
+            cache.batches.len(),
+            1,
+            "replacing a batch must not grow the cache"
+        );
+    }
+
+    #[test]
+    fn test_batch_cache_remove_drops_entry() {
+        let mut cache = BatchCache::default();
+        cache.insert("k".into(), 1, 10);
+        cache.remove("k");
+        assert!(cache.next_seq("k").is_none());
+        assert_eq!(cache.batches.len(), 0);
     }
 }

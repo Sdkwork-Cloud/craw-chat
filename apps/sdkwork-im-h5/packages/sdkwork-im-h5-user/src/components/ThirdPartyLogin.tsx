@@ -15,14 +15,14 @@ if (!mode.startsWith("login")) return null;
       <div className="flex items-center w-full mb-6 relative">
         <div className="flex-1 h-px bg-border-color"></div>
         <span className="px-4 text-[12px] text-text-sub bg-bg-color relative z-10 w-fit">
-          {t("auth.other_login_methods", "其他开放平台登录")}
+          {t("auth.other_login_methods", "Other platform login")}
         </span>
         <div className="flex-1 h-px bg-border-color"></div>
       </div>
       <div className="flex items-center justify-center gap-8 w-full max-w-[240px]">
         {/* WeChat Icon */}
         <div 
-          onClick={() => onLogin(t("auth.platform_wechat", "微信"))}
+          onClick={() => onLogin(t("auth.platform_wechat", "WeChat"))}
           className="w-12 h-12 rounded-full border border-border-color flex items-center justify-center bg-chat-other-bg active:scale-95 transition-transform cursor-pointer"
         >
            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

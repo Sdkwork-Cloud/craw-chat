@@ -452,6 +452,7 @@ impl StreamingRuntime {
             next.updated_at = utc_now_rfc3339_millis();
             match self.store_result(self.state_store.transition_session(current.version, next))? {
                 StreamTransitionOutcome::Applied(record) => {
+                let record = *record;
                     return Ok(StreamSessionMutationOutcome {
                         session: record.session,
                         applied: true,
@@ -623,7 +624,7 @@ impl StreamStateStore for RuntimeMemoryStreamStateStore {
             return Ok(StreamTransitionOutcome::VersionConflict);
         }
         state.sessions.insert(key, next_session.clone());
-        Ok(StreamTransitionOutcome::Applied(next_session))
+        Ok(StreamTransitionOutcome::Applied(Box::new(next_session)))
     }
 
     fn list_frames_after(

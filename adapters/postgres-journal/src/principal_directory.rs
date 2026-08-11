@@ -18,14 +18,14 @@ use postgres::types::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    PostgresJournalPool, now_rfc3339, postgres_pool_client, postgres_row_get,
-    postgres_timestamptz, postgres_unavailable, run_postgres_io,
+    PostgresJournalPool, now_rfc3339, postgres_pool_client, postgres_row_get, postgres_timestamptz,
+    postgres_unavailable, run_postgres_io,
 };
 
 const READ_DISABLED_SQL: &str = r#"
 select setting_value
 from im_user_settings
-where tenant_id = $1 and organization_id = '0' and user_id = $2 and setting_key = 'principal.disabled'
+where tenant_id = $1 and organization_id = $2 and user_id = $3 and setting_key = 'principal.disabled'
 "#;
 
 const REGISTER_SEEN_SQL: &str = r#"
@@ -84,35 +84,31 @@ impl PrincipalDirectory for PostgresPrincipalDirectory {
             let tenant_id = tenant_id.clone();
             let principal_id = principal_id.clone();
             move || -> Result<PrincipalAdmission, ContractError> {
-            let mut client = postgres_pool_client(&pool, "ensure_active_principal")?;
-            let rows = client
-                .query(READ_DISABLED_SQL, &[&tenant_id, &principal_id])
-                .map_err(|error| postgres_unavailable("ensure_active_principal", error))?;
-            if let Some(row) = rows.first() {
-                let payload: Json<PrincipalDisabledFlag> = postgres_row_get(
-                    row,
-                    0,
-                    "ensure_active_principal",
-                    "setting_value",
-                )?;
-                if payload.0.disabled {
-                    return Ok(PrincipalAdmission::Disabled);
+                let mut client = postgres_pool_client(&pool, "ensure_active_principal")?;
+                let rows = client
+                    .query(READ_DISABLED_SQL, &[&tenant_id, &"0", &principal_id])
+                    .map_err(|error| postgres_unavailable("ensure_active_principal", error))?;
+                if let Some(row) = rows.first() {
+                    let payload: Json<PrincipalDisabledFlag> =
+                        postgres_row_get(row, 0, "ensure_active_principal", "setting_value")?;
+                    if payload.0.disabled {
+                        return Ok(PrincipalAdmission::Disabled);
+                    }
                 }
-            }
 
-            // Authenticated means registered: record the admission for audit
-            // and admit the principal.
-            let seen: Json<PrincipalSeenRecord> = Json(PrincipalSeenRecord {
-                first_seen_at: now_rfc3339(),
-            });
-            let updated_at = postgres_timestamptz(&now_rfc3339(), "updated_at")?;
-            client
-                .execute(
-                    REGISTER_SEEN_SQL,
-                    &[&tenant_id, &principal_id, &seen, &updated_at],
-                )
-                .map_err(|error| postgres_unavailable("ensure_active_principal", error))?;
-            Ok(PrincipalAdmission::Admit)
+                // Authenticated means registered: record the admission for audit
+                // and admit the principal.
+                let seen: Json<PrincipalSeenRecord> = Json(PrincipalSeenRecord {
+                    first_seen_at: now_rfc3339(),
+                });
+                let updated_at = postgres_timestamptz(&now_rfc3339(), "updated_at")?;
+                client
+                    .execute(
+                        REGISTER_SEEN_SQL,
+                        &[&tenant_id, &principal_id, &seen, &updated_at],
+                    )
+                    .map_err(|error| postgres_unavailable("ensure_active_principal", error))?;
+                Ok(PrincipalAdmission::Admit)
             }
         });
 

@@ -258,13 +258,13 @@ test("fetches and posts comments", async () => {
     createInMemoryCommunityAppSdkPort({ entries: [seedEntry({ id: "comment-target" })] }),
   );
 
-  const added = await MomentService.addComment("comment-target", "风景不错啊！");
+  const added = await MomentService.addComment("comment-target", "Nice view!");
   assert.equal(added.authorName, "Local User");
-  assert.equal(added.content, "风景不错啊！");
+  assert.equal(added.content, "Nice view!");
 
   const comments = await MomentService.getComments("comment-target");
   assert.equal(comments.length, 1);
-  assert.equal(comments[0].content, "风景不错啊！");
+  assert.equal(comments[0].content, "Nice view!");
   assert.equal(comments[0].authorId, "local-user");
 });
 

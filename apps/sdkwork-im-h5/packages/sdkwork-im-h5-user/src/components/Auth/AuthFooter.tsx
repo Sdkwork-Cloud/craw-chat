@@ -25,19 +25,19 @@ export const AuthFooter = ({
         {agreed && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
       </div>
       <p className="text-[12px] text-text-sub leading-relaxed">
-        {t("user.auto_nfa1f23a", '{t("auth.read_and_agree", "我已阅读并同意")}{" "}')}
+        {t("user.auto_nfa1f23a", '{t("auth.read_and_agree", "I have read and agree to")}{" "}')}
         <span
           className="text-[#576B95] active:opacity-70 cursor-pointer"
-          onClick={() => setShowTerms(t("auth.terms_of_service", "软件许可及服务协议"))}
+          onClick={() => setShowTerms(t("auth.terms_of_service", "Software License and Service Agreement"))}
         >
-          {t("auth.terms_of_service", "软件许可及服务协议")}
+          {t("auth.terms_of_service", "Software License and Service Agreement")}
         </span>{" "}
-        {t("auth.and", "和")}{" "}
+        {t("auth.and", "and")}{" "}
         <span
           className="text-[#576B95] active:opacity-70 cursor-pointer"
-          onClick={() => setShowTerms(t("auth.privacy_policy", "隐私保护指引"))}
+          onClick={() => setShowTerms(t("auth.privacy_policy", "Privacy Protection Guidelines"))}
         >
-          {t("auth.privacy_policy", "隐私保护指引")}
+          {t("auth.privacy_policy", "Privacy Protection Guidelines")}
         </span>
       </p>
     </div>

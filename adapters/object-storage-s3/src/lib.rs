@@ -298,13 +298,12 @@ impl S3CompatibleObjectStorageProvider {
                 "unsupported content_type: {ct}"
             )));
         }
-        if let Some(expected) = expected_content_type_for_key(object_key) {
-            if bare != expected {
+        if let Some(expected) = expected_content_type_for_key(object_key)
+            && bare != expected {
                 return Err(ContractError::Invalid(format!(
                     "content_type {bare} does not match extension of object key {object_key} (expected {expected})"
                 )));
             }
-        }
         Ok(())
     }
 }
@@ -371,6 +370,8 @@ impl ObjectStorageProvider for S3CompatibleObjectStorageProvider {
                 self.config.secret_access_key.as_deref().unwrap_or_default(),
                 self.config.security_token.as_deref(),
                 request.expires_in_seconds,
+                "PUT",
+                &headers,
             )
         } else {
             self.unsigned_upload_url(
@@ -403,6 +404,8 @@ impl ObjectStorageProvider for S3CompatibleObjectStorageProvider {
                 self.config.secret_access_key.as_deref().unwrap_or_default(),
                 self.config.security_token.as_deref(),
                 request.expires_in_seconds,
+                "GET",
+                &BTreeMap::new(),
             ))
         } else {
             Ok(self.unsigned_download_url(
@@ -441,12 +444,19 @@ impl ObjectStorageProvider for S3CompatibleObjectStorageProvider {
     }
 }
 
-/// Build an AWS SigV4 presigned URL for a GET on `{endpoint}/{bucket}/{key}`.
+/// Build an AWS SigV4 presigned URL for `method` on `{endpoint}/{bucket}/{key}`.
 ///
 /// The URL carries `X-Amz-Algorithm`, `X-Amz-Credential`, `X-Amz-Date`,
 /// `X-Amz-Expires`, `X-Amz-SignedHeaders` (and `X-Amz-Security-Token` when
 /// STS temporary credentials are supplied), with `X-Amz-Signature` appended
 /// last.
+///
+/// `extra_signed_headers` are the request headers the caller will send with
+/// the request (e.g. `content-type` and `x-amz-server-side-encryption` on a
+/// PUT upload). SigV4 requires every header the client sends to participate
+/// in the signature, otherwise S3 rejects the request with
+/// `SignatureDoesNotMatch`. GET downloads sign only `host`.
+#[allow(clippy::too_many_arguments)]
 fn build_signed_url(
     endpoint: &str,
     bucket: &str,
@@ -456,6 +466,8 @@ fn build_signed_url(
     secret_access_key: &str,
     security_token: Option<&str>,
     expires_in_seconds: u32,
+    method: &str,
+    extra_signed_headers: &BTreeMap<String, String>,
 ) -> String {
     let host = extract_host(endpoint);
     let canonical_uri = build_canonical_uri(bucket, object_key);
@@ -473,10 +485,30 @@ fn build_signed_url(
     ));
     params.push(("X-Amz-Date".into(), timestamp.clone()));
     params.push(("X-Amz-Expires".into(), expires_str));
-    params.push(("X-Amz-SignedHeaders".into(), "host".into()));
     if let Some(token) = security_token {
         params.push(("X-Amz-Security-Token".into(), token.into()));
     }
+
+    // Headers that participate in signing, sorted by lowercase name per
+    // SigV4: `host` is always signed; the extra headers the client will send
+    // (content-type, SSE headers) are signed too so the upload is not
+    // rejected with SignatureDoesNotMatch.
+    let mut signed_header_entries: Vec<(String, String)> = extra_signed_headers
+        .iter()
+        .map(|(name, value)| (name.to_ascii_lowercase(), value.trim().to_owned()))
+        .collect();
+    signed_header_entries.push(("host".into(), host.clone()));
+    signed_header_entries.sort_by(|left, right| left.0.cmp(&right.0));
+    let canonical_headers = signed_header_entries
+        .iter()
+        .map(|(name, value)| format!("{name}:{value}\n"))
+        .collect::<String>();
+    let signed_headers = signed_header_entries
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .collect::<Vec<_>>()
+        .join(";");
+    params.push(("X-Amz-SignedHeaders".into(), signed_headers.clone()));
     params.sort_by(|a, b| a.0.cmp(&b.0));
 
     let canonical_query_string = params
@@ -485,12 +517,10 @@ fn build_signed_url(
         .collect::<Vec<_>>()
         .join("&");
 
-    let canonical_headers = format!("host:{host}\n");
-    let signed_headers = "host";
     let payload_hash = "UNSIGNED-PAYLOAD";
 
     let canonical_request = format!(
-        "GET\n{canonical_uri}\n{canonical_query_string}\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
+        "{method}\n{canonical_uri}\n{canonical_query_string}\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
     );
 
     let string_to_sign = format!(
@@ -732,5 +762,226 @@ mod tests {
                 .any(|capability| capability == "multipart"),
             "multipart must not be declared without an implementation"
         );
+    }
+
+    #[test]
+    fn signed_upload_url_is_signed_with_put_method() {
+        // Regression: the canonical request used to be hardcoded to GET while
+        // the session declared method PUT, so every production upload would be
+        // rejected by S3 with SignatureDoesNotMatch.
+        let provider =
+            S3CompatibleObjectStorageProvider::new(S3CompatibleObjectStorageProviderConfig {
+                plugin_id: "object-storage-aws".into(),
+                provider_kind: "aws".into(),
+                display_name: "AWS".into(),
+                endpoint: "https://s3.example.test".into(),
+                region: "us-east-1".into(),
+                gateway_mode: false,
+                access_key_id: Some("AKIDEXAMPLE".into()),
+                secret_access_key: Some("SECRETKEY".into()),
+                security_token: None,
+                kms_key_id: None,
+            });
+        let session = provider
+            .signed_upload_url(ObjectStorageUploadUrlRequest {
+                bucket: "media".into(),
+                object_key: "demo.mp4".into(),
+                expires_in_seconds: 900,
+                content_type: Some("video/mp4".into()),
+                content_length: None,
+            })
+            .expect("signed upload url must be generated");
+        assert_eq!(session.method, "PUT");
+        assert!(
+            session
+                .headers
+                .keys()
+                .any(|name| name.eq_ignore_ascii_case("x-amz-server-side-encryption")),
+            "upload session must carry SSE headers the client will send"
+        );
+
+        let params = parse_signed_url_query(&session.url);
+        // The headers the client sends with the PUT (content-type plus the
+        // x-amz-server-side-encryption headers) must participate in the
+        // signature, otherwise S3 rejects the upload with SignatureDoesNotMatch.
+        let signed_headers = &params["X-Amz-SignedHeaders"];
+        assert!(
+            signed_headers.split(';').any(|name| name == "content-type"),
+            "PUT signing must include content-type in the signed headers: {signed_headers}"
+        );
+        assert!(
+            signed_headers
+                .split(';')
+                .any(|name| name == "x-amz-server-side-encryption"),
+            "PUT signing must include SSE headers in the signed headers: {signed_headers}"
+        );
+
+        // Recompute the signature from the URL's visible inputs: the PUT
+        // canonical request must produce the URL's X-Amz-Signature and a GET
+        // signing must not.
+        let recomputed_put =
+            recompute_sigv4_signature(&session.url, &params, "PUT", &session.headers);
+        let recomputed_get =
+            recompute_sigv4_signature(&session.url, &params, "GET", &session.headers);
+        assert_eq!(
+            recomputed_put, params["X-Amz-Signature"],
+            "upload URL signature must be computed with the PUT method"
+        );
+        assert_ne!(
+            recomputed_get, params["X-Amz-Signature"],
+            "a GET-signed URL must not validate the PUT upload"
+        );
+    }
+
+    #[test]
+    fn signed_download_url_keeps_get_signing() {
+        let provider =
+            S3CompatibleObjectStorageProvider::new(S3CompatibleObjectStorageProviderConfig {
+                plugin_id: "object-storage-aws".into(),
+                provider_kind: "aws".into(),
+                display_name: "AWS".into(),
+                endpoint: "https://s3.example.test".into(),
+                region: "us-east-1".into(),
+                gateway_mode: false,
+                access_key_id: Some("AKIDEXAMPLE".into()),
+                secret_access_key: Some("SECRETKEY".into()),
+                security_token: None,
+                kms_key_id: None,
+            });
+        let url = provider
+            .signed_download_url(ObjectStorageDownloadUrlRequest {
+                bucket: "media".into(),
+                object_key: "demo.mp4".into(),
+                expires_in_seconds: 900,
+            })
+            .expect("signed download url must be generated");
+        let params = parse_signed_url_query(&url);
+        assert_eq!(
+            params["X-Amz-SignedHeaders"], "host",
+            "GET signing must keep the minimal host-only signed headers"
+        );
+        let recomputed_get = recompute_sigv4_signature(&url, &params, "GET", &BTreeMap::new());
+        assert_eq!(
+            recomputed_get, params["X-Amz-Signature"],
+            "download URL signature must be computed with the GET method"
+        );
+    }
+
+    /// Parse the query string of a presigned URL into decoded key/value pairs.
+    fn parse_signed_url_query(url: &str) -> BTreeMap<String, String> {
+        url.split('?')
+            .nth(1)
+            .expect("signed url must carry a query string")
+            .split('&')
+            .map(|pair| {
+                let (key, value) = pair.split_once('=').expect("query pair must be key=value");
+                (
+                    percent_decode(key).to_owned(),
+                    percent_decode(value).to_owned(),
+                )
+            })
+            .collect()
+    }
+
+    /// Independently recompute the SigV4 signature for `method` from inputs
+    /// visible in the signed URL plus the headers the client will send, and
+    /// compare against the URL's `X-Amz-Signature`.
+    fn recompute_sigv4_signature(
+        url: &str,
+        params: &BTreeMap<String, String>,
+        method: &str,
+        extra_headers: &BTreeMap<String, String>,
+    ) -> String {
+        let timestamp = &params["X-Amz-Date"];
+        let credential = &params["X-Amz-Credential"];
+        let scope = credential
+            .splitn(2, '/')
+            .nth(1)
+            .expect("credential must contain the scope")
+            .to_owned();
+        let date = &timestamp[..8];
+        let region = scope
+            .split('/')
+            .nth(1)
+            .expect("scope must contain the region");
+
+        let mut query_entries = params
+            .iter()
+            .filter(|(key, _)| key.as_str() != "X-Amz-Signature")
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect::<Vec<_>>();
+        query_entries.sort_by(|left, right| left.0.cmp(&right.0));
+        let canonical_query_string = query_entries
+            .iter()
+            .map(|(key, value)| format!("{}={}", percent_encode(key), percent_encode(value)))
+            .collect::<Vec<_>>()
+            .join("&");
+
+        let mut header_entries = extra_headers
+            .iter()
+            .map(|(name, value)| (name.to_ascii_lowercase(), value.trim().to_owned()))
+            .collect::<Vec<_>>();
+        header_entries.push(("host".into(), extract_host(url)));
+        header_entries.sort_by(|left, right| left.0.cmp(&right.0));
+        let canonical_headers = header_entries
+            .iter()
+            .map(|(name, value)| format!("{name}:{value}\n"))
+            .collect::<String>();
+        let signed_headers = header_entries
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>()
+            .join(";");
+
+        let canonical_uri = canonical_uri_from_url(url);
+        let canonical_request = format!(
+            "{method}\n{canonical_uri}\n{canonical_query_string}\n{canonical_headers}\n{signed_headers}\nUNSIGNED-PAYLOAD"
+        );
+        let string_to_sign = format!(
+            "AWS4-HMAC-SHA256\n{timestamp}\n{scope}\n{}",
+            sha256_hash(canonical_request.as_bytes())
+        );
+        let k_date = hmac_sha256(format!("AWS4SECRETKEY").as_bytes(), date.as_bytes());
+        let k_region = hmac_sha256(&k_date, region.as_bytes());
+        let k_service = hmac_sha256(&k_region, b"s3");
+        let k_signing = hmac_sha256(&k_service, b"aws4_request");
+        hex_encode(&hmac_sha256(&k_signing, string_to_sign.as_bytes()))
+    }
+
+    /// Extract the canonical URI (`/bucket/key`, already percent-encoded)
+    /// from a signed URL.
+    fn canonical_uri_from_url(url: &str) -> String {
+        let path_and_query = url.split('?').next().expect("signed url must have a path");
+        let after_scheme = path_and_query
+            .splitn(2, "://")
+            .nth(1)
+            .unwrap_or(path_and_query);
+        let path_start = after_scheme.find('/').unwrap_or(after_scheme.len());
+        let path = &after_scheme[path_start..];
+        if path.is_empty() {
+            "/".to_owned()
+        } else {
+            path.to_owned()
+        }
+    }
+
+    fn percent_decode(value: &str) -> String {
+        let bytes = value.as_bytes();
+        let mut out = Vec::with_capacity(bytes.len());
+        let mut index = 0;
+        while index < bytes.len() {
+            if bytes[index] == b'%' && index + 2 < bytes.len() {
+                let hi = (bytes[index + 1] as char).to_digit(16);
+                let lo = (bytes[index + 2] as char).to_digit(16);
+                if let (Some(hi), Some(lo)) = (hi, lo) {
+                    out.push((hi * 16 + lo) as u8);
+                    index += 3;
+                    continue;
+                }
+            }
+            out.push(bytes[index]);
+            index += 1;
+        }
+        String::from_utf8(out).expect("signed url query must be valid utf-8")
     }
 }

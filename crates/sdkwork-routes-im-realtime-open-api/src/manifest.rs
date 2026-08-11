@@ -19,7 +19,7 @@ pub const ROUTES: &[HttpRoute] = &[
         HttpMethod::Get,
         paths::REALTIME_WS,
         "realtime",
-        "realtime.websocket.upgrade",
+        "realtime.ws.retrieve",
     ),
     HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
@@ -49,7 +49,7 @@ pub const ROUTES: &[HttpRoute] = &[
         HttpMethod::Get,
         paths::PRESENCE_ME,
         "presence",
-        "presence.me",
+        "presence.me.retrieve",
     ),
 ];
 

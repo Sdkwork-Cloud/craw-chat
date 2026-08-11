@@ -6,7 +6,7 @@ import { MapPin, Briefcase } from "lucide-react";
 export const EnterpriseRecruitment = () => {
   const { t } = useTranslation();
 return (
-    <PageLayout title={t('enterprise.auto_prop_251b6dd6', '企业招聘')}>
+    <PageLayout title={t('enterprise.auto_prop_251b6dd6', 'Jobs')}>
       <div className="flex flex-col min-h-full bg-bg-color p-4 gap-4">
         {[
           {
@@ -40,9 +40,9 @@ return (
              <div className="mt-2 pt-3 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                    <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-500 text-[10px] font-bold">HR</div>
-                   <span className="text-[12px] text-text-sub">{t('enterprise.auto_5252526b', '张主管 · 刚刚活跃')}</span>
+                   <span className="text-[12px] text-text-sub">{t('enterprise.auto_5252526b', 'Manager Zhang · Active just now')}</span>
                 </div>
-                <button className="px-3 py-1 bg-blue-500 text-white rounded-full text-[12px]">{t('enterprise.auto_2efc34e3', '投递简历')}</button>
+                <button className="px-3 py-1 bg-blue-500 text-white rounded-full text-[12px]">{t('enterprise.auto_2efc34e3', 'Apply')}</button>
              </div>
           </div>
         ))}

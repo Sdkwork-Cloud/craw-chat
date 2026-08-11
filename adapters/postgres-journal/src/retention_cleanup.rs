@@ -179,10 +179,63 @@ pub fn purge_expired_retention_batch(
     let actor_kind = request.context().actor_kind().as_str().to_owned();
     let actor_id = request.context().actor_id().to_owned();
     let trace_id = request.context().trace_id().to_owned();
-    let pool = pool.clone();
     let limit = request.batch_size();
-    let result = run_postgres_io(move || purge_batch(&pool, limit));
-    match &result {
+    let pool = pool.clone();
+    let result = run_postgres_io(move || {
+        let mut client = postgres_pool_client(&pool, "journal retention purge")?;
+        let mut txn = client
+            .transaction()
+            .map_err(|error| postgres_unavailable("journal retention purge begin", error))?;
+        let report = purge_retention_batch_on_txn(&mut txn, limit)?;
+        txn.commit()
+            .map_err(|error| postgres_unavailable("journal retention purge commit", error))?;
+        Ok(report)
+    });
+    log_retention_purge_outcome(&actor_kind, &actor_id, &trace_id, limit, &result);
+    result
+}
+
+/// Runs the retention deletes on an already-open transaction. Used by the
+/// public single-batch entrypoint and by the retention scheduler, which holds
+/// one transaction (and its advisory xact lock) across a whole tick.
+pub(crate) fn purge_retention_batch_on_txn(
+    txn: &mut postgres::Transaction<'_>,
+    limit: i64,
+) -> Result<RetentionCleanupReport, ContractError> {
+    let commit_journal_deleted = execute_retention_delete(txn, PURGE_COMMIT_JOURNAL_SQL, limit)?;
+    let conversation_messages_deleted =
+        execute_retention_delete(txn, PURGE_CONVERSATION_MESSAGES_SQL, limit)?;
+    let message_media_refs_deleted =
+        execute_retention_delete(txn, PURGE_MESSAGE_MEDIA_REFS_SQL, limit)?;
+    let outbox_events_deleted = execute_retention_delete(txn, PURGE_OUTBOX_EVENTS_SQL, limit)?;
+    let inbox_events_deleted = execute_retention_delete(txn, PURGE_INBOX_EVENTS_SQL, limit)?;
+    let realtime_device_events_deleted =
+        execute_retention_delete(txn, PURGE_REALTIME_DEVICE_EVENTS_SQL, limit)?;
+    let rtc_sessions_deleted = execute_retention_delete(txn, PURGE_RTC_SESSIONS_SQL, limit)?;
+    let rtc_signals_deleted = execute_retention_delete(txn, PURGE_RTC_SIGNALS_SQL, limit)?;
+
+    Ok(RetentionCleanupReport {
+        commit_journal_deleted,
+        conversation_messages_deleted,
+        message_media_refs_deleted,
+        outbox_events_deleted,
+        inbox_events_deleted,
+        realtime_device_events_deleted,
+        rtc_sessions_deleted,
+        rtc_signals_deleted,
+    })
+}
+
+/// Security audit log for one retention purge batch (cross-organization
+/// operation evidence). Shared by the public entrypoint and the scheduler.
+pub(crate) fn log_retention_purge_outcome(
+    actor_kind: &str,
+    actor_id: &str,
+    trace_id: &str,
+    limit: i64,
+    result: &Result<RetentionCleanupReport, ContractError>,
+) {
+    match result {
         Ok(report) => tracing::info!(
             target: "sdkwork.im.security",
             event = "im.retention_purge.operation_completed",
@@ -206,44 +259,6 @@ pub fn purge_expired_retention_batch(
             "cross-organization retention purge failed"
         ),
     }
-    result
-}
-
-fn purge_batch(
-    pool: &PostgresJournalPool,
-    limit: i64,
-) -> Result<RetentionCleanupReport, ContractError> {
-    let mut client = postgres_pool_client(pool, "journal retention purge")?;
-    let mut txn = client
-        .transaction()
-        .map_err(|error| postgres_unavailable("journal retention purge begin", error))?;
-
-    let commit_journal_deleted =
-        execute_retention_delete(&mut txn, PURGE_COMMIT_JOURNAL_SQL, limit)?;
-    let conversation_messages_deleted =
-        execute_retention_delete(&mut txn, PURGE_CONVERSATION_MESSAGES_SQL, limit)?;
-    let message_media_refs_deleted =
-        execute_retention_delete(&mut txn, PURGE_MESSAGE_MEDIA_REFS_SQL, limit)?;
-    let outbox_events_deleted = execute_retention_delete(&mut txn, PURGE_OUTBOX_EVENTS_SQL, limit)?;
-    let inbox_events_deleted = execute_retention_delete(&mut txn, PURGE_INBOX_EVENTS_SQL, limit)?;
-    let realtime_device_events_deleted =
-        execute_retention_delete(&mut txn, PURGE_REALTIME_DEVICE_EVENTS_SQL, limit)?;
-    let rtc_sessions_deleted = execute_retention_delete(&mut txn, PURGE_RTC_SESSIONS_SQL, limit)?;
-    let rtc_signals_deleted = execute_retention_delete(&mut txn, PURGE_RTC_SIGNALS_SQL, limit)?;
-
-    txn.commit()
-        .map_err(|error| postgres_unavailable("journal retention purge commit", error))?;
-
-    Ok(RetentionCleanupReport {
-        commit_journal_deleted,
-        conversation_messages_deleted,
-        message_media_refs_deleted,
-        outbox_events_deleted,
-        inbox_events_deleted,
-        realtime_device_events_deleted,
-        rtc_sessions_deleted,
-        rtc_signals_deleted,
-    })
 }
 
 fn execute_retention_delete(

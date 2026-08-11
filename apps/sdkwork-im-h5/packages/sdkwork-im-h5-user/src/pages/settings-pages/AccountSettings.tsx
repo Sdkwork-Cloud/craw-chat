@@ -1,12 +1,9 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from 'react-i18next';
-import { Monitor, Smartphone, Laptop, Tablet } from "lucide-react";
 import {
   showToast,
-  showPrompt,
   Avatar,
-  cn,
 } from "@sdkwork/im-h5-commons";
 import { PageLayout, Group, ListItem } from "../../components/SettingsCommons";
 
@@ -14,49 +11,49 @@ export const AccountSecurity = () => {
   const { t } = useTranslation();
 const navigate = useNavigate();
   return (
-    <PageLayout title={t("user:settings.account_security", "账号与安全")}>
+    <PageLayout title={t("user:settings.account_security", "Account & security")}>
       <Group>
         <ListItem
-          label={t('user.auto_prop_1712c64', '微信号')}
-          rightText="wxid_123456789"
+          label={t('user.auto_prop_1712c64', 'WeChat ID')}
+          rightText=""
           onClick={() => navigate("/settings/account/wechat-id")}
         />
         <ListItem
-          label={t("user:account_sec.phone", "手机号")}
-          rightText="138****8888"
+          label={t("user:account_sec.phone", "Phone number")}
+          rightText=""
           hideBorder
           onClick={() => navigate("/settings/account/phone")}
         />
       </Group>
       <Group>
         <ListItem
-          label={t('user.auto_prop_2cb5ca2e', '微信密码')}
+          label={t('user.auto_prop_2cb5ca2e', 'WeChat password')}
           onClick={() => navigate("/settings/account/password")}
         />
         <ListItem
-          label={t("user:account_sec.voice_lock", "声音锁")}
-          rightText={t("user:account_sec.not_set", "未设置")}
+          label={t("user:account_sec.voice_lock", "Voice lock")}
+          rightText={t("user:account_sec.not_set", "Not set")}
           hideBorder
           onClick={() => navigate("/settings/account/voice-lock")}
         />
       </Group>
       <Group>
         <ListItem
-          label={t("user:account_sec.emergency_contacts", "应急联系人")}
+          label={t("user:account_sec.emergency_contacts", "Emergency contacts")}
           hideBorder
           onClick={() => navigate("/settings/account/emergency")}
         />
       </Group>
       <Group>
         <ListItem
-          label={t('user.auto_prop_n51f86178', '登录设备管理')}
+          label={t('user.auto_prop_n51f86178', 'Login device management')}
           hideBorder
           onClick={() => navigate("/settings/devices")}
         />
       </Group>
       <Group>
         <ListItem
-          label={t('user.auto_prop_n3ed8e3ab', '更多安全设置')}
+          label={t('user.auto_prop_n3ed8e3ab', 'More security settings')}
           hideBorder
           onClick={() => navigate("/settings/account/more")}
         />
@@ -65,83 +62,23 @@ const navigate = useNavigate();
   );
 };
 
+/**
+ * Login-device management — fail-closed (PRD).
+ *
+ * No real IAM session/device-list API is composed: the previously hard-coded
+ * device rows and the fake "已下线该设备" success were fabricated and are
+ * removed. The page renders the typed unavailable state instead.
+ */
 export const Devices = () => {
   const { t } = useTranslation();
-  
-const [devices, setDevices] = useState([
-    { id: 1, type: "laptop", name: "MacBook Pro", lastActive: "昨天 10:23" },
-    { id: 2, type: "tablet", name: "iPad Pro 11", lastActive: "5月2日 14:00" },
-  ]);
-
-  const handleLogout = (id: number) => {
-  setDevices(devices.filter((d) => d.id !== id));
-    showToast(t('user.auto_fn_n28d92598', '已下线该设备'));
-  };
 
   return (
-    <PageLayout title={t('user.auto_prop_114509', '设备')}>
-      <div className="px-4 py-8 flex flex-col items-center border-b border-border-color bg-chat-other-bg">
-        <div className="w-20 h-20 mb-4 bg-accent-green rounded-full flex items-center justify-center shadow-lg shadow-[#00B42A]/20">
-          <Monitor className="w-10 h-10 text-white" />
-        </div>
-        <h2 className="text-xl font-bold text-text-main mb-1">{t('user.auto_n24dcb9e', '多设备登录管理')}</h2>
-        <p className="text-[14px] text-text-sub">{t('user.auto_n4a4d7fcc', '你可以同时在多个设备上登录 Sdkwork IM H5')}</p>
-      </div>
-
-      <div className="p-4">
-        <h3 className="text-[13px] text-text-sub mb-2 ml-1">{t('user.auto_2c9b33e3', '当前设备')}</h3>
-        <div className="bg-chat-other-bg rounded-xl overflow-hidden mb-6">
-          <div className="flex items-center p-4">
-            <div className="w-12 h-12 bg-bg-color rounded-full flex items-center justify-center mr-4">
-              <Smartphone className="w-6 h-6 text-text-main" />
-            </div>
-            <div className="flex-1">
-              <h4 className="text-[16px] font-medium text-text-main">
-                iPhone 15 Pro
-              </h4>
-              <p className="text-[13px] text-primary-blue mt-0.5">{t('user.auto_n5d6a62e2', 'Sdkwork IM H5 1.0.0 (在线)')}</p>
-            </div>
-          </div>
-        </div>
-
-        {devices.length > 0 && (
-          <>
-            <h3 className="text-[13px] text-text-sub mb-2 ml-1">{t('user.auto_n1ae2f0ec', '最近登录设备')}</h3>
-            <div className="bg-chat-other-bg rounded-xl overflow-hidden">
-              {devices.map((d, i) => (
-                <div
-                  key={d.id}
-                  className={cn(
-                    "flex items-center justify-between p-4 bg-chat-other-bg active:bg-active-bg transition-colors cursor-pointer",
-                    i !== devices.length - 1 && "border-b border-border-color",
-                  )}
-                >
-                  <div className="flex items-center flex-1">
-                    <div className="w-12 h-12 bg-bg-color rounded-full flex items-center justify-center mr-4">
-                      {d.type === "laptop" ? (
-                        <Laptop className="w-6 h-6 text-text-main" />
-                      ) : (
-                        <Tablet className="w-6 h-6 text-text-main" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-[16px] font-medium text-text-main">
-                        {d.name}
-                      </h4>
-                      <p className="text-[13px] text-text-sub mt-0.5">
-                        {d.lastActive}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    className="text-[14px] text-accent-red font-medium active:opacity-70 px-3 py-1.5 rounded-full bg-accent-red/10"
-                    onClick={() => handleLogout(d.id)}
-                  >{t('user.auto_9f214', '下线')}</button>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+    <PageLayout title={t('user.auto_prop_114509', 'Devices')}>
+      <div className="flex flex-col items-center justify-center gap-3 px-8 text-center py-20">
+        <span className="text-[40px]">🖥️</span>
+        <p className="text-[15px] text-text-main">
+          {t("commons.feature_unavailable", "This feature is not available yet while the real service is being integrated.")}
+        </p>
       </div>
     </PageLayout>
   );
@@ -151,21 +88,20 @@ export const SwitchAccount = () => {
   const { t } = useTranslation();
   
 return (
-    <PageLayout title={t('user.auto_prop_26d01b0c', '切换账号')}>
+    <PageLayout title={t('user.auto_prop_26d01b0c', 'Switch account')}>
       <div className="flex flex-col items-center py-10">
         <Avatar
           fallback="?"
           size="lg"
           className="w-20 h-20 rounded-full mb-4"
         />
-        <h3 className="text-[18px] font-medium text-text-main mb-8">{t('user.auto_2c9b5a6b', '当前账号')}</h3>
+        <h3 className="text-[18px] font-medium text-text-main mb-8">{t('user.auto_2c9b5a6b', 'Current account')}</h3>
         <button
           className="w-[200px] h-12 bg-chat-other-bg text-text-main rounded-lg font-medium active:bg-active-bg transition-colors mb-4 border border-border-color"
-          onClick={async () => {
-            const acc = await showPrompt("请输入要添加的微信号/手机号");
-            if (acc) showToast(t('user.auto_fn_292d1306', '添加成功并自动切换！'));
-          }}
-        >{t('user.auto_7e69752b', '+ 添加账号')}</button>
+          onClick={() =>
+            showToast(t("commons.feature_unavailable", "This feature is not available yet while the real service is being integrated."))
+          }
+        >{t('user.auto_7e69752b', '+ Add account')}</button>
       </div>
     </PageLayout>
   );

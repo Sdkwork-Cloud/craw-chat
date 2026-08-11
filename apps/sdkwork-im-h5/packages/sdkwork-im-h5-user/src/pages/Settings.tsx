@@ -24,7 +24,7 @@ export const SettingsPage: React.FC = () => {
   const handleLogout = async () => {
     if (isLoggingOut) return;
     const confirmed = await showConfirm(
-      t("user:settings.logout_confirm", "退出登录后将无法收到新消息通知，确认退出？"),
+      t("user:settings.logout_confirm", "You will stop receiving new message notifications after logging out. Log out?"),
     );
     if (!confirmed) return;
     setIsLoggingOut(true);
@@ -54,7 +54,7 @@ export const SettingsPage: React.FC = () => {
           />
         </div>
         <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
-          <h2 className="text-[17px] font-bold text-text-main tracking-tight">{t('user.auto_116b70', '设置')}</h2>
+          <h2 className="text-[17px] font-bold text-text-main tracking-tight">{t('user.auto_116b70', 'Settings')}</h2>
         </div>
         <div className="flex-1" />
       </header>
@@ -62,8 +62,8 @@ export const SettingsPage: React.FC = () => {
       <div className="flex flex-col pb-12 mt-2">
         <Group>
           <ListItem
-            label={t("user:settings.account_security", "账号与安全")}
-            value={t('user.auto_prop_16ab7d9', '已保护')}
+            label={t("user:settings.account_security", "Account & security")}
+            value={t('user.auto_prop_16ab7d9', 'Protected')}
             hideBorder
             onClick={() => navigate("/settings/account")}
           />
@@ -71,12 +71,12 @@ export const SettingsPage: React.FC = () => {
 
         <Group>
           <ListItem
-            label={t("user:settings.teen_mode", "青少年模式")}
+            label={t("user:settings.teen_mode", "Teen mode")}
             value={teenMode ? "已开启" : "未开启"}
             onClick={() => navigate("/settings/teen-mode")}
           />
           <ListItem
-            label={t("user:settings.care_mode", "关怀模式")}
+            label={t("user:settings.care_mode", "Care mode")}
             value={elderlyMode ? "已开启" : "未开启"}
             hideBorder
             onClick={() => navigate("/settings/elderly-mode")}
@@ -85,16 +85,16 @@ export const SettingsPage: React.FC = () => {
 
         <Group>
           <ListItem
-            label={t("user:settings.message_notifications", "新消息通知")}
+            label={t("user:settings.message_notifications", "New message notifications")}
             onClick={() => navigate("/settings/notifications")}
           />
-          <ListItem label={t("user:settings.chat", "聊天")} onClick={() => navigate("/settings/chat")} />
+          <ListItem label={t("user:settings.chat", "Chats")} onClick={() => navigate("/settings/chat")} />
           <ListItem
-            label={t('user.auto_prop_114509', '设备')}
+            label={t('user.auto_prop_114509', 'Devices')}
             onClick={() => navigate("/settings/devices")}
           />
           <ListItem
-            label={t("user:settings.general", "通用")}
+            label={t("user:settings.general", "General")}
             hideBorder
             onClick={() => navigate("/settings/general")}
           />
@@ -102,19 +102,19 @@ export const SettingsPage: React.FC = () => {
 
         <Group>
           <ListItem
-            label={t('user.auto_prop_301edd8d', '朋友权限')}
+            label={t('user.auto_prop_301edd8d', 'Friend permissions')}
             onClick={() => navigate("/settings/friend-permissions")}
           />
           <ListItem
-            label={t('user.auto_prop_n421afd43', '个人信息与权限')}
+            label={t('user.auto_prop_n421afd43', 'Personal info & permissions')}
             onClick={() => navigate("/settings/privacy")}
           />
           <ListItem
-            label={t('user.auto_prop_9efd9be', '个人信息收集清单')}
+            label={t('user.auto_prop_9efd9be', 'Personal data collection list')}
             onClick={() => navigate("/settings/info-collection")}
           />
           <ListItem
-            label={t('user.auto_prop_7362f474', '第三方信息共享清单')}
+            label={t('user.auto_prop_7362f474', 'Third-party data sharing list')}
             hideBorder
             onClick={() => navigate("/settings/third-party-sharing")}
           />
@@ -122,7 +122,7 @@ export const SettingsPage: React.FC = () => {
 
         <Group>
           <ListItem
-            label={t("user:settings.plugins", "插件")}
+            label={t("user:settings.plugins", "Plugins")}
             hideBorder
             onClick={() => navigate("/settings/plugins")}
           />
@@ -130,12 +130,12 @@ export const SettingsPage: React.FC = () => {
 
         <Group>
           <ListItem
-            label={t("user:settings.help_feedback", "帮助与反馈")}
+            label={t("user:settings.help_feedback", "Help & feedback")}
             onClick={() => navigate("/settings/help")}
           />
           <ListItem
-            label={t("user:settings.about", "关于 Sdkwork IM H5")}
-            value={t('user.auto_prop_701c7979', '版本 1.0.0')}
+            label={t("user:settings.about", "About Sdkwork IM H5")}
+            value={t('user.auto_prop_701c7979', 'Version 1.0.0')}
             hideBorder
             onClick={() => navigate("/settings/about")}
           />
@@ -143,13 +143,13 @@ export const SettingsPage: React.FC = () => {
 
         <Group className="mt-4">
           <ListItem
-            label={t("user:settings.switch_account", "切换账号")}
+            label={t("user:settings.switch_account", "Switch account")}
             onClick={() => navigate("/settings/switch-account")}
           />
           <ListItem
             label={isLoggingOut
-              ? t("user:settings.logging_out", "退出中...")
-              : t("user:settings.logout", "退出登录")}
+              ? t("user:settings.logging_out", "Logging out...")
+              : t("user:settings.logout", "Log out")}
             danger
             hideBorder
             onClick={handleLogout}

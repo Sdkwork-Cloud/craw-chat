@@ -11,12 +11,45 @@ pub struct NotificationTaskRecord {
     pub notification_id: String,
     pub task: NotificationTask,
     pub updated_at: String,
+    /// Delivery attempt count (worker metadata; 0 for fresh requests).
+    #[serde(default)]
+    pub attempt_count: u32,
+    /// Lease/retry gate instant (RFC 3339). Tasks become claimable when the
+    /// current time reaches this value.
+    #[serde(default = "default_available_at")]
+    pub available_at: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NotificationTaskListCursor {
     pub updated_at: String,
     pub notification_id: String,
+}
+
+/// Typed delivery-worker claim request.
+///
+/// Carries the batch limit and the worker clock instant so every
+/// cross-organization notification claim is attributable and audit-logged.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GlobalNotificationTaskClaimRequest {
+    pub limit: usize,
+    pub now: String,
+}
+
+impl GlobalNotificationTaskClaimRequest {
+    pub fn try_new(limit: usize, now: String) -> Result<Self, ContractError> {
+        if limit == 0 {
+            return Err(ContractError::Invalid(
+                "notification worker claim limit must be positive".into(),
+            ));
+        }
+        if now.trim().is_empty() {
+            return Err(ContractError::Invalid(
+                "notification worker claim clock must be a non-empty RFC 3339 instant".into(),
+            ));
+        }
+        Ok(Self { limit, now })
+    }
 }
 
 impl NotificationTaskRecord {
@@ -58,10 +91,83 @@ pub trait NotificationTaskStore: Send + Sync {
         cursor: Option<&NotificationTaskListCursor>,
         page_size: usize,
     ) -> Result<Vec<NotificationTaskRecord>, ContractError>;
+
+    /// Claims up to `limit` requested notification tasks whose lease has
+    /// expired (`available_at <= now`). Implementations MUST serialize
+    /// concurrent claims (`FOR UPDATE SKIP LOCKED` in PostgreSQL) so no task
+    /// is claimed by two workers. Claimed tasks receive a fresh lease.
+    fn claim_tasks(
+        &self,
+        limit: usize,
+        now: &str,
+    ) -> Result<Vec<NotificationTaskRecord>, ContractError>;
+
+    /// Marks a claimed task as dispatched. A task that is no longer
+    /// `requested` (already dispatched or failed) is a no-op success so
+    /// duplicate worker completions never regress state.
+    fn complete_task(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        notification_id: &str,
+        dispatched_at: &str,
+    ) -> Result<(), ContractError>;
+
+    /// Records a delivery failure: increments the attempt count, applies
+    /// exponential backoff to `available_at`, and dead-letters the task as
+    /// `failed` once attempts reach the store's configured maximum.
+    fn fail_task(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        notification_id: &str,
+        failure_reason: &str,
+        now: &str,
+    ) -> Result<(), ContractError>;
 }
 
 fn default_organization_id() -> String {
     "0".to_owned()
+}
+
+fn default_available_at() -> String {
+    im_time::utc_now_rfc3339_millis()
+}
+
+/// Env override for the delivery dead-letter attempt cap.
+pub const NOTIFICATION_MAX_ATTEMPTS_ENV: &str = "SDKWORK_IM_NOTIFICATION_MAX_ATTEMPTS";
+pub const NOTIFICATION_MAX_ATTEMPTS_DEFAULT: u32 = 10;
+/// Env override for the claim lease duration in seconds.
+pub const NOTIFICATION_CLAIM_LEASE_SECS_ENV: &str = "SDKWORK_IM_NOTIFICATION_CLAIM_LEASE_SECS";
+pub const NOTIFICATION_CLAIM_LEASE_SECS_DEFAULT: i64 = 60;
+/// Backoff ceiling (seconds) shared by every notification task store.
+const NOTIFICATION_BACKOFF_MAX_SECS: i64 = 300;
+
+/// Delivery attempt cap shared by every `NotificationTaskStore` worker.
+pub fn resolve_notification_max_attempts() -> u32 {
+    std::env::var(NOTIFICATION_MAX_ATTEMPTS_ENV)
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(NOTIFICATION_MAX_ATTEMPTS_DEFAULT)
+}
+
+/// Claim lease duration in seconds shared by every `NotificationTaskStore`
+/// worker. A claimed task whose lease expires becomes claimable again.
+pub fn resolve_notification_claim_lease_secs() -> i64 {
+    std::env::var(NOTIFICATION_CLAIM_LEASE_SECS_ENV)
+        .ok()
+        .and_then(|value| value.parse::<i64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(NOTIFICATION_CLAIM_LEASE_SECS_DEFAULT)
+}
+
+/// Exponential backoff in seconds for the next delivery attempt
+/// (`min(300, 2^min(attempt_count, 8))`), matching the durable outbox policy.
+pub fn notification_backoff_secs(attempt_count: u32) -> i64 {
+    let exponent = attempt_count.min(8);
+    let secs = 1i64.checked_shl(exponent).unwrap_or(i64::MAX);
+    secs.min(NOTIFICATION_BACKOFF_MAX_SECS)
 }
 
 fn notification_task_record_precedes(
@@ -127,6 +233,8 @@ mod tests {
                 failure_reason: failure_reason.map(str::to_owned),
             },
             updated_at: updated_at.into(),
+            attempt_count: 0,
+            available_at: "2026-05-06T00:00:00.000Z".into(),
         }
     }
 

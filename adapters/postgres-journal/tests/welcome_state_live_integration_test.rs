@@ -19,7 +19,12 @@ fn suffix() -> String {
         .to_string()
 }
 
-fn record(tenant_id: &str, organization_id: &str, user_id: &str, welcome_version: &str) -> WelcomeSentRecord {
+fn record(
+    tenant_id: &str,
+    organization_id: &str,
+    user_id: &str,
+    welcome_version: &str,
+) -> WelcomeSentRecord {
     WelcomeSentRecord {
         tenant_id: tenant_id.to_owned(),
         organization_id: organization_id.to_owned(),

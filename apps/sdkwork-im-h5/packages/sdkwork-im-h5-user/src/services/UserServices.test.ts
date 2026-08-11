@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LifeService } from "./LifeService";
-import { ProductService } from "./ProductService";
+import { LifeService, LifeServiceCapabilityUnavailableError } from "./LifeService";
+import { ProductService, ProductCapabilityUnavailableError } from "./ProductService";
 import { ProfileService } from "./ProfileService";
 import { SettingsService } from "./SettingsService";
-import { WorkService } from "./WorkService";
+import { WorkService, WorkCapabilityUnavailableError } from "./WorkService";
 
-test("user services return composed data", async () => {
+test("user services return real profile/settings and fail closed for mock-only surfaces", async () => {
   const profile = await ProfileService.getUserProfile();
   assert.ok(profile);
   const updated = await ProfileService.updateUserProfile({ name: "Updated" });
@@ -18,12 +18,9 @@ test("user services return composed data", async () => {
   const settingsUpdated = await SettingsService.updateSettings({ darkMode: true });
   assert.equal(settingsUpdated.darkMode, true);
 
-  const works = await WorkService.getMyWorks();
-  assert.ok(Array.isArray(works));
-
-  const products = await ProductService.getProducts();
-  assert.ok(Array.isArray(products));
-
-  const lifeServices = await LifeService.getLifeServices();
-  assert.ok(Array.isArray(lifeServices));
+  // Audited mock-only services must fail closed (PRD): no fabricated data.
+  await assert.rejects(WorkService.getMyWorks(), WorkCapabilityUnavailableError);
+  await assert.rejects(ProductService.getProducts(), ProductCapabilityUnavailableError);
+  await assert.rejects(ProductService.getCategories(), ProductCapabilityUnavailableError);
+  await assert.rejects(LifeService.getLifeServices(), LifeServiceCapabilityUnavailableError);
 });

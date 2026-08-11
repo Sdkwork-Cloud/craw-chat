@@ -5,6 +5,7 @@ use conversation_runtime::conversation_state::ConversationStateService;
 use im_app_context::AppContext;
 use im_domain_events::{AggregateType, CommitEnvelope};
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
+use im_time::{rfc3339_add_secs, utc_now_rfc3339_millis};
 
 #[derive(Clone, Default)]
 struct RecordingJournal {
@@ -873,4 +874,208 @@ fn test_notification_requests_and_queries_are_isolated_by_organization() {
     assert_eq!(events.len(), 2);
     assert_eq!(events[0].organization_id, "org-a");
     assert_eq!(events[1].organization_id, "org-b");
+}
+
+#[derive(Clone, Default)]
+struct RecordingRealtimeDelivery {
+    delivered: Arc<Mutex<Vec<String>>>,
+}
+
+impl notification_service::delivery::NotificationRealtimeDelivery for RecordingRealtimeDelivery {
+    fn deliver(
+        &self,
+        record: &sdkwork_im_contract_notification::NotificationTaskRecord,
+    ) -> Result<usize, ContractError> {
+        self.delivered
+            .lock()
+            .expect("delivery recording should lock")
+            .push(record.notification_id.clone());
+        Ok(1)
+    }
+}
+
+struct FailingRealtimeDelivery;
+
+impl notification_service::delivery::NotificationRealtimeDelivery for FailingRealtimeDelivery {
+    fn deliver(
+        &self,
+        _record: &sdkwork_im_contract_notification::NotificationTaskRecord,
+    ) -> Result<usize, ContractError> {
+        Err(ContractError::Unavailable(
+            "forced notification delivery failure".into(),
+        ))
+    }
+}
+
+fn notification_request(
+    notification_id: &str,
+    recipient_id: &str,
+) -> notification_service::RequestNotification {
+    notification_service::RequestNotification {
+        notification_id: notification_id.into(),
+        source_event_id: "evt_worker_1".into(),
+        source_event_type: "message.posted".into(),
+        category: "message.new".into(),
+        channel: "inapp".into(),
+        recipient_id: recipient_id.into(),
+        recipient_kind: "user".into(),
+        title: Some("New message".into()),
+        body: Some("hello".into()),
+        payload: Some(r#"{"conversationId":"c_worker"}"#.into()),
+    }
+}
+
+#[test]
+fn test_delivery_worker_claims_dispatches_and_completes_requested_tasks() {
+    let journal = Arc::new(RecordingJournal::default());
+    let runtime = notification_service::NotificationRuntime::with_journal(journal);
+    let auth = auth_context("1", "user", "s_worker");
+    let task = runtime
+        .request_notification(&auth, notification_request("ntf_worker_ok", "1105"))
+        .expect("notification request should succeed");
+    assert_eq!(task.status.as_str(), "requested");
+    assert!(task.dispatched_at.is_none());
+
+    let task_store = runtime.task_store();
+    let realtime = Arc::new(RecordingRealtimeDelivery::default());
+    let summary = notification_service::delivery::run_delivery_cycle(
+        task_store.as_ref(),
+        realtime.as_ref(),
+        10,
+    )
+    .expect("delivery cycle should succeed");
+
+    assert_eq!(summary.claimed, 1);
+    assert_eq!(summary.dispatched, 1);
+    assert_eq!(summary.failed, 0);
+    assert_eq!(
+        realtime
+            .delivered
+            .lock()
+            .expect("delivery recording lock")
+            .as_slice(),
+        ["ntf_worker_ok"]
+    );
+
+    let stored = task_store
+        .load_task("100001", "0", "ntf_worker_ok")
+        .expect("store load should succeed")
+        .expect("stored task should exist");
+    assert_eq!(stored.task.status.as_str(), "dispatched");
+    assert!(stored.task.dispatched_at.is_some());
+
+    // A dispatched task must not be claimed again.
+    let second = notification_service::delivery::run_delivery_cycle(
+        task_store.as_ref(),
+        realtime.as_ref(),
+        10,
+    )
+    .expect("second delivery cycle should succeed");
+    assert_eq!(second.claimed, 0);
+    assert_eq!(second.dispatched, 0);
+}
+
+#[test]
+fn test_delivery_worker_retries_then_dead_letters_failed_tasks() {
+    use sdkwork_im_contract_notification::NotificationTaskStore;
+
+    let journal = Arc::new(RecordingJournal::default());
+    let runtime = notification_service::NotificationRuntime::with_journal(journal);
+    let auth = auth_context("1", "user", "s_worker_fail");
+    runtime
+        .request_notification(&auth, notification_request("ntf_worker_fail", "1105"))
+        .expect("notification request should succeed");
+
+    let task_store = runtime.task_store();
+    let realtime = Arc::new(FailingRealtimeDelivery);
+
+    // First cycle: claim succeeds, delivery fails, task stays requested but
+    // is pushed into backoff (not claimable immediately).
+    let summary = notification_service::delivery::run_delivery_cycle(
+        task_store.as_ref(),
+        realtime.as_ref(),
+        10,
+    )
+    .expect("delivery cycle with failing sink should succeed");
+    assert_eq!(summary.claimed, 1);
+    assert_eq!(summary.failed, 1);
+    assert_eq!(summary.dispatched, 0);
+
+    let stored = task_store
+        .load_task("100001", "0", "ntf_worker_fail")
+        .expect("store load should succeed")
+        .expect("stored task should exist");
+    assert_eq!(stored.task.status.as_str(), "requested");
+    assert_eq!(stored.attempt_count, 1);
+    assert!(stored.task.failure_reason.is_some());
+
+    // Backoff: the retry is not yet due, so the next cycle claims nothing.
+    let second = notification_service::delivery::run_delivery_cycle(
+        task_store.as_ref(),
+        realtime.as_ref(),
+        10,
+    )
+    .expect("second delivery cycle should succeed");
+    assert_eq!(second.claimed, 0);
+
+    // Simulate repeated failures over time (fixed clock) until the task
+    // dead-letters as failed.
+    let mut attempts = 0;
+    loop {
+        task_store
+            .fail_task(
+                "100001",
+                "0",
+                "ntf_worker_fail",
+                "notification delivery failed: forced notification delivery failure",
+                "2026-01-01T00:00:00.000Z",
+            )
+            .expect("fail task should succeed");
+        attempts += 1;
+        assert!(attempts < 100, "task must dead-letter within attempt cap");
+        let stored = task_store
+            .load_task("100001", "0", "ntf_worker_fail")
+            .expect("store load should succeed")
+            .expect("stored task should exist");
+        if stored.task.status.as_str() == "failed" {
+            assert!(stored.task.failure_reason.is_some());
+            break;
+        }
+    }
+}
+
+#[test]
+fn test_claimed_tasks_are_lease_guarded_against_double_claims() {
+    use sdkwork_im_contract_notification::NotificationTaskStore;
+
+    let journal = Arc::new(RecordingJournal::default());
+    let runtime = notification_service::NotificationRuntime::with_journal(journal);
+    let auth = auth_context("1", "user", "s_lease");
+    runtime
+        .request_notification(&auth, notification_request("ntf_worker_lease", "1105"))
+        .expect("notification request should succeed");
+
+    let task_store = runtime.task_store();
+    let claim_at = utc_now_rfc3339_millis();
+    let first_claim = task_store
+        .claim_tasks(10, claim_at.as_str())
+        .expect("first claim should succeed");
+    assert_eq!(first_claim.len(), 1);
+
+    // Within the lease window (default 60s) the same task must not be
+    // claimed twice.
+    let within_lease =
+        rfc3339_add_secs(claim_at.as_str(), 30).expect("within-lease instant should format");
+    let second_claim = task_store
+        .claim_tasks(10, within_lease.as_str())
+        .expect("second claim should succeed");
+    assert!(second_claim.is_empty());
+
+    // After the lease expires the task becomes claimable again.
+    let after_lease_at =
+        rfc3339_add_secs(claim_at.as_str(), 120).expect("post-lease instant should format");
+    let after_lease = task_store
+        .claim_tasks(10, after_lease_at.as_str())
+        .expect("post-lease claim should succeed");
+    assert_eq!(after_lease.len(), 1);
 }

@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ReportService } from "./ReportService";
+import { ReportCapabilityUnavailableError, ReportService } from "./ReportService";
 
-test("report service returns the composed reports", async () => {
-  const reports = await ReportService.getReports();
-  assert.ok(Array.isArray(reports));
+test("report service fails closed until an owner SDK is composed", async () => {
+  await assert.rejects(ReportService.getReports(), ReportCapabilityUnavailableError);
+  await assert.rejects(
+    ReportService.submitReport({ type: "日报", reporter: "me", date: "today", summary: "s" }),
+    ReportCapabilityUnavailableError,
+  );
 });

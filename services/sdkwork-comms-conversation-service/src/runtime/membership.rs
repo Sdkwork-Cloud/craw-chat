@@ -687,7 +687,7 @@ where
                         organization_id.as_str(),
                         command.conversation_id.as_str(),
                         &cursor,
-                    )],
+                    )?],
                     vec![envelope],
                 )?;
                 (member, candidate)
@@ -840,7 +840,7 @@ where
                         organization_id.as_str(),
                         command.conversation_id.as_str(),
                         &cursor,
-                    )],
+                    )?],
                     vec![envelope],
                 )?;
                 (member, candidate)
@@ -1580,7 +1580,12 @@ where
             normalized_organization_id.as_str(),
             &mut items,
         );
-        Ok(cursor_list_page_data(items, limit, next_cursor, window.has_more))
+        Ok(cursor_list_page_data(
+            items,
+            limit,
+            next_cursor,
+            window.has_more,
+        ))
     }
 
     pub fn update_read_cursor(
@@ -1758,7 +1763,7 @@ where
                             command.organization_id.as_str(),
                             command.conversation_id.as_str(),
                             &updated_cursor,
-                        )],
+                        )?],
                         vec![envelope],
                     )?;
                     state.conversations.insert(scope_key.clone(), candidate);

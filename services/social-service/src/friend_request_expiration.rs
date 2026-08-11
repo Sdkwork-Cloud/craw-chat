@@ -139,7 +139,7 @@ impl SocialRuntime {
         &self,
     ) -> Result<FriendRequestExpirationTickResult, String> {
         let now = utc_now_rfc3339_millis();
-        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.acquire_cross_instance_write_lock()?;
         self.refresh_state_from_authority_for_write()?;
         let mut state = self
             .state

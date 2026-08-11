@@ -10,11 +10,13 @@ use im_platform_contracts::{
     CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAggregateStore, ConversationMemberPageCursor,
     normalize_realtime_organization_id,
 };
-use im_time::utc_now_rfc3339_millis;
+use im_time::{rfc3339_add_secs, rfc3339_cmp, rfc3339_le, utc_now_rfc3339_millis};
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitJournal, CommitPosition};
 use sdkwork_im_contract_notification::{
     NotificationTaskListCursor, NotificationTaskRecord, NotificationTaskStore,
+    notification_backoff_secs, resolve_notification_claim_lease_secs,
+    resolve_notification_max_attempts,
 };
 use sdkwork_utils_rust::{
     DEFAULT_LIST_PAGE_SIZE, MAX_LIST_PAGE_SIZE, SdkWorkCursorListQuery, SdkWorkPageData,
@@ -419,6 +421,18 @@ impl NotificationRuntime {
         Ok(tasks)
     }
 
+    /// Builds and persists `message.posted` notification requests for the
+    /// active conversation members (minus the sender).
+    ///
+    /// Production wiring: the conversation-service writes the equivalent
+    /// notification rows transactionally inside the message-post commit
+    /// (`runtime::build_message_posted_notification_tasks` +
+    /// `PostgresDurableMessagePostWriter::persist_message_post_batch_with_notification_fanout`),
+    /// because the two services share the PostgreSQL database and a separate
+    /// cross-service call would break message/notification atomicity. This
+    /// method is the standalone in-process seam with the same recipient and
+    /// payload semantics: it backs the pipeline tests and remains available
+    /// to hosts that co-locate the runtimes.
     pub fn request_message_posted_notifications(
         &self,
         auth: &AppContext,
@@ -657,7 +671,14 @@ impl NotificationRuntime {
             notification_id: task.notification_id.clone(),
             task: task.clone(),
             updated_at: utc_now_rfc3339_millis(),
+            attempt_count: 0,
+            available_at: utc_now_rfc3339_millis(),
         }
+    }
+
+    /// The configured task store, shared with the delivery worker pipeline.
+    pub fn task_store(&self) -> Arc<dyn NotificationTaskStore> {
+        self.task_store.clone()
     }
 
     fn append_event(
@@ -813,6 +834,132 @@ impl NotificationTaskStore for RuntimeMemoryNotificationTaskStore {
             .take(page_size.saturating_add(1))
             .filter_map(|task_key| state.tasks.get(task_key.as_str()).cloned())
             .collect())
+    }
+
+    fn claim_tasks(
+        &self,
+        limit: usize,
+        now: &str,
+    ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
+        let mut state = self.state.lock_notification();
+        let mut claimable = state
+            .tasks
+            .values()
+            .filter(|record| {
+                record.task.status == NotificationStatus::Requested
+                    && rfc3339_le(record.available_at.as_str(), now)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        claimable.sort_by(|left, right| {
+            rfc3339_cmp(left.available_at.as_str(), right.available_at.as_str())
+                .then_with(|| left.notification_id.cmp(&right.notification_id))
+        });
+        claimable.truncate(limit);
+        let lease_expires_at = rfc3339_add_secs(now, resolve_notification_claim_lease_secs())
+            .unwrap_or_else(|| now.to_owned());
+        let mut claimed = Vec::with_capacity(claimable.len());
+        for mut record in claimable {
+            let notification_key = notification_scope_key(
+                record.tenant_id.as_str(),
+                record.organization_id.as_str(),
+                record.notification_id.as_str(),
+            );
+            if let Some(previous) = state.tasks.get(notification_key.as_str()).cloned() {
+                remove_notification_recipient_index(
+                    &mut state.tasks_by_recipient,
+                    notification_key.as_str(),
+                    &previous,
+                );
+            }
+            record.available_at = lease_expires_at.clone();
+            record.updated_at = now.to_owned();
+            insert_notification_recipient_index(
+                &mut state.tasks_by_recipient,
+                notification_key.as_str(),
+                &record,
+            );
+            state.tasks.insert(notification_key, record.clone());
+            claimed.push(record);
+        }
+        Ok(claimed)
+    }
+
+    fn complete_task(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        notification_id: &str,
+        dispatched_at: &str,
+    ) -> Result<(), ContractError> {
+        let mut state = self.state.lock_notification();
+        let notification_key = notification_scope_key(tenant_id, organization_id, notification_id);
+        let Some(record) = state.tasks.get(notification_key.as_str()).cloned() else {
+            return Ok(());
+        };
+        if record.task.status != NotificationStatus::Requested {
+            return Ok(());
+        }
+        let mut completed = record.clone();
+        completed.task.status = NotificationStatus::Dispatched;
+        completed.task.dispatched_at = Some(dispatched_at.to_owned());
+        completed.task.failure_reason = None;
+        completed.updated_at = dispatched_at.to_owned();
+        remove_notification_recipient_index(
+            &mut state.tasks_by_recipient,
+            notification_key.as_str(),
+            &record,
+        );
+        insert_notification_recipient_index(
+            &mut state.tasks_by_recipient,
+            notification_key.as_str(),
+            &completed,
+        );
+        state.tasks.insert(notification_key, completed);
+        Ok(())
+    }
+
+    fn fail_task(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        notification_id: &str,
+        failure_reason: &str,
+        now: &str,
+    ) -> Result<(), ContractError> {
+        let mut state = self.state.lock_notification();
+        let notification_key = notification_scope_key(tenant_id, organization_id, notification_id);
+        let Some(record) = state.tasks.get(notification_key.as_str()).cloned() else {
+            return Ok(());
+        };
+        if record.task.status != NotificationStatus::Requested {
+            return Ok(());
+        }
+        let mut failed = record.clone();
+        failed.attempt_count = failed.attempt_count.saturating_add(1);
+        if failed.attempt_count >= resolve_notification_max_attempts() {
+            failed.task.status = NotificationStatus::Failed;
+            failed.task.failure_reason = Some(failure_reason.to_owned());
+        } else {
+            failed.task.status = NotificationStatus::Requested;
+            failed.task.failure_reason = Some(failure_reason.to_owned());
+            failed.available_at =
+                rfc3339_add_secs(now, notification_backoff_secs(failed.attempt_count))
+                    .unwrap_or_else(|| now.to_owned());
+        }
+        failed.updated_at = now.to_owned();
+        remove_notification_recipient_index(
+            &mut state.tasks_by_recipient,
+            notification_key.as_str(),
+            &record,
+        );
+        insert_notification_recipient_index(
+            &mut state.tasks_by_recipient,
+            notification_key.as_str(),
+            &failed,
+        );
+        state.tasks.insert(notification_key, failed);
+        Ok(())
     }
 }
 

@@ -24,7 +24,7 @@ export const WaterfallFeed: React.FC<WaterfallFeedProps> = ({ works, onWorkClick
   return (
     <div className="w-full h-full bg-[#121212] overflow-y-auto pb-[60px]">
        <div className="pt-safe px-4 pb-2 mt-4 flex items-center justify-between sticky top-0 bg-[#121212]/90 backdrop-blur-md z-10">
-          <h2 className="text-[18px] font-bold text-white tracking-wide mix-blend-difference ml-12">{t('channels.auto_n8535ee7', '探索创作者大世界')}</h2>
+          <h2 className="text-[18px] font-bold text-white tracking-wide mix-blend-difference ml-12">{t('channels.auto_n8535ee7', 'Explore the creators\' world')}</h2>
           <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center cursor-pointer active:opacity-70">
              <Search className="w-4 h-4 text-white" />
           </div>

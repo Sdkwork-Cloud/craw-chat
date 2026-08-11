@@ -138,7 +138,7 @@ export const MomentsPage = () => {
         ),
       );
     } catch {
-      showToast(t('moments.like_failed', '操作失败，请重试'));
+      showToast(t('moments.like_failed', 'Operation failed, please try again'));
     }
   };
 
@@ -176,7 +176,7 @@ export const MomentsPage = () => {
   const openReply = (momentId: string, commentAuthor: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setActivePopoverId(null);
-    setCommentText(t('moments.reply_prefix', { author: commentAuthor, defaultValue: `回复 ${commentAuthor}: ` }));
+    setCommentText(t('moments.reply_prefix', { author: commentAuthor, defaultValue: `Reply to ${commentAuthor}: ` }));
     setActiveCommentId(momentId);
     const moment = moments.find((item) => item.id === momentId);
     if (moment) {
@@ -202,7 +202,7 @@ export const MomentsPage = () => {
         ),
       );
     } catch {
-      showToast(t('moments.comment_failed', '评论失败，请重试'));
+      showToast(t('moments.comment_failed', 'Comment failed, please try again'));
     }
   };
 
@@ -210,10 +210,10 @@ export const MomentsPage = () => {
     if (e) e.stopPropagation();
     try {
       await MomentService.deleteMoment(id);
-      showToast(t('moments.delete_success', '已删除'));
+      showToast(t('moments.delete_success', 'Deleted'));
       setMoments((prev) => prev.filter((moment) => moment.id !== id));
     } catch {
-      showToast(t('moments.delete_failed', '删除失败，请重试'));
+      showToast(t('moments.delete_failed', 'Delete failed, please try again'));
     }
   };
 
@@ -232,10 +232,10 @@ export const MomentsPage = () => {
   const formatTime = (ts: number) => {
     const diff = Date.now() - ts;
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return t('moments.time.just_now', '刚刚');
-    if (mins < 60) return t('moments.time.minutes_ago', '{{count}}分钟前', { count: mins });
+    if (mins < 1) return t('moments.time.just_now', 'Just now');
+    if (mins < 60) return t('moments.time.minutes_ago', '{{count}}m ago', { count: mins });
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return t('moments.time.hours_ago', '{{count}}小时前', { count: hours });
+    if (hours < 24) return t('moments.time.hours_ago', '{{count}}h ago', { count: hours });
     return new Date(ts).toLocaleDateString(i18n.language);
   };
 
@@ -255,7 +255,7 @@ export const MomentsPage = () => {
 
   const submitPublish = async () => {
     if (!publishContent.trim() || !selectedCircleId) {
-      showToast(t('moments.select_circle_required', '请选择要发布的圈子'));
+      showToast(t('moments.select_circle_required', 'Please choose a circle to publish to'));
       return;
     }
     try {
@@ -266,12 +266,12 @@ export const MomentsPage = () => {
       setPublishContent("");
       setSelectedCircleId("");
       setShowPublish(false);
-      showToast(t('moments.publish_success', '发布成功'));
+      showToast(t('moments.publish_success', 'Published'));
       // Insert the fresh moment at the top instead of reloading the whole
       // feed, so the list does not flash a full-screen loading state.
       setMoments((prev) => [published, ...prev]);
     } catch {
-      showToast(t('moments.publish_failed', '发布失败，请重试'));
+      showToast(t('moments.publish_failed', 'Publish failed, please try again'));
     }
   };
 
@@ -279,13 +279,13 @@ export const MomentsPage = () => {
     if (moment.isLiked) {
       const otherCount = Math.max(moment.likeCount - 1, 0);
       if (otherCount === 0) {
-        return currentUser?.name ?? t('moments.liked_by_me', '我赞过');
+        return currentUser?.name ?? t('moments.liked_by_me', 'You liked this');
       }
       return currentUser?.name
         ? `${currentUser.name}，${t('moments.liked_by', { count: otherCount })}`
         : t('moments.liked_by', { count: otherCount });
     }
-    return t('moments.liked_by_count', '{{count}} 人赞过', { count: moment.likeCount });
+    return t('moments.liked_by_count', '{{count}} likes', { count: moment.likeCount });
   };
 
   return (
@@ -303,7 +303,7 @@ export const MomentsPage = () => {
       >
         <div className="flex flex-col flex-1 w-full min-h-full pb-safe">
           <MomentsHeaderCover
-            name={currentUser?.name ?? t('moments.title', '朋友圈')}
+            name={currentUser?.name ?? t('moments.title', 'Moments')}
             avatarUrl={currentUser?.avatar}
           />
 
@@ -312,7 +312,7 @@ export const MomentsPage = () => {
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-20 text-text-sub opacity-70">
                 <div className="w-8 h-8 rounded-full border-4 border-text-sub border-t-transparent animate-spin mb-3"></div>
-                <p className="text-[14px]">{t('moments.loading', '加载中...')}</p>
+                <p className="text-[14px]">{t('moments.loading', 'Loading...')}</p>
               </div>
             ) : loadFailed ? (
               <button
@@ -320,12 +320,12 @@ export const MomentsPage = () => {
                 className="w-full flex flex-col items-center justify-center py-20 text-text-sub opacity-70 active:opacity-50"
               >
                 <Camera className="w-12 h-12 mb-3 stroke-current opacity-40" />
-                <p className="text-[14px]">{t('moments.load_failed', '加载失败，点击重试')}</p>
+                <p className="text-[14px]">{t('moments.load_failed', 'Failed to load, tap to retry')}</p>
               </button>
             ) : moments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-text-sub opacity-70">
                 <Camera className="w-12 h-12 mb-3 stroke-current opacity-40 animate-pulse" />
-                <p className="text-[14px]">{t('moments.empty', '去分享你的生活点滴吧')}</p>
+                <p className="text-[14px]">{t('moments.empty', 'Share your life moments')}</p>
               </div>
             ) : (
               <>
@@ -354,10 +354,10 @@ export const MomentsPage = () => {
                   className="flex items-center justify-center py-4 text-text-sub opacity-60 text-[13px]"
                 >
                   {isLoadingMore
-                    ? t('moments.loading_more', '加载更多...')
+                    ? t('moments.loading_more', 'Loading more...')
                     : hasMore
-                      ? t('moments.load_more', '上拉加载更多')
-                      : t('moments.no_more', '没有更多了')}
+                      ? t('moments.load_more', 'Pull up to load more')
+                      : t('moments.no_more', 'No more moments')}
                 </div>
               </>
             )}

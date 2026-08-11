@@ -13,7 +13,7 @@ function readExists(relativePath) {
 
 const materializeWrites = readExists('adapters/social-postgres/src/materialize_writes.rs');
 for (const symbol of [
-  'materialize_commits_in_transaction',
+  'materialize_commits_on_transaction',
   'materialize_commit_on',
   'FRIEND_REQUEST_UPDATE_STATUS_SQL',
   'FRIENDSHIP_UPSERT_ACTIVE_PAIR_SQL',
@@ -22,27 +22,32 @@ for (const symbol of [
 }
 assert.match(
   materializeWrites,
-  /client\s*\n\s*\.transaction\(\)/,
-  'multi-commit social materialization must use a single PostgreSQL transaction',
+  /pub fn materialize_commits_on_transaction\(\s*\n\s*txn: &mut postgres::Transaction/,
+  'multi-commit social materialization must run on the caller-owned PostgreSQL transaction',
 );
 
-const commitMaterializer = readExists('services/social-service/src/commit_materializer.rs');
+const writeAuthority = readExists('services/social-service/src/postgres_write_authority.rs');
 assert.match(
-  commitMaterializer,
-  /if commits\.is_empty\(\)[\s\S]*materialize_commits_in_transaction/,
-  'SocialPostgresMaterializer must route all commit batches through transactional materialize',
+  writeAuthority,
+  /if commits\.is_empty\(\)[\s\S]*write_commits_on_transaction/,
+  'Social write authority must route all commit batches through the caller-owned transactional materialize',
+);
+assert.match(
+  writeAuthority,
+  /append_batch_with_allocated_sequences_in_transaction/,
+  'journal rows and normalized Social rows must commit or roll back as one database unit',
 );
 assert.doesNotMatch(
-  commitMaterializer,
+  writeAuthority,
   /commits\.len\(\)\s*>\s*1/,
-  'SocialPostgresMaterializer must not gate transactions on multi-commit length only',
+  'Social write authority must not gate transactions on multi-commit length only',
 );
 
 const lib = readExists('adapters/social-postgres/src/lib.rs');
 assert.match(
   lib,
-  /pub use materialize_writes::\{[\s\S]*materialize_commits_in_transaction/u,
-  'social-postgres lib must export materialize_commits_in_transaction',
+  /pub use materialize_writes::materialize_commits_on_transaction/u,
+  'social-postgres lib must export materialize_commits_on_transaction',
 );
 
 const socialDoc = readExists('docs/architecture/tech/TECH-im-social-open-api-alignment.md');

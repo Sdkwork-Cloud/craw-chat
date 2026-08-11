@@ -17,6 +17,9 @@ export const GlobalSearch: React.FC = () => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [contacts, setContacts] = useState<UserType[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  // Request sequence guard: only the latest query's response may render, so a
+  // slow earlier search cannot overwrite a newer one (mirrors ChatList).
+  const searchRequestSeq = useRef(0);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -25,10 +28,13 @@ export const GlobalSearch: React.FC = () => {
   useEffect(() => {
     const doSearch = async () => {
       if (!query.trim()) {
+        searchRequestSeq.current += 1;
         setChats([]);
         setContacts([]);
+        setIsSearching(false);
         return;
       }
+      const requestSeq = ++searchRequestSeq.current;
       setIsSearching(true);
       const searchChatsPromise = ChatService.searchChats(query);
       const searchContactsPromise = ContactService.searchContacts(query);
@@ -38,6 +44,7 @@ export const GlobalSearch: React.FC = () => {
         searchContactsPromise,
       ]);
 
+      if (requestSeq !== searchRequestSeq.current) return;
       setChats(searchedChats);
       setContacts(searchedContacts);
 

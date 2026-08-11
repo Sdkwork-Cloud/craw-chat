@@ -6,14 +6,14 @@ import { Search, MapPin, Phone } from "lucide-react";
 export const EnterpriseYellowPages = () => {
   const { t } = useTranslation();
 return (
-    <PageLayout title={t('enterprise.auto_prop_2522c72a', '企业黄页')}>
+    <PageLayout title={t('enterprise.auto_prop_2522c72a', 'Business directory')}>
       <div className="flex flex-col min-h-full bg-bg-color">
         <div className="p-4 bg-chat-other-bg sticky top-0 z-10">
           <div className="bg-black/5 dark:bg-white/5 rounded-full flex items-center px-4 py-2">
             <Search className="w-4 h-4 text-text-sub" />
             <input 
               className="bg-transparent border-none outline-none ml-2 text-[14px] flex-1 text-text-main"
-              placeholder={t('enterprise.auto_prop_545dbc2e', '搜索企业、产品或服务')}
+              placeholder={t('enterprise.auto_prop_545dbc2e', 'Search companies, products or services')}
             />
           </div>
         </div>

@@ -23,10 +23,13 @@ export const ServicesPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [services, setServices] = useState<LifeServiceItem[]>([]);
+  const [servicesUnavailable, setServicesUnavailable] = useState(false);
   const [portfolio, setPortfolio] = useState<WalletPortfolio | null>(null);
 
   useEffect(() => {
-    LifeService.getLifeServices().then(setServices);
+    LifeService.getLifeServices()
+      .then(setServices)
+      .catch(() => setServicesUnavailable(true));
   }, []);
 
   useEffect(() => {
@@ -40,13 +43,13 @@ export const ServicesPage = () => {
 
   return (
     <PageLayout 
-      title={t('user.auto_prop_ccd34', '服务')} 
+      title={t('user.auto_prop_ccd34', 'Services')} 
       bgClass="bg-bg-color"
       rightElement={
         <span 
           className="text-[14px] font-medium text-text-main hover:opacity-70 cursor-pointer"
           onClick={() => navigate("/billing-records")}
-        >{t('user.auto_4173b4d4', '账单记录')}</span>
+        >{t('user.auto_4173b4d4', 'Billing history')}</span>
       }
     >
       <div className="p-3 w-full">
@@ -55,18 +58,18 @@ export const ServicesPage = () => {
           <div className="flex items-center justify-between w-full mb-8 relative z-10">
              <div className="flex items-center gap-2 text-white/95">
                 <Wallet className="w-5 h-5 text-white" strokeWidth={1.5} />
-                <span className="text-[15px] font-bold tracking-wide">{t('user.auto_2e635247', '我的钱包')}</span>
+                <span className="text-[15px] font-bold tracking-wide">{t('user.auto_2e635247', 'My wallet')}</span>
              </div>
           </div>
           <div className="flex items-end justify-between w-full relative z-10">
             <div>
-              <div className="text-[11px] text-white/70 mb-2 uppercase tracking-widest font-bold">{t('user.wallet_cash', '现金账户')}</div>
+              <div className="text-[11px] text-white/70 mb-2 uppercase tracking-widest font-bold">{t('user.wallet_cash', 'Cash account')}</div>
               <div className="text-[30px] font-bold leading-none tracking-tight font-mono text-white">
                 {portfolio ? Number(portfolio.cash.availableAmount).toLocaleString("zh-CN", { minimumFractionDigits: 2 }) : "--"}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[11px] text-white/70 mb-2 uppercase tracking-widest font-bold">{t('user.wallet_token_bank', '算力积分')}</div>
+              <div className="text-[11px] text-white/70 mb-2 uppercase tracking-widest font-bold">{t('user.wallet_token_bank', 'Compute credits')}</div>
               <div className="text-[30px] font-bold leading-none tracking-tight font-mono text-white">
                 {portfolio ? Number(portfolio.tokenBank.availableAmount).toLocaleString("zh-CN") : "--"}
                 <span className="ml-1 text-[15px] font-medium text-white/60">T</span>
@@ -75,18 +78,23 @@ export const ServicesPage = () => {
           </div>
           <div className="mt-4 pt-3 border-t border-white/10 relative z-10 flex items-center justify-between text-[12px] text-white/60">
             <span>
-              {t('user.auto_2c9904d1', '普通积分')}：
+              {t('user.auto_2c9904d1', 'Standard points')}：
               <span className="font-mono text-white/80">{portfolio ? Number(portfolio.points.availablePoints).toLocaleString("zh-CN") : "--"}</span>
             </span>
             <span>
-              {t('user.wallet_points_total', '累计')}：
+              {t('user.wallet_points_total', 'Total')}：
               <span className="font-mono text-white/80">{portfolio ? Number(portfolio.points.totalPoints).toLocaleString("zh-CN") : "--"}</span>
             </span>
           </div>
         </div>
 
         <div className="bg-chat-other-bg rounded-2xl p-5 shadow-sm border border-border-color flex flex-col">
-          <h3 className="text-[15px] text-text-main mb-6 font-bold">{t('user.auto_30865237', '智能服务')}</h3>
+          <h3 className="text-[15px] text-text-main mb-6 font-bold">{t('user.auto_30865237', 'Smart services')}</h3>
+          {servicesUnavailable && (
+            <p className="text-[13px] text-text-sub text-center pb-2">
+              {t('commons.feature_unavailable', 'This feature is not available yet; the real service is being connected. Stay tuned.')}
+            </p>
+          )}
           <div className="grid grid-cols-4 gap-y-8 pointer-events-auto">
             {services.map((item, i) => {
               const Icon = ICON_MAP[item.iconName] || Smartphone;

@@ -220,7 +220,9 @@ impl ConversationStateService {
         if is_conversation_conversation_state_event_type(event.event_type.as_str()) {
             validate_conversation_conversation_state_envelope(event)?;
         }
-        let result = match event.event_type.as_str() {
+        
+
+        match event.event_type.as_str() {
             "conversation.created" => self.apply_conversation_created(event),
             "conversation.agents_replaced" => self.apply_conversation_agents_replaced(event),
             "conversation.policy_applied" => self.apply_conversation_policy_applied(event),
@@ -248,9 +250,7 @@ impl ConversationStateService {
             "group.created" => self.apply_group_created(event),
             "group.updated" => self.apply_group_updated(event),
             _ => Ok(()),
-        };
-
-        result
+        }
     }
 
     pub fn client_route_sync_fanout_targets_for_conversation(

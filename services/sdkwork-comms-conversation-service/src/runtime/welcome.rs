@@ -38,8 +38,7 @@ pub const SYSTEM_AGENT_ACTOR_KIND: &str = "system";
 const WELCOME_MESSAGE_TEXT_ENV: &str = "SDKWORK_IM_CONVERSATION_WELCOME_MESSAGE_TEXT";
 const WELCOME_MESSAGE_VERSION_ENV: &str = "SDKWORK_IM_CONVERSATION_WELCOME_MESSAGE_VERSION";
 const WELCOME_DEFAULT_VERSION: &str = "v1";
-const WELCOME_DEFAULT_TEXT: &str =
-    "欢迎使用 SDKWork 即时通讯！我是系统智能体，随时为你提供帮助。如有任何问题，可以直接在对话中向我提问。";
+const WELCOME_DEFAULT_TEXT: &str = "欢迎使用 SDKWork 即时通讯！我是系统智能体，随时为你提供帮助。如有任何问题，可以直接在对话中向我提问。";
 
 /// Welcome 投递结果。
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -240,14 +239,12 @@ where
         );
         match bound {
             Ok(_) => Ok(true),
-            Err(RuntimeError::Conflict(_)) => {
-                self.welcome_direct_chat_shape_servable(
-                    tenant_id,
-                    organization_id,
-                    conversation_id,
-                    user_id,
-                )
-            }
+            Err(RuntimeError::Conflict(_)) => self.welcome_direct_chat_shape_servable(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                user_id,
+            ),
             Err(error) => Err(error),
         }
     }
@@ -282,13 +279,7 @@ where
         }
         // 权威加载双方成员；任一非 active 成员即不可投递。
         for (kind, id) in [("system", SYSTEM_AGENT_ACTOR_ID), ("user", user_id)] {
-            match self.ensure_member_loaded(
-                tenant_id,
-                organization_id,
-                conversation_id,
-                kind,
-                id,
-            ) {
+            match self.ensure_member_loaded(tenant_id, organization_id, conversation_id, kind, id) {
                 Ok(()) => {}
                 Err(RuntimeError::PermissionDenied(_)) => return Ok(false),
                 Err(error) => return Err(error),
@@ -386,10 +377,7 @@ mod tests {
             Ok(self.sent.lock().unwrap().clone())
         }
 
-        fn write_welcome_sent(
-            &self,
-            record: &WelcomeSentRecord,
-        ) -> Result<(), ContractError> {
+        fn write_welcome_sent(&self, record: &WelcomeSentRecord) -> Result<(), ContractError> {
             *self.sent.lock().unwrap() = Some(record.clone());
             Ok(())
         }
@@ -448,7 +436,11 @@ mod tests {
         let state_guard = runtime.state.read().unwrap();
         let stored = state_guard
             .conversations
-            .get(&conversation_scope_key("t_1", "0", &expected_conversation_id))
+            .get(&conversation_scope_key(
+                "t_1",
+                "0",
+                &expected_conversation_id,
+            ))
             .expect("welcome conversation should exist");
         let message = stored
             .message_log
@@ -525,7 +517,10 @@ mod tests {
         let outcome = runtime
             .ensure_user_welcome("t_1", "0", user_id, None)
             .expect("welcome should be delivered");
-        let WelcomeDeliveryOutcome::Sent { conversation_id, .. } = outcome else {
+        let WelcomeDeliveryOutcome::Sent {
+            conversation_id, ..
+        } = outcome
+        else {
             panic!("expected sent outcome, got {outcome:?}");
         };
 
@@ -638,11 +633,8 @@ mod tests {
             user_id,
         )
         .expect("canonical direct chat id");
-        let conversation_id = canonical_direct_chat_conversation_id(
-            "t_1",
-            "0",
-            direct_chat_id.as_str(),
-        );
+        let conversation_id =
+            canonical_direct_chat_conversation_id("t_1", "0", direct_chat_id.as_str());
         runtime
             .bind_direct_chat_conversation_from_auth_context(
                 &auth,
@@ -683,12 +675,7 @@ mod tests {
             conversation.direct_chat_binding_request = None;
             conversation
                 .aggregate
-                .synchronize_normalized_current_state(
-                    "direct",
-                    "archived",
-                    u64::MAX,
-                    u64::MAX,
-                )
+                .synchronize_normalized_current_state("direct", "archived", u64::MAX, u64::MAX)
                 .expect("archive sync should apply");
         }
 

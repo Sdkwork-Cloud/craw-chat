@@ -33,13 +33,13 @@ const navigate = useNavigate();
 
   return (
     <PageLayout
-      title={t('enterprise.auto_prop_n1c94083e', '极客科技宇宙')}
+      title={t('enterprise.auto_prop_n1c94083e', 'Geek Tech Universe')}
       bgClass="bg-bg-color"
       rightElement={
         <div className="flex items-center pr-2">
           <div 
             className="w-8 h-8 flex items-center justify-center rounded-full cursor-pointer transition-colors active:bg-black/5 dark:active:bg-white/5 text-text-main" 
-            onClick={() => showToast(t('enterprise.auto_fn_52609618', '已准备分享'))}
+            onClick={() => showToast(t('commons.feature_unavailable', 'This feature is not available yet while the real service is being integrated.'))}
           >
             <Share2 className="w-5 h-5" />
           </div>
@@ -64,30 +64,30 @@ const navigate = useNavigate();
             <div className="flex gap-2">
               <button 
                 className="px-5 py-1.5 border-2 border-primary-blue text-primary-blue rounded-full text-[13px] font-bold active:bg-primary-blue/5 transition-colors"
-                onClick={() => showToast(t('enterprise.auto_fn_52851cc0', '已关注企业'))}
-              >{t('enterprise.auto_1e4dea', '+ 关注')}</button>
+                onClick={() => showToast(t('commons.feature_unavailable', 'This feature is not available yet while the real service is being integrated.'))}
+              >{t('enterprise.auto_1e4dea', '+ Follow')}</button>
             </div>
           </div>
 
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-[24px] font-extrabold text-text-main leading-none">{t('enterprise.auto_n1c94083e', '极客科技宇宙')}</h1>
+            <h1 className="text-[24px] font-extrabold text-text-main leading-none">{t('enterprise.auto_n1c94083e', 'Geek Tech Universe')}</h1>
             <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
           </div>
           
           <div className="flex flex-wrap items-center gap-2 mt-3">
-            <span className="px-2.5 py-1 rounded-sm bg-bg-color text-text-sub text-[11px] font-bold border border-border-color/50">{t('enterprise.auto_2536e16e', '人工智能')}</span>
-            <span className="px-2.5 py-1 rounded-sm bg-bg-color text-text-sub text-[11px] font-bold border border-border-color/50">{t('enterprise.auto_2303e00', '高新技术企业')}</span>
-            <span className="px-2.5 py-1 rounded-sm bg-bg-color text-text-sub text-[11px] font-bold border border-border-color/50">{t('enterprise.auto_4ddd94ae', '专精特新重点')}</span>
+            <span className="px-2.5 py-1 rounded-sm bg-bg-color text-text-sub text-[11px] font-bold border border-border-color/50">{t('enterprise.auto_2536e16e', 'Artificial Intelligence')}</span>
+            <span className="px-2.5 py-1 rounded-sm bg-bg-color text-text-sub text-[11px] font-bold border border-border-color/50">{t('enterprise.auto_2303e00', 'High-tech enterprise')}</span>
+            <span className="px-2.5 py-1 rounded-sm bg-bg-color text-text-sub text-[11px] font-bold border border-border-color/50">{t('enterprise.auto_4ddd94ae', 'Specialized and innovative key enterprise')}</span>
           </div>
 
           <div className="flex items-center gap-5 mt-5 text-[13px] font-medium text-text-main">
             <div className="flex items-center gap-1.5 bg-bg-color px-3 py-1.5 rounded-full">
               <Users className="w-4 h-4 text-text-sub" />
-              <span>{t('enterprise.auto_6721ef63', '500-1000人')}</span>
+              <span>{t('enterprise.auto_6721ef63', '500-1000 employees')}</span>
             </div>
             <div 
               className="flex items-center gap-1.5 bg-bg-color px-3 py-1.5 rounded-full cursor-pointer active:opacity-70"
-              onClick={() => showToast(t('enterprise.auto_fn_39cd0c2b', '正在打开官网'))}
+              onClick={() => showToast(t('commons.feature_unavailable', 'This feature is not available yet while the real service is being integrated.'))}
             >
               <Globe className="w-4 h-4 text-text-sub" />
               <span className="text-primary-blue">geekcosmo.com</span>
@@ -145,19 +145,19 @@ const navigate = useNavigate();
       <div className="fixed bottom-0 left-0 right-0 h-[68px] bg-chat-other-bg border-t border-border-color flex items-center px-4 gap-4 z-40 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
         <div className="flex items-center justify-center flex-col shrink-0 px-2 cursor-pointer active:opacity-70 text-text-main" onClick={() => navigate("/enterprise/invite")}>
           <Share2 className="w-5 h-5 mb-1" />
-          <span className="text-[11px] font-medium">{t('enterprise.auto_a3d65', '分享')}</span>
+          <span className="text-[11px] font-medium">{t('enterprise.auto_a3d65', 'Share')}</span>
         </div>
         <div className="flex-1 flex gap-3 h-11">
           <button 
             className="flex-1 rounded-full bg-[#f0f9ff] dark:bg-blue-900/20 text-primary-blue font-extrabold text-[15px] flex items-center justify-center gap-1.5 active:scale-95 transition-transform border border-blue-100 dark:border-blue-800/50"
             onClick={() => window.location.href = "tel:01088889999"}
           >
-            <Phone className="w-4.5 h-4.5" />{t('enterprise.auto_375f5782', '电话咨询')}</button>
+            <Phone className="w-4.5 h-4.5" />{t('enterprise.auto_375f5782', 'Phone inquiry')}</button>
           <button 
             className="flex-[1.2] rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-extrabold text-[15px] flex items-center justify-center gap-1.5 shadow-lg shadow-blue-500/30 active:scale-95 transition-transform"
             onClick={openChat}
           >
-            <MessageSquare className="w-4.5 h-4.5" />{t('enterprise.auto_29850f11', '在线咨询')}</button>
+            <MessageSquare className="w-4.5 h-4.5" />{t('enterprise.auto_29850f11', 'Online chat')}</button>
         </div>
       </div>
 

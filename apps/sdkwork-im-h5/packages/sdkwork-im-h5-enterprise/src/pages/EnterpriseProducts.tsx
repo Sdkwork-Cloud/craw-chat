@@ -6,7 +6,7 @@ import { LayoutTemplate, Bot, Fingerprint } from "lucide-react";
 export const EnterpriseProducts = () => {
   const { t } = useTranslation();
 return (
-    <PageLayout title={t('enterprise.auto_prop_7c135a88', '产品与服务')}>
+    <PageLayout title={t('enterprise.auto_prop_7c135a88', 'Products & services')}>
       <div className="flex flex-col min-h-full bg-bg-color p-4 gap-4">
          {[
            {
@@ -47,7 +47,7 @@ return (
               <p className="text-[14px] text-text-sub leading-relaxed border-t border-black/5 dark:border-white/5 pt-3 mt-1">
                 {prod.desc}
               </p>
-              <button className="w-full py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 text-blue-600 font-medium rounded-lg text-[14px] transition-colors mt-2">{t('enterprise.auto_7a5cb7d2', '获取方案与报价')}</button>
+              <button className="w-full py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 text-blue-600 font-medium rounded-lg text-[14px] transition-colors mt-2">{t('enterprise.auto_7a5cb7d2', 'Get solutions and quotes')}</button>
            </div>
          ))}
       </div>

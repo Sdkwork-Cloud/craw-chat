@@ -20,47 +20,8 @@
       "@/*": [
         "./*"
       ],
-      "react": [
-        "./node_modules/@types/react/index.d.ts"
-      ],
-      "react/jsx-runtime": [
-        "./node_modules/@types/react/jsx-runtime.d.ts"
-      ],
-      "react-dom": [
-        "./node_modules/@types/react-dom/index.d.ts"
-      ],
-      "react-router-dom": [
-        "./node_modules/react-router-dom/dist/index.d.ts"
-      ],
-      "sdkwork-voice-pc-core": [
-        "./../../../sdkwork-voice/apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-core/src"
-      ],
-      "sdkwork-voice-pc-commons": [
-        "./../../../sdkwork-voice/apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-commons/src"
-      ],
-      "sdkwork-drive-pc-core": [
-        "./../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-core/src"
-      ],
-      "sdkwork-drive-pc-commons": [
-        "./../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-commons/src"
-      ],
-      "sdkwork-drive-pc-file": [
-        "./../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-file/src"
-      ],
-      "sdkwork-drive-pc-transfer": [
-        "./../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-transfer/src"
-      ],
-      "sdkwork-drive-pc-types": [
-        "./../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-types/src"
-      ],
       "@packages/*": [
         "./../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/*"
-      ],
-      "sdkwork-knowledgebase-pc-core": [
-        "./../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-core/src"
-      ],
-      "sdkwork-knowledgebase-pc-core/host/hostAdapter": [
-        "./../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-core/src/host/hostAdapter.ts"
       ],
       "@packages/sdkwork-knowledgebase-pc-commons/src": [
         "./../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-commons/src"
@@ -71,14 +32,14 @@
       "@sdkwork/community-app-sdk": [
         "./../../../sdkwork-community/sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript/src/index.ts"
       ],
+      "@sdkwork/community-contracts": [
+        "./../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-contracts/src/index.ts"
+      ],
       "@sdkwork/community-runtime": [
         "./../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-runtime/src/index.ts"
       ],
       "@sdkwork/community-sdk-ports": [
         "./../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-sdk-ports/src/index.ts"
-      ],
-      "@sdkwork/community-contracts": [
-        "./../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-contracts/src/index.ts"
       ],
       "@sdkwork/course-app-sdk": [
         "./../../../sdkwork-course/sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript/src/index.ts"
@@ -86,23 +47,68 @@
       "@sdkwork/course-backend-sdk": [
         "./../../../sdkwork-course/sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/src/index.ts"
       ],
-      "@sdkwork/course-runtime": [
-        "./../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-runtime/src/index.ts"
-      ],
-      "@sdkwork/course-sdk-ports": [
-        "./../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-sdk-ports/src/index.ts"
-      ],
       "@sdkwork/course-contracts": [
         "./../../../sdkwork-course/sdks/_shared/course-contracts/src/index.ts"
       ],
       "@sdkwork/course-mobile-react-courses": [
         "./../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses/src/index.ts"
       ],
+      "@sdkwork/course-pc-console": [
+        "./../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-console/src/index.ts"
+      ],
       "@sdkwork/course-pc-course": [
         "./../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/index.ts"
       ],
-      "@sdkwork/course-pc-console": [
-        "./../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-console/src/index.ts"
+      "@sdkwork/course-runtime": [
+        "./../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-runtime/src/index.ts"
+      ],
+      "@sdkwork/course-sdk-ports": [
+        "./../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-sdk-ports/src/index.ts"
+      ],
+      "@sdkwork/iam-app-sdk": [
+        "../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/iam-backend-sdk": [
+        "../../../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/src/index.ts"
+      ],
+      "react": [
+        "./node_modules/@types/react/index.d.ts"
+      ],
+      "react-dom": [
+        "./node_modules/@types/react-dom/index.d.ts"
+      ],
+      "react-router-dom": [
+        "./node_modules/react-router-dom/dist/index.d.ts"
+      ],
+      "react/jsx-runtime": [
+        "./node_modules/@types/react/jsx-runtime.d.ts"
+      ],
+      "sdkwork-drive-pc-commons": [
+        "./../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-commons/src"
+      ],
+      "sdkwork-drive-pc-core": [
+        "./../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-core/src"
+      ],
+      "sdkwork-drive-pc-file": [
+        "./../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-file/src"
+      ],
+      "sdkwork-drive-pc-transfer": [
+        "./../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-transfer/src"
+      ],
+      "sdkwork-drive-pc-types": [
+        "./../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-types/src"
+      ],
+      "sdkwork-knowledgebase-pc-core": [
+        "./../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-core/src"
+      ],
+      "sdkwork-knowledgebase-pc-core/host/hostAdapter": [
+        "./../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-core/src/host/hostAdapter.ts"
+      ],
+      "sdkwork-voice-pc-commons": [
+        "./../../../sdkwork-voice/apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-commons/src"
+      ],
+      "sdkwork-voice-pc-core": [
+        "./../../../sdkwork-voice/apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-core/src"
       ]
     },
     "allowImportingTsExtensions": true,

@@ -437,5 +437,10 @@
     "title": "我的声音",
     "create": "创建声音",
     "detail": "声音详情"
+  },
+  "other_settings": {
+    "cleared": "已清空",
+    "clear_cache": "清理缓存",
+    "manage_chat_history": "管理聊天记录"
   }
 }

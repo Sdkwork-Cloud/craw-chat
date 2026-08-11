@@ -64,13 +64,13 @@
     "approvers": "Approvers",
     "cc": "CC"
   },
-  "auto_fn_2f078e83": "操作失败",
-  "auto_prop_2b29ee97": "审批详情",
-  "auto_7f6f37e": "加载中...",
-  "auto_2b2651e2": "审批流程",
-  "auto_53d1": "发",
-  "auto_bb3a6ac": "{approval.applicant} (发起申请)",
-  "auto_418a1c0c": "当前审批轮到你",
-  "auto_c764b": "拒绝",
-  "auto_a8e83": "同意"
+  "auto_fn_2f078e83": "Operation failed",
+  "auto_prop_2b29ee97": "Approval details",
+  "auto_7f6f37e": "Loading...",
+  "auto_2b2651e2": "Approval flow",
+  "auto_53d1": "Post",
+  "auto_bb3a6ac": "{approval.applicant} (submitted the request)",
+  "auto_418a1c0c": "The approval is waiting on you",
+  "auto_c764b": "Reject",
+  "auto_a8e83": "Approve"
 }

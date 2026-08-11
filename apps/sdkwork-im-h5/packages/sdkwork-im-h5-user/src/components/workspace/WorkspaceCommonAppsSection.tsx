@@ -14,10 +14,17 @@ import {
   BookOpen,
 } from "lucide-react";
 import { WorkspaceAppIcon } from "./WorkspaceAppIcon";
+import { showToast } from "@sdkwork/im-h5-commons";
 
 export const WorkspaceCommonAppsSection: React.FC = () => {
   const { t } = useTranslation();
 const navigate = useNavigate();
+
+  // calendar / approval / attendance / report are not composed by default
+  // (audited as mock-only, no owner SDK): fail closed on click instead of
+  // navigating to routes that no longer exist.
+  const unavailable = () =>
+    showToast(t("commons.feature_unavailable", "This feature is not available yet while the real service is being integrated."));
 
   return (
     <div className="pt-2 pb-6 px-4">
@@ -45,28 +52,28 @@ const navigate = useNavigate();
           label={t("workspace.calendar")}
           colorClass="text-primary-blue"
           bgClass="bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20"
-          onClick={() => navigate("/calendar")}
+          onClick={unavailable}
         />
         <WorkspaceAppIcon
           icon={CheckSquare}
           label={t("workspace.approval")}
           colorClass="text-primary-blue"
           bgClass="bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20"
-          onClick={() => navigate("/workspace/approval")}
+          onClick={unavailable}
         />
         <WorkspaceAppIcon
           icon={Briefcase}
           label={t("workspace.attendance")}
           colorClass="text-primary-blue"
           bgClass="bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20"
-          onClick={() => navigate("/workspace/attendance")}
+          onClick={unavailable}
         />
         <WorkspaceAppIcon
           icon={FileText}
           label={t("workspace.report")}
           colorClass="text-primary-blue"
           bgClass="bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20"
-          onClick={() => navigate("/workspace/report")}
+          onClick={unavailable}
         />
         <WorkspaceAppIcon
           icon={Cloud}

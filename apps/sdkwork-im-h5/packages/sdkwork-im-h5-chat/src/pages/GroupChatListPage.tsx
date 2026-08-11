@@ -84,7 +84,7 @@ export const GroupChatListPage: React.FC = () => {
         {!loading && !loadError && groups.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-text-sub gap-2">
             <Users className="w-12 h-12 text-text-sub/30" />
-            <span className="text-[14px]">{t('contacts.no_group_chats', '暂无群聊')}</span>
+            <span className="text-[14px]">{t('contacts.no_group_chats', 'No group chats')}</span>
           </div>
         )}
         {loading && (

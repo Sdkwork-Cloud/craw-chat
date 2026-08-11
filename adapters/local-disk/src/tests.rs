@@ -154,6 +154,9 @@ fn notification_task_record(
             failure_reason: failure_reason.map(str::to_owned),
         },
         updated_at: updated_at.into(),
+
+        attempt_count: 0,
+        available_at: "2026-01-01T00:00:00.000Z".into(),
     }
 }
 
@@ -1308,6 +1311,9 @@ fn test_file_notification_task_store_persists_across_reopen() {
                 failure_reason: None,
             },
             updated_at: "2026-04-06T00:00:01.000Z".into(),
+
+            attempt_count: 0,
+            available_at: "2026-01-01T00:00:00.000Z".into(),
         })
         .expect("save should succeed");
 

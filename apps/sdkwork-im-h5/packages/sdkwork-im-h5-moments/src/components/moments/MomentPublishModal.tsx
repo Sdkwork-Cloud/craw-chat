@@ -43,18 +43,18 @@ export const MomentPublishModal: React.FC<MomentPublishModalProps> = ({
         <button
           onClick={onClose}
           className="text-[16px] text-text-main font-medium active:opacity-50"
-        >{t('moments.cancel', '取消')}</button>
+        >{t('moments.cancel', 'Cancel')}</button>
         <button
           onClick={onSubmit}
           disabled={!canSubmit}
           className="bg-[#07C160] disabled:opacity-50 disabled:bg-[#07C160]/70 text-white text-[14px] font-medium px-4 py-1.5 rounded active:bg-[#06ad56] transition-colors"
-        >{t('moments.publish', '发表')}</button>
+        >{t('moments.publish', 'Publish')}</button>
       </div>
 
       <div className="flex-1 bg-chat-other-bg p-4 overflow-y-auto w-full">
         <textarea
           className="w-full h-32 bg-transparent outline-none text-[16px] text-text-main resize-none placeholder:text-text-sub"
-          placeholder={t('moments.placeholder', '这一刻的想法...')}
+          placeholder={t('moments.placeholder', 'Share a thought...')}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           autoFocus
@@ -62,12 +62,12 @@ export const MomentPublishModal: React.FC<MomentPublishModalProps> = ({
 
         {/* Circle picker (publishing requires a target circle) */}
         <div className="mt-4">
-          <div className="text-[13px] text-text-sub mb-2">{t('moments.select_circle', '发布到')}</div>
+          <div className="text-[13px] text-text-sub mb-2">{t('moments.select_circle', 'Post to')}</div>
           {circlesLoading ? (
-            <div className="text-[13px] text-text-sub opacity-70">{t('moments.loading', '加载中...')}</div>
+            <div className="text-[13px] text-text-sub opacity-70">{t('moments.loading', 'Loading...')}</div>
           ) : circles.length === 0 ? (
             <div className="text-[13px] text-text-sub opacity-70">
-              {t('moments.no_circles', '暂无可用圈子')}
+              {t('moments.no_circles', 'No circles available yet')}
               <button
                 className="text-[#07C160] font-medium ml-2 active:opacity-50"
                 onClick={() => {
@@ -75,7 +75,7 @@ export const MomentPublishModal: React.FC<MomentPublishModalProps> = ({
                   navigate("/community");
                 }}
               >
-                {t('moments.go_to_circles', '去圈子')}
+                {t('moments.go_to_circles', 'Go to Circles')}
               </button>
             </div>
           ) : (
@@ -109,7 +109,7 @@ export const MomentPublishModal: React.FC<MomentPublishModalProps> = ({
           >
             <ImageIcon className="w-7 h-7 text-text-sub opacity-50" />
           </button>
-          <div className="text-[12px] text-text-sub opacity-60 mt-2">{t('moments.image_coming_soon', '图片功能即将上线')}</div>
+          <div className="text-[12px] text-text-sub opacity-60 mt-2">{t('moments.image_coming_soon', 'Image upload coming soon')}</div>
         </div>
       </div>
     </motion.div>

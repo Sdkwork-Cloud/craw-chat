@@ -33,23 +33,23 @@ const SOCIAL_OPEN_API_ROUTES: &[HttpRoute] = &[
         HttpMethod::Get,
         "/im/v3/api/social/friend_requests/pending/count",
         "social",
-        "social.friendRequests.pendingCount",
+        "social.friendRequests.pending.count.retrieve",
     ),
     HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
-        "/im/v3/api/social/friend_requests/{requestId}/accept",
+        "/im/v3/api/social/friend_requests/{friendRequestId}/accept",
         "social",
         "social.friendRequests.accept",
     ),
     HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
-        "/im/v3/api/social/friend_requests/{requestId}/decline",
+        "/im/v3/api/social/friend_requests/{friendRequestId}/decline",
         "social",
         "social.friendRequests.decline",
     ),
     HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,
-        "/im/v3/api/social/friend_requests/{requestId}/cancel",
+        "/im/v3/api/social/friend_requests/{friendRequestId}/cancel",
         "social",
         "social.friendRequests.cancel",
     ),
@@ -121,7 +121,7 @@ const SOCIAL_OPEN_API_ROUTES: &[HttpRoute] = &[
     ),
     HttpRoute::api_key_or_dual_token(
         HttpMethod::Delete,
-        "/im/v3/api/social/user_blocks/{block_id}",
+        "/im/v3/api/social/user_blocks/{blockId}",
         "social",
         "social.userBlocks.delete",
     ),
@@ -130,6 +130,36 @@ const SOCIAL_OPEN_API_ROUTES: &[HttpRoute] = &[
         "/im/v3/api/social/direct_chats",
         "social",
         "social.directChats.list",
+    ),
+    HttpRoute::api_key_or_dual_token(
+        HttpMethod::Get,
+        "/im/v3/api/social/direct_chats/{directChatId}",
+        "social",
+        "social.directChats.retrieve",
+    ),
+    HttpRoute::api_key_or_dual_token(
+        HttpMethod::Get,
+        "/im/v3/api/social/users/{userId}/profile",
+        "social",
+        "social.users.profile.retrieve",
+    ),
+    HttpRoute::api_key_or_dual_token(
+        HttpMethod::Patch,
+        "/im/v3/api/social/users/{userId}/profile",
+        "social",
+        "social.users.profile.update",
+    ),
+    HttpRoute::api_key_or_dual_token(
+        HttpMethod::Get,
+        "/im/v3/api/social/users/{userId}/settings",
+        "social",
+        "social.users.settings.retrieve",
+    ),
+    HttpRoute::api_key_or_dual_token(
+        HttpMethod::Patch,
+        "/im/v3/api/social/users/{userId}/settings",
+        "social",
+        "social.users.settings.update",
     ),
 ];
 

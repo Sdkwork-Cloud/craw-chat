@@ -24,16 +24,16 @@ export const ReportDetail = () => {
 
   if (!report)
     return (
-      <PageLayout title={t('report.auto_prop_32bbf95d', '汇报详情')}>
+      <PageLayout title={t('report.auto_prop_32bbf95d', 'Report details')}>
         <div className="flex flex-col h-full bg-bg-color items-center justify-center text-text-sub opacity-70">
           <div className="w-8 h-8 rounded-full border-4 border-text-sub border-t-transparent animate-spin mb-3"></div>
-          <span className="text-[14px]">{t('report.auto_7f6f37e', '加载中...')}</span>
+          <span className="text-[14px]">{t('report.auto_7f6f37e', 'Loading...')}</span>
         </div>
       </PageLayout>
     );
 
   return (
-    <PageLayout title={t('report.auto_prop_32bbf95d', '汇报详情')}>
+    <PageLayout title={t('report.auto_prop_32bbf95d', 'Report details')}>
       <div className="p-4 space-y-4">
         {/* Header Content */}
         <ReportDetailHeader report={report} />
@@ -48,9 +48,9 @@ export const ReportDetail = () => {
         <div className="flex gap-3">
           <button
             className="flex-1 bg-chat-other-bg border border-border-color text-text-main py-3 rounded-xl font-medium shadow-sm flex justify-center items-center gap-2 hover:bg-bg-color active:scale-95 transition-all"
-            onClick={() => showToast(t('report.auto_fn_bedac', '已赞'))}
+            onClick={() => showToast(t('report.auto_fn_bedac', 'Liked'))}
           >
-            <ThumbsUp className="w-4 h-4 text-text-sub" />{t('report.auto_8d5e', '赞')}
+            <ThumbsUp className="w-4 h-4 text-text-sub" />{t('report.auto_8d5e', 'Like')}
           </button>
         </div>
       </div>

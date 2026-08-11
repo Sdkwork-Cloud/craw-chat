@@ -1,4 +1,4 @@
-﻿import React, { useRef, useEffect } from "react";
+﻿import React, { useRef, useEffect, useMemo, useCallback } from "react";
 import type { Message, Chat, User } from "@sdkwork/im-h5-types";
 import { MessageItem } from "../MessageItem";
 import { useTranslation } from "react-i18next";
@@ -51,6 +51,10 @@ interface MessageListProps {
   setActivePanel: (panel: "none" | "emoji" | "action") => void;
   onScrollToTop?: () => void;
   onRetry?: (msg: Message) => void;
+  /** More history is available on the server (show the top indicator). */
+  hasMoreTop?: boolean;
+  /** A cursor page for older history is being fetched. */
+  loadingMore?: boolean;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -69,14 +73,21 @@ export const MessageList: React.FC<MessageListProps> = ({
   setActivePanel,
   onScrollToTop,
   onRetry,
+  hasMoreTop = false,
+  loadingMore = false,
 }) => {
   const { t } = useTranslation();
-const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
+  // Pending scroll timeouts are cleared on unmount so a fast navigation away
+  // cannot scrollIntoView a detached node.
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const replyJumpTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     if (highlightedMsgId) {
-      setTimeout(() => {
+      highlightTimerRef.current = setTimeout(() => {
         const el = document.getElementById(`msg-${highlightedMsgId}`);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 100);
@@ -87,11 +98,17 @@ const messagesEndRef = useRef<HTMLDivElement>(null);
     // bottom. Loading older pages (or history refresh) must not yank the view
     // back down while the user reads earlier messages.
     if (isNearBottomRef.current && messagesEndRef.current) {
-      setTimeout(() => {
+      scrollTimerRef.current = setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 50);
     }
   }, [messages, highlightedMsgId]);
+
+  useEffect(() => () => {
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    if (replyJumpTimerRef.current) clearTimeout(replyJumpTimerRef.current);
+  }, []);
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
@@ -101,19 +118,49 @@ const messagesEndRef = useRef<HTMLDivElement>(null);
     }
   };
 
+  // Reply lookup: O(1) per message instead of scanning the whole window per
+  // rendered item (the previous `messages.find` was quadratic in the window).
+  const messagesById = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
+  const participantsById = useMemo(() => {
+    const map = new Map<string, User>();
+    for (const participant of chat?.participants ?? []) map.set(participant.id, participant);
+    return map;
+  }, [chat]);
+  const systemSender = useMemo(
+    () => ({ id: "system", name: t('chat.date.system_agent_name', 'System Agent') }),
+    [t],
+  );
+
+  const handleReplyClick = useCallback((id: string) => {
+    setHighlightedMsgId(id);
+    replyJumpTimerRef.current = setTimeout(() => setHighlightedMsgId(null), 3000);
+    document
+      .getElementById(`msg-${id}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [setHighlightedMsgId]);
+
   return (
     <div
       className="flex-1 overflow-y-auto p-4 flex flex-col"
       onClick={() => setActivePanel("none")}
       onScroll={handleScroll}
     >
+      {hasMoreTop && (
+        <div className="flex justify-center py-2 shrink-0">
+          {loadingMore ? (
+            <span className="text-[12px] text-text-sub">{t('chat.detail.loading_earlier', 'Loading earlier messages...')}</span>
+          ) : (
+            <span className="text-[12px] text-text-sub">{t('chat.detail.has_earlier_messages', 'Scroll up for earlier messages')}</span>
+          )}
+        </div>
+      )}
       {messages.map((msg, index) => {
         const isMe = msg.senderId === currentUser?.id;
         const sender = isMe
-          ? currentUser
+          ? currentUser ?? undefined
           : msg.senderId === "system"
-            ? { id: "system", name: t('chat.date.system_agent_name', '系统智能体') }
-            : chat?.participants.find((p) => p.id === msg.senderId) ?? undefined;
+            ? systemSender
+            : participantsById.get(msg.senderId);
         const isAgent = msg.senderId.startsWith("agent_") || msg.senderId === "system";
 
         const prevMsg = index > 0 ? messages[index - 1] : null;
@@ -140,13 +187,12 @@ const messagesEndRef = useRef<HTMLDivElement>(null);
         let replyToSenderName: string | undefined;
 
         if (msg.metadata?.replyTo) {
-          replyToMsg = messages.find((m) => m.id === msg.metadata?.replyTo);
+          replyToMsg = messagesById.get(msg.metadata?.replyTo);
           if (replyToMsg) {
             const replyIsMe = replyToMsg.senderId === currentUser?.id;
             replyToSenderName = replyIsMe
               ? t('chat.detail.me')
-              : chat?.participants.find((p) => p.id === replyToMsg!.senderId)
-                  ?.name || t('chat.detail.unknown');
+              : participantsById.get(replyToMsg.senderId)?.name || t('chat.detail.unknown');
           } else if (msg.replyTo) {
             // The quoted message is outside the loaded pages: fall back to the
             // server-provided reply snapshot so the reference still renders.
@@ -200,13 +246,7 @@ const messagesEndRef = useRef<HTMLDivElement>(null);
                 isHighlighted={highlightedMsgId === msg.id}
                 replyToMsg={replyToMsg}
                 replyToSenderName={replyToSenderName}
-                onReplyClick={(id) => {
-                  setHighlightedMsgId(id);
-                  setTimeout(() => setHighlightedMsgId(null), 3000);
-                  document
-                    .getElementById(`msg-${id}`)
-                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
-                }}
+                onReplyClick={handleReplyClick}
                 onRetry={onRetry}
               />
             </div>

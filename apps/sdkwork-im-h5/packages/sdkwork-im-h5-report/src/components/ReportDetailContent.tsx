@@ -17,7 +17,7 @@ export const ReportDetailContent: React.FC<ReportDetailContentProps> = ({ report
           <div className="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
             <FileText className="w-3.5 h-3.5 text-primary-blue" />
           </div>
-          <h3 className="text-[15px] font-bold text-text-main">{t('report.auto_56f54a0d', '已完成工作')}</h3>
+          <h3 className="text-[15px] font-bold text-text-main">{t('report.auto_56f54a0d', 'Work completed')}</h3>
         </div>
         <div className="text-[15px] text-text-main leading-relaxed pl-2 whitespace-pre-wrap">
           {report.summary}
@@ -30,10 +30,10 @@ export const ReportDetailContent: React.FC<ReportDetailContentProps> = ({ report
           <div className="w-6 h-6 rounded-full bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center">
             <Target className="w-3.5 h-3.5 text-orange-500" />
           </div>
-          <h3 className="text-[15px] font-bold text-text-main">{t('report.auto_2be9bee8', '工作计划')}</h3>
+          <h3 className="text-[15px] font-bold text-text-main">{t('report.auto_2be9bee8', 'Work plan')}</h3>
         </div>
         <div className="text-[15px] text-text-sub leading-relaxed pl-2">
-          {t('report.auto_n595d4a6b', '按计划推进下一步开发，重点关注性能优化。')}
+          {t('report.auto_n595d4a6b', 'Moving to the next development phase as planned, focusing on performance optimization.')}
         </div>
       </div>
 
@@ -43,10 +43,10 @@ export const ReportDetailContent: React.FC<ReportDetailContentProps> = ({ report
           <div className="w-6 h-6 rounded-full bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center">
             <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
           </div>
-          <h3 className="text-[15px] font-bold text-text-main">{t('report.auto_77dc24fe', '需协调问题')}</h3>
+          <h3 className="text-[15px] font-bold text-text-main">{t('report.auto_77dc24fe', 'Issues to coordinate')}</h3>
         </div>
         <div className="text-[15px] text-text-sub leading-relaxed pl-2">
-          {t('report.auto_n2e900039', '暂无需要协调的问题。')}
+          {t('report.auto_n2e900039', 'No issues to coordinate.')}
         </div>
       </div>
     </div>

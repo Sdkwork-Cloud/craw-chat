@@ -29,10 +29,13 @@ export const VoiceSelectionPage = ({
   const [activeCategoryId, setActiveCategoryId] = useState<string>("my");
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [categories, setCategories] = useState<VoiceCategory[]>([]);
+  const [unavailable, setUnavailable] = useState(false);
   const [showCreateVoice, setShowCreateVoice] = useState(false);
 
   React.useEffect(() => {
-    VoiceService.getVoiceCategories().then(setCategories);
+    VoiceService.getVoiceCategories()
+      .then(setCategories)
+      .catch(() => setUnavailable(true));
     return () => {
       window.speechSynthesis.cancel();
     };
@@ -107,7 +110,7 @@ export const VoiceSelectionPage = ({
           />
         </div>
         <div className="absolute inset-x-0 flex flex-col items-center pointer-events-none">
-          <h2 className="text-[17px] font-bold text-text-main">{t('commons.auto_42ffbcdf', '选择音色')}</h2>
+          <h2 className="text-[17px] font-bold text-text-main">{t('commons.auto_42ffbcdf', 'Select voice')}</h2>
         </div>
         <div className="flex-1" />
       </header>
@@ -118,7 +121,7 @@ export const VoiceSelectionPage = ({
           <Search className="w-4 h-4 text-text-sub shrink-0" />
           <input
             type="text"
-            placeholder={t('commons.auto_prop_n27578f97', '搜索音色...')}
+            placeholder={t('commons.auto_prop_n27578f97', 'Search voices...')}
             className="bg-transparent flex-1 outline-none ml-2 text-[14px] text-text-main placeholder:text-text-sub"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -134,6 +137,16 @@ export const VoiceSelectionPage = ({
       </div>
 
       <div className="flex-1 flex overflow-hidden">
+        {/* Fail-closed: no voice catalog API is composed (typed unavailable). */}
+        {unavailable ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-8 text-center">
+            <Mic className="w-10 h-10 text-text-sub opacity-40" />
+            <p className="text-[15px] text-text-main">
+              {t('commons.feature_unavailable', 'This feature is not available yet while the real service is being integrated.')}
+            </p>
+          </div>
+        ) : (
+        <>
         {/* Left Sidebar (Categories) */}
         {!searchQuery.trim() && (
           <div className="w-[100px] bg-chat-other-bg overflow-y-auto shrink-0 flex flex-col divide-y divide-transparent border-r border-border-color">
@@ -162,7 +175,7 @@ export const VoiceSelectionPage = ({
           {searchQuery.trim() && filteredVoices.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-text-sub gap-3 mt-10">
               <Mic className="w-10 h-10 opacity-20" />
-              <span className="text-[14px]">{t('commons.auto_n5f11116c', '没有找到相关音色')}</span>
+              <span className="text-[14px]">{t('commons.auto_n5f11116c', 'No matching voices found')}</span>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -176,7 +189,7 @@ export const VoiceSelectionPage = ({
                   <div className="w-10 h-10 bg-primary-blue text-white rounded-full flex items-center justify-center shadow-sm">
                     <PlusCircle className="w-5 h-5" />
                   </div>
-                  <span className="text-[14px] font-bold text-primary-blue">{t('commons.auto_300803f1', '克隆我的声音')}</span>
+                  <span className="text-[14px] font-bold text-primary-blue">{t('commons.auto_300803f1', 'Clone my voice')}</span>
                 </div>
               )}
 
@@ -233,6 +246,8 @@ export const VoiceSelectionPage = ({
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
 
       {/* Create Voice Flow Overlay */}
@@ -240,7 +255,9 @@ export const VoiceSelectionPage = ({
         <div className="fixed inset-0 z-[60] bg-bg-color animate-in slide-in-from-right">
           {renderCreateVoice(() => {
             setShowCreateVoice(false);
-            VoiceService.getVoiceCategories().then(setCategories);
+            VoiceService.getVoiceCategories()
+              .then(setCategories)
+              .catch(() => setUnavailable(true));
           })}
         </div>
       )}

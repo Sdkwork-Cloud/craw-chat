@@ -13,7 +13,10 @@ import {
 } from "./moduleValidation";
 import { resolveImH5ShellHomePath } from "./moduleNavigation";
 
-test("keeps the full H5 product composition (original UI tabs)", () => {
+test("keeps the real-SDK H5 product composition and excludes mock-only modules", () => {
+  // approval / attendance / calendar / report / recruitment / enterprise were
+  // audited as pure localStorage mocks without a backend SDK; they must not be
+  // registered by default (fail-closed, PRD).
   assert.deepEqual(DEFAULT_IM_H5_MODULES, [
     "chat",
     "contacts",
@@ -21,12 +24,6 @@ test("keeps the full H5 product composition (original UI tabs)", () => {
     "agents",
     "notary",
     "orders",
-    "approval",
-    "attendance",
-    "calendar",
-    "report",
-    "recruitment",
-    "enterprise",
     "meeting",
     "moments",
     "music",
@@ -43,6 +40,18 @@ test("keeps the full H5 product composition (original UI tabs)", () => {
     "community",
     "shop",
   ]);
+  for (const mockModuleId of ["approval", "attendance", "calendar", "report", "recruitment", "enterprise"]) {
+    assert.equal(
+      COMPOSABLE_IM_H5_MODULES.has(mockModuleId as never),
+      false,
+      `${mockModuleId} must not be composable by default`,
+    );
+    assert.equal(
+      CONTRACT_PENDING_IM_H5_MODULES.has(mockModuleId as never),
+      true,
+      `${mockModuleId} must be contract-pending until a real owner SDK is composed`,
+    );
+  }
 });
 
 test("classifies every composed module as composable", () => {

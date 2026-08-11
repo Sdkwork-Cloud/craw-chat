@@ -77,14 +77,13 @@ pub fn spawn_conversation_outbox_relay_from_env(
 
 fn resolve_conversation_outbox_dependencies_from_env() -> Option<ConversationOutboxRelayDependencies>
 {
-    if let Ok(config) = DatabaseConfig::from_env("IM") {
-        if config.engine == DatabaseEngine::Postgres {
+    if let Ok(config) = DatabaseConfig::from_env("IM")
+        && config.engine == DatabaseEngine::Postgres {
             return PostgresJournalConfig::from_database_config(&config)
                 .connect_pool()
                 .ok()
                 .map(conversation_outbox_dependencies_from_pool);
         }
-    }
 
     let database_url = std::env::var(IM_DATABASE_URL_ENV)
         .ok()
@@ -184,7 +183,7 @@ async fn run_conversation_outbox_relay(
                         let event = &claim.event;
                         if event.aggregate_type != CONVERSATION_OUTBOX_AGGREGATE_TYPE {
                             log_unexpected_aggregate_type(
-                                &event,
+                                event,
                                 CONVERSATION_OUTBOX_AGGREGATE_TYPE,
                                 "conversation",
                             );

@@ -28,7 +28,7 @@ export let CURRENT_SETTINGS: AppSettings = { ...INITIAL_SETTINGS };
 
 const loadSettings = () => {
   try {
-    const data = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem("clawchat_app_settings");
+    const data = localStorage.getItem(STORAGE_KEY);
     if (data) {
       CURRENT_SETTINGS = JSON.parse(data);
     } else {

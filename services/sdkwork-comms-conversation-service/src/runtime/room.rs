@@ -425,7 +425,7 @@ where
                         command.organization_id.as_str(),
                         conversation_id.as_str(),
                         &read_cursor,
-                    )],
+                    )?],
                     vec![envelope],
                 )?;
                 *conversation = candidate;

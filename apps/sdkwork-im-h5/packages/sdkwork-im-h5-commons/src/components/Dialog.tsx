@@ -47,11 +47,11 @@ const DialogInner: React.FC<DialogProps> = ({
           <button
             className="flex-1 flex items-center justify-center text-[17px] text-text-main border-r border-border-color active:bg-active-bg transition-colors font-medium"
             onClick={onCancel}
-          >{t('commons.auto_a9472', '取消')}</button>
+          >{t('commons.auto_a9472', 'Cancel')}</button>
           <button
             className="flex-1 flex items-center justify-center text-[17px] text-[#576B95] active:bg-active-bg transition-colors font-medium"
             onClick={() => onConfirm(type === "prompt" ? val : true)}
-          >{t('commons.auto_ef0ec', '确定')}</button>
+          >{t('commons.auto_ef0ec', 'OK')}</button>
         </div>
       </motion.div>
     </div>

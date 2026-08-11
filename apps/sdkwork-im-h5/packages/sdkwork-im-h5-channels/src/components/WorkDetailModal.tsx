@@ -65,17 +65,17 @@ if (!work) return null;
              <div className="flex items-center gap-2 mb-3">
                <Avatar src={work.avatar} className="w-8 h-8 border border-white/50" />
                <span className="font-medium text-[15px] drop-shadow-md">@{work.author}</span>
-               <button className="px-3 py-1 bg-white text-black text-[12px] font-bold rounded-full ml-2 active:scale-95 transition-transform">{t('channels.auto_a49d5', '关注')}</button>
+               <button className="px-3 py-1 bg-white text-black text-[12px] font-bold rounded-full ml-2 active:scale-95 transition-transform">{t('channels.auto_a49d5', 'Follow')}</button>
              </div>
              
              <h2 className="text-[16px] font-bold mb-1.5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] leading-tight">
                {work.title}
              </h2>
-             <p className="text-[13px] text-white/80 drop-shadow-md line-clamp-2">{t('channels.auto_n4ec835e6', '在这里发现更多惊艳的创作内容！这件作品不仅展示了出色的视觉效果，更体现了创作者对大模型技术的深入理解和灵活应用。')}</p>
+             <p className="text-[13px] text-white/80 drop-shadow-md line-clamp-2">{t('channels.auto_n4ec835e6', 'Discover more amazing creations here! This work not only showcases stunning visuals, but also reflects the creator\'s deep understanding and flexible use of large model technology.')}</p>
              
              <div className="flex items-center gap-2 mt-3 cursor-pointer">
                 <Disc className="w-4 h-4 text-white/80 animate-spin-slow" />
-                <span className="text-[12px] text-white/80 font-medium">{t('channels.auto_465ccae2', '@原声 - {work.author} 创作的原声')}</span>
+                <span className="text-[12px] text-white/80 font-medium">{t('channels.auto_465ccae2', '@Original audio - created by {work.author}')}</span>
              </div>
           </div>
 
@@ -93,7 +93,7 @@ if (!work) return null;
 
         {/* Reply input simulation */}
         <div className="h-14 bg-[#121212] border-t border-white/10 flex items-center px-4 gap-3 shrink-0 pb-safe">
-           <div className="flex-1 h-9 rounded-full bg-white/10 flex items-center px-4 text-[14px] text-white/50">{t('channels.auto_n65d4b670', '留下你的神评论...')}</div>
+           <div className="flex-1 h-9 rounded-full bg-white/10 flex items-center px-4 text-[14px] text-white/50">{t('channels.auto_n65d4b670', 'Leave a great comment...')}</div>
            <div className="flex items-center gap-4 text-white/80">
               <Heart className="w-6 h-6" />
               <Star className="w-6 h-6" />

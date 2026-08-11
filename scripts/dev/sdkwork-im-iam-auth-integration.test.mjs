@@ -45,9 +45,9 @@ assert.match(
   'IAM adapter must expose shared postgres pool resolver',
 );
 assert.match(
-  iamDatabaseEnv,
-  /bridge_iam_database_env_from_im/,
-  'IAM adapter must bridge IM postgres URL into IAM database env',
+  gatewayMain,
+  /IamWebRequestContextResolver::from_database_pool/,
+  'standalone gateway must hand the IAM database host pool into the web framework resolver',
 );
 
 assert.match(
@@ -112,17 +112,17 @@ assert.match(
 );
 assert.match(
   read('crates/sdkwork-api-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_api_drive_assembly::assemble_api_router/,
+  /sdkwork_api_drive_assembly::assemble_app_api_contribution/,
   'standalone dependency bootstrap must mount drive through its canonical API assembly',
 );
 assert.match(
   read('crates/sdkwork-api-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_api_knowledgebase_assembly::assemble_api_router/,
+  /sdkwork_api_knowledgebase_assembly::assemble_app_api_contribution_from_environment/,
   'standalone dependency bootstrap must mount knowledgebase through its canonical API assembly',
 );
 assert.match(
   read('crates/sdkwork-api-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_api_catalog_assembly::assemble_api_router[\s\S]*sdkwork_api_order_assembly::assemble_api_router[\s\S]*sdkwork_api_shop_assembly::assemble_api_router/,
+  /sdkwork_api_order_assembly::assemble_app_api_contribution[\s\S]*sdkwork_api_catalog_assembly::assemble_api_router_from_env[\s\S]*sdkwork_api_shop_assembly::assemble_app_api_contribution_from_env/,
   'standalone dependency bootstrap must mount commerce capabilities through canonical API assemblies',
 );
 assert.match(
@@ -132,12 +132,12 @@ assert.match(
 );
 assert.match(
   read('crates/sdkwork-api-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_api_agents_assembly::assemble_app_business_runtime/,
+  /sdkwork_api_agents_assembly::assemble_app_runtime_contribution/,
   'standalone dependency bootstrap must mount agents through its canonical API assembly',
 );
 assert.match(
   read('crates/sdkwork-api-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_api_notary_assembly::assemble_api_router/,
+  /sdkwork_api_notary_assembly::assemble_app_api_contribution/,
   'standalone dependency bootstrap must mount notary through its canonical API assembly',
 );
 assert.match(
@@ -147,7 +147,7 @@ assert.match(
 );
 assert.match(
   embeddedDependencyRoutes,
-  /merge_embedded_dependency\([\s\S]*?\.await\?/u,
+  /bootstrap_embedded_dependency_routes\(\)\s*->\s*Result<EmbeddedDependencyRoutes, String>[\s\S]*\.await\?/,
   'declared dependency route assembly failures must propagate to standalone gateway startup',
 );
 assert.doesNotMatch(

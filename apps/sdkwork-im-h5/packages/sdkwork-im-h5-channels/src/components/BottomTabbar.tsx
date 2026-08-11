@@ -13,12 +13,12 @@ export const BottomTabbar: React.FC<BottomTabbarProps> = ({ activeBottomTab, set
 return (
     <div className="h-[52px] bg-black border-t border-white/5 flex items-center justify-around px-2 pb-safe absolute bottom-0 left-0 right-0 z-[45]">
       <TabItem 
-         label={t('channels.auto_prop_13319f', '首页')} 
+         label={t('channels.auto_prop_13319f', 'Home')} 
          active={activeBottomTab === "home"} 
          onClick={() => setActiveBottomTab("home")} 
       />
       <TabItem 
-         label={t('channels.auto_prop_a99ff', '发现')} 
+         label={t('channels.auto_prop_a99ff', 'Discover')} 
          active={activeBottomTab === "explore"} 
          onClick={() => setActiveBottomTab("explore")} 
       />
@@ -28,12 +28,12 @@ return (
         </div>
       </div>
       <TabItem 
-         label={t('channels.auto_prop_185e9a3', '提示词')} 
+         label={t('channels.auto_prop_185e9a3', 'Prompts')} 
          active={activeBottomTab === "prompts"} 
          onClick={() => setActiveBottomTab("prompts")} 
       />
       <TabItem 
-         label={t('channels.auto_prop_6211', '我')} 
+         label={t('channels.auto_prop_6211', 'Me')} 
          active={activeBottomTab === "me"} 
          onClick={() => setActiveBottomTab("me")} 
       />

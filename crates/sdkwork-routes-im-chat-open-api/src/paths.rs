@@ -65,3 +65,4 @@ pub const MESSAGE_VISIBILITY: &str = "/im/v3/api/chat/messages/{messageId}/visib
 pub const CONVERSATION_MESSAGES: &str = "/im/v3/api/chat/conversations/{conversationId}/messages";
 pub const CONVERSATION_SYSTEM_CHANNEL_PUBLISH: &str =
     "/im/v3/api/chat/conversations/{conversationId}/system_channel/publish";
+pub const ME_WELCOME_ENSURE: &str = "/im/v3/api/chat/me/welcome/ensure";

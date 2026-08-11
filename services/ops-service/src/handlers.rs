@@ -2,8 +2,8 @@ use axum::extract::rejection::QueryRejection;
 use axum::extract::{Extension, Query, State};
 use axum::response::Response;
 use im_adapters_postgres_journal::{
-    PostgresJournalConfig, RetentionCleanupReport, RetentionPurgeRequest,
-    purge_expired_retention_batch,
+    JournalReplayStateRequest, PostgresCommitJournal, PostgresJournalConfig,
+    RetentionCleanupReport, RetentionPurgeRequest, purge_expired_retention_batch,
 };
 use im_app_context::AppContext;
 use im_platform_contracts::{PrivilegedOperationActorKind, PrivilegedOperationContext};
@@ -14,8 +14,9 @@ use sdkwork_web_core::WebRequestContext;
 use serde::Deserialize;
 
 use crate::dto::{
-    ClusterView, DiagnosticBundle, LagItem, OpsHealthResponse, ProviderBindingDriftItemView,
-    ProviderBindingSnapshotView, RetentionPurgeResponse, RuntimeDirInspectionView,
+    ClusterView, DiagnosticBundle, JournalReplayStatusView, LagItem, OpsHealthResponse,
+    ProviderBindingDriftItemView, ProviderBindingSnapshotView, RetentionPurgeResponse,
+    RuntimeDirInspectionView,
 };
 use crate::error::OpsError;
 use crate::helpers::{ensure_ops_read_access, ensure_ops_write_access};
@@ -221,4 +222,68 @@ fn retention_purge_response(
         rtc_sessions_deleted: report.rtc_sessions_deleted,
         rtc_signals_deleted: report.rtc_signals_deleted,
     }
+}
+
+pub(crate) async fn get_replay_status(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+) -> Response {
+    let result: ApiResult<SdkWorkResourceData<JournalReplayStatusView>> = async {
+        ensure_ops_read_access(&auth)?;
+        let generated_at = utc_now_rfc3339_millis();
+        let database_url = match std::env::var(IM_DATABASE_URL_ENV) {
+            Ok(url) if !url.trim().is_empty() => url,
+            _ => {
+                return Ok(SdkWorkResourceData {
+                    item: JournalReplayStatusView {
+                        status: "not_configured".into(),
+                        mode: "unconfigured".into(),
+                        database_configured: false,
+                        journal_ready: false,
+                        total_commits: None,
+                        head_commit_offset: None,
+                        latest_occurred_at: None,
+                        detail: Some(format!(
+                            "{IM_DATABASE_URL_ENV} is not configured; commit-journal replay status is unavailable in this service"
+                        )),
+                        generated_at,
+                    },
+                });
+            }
+        };
+        let config = PostgresJournalConfig::new(database_url);
+        let pool = config.connect_pool().map_err(|error| {
+            OpsError::service_unavailable("database_unavailable", format!("{error:?}"))
+        })?;
+        let journal = PostgresCommitJournal::from_pool(pool);
+        let context = PrivilegedOperationContext::try_new(
+            PrivilegedOperationActorKind::OpsAdministrator,
+            auth.actor_id.as_str(),
+            ctx.resolved_trace_id(),
+        )
+        .map_err(|error| {
+            OpsError::internal("journal_replay_state_context_invalid", format!("{error:?}"))
+        })?;
+        let request = JournalReplayStateRequest::try_new(context).map_err(|error| {
+            OpsError::internal("journal_replay_state_request_invalid", format!("{error:?}"))
+        })?;
+        let state = journal.replay_state(request).map_err(|error| {
+            OpsError::service_unavailable("journal_replay_state_unavailable", format!("{error:?}"))
+        })?;
+        Ok(SdkWorkResourceData {
+            item: JournalReplayStatusView {
+                status: "enabled".into(),
+                mode: "postgres-journal".into(),
+                database_configured: true,
+                journal_ready: true,
+                total_commits: Some(state.total_commits),
+                head_commit_offset: state.head_commit_offset,
+                latest_occurred_at: state.latest_occurred_at,
+                detail: None,
+                generated_at,
+            },
+        })
+    }
+    .await;
+    finish_api_json(&ctx, result)
 }

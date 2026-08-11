@@ -52,7 +52,7 @@ export const EnterpriseJobsTab = ({
               <div className="w-6 h-6 rounded-full bg-primary-blue/10 flex items-center justify-center shrink-0">
                 <Briefcase className="w-3.5 h-3.5 text-primary-blue" />
               </div>
-              <span className="text-[13px] font-medium text-text-main">{t('enterprise.auto_n5277daa7', '招聘负责人')}</span>
+              <span className="text-[13px] font-medium text-text-main">{t('enterprise.auto_n5277daa7', 'Recruiting manager')}</span>
             </div>
             <button
               className="px-4 py-1.5 bg-primary-blue text-white rounded-full text-[13px] font-bold shadow-md shadow-blue-500/20"
@@ -60,7 +60,7 @@ export const EnterpriseJobsTab = ({
                 e.stopPropagation();
                 openChat();
               }}
-            >{t('enterprise.auto_24da2ec', '马上聊')}</button>
+            >{t('enterprise.auto_24da2ec', 'Chat now')}</button>
           </div>
         </div>
       ))}

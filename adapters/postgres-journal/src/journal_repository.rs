@@ -36,7 +36,7 @@ use im_platform_contracts::{
     AGENT_MENTION_DISPATCH_EVENT_TYPE, AGENT_MENTION_DISPATCH_PAYLOAD_SCHEMA,
     COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitJournal, CommitJournalAggregateEventTypeQuery,
     CommitJournalAggregateScope, CommitJournalReplayCursor, CommitJournalReplayPage,
-    CommitPosition, ContractError,
+    CommitPosition, ContractError, PrivilegedOperationActorKind, PrivilegedOperationContext,
 };
 use sdkwork_utils_rust::sha256_hash;
 
@@ -55,6 +55,47 @@ pub struct PostgresCommitJournal {
     /// Optional logical namespace prepended to every `partition_key`. Empty
     /// by default; reserved for future multi-shard routing.
     partition_prefix: Arc<str>,
+}
+
+/// Snapshot of the commit-journal replay surface: committed row count and
+/// the current high-water mark (`commit_offset`) of the journal head.
+///
+/// This is the ops-facing "journal replay status" answer: the position up to
+/// which keyset replay has data to read. It does not reflect per-consumer
+/// checkpoint progress; that is tracked by the outbox/checkpoint stores.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CommitJournalReplayState {
+    pub total_commits: u64,
+    pub head_commit_offset: Option<i64>,
+    pub latest_occurred_at: Option<String>,
+}
+
+/// Typed ops request for the journal replay-state surface.
+///
+/// Carries the privileged-operation context (actor, trace) so every
+/// cross-organization replay-status read is attributable and audit-logged.
+#[derive(Clone, Debug)]
+pub struct JournalReplayStateRequest {
+    context: PrivilegedOperationContext,
+}
+
+impl JournalReplayStateRequest {
+    pub fn try_new(context: PrivilegedOperationContext) -> Result<Self, ContractError> {
+        if !matches!(
+            context.actor_kind(),
+            PrivilegedOperationActorKind::OpsAdministrator
+        ) {
+            return Err(ContractError::Invalid(format!(
+                "journal replay-state requires an ops-administrator actor, got {}",
+                context.actor_kind().as_str()
+            )));
+        }
+        Ok(Self { context })
+    }
+
+    pub fn context(&self) -> &PrivilegedOperationContext {
+        &self.context
+    }
 }
 
 impl PostgresCommitJournal {
@@ -76,6 +117,58 @@ impl PostgresCommitJournal {
 
     pub fn partition_prefix(&self) -> &Arc<str> {
         &self.partition_prefix
+    }
+
+    /// Read the global journal replay state (head cursor and committed count).
+    ///
+    /// `head_commit_offset` is `None` only while the journal is empty. The
+    /// operation is cross-organization by design (ops diagnostics) and is
+    /// authorized by the typed [`JournalReplayStateRequest`] actor context.
+    pub fn replay_state(
+        &self,
+        request: JournalReplayStateRequest,
+    ) -> Result<CommitJournalReplayState, ContractError> {
+        let actor_kind = request.context().actor_kind().as_str().to_owned();
+        let actor_id = request.context().actor_id().to_owned();
+        let trace_id = request.context().trace_id().to_owned();
+        let pool = self.pool.clone();
+        let result = run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "journal replay state")?;
+            let row = client
+                .query_one(REPLAY_STATE_SQL, &[])
+                .map_err(|error| postgres_unavailable("journal replay state select", error))?;
+            let total_commits = postgres_bigint_output(row.get::<_, i64>(0), "replay total")?;
+            let head_commit_offset: Option<i64> = row.get(1);
+            let latest_occurred_at: Option<DateTime<Utc>> = row.get(2);
+            Ok(CommitJournalReplayState {
+                total_commits,
+                head_commit_offset,
+                latest_occurred_at: latest_occurred_at.map(|timestamp| timestamp.to_rfc3339()),
+            })
+        });
+        match &result {
+            Ok(state) => tracing::info!(
+                target: "sdkwork.im.security",
+                event = "im.journal_replay_state.operation_completed",
+                actor_kind,
+                actor_id,
+                trace_id,
+                outcome = "succeeded",
+                total_commits = state.total_commits,
+                "cross-organization journal replay-state read completed"
+            ),
+            Err(error) => tracing::warn!(
+                target: "sdkwork.im.security",
+                event = "im.journal_replay_state.operation_completed",
+                actor_kind,
+                actor_id,
+                trace_id,
+                outcome = "failed",
+                error = ?error,
+                "cross-organization journal replay-state read failed"
+            ),
+        }
+        result
     }
 
     /// Appends a batch and applies a related PostgreSQL mutation in one transaction.
@@ -430,7 +523,7 @@ fn journal_partition_scopes(
     Ok(partitions)
 }
 
-fn lock_journal_partitions(
+pub(crate) fn lock_journal_partitions(
     txn: &mut r2d2_postgres::postgres::Transaction<'_>,
     prefix: &str,
     envelopes: &[CommitEnvelope],
@@ -443,7 +536,7 @@ fn lock_journal_partitions(
     Ok(())
 }
 
-fn allocate_next_ordering_sequences(
+pub(crate) fn allocate_next_ordering_sequences(
     txn: &mut r2d2_postgres::postgres::Transaction<'_>,
     prefix: &str,
     envelopes: &mut [CommitEnvelope],
@@ -1048,7 +1141,7 @@ fn parse_journal_replay_rows(
         let idempotency_key: Option<String> = journal_replay_row_get(&row, 9, "idempotency_key")?;
         let partition_key: String = journal_replay_row_get(&row, 10, "partition_key")?;
         let commit_offset: i64 = journal_replay_row_get(&row, 11, "commit_offset")?;
-        let aggregate_type = parse_aggregate_type(aggregate_type_str.as_str());
+        let aggregate_type = parse_aggregate_type(aggregate_type_str.as_str())?;
         let replay_metadata = replay_envelope_metadata(event_type.as_str(), payload.as_str())?;
         let replay_scope = replay_scope_for_journal_row(
             &aggregate_type,
@@ -1170,29 +1263,32 @@ pub(crate) fn is_unique_violation(error: &r2d2_postgres::postgres::Error) -> boo
         == Some(&r2d2_postgres::postgres::error::SqlState::UNIQUE_VIOLATION)
 }
 
-/// Best-effort mapping from the stored aggregate-type string back to the enum.
+/// Mapping from the stored aggregate-type string back to the enum.
 ///
-/// Unknown values fall back to a neutral variant rather than erroring, so a
-/// forward-incompatible row never blocks journal replay. The authoritative
-/// enum is `im_domain_events::AggregateType`.
-fn parse_aggregate_type(value: &str) -> AggregateType {
+/// An unknown value is a hard error: silently mapping it to a neutral
+/// variant (previously `Conversation`) would replay rows as the wrong
+/// aggregate and corrupt the derived conversation state, so replay fails
+/// loudly instead.
+fn parse_aggregate_type(value: &str) -> Result<AggregateType, ContractError> {
     match value {
-        "conversation" => AggregateType::Conversation,
-        "space" => AggregateType::Space,
-        "chat_group" => AggregateType::ChatGroup,
-        "friend_request" => AggregateType::FriendRequest,
-        "friendship" => AggregateType::Friendship,
-        "external_connection" => AggregateType::ExternalConnection,
-        "external_member_link" => AggregateType::ExternalMemberLink,
-        "shared_channel_policy" => AggregateType::SharedChannelPolicy,
-        "stream_session" => AggregateType::StreamSession,
-        "rtc_session" => AggregateType::RtcSession,
-        "tenant_policy" => AggregateType::TenantPolicy,
-        "direct_chat" => AggregateType::DirectChat,
-        "notification" => AggregateType::Notification,
-        "automation_execution" => AggregateType::AutomationExecution,
-        "user_block" => AggregateType::UserBlock,
-        _ => AggregateType::Conversation,
+        "conversation" => Ok(AggregateType::Conversation),
+        "space" => Ok(AggregateType::Space),
+        "chat_group" => Ok(AggregateType::ChatGroup),
+        "friend_request" => Ok(AggregateType::FriendRequest),
+        "friendship" => Ok(AggregateType::Friendship),
+        "external_connection" => Ok(AggregateType::ExternalConnection),
+        "external_member_link" => Ok(AggregateType::ExternalMemberLink),
+        "shared_channel_policy" => Ok(AggregateType::SharedChannelPolicy),
+        "stream_session" => Ok(AggregateType::StreamSession),
+        "rtc_session" => Ok(AggregateType::RtcSession),
+        "tenant_policy" => Ok(AggregateType::TenantPolicy),
+        "direct_chat" => Ok(AggregateType::DirectChat),
+        "notification" => Ok(AggregateType::Notification),
+        "automation_execution" => Ok(AggregateType::AutomationExecution),
+        "user_block" => Ok(AggregateType::UserBlock),
+        unknown => Err(ContractError::Invalid(format!(
+            "journal replay encountered an unknown aggregate_type: {unknown}"
+        ))),
     }
 }
 

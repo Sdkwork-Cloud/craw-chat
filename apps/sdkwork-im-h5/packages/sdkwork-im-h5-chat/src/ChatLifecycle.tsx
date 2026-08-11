@@ -3,17 +3,22 @@ import { useEffect } from "react";
 import { registerImH5SessionChangeListener } from "@sdkwork/im-h5-core/session";
 
 import {
-  ensureChatLiveConnection,
   invalidateChatLiveConnection,
+  subscribeInboxLiveRefresh,
 } from "./services/chatRealtimeService";
 
 export function ChatLifecycle() {
   useEffect(() => {
-    // 本组件仅在已认证（AuthGate 渲染 children）后挂载：主动建立常驻
-    // 实时连接，不依赖任何页面的懒订阅；失败由 core 的退避重连兜底。
-    void ensureChatLiveConnection().catch(() => {
-      // fire-and-forget：重连由 core/realtime 的恢复机制接管。
+    // 本组件仅在已认证（AuthGate 渲染 children）后挂载：持有 inbox 级租约
+    // 使共享实时连接拥有常驻 demand，断线后 core 的退避重连机制才会调度
+    // 重连。仅调用 ensureImLiveConnection 没有租约，连接一旦断开 core 判定
+    // 无 demand 会直接 teardown 且不再重连。
+    // The no-op view observer keeps the handler set non-empty; page-level
+    // subscribers (ChatList) already reload their data on reconnect.
+    const unsubscribe = subscribeInboxLiveRefresh(() => {
+      // no-op: the lease itself is what keeps the connection demanded.
     });
+    return unsubscribe;
   }, []);
 
   useEffect(

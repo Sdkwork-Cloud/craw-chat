@@ -40,6 +40,8 @@ async fn async_main(
     sdkwork_im_service_readiness::bootstrap_im_service_database_from_env()
         .await
         .map_err(|error| format!("failed to bootstrap IM database pools: {error}"))?;
+    let retention_scheduler =
+        im_adapters_postgres_journal::spawn_retention_purge_scheduler_from_env();
     sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env().await;
     let environment = resolve_environment();
     sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env(
@@ -116,6 +118,9 @@ async fn async_main(
     .with_graceful_shutdown(shutdown_signal())
     .await?;
 
+    if let Some(handle) = retention_scheduler {
+        handle.shutdown();
+    }
     standalone_runtime.shutdown().await;
     realtime_plane.shutdown(realtime_drain_timeout).await?;
     drop(im_runtime);

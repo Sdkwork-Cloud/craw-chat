@@ -739,7 +739,7 @@
       "table_profile": "conversation_agent_assignment",
       "system_of_record": true,
       "write_owner": "comms-conversation-service",
-      "migration": "database/migrations/postgres/0005_agents_integration_expand.up.sql",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql",
       "notes": "IM-owned normalized assignment authority containing opaque Agent references only; sdkwork-agents remains authoritative for Session, Turn, Item, and Interaction."
     },
     {
@@ -752,7 +752,7 @@
       "table_profile": "relation_entity",
       "system_of_record": true,
       "write_owner": "comms-conversation-service",
-      "migration": "database/migrations/postgres/0005_agents_integration_expand.up.sql",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql",
       "notes": "IM-owned opaque correlation from assignment generation to Agents session; no Agents database foreign key."
     },
     {
@@ -765,7 +765,7 @@
       "table_profile": "operational_state",
       "system_of_record": true,
       "write_owner": "comms-conversation-service",
-      "migration": "database/migrations/postgres/0005_agents_integration_expand.up.sql",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql",
       "notes": "Durable source IM message to Agents turn to visible IM reply dispatch lifecycle."
     }
   ]

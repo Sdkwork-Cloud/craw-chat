@@ -246,12 +246,16 @@ assert.doesNotMatch(
 const gatewayMain = read('crates/sdkwork-api-im-standalone-gateway/src/main.rs');
 const realtimeWebBootstrap = read('crates/sdkwork-routes-im-realtime-open-api/src/web_bootstrap.rs');
 
-assert.match(gatewayMain, /service_router/u);
+assert.match(
+  gatewayMain,
+  /ComposedApiAssembly::try_compose|into_hosted\(WebFrameworkBuilder/u,
+  'standalone gateway must compose and host IM + IAM + dependency API contributions through the web framework',
+);
 assert.match(gatewayMain, /shared_iam_web_request_context_resolver_from_env/u);
 assert.match(
   gatewayMain,
-  /sdkwork_api_iam_assembly::bootstrap_iam_for_application/u,
-  'standalone gateway must use the IAM application bootstrap entrypoint before serving routes',
+  /sdkwork_api_iam_assembly::bootstrap_iam_app_for_application/u,
+  'standalone gateway must use the IAM application bootstrap entrypoint (App API contribution) before serving routes',
 );
 assert.match(realtimeWebBootstrap, /wrap_im_open_api_service_router_from_env/u);
 assert.doesNotMatch(

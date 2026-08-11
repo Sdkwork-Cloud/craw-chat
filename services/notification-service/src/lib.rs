@@ -8,6 +8,7 @@
 
 pub mod app;
 pub mod bootstrap;
+pub mod delivery;
 pub mod dto;
 pub mod error;
 pub mod state;

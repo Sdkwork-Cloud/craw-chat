@@ -106,8 +106,8 @@ const navigate = useNavigate();
             <Mic className="w-[18px] h-[18px] relative z-10" />
           </div>
           <div className="relative z-10">
-            <h4 className="text-[14px] font-bold text-text-main mb-1 truncate leading-none">{t("workspace.voice_summary", "语音纪要")}</h4>
-            <p className="text-[11px] text-text-sub leading-tight line-clamp-2">{t("workspace.voice_summary_desc", "一键生成录音纪要")}</p>
+            <h4 className="text-[14px] font-bold text-text-main mb-1 truncate leading-none">{t("workspace.voice_summary", "Voice Summary")}</h4>
+            <p className="text-[11px] text-text-sub leading-tight line-clamp-2">{t("workspace.voice_summary_desc", "Generate a recording summary in one tap")}</p>
           </div>
         </div>
       </div>

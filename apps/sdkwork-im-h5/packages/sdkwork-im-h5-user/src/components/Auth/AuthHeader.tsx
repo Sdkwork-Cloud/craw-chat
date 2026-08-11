@@ -11,10 +11,10 @@ return (
         <MessageCircle className="w-10 h-10 text-white fill-white" />
       </div>
       <h1 className="text-2xl font-semibold text-text-main text-center">
-        {mode === "login-pwd" && t("auth.mode_login_pwd", "密码登录")}
-        {mode === "login-code" && t("auth.mode_login_code", "验证码登录")}
-        {mode === "register" && t("auth.mode_register", "手机号注册")}
-        {mode === "forgot" && t("auth.mode_forgot", "找回密码")}
+        {mode === "login-pwd" && t("auth.mode_login_pwd", "Password login")}
+        {mode === "login-code" && t("auth.mode_login_code", "Code login")}
+        {mode === "register" && t("auth.mode_register", "Register with phone number")}
+        {mode === "forgot" && t("auth.mode_forgot", "Forgot password")}
       </h1>
     </div>
   );

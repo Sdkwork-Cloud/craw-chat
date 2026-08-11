@@ -13,7 +13,7 @@ function readExists(relativePath) {
 
 const spaceWrites = readExists('adapters/social-postgres/src/space_materialize_writes.rs');
 for (const symbol of [
-  'materialize_space_commits_in_transaction',
+  'materialize_space_commits_on_transaction',
   'materialize_space_commit_on',
   'SPACE_MEMBER_LOCK_PARENT_SQL',
   'SPACE_MEMBER_COUNT_SQL',
@@ -23,23 +23,26 @@ for (const symbol of [
 }
 assert.match(
   spaceWrites,
-  /client\s*\n\s*\.transaction\(\)/,
-  'space multi-commit materialization must use a single PostgreSQL transaction',
-);
-
-const spaceMaterializer = readExists('adapters/social-postgres/src/space_materializer.rs');
-assert.match(
-  spaceMaterializer,
-  /commits\.len\(\)\s*>\s*1[\s\S]*materialize_space_commits_in_transaction/,
-  'SpacePostgresMaterializer must route multi-commit batches through transactional materialize',
-);
-assert.doesNotMatch(
-  spaceMaterializer,
-  /compensat(?:e|ion)/u,
-  'space multi-commit materialization must rely on one PostgreSQL transaction instead of ad hoc compensation',
+  /pub fn materialize_space_commits_on_transaction\(\s*\n\s*txn: &mut postgres::Transaction/,
+  'space multi-commit materialization must run on the caller-owned PostgreSQL transaction',
 );
 
 const writeAuthority = readExists('services/space-service/src/write_authority.rs');
+assert.match(
+  writeAuthority,
+  /if commits\.is_empty\(\)[\s\S]*materialize_space_commits_on_transaction/,
+  'Space write authority must route all commit batches through transactional materialize',
+);
+assert.match(
+  writeAuthority,
+  /append_batch_with_allocated_sequences_in_transaction/,
+  'journal rows and normalized Space rows must commit or roll back as one database unit',
+);
+assert.doesNotMatch(
+  writeAuthority,
+  /compensat(?:e|ion)/u,
+  'space multi-commit materialization must rely on one PostgreSQL transaction instead of ad hoc compensation',
+);
 assert.match(
   writeAuthority,
   /let commits = vec!\[[\s\S]*SpaceCreated[\s\S]*SpaceMemberJoined/,
@@ -49,8 +52,8 @@ assert.match(
 const lib = readExists('adapters/social-postgres/src/lib.rs');
 assert.match(
   lib,
-  /pub use space_materialize_writes::\{[\s\S]*materialize_space_commits_in_transaction/u,
-  'social-postgres lib must export materialize_space_commits_in_transaction',
+  /pub use space_materialize_writes::\{[\s\S]*materialize_space_commits_on_transaction/u,
+  'social-postgres lib must export materialize_space_commits_on_transaction',
 );
 
 const spaceDoc = readExists('docs/architecture/tech/TECH-im-space-open-api-alignment.md');

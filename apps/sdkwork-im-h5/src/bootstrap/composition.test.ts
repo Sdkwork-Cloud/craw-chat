@@ -6,7 +6,10 @@ import {
   resolveConfiguredImH5ModuleIds,
 } from "./composition";
 
-test("keeps the full application composition (original UI)", () => {
+test("keeps the real-SDK application composition (mock-only modules excluded)", () => {
+  // approval / attendance / calendar / report / recruitment / enterprise were
+  // audited as pure localStorage mocks; they are excluded from the default
+  // composition (fail-closed, PRD).
   assert.deepEqual(resolveConfiguredImH5ModuleIds(), [
     "chat",
     "contacts",
@@ -14,12 +17,6 @@ test("keeps the full application composition (original UI)", () => {
     "agents",
     "notary",
     "orders",
-    "approval",
-    "attendance",
-    "calendar",
-    "report",
-    "recruitment",
-    "enterprise",
     "meeting",
     "moments",
     "music",
@@ -43,12 +40,6 @@ test("keeps the full application composition (original UI)", () => {
     "agents",
     "notary",
     "orders",
-    "approval",
-    "attendance",
-    "calendar",
-    "report",
-    "recruitment",
-    "enterprise",
     "meeting",
     "moments",
     "music",
@@ -80,4 +71,9 @@ test("rejects unknown, duplicate, empty, and contract-pending modules", () => {
   assert.throws(() => parseImH5ModuleSelection("chat,chat"), /duplicate module chat/u);
   assert.throws(() => parseImH5ModuleSelection("chat,,drive"), /empty module id/u);
   assert.throws(() => parseImH5ModuleSelection("chat,channels"), /does not have a composed runtime contract/u);
+  // Mock-only modules moved to contract-pending until a real owner SDK exists.
+  assert.throws(
+    () => parseImH5ModuleSelection("chat,approval"),
+    /approval does not have a composed runtime contract/u,
+  );
 });

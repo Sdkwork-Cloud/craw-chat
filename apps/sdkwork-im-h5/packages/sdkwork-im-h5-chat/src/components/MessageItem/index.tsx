@@ -37,7 +37,7 @@ export interface MessageItemProps {
   onRetry?: (msg: Message) => void;
 }
 
-export const MessageItem = ({
+export const MessageItem = React.memo(function MessageItem({
   msg,
   isMe,
   hideAvatar,
@@ -55,7 +55,7 @@ export const MessageItem = ({
   replyToSenderName,
   onReplyClick,
   onRetry,
-}: MessageItemProps) => {
+}: MessageItemProps) {
   const { t } = useTranslation();
   // System messages (system-agent notices, call signals) render as a centered
   // hint bar without avatar/bubble chrome instead of an empty bubble.
@@ -185,7 +185,10 @@ return (
           {msg.type === "miniapp" && <MiniappMessage msg={msg} isMe={isMe} />}
           {msg.type === "file" && <FileMessage msg={msg} isMe={isMe} onClick={() => { if (msg.content) window.open(msg.content, "_blank", "noopener,noreferrer"); }} />}
           {msg.type === "music" && <MusicMessage msg={msg} isMe={isMe} />}
-          {msg.sendState === "failed" && isMe && (
+          {/* Retry is text-only: media retries would need the original
+              File/Blob, which is not retained after a failed send (delete the
+              placeholder via the long-press menu instead). */}
+          {msg.sendState === "failed" && isMe && msg.type === "text" && (
             <button
               type="button"
               className="mt-1 flex items-center gap-1 text-[12px] text-accent-red opacity-90"
@@ -212,4 +215,4 @@ return (
       )}
     </div>
   );
-};
+});

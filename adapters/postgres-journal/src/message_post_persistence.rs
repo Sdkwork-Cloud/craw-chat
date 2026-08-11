@@ -9,6 +9,7 @@ use im_platform_contracts::{
 };
 use r2d2_postgres::postgres::Transaction;
 use sdkwork_im_contract_agent::AgentMentionDispatchRequest;
+use sdkwork_im_contract_notification::NotificationTaskRecord;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -672,6 +673,29 @@ impl PostgresDurableMessagePostWriter {
         dispatch_request: Option<AgentMentionDispatchRequest>,
         max_dispatch_attempts: u32,
     ) -> Result<Vec<CommitPosition>, ContractError> {
+        self.persist_message_post_batch_with_notification_fanout(
+            envelopes,
+            message,
+            outboxes,
+            dispatch_request,
+            max_dispatch_attempts,
+            Vec::new(),
+        )
+    }
+
+    /// Atomic message post plus notification-request fanout: notification
+    /// task rows are inserted in the same transaction as the journal, message,
+    /// and outbox writes, so a committed message always has its notification
+    /// requests persisted (and a failed post notifies nobody).
+    pub fn persist_message_post_batch_with_notification_fanout(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+        message: StoredMessageRecord,
+        outboxes: Vec<OutboxEventRecord>,
+        dispatch_request: Option<AgentMentionDispatchRequest>,
+        max_dispatch_attempts: u32,
+        notification_tasks: Vec<NotificationTaskRecord>,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
         if envelopes.is_empty() {
             return Err(ContractError::Invalid(
                 "durable message post requires at least one journal envelope".into(),
@@ -682,15 +706,17 @@ impl PostgresDurableMessagePostWriter {
         let prefix = self.partition_prefix.clone();
         let id_generator = self.id_generator.clone();
         run_postgres_io(move || {
+            let mut envelopes = envelopes;
             persist_message_post_txn(
                 &pool,
                 prefix.as_ref(),
-                envelopes.as_slice(),
+                &mut envelopes,
                 &message,
                 outboxes.as_slice(),
                 dispatch_request.as_ref(),
                 max_dispatch_attempts,
                 id_generator.as_ref(),
+                notification_tasks.as_slice(),
             )
         })
     }
@@ -1223,20 +1249,45 @@ fn update_conversation_after_message_mutation_in_transaction(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn persist_message_post_txn(
     pool: &PostgresJournalPool,
     prefix: &str,
-    envelopes: &[CommitEnvelope],
+    envelopes: &mut [CommitEnvelope],
     message: &StoredMessageRecord,
     outboxes: &[OutboxEventRecord],
     dispatch_request: Option<&AgentMentionDispatchRequest>,
     max_dispatch_attempts: u32,
     id_generator: &dyn IdGenerator,
+    notification_tasks: &[NotificationTaskRecord],
 ) -> Result<Vec<CommitPosition>, ContractError> {
     let mut client = postgres_pool_client(pool, "persist_message_post")?;
     let mut txn = client
         .transaction()
         .map_err(|error| postgres_unavailable_db("persist_message_post begin", error))?;
+
+    // Serialize concurrent writers of the same journal partition: the
+    // partition-level advisory xact lock (`pg_advisory_xact_lock`) is released
+    // automatically when this transaction commits or rolls back. Without it,
+    // two nodes posting into the same conversation can both allocate the same
+    // next aggregate sequence and collide on the `(partition_key,
+    // commit_offset)` primary key (HTTP 409) instead of being serialized.
+    crate::lock_journal_partitions(&mut txn, prefix, envelopes, "message post journal lock")?;
+    // Recompute the ordering sequences from the DB's latest aggregate_seq
+    // while holding the partition lock, so every writer appends at the true
+    // next position. Idempotent replay is preserved: an event_id that is
+    // already committed keeps its original sequence and is absorbed by
+    // `ON CONFLICT (event_id) DO NOTHING` below (returning the original
+    // message position).
+    //
+    // NOTE for callers: when the caller's in-memory aggregate is stale, the
+    // database may assign higher sequences than the caller pre-computed. The
+    // caller's success path should observe the aggregate commit sequence from
+    // the returned `CommitPosition` offsets (e.g. via
+    // `aggregate.observe_commit_seq`) instead of the pre-computed
+    // `envelope.ordering_seq`; the storage layer guarantees the journal is
+    // correct regardless.
+    crate::allocate_next_ordering_sequences(&mut txn, prefix, envelopes)?;
 
     let outcomes = envelopes
         .iter()
@@ -1255,6 +1306,12 @@ fn persist_message_post_txn(
             {
                 return Err(ContractError::Conflict("event already enqueued".into()));
             }
+        }
+        if !notification_tasks.is_empty() {
+            crate::notification_task_store::enqueue_notification_tasks_in_transaction(
+                &mut txn,
+                notification_tasks,
+            )?;
         }
         if let Some(dispatch_request) = dispatch_request {
             crate::agent_integration_store::enqueue_dispatches_in_transaction(
@@ -1510,33 +1567,31 @@ fn validate_normalized_conversation_commit(
             ));
         }
     }
-    if let Some(policy) = commit.policy.as_ref() {
-        if policy.tenant_id != conversation.tenant_id
+    if let Some(policy) = commit.policy.as_ref()
+        && (policy.tenant_id != conversation.tenant_id
             || policy.organization_id != conversation.organization_id
             || policy.conversation_id != conversation.conversation_id
             || policy.policy_epoch > conversation.commit_seq
             || policy.policy_version.trim().is_empty()
             || policy.history_visibility.trim().is_empty()
             || policy.retention_policy_ref.trim().is_empty()
-            || policy.max_members.is_some_and(|value| value <= 0)
+            || policy.max_members.is_some_and(|value| value <= 0))
         {
             return Err(ContractError::Invalid(
                 "normalized conversation policy is invalid".into(),
             ));
         }
-    }
-    if let Some(binding) = commit.business_binding.as_ref() {
-        if binding.tenant_id != conversation.tenant_id
+    if let Some(binding) = commit.business_binding.as_ref()
+        && (binding.tenant_id != conversation.tenant_id
             || binding.organization_id != conversation.organization_id
             || binding.conversation_id != conversation.conversation_id
             || binding.business_type.trim().is_empty()
-            || binding.business_id.trim().is_empty()
+            || binding.business_id.trim().is_empty())
         {
             return Err(ContractError::Invalid(
                 "normalized conversation business binding is invalid".into(),
             ));
         }
-    }
     if let Some(handoff) = commit.handoff.as_ref() {
         let actor_pair_is_valid = |kind: &Option<String>, id: &Option<String>| {
             kind.is_some() == id.is_some()
@@ -1579,20 +1634,19 @@ fn validate_normalized_conversation_commit(
             "agent handoff conversation requires normalized handoff state".into(),
         ));
     }
-    if let Some(assignments) = commit.agent_assignments.as_ref() {
-        if assignments.tenant_id.to_string() != conversation.tenant_id
+    if let Some(assignments) = commit.agent_assignments.as_ref()
+        && (assignments.tenant_id.to_string() != conversation.tenant_id
             || assignments.organization_id.to_string() != conversation.organization_id
             || assignments.conversation_id != conversation.conversation_id
             || !commit
                 .envelopes
                 .iter()
-                .any(|envelope| envelope.event_id == assignments.source_event_id)
+                .any(|envelope| envelope.event_id == assignments.source_event_id))
         {
             return Err(ContractError::Invalid(
                 "normalized conversation agent assignment scope is invalid".into(),
             ));
         }
-    }
     Ok(())
 }
 
@@ -1607,11 +1661,10 @@ fn persist_normalized_conversation_commit_txn(
         postgres_unavailable_db("persist_normalized_conversation_commit begin", error)
     })?;
     let normalized_state_applied = upsert_normalized_conversation_in_transaction(&mut txn, commit)?;
-    if normalized_state_applied {
-        if let Some(assignments) = commit.agent_assignments.as_ref() {
+    if normalized_state_applied
+        && let Some(assignments) = commit.agent_assignments.as_ref() {
             replace_conversation_agents_in_transaction(&mut txn, assignments, id_generator)?;
         }
-    }
     let mut positions = Vec::with_capacity(commit.envelopes.len());
     for envelope in &commit.envelopes {
         positions.push(
@@ -2840,7 +2893,9 @@ mod tests {
     fn normalized_conversation_cas_uses_dedicated_complete_fingerprint() {
         let upsert = UPSERT_NORMALIZED_CONVERSATION_SQL.to_ascii_lowercase();
         assert!(upsert.contains("commit_fingerprint"));
-        assert!(upsert.contains("where $14::bigint is not null and im_conversations.commit_seq = $14"));
+        assert!(
+            upsert.contains("where $14::bigint is not null and im_conversations.commit_seq = $14")
+        );
 
         let replay = LOAD_NORMALIZED_CONVERSATION_REPLAY_MATCH_SQL.to_ascii_lowercase();
         assert!(replay.contains("commit_fingerprint = $12"));

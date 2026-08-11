@@ -9,6 +9,7 @@ import { uuid } from "@sdkwork/utils";
 import { showPrompt, showToast } from "@sdkwork/im-h5-commons";
 import { Pin } from "lucide-react";
 import { useAppStore } from "@sdkwork/im-h5-core";
+import type { ImDecodedMessage } from "@sdkwork/im-h5-core/sdk";
 import type { Chat, Message } from "@sdkwork/im-h5-types";
 
 import { ChatHeader } from "../components/Chat/ChatHeader";
@@ -18,7 +19,16 @@ import { MessageList } from "../components/Chat/MessageList";
 import { VoiceRecordingOverlay } from "../components/Chat/VoiceRecordingOverlay";
 import { FullscreenMediaOverlay } from "../components/Chat/FullscreenMediaOverlay";
 import { ChatService } from "../services/ChatService";
-import { subscribeConversationLiveMessages } from "../services/chatRealtimeService";
+import {
+  subscribeConversationLiveMessages,
+  subscribeInboxLiveRefresh,
+} from "../services/chatRealtimeService";
+
+// Resident message window: the newest N messages stay rendered while older
+// history stays reachable through the server cursor; beyond this cap the
+// oldest entries are trimmed so deep browsing cannot accumulate unbounded
+// memory (the newest messages are never dropped).
+const MAX_RENDERED_MESSAGES = 500;
 
 export function ChatDetail() {
   const { conversationId, id } = useParams();
@@ -50,6 +60,10 @@ export function ChatDetail() {
   const mediaInputRef = useRef<HTMLInputElement | null>(null);
   const lastReadWatermarkRef = useRef(0);
   const chatIdRef = useRef(chatId);
+  // Monotonic load generation: a fresh page load, a cursor (older history)
+  // load, or a chat switch supersedes any in-flight request, so stale
+  // responses cannot regress the message window or the pagination cursor.
+  const loadSeqRef = useRef(0);
   const [mediaInputKind, setMediaInputKind] = useState<"image" | "video" | "file">("image");
 
   useEffect(() => {
@@ -66,11 +80,13 @@ export function ChatDetail() {
   const load = useCallback(async (cursor?: string) => {
     if (!chatId) return;
     const requestChatId = chatId;
+    const requestSeq = ++loadSeqRef.current;
     if (cursor) setLoadingMore(true);
     try {
       const page = await ChatService.getMessagePage(requestChatId, cursor);
-      // Ignore responses that belong to a previous conversation (fast chat switching).
-      if (chatIdRef.current !== requestChatId) return;
+      // Ignore responses that belong to a previous conversation (fast chat
+      // switching) or a superseded request (a newer load started later).
+      if (chatIdRef.current !== requestChatId || requestSeq !== loadSeqRef.current) return;
       setLoadError(false);
       setMessages((previous) => mergeMessages(cursor ? previous : [], page.items));
       setNextCursor(page.hasMore ? page.nextCursor : undefined);
@@ -80,11 +96,12 @@ export function ChatDetail() {
       }
     } catch (error) {
       console.error(error);
-      if (chatIdRef.current !== requestChatId) return;
+      if (chatIdRef.current !== requestChatId || requestSeq !== loadSeqRef.current) return;
       setLoadError(true);
       showToast(t("chat.detail.load_failed", "Unable to load messages"));
     } finally {
-      setLoadingMore(false);
+      // Only the latest request owns the loading spinner.
+      if (requestSeq === loadSeqRef.current) setLoadingMore(false);
     }
   }, [chatId, t]);
 
@@ -113,8 +130,29 @@ export function ChatDetail() {
       setPinnedMessageIds([]);
     });
     void load();
-    return subscribeConversationLiveMessages(chatId, () => void load());
+    // Live messages merge incrementally (dedupe by id) instead of re-pulling
+    // the whole page per event. The inbox refresh subscription only fires on
+    // recovery-driven reconnects (initial subscription opens never invoke the
+    // handlers), so `load()` runs exactly when a catch-up reload is needed.
+    const unsubscribeLiveMessages = subscribeConversationLiveMessages(chatId, (decoded) => {
+      void handleLiveMessage(decoded);
+    });
+    const unsubscribeInboxRefresh = subscribeInboxLiveRefresh(() => {
+      void load();
+    });
+    return () => {
+      unsubscribeLiveMessages();
+      unsubscribeInboxRefresh();
+    };
   }, [chatId, load, sessionUser]);
+
+  const handleLiveMessage = useCallback(async (decoded: ImDecodedMessage) => {
+    const mapped = await ChatService.mapRealtimeMessage(decoded);
+    if (!mapped) return;
+    // The user may have switched conversations while the mapping resolved.
+    if (chatIdRef.current !== mapped.chatId) return;
+    setMessages((previous) => mergeMessages(previous, [mapped]));
+  }, []);
 
   const handlePinMessage = (messageId: string) => {
     const isPinned = pinnedMessageIds.includes(messageId);
@@ -162,7 +200,18 @@ export function ChatDetail() {
           : chat?.participants.find((participant) => participant.id === replyingTo.senderId)?.name ?? replyingTo.senderId,
         contentPreview: replyingTo.content.slice(0, 200),
       } : undefined;
-      const message = await ChatService.sendMessage(chatId, sessionUser?.id ?? "", content, "text", undefined, replyTo);
+      // The idempotency key is derived from the local message id so a retry of
+      // the same local message reuses the same clientMsgId; the server then
+      // deduplicates instead of posting a second message.
+      const message = await ChatService.sendMessage(
+        chatId,
+        sessionUser?.id ?? "",
+        content,
+        "text",
+        undefined,
+        replyTo,
+        idempotencyKeyForLocalMessage(localMessage.id),
+      );
       // The realtime echo may already have merged the server message while the
       // placeholder was pending: merge by id instead of replacing blindly.
       setMessages((previous) => mergeMessages(replaceLocalMessage(previous, localMessage.id, message), []));
@@ -203,9 +252,15 @@ export function ChatDetail() {
     };
     setMessages((previous) => mergeMessages(previous, [localMessage]));
     try {
-      const message = await ChatService.sendMediaMessage(chatId, file, kind, {
-        ...(file instanceof File ? { fileName: file.name, mimeType: file.type } : {}),
-      });
+      const message = await ChatService.sendMediaMessage(
+        chatId,
+        file,
+        kind,
+        {
+          ...(file instanceof File ? { fileName: file.name, mimeType: file.type } : {}),
+        },
+        idempotencyKeyForLocalMessage(localMessage.id),
+      );
       setMessages((previous) => mergeMessages(replaceLocalMessage(previous, localMessage.id, message), []));
       setActivePanel("none");
     } catch (error) {
@@ -217,18 +272,31 @@ export function ChatDetail() {
     }
   };
 
-  const retrySend = async (message: Message) => {
+  const retrySend = useCallback(async (message: Message) => {
     if (message.sendState !== "failed" || !chatId) return;
+    // Retries reuse the failed placeholder's original idempotency key, so a
+    // send that actually reached the server cannot duplicate the message.
+    // Media retries are not offered: the original File/Blob is not retained
+    // after a failed send (delete the placeholder via the context menu).
+    if (message.type !== "text") return;
     setMessages((previous) => previous.map((item) => item.id === message.id ? { ...item, sendState: "sending" as const } : item));
     try {
-      const sent = await ChatService.sendMessage(chatId, message.senderId, message.content, "text");
+      const sent = await ChatService.sendMessage(
+        chatId,
+        message.senderId,
+        message.content,
+        "text",
+        undefined,
+        undefined,
+        idempotencyKeyForLocalMessage(message.id),
+      );
       setMessages((previous) => mergeMessages(replaceLocalMessage(previous, message.id, sent), []));
     } catch (error) {
       console.error(error);
       setMessages((previous) => previous.map((item) => item.id === message.id ? { ...item, sendState: "failed" as const } : item));
       showToast(t("chat.detail.send_failed", "Unable to send message"));
     }
-  };
+  }, [chatId, t]);
 
   const handleSendCustom = (type: Message["type"]) => {
     if (type === "image" || type === "video" || type === "file") {
@@ -286,12 +354,26 @@ export function ChatDetail() {
     stopVoiceRecording();
   };
 
-  const handleTouchStart = (event: React.TouchEvent | React.MouseEvent, messageId: string) => {
+  const handleTouchStart = useCallback((event: React.TouchEvent | React.MouseEvent, messageId: string) => {
     const point = "touches" in event ? event.touches[0] : event;
     longPressTimer.current = setTimeout(() => {
       setContextMenu({ isOpen: true, x: Math.min(point.clientX, window.innerWidth - 180), y: Math.min(point.clientY, window.innerHeight - 420), messageId });
     }, 500);
-  };
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = undefined;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = undefined;
+    }
+  }, []);
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-bg-color">
@@ -335,12 +417,14 @@ export function ChatDetail() {
         showAvatar={chat?.settings?.showAvatar ?? true}
         contextMenu={contextMenu}
         handleTouchStart={handleTouchStart}
-        handleTouchEnd={() => longPressTimer.current && clearTimeout(longPressTimer.current)}
-        handleTouchMove={() => longPressTimer.current && clearTimeout(longPressTimer.current)}
+        handleTouchEnd={handleTouchEnd}
+        handleTouchMove={handleTouchMove}
         setFullscreenMedia={setFullscreenMedia}
         highlightedMsgId={highlightedMsgId}
         setHighlightedMsgId={setHighlightedMsgId}
         setActivePanel={setActivePanel}
+        hasMoreTop={Boolean(nextCursor)}
+        loadingMore={loadingMore}
         onRetry={(message) => void retrySend(message)}
       />
       {loadError && messages.length === 0 && (
@@ -456,7 +540,27 @@ export function ChatDetail() {
 function mergeMessages(previous: readonly Message[], incoming: readonly Message[]): Message[] {
   const messages = new Map(previous.map((message) => [message.id, message]));
   for (const message of incoming) messages.set(message.id, message);
-  return Array.from(messages.values()).sort((left, right) => left.timestamp - right.timestamp);
+  const sorted = Array.from(messages.values()).sort((left, right) =>
+    left.timestamp - right.timestamp
+    || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+  );
+  // Bounded window: keep the newest messages resident; older history stays
+  // reachable through the server cursor (nextCursor) when the user scrolls
+  // to the top. The newest entries are never trimmed.
+  return sorted.length > MAX_RENDERED_MESSAGES
+    ? sorted.slice(sorted.length - MAX_RENDERED_MESSAGES)
+    : sorted;
+}
+
+/**
+ * The server deduplicates posts by clientMsgId; the key must be stable for
+ * the whole lifecycle of one local message (send + retries). The local
+ * placeholder id is `local-<uuid>` — strip the prefix so the wire key is the
+ * plain uuid.
+ */
+function idempotencyKeyForLocalMessage(localId: string): string | undefined {
+  const prefix = "local-";
+  return localId.startsWith(prefix) ? localId.slice(prefix.length) : undefined;
 }
 
 function replaceLocalMessage(previous: readonly Message[], localId: string, sent: Message): Message[] {

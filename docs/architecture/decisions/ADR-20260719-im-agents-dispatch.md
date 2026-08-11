@@ -17,11 +17,17 @@ Agents-to-IM dependency is permitted.
 
 ## Rollout
 
-Use additive migration `0005_agents_integration_expand`. The new tables use the
-target BIGINT subject profile. Existing IM TEXT subject columns migrate through
-a separately reviewed expand/backfill/contract sequence before the `2.0.0`
-contract is declared complete. Until then, source/reply message identity is
-validated by the IM service rather than a cross-type physical foreign key.
+The three IM-owned tables (`im_conversation_agent_assignments`,
+`im_conversation_agent_binding`, `im_agent_dispatch`) use the target BIGINT
+subject profile and live in the immutable baseline
+(`database/ddl/baseline/postgres/0001_im_baseline.sql`) with their range-safe
+guards. The original additive migrations (`0005_agents_integration_expand` and
+follow-ups) were squashed into the baseline and removed from
+`database/migrations/postgres/`. Existing IM TEXT subject columns migrate
+through a separately reviewed expand/backfill/contract sequence before the
+`2.0.0` contract is declared complete. Until then, source/reply message
+identity is validated by the IM service rather than a cross-type physical
+foreign key.
 
 ## Consequences
 

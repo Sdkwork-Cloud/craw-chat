@@ -299,11 +299,10 @@ fn invalid_parameter_response(ctx: &WebRequestContext, detail: impl Into<String>
         header::CONTENT_TYPE,
         HeaderValue::from_static("application/problem+json"),
     );
-    if let Ok(value) = HeaderValue::from_str(trace_id.as_str()) {
-        if let Ok(header_name) = HeaderName::from_bytes(SDKWORK_TRACE_ID_HEADER.as_bytes()) {
+    if let Ok(value) = HeaderValue::from_str(trace_id.as_str())
+        && let Ok(header_name) = HeaderName::from_bytes(SDKWORK_TRACE_ID_HEADER.as_bytes()) {
             response.headers_mut().insert(header_name, value);
         }
-    }
     response
 }
 
@@ -1645,7 +1644,7 @@ impl SocialRuntime {
             updated_at: request.requested_at,
         };
 
-        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.acquire_cross_instance_write_lock()?;
         self.refresh_state_from_authority_for_write()?;
         let mut state = self
             .state
@@ -2389,7 +2388,7 @@ impl SocialRuntime {
             "invalid_friend_request",
         )?;
 
-        let _write_lock = self
+        self
             .acquire_cross_instance_write_lock()
             .map_err(map_social_runtime_string_error)?;
         self.refresh_state_from_authority_for_write()
@@ -2870,7 +2869,7 @@ impl SocialRuntime {
             "invalid_friend_request",
         )?;
 
-        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.acquire_cross_instance_write_lock()?;
         self.refresh_state_from_authority_for_write()?;
         let mut state = self
             .state
@@ -3013,7 +3012,7 @@ impl SocialRuntime {
             "invalid_friend_request",
         )?;
 
-        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.acquire_cross_instance_write_lock()?;
         self.refresh_state_from_authority_for_write()?;
         let mut state = self
             .state
@@ -3210,7 +3209,7 @@ impl SocialRuntime {
             updated_at: request.established_at,
         };
 
-        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.acquire_cross_instance_write_lock()?;
         self.refresh_state_from_authority_for_write()?;
         let mut state = self
             .state
@@ -3382,7 +3381,7 @@ impl SocialRuntime {
             "invalid_friendship",
         )?;
 
-        let _write_lock = self.acquire_cross_instance_write_lock()?;
+        self.acquire_cross_instance_write_lock()?;
         self.refresh_state_from_authority_for_write()?;
         let mut state = self
             .state
@@ -3540,7 +3539,7 @@ pub(crate) async fn list_friend_requests(
 
         ensure_auth_user_matches(&auth, query.user_id.as_str(), "userId")?;
         let tenant_id = auth.tenant_id.as_str();
-        let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+        state.social_runtime.acquire_cross_instance_read_lock()?;
         state
             .social_runtime
             .refresh_state_from_authority_for_read()?;
@@ -3713,7 +3712,7 @@ pub(crate) async fn friend_request_snapshot(
     let result = crate::envelope::run_blocking_social_call(state, move |state| {
         let tenant_id = auth.tenant_id.as_str();
 
-        let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+        state.social_runtime.acquire_cross_instance_read_lock()?;
         state
             .social_runtime
             .refresh_state_from_authority_for_read()?;
@@ -3799,7 +3798,7 @@ pub(crate) async fn friendship_snapshot(
     let result = crate::envelope::run_blocking_social_call(state, move |state| {
         let tenant_id = auth.tenant_id.as_str();
 
-        let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+        state.social_runtime.acquire_cross_instance_read_lock()?;
         state
             .social_runtime
             .refresh_state_from_authority_for_read()?;

@@ -228,14 +228,13 @@ impl StateStore for PostgresRtcStateStore {
                 .map(|row| row.get::<_, i64>(0) as u64);
 
             // Epoch fencing: reject stale or duplicate concurrent writes.
-            if let Some(existing) = existing_epoch {
-                if record.session.epoch <= existing {
+            if let Some(existing) = existing_epoch
+                && record.session.epoch <= existing {
                     return Err(RtcContractError::Conflict(format!(
                         "stale epoch rejected: existing={} incoming={}",
                         existing, record.session.epoch
                     )));
                 }
-            }
 
             let payload_json = serde_json::to_string(&record).map_err(|err| {
                 RtcContractError::Unavailable(format!("save_state serialize failed: {err}"))
@@ -490,8 +489,7 @@ pub fn build_postgres_rtc_state_store_optional(
                     format!(
                         "PostgresRtcStateStore connection failed in production-like \
                          environment: {err:?}"
-                    )
-                    .into(),
+                    ),
                 ));
             }
             tracing::warn!(

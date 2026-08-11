@@ -575,6 +575,24 @@ export const generatedOpenApiSchemas = {
         "type": "string (date-time)",
         "description": "Defined by the authored OpenAPI contract.",
         "required": true
+      },
+      {
+        "name": "invitedBy",
+        "type": "string",
+        "description": "Defined by the authored OpenAPI contract.",
+        "required": false
+      },
+      {
+        "name": "removedAt",
+        "type": "string (date-time)",
+        "description": "Defined by the authored OpenAPI contract.",
+        "required": false
+      },
+      {
+        "name": "attributes",
+        "type": "Record<string, string>",
+        "description": "Defined by the authored OpenAPI contract.",
+        "required": false
       }
     ]
   },
