@@ -4,14 +4,15 @@
 //
 // The circle tier publishing and paid-order verification flows call the
 // membership/order backend business surfaces in-process (embedded in the IM
-// standalone gateway). Those routes require a real IAM session with
+// standalone gateway). Those routes require a paired IAM session (dual-token:
+// `Authorization` bearer auth token + `Access-Token` header) with
 // `commerce.memberships.manage` / `commerce.orders.read`; the dev profile
 // uses the demo `owner` account (granted the manage permission in dev data).
 //
-// The minted access token is a 30-day session; run this script to refresh it
-// before expiry and it rewrites the two SDKWORK_*_BACKEND_ACCESS_TOKEN lines
-// in `etc/topology/standalone.development.env`, then restart the gateway
-// (`pnpm dev`) for the new token to take effect.
+// The minted tokens are 30-day sessions; run this script to refresh them
+// before expiry and it rewrites the four SDKWORK_*_BACKEND_*_TOKEN lines in
+// `etc/topology/standalone.development.env`, then restart the gateway
+// (`pnpm dev`) for the new tokens to take effect.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,7 +29,7 @@ const GATEWAY_BASE_URL = process.env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL ?? '
 const OWNER_USERNAME = 'owner';
 const OWNER_PASSWORD = 'Owner#2026';
 
-async function mintOwnerAccessToken() {
+async function mintOwnerSessionTokens() {
   const bootstrapToken = createDevBootstrapAccessTokenJwt({
     appId: 'sdkwork-im-pc',
     environment: 'development',
@@ -50,25 +51,33 @@ async function mintOwnerAccessToken() {
     throw new Error(`owner login failed (${response.status}): ${detail.slice(0, 300)}`);
   }
   const body = await response.json();
+  const authToken = body?.data?.authToken;
   const accessToken = body?.data?.accessToken;
+  if (typeof authToken !== 'string' || authToken.length === 0) {
+    throw new Error('owner login did not return an auth token');
+  }
   if (typeof accessToken !== 'string' || accessToken.length === 0) {
     throw new Error('owner login did not return an access token');
   }
-  return accessToken;
+  return { authToken, accessToken };
 }
 
-function rewriteTokenLines(envPath, accessToken) {
+function rewriteTokenLines(envPath, authToken, accessToken) {
   const raw = fs.readFileSync(envPath, 'utf8');
   const lines = raw.split(/\r?\n/u);
   const remaining = lines.filter((line) => {
     const trimmed = line.trim();
     return (
+      !trimmed.startsWith('SDKWORK_MEMBERSHIP_BACKEND_AUTH_TOKEN=') &&
       !trimmed.startsWith('SDKWORK_MEMBERSHIP_BACKEND_ACCESS_TOKEN=') &&
+      !trimmed.startsWith('SDKWORK_ORDER_BACKEND_AUTH_TOKEN=') &&
       !trimmed.startsWith('SDKWORK_ORDER_BACKEND_ACCESS_TOKEN=')
     );
   });
   remaining.push(
+    `SDKWORK_MEMBERSHIP_BACKEND_AUTH_TOKEN=${authToken}`,
     `SDKWORK_MEMBERSHIP_BACKEND_ACCESS_TOKEN=${accessToken}`,
+    `SDKWORK_ORDER_BACKEND_AUTH_TOKEN=${authToken}`,
     `SDKWORK_ORDER_BACKEND_ACCESS_TOKEN=${accessToken}`,
     '',
   );
@@ -76,11 +85,11 @@ function rewriteTokenLines(envPath, accessToken) {
 }
 
 async function main() {
-  const accessToken = await mintOwnerAccessToken();
-  rewriteTokenLines(TOPOLOGY_ENV, accessToken);
-  console.log('minted 30-day commerce integration token for owner and wrote:');
+  const { authToken, accessToken } = await mintOwnerSessionTokens();
+  rewriteTokenLines(TOPOLOGY_ENV, authToken, accessToken);
+  console.log('minted 30-day commerce integration session (owner) and wrote:');
   console.log(`  ${TOPOLOGY_ENV}`);
-  console.log('restart the gateway (`pnpm dev`) for the token to take effect.');
+  console.log('restart the gateway (`pnpm dev`) for the tokens to take effect.');
 }
 
 main().catch((error) => {
