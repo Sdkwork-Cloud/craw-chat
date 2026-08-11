@@ -23,7 +23,7 @@
 @source "../../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription/src";
 @source "../../../../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-coupon/src";
 
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (.dark &);
 
 @theme {
   --color-kb-nav: var(--theme-nav);
