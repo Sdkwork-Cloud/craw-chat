@@ -24,6 +24,15 @@ import {
 } from '@sdkwork/community-mobile-react-community';
 import { getSdkClients } from './sdkClients';
 
+
+function createIdempotencyKey(): string {
+  const random = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `community-${random}`;
+}
+
 let bootstrapped = false;
 
 export function bootstrapImCommunityH5Port(): void {
@@ -46,7 +55,7 @@ export function bootstrapImCommunityH5Port(): void {
           paymentProduct: 'mobile_cashier_h5',
           source: options.source ?? 'community-circle',
         },
-        { idempotencyKey: crypto.randomUUID() },
+        { idempotencyKey: createIdempotencyKey() },
       );
       return {
         orderId: result.orderId,
