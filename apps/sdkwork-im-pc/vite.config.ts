@@ -425,6 +425,12 @@ export default defineConfig(({mode}) => {
       host: process.env.SDKWORK_IM_PC_DEV_HOST?.trim() || '0.0.0.0',
       port: resolveDevServerPort(),
       strictPort: true,
+      // Sibling workspace sources (sdkwork-community, sdkwork-agents, ...)
+      // are aliased into the module graph; allow the workspace collection root
+      // so Vite's fs.allow does not 403 those /@fs requests in dev.
+      fs: {
+        allow: [path.resolve(repoRoot, '..')],
+      },
     },
     optimizeDeps: {
       // Pre-bundle every runtime-discovered dependency so the dev server never

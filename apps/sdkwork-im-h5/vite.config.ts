@@ -359,6 +359,12 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: '127.0.0.1',
     port: 4178,
+    // Sibling workspace sources (sdkwork-community, sdkwork-agents, ...)
+    // are aliased into the module graph; allow the workspace collection root
+    // so Vite's fs.allow does not 403 those /@fs requests in dev.
+    fs: {
+      allow: [path.resolve(__dirname, '../../..')],
+    },
   },
   build: {
     rollupOptions: {

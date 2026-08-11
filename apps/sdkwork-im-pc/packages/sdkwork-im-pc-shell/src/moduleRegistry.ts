@@ -45,6 +45,7 @@ export const DEFAULT_SIDEBAR_MODULES: AppModuleId[] = [
   "drive",
   "agent",
   "favorites",
+  "community",
 ];
 
 /**
