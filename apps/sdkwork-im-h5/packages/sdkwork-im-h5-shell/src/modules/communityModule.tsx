@@ -2,7 +2,7 @@ import React from "react";
 import type { ImH5CapabilityModule } from "../contracts";
 import { IM_H5_ROUTE_DEFINITIONS } from "../routeCatalog";
 
-type ComponentName = "CommunityList" | "CreateCommunity" | "CommunityDetail" | "CommunityProfile" | "CommunityGroupManagement" | "CreateCommunityGroup" | "CommunityEditField" | "CommunityEditImage" | "CommunityEditTabs" | "CommunityMembers" | "CommunityQRCode" | "CommunityPostCreate" | "CommunityGroupQRs";
+type ComponentName = "CommunityList" | "CreateCommunity" | "CommunityDetail" | "CommunityProfile" | "CommunityGroupManagement" | "CreateCommunityGroup" | "CommunityEditField" | "CommunityEditImage" | "CommunityEditTabs" | "CommunityMembers" | "CommunityQRCode" | "CommunityPostCreate" | "CommunityGroupQRs" | "CircleCashierBridge";
 
 function lazyComponent(name: ComponentName) {
   return React.lazy(async () => {
@@ -24,6 +24,7 @@ const CommunityMembers = lazyComponent("CommunityMembers");
 const CommunityQRCode = lazyComponent("CommunityQRCode");
 const CommunityPostCreate = lazyComponent("CommunityPostCreate");
 const CommunityGroupQRs = lazyComponent("CommunityGroupQRs");
+const CircleCashierBridge = lazyComponent("CircleCashierBridge");
 
 export const communityModule: ImH5CapabilityModule = {
   id: "community",
@@ -42,5 +43,13 @@ export const communityModule: ImH5CapabilityModule = {
     { ...IM_H5_ROUTE_DEFINITIONS.communityPostCreate, render: () => <CommunityPostCreate /> },
     { ...IM_H5_ROUTE_DEFINITIONS.communityGroupsCreate, render: () => <CreateCommunityGroup /> },
     { ...IM_H5_ROUTE_DEFINITIONS.communityGroupQrs, render: () => <CommunityGroupQRs /> },
+    { ...IM_H5_ROUTE_DEFINITIONS.communityCashier,
+      render: () => (
+        <CircleCashierBridge
+          orderDetailPath={IM_H5_ROUTE_DEFINITIONS.ordersDetail.path}
+          orderCenterPath={IM_H5_ROUTE_DEFINITIONS.ordersCenter.path}
+        />
+      ),
+    },
   ],
 };
