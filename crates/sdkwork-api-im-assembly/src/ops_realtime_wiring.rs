@@ -2,7 +2,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ops_service::{
-    OpsRuntime, RealtimeInboxDiagnosticsView, RealtimeInboxHighRiskWindowView, RouteOwnershipView,
+    LagItem, OpsRuntime, RealtimeInboxDiagnosticsView, RealtimeInboxHighRiskWindowView,
+    RouteOwnershipView,
 };
 use session_gateway::{
     RealtimeClusterBridge, RealtimeDeliveryRuntime, RealtimeInboxDiagnosticsSnapshot,
@@ -107,7 +108,9 @@ fn update_realtime_inbox_from_snapshot(
 ) -> Result<(), String> {
     match snapshot {
         Ok(snapshot) => {
-            ops_runtime.update_realtime_inbox(map_realtime_inbox(snapshot));
+            let view = map_realtime_inbox(snapshot);
+            ops_runtime.update_realtime_inbox(view.clone());
+            ops_runtime.upsert_lag_items(realtime_lag_items(&view));
             Ok(())
         }
         Err(error) => {
@@ -115,6 +118,37 @@ fn update_realtime_inbox_from_snapshot(
             Err(error)
         }
     }
+}
+
+/// Builds real delivery-lag items from the realtime inbox diagnostics.
+///
+/// For every high-risk client route window the lag is the number of events
+/// produced for that scope that are not yet acknowledged (`pending`), with
+/// `current_offset` = newest produced sequence watermark and `committed_offset`
+/// = delivered watermark, so `lag = current - committed` holds. A `cluster`
+/// aggregate item reports the whole-plane backlog.
+fn realtime_lag_items(view: &RealtimeInboxDiagnosticsView) -> Vec<LagItem> {
+    let mut items = Vec::with_capacity(view.high_risk_windows.len().saturating_add(1));
+    for window in &view.high_risk_windows {
+        items.push(LagItem {
+            component: "realtime".to_owned(),
+            scope_id: format!(
+                "{}:{}:{}:{}",
+                window.tenant_id, window.principal_kind, window.principal_id, window.device_id
+            ),
+            current_offset: window.trimmed_through_seq + window.pending_event_count,
+            committed_offset: window.trimmed_through_seq,
+            lag: window.pending_event_count,
+        });
+    }
+    items.push(LagItem {
+        component: "realtime".to_owned(),
+        scope_id: "cluster".to_owned(),
+        current_offset: view.max_trimmed_through_seq + view.pending_event_count,
+        committed_offset: view.max_trimmed_through_seq,
+        lag: view.pending_event_count,
+    });
+    items
 }
 
 fn map_realtime_inbox(snapshot: RealtimeInboxDiagnosticsSnapshot) -> RealtimeInboxDiagnosticsView {

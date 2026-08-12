@@ -48,10 +48,6 @@ UPDATE im_commit_journal SET organization_id = '0' WHERE organization_id IS NULL
 ALTER TABLE im_commit_journal ALTER COLUMN organization_id SET DEFAULT '0';
 ALTER TABLE im_commit_journal ALTER COLUMN organization_id SET NOT NULL;
 
-ALTER TABLE im_idempotency_keys ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
-UPDATE im_idempotency_keys SET organization_id = '0' WHERE organization_id IS NULL;
-ALTER TABLE im_idempotency_keys ALTER COLUMN organization_id SET DEFAULT '0';
-ALTER TABLE im_idempotency_keys ALTER COLUMN organization_id SET NOT NULL;
 
 ALTER TABLE im_realtime_device_events ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
 UPDATE im_realtime_device_events SET organization_id = '0' WHERE organization_id IS NULL;
@@ -93,10 +89,6 @@ UPDATE im_rtc_sessions SET organization_id = '0' WHERE organization_id IS NULL;
 ALTER TABLE im_rtc_sessions ALTER COLUMN organization_id SET DEFAULT '0';
 ALTER TABLE im_rtc_sessions ALTER COLUMN organization_id SET NOT NULL;
 
-ALTER TABLE im_rtc_signals ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
-UPDATE im_rtc_signals SET organization_id = '0' WHERE organization_id IS NULL;
-ALTER TABLE im_rtc_signals ALTER COLUMN organization_id SET DEFAULT '0';
-ALTER TABLE im_rtc_signals ALTER COLUMN organization_id SET NOT NULL;
 
 ALTER TABLE im_audit_records ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
 UPDATE im_audit_records SET organization_id = '0' WHERE organization_id IS NULL;
@@ -258,15 +250,7 @@ UPDATE im_message_pins SET organization_id = '0' WHERE organization_id IS NULL;
 ALTER TABLE im_message_pins ALTER COLUMN organization_id SET DEFAULT '0';
 ALTER TABLE im_message_pins ALTER COLUMN organization_id SET NOT NULL;
 
-ALTER TABLE im_threads ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
-UPDATE im_threads SET organization_id = '0' WHERE organization_id IS NULL;
-ALTER TABLE im_threads ALTER COLUMN organization_id SET DEFAULT '0';
-ALTER TABLE im_threads ALTER COLUMN organization_id SET NOT NULL;
 
-ALTER TABLE im_thread_subscriptions ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
-UPDATE im_thread_subscriptions SET organization_id = '0' WHERE organization_id IS NULL;
-ALTER TABLE im_thread_subscriptions ALTER COLUMN organization_id SET DEFAULT '0';
-ALTER TABLE im_thread_subscriptions ALTER COLUMN organization_id SET NOT NULL;
 
 ALTER TABLE im_user_profiles ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
 UPDATE im_user_profiles SET organization_id = '0' WHERE organization_id IS NULL;
@@ -278,10 +262,6 @@ UPDATE im_user_settings SET organization_id = '0' WHERE organization_id IS NULL;
 ALTER TABLE im_user_settings ALTER COLUMN organization_id SET DEFAULT '0';
 ALTER TABLE im_user_settings ALTER COLUMN organization_id SET NOT NULL;
 
-ALTER TABLE im_conversation_settings ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
-UPDATE im_conversation_settings SET organization_id = '0' WHERE organization_id IS NULL;
-ALTER TABLE im_conversation_settings ALTER COLUMN organization_id SET DEFAULT '0';
-ALTER TABLE im_conversation_settings ALTER COLUMN organization_id SET NOT NULL;
 
 ALTER TABLE im_invitations ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
 UPDATE im_invitations SET organization_id = '0' WHERE organization_id IS NULL;
@@ -293,20 +273,8 @@ UPDATE im_ban_records SET organization_id = '0' WHERE organization_id IS NULL;
 ALTER TABLE im_ban_records ALTER COLUMN organization_id SET DEFAULT '0';
 ALTER TABLE im_ban_records ALTER COLUMN organization_id SET NOT NULL;
 
-ALTER TABLE im_rtc_outbox_events ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
-UPDATE im_rtc_outbox_events SET organization_id = '0' WHERE organization_id IS NULL;
-ALTER TABLE im_rtc_outbox_events ALTER COLUMN organization_id SET DEFAULT '0';
-ALTER TABLE im_rtc_outbox_events ALTER COLUMN organization_id SET NOT NULL;
 
-ALTER TABLE im_rtc_quality_reports ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
-UPDATE im_rtc_quality_reports SET organization_id = '0' WHERE organization_id IS NULL;
-ALTER TABLE im_rtc_quality_reports ALTER COLUMN organization_id SET DEFAULT '0';
-ALTER TABLE im_rtc_quality_reports ALTER COLUMN organization_id SET NOT NULL;
 
-ALTER TABLE im_rtc_participant_credentials ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
-UPDATE im_rtc_participant_credentials SET organization_id = '0' WHERE organization_id IS NULL;
-ALTER TABLE im_rtc_participant_credentials ALTER COLUMN organization_id SET DEFAULT '0';
-ALTER TABLE im_rtc_participant_credentials ALTER COLUMN organization_id SET NOT NULL;
 
 ALTER TABLE im_conversation_knowledge_space_link ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
 UPDATE im_conversation_knowledge_space_link SET organization_id = '0' WHERE organization_id IS NULL;

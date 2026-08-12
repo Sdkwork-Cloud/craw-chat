@@ -127,19 +127,36 @@ configured total deadline. The Kubernetes reference uses a 45-second application
 deadline and `terminationGracePeriodSeconds: 75`, leaving 30 seconds for the
 preStop signal, scheduler delay, and forced process termination.
 
-### Gateway protection (rate limit + circuit breaker)
+### Gateway protection (rate limit)
+
+The standalone gateway applies two real rate-limit layers:
+
+1. **Edge client-IP token bucket** (`edge_ip_rate_limit`) applied after IM, IAM,
+   and embedded dependency routers are merged. Configurable per client IP:
 
 | Env key | Default | Purpose |
 | --- | --- | --- |
 | `SDKWORK_IM_GATEWAY_RATE_LIMIT_RPM` | `600` | Max requests per minute per client IP |
 | `SDKWORK_IM_GATEWAY_RATE_LIMIT_BURST` | `50` | Token bucket burst capacity |
 | `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` | `5000` | Max tracked client IPs before eviction |
-| `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_THRESHOLD` | `10` | Consecutive 5xx failures before tripping |
-| `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_RESET_SECS` | `30` | Seconds before half-open probe retry |
-| `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` | _(empty)_ | Comma-separated trusted proxy IPs for X-Forwarded-For |
-| `SDKWORK_IM_GATEWAY_OPENAPI_CACHE_TTL_SECS` | `60` | Successful aggregate `/openapi.json` cache TTL; concurrent misses are coalesced |
 
-Standalone applies one final edge `HybridIpRateLimiter` after IM, IAM, and embedded dependency routers are merged. The canonical infrastructure probe paths (`/healthz`, `/livez`, `/readyz`, `/metrics`) are exempt from IP rate limiting. Legacy `/health` and `/ready` aliases are not served.
+   The canonical infrastructure probe paths (`/healthz`, `/livez`, `/readyz`,
+   `/metrics`) and the `/openapi` documentation surface are exempt from IP
+   rate limiting. Legacy `/health` and `/ready` aliases are not served.
+
+2. **Framework tier/tenant rate limit policy** enforced by the web framework
+   per authenticated tenant, credential fingerprint, or anonymous path. When
+   Redis is configured (`SDKWORK_IM_GATEWAY_RATE_LIMIT_REDIS_URL`, or
+   `SDKWORK_IM_REDIS_URL` with `SDKWORK_IM_REDIS_ENABLED` truthy), the rate
+   limit, idempotency, and concurrent-admission stores are Redis-backed
+   (multi-replica HA); otherwise in-memory defaults apply for single-replica
+   profiles. The production framework assembly refuses to boot with in-memory
+   stores when `WebEnvironment::Prod` is selected and Redis is configured
+   (fail-closed).
+
+WebSocket upgrade and frame rate limits additionally use
+`SDKWORK_IM_GATEWAY_RATE_LIMIT_REDIS_URL` (falling back to `SDKWORK_IM_REDIS_URL`
+when `SDKWORK_IM_REDIS_ENABLED` is truthy) for horizontal scaling.
 
 `/openapi.json` skips configured upstreams whose `{baseUrl}/openapi.json` resolves to the current gateway aggregate endpoint. This prevents recursive OpenAPI aggregation, the request fan-out that caused API calls to remain pending after startup, and the secondary rate-limit/socket pressure that followed.
 
@@ -161,9 +178,7 @@ Standalone applies one final edge `HybridIpRateLimiter` after IM, IAM, and embed
 | `SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID` | JWT header `kid` for bootstrap signing key (default `bootstrap`) |
 | `SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET` | HS256 secret when services validate dual tokens directly (literal value) |
 | `SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET_FILE` | Path to file containing the JWT signing secret (Docker/K8s secrets pattern; takes precedence over direct env var) |
-| `SDKWORK_IM_GATEWAY_ALLOW_WEBSOCKET_QUERY_TOKENS` | Opt-in WebSocket query-string token auth (default `false`; rejected in production regardless) |
-| `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` | Comma-separated trusted proxy IPs for X-Forwarded-For validation |
-| `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` | Max tracked client IPs before forced eviction (default `5000`) |
+| `SDKWORK_IM_GATEWAY_RATE_LIMIT_REDIS_URL` | Redis URL for gateway rate-limit stores (WebSocket upgrade/frame and HTTP tier limits); falls back to `SDKWORK_IM_REDIS_URL` when `SDKWORK_IM_REDIS_ENABLED` is truthy |
 
 The process database pool (`SDKWORK_DATABASE_*`) enables `resolve_iam_auth_pool_from_env` for authoritative dual-token verification in session-gateway.
 

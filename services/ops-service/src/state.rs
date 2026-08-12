@@ -291,6 +291,27 @@ impl OpsRuntime {
         *lock_ops_mutex(&self.lag_items, "ops lag items") = lag_items;
     }
 
+    /// Merges lag items by `(component, scope_id)` so independent samplers
+    /// (realtime plane mirror, outbox relay sampler) update disjoint lag
+    /// families without clobbering each other.
+    pub fn upsert_lag_items(&self, items: Vec<LagItem>) {
+        let mut lag_items = lock_ops_mutex(&self.lag_items, "ops lag items");
+        for item in items {
+            if let Some(existing) = lag_items.iter_mut().find(|existing| {
+                existing.component == item.component && existing.scope_id == item.scope_id
+            }) {
+                *existing = item;
+            } else {
+                lag_items.push(item);
+            }
+        }
+        lag_items.sort_by(|left, right| {
+            left.component
+                .cmp(&right.component)
+                .then_with(|| left.scope_id.cmp(&right.scope_id))
+        });
+    }
+
     pub fn node_id(&self) -> &str {
         self.node_id.as_str()
     }

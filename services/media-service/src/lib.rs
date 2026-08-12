@@ -50,12 +50,22 @@ impl MediaRuntime {
         Self
     }
 
+    /// Reports the media reference service's own capability health.
+    ///
+    /// The media service owns Drive-backed media *references* only: it holds
+    /// no Drive connection and performs no Drive lifecycle operation, so it
+    /// cannot verify Drive availability. Unconditionally reporting
+    /// `status: healthy` for `sdkwork-drive` would be fabricated evidence;
+    /// the snapshot reports this service's own health and explicitly marks
+    /// Drive availability as not verified here (the Drive surface owns and
+    /// reports its own health).
     pub fn provider_health_snapshot(
         &self,
-        _tenant_id: &str,
+        tenant_id: &str,
     ) -> Result<ProviderHealthSnapshot, MediaError> {
         let mut snapshot =
-            ProviderHealthSnapshot::healthy("sdkwork-drive", utc_now_rfc3339_millis());
+            ProviderHealthSnapshot::healthy("sdkwork-im-media", utc_now_rfc3339_millis());
+        snapshot.details.insert("tenantId".into(), tenant_id.to_owned());
         snapshot
             .details
             .insert("storageAuthority".into(), "sdkwork-drive".into());
@@ -68,6 +78,9 @@ impl MediaRuntime {
         snapshot
             .details
             .insert("uploadLifecycle".into(), "delegated-to-drive".into());
+        snapshot
+            .details
+            .insert("driveAvailability".into(), "not-verified-by-media-service".into());
         Ok(snapshot)
     }
 }
@@ -270,7 +283,7 @@ fn classify_media_route_security(path: &str, _method: HttpMethod) -> bool {
 fn summarize_media_route(path: &str, _method: HttpMethod) -> String {
     match path {
         "/app/v3/api/media/provider_health" => {
-            "Inspect Drive-backed media reference provider health".into()
+            "Inspect media reference service health; Drive availability is reported by the Drive surface".into()
         }
         "/healthz" => "Media reference service liveness".into(),
         "/readyz" => "Media reference service readiness".into(),

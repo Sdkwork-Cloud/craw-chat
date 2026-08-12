@@ -18,7 +18,7 @@ pub struct RetentionPurgeMetrics {
     inbox_events_deleted_total: AtomicU64,
     realtime_device_events_deleted_total: AtomicU64,
     rtc_sessions_deleted_total: AtomicU64,
-    rtc_signals_deleted_total: AtomicU64,
+    audit_records_deleted_total: AtomicU64,
     last_duration_micros: AtomicU64,
 }
 
@@ -45,8 +45,8 @@ impl RetentionPurgeMetrics {
             .fetch_add(report.realtime_device_events_deleted, Ordering::Relaxed);
         self.rtc_sessions_deleted_total
             .fetch_add(report.rtc_sessions_deleted, Ordering::Relaxed);
-        self.rtc_signals_deleted_total
-            .fetch_add(report.rtc_signals_deleted, Ordering::Relaxed);
+        self.audit_records_deleted_total
+            .fetch_add(report.audit_records_deleted, Ordering::Relaxed);
         self.last_duration_micros
             .store(duration_micros, Ordering::Relaxed);
     }
@@ -94,7 +94,7 @@ impl RetentionPurgeMetrics {
              im_retention_purge_rows_deleted_total{{{base_labels},store=\"inbox_events\"}} {}\n\
              im_retention_purge_rows_deleted_total{{{base_labels},store=\"realtime_device_events\"}} {}\n\
              im_retention_purge_rows_deleted_total{{{base_labels},store=\"rtc_sessions\"}} {}\n\
-             im_retention_purge_rows_deleted_total{{{base_labels},store=\"rtc_signals\"}} {}\n\
+             im_retention_purge_rows_deleted_total{{{base_labels},store=\"audit_records\"}} {}\n\
              # HELP im_retention_purge_last_duration_seconds Duration of the most recent retention purge batch in seconds.\n\
              # TYPE im_retention_purge_last_duration_seconds gauge\n\
              im_retention_purge_last_duration_seconds{{{base_labels}}} {last_duration_seconds}\n\
@@ -114,7 +114,7 @@ impl RetentionPurgeMetrics {
             self.realtime_device_events_deleted_total
                 .load(Ordering::Relaxed),
             self.rtc_sessions_deleted_total.load(Ordering::Relaxed),
-            self.rtc_signals_deleted_total.load(Ordering::Relaxed),
+            self.audit_records_deleted_total.load(Ordering::Relaxed),
         )
     }
 }
@@ -143,13 +143,14 @@ mod tests {
                 inbox_events_deleted: 0,
                 realtime_device_events_deleted: 0,
                 rtc_sessions_deleted: 4,
-                rtc_signals_deleted: 0,
+                audit_records_deleted: 1,
             },
             1_500_000,
         );
         let body = metrics.render_prometheus("ops-service", "test", "standalone", "server");
         assert!(body.contains("im_retention_purge_batches_total"));
         assert!(body.contains("store=\"commit_journal\""));
+        assert!(body.contains("store=\"audit_records\""));
         assert!(body.contains("im_retention_purge_last_duration_seconds"));
         assert!(body.contains("im_health_status"));
     }

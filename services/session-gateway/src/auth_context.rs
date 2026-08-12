@@ -134,6 +134,10 @@ mod tests {
         let guard = TEST_ENV_LOCK.lock().expect("test env lock");
         unsafe {
             std::env::set_var("SDKWORK_IM_ENVIRONMENT", value);
+            // Local dual-token tests simulate trusted-edge context without
+            // signed orchestration headers; disable the signature gate for
+            // the resolver tests (signature validation has dedicated tests).
+            std::env::set_var("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE", "false");
         }
         TestEnvGuard { _guard: guard }
     }

@@ -68,7 +68,16 @@ fn normalize_rule_type(rule_type: &str) -> Result<String, ApiProblem> {
 
 fn normalize_permission(permission: &str) -> Result<String, ApiProblem> {
     match permission {
-        "view" | "send" | "manage" => Ok(permission.to_owned()),
+        // "send" is intentionally rejected: space-service owns no channel
+        // message send path, so a send rule could never be enforced. Channel
+        // message access follows conversation membership.
+        "view" | "manage" => Ok(permission.to_owned()),
+        "send" => {
+            tracing::warn!(permission = permission, "channel access send permission is not enforced");
+            Err(ApiProblem::bad_request(
+                "channel access send permission is not supported; message access follows conversation membership",
+            ))
+        }
         other => {
             tracing::warn!(permission = other, "invalid channel access permission");
             Err(ApiProblem::bad_request("invalid channel access permission"))

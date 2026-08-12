@@ -40,7 +40,6 @@ fn test_core_im_postgres_schema_defines_append_only_and_idempotency_tables() {
             "create table if not exists im_commit_journal",
             "create table if not exists im_outbox_events",
             "create table if not exists im_inbox_events",
-            "create table if not exists im_idempotency_keys",
             "constraint pk_im_commit_journal primary key (partition_key, commit_offset)",
             "constraint uk_im_commit_journal_event unique (event_id)",
             "constraint uk_im_inbox_events_source unique (tenant_id, organization_id, source_system, source_event_id)",
@@ -70,7 +69,6 @@ fn test_core_im_postgres_schema_defines_hot_cursor_tables_and_indexes() {
             "create table if not exists im_realtime_disconnect_fences",
             "create table if not exists im_rtc_sessions",
             "initiator_principal_kind text not null",
-            "create table if not exists im_rtc_signals",
             "create table if not exists im_audit_records",
             "create table if not exists im_notification_tasks",
             "create table if not exists im_automation_executions",
@@ -93,7 +91,6 @@ fn test_core_im_postgres_schema_defines_hot_cursor_tables_and_indexes() {
             "constraint fk_im_realtime_subscription_scopes_device\n        foreign key (tenant_id, organization_id, client_route_scope_key)",
             "constraint pk_im_rtc_sessions primary key (tenant_id, organization_id, rtc_session_id)",
             "constraint chk_im_rtc_sessions_state check (session_state in (\n        'started', 'accepted', 'rejected', 'ended',",
-            "constraint pk_im_rtc_signals primary key (tenant_id, organization_id, rtc_session_id, signal_seq)",
             "constraint pk_im_audit_records primary key (tenant_id, organization_id, audit_seq)",
             "constraint pk_im_notification_tasks primary key (tenant_id, organization_id, notification_id)",
             "constraint chk_im_notification_tasks_status check (notification_status in ('requested', 'dispatched', 'failed'))",
@@ -112,7 +109,6 @@ fn test_core_im_postgres_schema_defines_hot_cursor_tables_and_indexes() {
             "idx_im_realtime_subscription_scopes_fanout",
             "idx_im_realtime_subscription_scopes_device",
             "idx_im_rtc_sessions_conversation",
-            "idx_im_rtc_signals_session_seq",
             "idx_im_audit_records_tenant_seq",
             "idx_im_notification_tasks_recipient_updated",
             "idx_im_notification_tasks_status",
@@ -344,7 +340,6 @@ fn test_core_im_postgres_schema_separates_stream_and_rtc_sessions_from_append_lo
             "create table if not exists im_rtc_sessions",
             "initiator_principal_kind text not null",
             "latest_signal_seq bigint not null default 0 check (latest_signal_seq >= 0)",
-            "constraint pk_im_rtc_signals primary key (tenant_id, organization_id, rtc_session_id, signal_seq)",
             "idx_im_rtc_sessions_state",
             "on im_rtc_sessions (tenant_id, organization_id, session_state, updated_at desc, rtc_session_id)",
             "idx_im_rtc_sessions_provider_session",
@@ -369,7 +364,6 @@ fn test_core_im_postgres_schema_has_lifecycle_and_payload_guardrails() {
             "retention_until timestamptz",
             "check (message_seq > 0)",
             "check (realtime_seq > 0)",
-            "check (signal_seq > 0)",
             "check (audit_seq > 0)",
             "check (frame_seq > 0)",
         ],
@@ -409,7 +403,6 @@ fn test_core_im_postgres_schema_indexes_retention_cleanup_paths() {
             "create index if not exists idx_im_presence_states_retention_until",
             "create index if not exists idx_im_realtime_disconnect_fences_retention_until",
             "create index if not exists idx_im_rtc_sessions_retention_until",
-            "create index if not exists idx_im_rtc_signals_retention_until",
             "create index if not exists idx_im_audit_records_retention_until",
             "create index if not exists idx_im_notification_tasks_retention_until",
             "create index if not exists idx_im_automation_executions_retention_until",
@@ -423,15 +416,5 @@ fn test_core_im_postgres_schema_indexes_retention_cleanup_paths() {
             "create index if not exists idx_im_stream_frames_retention_until",
             "where retention_until is not null",
         ],
-    );
-}
-
-#[test]
-fn test_core_im_postgres_schema_drops_redundant_idempotency_unique_constraint() {
-    let schema = postgres_core_schema();
-
-    assert!(
-        !schema.contains("constraint uk_im_idempotency_keys_scope"),
-        "initialization baseline must not define redundant uk_im_idempotency_keys_scope because primary key already owns idempotency uniqueness"
     );
 }

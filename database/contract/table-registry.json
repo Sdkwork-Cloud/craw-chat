@@ -75,18 +75,6 @@
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
-      "table_name": "im_idempotency_keys",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active",
-      "module_prefix": "im",
-      "bounded_context": "instant_messaging",
-      "table_profile": "idempotency",
-      "system_of_record": true,
-      "write_owner": "session-gateway",
-      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
-    },
-    {
       "table_name": "im_realtime_device_events",
       "owner": "im-platform",
       "compliance_level": "L2",
@@ -178,18 +166,6 @@
       "module_prefix": "im",
       "bounded_context": "instant_messaging",
       "table_profile": "rtc_session",
-      "system_of_record": true,
-      "write_owner": "im-call-runtime",
-      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
-    },
-    {
-      "table_name": "im_rtc_signals",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active",
-      "module_prefix": "im",
-      "bounded_context": "instant_messaging",
-      "table_profile": "rtc_signal_log",
       "system_of_record": true,
       "write_owner": "im-call-runtime",
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
@@ -584,30 +560,6 @@
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
-      "table_name": "im_threads",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active",
-      "module_prefix": "im",
-      "bounded_context": "messaging",
-      "table_profile": "tenant_entity",
-      "system_of_record": true,
-      "write_owner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
-    },
-    {
-      "table_name": "im_thread_subscriptions",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active",
-      "module_prefix": "im",
-      "bounded_context": "messaging",
-      "table_profile": "tenant_entity",
-      "system_of_record": true,
-      "write_owner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
-    },
-    {
       "table_name": "im_user_profiles",
       "owner": "im-platform",
       "compliance_level": "L2",
@@ -632,18 +584,6 @@
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
-      "table_name": "im_conversation_settings",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active",
-      "module_prefix": "im",
-      "bounded_context": "user",
-      "table_profile": "tenant_entity",
-      "system_of_record": true,
-      "write_owner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
-    },
-    {
       "table_name": "im_invitations",
       "owner": "im-platform",
       "compliance_level": "L2",
@@ -665,42 +605,6 @@
       "table_profile": "tenant_entity",
       "system_of_record": true,
       "write_owner": "social-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
-    },
-    {
-      "table_name": "im_rtc_outbox_events",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active",
-      "module_prefix": "im",
-      "bounded_context": "instant_messaging",
-      "table_profile": "outbox_event",
-      "system_of_record": true,
-      "write_owner": "im-call-runtime",
-      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
-    },
-    {
-      "table_name": "im_rtc_quality_reports",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active",
-      "module_prefix": "im",
-      "bounded_context": "instant_messaging",
-      "table_profile": "telemetry_log",
-      "system_of_record": true,
-      "write_owner": "im-call-runtime",
-      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
-    },
-    {
-      "table_name": "im_rtc_participant_credentials",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active",
-      "module_prefix": "im",
-      "bounded_context": "instant_messaging",
-      "table_profile": "credential_lifecycle",
-      "system_of_record": true,
-      "write_owner": "im-call-runtime",
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {

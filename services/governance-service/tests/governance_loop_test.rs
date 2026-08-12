@@ -1,4 +1,12 @@
-﻿use im_app_context::DualTokenRequestBuilderExt;
+use im_app_context::DualTokenRequestBuilderExt;
+
+/// Local dual-token test contexts skip the signed orchestration header gate;
+/// disable signature verification explicitly for the control-plane loop test.
+fn ensure_loop_test_env() {
+    unsafe {
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE", "false");
+    }
+}
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
@@ -38,6 +46,7 @@ fn audit_app_context_for_organization(organization_id: &str) -> AppContext {
 
 #[tokio::test]
 async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
+    ensure_loop_test_env();
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let runtime_a = Arc::new(RealtimeDeliveryRuntime::default());
     let runtime_b = Arc::new(RealtimeDeliveryRuntime::default());

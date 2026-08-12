@@ -4513,7 +4513,7 @@ paths:
     get:
       tags:
         - chat
-      operationId: messages.search
+      operationId: messages.search.list
       summary: Search conversation message history
       description: >-
         Full-text search over message history scoped to the authenticated principal. When conversationId is omitted the
@@ -5912,6 +5912,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -5955,6 +5979,30 @@ paths:
                               $ref: '#/components/schemas/SpaceView'
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -5992,6 +6040,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6034,6 +6106,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6054,6 +6150,30 @@ paths:
       responses:
         '204':
           description: No Content
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6098,6 +6218,30 @@ paths:
                               $ref: '#/components/schemas/SpaceMemberView'
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6140,6 +6284,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceMemberView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6178,6 +6346,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceMemberView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6221,6 +6413,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceMemberView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6242,6 +6458,30 @@ paths:
       responses:
         '204':
           description: No Content
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6287,6 +6527,30 @@ paths:
                               $ref: '#/components/schemas/SpaceGroupView'
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6329,6 +6593,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceGroupView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6367,6 +6655,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceGroupView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6410,6 +6722,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceGroupView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6431,6 +6767,30 @@ paths:
       responses:
         '204':
           description: No Content
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6477,6 +6837,30 @@ paths:
                               $ref: '#/components/schemas/SpaceGroupMemberView'
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6520,6 +6904,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceGroupMemberView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6559,6 +6967,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceGroupMemberView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6603,6 +7035,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceGroupMemberView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6625,6 +7081,30 @@ paths:
       responses:
         '204':
           description: No Content
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6670,6 +7150,30 @@ paths:
                               $ref: '#/components/schemas/SpaceChannelView'
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6712,6 +7216,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceChannelView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6750,6 +7278,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceChannelView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6793,6 +7345,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceChannelView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6814,6 +7390,30 @@ paths:
       responses:
         '204':
           description: No Content
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6860,6 +7460,30 @@ paths:
                               $ref: '#/components/schemas/SpaceChannelAccessRuleView'
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6903,6 +7527,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceChannelAccessRuleView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6926,6 +7574,30 @@ paths:
       responses:
         '204':
           description: No Content
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -6972,6 +7644,30 @@ paths:
                               $ref: '#/components/schemas/SpaceInviteView'
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -7014,6 +7710,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceInviteView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -7052,6 +7772,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceInviteView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -7073,6 +7817,30 @@ paths:
       responses:
         '204':
           description: No Content
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -7099,6 +7867,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SdkWorkCommandResponse'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -7144,6 +7936,30 @@ paths:
                               $ref: '#/components/schemas/SpaceBanView'
                           pageInfo:
                             $ref: '#/components/schemas/PageInfo'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -7186,6 +8002,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceBanView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -7224,6 +8064,30 @@ paths:
                         properties:
                           item:
                             $ref: '#/components/schemas/SpaceBanView'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []
@@ -7245,6 +8109,30 @@ paths:
       responses:
         '204':
           description: No Content
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
       security:
         - ApiKey: []
         - AuthToken: []

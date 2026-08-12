@@ -96,8 +96,8 @@ assert.equal(
   unique(registeredTables).length,
   'database table registry must not contain duplicate table names',
 );
-assert.equal(registeredTables.length, 63, 'canonical IM table registry must contain 63 tables');
-assert.equal(baselineRegisteredTables.length, 63, 'PostgreSQL baseline must own 63 tables');
+assert.equal(registeredTables.length, 55, 'canonical IM table registry must contain 55 tables');
+assert.equal(baselineRegisteredTables.length, 55, 'PostgreSQL baseline must own 55 tables');
 
 for (const entry of tableRegistry.tables) {
   assert.equal(entry.module_prefix, 'im', `${entry.table_name} must register module_prefix=im`);
@@ -163,7 +163,7 @@ const migrationTables = extractAll(
   schema,
 );
 assert.ok(migrationTables.length > 0, 'core IM schema must define database tables');
-assert.equal(migrationTables.length, 63, 'baseline plus PostgreSQL migrations must define 63 IM tables');
+assert.equal(migrationTables.length, 55, 'baseline plus PostgreSQL migrations must define 55 IM tables');
 for (const table of migrationTables) {
   assert.match(
     table,

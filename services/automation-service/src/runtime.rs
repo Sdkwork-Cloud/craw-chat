@@ -1521,6 +1521,42 @@ impl AutomationRuntime {
             .ok_or_else(|| AutomationError::not_found(execution_id))
     }
 
+    /// Bounded read of executions still in `requested` state, used by the
+    /// outbound agent dispatch bridge. Never mutates state; the bridge
+    /// re-checks the execution before acting on it.
+    pub fn requested_executions(&self, limit: usize) -> Vec<AutomationExecution> {
+        self.executions
+            .lock_automation()
+            .by_execution
+            .values()
+            .map(|cached| cached.execution.clone())
+            .filter(|execution| execution.state == AutomationExecutionState::Requested)
+            .take(limit.max(1))
+            .collect()
+    }
+
+    /// Fails an execution with a reason (outbound bridge failure path).
+    pub fn fail_execution(
+        &self,
+        auth: &AppContext,
+        execution_id: &str,
+        reason: &str,
+    ) -> Result<AutomationExecution, AutomationError> {
+        ensure_automation_execute_access(auth)?;
+        validate_payload_size(
+            "executionId",
+            execution_id,
+            AUTOMATION_EXECUTION_MAX_EXECUTION_ID_BYTES,
+        )?;
+        self.transition_execution(
+            auth,
+            execution_id,
+            AutomationExecutionState::Failed,
+            None,
+            Some(reason.to_owned()),
+        )
+    }
+
     fn execution_record(
         &self,
         auth: &AppContext,

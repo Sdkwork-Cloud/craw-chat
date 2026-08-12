@@ -76,6 +76,13 @@ where tenant_id = $1 and organization_id = $2 and outbox_id = $3
     and publish_status = 'pending' and available_at = $4
 "#;
 
+const MARK_PUBLISHED_DIRECT_SQL: &str = r#"
+update im_outbox_events
+set publish_status = 'published', published_at = $4, updated_at = $4
+where tenant_id = $1 and organization_id = $2 and outbox_id = $3
+    and publish_status = 'pending'
+"#;
+
 const MARK_FAILED_SQL: &str = r#"
 UPDATE im_outbox_events
 SET
@@ -271,6 +278,35 @@ impl OutboxStore for PostgresOutboxStore {
                 )
                 .map_err(|error| postgres_unavailable("mark_published", error))?;
             require_claim_transition("mark_published", affected_rows)
+        })
+    }
+
+    fn mark_published_direct(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        outbox_id: &str,
+    ) -> Result<(), ContractError> {
+        let pool = self.pool.clone();
+        let tenant_id = tenant_id.to_owned();
+        let organization_id = organization_id.to_owned();
+        let outbox_id = outbox_id.to_owned();
+        let now = postgres_timestamptz(&now_rfc3339(), "now")?;
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "mark_published_direct")?;
+            let affected_rows = client
+                .execute(
+                    MARK_PUBLISHED_DIRECT_SQL,
+                    &[&tenant_id, &organization_id, &outbox_id, &now],
+                )
+                .map_err(|error| postgres_unavailable("mark_published_direct", error))?;
+            if affected_rows == 0 {
+                // The relay already claimed and published the row, or the row
+                // never existed; either way the direct path must not fail the
+                // message send.
+                return Ok(());
+            }
+            Ok(())
         })
     }
 

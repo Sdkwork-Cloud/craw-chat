@@ -9,8 +9,7 @@ import {
 
 test('loads all organization-scoped tables from the canonical table registry', () => {
   const contract = loadIsolationContract();
-  assert.equal(contract.organizationScopedTables.length, 63);
-  assert.ok(contract.organizationScopedTables.includes('im_rtc_signals'));
+  assert.equal(contract.organizationScopedTables.length, 55);
   assert.ok(contract.organizationScopedTables.includes('im_user_profiles'));
 });
 

@@ -21,7 +21,9 @@ serde_json.workspace = true
 sdkwork_utils_rust.workspace = true
 im-app-context = { path = "../im-app-context" }
 im-platform-contracts = { path = "../im-platform-contracts" }
-im-domain-core = { path = "../im-domain-core" }
+im-domain-core.workspace = true
+im-time.workspace = true
+sdkwork-im-contract-agent.workspace = true
 im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 sdkwork_database_config.workspace = true
 social-service = { path = "../../services/social-service" }

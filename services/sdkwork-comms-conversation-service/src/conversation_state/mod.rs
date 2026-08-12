@@ -140,6 +140,12 @@ pub struct ConversationStateService {
         Mutex<HashMap<String, BTreeSet<message_favorites::MessageFavoriteIndexEntry>>>,
     message_visibilities:
         Mutex<HashMap<String, HashMap<String, model::MessageVisibilityMutationResult>>>,
+    /// LRU access tracking for bounded conversation-state eviction: every
+    /// apply/read touches the conversation so idle conversations can be
+    /// evicted together with all of their derived indexes.
+    conversation_last_access: Mutex<HashMap<String, u64>>,
+    /// FIFO order for the bounded message delivery offer index.
+    delivery_offer_order: Mutex<std::collections::VecDeque<String>>,
     timeline_cache: timeline_cache::TimelineCacheConfig,
     conversation_event_outbox:
         std::sync::OnceLock<std::sync::Arc<dyn im_platform_contracts::OutboxStore>>,
@@ -220,6 +226,12 @@ impl ConversationStateService {
         if is_conversation_conversation_state_event_type(event.event_type.as_str()) {
             validate_conversation_conversation_state_envelope(event)?;
         }
+        // Track access so idle conversations (and their derived indexes) can
+        // be evicted; this keeps long-running processes bounded.
+        self.touch_conversation(scope_key_for_event_conversation(
+            event,
+            event.scope_id.as_str(),
+        ).as_str());
         
 
         match event.event_type.as_str() {
@@ -251,6 +263,91 @@ impl ConversationStateService {
             "group.updated" => self.apply_group_updated(event),
             _ => Ok(()),
         }
+    }
+
+    /// Records conversation access so idle eviction can reclaim its indexes.
+    pub(crate) fn touch_conversation(&self, scope_key: &str) {
+        let now = monotonic_millis();
+        lock_conversation_state_mutex(
+            &self.conversation_last_access,
+            "conversation last access",
+        )
+        .insert(scope_key.to_owned(), now);
+    }
+
+    /// Evicts the least recently used conversations (and every derived index
+    /// keyed by their scope) so long-running processes stay bounded. Returns
+    /// the number of conversations evicted.
+    pub(crate) fn evict_idle_conversations(&self, max_conversations: usize) -> usize {
+        if max_conversations == 0 {
+            return 0;
+        }
+        let mut evicted = 0usize;
+        let mut evicted_scope_keys = Vec::new();
+        {
+            let mut last_access = lock_conversation_state_mutex(
+                &self.conversation_last_access,
+                "conversation last access",
+            );
+            if last_access.len() <= max_conversations {
+                return 0;
+            }
+            let mut entries: Vec<(String, u64)> = last_access.drain().collect();
+            entries.sort_unstable_by_key(|(_, accessed_at)| *accessed_at);
+            let excess = entries.len().saturating_sub(max_conversations);
+            for (scope_key_value, accessed_at) in entries {
+                if evicted_scope_keys.len() < excess {
+                    evicted_scope_keys.push(scope_key_value);
+                } else {
+                    last_access.insert(scope_key_value, accessed_at);
+                }
+            }
+        }
+        if evicted_scope_keys.is_empty() {
+            return 0;
+        }
+        for scope_key_value in evicted_scope_keys {
+            self.evict_conversation_scope(&scope_key_value);
+            evicted += 1;
+        }
+        evicted
+    }
+
+    fn evict_conversation_scope(&self, scope_key_value: &str) {
+        lock_conversation_state_mutex(&self.entries, "entries evict")
+            .remove(scope_key_value);
+        lock_conversation_state_mutex(&self.summaries, "summaries evict")
+            .remove(scope_key_value);
+        lock_conversation_state_mutex(&self.conversations, "conversations evict")
+            .remove(scope_key_value);
+        lock_conversation_state_mutex(&self.conversation_profiles, "profiles evict")
+            .remove(scope_key_value);
+        lock_conversation_state_mutex(&self.conversation_preferences, "preferences evict")
+            .remove(scope_key_value);
+        lock_conversation_state_mutex(&self.read_cursors, "read cursors evict")
+            .remove(scope_key_value);
+        lock_conversation_state_mutex(&self.message_interactions, "message interactions evict")
+            .remove(scope_key_value);
+        lock_conversation_state_mutex(&self.pinned_messages_index, "pinned messages evict")
+            .remove(scope_key_value);
+        lock_conversation_state_mutex(&self.message_favorites, "favorites evict")
+            .remove(scope_key_value);
+        lock_conversation_state_mutex(&self.message_favorites_index, "favorites index evict")
+            .remove(scope_key_value);
+        lock_conversation_state_mutex(&self.message_visibilities, "visibilities evict")
+            .remove(scope_key_value);
+        // message_conversation_index maps message ids to conversations; drop
+        // every entry whose conversation matches the evicted scope.
+        lock_conversation_state_mutex(&self.message_conversation_index, "message conversation index evict")
+            .retain(|_, conversation_id| conversation_id != scope_key_value);
+        // Delivery offers are keyed by `{scope_key}:{message_id}`; drop the
+        // whole prefix range.
+        lock_conversation_state_mutex(&self.message_delivery_offers, "delivery offers evict")
+            .retain(|key, _| !key.starts_with(scope_key_value));
+        lock_conversation_state_mutex(&self.delivery_offer_order, "delivery offer order evict")
+            .retain(|key| !key.starts_with(scope_key_value));
+        lock_conversation_state_mutex(&self.conversation_last_access, "last access evict")
+            .remove(scope_key_value);
     }
 
     pub fn client_route_sync_fanout_targets_for_conversation(
@@ -809,6 +906,13 @@ fn lock_conversation_state_mutex<'a, T>(
             poisoned.into_inner()
         }
     }
+}
+
+fn monotonic_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

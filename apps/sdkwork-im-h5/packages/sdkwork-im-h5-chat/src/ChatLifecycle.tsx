@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useNavigate } from "react-router";
 
 import { registerImH5SessionChangeListener } from "@sdkwork/im-h5-core/session";
 
@@ -6,8 +7,11 @@ import {
   invalidateChatLiveConnection,
   subscribeInboxLiveRefresh,
 } from "./services/chatRealtimeService";
+import { startIncomingCallWatcher } from "./services/incomingCallWatcher";
 
 export function ChatLifecycle() {
+  const navigate = useNavigate();
+
   useEffect(() => {
     // 本组件仅在已认证（AuthGate 渲染 children）后挂载：持有 inbox 级租约
     // 使共享实时连接拥有常驻 demand，断线后 core 的退避重连机制才会调度
@@ -31,5 +35,26 @@ export function ChatLifecycle() {
       }),
     [],
   );
+
+  // 全局来电监听：收到振铃中的来电时自动拉起全屏通话页面
+  // （/call/video/:id 或 /call/voice/:id）。通话界面与媒体运行时来自
+  // @sdkwork/rtc-h5-call（RTC 权威），本层只负责信令事件到路由的桥接。
+  useEffect(() => {
+    let dispose: (() => void) | undefined;
+    void startIncomingCallWatcher({
+      onIncoming: (call) => {
+        if (!call.conversationId) {
+          return;
+        }
+        navigate(`/call/${call.type}/${call.conversationId}`);
+      },
+    }).then((stop) => {
+      dispose = stop;
+    });
+    return () => {
+      dispose?.();
+    };
+  }, [navigate]);
+
   return null;
 }

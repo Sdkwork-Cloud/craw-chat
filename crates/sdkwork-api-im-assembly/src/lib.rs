@@ -3,6 +3,7 @@
 // SDKWORK-ASSEMBLY-LIB-CUSTOM
 
 mod bootstrap;
+mod automation_agent_bridge;
 mod conversation_outbox_relay;
 mod generated;
 mod ops_realtime_wiring;
@@ -17,6 +18,7 @@ pub use bootstrap::{
     ApiAssembly, ApiAssemblyRuntime, assemble_api_router,
     assemble_api_router_with_realtime_bootstrap,
 };
+pub use automation_agent_bridge::{AutomationAgentBridgeHandle, spawn_automation_agent_bridge};
 pub use conversation_outbox_relay::{
     ConversationOutboxRelayHandle, spawn_conversation_outbox_relay_from_env,
 };

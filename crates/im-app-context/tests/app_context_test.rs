@@ -22,6 +22,7 @@ fn lock_test_env() -> std::sync::MutexGuard<'static, ()> {
 fn ensure_test_dev_environment() {
     unsafe {
         std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE", "false");
         std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID");
         std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID");
         std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET");
@@ -33,6 +34,7 @@ fn ensure_test_dev_environment() {
 fn configure_production_jwt_signing_env() {
     unsafe {
         std::env::set_var("SDKWORK_IM_ENVIRONMENT", "production");
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE", "false");
         std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID", "100001");
         std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID", "bootstrap");
         std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET", "prod-secret");

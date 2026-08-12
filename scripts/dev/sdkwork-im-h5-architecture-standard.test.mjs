@@ -178,7 +178,7 @@ const deferredCapabilityServices = [
   ['MeetingService', 'MeetingCapabilityUnavailableError', '../../../sdkwork-rtc/apps/sdkwork-rtc-h5/packages/sdkwork-rtc-mobile-react-meeting/src/services/MeetingService.ts'],
   ['ChannelService', 'ChannelCapabilityUnavailableError', 'packages/sdkwork-im-h5-channels/src/services/ChannelService.ts'],
   ['HardwareService', 'HardwareCapabilityUnavailableError', '../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src/services/HardwareService.ts'],
-  ['RecruitmentService', 'RecruitmentCapabilityUnavailableError', 'packages/sdkwork-im-h5-recruitment/src/services/RecruitmentService.ts'],
+  ['RecruitmentService', 'CompanyCapabilityUnavailableError', '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/services/RecruitmentService.ts'],
   ['KnowledgeBaseService', 'KnowledgeBaseCapabilityUnavailableError', '../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src/services/KnowledgeBaseService.ts'],
   ['ProductService', 'ShoppingCapabilityUnavailableError', '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/services/ProductService.ts'],
   ['CartService', 'ShoppingCapabilityUnavailableError', '../../../sdkwork-shop/apps/sdkwork-shop-common/packages/sdkwork-shop-mobile-react-shopping/src/services/CartService.ts'],
@@ -205,9 +205,6 @@ const deferredCapabilityPages = [
   '../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src/pages/HardwareList.tsx',
   '../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src/pages/HardwareDetail.tsx',
   '../../../sdkwork-aiot/apps/sdkwork-aiot-shared/packages/sdkwork-aiot-mobile-react-hardware/src/pages/HardwareBind.tsx',
-  'packages/sdkwork-im-h5-recruitment/src/pages/RecruitmentApp.tsx',
-  'packages/sdkwork-im-h5-recruitment/src/pages/CandidateDetail.tsx',
-  'packages/sdkwork-im-h5-recruitment/src/pages/CreateJob.tsx',
   '../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src/pages/KnowledgeBaseApp.tsx',
   '../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src/pages/KnowledgeBaseDetail.tsx',
   '../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-common/packages/sdkwork-knowledgebase-mobile-react-knowledge/src/pages/CreateKnowledgeBase.tsx',
@@ -224,17 +221,6 @@ const deferredCapabilityPages = [
   '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/pages/VoucherCodePage.tsx',
   '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/pages/OrderDetail.tsx',
   '../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders/src/pages/OrderCenter.tsx',
-  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseCenter.tsx',
-  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseInvite.tsx',
-  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseJoin.tsx',
-  'packages/sdkwork-im-h5-enterprise/src/pages/EnterprisePostDemand.tsx',
-  'packages/sdkwork-im-h5-enterprise/src/pages/EnterprisePostJob.tsx',
-  'packages/sdkwork-im-h5-enterprise/src/pages/EnterprisePostSupply.tsx',
-  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseProducts.tsx',
-  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseRecruitment.tsx',
-  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseSearch.tsx',
-  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseSite.tsx',
-  'packages/sdkwork-im-h5-enterprise/src/pages/EnterpriseYellowPages.tsx',
 ].map(read);
 
 assert.equal(appSource.includes('SPDX-License-Identifier'), false, 'AI Studio @license block must be removed from src/App.tsx');
@@ -389,6 +375,39 @@ for (const coursePageSource of [
   assert.doesNotMatch(coursePageSource, /CapabilityUnavailablePage/u, 'course pages must be real implementations');
 }
 assert.match(courseServiceSource, /getCourseRuntimePort/u, 'course service must consume the injected App SDK port');
+// Enterprise (企业中心) migrated to sdkwork-company: recruitment and enterprise
+// pages are real implementations backed by the injected Company App SDK port
+// (`getCompanyRuntimePort`), not fail-closed placeholders.
+const companyPageSources = [
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/RecruitmentApp.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/CandidateDetail.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/CreateJob.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/EnterpriseCenter.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/EnterpriseInvite.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/EnterpriseJoin.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/EnterprisePostDemand.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/EnterprisePostJob.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/EnterprisePostSupply.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/EnterpriseProducts.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/EnterpriseRecruitment.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/EnterpriseSearch.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/EnterpriseSite.tsx',
+  '../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/pages/EnterpriseYellowPages.tsx',
+];
+for (const companyPageSource of companyPageSources) {
+  assert.doesNotMatch(
+    read(companyPageSource),
+    /CapabilityUnavailablePage/u,
+    'company pages must be real implementations',
+  );
+  assert.doesNotMatch(
+    read(companyPageSource),
+    /mockData|picsum|\/mock\/|localStorage|Math\.random/u,
+    'company pages must not fabricate data or browser business state',
+  );
+}
+const recruitmentServiceSource = read('../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise/src/services/RecruitmentService.ts');
+assert.match(recruitmentServiceSource, /getCompanyRuntimePort/u, 'recruitment service must consume the injected Company App SDK port');
 const channelPageSource = read('packages/sdkwork-im-h5-channels/src/pages/ChannelsPage.tsx');
 const channelServiceSource = read('packages/sdkwork-im-h5-channels/src/services/ChannelService.ts');
 assert.doesNotMatch(channelPageSource, /mockData|CREATIVE_WORKS/u);

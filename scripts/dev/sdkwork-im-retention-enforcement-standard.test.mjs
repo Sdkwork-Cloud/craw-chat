@@ -95,11 +95,6 @@ assert.match(
   /PURGE_RTC_SESSIONS_SQL/,
   'retention cleanup must purge im_rtc_sessions alongside other retention stores',
 );
-assert.match(
-  retentionCleanup,
-  /PURGE_RTC_SIGNALS_SQL/,
-  'retention cleanup must purge im_rtc_signals for forward-compatible signal row retention',
-);
 
 const postgresRtcState = readExists('adapters/postgres-rtc-state/src/lib.rs');
 assert.match(

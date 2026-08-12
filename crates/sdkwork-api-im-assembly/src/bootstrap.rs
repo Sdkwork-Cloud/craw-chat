@@ -27,6 +27,7 @@ pub struct ApiAssembly {
 pub struct ApiAssemblyRuntime {
     pub social_runtime: Arc<SocialRuntime>,
     pub ops_runtime: Arc<OpsRuntime>,
+    pub automation_runtime: Arc<automation_service::AutomationRuntime>,
     _background: ApiAssemblyBackground,
 }
 
@@ -152,7 +153,7 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
     );
     router = router.merge(
         sdkwork_routes_im_governance_backend_api::gateway_mount_with_automation_runtime_and_governance_sinks(
-            automation_runtime,
+            automation_runtime.clone(),
             realtime_cluster,
             ops_runtime.clone(),
             audit_runtime,
@@ -227,6 +228,7 @@ pub async fn assemble_api_router_with_realtime_bootstrap(
         runtime: ApiAssemblyRuntime {
             social_runtime,
             ops_runtime,
+            automation_runtime,
             _background: background,
         },
     })

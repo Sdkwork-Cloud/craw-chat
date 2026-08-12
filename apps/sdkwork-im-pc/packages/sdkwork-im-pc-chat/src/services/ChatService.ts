@@ -12,6 +12,9 @@ import type {
   MediaKind,
   MediaResource,
   MessageReplyReference,
+  MessageSearchHit,
+  MessageSearchPage,
+  MessageSearchParams,
   UpdateConversationProfileRequest,
 } from '@sdkwork/im-sdk';
 import type {
@@ -105,6 +108,18 @@ export interface ChatListPage {
   nextCursor?: string;
 }
 
+export interface ChatHistorySearchQuery {
+  query: string;
+  conversationId?: string;
+  pageSize?: number;
+  cursor?: string;
+}
+
+export interface ChatHistorySearchPage {
+  items: MessageSearchHit[];
+  pageInfo: MessageSearchPage['pageInfo'];
+}
+
 interface ConversationLiveSubscription {
   chatId: string;
   handlers: Set<MessageHandler>;
@@ -120,6 +135,11 @@ export interface ChatService {
   listChatsPage(options?: { cursor?: string; pageSize?: number }): Promise<ChatListPage>;
   subscribeChats(handler: ChatListHandler): () => void;
   getMessages(chatId: string, options?: { pageSize?: number }): Promise<Message[]>;
+  /** Server-side message history search with keyset cursor paging. */
+  searchHistoryMessages(
+    options: ChatHistorySearchQuery,
+    generation?: number
+  ): Promise<ChatHistorySearchPage>;
   hasMoreMessages(chatId: string): boolean;
   loadMoreMessages(chatId: string, pageSize?: number): Promise<Message[]>;
   subscribeMessages(chatId: string, handler: MessageHandler): () => void;
@@ -2616,6 +2636,25 @@ class SdkworkChatService implements ChatService {
     this.queuePersistOfflineMessages([message]);
   }
 
+  async searchHistoryMessages(
+    options: ChatHistorySearchQuery,
+    generation = this.authSessionGeneration,
+  ): Promise<ChatHistorySearchPage> {
+    const query = options.query.trim();
+    if (!query) {
+      return { items: [], pageInfo: { mode: 'cursor', hasMore: false } };
+    }
+    const params: MessageSearchParams = {
+      q: query,
+      ...(options.conversationId ? { conversationId: options.conversationId } : {}),
+      ...(options.pageSize ? { pageSize: options.pageSize } : {}),
+      ...(options.cursor ? { cursor: options.cursor } : {}),
+    };
+    const client = await this.client();
+    this.assertAuthSessionGenerationCurrent(generation, 'search history messages');
+    return client.messages.search(params);
+  }
+
   async getMessages(chatId: string, options?: { pageSize?: number }): Promise<Message[]> {
     if (this.isConversationHidden(chatId)) {
       return [];
@@ -3703,6 +3742,19 @@ class SdkworkChatService implements ChatService {
 
     if (this.chatListHandlers.size > 0) {
       await this.emitChatList(generation).catch(() => undefined);
+    }
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return;
+    }
+    // Reconnect backfill: after the live connection reopens, fetch the newest
+    // history page for every live-subscribed conversation so messages
+    // published while disconnected are merged back into the local window.
+    // Bounded by the newest page (the local per-conversation cap also applies).
+    const liveConversationIds = [...this.conversationWireUnsubs.keys()];
+    if (liveConversationIds.length > 0) {
+      await Promise.allSettled(
+        liveConversationIds.map((chatId) => this.getMessages(chatId)),
+      );
     }
   }
 

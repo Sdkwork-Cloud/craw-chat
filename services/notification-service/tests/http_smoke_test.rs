@@ -11,6 +11,9 @@ static INIT_NOTIFICATION_HTTP_TEST_ENV: Once = Once::new();
 fn init_notification_http_test_env() {
     INIT_NOTIFICATION_HTTP_TEST_ENV.call_once(|| unsafe {
         std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+        // Local dual-token fallback tests do not attach signed orchestration
+        // headers; disable the signature gate for HTTP integration tests.
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE", "false");
     });
 }
 

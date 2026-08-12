@@ -222,7 +222,7 @@ for (const relativePath of [
 }
 
 const tableRegistry = JSON.parse(read('database/contract/table-registry.json'));
-for (const tableName of ['im_rtc_sessions', 'im_rtc_signals']) {
+for (const tableName of ['im_rtc_sessions']) {
   const entry = tableRegistry.tables.find((table) => table.table_name === tableName);
   assert.ok(entry, `${tableName} must remain registered as an IM-owned table`);
   assert.equal(

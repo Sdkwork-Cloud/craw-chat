@@ -33,6 +33,12 @@ fn message_delivery_index_key(
     )
 }
 
+/// Hard cap for the per-message delivery offer index. The index exists only
+/// to answer "who should have received this message" during client route sync
+/// reconciliation; it must stay bounded so high-throughput conversations
+/// cannot grow process memory without limit.
+pub(crate) const MESSAGE_DELIVERY_OFFER_INDEX_CAP: usize = 100_000;
+
 impl ConversationStateService {
     pub(crate) fn record_message_delivery_offer(&self, command: MessageDeliveryOfferCommand<'_>) {
         let key = message_delivery_index_key(
@@ -41,6 +47,24 @@ impl ConversationStateService {
             command.conversation_id,
             command.message_id,
         );
+        // Bounded FIFO eviction: drop the oldest offer entries when the index
+        // exceeds its cap so the map cannot grow without limit.
+        {
+            let mut order = lock_conversation_state_mutex(
+                &self.delivery_offer_order,
+                "delivery offer order store",
+            );
+            order.push_back(key.clone());
+            while order.len() > MESSAGE_DELIVERY_OFFER_INDEX_CAP {
+                if let Some(evicted_key) = order.pop_front() {
+                    lock_conversation_state_mutex(
+                        &self.message_delivery_offers,
+                        "message delivery offer store",
+                    )
+                    .remove(evicted_key.as_str());
+                }
+            }
+        }
         let mut offers = lock_conversation_state_mutex(
             &self.message_delivery_offers,
             "message delivery offer store",

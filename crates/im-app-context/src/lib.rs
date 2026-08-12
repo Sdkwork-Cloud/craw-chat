@@ -88,10 +88,16 @@ pub struct AppContextSignatureConfig {
 
 impl AppContextSignatureConfig {
     pub fn from_env() -> Self {
+        // Fail closed: internal orchestration context is trusted only when
+        // signature verification is explicitly required. An unset variable
+        // defaults to requiring the signature; deployments that run fully
+        // inside a trusted mTLS-only network may opt out explicitly.
+        let require_signature = match std::env::var(APP_CONTEXT_REQUIRE_SIGNATURE_ENV).ok() {
+            Some(raw) => parse_truthy_env_flag(Some(raw)),
+            None => true,
+        };
         Self {
-            require_signature: parse_truthy_env_flag(
-                std::env::var(APP_CONTEXT_REQUIRE_SIGNATURE_ENV).ok(),
-            ),
+            require_signature,
             shared_secret: resolve_secret_from_env_or_file(
                 APP_CONTEXT_SIGNATURE_SECRET_ENV,
                 APP_CONTEXT_SIGNATURE_SECRET_FILE_ENV,
@@ -1113,10 +1119,16 @@ impl TokenClaims {
         }
         let environment = resolve_web_environment_from_process_env();
         let dev_or_test = matches!(environment, WebEnvironment::Dev | WebEnvironment::Test);
+        // Unsigned token forms (raw JSON and key=value claims) are accepted
+        // only in dev/test AND when explicitly enabled. The environment alone
+        // must never be the only gate: a misconfigured production process
+        // would otherwise accept attacker-forged tokens. Deployment tooling
+        // opts in through SDKWORK_IM_ALLOW_UNSIGNED_TOKENS=true.
+        let allow_unsigned = allow_unsigned_tokens_from_process_env();
         if raw.starts_with('{') {
-            if !dev_or_test {
+            if !dev_or_test || !allow_unsigned {
                 return Err(AppContextError::invalid(
-                    "raw JSON bearer tokens are not allowed outside dev/test environments",
+                    "raw JSON bearer tokens are not allowed; use a signed JWT",
                 ));
             }
             return Self::from_json_str(raw);
@@ -1127,9 +1139,9 @@ impl TokenClaims {
                 .ok_or_else(|| AppContextError::invalid("token payload must be present"))?;
             return Self::from_json_value(value);
         }
-        if !dev_or_test {
+        if !dev_or_test || !allow_unsigned {
             return Err(AppContextError::invalid(
-                "key-value bearer tokens are not allowed outside dev/test environments; use signed JWT",
+                "key-value bearer tokens are not allowed; use a signed JWT",
             ));
         }
         Ok(Self {
@@ -1663,6 +1675,18 @@ fn parse_environment(value: Option<String>) -> WebEnvironment {
 /// Resolve the canonical SDKWork web environment from process env (`SDKWORK_IM_ENVIRONMENT`).
 pub fn resolve_web_environment_from_process_env() -> WebEnvironment {
     parse_environment(std::env::var("SDKWORK_IM_ENVIRONMENT").ok())
+}
+
+/// Whether unsigned bearer token forms are allowed.
+///
+/// Explicit opt-in (`SDKWORK_IM_ALLOW_UNSIGNED_TOKENS=true`) is required on
+/// top of a dev/test environment; the environment alone never authorizes
+/// unsigned tokens.
+fn allow_unsigned_tokens_from_process_env() -> bool {
+    std::env::var("SDKWORK_IM_ALLOW_UNSIGNED_TOKENS")
+        .ok()
+        .map(|value| value.trim().eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
 }
 
 fn ensure_local_dual_token_environment_for_unconfigured_process() {

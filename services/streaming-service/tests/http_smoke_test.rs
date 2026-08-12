@@ -10,6 +10,7 @@ static INIT_STREAMING_HTTP_TEST_ENV: Once = Once::new();
 fn init_streaming_http_test_env() {
     INIT_STREAMING_HTTP_TEST_ENV.call_once(|| unsafe {
         std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE", "false");
     });
 }
 

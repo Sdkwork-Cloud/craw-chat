@@ -387,6 +387,19 @@ impl ChannelAccessRuleStore for NoopChannelAccessRuleStore {
     fn delete(&self, _tenant_id: &str, _org_id: &str, _rule_id: i64) -> Result<(), ContractError> {
         Ok(())
     }
+
+    fn effective_permission(
+        &self,
+        _tenant_id: &str,
+        _org_id: &str,
+        _channel_id: i64,
+        _principal_kind: &str,
+        _principal_id: &str,
+        _permission: &str,
+    ) -> Result<im_adapters_social_postgres::governance_store::ChannelRuleDecision, ContractError>
+    {
+        Ok(im_adapters_social_postgres::governance_store::ChannelRuleDecision::NoRule)
+    }
 }
 
 fn test_app_state() -> AppState {

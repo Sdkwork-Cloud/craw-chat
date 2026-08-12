@@ -102,18 +102,30 @@ WHERE ctid IN (
 )
 "#;
 
-const PURGE_RTC_SIGNALS_SQL: &str = r#"
+/// Audit records are purged per `retention_class` in bounded batches so the
+/// class-level index and the DDL-documented differentiated windows
+/// (security=2y, access=180d, admin=1y, data_lifecycle=3y) drive expiry.
+///
+/// Note: the audit chain (`chain_prev_hash`/`chain_hash`) is not re-written
+/// when expired rows are removed. Deletion is a privileged, audited
+/// cross-organization operation, and chain verification reports the retained
+/// state truthfully: a scope that has undergone retention purge reports
+/// `chain_valid=false` once evidence before the retained window is gone.
+const PURGE_AUDIT_RECORDS_BY_CLASS_SQL: &str = r#"
 /* sdkwork:cross-organization-operation=retention-expiry-purge */
-DELETE FROM im_rtc_signals
+DELETE FROM im_audit_records
 WHERE ctid IN (
     SELECT ctid
-    FROM im_rtc_signals
-    WHERE retention_until IS NOT NULL
+    FROM im_audit_records
+    WHERE retention_class = $2
+      AND retention_until IS NOT NULL
       AND retention_until <= NOW()
     ORDER BY retention_until ASC
     LIMIT $1
 )
 "#;
+
+const AUDIT_RETENTION_CLASSES: [&str; 4] = ["security", "access", "admin", "data_lifecycle"];
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct RetentionCleanupReport {
@@ -124,7 +136,7 @@ pub struct RetentionCleanupReport {
     pub inbox_events_deleted: u64,
     pub realtime_device_events_deleted: u64,
     pub rtc_sessions_deleted: u64,
-    pub rtc_signals_deleted: u64,
+    pub audit_records_deleted: u64,
 }
 
 impl RetentionCleanupReport {
@@ -136,7 +148,7 @@ impl RetentionCleanupReport {
             + self.inbox_events_deleted
             + self.realtime_device_events_deleted
             + self.rtc_sessions_deleted
-            + self.rtc_signals_deleted
+            + self.audit_records_deleted
     }
 }
 
@@ -212,7 +224,10 @@ pub(crate) fn purge_retention_batch_on_txn(
     let realtime_device_events_deleted =
         execute_retention_delete(txn, PURGE_REALTIME_DEVICE_EVENTS_SQL, limit)?;
     let rtc_sessions_deleted = execute_retention_delete(txn, PURGE_RTC_SESSIONS_SQL, limit)?;
-    let rtc_signals_deleted = execute_retention_delete(txn, PURGE_RTC_SIGNALS_SQL, limit)?;
+    let mut audit_records_deleted = 0_u64;
+    for retention_class in AUDIT_RETENTION_CLASSES {
+        audit_records_deleted += execute_audit_retention_delete(txn, retention_class, limit)?;
+    }
 
     Ok(RetentionCleanupReport {
         commit_journal_deleted,
@@ -222,7 +237,7 @@ pub(crate) fn purge_retention_batch_on_txn(
         inbox_events_deleted,
         realtime_device_events_deleted,
         rtc_sessions_deleted,
-        rtc_signals_deleted,
+        audit_records_deleted,
     })
 }
 
@@ -270,6 +285,15 @@ fn execute_retention_delete(
         .map_err(|error| postgres_unavailable("journal retention purge delete", error))
 }
 
+fn execute_audit_retention_delete(
+    txn: &mut postgres::Transaction<'_>,
+    retention_class: &str,
+    limit: i64,
+) -> Result<u64, ContractError> {
+    txn.execute(PURGE_AUDIT_RECORDS_BY_CLASS_SQL, &[&limit, &retention_class])
+        .map_err(|error| postgres_unavailable("journal retention purge delete", error))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -284,7 +308,7 @@ mod tests {
             PURGE_INBOX_EVENTS_SQL,
             PURGE_REALTIME_DEVICE_EVENTS_SQL,
             PURGE_RTC_SESSIONS_SQL,
-            PURGE_RTC_SIGNALS_SQL,
+            PURGE_AUDIT_RECORDS_BY_CLASS_SQL,
         ] {
             assert!(
                 sql.contains("retention_until IS NOT NULL"),
@@ -295,5 +319,19 @@ mod tests {
                 "purge SQL must only delete expired rows"
             );
         }
+    }
+
+    #[test]
+    fn test_audit_retention_purge_scoped_by_class() {
+        let sql = PURGE_AUDIT_RECORDS_BY_CLASS_SQL;
+        assert!(
+            sql.contains("retention_class = $2"),
+            "audit purge must scope by retention_class"
+        );
+        assert!(
+            sql.contains("LIMIT $1"),
+            "audit purge must keep the shared bounded-batch limit"
+        );
+        assert_eq!(AUDIT_RETENTION_CLASSES.len(), 4);
     }
 }

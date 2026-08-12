@@ -467,9 +467,8 @@ async function resetDemoConversations() {
     counts.push(['conversations', await deleteBy('im_conversations', 'conversation_id')]);
     counts.push(['commit_journal', await deleteBy('im_commit_journal', 'aggregate_id')]);
     counts.push(['outbox_events', await deleteBy('im_outbox_events', 'aggregate_id')]);
-    await client.query("DELETE FROM im_idempotency_keys WHERE idempotency_key LIKE '%demo%' OR request_scope LIKE '%demo%'");
     const summary = counts.map(([table, count]) => `${table}=${count}`).join(', ');
-    console.log(`[demo-conversations] reset demo conversations (DB): ${summary}, idempotency_keys=cleared`);
+    console.log(`[demo-conversations] reset demo conversations (DB): ${summary}`);
   } finally {
     await client.end();
   }

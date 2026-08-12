@@ -29,7 +29,8 @@
       "actions": {
         "clearDate": "清除日期筛选",
         "clearSearch": "清除搜索",
-        "close": "关闭聊天记录搜索"
+        "close": "关闭聊天记录搜索",
+        "loadMore": "加载更多结果"
       },
       "sender": {
         "me": "我",

@@ -1458,6 +1458,7 @@ paths:
         - ApiKey: []
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-idempotent: true
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
@@ -1538,6 +1539,7 @@ paths:
         - ApiKey: []
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-idempotent: true
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
@@ -1607,6 +1609,7 @@ paths:
         - ApiKey: []
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-idempotent: true
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
@@ -1665,7 +1668,7 @@ components:
       description: Client retry key scoped by the authenticated tenant, principal, method, and conversation path.
       schema:
         type: string
-        minLength: 8
+        minLength: 1
         maxLength: 128
         pattern: ^[A-Za-z0-9._:-]+$
   responses:

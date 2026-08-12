@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 mod chain_scan;
 mod export_stream;
+mod retention;
 
 use std::ops::Bound::{Excluded, Included, Unbounded};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -848,8 +849,10 @@ insert into im_audit_records (
     payload,
     recorded_at,
     chain_prev_hash,
-    chain_hash
-) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    chain_hash,
+    retention_class,
+    retention_until
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 "#;
 
 const SELECT_EXISTING_BY_RECORD_ID_SQL: &str = r#"
@@ -1020,13 +1023,14 @@ fn insert_audit_record(
     };
 
     let recorded_at = utc_now_rfc3339_millis();
+    let record_action = request.action.as_str();
     let chain_hash = compute_audit_record_chain_hash(AuditRecordHashInput {
         tenant_id: auth.tenant_id.as_str(),
         record_id: request.record_id.as_str(),
         audit_seq: next_audit_seq,
         aggregate_type: request.aggregate_type.as_str(),
         aggregate_id: request.aggregate_id.as_str(),
-        action: request.action.as_str(),
+        action: record_action,
         actor_id: auth.actor_id.as_str(),
         actor_kind: auth.actor_kind.as_str(),
         actor_session_id: auth.session_id.as_deref(),
@@ -1036,6 +1040,13 @@ fn insert_audit_record(
     });
     let audit_seq_i64 = i64::try_from(next_audit_seq)
         .map_err(|_| AuditError::internal("audit_seq_overflow", "audit_seq overflowed i64"))?;
+
+    // Differentiated retention: the class is derived from the action namespace
+    // so callers never choose their own window. Only the privileged retention
+    // purge may delete expired rows.
+    let retention_class = crate::retention::audit_retention_class_for_action(record_action);
+    let retention_until =
+        crate::retention::audit_retention_until(retention_class, recorded_at.as_str());
 
     let record = AuditRecord {
         tenant_id: auth.tenant_id.clone(),
@@ -1070,6 +1081,8 @@ fn insert_audit_record(
             &record.recorded_at,
             &record.chain_prev_hash,
             &record.chain_hash,
+            &retention_class,
+            &retention_until,
         ],
     )
     .map_err(|error| audit_db_error("audit insert", error))?;

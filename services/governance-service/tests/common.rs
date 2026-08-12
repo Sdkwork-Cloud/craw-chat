@@ -2,6 +2,15 @@ use axum::body::Body;
 use axum::http::{Request, request::Builder};
 use im_app_context::DualTokenRequestBuilderExt;
 
+/// Governance tests use local dual-token context helpers instead of real
+/// signed orchestration headers; disable the signature gate explicitly so
+/// the control plane tests exercise routing logic, not signature validation.
+pub fn ensure_control_plane_test_env() {
+    unsafe {
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE", "false");
+    }
+}
+
 pub fn control_plane_request_builder(
     method: &str,
     uri: &str,
@@ -9,6 +18,7 @@ pub fn control_plane_request_builder(
     actor_kind: &str,
     permission: &str,
 ) -> Builder {
+    ensure_control_plane_test_env();
     Request::builder()
         .method(method)
         .uri(uri)

@@ -27,9 +27,6 @@ tables:
   - name: im_commit_journal
     lifecycle_status: active
     owner: im-platform
-  - name: im_idempotency_keys
-    lifecycle_status: active
-    owner: im-platform
   - name: im_realtime_device_events
     lifecycle_status: active
     owner: im-platform
@@ -52,9 +49,6 @@ tables:
     lifecycle_status: active
     owner: im-platform
   - name: im_rtc_sessions
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_rtc_signals
     lifecycle_status: active
     owner: im-platform
   - name: im_audit_records
@@ -153,34 +147,16 @@ tables:
   - name: im_message_pins
     lifecycle_status: active
     owner: im-platform
-  - name: im_threads
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_thread_subscriptions
-    lifecycle_status: active
-    owner: im-platform
   - name: im_user_profiles
     lifecycle_status: active
     owner: im-platform
   - name: im_user_settings
     lifecycle_status: active
     owner: im-platform
-  - name: im_conversation_settings
-    lifecycle_status: active
-    owner: im-platform
   - name: im_invitations
     lifecycle_status: active
     owner: im-platform
   - name: im_ban_records
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_rtc_outbox_events
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_rtc_quality_reports
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_rtc_participant_credentials
     lifecycle_status: active
     owner: im-platform
   - name: im_conversation_knowledge_space_link

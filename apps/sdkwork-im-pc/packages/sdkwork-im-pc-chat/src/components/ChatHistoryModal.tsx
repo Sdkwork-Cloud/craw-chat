@@ -16,6 +16,7 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import type { Chat, Message, User } from '@sdkwork/im-pc-types';
+import type { MessageSearchHit } from '@sdkwork/im-sdk';
 import { Avatar, cn } from '@sdkwork/im-pc-commons';
 import { chatService } from '../services/ChatService';
 import { contactService } from '../services/ContactService';
@@ -75,6 +76,10 @@ export const ChatHistoryModal: React.FC<ChatHistoryModalProps> = ({
   const [query, setQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [serverHits, setServerHits] = useState<MessageSearchHit[]>([]);
+  const [serverHitsHasMore, setServerHitsHasMore] = useState(false);
+  const [serverHitsCursor, setServerHitsCursor] = useState<string | undefined>(undefined);
+  const [isSearching, setIsSearching] = useState(false);
   const currentUser = useMemo(() => contactService.getCurrentUser(), []);
 
   useEffect(() => {
@@ -155,6 +160,84 @@ export const ChatHistoryModal: React.FC<ChatHistoryModalProps> = ({
       isStale = true;
     };
   }, [isOpen]);
+
+  const effectiveQuery = query.trim();
+
+  // Server-side history search: a non-empty query queries the search API
+  // (debounced); the local tab/date filters apply only to the empty-query
+  // view over the loaded local window.
+  useEffect(() => {
+    if (!isOpen || !effectiveQuery) {
+      setServerHits([]);
+      setServerHitsHasMore(false);
+      setServerHitsCursor(undefined);
+      return undefined;
+    }
+
+    let isStale = false;
+    setIsSearching(true);
+    const timer = window.setTimeout(() => {
+      chatService
+        .searchHistoryMessages({
+          query: effectiveQuery,
+          ...(resolvedChatId ? { conversationId: resolvedChatId } : {}),
+        })
+        .then((page) => {
+          if (isStale) {
+            return;
+          }
+          setServerHits(page.items);
+          setServerHitsHasMore(page.pageInfo.hasMore === true);
+          setServerHitsCursor(page.pageInfo.nextCursor ?? undefined);
+        })
+        .catch(() => {
+          if (isStale) {
+            return;
+          }
+          setServerHits([]);
+          setServerHitsHasMore(false);
+          toast(t('chat.historySearch.toast.loadFailed'), 'error');
+        })
+        .finally(() => {
+          if (!isStale) {
+            setIsSearching(false);
+          }
+        });
+    }, 300);
+
+    return () => {
+      isStale = true;
+      window.clearTimeout(timer);
+    };
+  }, [effectiveQuery, isOpen, resolvedChatId, t]);
+
+  const loadMoreServerHits = (): void => {
+    if (!effectiveQuery || !serverHitsCursor || isSearching) {
+      return;
+    }
+    setIsSearching(true);
+    chatService
+      .searchHistoryMessages({
+        query: effectiveQuery,
+        ...(resolvedChatId ? { conversationId: resolvedChatId } : {}),
+        cursor: serverHitsCursor,
+      })
+      .then((page) => {
+        setServerHits((previous) => [...previous, ...page.items]);
+        setServerHitsHasMore(page.pageInfo.hasMore === true);
+        setServerHitsCursor(page.pageInfo.nextCursor ?? undefined);
+      })
+      .catch(() => {
+        toast(t('chat.historySearch.toast.loadFailed'), 'error');
+      })
+      .finally(() => {
+        setIsSearching(false);
+      });
+  };
+
+  const localMessageById = useMemo(() => (
+    new Map(messages.map((message) => [message.id, message]))
+  ), [messages]);
 
   const senderProfileIndex = useMemo(() => (
     createChatHistorySenderProfileIndex(
@@ -360,11 +443,67 @@ export const ChatHistoryModal: React.FC<ChatHistoryModalProps> = ({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto bg-[#202124] py-3 custom-scrollbar">
-              {isLoading ? (
+              {isLoading || (effectiveQuery && isSearching && serverHits.length === 0) ? (
                 <div className="flex h-full flex-col items-center justify-center text-sm text-gray-400">
                   <Loader2 className="mb-3 animate-spin text-indigo-300" size={30} />
                   {t('chat.historySearch.state.loading')}
                 </div>
+              ) : effectiveQuery ? (
+                serverHits.length === 0 ? (
+                  <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+                    <Search className="mb-4 text-gray-600" size={36} />
+                    <div className="text-sm font-medium text-gray-300">{t('chat.historySearch.state.emptyTitle')}</div>
+                    <div className="mt-2 max-w-[360px] text-sm leading-6 text-gray-500">
+                      {t('chat.historySearch.state.emptyDescription')}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1" role="list">
+                    {serverHits.map((hit) => {
+                      const localMessage = localMessageById.get(hit.messageId);
+                      if (localMessage) {
+                        const sender = resolveChatHistoryMessageSender({
+                          chat,
+                          currentUser,
+                          fallbackMemberName,
+                          message: localMessage,
+                          senderProfiles: senderProfileIndex,
+                        });
+                        return (
+                          <ChatHistoryMessageResult
+                            key={hit.messageId}
+                            message={localMessage}
+                            resultKindLabel={t(`chat.historySearch.type.${getChatHistoryMessageResultKind(localMessage)}`)}
+                            sender={sender}
+                            timestamp={formatTimestamp(localMessage.timestamp)}
+                          />
+                        );
+                      }
+                      return (
+                        <ChatHistorySearchHitRow
+                          key={hit.messageId}
+                          conversationId={hit.conversationId}
+                          messageSeq={hit.messageSeq}
+                        />
+                      );
+                    })}
+                    {serverHitsHasMore && (
+                      <button
+                        className="mx-auto mt-2 flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium text-indigo-300 transition-colors hover:bg-white/[0.06] hover:text-indigo-200 disabled:opacity-50"
+                        disabled={isSearching}
+                        onClick={loadMoreServerHits}
+                        type="button"
+                      >
+                        {isSearching ? (
+                          <Loader2 className="animate-spin" size={13} />
+                        ) : (
+                          <Search size={13} />
+                        )}
+                        {t('chat.historySearch.actions.loadMore')}
+                      </button>
+                    )}
+                  </div>
+                )
               ) : filteredMessages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center px-8 text-center">
                   <Search className="mb-4 text-gray-600" size={36} />
@@ -480,4 +619,31 @@ function formatTimestamp(timestamp: number): string {
     minute: '2-digit',
     month: 'short',
   }).format(date);
+}
+
+
+function ChatHistorySearchHitRow({
+  conversationId,
+  messageSeq,
+}: {
+  conversationId: string;
+  messageSeq: number;
+}): React.ReactElement {
+  return (
+    <article className="group flex px-5 py-3 transition-colors hover:bg-white/[0.035]" role="listitem">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-[#2b2b2d] text-[13px] text-gray-400 shadow-[0_0_0_1px_rgba(255,255,255,0.05)]">
+          <Search size={15} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="mb-0.5 truncate text-[12px] font-medium text-gray-300">
+            {conversationId}
+          </div>
+          <div className="truncate text-[11px] text-gray-500">
+            seq {messageSeq}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
 }

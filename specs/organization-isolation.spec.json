@@ -37,7 +37,7 @@
         "im_inbox_events",
         "im_realtime_device_events",
         "im_rtc_sessions",
-        "im_rtc_signals"
+        "im_audit_records"
       ],
       "sqlOperation": "delete",
       "requiredSqlFragments": [

@@ -21,10 +21,17 @@ struct StatusExpectation<'a> {
     expected_business_status: &'a str,
 }
 
+fn ensure_provider_status_test_env() {
+    unsafe {
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE", "false");
+    }
+}
+
 async fn request_status(
     app: Router,
     expectation: &StatusExpectation<'_>,
 ) -> (StatusCode, Option<String>, Option<String>) {
+    ensure_provider_status_test_env();
     let mut request = Request::builder()
         .method(expectation.method)
         .uri(expectation.uri);

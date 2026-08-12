@@ -1,3 +1,4 @@
+mod edge_ip_rate_limit;
 mod embedded_dependency_routes;
 
 use std::net::{IpAddr, SocketAddr};
@@ -13,6 +14,48 @@ use sdkwork_web_bootstrap::{ComposedApiAssembly, WebFrameworkBuilder};
 use sdkwork_im_web_bootstrap::im_service_context_profile;
 
 const DEFAULT_BIND: &str = "127.0.0.1:18079";
+
+/// Distributed HTTP stores (rate limit, idempotency, concurrent admission)
+/// backed by Redis when the shared gateway Redis configuration is present.
+///
+/// The framework production assembly gate refuses to boot with in-memory
+/// stores in `WebEnvironment::Prod` (fail-closed), and the same env resolution
+/// drives the WebSocket upgrade limiter so HTTP and realtime share one Redis
+/// configuration. Without Redis, the in-memory defaults remain (single-replica
+/// development and control-plane profiles).
+fn wire_redis_http_stores(
+    builder: WebFrameworkBuilder<sdkwork_iam_web_adapter::IamWebRequestContextResolver>,
+) -> Result<WebFrameworkBuilder<sdkwork_iam_web_adapter::IamWebRequestContextResolver>, String> {
+    let Some(redis_url) = im_adapters_redis_cache::resolve_gateway_rate_limit_redis_url_from_env()
+    else {
+        return Ok(builder);
+    };
+    let key_prefix = "sdkwork:im:gateway".to_owned();
+    Ok(builder
+        .rate_limit_store(
+            sdkwork_web_store_redis::shared_rate_limit_store(
+                redis_url.as_str(),
+                key_prefix.clone(),
+            )
+            .map_err(|error| format!("failed to create Redis rate limit store: {error}"))?,
+        )
+        .idempotency_store(
+            sdkwork_web_store_redis::shared_idempotency_store(
+                redis_url.as_str(),
+                key_prefix.clone(),
+            )
+            .map_err(|error| format!("failed to create Redis idempotency store: {error}"))?,
+        )
+        .concurrent_admission_store(
+            sdkwork_web_store_redis::shared_concurrent_admission_store(
+                redis_url.as_str(),
+                key_prefix,
+            )
+            .map_err(|error| {
+                format!("failed to create Redis concurrent admission store: {error}")
+            })?,
+        ))
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     sdkwork_im_service_readiness::enable_process_shared_database_pool();
@@ -100,14 +143,18 @@ async fn async_main(
         &sdkwork_web_bootstrap::web_environment_from_env(&["SDKWORK_IM_ENVIRONMENT"]),
         sdkwork_web_bootstrap::cors_allowed_origins_from_env(&["SDKWORK_CORS_ALLOWED_ORIGINS"]),
     );
-    let hosted = composed.into_hosted(
+    let hosted = composed.into_hosted(wire_redis_http_stores(
         WebFrameworkBuilder::new(iam_resolver)
             .profile(im_service_context_profile())
             .security_policy(security_policy),
-    );
+    )?);
     let app = product_runtime_router
         .merge(hosted.router)
-        .layer(build_cors_layer(environment.as_str()));
+        .layer(build_cors_layer(environment.as_str()))
+        .layer(axum::middleware::from_fn_with_state(
+            edge_ip_rate_limit::EdgeIpRateLimiter::from_env(),
+            edge_ip_rate_limit::edge_ip_rate_limit,
+        ));
 
     let listener = tokio::net::TcpListener::bind(bind_address)
         .await
@@ -187,10 +234,14 @@ fn resolve_bind_address() -> Result<SocketAddr, String> {
 }
 
 fn resolve_environment() -> String {
+    // Fail closed: an unset environment variable must never downgrade the
+    // gateway to the development security posture (CORS, origin checks, and
+    // token validation all branch on this value). Production deployments
+    // that omit SDKWORK_IM_ENVIRONMENT now get the production posture.
     std::env::var("SDKWORK_IM_ENVIRONMENT")
         .ok()
         .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "development".to_owned())
+        .unwrap_or_else(|| "production".to_owned())
 }
 
 fn is_development_environment(environment: &str) -> bool {

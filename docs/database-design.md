@@ -27,12 +27,12 @@ and other sibling databases are external dependencies and are intentionally excl
 - Module: `im`
 - Contract version: `2.1.0`
 - Lifecycle strategy: `baseline-plus-migrations`
-- Registered IM tables: 63
+- Registered IM tables: 55
 - Runtime engines: `postgres`
 
 ## Table Inventory
 
-### instant_messaging (38)
+### instant_messaging (33)
 
 | Table | Profile | Write owner | Authority role | Migration / DDL source |
 | --- | --- | --- | --- | --- |
@@ -54,7 +54,6 @@ and other sibling databases are external dependencies and are intentionally excl
 | `im_conversation_seq_counters` | `sequence_allocator` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_conversations` | `conversation_authority` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_group_knowledge_launch_tickets` | `operational_state` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
-| `im_idempotency_keys` | `idempotency` | `session-gateway` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_inbox_events` | `inbox_event` | `session-gateway` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_message_media_refs` | `relation_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_notification_tasks` | `notification_task` | `notification-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
@@ -67,22 +66,16 @@ and other sibling databases are external dependencies and are intentionally excl
 | `im_realtime_subscriptions` | `subscription` | `session-gateway` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_registered_client_routes` | `realtime_route_authority` | `session-gateway` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_route_bindings` | `route_state` | `session-gateway` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
-| `im_rtc_outbox_events` | `outbox_event` | `im-call-runtime` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
-| `im_rtc_participant_credentials` | `credential_lifecycle` | `im-call-runtime` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
-| `im_rtc_quality_reports` | `telemetry_log` | `im-call-runtime` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_rtc_sessions` | `rtc_session` | `im-call-runtime` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
-| `im_rtc_signals` | `rtc_signal_log` | `im-call-runtime` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_stream_frames` | `stream_frame_log` | `streaming-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_stream_sessions` | `stream_session` | `streaming-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 
-### messaging (4)
+### messaging (2)
 
 | Table | Profile | Write owner | Authority role | Migration / DDL source |
 | --- | --- | --- | --- | --- |
 | `im_message_pins` | `tenant_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_message_reactions` | `tenant_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
-| `im_thread_subscriptions` | `tenant_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
-| `im_threads` | `tenant_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 
 ### organization (8)
 
@@ -112,11 +105,10 @@ and other sibling databases are external dependencies and are intentionally excl
 | `im_shared_channel_policies` | `tenant_entity` | `social-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_user_blocks` | `tenant_entity` | `social-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 
-### user (3)
+### user (2)
 
 | Table | Profile | Write owner | Authority role | Migration / DDL source |
 | --- | --- | --- | --- | --- |
-| `im_conversation_settings` | `tenant_entity` | `comms-conversation-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_user_profiles` | `tenant_entity` | `social-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 | `im_user_settings` | `tenant_entity` | `social-service` | system of record | `database/ddl/baseline/postgres/0001_im_baseline.sql` |
 

@@ -3640,6 +3640,13 @@ where
         let max = resolve_max_conversations_in_memory();
         let max_bytes = resolve_conversation_cache_max_bytes();
         self.evict_idle_conversations_with_limits(max, max_bytes);
+        // Bound the conversation-state read-model indexes (timeline,
+        // summaries, read cursors, favorites, delivery offers, ...): evict
+        // idle conversations from every derived map so long-running
+        // processes cannot grow memory without limit. The eviction is a
+        // cheap length check when the working set is within the cap.
+        crate::conversation_state::http::default_conversation_state_service()
+            .evict_idle_conversations(max);
     }
 
     /// Persists cached members and read cursors for explicit local recovery
@@ -4396,7 +4403,10 @@ where
         match mutation {
             PostMessageMutation::Replayed(result) => Ok(result),
             PostMessageMutation::Applied {
-                result, message, ..
+                result,
+                message,
+                message_posted_outbox_id,
+                ..
             } => {
                 let publish_result = self.publish_message_posted_realtime(
                     command.tenant_id.as_str(),

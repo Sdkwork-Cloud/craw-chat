@@ -18,7 +18,8 @@ use crate::http::AppState;
 use crate::id::next_entity_id;
 use crate::list_query::{ListQuery, resolve_keyset_page};
 use crate::space_access::{
-    actor_can_manage_space, actor_can_read_space, load_channel_in_space, load_space,
+    actor_can_manage_space, actor_can_read_space, enforce_channel_permission,
+    load_channel_in_space, load_space,
     parse_entity_id, parse_space_id,
 };
 
@@ -180,6 +181,7 @@ pub async fn get_channel(
         let space = load_space(&state, &auth, space_id)?;
         actor_can_read_space(&state, &auth, &space)?;
         let record = load_channel_in_space(&state, &auth, space_id, channel_id)?;
+        enforce_channel_permission(&state, &auth, &space, channel_id, "view")?;
         Ok(resource_item(ChannelResponse::from(record)))
     })();
     finish_api_json(&ctx, result)
@@ -198,6 +200,7 @@ pub async fn update_channel(
         let space = load_space(&state, &auth, space_id)?;
         actor_can_manage_space(&state, &auth, &space)?;
         let mut record = load_channel_in_space(&state, &auth, space_id, channel_id)?;
+        enforce_channel_permission(&state, &auth, &space, channel_id, "manage")?;
         let now = chrono::Utc::now().to_rfc3339();
 
         if let Some(name) = request.channel_name {
@@ -235,6 +238,7 @@ pub async fn delete_channel(
         let space = load_space(&state, &auth, space_id)?;
         actor_can_manage_space(&state, &auth, &space)?;
         let _record = load_channel_in_space(&state, &auth, space_id, channel_id)?;
+        enforce_channel_permission(&state, &auth, &space, channel_id, "manage")?;
 
         state
             .channel_store

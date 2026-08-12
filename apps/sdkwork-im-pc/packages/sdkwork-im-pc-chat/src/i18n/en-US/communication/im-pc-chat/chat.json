@@ -29,7 +29,8 @@
       "actions": {
         "clearDate": "Clear date filter",
         "clearSearch": "Clear search",
-        "close": "Close chat history search"
+        "close": "Close chat history search",
+        "loadMore": "Load more results"
       },
       "sender": {
         "me": "Me",

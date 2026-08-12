@@ -107,7 +107,7 @@ pub struct RetentionPurgeResponse {
     pub inbox_events_deleted: u64,
     pub realtime_device_events_deleted: u64,
     pub rtc_sessions_deleted: u64,
-    pub rtc_signals_deleted: u64,
+    pub audit_records_deleted: u64,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

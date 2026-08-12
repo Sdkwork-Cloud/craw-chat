@@ -3902,12 +3902,12 @@ assert.doesNotMatch(
   /members:\s*\[\s*["']currentUser["']\s*,\s*["']ent["']\s*\]/u,
   'chat layout enterprise start flow must not synthesize local enterprise members',
 );
-const enterpriseServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-enterprise/src/services/EnterpriseService.ts');
-const enterpriseListSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-enterprise/src/components/EnterpriseList.tsx');
+const enterpriseServiceSource = read('../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company/src/services/EnterpriseService.ts');
+const enterpriseListSource = read('../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company/src/components/EnterpriseList.tsx');
 assert.match(
   enterpriseServiceSource,
-  /getAppSdkClientWithSession/u,
-  'enterprise service must use the shared generated im-app-sdk client wrapper',
+  /getCompanyMarketplacePort/u,
+  'enterprise service must use the company marketplace SDK port wrapper',
 );
 assert.match(
   enterpriseServiceSource,
@@ -3916,13 +3916,13 @@ assert.match(
 );
 assert.match(
   enterpriseServiceSource,
-  /retrievePortalHome\s*\(\s*client\s*\)/u,
-  'enterprise service must load the backend portal home snapshot through the shared generated-SDK adapter',
+  /\.companies\.list\s*\(/u,
+  'enterprise service must load the enterprise catalog through the company SDK port',
 );
 assert.match(
   enterpriseServiceSource,
-  /\.portal\.workspace\.retrieve\s*\(\s*\)/u,
-  'enterprise service must fall back to the real workspace snapshot instead of hard-coded enterprises',
+  /normalizeEnterpriseFromRecord/u,
+  'enterprise service must normalize SDK records instead of hard-coded enterprises',
 );
 assert.match(
   enterpriseListSource,
@@ -3934,17 +3934,17 @@ assert.doesNotMatch(enterpriseServiceSource, /mockEnterprises|dice(?:bear)/u, 'e
 assert.doesNotMatch(enterpriseServiceSource, /\bfetch\s*\(/u, 'enterprise service must not use raw fetch');
 assert.doesNotMatch(enterpriseServiceSource, /\/(?:im|app|backend)\/v3/u, 'enterprise service must not hand-code SDK-owned API paths');
 assert.doesNotMatch(enterpriseServiceSource, /\b(Authorization|Access-Token|X-API-Key)\b/u, 'enterprise service must not assemble auth headers manually');
-const enterpriseMarketplaceServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-enterprise/src/services/EnterpriseMarketplaceService.ts');
-const recruitListSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-enterprise/src/components/RecruitList.tsx');
-const supplyListSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-enterprise/src/components/SupplyList.tsx');
-const purchaseListSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-enterprise/src/components/PurchaseList.tsx');
-const enterpriseDetailAboutSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-enterprise/src/components/EnterpriseDetailAbout.tsx');
-const enterpriseDetailProductsSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-enterprise/src/components/EnterpriseDetailProducts.tsx');
-const enterpriseDetailRecruitsSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-enterprise/src/components/EnterpriseDetailRecruits.tsx');
+const enterpriseMarketplaceServiceSource = read('../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company/src/services/EnterpriseMarketplaceService.ts');
+const recruitListSource = read('../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company/src/components/RecruitList.tsx');
+const supplyListSource = read('../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company/src/components/SupplyList.tsx');
+const purchaseListSource = read('../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company/src/components/PurchaseList.tsx');
+const enterpriseDetailAboutSource = read('../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company/src/components/EnterpriseDetailAbout.tsx');
+const enterpriseDetailProductsSource = read('../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company/src/components/EnterpriseDetailProducts.tsx');
+const enterpriseDetailRecruitsSource = read('../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company/src/components/EnterpriseDetailRecruits.tsx');
 assert.match(
   enterpriseMarketplaceServiceSource,
-  /pc enterprise marketplace contract is not available/u,
-  'enterprise marketplace service must fail closed until the enterprise marketplace SDK contract exists',
+  /getCompanyMarketplacePort/u,
+  'enterprise marketplace service must read listings through the company SDK port',
 );
 assert.match(
   recruitListSource,

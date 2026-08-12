@@ -4,9 +4,7 @@ use axum::Json;
 use axum::extract::{Extension, Path, State};
 use axum::response::Response;
 use im_app_context::AppContext;
-use sdkwork_routes_web_framework_backend_api::response::{
-    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
-};
+use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
 use sdkwork_utils_rust::SdkWorkResourceData;
 use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
@@ -59,8 +57,7 @@ pub async fn update_user_settings(
     Path(user_id): Path<String>,
     Json(request): Json<UpdateUserSettingsRequest>,
 ) -> Response {
-    let ctx_for_blocking = ctx.clone();
-    let result: Result<Response, ApiProblem> =
+    let result: ApiResult<SdkWorkResourceData<UserSettingsResponse>> =
         crate::postgres::http::run_blocking_postgres_call(state, move |state| {
             if auth.actor_id != user_id {
                 return Err(ApiProblem::forbidden("user can only update own settings"));
@@ -77,8 +74,12 @@ pub async fn update_user_settings(
                     now.as_str(),
                 )
                 .map_err(|_| ApiProblem::internal_server_error("failed to update user settings"))?;
-            no_content(&ctx_for_blocking)
+            // API_SPEC: update operations return the updated resource with
+            // HTTP 200 (SdkWorkApiResponse envelope).
+            Ok(resource_item(UserSettingsResponse {
+                settings: request.settings,
+            }))
         })
         .await;
-    finish_api_response(&ctx, result)
+    finish_api_json(&ctx, result)
 }

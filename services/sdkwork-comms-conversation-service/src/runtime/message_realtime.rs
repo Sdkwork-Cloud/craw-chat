@@ -205,6 +205,7 @@ where
         tenant_id: &str,
         organization_id: &str,
         message: &Message,
+        message_posted_outbox_id: Option<&str>,
     ) -> Result<(), RuntimeError> {
         let Some(publisher) = self.resolve_realtime_publisher() else {
             if self.requires_realtime_delivery_fail_closed() {
@@ -232,12 +233,13 @@ where
                 "message.posted realtime payload encode failed: {error}"
             ))
         })?;
-        // The journal commit has already persisted the message; realtime push is a
-        // best-effort side-effect. If the publisher is temporarily unavailable the
-        // outbox relay (when configured) will eventually deliver the event. Logging
-        // the error and returning Ok avoids cascading 503 (code 50301) failures for
-        // every message send when the realtime backend blips.
-        if let Err(error) = self.publish_durable_conversation_event(
+        // The journal commit has already persisted the message and its outbox
+        // record; realtime push is a best-effort side-effect on top of that
+        // durable record. When the direct publish succeeds the outbox record
+        // is marked published so the relay does not deliver the same event
+        // twice. When it fails the record stays pending and the relay is the
+        // authoritative fallback — the event can never be silently dropped.
+        match self.publish_durable_conversation_event(
             publisher.as_ref(),
             tenant_id,
             organization_id,
@@ -245,12 +247,32 @@ where
             "message.posted",
             payload_json,
         ) {
-            tracing::warn!(
-                conversation_id = %message.conversation_id,
-                message_id = %message.message_id,
-                error = %error,
-                "message.posted realtime publish failed; relying on outbox relay for eventual delivery"
-            );
+            Ok(_) => {
+                if let Some(outbox_id) = message_posted_outbox_id {
+                    if let Some(outbox_store) = self.outbox_store.as_ref() {
+                        if let Err(mark_error) = outbox_store.mark_published_direct(
+                            tenant_id,
+                            organization_id,
+                            outbox_id,
+                        ) {
+                            tracing::warn!(
+                                conversation_id = %message.conversation_id,
+                                message_id = %message.message_id,
+                                error = ?mark_error,
+                                "message.posted direct publish succeeded but marking outbox published failed; relay may redeliver (at-least-once)"
+                            );
+                        }
+                    }
+                }
+            }
+            Err(error) => {
+                tracing::warn!(
+                    conversation_id = %message.conversation_id,
+                    message_id = %message.message_id,
+                    error = %error,
+                    "message.posted realtime publish failed; outbox relay will deliver the event"
+                );
+            }
         }
         Ok(())
     }
@@ -419,9 +441,11 @@ where
         organization_id: &str,
         message: &Message,
     ) -> Result<Option<OutboxEventRecord>, RuntimeError> {
-        if self.resolve_realtime_publisher().is_some() {
-            return Ok(None);
-        }
+        // The outbox record is the durable fallback for realtime delivery: it
+        // is written in the same transaction as the message so a direct
+        // publish failure can never silently drop the event. When the direct
+        // publish succeeds the record is marked published immediately; the
+        // relay only ever sees the event when the direct path failed.
         if self.outbox_store.is_none() || self.id_generator.is_none() {
             return Ok(None);
         }

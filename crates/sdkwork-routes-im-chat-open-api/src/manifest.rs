@@ -239,7 +239,7 @@ pub const ROUTES: &[HttpRoute] = &[
         HttpMethod::Get,
         paths::MESSAGE_SEARCH,
         "chat",
-        "messages.search",
+        "messages.search.list",
     ),
     HttpRoute::api_key_or_dual_token(
         HttpMethod::Get,

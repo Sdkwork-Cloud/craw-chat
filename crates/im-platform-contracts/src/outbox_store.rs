@@ -152,6 +152,25 @@ pub trait OutboxStore: Send + Sync {
     ///   AND publish_status='pending' AND available_at=$4
     fn mark_published(&self, claim: &OutboxEventClaim) -> Result<(), ContractError>;
 
+    /// 直接标记已发布（无租约）
+    ///
+    /// Used by the direct realtime publish path: after a successful in-process
+    /// publish the caller marks the transactional outbox record published so
+    /// the relay worker does not redeliver the same event. The update is
+    /// conditional on `publish_status='pending'` so a relay claim that won
+    /// the lease first stays authoritative.
+    fn mark_published_direct(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        outbox_id: &str,
+    ) -> Result<(), ContractError> {
+        let _ = (tenant_id, organization_id, outbox_id);
+        Err(ContractError::Unavailable(
+            "mark_published_direct is not implemented by this outbox store".into(),
+        ))
+    }
+
     /// 标记失败
     ///
     /// UPDATE im_outbox_events

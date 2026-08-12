@@ -299,7 +299,7 @@ fn run_retention_purge_tick(
             inbox_events_deleted = aggregate.inbox_events_deleted,
             realtime_device_events_deleted = aggregate.realtime_device_events_deleted,
             rtc_sessions_deleted = aggregate.rtc_sessions_deleted,
-            rtc_signals_deleted = aggregate.rtc_signals_deleted,
+            audit_records_deleted = aggregate.audit_records_deleted,
             duration_ms = started.elapsed().as_millis() as u64,
             "retention purge tick completed"
         );
@@ -349,7 +349,7 @@ impl RetentionCleanupReportExt for RetentionCleanupReport {
         self.inbox_events_deleted += other.inbox_events_deleted;
         self.realtime_device_events_deleted += other.realtime_device_events_deleted;
         self.rtc_sessions_deleted += other.rtc_sessions_deleted;
-        self.rtc_signals_deleted += other.rtc_signals_deleted;
+        self.audit_records_deleted += other.audit_records_deleted;
     }
 
     fn is_empty(&self) -> bool {

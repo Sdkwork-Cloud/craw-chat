@@ -917,6 +917,19 @@ pub struct ChannelAccessRuleRecord {
     pub created_at: String,
 }
 
+/// Decision produced by evaluating channel access rules for one permission.
+///
+/// - [`ChannelRuleDecision::Deny`] wins over any allow (fail-closed).
+/// - [`ChannelRuleDecision::Allow`] means an explicit allow rule matched.
+/// - [`ChannelRuleDecision::NoRule`] means no rule targets the principal and
+///   permission; the caller keeps its membership-based default behavior.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChannelRuleDecision {
+    Allow,
+    Deny,
+    NoRule,
+}
+
 pub trait ChannelAccessRuleStore: Send + Sync {
     fn insert(&self, record: &ChannelAccessRuleRecord) -> Result<(), ContractError>;
     fn list_by_channel(
@@ -929,6 +942,19 @@ pub trait ChannelAccessRuleStore: Send + Sync {
         limit: i64,
     ) -> Result<Vec<ChannelAccessRuleRecord>, ContractError>;
     fn delete(&self, tenant_id: &str, org_id: &str, rule_id: i64) -> Result<(), ContractError>;
+    /// Evaluates the rules that target `(channel_id, permission)` for the
+    /// principal. Matching rules are exact principal, principal-kind-wide,
+    /// or space-wide; any deny wins, otherwise the most specific allow
+    /// decides, otherwise [`ChannelRuleDecision::NoRule`].
+    fn effective_permission(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        channel_id: i64,
+        principal_kind: &str,
+        principal_id: &str,
+        permission: &str,
+    ) -> Result<ChannelRuleDecision, ContractError>;
 }
 
 const ACCESS_RULE_INSERT_SQL: &str = r#"
@@ -951,6 +977,22 @@ LIMIT $6
 const ACCESS_RULE_DELETE_SQL: &str = r#"
 DELETE FROM im_channel_access_rules
 WHERE tenant_id = $1 AND organization_id = $2 AND rule_id = $3
+"#;
+
+/// Loads the rules that could target the principal for one permission.
+/// A rule matches when it is space-wide (both principal fields NULL),
+/// principal-kind-wide (`principal_kind` equal, `principal_id` NULL), or
+/// principal-exact (`principal_kind` and `principal_id` equal).
+const ACCESS_RULE_EVALUATE_SQL: &str = r#"
+SELECT rule_type, principal_kind, principal_id
+FROM im_channel_access_rules
+WHERE tenant_id = $1 AND organization_id = $2 AND channel_id = $3
+  AND permission = $4
+  AND (
+        (principal_kind IS NULL AND principal_id IS NULL)
+        OR (principal_kind = $5 AND principal_id IS NULL)
+        OR (principal_kind = $5 AND principal_id = $6)
+  )
 "#;
 
 fn row_to_access_rule_record(row: &postgres::Row) -> ChannelAccessRuleRecord {
@@ -1053,6 +1095,73 @@ impl ChannelAccessRuleStore for PostgresChannelAccessRuleStore {
                 .execute(ACCESS_RULE_DELETE_SQL, &[&tenant_id, &org_id, &rule_id])
                 .map_err(|error| postgres_unavailable("delete_channel_access_rule", error))?;
             Ok(())
+        })
+    }
+
+    fn effective_permission(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        channel_id: i64,
+        principal_kind: &str,
+        principal_id: &str,
+        permission: &str,
+    ) -> Result<ChannelRuleDecision, ContractError> {
+        let pool = self.pool.clone();
+        let tenant_id = tenant_id.to_owned();
+        let org_id = org_id.to_owned();
+        let principal_kind = principal_kind.to_owned();
+        let principal_id = principal_id.to_owned();
+        let permission = permission.to_owned();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "evaluate_channel_access_rules")?;
+            let rows = client
+                .query(
+                    ACCESS_RULE_EVALUATE_SQL,
+                    &[
+                        &tenant_id,
+                        &org_id,
+                        &channel_id,
+                        &permission,
+                        &principal_kind,
+                        &principal_id,
+                    ],
+                )
+                .map_err(|error| postgres_unavailable("evaluate_channel_access_rules", error))?;
+            let mut deny: Option<u8> = None;
+            let mut allow: Option<u8> = None;
+            for row in rows {
+                let rule_type: String = row.get("rule_type");
+                let rule_kind: Option<String> = row.get("principal_kind");
+                let rule_principal: Option<String> = row.get("principal_id");
+                // Exact principal (both set) > kind-wide > space-wide.
+                let specificity = match (&rule_kind, &rule_principal) {
+                    (Some(kind), Some(principal)) => {
+                        if kind == &principal_kind && principal == &principal_id {
+                            2
+                        } else {
+                            continue;
+                        }
+                    }
+                    (Some(kind), None) if kind == &principal_kind => 1,
+                    (None, None) => 0,
+                    _ => continue,
+                };
+                if rule_type == "deny" {
+                    deny = Some(deny.map_or(specificity, |current| current.max(specificity)));
+                } else if rule_type == "allow" {
+                    allow = Some(allow.map_or(specificity, |current| current.max(specificity)));
+                }
+            }
+            // Deny wins regardless of specificity (fail-closed). Otherwise the
+            // most specific allow decides; a tie keeps the existing allow.
+            match deny {
+                Some(_) => Ok(ChannelRuleDecision::Deny),
+                None => match allow {
+                    Some(_) => Ok(ChannelRuleDecision::Allow),
+                    None => Ok(ChannelRuleDecision::NoRule),
+                },
+            }
         })
     }
 }

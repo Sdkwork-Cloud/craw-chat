@@ -16,6 +16,9 @@ pub fn dev_test_environment() -> DevTestEnvironment {
     // SAFETY: integration tests run serially under the mutex guard.
     unsafe {
         std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+        // Local dual-token fallback tests do not attach signed orchestration
+        // headers; disable the signature gate for integration tests.
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE", "false");
     }
     DevTestEnvironment { _guard: guard }
 }

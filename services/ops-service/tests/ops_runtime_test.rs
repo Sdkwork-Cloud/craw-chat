@@ -104,6 +104,72 @@ fn test_ops_lag_keyset_pages_are_bounded_and_resource_scoped() {
 }
 
 #[test]
+fn test_ops_lag_upsert_merges_independent_sampler_families() {
+    let runtime = ops_service::OpsRuntime::default();
+    runtime.upsert_lag_items(vec![
+        ops_service::LagItem {
+            component: "realtime".into(),
+            scope_id: "cluster".into(),
+            current_offset: 10,
+            committed_offset: 7,
+            lag: 3,
+        },
+        ops_service::LagItem {
+            component: "realtime".into(),
+            scope_id: "100001:user:42:device-a".into(),
+            current_offset: 5,
+            committed_offset: 2,
+            lag: 3,
+        },
+    ]);
+    // A second sampler tick refreshes the same realtime scope and adds the
+    // outbox family; both families must coexist.
+    runtime.upsert_lag_items(vec![
+        ops_service::LagItem {
+            component: "realtime".into(),
+            scope_id: "100001:user:42:device-a".into(),
+            current_offset: 8,
+            committed_offset: 2,
+            lag: 6,
+        },
+        ops_service::LagItem {
+            component: "outbox".into(),
+            scope_id: "cluster".into(),
+            current_offset: 4,
+            committed_offset: 0,
+            lag: 4,
+        },
+    ]);
+    let page = runtime
+        .lag_page(SdkWorkCursorListQuery {
+            page_size: Some(20),
+            cursor: None,
+        })
+        .expect("lag page should resolve");
+    assert_eq!(page.items.len(), 3);
+    let realtime_cluster = page
+        .items
+        .iter()
+        .find(|item| item.component == "realtime" && item.scope_id == "cluster")
+        .expect("realtime cluster item must survive the second upsert");
+    assert_eq!(realtime_cluster.lag, 3);
+    let realtime_scope = page
+        .items
+        .iter()
+        .find(|item| {
+            item.component == "realtime" && item.scope_id == "100001:user:42:device-a"
+        })
+        .expect("realtime scope item must be refreshed");
+    assert_eq!(realtime_scope.lag, 6);
+    let outbox = page
+        .items
+        .iter()
+        .find(|item| item.component == "outbox" && item.scope_id == "cluster")
+        .expect("outbox family must coexist with realtime family");
+    assert_eq!(outbox.lag, 4);
+}
+
+#[test]
 fn test_diagnostic_bundle_bounds_high_cardinality_routes_and_reports_truncation() {
     let runtime = ops_service::OpsRuntime::new(
         "node_local_1",

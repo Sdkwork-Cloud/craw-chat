@@ -188,7 +188,7 @@ assert.match(commercialBlock, /"orders"/u);
 assert.doesNotMatch(commercialBlock, /"mail"/u, 'mail must stay contract-pending');
 assert.doesNotMatch(commercialBlock, /"devices"/u, 'devices must stay contract-pending');
 assert.doesNotMatch(commercialBlock, /"course"/u, 'course must stay out of commercial runtime until verified');
-assert.doesNotMatch(commercialBlock, /"enterprise"/u, 'enterprise must stay out of commercial runtime until verified');
+assert.match(commercialBlock, /"enterprise"/u, 'enterprise must be in commercial runtime after the SDK-backed company integration is verified');
 
 assert.match(chatService, /LOCAL_MESSAGES_PER_CONVERSATION_CAP = SDKWORK_MAX_PAGE_SIZE/u);
 
