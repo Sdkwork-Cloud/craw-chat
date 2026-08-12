@@ -1,3 +1,5 @@
+import { UserCapabilityUnavailableError } from "./UserCapabilityUnavailableError";
+
 export interface AppSettings {
   teenMode: boolean;
   elderlyMode: boolean;
@@ -22,44 +24,21 @@ const INITIAL_SETTINGS: AppSettings = {
   voiceLock: false,
 };
 
-const STORAGE_KEY = "sdkwork_im_h5_settings";
-
 export let CURRENT_SETTINGS: AppSettings = { ...INITIAL_SETTINGS };
 
-const loadSettings = () => {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      CURRENT_SETTINGS = JSON.parse(data);
-    } else {
-      CURRENT_SETTINGS = { ...INITIAL_SETTINGS };
-    }
-  } catch (e) {
-    CURRENT_SETTINGS = { ...INITIAL_SETTINGS };
-  }
-  return CURRENT_SETTINGS;
-};
-
-const saveSettings = () => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(CURRENT_SETTINGS));
-  } catch (e) {
-    console.error("Failed to save settings", e);
-  }
-};
-
-loadSettings();
-
+/**
+ * User settings — fail-closed (PRD): settings persistence has no composed
+ * owner SDK surface in the current H5 release, and settings pages must not
+ * own browser business state. Every access throws a typed
+ * `UserCapabilityUnavailableError` so the settings surface renders a typed
+ * unavailable state instead of fabricating persisted preferences.
+ */
 export const SettingsService = {
   async getSettings(): Promise<AppSettings> {
-    return { ...loadSettings() };
+    throw new UserCapabilityUnavailableError("User settings");
   },
 
-  async updateSettings(updates: Partial<AppSettings>): Promise<AppSettings> {
-    loadSettings();
-    const newSettings = { ...CURRENT_SETTINGS, ...updates };
-    CURRENT_SETTINGS = newSettings;
-    saveSettings();
-    return { ...newSettings };
+  async updateSettings(_updates: Partial<AppSettings>): Promise<AppSettings> {
+    throw new UserCapabilityUnavailableError("User settings update");
   },
 };

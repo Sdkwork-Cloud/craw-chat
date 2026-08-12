@@ -190,8 +190,8 @@ assert.match(
 
 assert.match(
   standaloneDependencySource,
-  /bootstrap_embedded_commerce_routes[\s\S]*bootstrap_embedded_account_routes[\s\S]*bootstrap_embedded_shop_routes/u,
-  'IM standalone gateway must publish verified commerce routes through its embedded assembly.',
+  /bootstrap_embedded_account_contribution[\s\S]*sdkwork_api_membership_assembly[\s\S]*sdkwork_api_order_assembly[\s\S]*bootstrap_embedded_shop_contribution[\s\S]*bootstrap_embedded_catalog_contribution/u,
+  'IM standalone gateway must publish verified commerce T1 routes through its embedded assembly.',
 );
 
 const standaloneProcesses = topologySpec.orchestration?.profiles?.['standalone.development']?.processes ?? [];

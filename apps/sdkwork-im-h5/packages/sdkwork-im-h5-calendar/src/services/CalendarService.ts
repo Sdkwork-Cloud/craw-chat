@@ -1,11 +1,11 @@
 /**
  * Calendar capability — fail-closed (PRD).
  *
- * Audited as a pure localStorage mock with no owner backend SDK. The fake
- * generated schedules and `clawchat_*` storage are removed: every method
- * throws a typed `CalendarCapabilityUnavailableError` so any page that
- * reaches this surface shows a typed unavailable state instead of fabricated
- * schedule data.
+ * Audited as a pure client-side mock with no owner backend SDK. The fake
+ * generated schedules and legacy `clawchat_*` storage are removed: every
+ * method throws a typed `CalendarCapabilityUnavailableError` so any page
+ * that reaches this surface shows a typed unavailable state instead of
+ * fabricated schedule data.
  */
 
 export interface Schedule {

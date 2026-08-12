@@ -1,6 +1,8 @@
 import { getIamAppSdkClient } from "@sdkwork/im-h5-core/sdk";
 import type { User } from "@sdkwork/im-h5-types";
 
+import { UserCapabilityUnavailableError } from "./UserCapabilityUnavailableError";
+
 export interface UserProfile extends User {
   wechatId: string;
   phone: string;
@@ -23,33 +25,11 @@ const INITIAL_PROFILE: UserProfile = {
   beans: 0,
 };
 
-const STORAGE_KEY = "sdkwork_im_h5_user_profile";
-
 export let CURRENT_USER_PROFILE: UserProfile = { ...INITIAL_PROFILE };
 
 function readString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
-
-const loadLocalProfile = (): Partial<UserProfile> => {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      return JSON.parse(data) as Partial<UserProfile>;
-    }
-  } catch (e) {
-    console.error("Failed to load profile", e);
-  }
-  return {};
-};
-
-const saveLocalProfile = (profile: Partial<UserProfile>) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-  } catch (e) {
-    console.error("Failed to save profile", e);
-  }
-};
 
 /** Maps the IAM current-user record onto the profile identity fields. */
 function applyIamIdentity(profile: UserProfile, record: Record<string, unknown>): UserProfile {
@@ -72,43 +52,35 @@ function applyIamIdentity(profile: UserProfile, record: Record<string, unknown>)
 
 export const ProfileService = {
   async getUserProfile(): Promise<UserProfile> {
-    const local = loadLocalProfile();
-    const merged: UserProfile = { ...INITIAL_PROFILE, ...local };
-    try {
-      const record = await getIamAppSdkClient().iam.users.current.retrieve();
-      const profile = applyIamIdentity(merged, record);
-      CURRENT_USER_PROFILE = profile;
-      return { ...profile };
-    } catch (error) {
-      console.error("Failed to load IAM profile", error);
-      CURRENT_USER_PROFILE = merged;
-      return { ...merged };
-    }
+    const record = await getIamAppSdkClient().iam.users.current.retrieve();
+    const profile = applyIamIdentity({ ...INITIAL_PROFILE }, record);
+    CURRENT_USER_PROFILE = profile;
+    return { ...profile };
   },
 
   async updateUserProfile(updates: Partial<UserProfile>): Promise<UserProfile> {
+    // Wallet, contact, and preference fields have no composed owner SDK
+    // surface; fail closed with a typed error before touching any network.
+    const unsupportedFields = (["wechatId", "phone", "gender", "region", "signature", "beans"] as const)
+      .filter((field) => updates[field] !== undefined);
+    if (unsupportedFields.length > 0) {
+      throw new UserCapabilityUnavailableError(`User profile ${unsupportedFields.join(", ")}`);
+    }
     const current = await ProfileService.getUserProfile();
+    if (updates.name && updates.name !== current.name) {
+      await getIamAppSdkClient().iam.users.current.update({ displayName: updates.name });
+    }
     const next: UserProfile = { ...current, ...updates };
     CURRENT_USER_PROFILE = next;
-    saveLocalProfile({
-      id: next.id,
-      name: next.name,
-      avatar: next.avatar,
-      wechatId: next.wechatId,
-      phone: next.phone,
-      gender: next.gender,
-      region: next.region,
-      signature: next.signature,
-      beans: next.beans,
-    });
-    // Persist the display name on the IAM user record when it changed.
-    if (updates.name && updates.name !== current.name) {
-      try {
-        await getIamAppSdkClient().iam.users.current.update({ displayName: updates.name });
-      } catch (error) {
-        console.error("Failed to update IAM display name", error);
-      }
-    }
     return { ...next };
   },
 };
+
+/**
+ * Wallet beans are owned by a payment/membership authority that is not
+ * composed in the current H5 release; the profile surface must never
+ * fabricate a balance or a recharge success.
+ */
+export function requireWalletCapability(): never {
+  throw new UserCapabilityUnavailableError("User wallet beans");
+}

@@ -53,6 +53,12 @@ import {
 } from '@sdkwork/course-runtime';
 import type { CourseAppSdkPort } from '@sdkwork/course-sdk-ports';
 import {
+  createCompanyAppSdkClient,
+  createGeneratedCompanyAppSdkPort,
+  type CompanyAppSdkClient as CompanyAppSdkClientWrapper,
+} from '@sdkwork/company-runtime';
+import type { SdkworkCompanyAppSdkPort } from '@sdkwork/company-sdk-ports';
+import {
   initIamAppSdkClient,
   resetIamAppSdkClient,
   createIamAppSdkClientConfig,
@@ -84,6 +90,8 @@ export interface H5SdkClientComposition {
   readonly communityAppSdkPort: SdkworkCommunityAppSdkPort;
   readonly courseAppSdkClient: CourseAppSdkClientWrapper;
   readonly courseAppSdkPort: CourseAppSdkPort;
+  readonly companyAppSdkClient: CompanyAppSdkClientWrapper;
+  readonly companyAppSdkPort: SdkworkCompanyAppSdkPort;
 }
 
 let sdkClientComposition: H5SdkClientComposition | null = null;
@@ -195,6 +203,16 @@ export function initSdkClients(
     courseAppSdkClient.client,
   );
 
+  const companyAppSdkClient = createCompanyAppSdkClient({
+    config: {
+      appApiBaseUrl: environment.companyAppApiBaseUrl,
+    },
+    tokenManager,
+  });
+  const companyAppSdkPort = createGeneratedCompanyAppSdkPort(
+    companyAppSdkClient.client,
+  );
+
   sdkClientComposition = {
     driveAppSdkClient,
     imSdkClient,
@@ -211,6 +229,8 @@ export function initSdkClients(
     communityAppSdkPort,
     courseAppSdkClient,
     courseAppSdkPort,
+    companyAppSdkClient,
+    companyAppSdkPort,
   };
   return sdkClientComposition;
 }

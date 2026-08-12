@@ -1,7 +1,7 @@
 /**
  * Recruitment capability — fail-closed (PRD).
  *
- * Audited as a pure localStorage mock with no owner backend SDK. The fake
+ * Audited as a pure client-side mock with no owner backend SDK. The fake
  * candidate data (incl. placeholder images) and `clawchat_*` storage are
  * removed: every method throws a typed
  * `RecruitmentCapabilityUnavailableError` so any page that reaches this

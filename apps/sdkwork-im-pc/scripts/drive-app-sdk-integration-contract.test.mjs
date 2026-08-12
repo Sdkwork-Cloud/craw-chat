@@ -169,7 +169,7 @@ assert.doesNotMatch(
 
 assert.match(
   standaloneDependencies,
-  /sdkwork_api_drive_assembly::assemble_api_router/u,
+  /sdkwork_api_drive_assembly::assemble_app_api_contribution/u,
   'Standalone gateway must mount Drive through its canonical API assembly.',
 );
 

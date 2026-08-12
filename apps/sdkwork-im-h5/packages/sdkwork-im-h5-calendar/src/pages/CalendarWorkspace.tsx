@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import {
+  Calendar,
   ChevronLeft,
   Plus,
   Search,
 } from "lucide-react";
-import { IconButton, showToast } from "@sdkwork/im-h5-commons";
+import { CapabilityUnavailablePage, IconButton, showToast } from "@sdkwork/im-h5-commons";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { CalendarService, type Schedule } from "../services/CalendarService";
@@ -23,6 +24,7 @@ const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unavailable, setUnavailable] = useState(false);
   const [indicators, setIndicators] = useState<string[]>([]);
 
   const [isAdding, setIsAdding] = useState(false);
@@ -31,9 +33,15 @@ const navigate = useNavigate();
 
   const loadData = async () => {
     setLoading(true);
-    const data = await CalendarService.getSchedulesByDate(currentDate);
-    setSchedules(data);
-    setLoading(false);
+    try {
+      const data = await CalendarService.getSchedulesByDate(currentDate);
+      setSchedules(data);
+    } catch (error) {
+      console.error(error);
+      setUnavailable(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -74,6 +82,17 @@ const navigate = useNavigate();
     showToast(t('calendar.delete_success'));
     loadData();
   };
+
+  if (unavailable) {
+    return (
+      <CapabilityUnavailablePage
+        icon={Calendar}
+        title={t("calendar.title")}
+        message={t("calendar.unavailable")}
+        onBack={() => navigate(-1)}
+      />
+    );
+  }
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();

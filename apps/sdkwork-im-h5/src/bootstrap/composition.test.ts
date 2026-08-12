@@ -7,9 +7,10 @@ import {
 } from "./composition";
 
 test("keeps the real-SDK application composition (mock-only modules excluded)", () => {
-  // approval / attendance / calendar / report / recruitment / enterprise were
-  // audited as pure localStorage mocks; they are excluded from the default
-  // composition (fail-closed, PRD).
+  // approval / attendance / calendar / report were audited as pure
+  // localStorage mocks; they are excluded from the default composition
+  // (fail-closed, PRD). enterprise / recruitment now have the
+  // sdkwork-company owner SDK and are composed by default.
   assert.deepEqual(resolveConfiguredImH5ModuleIds(), [
     "chat",
     "contacts",
@@ -32,6 +33,8 @@ test("keeps the real-SDK application composition (mock-only modules excluded)", 
     "course",
     "community",
     "shop",
+    "enterprise",
+    "recruitment",
   ]);
   assert.deepEqual(parseImH5ModuleSelection(), [
     "chat",
@@ -55,7 +58,9 @@ test("keeps the real-SDK application composition (mock-only modules excluded)", 
     "course",
     "community",
     "shop",
-  ]);
+      "enterprise",
+    "recruitment",
+]);
 });
 
 test("accepts an explicit composition of SDK-backed modules", () => {

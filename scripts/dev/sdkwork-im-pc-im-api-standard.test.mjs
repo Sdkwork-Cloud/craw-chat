@@ -84,7 +84,7 @@ assert.match(
 for (const dependency of ['drive', 'mail', 'notary']) {
   assert.match(
     standaloneDependencySource,
-    new RegExp(`bootstrap_embedded_${dependency}_routes`, 'u'),
+    new RegExp(`bootstrap_embedded_${dependency}_contribution`, 'u'),
     `standalone gateway must publish ${dependency} through an embedded assembly`,
   );
 }
@@ -190,7 +190,7 @@ assert.doesNotMatch(
 );
 
 for (const requiredImSessionFragment of [
-  'tokenProvider: tokenManager',
+  'tokenManager,',
   'accessToken: resolveAppSdkAccessToken',
   'ImWebSocketAuthOptions.automatic',
 ]) {

@@ -236,6 +236,12 @@ overrides:
   '@sdkwork/promotion-pc-coupon': workspace:*
   '@sdkwork/mail-app-sdk': workspace:*
   '@sdkwork/community-app-sdk': workspace:*
+  '@sdkwork/company-app-sdk': workspace:*
+  '@sdkwork/company-contracts': workspace:*
+  '@sdkwork/company-mobile-react-enterprise': workspace:*
+  '@sdkwork/company-runtime': workspace:*
+  '@sdkwork/company-sdk-ports': workspace:*
+  '@sdkwork/company-service': workspace:*
   '@sdkwork/course-app-sdk': workspace:*
   '@sdkwork/course-backend-sdk': workspace:*
   '@sdkwork/drive-app-sdk': workspace:*
@@ -935,6 +941,102 @@ importers:
         version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
 
   ../sdkwork-community/sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript:
+    dependencies:
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+
+  ../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-contracts: {}
+
+  ../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise:
+    dependencies:
+      '@sdkwork/company-contracts':
+        specifier: workspace:*
+        version: link:../sdkwork-company-contracts
+      '@sdkwork/company-sdk-ports':
+        specifier: workspace:*
+        version: link:../sdkwork-company-sdk-ports
+      '@sdkwork/ui-mobile-react':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-ui/sdkwork-ui-mobile-react
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+      i18next:
+        specifier: 'catalog:'
+        version: 26.3.1(typescript@6.0.3)
+      lucide-react:
+        specifier: 'catalog:'
+        version: 1.7.0(react@19.2.4)
+      motion:
+        specifier: 'catalog:'
+        version: 12.40.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: '>=18.2.0 <20.0.0'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=18.2.0 <20.0.0'
+        version: 19.2.4(react@19.2.4)
+      react-i18next:
+        specifier: 'catalog:'
+        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+      react-router:
+        specifier: 'catalog:'
+        version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
+  ../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-runtime:
+    dependencies:
+      '@sdkwork/company-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../sdks/sdkwork-company-app-sdk/sdkwork-company-app-sdk-typescript
+      '@sdkwork/company-contracts':
+        specifier: workspace:*
+        version: link:../sdkwork-company-contracts
+      '@sdkwork/company-sdk-ports':
+        specifier: workspace:*
+        version: link:../sdkwork-company-sdk-ports
+      '@sdkwork/company-service':
+        specifier: workspace:*
+        version: link:../sdkwork-company-service
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+
+  ../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-sdk-ports:
+    dependencies:
+      '@sdkwork/company-contracts':
+        specifier: workspace:*
+        version: link:../sdkwork-company-contracts
+
+  ../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-service:
+    dependencies:
+      '@sdkwork/company-contracts':
+        specifier: workspace:*
+        version: link:../sdkwork-company-contracts
+      '@sdkwork/company-sdk-ports':
+        specifier: workspace:*
+        version: link:../sdkwork-company-sdk-ports
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+
+  ../sdkwork-company/sdks/sdkwork-company-app-sdk/sdkwork-company-app-sdk-typescript:
     dependencies:
       '@sdkwork/sdk-common':
         specifier: workspace:*
@@ -3111,6 +3213,15 @@ importers:
       '@sdkwork/community-sdk-ports':
         specifier: workspace:*
         version: link:../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-sdk-ports
+      '@sdkwork/company-mobile-react-enterprise':
+        specifier: workspace:*
+        version: link:../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise
+      '@sdkwork/company-runtime':
+        specifier: workspace:*
+        version: link:../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-runtime
+      '@sdkwork/company-sdk-ports':
+        specifier: workspace:*
+        version: link:../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-sdk-ports
       '@sdkwork/course-app-sdk':
         specifier: workspace:*
         version: link:../../../sdkwork-course/sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript
@@ -3189,9 +3300,6 @@ importers:
       '@sdkwork/im-h5-course':
         specifier: workspace:*
         version: link:packages/sdkwork-im-h5-course
-      '@sdkwork/im-h5-enterprise':
-        specifier: workspace:*
-        version: link:packages/sdkwork-im-h5-enterprise
       '@sdkwork/im-h5-hardware':
         specifier: workspace:*
         version: link:packages/sdkwork-im-h5-hardware
@@ -3832,6 +3940,15 @@ importers:
       '@sdkwork/community-mobile-react-community':
         specifier: workspace:*
         version: link:../../../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community
+      '@sdkwork/company-mobile-react-enterprise':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-mobile-react-enterprise
+      '@sdkwork/company-runtime':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-runtime
+      '@sdkwork/company-sdk-ports':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-sdk-ports
       '@sdkwork/course-mobile-react-courses':
         specifier: workspace:*
         version: link:../../../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-mobile-react-courses
@@ -3874,18 +3991,12 @@ importers:
       '@sdkwork/im-h5-core':
         specifier: workspace:*
         version: link:../sdkwork-im-h5-core
-      '@sdkwork/im-h5-enterprise':
-        specifier: workspace:*
-        version: link:../sdkwork-im-h5-enterprise
       '@sdkwork/im-h5-notary':
         specifier: workspace:*
         version: link:../sdkwork-im-h5-notary
       '@sdkwork/im-h5-orders':
         specifier: workspace:*
         version: link:../sdkwork-im-h5-orders
-      '@sdkwork/im-h5-recruitment':
-        specifier: workspace:*
-        version: link:../sdkwork-im-h5-recruitment
       '@sdkwork/im-h5-report':
         specifier: workspace:*
         version: link:../sdkwork-im-h5-report

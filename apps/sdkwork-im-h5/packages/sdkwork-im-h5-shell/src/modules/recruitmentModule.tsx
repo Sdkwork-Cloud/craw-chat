@@ -6,7 +6,7 @@ type ComponentName = "RecruitmentApp" | "CreateJob" | "CandidateDetail";
 
 function lazyComponent(name: ComponentName) {
   return React.lazy(async () => {
-    const mod = await import("@sdkwork/im-h5-recruitment");
+    const mod = await import("@sdkwork/company-mobile-react-enterprise");
     return { default: mod[name] };
   });
 }

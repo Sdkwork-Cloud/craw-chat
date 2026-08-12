@@ -1337,6 +1337,7 @@ try {
     [
       path.normalize(path.join(chatPcAppRoot, 'node_modules/react/jsx-dev-runtime.js')),
       path.normalize(path.join(chatPcAppRoot, 'node_modules/.vite/sdkwork-im-pc/deps/react_jsx-dev-runtime.js')),
+      path.normalize(path.join(chatPcAppRoot, '.vite/deps/react_jsx-dev-runtime.js')),
     ].includes(resolvedJsxDevRuntimePath),
     'Vite must resolve react/jsx-dev-runtime from the chat PC dependency root instead of appending it to react/index.js',
   );

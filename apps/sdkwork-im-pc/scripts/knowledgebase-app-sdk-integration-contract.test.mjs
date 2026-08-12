@@ -181,7 +181,7 @@ assert.doesNotMatch(
 
 assert.match(
   standaloneDependencies,
-  /sdkwork_api_knowledgebase_assembly::assemble_api_router/u,
+  /sdkwork_api_knowledgebase_assembly::assemble_app_api_contribution_from_environment/u,
   'Standalone gateway must mount Knowledgebase through its canonical API assembly.',
 );
 
@@ -242,7 +242,7 @@ const embeddedRoutesSource = readRepoText(
 );
 assert.match(
   embeddedRoutesSource,
-  /bootstrap_embedded_knowledgebase_routes[\s\S]*sdkwork_api_knowledgebase_assembly::assemble_api_router/u,
+  /bootstrap_embedded_knowledgebase_contribution[\s\S]*sdkwork_api_knowledgebase_assembly::assemble_app_api_contribution_from_environment/u,
   'IM standalone gateway must embed sdkwork-knowledgebase routes in standalone single-ingress mode.',
 );
 

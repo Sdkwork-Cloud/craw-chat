@@ -1,0 +1,466 @@
+{
+  "schemaVersion": 5,
+  "kind": "sdkwork.app.topology",
+  "appId": "sdkwork-im",
+  "applicationCode": "im",
+  "archetype": "realtime-application-platform",
+  "profileRoot": "etc/topology",
+  "profilePattern": "{deploymentProfile}.{environment}.env",
+  "vocabulary": {
+    "deploymentProfile": {
+      "allowed": [
+        "standalone",
+        "cloud"
+      ]
+    },
+    "environment": {
+      "allowed": [
+        "development",
+        "test",
+        "staging",
+        "production"
+      ]
+    }
+  },
+  "defaults": {
+    "developmentProfileId": "standalone.development",
+    "productionProfileId": "cloud.production",
+    "desktopBuildProfileId": "standalone.production",
+    "gatewayBind": "127.0.0.1:18079"
+  },
+  "profileFiles": {
+    "standalone.development": "etc/topology/standalone.development.env",
+    "standalone.test": "etc/topology/standalone.test.env",
+    "standalone.production": "etc/topology/standalone.production.env",
+    "cloud.production": "etc/topology/cloud.production.env",
+    "cloud.staging": "etc/topology/cloud.staging.env",
+    "cloud.development": "etc/topology/cloud.development.env",
+    "cloud.test": "etc/topology/cloud.test.env",
+    "standalone.staging": "etc/topology/standalone.staging.env"
+  },
+  "envKeys": {
+    "deploymentProfile": "SDKWORK_IM_DEPLOYMENT_PROFILE",
+    "environment": "SDKWORK_IM_ENVIRONMENT",
+    "profileId": "SDKWORK_IM_PROFILE_ID",
+    "clientDeploymentProfile": "VITE_SDKWORK_IM_DEPLOYMENT_PROFILE",
+    "standaloneGatewayBind": "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
+    "standaloneGatewayConfig": "SDKWORK_IM_STANDALONE_GATEWAY_CONFIG",
+    "standaloneGatewayEnvironment": "SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT",
+    "clientApiGatewayBaseUrl": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+    "apiGatewayBaseUrl": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
+  },
+  "surfaces": {
+    "application.public-ingress": {
+      "connectivityPlane": "application",
+      "protocols": [
+        "http",
+        "websocket"
+      ],
+      "healthAttempts": 300,
+      "healthIntervalMs": 1000,
+      "healthTimeoutMs": 2000,
+      "bindEnv": "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
+      "httpUrlEnv": "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+      "websocketUrlEnv": "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL",
+      "websocketPath": "/im/v3/api/realtime/ws",
+      "clientHttpEnv": "VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+      "clientWebsocketEnv": "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL"
+    },
+    "platform.api-gateway": {
+      "connectivityPlane": "platform",
+      "protocols": [
+        "http"
+      ],
+      "httpUrlEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+      "clientHttpEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
+    },
+    "operations.control-ingress": {
+      "connectivityPlane": "operations",
+      "protocols": [
+        "http"
+      ],
+      "bindEnv": "SDKWORK_IM_OPERATIONS_CONTROL_INGRESS_BIND",
+      "httpUrlEnv": "SDKWORK_IM_OPERATIONS_CONTROL_HTTP_URL",
+      "optional": true
+    }
+  },
+  "components": {
+    "standaloneGateway": {
+      "crate": "sdkwork-api-im-standalone-gateway",
+      "binary": "sdkwork-api-im-standalone-gateway"
+    }
+  },
+  "orchestration": {
+    "profiles": {
+      "standalone.development": {
+        "processes": [
+          {
+            "id": "standalone-gateway",
+            "role": "api-standalone-gateway",
+            "script": "_sdkwork:gateway:standalone",
+            "required": true
+          },
+          {
+            "id": "im-browser",
+            "role": "client",
+            "applicationRoot": "apps/sdkwork-im-pc",
+            "bindEnv": "SDKWORK_IM_WEB_DEV_INGRESS_BIND",
+            "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ],
+            "required": true
+          },
+          {
+            "id": "im-desktop",
+            "role": "client",
+            "script": "_sdkwork:client:desktop:standalone",
+            "runtimeTargets": [
+              "desktop"
+            ],
+            "clientArchitectures": [
+              "tauri"
+            ],
+            "required": true
+          },
+          {
+            "id": "im-flutter-android",
+            "role": "client",
+            "script": "_sdkwork:client:flutter-android:standalone",
+            "runtimeTargets": [
+              "flutter-android"
+            ],
+            "clientArchitectures": [
+              "flutter"
+            ],
+            "required": true
+          },
+          {
+            "id": "im-flutter-ios",
+            "role": "client",
+            "script": "_sdkwork:client:flutter-ios:standalone",
+            "runtimeTargets": [
+              "flutter-ios"
+            ],
+            "clientArchitectures": [
+              "flutter"
+            ],
+            "required": true
+          }
+        ],
+        "browserDeliveries": [
+          {
+            "id": "im-adaptive-web",
+            "applicationRoot": "apps/sdkwork-im-pc",
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ],
+            "originMode": "same-origin",
+            "deliveryMode": "dev-server-proxy",
+            "clientProcessId": "im-browser",
+            "apiSurfaceId": "application.public-ingress",
+            "preserveCanonicalPaths": true,
+            "renderers": {
+              "pc-web": {
+                "applicationRoot": "apps/sdkwork-im-pc",
+                "command": "node",
+                "args": [
+                  "../../scripts/dev/run-vite-cli.mjs",
+                  "--host",
+                  "{host}",
+                  "--port",
+                  "{port}",
+                  "--strictPort"
+                ],
+                "defaultPort": 4176,
+                "portEnv": "SDKWORK_IM_PC_INTERNAL_DEV_PORT",
+                "env": {
+                  "VITE_SDKWORK_IM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IAM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_HTTP_URL": "{httpOrigin}"
+                }
+              },
+              "h5": {
+                "applicationRoot": "apps/sdkwork-im-h5",
+                "command": "node",
+                "args": [
+                  "../../scripts/dev/run-vite-cli.mjs",
+                  "--host",
+                  "{host}",
+                  "--port",
+                  "{port}",
+                  "--strictPort"
+                ],
+                "defaultPort": 4178,
+                "portEnv": "SDKWORK_IM_H5_INTERNAL_DEV_PORT",
+                "env": {
+                  "VITE_SDKWORK_IM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IAM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_HTTP_URL": "{httpOrigin}"
+                }
+              }
+            }
+          }
+        ],
+        "accessEndpoints": [
+          {
+            "id": "im-web",
+            "kind": "user-interface",
+            "source": {
+              "processId": "im-browser"
+            },
+            "path": "/",
+            "primary": true,
+            "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ]
+          }
+        ],
+        "capabilitySubset": [
+          "application-http",
+          "application-websocket",
+          "platform-iam-adapter"
+        ],
+        "healthSurfaces": [
+          "application.public-ingress"
+        ]
+      },
+      "cloud.development": {
+        "processes": [
+          {
+            "id": "im-browser",
+            "role": "client",
+            "applicationRoot": "apps/sdkwork-im-pc",
+            "bindEnv": "SDKWORK_IM_WEB_DEV_INGRESS_BIND",
+            "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ],
+            "required": true
+          },
+          {
+            "id": "im-desktop",
+            "role": "client",
+            "script": "_sdkwork:client:desktop:cloud",
+            "runtimeTargets": [
+              "desktop"
+            ],
+            "clientArchitectures": [
+              "tauri"
+            ],
+            "required": true
+          },
+          {
+            "id": "im-flutter-android",
+            "role": "client",
+            "script": "_sdkwork:client:flutter-android:cloud",
+            "runtimeTargets": [
+              "flutter-android"
+            ],
+            "clientArchitectures": [
+              "flutter"
+            ],
+            "required": true
+          },
+          {
+            "id": "im-flutter-ios",
+            "role": "client",
+            "script": "_sdkwork:client:flutter-ios:cloud",
+            "runtimeTargets": [
+              "flutter-ios"
+            ],
+            "clientArchitectures": [
+              "flutter"
+            ],
+            "required": true
+          }
+        ],
+        "browserDeliveries": [
+          {
+            "id": "im-adaptive-web",
+            "applicationRoot": "apps/sdkwork-im-pc",
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ],
+            "originMode": "same-origin",
+            "deliveryMode": "dev-server-proxy",
+            "clientProcessId": "im-browser",
+            "apiSurfaceId": "platform.api-gateway",
+            "preserveCanonicalPaths": true,
+            "renderers": {
+              "pc-web": {
+                "applicationRoot": "apps/sdkwork-im-pc",
+                "command": "node",
+                "args": [
+                  "../../scripts/dev/run-vite-cli.mjs",
+                  "--host",
+                  "{host}",
+                  "--port",
+                  "{port}",
+                  "--strictPort"
+                ],
+                "defaultPort": 4176,
+                "portEnv": "SDKWORK_IM_PC_INTERNAL_DEV_PORT",
+                "env": {
+                  "VITE_SDKWORK_IM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IAM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_HTTP_URL": "{httpOrigin}"
+                }
+              },
+              "h5": {
+                "applicationRoot": "apps/sdkwork-im-h5",
+                "command": "node",
+                "args": [
+                  "../../scripts/dev/run-vite-cli.mjs",
+                  "--host",
+                  "{host}",
+                  "--port",
+                  "{port}",
+                  "--strictPort"
+                ],
+                "defaultPort": 4178,
+                "portEnv": "SDKWORK_IM_H5_INTERNAL_DEV_PORT",
+                "env": {
+                  "VITE_SDKWORK_IM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IAM_API_BASE_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "{httpOrigin}",
+                  "VITE_SDKWORK_IM_H5_APPLICATION_PUBLIC_HTTP_URL": "{httpOrigin}"
+                }
+              }
+            }
+          }
+        ],
+        "accessEndpoints": [
+          {
+            "id": "im-web",
+            "kind": "user-interface",
+            "source": {
+              "processId": "im-browser"
+            },
+            "path": "/",
+            "primary": true,
+            "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
+              "pc-web",
+              "h5"
+            ]
+          }
+        ],
+        "healthSurfaces": [
+          "application.public-ingress",
+          "platform.api-gateway"
+        ]
+      },
+      "standalone.test": {
+        "processes": [],
+        "healthSurfaces": []
+      },
+      "standalone.staging": {
+        "processes": [],
+        "healthSurfaces": []
+      },
+      "standalone.production": {
+        "processes": [],
+        "healthSurfaces": []
+      },
+      "cloud.test": {
+        "processes": [],
+        "healthSurfaces": []
+      },
+      "cloud.staging": {
+        "processes": [],
+        "healthSurfaces": []
+      },
+      "cloud.production": {
+        "processes": [],
+        "healthSurfaces": []
+      }
+    }
+  },
+  "internalRuntime": {
+    "rpcServices": {
+      "session-gateway-rpc": {
+        "bindEnv": "SDKWORK_IM_SESSION_GATEWAY_RPC_BIND_ADDR",
+        "defaultBind": "127.0.0.1:50051",
+        "grpcUrlEnv": "SDKWORK_IM_SESSION_GATEWAY_RPC_PUBLIC_ENDPOINT"
+      },
+      "comms-conversation-rpc": {
+        "bindEnv": "SDKWORK_IM_COMMS_CONVERSATION_RPC_BIND_ADDR",
+        "defaultBind": "127.0.0.1:50052",
+        "grpcUrlEnv": "SDKWORK_IM_COMMS_CONVERSATION_RPC_PUBLIC_ENDPOINT"
+      },
+      "comms-conversation-internal-rpc": {
+        "bindEnv": "SDKWORK_IM_COMMS_CONVERSATION_INTERNAL_RPC_BIND_ADDR",
+        "defaultBind": "127.0.0.1:50053",
+        "grpcUrlEnv": "SDKWORK_IM_COMMS_CONVERSATION_INTERNAL_RPC_PUBLIC_ENDPOINT",
+        "discoveryServiceName": "sdkwork-communication-internal-rpc"
+      }
+    }
+  },
+  "apiDeploymentSpec": "im-api-deployment.spec.json",
+  "cloudPublicHosts": {
+    "application.public-ingress": {
+      "httpHost": "im.sdkwork.com",
+      "websocketHost": "im.sdkwork.com",
+      "note": "chat.sdkwork.com is reserved for LLM conversational apps, not IM",
+      "environments": {
+        "development": { "httpHost": "im-dev.sdkwork.com", "websocketHost": "im-dev.sdkwork.com" },
+        "test": { "httpHost": "im-test.sdkwork.com", "websocketHost": "im-test.sdkwork.com" },
+        "staging": { "httpHost": "im-staging.sdkwork.com", "websocketHost": "im-staging.sdkwork.com" }
+      }
+    },
+    "platform.api-gateway": {
+      "httpHost": "api.sdkwork.com",
+      "environments": {
+        "development": { "httpHost": "api-dev.sdkwork.com" },
+        "test": { "httpHost": "api-test.sdkwork.com" },
+        "staging": { "httpHost": "api-staging.sdkwork.com" }
+      }
+    }
+  },
+  "packaging": {
+    "cloudConfigFiles": [],
+    "targets": [
+      {
+        "id": "linux-x64-standalone-gateway-tar-gz",
+        "profile": "standalone",
+        "platform": "linux",
+        "architecture": "x64",
+        "formats": [
+          "tar.gz"
+        ],
+        "surface": "application.public-ingress"
+      },
+      {
+        "id": "linux-x64-application-public-ingress-tar-gz",
+        "surface": "application.public-ingress",
+        "platform": "linux",
+        "architecture": "x64",
+        "formats": [
+          "tar.gz"
+        ]
+      }
+    ]
+  }
+}

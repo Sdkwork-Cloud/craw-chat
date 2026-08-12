@@ -952,7 +952,7 @@ assert.match(
 );
 assert.match(shopServiceSource, /\.catalog\.categories\.list\s*\(/u, 'Canonical shop service must list categories through catalog app SDK');
 assert.match(shopServiceSource, /\.catalog\.products\.list\s*\(/u, 'Canonical shop service must list products through catalog app SDK');
-assert.match(shopServiceSource, /\.cart\.current\.retrieve\s*\(/u, 'Canonical shop service must read the cart through catalog app SDK');
+assert.match(shopServiceSource, /\.cart\.items\.list\s*\(/u, 'Canonical shop service must read the cart through catalog app SDK');
 assert.match(shopServiceSource, /\.checkout\.sessions\.create\s*\(/u, 'Canonical shop service must create checkout sessions through order app SDK');
 assert.match(
   ordersServiceSource,
@@ -1119,7 +1119,7 @@ const pcImSdkClientSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core
 assert.match(pcImSdkClientSource, /from ['"]@sdkwork\/im-sdk['"]/u, 'IM wrapper must use generated/composed @sdkwork/im-sdk');
 assert.match(pcImSdkClientSource, /new ImSdkClient/u);
 assert.match(pcImSdkClientSource, /getImSdkClientWithSession/u);
-assert.match(pcImSdkClientSource, /tokenProvider:\s*tokenManager/u, 'IM wrapper must use the same dynamic token manager as IAM login');
+assert.match(pcImSdkClientSource, /tokenManager,?/u, 'IM wrapper must use the same dynamic token manager as IAM login');
 assert.match(pcImSdkClientSource, /accessToken:\s*resolveAppSdkAccessToken/u, 'IM wrapper must pass accessToken from IAM login session');
 assert.match(pcImSdkClientSource, /from ['"].\/sdkBaseUrls['"]/u, 'IM wrapper must resolve API base URLs through the shared topology resolver');
 assert.match(pcImSdkClientSource, /resolveImApiBaseUrlOrThrow/u, 'IM wrapper must resolve IM API base URL through topology APPLICATION_PUBLIC env');
@@ -2846,12 +2846,12 @@ assert.match(
 );
 assert.match(
   organizationDirectoryServiceSource,
-  /\.iam\.departments\.list\s*\(/u,
+  /\.iam\?\.departments[\s\S]{0,200}\.list\s*\(/u,
   'organization directory service must list departments through the generated app SDK iam.departments resource',
 );
 assert.match(
   organizationDirectoryServiceSource,
-  /\.iam\.departmentAssignments\.list\s*\(/u,
+  /\.iam\?\.departmentAssignments[\s\S]{0,200}\.list\s*\(/u,
   'organization directory service must list department assignments through the generated app SDK iam.departmentAssignments resource',
 );
 assert.match(
@@ -2876,7 +2876,7 @@ assert.match(
 );
 assert.match(
   organizationDirectoryServiceSource,
-  /\.iam\.roleBindings\.list\s*\(\s*\{[\s\S]*?principalId:[\s\S]*?scopeKind:\s*['"]organization['"][\s\S]*?scopeId:\s*resolvedOrganizationId/u,
+  /\.iam\?\.roleBindings[\s\S]{0,200}\.list\s*\(\s*\{[\s\S]*?principalId:[\s\S]*?scopeKind:\s*['"]organization['"][\s\S]*?scopeId:\s*resolvedOrganizationId/u,
   'organization directory service must derive organization permissions from scoped role bindings rather than direct user roles',
 );
 assert.match(

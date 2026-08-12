@@ -121,6 +121,7 @@ const ChatLayoutComponent: React.FC = () => {
   const [driveOpenRequest, setDriveOpenRequest] = useState<DriveOpenRequest>();
   const driveOpenRequestSequenceRef = useRef(0);
   const groupDetailHydrationIdsRef = useRef(new Set<string>());
+  const chatListProjectionRevisionRef = useRef(0);
   const pendingReadCursorChatIdsRef = useRef(new Set<string>());
   const groupKnowledgebaseLaunchAbortRef = useRef<{
     controller: AbortController;
@@ -796,6 +797,17 @@ const ChatLayoutComponent: React.FC = () => {
     ...(update.notice !== undefined ? { notice: update.notice } : {}),
   });
 
+  // List-only realtime group projection merge: applies the incoming SDK
+  // conversation list while preserving the locally kept group agent snapshot.
+  // Deliberately avoids per-group detail hydration (groupService.getGroupById);
+  // profile/member details are fetched only when a group is explicitly opened.
+  const mergeGroupProjections = async (sourceChats: Chat[]): Promise<Chat[]> => {
+    const previousChatsById = new Map(chatsRef.current.map((chat) => [chat.id, chat]));
+    return sourceChats.map((chat) => (
+      preserveGroupAgentSnapshot(previousChatsById.get(chat.id), chat)
+    ));
+  };
+
   const needsGroupProfileHydration = (chat: Chat): boolean => (
     chat.type === "group"
     && (
@@ -903,10 +915,7 @@ const ChatLayoutComponent: React.FC = () => {
       : data;
     const assistantResult = await systemAssistantService.ensureSystemAssistantChat(assistantLookupChats);
     const unmergedNextChats = mergeChatIntoList(data, assistantResult.chat);
-    const previousChatsById = new Map(chatsRef.current.map((chat) => [chat.id, chat]));
-    const nextChats = unmergedNextChats.map((chat) => (
-      preserveGroupAgentSnapshot(previousChatsById.get(chat.id), chat)
-    ));
+    const nextChats = await mergeGroupProjections(unmergedNextChats);
     if (!shouldApply()) {
       return nextChats;
     }
@@ -1357,6 +1366,8 @@ const ChatLayoutComponent: React.FC = () => {
     }
     return chatService.subscribeChats((nextChats) => {
       handlePotentialIncomingNotifications(nextChats);
+      const projectionRevision = chatListProjectionRevisionRef.current + 1;
+      chatListProjectionRevisionRef.current = projectionRevision;
       const applyChats = (sourceChats: Chat[]) => {
         setChats((previousChats) => {
           const previousById = new Map(previousChats.map((chat) => [chat.id, chat]));

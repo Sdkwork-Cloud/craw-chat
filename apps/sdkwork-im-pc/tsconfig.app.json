@@ -16,6 +16,9 @@
       ],
       "react-router-dom": [
         "./node_modules/react-router-dom/dist/index.d.ts"
+      ],
+      "@sdkwork/utils": [
+        "../../../sdkwork-utils/packages/sdkwork-utils-typescript/src/index.ts"
       ]
     }
   },

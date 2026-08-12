@@ -1563,13 +1563,13 @@ function mapInboxEntryToChat(entry: ConversationInboxEntry, viewState: Conversat
   };
 }
 
-function applyInboxStateToViewState(
+function applyInboxProjectionToViewState(
   viewState: ConversationViewState | undefined,
   entry: ConversationInboxEntry,
 ): ConversationViewState | undefined {
   const entryRecord = toRecord(entry);
   const peerRecord = toRecord(entryRecord.peer);
-  const inboxPreferences = toRecord(entryRecord.preferences);
+  const projectedPreferences = toRecord(entryRecord.preferences);
   const inboxAgentAssignments = normalizeRealtimeAgentAssignmentSnapshot(entryRecord);
   const inboxName = pickString(entryRecord.displayName, entryRecord.display_name)
     ?? (normalizeConversationType(entry.conversationType) === 'single'
@@ -1578,7 +1578,7 @@ function applyInboxStateToViewState(
   const inboxAvatar = pickString(entryRecord.avatarUrl, entryRecord.avatar_url);
   const hasInboxState = inboxName
     || inboxAvatar
-    || Object.keys(inboxPreferences).length > 0
+    || Object.keys(projectedPreferences).length > 0
     || inboxAgentAssignments;
   if (!hasInboxState) {
     return viewState;
@@ -1591,15 +1591,15 @@ function applyInboxStateToViewState(
     ...mergedViewState,
     ...(inboxName ? { name: inboxName } : {}),
     ...(inboxAvatar ? { avatar: inboxAvatar } : {}),
-    ...(typeof inboxPreferences.isPinned === 'boolean' ? { isPinned: inboxPreferences.isPinned } : {}),
-    ...(typeof inboxPreferences.isMuted === 'boolean' ? { isMuted: inboxPreferences.isMuted } : {}),
-    ...(typeof inboxPreferences.isMarkedUnread === 'boolean'
-      ? { isMarkedUnread: inboxPreferences.isMarkedUnread }
+    ...(typeof projectedPreferences.isPinned === 'boolean' ? { isPinned: projectedPreferences.isPinned } : {}),
+    ...(typeof projectedPreferences.isMuted === 'boolean' ? { isMuted: projectedPreferences.isMuted } : {}),
+    ...(typeof projectedPreferences.isMarkedUnread === 'boolean'
+      ? { isMarkedUnread: projectedPreferences.isMarkedUnread }
       : {}),
     ...(viewState?.isHidden === true
       ? { isHidden: true }
-      : typeof inboxPreferences.isHidden === 'boolean'
-        ? { isHidden: inboxPreferences.isHidden }
+      : typeof projectedPreferences.isHidden === 'boolean'
+        ? { isHidden: projectedPreferences.isHidden }
         : {}),
     type: normalizeConversationType(entry.conversationType),
   };
@@ -2355,7 +2355,7 @@ class SdkworkChatService implements ChatService {
     agent: Pick<Chat, 'avatar' | 'name' | 'welcomeMessage'>,
     auth: AuthSessionOperationContext,
   ): Promise<Chat> {
-    const inboxViewState = applyInboxStateToViewState(
+    const inboxViewState = applyInboxProjectionToViewState(
       this.conversationViewState.get(entry.conversationId),
       entry,
     );
@@ -2405,7 +2405,7 @@ class SdkworkChatService implements ChatService {
           this.latestReadSeq.get(entry.conversationId) ?? 0,
           entry.lastMessageSeq,
         ));
-        let viewState = applyInboxStateToViewState(
+        let viewState = applyInboxProjectionToViewState(
           this.conversationViewState.get(entry.conversationId),
           entry,
         );

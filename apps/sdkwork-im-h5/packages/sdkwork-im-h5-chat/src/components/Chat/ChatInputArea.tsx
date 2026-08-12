@@ -195,7 +195,13 @@ const togglePanel = (panel: "emoji" | "action") => {
 
       <AnimatePresence initial={false}>
         {activePanel === "action" && (
-          <ChatActionPanel handleSendCustom={handleSendCustom} />
+          <ChatActionPanel
+            onFileSelected={(kind) => {
+              if (kind === "image" || kind === "video" || kind === "file") {
+                handleSendCustom(kind, "");
+              }
+            }}
+          />
         )}
         {activePanel === "emoji" && (
           <ChatEmojiPanel emojis={emojis} editor={editor} />

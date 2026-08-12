@@ -1,7 +1,7 @@
 /**
  * Approval capability — fail-closed (PRD).
  *
- * Audited as a pure localStorage mock with no owner backend SDK. The fake
+ * Audited as a pure client-side mock with no owner backend SDK. The fake
  * in-memory data, fake submissions and `clawchat_*` storage are removed:
  * every method throws a typed `ApprovalCapabilityUnavailableError` so any
  * page that reaches this surface (e.g. via an opt-in module selection) shows

@@ -55,16 +55,13 @@ export const ordersModule: ImH5CapabilityModule = {
     {
       ...IM_H5_ROUTE_DEFINITIONS.ordersCenter,
       render: () => (
-        <OrderCenter
-          orderDetailPath={IM_H5_ROUTE_DEFINITIONS.ordersDetail.path}
-          orderCashierPath={IM_H5_ROUTE_DEFINITIONS.ordersCashier.path}
-        />
+        <OrderCenter />
       ),
     },
     {
       ...IM_H5_ROUTE_DEFINITIONS.ordersDetail,
       render: () => (
-        <OrderDetail orderCashierPath={IM_H5_ROUTE_DEFINITIONS.ordersCashier.path} />
+        <OrderDetail />
       ),
     },
     {

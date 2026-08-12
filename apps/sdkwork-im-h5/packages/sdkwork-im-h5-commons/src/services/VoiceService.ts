@@ -1,7 +1,7 @@
 /**
  * Voice (音色) catalog — fail-closed (PRD).
  *
- * Audited as a pure localStorage mock with no owner backend SDK. The fake
+ * Audited as a pure client-side mock with no owner backend SDK. The fake
  * voice categories, custom-voice cloning and `clawchat_*` storage are
  * removed: every method throws a typed `VoiceCapabilityUnavailableError` so
  * consumers (e.g. the voice-selection sheet) surface a typed unavailable

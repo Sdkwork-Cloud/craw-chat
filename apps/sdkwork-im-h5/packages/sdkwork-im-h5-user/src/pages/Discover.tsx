@@ -88,9 +88,7 @@ export const Discover: React.FC = () => {
             icon={Building2}
             label={t('user.auto_prop_2518cc2f', 'Business Center')}
             colorClass="text-indigo-500"
-            onClick={() =>
-              showToast(t('commons.feature_unavailable', 'This feature is not available yet; the real service is being connected. Stay tuned.'))
-            }
+            onClick={() => navigate("/enterprise")}
           />
           <DiscoverItem
             icon={Scan}

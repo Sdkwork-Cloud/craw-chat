@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  CapabilityUnavailablePage,
   PageLayout,
   IconButton,
   cn,
@@ -27,14 +28,33 @@ const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>("待我查阅");
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [unavailable, setUnavailable] = useState(false);
 
   React.useEffect(() => {
     setIsLoading(true);
-    ReportService.getReports().then((data) => {
-      setReports(data);
-      setIsLoading(false);
-    });
+    ReportService.getReports()
+      .then((data) => {
+        setReports(data);
+      })
+      .catch((error) => {
+        console.error(error);
+        setUnavailable(true);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
+
+  if (unavailable) {
+    return (
+      <CapabilityUnavailablePage
+        icon={FileText}
+        title={t("report.title")}
+        message={t("report.unavailable")}
+        onBack={() => navigate(-1)}
+      />
+    );
+  }
 
   return (
     <PageLayout title={t('report.title')}>

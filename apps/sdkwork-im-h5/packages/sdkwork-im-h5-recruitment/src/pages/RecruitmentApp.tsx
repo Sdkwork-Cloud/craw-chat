@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
+  CapabilityUnavailablePage,
   PageLayout,
   IconButton,
 } from "@sdkwork/im-h5-commons";
@@ -18,20 +19,39 @@ const navigate = useNavigate();
   
   const [candidates, setCandidates] = useState<CandidateRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
-    RecruitmentService.getCandidates().then((data) => {
-      setCandidates(data);
-      setIsLoading(false);
-    });
+    RecruitmentService.getCandidates()
+      .then((data) => {
+        setCandidates(data);
+      })
+      .catch((error) => {
+        console.error(error);
+        setUnavailable(true);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
+
+  if (unavailable) {
+    return (
+      <CapabilityUnavailablePage
+        icon={Briefcase}
+        title={t("recruitment.title")}
+        message={t("recruitment.unavailable")}
+        onBack={() => navigate(-1)}
+      />
+    );
+  }
 
   return (
     <PageLayout title={t('recruitment.title')}>
       <div className="flex flex-col h-full bg-bg-color">
         {/* Header Stats */}
-        <RecruitmentHeader ongoingCount={12} interviewCount={2} reviewCount={5} />
+        <RecruitmentHeader ongoingCount={0} interviewCount={0} reviewCount={0} />
 
         <div className="flex-1 overflow-y-auto px-4 -mt-6">
           <div className="flex justify-between items-center mb-3 mt-4 px-1">

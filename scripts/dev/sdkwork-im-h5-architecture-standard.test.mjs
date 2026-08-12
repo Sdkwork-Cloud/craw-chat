@@ -418,7 +418,7 @@ const chatInbox = read('packages/sdkwork-im-h5-chat/src/pages/ChatList.tsx');
 const imApp = read('src/ImApp.tsx');
 const chatConversation = read('packages/sdkwork-im-h5-chat/src/pages/ChatDetail.tsx');
 const chatConversationService = read('packages/sdkwork-im-h5-chat/src/services/chatConversationService.ts');
-const chatRealtime = read('packages/sdkwork-im-h5-chat/src/services/chatRealtimeService.ts');
+const chatRealtime = read('packages/sdkwork-im-h5-core/src/realtime/index.ts');
 
 assert.match(imApp, /parseConversationRoute/u);
 assert.match(shellChatModuleSource, /ChatDetail/u);
@@ -442,9 +442,9 @@ assert.match(chatRealtime, /messages\.onConversation/u);
 assert.match(chatRealtime, /subscribeInboxLiveRefresh/u);
 assert.match(chatRealtime, /events\.onScope/u);
 assert.match(chatRealtime, /sharedConnection/u);
-assert.match(chatRealtime, /state\.status === "open"[\s\S]*syncLiveSubscriptions/u);
+assert.match(chatRealtime, /state\.status === ['"]open['"][\s\S]*syncLiveSubscriptions/u);
 assert.match(chatRealtime, /teardownConnectionIfIdle/u);
-assert.match(chatRealtime, /disposeChatLiveConnection/u);
+assert.match(chatRealtime, /disposeImLiveConnection/u);
 
 const app = read('src/App.tsx');
 const composition = read('src/bootstrap/composition.ts');
@@ -563,9 +563,12 @@ for (const [capability, canonicalPackage] of migratedCapabilityAdapters) {
   const packageRoot = path.join(appRoot, 'packages', `sdkwork-im-h5-${capability}`);
   const sourceEntries = readdirSync(path.join(packageRoot, 'src')).sort();
   const packageJson = JSON.parse(readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
+  // The adapter surface stays a thin compatibility layer; the ai-voice host
+  // wiring additionally owns a `runtime/` directory that injects the
+  // voice-owned my-voices ports with host-constructed SDK clients.
   assert.deepEqual(
     sourceEntries,
-    ['index.ts'],
+    capability === 'ai-voice' ? ['index.ts', 'runtime'] : ['index.ts'],
     `sdkwork-im-h5-${capability} must remain a thin compatibility adapter`,
   );
   assert.ok(
@@ -589,8 +592,8 @@ assert.equal(corePackageJson.dependencies?.['@sdkwork/auth-runtime-pc-react'], u
 const authGate = read('src/AuthGate.tsx');
 const authConfig = read('src/bootstrap/imAuthConfig.ts');
 assert.match(authGate, /IM_H5_IAM_SESSION_CHANGED_EVENT/u);
-assert.match(authGate, /SdkworkIamAuthRoutes/u);
-assert.match(authGate, /viewportMode="flow"/u);
+assert.match(authGate, /SdkworkIamH5AuthRoutes/u);
+assert.match(authGate, /basePath=\{AUTH_BASE_PATH\}/u);
 assert.match(authConfig, /resolveImAuthRuntimeConfig/u);
 assert.ok(appPackageJson.dependencies['@sdkwork/auth-pc-react']);
 

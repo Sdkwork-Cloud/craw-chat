@@ -96,7 +96,7 @@ assert.match(
 );
 assert.match(
   dashboardServiceText,
-  /state:\s*snapshot\.availability\.state[\s\S]*metrics:\s*metrics\s*\?[\s\S]*:\s*\[\]/u,
+  /const metrics: DashboardMetric\[\] = \[\][\s\S]*if \(realtimeMetrics\)[\s\S]*if \(conversationMetrics\)/u,
   'console dashboard must gate activity trends on portal metric availability',
 );
 assert.match(

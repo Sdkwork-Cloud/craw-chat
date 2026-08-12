@@ -6,7 +6,7 @@ type ComponentName = "EnterpriseCenter" | "EnterpriseSearch" | "EnterpriseInvite
 
 function lazyComponent(name: ComponentName) {
   return React.lazy(async () => {
-    const mod = await import("@sdkwork/im-h5-enterprise");
+    const mod = await import("@sdkwork/company-mobile-react-enterprise");
     return { default: mod[name] };
   });
 }

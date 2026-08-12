@@ -19,6 +19,12 @@ import { MessageList } from "../components/Chat/MessageList";
 import { VoiceRecordingOverlay } from "../components/Chat/VoiceRecordingOverlay";
 import { FullscreenMediaOverlay } from "../components/Chat/FullscreenMediaOverlay";
 import { ChatService } from "../services/ChatService";
+import { getChatImSdkClient } from "../services/chatConversationService";
+import {
+  configureOfflineTextSendFlushTarget,
+  enqueuePendingTextSend,
+  runPendingTextSendFlush,
+} from "../services/offlineSendQueue";
 import {
   subscribeConversationLiveMessages,
   subscribeInboxLiveRefresh,
@@ -35,6 +41,19 @@ export function ChatDetail() {
   const chatId = conversationId ?? id ?? "";
   const { t } = useTranslation();
   const sessionUser = useAppStore((state) => state.currentUser);
+
+  // Wire the offline send queue flush target once: the queue replays pending
+  // text sends through the same generated SDK postText path (stable
+  // clientMsgId) that the interactive send uses.
+  useEffect(() => {
+    configureOfflineTextSendFlushTarget({
+      postText: (conversation, content, options) =>
+        getChatImSdkClient().conversations.postText(conversation, content, {
+          clientMsgId: options.clientMsgId,
+          ...(options.replyTo ? { replyTo: options.replyTo } : {}),
+        }),
+    });
+  }, []);
   const [chat, setChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [nextCursor, setNextCursor] = useState<string>();
@@ -139,6 +158,13 @@ export function ChatDetail() {
     });
     const unsubscribeInboxRefresh = subscribeInboxLiveRefresh(() => {
       void load();
+      // Recovery-driven reconnect: flush text sends that failed while the
+      // connection was down. The queue is principal-scoped and the flush is
+      // serialized, so repeated reconnects cannot duplicate sends.
+      const scope = sessionUser?.id;
+      if (scope) {
+        void runPendingTextSendFlush(scope);
+      }
     });
     return () => {
       unsubscribeLiveMessages();
@@ -220,6 +246,24 @@ export function ChatDetail() {
     } catch (error) {
       console.error(error);
       setMessages((previous) => markLocalMessageFailed(previous, localMessage.id));
+      // Persist the failed text send to the principal-scoped offline queue so
+      // a later recovery-driven reconnect can flush it with the same stable
+      // idempotency key (no duplicate messages).
+      const scope = sessionUser?.id;
+      if (scope) {
+        void enqueuePendingTextSend(scope, {
+          id: idempotencyKeyForLocalMessage(localMessage.id) ?? localMessage.id,
+          conversationId: chatId,
+          content,
+          replyTo: replyingTo ? {
+            messageId: replyingTo.id,
+            senderDisplayName: replyingTo.senderId === scope
+              ? t("chat.detail.me", "Me")
+              : chat?.participants.find((participant) => participant.id === replyingTo.senderId)?.name ?? replyingTo.senderId,
+            contentPreview: replyingTo.content.slice(0, 200),
+          } : null,
+        });
+      }
       showToast(t("chat.detail.send_failed", "Unable to send message"));
     } finally {
       setSending(false);

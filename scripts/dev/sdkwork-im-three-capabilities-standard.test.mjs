@@ -105,7 +105,7 @@ const chatServiceText = readText(
 
 assert.match(
   offlineStoreText,
-  /offline_messages/u,
+  /im_local_message_cache/u,
   'Tauri offline store must persist messages in SQLite',
 );
 assert.match(
@@ -199,7 +199,7 @@ assert.match(
 );
 assert.match(
   offlineStoreText,
-  /offline_pending_sends/u,
+  /im_local_pending_send/u,
   'Tauri offline store must persist pending outbound sends',
 );
 

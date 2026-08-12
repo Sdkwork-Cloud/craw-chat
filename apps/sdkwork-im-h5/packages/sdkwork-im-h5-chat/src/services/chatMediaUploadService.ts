@@ -6,6 +6,10 @@ import {
   type SdkworkDriveAppClient,
 } from '@sdkwork/im-h5-core/sdk';
 
+const CHAT_DRIVE_APP_RESOURCE_TYPE = "im_conversation";
+const CHAT_DRIVE_SCENE = "im";
+const CHAT_DRIVE_SOURCE = "chat_message";
+
 export function getDriveAppSdkClientWithSession(): SdkworkDriveAppClient {
   return getDriveAppSdkClient();
 }
@@ -34,7 +38,7 @@ export async function uploadChatMedia(
   const client = getDriveAppSdkClientWithSession();
   const profile: DriveUploaderProfile = kind === "image" ? "image" : kind === "video" ? "video" : kind === "voice" || kind === "audio" ? "audio" : "attachment";
   const request = {
-    file, appResourceType: "im_conversation", appResourceId: conversationId, scene: "im", source: "chat_message", uploadProfileCode: profile,
+    file, appResourceType: CHAT_DRIVE_APP_RESOURCE_TYPE, appResourceId: conversationId, scene: CHAT_DRIVE_SCENE, source: CHAT_DRIVE_SOURCE, uploadProfileCode: profile,
     ...(options.fileName ? { originalFileName: options.fileName } : {}), ...(options.mimeType ? { contentType: options.mimeType } : {}),
   };
   const uploadResult = kind === "image" ? await client.uploader.uploadImage(request) : kind === "video" ? await client.uploader.uploadVideo(request) : kind === "voice" || kind === "audio" ? await client.uploader.uploadAudio(request) : await client.uploader.uploadAttachment(request);

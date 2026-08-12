@@ -24,6 +24,8 @@ export interface H5RuntimeEnvironment {
   readonly voiceAppApiBaseUrl: string;
   /** CMS app API base URL (`sdkwork-cms` app-api via gateway or direct). */
   readonly cmsAppApiBaseUrl: string;
+  /** Company app API base URL (`sdkwork-company` app-api via gateway or direct). */
+  readonly companyAppApiBaseUrl: string;
 }
 
 const DEFAULT_APP_KEY = 'sdkwork-im-h5';
@@ -164,6 +166,12 @@ export function resolveH5RuntimeEnvironment(): H5RuntimeEnvironment {
       ?? '/',
     cmsAppApiBaseUrl: readEnvValue('SDKWORK_CMS_APP_API_BASE_URL')
       ?? readEnvValue('VITE_SDKWORK_CMS_APP_API_BASE_URL')
+      ?? platformGatewayApiBaseUrl
+      ?? readEnvValue('SDKWORK_IM_API_BASE_URL')
+      ?? readEnvValue('VITE_SDKWORK_IM_API_BASE_URL')
+      ?? '/',
+    companyAppApiBaseUrl: readEnvValue('SDKWORK_COMPANY_APP_API_BASE_URL')
+      ?? readEnvValue('VITE_SDKWORK_COMPANY_APP_API_BASE_URL')
       ?? platformGatewayApiBaseUrl
       ?? readEnvValue('SDKWORK_IM_API_BASE_URL')
       ?? readEnvValue('VITE_SDKWORK_IM_API_BASE_URL')

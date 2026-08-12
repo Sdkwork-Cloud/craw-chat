@@ -44,6 +44,12 @@ async fn async_main(
         im_adapters_postgres_journal::spawn_retention_purge_scheduler_from_env();
     sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env().await;
     let environment = resolve_environment();
+    // Bootstrap the IAM foundation schema before tenant application provisioning:
+    // the embedded tenant bootstrap skips provisioning when the IAM schema is not
+    // ready, so provisioning must run after the schema is installed.
+    sdkwork_iam_database_host::bootstrap_iam_database_from_env()
+        .await
+        .map_err(|error| format!("failed to bootstrap IAM database schema: {error}"))?;
     sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env(
         environment.as_str(),
     )

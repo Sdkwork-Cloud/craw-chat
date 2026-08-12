@@ -56,15 +56,9 @@
 ```yaml
 # 端口映射
 services:
-  sdkwork-im-gateway:
+  sdkwork-im-standalone-gateway:
     http: 18079
-    websocket: 18080
-    
-  session-gateway:
-    grpc: 50051
-    
-  conversation-service:
-    grpc: 50052
+    websocket: 18079
     
   postgres:
     port: 5432
@@ -134,11 +128,9 @@ source etc/topology/cloud.production.env
 scripts/check-security-config.sh
 
 # Step 4: 启动依赖服务
-docker-compose -f deployments/redis/redis-cluster.yml up -d
-docker-compose -f deployments/postgres/postgres-cluster.yml up -d
 
 # Step 5: 启动应用服务
-docker-compose -f deployments/docker-compose.yml up -d
+docker-compose -f deployments/docker/docker-compose.yml up -d
 
 # Step 6: 健康检查
 curl http://localhost:18079/healthz
@@ -149,7 +141,7 @@ curl http://localhost:18079/readyz
 
 ```bash
 # Step 1: 创建namespace
-kubectl apply -f deployments/kubernetes/cloud-split-services/namespace.yml
+kubectl apply -f deployments/kubernetes/cloud/namespace.yaml
 
 # Step 2: 创建secrets
 kubectl create secret generic sdkwork-im-secrets \
@@ -157,7 +149,7 @@ kubectl create secret generic sdkwork-im-secrets \
   --from-literal=redis-nodes=$SDKWORK_IM_REDIS_CLUSTER_NODES
 
 # Step 3: 部署服务
-kubectl apply -f deployments/kubernetes/cloud-split-services/
+kubectl apply -f deployments/kubernetes/cloud/
 
 # Step 4: 验证部署
 kubectl get pods -n sdkwork-im
@@ -189,7 +181,7 @@ redis-cli -c -h localhost -p 6379 PING || exit 1
 
 # 4. WebSocket测试
 echo "Testing WebSocket..."
-wscat -c ws://localhost:18080 -x '{"type":"auth.init","token":"test"}'
+wscat -c ws://localhost:18079 -x '{"type":"auth.init","token":"test"}'
 
 # 5. API测试
 echo "Testing API..."
@@ -609,7 +601,7 @@ graph TD
    
 3. 检查网络状态
    ping client_ip
-   netstat -an | grep :18080
+   netstat -an | grep :18079
    
 # 常见原因
 - 网络不稳定: 检查网络配置
@@ -1187,9 +1179,7 @@ pg_restore -d $SDKWORK_DATABASE_URL -Fc /tmp/db_${BACKUP_DATE}.dump
 # 3. 恢复Redis
 echo "Restoring Redis..."
 aws s3 cp ${S3_BUCKET}/redis/redis_${BACKUP_DATE}.rdb /tmp/
-docker-compose -f deployments/redis/redis-cluster.yml down
 cp /tmp/redis_${BACKUP_DATE}.rdb /var/lib/redis/dump.rdb
-docker-compose -f deployments/redis/redis-cluster.yml up -d
 
 # 4. 恢复配置
 echo "Restoring config..."

@@ -1,4 +1,4 @@
-import { BrowserRouter } from "react-router-dom";
+import { HashRouter } from "react-router-dom";
 import { ImH5Shell, IM_APP_HOME_PATH } from "@sdkwork/im-h5-shell";
 
 import { AuthGate } from "./AuthGate";
@@ -10,10 +10,10 @@ export default function App() {
   const moduleIds = resolveConfiguredImH5ModuleIds();
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AuthGate>
         <ImH5Shell moduleIds={moduleIds} />
       </AuthGate>
-    </BrowserRouter>
+    </HashRouter>
   );
 }

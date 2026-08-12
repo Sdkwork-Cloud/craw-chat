@@ -1,7 +1,7 @@
 /**
  * Attendance capability — fail-closed (PRD).
  *
- * Audited as a pure localStorage mock with no owner backend SDK. The fake
+ * Audited as a pure client-side mock with no owner backend SDK. The fake
  * in-memory records, fake clock-in and `clawchat_*` storage are removed:
  * every method throws a typed `AttendanceCapabilityUnavailableError` so any
  * page that reaches this surface shows a typed unavailable state instead of

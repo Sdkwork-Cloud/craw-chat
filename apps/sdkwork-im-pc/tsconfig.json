@@ -38,6 +38,9 @@
       "@sdkwork/community-runtime": [
         "./../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-runtime/src/index.ts"
       ],
+      "@sdkwork/catalog-app-sdk": [
+        "./../../../sdkwork-catalog/sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript/src/index.ts"
+      ],
       "@sdkwork/community-sdk-ports": [
         "./../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-sdk-ports/src/index.ts"
       ],
@@ -65,11 +68,62 @@
       "@sdkwork/course-sdk-ports": [
         "./../../../sdkwork-course/apps/sdkwork-course-common/packages/sdkwork-course-sdk-ports/src/index.ts"
       ],
+      "@sdkwork/auth-pc-react": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/index.ts"
+      ],
+      "@sdkwork/auth-runtime-pc-react": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/index.ts"
+      ],
+      "@sdkwork/i18n-pc-react": [
+        "../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react/src/index.ts"
+      ],
+      "@sdkwork/drive-app-sdk": [
+        "./../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/drive-pc-drive": [
+        "./../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-drive/src/index.ts"
+      ],
       "@sdkwork/iam-app-sdk": [
         "../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/iam-backend-sdk": [
         "../../../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/iam-sdk-ports": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports/src/index.ts"
+      ],
+      "@sdkwork/im-app-sdk": [
+        "../../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/im-backend-sdk": [
+        "../../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/im-sdk": [
+        "../../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/knowledgebase-app-sdk": [
+        "./../../../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/rtc-sdk": [
+        "../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/knowledgebase-pc-knowledge": [
+        "./../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-knowledge/src/index.ts"
+      ],
+      "@sdkwork/mail-app-sdk": [
+        "./../../../sdkwork-mail/sdks/sdkwork-mail-app-sdk/sdkwork-mail-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/membership-app-sdk": [
+        "./../../../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/notary-app-sdk": [
+        "../../../sdkwork-notary/sdks/sdkwork-notary-app-sdk/sdkwork-notary-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/order-app-sdk": [
+        "./../../../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/shop-app-sdk": [
+        "./../../../sdkwork-shop/sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/src/index.ts"
       ],
       "react": [
         "./node_modules/@types/react/index.d.ts"

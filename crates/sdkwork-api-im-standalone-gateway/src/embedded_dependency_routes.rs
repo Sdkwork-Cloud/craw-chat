@@ -165,7 +165,7 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
         sdkwork_api_order_assembly::assemble_app_api_contribution().await?,
         bootstrap_embedded_payment_contribution().await?,
         bootstrap_embedded_shop_contribution().await?,
-        sdkwork_api_notary_assembly::assemble_app_api_contribution().await?,
+        bootstrap_embedded_notary_contribution().await?,
         bootstrap_embedded_course_routes().await?,
         sdkwork_api_community_assembly::assemble_app_api_contribution()
             .await
@@ -308,6 +308,13 @@ async fn bootstrap_embedded_payment_contribution()
 async fn bootstrap_embedded_shop_contribution()
 -> Result<sdkwork_web_bootstrap::ApiAssemblyContribution, String> {
     sdkwork_api_shop_assembly::assemble_app_api_contribution_from_env().await
+}
+
+async fn bootstrap_embedded_notary_contribution()
+-> Result<sdkwork_web_bootstrap::ApiAssemblyContribution, String> {
+    sdkwork_api_notary_assembly::assemble_app_api_contribution()
+        .await
+        .map_err(|error| format!("compose embedded notary App API failed: {error}"))
 }
 
 async fn build_embedded_agents_runtime() -> Result<EmbeddedAgentsRuntime, String> {
