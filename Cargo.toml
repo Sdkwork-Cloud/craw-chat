@@ -298,6 +298,21 @@ sdkwork-routes-community-common = { path = "../sdkwork-community/crates/sdkwork-
 sdkwork-routes-community-app-api = { path = "../sdkwork-community/crates/sdkwork-routes-community-app-api" }
 sdkwork-routes-community-backend-api = { path = "../sdkwork-community/crates/sdkwork-routes-community-backend-api" }
 sdkwork-routes-community-open-api = { path = "../sdkwork-community/crates/sdkwork-routes-community-open-api" }
+# sdkwork-company — enterprise center (企业中心) domain owned by the sibling
+# sdkwork-company workspace. The standalone IM gateway embeds its App API
+# contribution in-process (APPLICATION_GATEWAY_SPEC platform consumer linking);
+# no HTTP proxying to an internal company port is used in standalone mode.
+sdkwork-api-company-assembly = { path = "../sdkwork-company/crates/sdkwork-api-company-assembly" }
+sdkwork-company-service-host = { path = "../sdkwork-company/crates/sdkwork-company-service-host" }
+sdkwork-company-service = { path = "../sdkwork-company/crates/sdkwork-company-service" }
+sdkwork-company-storage-sqlx-rust = { path = "../sdkwork-company/crates/sdkwork-company-storage-sqlx-rust" }
+sdkwork-company-database-host = { path = "../sdkwork-company/crates/sdkwork-company-database-host" }
+sdkwork-company-core-rust = { path = "../sdkwork-company/crates/sdkwork-company-core-rust" }
+sdkwork-routes-company-common = { path = "../sdkwork-company/crates/sdkwork-routes-company-common" }
+sdkwork-routes-company-app-api = { path = "../sdkwork-company/crates/sdkwork-routes-company-app-api" }
+sdkwork-routes-company-backend-api = { path = "../sdkwork-company/crates/sdkwork-routes-company-backend-api" }
+sdkwork-routes-company-open-api = { path = "../sdkwork-company/crates/sdkwork-routes-company-open-api" }
+
 sdkwork_iam_context_service = { path = "../sdkwork-iam/crates/sdkwork-iam-context-service", package = "sdkwork-iam-context-service" }
 chrono = { version = "0.4", features = ["serde"] }
 dotenvy = "0.15"

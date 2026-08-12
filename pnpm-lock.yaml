@@ -4148,6 +4148,9 @@ importers:
       '@sdkwork/auth-runtime-pc-react':
         specifier: workspace:*
         version: link:../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react
+      '@sdkwork/company-pc-company':
+        specifier: workspace:*
+        version: link:../../../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company
       '@sdkwork/core-pc-react':
         specifier: workspace:*
         version: link:../../../sdkwork-core/sdkwork-core-pc-react
@@ -4936,6 +4939,9 @@ importers:
       '@sdkwork/company-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-company/sdks/sdkwork-company-app-sdk/sdkwork-company-app-sdk-typescript
+      '@sdkwork/company-pc-company':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company
       '@sdkwork/core-pc-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-core/sdkwork-core-pc-react

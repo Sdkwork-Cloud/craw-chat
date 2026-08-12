@@ -27,6 +27,8 @@ sdkwork-api-drive-assembly = { workspace = true }
 sdkwork-api-course-assembly = { workspace = true }
 sdkwork-api-catalog-assembly = { workspace = true }
 sdkwork-api-community-assembly = { workspace = true }
+sdkwork-api-company-assembly = { workspace = true }
+sdkwork-company-database-host = { workspace = true }
 sdkwork-knowledgebase-database-host = { workspace = true }
 sdkwork-drive-workspace-service = { workspace = true }
 sdkwork-mail-database-host = { workspace = true }

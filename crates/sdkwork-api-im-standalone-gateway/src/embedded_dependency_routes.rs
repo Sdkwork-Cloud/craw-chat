@@ -34,6 +34,7 @@ const EMBEDDED_DEPENDENCY_APP_ROOTS: &[(&str, &str)] = &[
     ("SDKWORK_AGENTS", "sdkwork-agents"),
     ("SDKWORK_COURSE", "sdkwork-course"),
     ("SDKWORK_COMMUNITY", "sdkwork-community"),
+    ("SDKWORK_COMPANY", "sdkwork-company"),
     ("SDKWORK_CATALOG", "sdkwork-catalog"),
     ("SDKWORK_MAIL", "sdkwork-mail"),
 ];
@@ -147,6 +148,10 @@ pub async fn bootstrap_embedded_dependency_databases() -> Result<(), String> {
         .await
         .map(|_| ())
         .map_err(|error| format!("sync embedded catalog database failed: {error}"))?;
+    sdkwork_company_database_host::bootstrap_company_database_from_env()
+        .await
+        .map(|_| ())
+        .map_err(|error| format!("sync embedded company database failed: {error}"))?;
     bootstrap_embedded_merchandise_database().await?;
     bootstrap_embedded_promotion_database().await?;
     Ok(())
@@ -170,6 +175,9 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
         sdkwork_api_community_assembly::assemble_app_api_contribution()
             .await
             .map_err(|error| format!("compose embedded community App API failed: {error}"))?,
+        sdkwork_api_company_assembly::assemble_app_api_contribution()
+            .await
+            .map_err(|error| format!("compose embedded company App API failed: {error}"))?,
         bootstrap_embedded_catalog_contribution().await?,
         bootstrap_embedded_mail_contribution().await?,
     ];

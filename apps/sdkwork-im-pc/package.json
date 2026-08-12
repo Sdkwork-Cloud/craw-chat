@@ -57,6 +57,7 @@
     "@sdkwork/appbase-pc-react": "workspace:*",
     "@sdkwork/auth-pc-react": "workspace:*",
     "@sdkwork/auth-runtime-pc-react": "workspace:*",
+    "@sdkwork/company-pc-company": "workspace:*",
     "@sdkwork/core-pc-react": "workspace:*",
     "@sdkwork/course-pc-console": "workspace:*",
     "@sdkwork/drive-app-sdk": "workspace:*",

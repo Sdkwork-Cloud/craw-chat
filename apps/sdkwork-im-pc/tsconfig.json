@@ -44,6 +44,9 @@
       "@sdkwork/community-sdk-ports": [
         "./../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-sdk-ports/src/index.ts"
       ],
+      "@sdkwork/company-pc-company": [
+        "./../../../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company/src/index.tsx"
+      ],
       "@sdkwork/course-app-sdk": [
         "./../../../sdkwork-course/sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript/src/index.ts"
       ],
