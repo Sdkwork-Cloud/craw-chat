@@ -1,0 +1,36 @@
+{
+  "name": "@sdkwork/im-pc-company",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "exports": {
+    ".": {
+      "types": "./src/index.tsx",
+      "import": "./src/index.tsx",
+      "default": "./src/index.tsx"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sdkwork/company-pc-company": "workspace:*",
+    "@sdkwork/company-runtime": "workspace:*",
+    "@sdkwork/company-sdk-ports": "workspace:*",
+    "@sdkwork/im-pc-commons": "workspace:*",
+    "@sdkwork/im-pc-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=18.2.0 <20.0.0",
+    "react-dom": ">=18.2.0 <20.0.0"
+  },
+  "sdkwork": {
+    "workspace": "sdkwork-im",
+    "architecture": "pc-react",
+    "domain": "communication",
+    "capability": "company",
+    "status": "implemented"
+  }
+}

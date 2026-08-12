@@ -63,6 +63,7 @@ export const COMMERCIAL_RUNTIME_MODULES = new Set<AppModuleId>([
   "community",
   "shop",
   "orders",
+  "enterprise",
 ]);
 
 export const CONTRACT_PENDING_MODULES = new Set<AppModuleId>(

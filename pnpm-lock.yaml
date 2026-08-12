@@ -1036,6 +1036,49 @@ importers:
         specifier: workspace:*
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
+  ../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company:
+    dependencies:
+      '@sdkwork/company-contracts':
+        specifier: workspace:*
+        version: link:../../../sdkwork-company-common/packages/sdkwork-company-contracts
+      '@sdkwork/company-sdk-ports':
+        specifier: workspace:*
+        version: link:../../../sdkwork-company-common/packages/sdkwork-company-sdk-ports
+      '@sdkwork/ui-pc-react':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-ui/sdkwork-ui-pc-react
+      i18next:
+        specifier: 'catalog:'
+        version: 26.3.1(typescript@6.0.3)
+      lucide-react:
+        specifier: 'catalog:'
+        version: 1.7.0(react@19.2.4)
+      react:
+        specifier: '>=18.2.0 <20.0.0'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=18.2.0 <20.0.0'
+        version: 19.2.4(react@19.2.4)
+      react-i18next:
+        specifier: 'catalog:'
+        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
+  ../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-core:
+    dependencies:
+      '@sdkwork/company-runtime':
+        specifier: workspace:*
+        version: link:../../../sdkwork-company-common/packages/sdkwork-company-runtime
+
   ../sdkwork-company/sdks/sdkwork-company-app-sdk/sdkwork-company-app-sdk-typescript:
     dependencies:
       '@sdkwork/sdk-common':
@@ -4840,6 +4883,30 @@ importers:
         specifier: 'catalog:'
         version: 19.2.4
 
+  apps/sdkwork-im-pc/packages/sdkwork-im-pc-company:
+    dependencies:
+      '@sdkwork/company-pc-company':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company
+      '@sdkwork/company-runtime':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-runtime
+      '@sdkwork/company-sdk-ports':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-sdk-ports
+      '@sdkwork/im-pc-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-im-pc-commons
+      '@sdkwork/im-pc-core':
+        specifier: workspace:*
+        version: link:../sdkwork-im-pc-core
+      react:
+        specifier: '>=18.2.0 <20.0.0'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=18.2.0 <20.0.0'
+        version: 19.2.4(react@19.2.4)
+
   apps/sdkwork-im-pc/packages/sdkwork-im-pc-core:
     dependencies:
       '@sdkwork/account-service':
@@ -4866,6 +4933,9 @@ importers:
       '@sdkwork/community-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-community/sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript
+      '@sdkwork/company-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-company/sdks/sdkwork-company-app-sdk/sdkwork-company-app-sdk-typescript
       '@sdkwork/core-pc-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-core/sdkwork-core-pc-react
@@ -5098,6 +5168,9 @@ importers:
       '@sdkwork/im-pc-community':
         specifier: workspace:*
         version: link:../sdkwork-im-pc-community
+      '@sdkwork/im-pc-company':
+        specifier: workspace:*
+        version: link:../sdkwork-im-pc-company
       '@sdkwork/im-pc-core':
         specifier: workspace:*
         version: link:../sdkwork-im-pc-core

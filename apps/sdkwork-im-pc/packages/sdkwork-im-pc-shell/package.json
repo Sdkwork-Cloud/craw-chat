@@ -13,6 +13,7 @@
     "@sdkwork/im-pc-attendance": "workspace:*",
     "@sdkwork/im-pc-calendar": "workspace:*",
     "@sdkwork/im-pc-community": "workspace:*",
+    "@sdkwork/im-pc-company": "workspace:*",
     "@sdkwork/im-pc-devices": "workspace:*",
     "@sdkwork/im-pc-enterprise": "workspace:*",
     "@sdkwork/im-pc-image-gen": "workspace:*",

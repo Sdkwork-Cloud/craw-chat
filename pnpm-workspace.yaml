@@ -108,6 +108,8 @@ packages:
   - "../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-service"
   - "../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-runtime"
   - "../sdkwork-community/apps/sdkwork-community-pc/packages/sdkwork-community-pc-community"
+  - "../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-company"
+  - "../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-core"
   - "../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-mobile-react-community"
   - "../sdkwork-company/sdks/sdkwork-company-app-sdk/sdkwork-company-app-sdk-typescript"
   - "../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-contracts"

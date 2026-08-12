@@ -70,6 +70,14 @@
       "types": "./src/sdk/communityAppSdkClient.ts",
       "default": "./src/sdk/communityAppSdkClient.ts"
     },
+    "./sdk/companyPcIntegration": {
+      "types": "./src/sdk/companyPcIntegration.ts",
+      "default": "./src/sdk/companyPcIntegration.ts"
+    },
+    "./sdk/companyAppSdkClient": {
+      "types": "./src/sdk/companyAppSdkClient.ts",
+      "default": "./src/sdk/companyAppSdkClient.ts"
+    },
     "./sdk/communityPcIntegration": {
       "types": "./src/sdk/communityPcIntegration.ts",
       "default": "./src/sdk/communityPcIntegration.ts"
@@ -152,6 +160,7 @@
     "@sdkwork/order-service": "workspace:*",
     "@sdkwork/mail-pc-core": "workspace:*",
     "@sdkwork/community-app-sdk": "workspace:*",
+    "@sdkwork/company-app-sdk": "workspace:*",
     "@sdkwork/course-app-sdk": "workspace:*",
     "@sdkwork/course-backend-sdk": "workspace:*",
     "@sdkwork/course-pc-course": "workspace:*",

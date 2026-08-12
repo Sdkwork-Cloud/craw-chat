@@ -11,6 +11,7 @@ export * from './sdk/drivePcIntegration';
 export * from './sdk/courseAppSdkClient';
 export * from './sdk/courseBackendSdkClient';
 export * from './sdk/coursePcIntegration';
+export * from './sdk/companyPcIntegration';
 export * from './sdk/knowledgebaseAppSdkClient';
 export * from './sdk/knowledgebasePcIntegration';
 export * from './sdk/voiceAppSdkClient';

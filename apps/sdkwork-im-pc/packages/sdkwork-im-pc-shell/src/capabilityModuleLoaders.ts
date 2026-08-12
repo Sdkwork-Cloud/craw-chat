@@ -33,6 +33,19 @@ const CAPABILITY_MODULE_LOADERS: Record<string, CapabilityModuleLoader> = {
     return { default: KnowledgebaseCapability };
   },
   community: () => import('@sdkwork/im-pc-community').then((module) => ({ default: module.CommunityView })),
+  enterprise: async () => {
+    const [companyModule, imCore] = await Promise.all([
+      import('@sdkwork/im-pc-company'),
+      import('@sdkwork/im-pc-core'),
+    ]);
+    const adapter = companyModule.createImCompanyPcHostAdapter({
+      toast: (message) => {
+        console.info(message);
+      },
+    });
+    imCore.ensureCompanyPcRuntimeOnModule(companyModule.configureCompanyPcHost, adapter);
+    return { default: companyModule.CompanyView };
+  },
   voice: async () => {
     const [voiceModule, imCore] = await Promise.all([
       import('@sdkwork/voice-pc-market'),
