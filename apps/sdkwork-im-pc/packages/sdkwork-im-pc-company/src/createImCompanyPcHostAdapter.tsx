@@ -1,4 +1,3 @@
-import type { ComponentType } from 'react';
 import { Avatar } from '@sdkwork/im-pc-commons';
 import { createImPcHostLanguageBridge } from '@sdkwork/im-pc-commons';
 import {
@@ -46,18 +45,18 @@ export function createImCompanyPcHostAdapter({
   toast,
 }: CreateImCompanyPcHostAdapterOptions): CompanyPcHostAdapter {
   return {
-    Avatar: ImCompanyAvatar as ComponentType<NonNullable<CompanyPcHostAdapter['Avatar']>>,
+    Avatar: ImCompanyAvatar as CompanyPcHostAdapter['Avatar'],
     toast,
-    readSessionTokens() {
+    readSessionTokens(): { user?: { id?: string; name?: string } | null } {
       const session = readAppSdkSessionTokens();
       if (!session?.user) {
         return { user: null };
       }
-      return { user: { id: session.user.id, name: session.user.name } };
+      return { user: { id: typeof session.user.id === 'string' ? session.user.id : undefined, name: session.user.name } };
     },
     languageBridge: {
-      getLanguage: () => hostLanguageBridge.getLanguage(),
-      subscribe: hostLanguageBridge.subscribe,
+      getLanguage: () => hostLanguageBridge.resolveInitialLanguage(),
+      subscribe: hostLanguageBridge.onLanguageChange,
     },
     createAppSdkPort: createCompanyAppSdkPort,
   };

@@ -5898,6 +5898,7 @@ name = "sdkwork-api-company-assembly"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "sdkwork-company-service",
  "sdkwork-company-service-host",
  "sdkwork-database-sqlx",
  "sdkwork-routes-company-app-api",

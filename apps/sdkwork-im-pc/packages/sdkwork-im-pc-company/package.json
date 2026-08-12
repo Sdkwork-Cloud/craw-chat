@@ -23,8 +23,8 @@
     "@sdkwork/im-pc-core": "workspace:*"
   },
   "peerDependencies": {
-    "react": ">=18.2.0 <20.0.0",
-    "react-dom": ">=18.2.0 <20.0.0"
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "sdkwork": {
     "workspace": "sdkwork-im",

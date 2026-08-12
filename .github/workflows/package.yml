@@ -193,6 +193,8 @@ on:
         description: sdkwork-mail commit/ref.
         required: false
         default: 55296ee2738c1665f8228c6c00c99f2d8d681251
+      sdkwork_company_ref:
+        description: sdkwork-company commit/ref.
       sdkwork_community_ref:
         description: sdkwork-community commit/ref.
         required: false
@@ -283,6 +285,7 @@ jobs:
           "SDKWORK_SHOP_REF": "${{ github.event.inputs.sdkwork_shop_ref || vars.SDKWORK_SHOP_REF }}",
           "SDKWORK_AGENTS_REF": "${{ github.event.inputs.sdkwork_agents_ref || vars.SDKWORK_AGENTS_REF }}",
           "SDKWORK_MAIL_REF": "${{ github.event.inputs.sdkwork_mail_ref || vars.SDKWORK_MAIL_REF }}",
+          "SDKWORK_COMPANY_REF": "${{ github.event.inputs.sdkwork_company_ref || vars.SDKWORK_COMPANY_REF }}",
           "SDKWORK_COMMUNITY_REF": "${{ github.event.inputs.sdkwork_community_ref || vars.SDKWORK_COMMUNITY_REF }}",
           "SDKWORK_COURSE_REF": "${{ github.event.inputs.sdkwork_course_ref || vars.SDKWORK_COURSE_REF }}",
           "SDKWORK_NOTARY_REF": "${{ github.event.inputs.sdkwork_notary_ref || vars.SDKWORK_NOTARY_REF }}",

@@ -20,6 +20,7 @@ const expectedDependencyIds = [
   'sdkwork-agents',
   'sdkwork-mail',
   'sdkwork-community',
+  'sdkwork-company',
   'sdkwork-course',
   'sdkwork-ui',
   'sdkwork-rtc',

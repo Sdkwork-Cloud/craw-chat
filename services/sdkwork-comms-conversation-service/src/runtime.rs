@@ -999,6 +999,7 @@ enum PostMessageMutation {
         result: PostMessageResult,
         message: Message,
         evicted_message_ids: Vec<String>,
+        message_posted_outbox_id: Option<String>,
     },
     Replayed(PostMessageResult),
 }
@@ -4221,12 +4222,14 @@ where
 
                         let mut journal_envelopes = vec![envelope];
                         let mut outboxes = Vec::new();
+                        let mut message_posted_outbox_id = None;
                         let mut agent_dispatch_request = None;
                         if let Some(outbox) = self.build_message_posted_outbox_record(
                             command.tenant_id.as_str(),
                             command.organization_id.as_str(),
                             &message,
                         )? {
+                            message_posted_outbox_id = Some(outbox.outbox_id.clone());
                             outboxes.push(outbox);
                         }
                         if !resolved_agent_mentions.is_empty() {
@@ -4365,6 +4368,7 @@ where
                             ),
                             message,
                             evicted_message_ids,
+                            message_posted_outbox_id,
                         }
                     }
                 }
@@ -4398,6 +4402,7 @@ where
                     command.tenant_id.as_str(),
                     command.organization_id.as_str(),
                     &message,
+                    message_posted_outbox_id.as_deref(),
                 );
                 if let Err(error) = publish_result {
                     if policy == MessagePostPolicy::AgentDispatchReply

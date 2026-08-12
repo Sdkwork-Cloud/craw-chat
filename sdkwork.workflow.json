@@ -240,6 +240,13 @@
       "ref": "715562e30be876661a1c78f4a84b058e75aba937",
       "refInput": "SDKWORK_SDK_GENERATOR_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-company",
+      "repository": "Sdkwork-Cloud/sdkwork-company",
+      "ref": "33bf662ca5b1a826ac34bf2c7ae0d0c200e7ad78",
+      "refInput": "SDKWORK_COMPANY_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     }
   ],
   "toolchains": {

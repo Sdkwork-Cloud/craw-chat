@@ -78,7 +78,6 @@
     "@sdkwork/im-h5-moments": "workspace:*",
     "@sdkwork/im-h5-notary": "workspace:*",
     "@sdkwork/im-h5-orders": "workspace:*",
-    "@sdkwork/im-h5-recruitment": "workspace:*",
     "@sdkwork/im-h5-report": "workspace:*",
     "@sdkwork/im-h5-shell": "workspace:*",
     "@sdkwork/im-h5-shopping": "workspace:*",
