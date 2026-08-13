@@ -8332,6 +8332,7 @@ components:
       required: true
       schema:
         type: string
+      description: Invitation identifier returned by spaces.invites.create.
     RuleIdPath:
       name: ruleId
       in: path
@@ -10987,22 +10988,89 @@ components:
     SpaceInviteCreateRequest:
       type: object
       additionalProperties: false
+      description: >-
+        Invitation to join the space. At least one of inviteeUserId,
+        inviteeEmail, or inviteePhone is required.
       properties:
-        maxUses:
-          type: integer
-          format: int32
+        inviteeUserId:
+          type: string
+          description: Invitee user id when the invitation is addressed to a registered user.
+        inviteeEmail:
+          type: string
+          description: Invitee email when the invitation is delivered by email.
+        inviteePhone:
+          type: string
+          description: Invitee phone when the invitation is delivered by phone.
+        targetType:
+          type: string
+          enum:
+            - space
+          description: Invitation target type. Only space invitations are supported.
+        targetId:
+          type: string
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          description: Invitation target id, must equal the spaceId path parameter.
+        role:
+          type: string
+          enum:
+            - admin
+            - member
+            - guest
+          description: Role granted to the invitee on acceptance. Defaults to member.
+        message:
+          type: string
           nullable: true
+          description: Optional personal message shown to the invitee.
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: RFC3339 expiry instant. Must be in the future when provided.
+      required:
+        - targetType
+        - targetId
     SpaceInviteView:
       type: object
       additionalProperties: false
       properties:
-        inviteCode:
+        invitationId:
           type: string
-        spaceId:
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          description: Invitation identifier, passed as the inviteCode path parameter.
+        inviterUserId:
           type: string
+        inviteeUserId:
+          type: string
+          nullable: true
+        targetType:
+          type: string
+        targetId:
+          type: string
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+        role:
+          type: string
+        status:
+          type: string
+          enum:
+            - pending
+            - accepted
+            - declined
+            - expired
+            - canceled
+        createdAt:
+          type: string
+          format: date-time
       required:
-        - inviteCode
-        - spaceId
+        - invitationId
+        - inviterUserId
+        - targetType
+        - targetId
+        - role
+        - status
+        - createdAt
     SpaceBanCreateRequest:
       type: object
       additionalProperties: false

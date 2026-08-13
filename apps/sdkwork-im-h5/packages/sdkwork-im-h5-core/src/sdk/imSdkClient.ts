@@ -40,6 +40,7 @@ export type {
   FavoriteMessageRequest,
   FavoriteMessagesResponse,
   FriendRequest,
+  ImCallSession,
   ImConnectOptions,
   ImDecodedMessage,
   ImLiveConnection,

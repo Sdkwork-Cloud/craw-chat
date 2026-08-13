@@ -26,6 +26,12 @@ export interface H5RuntimeEnvironment {
   readonly cmsAppApiBaseUrl: string;
   /** Company app API base URL (`sdkwork-company` app-api via gateway or direct). */
   readonly companyAppApiBaseUrl: string;
+  /**
+   * Feeds open API base URL (`sdkwork-feeds` open surface, anonymous reads).
+   * Feeds stream lists (朋友圈 moments included) are read through the
+   * standard feeds stream system instead of module-local feed surfaces.
+   */
+  readonly feedsOpenApiBaseUrl: string;
 }
 
 const DEFAULT_APP_KEY = 'sdkwork-im-h5';
@@ -122,6 +128,12 @@ export function resolveH5RuntimeEnvironment(): H5RuntimeEnvironment {
     // platform gateway URL, then a relative fallback (same-origin proxy).
     imApiBaseUrl: readEnvValue('SDKWORK_IM_API_BASE_URL')
       ?? readEnvValue('VITE_SDKWORK_IM_API_BASE_URL')
+      ?? platformGatewayApiBaseUrl
+      ?? '/',
+    // Feeds open surface: explicit feeds gateway URL, else the same platform
+    // gateway (cloud profiles serve every surface on one origin).
+    feedsOpenApiBaseUrl: readEnvValue('SDKWORK_IM_H5_FEEDS_OPEN_API_BASE_URL')
+      ?? readEnvValue('VITE_SDKWORK_IM_H5_FEEDS_OPEN_API_BASE_URL')
       ?? platformGatewayApiBaseUrl
       ?? '/',
     // IM realtime WebSocket base: explicit WS URL first, else derived from the

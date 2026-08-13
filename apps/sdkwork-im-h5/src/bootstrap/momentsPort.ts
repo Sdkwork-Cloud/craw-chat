@@ -8,6 +8,7 @@
  */
 
 import {
+  configureMomentsFeedsPort,
   configureMomentsRuntimePort,
   isMomentsRuntimePortConfigured,
 } from '@sdkwork/im-h5-moments';
@@ -21,7 +22,12 @@ export function bootstrapImMomentsH5Port(): void {
   }
   bootstrapped = true;
 
-  configureMomentsRuntimePort(getSdkClients().communityAppSdkPort);
+  const clients = getSdkClients();
+  configureMomentsRuntimePort(clients.communityAppSdkPort);
+  // Standard feeds stream client: the moments feed read path (moments-global
+  // stream) goes through the feeds open surface; content operations keep the
+  // community port above.
+  configureMomentsFeedsPort(clients.feedsOpenSdkClient);
 }
 
 export function isImMomentsH5PortBootstrapped(): boolean {

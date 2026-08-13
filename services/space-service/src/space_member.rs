@@ -6,7 +6,7 @@ use axum::response::Response;
 use im_adapters_social_postgres::governance_store::SpaceMemberRecord;
 use im_app_context::AppContext;
 use sdkwork_routes_web_framework_backend_api::response::{
-    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+    ApiProblem, ApiResult, created_json, finish_api_json, finish_api_response, no_content,
 };
 use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
@@ -97,7 +97,7 @@ pub async fn add_space_member(
 
         Ok(resource_item(MemberResponse::from(record)))
     })();
-    finish_api_json(&ctx, result)
+    finish_api_response(&ctx, result.and_then(|data| created_json(&ctx, data)))
 }
 
 pub async fn list_space_members(
@@ -175,7 +175,7 @@ pub async fn update_space_member(
     Path((space_id, user_id)): Path<(String, String)>,
     Json(request): Json<UpdateMemberRequest>,
 ) -> Response {
-    let result: ApiResult<()> = (|| {
+    let result: ApiResult<SdkWorkResourceData<MemberResponse>> = (|| {
         let space_id = parse_space_id(space_id.as_str())?;
         let space = load_space(&state, &auth, space_id)?;
         actor_can_manage_space(&state, &auth, &space)?;
@@ -209,9 +209,9 @@ pub async fn update_space_member(
         record.updated_at = chrono::Utc::now().to_rfc3339();
 
         persist_space_member_updated(&state, &auth, &record)?;
-        Ok(())
+        Ok(resource_item(MemberResponse::from(record)))
     })();
-    finish_api_response(&ctx, result.and_then(|_| no_content(&ctx)))
+    finish_api_json(&ctx, result)
 }
 
 pub async fn remove_space_member(

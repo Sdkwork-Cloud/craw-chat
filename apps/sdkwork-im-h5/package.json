@@ -124,7 +124,8 @@
     "tailwind-merge": "catalog:",
     "tailwindcss": "catalog:",
     "vite": "catalog:",
-    "zustand": "catalog:"
+    "zustand": "catalog:",
+    "@sdkwork/feeds-sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/express": "catalog:",

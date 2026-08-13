@@ -26,6 +26,11 @@ fn ensure_dev_environment() {
     INIT.call_once(|| unsafe {
         std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
         std::env::set_var("SDKWORK_ENV", "dev");
+        // Local dual-token fallback tests do not attach signed orchestration
+        // headers; disable the signature gate and opt into unsigned token
+        // forms explicitly (S1/S2 fail-closed rules).
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE", "false");
+        std::env::set_var("SDKWORK_IM_ALLOW_UNSIGNED_TOKENS", "true");
     });
 }
 

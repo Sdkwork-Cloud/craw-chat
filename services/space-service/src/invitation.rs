@@ -10,9 +10,9 @@ use im_adapters_social_postgres::governance_store::{
 use im_app_context::AppContext;
 use im_time::{rfc3339_le, utc_now_rfc3339_millis};
 use sdkwork_routes_web_framework_backend_api::response::{
-    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+    ApiProblem, ApiResult, created_json, finish_api_json, finish_api_response, no_content,
 };
-use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
+use sdkwork_utils_rust::{SdkWorkCommandData, SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
@@ -21,9 +21,14 @@ use crate::http::AppState;
 use crate::id::next_entity_id;
 use crate::list_query::{ListQuery, resolve_keyset_page};
 use crate::space_access::{
-    actor_can_manage_space, actor_can_read_space, ensure_user_not_banned_in_space, load_space,
-    normalize_space_member_role, parse_entity_id, parse_space_id,
+    actor_can_manage_space, ensure_user_not_banned_in_space, load_space, normalize_space_member_role,
+    parse_entity_id, parse_space_id,
 };
+
+/// Retention window for terminal invitations that carry invitee contact data
+/// (`PRIVACY_SPEC.md` personal data retention). Pending invitations are never
+/// purged by the retention scheduler.
+const INVITATION_RETENTION_CLASS: &str = "standard";
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -46,6 +51,7 @@ pub struct InvitationResponse {
     pub invitee_user_id: Option<String>,
     pub target_type: String,
     pub target_id: String,
+    pub role: String,
     pub status: String,
     pub created_at: String,
 }
@@ -58,6 +64,7 @@ impl From<InvitationRecord> for InvitationResponse {
             invitee_user_id: record.invitee_user_id,
             target_type: record.target_type,
             target_id: record.target_id.to_string(),
+            role: record.role,
             status: record.status,
             created_at: record.created_at,
         }
@@ -72,12 +79,69 @@ pub struct ListInvitationsQuery {
 }
 
 fn normalize_invitation_target_type(target_type: &str) -> Result<String, ApiProblem> {
-    match target_type {
-        "space" | "group" | "channel" => Ok(target_type.to_owned()),
-        other => {
-            tracing::warn!(target_type = other, "invalid invitation target_type");
-            Err(ApiProblem::bad_request("invalid invitation target_type"))
+    if target_type == "space" {
+        return Ok("space".to_owned());
+    }
+    tracing::warn!(
+        target_type,
+        "invalid invitation target_type; only space invitations are supported"
+    );
+    Err(ApiProblem::bad_request(
+        "invitation target_type must be space",
+    ))
+}
+
+/// Validates optional invitee contact formats before persisting PII.
+fn validate_invitation_contacts(request: &CreateInvitationRequest) -> Result<(), ApiProblem> {
+    if let Some(email) = request
+        .invitee_email
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        if !email.contains('@') || email.chars().any(char::is_whitespace) {
+            return Err(ApiProblem::bad_request("invitee_email is not a valid email address"));
         }
+    }
+    if let Some(phone) = request
+        .invitee_phone
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        if phone.len() > 32
+            || !phone
+                .chars()
+                .all(|c| c.is_ascii_digit() || c == '+' || c == '-' || c == ' ')
+        {
+            return Err(ApiProblem::bad_request(
+                "invitee_phone is not a valid phone number",
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Validates the optional expiry instant: RFC3339 and strictly in the future.
+fn validate_invitation_expiry(expires_at: Option<&str>) -> Result<(), ApiProblem> {
+    let Some(expires_at) = expires_at.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(());
+    };
+    let parsed = chrono::DateTime::parse_from_rfc3339(expires_at).map_err(|_| {
+        ApiProblem::bad_request("expires_at must be an RFC3339 timestamp")
+    })?;
+    if parsed.with_timezone(&chrono::Utc) <= chrono::Utc::now() {
+        return Err(ApiProblem::bad_request("expires_at must be in the future"));
+    }
+    Ok(())
+}
+
+/// Builds the standard command payload for a successfully accepted invitation.
+fn invitation_accepted_command(space_id: i64) -> SdkWorkCommandData {
+    SdkWorkCommandData {
+        accepted: true,
+        resource_id: Some(space_id.to_string()),
+        status: Some("accepted".to_owned()),
     }
 }
 
@@ -164,10 +228,12 @@ pub async fn create_invitation(
         let space = load_space(&state, &auth, space_id)?;
         actor_can_manage_space(&state, &auth, &space)?;
         ensure_invitee_specified(&request)?;
+        validate_invitation_contacts(&request)?;
+        validate_invitation_expiry(request.expires_at.as_deref())?;
 
         let target_type = normalize_invitation_target_type(request.target_type.as_str())?;
         let target_id = parse_entity_id(request.target_id.as_str(), "target_id")?;
-        if target_type == "space" && target_id != space_id {
+        if target_id != space_id {
             return Err(ApiProblem::bad_request(
                 "space invitation target_id must match path space_id",
             ));
@@ -175,6 +241,10 @@ pub async fn create_invitation(
 
         let role = normalize_space_member_role(request.role.as_deref(), false)?;
         let now = chrono::Utc::now().to_rfc3339();
+        let retention_until = im_domain_core::retention::retention_until_from_class(
+            INVITATION_RETENTION_CLASS,
+            now.as_str(),
+        );
         let record = InvitationRecord {
             tenant_id: auth.tenant_id.clone(),
             organization_id: auth.organization_id.clone(),
@@ -183,7 +253,7 @@ pub async fn create_invitation(
             invitee_user_id: request.invitee_user_id,
             invitee_email: request.invitee_email,
             invitee_phone: request.invitee_phone,
-            target_type: target_type.clone(),
+            target_type,
             target_id,
             role,
             status: "pending".to_owned(),
@@ -192,6 +262,7 @@ pub async fn create_invitation(
             accepted_at: None,
             created_at: now.clone(),
             updated_at: now,
+            retention_until,
         };
 
         state.invitation_store.insert(&record).map_err(|error| {
@@ -200,7 +271,7 @@ pub async fn create_invitation(
         })?;
         Ok(resource_item(InvitationResponse::from(record)))
     })();
-    finish_api_json(&ctx, result)
+    finish_api_response(&ctx, result.and_then(|data| created_json(&ctx, data)))
 }
 
 pub async fn list_invitations(
@@ -257,8 +328,9 @@ pub async fn get_invitation(
         let space_id = parse_space_id(space_id.as_str())?;
         let invitation_id = parse_entity_id(invite_code.as_str(), "invite_code")?;
         let _space = load_space(&state, &auth, space_id)?;
-        actor_can_read_space(&state, &auth, &_space)?;
         let invitation = load_invitation_for_space(&state, &auth, space_id, invitation_id)?;
+        // The invitee may not be a space member yet; membership is not required
+        // to preview an invitation addressed to them (or created by them).
         ensure_invitation_actor(&auth, &invitation, false)?;
         Ok(resource_item(InvitationResponse::from(invitation)))
     })();
@@ -300,7 +372,7 @@ pub async fn accept_invitation(
     State(state): State<AppState>,
     Path((space_id, invite_code)): Path<(String, String)>,
 ) -> Response {
-    let result: ApiResult<()> = (|| {
+    let result: ApiResult<SdkWorkCommandData> = (|| {
         let space_id = parse_space_id(space_id.as_str())?;
         let invitation_id = parse_entity_id(invite_code.as_str(), "invite_code")?;
         let space = load_space(&state, &auth, space_id)?;
@@ -308,6 +380,11 @@ pub async fn accept_invitation(
         ensure_invitation_actor(&auth, &invitation, false)?;
 
         if invitation.status != "pending" {
+            // Idempotent replay (`API_SPEC.md` §15.4): a repeated accept of an
+            // already-accepted invitation returns the same command success.
+            if invitation.status == "accepted" {
+                return Ok(invitation_accepted_command(space_id));
+            }
             return Err(ApiProblem::bad_request("invitation is not pending"));
         }
         if invitation
@@ -366,7 +443,7 @@ pub async fn accept_invitation(
                 tracing::error!(error = ?error, "failed to mark invitation accepted");
                 ApiProblem::internal_server_error("failed to accept invitation")
             })?;
-        Ok(())
+        Ok(invitation_accepted_command(space_id))
     })();
-    finish_api_response(&ctx, result.and_then(|_| no_content(&ctx)))
+    finish_api_json(&ctx, result)
 }

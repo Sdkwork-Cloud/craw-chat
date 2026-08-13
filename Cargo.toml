@@ -319,6 +319,21 @@ sdkwork_iam_context_service = { path = "../sdkwork-iam/crates/sdkwork-iam-contex
 chrono = { version = "0.4", features = ["serde"] }
 dotenvy = "0.15"
 
+sdkwork-routes-im-audit-backend-api = { path = "crates/sdkwork-routes-im-audit-backend-api" }
+sdkwork-routes-im-automation-app-api = { path = "crates/sdkwork-routes-im-automation-app-api" }
+sdkwork-routes-im-chat-open-api = { path = "crates/sdkwork-routes-im-chat-open-api" }
+sdkwork-routes-im-governance-backend-api = { path = "crates/sdkwork-routes-im-governance-backend-api" }
+sdkwork-routes-im-knowledgebase-app-api = { path = "crates/sdkwork-routes-im-knowledgebase-app-api" }
+sdkwork-routes-im-media-app-api = { path = "crates/sdkwork-routes-im-media-app-api" }
+sdkwork-routes-im-notification-app-api = { path = "crates/sdkwork-routes-im-notification-app-api" }
+sdkwork-routes-im-ops-backend-api = { path = "crates/sdkwork-routes-im-ops-backend-api" }
+sdkwork-routes-im-portal-app-api = { path = "crates/sdkwork-routes-im-portal-app-api" }
+sdkwork-routes-im-realtime-open-api = { path = "crates/sdkwork-routes-im-realtime-open-api" }
+sdkwork-routes-im-social-backend-api = { path = "crates/sdkwork-routes-im-social-backend-api" }
+sdkwork-routes-im-social-open-api = { path = "crates/sdkwork-routes-im-social-open-api" }
+sdkwork-routes-im-space-open-api = { path = "crates/sdkwork-routes-im-space-open-api" }
+sdkwork-routes-im-stream-app-api = { path = "crates/sdkwork-routes-im-stream-app-api" }
+sdkwork-im-openapi = { path = "crates/sdkwork-im-openapi" }
 [patch.crates-io]
 # Keep the embedded Codex graph aligned with the upstream workspace patches.
 # Codex app-server-client enables websocket proxy support supplied by these upstream forks.
@@ -331,3 +346,4 @@ codegen-units = 1
 panic = "abort"
 strip = true
 opt-level = 3
+

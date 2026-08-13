@@ -43,7 +43,7 @@
 | `friendship` | 好友关系 | 只建模人和人的双向关|
 | `direct_chat` | 双人直聊业务对象 | 可由好友、陌生私聊、系统触发产|
 | `conversation` | 消息容器 | 运行态概念，不承担好群成员真|
-| `invitation` | 邀| 适用space / group / channel |
+| `invitation` | 邀| 适用 space；终态邀请按保留策略清理（retention_until） |
 | `membership_request` | 入群/入空间申| 适用于需要审批的容器 |
 | `ban_record` | 封禁/禁言记录 | 治理真值，不混入成员表 |
 | `mute_setting` | 用户侧免打扰设置 | 偏好设置，不代表治理处罚 |

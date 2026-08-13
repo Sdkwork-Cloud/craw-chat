@@ -1634,7 +1634,7 @@ CREATE TABLE IF NOT EXISTS im_invitations (
     invitee_user_id     TEXT,
     invitee_email       TEXT,
     invitee_phone       TEXT,
-    target_type         TEXT NOT NULL,              -- space/group/channel
+    target_type         TEXT NOT NULL,              -- space
     target_id           BIGINT NOT NULL,
     role                TEXT NOT NULL DEFAULT 'member',
     status              TEXT NOT NULL DEFAULT 'pending',
@@ -1643,8 +1643,9 @@ CREATE TABLE IF NOT EXISTS im_invitations (
     accepted_at         TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    retention_until     TIMESTAMPTZ,                -- PII expiry for terminal invitations
     CONSTRAINT pk_im_invitations PRIMARY KEY (tenant_id, organization_id, invitation_id),
-    CONSTRAINT chk_im_invitations_target_type CHECK (target_type IN ('space', 'group', 'channel')),
+    CONSTRAINT chk_im_invitations_target_type CHECK (target_type = 'space'),
     CONSTRAINT chk_im_invitations_status CHECK (status IN ('pending', 'accepted', 'declined', 'expired', 'canceled'))
 );
 
@@ -1654,6 +1655,10 @@ CREATE INDEX IF NOT EXISTS idx_im_invitations_invitee
 
 CREATE INDEX IF NOT EXISTS idx_im_invitations_target
     ON im_invitations (tenant_id, organization_id, target_type, target_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_im_invitations_retention_until
+    ON im_invitations (tenant_id, organization_id, retention_until)
+    WHERE retention_until IS NOT NULL;
 
 -- 25. 封禁记录表
 CREATE TABLE IF NOT EXISTS im_ban_records (

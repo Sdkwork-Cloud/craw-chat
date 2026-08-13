@@ -2,8 +2,12 @@ import type {
   SdkworkCommunityCategory,
   SdkworkCommunityEntry,
 } from "@sdkwork/community-contracts";
+import type { SdkworkFeedsOpenClient } from "@sdkwork/feeds-sdk";
 import type { Moment, MomentCircle, MomentComment } from "../types";
-import { getMomentsRuntimePort } from "./momentsRuntimePort";
+import {
+  getMomentsFeedsPort,
+  getMomentsRuntimePort,
+} from "./momentsRuntimePort";
 
 /**
  * Moments feed facade backed by the injected Community App SDK port.
@@ -18,6 +22,9 @@ const MOMENT_ENTRY_KIND = "discussion" as const;
 const DEFAULT_TITLE_FALLBACK = "分享";
 const MAX_TITLE_LENGTH = 40;
 const DEFAULT_PAGE_SIZE = 20;
+
+/** Standard feeds stream for the global moments feed (kind=discussion). */
+const MOMENTS_STREAM_KEY = "moments-global" as const;
 
 const likedEntryIds = new Set<string>();
 
@@ -71,6 +78,74 @@ function mapEntryToMoment(entry: SdkworkCommunityEntry): Moment {
   };
 }
 
+function toContentFromSnapshot(item: {
+  title?: string;
+  excerpt?: string;
+}): string {
+  return (item.excerpt ?? item.title ?? "").trim();
+}
+
+/**
+ * Maps a standard feeds stream item snapshot onto the moments view model.
+ * Interaction counts come from the stream snapshot (reactionCount /
+ * commentCount), so the moments feed renders without per-item source calls.
+ */
+function mapFeedItemToMoment(item: {
+  id: string;
+  title?: string;
+  excerpt?: string;
+  coverUrl?: string;
+  author?: { id?: string; name?: string; avatarUrl?: string };
+  reactionCount?: number;
+  commentCount?: number;
+  publishedAt?: string;
+  streamKey?: string;
+}): Moment {
+  return {
+    id: item.id,
+    author: {
+      id: item.author?.id ?? "",
+      name: item.author?.name ?? "匿名",
+      avatar: item.author?.avatarUrl,
+    },
+    content: toContentFromSnapshot(item),
+    categoryId: "",
+    categoryLabel: "",
+    timestamp: toTimestamp(item.publishedAt),
+    isLiked: likedEntryIds.has(item.id),
+    likeCount: item.reactionCount ?? 0,
+    comments: [],
+    commentCount: item.commentCount ?? 0,
+  };
+}
+
+/** Reads one cursor page from the standard moments feed stream. */
+async function readMomentsFeedPage(
+  feeds: SdkworkFeedsOpenClient,
+  cursor: string | undefined,
+  pageSize: number,
+): Promise<{ moments: Moment[]; nextCursor: string | undefined; hasMore: boolean }> {
+  const page = await feeds.feeds.streams.items.list(MOMENTS_STREAM_KEY, {
+    pageSize,
+    ...(cursor ? { cursor } : {}),
+  });
+  const items = page.items as Array<{
+    id: string;
+    title?: string;
+    excerpt?: string;
+    coverUrl?: string;
+    author?: { id?: string; name?: string; avatarUrl?: string };
+    reactionCount?: number;
+    commentCount?: number;
+    publishedAt?: string;
+  }>;
+  return {
+    moments: items.map(mapFeedItemToMoment),
+    nextCursor: page.pageInfo?.nextCursor ?? undefined,
+    hasMore: page.pageInfo?.hasMore === true,
+  };
+}
+
 function mapCategoryToCircle(category: SdkworkCommunityCategory): MomentCircle {
   return {
     id: category.id,
@@ -87,13 +162,18 @@ export const MomentService = {
    * `hasMore` is a client heuristic: a full page means more pages may exist.
    */
   async getFeed(
-    page = 1,
+    _page = 1,
     pageSize = DEFAULT_PAGE_SIZE,
-  ): Promise<{ moments: Moment[]; hasMore: boolean }> {
-    const entries = await getMomentsRuntimePort().community.feed.list({ page, pageSize });
+    cursor?: string,
+  ): Promise<{ moments: Moment[]; hasMore: boolean; nextCursor?: string }> {
+    // Standard feeds stream path: cursor-paged `moments-global` stream.
+    // The feeds client is always bound by the host bootstrap.
+    const feeds = getMomentsFeedsPort();
+    const result = await readMomentsFeedPage(feeds, cursor, pageSize);
     return {
-      moments: entries.map(mapEntryToMoment),
-      hasMore: entries.length >= pageSize,
+      moments: result.moments,
+      hasMore: result.hasMore,
+      nextCursor: result.nextCursor,
     };
   },
 

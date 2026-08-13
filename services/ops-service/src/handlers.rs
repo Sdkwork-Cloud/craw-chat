@@ -220,6 +220,7 @@ fn retention_purge_response(
         inbox_events_deleted: report.inbox_events_deleted,
         realtime_device_events_deleted: report.realtime_device_events_deleted,
         rtc_sessions_deleted: report.rtc_sessions_deleted,
+        invitations_deleted: report.invitations_deleted,
         audit_records_deleted: report.audit_records_deleted,
     }
 }

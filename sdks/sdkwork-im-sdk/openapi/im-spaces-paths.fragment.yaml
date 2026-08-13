@@ -2,7 +2,8 @@
 # Paths align with services/space-service/src/http.rs (OpenAPI uses camelCase path params).
 /im/v3/api/spaces:
   post:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.create
     summary: Create a space
     requestBody:
@@ -17,48 +18,32 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.list
     summary: List spaces
     parameters:
@@ -70,57 +55,39 @@
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required:
-                - items
-              properties:
-                items:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/SpaceView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - items
+                        - pageInfo
+                      properties:
+                        items:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/SpaceView'
+                        pageInfo:
+                          $ref: '#/components/schemas/PageInfo'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.retrieve
     summary: Retrieve a space
     parameters:
@@ -131,48 +98,32 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   patch:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.update
     summary: Update a space
     parameters:
@@ -189,48 +140,32 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   delete:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.delete
     summary: Delete a space
     parameters:
@@ -238,48 +173,20 @@
     responses:
       '204':
         description: No Content
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/members:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.members.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -291,56 +198,39 @@
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required:
-                - items
-              properties:
-                items:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/SpaceMemberView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - items
+                        - pageInfo
+                      properties:
+                        items:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/SpaceMemberView'
+                        pageInfo:
+                          $ref: '#/components/schemas/PageInfo'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: List spaces members
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   post:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.members.create
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -356,49 +246,34 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceMemberView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceMemberView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Create spaces members
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/members/{userId}:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.members.retrieve
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -409,48 +284,33 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceMemberView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceMemberView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: retrieve spaces members
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   patch:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.members.update
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -467,48 +327,33 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceMemberView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceMemberView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Update spaces members
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   delete:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.members.delete
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -516,48 +361,21 @@
     responses:
       '204':
         description: No Content
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Delete spaces members
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/groups:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.groups.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -569,56 +387,39 @@
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required:
-                - items
-              properties:
-                items:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/SpaceGroupView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - items
+                        - pageInfo
+                      properties:
+                        items:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/SpaceGroupView'
+                        pageInfo:
+                          $ref: '#/components/schemas/PageInfo'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: List spaces groups
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   post:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.groups.create
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -634,49 +435,34 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceGroupView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceGroupView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Create spaces groups
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/groups/{groupId}:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.groups.retrieve
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -687,48 +473,33 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceGroupView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceGroupView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: retrieve spaces groups
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   patch:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.groups.update
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -745,48 +516,33 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceGroupView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceGroupView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Update spaces groups
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   delete:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.groups.delete
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -794,48 +550,21 @@
     responses:
       '204':
         description: No Content
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Delete spaces groups
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/groups/{groupId}/members:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.groups.members.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -848,56 +577,39 @@
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required:
-                - items
-              properties:
-                items:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/SpaceGroupMemberView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - items
+                        - pageInfo
+                      properties:
+                        items:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/SpaceGroupMemberView'
+                        pageInfo:
+                          $ref: '#/components/schemas/PageInfo'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: List spaces groups members
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   post:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.groups.members.create
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -914,49 +626,34 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceGroupMemberView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceGroupMemberView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Create spaces groups members
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/groups/{groupId}/members/{userId}:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.groups.members.retrieve
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -968,48 +665,33 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceGroupMemberView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceGroupMemberView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: retrieve spaces groups members
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   patch:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.groups.members.update
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1027,48 +709,33 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceGroupMemberView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceGroupMemberView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Update spaces groups members
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   delete:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.groups.members.delete
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1077,48 +744,21 @@
     responses:
       '204':
         description: No Content
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Delete spaces groups members
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/channels:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.channels.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1130,56 +770,39 @@
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required:
-                - items
-              properties:
-                items:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/SpaceChannelView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - items
+                        - pageInfo
+                      properties:
+                        items:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/SpaceChannelView'
+                        pageInfo:
+                          $ref: '#/components/schemas/PageInfo'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: List spaces channels
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   post:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.channels.create
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1195,49 +818,34 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceChannelView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceChannelView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Create spaces channels
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/channels/{channelId}:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.channels.retrieve
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1248,48 +856,33 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceChannelView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceChannelView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: retrieve spaces channels
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   patch:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.channels.update
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1306,48 +899,33 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceChannelView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceChannelView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Update spaces channels
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   delete:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.channels.delete
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1355,48 +933,21 @@
     responses:
       '204':
         description: No Content
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Delete spaces channels
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.channels.accessRules.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1409,56 +960,39 @@
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required:
-                - items
-              properties:
-                items:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/SpaceChannelAccessRuleView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - items
+                        - pageInfo
+                      properties:
+                        items:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/SpaceChannelAccessRuleView'
+                        pageInfo:
+                          $ref: '#/components/schemas/PageInfo'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: List spaces channels access Rules
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   post:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.channels.accessRules.create
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1475,49 +1009,34 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceChannelAccessRuleView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceChannelAccessRuleView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Create spaces channels access Rules
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules/{ruleId}:
   delete:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.channels.accessRules.delete
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1526,48 +1045,21 @@
     responses:
       '204':
         description: No Content
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Delete spaces channels access Rules
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/invites:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.invites.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1580,56 +1072,39 @@
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required:
-                - items
-              properties:
-                items:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/SpaceInviteView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - items
+                        - pageInfo
+                      properties:
+                        items:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/SpaceInviteView'
+                        pageInfo:
+                          $ref: '#/components/schemas/PageInfo'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: List spaces invites
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   post:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.invites.create
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1645,49 +1120,34 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceInviteView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceInviteView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Create spaces invites
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/invites/{inviteCode}:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.invites.retrieve
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1698,48 +1158,33 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceInviteView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceInviteView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: retrieve spaces invites
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   delete:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.invites.delete
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1747,48 +1192,21 @@
     responses:
       '204':
         description: No Content
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Delete spaces invites
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/invites/{inviteCode}/accept:
   post:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.invites.accept
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1800,48 +1218,21 @@
           application/json:
             schema:
               $ref: '#/components/schemas/SdkWorkCommandResponse'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Accept spaces invites
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/bans:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.bans.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1853,56 +1244,39 @@
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required:
-                - items
-              properties:
-                items:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/SpaceBanView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      additionalProperties: false
+                      required:
+                        - items
+                        - pageInfo
+                      properties:
+                        items:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/SpaceBanView'
+                        pageInfo:
+                          $ref: '#/components/schemas/PageInfo'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: List spaces bans
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   post:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.bans.create
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1918,49 +1292,34 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceBanView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceBanView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Create spaces bans
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
 /im/v3/api/spaces/{spaceId}/bans/{userId}:
   get:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.bans.retrieve
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -1971,48 +1330,33 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceBanView'
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              allOf:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                    - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                        - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/SpaceBanView'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: retrieve spaces bans
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token
   delete:
-    tags: [spaces]
+    tags:
+      - spaces
     operationId: spaces.bans.delete
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
@@ -2020,42 +1364,14 @@
     responses:
       '204':
         description: No Content
-      description: HTTP 401 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      description: HTTP 404 problem
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-      '400':
-        description: HTTP 400 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '401':
-        description: HTTP 401 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '403':
-        description: HTTP 403 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
-      '404':
-        description: HTTP 404 problem
-        content:
-          application/problem+json:
-            schema:
-              $ref: '#/components/schemas/ProblemDetail'
     security:
+      - ApiKey: []
       - AuthToken: []
         AccessToken: []
     x-sdkwork-owner: sdkwork-im
     x-sdkwork-api-authority: sdkwork-im.im
+    summary: Delete spaces bans
+    x-sdkwork-request-context: WebRequestContext
+    x-sdkwork-api-surface: open-api
+    x-sdkwork-route-auth: api-key-or-dual-token
+    x-sdkwork-auth-mode: api-key-or-dual-token

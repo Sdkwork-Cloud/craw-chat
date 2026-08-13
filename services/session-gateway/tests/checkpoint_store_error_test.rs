@@ -48,7 +48,6 @@ impl RealtimeCheckpointStore for FailingCheckpointStore {
 #[tokio::test]
 async fn test_realtime_events_returns_503_when_checkpoint_store_load_fails() {
     let _env = test_env::dev_test_environment();
-    let _env = test_env::dev_test_environment();
     let cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
     let app = session_gateway::build_app_with_cluster_and_runtime(
         cluster.clone(),

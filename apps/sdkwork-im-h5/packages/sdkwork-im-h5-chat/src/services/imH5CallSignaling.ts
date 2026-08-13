@@ -1,4 +1,4 @@
-import type { ImCallSession, ImLiveConnection } from "@sdkwork/im-sdk";
+import type { ImCallSession, ImLiveConnection } from "@sdkwork/im-h5-core/sdk";
 import { useAppStore } from "@sdkwork/im-h5-core";
 import { imLiveService } from "@sdkwork/im-h5-core/realtime";
 import type {

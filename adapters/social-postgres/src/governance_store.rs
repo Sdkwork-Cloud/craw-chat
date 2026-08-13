@@ -442,6 +442,7 @@ pub struct InvitationRecord {
     pub accepted_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    pub retention_until: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -476,15 +477,16 @@ INSERT INTO im_invitations (
     tenant_id, organization_id, invitation_id, inviter_user_id,
     invitee_user_id, invitee_email, invitee_phone,
     target_type, target_id, role, status, message, expires_at, accepted_at,
-    created_at, updated_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+    created_at, updated_at, retention_until
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 "#;
 
 const INVITATION_GET_SQL: &str = r#"
 SELECT tenant_id, organization_id, invitation_id, inviter_user_id,
        invitee_user_id, invitee_email, invitee_phone,
        target_type, target_id, role, status, message,
-       expires_at::text, accepted_at::text, created_at::text, updated_at::text
+       expires_at::text, accepted_at::text, created_at::text, updated_at::text,
+       retention_until::text
 FROM im_invitations
 WHERE tenant_id = $1 AND organization_id = $2 AND invitation_id = $3
 "#;
@@ -493,7 +495,8 @@ const INVITATION_LIST_BY_TARGET_SQL: &str = r#"
 SELECT tenant_id, organization_id, invitation_id, inviter_user_id,
        invitee_user_id, invitee_email, invitee_phone,
        target_type, target_id, role, status, message,
-       expires_at::text, accepted_at::text, created_at::text, updated_at::text
+       expires_at::text, accepted_at::text, created_at::text, updated_at::text,
+       retention_until::text
 FROM im_invitations
 WHERE tenant_id = $1 AND organization_id = $2
   AND target_type = $3 AND target_id = $4
@@ -527,6 +530,7 @@ fn row_to_invitation_record(row: &postgres::Row) -> InvitationRecord {
         accepted_at: row.get("accepted_at"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
+        retention_until: row.get("retention_until"),
     }
 }
 
@@ -567,6 +571,7 @@ impl InvitationStore for PostgresInvitationStore {
                         &record.accepted_at,
                         &record.created_at,
                         &record.updated_at,
+                        &record.retention_until,
                     ],
                 )
                 .map_err(|error| postgres_unavailable("insert_invitation", error))?;

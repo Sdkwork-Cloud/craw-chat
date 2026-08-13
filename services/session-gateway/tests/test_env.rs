@@ -19,6 +19,10 @@ pub fn dev_test_environment() -> DevTestEnvironment {
         // Local dual-token fallback tests do not attach signed orchestration
         // headers; disable the signature gate for integration tests.
         std::env::set_var("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE", "false");
+        // Raw JSON / key=value bearer forms are accepted only in dev/test
+        // with an explicit opt-in (S1 fail-closed rule); integration tests
+        // opt in explicitly.
+        std::env::set_var("SDKWORK_IM_ALLOW_UNSIGNED_TOKENS", "true");
     }
     DevTestEnvironment { _guard: guard }
 }

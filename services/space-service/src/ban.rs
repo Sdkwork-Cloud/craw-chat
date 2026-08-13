@@ -6,7 +6,7 @@ use axum::response::Response;
 use im_adapters_social_postgres::governance_store::{BanRecord, BanTargetListQuery};
 use im_app_context::AppContext;
 use sdkwork_routes_web_framework_backend_api::response::{
-    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+    ApiProblem, ApiResult, created_json, finish_api_json, finish_api_response, no_content,
 };
 use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
@@ -110,7 +110,7 @@ pub async fn ban_user(
         })?;
         Ok(resource_item(BanResponse::from(record)))
     })();
-    finish_api_json(&ctx, result)
+    finish_api_response(&ctx, result.and_then(|data| created_json(&ctx, data)))
 }
 
 pub async fn list_bans(

@@ -182,8 +182,12 @@
       "src/main.tsx"
     ],
     "routeManifest": null,
-    "sdkClients": [],
-    "sdkDependencies": [],
+    "sdkClients": [
+      "@sdkwork/feeds-sdk"
+    ],
+    "sdkDependencies": [
+      "sdkwork-feeds-sdk"
+    ],
     "events": [],
     "configKeys": [
       "VITE_SDKWORK_IM_DEPLOYMENT_PROFILE",

@@ -5,6 +5,7 @@ import type { SdkworkCommunityEntry } from "@sdkwork/community-contracts";
 import { createInMemoryCommunityAppSdkPort } from "@sdkwork/community-sdk-ports";
 import {
   MomentCapabilityUnavailableError,
+  configureMomentsFeedsPort,
   configureMomentsRuntimePort,
   resetMomentsRuntimePort,
 } from "./momentsRuntimePort";
@@ -38,6 +39,63 @@ function seedCategory(overrides: Record<string, unknown> = {}) {
   };
 }
 
+
+function seedFeedsClient(items: Array<Record<string, unknown>> = defaultFeedItems(), options: { hasMore?: boolean; nextCursor?: string } = {}): { feeds: { streams: { items: { list: any } } } } {
+  return {
+    feeds: {
+      streams: {
+        items: {
+          list: async () => ({
+            items,
+            pageInfo: { mode: "cursor", pageSize: 20, hasMore: options.hasMore ?? false, ...(options.nextCursor ? { nextCursor: options.nextCursor } : {}) },
+          }),
+        },
+      },
+    },
+  };
+}
+
+function defaultFeedItems(): Array<Record<string, unknown>> {
+  return [
+    {
+      id: "entry-1",
+      streamKey: "moments-global",
+      sourceType: "community.entry",
+      sourceId: "entry-1",
+      title: "今天天气真好",
+      excerpt: "今天天气真好！出去走走~",
+      author: { id: "user-1", name: "Alex Chen", avatarUrl: "https://cdn.example/a.png" },
+      reactionCount: 3,
+      commentCount: 2,
+      publishedAt: "2026-08-01T10:00:00.000Z",
+      createdAt: "2026-08-01T10:00:00.000Z",
+      updatedAt: "2026-08-01T10:00:00.000Z",
+      isPinned: false,
+      status: "active",
+      tenantId: "local",
+      streamId: "s1",
+    },
+    {
+      id: "entry-2",
+      streamKey: "moments-global",
+      sourceType: "community.entry",
+      sourceId: "entry-2",
+      title: "标题",
+      excerpt: "摘要",
+      author: { id: "user-2", name: "Bo Li" },
+      reactionCount: 0,
+      commentCount: 0,
+      publishedAt: "2026-08-02T10:00:00.000Z",
+      createdAt: "2026-08-02T10:00:00.000Z",
+      updatedAt: "2026-08-02T10:00:00.000Z",
+      isPinned: false,
+      status: "active",
+      tenantId: "local",
+      streamId: "s1",
+    },
+  ];
+}
+
 test("fails closed with a typed error before the host binds the runtime port", async () => {
   resetMomentsRuntimePort();
   await assert.rejects(() => MomentService.getFeed(), MomentCapabilityUnavailableError);
@@ -46,22 +104,8 @@ test("fails closed with a typed error before the host binds the runtime port", a
 test("maps the global feed to moment view models", async () => {
   resetMomentsRuntimePort();
   resetMomentsSessionState();
-  configureMomentsRuntimePort(
-    createInMemoryCommunityAppSdkPort({
-      entries: [
-        seedEntry({
-          id: "entry-1",
-          stats: { commentCount: 2, reactionCount: 3 },
-          author: {
-            id: "user-1",
-            name: "Alex Chen",
-            avatar: { id: "media-1", kind: "image", publicUrl: "https://cdn.example/a.png" },
-          },
-        }),
-        seedEntry({ id: "entry-2", body: undefined, excerpt: "摘要", title: "标题" }),
-      ],
-    }),
-  );
+  configureMomentsFeedsPort(seedFeedsClient() as never);
+  configureMomentsRuntimePort(createInMemoryCommunityAppSdkPort({ entries: [seedEntry()] }));
 
   const { moments, hasMore } = await MomentService.getFeed(1, 20);
 
@@ -73,7 +117,8 @@ test("maps the global feed to moment view models", async () => {
   assert.equal(first.author.name, "Alex Chen");
   assert.equal(first.author.avatar, "https://cdn.example/a.png");
   assert.equal(first.content, "今天天气真好！出去走走~");
-  assert.equal(first.categoryId, "circle-1");
+  // Feed stream snapshots do not carry the circle category id.
+  assert.equal(first.categoryId, "");
   assert.equal(first.likeCount, 3);
   assert.equal(first.commentCount, 2);
   assert.equal(first.isLiked, false);
@@ -86,14 +131,13 @@ test("maps the global feed to moment view models", async () => {
 test("pages the feed and reports hasMore on a full page", async () => {
   resetMomentsRuntimePort();
   resetMomentsSessionState();
-  configureMomentsRuntimePort(
-    createInMemoryCommunityAppSdkPort({
-      entries: [
-        seedEntry({ id: "entry-1" }),
-        seedEntry({ id: "entry-2" }),
-        seedEntry({ id: "entry-3" }),
-      ],
-    }),
+  configureMomentsRuntimePort(createInMemoryCommunityAppSdkPort({ entries: [seedEntry()] }));
+  const firstPageItems = [
+    { ...defaultFeedItems()[0], id: "entry-1" },
+    { ...defaultFeedItems()[1], id: "entry-2" },
+  ];
+  configureMomentsFeedsPort(
+    seedFeedsClient(firstPageItems, { hasMore: true, nextCursor: "cursor-2" }) as never,
   );
 
   const firstPage = await MomentService.getFeed(1, 2);
@@ -102,8 +146,12 @@ test("pages the feed and reports hasMore on a full page", async () => {
     ["entry-1", "entry-2"],
   );
   assert.equal(firstPage.hasMore, true);
+  assert.equal(firstPage.nextCursor, "cursor-2");
 
-  const secondPage = await MomentService.getFeed(2, 2);
+  configureMomentsFeedsPort(
+    seedFeedsClient([{ ...defaultFeedItems()[0], id: "entry-3" }]) as never,
+  );
+  const secondPage = await MomentService.getFeed(2, 2, "cursor-2");
   assert.deepEqual(
     secondPage.moments.map((moment) => moment.id),
     ["entry-3"],
@@ -114,39 +162,36 @@ test("pages the feed and reports hasMore on a full page", async () => {
 test("returns an empty feed without error", async () => {
   resetMomentsRuntimePort();
   resetMomentsSessionState();
-  configureMomentsRuntimePort(createInMemoryCommunityAppSdkPort({ entries: [] }));
+  configureMomentsRuntimePort(createInMemoryCommunityAppSdkPort({ entries: [seedEntry()] }));
+  configureMomentsFeedsPort(seedFeedsClient([]) as never);
 
   const { moments, hasMore } = await MomentService.getFeed();
   assert.deepEqual(moments, []);
   assert.equal(hasMore, false);
 });
 
-test("falls back through body, excerpt, and title for content", async () => {
+test("falls back through excerpt and title for content", async () => {
   resetMomentsRuntimePort();
   resetMomentsSessionState();
-  configureMomentsRuntimePort(
-    createInMemoryCommunityAppSdkPort({
-      entries: [
-        seedEntry({ id: "with-body" }),
-        seedEntry({ id: "with-excerpt", body: undefined, excerpt: "只有摘要" }),
-        seedEntry({ id: "with-title", body: undefined, excerpt: undefined, title: "只有标题" }),
-      ],
-    }),
+  configureMomentsRuntimePort(createInMemoryCommunityAppSdkPort({ entries: [seedEntry()] }));
+  configureMomentsFeedsPort(
+    seedFeedsClient([
+      { ...defaultFeedItems()[0], id: "with-excerpt", excerpt: "只有摘要", title: "标题" },
+      { ...defaultFeedItems()[1], id: "with-title", excerpt: undefined, title: "只有标题" },
+    ]) as never,
   );
 
   const { moments } = await MomentService.getFeed();
-  assert.equal(moments[0].content, "今天天气真好！出去走走~");
-  assert.equal(moments[1].content, "只有摘要");
-  assert.equal(moments[2].content, "只有标题");
+  assert.equal(moments[0].content, "只有摘要");
+  assert.equal(moments[1].content, "只有标题");
 });
 
 test("tolerates entries without a published date", async () => {
   resetMomentsRuntimePort();
   resetMomentsSessionState();
-  configureMomentsRuntimePort(
-    createInMemoryCommunityAppSdkPort({
-      entries: [seedEntry({ id: "no-date", publishedAt: undefined, lastActivityAt: undefined })],
-    }),
+  configureMomentsRuntimePort(createInMemoryCommunityAppSdkPort({ entries: [seedEntry()] }));
+  configureMomentsFeedsPort(
+    seedFeedsClient([{ ...defaultFeedItems()[0], id: "no-date", publishedAt: undefined }]) as never,
   );
 
   const { moments } = await MomentService.getFeed();
@@ -192,7 +237,11 @@ test("publishes a text moment into the selected circle", async () => {
   assert.equal(moment.author.name, "Local User");
   assert.ok(moment.id.length > 0);
 
-  // The published moment must be visible on the first feed page afterwards.
+  // The published moment must be visible on the first feed page afterwards
+  // (the feeds stream carries the snapshot).
+  configureMomentsFeedsPort(
+    seedFeedsClient([{ ...defaultFeedItems()[0], id: moment.id, excerpt: "刚看完一本好书，推荐给大家《设计心理学》。" }]) as never,
+  );
   const { moments } = await MomentService.getFeed(1, 20);
   assert.equal(moments.length, 1);
   assert.equal(moments[0].id, moment.id);
@@ -227,6 +276,9 @@ test("toggles the viewer like and returns the reaction count", async () => {
   assert.equal(second.isLiked, false);
   assert.equal(second.likeCount, 0);
 
+  configureMomentsFeedsPort(
+    seedFeedsClient([{ ...defaultFeedItems()[0], id: "like-target", reactionCount: 0 }]) as never,
+  );
   const { moments } = await MomentService.getFeed();
   assert.equal(moments[0].isLiked, false);
   assert.equal(moments[0].likeCount, 0);
@@ -239,6 +291,9 @@ test("clears the viewer like memory on reset (logout)", async () => {
     createInMemoryCommunityAppSdkPort({ entries: [seedEntry({ id: "reset-target" })] }),
   );
 
+  configureMomentsFeedsPort(
+    seedFeedsClient([{ ...defaultFeedItems()[0], id: "reset-target", reactionCount: 1 }]) as never,
+  );
   await MomentService.toggleLike("reset-target");
   const likedFeed = await MomentService.getFeed();
   assert.equal(likedFeed.moments[0].isLiked, true);
@@ -275,6 +330,7 @@ test("deletes a moment", async () => {
     createInMemoryCommunityAppSdkPort({ entries: [seedEntry({ id: "delete-target" })] }),
   );
 
+  configureMomentsFeedsPort(seedFeedsClient([]) as never);
   await MomentService.deleteMoment("delete-target");
 
   const { moments } = await MomentService.getFeed();

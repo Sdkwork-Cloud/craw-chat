@@ -6407,7 +6407,11 @@ components:
           type: integer
           format: int64
           minimum: 0
-        rtcSignalsDeleted:
+        invitationsDeleted:
+          type: integer
+          format: int64
+          minimum: 0
+        auditRecordsDeleted:
           type: integer
           format: int64
           minimum: 0

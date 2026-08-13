@@ -5,7 +5,7 @@ use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
 use im_app_context::AppContext;
 use sdkwork_routes_web_framework_backend_api::response::{
-    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+    ApiProblem, ApiResult, created_json, finish_api_json, finish_api_response, no_content,
 };
 use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
@@ -121,7 +121,7 @@ pub async fn create_space(
             Err(error) => Err(error),
         }
     })();
-    finish_api_json(&ctx, result)
+    finish_api_response(&ctx, result.and_then(|data| created_json(&ctx, data)))
 }
 
 pub async fn list_spaces(
@@ -181,7 +181,7 @@ pub async fn update_space(
     Path(space_id): Path<String>,
     Json(request): Json<UpdateSpaceRequest>,
 ) -> Response {
-    let result: ApiResult<()> = (|| {
+    let result: ApiResult<SdkWorkResourceData<SpaceResponse>> = (|| {
         let sid = parse_space_id(space_id.as_str())?;
         let space = load_space(&state, &auth, sid)?;
         actor_can_manage_space(&state, &auth, &space)?;
@@ -213,9 +213,9 @@ pub async fn update_space(
         record.updated_at = now;
 
         persist_space_updated(&state, &auth, &record)?;
-        Ok(())
+        Ok(resource_item(SpaceResponse::from(record)))
     })();
-    finish_api_response(&ctx, result.and_then(|_| no_content(&ctx)))
+    finish_api_json(&ctx, result)
 }
 
 pub async fn delete_space(

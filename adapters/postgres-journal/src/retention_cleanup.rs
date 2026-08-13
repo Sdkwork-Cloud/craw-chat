@@ -102,6 +102,24 @@ WHERE ctid IN (
 )
 "#;
 
+/// Invitation records carry invitee contact data (email/phone), so terminal
+/// invitations (accepted/declined/expired/canceled) are purged when their
+/// `retention_until` expires (`PRIVACY_SPEC.md`). Pending invitations are
+/// never purged: they remain active until consumed, revoked, or expired.
+const PURGE_INVITATIONS_SQL: &str = r#"
+/* sdkwork:cross-organization-operation=retention-expiry-purge */
+DELETE FROM im_invitations
+WHERE ctid IN (
+    SELECT ctid
+    FROM im_invitations
+    WHERE status <> 'pending'
+      AND retention_until IS NOT NULL
+      AND retention_until <= NOW()
+    ORDER BY retention_until ASC
+    LIMIT $1
+)
+"#;
+
 /// Audit records are purged per `retention_class` in bounded batches so the
 /// class-level index and the DDL-documented differentiated windows
 /// (security=2y, access=180d, admin=1y, data_lifecycle=3y) drive expiry.
@@ -136,6 +154,7 @@ pub struct RetentionCleanupReport {
     pub inbox_events_deleted: u64,
     pub realtime_device_events_deleted: u64,
     pub rtc_sessions_deleted: u64,
+    pub invitations_deleted: u64,
     pub audit_records_deleted: u64,
 }
 
@@ -148,6 +167,7 @@ impl RetentionCleanupReport {
             + self.inbox_events_deleted
             + self.realtime_device_events_deleted
             + self.rtc_sessions_deleted
+            + self.invitations_deleted
             + self.audit_records_deleted
     }
 }
@@ -224,6 +244,7 @@ pub(crate) fn purge_retention_batch_on_txn(
     let realtime_device_events_deleted =
         execute_retention_delete(txn, PURGE_REALTIME_DEVICE_EVENTS_SQL, limit)?;
     let rtc_sessions_deleted = execute_retention_delete(txn, PURGE_RTC_SESSIONS_SQL, limit)?;
+    let invitations_deleted = execute_retention_delete(txn, PURGE_INVITATIONS_SQL, limit)?;
     let mut audit_records_deleted = 0_u64;
     for retention_class in AUDIT_RETENTION_CLASSES {
         audit_records_deleted += execute_audit_retention_delete(txn, retention_class, limit)?;
@@ -237,6 +258,7 @@ pub(crate) fn purge_retention_batch_on_txn(
         inbox_events_deleted,
         realtime_device_events_deleted,
         rtc_sessions_deleted,
+        invitations_deleted,
         audit_records_deleted,
     })
 }
@@ -308,6 +330,7 @@ mod tests {
             PURGE_INBOX_EVENTS_SQL,
             PURGE_REALTIME_DEVICE_EVENTS_SQL,
             PURGE_RTC_SESSIONS_SQL,
+            PURGE_INVITATIONS_SQL,
             PURGE_AUDIT_RECORDS_BY_CLASS_SQL,
         ] {
             assert!(

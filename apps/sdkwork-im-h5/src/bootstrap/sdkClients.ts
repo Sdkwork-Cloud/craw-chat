@@ -45,6 +45,7 @@ import {
   createGeneratedCommunityAppSdkPort,
   type CommunityAppSdkClient,
 } from '@sdkwork/community-runtime';
+import { createClient as createFeedsOpenClient, type SdkworkCustomClient as SdkworkFeedsOpenClient } from '@sdkwork/feeds-sdk';
 import type { SdkworkCommunityAppSdkPort } from '@sdkwork/community-sdk-ports';
 import {
   createCourseAppSdkClient,
@@ -88,6 +89,8 @@ export interface H5SdkClientComposition {
   readonly cmsAppSdkClient: CmsAppSdkClient;
   readonly communityAppSdkClient: CommunityAppSdkClient;
   readonly communityAppSdkPort: SdkworkCommunityAppSdkPort;
+  /** Standard feeds stream client (open surface, anonymous reads). */
+  readonly feedsOpenSdkClient: SdkworkFeedsOpenClient;
   readonly courseAppSdkClient: CourseAppSdkClientWrapper;
   readonly courseAppSdkPort: CourseAppSdkPort;
   readonly companyAppSdkClient: CompanyAppSdkClientWrapper;
@@ -193,6 +196,17 @@ export function initSdkClients(
     communityAppSdkClient.client,
   );
 
+  // Standard feeds stream client: anonymous open-surface reads (moments feed,
+  // community circle feeds, inspiration streams) go through the standard
+  // feeds stream system; content write operations keep using the community
+  // app SDK port. The base URL comes from the feeds gateway override
+  // (SDKWORK_IM_H5_FEEDS_OPEN_API_BASE_URL, feeds standalone gateway in
+  // standalone dev) or the platform gateway for cloud profiles.
+  const feedsOpenSdkClient = createFeedsOpenClient({
+    baseUrl: environment.feedsOpenApiBaseUrl,
+    platform: 'h5',
+  });
+
   const courseAppSdkClient = createCourseAppSdkClient({
     config: {
       appApiBaseUrl: environment.imApiBaseUrl,
@@ -227,6 +241,7 @@ export function initSdkClients(
     cmsAppSdkClient,
     communityAppSdkClient,
     communityAppSdkPort,
+    feedsOpenSdkClient,
     courseAppSdkClient,
     courseAppSdkPort,
     companyAppSdkClient,

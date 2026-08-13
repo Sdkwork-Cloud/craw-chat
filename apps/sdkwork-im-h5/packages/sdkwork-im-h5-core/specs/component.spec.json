@@ -10,41 +10,131 @@
     "domain": "communication",
     "capability": "core",
     "surface": "app",
-    "languages": ["typescript"],
+    "languages": [
+      "typescript"
+    ],
     "generated": false,
-    "manifests": ["package.json"]
+    "manifests": [
+      "package.json"
+    ]
   },
   "canonicalSpecs": [
-    { "file": "COMPONENT_SPEC.md", "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component contract." },
-    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Runtime source boundaries." },
-    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Core package naming." },
-    { "file": "TYPESCRIPT_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md", "purpose": "TypeScript package rules." },
-    { "file": "APP_H5_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md", "purpose": "H5 runtime and route registry ownership." },
-    { "file": "APP_COMPOSITION_SPEC.md", "path": "../../../../../sdkwork-specs/APP_COMPOSITION_SPEC.md", "purpose": "Core registries and SDK composition." },
-    { "file": "APP_PERMISSION_COMPOSITION_SPEC.md", "path": "../../../../../sdkwork-specs/APP_PERMISSION_COMPOSITION_SPEC.md", "purpose": "Inherited permission catalogs." },
-    { "file": "TEST_SPEC.md", "path": "../../../../../sdkwork-specs/TEST_SPEC.md", "purpose": "Verification." }
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component contract."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Runtime source boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Core package naming."
+    },
+    {
+      "file": "TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "TypeScript package rules."
+    },
+    {
+      "file": "APP_H5_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
+      "purpose": "H5 runtime and route registry ownership."
+    },
+    {
+      "file": "APP_COMPOSITION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_COMPOSITION_SPEC.md",
+      "purpose": "Core registries and SDK composition."
+    },
+    {
+      "file": "APP_PERMISSION_COMPOSITION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_PERMISSION_COMPOSITION_SPEC.md",
+      "purpose": "Inherited permission catalogs."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Verification."
+    }
   ],
   "contracts": {
     "layerRole": "frontend-core",
-    "publicExports": [".", "./sdk", "./modules", "./host", "./session", "./composition", "./routes"],
+    "publicExports": [
+      ".",
+      "./sdk",
+      "./modules",
+      "./host",
+      "./session",
+      "./composition",
+      "./routes"
+    ],
     "providedPorts": [
-      { "name": "imH5CoreRuntime", "export": "." },
-      { "name": "imH5SdkAccess", "export": "./sdk" },
-      { "name": "imH5Composition", "export": "./composition" },
-      { "name": "imH5SessionLifecycle", "export": "./session" },
-      { "name": "imH5RouteRegistry", "export": "./routes" }
+      {
+        "name": "imH5CoreRuntime",
+        "export": "."
+      },
+      {
+        "name": "imH5SdkAccess",
+        "export": "./sdk"
+      },
+      {
+        "name": "imH5Composition",
+        "export": "./composition"
+      },
+      {
+        "name": "imH5SessionLifecycle",
+        "export": "./session"
+      },
+      {
+        "name": "imH5RouteRegistry",
+        "export": "./routes"
+      }
     ],
     "requiredPorts": [],
     "runtimeEntrypoints": [],
     "routeManifest": null,
-    "sdkClients": [],
+    "sdkClients": [
+      "@sdkwork/feeds-sdk"
+    ],
     "sdkDependencies": [
-      { "workspace": "sdkwork-drive-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api" },
-      { "workspace": "sdkwork-notary-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api" },
-      { "workspace": "sdkwork-order-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api" },
-      { "workspace": "sdkwork-knowledgebase-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api" },
-      { "workspace": "sdkwork-voice-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api" },
-      { "workspace": "sdkwork-im-sdk", "surface": "open-api", "credentialMode": "protected-open-api-api-key-or-dual-token" }
+      {
+        "workspace": "sdkwork-drive-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-notary-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-order-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-knowledgebase-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-voice-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-im-sdk",
+        "surface": "open-api",
+        "credentialMode": "protected-open-api-api-key-or-dual-token"
+      },
+      {
+        "workspace": "sdkwork-feeds-sdk",
+        "surface": "open-api",
+        "credentialMode": "public-open-api"
+      }
     ],
     "permissionComposition": {
       "inheritanceMode": "module-catalog-with-overrides",
@@ -75,6 +165,31 @@
           "manifestRef": "../../../../../sdkwork-notary/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
+        },
+        {
+          "moduleId": "feeds",
+          "manifestRef": "../../../../../sdkwork-feeds/specs/iam.module.manifest.json",
+          "inheritPermissions": true
+        },
+        {
+          "moduleId": "community",
+          "manifestRef": "../../../../../sdkwork-community/specs/iam.module.manifest.json",
+          "inheritPermissions": true
+        },
+        {
+          "moduleId": "order",
+          "manifestRef": "../../../../../sdkwork-order/specs/iam.module.manifest.json",
+          "inheritPermissions": true
+        },
+        {
+          "moduleId": "knowledgebase",
+          "manifestRef": "../../../../../sdkwork-knowledgebase/specs/iam.module.manifest.json",
+          "inheritPermissions": true
+        },
+        {
+          "moduleId": "voice",
+          "manifestRef": "../../../../../sdkwork-voice/specs/iam.module.manifest.json",
+          "inheritPermissions": true
         }
       ],
       "bootstrapAccessTokenScope": {
@@ -98,6 +213,8 @@
     "configKeys": []
   },
   "verification": {
-    "commands": ["pnpm --dir apps/sdkwork-im-h5 typecheck"]
+    "commands": [
+      "pnpm --dir apps/sdkwork-im-h5 typecheck"
+    ]
   }
 }

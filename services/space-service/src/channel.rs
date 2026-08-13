@@ -6,7 +6,7 @@ use axum::response::Response;
 use im_adapters_social_postgres::organization_store::ChannelRecord;
 use im_app_context::AppContext;
 use sdkwork_routes_web_framework_backend_api::response::{
-    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+    ApiProblem, ApiResult, created_json, finish_api_json, finish_api_response, no_content,
 };
 use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
@@ -124,7 +124,7 @@ pub async fn create_channel(
         })?;
         Ok(resource_item(ChannelResponse::from(record)))
     })();
-    finish_api_json(&ctx, result)
+    finish_api_response(&ctx, result.and_then(|data| created_json(&ctx, data)))
 }
 
 pub async fn list_channels(
@@ -194,7 +194,7 @@ pub async fn update_channel(
     Path((space_id, channel_id)): Path<(String, String)>,
     Json(request): Json<UpdateChannelRequest>,
 ) -> Response {
-    let result: ApiResult<()> = (|| {
+    let result: ApiResult<SdkWorkResourceData<ChannelResponse>> = (|| {
         let space_id = parse_space_id(space_id.as_str())?;
         let channel_id = parse_entity_id(channel_id.as_str(), "channel_id")?;
         let space = load_space(&state, &auth, space_id)?;
@@ -221,9 +221,9 @@ pub async fn update_channel(
             tracing::error!(error = ?error, channel_id, "failed to update channel");
             ApiProblem::internal_server_error("failed to update channel")
         })?;
-        Ok(())
+        Ok(resource_item(ChannelResponse::from(record)))
     })();
-    finish_api_response(&ctx, result.and_then(|_| no_content(&ctx)))
+    finish_api_json(&ctx, result)
 }
 
 pub async fn delete_channel(
