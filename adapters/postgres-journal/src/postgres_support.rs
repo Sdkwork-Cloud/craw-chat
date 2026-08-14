@@ -310,13 +310,19 @@ pub(crate) fn now_rfc3339() -> String {
 }
 
 
+/// Maps a postgres driver error to `Unavailable` while keeping the wrapped
+/// `ContractError` message generic (no driver/database details leak into the
+/// error surface). The log line uses `Debug` formatting: `tokio-postgres`
+/// `Error::Db` only displays as "db error", hiding the SQLSTATE/message in the
+/// cause chain, so `Display` alone would make every server-side failure
+/// undiagnosable.
 pub(crate) fn postgres_unavailable(
     action: &'static str,
-    error: impl std::fmt::Display,
+    error: impl std::fmt::Debug + std::fmt::Display,
 ) -> ContractError {
     tracing::error!(
         action,
-        error = %error,
+        error = ?error,
         "postgres journal operation failed"
     );
     ContractError::Unavailable(format!("postgres journal {action} failed"))
@@ -328,7 +334,7 @@ pub(crate) fn postgres_unavailable_db(
 ) -> ContractError {
     tracing::error!(
         action,
-        error = %error,
+        error = ?error,
         "postgres journal database operation failed"
     );
     ContractError::Unavailable(format!("postgres journal {action} failed"))
