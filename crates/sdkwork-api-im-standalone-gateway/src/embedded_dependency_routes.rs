@@ -34,6 +34,7 @@ const EMBEDDED_DEPENDENCY_APP_ROOTS: &[(&str, &str)] = &[
     ("SDKWORK_AGENTS", "sdkwork-agents"),
     ("SDKWORK_COURSE", "sdkwork-course"),
     ("SDKWORK_COMMUNITY", "sdkwork-community"),
+    ("SDKWORK_FEEDS", "sdkwork-feeds"),
     ("SDKWORK_COMPANY", "sdkwork-company"),
     ("SDKWORK_CATALOG", "sdkwork-catalog"),
     ("SDKWORK_MAIL", "sdkwork-mail"),
@@ -56,7 +57,44 @@ pub fn apply_embedded_dependency_env() -> Result<(), String> {
     apply_agents_runtime_env_from_im_shared_profile()?;
     apply_embedded_dependency_app_roots();
     apply_embedded_commerce_backend_env();
+    apply_embedded_feeds_env();
     Ok(())
+}
+
+/// Point the feeds community source adapter and the anonymous community/feeds
+/// read surfaces at this collapsed single-ingress with the seeded demo tenant
+/// when the topology does not configure them explicitly.
+fn apply_embedded_feeds_env() {
+    let gateway_public_url = std::env::var("SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL")
+        .ok()
+        .filter(|value| !value.trim().is_empty());
+    if let Some(url) = gateway_public_url.as_deref() {
+        // The feeds community adapter pulls circle content from the community
+        // open surface served in-process by this gateway.
+        if std::env::var("SDKWORK_FEEDS_COMMUNITY_OPEN_API_BASE_URL")
+            .ok()
+            .map(|value| value.trim().is_empty())
+            .unwrap_or(true)
+        {
+            set_env_var("SDKWORK_FEEDS_COMMUNITY_OPEN_API_BASE_URL", url);
+        }
+    }
+    // Anonymous public reads (community feed.list, feeds streams) resolve the
+    // seeded demo tenant when no IAM context is present.
+    if std::env::var("COMMUNITY_DEFAULT_TENANT_ID")
+        .ok()
+        .map(|value| value.trim().is_empty())
+        .unwrap_or(true)
+    {
+        set_env_var("COMMUNITY_DEFAULT_TENANT_ID", "100001");
+    }
+    if std::env::var("SDKWORK_FEEDS_DEFAULT_TENANT_ID")
+        .ok()
+        .map(|value| value.trim().is_empty())
+        .unwrap_or(true)
+    {
+        set_env_var("SDKWORK_FEEDS_DEFAULT_TENANT_ID", "100001");
+    }
 }
 
 /// Point the community commerce integration (tier publishing + order payment
@@ -152,6 +190,20 @@ pub async fn bootstrap_embedded_dependency_databases() -> Result<(), String> {
         .await
         .map(|_| ())
         .map_err(|error| format!("sync embedded company database failed: {error}"))?;
+    // Community baseline plus the official circle seed data (idempotent) so
+    // circles are usable out of the box; explicit seed does not depend on the
+    // global SDKWORK_DATABASE_SEED_ON_BOOT switch (which would also seed every
+    // other embedded dependency).
+    sdkwork_community_database_host::bootstrap_community_database_with_seed_from_env()
+        .await
+        .map(|_| ())
+        .map_err(|error| format!("sync embedded community database failed: {error}"))?;
+    // Feeds baseline (`feeds_stream`, `feeds_item`, ...): official streams are
+    // ensured by the embedded feeds runtime bootstrap.
+    sdkwork_feeds_database_host::bootstrap_feeds_database_from_env()
+        .await
+        .map(|_| ())
+        .map_err(|error| format!("sync embedded feeds database failed: {error}"))?;
     bootstrap_embedded_merchandise_database().await?;
     bootstrap_embedded_promotion_database().await?;
     Ok(())
@@ -160,6 +212,14 @@ pub async fn bootstrap_embedded_dependency_databases() -> Result<(), String> {
 pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependencyRoutes, String> {
     bootstrap_embedded_merchandise_database().await?;
     bootstrap_embedded_promotion_database().await?;
+    // One community host serves both the App surface (circle read/write) and
+    // the open surface (feed.public.list — the data source for the feeds
+    // community adapter) from the same process database pool.
+    let community_host = Arc::new(
+        sdkwork_community_service_host::CommunityServiceHost::from_env()
+            .await
+            .map_err(|error| format!("compose embedded community host failed: {error}"))?,
+    );
     let mut contributions = vec![
         bootstrap_embedded_account_contribution().await?,
         bootstrap_embedded_drive_contribution().await?,
@@ -172,15 +232,25 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
         bootstrap_embedded_shop_contribution().await?,
         bootstrap_embedded_notary_contribution().await?,
         bootstrap_embedded_course_routes().await?,
-        sdkwork_api_community_assembly::assemble_app_api_contribution()
-            .await
-            .map_err(|error| format!("compose embedded community App API failed: {error}"))?,
+        sdkwork_api_community_assembly::assemble_app_api_contribution_with_host(
+            community_host.clone(),
+        )
+        .map_err(|error| format!("compose embedded community App API failed: {error}"))?,
+        sdkwork_api_community_assembly::assemble_open_api_contribution_with_host(
+            community_host.clone(),
+        )
+        .map_err(|error| format!("compose embedded community Open API failed: {error}"))?,
         sdkwork_api_company_assembly::assemble_app_api_contribution()
             .await
             .map_err(|error| format!("compose embedded company App API failed: {error}"))?,
         bootstrap_embedded_catalog_contribution().await?,
         bootstrap_embedded_mail_contribution().await?,
     ];
+    contributions.push(
+        bootstrap_embedded_feeds_contribution(community_host.clone())
+            .await
+            .map_err(|error| format!("compose embedded feeds Open API failed: {error}"))?,
+    );
     let agents_runtime = build_embedded_agents_runtime().await?;
     let agents_session_facade = agents_runtime.session_facade;
     contributions.push(agents_runtime.contribution);
@@ -193,6 +263,187 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
         contributions,
         agents_session_facade,
     })
+}
+
+/// Embed the feeds open surface (`/feeds/v3/api/*`) from the sibling
+/// sdkwork-feeds workspace: streams and items are served by this gateway, the
+/// community source adapter pulls circle content from the embedded community
+/// open surface, and a background task keeps streams incrementally synced.
+async fn bootstrap_embedded_feeds_contribution(
+    community_host: Arc<sdkwork_community_service_host::CommunityServiceHost>,
+) -> Result<sdkwork_web_bootstrap::ApiAssemblyContribution, String> {
+    use sdkwork_feeds_service_host::FeedsServiceHost;
+
+    let database = sdkwork_feeds_database_host::bootstrap_feeds_database_from_env()
+        .await
+        .map_err(|error| format!("bootstrap embedded feeds database failed: {error}"))?;
+    let host = Arc::new(
+        FeedsServiceHost::from_database_pool(database.pool().clone())
+            .map_err(|error| format!("compose embedded feeds service host failed: {error}"))?,
+    );
+
+    if let Some(adapter) = sdkwork_feeds_source_community::CommunitySourceAdapter::from_env() {
+        host.register_source_adapter(Box::new(adapter));
+        tracing::info!("embedded feeds community source adapter registered (community.entry)");
+    }
+    if let Some(adapter) = sdkwork_feeds_source_news::NewsSourceAdapter::from_env() {
+        host.register_source_adapter(Box::new(adapter));
+        tracing::info!("embedded feeds news source adapter registered (news.item)");
+    }
+
+    // Ensure the standard streams exist (idempotent) so circle feeds and
+    // moments never 404: one stream per circle (posts + resources) plus the
+    // global moments stream.
+    let tenant_id = std::env::var("SDKWORK_FEEDS_DEFAULT_TENANT_ID")
+        .unwrap_or_else(|_| "100001".to_owned());
+    ensure_feeds_streams(&host, &community_host, &tenant_id).await;
+
+    // Background incremental sync (fallback to adapter-driven sync; 60s tick
+    // mirrors the standalone feeds worker).
+    spawn_feeds_sync_task(host.clone());
+
+    let router = sdkwork_routes_feeds_open_api::build_open_router(
+        sdkwork_routes_feeds_open_api::FeedsOpenHost {
+            service: host.service(),
+        },
+    );
+    sdkwork_web_bootstrap::ApiAssemblyContribution::from_manifest(
+        "sdkwork-feeds",
+        "SDKWork Feeds Open API",
+        router,
+        sdkwork_routes_feeds_open_api::gateway_route_manifest(),
+        Vec::new(),
+        Arc::new(sdkwork_web_bootstrap::AlwaysReady),
+    )
+    .map_err(|error| format!("compose embedded feeds Open API failed: {error}"))
+}
+
+/// Idempotently ensures the standard feed streams exist for the embedded
+/// community domain: `community-{circleId}`, `community-{circleId}-resources`
+/// and the global `moments-global` stream.
+async fn ensure_feeds_streams(
+    host: &Arc<sdkwork_feeds_service_host::FeedsServiceHost>,
+    community_host: &Arc<sdkwork_community_service_host::CommunityServiceHost>,
+    tenant_id: &str,
+) {
+    use sdkwork_content_feeds_service::{CreateStreamCommand, FeedType};
+    let feeds = host.service();
+
+    async fn ensure_stream(
+        feeds: &sdkwork_content_feeds_service::FeedsService,
+        tenant_id: &str,
+        stream_key: &str,
+        feed_type: FeedType,
+        title: &str,
+    ) {
+        if feeds.retrieve_stream_by_key(tenant_id, stream_key).await.is_ok() {
+            return;
+        }
+        match feeds
+            .create_stream(
+                tenant_id,
+                &CreateStreamCommand {
+                    stream_key: stream_key.to_owned(),
+                    feed_type,
+                    title: title.to_owned(),
+                    description: None,
+                    visibility: "public".to_owned(),
+                    sort_policy: "ranked".to_owned(),
+                    config: None,
+                },
+            )
+            .await
+        {
+            Ok(_) => tracing::info!(stream_key, "embedded feeds stream ensured"),
+            Err(error) => tracing::warn!(stream_key, %error, "embedded feeds stream ensure failed"),
+        }
+    }
+
+    ensure_stream(&feeds, tenant_id, "moments-global", FeedType::Moments, "朋友圈").await;
+    match community_host.service().list_categories(tenant_id).await {
+        Ok(circles) => {
+            for circle in circles {
+                ensure_stream(
+                    &feeds,
+                    tenant_id,
+                    &format!("community-{}", circle.id),
+                    FeedType::Community,
+                    &circle.title,
+                )
+                .await;
+                ensure_stream(
+                    &feeds,
+                    tenant_id,
+                    &format!("community-{}-resources", circle.id),
+                    FeedType::Community,
+                    &format!("{} · 资源", circle.title),
+                )
+                .await;
+            }
+        }
+        Err(error) => tracing::warn!(
+            %error,
+            "embedded feeds stream bootstrap: list community circles failed"
+        ),
+    }
+}
+
+/// Spawns the periodic feeds stream sync loop inside the gateway process
+/// (mirrors `sdkwork-content-feeds-worker`; 60s interval).
+fn spawn_feeds_sync_task(host: Arc<sdkwork_feeds_service_host::FeedsServiceHost>) {
+    use sdkwork_content_feeds_service::{ListStreamsCommand, SyncStreamCommand};
+    tokio::spawn(async move {
+        let interval = std::time::Duration::from_secs(60);
+        loop {
+            tokio::time::sleep(interval).await;
+            let tenant_id = std::env::var("SDKWORK_FEEDS_DEFAULT_TENANT_ID")
+                .unwrap_or_else(|_| "100001".to_owned());
+            let (streams, _total) = match host
+                .service()
+                .list_streams(&ListStreamsCommand {
+                    tenant_id: tenant_id.clone(),
+                    page: 1,
+                    page_size: 100,
+                })
+                .await
+            {
+                Ok(page) => page,
+                Err(error) => {
+                    tracing::warn!(%error, "embedded feeds sync: list streams failed");
+                    continue;
+                }
+            };
+            let mut synced = 0i64;
+            for stream in streams {
+                match host
+                    .service()
+                    .sync_stream(
+                        &tenant_id,
+                        &SyncStreamCommand {
+                            stream_id: stream.id.clone(),
+                            source_type: None,
+                        },
+                    )
+                    .await
+                {
+                    Ok(count) => {
+                        synced += count;
+                        tracing::info!(
+                            stream_key = %stream.stream_key,
+                            synced = count,
+                            "embedded feeds stream synced"
+                        );
+                    }
+                    Err(error) => tracing::warn!(
+                        stream_key = %stream.stream_key,
+                        %error,
+                        "embedded feeds stream sync failed"
+                    ),
+                }
+            }
+            tracing::info!(synced, "embedded feeds sync tick completed");
+        }
+    });
 }
 
 /// Embed the membership backend business surface so circle tier publishing

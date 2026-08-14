@@ -300,6 +300,19 @@ sdkwork-routes-community-common = { path = "../sdkwork-community/crates/sdkwork-
 sdkwork-routes-community-app-api = { path = "../sdkwork-community/crates/sdkwork-routes-community-app-api" }
 sdkwork-routes-community-backend-api = { path = "../sdkwork-community/crates/sdkwork-routes-community-backend-api" }
 sdkwork-routes-community-open-api = { path = "../sdkwork-community/crates/sdkwork-routes-community-open-api" }
+# sdkwork-feeds — unified feed streams (动态/圈子 feed) domain owned by the
+# sibling sdkwork-feeds workspace. The standalone IM gateway embeds its open
+# surface (`/feeds/v3/api/*`) in-process alongside the community open surface
+# (`/community/v3/api/*`) so circle feeds and moments read through the
+# standard feeds stream system from the collapsed single ingress.
+sdkwork-api-feeds-assembly = { path = "../sdkwork-feeds/crates/sdkwork-api-feeds-assembly" }
+sdkwork-feeds-service-host = { path = "../sdkwork-feeds/crates/sdkwork-feeds-service-host" }
+sdkwork-feeds-database-host = { path = "../sdkwork-feeds/crates/sdkwork-feeds-database-host" }
+sdkwork-feeds-source-community = { path = "../sdkwork-feeds/crates/sdkwork-feeds-source-community" }
+sdkwork-feeds-source-news = { path = "../sdkwork-feeds/crates/sdkwork-feeds-source-news" }
+sdkwork-routes-feeds-common = { path = "../sdkwork-feeds/crates/sdkwork-routes-feeds-common" }
+sdkwork-routes-feeds-open-api = { path = "../sdkwork-feeds/crates/sdkwork-routes-feeds-open-api" }
+sdkwork-routes-feeds-app-api = { path = "../sdkwork-feeds/crates/sdkwork-routes-feeds-app-api" }
 # sdkwork-company — enterprise center (企业中心) domain owned by the sibling
 # sdkwork-company workspace. The standalone IM gateway embeds its App API
 # contribution in-process (APPLICATION_GATEWAY_SPEC platform consumer linking);
