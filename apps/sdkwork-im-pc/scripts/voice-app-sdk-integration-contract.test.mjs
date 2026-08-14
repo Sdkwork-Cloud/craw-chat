@@ -142,7 +142,7 @@ assert.equal(
 
 assert.match(
   releaseSources.sources?.['sdkwork-voice']?.repoUrl ?? '',
-  /^(?:https:\/\/github\.com\/|git@github\.com:)Sdkwork-Cloud\/sdkwork-voice\.git$/u,
+  /^(?:https:\/\/github\.com\/|git@github\.com:)sdkwork-ai\/sdkwork-voice\.git$/u,
   'Shared SDK release config must materialize sdkwork-voice from the canonical git repository.',
 );
 

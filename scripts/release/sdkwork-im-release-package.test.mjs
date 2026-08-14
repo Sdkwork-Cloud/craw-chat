@@ -693,7 +693,7 @@ assertFile('.github/workflows/package.yml');
 const workflowConfig = JSON.parse(readText('sdkwork.workflow.json'));
 assert.equal(workflowConfig.schemaVersion, '2026-06-06.sdkwork.workflow.v1');
 assert.equal(workflowConfig.app?.id, 'sdkwork-im');
-assert.equal(workflowConfig.app?.repository, 'Sdkwork-Cloud/sdkwork-im');
+assert.equal(workflowConfig.app?.repository, 'sdkwork-ai/sdkwork-im');
 assert.equal(workflowConfig.release?.artifactPrefix, 'sdkwork-im');
 assert.equal(workflowConfig.release?.defaultVersion, '0.1.0');
 assert.equal(workflowConfig.release?.changelog?.source, 'auto');
@@ -883,7 +883,7 @@ for (const target of workflowConfig.targets ?? []) {
 const packageWorkflowText = readText('.github', 'workflows', 'package.yml');
 assert.match(
   packageWorkflowText,
-  /uses: Sdkwork-Cloud\/sdkwork-github-workflow\/\.github\/workflows\/sdkwork-package\.yml@b0829529b9277a3da32b90c2d36ff34ff09fa832/u,
+  /uses: sdkwork-ai\/sdkwork-github-workflow\/\.github\/workflows\/sdkwork-package\.yml@b0829529b9277a3da32b90c2d36ff34ff09fa832/u,
   'package workflow should call the pinned sdkwork-github-workflow reusable workflow',
 );
 for (const expectedText of [

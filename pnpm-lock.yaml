@@ -193,8 +193,8 @@ catalogs:
       specifier: ^4.21.0
       version: 4.22.4
     typescript:
-      specifier: ~6.0.2
-      version: 6.0.3
+      specifier: ~5.8.2
+      version: 5.8.3
     vite:
       specifier: ^6.2.0
       version: 6.4.3
@@ -352,7 +352,7 @@ importers:
         version: 19.2.4(react@19.2.4)
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
 
   ../sdkwork-account/sdks/sdkwork-account-app-sdk/sdkwork-account-app-sdk-typescript:
     dependencies:
@@ -812,6 +812,9 @@ importers:
       '@sdkwork/community-sdk-ports':
         specifier: workspace:*
         version: link:../sdkwork-community-sdk-ports
+      '@sdkwork/feeds-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-feeds/sdks/sdkwork-feeds-sdk/sdkwork-feeds-sdk-typescript
       '@sdkwork/order-mobile-react-orders':
         specifier: workspace:*
         version: link:../../../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-mobile-react-orders
@@ -835,7 +838,7 @@ importers:
         version: 1.11.13
       i18next:
         specifier: 'catalog:'
-        version: 26.3.1(typescript@6.0.3)
+        version: 26.3.1(typescript@5.8.3)
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
@@ -856,7 +859,7 @@ importers:
         version: 5.5.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.8(i18next@26.3.1(typescript@5.8.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.8.3)
       react-router:
         specifier: 'catalog:'
         version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -869,7 +872,7 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
 
   ../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-runtime:
     dependencies:
@@ -918,6 +921,9 @@ importers:
       '@sdkwork/community-sdk-ports':
         specifier: workspace:*
         version: link:../../../sdkwork-community-common/packages/sdkwork-community-sdk-ports
+      '@sdkwork/feeds-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-feeds/sdks/sdkwork-feeds-sdk/sdkwork-feeds-sdk-typescript
       '@sdkwork/ui-pc-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-ui/sdkwork-ui-pc-react
@@ -970,7 +976,7 @@ importers:
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       i18next:
         specifier: 'catalog:'
-        version: 26.3.1(typescript@6.0.3)
+        version: 26.3.1(typescript@5.8.3)
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
@@ -985,7 +991,7 @@ importers:
         version: 19.2.4(react@19.2.4)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.8(i18next@26.3.1(typescript@5.8.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.8.3)
       react-router:
         specifier: 'catalog:'
         version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -998,7 +1004,7 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
 
   ../sdkwork-company/apps/sdkwork-company-common/packages/sdkwork-company-runtime:
     dependencies:
@@ -1052,7 +1058,7 @@ importers:
         version: link:../../../../../sdkwork-ui/sdkwork-ui-pc-react
       i18next:
         specifier: 'catalog:'
-        version: 26.3.1(typescript@6.0.3)
+        version: 26.3.1(typescript@5.8.3)
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
@@ -1064,7 +1070,7 @@ importers:
         version: 19.2.4(react@19.2.4)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.8(i18next@26.3.1(typescript@5.8.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.8.3)
     devDependencies:
       '@types/react':
         specifier: 'catalog:'
@@ -1074,13 +1080,9 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
 
-  ../sdkwork-company/apps/sdkwork-company-pc/packages/sdkwork-company-pc-core:
-    dependencies:
-      '@sdkwork/company-runtime':
-        specifier: workspace:*
-        version: link:../../../sdkwork-company-common/packages/sdkwork-company-runtime
+  ../sdkwork-company/sdks/sdkwork-company-app-sdk: {}
 
   ../sdkwork-company/sdks/sdkwork-company-app-sdk/sdkwork-company-app-sdk-typescript:
     dependencies:
@@ -1117,13 +1119,13 @@ importers:
         version: 19.2.4(react@19.2.4)
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
       vite:
         specifier: 8.1.5
         version: 8.1.5(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0)
       vite-plugin-dts:
         specifier: 'catalog:'
-        version: 4.5.4(@types/node@25.9.3)(rollup@4.62.4)(typescript@6.0.3)(vite@8.1.5(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 4.5.4(@types/node@25.9.3)(rollup@4.62.4)(typescript@5.8.3)(vite@8.1.5(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
       vitest:
         specifier: ^4.1.2
         version: 4.1.9(@types/node@25.9.3)(jsdom@29.1.1)(vite@8.1.5(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
@@ -2116,7 +2118,7 @@ importers:
         version: 19.2.4(react@19.2.4)
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
 
   ../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription:
     dependencies:
@@ -2146,7 +2148,7 @@ importers:
         version: 1.7.0(react@19.2.4)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.8(i18next@26.3.4(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.8(i18next@26.3.4(typescript@5.8.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.8.3)
     devDependencies:
       '@sdkwork/ui-pc-react':
         specifier: workspace:*
@@ -2165,7 +2167,7 @@ importers:
         version: 19.2.4(react@19.2.4)
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
 
   ../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript:
     dependencies:
@@ -2549,7 +2551,7 @@ importers:
         version: 19.2.4(react@19.2.4)
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
 
   ../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-recharge:
     dependencies:
@@ -2583,7 +2585,7 @@ importers:
         version: 19.2.4(react@19.2.4)
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
 
   ../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript:
     dependencies:
@@ -2668,7 +2670,7 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
 
   ../sdkwork-promotion/sdks/sdkwork-promotion-app-sdk/sdkwork-promotion-app-sdk-typescript:
     dependencies:
@@ -2927,7 +2929,7 @@ importers:
     devDependencies:
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
 
   ../sdkwork-ui/sdkwork-ui-mobile-react:
     dependencies:
@@ -3486,7 +3488,7 @@ importers:
         version: 4.22.2
       i18next:
         specifier: 'catalog:'
-        version: 26.3.1(typescript@6.0.3)
+        version: 26.3.1(typescript@5.8.3)
       i18next-browser-languagedetector:
         specifier: 'catalog:'
         version: 8.2.1
@@ -3510,7 +3512,7 @@ importers:
         version: 5.5.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.8(i18next@26.3.1(typescript@5.8.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.8.3)
       react-qr-code:
         specifier: 'catalog:'
         version: 2.2.0(react@19.2.4)
@@ -3565,7 +3567,7 @@ importers:
         version: 4.22.4
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
 
   apps/sdkwork-im-h5/packages/sdkwork-im-h5-ai-image:
     dependencies:
@@ -4339,7 +4341,7 @@ importers:
         version: 12.40.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       i18next:
         specifier: 'catalog:'
-        version: 26.3.1(typescript@6.0.3)
+        version: 26.3.1(typescript@5.8.3)
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
@@ -4360,7 +4362,7 @@ importers:
         version: 7.79.0(react@19.2.4)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3)
+        version: 17.0.8(i18next@26.3.1(typescript@5.8.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.8.3)
       react-markdown:
         specifier: 'catalog:'
         version: 10.1.0(@types/react@19.2.14)(react@19.2.4)
@@ -4427,7 +4429,7 @@ importers:
         version: 4.22.4
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 5.8.3
 
   apps/sdkwork-im-pc/packages/sdkwork-im-admin-core:
     dependencies:
@@ -4951,6 +4953,9 @@ importers:
       '@sdkwork/drive-pc-drive':
         specifier: link:../../../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-drive
         version: link:../../../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-drive
+      '@sdkwork/feeds-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-feeds/sdks/sdkwork-feeds-sdk/sdkwork-feeds-sdk-typescript
       '@sdkwork/iam-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript
@@ -13216,6 +13221,19 @@ snapshots:
     dependencies:
       rfdc: 1.4.1
 
+  '@vue/language-core@2.2.0(typescript@5.8.3)':
+    dependencies:
+      '@volar/language-core': 2.4.28
+      '@vue/compiler-dom': 3.5.38
+      '@vue/compiler-vue2': 2.7.16
+      '@vue/shared': 3.5.38
+      alien-signals: 0.4.14
+      minimatch: 9.0.9
+      muggle-string: 0.4.1
+      path-browserify: 1.0.1
+    optionalDependencies:
+      typescript: 5.8.3
+
   '@vue/language-core@2.2.0(typescript@6.0.2)':
     dependencies:
       '@volar/language-core': 2.4.28
@@ -13228,19 +13246,6 @@ snapshots:
       path-browserify: 1.0.1
     optionalDependencies:
       typescript: 6.0.2
-
-  '@vue/language-core@2.2.0(typescript@6.0.3)':
-    dependencies:
-      '@volar/language-core': 2.4.28
-      '@vue/compiler-dom': 3.5.38
-      '@vue/compiler-vue2': 2.7.16
-      '@vue/shared': 3.5.38
-      alien-signals: 0.4.14
-      minimatch: 9.0.9
-      muggle-string: 0.4.1
-      path-browserify: 1.0.1
-    optionalDependencies:
-      typescript: 6.0.3
 
   '@vue/reactivity@3.5.38':
     dependencies:
@@ -14175,9 +14180,17 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
+  i18next@26.3.1(typescript@5.8.3):
+    optionalDependencies:
+      typescript: 5.8.3
+
   i18next@26.3.1(typescript@6.0.3):
     optionalDependencies:
       typescript: 6.0.3
+
+  i18next@26.3.4(typescript@5.8.3):
+    optionalDependencies:
+      typescript: 5.8.3
 
   i18next@26.3.4(typescript@6.0.2):
     optionalDependencies:
@@ -15255,6 +15268,17 @@ snapshots:
       react-dom: 19.2.4(react@19.2.4)
       typescript: 6.0.3
 
+  react-i18next@17.0.8(i18next@26.3.1(typescript@5.8.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.8.3):
+    dependencies:
+      '@babel/runtime': 7.29.7
+      html-parse-stringify: 3.0.1
+      i18next: 26.3.1(typescript@5.8.3)
+      react: 19.2.4
+      use-sync-external-store: 1.6.0(react@19.2.4)
+    optionalDependencies:
+      react-dom: 19.2.4(react@19.2.4)
+      typescript: 5.8.3
+
   react-i18next@17.0.8(i18next@26.3.1(typescript@6.0.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.3):
     dependencies:
       '@babel/runtime': 7.29.7
@@ -15265,6 +15289,17 @@ snapshots:
     optionalDependencies:
       react-dom: 19.2.4(react@19.2.4)
       typescript: 6.0.3
+
+  react-i18next@17.0.8(i18next@26.3.4(typescript@5.8.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.8.3):
+    dependencies:
+      '@babel/runtime': 7.29.7
+      html-parse-stringify: 3.0.1
+      i18next: 26.3.4(typescript@5.8.3)
+      react: 19.2.4
+      use-sync-external-store: 1.6.0(react@19.2.4)
+    optionalDependencies:
+      react-dom: 19.2.4(react@19.2.4)
+      typescript: 5.8.3
 
   react-i18next@17.0.8(i18next@26.3.4(typescript@6.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.2):
     dependencies:
@@ -15988,6 +16023,25 @@ snapshots:
       - tsx
       - yaml
 
+  vite-plugin-dts@4.5.4(@types/node@25.9.3)(rollup@4.62.4)(typescript@5.8.3)(vite@8.1.5(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0)):
+    dependencies:
+      '@microsoft/api-extractor': 7.58.9(@types/node@25.9.3)
+      '@rollup/pluginutils': 5.4.0(rollup@4.62.4)
+      '@volar/typescript': 2.4.28
+      '@vue/language-core': 2.2.0(typescript@5.8.3)
+      compare-versions: 6.1.1
+      debug: 4.4.3
+      kolorist: 1.8.0
+      local-pkg: 1.2.1
+      magic-string: 0.30.21
+      typescript: 5.8.3
+    optionalDependencies:
+      vite: 8.1.5(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - '@types/node'
+      - rollup
+      - supports-color
+
   vite-plugin-dts@4.5.4(@types/node@25.9.3)(rollup@4.62.4)(typescript@6.0.2)(vite@8.1.5(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0)):
     dependencies:
       '@microsoft/api-extractor': 7.58.9(@types/node@25.9.3)
@@ -16000,25 +16054,6 @@ snapshots:
       local-pkg: 1.2.1
       magic-string: 0.30.21
       typescript: 6.0.2
-    optionalDependencies:
-      vite: 8.1.5(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0)
-    transitivePeerDependencies:
-      - '@types/node'
-      - rollup
-      - supports-color
-
-  vite-plugin-dts@4.5.4(@types/node@25.9.3)(rollup@4.62.4)(typescript@6.0.3)(vite@8.1.5(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0)):
-    dependencies:
-      '@microsoft/api-extractor': 7.58.9(@types/node@25.9.3)
-      '@rollup/pluginutils': 5.4.0(rollup@4.62.4)
-      '@volar/typescript': 2.4.28
-      '@vue/language-core': 2.2.0(typescript@6.0.3)
-      compare-versions: 6.1.1
-      debug: 4.4.3
-      kolorist: 1.8.0
-      local-pkg: 1.2.1
-      magic-string: 0.30.21
-      typescript: 6.0.3
     optionalDependencies:
       vite: 8.1.5(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0)
     transitivePeerDependencies:

@@ -159,7 +159,7 @@ assert.match(
 
 assert.match(
   releaseSources.sources?.['sdkwork-notary']?.repoUrl ?? '',
-  /^(?:https:\/\/github\.com\/|git@github\.com:)Sdkwork-Cloud\/sdkwork-notary\.git$/u,
+  /^(?:https:\/\/github\.com\/|git@github\.com:)sdkwork-ai\/sdkwork-notary\.git$/u,
   'Shared SDK release config must materialize sdkwork-notary from the canonical git repository.',
 );
 
@@ -177,7 +177,7 @@ assert.equal(
 
 assert.match(
   releaseSources.sources?.['sdkwork-drive']?.repoUrl ?? '',
-  /^(?:https:\/\/github\.com\/|git@github\.com:)Sdkwork-Cloud\/sdkwork-drive\.git$/u,
+  /^(?:https:\/\/github\.com\/|git@github\.com:)sdkwork-ai\/sdkwork-drive\.git$/u,
   'Shared SDK release config must materialize sdkwork-drive because notary file operations compose Drive app SDK.',
 );
 
@@ -237,7 +237,7 @@ assert.match(
 assert.ok(
   workflow.dependencies?.some((dependency) => (
     dependency.id === 'sdkwork-notary'
-      && dependency.repository === 'Sdkwork-Cloud/sdkwork-notary'
+      && dependency.repository === 'sdkwork-ai/sdkwork-notary'
       && dependency.refInput === 'SDKWORK_NOTARY_REF'
       && dependency.tokenSecret === 'SDKWORK_RELEASE_TOKEN'
   )),
@@ -247,7 +247,7 @@ assert.ok(
 assert.ok(
   workflow.dependencies?.some((dependency) => (
     dependency.id === 'sdkwork-drive'
-      && dependency.repository === 'Sdkwork-Cloud/sdkwork-drive'
+      && dependency.repository === 'sdkwork-ai/sdkwork-drive'
       && dependency.refInput === 'SDKWORK_DRIVE_REF'
       && dependency.tokenSecret === 'SDKWORK_RELEASE_TOKEN'
   )),

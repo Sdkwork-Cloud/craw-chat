@@ -63,7 +63,7 @@ assert.equal(
 
 assert.match(
   releaseSources.sources?.['sdkwork-community']?.repoUrl ?? '',
-  /^(?:https:\/\/github\.com\/|git@github\.com:)Sdkwork-Cloud\/sdkwork-community\.git$/u,
+  /^(?:https:\/\/github\.com\/|git@github\.com:)sdkwork-ai\/sdkwork-community\.git$/u,
   'Shared SDK release config must materialize sdkwork-community from the canonical git repository.',
 );
 
@@ -106,7 +106,7 @@ assert.doesNotMatch(
 assert.ok(
   workflow.dependencies?.some((dependency) => (
     dependency.id === 'sdkwork-community'
-      && dependency.repository === 'Sdkwork-Cloud/sdkwork-community'
+      && dependency.repository === 'sdkwork-ai/sdkwork-community'
       && dependency.refInput === 'SDKWORK_COMMUNITY_REF'
       && dependency.tokenSecret === 'SDKWORK_RELEASE_TOKEN'
   )),

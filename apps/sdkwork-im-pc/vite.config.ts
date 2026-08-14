@@ -271,7 +271,12 @@ export default defineConfig(({mode}) => {
         environment: mode,
       }),
       sdkworkChatLocalApiPlugin(),
-      react(),
+      // Skip the root-level `.vite` dependency cache: pre-bundled deps are
+      // already plain ESM (esbuild/JSX-transformed), and re-running Babel over
+      // them makes `@babel/generator` print a >500KB "deoptimised styling"
+      // note for large entries such as `react-dom_client.js` (the default
+      // plugin filter only excludes `node_modules`, which this cache dir is not).
+      react({ exclude: /\/node_modules\/|\.vite\// }),
       tailwindcss(),
     ],
     resolve: {

@@ -4,6 +4,7 @@ import { createImPcHostLanguageBridge } from '@sdkwork/im-pc-commons';
 import {
   getCommunityAppSdkClientWithSession,
 } from '@sdkwork/im-pc-core/sdk/communityAppSdkClient';
+import { getFeedsOpenSdkClient } from '@sdkwork/im-pc-core/sdk/feedsOpenSdkClient';
 import { readAppSdkSessionTokens } from '@sdkwork/im-pc-core/sdk/session';
 import { createGeneratedCommunityAppSdkPort } from '@sdkwork/community-runtime';
 import type {
@@ -71,5 +72,9 @@ export function createImCommunityPcHostAdapter({
     },
     languageBridge: hostLanguageBridge,
     createAppSdkPort: createCommunityAppSdkPort,
+    // Circle post/resource feeds read through the standard feeds stream
+    // system (community-{circleId} streams, open surface) instead of the
+    // deprecated community feed.list surface.
+    createFeedsSdkClient: getFeedsOpenSdkClient,
   };
 }

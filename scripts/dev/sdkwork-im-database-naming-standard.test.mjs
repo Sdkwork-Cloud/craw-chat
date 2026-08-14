@@ -362,7 +362,7 @@ assert.ok(
   appbaseReleaseDependency,
   'sdkwork-im release workflow must declare the sdkwork-appbase dependency used by runtime IDs and IAM SDKs',
 );
-assert.equal(appbaseReleaseDependency.repository, 'Sdkwork-Cloud/sdkwork-appbase');
+assert.equal(appbaseReleaseDependency.repository, 'sdkwork-ai/sdkwork-appbase');
 assert.equal(appbaseReleaseDependency.refInput, 'SDKWORK_APPBASE_REF');
 assert.equal(appbaseReleaseDependency.tokenSecret, 'SDKWORK_RELEASE_TOKEN');
 assert.match(
@@ -373,7 +373,7 @@ assert.match(
 
 const appbaseReleaseSource = sharedSdkReleaseSources.sources['sdkwork-appbase'];
 assert.ok(appbaseReleaseSource, 'shared SDK release sources must include sdkwork-appbase');
-assert.equal(appbaseReleaseSource.repoUrl, 'https://github.com/Sdkwork-Cloud/sdkwork-appbase.git');
+assert.equal(appbaseReleaseSource.repoUrl, 'https://github.com/sdkwork-ai/sdkwork-appbase.git');
 assert.ok(appbaseReleaseSource.ref, 'sdkwork-appbase shared SDK release source must declare a ref');
 
 function pnpmWorkspaceDeclaresPackage(workspaceSource, packagePath) {

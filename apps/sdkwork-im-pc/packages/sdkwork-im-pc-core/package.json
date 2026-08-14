@@ -70,6 +70,10 @@
       "types": "./src/sdk/communityAppSdkClient.ts",
       "default": "./src/sdk/communityAppSdkClient.ts"
     },
+    "./sdk/feedsOpenSdkClient": {
+      "types": "./src/sdk/feedsOpenSdkClient.ts",
+      "default": "./src/sdk/feedsOpenSdkClient.ts"
+    },
     "./sdk/companyPcIntegration": {
       "types": "./src/sdk/companyPcIntegration.ts",
       "default": "./src/sdk/companyPcIntegration.ts"
@@ -162,6 +166,7 @@
     "@sdkwork/course-pc-course": "workspace:*",
     "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/drive-pc-drive": "workspace:sdkwork-drive-pc-drive@*",
+    "@sdkwork/feeds-sdk": "workspace:*",
     "@sdkwork/iam-app-sdk": "workspace:*",
     "@sdkwork/iam-contracts": "workspace:*",
     "@sdkwork/im-app-sdk": "workspace:*",

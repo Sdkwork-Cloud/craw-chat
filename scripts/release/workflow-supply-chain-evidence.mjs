@@ -135,10 +135,10 @@ function createSbomAndProvenance({
           clientArchitecture: String(env.SDKWORK_CLIENT_ARCHITECTURE ?? '').trim() || null,
         },
         internalParameters: { sourceCommit },
-        resolvedDependencies: [{ uri: 'git+https://github.com/Sdkwork-Cloud/sdkwork-im', digest: { gitCommit: sourceCommit } }],
+        resolvedDependencies: [{ uri: 'git+https://github.com/sdkwork-ai/sdkwork-im', digest: { gitCommit: sourceCommit } }],
       },
       runDetails: {
-        builder: { id: 'https://github.com/Sdkwork-Cloud/sdkwork-github-workflow' },
+        builder: { id: 'https://github.com/sdkwork-ai/sdkwork-github-workflow' },
         metadata: { invocationId: String(env.GITHUB_RUN_ID ?? 'local-validation') },
       },
     },

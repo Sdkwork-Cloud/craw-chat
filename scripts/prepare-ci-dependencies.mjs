@@ -46,7 +46,7 @@ function resolveRef(dependency, env = process.env) {
 }
 
 function resolveRepoUrl(dependency) {
-  if (!/^Sdkwork-Cloud\/sdkwork-[a-z0-9-]+$/u.test(dependency.repository || '')) {
+  if (!/^sdkwork-ai\/sdkwork-[a-z0-9-]+$/u.test(dependency.repository || '')) {
     throw new Error(`${dependency.id} must use an owner/repo SDKWork repository`);
   }
   return `https://github.com/${dependency.repository}.git`;

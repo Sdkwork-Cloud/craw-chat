@@ -52,7 +52,7 @@ assert.equal(
 
 assert.match(
   releaseSources.sources?.['sdkwork-mail']?.repoUrl ?? '',
-  /^(?:https:\/\/github\.com\/|git@github\.com:)Sdkwork-Cloud\/sdkwork-mail\.git$/u,
+  /^(?:https:\/\/github\.com\/|git@github\.com:)sdkwork-ai\/sdkwork-mail\.git$/u,
   'Shared SDK release config must materialize sdkwork-mail from the canonical git repository.',
 );
 
@@ -101,7 +101,7 @@ assert.match(
 assert.ok(
   workflow.dependencies?.some((dependency) => (
     dependency.id === 'sdkwork-mail'
-      && dependency.repository === 'Sdkwork-Cloud/sdkwork-mail'
+      && dependency.repository === 'sdkwork-ai/sdkwork-mail'
       && dependency.refInput === 'SDKWORK_MAIL_REF'
       && dependency.tokenSecret === 'SDKWORK_RELEASE_TOKEN'
   )),

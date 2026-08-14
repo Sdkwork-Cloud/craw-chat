@@ -145,7 +145,7 @@ assert.equal(
 
 assert.match(
   releaseSources.sources?.['sdkwork-drive']?.repoUrl ?? '',
-  /^(?:https:\/\/github\.com\/|git@github\.com:)Sdkwork-Cloud\/sdkwork-drive\.git$/u,
+  /^(?:https:\/\/github\.com\/|git@github\.com:)sdkwork-ai\/sdkwork-drive\.git$/u,
   'Shared SDK release config must materialize sdkwork-drive from the canonical git repository.',
 );
 

@@ -17,6 +17,7 @@
 
 import '@sdkwork/im-h5-community';
 import {
+  configureCommunityFeedsPort,
   configureCommunityMediaRuntimePort,
   configureCommunityOrderRuntime,
   configureCommunityRuntimePort,
@@ -44,6 +45,11 @@ export function bootstrapImCommunityH5Port(): void {
   bootstrapped = true;
 
   configureCommunityRuntimePort(getSdkClients().communityAppSdkPort);
+
+  // Circle post/resource feeds read through the standard feeds stream system
+  // (`community-{circleId}` / `community-{circleId}-resources` streams, open
+  // surface) instead of the deprecated community feed.list surface.
+  configureCommunityFeedsPort(getSdkClients().feedsOpenSdkClient);
 
   // Post images upload through the platform drive uploader (same transport as
   // chat media); the backend stores the returned drive:// URLs on the entry.
