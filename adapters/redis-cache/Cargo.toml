@@ -10,9 +10,9 @@ im-domain-core = { path = "../../crates/im-domain-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
 sdkwork-communication-rtc-service.workspace = true
-sdkwork-im-contract-control = { path = "../../crates/sdkwork-im-contract-control" }
-sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }
-sdkwork-im-runtime-route = { path = "../../crates/sdkwork-im-runtime-route" }
+sdkwork-im-contract-control = { workspace = true }
+sdkwork-im-contract-core = { workspace = true }
+sdkwork_im_runtime_route.workspace = true
 sdkwork_utils_rust.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json.workspace = true

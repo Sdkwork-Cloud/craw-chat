@@ -16,24 +16,24 @@ im-adapters-local-memory = { path = "../../adapters/local-memory" }
 im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
 postgres = { version = "0.19.13", features = ["with-chrono-0_4", "with-serde_json-1"] }
-conversation-runtime = { path = "../sdkwork-comms-conversation-service", package = "sdkwork-comms-conversation-service" }
+conversation-runtime = { workspace = true, package = "sdkwork-comms-conversation-service" }
 sdkwork_database_config.workspace = true
-sdkwork-im-database-pool = { path = "../../crates/sdkwork-im-database-pool" }
+sdkwork_im_database_pool.workspace = true
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-time = { path = "../../crates/im-time" }
-sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
-sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+sdkwork-im-api-registry = { workspace = true }
+sdkwork-im-openapi = { workspace = true }
 im-app-context = { path = "../../crates/im-app-context" }
-sdkwork-im-runtime-id = { path = "../../crates/sdkwork-im-runtime-id" }
+sdkwork_im_runtime_id.workspace = true
 sdkwork_utils_rust.workspace = true
 sha2 = "0.10"
 im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 hmac = "0.12"
 sdkwork_im_service_readiness = { workspace = true }
-sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+sdkwork_im_web_bootstrap.workspace = true
 sdkwork_web_core.workspace = true
 sdkwork_routes_web_framework_backend_api.workspace = true
 

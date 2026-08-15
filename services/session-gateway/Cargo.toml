@@ -7,19 +7,19 @@ version.workspace = true
 [dependencies]
 axum.workspace = true
 chrono = "0.4.44"
-sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
-sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
-sdkwork-im-ccp-binding-tcp = { path = "../../crates/sdkwork-im-ccp-binding-tcp" }
-sdkwork-im-ccp-binding-udp = { path = "../../crates/sdkwork-im-ccp-binding-udp" }
-sdkwork-im-ccp-binding-ws = { path = "../../crates/sdkwork-im-ccp-binding-ws" }
-sdkwork-im-ccp-codec = { path = "../../crates/sdkwork-im-ccp-codec" }
-sdkwork-im-ccp-codec-json = { path = "../../crates/sdkwork-im-ccp-codec-json" }
-sdkwork-im-ccp-control = { path = "../../crates/sdkwork-im-ccp-control" }
-sdkwork-im-ccp-core = { path = "../../crates/sdkwork-im-ccp-core" }
-sdkwork-im-contract-control = { path = "../../crates/sdkwork-im-contract-control" }
-sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }
-sdkwork-im-runtime-link = { path = "../../crates/sdkwork-im-runtime-link" }
-sdkwork-im-runtime-route = { path = "../../crates/sdkwork-im-runtime-route" }
+sdkwork-im-api-registry = { workspace = true }
+sdkwork-im-openapi = { workspace = true }
+sdkwork-im-ccp-binding-tcp = { workspace = true }
+sdkwork-im-ccp-binding-udp = { workspace = true }
+sdkwork-im-ccp-binding-ws = { workspace = true }
+sdkwork-im-ccp-codec = { workspace = true }
+sdkwork-im-ccp-codec-json = { workspace = true }
+sdkwork-im-ccp-control = { workspace = true }
+sdkwork-im-ccp-core = { workspace = true }
+sdkwork-im-contract-control = { workspace = true }
+sdkwork-im-contract-core = { workspace = true }
+sdkwork_im_runtime_link.workspace = true
+sdkwork_im_runtime_route.workspace = true
 futures-util.workspace = true
 im-app-context = { path = "../../crates/im-app-context" }
 sdkwork_utils_rust.workspace = true
@@ -33,7 +33,7 @@ im-time = { path = "../../crates/im-time" }
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 im-adapters-postgres-realtime = { path = "../../adapters/postgres-realtime" }
 im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
-sdkwork-im-database-pool = { path = "../../crates/sdkwork-im-database-pool" }
+sdkwork_im_database_pool.workspace = true
 im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
 rand.workspace = true
@@ -43,8 +43,8 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 prost = "0.14"
-sdkwork-im-rpc-sdk-rust = { path = "../../sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust" }
-sdkwork-im-rpc-service-rust = { path = "../../crates/sdkwork-im-rpc-service-rust" }
+sdkwork_im_rpc_sdk_rust.workspace = true
+sdkwork_im_rpc_service_rust.workspace = true
 tokio-stream = "0.1"
 quinn = "0.11.9"
 rustls = "0.23.40"
@@ -62,6 +62,6 @@ sdkwork_utils_rust.workspace = true
 sdkwork_web_core.workspace = true
 tokio-tungstenite = "0.28.0"
 tower.workspace = true
-sdkwork-routes-im-realtime-open-api = { path = "../../crates/sdkwork-routes-im-realtime-open-api" }
+sdkwork_routes_im_realtime_open_api.workspace = true
 rcgen = "0.14.8"
 

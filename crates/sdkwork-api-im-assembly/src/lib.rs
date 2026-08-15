@@ -5,6 +5,7 @@
 mod bootstrap;
 mod automation_agent_bridge;
 mod conversation_outbox_relay;
+mod embedded_dependency_routes;
 mod generated;
 mod ops_realtime_wiring;
 mod outbox_relay_common;
@@ -21,6 +22,10 @@ pub use bootstrap::{
 pub use automation_agent_bridge::{AutomationAgentBridgeHandle, spawn_automation_agent_bridge};
 pub use conversation_outbox_relay::{
     ConversationOutboxRelayHandle, spawn_conversation_outbox_relay_from_env,
+};
+pub use embedded_dependency_routes::{
+    EmbeddedDependencyRoutes, apply_embedded_dependency_env,
+    bootstrap_embedded_dependency_databases, bootstrap_embedded_dependency_routes,
 };
 pub use rtc_outbox_relay::{RtcOutboxRelayHandle, spawn_rtc_outbox_relay_from_env};
 pub use social_outbox_relay::{SocialOutboxRelayHandle, spawn_social_outbox_relay_from_env};

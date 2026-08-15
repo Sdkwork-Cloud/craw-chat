@@ -7,12 +7,12 @@ version.workspace = true
 [dependencies]
 base64 = "0.22.1"
 bytes = "1.11.1"
-sdkwork-im-ccp-binding-ws = { path = "../../crates/sdkwork-im-ccp-binding-ws" }
-sdkwork-im-ccp-codec = { path = "../../crates/sdkwork-im-ccp-codec" }
-sdkwork-im-ccp-codec-json = { path = "../../crates/sdkwork-im-ccp-codec-json" }
-sdkwork-im-ccp-control = { path = "../../crates/sdkwork-im-ccp-control" }
-sdkwork-im-ccp-core = { path = "../../crates/sdkwork-im-ccp-core" }
-sdkwork-im-realtime-api-paths = { path = "../../crates/sdkwork-im-realtime-api-paths" }
+sdkwork-im-ccp-binding-ws = { workspace = true }
+sdkwork-im-ccp-codec = { workspace = true }
+sdkwork-im-ccp-codec-json = { workspace = true }
+sdkwork-im-ccp-control = { workspace = true }
+sdkwork-im-ccp-core = { workspace = true }
+sdkwork_im_realtime_api_paths.workspace = true
 futures-util.workspace = true
 hyper = { version = "1.9.0", features = ["client", "http1"] }
 hyper-util = { version = "0.1.20", features = ["client", "client-legacy", "http1", "tokio"] }

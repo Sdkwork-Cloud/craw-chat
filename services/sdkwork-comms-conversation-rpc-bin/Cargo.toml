@@ -10,8 +10,8 @@ name = "comms-conversation-rpc"
 path = "src/main.rs"
 
 [dependencies]
-conversation-runtime = { package = "sdkwork-comms-conversation-service", path = "../sdkwork-comms-conversation-service" }
-sdkwork-im-rpc-service-rust = { path = "../../crates/sdkwork-im-rpc-service-rust" }
+conversation-runtime = { workspace = true, package = "sdkwork-comms-conversation-service" }
+sdkwork_im_rpc_service_rust.workspace = true
 sdkwork-rpc-server = { workspace = true }
 sdkwork_im_service_readiness = { workspace = true }
 tokio.workspace = true

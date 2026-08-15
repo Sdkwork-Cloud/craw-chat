@@ -1,11 +1,14 @@
 mod edge_ip_rate_limit;
-mod embedded_dependency_routes;
 
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
 
 use axum::Router;
 use sdkwork_api_config::StandaloneConfigLoader;
+use sdkwork_api_im_assembly::{
+    apply_embedded_dependency_env, bootstrap_embedded_dependency_databases,
+    bootstrap_embedded_dependency_routes,
+};
 use sdkwork_api_product_runtime::{
     RouterProductRuntimeOptions, build_product_runtime_router, resolve_product_site_dir_from_env,
 };
@@ -67,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bind_address = resolve_bind_address()?;
     let base_url = format!("http://{}", display_listener_addr(bind_address));
     apply_standalone_process_environment(&base_url, bind_address);
-    embedded_dependency_routes::apply_embedded_dependency_env()
+    apply_embedded_dependency_env()
         .map_err(|error| format!("embedded dependency configuration failed: {error}"))?;
 
     tokio::runtime::Builder::new_multi_thread()
@@ -87,22 +90,19 @@ async fn async_main(
         im_adapters_postgres_journal::spawn_retention_purge_scheduler_from_env();
     sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env().await;
     let environment = resolve_environment();
-    // Bootstrap the IAM foundation schema before tenant application provisioning:
-    // the embedded tenant bootstrap skips provisioning when the IAM schema is not
-    // ready, so provisioning must run after the schema is installed.
-    sdkwork_iam_database_host::bootstrap_iam_database_from_env()
-        .await
-        .map_err(|error| format!("failed to bootstrap IAM database schema: {error}"))?;
+    // IAM bootstrap runs through the IAM application assembly (API_ASSEMBLY_SPEC
+    // §3/§6.1): it installs the IAM foundation schema and provisions the IAM
+    // tenant application before the IM tenant provisioning below, preserving
+    // the schema-before-provisioning invariant.
+    let (iam_contribution, iam_host) =
+        sdkwork_api_iam_assembly::bootstrap_iam_app_for_application()
+            .await
+            .map_err(|error| format!("failed to assemble IAM App API surface: {error}"))?;
     sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env(
         environment.as_str(),
     )
     .await
     .map_err(|error| format!("failed to ensure IM IAM tenant application: {error}"))?;
-
-    let (iam_contribution, iam_host) =
-        sdkwork_api_iam_assembly::bootstrap_iam_app_for_application()
-            .await
-            .map_err(|error| format!("failed to assemble IAM App API surface: {error}"))?;
     let iam_resolver = sdkwork_iam_web_adapter::IamWebRequestContextResolver::from_database_pool(
         Some(iam_host.pool().clone()),
     );
@@ -112,7 +112,7 @@ async fn async_main(
     let realtime_state =
         session_gateway::AppState::from_realtime_bootstrap(&realtime_plane.bootstrap);
 
-    embedded_dependency_routes::bootstrap_embedded_dependency_databases()
+    bootstrap_embedded_dependency_databases()
         .await
         .map_err(|error| format!("synchronize embedded dependency databases failed: {error}"))?;
 
@@ -120,7 +120,7 @@ async fn async_main(
         &realtime_plane.bootstrap,
     ))
     .await?;
-    let mut dependencies = embedded_dependency_routes::bootstrap_embedded_dependency_routes()
+    let mut dependencies = bootstrap_embedded_dependency_routes()
         .await
         .map_err(|error| format!("failed to assemble dependency APIs: {error}"))?;
     let standalone_runtime = api_assembly

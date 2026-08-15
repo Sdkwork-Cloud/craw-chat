@@ -11,9 +11,9 @@ path = "src/lib.rs"
 
 [dependencies]
 axum.workspace = true
-sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
-sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }
-sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+sdkwork-im-api-registry = { workspace = true }
+sdkwork-im-contract-core = { workspace = true }
+sdkwork-im-openapi = { workspace = true }
 im-app-context = { path = "../../crates/im-app-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
@@ -27,7 +27,7 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
-sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+sdkwork_im_web_bootstrap.workspace = true
 sdkwork-communication-rtc-service.workspace = true
 # RTC provider integration. IM owns call signaling; media session creation
 # and participant credential issuance delegate to the RTC provider plugin
@@ -46,8 +46,8 @@ dashmap.workspace = true
 im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 im-adapters-postgres-rtc-state = { path = "../../adapters/postgres-rtc-state" }
 im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
-sdkwork-im-database-pool = { path = "../../crates/sdkwork-im-database-pool" }
-sdkwork-im-runtime-id = { path = "../../crates/sdkwork-im-runtime-id" }
+sdkwork_im_database_pool.workspace = true
+sdkwork_im_runtime_id.workspace = true
 # Transactional outbox for durable RTC lifecycle event publishing
 # (FOR UPDATE SKIP LOCKED pattern). When SDKWORK_DATABASE_URL is
 # unset, the runtime skips outbox emission (development only). Production

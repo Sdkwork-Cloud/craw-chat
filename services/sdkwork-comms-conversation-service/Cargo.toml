@@ -12,10 +12,10 @@ async-trait = "0.1"
 axum.workspace = true
 chrono = "0.4.44"
 getrandom = "0.3.4"
-sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
-sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
-sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }
-sdkwork-im-contract-message = { path = "../../crates/sdkwork-im-contract-message" }
+sdkwork-im-api-registry = { workspace = true }
+sdkwork-im-openapi = { workspace = true }
+sdkwork-im-contract-core = { workspace = true }
+sdkwork-im-contract-message = { workspace = true }
 im-app-context = { path = "../../crates/im-app-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }
@@ -24,9 +24,9 @@ im-adapters-postgres-journal.workspace = true
 im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
-sdkwork-im-database-pool = { path = "../../crates/sdkwork-im-database-pool" }
+sdkwork_im_database_pool.workspace = true
 sdkwork_database_config.workspace = true
-sdkwork-im-runtime-id = { path = "../../crates/sdkwork-im-runtime-id" }
+sdkwork_im_runtime_id.workspace = true
 im-time = { path = "../../crates/im-time" }
 serde.workspace = true
 serde_json.workspace = true
@@ -35,11 +35,11 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 sdkwork_im_service_readiness = { workspace = true }
-sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+sdkwork_im_web_bootstrap.workspace = true
 sdkwork_web_core.workspace = true
 sdkwork_routes_web_framework_backend_api.workspace = true
-sdkwork-im-rpc-service-rust = { path = "../../crates/sdkwork-im-rpc-service-rust" }
-sdkwork-im-rpc-sdk-rust = { path = "../../sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust" }
+sdkwork_im_rpc_service_rust.workspace = true
+sdkwork_im_rpc_sdk_rust.workspace = true
 sdkwork-knowledgebase-rpc-sdk-rust.workspace = true
 sdkwork-rpc-client = { workspace = true, features = ["tls"] }
 sdkwork-rpc-core.workspace = true
@@ -53,7 +53,7 @@ url = "2"
 [dev-dependencies]
 http-body-util.workspace = true
 tower.workspace = true
-sdkwork-routes-im-chat-open-api = { path = "../../crates/sdkwork-routes-im-chat-open-api" }
+sdkwork_routes_im_chat_open_api.workspace = true
 tonic = { version = "0.14", features = ["transport"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 sdkwork-rpc-server = { workspace = true, features = ["tls"] }

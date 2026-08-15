@@ -33,7 +33,7 @@ automation-service = { path = "../../services/automation-service" }
 notification-service = { path = "../../services/notification-service" }
 ops-service = { path = "../../services/ops-service" }
 portal-service = { path = "../../services/portal-service" }
-conversation_runtime = { path = "../../services/sdkwork-comms-conversation-service", package = "sdkwork-comms-conversation-service" }
+conversation-runtime = { workspace = true, package = "sdkwork-comms-conversation-service" }
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
 sdkwork_im_database_pool = { workspace = true }
 sdkwork_im_service_readiness = { workspace = true }
@@ -54,6 +54,46 @@ sdkwork-routes-im-social-backend-api = { workspace = true }
 sdkwork-routes-im-social-open-api = { workspace = true }
 sdkwork-routes-im-space-open-api = { workspace = true }
 sdkwork-routes-im-stream-app-api = { workspace = true }
+
+# Embedded dependency surfaces (single-ingress composition). External route,
+# service, repository, and database implementation crates enter through the
+# owning application assemblies (API_ASSEMBLY_SPEC §3/§6.1); the membership and
+# order backend route manifests below are contract constants because those
+# assemblies do not re-export backend manifests.
+sdkwork_iam_embedded_application_bootstrap.workspace = true
+sdkwork-api-drive-assembly.workspace = true
+sdkwork-api-notary-assembly.workspace = true
+sdkwork-api-course-assembly.workspace = true
+sdkwork-drive-workspace-service.workspace = true
+sdkwork-knowledgebase-database-host.workspace = true
+sdkwork-api-knowledgebase-assembly.workspace = true
+sdkwork-mail-database-host.workspace = true
+sdkwork-catalog-database-host.workspace = true
+sdkwork-api-mail-assembly.workspace = true
+sdkwork-api-agents-assembly.workspace = true
+sdkwork-api-account-assembly.workspace = true
+sdkwork-api-catalog-assembly.workspace = true
+sdkwork-api-inventory-assembly.workspace = true
+sdkwork-api-invoice-assembly.workspace = true
+sdkwork-api-membership-assembly.workspace = true
+sdkwork-routes-membership-backend-api.workspace = true
+sdkwork-merchandise-database-host.workspace = true
+sdkwork-api-order-assembly.workspace = true
+sdkwork-routes-order-backend-api.workspace = true
+sdkwork-api-payment-assembly.workspace = true
+sdkwork-promotion-database-host.workspace = true
+sdkwork-api-shop-assembly.workspace = true
+sdkwork-api-community-assembly.workspace = true
+sdkwork-community-service-host.workspace = true
+sdkwork-community-database-host.workspace = true
+sdkwork-api-feeds-assembly.workspace = true
+sdkwork-feeds-service-host.workspace = true
+sdkwork-feeds-database-host.workspace = true
+sdkwork-feeds-source-community.workspace = true
+sdkwork-feeds-source-news.workspace = true
+sdkwork-api-company-assembly.workspace = true
+sdkwork-company-database-host.workspace = true
+sdkwork_content_feeds_service.workspace = true
 
 [dev-dependencies]
 tower.workspace = true

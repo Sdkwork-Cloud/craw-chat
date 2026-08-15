@@ -22,51 +22,9 @@ sdkwork-api-product-runtime.workspace = true
 sdkwork-im-web-bootstrap.workspace = true
 sdkwork-api-iam-assembly = { workspace = true }
 sdkwork_iam_web_adapter.workspace = true
-sdkwork_iam_database_host = { workspace = true }
 sdkwork_im_service_readiness = { workspace = true }
 sdkwork_im_iam_application_bootstrap = { workspace = true }
 session-gateway = { path = "../../services/session-gateway" }
-sdkwork-api-drive-assembly = { workspace = true }
-sdkwork-api-course-assembly = { workspace = true }
-sdkwork-api-catalog-assembly = { workspace = true }
-sdkwork-api-community-assembly = { workspace = true }
-sdkwork-api-company-assembly = { workspace = true }
-sdkwork-company-database-host = { workspace = true }
-sdkwork-api-feeds-assembly = { workspace = true }
-sdkwork-feeds-database-host = { workspace = true }
-sdkwork-feeds-service-host = { workspace = true }
-sdkwork-feeds-source-community = { workspace = true }
-sdkwork-feeds-source-news = { workspace = true }
-sdkwork-routes-feeds-common = { workspace = true }
-sdkwork-routes-feeds-open-api = { workspace = true }
-sdkwork-routes-feeds-app-api = { workspace = true }
-sdkwork-community-database-host = { workspace = true }
-sdkwork-community-service-host = { workspace = true }
-sdkwork-routes-community-common = { workspace = true }
-sdkwork-routes-community-open-api = { workspace = true }
-sdkwork-content-feeds-service = { path = "../../../sdkwork-feeds/crates/sdkwork-content-feeds-service" }
-sdkwork-knowledgebase-database-host = { workspace = true }
-sdkwork-drive-workspace-service = { workspace = true }
-sdkwork-mail-database-host = { workspace = true }
-sdkwork-catalog-database-host = { workspace = true }
-sdkwork-api-notary-assembly = { workspace = true }
-sdkwork-api-mail-assembly = { workspace = true }
-sdkwork-api-knowledgebase-assembly = { workspace = true }
-sdkwork-api-agents-assembly = { workspace = true }
-sdkwork-agents-runtime-facade.workspace = true
-sdkwork-api-inventory-assembly = { workspace = true }
-sdkwork-api-invoice-assembly = { workspace = true }
-sdkwork-api-account-assembly = { workspace = true }
-sdkwork-api-membership-assembly = { workspace = true }
-sdkwork-routes-membership-backend-api = { workspace = true }
-sdkwork-merchandise-database-host = { workspace = true }
-sdkwork-promotion-database-host = { workspace = true }
-sdkwork-api-order-assembly = { workspace = true }
-sdkwork-routes-order-backend-api = { workspace = true }
-sdkwork-api-payment-assembly = { workspace = true }
-sdkwork-api-shop-assembly = { workspace = true }
-sdkwork-iam-embedded-application-bootstrap = { workspace = true }
-sdkwork_database_config = { workspace = true }
 sdkwork_web_axum.workspace = true
 sdkwork_web_core.workspace = true
 tokio = { version = "1.48", features = ["rt-multi-thread", "net", "signal"] }
@@ -74,3 +32,5 @@ tracing.workspace = true
 
 [dev-dependencies]
 tower.workspace = true
+sdkwork-api-order-assembly = { workspace = true }
+sdkwork-api-payment-assembly = { workspace = true }

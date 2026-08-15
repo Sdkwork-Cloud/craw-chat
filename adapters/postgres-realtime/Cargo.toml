@@ -7,7 +7,7 @@ version.workspace = true
 [dependencies]
 chrono = "0.4.44"
 im-domain-core = { path = "../../crates/im-domain-core" }
-sdkwork-im-runtime-route = { path = "../../crates/sdkwork-im-runtime-route" }
+sdkwork_im_runtime_route.workspace = true
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-postgres-realtime-contracts = { path = "../../crates/im-postgres-realtime-contracts" }
 native-tls = "0.2"

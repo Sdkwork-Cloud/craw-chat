@@ -6,7 +6,7 @@ version.workspace = true
 
 [dependencies]
 hmac = "0.12"
-sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }
+sdkwork-im-contract-core = { workspace = true }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-time = { path = "../../crates/im-time" }
 sdkwork_utils_rust.workspace = true

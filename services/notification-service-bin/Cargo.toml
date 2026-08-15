@@ -12,7 +12,7 @@ path = "src/main.rs"
 [dependencies]
 axum.workspace = true
 notification-service = { path = "../notification-service" }
-sdkwork-routes-im-notification-app-api = { path = "../../crates/sdkwork-routes-im-notification-app-api" }
+sdkwork_routes_im_notification_app_api.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
 tokio.workspace = true
 tracing.workspace = true

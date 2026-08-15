@@ -12,7 +12,7 @@ path = "src/main.rs"
 [dependencies]
 axum.workspace = true
 governance-service = { path = "../governance-service" }
-sdkwork-routes-im-governance-backend-api = { path = "../../crates/sdkwork-routes-im-governance-backend-api" }
+sdkwork_routes_im_governance_backend_api.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
 serde_json.workspace = true
 tokio.workspace = true

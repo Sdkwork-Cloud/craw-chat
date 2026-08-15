@@ -12,7 +12,7 @@ path = "src/main.rs"
 [dependencies]
 axum.workspace = true
 audit-service = { path = "../audit-service" }
-sdkwork-routes-im-audit-backend-api = { path = "../../crates/sdkwork-routes-im-audit-backend-api" }
+sdkwork_routes_im_audit_backend_api.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
 tokio.workspace = true
 tracing.workspace = true

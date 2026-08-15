@@ -3,6 +3,15 @@
 //! Sibling domain route crates are mounted in-process per `APPLICATION_GATEWAY_SPEC.md`
 //! platform consumer linking and `DEPENDENCY_MANAGEMENT_SPEC.md` §5 — not HTTP-proxied
 //! to internal HTTP service ports when IM standalone gateway collapses platform ingress.
+//!
+//! Owned by the IM API assembly (API_ASSEMBLY_SPEC §6.1): the thin standalone
+//! gateway only consumes `bootstrap_embedded_dependency_routes` and never
+//! imports external route/service/repository/database implementation crates.
+//! External surfaces enter through their own application assemblies
+//! (`sdkwork-api-<app>-assembly`); the membership/order backend route
+//! manifests are the only route-crate constants referenced here because those
+//! assemblies do not re-export backend manifests, while the routers themselves
+//! come from `sdkwork_api_membership_assembly` / `sdkwork_api_order_assembly`.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -302,19 +311,16 @@ async fn bootstrap_embedded_feeds_contribution(
     // mirrors the standalone feeds worker).
     spawn_feeds_sync_task(host.clone());
 
-    let router = sdkwork_routes_feeds_open_api::build_open_router(
-        sdkwork_routes_feeds_open_api::FeedsOpenHost {
-            service: host.service(),
+    // The feeds open surface enters through the feeds application assembly
+    // (API_ASSEMBLY_SPEC §3/§6.1); the route crate is never imported here.
+    sdkwork_api_feeds_assembly::assemble_open_api_contribution(
+        sdkwork_api_feeds_assembly::ApiAssemblyContext {
+            host,
+            domain_context_injectors: Vec::new(),
+            readiness_check: Arc::new(sdkwork_web_bootstrap::AlwaysReady),
         },
-    );
-    sdkwork_web_bootstrap::ApiAssemblyContribution::from_manifest(
-        "sdkwork-feeds",
-        "SDKWork Feeds Open API",
-        router,
-        sdkwork_routes_feeds_open_api::gateway_route_manifest(),
-        Vec::new(),
-        Arc::new(sdkwork_web_bootstrap::AlwaysReady),
     )
+    .await
     .map_err(|error| format!("compose embedded feeds Open API failed: {error}"))
 }
 

@@ -114,6 +114,18 @@ license = "AGPL-3.0-or-later"
 version = "0.1.0"
 
 [workspace.dependencies]
+sdkwork_im_runtime_link = { path = "crates/sdkwork-im-runtime-link", package = "sdkwork-im-runtime-link" }
+
+sdkwork_im_rpc_service_rust = { path = "crates/sdkwork-im-rpc-service-rust", package = "sdkwork-im-rpc-service-rust" }
+
+sdkwork_im_rpc_sdk_rust = { path = "sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust", package = "sdkwork-im-rpc-sdk-rust" }
+
+sdkwork_content_feeds_service = { path = "../sdkwork-feeds/crates/sdkwork-content-feeds-service", package = "sdkwork-content-feeds-service" }
+
+sdkwork_im_runtime_route = { path = "crates/sdkwork-im-runtime-route", package = "sdkwork-im-runtime-route" }
+
+sdkwork_im_runtime_id = { path = "crates/sdkwork-im-runtime-id", package = "sdkwork-im-runtime-id" }
+
 sdkwork-web-bootstrap = { path = "../sdkwork-web-framework/crates/sdkwork-web-bootstrap" }
 sdkwork-api-im-assembly = { path = "crates/sdkwork-api-im-assembly" }
 sdkwork_iam_embedded_application_bootstrap = { path = "../sdkwork-iam/crates/sdkwork-iam-embedded-application-bootstrap", package = "sdkwork-iam-embedded-application-bootstrap" }

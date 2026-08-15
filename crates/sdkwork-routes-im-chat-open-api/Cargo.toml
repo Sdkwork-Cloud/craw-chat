@@ -13,4 +13,4 @@ axum.workspace = true
 sdkwork_web_contract.workspace = true
 sdkwork_web_core.workspace = true
 sdkwork_im_web_bootstrap.workspace = true
-sdkwork-comms-conversation-service = { path = "../../services/sdkwork-comms-conversation-service" }
+conversation-runtime = { workspace = true }

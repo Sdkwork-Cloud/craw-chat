@@ -6,11 +6,11 @@ version.workspace = true
 
 [dependencies]
 axum.workspace = true
-sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
-sdkwork-im-contract-agent = { path = "../../crates/sdkwork-im-contract-agent" }
-sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }
-sdkwork-im-contract-message = { path = "../../crates/sdkwork-im-contract-message" }
-sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+sdkwork-im-api-registry = { workspace = true }
+sdkwork-im-contract-agent = { workspace = true }
+sdkwork-im-contract-core = { workspace = true }
+sdkwork-im-contract-message = { workspace = true }
+sdkwork-im-openapi = { workspace = true }
 im-app-context = { path = "../../crates/im-app-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }
@@ -25,7 +25,7 @@ sdkwork_im_service_readiness = { workspace = true }
 sdkwork_utils_rust.workspace = true
 sdkwork_web_core.workspace = true
 sdkwork_routes_web_framework_backend_api.workspace = true
-sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+sdkwork_im_web_bootstrap.workspace = true
 im-adapters-local-disk = { path = "../../adapters/local-disk" }
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
@@ -35,5 +35,5 @@ sdkwork_database_config = { workspace = true }
 http-body-util.workspace = true
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 tower.workspace = true
-sdkwork-routes-im-automation-app-api = { path = "../../crates/sdkwork-routes-im-automation-app-api" }
-sdkwork-routes-im-governance-backend-api = { path = "../../crates/sdkwork-routes-im-governance-backend-api" }
+sdkwork_routes_im_automation_app_api.workspace = true
+sdkwork_routes_im_governance_backend_api.workspace = true

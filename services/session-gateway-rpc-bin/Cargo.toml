@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 session-gateway = { path = "../session-gateway" }
-sdkwork-im-rpc-service-rust = { path = "../../crates/sdkwork-im-rpc-service-rust" }
+sdkwork_im_rpc_service_rust.workspace = true
 sdkwork-rpc-server = { workspace = true }
 sdkwork_im_service_readiness = { workspace = true }
 tokio.workspace = true
