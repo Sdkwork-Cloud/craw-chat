@@ -12,7 +12,7 @@ path = "src/main.rs"
 [dependencies]
 axum.workspace = true
 media-service = { path = "../media-service" }
-sdkwork_routes_im_media_app_api.workspace = true
+sdkwork-routes-im-media-app-api.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
 tokio.workspace = true
 tracing.workspace = true

@@ -32,4 +32,4 @@ sdkwork_im_web_bootstrap.workspace = true
 http-body-util.workspace = true
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 tower.workspace = true
-sdkwork_routes_im_stream_app_api.workspace = true
+sdkwork-routes-im-stream-app-api.workspace = true

@@ -62,6 +62,5 @@ sdkwork_utils_rust.workspace = true
 sdkwork_web_core.workspace = true
 tokio-tungstenite = "0.28.0"
 tower.workspace = true
-sdkwork_routes_im_realtime_open_api.workspace = true
+sdkwork-routes-im-realtime-open-api.workspace = true
 rcgen = "0.14.8"
-

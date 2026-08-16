@@ -10,7 +10,7 @@ name = "comms-conversation-internal-rpc"
 path = "src/main.rs"
 
 [dependencies]
-conversation-runtime = { workspace = true, package = "sdkwork-comms-conversation-service" }
+conversation-runtime.workspace = true
 sdkwork_im_rpc_service_rust.workspace = true
 sdkwork-rpc-core.workspace = true
 sdkwork-rpc-server = { workspace = true, features = ["tls"] }

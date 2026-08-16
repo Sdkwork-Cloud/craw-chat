@@ -68,12 +68,8 @@ pub fn spawn_automation_agent_bridge(
     runtime: Arc<automation_service::AutomationRuntime>,
     agents: Arc<dyn AgentsSessionFacade>,
 ) -> AutomationAgentBridgeHandle {
-    let batch_size = read_bounded_env_usize(
-        BRIDGE_BATCH_SIZE_ENV,
-        BRIDGE_DEFAULT_BATCH_SIZE,
-        1,
-        64,
-    );
+    let batch_size =
+        read_bounded_env_usize(BRIDGE_BATCH_SIZE_ENV, BRIDGE_DEFAULT_BATCH_SIZE, 1, 64);
     let poll_interval_ms = read_bounded_env_u64(
         BRIDGE_POLL_INTERVAL_MS_ENV,
         BRIDGE_DEFAULT_POLL_INTERVAL_MS,
@@ -95,17 +91,26 @@ pub fn spawn_automation_agent_bridge(
                     );
                 }
             }
-            // The unit-value channel is a pure stop signal: `changed()`
-            // resolves when the sender sends (shutdown) or is dropped
-            // (handle destroyed); either way the bridge stops.
-            let _ = shutdown_rx.changed().await;
-            break;
-            tokio::time::sleep(Duration::from_millis(poll_interval_ms)).await;
+            if wait_for_shutdown_or_poll(&mut shutdown_rx, Duration::from_millis(poll_interval_ms))
+                .await
+            {
+                break;
+            }
         }
     });
     AutomationAgentBridgeHandle {
         shutdown: shutdown_tx,
         task,
+    }
+}
+
+async fn wait_for_shutdown_or_poll(
+    shutdown: &mut watch::Receiver<()>,
+    poll_interval: Duration,
+) -> bool {
+    tokio::select! {
+        _ = shutdown.changed() => true,
+        _ = tokio::time::sleep(poll_interval) => false,
     }
 }
 
@@ -155,9 +160,9 @@ fn dispatch_execution(
     if let Some(snapshot) = snapshot {
         match snapshot.status {
             AgentsTurnStatus::Completed => {
-                let content = snapshot
-                    .response_content
-                    .ok_or_else(|| "completed Agents turn snapshot is missing response content".to_owned())?;
+                let content = snapshot.response_content.ok_or_else(|| {
+                    "completed Agents turn snapshot is missing response content".to_owned()
+                })?;
                 return commit_response(
                     runtime,
                     &auth,
@@ -349,9 +354,10 @@ fn bridge_actor() -> AgentsSessionActor {
 }
 
 fn parse_u64(value: &str, field: &str) -> Result<u64, String> {
-    value.trim().parse::<u64>().map_err(|_| {
-        format!("automation execution {field} is not a valid numeric id: {value}")
-    })
+    value
+        .trim()
+        .parse::<u64>()
+        .map_err(|_| format!("automation execution {field} is not a valid numeric id: {value}"))
 }
 
 fn chunk_content(content: &str) -> Vec<String> {
@@ -408,8 +414,14 @@ mod tests {
     fn session_and_stream_ids_are_deterministic() {
         let first = execution("exec-1", AutomationExecutionState::Requested);
         let second = execution("exec-1", AutomationExecutionState::Requested);
-        assert_eq!(deterministic_session_id(&first), deterministic_session_id(&second));
-        assert_eq!(deterministic_stream_id(&first), deterministic_stream_id(&second));
+        assert_eq!(
+            deterministic_session_id(&first),
+            deterministic_session_id(&second)
+        );
+        assert_eq!(
+            deterministic_stream_id(&first),
+            deterministic_stream_id(&second)
+        );
         assert_ne!(
             deterministic_session_id(&first),
             deterministic_session_id(&execution("exec-2", AutomationExecutionState::Requested))
@@ -429,7 +441,9 @@ mod tests {
         let long = "x".repeat(12_500);
         let chunks = chunk_content(long.as_str());
         assert_eq!(chunks.len(), 3);
-        assert!(chunks.iter().all(|chunk| chunk.len() <= BRIDGE_MAX_FRAME_CHARS));
+        assert!(chunks
+            .iter()
+            .all(|chunk| chunk.len() <= BRIDGE_MAX_FRAME_CHARS));
         assert_eq!(chunks.concat().len(), 12_500);
         assert!(chunk_content("").is_empty());
     }
@@ -438,5 +452,20 @@ mod tests {
     fn numeric_id_parsing_rejects_non_numeric() {
         assert_eq!(parse_u64("100001", "tenant_id"), Ok(100_001));
         assert!(parse_u64("not-a-number", "tenant_id").is_err());
+    }
+
+    #[tokio::test]
+    async fn bridge_wait_continues_after_poll_interval() {
+        let (_shutdown_tx, mut shutdown_rx) = watch::channel(());
+        assert!(!wait_for_shutdown_or_poll(&mut shutdown_rx, Duration::ZERO).await);
+    }
+
+    #[tokio::test]
+    async fn bridge_wait_stops_after_shutdown_signal() {
+        let (shutdown_tx, mut shutdown_rx) = watch::channel(());
+        shutdown_tx
+            .send(())
+            .expect("shutdown receiver remains open");
+        assert!(wait_for_shutdown_or_poll(&mut shutdown_rx, Duration::from_secs(60)).await);
     }
 }

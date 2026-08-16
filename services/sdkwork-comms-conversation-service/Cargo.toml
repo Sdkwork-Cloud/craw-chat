@@ -53,7 +53,7 @@ url = "2"
 [dev-dependencies]
 http-body-util.workspace = true
 tower.workspace = true
-sdkwork_routes_im_chat_open_api.workspace = true
+sdkwork-routes-im-chat-open-api.workspace = true
 tonic = { version = "0.14", features = ["transport"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 sdkwork-rpc-server = { workspace = true, features = ["tls"] }

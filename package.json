@@ -274,12 +274,12 @@
       "@sdkwork/promotion-pc-coupon": "workspace:*",
       "@sdkwork/mail-app-sdk": "workspace:*",
       "@sdkwork/community-app-sdk": "workspace:*",
-    "@sdkwork/company-app-sdk": "workspace:*",
-    "@sdkwork/company-contracts": "workspace:*",
-    "@sdkwork/company-mobile-react-enterprise": "workspace:*",
-    "@sdkwork/company-runtime": "workspace:*",
-    "@sdkwork/company-sdk-ports": "workspace:*",
-    "@sdkwork/company-service": "workspace:*",
+      "@sdkwork/company-app-sdk": "workspace:*",
+      "@sdkwork/company-contracts": "workspace:*",
+      "@sdkwork/company-mobile-react-enterprise": "workspace:*",
+      "@sdkwork/company-runtime": "workspace:*",
+      "@sdkwork/company-sdk-ports": "workspace:*",
+      "@sdkwork/company-service": "workspace:*",
       "@sdkwork/course-app-sdk": "workspace:*",
       "@sdkwork/course-backend-sdk": "workspace:*",
       "@sdkwork/drive-app-sdk": "workspace:*",
@@ -301,7 +301,8 @@
       "@sdkwork/ui-pc-react": "workspace:*",
       "@sdkwork/utils": "workspace:*",
       "@sdkwork/im-app-sdk": "workspace:*",
-      "@sdkwork/im-backend-sdk": "workspace:*"
+      "@sdkwork/im-backend-sdk": "workspace:*",
+      "@sdkwork/sdk-common": "workspace:*"
     }
   }
 }

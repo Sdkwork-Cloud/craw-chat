@@ -15,7 +15,7 @@ im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
 social-service = { path = "../social-service" }
 sdkwork_im_database_pool.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
-sdkwork_routes_im_social_backend_api.workspace = true
-sdkwork_routes_im_social_open_api.workspace = true
+sdkwork-routes-im-social-backend-api.workspace = true
+sdkwork-routes-im-social-open-api.workspace = true
 tokio.workspace = true
 tracing.workspace = true

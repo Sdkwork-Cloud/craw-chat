@@ -59,6 +59,7 @@ fn test_core_im_postgres_schema_defines_hot_cursor_tables_and_indexes() {
         &schema,
         &[
             "create table if not exists im_conversation_messages",
+            "search_vector       tsvector",
             "create table if not exists im_realtime_device_events",
             "delivery_class text not null",
             "create table if not exists im_realtime_checkpoints",
@@ -101,6 +102,8 @@ fn test_core_im_postgres_schema_defines_hot_cursor_tables_and_indexes() {
             "constraint chk_im_stream_sessions_seq_order check (",
             "constraint pk_im_stream_frames primary key (tenant_id, organization_id, stream_id, frame_seq)",
             "idx_im_messages_tenant_conv_seq",
+            "create index if not exists idx_im_messages_search_vector",
+            "on im_conversation_messages using gin (search_vector)",
             "idx_im_realtime_device_events_scope_seq",
             "idx_im_realtime_checkpoints_capacity_trimmed",
             "idx_im_realtime_subscriptions_principal",

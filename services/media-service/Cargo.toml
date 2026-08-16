@@ -25,4 +25,4 @@ sdkwork_im_web_bootstrap.workspace = true
 [dev-dependencies]
 http-body-util.workspace = true
 tower.workspace = true
-sdkwork_routes_im_media_app_api.workspace = true
+sdkwork-routes-im-media-app-api.workspace = true

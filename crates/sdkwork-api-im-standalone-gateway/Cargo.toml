@@ -15,11 +15,11 @@ im-domain-core.workspace = true
 sdkwork-api-im-assembly.workspace = true
 im-adapters-postgres-journal.workspace = true
 im-adapters-redis-cache.workspace = true
-sdkwork-web-bootstrap.workspace = true
+sdkwork_web_bootstrap.workspace = true
 sdkwork_web_store_redis.workspace = true
 sdkwork-api-config.workspace = true
 sdkwork-api-product-runtime.workspace = true
-sdkwork-im-web-bootstrap.workspace = true
+sdkwork_im_web_bootstrap.workspace = true
 sdkwork-api-iam-assembly = { workspace = true }
 sdkwork_iam_web_adapter.workspace = true
 sdkwork_im_service_readiness = { workspace = true }

@@ -32,6 +32,6 @@ sdkwork-im-openapi = { workspace = true }
 
 [dev-dependencies]
 http-body-util.workspace = true
-sdkwork_routes_im_space_open_api.workspace = true
+sdkwork-routes-im-space-open-api.workspace = true
 sdkwork-im-contract-core = { workspace = true }
 tower.workspace = true

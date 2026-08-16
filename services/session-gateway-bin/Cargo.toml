@@ -12,7 +12,7 @@ path = "src/main.rs"
 [dependencies]
 axum.workspace = true
 session-gateway = { path = "../session-gateway" }
-sdkwork_routes_im_realtime_open_api.workspace = true
+sdkwork-routes-im-realtime-open-api.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
 tokio.workspace = true
 tracing.workspace = true

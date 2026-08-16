@@ -12,7 +12,7 @@ path = "src/main.rs"
 [dependencies]
 axum.workspace = true
 streaming-service = { path = "../streaming-service" }
-sdkwork_routes_im_stream_app_api.workspace = true
+sdkwork-routes-im-stream-app-api.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
 tokio.workspace = true
 tracing.workspace = true

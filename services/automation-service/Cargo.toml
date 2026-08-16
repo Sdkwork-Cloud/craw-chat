@@ -35,5 +35,5 @@ sdkwork_database_config = { workspace = true }
 http-body-util.workspace = true
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 tower.workspace = true
-sdkwork_routes_im_automation_app_api.workspace = true
-sdkwork_routes_im_governance_backend_api.workspace = true
+sdkwork-routes-im-automation-app-api.workspace = true
+sdkwork-routes-im-governance-backend-api.workspace = true

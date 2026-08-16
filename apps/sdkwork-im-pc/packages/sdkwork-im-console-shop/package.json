@@ -11,5 +11,16 @@
     "@sdkwork/im-pc-commons": "workspace:*",
     "lucide-react": "catalog:",
     "react": "catalog:"
-  }
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.tsx",
+      "import": "./src/index.tsx",
+      "default": "./src/index.tsx"
+    }
+  },
+  "files": [
+    "src",
+    "README.md"
+  ]
 }

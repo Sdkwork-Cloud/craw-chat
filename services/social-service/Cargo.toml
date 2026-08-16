@@ -16,7 +16,7 @@ im-adapters-local-memory = { path = "../../adapters/local-memory" }
 im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
 postgres = { version = "0.19.13", features = ["with-chrono-0_4", "with-serde_json-1"] }
-conversation-runtime = { workspace = true, package = "sdkwork-comms-conversation-service" }
+conversation-runtime.workspace = true
 sdkwork_database_config.workspace = true
 sdkwork_im_database_pool.workspace = true
 im-domain-core = { path = "../../crates/im-domain-core" }

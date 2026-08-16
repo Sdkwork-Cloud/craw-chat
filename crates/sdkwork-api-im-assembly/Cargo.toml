@@ -12,7 +12,7 @@ path = "src/lib.rs"
 [dependencies]
 axum.workspace = true
 tokio.workspace = true
-sdkwork-web-bootstrap.workspace = true
+sdkwork_web_bootstrap.workspace = true
 sdkwork_web_core.workspace = true
 chrono = "0.4.44"
 tracing.workspace = true
@@ -33,7 +33,7 @@ automation-service = { path = "../../services/automation-service" }
 notification-service = { path = "../../services/notification-service" }
 ops-service = { path = "../../services/ops-service" }
 portal-service = { path = "../../services/portal-service" }
-conversation-runtime = { workspace = true, package = "sdkwork-comms-conversation-service" }
+conversation-runtime.workspace = true
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
 sdkwork_im_database_pool = { workspace = true }
 sdkwork_im_service_readiness = { workspace = true }

@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS im_conversation_messages (
     message_type        TEXT NOT NULL,
     payload_json        JSONB NOT NULL,
     payload_hash        TEXT NOT NULL,
+    search_vector       TSVECTOR,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at           TIMESTAMPTZ,
@@ -55,6 +56,10 @@ CREATE INDEX IF NOT EXISTS idx_im_messages_tenant_conv_seq
 -- 发送者消息索引
 CREATE INDEX IF NOT EXISTS idx_im_messages_sender_created
     ON im_conversation_messages (tenant_id, organization_id, sender_principal_kind, sender_principal_id, created_at DESC);
+
+-- Full-text lookup used by the PostgreSQL SearchProvider.
+CREATE INDEX IF NOT EXISTS idx_im_messages_search_vector
+    ON im_conversation_messages USING GIN (search_vector);
 
 -- retention 索引
 CREATE INDEX IF NOT EXISTS idx_im_conversation_messages_retention_until
@@ -3398,14 +3403,8 @@ BEGIN
                     WHERE part->>'kind' = 'text'
                 ), ' '), '');
 
-    -- Use zhparser if available, otherwise fall back to simple
-    -- (zhparser must be installed and 'chinese_zh' config created)
-    BEGIN
-        NEW.search_vector := to_tsvector('chinese_zh', raw_text);
-    EXCEPTION WHEN OTHERS THEN
-        -- Fallback: simple config (no CJK segmentation, but works for ASCII)
-        NEW.search_vector := to_tsvector('simple', raw_text);
-    END;
+    -- Query-side tsquery construction uses the same stable configuration.
+    NEW.search_vector := to_tsvector('simple', raw_text);
 
     RETURN NEW;
 END;

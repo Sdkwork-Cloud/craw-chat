@@ -18,7 +18,7 @@ im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-postgres-realtime-contracts = { path = "../../crates/im-postgres-realtime-contracts" }
 im-time = { path = "../../crates/im-time" }
-conversation-runtime = { workspace = true, package = "sdkwork-comms-conversation-service" }
+conversation-runtime.workspace = true
 postgres.workspace = true
 r2d2.workspace = true
 serde.workspace = true
@@ -40,5 +40,4 @@ sdkwork_database_config = { workspace = true }
 http-body-util.workspace = true
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 tower.workspace = true
-sdkwork_routes_im_notification_app_api.workspace = true
-
+sdkwork-routes-im-notification-app-api.workspace = true
