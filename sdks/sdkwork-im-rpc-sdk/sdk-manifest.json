@@ -171,5 +171,11 @@
         "migration"
       ]
     }
+  },
+  "typescript": {
+    "composedRoot": "sdkwork-im-rpc-sdk-typescript",
+    "composedEntry": "sdkwork-im-rpc-sdk-typescript/src/index.ts",
+    "transportRoot": "sdkwork-im-rpc-sdk-typescript/generated/server-openapi",
+    "transportEntry": "sdkwork-im-rpc-sdk-typescript/generated/server-openapi/src/index.ts"
   }
 }

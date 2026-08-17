@@ -32,7 +32,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@sdkwork/sdk-common": "^1.0.2",
+    "@sdkwork/sdk-common": "^1.0.5",
     "ws": "^8.18.1"
   }
 }
