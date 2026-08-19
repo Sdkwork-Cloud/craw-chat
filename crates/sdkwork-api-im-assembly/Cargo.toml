@@ -61,6 +61,7 @@ sdkwork-routes-im-stream-app-api = { workspace = true }
 # order backend route manifests below are contract constants because those
 # assemblies do not re-export backend manifests.
 sdkwork_iam_embedded_application_bootstrap.workspace = true
+sdkwork-api-assets-assembly.workspace = true
 sdkwork-api-drive-assembly.workspace = true
 sdkwork-api-notary-assembly.workspace = true
 sdkwork-api-course-assembly.workspace = true

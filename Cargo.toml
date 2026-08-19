@@ -240,6 +240,7 @@ sdkwork-im-ccp-registry = { path = "crates/sdkwork-im-ccp-registry" }
 sdkwork-im-api-registry = { path = "crates/sdkwork-im-api-registry" }
 sdkwork_routes_iam_app_api = { path = "../sdkwork-iam/crates/sdkwork-routes-iam-app-api", package = "sdkwork-routes-iam-app-api" }
 sdkwork-api-iam-assembly = { path = "../sdkwork-iam/crates/sdkwork-api-iam-assembly" }
+sdkwork-api-assets-assembly = { path = "../sdkwork-assets/crates/sdkwork-api-assets-assembly" }
 sdkwork-api-drive-assembly = { path = "../sdkwork-drive/crates/sdkwork-api-drive-assembly" }
 sdkwork-api-notary-assembly = { path = "../sdkwork-notary/crates/sdkwork-api-notary-assembly" }
 sdkwork-api-course-assembly = { path = "../sdkwork-course/crates/sdkwork-api-course-assembly" }

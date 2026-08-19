@@ -231,6 +231,7 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
     );
     let mut contributions = vec![
         bootstrap_embedded_account_contribution().await?,
+        bootstrap_embedded_assets_contribution().await?,
         bootstrap_embedded_drive_contribution().await?,
         bootstrap_embedded_knowledgebase_contribution().await?,
         bootstrap_embedded_inventory_contribution().await?,
@@ -514,6 +515,13 @@ async fn bootstrap_embedded_account_contribution()
     sdkwork_api_account_assembly::assemble_app_api_contribution_from_env()
         .await
         .map_err(|error| format!("compose embedded account App API failed: {error}"))
+}
+
+async fn bootstrap_embedded_assets_contribution()
+-> Result<sdkwork_web_bootstrap::ApiAssemblyContribution, String> {
+    sdkwork_api_assets_assembly::assemble_app_api_contribution()
+        .await
+        .map_err(|error| format!("compose embedded assets App API failed: {error}"))
 }
 
 async fn bootstrap_embedded_drive_contribution()

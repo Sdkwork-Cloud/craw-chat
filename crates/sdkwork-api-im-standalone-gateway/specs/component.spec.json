@@ -206,17 +206,17 @@
         "coverageEvidence": ["src/main.rs"]
       },
       {
-        "workspace": "sdkwork-drive",
-        "sdkFamily": "sdkwork-drive-app-sdk",
-        "apiAuthority": "sdkwork-drive-app-api",
+        "workspace": "sdkwork-assets",
+        "sdkFamily": "sdkwork-assets-app-sdk",
+        "apiAuthority": "sdkwork-assets-app-api",
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/assets",
         "runtimeMode": "same-origin",
         "sameOriginAllowed": true,
         "profileCoverage": ["standalone"],
-        "cargoDependency": "sdkwork-api-drive-assembly",
-        "embeddedExecutableExport": "sdkwork_api_drive_assembly::assemble_app_api_contribution",
-        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_drive_contribution"]
+        "cargoDependency": "sdkwork-api-assets-assembly",
+        "embeddedExecutableExport": "sdkwork_api_assets_assembly::assemble_app_api_contribution",
+        "coverageEvidence": ["src/embedded_dependency_routes.rs#bootstrap_embedded_assets_contribution"]
       },
       {
         "workspace": "sdkwork-drive",
