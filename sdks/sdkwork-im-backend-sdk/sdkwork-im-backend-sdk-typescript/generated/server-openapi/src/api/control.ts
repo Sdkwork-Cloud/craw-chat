@@ -1,5 +1,5 @@
 import { backendApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { AcceptFriendRequestRequest, ActivateFriendshipRequest, ApplySharedChannelPolicyRequest, BindDirectChatRequest, BindExternalMemberLinkRequest, BlockUserRequest, CancelFriendRequestRequest, DeclineFriendRequestRequest, EstablishExternalConnectionRequest, MigrateRoutesRequest, ProtocolGovernanceResponse, ProtocolRegistryResponse, ProviderBindingCommitResponse, ProviderPolicyRollbackRequest, ProviderRegistrySnapshotResponse, RemoveFriendshipRequest, RouteMigrationResult, RouteNodeLifecycle, SdkWorkPageData, SocialDirectChatCommitResponse, SocialDirectChatSnapshotResponse, SocialExternalConnectionCommitResponse, SocialExternalConnectionSnapshotResponse, SocialExternalMemberLinkCommitResponse, SocialExternalMemberLinkSnapshotResponse, SocialFriendRequestCommitResponse, SocialFriendRequestSnapshotResponse, SocialFriendshipCommitResponse, SocialFriendshipSnapshotResponse, SocialRuntimeRepairResponse, SocialSharedChannelPolicyCommitResponse, SocialSharedChannelPolicySnapshotResponse, SocialSharedChannelSyncDeadLetterRequeueResponse, SocialSharedChannelSyncDeadLetterTargetedRequeueRequest, SocialSharedChannelSyncDeadLetterTargetedRequeueResponse, SocialSharedChannelSyncPendingClaimResponse, SocialSharedChannelSyncPendingReleaseResponse, SocialSharedChannelSyncPendingStaleReclaimResponse, SocialSharedChannelSyncPendingTakeoverResponse, SocialSharedChannelSyncPendingTargetedClaimRequest, SocialSharedChannelSyncPendingTargetedReleaseRequest, SocialSharedChannelSyncPendingTargetedTakeoverRequest, SocialSharedChannelSyncRepairResponse, SocialSharedChannelSyncTargetedRepublishRequest, SocialSharedChannelSyncTargetedRepublishResponse, SocialUserBlockCommitResponse, SocialUserBlockSnapshotResponse, SubmitFriendRequestRequest, UpsertProviderBindingPolicyRequest } from '../types';
 
@@ -13,13 +13,13 @@ export class ControlSocialUserBlocksApi {
 
 
 /** Block a user in the social graph. */
-  async create(body: BlockUserRequest): Promise<SocialUserBlockCommitResponse> {
-    return this.client.post<SocialUserBlockCommitResponse>(backendApiPath(`/control/social/user_blocks`), body, undefined, undefined, 'application/json');
+  async create(body: BlockUserRequest, requestOptions?: ApiRequestOptions): Promise<SocialUserBlockCommitResponse> {
+    return this.client.request<SocialUserBlockCommitResponse>(backendApiPath(`/control/social/user_blocks`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Read a user block snapshot. */
-  async retrieve(blockId: string): Promise<SocialUserBlockSnapshotResponse> {
-    return this.client.get<SocialUserBlockSnapshotResponse>(backendApiPath(`/control/social/user_blocks/${serializePathParameter(blockId, { name: 'blockId', style: 'simple', explode: false })}`));
+  async retrieve(blockId: string, requestOptions?: ApiRequestOptions): Promise<SocialUserBlockSnapshotResponse> {
+    return this.client.request<SocialUserBlockSnapshotResponse>(backendApiPath(`/control/social/user_blocks/${serializePathParameter(blockId, { name: 'blockId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -32,13 +32,13 @@ export class ControlSocialSharedChannelPoliciesApi {
 
 
 /** Apply a shared-channel policy. */
-  async create(body: ApplySharedChannelPolicyRequest): Promise<SocialSharedChannelPolicyCommitResponse> {
-    return this.client.post<SocialSharedChannelPolicyCommitResponse>(backendApiPath(`/control/social/shared_channel_policies`), body, undefined, undefined, 'application/json');
+  async create(body: ApplySharedChannelPolicyRequest, requestOptions?: ApiRequestOptions): Promise<SocialSharedChannelPolicyCommitResponse> {
+    return this.client.request<SocialSharedChannelPolicyCommitResponse>(backendApiPath(`/control/social/shared_channel_policies`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Read a shared-channel policy snapshot. */
-  async retrieve(policyId: string): Promise<SocialSharedChannelPolicySnapshotResponse> {
-    return this.client.get<SocialSharedChannelPolicySnapshotResponse>(backendApiPath(`/control/social/shared_channel_policies/${serializePathParameter(policyId, { name: 'policyId', style: 'simple', explode: false })}`));
+  async retrieve(policyId: string, requestOptions?: ApiRequestOptions): Promise<SocialSharedChannelPolicySnapshotResponse> {
+    return this.client.request<SocialSharedChannelPolicySnapshotResponse>(backendApiPath(`/control/social/shared_channel_policies/${serializePathParameter(policyId, { name: 'policyId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -51,8 +51,8 @@ export class ControlSocialRuntimeTakeoverPendingSharedChannelSyncTargetedApi {
 
 
 /** Take over selected pending shared-channel sync entries. */
-  async create(body: SocialSharedChannelSyncPendingTargetedTakeoverRequest): Promise<SocialSharedChannelSyncPendingTakeoverResponse> {
-    return this.client.post<SocialSharedChannelSyncPendingTakeoverResponse>(backendApiPath(`/control/social/runtime/takeover_pending_shared_channel_sync_targeted`), body, undefined, undefined, 'application/json');
+  async create(body: SocialSharedChannelSyncPendingTargetedTakeoverRequest, requestOptions?: ApiRequestOptions): Promise<SocialSharedChannelSyncPendingTakeoverResponse> {
+    return this.client.request<SocialSharedChannelSyncPendingTakeoverResponse>(backendApiPath(`/control/social/runtime/takeover_pending_shared_channel_sync_targeted`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -65,8 +65,8 @@ export class ControlSocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedApi {
 
 
 /** Requeue selected dead-letter shared-channel sync entries. */
-  async create(body: SocialSharedChannelSyncDeadLetterTargetedRequeueRequest): Promise<SocialSharedChannelSyncDeadLetterTargetedRequeueResponse> {
-    return this.client.post<SocialSharedChannelSyncDeadLetterTargetedRequeueResponse>(backendApiPath(`/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted`), body, undefined, undefined, 'application/json');
+  async create(body: SocialSharedChannelSyncDeadLetterTargetedRequeueRequest, requestOptions?: ApiRequestOptions): Promise<SocialSharedChannelSyncDeadLetterTargetedRequeueResponse> {
+    return this.client.request<SocialSharedChannelSyncDeadLetterTargetedRequeueResponse>(backendApiPath(`/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -79,8 +79,8 @@ export class ControlSocialRuntimeRequeueDeadLetterSharedChannelSyncApi {
 
 
 /** Requeue all dead-letter shared-channel sync entries. */
-  async create(): Promise<SocialSharedChannelSyncDeadLetterRequeueResponse> {
-    return this.client.post<SocialSharedChannelSyncDeadLetterRequeueResponse>(backendApiPath(`/control/social/runtime/requeue_dead_letter_shared_channel_sync`));
+  async create(requestOptions?: ApiRequestOptions): Promise<SocialSharedChannelSyncDeadLetterRequeueResponse> {
+    return this.client.request<SocialSharedChannelSyncDeadLetterRequeueResponse>(backendApiPath(`/control/social/runtime/requeue_dead_letter_shared_channel_sync`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -93,8 +93,8 @@ export class ControlSocialRuntimeRepublishPendingSharedChannelSyncTargetedApi {
 
 
 /** Republish selected pending shared-channel sync entries. */
-  async create(body: SocialSharedChannelSyncTargetedRepublishRequest): Promise<SocialSharedChannelSyncTargetedRepublishResponse> {
-    return this.client.post<SocialSharedChannelSyncTargetedRepublishResponse>(backendApiPath(`/control/social/runtime/republish_pending_shared_channel_sync_targeted`), body, undefined, undefined, 'application/json');
+  async create(body: SocialSharedChannelSyncTargetedRepublishRequest, requestOptions?: ApiRequestOptions): Promise<SocialSharedChannelSyncTargetedRepublishResponse> {
+    return this.client.request<SocialSharedChannelSyncTargetedRepublishResponse>(backendApiPath(`/control/social/runtime/republish_pending_shared_channel_sync_targeted`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -107,8 +107,8 @@ export class ControlSocialRuntimeRepairSharedChannelSyncApi {
 
 
 /** Repair shared-channel sync backlog state. */
-  async create(): Promise<SocialSharedChannelSyncRepairResponse> {
-    return this.client.post<SocialSharedChannelSyncRepairResponse>(backendApiPath(`/control/social/runtime/repair_shared_channel_sync`));
+  async create(requestOptions?: ApiRequestOptions): Promise<SocialSharedChannelSyncRepairResponse> {
+    return this.client.request<SocialSharedChannelSyncRepairResponse>(backendApiPath(`/control/social/runtime/repair_shared_channel_sync`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -121,8 +121,8 @@ export class ControlSocialRuntimeRepairDerivedSnapshotApi {
 
 
 /** Repair the persisted social runtime derived snapshot. */
-  async create(): Promise<SocialRuntimeRepairResponse> {
-    return this.client.post<SocialRuntimeRepairResponse>(backendApiPath(`/control/social/runtime/repair_derived_snapshot`));
+  async create(requestOptions?: ApiRequestOptions): Promise<SocialRuntimeRepairResponse> {
+    return this.client.request<SocialRuntimeRepairResponse>(backendApiPath(`/control/social/runtime/repair_derived_snapshot`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -135,8 +135,8 @@ export class ControlSocialRuntimeReleasePendingSharedChannelSyncTargetedApi {
 
 
 /** Release selected pending shared-channel sync entries. */
-  async create(body: SocialSharedChannelSyncPendingTargetedReleaseRequest): Promise<SocialSharedChannelSyncPendingReleaseResponse> {
-    return this.client.post<SocialSharedChannelSyncPendingReleaseResponse>(backendApiPath(`/control/social/runtime/release_pending_shared_channel_sync_targeted`), body, undefined, undefined, 'application/json');
+  async create(body: SocialSharedChannelSyncPendingTargetedReleaseRequest, requestOptions?: ApiRequestOptions): Promise<SocialSharedChannelSyncPendingReleaseResponse> {
+    return this.client.request<SocialSharedChannelSyncPendingReleaseResponse>(backendApiPath(`/control/social/runtime/release_pending_shared_channel_sync_targeted`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -149,8 +149,8 @@ export class ControlSocialRuntimeReclaimStalePendingSharedChannelSyncApi {
 
 
 /** Reclaim stale shared-channel sync pending ownership. */
-  async create(): Promise<SocialSharedChannelSyncPendingStaleReclaimResponse> {
-    return this.client.post<SocialSharedChannelSyncPendingStaleReclaimResponse>(backendApiPath(`/control/social/runtime/reclaim_stale_pending_shared_channel_sync`));
+  async create(requestOptions?: ApiRequestOptions): Promise<SocialSharedChannelSyncPendingStaleReclaimResponse> {
+    return this.client.request<SocialSharedChannelSyncPendingStaleReclaimResponse>(backendApiPath(`/control/social/runtime/reclaim_stale_pending_shared_channel_sync`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -170,14 +170,14 @@ export class ControlSocialRuntimePendingSharedChannelSyncApi {
 
 
 /** Read the pending shared-channel sync queue. */
-  async list(params?: ControlSocialRuntimePendingSharedChannelSyncListParams): Promise<SdkWorkPageData> {
+  async list(params?: ControlSocialRuntimePendingSharedChannelSyncListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/social/runtime/pending_shared_channel_sync`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/social/runtime/pending_shared_channel_sync`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -197,14 +197,14 @@ export class ControlSocialRuntimeDeliveryStateSharedChannelSyncApi {
 
 
 /** Read merged shared-channel sync delivery state. */
-  async list(params?: ControlSocialRuntimeDeliveryStateSharedChannelSyncListParams): Promise<SdkWorkPageData> {
+  async list(params?: ControlSocialRuntimeDeliveryStateSharedChannelSyncListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/social/runtime/delivery_state_shared_channel_sync`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/social/runtime/delivery_state_shared_channel_sync`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -224,14 +224,14 @@ export class ControlSocialRuntimeDeliveredSharedChannelSyncApi {
 
 
 /** Read the delivered shared-channel sync ledger. */
-  async list(params?: ControlSocialRuntimeDeliveredSharedChannelSyncListParams): Promise<SdkWorkPageData> {
+  async list(params?: ControlSocialRuntimeDeliveredSharedChannelSyncListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/social/runtime/delivered_shared_channel_sync`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/social/runtime/delivered_shared_channel_sync`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -251,14 +251,14 @@ export class ControlSocialRuntimeDeadLetterSharedChannelSyncApi {
 
 
 /** Read the dead-letter shared-channel sync queue. */
-  async list(params?: ControlSocialRuntimeDeadLetterSharedChannelSyncListParams): Promise<SdkWorkPageData> {
+  async list(params?: ControlSocialRuntimeDeadLetterSharedChannelSyncListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/social/runtime/dead_letter_shared_channel_sync`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/social/runtime/dead_letter_shared_channel_sync`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -271,13 +271,12 @@ export class ControlSocialRuntimeClaimPendingSharedChannelSyncTargetedApi {
 
 
 /** Claim selected pending shared-channel sync entries. */
-  async create(body: SocialSharedChannelSyncPendingTargetedClaimRequest): Promise<SocialSharedChannelSyncPendingClaimResponse> {
-    return this.client.post<SocialSharedChannelSyncPendingClaimResponse>(backendApiPath(`/control/social/runtime/claim_pending_shared_channel_sync_targeted`), body, undefined, undefined, 'application/json');
+  async create(body: SocialSharedChannelSyncPendingTargetedClaimRequest, requestOptions?: ApiRequestOptions): Promise<SocialSharedChannelSyncPendingClaimResponse> {
+    return this.client.request<SocialSharedChannelSyncPendingClaimResponse>(backendApiPath(`/control/social/runtime/claim_pending_shared_channel_sync_targeted`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class ControlSocialRuntimeApi {
-
   public readonly claimPendingSharedChannelSyncTargeted: ControlSocialRuntimeClaimPendingSharedChannelSyncTargetedApi;
   public readonly deadLetterSharedChannelSync: ControlSocialRuntimeDeadLetterSharedChannelSyncApi;
   public readonly deliveredSharedChannelSync: ControlSocialRuntimeDeliveredSharedChannelSyncApi;
@@ -293,7 +292,6 @@ export class ControlSocialRuntimeApi {
   public readonly takeoverPendingSharedChannelSyncTargeted: ControlSocialRuntimeTakeoverPendingSharedChannelSyncTargetedApi;
 
   constructor(client: HttpClient) {
-
     this.claimPendingSharedChannelSyncTargeted = new ControlSocialRuntimeClaimPendingSharedChannelSyncTargetedApi(client);
     this.deadLetterSharedChannelSync = new ControlSocialRuntimeDeadLetterSharedChannelSyncApi(client);
     this.deliveredSharedChannelSync = new ControlSocialRuntimeDeliveredSharedChannelSyncApi(client);
@@ -320,18 +318,18 @@ export class ControlSocialFriendshipsApi {
 
 
 /** Activate a friendship event. */
-  async create(body: ActivateFriendshipRequest): Promise<SocialFriendshipCommitResponse> {
-    return this.client.post<SocialFriendshipCommitResponse>(backendApiPath(`/control/social/friendships`), body, undefined, undefined, 'application/json');
+  async create(body: ActivateFriendshipRequest, requestOptions?: ApiRequestOptions): Promise<SocialFriendshipCommitResponse> {
+    return this.client.request<SocialFriendshipCommitResponse>(backendApiPath(`/control/social/friendships`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Read a friendship snapshot. */
-  async retrieve(friendshipId: string): Promise<SocialFriendshipSnapshotResponse> {
-    return this.client.get<SocialFriendshipSnapshotResponse>(backendApiPath(`/control/social/friendships/${serializePathParameter(friendshipId, { name: 'friendshipId', style: 'simple', explode: false })}`));
+  async retrieve(friendshipId: string, requestOptions?: ApiRequestOptions): Promise<SocialFriendshipSnapshotResponse> {
+    return this.client.request<SocialFriendshipSnapshotResponse>(backendApiPath(`/control/social/friendships/${serializePathParameter(friendshipId, { name: 'friendshipId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Remove a friendship. */
-  async remove(friendshipId: string, body: RemoveFriendshipRequest): Promise<SocialFriendshipCommitResponse> {
-    return this.client.post<SocialFriendshipCommitResponse>(backendApiPath(`/control/social/friendships/${serializePathParameter(friendshipId, { name: 'friendshipId', style: 'simple', explode: false })}/remove`), body, undefined, undefined, 'application/json');
+  async remove(friendshipId: string, body: RemoveFriendshipRequest, requestOptions?: ApiRequestOptions): Promise<SocialFriendshipCommitResponse> {
+    return this.client.request<SocialFriendshipCommitResponse>(backendApiPath(`/control/social/friendships/${serializePathParameter(friendshipId, { name: 'friendshipId', style: 'simple', explode: false })}/remove`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -344,28 +342,28 @@ export class ControlSocialFriendRequestsApi {
 
 
 /** Submit a friend request event. */
-  async create(body: SubmitFriendRequestRequest): Promise<SocialFriendRequestCommitResponse> {
-    return this.client.post<SocialFriendRequestCommitResponse>(backendApiPath(`/control/social/friend_requests`), body, undefined, undefined, 'application/json');
+  async create(body: SubmitFriendRequestRequest, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestCommitResponse> {
+    return this.client.request<SocialFriendRequestCommitResponse>(backendApiPath(`/control/social/friend_requests`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Read a friend request snapshot. */
-  async retrieve(requestId: string): Promise<SocialFriendRequestSnapshotResponse> {
-    return this.client.get<SocialFriendRequestSnapshotResponse>(backendApiPath(`/control/social/friend_requests/${serializePathParameter(requestId, { name: 'requestId', style: 'simple', explode: false })}`));
+  async retrieve(requestId: string, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestSnapshotResponse> {
+    return this.client.request<SocialFriendRequestSnapshotResponse>(backendApiPath(`/control/social/friend_requests/${serializePathParameter(requestId, { name: 'requestId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Accept a friend request. */
-  async accept(requestId: string, body: AcceptFriendRequestRequest): Promise<SocialFriendRequestCommitResponse> {
-    return this.client.post<SocialFriendRequestCommitResponse>(backendApiPath(`/control/social/friend_requests/${serializePathParameter(requestId, { name: 'requestId', style: 'simple', explode: false })}/accept`), body, undefined, undefined, 'application/json');
+  async accept(requestId: string, body: AcceptFriendRequestRequest, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestCommitResponse> {
+    return this.client.request<SocialFriendRequestCommitResponse>(backendApiPath(`/control/social/friend_requests/${serializePathParameter(requestId, { name: 'requestId', style: 'simple', explode: false })}/accept`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Decline a friend request. */
-  async decline(requestId: string, body: DeclineFriendRequestRequest): Promise<SocialFriendRequestCommitResponse> {
-    return this.client.post<SocialFriendRequestCommitResponse>(backendApiPath(`/control/social/friend_requests/${serializePathParameter(requestId, { name: 'requestId', style: 'simple', explode: false })}/decline`), body, undefined, undefined, 'application/json');
+  async decline(requestId: string, body: DeclineFriendRequestRequest, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestCommitResponse> {
+    return this.client.request<SocialFriendRequestCommitResponse>(backendApiPath(`/control/social/friend_requests/${serializePathParameter(requestId, { name: 'requestId', style: 'simple', explode: false })}/decline`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Cancel a friend request. */
-  async cancel(requestId: string, body: CancelFriendRequestRequest): Promise<SocialFriendRequestCommitResponse> {
-    return this.client.post<SocialFriendRequestCommitResponse>(backendApiPath(`/control/social/friend_requests/${serializePathParameter(requestId, { name: 'requestId', style: 'simple', explode: false })}/cancel`), body, undefined, undefined, 'application/json');
+  async cancel(requestId: string, body: CancelFriendRequestRequest, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestCommitResponse> {
+    return this.client.request<SocialFriendRequestCommitResponse>(backendApiPath(`/control/social/friend_requests/${serializePathParameter(requestId, { name: 'requestId', style: 'simple', explode: false })}/cancel`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -378,13 +376,13 @@ export class ControlSocialExternalMemberLinksApi {
 
 
 /** Bind an external member link. */
-  async create(body: BindExternalMemberLinkRequest): Promise<SocialExternalMemberLinkCommitResponse> {
-    return this.client.post<SocialExternalMemberLinkCommitResponse>(backendApiPath(`/control/social/external_member_links`), body, undefined, undefined, 'application/json');
+  async create(body: BindExternalMemberLinkRequest, requestOptions?: ApiRequestOptions): Promise<SocialExternalMemberLinkCommitResponse> {
+    return this.client.request<SocialExternalMemberLinkCommitResponse>(backendApiPath(`/control/social/external_member_links`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Read an external member link snapshot. */
-  async retrieve(linkId: string): Promise<SocialExternalMemberLinkSnapshotResponse> {
-    return this.client.get<SocialExternalMemberLinkSnapshotResponse>(backendApiPath(`/control/social/external_member_links/${serializePathParameter(linkId, { name: 'linkId', style: 'simple', explode: false })}`));
+  async retrieve(linkId: string, requestOptions?: ApiRequestOptions): Promise<SocialExternalMemberLinkSnapshotResponse> {
+    return this.client.request<SocialExternalMemberLinkSnapshotResponse>(backendApiPath(`/control/social/external_member_links/${serializePathParameter(linkId, { name: 'linkId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -397,13 +395,13 @@ export class ControlSocialExternalConnectionsApi {
 
 
 /** Establish an external collaboration connection. */
-  async create(body: EstablishExternalConnectionRequest): Promise<SocialExternalConnectionCommitResponse> {
-    return this.client.post<SocialExternalConnectionCommitResponse>(backendApiPath(`/control/social/external_connections`), body, undefined, undefined, 'application/json');
+  async create(body: EstablishExternalConnectionRequest, requestOptions?: ApiRequestOptions): Promise<SocialExternalConnectionCommitResponse> {
+    return this.client.request<SocialExternalConnectionCommitResponse>(backendApiPath(`/control/social/external_connections`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Read an external connection snapshot. */
-  async retrieve(connectionId: string): Promise<SocialExternalConnectionSnapshotResponse> {
-    return this.client.get<SocialExternalConnectionSnapshotResponse>(backendApiPath(`/control/social/external_connections/${serializePathParameter(connectionId, { name: 'connectionId', style: 'simple', explode: false })}`));
+  async retrieve(connectionId: string, requestOptions?: ApiRequestOptions): Promise<SocialExternalConnectionSnapshotResponse> {
+    return this.client.request<SocialExternalConnectionSnapshotResponse>(backendApiPath(`/control/social/external_connections/${serializePathParameter(connectionId, { name: 'connectionId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -416,8 +414,8 @@ export class ControlSocialDirectChatsBindingsApi {
 
 
 /** Bind a direct chat to a conversation. */
-  async create(body: BindDirectChatRequest): Promise<SocialDirectChatCommitResponse> {
-    return this.client.post<SocialDirectChatCommitResponse>(backendApiPath(`/control/social/direct_chats/bindings`), body, undefined, undefined, 'application/json');
+  async create(body: BindDirectChatRequest, requestOptions?: ApiRequestOptions): Promise<SocialDirectChatCommitResponse> {
+    return this.client.request<SocialDirectChatCommitResponse>(backendApiPath(`/control/social/direct_chats/bindings`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -432,13 +430,12 @@ export class ControlSocialDirectChatsApi {
 
 
 /** Read a direct chat snapshot. */
-  async retrieve(directChatId: string): Promise<SocialDirectChatSnapshotResponse> {
-    return this.client.get<SocialDirectChatSnapshotResponse>(backendApiPath(`/control/social/direct_chats/${serializePathParameter(directChatId, { name: 'directChatId', style: 'simple', explode: false })}`));
+  async retrieve(directChatId: string, requestOptions?: ApiRequestOptions): Promise<SocialDirectChatSnapshotResponse> {
+    return this.client.request<SocialDirectChatSnapshotResponse>(backendApiPath(`/control/social/direct_chats/${serializePathParameter(directChatId, { name: 'directChatId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class ControlSocialApi {
-
   public readonly directChats: ControlSocialDirectChatsApi;
   public readonly externalConnections: ControlSocialExternalConnectionsApi;
   public readonly externalMemberLinks: ControlSocialExternalMemberLinksApi;
@@ -449,7 +446,6 @@ export class ControlSocialApi {
   public readonly userBlocks: ControlSocialUserBlocksApi;
 
   constructor(client: HttpClient) {
-
     this.directChats = new ControlSocialDirectChatsApi(client);
     this.externalConnections = new ControlSocialExternalConnectionsApi(client);
     this.externalMemberLinks = new ControlSocialExternalMemberLinksApi(client);
@@ -479,7 +475,7 @@ export class ControlProviderBindingsApi {
 
 
 /** Read effective provider bindings. */
-  async list(params?: ControlProviderBindingsListParams): Promise<SdkWorkPageData> {
+  async list(params?: ControlProviderBindingsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'tenantId', value: params?.tenantId, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
@@ -487,12 +483,12 @@ export class ControlProviderBindingsApi {
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/provider_bindings`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/provider_bindings`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Upsert a provider binding policy. */
-  async create(body: UpsertProviderBindingPolicyRequest): Promise<ProviderBindingCommitResponse> {
-    return this.client.post<ProviderBindingCommitResponse>(backendApiPath(`/control/provider_bindings`), body, undefined, undefined, 'application/json');
+  async create(body: UpsertProviderBindingPolicyRequest, requestOptions?: ApiRequestOptions): Promise<ProviderBindingCommitResponse> {
+    return this.client.request<ProviderBindingCommitResponse>(backendApiPath(`/control/provider_bindings`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -505,8 +501,8 @@ export class ControlProviderRegistryApi {
 
 
 /** Read the provider registry snapshot. */
-  async retrieve(): Promise<ProviderRegistrySnapshotResponse> {
-    return this.client.get<ProviderRegistrySnapshotResponse>(backendApiPath(`/control/provider_registry`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<ProviderRegistrySnapshotResponse> {
+    return this.client.request<ProviderRegistrySnapshotResponse>(backendApiPath(`/control/provider_registry`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -528,7 +524,7 @@ export class ControlProviderPoliciesDiffApi {
 
 
 /** Read provider policy diff between two versions. */
-  async list(params: ControlProviderPoliciesDiffListParams): Promise<SdkWorkPageData> {
+  async list(params: ControlProviderPoliciesDiffListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'fromVersion', value: params.fromVersion, style: 'form', explode: true, allowReserved: false },
       { name: 'toVersion', value: params.toVersion, style: 'form', explode: true, allowReserved: false },
@@ -537,7 +533,7 @@ export class ControlProviderPoliciesDiffApi {
       { name: 'page', value: params.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/provider_policies/diff`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/provider_policies/diff`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -559,24 +555,24 @@ export class ControlProviderPoliciesApi {
 
 
 /** Read provider policy history. */
-  async list(params?: ControlProviderPoliciesListParams): Promise<SdkWorkPageData> {
+  async list(params?: ControlProviderPoliciesListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/provider_policies`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/provider_policies`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Preview the effective provider policy result before commit. */
-  async preview(body: UpsertProviderBindingPolicyRequest): Promise<ProviderBindingCommitResponse> {
-    return this.client.post<ProviderBindingCommitResponse>(backendApiPath(`/control/provider_policies/preview`), body, undefined, undefined, 'application/json');
+  async preview(body: UpsertProviderBindingPolicyRequest, requestOptions?: ApiRequestOptions): Promise<ProviderBindingCommitResponse> {
+    return this.client.request<ProviderBindingCommitResponse>(backendApiPath(`/control/provider_policies/preview`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Rollback provider policy history to a target version. */
-  async rollback(body: ProviderPolicyRollbackRequest): Promise<ProviderBindingCommitResponse> {
-    return this.client.post<ProviderBindingCommitResponse>(backendApiPath(`/control/provider_policies/rollback`), body, undefined, undefined, 'application/json');
+  async rollback(body: ProviderPolicyRollbackRequest, requestOptions?: ApiRequestOptions): Promise<ProviderBindingCommitResponse> {
+    return this.client.request<ProviderBindingCommitResponse>(backendApiPath(`/control/provider_policies/rollback`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -589,8 +585,8 @@ export class ControlProtocolRegistryApi {
 
 
 /** Read the control-plane protocol registry snapshot. */
-  async retrieve(): Promise<ProtocolRegistryResponse> {
-    return this.client.get<ProtocolRegistryResponse>(backendApiPath(`/control/protocol_registry`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<ProtocolRegistryResponse> {
+    return this.client.request<ProtocolRegistryResponse>(backendApiPath(`/control/protocol_registry`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -603,8 +599,8 @@ export class ControlProtocolGovernanceApi {
 
 
 /** Read the control-plane protocol governance snapshot. */
-  async retrieve(): Promise<ProtocolGovernanceResponse> {
-    return this.client.get<ProtocolGovernanceResponse>(backendApiPath(`/control/protocol_governance`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<ProtocolGovernanceResponse> {
+    return this.client.request<ProtocolGovernanceResponse>(backendApiPath(`/control/protocol_governance`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -617,8 +613,8 @@ export class ControlNodesRoutesApi {
 
 
 /** Migrate owned routes from the source node to the target node. */
-  async migrate(nodeId: string, body: MigrateRoutesRequest): Promise<RouteMigrationResult> {
-    return this.client.post<RouteMigrationResult>(backendApiPath(`/control/nodes/${serializePathParameter(nodeId, { name: 'nodeId', style: 'simple', explode: false })}/routes/migrate`), body, undefined, undefined, 'application/json');
+  async migrate(nodeId: string, body: MigrateRoutesRequest, requestOptions?: ApiRequestOptions): Promise<RouteMigrationResult> {
+    return this.client.request<RouteMigrationResult>(backendApiPath(`/control/nodes/${serializePathParameter(nodeId, { name: 'nodeId', style: 'simple', explode: false })}/routes/migrate`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -633,18 +629,17 @@ export class ControlNodesApi {
 
 
 /** Activate a realtime node and clear drain state. */
-  async activate(nodeId: string): Promise<RouteNodeLifecycle> {
-    return this.client.post<RouteNodeLifecycle>(backendApiPath(`/control/nodes/${serializePathParameter(nodeId, { name: 'nodeId', style: 'simple', explode: false })}/activate`));
+  async activate(nodeId: string, requestOptions?: ApiRequestOptions): Promise<RouteNodeLifecycle> {
+    return this.client.request<RouteNodeLifecycle>(backendApiPath(`/control/nodes/${serializePathParameter(nodeId, { name: 'nodeId', style: 'simple', explode: false })}/activate`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Mark a realtime node as draining. */
-  async drain(nodeId: string): Promise<RouteNodeLifecycle> {
-    return this.client.post<RouteNodeLifecycle>(backendApiPath(`/control/nodes/${serializePathParameter(nodeId, { name: 'nodeId', style: 'simple', explode: false })}/drain`));
+  async drain(nodeId: string, requestOptions?: ApiRequestOptions): Promise<RouteNodeLifecycle> {
+    return this.client.request<RouteNodeLifecycle>(backendApiPath(`/control/nodes/${serializePathParameter(nodeId, { name: 'nodeId', style: 'simple', explode: false })}/drain`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class ControlApi {
-
   public readonly nodes: ControlNodesApi;
   public readonly protocolGovernance: ControlProtocolGovernanceApi;
   public readonly protocolRegistry: ControlProtocolRegistryApi;
@@ -654,7 +649,6 @@ export class ControlApi {
   public readonly social: ControlSocialApi;
 
   constructor(client: HttpClient) {
-
     this.nodes = new ControlNodesApi(client);
     this.protocolGovernance = new ControlProtocolGovernanceApi(client);
     this.protocolRegistry = new ControlProtocolRegistryApi(client);

@@ -18,7 +18,7 @@ pnpm add @sdkwork/im-sdk
 import { SdkworkImClient } from '@sdkwork/im-sdk';
 
 const client = new SdkworkImClient({
-  baseUrl: 'http://127.0.0.1:18079',
+  baseUrl: 'http://127.0.0.1:18089',
   timeout: 30000,
 });
 
@@ -36,7 +36,7 @@ Choose exactly one mode for the same client instance.
 ### Mode A: API Key
 
 ```typescript
-const client = new SdkworkImClient({ baseUrl: 'http://127.0.0.1:18079' });
+const client = new SdkworkImClient({ baseUrl: 'http://127.0.0.1:18089' });
 client.setApiKey('your-api-key');
 // Sends: X-API-Key: <apiKey>
 ```
@@ -44,7 +44,7 @@ client.setApiKey('your-api-key');
 ### Mode B: Dual Token
 
 ```typescript
-const client = new SdkworkImClient({ baseUrl: 'http://127.0.0.1:18079' });
+const client = new SdkworkImClient({ baseUrl: 'http://127.0.0.1:18089' });
 client.setAuthToken('your-auth-token');
 client.setAccessToken('your-access-token');
 // Sends:
@@ -60,7 +60,7 @@ client.setAccessToken('your-access-token');
 import { SdkworkImClient } from '@sdkwork/im-sdk';
 
 const client = new SdkworkImClient({
-  baseUrl: 'http://127.0.0.1:18079',
+  baseUrl: 'http://127.0.0.1:18089',
   timeout: 30000, // Request timeout in ms
   headers: {      // Custom headers
     'X-Custom-Header': 'value',
@@ -120,14 +120,8 @@ const result = await client.social.friendRequests.pending.count.retrieve();
 ### chat
 
 ```typescript
-// List current inbox window
-const params = {
-  page_size: 1,
-  cursor: 'cursor',
-  conversation_type: 'conversation_type',
-  q: 'q',
-};
-const result = await client.chat.inbox.list(params);
+// Ensure the current user received the system-agent Welcome message
+const result = await client.chat.me.welcome.ensure();
 ```
 
 ### streams
@@ -178,6 +172,8 @@ This SDK includes cross-platform publish scripts in `bin/`:
 - `bin/publish-core.mjs`
 - `bin/publish.sh`
 - `bin/publish.ps1`
+
+TypeScript check and publish commands use pnpm to materialize workspace dependency versions in a temporary tarball. They reject local-only dependency protocols before npm publication and do not rewrite the source `package.json`.
 
 ### Check
 

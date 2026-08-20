@@ -1,8 +1,22 @@
 import { backendApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
-import type { SdkWorkPageData } from '../types';
+import type { AuditChainVerification, SdkWorkPageData } from '../types';
 
+
+export class AuditVerifyApi {
+  private client: HttpClient;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+
+/** Verify audit chain integrity */
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<AuditChainVerification> {
+    return this.client.request<AuditChainVerification>(backendApiPath(`/audit/verify`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
+  }
+}
 
 export class AuditExportApi {
   private client: HttpClient;
@@ -13,16 +27,14 @@ export class AuditExportApi {
 
 
 /** Export audit bundle */
-  async retrieve(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(backendApiPath(`/audit/export`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(backendApiPath(`/audit/export`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
 export interface AuditRecordsListParams {
   pageSize?: number;
-  cursor?: string;
-  page?: number;
-  q?: string;
+  afterAuditSeq?: string;
 }
 
 export class AuditRecordsApi {
@@ -34,31 +46,29 @@ export class AuditRecordsApi {
 
 
 /** List audit records */
-  async list(params?: AuditRecordsListParams): Promise<SdkWorkPageData> {
+  async list(params?: AuditRecordsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
-      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
-      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
-      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+      { name: 'afterAuditSeq', value: params?.afterAuditSeq, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/audit/records`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/audit/records`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Record audit anchor */
-  async create(): Promise<Record<string, unknown>> {
-    return this.client.post<Record<string, unknown>>(backendApiPath(`/audit/records`));
+  async create(requestOptions?: ApiRequestOptions): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(backendApiPath(`/audit/records`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class AuditApi {
-
   public readonly records: AuditRecordsApi;
   public readonly export: AuditExportApi;
+  public readonly verify: AuditVerifyApi;
 
   constructor(client: HttpClient) {
-
     this.records = new AuditRecordsApi(client);
     this.export = new AuditExportApi(client);
+    this.verify = new AuditVerifyApi(client);
   }
 
 }

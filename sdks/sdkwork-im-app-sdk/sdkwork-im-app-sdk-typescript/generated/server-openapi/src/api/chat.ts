@@ -1,5 +1,5 @@
 import { appApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { ArchiveGroupConversationRequest, ArchiveGroupConversationResponse, CreateGroupKnowledgebaseRequest, GroupKnowledgebaseLaunchResponse, GroupKnowledgebaseLinkView, LaunchGroupKnowledgebaseRequest } from '../types';
 
@@ -21,30 +21,30 @@ export class ChatConversationsKnowledgebaseApi {
 
 
 /** Retrieve the group knowledgebase link */
-  async retrieve(conversationId: string): Promise<GroupKnowledgebaseLinkView> {
-    return this.client.get<GroupKnowledgebaseLinkView>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/knowledgebase`));
+  async retrieve(conversationId: string, requestOptions?: ApiRequestOptions): Promise<GroupKnowledgebaseLinkView> {
+    return this.client.request<GroupKnowledgebaseLinkView>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/knowledgebase`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Lazily create the group knowledgebase */
-  async create(conversationId: string, body: CreateGroupKnowledgebaseRequest, params: ChatConversationsKnowledgebaseCreateParams): Promise<GroupKnowledgebaseLinkView> {
+  async create(conversationId: string, body: CreateGroupKnowledgebaseRequest, params: ChatConversationsKnowledgebaseCreateParams, requestOptions?: ApiRequestOptions): Promise<GroupKnowledgebaseLinkView> {
     const requestHeaders = buildRequestHeaders(
       {
         'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );
-    return this.client.post<GroupKnowledgebaseLinkView>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/knowledgebase`), body, undefined, requestHeaders, 'application/json');
+    return this.client.request<GroupKnowledgebaseLinkView>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/knowledgebase`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', ...(requestHeaders !== undefined ? { headers: requestHeaders } : {}), sdkworkUnwrapKind: 'item' });
   }
 
 /** Issue a one-time group knowledgebase launch ticket */
-  async launch(conversationId: string, body: LaunchGroupKnowledgebaseRequest, params: ChatConversationsKnowledgebaseLaunchParams): Promise<GroupKnowledgebaseLaunchResponse> {
+  async launch(conversationId: string, body: LaunchGroupKnowledgebaseRequest, params: ChatConversationsKnowledgebaseLaunchParams, requestOptions?: ApiRequestOptions): Promise<GroupKnowledgebaseLaunchResponse> {
     const requestHeaders = buildRequestHeaders(
       {
         'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );
-    return this.client.post<GroupKnowledgebaseLaunchResponse>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/knowledgebase/launch`), body, undefined, requestHeaders, 'application/json');
+    return this.client.request<GroupKnowledgebaseLaunchResponse>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/knowledgebase/launch`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', ...(requestHeaders !== undefined ? { headers: requestHeaders } : {}), sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -63,23 +63,21 @@ export class ChatConversationsApi {
 
 
 /** Archive a group conversation and schedule its knowledgebase archive */
-  async archive(conversationId: string, body: ArchiveGroupConversationRequest, params: ChatConversationsArchiveParams): Promise<ArchiveGroupConversationResponse> {
+  async archive(conversationId: string, body: ArchiveGroupConversationRequest, params: ChatConversationsArchiveParams, requestOptions?: ApiRequestOptions): Promise<ArchiveGroupConversationResponse> {
     const requestHeaders = buildRequestHeaders(
       {
         'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );
-    return this.client.post<ArchiveGroupConversationResponse>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/archive`), body, undefined, requestHeaders, 'application/json');
+    return this.client.request<ArchiveGroupConversationResponse>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/archive`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', ...(requestHeaders !== undefined ? { headers: requestHeaders } : {}), sdkworkUnwrapKind: 'command' });
   }
 }
 
 export class ChatApi {
-
   public readonly conversations: ChatConversationsApi;
 
   constructor(client: HttpClient) {
-
     this.conversations = new ChatConversationsApi(client);
   }
 

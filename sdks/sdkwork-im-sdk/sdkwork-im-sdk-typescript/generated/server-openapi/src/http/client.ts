@@ -2,6 +2,7 @@ import type { SdkworkImConfig } from '../types/common';
 import type { RequestOptions, QueryParams } from '@sdkwork/sdk-common';
 import type { AuthTokenManager } from '@sdkwork/sdk-common';
 import { BaseHttpClient, buildAuthHeaders, withRetry } from '@sdkwork/sdk-common';
+import { sha256Hash } from '@sdkwork/utils';
 
 type SdkworkV3UnwrapKind = 'item' | 'page' | 'command' | 'data' | 'void';
 
@@ -185,19 +186,10 @@ export class HttpClient extends BaseHttpClient {
   }
 
   private async sha256Hex(bytes: Uint8Array): Promise<string> {
-    const subtle = globalThis.crypto?.subtle;
-    if (!subtle) {
-      throw new Error('Web Crypto SHA-256 is required for SDKWork idempotent requests with a body.');
-    }
-    const digestInput = new Uint8Array(bytes.byteLength);
-    digestInput.set(bytes);
-    const digest = await subtle.digest('SHA-256', digestInput);
-    return Array.from(new Uint8Array(digest))
-      .map((value) => value.toString(16).padStart(2, '0'))
-      .join('');
+    return sha256Hash(bytes);
   }
 
-  protected buildHeaders(config: any, skipAuth = false): Record<string, string> {
+  protected override buildHeaders(config: any, skipAuth = false): Record<string, string> {
     const headers = super.buildHeaders(config, skipAuth);
     if (config?.accessTokenOnly) {
       this.stripCredentialHeaders(headers, true);
@@ -362,7 +354,7 @@ export class HttpClient extends BaseHttpClient {
     params.append(key, String(value));
   }
 
-  setApiKey(apiKey: string): void {
+  override setApiKey(apiKey: string): void {
     const authConfig = this.getInternalAuthConfig();
     const headers = this.getInternalHeaders();
     const normalizedApiKey = HttpClient.normalizeCredential(apiKey);
@@ -389,7 +381,7 @@ export class HttpClient extends BaseHttpClient {
     }
   }
 
-  setAuthToken(token: string): void {
+  override setAuthToken(token: string): void {
     const headers = this.getInternalHeaders();
     if (HttpClient.API_KEY_HEADER.toLowerCase() !== 'authorization') {
       delete headers[HttpClient.API_KEY_HEADER];
@@ -400,7 +392,7 @@ export class HttpClient extends BaseHttpClient {
     super.setAuthToken(token);
   }
 
-  setAccessToken(token: string): void {
+  override setAccessToken(token: string): void {
     const headers = this.getInternalHeaders();
     if (HttpClient.API_KEY_HEADER.toLowerCase() !== 'authorization') {
       delete headers[HttpClient.API_KEY_HEADER];
@@ -412,7 +404,7 @@ export class HttpClient extends BaseHttpClient {
     super.setAccessToken(token);
   }
 
-  setTokenManager(manager: AuthTokenManager): void {
+  override setTokenManager(manager: AuthTokenManager): void {
     const headers = this.getInternalHeaders();
     if (HttpClient.API_KEY_HEADER.toLowerCase() !== 'authorization') {
       delete headers[HttpClient.API_KEY_HEADER];
@@ -508,7 +500,7 @@ export class HttpClient extends BaseHttpClient {
     return data as T;
   }
 
-  async request<T>(path: string, options: HttpRequestOptions = {}): Promise<T> {
+  override async request<T>(path: string, options: HttpRequestOptions = {}): Promise<T> {
     const execute = (this as any).execute;
     if (typeof execute !== 'function') {
       throw new Error('BaseHttpClient execute method is not available');
@@ -538,12 +530,15 @@ export class HttpClient extends BaseHttpClient {
         url: path,
         method,
         ...rest,
-        skipAuth,
-        accessTokenOnly,
-        body: requestBody,
-        headers: preparedHeaders,
+        ...(skipAuth !== undefined ? { skipAuth } : {}),
+        ...(accessTokenOnly !== undefined ? { accessTokenOnly } : {}),
+        ...(requestBody !== undefined ? { body: requestBody } : {}),
+        ...(preparedHeaders !== undefined ? { headers: preparedHeaders } : {}),
       }),
-      { maxRetries: 3 }
+      // Per-request retry overrides (e.g. disabling 5xx retries for
+      // idempotent-terminal operations like turn execution) flow through
+      // options.retry; the default keeps maxRetries: 3.
+      { maxRetries: 3, ...options.retry }
     );
     return this.unwrapSdkworkV3Payload<T>(payload, sdkworkUnwrapKind);
   }
@@ -579,10 +574,10 @@ export class HttpClient extends BaseHttpClient {
     for await (const data of stream.call(this, path, {
       method,
       ...rest,
-      skipAuth,
-      accessTokenOnly,
-      body: requestBody,
-      headers: requestHeaders,
+      ...(skipAuth !== undefined ? { skipAuth } : {}),
+      ...(accessTokenOnly !== undefined ? { accessTokenOnly } : {}),
+      ...(requestBody !== undefined ? { body: requestBody } : {}),
+      ...(requestHeaders !== undefined ? { headers: requestHeaders } : {}),
     })) {
       if (data === '[DONE]') {
         return;
@@ -594,42 +589,68 @@ export class HttpClient extends BaseHttpClient {
     }
   }
 
-  async get<T>(path: string, params?: QueryParams, headers?: Record<string, string>): Promise<T> {
-    return this.request<T>(path, { method: 'GET', params, headers });
+  override async get<T>(path: string, params?: QueryParams, headers?: Record<string, string>): Promise<T> {
+    return this.request<T>(path, {
+      method: 'GET',
+      ...(params !== undefined ? { params } : {}),
+      ...(headers !== undefined ? { headers } : {}),
+    });
   }
 
-  async post<T>(
+  override async post<T>(
     path: string,
     body?: unknown,
     params?: QueryParams,
     headers?: Record<string, string>,
     contentType?: string,
   ): Promise<T> {
-    return this.request<T>(path, { method: 'POST', body, params, headers, contentType });
+    return this.request<T>(path, {
+      method: 'POST',
+      ...(body !== undefined ? { body } : {}),
+      ...(params !== undefined ? { params } : {}),
+      ...(headers !== undefined ? { headers } : {}),
+      ...(contentType !== undefined ? { contentType } : {}),
+    });
   }
 
-  async put<T>(
+  override async put<T>(
     path: string,
     body?: unknown,
     params?: QueryParams,
     headers?: Record<string, string>,
     contentType?: string,
   ): Promise<T> {
-    return this.request<T>(path, { method: 'PUT', body, params, headers, contentType });
+    return this.request<T>(path, {
+      method: 'PUT',
+      ...(body !== undefined ? { body } : {}),
+      ...(params !== undefined ? { params } : {}),
+      ...(headers !== undefined ? { headers } : {}),
+      ...(contentType !== undefined ? { contentType } : {}),
+    });
   }
 
-  async delete<T>(path: string, params?: QueryParams, headers?: Record<string, string>): Promise<T> {
-    return this.request<T>(path, { method: 'DELETE', params, headers });
+  override async delete<T>(path: string, params?: QueryParams, headers?: Record<string, string>): Promise<T> {
+    return this.request<T>(path, {
+      method: 'DELETE',
+      ...(params !== undefined ? { params } : {}),
+      ...(headers !== undefined ? { headers } : {}),
+    });
   }
 
-  async patch<T>(
+  override async patch<T>(
     path: string,
     body?: unknown,
     params?: QueryParams,
     headers?: Record<string, string>,
     contentType?: string,
   ): Promise<T> {
-    return this.request<T>(path, { method: 'PATCH', body, params, headers, contentType });
+    return this.request<T>(path, {
+      method: 'PATCH',
+      ...(body !== undefined ? { body } : {}),
+      ...(params !== undefined ? { params } : {}),
+      ...(headers !== undefined ? { headers } : {}),
+      ...(contentType !== undefined ? { contentType } : {}),
+    });
   }
 }
 

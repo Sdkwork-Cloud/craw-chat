@@ -1,5 +1,5 @@
 import { appApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { NotificationRequestResponse, NotificationTask, PageInfo, RequestNotification } from '../types';
 
@@ -13,8 +13,8 @@ export class NotificationsRequestsApi {
 
 
 /** Request a notification task */
-  async create(body: RequestNotification): Promise<NotificationRequestResponse> {
-    return this.client.post<NotificationRequestResponse>(appApiPath(`/notifications/requests`), body, undefined, undefined, 'application/json');
+  async create(body: RequestNotification, requestOptions?: ApiRequestOptions): Promise<NotificationRequestResponse> {
+    return this.client.request<NotificationRequestResponse>(appApiPath(`/notifications/requests`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -34,17 +34,17 @@ export class NotificationsApi {
 
 
 /** List notifications for the current principal */
-  async list(params?: NotificationsListParams): Promise<{ items: NotificationTask[]; pageInfo: PageInfo; }> {
+  async list(params?: NotificationsListParams, requestOptions?: ApiRequestOptions): Promise<{ items: NotificationTask[]; pageInfo: PageInfo; }> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<{ items: NotificationTask[]; pageInfo: PageInfo; }>(appendQueryString(appApiPath(`/notifications`), query));
+    return this.client.request<{ items: NotificationTask[]; pageInfo: PageInfo; }>(appendQueryString(appApiPath(`/notifications`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Get a notification task */
-  async retrieve(notificationId: string): Promise<NotificationTask> {
-    return this.client.get<NotificationTask>(appApiPath(`/notifications/${serializePathParameter(notificationId, { name: 'notificationId', style: 'simple', explode: false })}`));
+  async retrieve(notificationId: string, requestOptions?: ApiRequestOptions): Promise<NotificationTask> {
+    return this.client.request<NotificationTask>(appApiPath(`/notifications/${serializePathParameter(notificationId, { name: 'notificationId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 

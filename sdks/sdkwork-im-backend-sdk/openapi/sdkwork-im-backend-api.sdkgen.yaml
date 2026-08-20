@@ -6,7 +6,6 @@ info:
 servers:
   - url: http://127.0.0.1:18079
 security:
-  - ApiKey: []
   - AuthToken: []
     AccessToken: []
 tags:
@@ -63,7 +62,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -116,7 +114,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -165,7 +162,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -218,7 +214,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -271,7 +266,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -320,7 +314,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -369,7 +362,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -422,7 +414,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -478,7 +469,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -542,7 +532,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -589,7 +578,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -641,7 +629,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -694,7 +681,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -747,7 +733,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -800,7 +785,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -874,7 +858,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -951,7 +934,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1035,7 +1017,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1105,7 +1086,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1175,7 +1155,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1238,7 +1217,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1321,7 +1299,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1398,7 +1375,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1475,7 +1451,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1545,7 +1520,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1614,7 +1588,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1690,7 +1663,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1767,7 +1739,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1844,7 +1815,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1921,7 +1891,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1998,7 +1967,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2075,7 +2043,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2152,7 +2119,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2229,7 +2195,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2306,7 +2271,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2390,7 +2354,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2474,7 +2437,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2558,7 +2520,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2635,7 +2596,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2712,7 +2672,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2796,7 +2755,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2873,7 +2831,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2936,7 +2893,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -2999,7 +2955,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3062,7 +3017,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3125,7 +3079,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3195,7 +3148,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3272,7 +3224,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3342,7 +3293,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3412,7 +3362,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3489,7 +3438,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3559,7 +3507,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3636,7 +3583,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3713,7 +3659,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3790,7 +3735,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3867,7 +3811,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -3944,7 +3887,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4021,7 +3963,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4057,7 +3998,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4102,7 +4042,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4148,7 +4087,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4177,7 +4115,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4223,7 +4160,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4256,7 +4192,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4301,7 +4236,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4347,7 +4281,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4376,7 +4309,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4422,7 +4354,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4455,7 +4386,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4495,7 +4425,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4535,7 +4464,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4568,7 +4496,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4613,7 +4540,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4643,7 +4569,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4676,7 +4601,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4721,7 +4645,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4751,7 +4674,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4784,7 +4706,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4829,7 +4750,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4859,7 +4779,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4905,7 +4824,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4938,7 +4856,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -4971,7 +4888,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5016,7 +4932,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5049,7 +4964,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5082,7 +4996,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5127,7 +5040,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5173,7 +5085,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5206,7 +5117,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5251,7 +5161,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5281,7 +5190,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5314,7 +5222,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5359,7 +5266,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5389,7 +5295,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5422,7 +5327,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5467,7 +5371,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5497,7 +5400,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5530,7 +5432,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5570,7 +5471,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5603,7 +5503,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5648,7 +5547,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5681,7 +5579,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5714,7 +5611,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5754,7 +5650,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5799,7 +5694,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5839,7 +5733,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5884,7 +5777,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5913,7 +5805,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5953,7 +5844,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -5986,7 +5876,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -6032,7 +5921,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -6078,7 +5966,6 @@ paths:
             schema:
               $ref: '#/components/schemas/LooseJsonObject'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -6111,7 +5998,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -6151,7 +6037,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -6161,10 +6046,6 @@ paths:
       x-sdkwork-api-surface: backend-api
 components:
   securitySchemes:
-    ApiKey:
-      type: apiKey
-      in: header
-      name: X-API-Key
     AuthToken:
       type: http
       scheme: bearer
@@ -6402,7 +6283,11 @@ components:
           type: integer
           format: int64
           minimum: 0
-        rtcSignalsDeleted:
+        invitationsDeleted:
+          type: integer
+          format: int64
+          minimum: 0
+        auditRecordsDeleted:
           type: integer
           format: int64
           minimum: 0
@@ -7521,46 +7406,5 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/SdkWorkPageData'
-    SdkWorkResourceData:
-      type: object
-      additionalProperties: false
-      required:
-        - item
-      properties:
-        item:
-          type: object
-          additionalProperties: true
-          description: Typed domain resource for the operation.
-    SdkWorkCommandData:
-      type: object
-      additionalProperties: false
-      required:
-        - accepted
-      properties:
-        accepted:
-          type: boolean
-          const: true
-        resourceId:
-          type: string
-        status:
-          type: string
-    SdkWorkResourceResponse:
-      allOf:
-        - $ref: '#/components/schemas/SdkWorkApiResponse'
-        - type: object
-          required:
-            - data
-          properties:
-            data:
-              $ref: '#/components/schemas/SdkWorkResourceData'
-    SdkWorkCommandResponse:
-      allOf:
-        - $ref: '#/components/schemas/SdkWorkApiResponse'
-        - type: object
-          required:
-            - data
-          properties:
-            data:
-              $ref: '#/components/schemas/SdkWorkCommandData'
 x-sdkwork-owner: sdkwork-im
 x-sdkwork-api-authority: sdkwork-im.backend

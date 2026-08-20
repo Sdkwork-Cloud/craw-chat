@@ -14,12 +14,12 @@ export class SocialContactsPreferencesApi {
 
 /** Retrieve contact preferences */
   async retrieve(targetUserId: string, requestOptions?: ApiRequestOptions): Promise<ContactPreferencesView> {
-    return this.client.request<ContactPreferencesView>(imApiPath(`/social/contacts/${serializePathParameter(targetUserId, { name: 'targetUserId', style: 'simple', explode: false })}/preferences`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'item' });
+    return this.client.request<ContactPreferencesView>(imApiPath(`/social/contacts/${serializePathParameter(targetUserId, { name: 'targetUserId', style: 'simple', explode: false })}/preferences`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Update contact preferences */
   async update(targetUserId: string, body: UpdateContactPreferencesRequest, requestOptions?: ApiRequestOptions): Promise<ContactPreferencesView> {
-    return this.client.request<ContactPreferencesView>(imApiPath(`/social/contacts/${serializePathParameter(targetUserId, { name: 'targetUserId', style: 'simple', explode: false })}/preferences`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
+    return this.client.request<ContactPreferencesView>(imApiPath(`/social/contacts/${serializePathParameter(targetUserId, { name: 'targetUserId', style: 'simple', explode: false })}/preferences`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'PATCH' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -33,7 +33,7 @@ export class SocialContactsRecommendationsApi {
 
 /** Create a contact recommendation */
   async create(targetUserId: string, body: CreateContactRecommendationRequest, requestOptions?: ApiRequestOptions): Promise<ContactRecommendationView> {
-    return this.client.request<ContactRecommendationView>(imApiPath(`/social/contacts/${serializePathParameter(targetUserId, { name: 'targetUserId', style: 'simple', explode: false })}/recommendations`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
+    return this.client.request<ContactRecommendationView>(imApiPath(`/social/contacts/${serializePathParameter(targetUserId, { name: 'targetUserId', style: 'simple', explode: false })}/recommendations`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -56,22 +56,22 @@ export class SocialContactsTagsApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<SdkWorkPageData>(appendQueryString(imApiPath(`/social/contacts/tags`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
+    return this.client.request<SdkWorkPageData>(appendQueryString(imApiPath(`/social/contacts/tags`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Create a contact tag */
   async create(body: CreateContactTagRequest, requestOptions?: ApiRequestOptions): Promise<ContactTagView> {
-    return this.client.request<ContactTagView>(imApiPath(`/social/contacts/tags`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
+    return this.client.request<ContactTagView>(imApiPath(`/social/contacts/tags`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Update a contact tag */
   async update(tagId: string, body: UpdateContactTagRequest, requestOptions?: ApiRequestOptions): Promise<ContactTagView> {
-    return this.client.request<ContactTagView>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'PATCH' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
+    return this.client.request<ContactTagView>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'PATCH' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Delete a contact tag */
   async delete(tagId: string, requestOptions?: ApiRequestOptions): Promise<void> {
-    return this.client.request<void>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
+    return this.client.request<void>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'DELETE' as any });
   }
 }
 
@@ -100,7 +100,7 @@ export class SocialContactsApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<{ items: ContactView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/social/contacts`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
+    return this.client.request<{ items: ContactView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/social/contacts`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -114,12 +114,12 @@ export class SocialUserBlocksApi {
 
 /** Block a social user */
   async create(body: BlockUserRequest, requestOptions?: ApiRequestOptions): Promise<OpenApiUserBlockResponse> {
-    return this.client.request<OpenApiUserBlockResponse>(imApiPath(`/social/user_blocks`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
+    return this.client.request<OpenApiUserBlockResponse>(imApiPath(`/social/user_blocks`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Release a social user block */
   async delete(blockId: string, requestOptions?: ApiRequestOptions): Promise<void> {
-    return this.client.request<void>(imApiPath(`/social/user_blocks/${serializePathParameter(blockId, { name: 'blockId', style: 'simple', explode: false })}`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'DELETE' as any });
+    return this.client.request<void>(imApiPath(`/social/user_blocks/${serializePathParameter(blockId, { name: 'blockId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'DELETE' as any });
   }
 }
 
@@ -133,7 +133,7 @@ export class SocialFriendshipsApi {
 
 /** Remove a friendship */
   async remove(friendshipId: string, requestOptions?: ApiRequestOptions): Promise<SocialFriendshipMutationResponse> {
-    return this.client.request<SocialFriendshipMutationResponse>(imApiPath(`/social/friendships/${serializePathParameter(friendshipId, { name: 'friendshipId', style: 'simple', explode: false })}/remove`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, sdkworkUnwrapKind: 'item' });
+    return this.client.request<SocialFriendshipMutationResponse>(imApiPath(`/social/friendships/${serializePathParameter(friendshipId, { name: 'friendshipId', style: 'simple', explode: false })}/remove`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -147,16 +147,14 @@ export class SocialFriendRequestsPendingCountApi {
 
 /** Retrieve pending incoming friend request count */
   async retrieve(requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestPendingCountResponse> {
-    return this.client.request<SocialFriendRequestPendingCountResponse>(imApiPath(`/social/friend_requests/pending/count`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'item' });
+    return this.client.request<SocialFriendRequestPendingCountResponse>(imApiPath(`/social/friend_requests/pending/count`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class SocialFriendRequestsPendingApi {
-  private client: HttpClient;
   public readonly count: SocialFriendRequestsPendingCountApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
     this.count = new SocialFriendRequestsPendingCountApi(client);
   }
 
@@ -187,27 +185,27 @@ export class SocialFriendRequestsApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<SdkWorkPageData>(appendQueryString(imApiPath(`/social/friend_requests`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
+    return this.client.request<SdkWorkPageData>(appendQueryString(imApiPath(`/social/friend_requests`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Create a friend request */
   async create(body: SubmitFriendRequestRequest, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestMutationResponse> {
-    return this.client.request<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
+    return this.client.request<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Accept a friend request */
   async accept(friendRequestId: string, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestAcceptanceResponse> {
-    return this.client.request<SocialFriendRequestAcceptanceResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/accept`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, sdkworkUnwrapKind: 'item' });
+    return this.client.request<SocialFriendRequestAcceptanceResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/accept`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Decline a friend request */
   async decline(friendRequestId: string, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestMutationResponse> {
-    return this.client.request<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/decline`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, sdkworkUnwrapKind: 'item' });
+    return this.client.request<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/decline`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** Cancel a friend request */
   async cancel(friendRequestId: string, requestOptions?: ApiRequestOptions): Promise<SocialFriendRequestMutationResponse> {
-    return this.client.request<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/cancel`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, sdkworkUnwrapKind: 'item' });
+    return this.client.request<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/cancel`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -232,12 +230,11 @@ export class SocialUsersApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<{ items: SocialUserSearchResult[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/social/users`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
+    return this.client.request<{ items: SocialUserSearchResult[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/social/users`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
 export class SocialApi {
-  private client: HttpClient;
   public readonly users: SocialUsersApi;
   public readonly friendRequests: SocialFriendRequestsApi;
   public readonly friendships: SocialFriendshipsApi;
@@ -245,7 +242,6 @@ export class SocialApi {
   public readonly contacts: SocialContactsApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
     this.users = new SocialUsersApi(client);
     this.friendRequests = new SocialFriendRequestsApi(client);
     this.friendships = new SocialFriendshipsApi(client);

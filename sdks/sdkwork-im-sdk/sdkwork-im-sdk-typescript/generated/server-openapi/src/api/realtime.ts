@@ -19,7 +19,7 @@ export class RealtimeEventsApi {
 
 /** Acknowledge realtime events */
   async ack(body: RealtimeEventAckRequest, requestOptions?: ApiRequestOptions): Promise<AckResponse> {
-    return this.client.request<AckResponse>(imApiPath(`/realtime/events/ack`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
+    return this.client.request<AckResponse>(imApiPath(`/realtime/events/ack`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** List pending realtime events */
@@ -28,7 +28,7 @@ export class RealtimeEventsApi {
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.request<{ items: RealtimeEventView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/realtime/events`), query), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'GET' as any, sdkworkUnwrapKind: 'page' });
+    return this.client.request<{ items: RealtimeEventView[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(imApiPath(`/realtime/events`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -42,17 +42,15 @@ export class RealtimeSubscriptionsApi {
 
 /** Sync realtime subscription targets */
   async sync(body: RealtimeSubscriptionSyncRequest, requestOptions?: ApiRequestOptions): Promise<RealtimeSubscriptionSyncResponse> {
-    return this.client.request<RealtimeSubscriptionSyncResponse>(imApiPath(`/realtime/subscriptions/sync`), { signal: requestOptions?.signal, timeout: requestOptions?.timeout, method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
+    return this.client.request<RealtimeSubscriptionSyncResponse>(imApiPath(`/realtime/subscriptions/sync`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class RealtimeApi {
-  private client: HttpClient;
   public readonly subscriptions: RealtimeSubscriptionsApi;
   public readonly events: RealtimeEventsApi;
 
   constructor(client: HttpClient) {
-    this.client = client;
     this.subscriptions = new RealtimeSubscriptionsApi(client);
     this.events = new RealtimeEventsApi(client);
   }

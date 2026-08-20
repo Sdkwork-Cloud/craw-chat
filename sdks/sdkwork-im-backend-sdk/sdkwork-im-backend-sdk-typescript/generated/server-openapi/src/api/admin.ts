@@ -1,5 +1,5 @@
 import { backendApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { LooseJsonObject, LooseJsonValue, SdkWorkPageData } from '../types';
 
@@ -13,8 +13,8 @@ export class AdminUsageSummaryApi {
 
 
 /** getUsageSummary */
-  async retrieve(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/usage/summary`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/usage/summary`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -34,24 +34,22 @@ export class AdminUsageRecordsApi {
 
 
 /** listUsageRecords */
-  async list(params?: AdminUsageRecordsListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminUsageRecordsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/usage/records`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/usage/records`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
 export class AdminUsageApi {
-
   public readonly records: AdminUsageRecordsApi;
   public readonly summary: AdminUsageSummaryApi;
 
   constructor(client: HttpClient) {
-
     this.records = new AdminUsageRecordsApi(client);
     this.summary = new AdminUsageSummaryApi(client);
   }
@@ -67,8 +65,8 @@ export class AdminStorageValidationTenantsApi {
 
 
 /** validateTenantStorageConfig */
-  async create(tenantId: string | number, body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/storage/validate/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async create(tenantId: string | number, body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/storage/validate/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -83,8 +81,8 @@ export class AdminStorageValidationApi {
 
 
 /** validateGlobalStorageConfig */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/storage/validate`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/storage/validate`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -104,14 +102,14 @@ export class AdminStorageProvidersApi {
 
 
 /** listStorageProviders */
-  async list(params?: AdminStorageProvidersListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminStorageProvidersListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/storage/providers`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/storage/providers`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -124,17 +122,15 @@ export class AdminStorageEffectiveTenantsApi {
 
 
 /** getTenantEffectiveStorageConfig */
-  async retrieve(tenantId: string | number): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/storage/effective/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`));
+  async retrieve(tenantId: string | number, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/storage/effective/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class AdminStorageEffectiveApi {
-
   public readonly tenants: AdminStorageEffectiveTenantsApi;
 
   constructor(client: HttpClient) {
-
     this.tenants = new AdminStorageEffectiveTenantsApi(client);
   }
 
@@ -149,18 +145,18 @@ export class AdminStorageConfigTenantsApi {
 
 
 /** getTenantStorageConfig */
-  async retrieve(tenantId: string | number): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/storage/config/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`));
+  async retrieve(tenantId: string | number, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/storage/config/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** saveTenantStorageConfig */
-  async create(tenantId: string | number, body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/storage/config/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async create(tenantId: string | number, body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/storage/config/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** deleteTenantStorageConfig */
-  async delete(tenantId: string | number): Promise<void> {
-    return this.client.delete<void>(backendApiPath(`/admin/storage/config/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`));
+  async delete(tenantId: string | number, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(backendApiPath(`/admin/storage/config/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'DELETE' as any });
   }
 }
 
@@ -175,13 +171,13 @@ export class AdminStorageConfigApi {
 
 
 /** getGlobalStorageConfig */
-  async retrieve(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/storage/config`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/storage/config`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 
 /** saveGlobalStorageConfig */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/storage/config`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/storage/config`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -201,19 +197,18 @@ export class AdminStorageAuditApi {
 
 
 /** listStorageAuditTrail */
-  async list(params?: AdminStorageAuditListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminStorageAuditListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/storage/audit`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/storage/audit`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
 export class AdminStorageApi {
-
   public readonly audit: AdminStorageAuditApi;
   public readonly config: AdminStorageConfigApi;
   public readonly effective: AdminStorageEffectiveApi;
@@ -221,7 +216,6 @@ export class AdminStorageApi {
   public readonly validation: AdminStorageValidationApi;
 
   constructor(client: HttpClient) {
-
     this.audit = new AdminStorageAuditApi(client);
     this.config = new AdminStorageConfigApi(client);
     this.effective = new AdminStorageEffectiveApi(client);
@@ -247,14 +241,14 @@ export class AdminRoutingSnapshotsApi {
 
 
 /** listCompiledRoutingSnapshots */
-  async list(params?: AdminRoutingSnapshotsListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminRoutingSnapshotsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/routing/snapshots`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/routing/snapshots`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -274,19 +268,19 @@ export class AdminRoutingProfilesApi {
 
 
 /** listRoutingProfiles */
-  async list(params?: AdminRoutingProfilesListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminRoutingProfilesListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/routing/profiles`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/routing/profiles`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** createRoutingProfile */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/routing/profiles`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/routing/profiles`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -299,8 +293,8 @@ export class AdminRoutingHealthSnapshotsApi {
 
 
 /** listProviderHealthSnapshots */
-  async retrieve(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/routing/health_snapshots`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/routing/health_snapshots`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -320,26 +314,24 @@ export class AdminRoutingDecisionLogsApi {
 
 
 /** listRoutingDecisionLogs */
-  async list(params?: AdminRoutingDecisionLogsListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminRoutingDecisionLogsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/routing/decision_logs`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/routing/decision_logs`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
 export class AdminRoutingApi {
-
   public readonly decisionLogs: AdminRoutingDecisionLogsApi;
   public readonly healthSnapshots: AdminRoutingHealthSnapshotsApi;
   public readonly profiles: AdminRoutingProfilesApi;
   public readonly snapshots: AdminRoutingSnapshotsApi;
 
   constructor(client: HttpClient) {
-
     this.decisionLogs = new AdminRoutingDecisionLogsApi(client);
     this.healthSnapshots = new AdminRoutingHealthSnapshotsApi(client);
     this.profiles = new AdminRoutingProfilesApi(client);
@@ -364,24 +356,24 @@ export class AdminProvidersApi {
 
 
 /** listProviders */
-  async list(params?: AdminProvidersListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminProvidersListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/providers`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/providers`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** saveProvider */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/providers`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/providers`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** deleteProvider */
-  async delete(providerId: string | number): Promise<void> {
-    return this.client.delete<void>(backendApiPath(`/admin/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}`));
+  async delete(providerId: string | number, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(backendApiPath(`/admin/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'DELETE' as any });
   }
 }
 
@@ -394,8 +386,8 @@ export class AdminModelsProvidersApi {
 
 
 /** deleteModel */
-  async delete(externalName: string | number, providerId: string | number): Promise<void> {
-    return this.client.delete<void>(backendApiPath(`/admin/models/${serializePathParameter(externalName, { name: 'externalName', style: 'simple', explode: false })}/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}`));
+  async delete(externalName: string | number, providerId: string | number, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(backendApiPath(`/admin/models/${serializePathParameter(externalName, { name: 'externalName', style: 'simple', explode: false })}/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'DELETE' as any });
   }
 }
 
@@ -417,19 +409,19 @@ export class AdminModelsApi {
 
 
 /** listModels */
-  async list(params?: AdminModelsListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminModelsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/models`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/models`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** saveModel */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/models`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/models`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -442,17 +434,15 @@ export class AdminModelPricesModelsProvidersApi {
 
 
 /** deleteModelPrice */
-  async delete(channelId: string | number, modelId: string | number, proxyProviderId: string | number): Promise<void> {
-    return this.client.delete<void>(backendApiPath(`/admin/model_prices/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/models/${serializePathParameter(modelId, { name: 'modelId', style: 'simple', explode: false })}/providers/${serializePathParameter(proxyProviderId, { name: 'proxyProviderId', style: 'simple', explode: false })}`));
+  async delete(channelId: string | number, modelId: string | number, proxyProviderId: string | number, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(backendApiPath(`/admin/model_prices/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/models/${serializePathParameter(modelId, { name: 'modelId', style: 'simple', explode: false })}/providers/${serializePathParameter(proxyProviderId, { name: 'proxyProviderId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'DELETE' as any });
   }
 }
 
 export class AdminModelPricesModelsApi {
-
   public readonly providers: AdminModelPricesModelsProvidersApi;
 
   constructor(client: HttpClient) {
-
     this.providers = new AdminModelPricesModelsProvidersApi(client);
   }
 
@@ -476,19 +466,19 @@ export class AdminModelPricesApi {
 
 
 /** listModelPrices */
-  async list(params?: AdminModelPricesListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminModelPricesListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/model_prices`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/model_prices`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** saveModelPrice */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/model_prices`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/model_prices`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -508,33 +498,31 @@ export class AdminMarketingCampaignsApi {
 
 
 /** listMarketingCampaigns */
-  async list(params?: AdminMarketingCampaignsListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminMarketingCampaignsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/marketing/campaigns`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/marketing/campaigns`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** saveMarketingCampaign */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/marketing/campaigns`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/marketing/campaigns`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** updateMarketingCampaignStatus */
-  async status(marketingCampaignId: string | number, body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/marketing/campaigns/${serializePathParameter(marketingCampaignId, { name: 'marketingCampaignId', style: 'simple', explode: false })}/status`), body, undefined, undefined, 'application/json');
+  async status(marketingCampaignId: string | number, body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/marketing/campaigns/${serializePathParameter(marketingCampaignId, { name: 'marketingCampaignId', style: 'simple', explode: false })}/status`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class AdminMarketingApi {
-
   public readonly campaigns: AdminMarketingCampaignsApi;
 
   constructor(client: HttpClient) {
-
     this.campaigns = new AdminMarketingCampaignsApi(client);
   }
 
@@ -556,14 +544,14 @@ export class AdminGatewayRateLimitWindowsApi {
 
 
 /** listRateLimitWindows */
-  async list(params?: AdminGatewayRateLimitWindowsListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminGatewayRateLimitWindowsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/gateway/rate_limit_windows`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/gateway/rate_limit_windows`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -583,29 +571,27 @@ export class AdminGatewayRateLimitPoliciesApi {
 
 
 /** listRateLimitPolicies */
-  async list(params?: AdminGatewayRateLimitPoliciesListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminGatewayRateLimitPoliciesListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/gateway/rate_limit_policies`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/gateway/rate_limit_policies`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** createRateLimitPolicy */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/gateway/rate_limit_policies`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/gateway/rate_limit_policies`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class AdminGatewayApi {
-
   public readonly rateLimitPolicies: AdminGatewayRateLimitPoliciesApi;
   public readonly rateLimitWindows: AdminGatewayRateLimitWindowsApi;
 
   constructor(client: HttpClient) {
-
     this.rateLimitPolicies = new AdminGatewayRateLimitPoliciesApi(client);
     this.rateLimitWindows = new AdminGatewayRateLimitWindowsApi(client);
   }
@@ -628,14 +614,14 @@ export class AdminExtensionsRuntimeStatusesApi {
 
 
 /** listRuntimeStatuses */
-  async list(params?: AdminExtensionsRuntimeStatusesListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminExtensionsRuntimeStatusesListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/extensions/runtime_statuses`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/extensions/runtime_statuses`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -648,18 +634,16 @@ export class AdminExtensionsRuntimeReloadsApi {
 
 
 /** reloadExtensionRuntimes */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/extensions/runtime_reloads`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/extensions/runtime_reloads`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class AdminExtensionsApi {
-
   public readonly runtimeReloads: AdminExtensionsRuntimeReloadsApi;
   public readonly runtimeStatuses: AdminExtensionsRuntimeStatusesApi;
 
   constructor(client: HttpClient) {
-
     this.runtimeReloads = new AdminExtensionsRuntimeReloadsApi(client);
     this.runtimeStatuses = new AdminExtensionsRuntimeStatusesApi(client);
   }
@@ -675,17 +659,15 @@ export class AdminCredentialsProvidersKeysApi {
 
 
 /** deleteCredential */
-  async delete(tenantId: string | number, providerId: string | number, keyReference: string | number): Promise<void> {
-    return this.client.delete<void>(backendApiPath(`/admin/credentials/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}/keys/${serializePathParameter(keyReference, { name: 'keyReference', style: 'simple', explode: false })}`));
+  async delete(tenantId: string | number, providerId: string | number, keyReference: string | number, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(backendApiPath(`/admin/credentials/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}/keys/${serializePathParameter(keyReference, { name: 'keyReference', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'DELETE' as any });
   }
 }
 
 export class AdminCredentialsProvidersApi {
-
   public readonly keys: AdminCredentialsProvidersKeysApi;
 
   constructor(client: HttpClient) {
-
     this.keys = new AdminCredentialsProvidersKeysApi(client);
   }
 
@@ -709,19 +691,19 @@ export class AdminCredentialsApi {
 
 
 /** listCredentials */
-  async list(params?: AdminCredentialsListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminCredentialsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/credentials`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/credentials`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** saveCredential */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/credentials`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/credentials`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -741,24 +723,24 @@ export class AdminChannelsApi {
 
 
 /** listChannels */
-  async list(params?: AdminChannelsListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminChannelsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/channels`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/channels`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** saveChannel */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/channels`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/channels`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** deleteChannel */
-  async delete(channelId: string | number): Promise<void> {
-    return this.client.delete<void>(backendApiPath(`/admin/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`));
+  async delete(channelId: string | number, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(backendApiPath(`/admin/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'DELETE' as any });
   }
 }
 
@@ -771,8 +753,8 @@ export class AdminChannelModelsModelsApi {
 
 
 /** deleteChannelModel */
-  async delete(channelId: string | number, modelId: string | number): Promise<void> {
-    return this.client.delete<void>(backendApiPath(`/admin/channel_models/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/models/${serializePathParameter(modelId, { name: 'modelId', style: 'simple', explode: false })}`));
+  async delete(channelId: string | number, modelId: string | number, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(backendApiPath(`/admin/channel_models/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/models/${serializePathParameter(modelId, { name: 'modelId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'DELETE' as any });
   }
 }
 
@@ -794,19 +776,19 @@ export class AdminChannelModelsApi {
 
 
 /** listChannelModels */
-  async list(params?: AdminChannelModelsListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminChannelModelsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/channel_models`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/channel_models`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** saveChannelModel */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/channel_models`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/channel_models`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -819,8 +801,8 @@ export class AdminBillingSummaryApi {
 
 
 /** getBillingSummary */
-  async retrieve(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/billing/summary`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/billing/summary`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -833,8 +815,8 @@ export class AdminBillingEventsSummaryApi {
 
 
 /** getBillingEventSummary */
-  async retrieve(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/billing/events/summary`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/billing/events/summary`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -856,24 +838,22 @@ export class AdminBillingEventsApi {
 
 
 /** listBillingEvents */
-  async list(params?: AdminBillingEventsListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminBillingEventsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/billing/events`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/billing/events`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
 export class AdminBillingApi {
-
   public readonly events: AdminBillingEventsApi;
   public readonly summary: AdminBillingSummaryApi;
 
   constructor(client: HttpClient) {
-
     this.events = new AdminBillingEventsApi(client);
     this.summary = new AdminBillingSummaryApi(client);
   }
@@ -896,34 +876,34 @@ export class AdminApiKeysApi {
 
 
 /** listApiKeys */
-  async list(params?: AdminApiKeysListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminApiKeysListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/api_keys`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/api_keys`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** createApiKey */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/api_keys`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/api_keys`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** updateApiKey */
-  async update(hashedKey: string | number, body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.put<LooseJsonValue>(backendApiPath(`/admin/api_keys/${serializePathParameter(hashedKey, { name: 'hashedKey', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async update(hashedKey: string | number, body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/api_keys/${serializePathParameter(hashedKey, { name: 'hashedKey', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'PUT' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** deleteApiKey */
-  async delete(hashedKey: string | number): Promise<void> {
-    return this.client.delete<void>(backendApiPath(`/admin/api_keys/${serializePathParameter(hashedKey, { name: 'hashedKey', style: 'simple', explode: false })}`));
+  async delete(hashedKey: string | number, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(backendApiPath(`/admin/api_keys/${serializePathParameter(hashedKey, { name: 'hashedKey', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'DELETE' as any });
   }
 
 /** updateApiKeyStatus */
-  async status(hashedKey: string | number, body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/api_keys/${serializePathParameter(hashedKey, { name: 'hashedKey', style: 'simple', explode: false })}/status`), body, undefined, undefined, 'application/json');
+  async status(hashedKey: string | number, body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/api_keys/${serializePathParameter(hashedKey, { name: 'hashedKey', style: 'simple', explode: false })}/status`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -943,39 +923,38 @@ export class AdminApiKeyGroupsApi {
 
 
 /** listApiKeyGroups */
-  async list(params?: AdminApiKeyGroupsListParams): Promise<SdkWorkPageData> {
+  async list(params?: AdminApiKeyGroupsListParams, requestOptions?: ApiRequestOptions): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/api_key_groups`), query));
+    return this.client.request<SdkWorkPageData>(appendQueryString(backendApiPath(`/admin/api_key_groups`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** createApiKeyGroup */
-  async create(body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/api_key_groups`), body, undefined, undefined, 'application/json');
+  async create(body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/api_key_groups`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** updateApiKeyGroup */
-  async update(groupId: string | number, body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.patch<LooseJsonValue>(backendApiPath(`/admin/api_key_groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async update(groupId: string | number, body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/api_key_groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'PATCH' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** deleteApiKeyGroup */
-  async delete(groupId: string | number): Promise<void> {
-    return this.client.delete<void>(backendApiPath(`/admin/api_key_groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`));
+  async delete(groupId: string | number, requestOptions?: ApiRequestOptions): Promise<void> {
+    return this.client.request<void>(backendApiPath(`/admin/api_key_groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'DELETE' as any });
   }
 
 /** updateApiKeyGroupStatus */
-  async status(groupId: string | number, body: LooseJsonObject): Promise<LooseJsonValue> {
-    return this.client.post<LooseJsonValue>(backendApiPath(`/admin/api_key_groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/status`), body, undefined, undefined, 'application/json');
+  async status(groupId: string | number, body: LooseJsonObject, requestOptions?: ApiRequestOptions): Promise<LooseJsonValue> {
+    return this.client.request<LooseJsonValue>(backendApiPath(`/admin/api_key_groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/status`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class AdminApi {
-
   public readonly apiKeyGroups: AdminApiKeyGroupsApi;
   public readonly apiKeys: AdminApiKeysApi;
   public readonly billing: AdminBillingApi;
@@ -993,7 +972,6 @@ export class AdminApi {
   public readonly usage: AdminUsageApi;
 
   constructor(client: HttpClient) {
-
     this.apiKeyGroups = new AdminApiKeyGroupsApi(client);
     this.apiKeys = new AdminApiKeysApi(client);
     this.billing = new AdminBillingApi(client);

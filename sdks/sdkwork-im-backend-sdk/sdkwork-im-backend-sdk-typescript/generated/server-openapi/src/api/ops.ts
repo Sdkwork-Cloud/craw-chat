@@ -1,8 +1,43 @@
 import { backendApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
-import type { LagPageData, ProviderBindingDriftPageData, ProviderBindingSnapshotPageData } from '../types';
+import type { JournalReplayStatusView, LagPageData, ProviderBindingDriftPageData, ProviderBindingSnapshotPageData, RetentionPurgeResponse } from '../types';
 
+
+export interface OpsRetentionPurgeParams {
+  batchSize?: string;
+}
+
+export class OpsRetentionApi {
+  private client: HttpClient;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+
+/** Purge expired retention batches */
+  async purge(params?: OpsRetentionPurgeParams, requestOptions?: ApiRequestOptions): Promise<RetentionPurgeResponse> {
+    const query = buildQueryString([
+      { name: 'batch_size', value: params?.batchSize, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.request<RetentionPurgeResponse>(appendQueryString(backendApiPath(`/ops/retention/purge`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, sdkworkUnwrapKind: 'item' });
+  }
+}
+
+export class OpsReplayStatusApi {
+  private client: HttpClient;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+
+/** Retrieve commit-journal replay status */
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<JournalReplayStatusView> {
+    return this.client.request<JournalReplayStatusView>(backendApiPath(`/ops/replay_status`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
+  }
+}
 
 export class OpsDiagnosticsApi {
   private client: HttpClient;
@@ -13,8 +48,8 @@ export class OpsDiagnosticsApi {
 
 
 /** Retrieve diagnostics */
-  async retrieve(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/diagnostics`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(backendApiPath(`/ops/diagnostics`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -32,12 +67,12 @@ export class OpsProviderBindingsDriftApi {
 
 
 /** Retrieve provider binding drift */
-  async retrieve(params?: OpsProviderBindingsDriftRetrieveParams): Promise<ProviderBindingDriftPageData> {
+  async retrieve(params?: OpsProviderBindingsDriftRetrieveParams, requestOptions?: ApiRequestOptions): Promise<ProviderBindingDriftPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<ProviderBindingDriftPageData>(appendQueryString(backendApiPath(`/ops/provider_bindings/drift`), query));
+    return this.client.request<ProviderBindingDriftPageData>(appendQueryString(backendApiPath(`/ops/provider_bindings/drift`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -57,12 +92,12 @@ export class OpsProviderBindingsApi {
 
 
 /** List provider bindings */
-  async list(params?: OpsProviderBindingsListParams): Promise<ProviderBindingSnapshotPageData> {
+  async list(params?: OpsProviderBindingsListParams, requestOptions?: ApiRequestOptions): Promise<ProviderBindingSnapshotPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<ProviderBindingSnapshotPageData>(appendQueryString(backendApiPath(`/ops/provider_bindings`), query));
+    return this.client.request<ProviderBindingSnapshotPageData>(appendQueryString(backendApiPath(`/ops/provider_bindings`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -75,8 +110,8 @@ export class OpsRuntimeDirApi {
 
 
 /** Inspect runtime directory */
-  async retrieve(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/runtime_dir`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(backendApiPath(`/ops/runtime_dir`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -89,8 +124,8 @@ export class OpsCommercialReadinessApi {
 
 
 /** Retrieve commercial readiness */
-  async retrieve(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/commercial_readiness`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(backendApiPath(`/ops/commercial_readiness`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -108,12 +143,12 @@ export class OpsLagApi {
 
 
 /** Retrieve operational lag */
-  async retrieve(params?: OpsLagRetrieveParams): Promise<LagPageData> {
+  async retrieve(params?: OpsLagRetrieveParams, requestOptions?: ApiRequestOptions): Promise<LagPageData> {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<LagPageData>(appendQueryString(backendApiPath(`/ops/lag`), query));
+    return this.client.request<LagPageData>(appendQueryString(backendApiPath(`/ops/lag`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 }
 
@@ -126,8 +161,8 @@ export class OpsClusterApi {
 
 
 /** Retrieve cluster state */
-  async retrieve(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/cluster`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(backendApiPath(`/ops/cluster`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -140,13 +175,12 @@ export class OpsHealthApi {
 
 
 /** Retrieve ops health */
-  async retrieve(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/health`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(backendApiPath(`/ops/health`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class OpsApi {
-
   public readonly health: OpsHealthApi;
   public readonly cluster: OpsClusterApi;
   public readonly lag: OpsLagApi;
@@ -154,9 +188,10 @@ export class OpsApi {
   public readonly runtimeDir: OpsRuntimeDirApi;
   public readonly providerBindings: OpsProviderBindingsApi;
   public readonly diagnostics: OpsDiagnosticsApi;
+  public readonly replayStatus: OpsReplayStatusApi;
+  public readonly retention: OpsRetentionApi;
 
   constructor(client: HttpClient) {
-
     this.health = new OpsHealthApi(client);
     this.cluster = new OpsClusterApi(client);
     this.lag = new OpsLagApi(client);
@@ -164,6 +199,8 @@ export class OpsApi {
     this.runtimeDir = new OpsRuntimeDirApi(client);
     this.providerBindings = new OpsProviderBindingsApi(client);
     this.diagnostics = new OpsDiagnosticsApi(client);
+    this.replayStatus = new OpsReplayStatusApi(client);
+    this.retention = new OpsRetentionApi(client);
   }
 
 }

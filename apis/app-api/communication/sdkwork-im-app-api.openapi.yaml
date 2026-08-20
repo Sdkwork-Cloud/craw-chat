@@ -93,7 +93,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -177,7 +176,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -261,7 +259,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -343,7 +340,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -419,7 +415,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -479,7 +474,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -564,7 +558,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -636,7 +629,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -712,7 +704,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -772,7 +763,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -824,7 +814,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -873,7 +862,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -919,7 +907,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -965,7 +952,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1011,7 +997,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1060,7 +1045,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1106,7 +1090,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1152,7 +1135,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1198,7 +1180,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1251,7 +1232,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1304,7 +1284,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1364,7 +1343,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
@@ -1454,7 +1432,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-idempotent: true
@@ -1535,7 +1512,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-idempotent: true
@@ -1605,7 +1581,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - ApiKey: []
         - AuthToken: []
           AccessToken: []
       x-sdkwork-idempotent: true
@@ -1617,10 +1592,6 @@ paths:
       x-sdkwork-rate-limit-tier: sensitive-command
 components:
   securitySchemes:
-    ApiKey:
-      type: apiKey
-      in: header
-      name: X-API-Key
     AuthToken:
       type: http
       scheme: bearer

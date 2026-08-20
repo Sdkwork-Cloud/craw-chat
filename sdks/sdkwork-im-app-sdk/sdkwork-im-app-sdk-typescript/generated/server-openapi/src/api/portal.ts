@@ -1,5 +1,5 @@
 import { appApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { PortalAccessSnapshot, PortalConversationSnapshot, PortalDashboardSnapshot, PortalGovernanceSnapshot, PortalModuleSnapshot, PortalRealtimeSnapshot, PortalWorkspaceView } from '../types';
 
@@ -13,8 +13,8 @@ export class PortalWorkspaceApi {
 
 
 /** Read the current tenant workspace snapshot */
-  async retrieve(): Promise<PortalWorkspaceView> {
-    return this.client.get<PortalWorkspaceView>(appApiPath(`/portal/workspace`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<PortalWorkspaceView> {
+    return this.client.request<PortalWorkspaceView>(appApiPath(`/portal/workspace`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -27,8 +27,8 @@ export class PortalRealtimeApi {
 
 
 /** Read the tenant realtime snapshot */
-  async retrieve(): Promise<PortalRealtimeSnapshot> {
-    return this.client.get<PortalRealtimeSnapshot>(appApiPath(`/portal/realtime`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<PortalRealtimeSnapshot> {
+    return this.client.request<PortalRealtimeSnapshot>(appApiPath(`/portal/realtime`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -41,8 +41,8 @@ export class PortalMediaApi {
 
 
 /** Read the tenant media snapshot */
-  async retrieve(): Promise<PortalModuleSnapshot> {
-    return this.client.get<PortalModuleSnapshot>(appApiPath(`/portal/media`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<PortalModuleSnapshot> {
+    return this.client.request<PortalModuleSnapshot>(appApiPath(`/portal/media`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -55,8 +55,8 @@ export class PortalHomeApi {
 
 
 /** Read the tenant portal home snapshot */
-  async retrieve(): Promise<PortalModuleSnapshot> {
-    return this.client.get<PortalModuleSnapshot>(appApiPath(`/portal/home`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<PortalModuleSnapshot> {
+    return this.client.request<PortalModuleSnapshot>(appApiPath(`/portal/home`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -69,8 +69,8 @@ export class PortalGovernanceApi {
 
 
 /** Read the tenant governance snapshot */
-  async retrieve(): Promise<PortalGovernanceSnapshot> {
-    return this.client.get<PortalGovernanceSnapshot>(appApiPath(`/portal/governance`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<PortalGovernanceSnapshot> {
+    return this.client.request<PortalGovernanceSnapshot>(appApiPath(`/portal/governance`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -83,8 +83,8 @@ export class PortalDashboardApi {
 
 
 /** Read the tenant dashboard snapshot */
-  async retrieve(): Promise<PortalDashboardSnapshot> {
-    return this.client.get<PortalDashboardSnapshot>(appApiPath(`/portal/dashboard`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<PortalDashboardSnapshot> {
+    return this.client.request<PortalDashboardSnapshot>(appApiPath(`/portal/dashboard`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -97,8 +97,8 @@ export class PortalConversationSnapshotApi {
 
 
 /** Read the tenant conversations snapshot */
-  async retrieve(): Promise<PortalConversationSnapshot> {
-    return this.client.get<PortalConversationSnapshot>(appApiPath(`/portal/conversations`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<PortalConversationSnapshot> {
+    return this.client.request<PortalConversationSnapshot>(appApiPath(`/portal/conversations`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -111,8 +111,8 @@ export class PortalAutomationApi {
 
 
 /** Read the tenant automation snapshot */
-  async retrieve(): Promise<PortalModuleSnapshot> {
-    return this.client.get<PortalModuleSnapshot>(appApiPath(`/portal/automation`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<PortalModuleSnapshot> {
+    return this.client.request<PortalModuleSnapshot>(appApiPath(`/portal/automation`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -125,13 +125,12 @@ export class PortalAccessApi {
 
 
 /** Read the tenant portal access snapshot */
-  async retrieve(): Promise<PortalAccessSnapshot> {
-    return this.client.get<PortalAccessSnapshot>(appApiPath(`/portal/access`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<PortalAccessSnapshot> {
+    return this.client.request<PortalAccessSnapshot>(appApiPath(`/portal/access`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class PortalApi {
-
   public readonly access: PortalAccessApi;
   public readonly automation: PortalAutomationApi;
   public readonly conversationSnapshot: PortalConversationSnapshotApi;
@@ -143,7 +142,6 @@ export class PortalApi {
   public readonly workspace: PortalWorkspaceApi;
 
   constructor(client: HttpClient) {
-
     this.access = new PortalAccessApi(client);
     this.automation = new PortalAutomationApi(client);
     this.conversationSnapshot = new PortalConversationSnapshotApi(client);

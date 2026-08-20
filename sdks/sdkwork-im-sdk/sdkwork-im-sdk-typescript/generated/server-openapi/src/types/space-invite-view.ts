@@ -1,4 +1,5 @@
 export interface SpaceInviteView {
+  /** Invitation identifier, passed as the inviteCode path parameter. */
   invitationId: string;
   inviterUserId: string;
   inviteeUserId?: string | null;

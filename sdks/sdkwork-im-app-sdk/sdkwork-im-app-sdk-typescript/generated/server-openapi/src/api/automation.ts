@@ -1,5 +1,5 @@
 import { appApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 import type { AgentToolCall, AppendAgentResponseDeltaRequest, AutomationExecution, AutomationExecutionRequestResponse, CompleteAgentResponseRequest, CompleteAgentToolCallRequest, RequestAgentToolCallRequest, RequestAutomationExecution, StartAgentResponseRequest, StreamFrame, StreamSession } from '../types';
 
@@ -13,13 +13,13 @@ export class AutomationExecutionsApi {
 
 
 /** Request an automation execution */
-  async create(body: RequestAutomationExecution): Promise<AutomationExecutionRequestResponse> {
-    return this.client.post<AutomationExecutionRequestResponse>(appApiPath(`/automation/executions`), body, undefined, undefined, 'application/json');
+  async create(body: RequestAutomationExecution, requestOptions?: ApiRequestOptions): Promise<AutomationExecutionRequestResponse> {
+    return this.client.request<AutomationExecutionRequestResponse>(appApiPath(`/automation/executions`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Get an automation execution */
-  async retrieve(executionId: string): Promise<AutomationExecution> {
-    return this.client.get<AutomationExecution>(appApiPath(`/automation/executions/${serializePathParameter(executionId, { name: 'executionId', style: 'simple', explode: false })}`));
+  async retrieve(executionId: string, requestOptions?: ApiRequestOptions): Promise<AutomationExecution> {
+    return this.client.request<AutomationExecution>(appApiPath(`/automation/executions/${serializePathParameter(executionId, { name: 'executionId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -32,13 +32,13 @@ export class AutomationAgentToolCallsApi {
 
 
 /** Request an agent tool call */
-  async create(body: RequestAgentToolCallRequest): Promise<AgentToolCall> {
-    return this.client.post<AgentToolCall>(appApiPath(`/automation/agent_tool_calls`), body, undefined, undefined, 'application/json');
+  async create(body: RequestAgentToolCallRequest, requestOptions?: ApiRequestOptions): Promise<AgentToolCall> {
+    return this.client.request<AgentToolCall>(appApiPath(`/automation/agent_tool_calls`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Complete an agent tool call */
-  async complete(executionId: string, toolCallId: string, body: CompleteAgentToolCallRequest): Promise<AgentToolCall> {
-    return this.client.post<AgentToolCall>(appApiPath(`/automation/executions/${serializePathParameter(executionId, { name: 'executionId', style: 'simple', explode: false })}/agent_tool_calls/${serializePathParameter(toolCallId, { name: 'toolCallId', style: 'simple', explode: false })}/complete`), body, undefined, undefined, 'application/json');
+  async complete(executionId: string, toolCallId: string, body: CompleteAgentToolCallRequest, requestOptions?: ApiRequestOptions): Promise<AgentToolCall> {
+    return this.client.request<AgentToolCall>(appApiPath(`/automation/executions/${serializePathParameter(executionId, { name: 'executionId', style: 'simple', explode: false })}/agent_tool_calls/${serializePathParameter(toolCallId, { name: 'toolCallId', style: 'simple', explode: false })}/complete`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -51,8 +51,8 @@ export class AutomationAgentResponsesFramesApi {
 
 
 /** Append a frame to an agent response stream */
-  async create(streamId: string, body: AppendAgentResponseDeltaRequest): Promise<StreamFrame> {
-    return this.client.post<StreamFrame>(appApiPath(`/automation/agent_responses/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), body, undefined, undefined, 'application/json');
+  async create(streamId: string, body: AppendAgentResponseDeltaRequest, requestOptions?: ApiRequestOptions): Promise<StreamFrame> {
+    return this.client.request<StreamFrame>(appApiPath(`/automation/agent_responses/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -67,24 +67,22 @@ export class AutomationAgentResponsesApi {
 
 
 /** Start an agent response stream */
-  async create(body: StartAgentResponseRequest): Promise<StreamSession> {
-    return this.client.post<StreamSession>(appApiPath(`/automation/agent_responses`), body, undefined, undefined, 'application/json');
+  async create(body: StartAgentResponseRequest, requestOptions?: ApiRequestOptions): Promise<StreamSession> {
+    return this.client.request<StreamSession>(appApiPath(`/automation/agent_responses`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 
 /** Complete an agent response stream */
-  async complete(streamId: string, body: CompleteAgentResponseRequest): Promise<StreamSession> {
-    return this.client.post<StreamSession>(appApiPath(`/automation/agent_responses/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/complete`), body, undefined, undefined, 'application/json');
+  async complete(streamId: string, body: CompleteAgentResponseRequest, requestOptions?: ApiRequestOptions): Promise<StreamSession> {
+    return this.client.request<StreamSession>(appApiPath(`/automation/agent_responses/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/complete`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class AutomationApi {
-
   public readonly agentResponses: AutomationAgentResponsesApi;
   public readonly agentToolCalls: AutomationAgentToolCallsApi;
   public readonly executions: AutomationExecutionsApi;
 
   constructor(client: HttpClient) {
-
     this.agentResponses = new AutomationAgentResponsesApi(client);
     this.agentToolCalls = new AutomationAgentToolCallsApi(client);
     this.executions = new AutomationExecutionsApi(client);

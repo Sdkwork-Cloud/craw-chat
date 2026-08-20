@@ -1,5 +1,5 @@
 import { appApiPath } from './paths';
-import type { HttpClient } from '../http/client';
+import type { ApiRequestOptions, HttpClient } from '../http/client';
 
 
 
@@ -12,8 +12,8 @@ export class ProviderPrincipalProfileHealthApi {
 
 
 /** Retrieve principal-profile provider health */
-  async retrieve(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(appApiPath(`/principal/profiles/provider_health`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(appApiPath(`/principal/profiles/provider_health`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
@@ -26,18 +26,16 @@ export class ProviderMediaHealthApi {
 
 
 /** Retrieve media provider health */
-  async retrieve(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(appApiPath(`/media/provider_health`));
+  async retrieve(requestOptions?: ApiRequestOptions): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(appApiPath(`/media/provider_health`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'item' });
   }
 }
 
 export class ProviderApi {
-
   public readonly mediaHealth: ProviderMediaHealthApi;
   public readonly principalProfileHealth: ProviderPrincipalProfileHealthApi;
 
   constructor(client: HttpClient) {
-
     this.mediaHealth = new ProviderMediaHealthApi(client);
     this.principalProfileHealth = new ProviderPrincipalProfileHealthApi(client);
   }
